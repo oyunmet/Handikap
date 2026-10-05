@@ -1,0 +1,1 @@
+- [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
