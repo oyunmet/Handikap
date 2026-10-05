@@ -164,6 +164,8 @@ export function createLevelState(levelId) {
     status: "playing",
     cascades: 0,
     lastMove: 0,
+    turnId: 0,
+    clearedCells: [],
     message: "",
   };
 }
@@ -183,6 +185,8 @@ function settleBoard(state, initialClear = new Set()) {
     fog: cloneFog(state.fog),
     collected: { ...state.collected },
     cascades: 0,
+    turnId: state.turnId + 1,
+    clearedCells: [],
   };
   let clear = initialClear;
   let safety = 0;
@@ -195,6 +199,7 @@ function settleBoard(state, initialClear = new Set()) {
       const [row, col] = key.split(":").map(Number);
       const tile = next.board[row][col];
       if (!tile) continue;
+      next.clearedCells.push({ row, col });
       next.collected[tile.type] = (next.collected[tile.type] ?? 0) + 1;
       if (next.fog[row][col]) next.fog[row][col] = false;
       next.score += 10 + Math.min(20, (next.cascades - 1) * 5);
@@ -214,6 +219,7 @@ function settleBoard(state, initialClear = new Set()) {
     clear = findMatches(next.board);
     safety += 1;
   }
+  next.clearedCells = [...new Map(next.clearedCells.map((cell) => [`${cell.row}:${cell.col}`, cell])).values()];
   if (!hasAvailableSwap(next.board)) {
     next.board = createPlayableBoard();
     next.message = "Taşlar yeniden dizildi.";

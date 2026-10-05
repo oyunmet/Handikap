@@ -99,6 +99,8 @@ function App() {
     try { return !localStorage.getItem(INTRO_KEY); } catch { return true; }
   });
   const [toast, setToast] = useState("");
+  const [burstTurnId, setBurstTurnId] = useState(0);
+  const [comboCue, setComboCue] = useState(null);
 
   const level = useMemo(() => getLevel(game.levelId), [game.levelId]);
   const region = useMemo(() => getRegion(level.regionId), [level.regionId]);
@@ -128,6 +130,17 @@ function App() {
     }, 2600);
     return () => window.clearTimeout(timer);
   }, [toast, game.message]);
+
+  useEffect(() => {
+    if (!game.turnId) return undefined;
+    setBurstTurnId(game.turnId);
+    setComboCue(game.cascades > 1 ? { turnId: game.turnId, count: game.cascades } : null);
+    const timer = window.setTimeout(() => {
+      setBurstTurnId((current) => current === game.turnId ? 0 : current);
+      setComboCue((current) => current?.turnId === game.turnId ? null : current);
+    }, 1150);
+    return () => window.clearTimeout(timer);
+  }, [game.turnId, game.cascades]);
 
   const dismissHelp = () => {
     setShowHelp(false);
@@ -294,20 +307,25 @@ function App() {
                   <span className="board-heading-title">IŞIK ALANI <span style={{ opacity: .55 }}>—</span> 08 × 08</span>
                   <span className="board-hint">{targetMode ? "Işığın düşeceği kareyi seç" : "Yan yana iki kareyi seç"}</span>
                 </div>
+                {comboCue?.turnId === game.turnId && <div className="combo-cue" key={comboCue.turnId} role="status">
+                    <SparkIcon /><span><strong>ZİNCİR IŞIĞI</strong><b>{comboCue.count}×</b></span>
+                </div>}
                 <div className="board-grid" role="grid" aria-label="Sekiz çarpı sekiz ışık taşı tahtası">
                   {game.board.map((row, rowIndex) => row.map((tile, colIndex) => {
                     const meta = TILE_META[tile.type];
                     const isSelected = selected?.row === rowIndex && selected?.col === colIndex;
+                    const isBurstCell = burstTurnId === game.turnId && game.clearedCells.some((cell) => cell.row === rowIndex && cell.col === colIndex);
                     return (
                       <button
                         key={tile.id}
-                        className={`tile-cell${isSelected ? " selected" : ""}`}
+                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}`}
                         style={{ "--tile-color": meta.color, "--tile-deep": meta.deep, "--cell-index": rowIndex * 8 + colIndex }}
                         onClick={() => handleTile(rowIndex, colIndex)}
                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
                         role="gridcell"
                       >
                         <Glyph type={tile.type} />
+                        {isBurstCell && <span className="match-burst" key={`${game.turnId}-${rowIndex}-${colIndex}`} aria-hidden="true" />}
                         {game.fog[rowIndex][colIndex] && <span className="fog-veil" aria-hidden="true" />}
                       </button>
                     );
