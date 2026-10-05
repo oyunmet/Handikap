@@ -1,1 +1,2 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
+- [Handikap's original identity](handikap-original-identity.md) — Borrow broad match-3 ideas and visual quality, but do not copy another game's exact art or interface.

@@ -28,33 +28,78 @@ function readProgress() {
   }
 }
 
-function Glyph({ type, className = "" }) {
+function Glyph({ type, special, className = "" }) {
   const common = {
     className: `tile-symbol ${className}`,
     viewBox: "0 0 48 48",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: "2.2",
+    strokeWidth: "2.35",
     strokeLinecap: "round",
     strokeLinejoin: "round",
     "aria-hidden": true,
   };
+  if (special === "bomb") {
+    return <svg {...common} className={`${common.className} special-bomb-mark`}>
+      <path d="M16 22a8 8 0 0 1 16 0v9a8 8 0 0 1-16 0v-9Z" fill="currentColor" fillOpacity=".82" />
+      <path d="M19 22a5 5 0 0 1 10 0v8a5 5 0 0 1-10 0v-8Z" fill="currentColor" fillOpacity=".25" />
+      <path d="M27 14c.7-5 4-7 9-7" />
+      <path d="m37 5 1.1 2.4 2.5.9-2.5.9-1.1 2.4-.9-2.4-2.5-.9 2.5-.9L37 5Z" fill="currentColor" stroke="none" />
+      <path d="M21 25c1-1 2-1 3 0m-1-4v2" stroke="white" strokeOpacity=".78" />
+    </svg>;
+  }
   if (type === 0) {
-    return <svg {...common}><circle cx="24" cy="24" r="8" fill="currentColor" stroke="none" />{Array.from({ length: 8 }, (_, i) => <path key={i} d="M24 5v5" transform={`rotate(${i * 45} 24 24)`} />)}</svg>;
+    return <svg {...common}>
+      <path d="m14 11 10-5 10 5 5 13-5 13-10 5-10-5-5-13 5-13Z" fill="currentColor" fillOpacity=".24" />
+      <path d="m14 11 10 5 10-5M9 24h30M14 37l10-5 10 5M24 16v16" />
+      <path d="m19 24 5-8 5 8-5 8-5-8Z" fill="currentColor" fillOpacity=".45" />
+    </svg>;
   }
   if (type === 1) {
-    return <svg {...common}><path d="M10 35C11 17 23 9 39 9c0 17-7 29-25 30" /><path d="M14 35c5-8 11-14 21-20" /><path d="M19 27 18 17m8 4 8 1" /></svg>;
+    return <svg {...common}>
+      <path d="M23 37C12 34 8 26 10 15c10-1 18 3 20 13M25 35c1-11 7-18 17-20 2 11-2 20-12 24" fill="currentColor" fillOpacity=".28" />
+      <path d="M14 19c4 4 8 9 11 16m12-14c-5 4-8 9-10 16" />
+      <path d="M23 35v6" />
+    </svg>;
   }
   if (type === 2) {
-    return <svg {...common}><path d="M24 40V21m0 5-8-8m8 3 8-11m-8 19-10 1m10-8 10 2" /><circle cx="15" cy="16" r="3" fill="currentColor" stroke="none" /><circle cx="33" cy="9" r="3" fill="currentColor" stroke="none" /><circle cx="34" cy="23" r="3" fill="currentColor" stroke="none" /><circle cx="13" cy="31" r="3" fill="currentColor" stroke="none" /><path d="M20 41h8" /></svg>;
+    return <svg {...common}>
+      <path d="M8 34a16 16 0 0 1 32 0H8Z" fill="currentColor" fillOpacity=".25" />
+      <path d="M8 34a16 16 0 0 1 32 0M12 31l7 3m-2-11 6 10m4-11-3 11m10-8-7 10" />
+      <path d="M7 38h34" />
+    </svg>;
   }
   if (type === 3) {
-    return <svg {...common}><path d="m24 5 4.4 13.1L42 24l-13.6 5.9L24 43l-4.4-13.1L6 24l13.6-5.9L24 5Z" fill="currentColor" fillOpacity=".18" /><circle cx="24" cy="24" r="3" fill="currentColor" stroke="none" /></svg>;
+    return <svg {...common}>
+      <path d="m24 5 15 13-4 20H13L9 18 24 5Z" fill="currentColor" fillOpacity=".28" />
+      <path d="m24 5 1 14 14-1m-14 1-12 21m12-21 12 21M9 18h30" />
+      <path d="m17 18 7-13 7 13-7 21-7-21Z" fill="currentColor" fillOpacity=".2" />
+    </svg>;
   }
   if (type === 4) {
-    return <svg {...common}><path d="M24 5C19 13 12 21 12 29a12 12 0 0 0 24 0c0-8-7-16-12-24Z" fill="currentColor" fillOpacity=".17" /><path d="M18 30c.4 3.7 2.4 5.8 5.8 6.4" /></svg>;
+    return <svg {...common}>
+      <path d="M7 17c5-5 10-5 15 0s10 5 19 0M7 25c5-5 10-5 15 0s10 5 19 0M7 33c5-5 10-5 15 0s10 5 19 0" />
+      <path d="M7 17c5-5 10-5 15 0s10 5 19 0" fill="currentColor" fillOpacity=".18" />
+      <circle cx="24" cy="10" r="3" fill="currentColor" stroke="none" />
+    </svg>;
   }
-  return <svg {...common}><path d="M33.8 30.2A15 15 0 0 1 18 8.7a15.2 15.2 0 1 0 15.8 21.5Z" fill="currentColor" fillOpacity=".2" /><path d="m31.5 9 .8 2.4 2.4.8-2.4.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.4Z" fill="currentColor" stroke="none" /></svg>;
+  return <svg {...common}>
+    <circle cx="24" cy="24" r="13" fill="currentColor" fillOpacity=".22" />
+    <circle cx="24" cy="24" r="8" />
+    <path d="M8 20c4-9 13-14 23-11m9 19c-4 9-13 14-23 11" />
+    <circle cx="11" cy="17" r="2.3" fill="currentColor" stroke="none" />
+    <circle cx="37" cy="31" r="2.3" fill="currentColor" stroke="none" />
+  </svg>;
+}
+
+function FishGlyph() {
+  return <svg className="fish-glyph" viewBox="0 0 64 42" fill="none" aria-hidden="true">
+    <path d="M11 21c7-10 17-15 29-12l11 12-11 12c-12 3-22-2-29-12Z" fill="#ffd56d" stroke="#fff7d0" strokeWidth="2" />
+    <path d="m49 21 12-11-2 11 2 11-12-11Z" fill="#f28f79" stroke="#fff7d0" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M25 11c1-6 7-8 13-7l-3 8m-10 20c1 6 7 8 13 7l-3-8" fill="#8fd6c4" stroke="#fff7d0" strokeWidth="1.6" strokeLinejoin="round" />
+    <circle cx="18" cy="19" r="2.2" fill="#294e49" />
+    <path d="M27 21c3-4 7-4 10 0-3 4-7 4-10 0Z" fill="#fff4bc" fillOpacity=".82" />
+  </svg>;
 }
 
 function BrandGlyph() {
@@ -141,7 +186,7 @@ function App() {
     const timer = window.setTimeout(() => {
       setBurstTurnId((current) => current === game.turnId ? 0 : current);
       setComboCue((current) => current?.turnId === game.turnId ? null : current);
-    }, 1150);
+    }, 1450);
     return () => window.clearTimeout(timer);
   }, [game.turnId, game.cascades]);
 
@@ -360,7 +405,7 @@ function App() {
           </div>
 
           {completedCount === 0 && <div className="instructions-banner">
-            <span>Üç aynı ışığı yan yana getir. Sis kalkar; her eşleşme ışık tohumunu biraz daha doldurur.</span>
+            <span>Üçlü eşleşme sisi kaldırır; dörtlü balık, beşli bomba bonusu üretir.</span>
             <button onClick={() => setShowHelp(true)}>Nasıl oynanır?</button>
           </div>}
 
@@ -394,6 +439,7 @@ function App() {
                     const meta = TILE_META[tile.type];
                     const isSelected = selected?.row === rowIndex && selected?.col === colIndex;
                     const isBurstCell = burstTurnId === game.turnId && game.clearedCells.some((cell) => cell.row === rowIndex && cell.col === colIndex);
+                    const isBombCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "bomb-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
                     const isDragStart = dragPreview?.start.row === rowIndex && dragPreview?.start.col === colIndex;
                     const isDragTarget = dragPreview?.target?.row === rowIndex && dragPreview?.target?.col === colIndex;
                     return (
@@ -401,19 +447,53 @@ function App() {
                         key={tile.id}
                         data-row={rowIndex}
                         data-col={colIndex}
-                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isDragStart ? " dragging" : ""}${isDragTarget ? " drag-target" : ""}`}
-                        style={{ "--tile-color": meta.color, "--tile-deep": meta.deep, "--cell-index": rowIndex * 8 + colIndex }}
+                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isDragStart ? " dragging" : ""}${isDragTarget ? " drag-target" : ""}${tile.special === "bomb" ? " special-bomb" : ""}${isBombCreated ? " bomb-created-cell" : ""}`}
+                        style={{
+                          "--tile-color": tile.special === "bomb" ? "#ffd879" : meta.color,
+                          "--tile-deep": tile.special === "bomb" ? "#d65343" : meta.deep,
+                          "--cell-index": rowIndex * 8 + colIndex,
+                        }}
                         onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}
-                        aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
+                        aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${tile.special === "bomb" ? "bomba, " : ""}${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
                         role="gridcell"
                       >
-                        <Glyph type={tile.type} />
+                        <Glyph type={tile.type} special={tile.special} />
                         {isBurstCell && <span className="match-burst" key={`${game.turnId}-${rowIndex}-${colIndex}`} aria-hidden="true" />}
                         {game.fog[rowIndex][colIndex] && <span className="fog-veil" aria-hidden="true" />}
                       </button>
                     );
                   }))}
+                  {burstTurnId === game.turnId && game.specialEffects.map((effect, index) => {
+                    if (effect.type === "fish") {
+                      const dx = effect.to.col - effect.from.col;
+                      const dy = effect.to.row - effect.from.row;
+                      return <span
+                        className="fish-flight"
+                        key={`fish-${game.turnId}-${index}`}
+                        style={{
+                          "--from-x": `${(effect.from.col + 0.5) * 12.5}%`,
+                          "--from-y": `${(effect.from.row + 0.5) * 12.5}%`,
+                          "--to-x": `${(effect.to.col + 0.5) * 12.5}%`,
+                          "--to-y": `${(effect.to.row + 0.5) * 12.5}%`,
+                          "--fish-angle": `${Math.atan2(dy, dx) * (180 / Math.PI)}deg`,
+                        }}
+                        aria-hidden="true"
+                      ><FishGlyph /></span>;
+                    }
+                    if (effect.type === "bomb-created" || effect.type === "bomb-explosion") {
+                      return <span
+                        className={`bomb-board-effect ${effect.type === "bomb-created" ? "created" : "exploded"}`}
+                        key={`bomb-${game.turnId}-${index}`}
+                        style={{
+                          "--effect-x": `${(effect.at.col + 0.5) * 12.5}%`,
+                          "--effect-y": `${(effect.at.row + 0.5) * 12.5}%`,
+                        }}
+                        aria-hidden="true"
+                      />;
+                    }
+                    return null;
+                  })}
                 </div>
                 <div className="board-footer">
                   <span className="board-caption">{targetMode ? <><strong>Hedef seçimi açık</strong> · tıklayarak tohumu bırak</> : <>Hamleni düşün. <strong>Taşlar hatırlar.</strong></>}</span>
@@ -493,7 +573,7 @@ function App() {
 
               <section className="side-card tip-card">
                 <span className="tip-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.3-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.7-7 11-7 11Z" stroke="currentColor" strokeWidth="1.6" /><path d="M12 17V9m0 4-3-2m3 0 2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
-                <p className="tip-text"><strong>Bir adım ötesi:</strong> Daha büyük eşleşmeler ışığı daha hızlı doldurur. Tohumu hamle saymadan kullan.</p>
+                <p className="tip-text"><strong>Özel taşlar:</strong> Dörtlü eşleşmede balık hedefe uçar; beşli bomba, komşusuyla yer değiştirince patlar.</p>
               </section>
             </aside>
           </div>
@@ -507,11 +587,11 @@ function App() {
           <div className="help-top"><div><div className="eyebrow">BAHÇEYE HOŞ GELDİN</div><h2 className="help-title" id="help-title">Işık nasıl bulunur?</h2></div>
             <button className="icon-button" aria-label="Yardımı kapat" onClick={dismissHelp}><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg></button>
           </div>
-          <p className="help-copy">Taşlar rastgele güçlendirme değil, senin kurduğun küçük bir planın parçası. Her bölümde önce sisli manzarayı uyandır.</p>
+          <p className="help-copy">Bahçenin taşları eşleşme biçimine göre farklı güçler kazanır. Hamlelerini hedeflere ve sise göre planla.</p>
           <div className="help-steps">
-             <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle ya da iki komşu taşa dokun.</strong> Üç aynı ışık yan yana gelirse eşleşme oluşur. Hedef taşları ve sisli kareleri temizle.</p></div>
-            <div className="help-step"><span className="step-number">02</span><p><strong>Işığı biriktir.</strong> Temizlenen her taş tohumu doldurur. Sayaç dolunca “Hedef seç” ile tahtada bir kareye dokun.</p></div>
-            <div className="help-step"><span className="step-number">03</span><p><strong>Üç adım sonrasını düşün.</strong> Tohum 3 × 3 alanı hamle harcamadan arındırır. Hem hedefleri tamamla hem bütün sisi kaldır.</p></div>
+             <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle ya da iki komşu taşa dokun.</strong> Üç aynı taş eşleşir, hedefleri toplar ve sisi kaldırır.</p></div>
+            <div className="help-step"><span className="step-number">02</span><p><strong>Dörtlüde balık, beşlide bomba.</strong> Balık hedefe dalar; bombayı komşu taşla değiştirerek 3 × 3 alanda patlat.</p></div>
+            <div className="help-step"><span className="step-number">03</span><p><strong>Işık tohumunu doldur.</strong> Temizlenen taşlar sayacı artırır; dolunca 3 × 3 alanı hamle harcamadan arındır.</p></div>
           </div>
           <div className="help-close"><button className="primary-button" onClick={dismissHelp}>Bahçeye gir</button></div>
         </section>

@@ -58,36 +58,48 @@ function newTile(type = randomTile()) {
   return { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`, type };
 }
 
-function hasMatchAt(board, row, col) {
-  const type = board[row]?.[col]?.type;
-  if (type === undefined) return false;
-  let horizontal = 1;
-  for (let x = col - 1; x >= 0 && board[row][x]?.type === type; x -= 1) horizontal += 1;
-  for (let x = col + 1; x < SIZE && board[row][x]?.type === type; x += 1) horizontal += 1;
-  let vertical = 1;
-  for (let y = row - 1; y >= 0 && board[y][col]?.type === type; y -= 1) vertical += 1;
-  for (let y = row + 1; y < SIZE && board[y][col]?.type === type; y += 1) vertical += 1;
-  return horizontal >= 3 || vertical >= 3;
+export function findMatches(board) {
+  return new Set(findMatchRuns(board).flatMap((run) => run.cells.map(({ row, col }) => keyOf(row, col))));
 }
 
-export function findMatches(board) {
-  const matches = new Set();
+function findMatchRuns(board) {
+  const runs = [];
   for (let row = 0; row < SIZE; row += 1) {
-    for (let col = 0; col < SIZE; col += 1) {
+    for (let col = 0; col < SIZE;) {
       const type = board[row][col]?.type;
-      if (type === undefined) continue;
-      if (col + 2 < SIZE && board[row][col + 1]?.type === type && board[row][col + 2]?.type === type) {
-        let end = col + 2;
-        while (end + 1 < SIZE && board[row][end + 1]?.type === type) end += 1;
-        for (let x = col; x <= end; x += 1) matches.add(keyOf(row, x));
+      let end = col + 1;
+      while (type !== undefined && end < SIZE && board[row][end]?.type === type) end += 1;
+      if (type !== undefined && end - col >= 3) {
+        runs.push({
+          type,
+          orientation: "horizontal",
+          cells: Array.from({ length: end - col }, (_, offset) => ({ row, col: col + offset })),
+        });
       }
-      if (row + 2 < SIZE && board[row + 1][col]?.type === type && board[row + 2][col]?.type === type) {
-        let end = row + 2;
-        while (end + 1 < SIZE && board[end + 1][col]?.type === type) end += 1;
-        for (let y = row; y <= end; y += 1) matches.add(keyOf(y, col));
-      }
+      col = end > col + 1 ? end : col + 1;
     }
   }
+  for (let col = 0; col < SIZE; col += 1) {
+    for (let row = 0; row < SIZE;) {
+      const type = board[row][col]?.type;
+      let end = row + 1;
+      while (type !== undefined && end < SIZE && board[end][col]?.type === type) end += 1;
+      if (type !== undefined && end - row >= 3) {
+        runs.push({
+          type,
+          orientation: "vertical",
+          cells: Array.from({ length: end - row }, (_, offset) => ({ row: row + offset, col })),
+        });
+      }
+      row = end > row + 1 ? end : row + 1;
+    }
+  }
+  return runs;
+}
+
+function cellsFromRuns(runs) {
+  const matches = new Set();
+  for (const run of runs) for (const cell of run.cells) matches.add(keyOf(cell.row, cell.col));
   return matches;
 }
 
@@ -122,6 +134,7 @@ export function hasAvailableSwap(board) {
         const otherRow = row + dr;
         const otherCol = col + dc;
         if (otherRow >= SIZE || otherCol >= SIZE) continue;
+        if (board[row][col]?.special === "bomb" || board[otherRow][otherCol]?.special === "bomb") return true;
         const copy = cloneBoard(board);
         [copy[row][col], copy[otherRow][otherCol]] = [copy[otherRow][otherCol], copy[row][col]];
         if (findMatches(copy).size > 0) return true;
@@ -129,6 +142,99 @@ export function hasAvailableSwap(board) {
     }
   }
   return false;
+}
+
+function chooseAnchor(cells, preferred = []) {
+  for (const candidate of preferred) {
+    if (cells.some((cell) => cell.row === candidate.row && cell.col === candidate.col)) return candidate;
+  }
+  return cells[Math.floor(cells.length / 2)];
+}
+
+function chooseFishTarget(board, clear, state, from) {
+  const level = LEVELS.find((item) => item.id === state.levelId) ?? LEVELS[0];
+  let bestTarget = null;
+  let bestScore = -Infinity;
+  for (let row = 0; row < SIZE; row += 1) {
+    for (let col = 0; col < SIZE; col += 1) {
+      const key = keyOf(row, col);
+      const tile = board[row][col];
+      if (!tile || clear.has(key)) continue;
+      const goal = level.goals.find((item) => item.type === tile.type);
+      const remaining = goal ? Math.max(0, goal.count - (state.collected[tile.type] ?? 0)) : 0;
+      const distance = Math.abs(row - from.row) + Math.abs(col - from.col);
+      const score = (remaining > 0 ? 70 + (remaining / goal.count) * 25 : 0)
+        + (state.fog[row][col] ? 35 : 0)
+        + (tile.special === "bomb" ? 55 : 0)
+        - distance;
+      if (score > bestScore) {
+        bestScore = score;
+        bestTarget = { row, col };
+      }
+    }
+  }
+  return bestTarget;
+}
+
+function prepareMatchWave(board, runs, state, preferred = []) {
+  const clear = cellsFromRuns(runs);
+  const effects = [];
+  if (!clear.size) return { clear, effects };
+
+  const longestRun = [...runs].sort((a, b) => b.cells.length - a.cells.length)[0];
+  const hasFiveMatch = longestRun?.cells.length >= 5 || clear.size >= 5;
+  const fourRun = runs.find((run) => run.cells.length === 4);
+  const reward = hasFiveMatch ? "bomb" : fourRun ? "fish" : null;
+  if (!reward) return { clear, effects };
+
+  const anchorCells = hasFiveMatch && longestRun.cells.length < 5
+    ? [...clear].map((key) => {
+      const [row, col] = key.split(":").map(Number);
+      return { row, col };
+    })
+    : (hasFiveMatch ? longestRun.cells : fourRun.cells);
+  const anchor = chooseAnchor(anchorCells, preferred);
+
+  if (reward === "bomb") {
+    const tile = board[anchor.row][anchor.col];
+    if (tile) {
+      board[anchor.row][anchor.col] = { ...tile, special: "bomb" };
+      clear.delete(keyOf(anchor.row, anchor.col));
+      effects.push({ type: "bomb-created", at: anchor });
+    }
+  } else {
+    const from = chooseAnchor(fourRun.cells, preferred);
+    const to = chooseFishTarget(board, clear, state, from);
+    if (to) {
+      clear.add(keyOf(to.row, to.col));
+      effects.push({ type: "fish", from, to });
+    }
+  }
+  return { clear, effects };
+}
+
+function expandBombs(board, clear, effects) {
+  const expanded = new Set(clear);
+  const queue = [...clear];
+  const triggered = new Set();
+  while (queue.length) {
+    const key = queue.pop();
+    if (triggered.has(key)) continue;
+    triggered.add(key);
+    const [row, col] = key.split(":").map(Number);
+    if (board[row][col]?.special !== "bomb") continue;
+    effects.push({ type: "bomb-explosion", at: { row, col } });
+    for (let targetRow = Math.max(0, row - 1); targetRow <= Math.min(SIZE - 1, row + 1); targetRow += 1) {
+      for (let targetCol = Math.max(0, col - 1); targetCol <= Math.min(SIZE - 1, col + 1); targetCol += 1) {
+        const targetKey = keyOf(targetRow, targetCol);
+        if (!expanded.has(targetKey)) {
+          expanded.add(targetKey);
+          queue.push(targetKey);
+        }
+      }
+    }
+  }
+  return expanded;
 }
 
 function makeFog(level) {
@@ -166,6 +272,7 @@ export function createLevelState(levelId) {
     lastMove: 0,
     turnId: 0,
     clearedCells: [],
+    specialEffects: [],
     message: "",
   };
 }
@@ -178,7 +285,7 @@ function goalsComplete(state, level) {
   return level.goals.every(({ type, count }) => (state.collected[type] ?? 0) >= count) && countFog(state.fog) === 0;
 }
 
-function settleBoard(state, initialClear = new Set()) {
+function settleBoard(state, initialClear = new Set(), initialEffects = []) {
   const next = {
     ...state,
     board: cloneBoard(state.board),
@@ -187,12 +294,20 @@ function settleBoard(state, initialClear = new Set()) {
     cascades: 0,
     turnId: state.turnId + 1,
     clearedCells: [],
+    specialEffects: [...initialEffects],
   };
-  let clear = initialClear;
+  let clear = new Set(initialClear);
   let safety = 0;
-  while ((clear.size || findMatches(next.board).size) && safety < 30) {
-    if (!clear.size) clear = findMatches(next.board);
+  while (safety < 30) {
+    if (!clear.size) {
+      const runs = findMatchRuns(next.board);
+      if (!runs.length) break;
+      const prepared = prepareMatchWave(next.board, runs, next);
+      clear = prepared.clear;
+      next.specialEffects.push(...prepared.effects);
+    }
     if (!clear.size) break;
+    clear = expandBombs(next.board, clear, next.specialEffects);
     next.cascades += 1;
     next.lastMove += clear.size;
     for (const key of clear) {
@@ -216,7 +331,7 @@ function settleBoard(state, initialClear = new Set()) {
         next.board[row][col] = survivors[index];
       }
     }
-    clear = findMatches(next.board);
+    clear = new Set();
     safety += 1;
   }
   next.clearedCells = [...new Map(next.clearedCells.map((cell) => [`${cell.row}:${cell.col}`, cell])).values()];
@@ -243,10 +358,19 @@ export function swapTiles(state, first, second) {
   const level = LEVELS.find((item) => item.id === state.levelId) ?? LEVELS[0];
   const board = cloneBoard(state.board);
   [board[first.row][first.col], board[second.row][second.col]] = [board[second.row][second.col], board[first.row][first.col]];
-  if (findMatches(board).size === 0) {
+  const runs = findMatchRuns(board);
+  const swappedBombs = [first, second].filter(({ row, col }) => board[row][col]?.special === "bomb");
+  if (runs.length === 0 && swappedBombs.length === 0) {
     return { ...state, message: "Eşleşme olmadı; başka bir taş dene." };
   }
-  let next = settleBoard({ ...state, board, movesLeft: state.movesLeft - 1, message: "" });
+  let prepared = { clear: new Set(), effects: [] };
+  if (swappedBombs.length) {
+    prepared.clear = cellsFromRuns(runs);
+    for (const { row, col } of swappedBombs) prepared.clear.add(keyOf(row, col));
+  } else {
+    prepared = prepareMatchWave(board, runs, state, [second, first]);
+  }
+  let next = settleBoard({ ...state, board, movesLeft: state.movesLeft - 1, message: "" }, prepared.clear, prepared.effects);
   next = finishTurn(next, level);
   return next;
 }

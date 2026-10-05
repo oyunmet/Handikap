@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5000",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 5000"
+    "preview": "vite preview --host 0.0.0.0 --port 5000",
+    "test": "node --test"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^6.1.2",
