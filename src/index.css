@@ -665,7 +665,26 @@ body { color: #193b36; }
   transition: transform .16s cubic-bezier(.2,.8,.2,1);
   animation: tile-appear .32s both cubic-bezier(.2,.7,.3,1);
   animation-delay: calc(var(--cell-index, 0) * 2ms);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
+.tile-cell.dragging {
+  z-index: 7;
+  transform: translateY(-3px) scale(1.12);
+  cursor: grabbing;
+  filter: drop-shadow(0 8px 8px rgba(2, 21, 23, .35));
+}
+.tile-cell.dragging::before { transform: scale(1.05); }
+.tile-cell.drag-target {
+  z-index: 6;
+  transform: scale(.9);
+  outline: 2px solid rgba(244, 255, 188, .96);
+  outline-offset: 1px;
+  background: rgba(215, 245, 159, .2);
+  box-shadow: 0 0 0 5px rgba(220, 255, 150, .14), 0 0 20px rgba(220, 255, 150, .3);
+}
+.tile-cell.drag-target::before { transform: scale(.93); filter: brightness(1.1); }
 .tile-cell::before {
   content: "";
   position: absolute;

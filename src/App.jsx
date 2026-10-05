@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   LEVELS,
   REGIONS,
@@ -93,6 +93,7 @@ function App() {
   const [game, setGame] = useState(() => createLevelState(1));
   const [progress, setProgress] = useState(readProgress);
   const [selected, setSelected] = useState(null);
+  const [dragPreview, setDragPreview] = useState(null);
   const [targetMode, setTargetMode] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(() => {
@@ -101,6 +102,8 @@ function App() {
   const [toast, setToast] = useState("");
   const [burstTurnId, setBurstTurnId] = useState(0);
   const [comboCue, setComboCue] = useState(null);
+  const dragRef = useRef(null);
+  const suppressClickRef = useRef(false);
 
   const level = useMemo(() => getLevel(game.levelId), [game.levelId]);
   const region = useMemo(() => getRegion(level.regionId), [level.regionId]);
@@ -157,6 +160,7 @@ function App() {
   };
 
   const handleTile = (row, col) => {
+    if (suppressClickRef.current) return;
     if (mapOpen || game.status !== "playing") return;
     if (targetMode) {
       setGame((current) => fireLightSeed(current, { row, col }));
@@ -181,6 +185,81 @@ function App() {
     }
     setSelected({ row, col });
   };
+
+  const startTileDrag = (event, row, col) => {
+    if ((event.pointerType === "mouse" && event.button !== 0) || dragRef.current) return;
+    if (mapOpen || targetMode || game.status !== "playing") return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      start: { row, col },
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+  };
+
+  useEffect(() => {
+    const cellAtPoint = (event) => {
+      const tile = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".tile-cell");
+      if (!tile) return null;
+      return { row: Number(tile.dataset.row), col: Number(tile.dataset.col) };
+    };
+
+    const handlePointerMove = (event) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 10) return;
+      drag.moved = true;
+      const target = cellAtPoint(event);
+      setDragPreview((current) => {
+        if (
+          current?.start.row === drag.start.row &&
+          current?.start.col === drag.start.col &&
+          current?.target?.row === target?.row &&
+          current?.target?.col === target?.col
+        ) return current;
+        return { start: drag.start, target };
+      });
+    };
+
+    const handlePointerUp = (event) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const wasDrag = drag.moved;
+      const target = cellAtPoint(event);
+      dragRef.current = null;
+      setDragPreview(null);
+      if (!wasDrag) return;
+
+      suppressClickRef.current = true;
+      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+      if (!target || mapOpen || targetMode || game.status !== "playing") return;
+
+      const distance = Math.abs(drag.start.row - target.row) + Math.abs(drag.start.col - target.col);
+      if (distance === 1) {
+        setGame((current) => swapTiles(current, drag.start, target));
+        setSelected(null);
+        setToast("");
+      } else if (distance > 1) {
+        setToast("Bir taşı yalnızca yanındaki kareye sürükleyebilirsin.");
+      }
+    };
+
+    const handlePointerCancel = (event) => {
+      if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
+      dragRef.current = null;
+      setDragPreview(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
+    };
+  }, [game.status, mapOpen, targetMode]);
 
   const retryLevel = () => startLevel(game.levelId);
   const completedCount = Object.keys(progress.completed).filter((id) => Number(id) >= 1 && Number(id) <= 9).length;
@@ -305,7 +384,7 @@ function App() {
               <div className="board-card">
                 <div className="board-heading">
                   <span className="board-heading-title">IŞIK ALANI <span style={{ opacity: .55 }}>—</span> 08 × 08</span>
-                  <span className="board-hint">{targetMode ? "Işığın düşeceği kareyi seç" : "Yan yana iki kareyi seç"}</span>
+                  <span className="board-hint">{targetMode ? "Işığın düşeceği kareyi seç" : "Taşı sürükle ya da dokun"}</span>
                 </div>
                 {comboCue?.turnId === game.turnId && <div className="combo-cue" key={comboCue.turnId} role="status">
                     <SparkIcon /><span><strong>ZİNCİR IŞIĞI</strong><b>{comboCue.count}×</b></span>
@@ -315,11 +394,16 @@ function App() {
                     const meta = TILE_META[tile.type];
                     const isSelected = selected?.row === rowIndex && selected?.col === colIndex;
                     const isBurstCell = burstTurnId === game.turnId && game.clearedCells.some((cell) => cell.row === rowIndex && cell.col === colIndex);
+                    const isDragStart = dragPreview?.start.row === rowIndex && dragPreview?.start.col === colIndex;
+                    const isDragTarget = dragPreview?.target?.row === rowIndex && dragPreview?.target?.col === colIndex;
                     return (
                       <button
                         key={tile.id}
-                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}`}
+                        data-row={rowIndex}
+                        data-col={colIndex}
+                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isDragStart ? " dragging" : ""}${isDragTarget ? " drag-target" : ""}`}
                         style={{ "--tile-color": meta.color, "--tile-deep": meta.deep, "--cell-index": rowIndex * 8 + colIndex }}
+                        onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}
                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
                         role="gridcell"
@@ -425,7 +509,7 @@ function App() {
           </div>
           <p className="help-copy">Taşlar rastgele güçlendirme değil, senin kurduğun küçük bir planın parçası. Her bölümde önce sisli manzarayı uyandır.</p>
           <div className="help-steps">
-            <div className="help-step"><span className="step-number">01</span><p><strong>İki komşu taşı seç.</strong> Yer değişince üç aynı ışık yan yana gelirse eşleşme oluşur. Hedef taşları ve sisli kareleri temizle.</p></div>
+             <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle ya da iki komşu taşa dokun.</strong> Üç aynı ışık yan yana gelirse eşleşme oluşur. Hedef taşları ve sisli kareleri temizle.</p></div>
             <div className="help-step"><span className="step-number">02</span><p><strong>Işığı biriktir.</strong> Temizlenen her taş tohumu doldurur. Sayaç dolunca “Hedef seç” ile tahtada bir kareye dokun.</p></div>
             <div className="help-step"><span className="step-number">03</span><p><strong>Üç adım sonrasını düşün.</strong> Tohum 3 × 3 alanı hamle harcamadan arındırır. Hem hedefleri tamamla hem bütün sisi kaldır.</p></div>
           </div>
