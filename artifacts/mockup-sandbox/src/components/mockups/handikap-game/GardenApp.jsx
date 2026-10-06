@@ -11,8 +11,8 @@ import {
   swapTiles,
 } from "./game.js";
 
-const PROGRESS_KEY = "handikap-fig-progress-v1";
-const INTRO_KEY = "handikap-fig-intro-seen";
+const PROGRESS_KEY = "handikap-mockup-progress-v1";
+const INTRO_KEY = "handikap-mockup-intro-seen";
 const emptyProgress = { completed: {} };
 
 function readProgress() {
@@ -196,16 +196,14 @@ function getUnlockedLevel(progress) {
   return unlocked;
 }
 
-function App() {
+function App({ previewHelp = false }) {
   const [game, setGame] = useState(() => createLevelState(1));
   const [progress, setProgress] = useState(readProgress);
   const [selected, setSelected] = useState(null);
   const [targetMode, setTargetMode] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showHelp, setShowHelp] = useState(() => {
-    try { return !localStorage.getItem(INTRO_KEY); } catch { return true; }
-  });
+  const [showHelp, setShowHelp] = useState(previewHelp);
   const [toast, setToast] = useState("");
   const [burstTurnId, setBurstTurnId] = useState(0);
   const [comboCue, setComboCue] = useState(null);
