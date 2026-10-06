@@ -60,6 +60,22 @@ test("the marked swipe targets the red tile immediately left of the yellow crown
   );
 });
 
+test("a swipe from the red tile toward the yellow crown targets that adjacent cell", () => {
+  assert.deepEqual(
+    getAdjacentSwipeTarget({
+      row: 2,
+      col: 6,
+      startX: 300,
+      startY: 220,
+      endX: 350,
+      endY: 220,
+      releaseRow: 2,
+      releaseCol: 7,
+    }),
+    { row: 2, col: 7 },
+  );
+});
+
 test("a tap-sized movement and invalid coordinates are not treated as a swipe", () => {
   assert.equal(
     getAdjacentSwipeTarget({ ...start, endX: 109, endY: 112 }),

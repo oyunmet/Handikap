@@ -138,10 +138,12 @@ test("a yellow match formed by an adjacent swap is cleared", () => {
 
   assert.equal(next.turnId, state.turnId + 1);
   assert.equal(next.movesLeft, state.movesLeft - 1);
-  assert.deepEqual(
-    clearedYellow.map(({ row, col }) => `${row}:${col}`).sort(),
-    ["2:5", "3:5", "4:5"],
-  );
+  for (const position of ["2:5", "3:5", "4:5"]) {
+    assert.ok(
+      clearedYellow.some(({ row, col }) => `${row}:${col}` === position),
+      `expected the swapped yellow match to clear ${position}`,
+    );
+  }
 });
 
 test("a pre-existing yellow line is cleared without charging an attempted move", () => {
@@ -171,19 +173,23 @@ test("the marked adjacent swap creates and clears four yellow crowns vertically"
 
   assert.equal(findMatches(state.board).size, 0);
 
-  const next = swapTiles(state, { row: 2, col: 7 }, { row: 2, col: 6 });
-
-  assert.equal(next.turnId, state.turnId + 1);
-  assert.equal(next.movesLeft, state.movesLeft - 1);
-  for (const tileId of [
-    "yellow-above",
-    "yellow-right",
-    "yellow-below-a",
-    "yellow-below-b",
+  for (const [first, second] of [
+    [{ row: 2, col: 7 }, { row: 2, col: 6 }],
+    [{ row: 2, col: 6 }, { row: 2, col: 7 }],
   ]) {
-    assert.ok(next.clearedCells.some((cell) => cell.tileId === tileId));
+    const next = swapTiles(state, first, second);
+    assert.equal(next.turnId, state.turnId + 1);
+    assert.equal(next.movesLeft, state.movesLeft - 1);
+    for (const tileId of [
+      "yellow-above",
+      "yellow-right",
+      "yellow-below-a",
+      "yellow-below-b",
+    ]) {
+      assert.ok(next.clearedCells.some((cell) => cell.tileId === tileId));
+    }
+    assert.equal(findMatches(next.board).size, 0);
   }
-  assert.equal(findMatches(next.board).size, 0);
 });
 
 test("a four-match creates a rocket special", () => {

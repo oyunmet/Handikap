@@ -187,6 +187,7 @@ export default function RoyalGameApp() {
   const flightTimerRef = useRef(null);
   const messageTimerRef = useRef(null);
   const suppressClickRef = useRef(null);
+  const touchGestureRef = useRef(null);
 
   gameRef.current = game;
 
@@ -256,7 +257,13 @@ export default function RoyalGameApp() {
   }, [activeBooster, commit, selectedCell]);
 
   const onCellPointerDown = useCallback((event, row, col) => {
-    if (!event.isPrimary || event.button !== 0 || gameRef.current.status !== "playing" || activeBooster) return;
+    if (
+      event.pointerType === "touch"
+      || !event.isPrimary
+      || event.button !== 0
+      || gameRef.current.status !== "playing"
+      || activeBooster
+    ) return;
     const pointerId = event.pointerId;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -314,6 +321,73 @@ export default function RoyalGameApp() {
     window.addEventListener("pointerup", pointerUp, true);
     window.addEventListener("pointercancel", pointerCancel, true);
   }, [activeBooster, commit]);
+
+  const onCellTouchStart = useCallback((event, row, col) => {
+    if (gameRef.current.status !== "playing" || activeBooster || event.touches.length !== 1) {
+      touchGestureRef.current = null;
+      return;
+    }
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    touchGestureRef.current = {
+      identifier: touch.identifier,
+      row,
+      col,
+      startX: touch.clientX,
+      startY: touch.clientY,
+    };
+  }, [activeBooster]);
+
+  const onCellTouchEnd = useCallback((event) => {
+    const gesture = touchGestureRef.current;
+    touchGestureRef.current = null;
+    if (!gesture) return;
+
+    let touch = null;
+    for (let index = 0; index < event.changedTouches.length; index += 1) {
+      if (event.changedTouches[index].identifier === gesture.identifier) {
+        touch = event.changedTouches[index];
+        break;
+      }
+    }
+    if (!touch) return;
+    const releaseCell = document.elementFromPoint(touch.clientX, touch.clientY)
+      ?.closest(".rg-cell[data-row][data-col]");
+    const destination = getAdjacentSwipeTarget({
+      ...gesture,
+      endX: touch.clientX,
+      endY: touch.clientY,
+      releaseRow: releaseCell ? Number(releaseCell.dataset.row) : undefined,
+      releaseCol: releaseCell ? Number(releaseCell.dataset.col) : undefined,
+    });
+    if (!destination) return;
+
+    const suppression = {
+      expiresAt: Date.now() + 350,
+      cells: new Set([
+        `${gesture.row}:${gesture.col}`,
+        `${destination.row}:${destination.col}`,
+      ]),
+      timer: null,
+    };
+    if (releaseCell) suppression.cells.add(`${releaseCell.dataset.row}:${releaseCell.dataset.col}`);
+    suppressClickRef.current = suppression;
+    suppression.timer = window.setTimeout(() => {
+      if (suppressClickRef.current === suppression) suppressClickRef.current = null;
+    }, 350);
+
+    const destinationCell = document.querySelector(
+      `.rg-cell[data-row="${destination.row}"][data-col="${destination.col}"]`,
+    );
+    if (!destinationCell || destinationCell.disabled) return;
+    const current = gameRef.current;
+    if (current.status !== "playing") return;
+    commit(current, swapTiles(current, { row: gesture.row, col: gesture.col }, destination));
+  }, [commit]);
+
+  const onCellTouchCancel = useCallback(() => {
+    touchGestureRef.current = null;
+  }, []);
 
   const onBooster = useCallback((boosterId) => {
     if (gameRef.current.status !== "playing") return;
@@ -537,6 +611,9 @@ export default function RoyalGameApp() {
         activeBooster={activeBooster}
         onCellClick={onCellClick}
         onCellPointerDown={onCellPointerDown}
+        onCellTouchStart={onCellTouchStart}
+        onCellTouchEnd={onCellTouchEnd}
+        onCellTouchCancel={onCellTouchCancel}
         onBooster={onBooster}
         onSettings={() => setSettingsOpen(true)}
         onRetry={restart}

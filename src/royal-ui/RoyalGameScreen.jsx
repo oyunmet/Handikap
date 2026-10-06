@@ -410,6 +410,9 @@ export default function RoyalGameScreen({
   activeBooster = null,
   onCellClick = () => {},
   onCellPointerDown = () => {},
+  onCellTouchStart = () => {},
+  onCellTouchEnd = () => {},
+  onCellTouchCancel = () => {},
   onBooster = () => {},
   onSettings = () => {},
   onRetry = () => {},
@@ -466,6 +469,9 @@ export default function RoyalGameScreen({
                   aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${accessible}`}
                   onClick={() => onCellClick(rowIndex, colIndex)}
                   onPointerDown={(event) => onCellPointerDown(event, rowIndex, colIndex)}
+                  onTouchStart={(event) => onCellTouchStart(event, rowIndex, colIndex)}
+                  onTouchEnd={onCellTouchEnd}
+                  onTouchCancel={onCellTouchCancel}
                   disabled={!cell}
                 >
                   {cell?.kind === "gem" && <SpecialPiece color={cell.color} special={cell.special} />}
