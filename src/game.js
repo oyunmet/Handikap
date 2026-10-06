@@ -182,12 +182,13 @@ function prepareMatchWave(board, runs, state, preferred = []) {
   if (!clear.size) return { clear, effects };
 
   const longestRun = [...runs].sort((a, b) => b.cells.length - a.cells.length)[0];
+  const hasEightMatch = longestRun?.cells.length >= 8 || clear.size >= 8;
   const hasFiveMatch = longestRun?.cells.length >= 5 || clear.size >= 5;
   const fourRun = runs.find((run) => run.cells.length === 4);
-  const reward = hasFiveMatch ? "bomb" : fourRun ? "fish" : null;
+  const reward = hasEightMatch ? "prism" : hasFiveMatch ? "bomb" : fourRun ? "fish" : null;
   if (!reward) return { clear, effects };
 
-  const anchorCells = hasFiveMatch && longestRun.cells.length < 5
+  const anchorCells = reward === "prism" || (hasFiveMatch && longestRun.cells.length < 5)
     ? [...clear].map((key) => {
       const [row, col] = key.split(":").map(Number);
       return { row, col };
@@ -195,12 +196,12 @@ function prepareMatchWave(board, runs, state, preferred = []) {
     : (hasFiveMatch ? longestRun.cells : fourRun.cells);
   const anchor = chooseAnchor(anchorCells, preferred);
 
-  if (reward === "bomb") {
+  if (reward === "prism" || reward === "bomb") {
     const tile = board[anchor.row][anchor.col];
     if (tile) {
-      board[anchor.row][anchor.col] = { ...tile, special: "bomb" };
+      board[anchor.row][anchor.col] = { ...tile, special: reward };
       clear.delete(keyOf(anchor.row, anchor.col));
-      effects.push({ type: "bomb-created", at: anchor });
+      effects.push({ type: `${reward}-created`, at: anchor });
     }
   } else {
     const from = chooseAnchor(fourRun.cells, preferred);
@@ -360,11 +361,37 @@ export function swapTiles(state, first, second) {
   [board[first.row][first.col], board[second.row][second.col]] = [board[second.row][second.col], board[first.row][first.col]];
   const runs = findMatchRuns(board);
   const swappedBombs = [first, second].filter(({ row, col }) => board[row][col]?.special === "bomb");
-  if (runs.length === 0 && swappedBombs.length === 0) {
+  const prismSources = [first, second].filter(({ row, col }) => state.board[row][col]?.special === "prism");
+  if (runs.length === 0 && swappedBombs.length === 0 && prismSources.length === 0) {
     return { ...state, message: "Eşleşme olmadı; başka bir taş dene." };
   }
   let prepared = { clear: new Set(), effects: [] };
-  if (swappedBombs.length) {
+  if (prismSources.length) {
+    prepared.clear = cellsFromRuns(runs);
+    const prismEffects = [];
+    if (prismSources.length > 1) {
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) prepared.clear.add(keyOf(row, col));
+      }
+      for (const source of prismSources) {
+        const destination = source.row === first.row && source.col === first.col ? second : first;
+        prismEffects.push({ type: "prism-explosion", at: destination, color: null });
+      }
+    } else {
+      const source = prismSources[0];
+      const destination = source.row === first.row && source.col === first.col ? second : first;
+      const color = board[source.row][source.col]?.type;
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          if (board[row][col]?.type === color) prepared.clear.add(keyOf(row, col));
+        }
+      }
+      prepared.clear.add(keyOf(destination.row, destination.col));
+      prismEffects.push({ type: "prism-explosion", at: destination, color });
+    }
+    for (const { row, col } of swappedBombs) prepared.clear.add(keyOf(row, col));
+    prepared.effects = prismEffects;
+  } else if (swappedBombs.length) {
     prepared.clear = cellsFromRuns(runs);
     for (const { row, col } of swappedBombs) prepared.clear.add(keyOf(row, col));
   } else {

@@ -48,6 +48,14 @@ function Glyph({ type, special, className = "" }) {
       <path d="M21 25c1-1 2-1 3 0m-1-4v2" stroke="white" strokeOpacity=".78" />
     </svg>;
   }
+  if (special === "prism") {
+    return <svg {...common} className={`${common.className} special-prism-mark`}>
+      <path d="m24 4 16 10v18L24 42 8 32V14L24 4Z" fill="currentColor" fillOpacity=".22" />
+      <path d="m24 4 0 38M8 14l32 18M40 14 8 32M8 14l16 4 16-4M8 32l16-4 16 4M24 18l6 6-6 6-6-6 6-6Z" />
+      <path d="m24 4 0 14m16-4-10 10m10 8-10-2m-6 12V30m-16 2 10-8M8 14l10 10" stroke="white" strokeOpacity=".82" />
+      <circle cx="24" cy="24" r="2.3" fill="white" stroke="none" />
+    </svg>;
+  }
   if (type === 0) {
     return <svg {...common}>
       <path d="m14 11 10-5 10 5 5 13-5 13-10 5-10-5-5-13 5-13Z" fill="currentColor" fillOpacity=".24" />
@@ -148,6 +156,7 @@ function App() {
   const [burstTurnId, setBurstTurnId] = useState(0);
   const [comboCue, setComboCue] = useState(null);
   const dragRef = useRef(null);
+  const boardGridRef = useRef(null);
   const suppressClickRef = useRef(false);
 
   const level = useMemo(() => getLevel(game.levelId), [game.levelId]);
@@ -158,6 +167,27 @@ function App() {
   const currentRegionLevels = LEVELS.filter((item) => item.regionId === region.id);
   const completedInRegion = currentRegionLevels.filter((item) => progress.completed[item.id]).length;
   const chargePercent = Math.min(100, Math.round((game.lightCharge / lightCost) * 100));
+  const activeEffect = burstTurnId === game.turnId
+    ? game.specialEffects.find((effect) => ["fish", "bomb-created", "bomb-explosion", "prism-created", "prism-explosion"].includes(effect.type))
+    : null;
+  const effectCaption = activeEffect?.type === "fish" ? "BALIK HEDEFE DALDI"
+    : activeEffect?.type === "bomb-created" ? "BOMBA UYANDI"
+      : activeEffect?.type === "bomb-explosion" ? "BOMBA PATLADI"
+        : activeEffect?.type === "prism-created" ? "PRİZMA OLUŞTU"
+          : activeEffect?.type === "prism-explosion" ? "RENKLER ARINDI"
+            : "";
+  const getCellCenter = (row, col) => {
+    const grid = boardGridRef.current;
+    const cell = grid?.querySelector(`.tile-cell[data-row="${row}"][data-col="${col}"]`);
+    if (!grid || !cell) return { x: `${(col + 0.5) * 12.5}%`, y: `${(row + 0.5) * 12.5}%` };
+    const gridRect = grid.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const gridStyle = window.getComputedStyle(grid);
+    return {
+      x: `${cellRect.left - gridRect.left - (Number.parseFloat(gridStyle.borderLeftWidth) || 0) + cellRect.width / 2}px`,
+      y: `${cellRect.top - gridRect.top - (Number.parseFloat(gridStyle.borderTopWidth) || 0) + cellRect.height / 2}px`,
+    };
+  };
 
   useEffect(() => {
     if (game.status !== "won") return;
@@ -261,9 +291,11 @@ function App() {
           current?.start.row === drag.start.row &&
           current?.start.col === drag.start.col &&
           current?.target?.row === target?.row &&
-          current?.target?.col === target?.col
+          current?.target?.col === target?.col &&
+          current?.dx === event.clientX - drag.startX &&
+          current?.dy === event.clientY - drag.startY
         ) return current;
-        return { start: drag.start, target };
+        return { start: drag.start, target, dx: event.clientX - drag.startX, dy: event.clientY - drag.startY };
       });
     };
 
@@ -405,7 +437,7 @@ function App() {
           </div>
 
           {completedCount === 0 && <div className="instructions-banner">
-            <span>Üçlü eşleşme sisi kaldırır; dörtlü balık, beşli bomba bonusu üretir.</span>
+            <span>Üçlü eşleşme sisi kaldırır; dörtlü balık, beşli bomba, sekizli prizma uyandırır.</span>
             <button onClick={() => setShowHelp(true)}>Nasıl oynanır?</button>
           </div>}
 
@@ -431,31 +463,39 @@ function App() {
                   <span className="board-heading-title">IŞIK ALANI <span style={{ opacity: .55 }}>—</span> 08 × 08</span>
                   <span className="board-hint">{targetMode ? "Işığın düşeceği kareyi seç" : "Taşı sürükle ya da dokun"}</span>
                 </div>
+                {effectCaption && <div className="special-cue" key={`${game.turnId}-${effectCaption}`} role="status">
+                  <SparkIcon /><span>{effectCaption}</span>
+                </div>}
                 {comboCue?.turnId === game.turnId && <div className="combo-cue" key={comboCue.turnId} role="status">
                     <SparkIcon /><span><strong>ZİNCİR IŞIĞI</strong><b>{comboCue.count}×</b></span>
                 </div>}
-                <div className="board-grid" role="grid" aria-label="Sekiz çarpı sekiz ışık taşı tahtası">
+                <div ref={boardGridRef} className="board-grid" role="grid" aria-label="Sekiz çarpı sekiz ışık taşı tahtası">
                   {game.board.map((row, rowIndex) => row.map((tile, colIndex) => {
                     const meta = TILE_META[tile.type];
                     const isSelected = selected?.row === rowIndex && selected?.col === colIndex;
                     const isBurstCell = burstTurnId === game.turnId && game.clearedCells.some((cell) => cell.row === rowIndex && cell.col === colIndex);
                     const isBombCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "bomb-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
+                    const isPrismCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "prism-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
                     const isDragStart = dragPreview?.start.row === rowIndex && dragPreview?.start.col === colIndex;
                     const isDragTarget = dragPreview?.target?.row === rowIndex && dragPreview?.target?.col === colIndex;
+                    const isPrism = tile.special === "prism";
+                    const isBomb = tile.special === "bomb";
                     return (
                       <button
                         key={tile.id}
                         data-row={rowIndex}
                         data-col={colIndex}
-                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isDragStart ? " dragging" : ""}${isDragTarget ? " drag-target" : ""}${tile.special === "bomb" ? " special-bomb" : ""}${isBombCreated ? " bomb-created-cell" : ""}`}
+                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isDragStart && dragPreview ? " dragging" : ""}${isDragTarget ? " drag-target" : ""}${isBomb ? " special-bomb" : ""}${isPrism ? " special-prism" : ""}${isBombCreated ? " bomb-created-cell" : ""}${isPrismCreated ? " prism-created-cell" : ""}`}
                         style={{
-                          "--tile-color": tile.special === "bomb" ? "#ffd879" : meta.color,
-                          "--tile-deep": tile.special === "bomb" ? "#d65343" : meta.deep,
+                          "--tile-color": isBomb ? "#ffd879" : isPrism ? "#eaf7dc" : meta.color,
+                          "--tile-deep": isBomb ? "#d65343" : isPrism ? "#719987" : meta.deep,
                           "--cell-index": rowIndex * 8 + colIndex,
+                          ...(isDragStart && dragPreview ? { "--drag-x": `${dragPreview.dx}px`, "--drag-y": `${dragPreview.dy}px` } : {}),
                         }}
                         onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}
-                        aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${tile.special === "bomb" ? "bomba, " : ""}${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
+                        aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "bomba özel taşı, " : isPrism ? "prizma özel taşı, " : ""}${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
+                        aria-describedby="board-instructions"
                         role="gridcell"
                       >
                         <Glyph type={tile.type} special={tile.special} />
@@ -468,26 +508,51 @@ function App() {
                     if (effect.type === "fish") {
                       const dx = effect.to.col - effect.from.col;
                       const dy = effect.to.row - effect.from.row;
-                      return <span
-                        className="fish-flight"
-                        key={`fish-${game.turnId}-${index}`}
-                        style={{
-                          "--from-x": `${(effect.from.col + 0.5) * 12.5}%`,
-                          "--from-y": `${(effect.from.row + 0.5) * 12.5}%`,
-                          "--to-x": `${(effect.to.col + 0.5) * 12.5}%`,
-                          "--to-y": `${(effect.to.row + 0.5) * 12.5}%`,
-                          "--fish-angle": `${Math.atan2(dy, dx) * (180 / Math.PI)}deg`,
-                        }}
-                        aria-hidden="true"
-                      ><FishGlyph /></span>;
+                      const from = getCellCenter(effect.from.row, effect.from.col);
+                      const to = getCellCenter(effect.to.row, effect.to.col);
+                      return <React.Fragment key={`fish-${game.turnId}-${index}`}>
+                        <span
+                          className="fish-flight"
+                          style={{
+                            "--from-x": from.x,
+                            "--from-y": from.y,
+                            "--travel-x": `${to.x.replace("px", "") - from.x.replace("px", "")}px`,
+                            "--travel-y": `${to.y.replace("px", "") - from.y.replace("px", "")}px`,
+                            "--fish-angle": `${Math.atan2(dy, dx) * (180 / Math.PI)}deg`,
+                          }}
+                          aria-hidden="true"
+                        ><FishGlyph /></span>
+                        <span
+                          className="fish-impact"
+                          style={{
+                            "--effect-x": to.x,
+                            "--effect-y": to.y,
+                          }}
+                          aria-hidden="true"
+                        />
+                      </React.Fragment>;
                     }
                     if (effect.type === "bomb-created" || effect.type === "bomb-explosion") {
+                      const center = getCellCenter(effect.at.row, effect.at.col);
                       return <span
                         className={`bomb-board-effect ${effect.type === "bomb-created" ? "created" : "exploded"}`}
                         key={`bomb-${game.turnId}-${index}`}
                         style={{
-                          "--effect-x": `${(effect.at.col + 0.5) * 12.5}%`,
-                          "--effect-y": `${(effect.at.row + 0.5) * 12.5}%`,
+                          "--effect-x": center.x,
+                          "--effect-y": center.y,
+                        }}
+                        aria-hidden="true"
+                      />;
+                    }
+                    if (effect.type === "prism-created" || effect.type === "prism-explosion") {
+                      const center = getCellCenter(effect.at.row, effect.at.col);
+                      return <span
+                        className={`prism-board-effect ${effect.type === "prism-created" ? "created" : "exploded"}`}
+                        key={`prism-${game.turnId}-${index}`}
+                        style={{
+                          "--effect-x": center.x,
+                          "--effect-y": center.y,
+                          "--prism-color": TILE_META[effect.color]?.color ?? "#e4f7bd",
                         }}
                         aria-hidden="true"
                       />;
@@ -496,7 +561,7 @@ function App() {
                   })}
                 </div>
                 <div className="board-footer">
-                  <span className="board-caption">{targetMode ? <><strong>Hedef seçimi açık</strong> · tıklayarak tohumu bırak</> : <>Hamleni düşün. <strong>Taşlar hatırlar.</strong></>}</span>
+                  <span id="board-instructions" className="board-caption">{targetMode ? <><strong>Hedef seçimi açık</strong> · tıklayarak tohumu bırak</> : <>Hamleni düşün. <strong>Taşlar hatırlar.</strong></>}</span>
                   <span className="fog-caption">{Math.max(0, level.fogGoal - fogLeft)} / {level.fogGoal} sis kalktı</span>
                 </div>
                 {game.status !== "playing" && <div className="board-veil">
@@ -573,7 +638,7 @@ function App() {
 
               <section className="side-card tip-card">
                 <span className="tip-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.3-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.7-7 11-7 11Z" stroke="currentColor" strokeWidth="1.6" /><path d="M12 17V9m0 4-3-2m3 0 2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
-                <p className="tip-text"><strong>Özel taşlar:</strong> Dörtlü eşleşmede balık hedefe uçar; beşli bomba, komşusuyla yer değiştirince patlar.</p>
+                <p className="tip-text"><strong>Özel taşlar:</strong> Dörtlüde balık hedefe uçar; beşlide bomba, sekizlide renkleri arındıran prizma doğar.</p>
               </section>
             </aside>
           </div>
@@ -590,7 +655,7 @@ function App() {
           <p className="help-copy">Bahçenin taşları eşleşme biçimine göre farklı güçler kazanır. Hamlelerini hedeflere ve sise göre planla.</p>
           <div className="help-steps">
              <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle ya da iki komşu taşa dokun.</strong> Üç aynı taş eşleşir, hedefleri toplar ve sisi kaldırır.</p></div>
-            <div className="help-step"><span className="step-number">02</span><p><strong>Dörtlüde balık, beşlide bomba.</strong> Balık hedefe dalar; bombayı komşu taşla değiştirerek 3 × 3 alanda patlat.</p></div>
+            <div className="help-step"><span className="step-number">02</span><p><strong>Dörtlüde balık, beşlide bomba, sekizlide prizma.</strong> Balık hedefe dalar; bombayı komşu taşla değiştirerek 3 × 3 alanda patlat. Prizmayı normal bir taşla değiştir, onun rengini tahtadan sil.</p></div>
             <div className="help-step"><span className="step-number">03</span><p><strong>Işık tohumunu doldur.</strong> Temizlenen taşlar sayacı artırır; dolunca 3 × 3 alanı hamle harcamadan arındır.</p></div>
           </div>
           <div className="help-close"><button className="primary-button" onClick={dismissHelp}>Bahçeye gir</button></div>

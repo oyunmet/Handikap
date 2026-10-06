@@ -1,0 +1,68 @@
+Bu projede, dünyaca ünlü "Royal Match" oyununun birebir aynı oyun içi mekaniklerine, arayüz akışına, seviye tasarım sistemine ve visual/audio yapısına sahip tam kapsamlı bir 2D Match-3 oyunu geliştireceksin. Tek fark, oyundaki taş tasarımları, arka plan teması ve ana karakter/konsept dinamik alanlar (placeholder/custom assets) olarak yapılandırılacaktır. 
+
+Aşağıda belirtilen tüm sistemleri, veri mimarisini ve görsel akışları eksiksiz olarak kodlamanı istiyorum.
+
+---
+
+### 1. TEKNOLOJİ VE MİMARİ YAPISI
+- **Framework/Engine:** HTML5 Canvas / Phaser.js (veya React + PIXI.js) kullanarak responsive ve mobil uyumlu bir web oyunu oluştur.
+- **State Management:** Oyun durumunu (altın, can, seviye ilerlemesi, envanter, boost'lar) `localStorage` üzerinde sakla ve modüler bir state manager yapısı kur.
+- **Varlık (Asset) Yönetimi:** Tüm taş desenleri, güçlendirici ikonları, arka planlar ve karakter görselleri `assets/` klasörü altında belirgin isimlerle tutulsun. Taş ikonları kolayca değiştirilebilir (JSON konfigürasyonu veya dinamik klasör yapısı) modülerlikte olmalıdır.
+
+---
+
+### 2. CORE GAMEPLAY (EŞLEŞTİRME VE TAŞ MEKANİKLERİ)
+- **Izgara Yapısı (Grid System):** 8x8 varsayılan boyut (veya seviyeye göre değişebilen dinamik ızgara). Karartılmış/kilitli kareler, boşluklar (holes) ve engel kareleri eklenebilir olmalıdır.
+- **Temel Taşlar (Basic Tiles):** 5-6 farklı renkte dinamik taş deseni (Tile_Red, Tile_Blue, Tile_Green, Tile_Yellow, Tile_Purple, Tile_Orange).
+- **Match-3 Algoritması:** 
+  - Yatay ve dikey en az 3'lü eşleşmede taşlar patlar, üstteki taşlar yerçekimi etkisiyle aşağı kayar ve en üstten yeni taşlar dökülür.
+  - Kombo ve zincirleme patlamalar (Cascading effect) desteklenmelidir.
+- **Özel Taşlar ve Kombinasyonlar (Special Tiles / Power-ups):**
+  - **Rockets (4'lü eşleşme):** Dikey veya yatay tüm satırı/sütunu temizler.
+  - **TNT (T veya L şeklinde 5'li eşleşme):** 3x3 (veya geliştirilmiş 5x5) alandaki tüm taşları patlatır.
+  - **Light Ball / Propeller (4'lü kare eşleşme):** Hedefe kilitlenip rastgele bir kritik objeyi veya görevi vurmak için uçar.
+  - **Royal Disco Ball / Magic Lamp (Düz 5'li eşleşme):** Sahadaki seçilen renkteki tüm taşları temizler.
+- **Güçlendirici Eşleşmeleri (Combo Merges):** İki özel taş yan yana getirilip birleştirildiğinde süper efektler tetiklenmelidir:
+  - *TNT + TNT:* Dev patlama.
+  - *Rocket + TNT:* 3 satır ve 3 sütunu birden temizleyen büyük roket.
+  - *Disco Ball + Disco Ball:* Tüm oyun alanını temizler.
+  - *Disco Ball + Rocket/TNT/Propeller:* Sahadaki o renkteki tüm taşları ilgili özel taşa çevirir ve patlatır.
+
+---
+
+### 3. OYUN ENGELLEME ELEMANLARI (OBSTACLES & TARGETS)
+Seviye hedeflerini oluşturmak için Royal Match'teki şu engel türlerini kodla:
+- **Kutular/Sandıklar (Boxes):** Yanında eşleşme yapıldığında kırılan (1, 2 veya 3 vuruşluk) engeller.
+- **Zincirler/Kilitler (Chains):** Taşın hareket etmesini engelleyen, üzerinde eşleşme yapılınca kırılan yapılar.
+- **Çim/Jöle Katmanları (Grass/Jelly):** Taşların altında yer alan, üzerinde eşleşme yapıldıkça temizlenen zeminler.
+- **Kralın Eşyaları/Özel Objeler (Kupa, Kitaplık, Heykel vb.):** Izgaranın altından düşürülmesi gereken veya yanında eşleşme yapılarak toplanan hedefler.
+
+---
+
+### 4. OYUN DÖNGÜSÜ VE ARAYÜZ (UI/UX)
+- **Ana Menü / Kale Geliştirme Ekranı (Meta Game):**
+  - Seviyelerden kazanılan "Yıldızlar" (Stars) ile tamamlanan görevler/alanlar (örn: "Tahtı Tamir Et", "Bahçeyi Düzenle").
+  - Alan tamamlandıkça açılan yeni bölümler ve görsel değişimler.
+- **Seviye Giriş Ekranı (Pre-Level Screen):**
+  - Seviye numarası, seviye hedefleri (örn: 20 Kutu, 15 Mavi Taş) ve başlangıç booster'ları seçimi.
+- **Oyun İçi UI:**
+  - Kalan Hamle Sayısı (Moves Left).
+  - Can Göstergesi (Lives System - Maksimum 5 can, zamanla yenilenen veya altınla doldurulan).
+  - Altın ve Yıldız Bakiyesi.
+  - Oyun İçi Booster Paneli (Çekiç/Hammer, Yer Değiştirici/Swap, Ok vb. hamle harcamayan araçlar).
+- **Seviye Sonu Akışı:**
+  - **Kazanma (Victory):** Kalan hamlelerin özel roketlere dönüşüp patladığı "Royal Hype / Outro" efekti, kazanılan altın ve yıldız ödülü.
+  - **Kaybetme (Defeat):** Hamle bittiğinde pop-up açılır: Altın vererek +5 Ek Hamle alma seçeneği veya can kaybetme.
+
+---
+
+### 5. SEVİYE EDİTÖRÜ VE SEVİYE SİSTEMİ (LEVEL DESIGN)
+- JSON formatında modüler bir seviye mimarisi kur. Örnek seviye yapısı:
+  ```json
+  {
+    "level": 1,
+    "moves": 25,
+    "gridSize": {"rows": 8, "cols": 8},
+    "targets": {"box": 10, "Tile_Red": 15},
+    "gridData": [ ... ]
+  }
