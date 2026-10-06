@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   LEVELS,
   REGIONS,
@@ -174,7 +174,6 @@ function App() {
   const [game, setGame] = useState(() => createLevelState(1));
   const [progress, setProgress] = useState(readProgress);
   const [selected, setSelected] = useState(null);
-  const [dragPreview, setDragPreview] = useState(null);
   const [targetMode, setTargetMode] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -185,6 +184,7 @@ function App() {
   const [burstTurnId, setBurstTurnId] = useState(0);
   const [comboCue, setComboCue] = useState(null);
   const dragRef = useRef(null);
+  const pendingDragReleaseRef = useRef(null);
   const boardGridRef = useRef(null);
   const suppressClickRef = useRef(false);
 
@@ -234,6 +234,45 @@ function App() {
       return next;
     });
   }, [game.status, game.levelId, game.movesLeft]);
+
+  useLayoutEffect(() => {
+    const pending = pendingDragReleaseRef.current;
+    if (!pending) return;
+    pendingDragReleaseRef.current = null;
+    const source = pending.drag.sourceElement;
+    const accepted = game.turnId !== pending.turnId;
+    if (source?.isConnected && !accepted) {
+      source.classList.remove("dragging");
+      source.classList.add("drag-return");
+      window.setTimeout(() => {
+        source.classList.remove("drag-return");
+        source.style.removeProperty("--drag-x");
+        source.style.removeProperty("--drag-y");
+      }, 260);
+    } else if (source) {
+      source.style.setProperty("transition", "none", "important");
+      source.classList.remove("dragging", "drag-return");
+      source.style.removeProperty("--drag-x");
+      source.style.removeProperty("--drag-y");
+      window.requestAnimationFrame(() => source.style.removeProperty("transition"));
+    }
+
+    const partner = pending.drag.partner;
+    if (accepted && partner?.element?.isConnected && partner.rect && typeof partner.element.animate === "function") {
+      const rect = partner.element.getBoundingClientRect();
+      const x = partner.rect.left - rect.left;
+      const y = partner.rect.top - rect.top;
+      if ((Math.abs(x) > 1 || Math.abs(y) > 1) && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        partner.element.animate(
+          [
+            { transform: `translate3d(${x}px, ${y}px, 0)` },
+            { transform: "translate3d(0, 0, 0)" },
+          ],
+          { duration: 170, easing: "cubic-bezier(.2,.78,.24,1)" },
+        );
+      }
+    }
+  }, [game]);
 
   useEffect(() => {
     if (!toast && !game.message) return undefined;
@@ -299,68 +338,152 @@ function App() {
   const startTileDrag = (event, row, col) => {
     if ((event.pointerType === "mouse" && event.button !== 0) || dragRef.current) return;
     if (mapOpen || targetMode || game.status !== "playing") return;
+    const grid = boardGridRef.current;
+    const tileRect = event.currentTarget.getBoundingClientRect();
+    const gridStyle = grid ? window.getComputedStyle(grid) : null;
     dragRef.current = {
       pointerId: event.pointerId,
       start: { row, col },
+      turnId: game.turnId,
       startX: event.clientX,
       startY: event.clientY,
+      latestX: event.clientX,
+      latestY: event.clientY,
+      sourceElement: event.currentTarget,
+      axis: null,
+      pitchX: tileRect.width + (Number.parseFloat(gridStyle?.columnGap) || 0),
+      pitchY: tileRect.height + (Number.parseFloat(gridStyle?.rowGap) || 0),
+      target: null,
+      targetElement: null,
+      frameId: 0,
       moved: false,
     };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Window listeners still cover browsers without pointer capture. */ }
   };
 
   useEffect(() => {
-    const cellAtPoint = (event) => {
-      const tile = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".tile-cell");
-      if (!tile) return null;
-      return { row: Number(tile.dataset.row), col: Number(tile.dataset.col) };
+    const clearDragTarget = (drag) => {
+      drag.targetElement?.classList.remove("drag-target");
+      drag.targetElement = null;
+      drag.target = null;
+    };
+
+    const finishDragVisual = (drag, shouldReturn) => {
+      if (drag.frameId) window.cancelAnimationFrame(drag.frameId);
+      clearDragTarget(drag);
+      const source = drag.sourceElement;
+      if (!source) return;
+
+      if (shouldReturn && drag.moved) {
+        source.classList.remove("dragging");
+        source.classList.add("drag-return");
+        window.setTimeout(() => {
+          source.classList.remove("drag-return");
+          source.style.removeProperty("--drag-x");
+          source.style.removeProperty("--drag-y");
+        }, 220);
+      } else {
+        source.classList.remove("dragging", "drag-return");
+        source.style.removeProperty("--drag-x");
+        source.style.removeProperty("--drag-y");
+      }
+    };
+
+    const updateDragVisual = (drag) => {
+      const deltaX = drag.latestX - drag.startX;
+      const deltaY = drag.latestY - drag.startY;
+      const minIntent = 7;
+      if (!drag.axis && Math.hypot(deltaX, deltaY) >= minIntent) {
+        drag.axis = Math.abs(deltaX) >= Math.abs(deltaY) ? "x" : "y";
+        drag.moved = true;
+        drag.sourceElement.classList.add("dragging");
+        setSelected(null);
+      }
+      if (!drag.axis) return;
+
+      const isHorizontal = drag.axis === "x";
+      const rawDisplacement = isHorizontal ? deltaX : deltaY;
+      const pitch = isHorizontal ? drag.pitchX : drag.pitchY;
+      const displacement = Math.max(-pitch, Math.min(pitch, rawDisplacement));
+      drag.displacement = displacement;
+      drag.progress = Math.abs(displacement);
+      drag.sourceElement.style.setProperty("--drag-x", `${isHorizontal ? displacement : 0}px`);
+      drag.sourceElement.style.setProperty("--drag-y", `${isHorizontal ? 0 : displacement}px`);
+
+      const step = Math.sign(displacement);
+      const row = drag.start.row + (isHorizontal ? 0 : step);
+      const col = drag.start.col + (isHorizontal ? step : 0);
+      const withinBoard = step !== 0 && row >= 0 && row < 8 && col >= 0 && col < 8;
+      const shouldPreview = withinBoard && drag.progress >= pitch * 0.18;
+      if (!shouldPreview) {
+        clearDragTarget(drag);
+        return;
+      }
+
+      drag.target = { row, col };
+      const nextTargetElement = boardGridRef.current?.querySelector(
+        `.tile-cell[data-row="${row}"][data-col="${col}"]`,
+      );
+      if (nextTargetElement !== drag.targetElement) {
+        clearDragTarget(drag);
+        drag.targetElement = nextTargetElement ?? null;
+        drag.targetElement?.classList.add("drag-target");
+      }
+    };
+
+    const scheduleDragVisual = (drag) => {
+      if (drag.frameId) return;
+      drag.frameId = window.requestAnimationFrame(() => {
+        drag.frameId = 0;
+        if (dragRef.current === drag) updateDragVisual(drag);
+      });
     };
 
     const handlePointerMove = (event) => {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== event.pointerId) return;
-      if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 10) return;
-      drag.moved = true;
-      const target = cellAtPoint(event);
-      setDragPreview((current) => {
-        if (
-          current?.start.row === drag.start.row &&
-          current?.start.col === drag.start.col &&
-          current?.target?.row === target?.row &&
-          current?.target?.col === target?.col &&
-          current?.dx === event.clientX - drag.startX &&
-          current?.dy === event.clientY - drag.startY
-        ) return current;
-        return { start: drag.start, target, dx: event.clientX - drag.startX, dy: event.clientY - drag.startY };
-      });
+      drag.latestX = event.clientX;
+      drag.latestY = event.clientY;
+      if (!drag.axis && Math.hypot(drag.latestX - drag.startX, drag.latestY - drag.startY) < 7) return;
+      scheduleDragVisual(drag);
     };
 
     const handlePointerUp = (event) => {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== event.pointerId) return;
-      const wasDrag = drag.moved;
-      const target = cellAtPoint(event);
+      drag.latestX = event.clientX;
+      drag.latestY = event.clientY;
+      updateDragVisual(drag);
+      const destination = drag.target;
+      const shouldSwap = Boolean(destination && drag.progress >= (drag.axis === "x" ? drag.pitchX : drag.pitchY) * 0.34);
       dragRef.current = null;
-      setDragPreview(null);
-      if (!wasDrag) return;
+      if (!drag.moved) {
+        finishDragVisual(drag, false);
+        return;
+      }
 
       suppressClickRef.current = true;
       window.setTimeout(() => { suppressClickRef.current = false; }, 0);
-      if (!target || mapOpen || targetMode || game.status !== "playing") return;
-
-      const distance = Math.abs(drag.start.row - target.row) + Math.abs(drag.start.col - target.col);
-      if (distance === 1) {
-        setGame((current) => swapTiles(current, drag.start, target));
+      if (shouldSwap && !mapOpen && !targetMode && game.status === "playing") {
+        drag.partner = drag.targetElement ? {
+          element: drag.targetElement,
+          rect: drag.targetElement.getBoundingClientRect(),
+        } : null;
+        clearDragTarget(drag);
+        pendingDragReleaseRef.current = { drag, turnId: drag.turnId };
+        setGame((current) => swapTiles(current, drag.start, destination));
         setSelected(null);
         setToast("");
-      } else if (distance > 1) {
-        setToast("Bir taşı yalnızca yanındaki kareye sürükleyebilirsin.");
+      } else {
+        finishDragVisual(drag, true);
       }
     };
 
     const handlePointerCancel = (event) => {
-      if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
       dragRef.current = null;
-      setDragPreview(null);
+      finishDragVisual(drag, true);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -521,8 +644,6 @@ function App() {
                     const isBurstCell = burstTurnId === game.turnId && game.clearedCells.some((cell) => cell.row === rowIndex && cell.col === colIndex);
                     const isBombCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "bomb-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
                     const isPrismCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "prism-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
-                    const isDragStart = dragPreview?.start.row === rowIndex && dragPreview?.start.col === colIndex;
-                    const isDragTarget = dragPreview?.target?.row === rowIndex && dragPreview?.target?.col === colIndex;
                     const isPrism = tile.special === "prism";
                     const isBomb = tile.special === "bomb";
                     return (
@@ -530,12 +651,11 @@ function App() {
                         key={tile.id}
                         data-row={rowIndex}
                         data-col={colIndex}
-                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isDragStart && dragPreview ? " dragging" : ""}${isDragTarget ? " drag-target" : ""}${isBomb ? " special-bomb" : ""}${isPrism ? " special-prism" : ""}${isBombCreated ? " bomb-created-cell" : ""}${isPrismCreated ? " prism-created-cell" : ""}`}
+                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isBomb ? " special-bomb" : ""}${isPrism ? " special-prism" : ""}${isBombCreated ? " bomb-created-cell" : ""}${isPrismCreated ? " prism-created-cell" : ""}`}
                         style={{
                           "--tile-color": isBomb ? "#ffd879" : isPrism ? "#eaf7dc" : meta.color,
                           "--tile-deep": isBomb ? "#d65343" : isPrism ? "#719987" : meta.deep,
                           "--cell-index": rowIndex * 8 + colIndex,
-                          ...(isDragStart && dragPreview ? { "--drag-x": `${dragPreview.dx}px`, "--drag-y": `${dragPreview.dy}px` } : {}),
                         }}
                         onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}

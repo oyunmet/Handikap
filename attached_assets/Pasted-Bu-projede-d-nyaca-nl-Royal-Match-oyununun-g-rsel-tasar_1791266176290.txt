@@ -1,0 +1,64 @@
+Bu projede, dünyaca ünlü "Royal Match" oyununun görsel tasarımını, renk paletini, taş desenlerini, animasyon efektlerini, UI/UX yapısını ve oyun mekaniklerini BİREBİR kopyalayarak tam kapsamlı bir 2D Match-3 oyunu geliştireceksin.
+
+Aşağıdaki tüm teknik, görsel ve animasyonel detayları eksiksiz uygula:
+
+---
+
+### 1. GÖRSEL STİL VE RENK PALETİ (ROYAL MATCH VISUALS)
+- **3D Glossy & Kabartmalı Dokular:** Tüm taşlar ve UI elemanları yüksek doygunlukta, parlak (glossy finish), hafif dışa doğru bombeleştirilmiş (bevel/emboss) ve 3D hacim hissi veren dokuda tasarlanmalıdır.
+- **Dinamik 5 Temel Taş (Tiles):**
+  1. Kırmızı Taş: Parlak kırmızı, köşeleri yumuşatılmış 3D küp/kutu formu.
+  2. Mavi Taş: Canlı koyu mavi, dışı açık mavi parıltılı 3D kalkan (shield) formu.
+  3. Sarı Taş: Parlak altın sarısı, üzerinde kırmızı mücevher detayı olan 3D Kral Tacı (crown) formu.
+  4. Yeşil Taş: Canlı parlak yeşil, damarları belirgin 3D yaprak (leaf) formu.
+  5. Pembe/Mor Taş: Yüksek parlaklıkta keskin ve ışıltılı 3D Elmas (gem/diamond) formu.
+- **Süper Güçlendiriciler (Power-ups):**
+  - **TNT:** Üzerinde siyah "TNT" yazan, sarı fitilli ve ahşap dokulu 3D fıçı.
+  - **Disco Ball (Light Ball):** Rengarenk kareli, etrafına dairesel parıltılar ve yıldızlar saçan ışıl ışıl diskotek küresi.
+  - **Propeller (Pervane):** İki kanatlı, ortasında kırmızı benek bulunan dinamik uçan pervane/roket.
+  - **Rocket:** Kırmızı-beyaz çizgili, uç kısmı sivri roket formu.
+
+---
+
+### 2. ARAYÜZ VE EKRAN YAPISI (EXACT UI/UX LAYOUT)
+- **Üst Header Paneli (Mavi & Altın Tema):**
+  - Üst kısımda altın kaplama kalın çerçeveli, koyu mavi zeminli kavisli ana banner.
+  - **Sol Kart (Target):** Krem rengi zemin üzerinde toplanması gereken objeler ve kalan adetler.
+  - **Orta Portre:** Altın çerçeve içerisinde gülümseyen bıyıklı ve taçlı Kral (King Robert) görseli.
+  - **Sağ Kart (Moves):** Krem zemin üzerine büyük kalın fontla yazılmış kalan hamle sayısı.
+- **Oyun Tahtası (Grid Area):**
+  - Izgaranın arka planında hafif saydam, kiremit desenli ızgara çizgileri (grid lines).
+  - Tahtanın arkasında derinlik hissi veren gökyüzü, yeşil bahçe ve kale manzaralı arka plan.
+- **Alt Booster Paneli (Bottom Bar):**
+  - Oyun alanının altında 5 adet dairesel buton: Altın sarısı dış halka, canlı yeşil iç zemin ve üzerlerinde kilit/booster ikonları (Çekiç, Yer Değiştirici vb.).
+  - En sağda altın çerçeveli ayarlar (dişli) butonu.
+
+---
+
+### 3. ANİMASYONLAR VE JUCINESS (ROYAL MATCH ANIMATIONS)
+- **Eşleşme ve Patlama Efektleri:** Taşlar eşleştiğinde anında yok olmak yerine hafifçe büyüyüp parlak parçacıklar (sparkles/particles) saçarak patlamalıdır.
+- **Gravity & Bounce (Düşüş Animasyonu):** Yukarıdan yeni dökülen taşlar yerlerine otururken hafif bir yaylanma (bounce/elastic easing) efekti yapmalıdır.
+- **Özel Taş Aktivasyonları:**
+  - **TNT Patlaması:** Ekranı hafifçe sallayan (screen shake) ve turuncu-sarı alev parçacıkları saçan patlama animasyonu.
+  - **Disco Ball Aktivasyonu:** Seçilen renkteki tüm taşlara elektrik akımı/lazer ışınları göndererek onları yok etme efekti.
+  - **Propeller Uçuşu:** Sahadan döne döne havalanıp hedef kareye doğru süzülerek çarpma animasyonu.
+- **Combo Merges (Özel Taş Birleştirmeleri):** İki özel taş birleştirildiğinde ekran merkezinde devasa ışık patlaması ve combolara özel ses/görsel efektler.
+
+---
+
+### 4. CORE GAMEPLAY VE MEKANİKLER
+- **Match-3 Sistemi:** 8x8 varsayılan ızgarada komşu taşları sürükleyerek (drag & drop) veya dokunarak (tap-to-swap) yer değiştirme.
+- **Özel Taş Oluşum Algoritması:**
+  - 4'lü düz eşleşme ➔ Roket.
+  - 2x2 kare eşleşme ➔ Pervane (Propeller).
+  - T veya L şeklinde 5'li eşleşme ➔ TNT.
+  - 5'li düz çizgi eşleşmesi ➔ Disco Ball.
+- **Kaskat (Cascading) Tekrarı:** Patlayan taşların yerine yukarıdan yenilerinin düşmesi ve zincirleme kombocuların otomatik tetiklenmesi.
+- **Engeller (Obstacles):** Ahşap kutular, zincirli taşlar ve çimen kaplı zemin mekaniklerini kodla.
+
+---
+
+### 5. TEKNOLOJİ VE KOD YAPISI
+- HTML5 Canvas ve Phaser.js (veya React + Pixi.js) kullanarak responsive ve akıcı 60 FPS mobil uyumlu yapı kur.
+- Görsel varlıkları CSS/Canvas sprite şablonlarıyla veya `assets/` klasöründen dinamik SVG/PNG olarak çek.
+- Oyunu hemen çalıştırılabilir, ilk seviyesi tam oynanabilir ve Royal Match ile görsel olarak ayırt edilemez kalitede sun.

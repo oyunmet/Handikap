@@ -2524,3 +2524,70 @@ button:focus-visible {
   .node-name { max-width: 82px; line-height: 1.25; }
   .level-node { width: 40px; height: 40px; }
 }
+
+/* Tactile pointer feedback: a lifted enamel piece, warm landing mark, soft return. */
+.tile-cell.dragging {
+  z-index: 14;
+  animation: none;
+  pointer-events: none;
+  transform: translate3d(var(--drag-x, 0px), var(--drag-y, 0px), 0) scale(1.12);
+  transform-origin: center;
+  transition: none;
+  cursor: grabbing;
+  filter: none;
+  box-shadow:
+    inset 0 2px 4px rgba(9,34,55,.22),
+    inset 0 1px rgba(255,255,255,.06),
+    0 12px 20px rgba(7,22,35,.38),
+    0 4px 8px rgba(11,36,52,.24);
+}
+.tile-cell.dragging::before { transform: scale(1.055); }
+.tile-cell.dragging .tile-symbol { transform: scale(1.06) rotate(-2deg); }
+
+.tile-cell.drag-target {
+  z-index: 9;
+  transform: scale(.95);
+  outline: 2px solid rgba(255,239,177,.98);
+  outline-offset: 1px;
+  background: rgba(233,195,105,.18);
+  box-shadow:
+    0 0 0 4px rgba(246,211,126,.22),
+    0 0 13px rgba(255,225,145,.32),
+    inset 0 0 0 1px rgba(255,250,222,.22);
+  transition:
+    transform .15s cubic-bezier(.2,.8,.2,1),
+    background-color .15s ease,
+    box-shadow .15s ease,
+    outline-color .15s ease;
+}
+.tile-cell.drag-target::before { transform: scale(.96); filter: none; }
+.theme-coral .tile-cell.drag-target,
+.theme-archive .tile-cell.drag-target {
+  background: rgba(233,195,105,.18);
+  box-shadow:
+    0 0 0 4px rgba(246,211,126,.22),
+    0 0 13px rgba(255,225,145,.32),
+    inset 0 0 0 1px rgba(255,250,222,.22);
+}
+
+.tile-cell.drag-return {
+  animation: tile-drag-return .24s both cubic-bezier(.2,.78,.24,1);
+  transition: none;
+}
+@keyframes tile-drag-return {
+  0% { transform: translate3d(var(--drag-x, 0px), var(--drag-y, 0px), 0) scale(1.12); }
+  72% { transform: translate3d(0, 0, 0) scale(.975); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-cell.dragging,
+  .tile-cell.drag-target,
+  .tile-cell.drag-return,
+  .tile-cell.dragging::before,
+  .tile-cell.drag-target::before,
+  .tile-cell.dragging .tile-symbol {
+    transition-duration: .01ms !important;
+  }
+  .tile-cell.drag-return { animation-duration: .01ms !important; }
+}
