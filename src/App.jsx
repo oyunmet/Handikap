@@ -28,6 +28,20 @@ function readProgress() {
   }
 }
 
+const ROYAL_REGIONS = [
+  { name: "Taç Avlusu", subtitle: "Mermer kemerlerin altında yeni bir hanedan başlıyor." },
+  { name: "Safir Surlar", subtitle: "Rüzgâr, deniz kapısının eski sırlarını taşıyor." },
+  { name: "Yıldız Kulesi", subtitle: "Göğün haritası en yüksek burçta saklı." },
+];
+const ROYAL_LEVEL_NAMES = [
+  "İlk Nişan", "Gümüş Kapı", "Şafak Burcu",
+  "Safir Geçit", "Ejderha Nöbeti", "Deniz Feneri",
+  "Yıldız Odası", "Kayıp Takımyıldız", "Son Taç",
+];
+const TILE_NAMES = ["Kalkan", "Taç", "Yakut", "Kule", "Hilal", "Mühür"];
+const regionCopy = (region) => ROYAL_REGIONS[REGIONS.findIndex((item) => item.id === region.id)] ?? ROYAL_REGIONS[0];
+const levelCopy = (item) => ROYAL_LEVEL_NAMES[item.id - 1] ?? item.name;
+
 function Glyph({ type, special, className = "" }) {
   const common = {
     className: `tile-symbol ${className}`,
@@ -41,77 +55,92 @@ function Glyph({ type, special, className = "" }) {
   };
   if (special === "bomb") {
     return <svg {...common} className={`${common.className} special-bomb-mark`}>
-      <path d="M16 22a8 8 0 0 1 16 0v9a8 8 0 0 1-16 0v-9Z" fill="currentColor" fillOpacity=".82" />
-      <path d="M19 22a5 5 0 0 1 10 0v8a5 5 0 0 1-10 0v-8Z" fill="currentColor" fillOpacity=".25" />
-      <path d="M27 14c.7-5 4-7 9-7" />
-      <path d="m37 5 1.1 2.4 2.5.9-2.5.9-1.1 2.4-.9-2.4-2.5-.9 2.5-.9L37 5Z" fill="currentColor" stroke="none" />
-      <path d="M21 25c1-1 2-1 3 0m-1-4v2" stroke="white" strokeOpacity=".78" />
+      <path d="M14 16h20v19l-4 4H18l-4-4V16Z" fill="currentColor" fillOpacity=".84" />
+      <path d="M17 14h14v4H17zM17 21h14v10H17z" fill="currentColor" fillOpacity=".4" stroke="white" strokeOpacity=".76" />
+      <path d="M18 26h12M21 24v4m4-4v4m4-4v4" stroke="white" strokeWidth="1.25" />
+      <path d="m23 13 3-5 4 1" />
+      <path d="m33 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z" fill="white" stroke="none" />
+      <text x="24" y="29" textAnchor="middle" fill="white" stroke="none" fontSize="5.3" fontWeight="900" fontFamily="sans-serif">TNT</text>
     </svg>;
   }
   if (special === "prism") {
     return <svg {...common} className={`${common.className} special-prism-mark`}>
-      <path d="m24 4 16 10v18L24 42 8 32V14L24 4Z" fill="currentColor" fillOpacity=".22" />
-      <path d="m24 4 0 38M8 14l32 18M40 14 8 32M8 14l16 4 16-4M8 32l16-4 16 4M24 18l6 6-6 6-6-6 6-6Z" />
-      <path d="m24 4 0 14m16-4-10 10m10 8-10-2m-6 12V30m-16 2 10-8M8 14l10 10" stroke="white" strokeOpacity=".82" />
-      <circle cx="24" cy="24" r="2.3" fill="white" stroke="none" />
+      <circle cx="24" cy="24" r="17" fill="currentColor" fillOpacity=".5" stroke="white" strokeOpacity=".9" />
+      <path d="M9 18h30M8 24h32M10 30h28M17 9c5 8 7 22 0 30m14-30c-5 8-7 22 0 30M12 13c8 4 16 4 24 0M12 35c8-4 16-4 24 0" stroke="white" strokeOpacity=".85" strokeWidth="1.1" />
+      <circle cx="17" cy="17" r="2.2" fill="#fff3a5" stroke="none" /><circle cx="32" cy="26" r="2" fill="#ffc1e4" stroke="none" />
+      <path d="m24 3 1.2 3.1L28 7l-2.8 1-1.2 3-1.1-3L20 7l2.9-.9L24 3Z" fill="white" stroke="none" />
     </svg>;
   }
   if (type === 0) {
     return <svg {...common}>
-      <path d="m14 11 10-5 10 5 5 13-5 13-10 5-10-5-5-13 5-13Z" fill="currentColor" fillOpacity=".24" />
-      <path d="m14 11 10 5 10-5M9 24h30M14 37l10-5 10 5M24 16v16" />
-      <path d="m19 24 5-8 5 8-5 8-5-8Z" fill="currentColor" fillOpacity=".45" />
+      <path d="M24 5 39 11v11c0 9-6 15-15 21C15 37 9 31 9 22V11l15-6Z" fill="currentColor" fillOpacity=".28" />
+      <path d="M24 7 37 12v10c0 8-5 13-13 18-8-5-13-10-13-18V12l13-5Z" />
+      <path d="m24 12 8 4v7c0 5-3 9-8 12-5-3-8-7-8-12v-7l8-4Z" fill="currentColor" fillOpacity=".72" />
+      <path d="m19 20 5-3 5 3-1 7-4 3-4-3-1-7Z" stroke="white" strokeOpacity=".85" />
     </svg>;
   }
   if (type === 1) {
     return <svg {...common}>
-      <path d="M23 37C12 34 8 26 10 15c10-1 18 3 20 13M25 35c1-11 7-18 17-20 2 11-2 20-12 24" fill="currentColor" fillOpacity=".28" />
-      <path d="M14 19c4 4 8 9 11 16m12-14c-5 4-8 9-10 16" />
-      <path d="M23 35v6" />
+      <path d="m8 13 9 7 7-13 7 13 9-7-4 25H12L8 13Z" fill="currentColor" fillOpacity=".46" />
+      <path d="m8 13 9 7 7-13 7 13 9-7-4 25H12L8 13Z" />
+      <path d="M12 32h24M13 26h22M17 20l7 7 7-7" stroke="white" strokeOpacity=".88" />
+      <circle cx="24" cy="7" r="2" fill="white" stroke="none" />
     </svg>;
   }
   if (type === 2) {
     return <svg {...common}>
-      <path d="M8 34a16 16 0 0 1 32 0H8Z" fill="currentColor" fillOpacity=".25" />
-      <path d="M8 34a16 16 0 0 1 32 0M12 31l7 3m-2-11 6 10m4-11-3 11m10-8-7 10" />
-      <path d="M7 38h34" />
+      <path d="m24 4 17 14-17 26L7 18 24 4Z" fill="currentColor" fillOpacity=".42" />
+      <path d="m24 4 17 14-17 26L7 18 24 4Z" />
+      <path d="m24 4-1 18 18-4M23 22 7 18m16 4 1 22m0-22 17-4" stroke="white" strokeOpacity=".86" />
+      <path d="m24 4 7 15-8 3-7-5L24 4Z" fill="white" fillOpacity=".45" />
     </svg>;
   }
   if (type === 3) {
     return <svg {...common}>
-      <path d="m24 5 15 13-4 20H13L9 18 24 5Z" fill="currentColor" fillOpacity=".28" />
-      <path d="m24 5 1 14 14-1m-14 1-12 21m12-21 12 21M9 18h30" />
-      <path d="m17 18 7-13 7 13-7 21-7-21Z" fill="currentColor" fillOpacity=".2" />
+      <path d="M10 40V19L24 7l14 12v21H10Z" fill="currentColor" fillOpacity=".3" />
+      <path d="M10 40V19L24 7l14 12v21H10ZM7 40h34M15 23h6v7h-6zm12 0h6v7h-6zM21 40V32h6v8" />
+      <path d="M21 40V32h6v8M17 17l7-6 7 6" stroke="white" strokeOpacity=".85" />
+      <path d="M24 9V4m-3 3h6" />
     </svg>;
   }
   if (type === 4) {
     return <svg {...common}>
-      <path d="M7 17c5-5 10-5 15 0s10 5 19 0M7 25c5-5 10-5 15 0s10 5 19 0M7 33c5-5 10-5 15 0s10 5 19 0" />
-      <path d="M7 17c5-5 10-5 15 0s10 5 19 0" fill="currentColor" fillOpacity=".18" />
-      <circle cx="24" cy="10" r="3" fill="currentColor" stroke="none" />
+      <path d="M34 8c-4 2-7 7-7 13 0 8 6 14 14 14-3 5-9 8-16 7C14 41 6 33 6 23S14 5 24 5c4 0 7 1 10 3Z" fill="currentColor" fillOpacity=".42" />
+      <path d="M34 8c-4 2-7 7-7 13 0 8 6 14 14 14-3 5-9 8-16 7C14 41 6 33 6 23S14 5 24 5c4 0 7 1 10 3Z" />
+      <path d="m13 19 2 1m4-8 1 2m-1 21 2-1" stroke="white" strokeOpacity=".9" />
     </svg>;
   }
   return <svg {...common}>
-    <circle cx="24" cy="24" r="13" fill="currentColor" fillOpacity=".22" />
-    <circle cx="24" cy="24" r="8" />
-    <path d="M8 20c4-9 13-14 23-11m9 19c-4 9-13 14-23 11" />
-    <circle cx="11" cy="17" r="2.3" fill="currentColor" stroke="none" />
-    <circle cx="37" cy="31" r="2.3" fill="currentColor" stroke="none" />
+    <path d="m24 5 5 8 9-2-1 9 7 5-7 6 1 9-9-2-5 8-5-8-9 2 1-9-7-6 7-5-1-9 9 2 5-8Z" fill="currentColor" fillOpacity=".36" />
+    <path d="m24 5 5 8 9-2-1 9 7 5-7 6 1 9-9-2-5 8-5-8-9 2 1-9-7-6 7-5-1-9 9 2 5-8Z" />
+    <circle cx="24" cy="25" r="7" fill="currentColor" fillOpacity=".8" /><circle cx="24" cy="25" r="3" fill="white" stroke="none" />
+    <path d="m13 18 4 2m14 11 4 2" stroke="white" />
   </svg>;
 }
 
 function FishGlyph() {
   return <svg className="fish-glyph" viewBox="0 0 64 42" fill="none" aria-hidden="true">
-    <path d="M11 21c7-10 17-15 29-12l11 12-11 12c-12 3-22-2-29-12Z" fill="#ffd56d" stroke="#fff7d0" strokeWidth="2" />
-    <path d="m49 21 12-11-2 11 2 11-12-11Z" fill="#f28f79" stroke="#fff7d0" strokeWidth="2" strokeLinejoin="round" />
-    <path d="M25 11c1-6 7-8 13-7l-3 8m-10 20c1 6 7 8 13 7l-3-8" fill="#8fd6c4" stroke="#fff7d0" strokeWidth="1.6" strokeLinejoin="round" />
-    <circle cx="18" cy="19" r="2.2" fill="#294e49" />
-    <path d="M27 21c3-4 7-4 10 0-3 4-7 4-10 0Z" fill="#fff4bc" fillOpacity=".82" />
+    <circle cx="32" cy="21" r="8" fill="#ffd875" stroke="#fff2bf" strokeWidth="2" />
+    <path d="M32 12V3m0 36v-9M23 21h-9m39 0h-9" stroke="#fff1b6" strokeWidth="4" strokeLinecap="round" />
+    <path d="M28 4c1-3 7-3 8 0l-1 9h-6l-1-9Zm0 34c1 3 7 3 8 0l-1-9h-6l-1 9ZM14 17c-3 1-3 7 0 8l9-1v-6l-9-1Zm36 0c3 1 3 7 0 8l-9-1v-6l9-1Z" fill="#e8a94c" stroke="#fff0b5" strokeWidth="1.4" />
+    <circle cx="32" cy="21" r="3" fill="#fff7dc" /><path d="m32 18 2 3-2 3-2-3 2-3Z" fill="#b64855" />
   </svg>;
 }
 
 function BrandGlyph() {
-  return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 27V14m0 6-6-6m6 2 6-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M9 13c.2-4.1 2.3-6.1 6.1-6.3-.1 4-2.1 6.1-6.1 6.3Zm7-2.2c.2-4.2 2.3-6.2 6.2-6.4-.2 4.1-2.2 6.2-6.2 6.4Z" fill="currentColor" /></svg>;
+  return <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 4 33 9v11c0 8-5.5 12.5-13 17-7.5-4.5-13-9-13-17V9l13-5Z" fill="currentColor" stroke="#fff1bd" strokeWidth="1.4" /><path d="m11 15 5 3 4-8 4 8 5-3-2 11H13l-2-11Z" fill="#fff0b0" stroke="#e0ae47" strokeWidth="1.1" /><circle cx="20" cy="21" r="2" fill="#3266a0" /></svg>;
+}
+
+function CrestMascot() {
+  return <svg className="crest-mascot-art" viewBox="0 0 96 106" fill="none" aria-hidden="true">
+    <path d="M48 3 86 17v33c0 23-14 40-38 53C24 90 10 73 10 50V17L48 3Z" fill="#174477" stroke="#f7d777" strokeWidth="4" />
+    <path d="M19 21 48 10l29 11v28c0 18-11 31-29 42-18-11-29-24-29-42V21Z" fill="#315f94" stroke="#fff0b1" strokeWidth="1.5" />
+    <path d="m27 42 9 7 12-23 12 23 9-7-5 23H32l-5-23Z" fill="#f5c558" stroke="#fff0b1" strokeWidth="2" />
+    <circle cx="48" cy="49" r="8" fill="#d9545c" stroke="#ffe9a4" strokeWidth="2" />
+    <path d="M32 76c2-10 8-15 16-15s14 5 16 15H32Z" fill="#edc16b" stroke="#fff0b1" strokeWidth="2" />
+    <path d="M40 68h16m-12 7h8" stroke="#9c673f" strokeWidth="2" strokeLinecap="round" />
+    <path d="M48 14v7M44 17.5h8" stroke="#fff2bd" strokeWidth="1.6" />
+  </svg>;
 }
 
 function SparkIcon({ className = "" }) {
@@ -149,6 +178,7 @@ function App() {
   const [dragPreview, setDragPreview] = useState(null);
   const [targetMode, setTargetMode] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(() => {
     try { return !localStorage.getItem(INTRO_KEY); } catch { return true; }
   });
@@ -170,12 +200,18 @@ function App() {
   const activeEffect = burstTurnId === game.turnId
     ? game.specialEffects.find((effect) => ["fish", "bomb-created", "bomb-explosion", "prism-created", "prism-explosion"].includes(effect.type))
     : null;
-  const effectCaption = activeEffect?.type === "fish" ? "BALIK HEDEFE DALDI"
-    : activeEffect?.type === "bomb-created" ? "BOMBA UYANDI"
-      : activeEffect?.type === "bomb-explosion" ? "BOMBA PATLADI"
-        : activeEffect?.type === "prism-created" ? "PRİZMA OLUŞTU"
-          : activeEffect?.type === "prism-explosion" ? "RENKLER ARINDI"
+  const effectCaption = activeEffect?.type === "fish" ? "PERVANE YOLA ÇIKTI"
+    : activeEffect?.type === "bomb-created" ? "TNT FİÇISI HAZIR"
+      : activeEffect?.type === "bomb-explosion" ? "FİÇI PATLADI"
+        : activeEffect?.type === "prism-created" ? "YILDIZ KÜRESİ DOĞDU"
+          : activeEffect?.type === "prism-explosion" ? "RENKLER TAHTAYI SARDI"
             : "";
+  const displayGameMessage = (message) => ({
+    "Taşlar yeniden dizildi.": "Taşlar yeniden sıralandı.",
+    "Eşleşme olmadı; başka bir taş dene.": "Bu hamlede eşleşme yok. Başka bir komşu dene.",
+    "Bölgenin ışığı geri döndü.": "Taç yeniden parlıyor!",
+    "Hamleler tükendi. Yeniden deneyebilirsin.": "Hamleler bitti. Bir kez daha dene.",
+  }[message] ?? message);
   const getCellCenter = (row, col) => {
     const grid = boardGridRef.current;
     const cell = grid?.querySelector(`.tile-cell[data-row="${row}"][data-col="${col}"]`);
@@ -242,7 +278,7 @@ function App() {
       setGame((current) => fireLightSeed(current, { row, col }));
       setTargetMode(false);
       setSelected(null);
-      setToast("Işık tohumu çevresindeki taşları arındırdı.");
+      setToast("Taç çekici çevresindeki taşları temizledi.");
       return;
     }
     if (!selected) {
@@ -345,13 +381,13 @@ function App() {
   return (
     <main className={`app-shell theme-${region.theme}`}>
       <header className="topbar">
-        <div className="brand-lockup" aria-label="Handikap — Işık Bahçesi">
+        <div className="brand-lockup" aria-label="Taç Taşları">
           <span className="brand-mark"><BrandGlyph /></span>
-          <span><span className="brand-name">Handikap</span><span className="brand-caption">Işık Bahçesi</span></span>
+          <span><span className="brand-name">Taç Taşları</span><span className="brand-caption">KRALİYET BULMACASI</span></span>
         </div>
         <div className="top-actions">
           <button className="text-button" onClick={() => { setMapOpen((open) => !open); setTargetMode(false); setSelected(null); }}>
-            {mapOpen ? "Bahçeye dön" : "Bölge haritası"}
+            {mapOpen ? "Oyuna dön" : "Krallık haritası"}
           </button>
           {!mapOpen && <button className="icon-button" aria-label="Bu bölümü yeniden başlat" title="Bölümü yeniden başlat" onClick={retryLevel}>
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4.5 16.5A8 8 0 0 0 18.6 18M4 12a8 8 0 0 1 14-5l2 2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -366,9 +402,9 @@ function App() {
         <section className="page-wrap map-view" aria-label="Bölge ve bölüm haritası">
           <div className="map-intro">
             <div>
-              <div className="eyebrow">Işık izini takip et</div>
-              <h1 className="map-title">Bahçe haritası</h1>
-              <p className="map-description">Her eşleşme, unutulmuş bir manzarayı sisin altından çıkarır.</p>
+              <div className="eyebrow">TAHTA YOLLARI</div>
+              <h1 className="map-title">Krallık haritası</h1>
+              <p className="map-description">Üç kadim diyarı aç, sarayın tacını yeniden birleştir.</p>
             </div>
             <div className="map-progress-pill">{completedCount} / 9 bölüm tamamlandı</div>
           </div>
@@ -382,10 +418,10 @@ function App() {
                 <div className="region-map-head">
                   <div>
                     <div className="region-mark">BÖLGE {mapRegion.mark}</div>
-                    <h2 className="map-region-name">{mapRegion.name}</h2>
-                    <p className="map-region-sub">{mapRegion.subtitle}</p>
+                    <h2 className="map-region-name">{regionCopy(mapRegion).name}</h2>
+                    <p className="map-region-sub">{regionCopy(mapRegion).subtitle}</p>
                   </div>
-                  <span className="region-state">{regionCompleted === 3 ? "Işığı döndü" : regionOpen ? "Açık" : "Kilitli"}</span>
+                  <span className="region-state">{regionCompleted === 3 ? "TAMAMLANDI" : regionOpen ? "AÇIK" : "KİLİTLİ"}</span>
                 </div>
                 <div className="level-route">
                   <div className="route-line" />
@@ -398,13 +434,13 @@ function App() {
                       <div className="level-node-wrap" key={item.id}>
                         <button
                           className={`level-node ${available ? "available" : "locked"}${stars ? " completed" : ""}${active ? " current" : ""}`}
-                          aria-label={`${item.name}, ${stars ? "tamamlandı" : available ? "oynamaya hazır" : "kilitli"}`}
+                          aria-label={`${levelCopy(item)}, ${stars ? "tamamlandı" : available ? "oynamaya hazır" : "kilitli"}`}
                           disabled={!available}
                           onClick={() => startLevel(item.id)}
                         >
                           {available ? stars ? <Star lit className="node-star" /> : item.id.toString().padStart(2, "0") : <LockIcon className="node-lock" />}
                         </button>
-                        <span className="node-name">{item.name}</span>
+                        <span className="node-name">{levelCopy(item)}</span>
                         {stars > 0 && <span className="node-stars" aria-label={`${stars} yıldız`}>
                           {[1, 2, 3].map((star) => <Star key={star} lit={stars >= star} className="node-star" />)}
                         </span>}
@@ -420,15 +456,15 @@ function App() {
             <span className="legend-item"><i className="legend-dot" /> Tamamlandı</span>
             <span className="legend-item"><i className="legend-dot closed" /> Kilitli</span>
           </div>
-          <p className="map-footer-note">Yeni yollar, önceki bölgenin üç ışığı da uyandığında açılır.</p>
+          <p className="map-footer-note">Her üç odanın mührünü tamamla, yeni bir diyarın kapısını aç.</p>
         </section>
       ) : (
         <div className="page-wrap">
           <div className="hero-row">
             <div className="hero-copy">
-              <div className="region-kicker"><span className="region-orb" /><span className="eyebrow">{region.name} · {region.mark}</span></div>
-              <h1 className="hero-title">{level.name}</h1>
-              <p className="hero-subtitle">{region.subtitle}</p>
+              <div className="region-kicker"><span className="region-orb" /><span className="eyebrow">{regionCopy(region).name} · {region.mark}</span></div>
+              <h1 className="hero-title">{levelCopy(level)}</h1>
+              <p className="hero-subtitle">{regionCopy(region).subtitle}</p>
             </div>
             <div className="level-chip">
               <span className="level-number">{String(level.id).padStart(2, "0")}</span>
@@ -438,39 +474,53 @@ function App() {
           </div>
 
           {completedCount === 0 && <div className="instructions-banner">
-            <span>Üçlü eşleşme sisi kaldırır; dörtlü balık, beşli bomba, sekizli prizma uyandırır.</span>
-            <button onClick={() => setShowHelp(true)}>Nasıl oynanır?</button>
+            <span>Üçlü eşleşmeler mühürleri açar. Uzun diziler özel saray taşları doğurur.</span>
+            <button onClick={() => setShowHelp(true)}>Kurallara göz at</button>
           </div>}
 
           <div className="game-layout">
             <section className="play-column" aria-label="Oyun alanı">
               <div className="status-strip">
-                <div className="status-item">
-                  <div><span className="status-label">Hamle</span><span className="status-value">{game.movesLeft}<span className="status-unit">/ {level.moveLimit}</span></span></div>
-                  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 4 10 0-2.2 4.7 3.7 7.1a2.2 2.2 0 0 1-2 3.2H7.5a2.2 2.2 0 0 1-2-3.2l3.7-7.1L7 4Z" stroke="#86a56b" strokeWidth="1.5" strokeLinejoin="round" /><path d="M8.8 8.7h6.4" stroke="#86a56b" strokeWidth="1.5" /></svg>
+                <section className="status-targets" aria-label="Bölüm hedefleri">
+                  <div className="status-label">TAÇ GÖREVLERİ</div>
+                  <div className="target-chip-row">
+                    {level.goals.map((goal) => {
+                      const count = game.collected[goal.type] || 0;
+                      return <div className="target-chip" key={goal.type} style={{ "--target-color": TILE_META[goal.type].color }}>
+                        <span className="target-glyph"><Glyph type={goal.type} /></span>
+                        <span className="target-label">{TILE_NAMES[goal.type]}</span>
+                        <strong>{Math.min(count, goal.count)}<i>/{goal.count}</i></strong>
+                      </div>;
+                    })}
+                    <div className="target-chip seal-chip">
+                      <span className="seal-mini" aria-hidden="true" /><span className="target-label">Mühür</span>
+                      <strong>{Math.max(0, level.fogGoal - fogLeft)}<i>/{level.fogGoal}</i></strong>
+                    </div>
+                  </div>
+                </section>
+                <div className="center-crest" aria-label="Saray arması">
+                  <span className="crest-spark crest-spark-a" aria-hidden="true" /><CrestMascot /><span className="crest-spark crest-spark-b" aria-hidden="true" />
                 </div>
-                <div className="status-item">
-                  <div><span className="status-label">Puan</span><span className="status-value score-value">{game.score.toLocaleString("tr-TR")}</span></div>
-                  <SparkIcon className="status-spark" />
-                </div>
-                <div className="status-item">
-                  <div><span className="status-label">Bahçe sisi</span><span className="status-value">{fogLeft}<span className="status-unit">kare</span></span></div>
-                  <svg width="27" height="25" viewBox="0 0 28 26" fill="none" aria-hidden="true"><path d="M6 17.7h15a3.5 3.5 0 0 0 .2-7 6 6 0 0 0-11.5-1.1A4.2 4.2 0 0 0 6 17.7Z" fill="#c9dcca" stroke="#8fae98" strokeWidth="1.3" /><path d="M9 21h11M5 22h2" stroke="#8fae98" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                <div className="moves-panel">
+                  <span className="status-label">HAMLE</span>
+                  <strong>{game.movesLeft}</strong>
+                  <span className="moves-total">/ {level.moveLimit}</span>
+                  <span className="moves-score">PUAN {game.score.toLocaleString("tr-TR")}</span>
                 </div>
               </div>
 
               <div className="board-card">
                 <div className="board-heading">
-                  <span className="board-heading-title">IŞIK ALANI <span style={{ opacity: .55 }}>—</span> 08 × 08</span>
-                  <span className="board-hint">{targetMode ? "Işığın düşeceği kareyi seç" : "Taşı sürükle ya da dokun"}</span>
+                  <span className="board-heading-title">TAÇ TAHTASI <span style={{ opacity: .5 }}>·</span> 08 × 08</span>
+                  <span className="board-hint">{targetMode ? "Çekicin ineceği kareyi seç" : "Taşı sürükle ya da dokun"}</span>
                 </div>
                 {effectCaption && <div className="special-cue" key={`${game.turnId}-${effectCaption}`} role="status">
                   <SparkIcon /><span>{effectCaption}</span>
                 </div>}
                 {comboCue?.turnId === game.turnId && <div className="combo-cue" key={comboCue.turnId} role="status">
-                    <SparkIcon /><span><strong>ZİNCİR IŞIĞI</strong><b>{comboCue.count}×</b></span>
+                    <SparkIcon /><span><strong>TAÇ ZİNCİRİ</strong><b>{comboCue.count}×</b></span>
                 </div>}
-                <div ref={boardGridRef} className="board-grid" role="grid" aria-label="Sekiz çarpı sekiz ışık taşı tahtası">
+                <div ref={boardGridRef} className="board-grid" role="grid" aria-label="Sekiz çarpı sekiz saray taşı tahtası">
                   {game.board.map((row, rowIndex) => row.map((tile, colIndex) => {
                     const meta = TILE_META[tile.type];
                     const isSelected = selected?.row === rowIndex && selected?.col === colIndex;
@@ -495,7 +545,7 @@ function App() {
                         }}
                         onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}
-                        aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "bomba özel taşı, " : isPrism ? "prizma özel taşı, " : ""}${meta.name}${game.fog[rowIndex][colIndex] ? ", sisli" : ""}`}
+                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "TNT fiçısı, " : isPrism ? "ışıklı yıldız küresi, " : ""}${TILE_NAMES[tile.type] ?? meta.name}${game.fog[rowIndex][colIndex] ? ", mühürlü" : ""}`}
                         aria-describedby="board-instructions"
                         role="gridcell"
                       >
@@ -562,17 +612,17 @@ function App() {
                   })}
                 </div>
                 <div className="board-footer">
-                  <span id="board-instructions" className="board-caption">{targetMode ? <><strong>Hedef seçimi açık</strong> · tıklayarak tohumu bırak</> : <>Hamleni düşün. <strong>Taşlar hatırlar.</strong></>}</span>
-                  <span className="fog-caption">{Math.max(0, level.fogGoal - fogLeft)} / {level.fogGoal} sis kalktı</span>
+                  <span id="board-instructions" className="board-caption">{targetMode ? <><strong>Çekiç hazır</strong> · bir kareye dokun</> : <>Bir komşu taşı seç. <strong>Tahtayı oku.</strong></>}</span>
+                  <span className="fog-caption">Mühür {Math.max(0, level.fogGoal - fogLeft)} / {level.fogGoal}</span>
                 </div>
                 {game.status !== "playing" && <div className="board-veil">
                   <div className="result-card">
                     <div className="result-mark">
                       {game.status === "won" ? <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 5v8m0 22v8M5 24h8m22 0h8M10.6 10.6l5.7 5.7m15.4 15.4 5.7 5.7m0-26.8-5.7 5.7m-15.4 15.4-5.7 5.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="24" cy="24" r="9" fill="currentColor" fillOpacity=".2" stroke="currentColor" strokeWidth="2" /><circle cx="24" cy="24" r="3" fill="currentColor" /></svg> : <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M8 30c6-8 9-14 16-14s10 6 16 14M13 35h22M18 26l4 4m8-5-4 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="24" cy="12" r="3" fill="currentColor" /></svg>}
                     </div>
-                    <div className="result-kicker">{game.status === "won" ? "Manzara hatırlandı" : "Sis yeniden çöktü"}</div>
-                    <h2 className="result-title">{game.status === "won" ? "Işık geri döndü." : "Bir kez daha deneyelim."}</h2>
-                    <p className="result-copy">{game.status === "won" ? `${region.name} içindeki ${level.name} bölümü aydınlandı. Bir sonraki iz seni bekliyor.` : "Bu kez taşların ritmini daha yakından dinle. Işık tohumu hamle harcamadan yardım edebilir."}</p>
+                    <div className="result-kicker">{game.status === "won" ? "BÖLÜM TAMAMLANDI" : "YENİDEN DENE"}</div>
+                    <h2 className="result-title">{game.status === "won" ? "Taç yerine oturdu." : "Saray bekliyor."}</h2>
+                    <p className="result-copy">{game.status === "won" ? `${regionCopy(region).name} içindeki ${levelCopy(level)} tamamlandı. Bir sonraki oda açıldı.` : "Hedefleri ve mühürleri gözeterek hamlelerini yeniden kur."}</p>
                     {game.status === "won" && <div className="stars" aria-label={`${getStars(game)} yıldız kazandın`}>
                       {[1, 2, 3].map((star) => <Star key={star} lit={getStars(game) >= star} className="star" />)}
                     </div>}
@@ -584,82 +634,90 @@ function App() {
                   </div>
                 </div>}
               </div>
-            </section>
-
-            <aside className="side-column" aria-label="Bölüm bilgileri">
-              <section className="side-card goal-card">
-                <div className="card-heading"><h2 className="card-title">Bu bahçede</h2><span className="card-index">HEDEFLER</span></div>
-                <div className="goal-list">
-                  {level.goals.map((goal) => {
-                    const count = game.collected[goal.type] || 0;
-                    const done = count >= goal.count;
-                    return <React.Fragment key={goal.type}>
-                      <div>
-                        <div className="goal-row">
-                          <span className="goal-icon" style={{ "--goal-color": TILE_META[goal.type].deep }}><Glyph type={goal.type} /></span>
-                          <span><span className="goal-name">{TILE_META[goal.type].name}</span><span className="goal-caption">ışığını topla</span></span>
-                          <span className={`goal-count${done ? " done" : ""}`}>{Math.min(count, goal.count)} / {goal.count}</span>
-                        </div>
-                        <div className="goal-track"><div className="goal-fill" style={{ width: `${Math.min(100, (count / goal.count) * 100)}%` }} /></div>
-                      </div>
-                    </React.Fragment>;
-                  })}
-                </div>
-                <div className="goal-divider" />
-                <div className="fog-meter-row"><span>Sisi arındır</span><strong>{Math.max(0, level.fogGoal - fogLeft)} / {level.fogGoal}</strong></div>
-                <div className="fog-track"><div className="fog-fill" style={{ width: `${Math.min(100, ((level.fogGoal - fogLeft) / level.fogGoal) * 100)}%` }} /></div>
-              </section>
-
-              <section className={`side-card light-card${targetMode ? " target-active" : ""}`}>
-                <div className="light-top">
-                  <span className="light-symbol"><SparkIcon /></span>
-                  <div><div className="eyebrow" style={{ color: "#758d54" }}>ÖZEL YETENEK</div><h2 className="card-title">Işık tohumu</h2></div>
-                </div>
-                <p className="light-copy">3 × 3 çevresini arındırır. Hamle harcamaz; doğru yere bırak.</p>
-                <div className="charge-track"><div className="charge-fill" style={{ width: `${chargePercent}%` }} /></div>
-                <div className="charge-label"><span>IŞIK YÜKÜ</span><span>{game.lightCharge} / {lightCost}</span></div>
+              <nav className="booster-dock" aria-label="Saray araçları">
                 <button
-                  className={`seed-button${targetMode ? " targeting" : ""}`}
+                  className={`booster-button hammer-button${targetMode ? " targeting" : ""}${game.lightCharge >= lightCost ? " charged" : ""}`}
+                  aria-label={targetMode ? "Taç çekici hedef seçimini iptal et" : `Taç çekici, ${game.lightCharge} / ${lightCost} enerji`}
+                  aria-pressed={targetMode}
                   disabled={game.status !== "playing" || (game.lightCharge < lightCost && !targetMode)}
                   onClick={() => { setTargetMode((active) => !active); setSelected(null); }}
                 >
-                  {targetMode ? "Hedef modundan çık" : game.lightCharge >= lightCost ? "Hedef seç" : "Işık biriktir"}
+                  <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m18 4 9 9-4 4-9-9 4-4ZM17 13 8 22m-2 2 6-6 4 4-6 6H6v-3Z" fill="currentColor" stroke="white" strokeWidth="1.5" strokeLinejoin="round" /><path d="m21 3 1-2m5 7 2-1" stroke="#fff1b7" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
+                  <span className="booster-count">{Math.min(100, chargePercent)}%</span>
+                  <span className="booster-name">Çekiç</span>
                 </button>
-              </section>
+                <button className="booster-button locked" disabled aria-label="Kalkan aracı kilitli">
+                  <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 11 4v9c0 7-4 11-11 15C9 27 5 23 5 16V7l11-4Z" stroke="currentColor" strokeWidth="2" /><path d="m12 12 8 8m0-8-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg><LockIcon className="booster-lock" /></span>
+                  <span className="booster-name">Kalkan</span>
+                </button>
+                <button className="booster-button locked" disabled aria-label="Asa aracı kilitli">
+                  <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m12 25 12-17m-9 20 3-4-8-6-3 4 8 6Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="m23 3 1.2 3.3L28 8l-3.8 1.4L23 13l-1.3-3.6L18 8l3.7-1.7L23 3Z" fill="currentColor" /></svg><LockIcon className="booster-lock" /></span>
+                  <span className="booster-name">Asa</span>
+                </button>
+                <button className="booster-button locked" disabled aria-label="Taç mührü aracı kilitli">
+                  <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="2" /><path d="m8 11 5 3 3-7 3 7 5-3-2 10H10L8 11Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg><LockIcon className="booster-lock" /></span>
+                  <span className="booster-name">Taç mührü</span>
+                </button>
+                <button className="booster-button settings-button" aria-label="Oyun ayarlarını aç" onClick={() => setSettingsOpen(true)}>
+                  <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M13 4h6l1 3 3 1 3-1 3 5-2 2v4l2 2-3 5-3-1-3 1-1 3h-6l-1-3-3-1-3 1-3-5 2-2v-4l-2-2 3-5 3 1 3-1 1-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><circle cx="16" cy="16" r="4" stroke="currentColor" strokeWidth="2" /></svg></span>
+                  <span className="booster-name">Ayarlar</span>
+                </button>
+              </nav>
+            </section>
 
+            <aside className="side-column" aria-label="Saray ilerlemesi">
+              <section className="side-card charge-card">
+                <div className="card-heading"><h2 className="card-title">Taç çekici</h2><span className="card-index">ALAN ARACI</span></div>
+                <div className="charge-summary"><span className="charge-crest"><BrandGlyph /></span><div><strong>3 × 3 kare</strong><span>Biriken enerjiyle açılır</span></div></div>
+                <div className="charge-track"><div className="charge-fill" style={{ width: `${chargePercent}%` }} /></div>
+                <div className="charge-label"><span>ENERJİ</span><span>{game.lightCharge} / {lightCost}</span></div>
+                <p className="light-copy">Her temizlenen taş çekici doldurur. Hazır olduğunda alt araç çubuğundan seç.</p>
+              </section>
               <section className="side-card region-card">
                 <div className="region-line">
-                  <div><div className="eyebrow">ŞİMDİKİ BÖLGE</div><div className="region-name">{region.name}</div><div className="region-subtitle">{region.subtitle}</div></div>
+                  <div><div className="eyebrow">BU DİYARDA</div><div className="region-name">{regionCopy(region).name}</div><div className="region-subtitle">{regionCopy(region).subtitle}</div></div>
                   <span className="region-progress">{completedInRegion}/3</span>
                 </div>
-                <div className="region-dots" aria-label={`Bölgede ${completedInRegion} bölüm tamamlandı`}>
+                <div className="region-dots" aria-label={`Diyarda ${completedInRegion} bölüm tamamlandı`}>
                   {currentRegionLevels.map((item) => <i key={item.id} className={`region-dot${progress.completed[item.id] ? " done" : ""}${item.id === level.id ? " current" : ""}`} />)}
                 </div>
               </section>
-
-              <section className="side-card tip-card">
-                <span className="tip-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-4.3-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.7-7 11-7 11Z" stroke="currentColor" strokeWidth="1.6" /><path d="M12 17V9m0 4-3-2m3 0 2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
-                <p className="tip-text"><strong>Özel taşlar:</strong> Dörtlüde balık hedefe uçar; beşlide bomba, sekizlide renkleri arındıran prizma doğar.</p>
+              <section className="side-card court-note">
+                <span className="note-ornament"><BrandGlyph /></span>
+                <div><span className="eyebrow">SARAY KURALI</span><p>Dörtlü eşleşme pervane doğurur. Beş taş TNT fiçısı, sekiz taş yıldız küresi hazırlar.</p></div>
               </section>
             </aside>
           </div>
         </div>
       )}
 
-      {(toast || game.message) && !mapOpen && game.status === "playing" && <div className="message-toast" role="status">{game.message || toast}</div>}
+      {(toast || game.message) && !mapOpen && game.status === "playing" && <div className="message-toast" role="status">{displayGameMessage(game.message) || toast}</div>}
 
       {showHelp && <div className="help-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dismissHelp(); }}>
         <section className="help-dialog" role="dialog" aria-modal="true" aria-labelledby="help-title">
-          <div className="help-top"><div><div className="eyebrow">BAHÇEYE HOŞ GELDİN</div><h2 className="help-title" id="help-title">Işık nasıl bulunur?</h2></div>
+          <div className="help-top"><div><div className="eyebrow">SARAY KAPILARI AÇILDI</div><h2 className="help-title" id="help-title">Nasıl oynanır?</h2></div>
             <button className="icon-button" aria-label="Yardımı kapat" onClick={dismissHelp}><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg></button>
           </div>
-          <p className="help-copy">Bahçenin taşları eşleşme biçimine göre farklı güçler kazanır. Hamlelerini hedeflere ve sise göre planla.</p>
+          <p className="help-copy">Taşları yan yana getir, sarayın mühürlerini kır ve hedeflerini hamlelerin bitmeden tamamla.</p>
           <div className="help-steps">
-             <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle ya da iki komşu taşa dokun.</strong> Üç aynı taş eşleşir, hedefleri toplar ve sisi kaldırır.</p></div>
-            <div className="help-step"><span className="step-number">02</span><p><strong>Dörtlüde balık, beşlide bomba, sekizlide prizma.</strong> Balık hedefe dalar; bombayı komşu taşla değiştirerek 3 × 3 alanda patlat. Prizmayı normal bir taşla değiştir, onun rengini tahtadan sil.</p></div>
-            <div className="help-step"><span className="step-number">03</span><p><strong>Işık tohumunu doldur.</strong> Temizlenen taşlar sayacı artırır; dolunca 3 × 3 alanı hamle harcamadan arındır.</p></div>
+             <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle veya komşu iki taşa dokun.</strong> Üç aynı taş eşleşince hedefleri toplar ve mühürlü kareleri açar.</p></div>
+            <div className="help-step"><span className="step-number">02</span><p><strong>Özel taşları uyandır.</strong> Dörtlüde pervane hedefe uçar; beşlide TNT fiçısı komşu kareleri patlatır; sekizlide yıldız küresi aynı renkteki taşları siler.</p></div>
+            <div className="help-step"><span className="step-number">03</span><p><strong>Taç çekicini doldur.</strong> Temizlediğin taşlar enerjisini artırır. Dolunca 3 × 3 alanı bir kareye dokunarak aç.</p></div>
           </div>
-          <div className="help-close"><button className="primary-button" onClick={dismissHelp}>Bahçeye gir</button></div>
+          <div className="help-close"><button className="primary-button" onClick={dismissHelp}>Oyuna başla</button></div>
+        </section>
+      </div>}
+      {settingsOpen && <div className="help-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false); }}>
+        <section className="help-dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <div className="help-top"><div><div className="eyebrow">SARAY MENÜSÜ</div><h2 className="help-title" id="settings-title">Oyun ayarları</h2></div>
+            <button className="icon-button" aria-label="Ayarları kapat" onClick={() => setSettingsOpen(false)}><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg></button>
+          </div>
+          <p className="help-copy">Bu bölümde ilerlemeni yönet veya oyunun kurallarına yeniden göz at.</p>
+          <div className="settings-actions">
+            <button className="secondary-button" onClick={() => { setSettingsOpen(false); setShowHelp(true); }}>Nasıl oynanır?</button>
+            <button className="secondary-button" onClick={() => { setSettingsOpen(false); setMapOpen(true); setTargetMode(false); }}>Krallık haritası</button>
+            <button className="secondary-button" onClick={() => { setSettingsOpen(false); retryLevel(); }}>Bölümü yeniden başlat</button>
+          </div>
         </section>
       </div>}
     </main>

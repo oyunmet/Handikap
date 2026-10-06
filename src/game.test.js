@@ -10,7 +10,6 @@ function makeQuietState() {
       type: (row + col * 2) % 6,
     })),
   );
-  state.fog = Array.from({ length: 8 }, () => Array(8).fill(false));
   state.collected = { 0: 0, 2: 0 };
   return state;
 }
@@ -41,6 +40,21 @@ test("a four-tile match sends a fish to a separate board tile", () => {
   assert.notDeepEqual(fish.from, fish.to, "the fish should fly to another tile");
   assert.ok(next.clearedCells.some(({ row, col }) => row === fish.to.row && col === fish.to.col));
   assert.equal(next.movesLeft, state.movesLeft - 1);
+});
+
+test("a level is won when its tile targets are met without a fog goal", () => {
+  const state = makeQuietState();
+  state.collected = { 0: 8, 2: 9 };
+  state.board[3][0].type = 0;
+  state.board[3][1].type = 0;
+  state.board[3][2].type = 1;
+  state.board[3][3].type = 0;
+  state.board[3][4].type = 2;
+
+  const next = swapTiles(state, { row: 2, col: 2 }, { row: 3, col: 2 });
+
+  assert.equal(next.status, "won");
+  assert.equal("fog" in next, false);
 });
 
 test("a five-tile match leaves a bomb on the board", () => {

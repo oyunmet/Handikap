@@ -1,33 +1,33 @@
 export const TILE_META = [
-  { name: "Güneş", color: "#f1c36b", deep: "#d99c39" },
-  { name: "Yosun", color: "#91bf83", deep: "#558454" },
-  { name: "Mercan", color: "#e48778", deep: "#c65d5c" },
-  { name: "Menekşe", color: "#ae92d5", deep: "#8066b5" },
-  { name: "Buz", color: "#82c4d2", deep: "#4f9ead" },
-  { name: "Ay", color: "#eadfbd", deep: "#c8b986" },
+  { name: "Yakut", color: "#ff5268", deep: "#c82642" },
+  { name: "Zümrüt", color: "#63dc68", deep: "#258d3c" },
+  { name: "Safir", color: "#4d9bff", deep: "#2258c8" },
+  { name: "Ametist", color: "#c27aff", deep: "#803dc5" },
+  { name: "Taç", color: "#ffd951", deep: "#d99919" },
+  { name: "İnci", color: "#76dff0", deep: "#359bb8" },
 ];
 
 export const REGIONS = [
   {
     id: "whisperwood",
-    name: "Fısıltı Ormanı",
-    subtitle: "Unutulmuş ışıklar köklerin altında uyuyor.",
+    name: "Safir Krallığı",
+    subtitle: "Bulutların üstündeki kalenin kapıları açılıyor.",
     levels: [1, 2, 3],
     theme: "forest",
     mark: "01",
   },
   {
     id: "coral",
-    name: "Mercan Koyu",
-    subtitle: "Gelgit, eski bir şarkının ritmini taşıyor.",
+    name: "Altın Saray",
+    subtitle: "Güneş, mermer salonların üzerine doğuyor.",
     levels: [4, 5, 6],
     theme: "coral",
     mark: "02",
   },
   {
     id: "archive",
-    name: "Ay Arşivi",
-    subtitle: "Yıldızların unuttuğu şeyler burada saklı.",
+    name: "Yıldız Kalesi",
+    subtitle: "Gece göğünde son bir taç ışıldıyor.",
     levels: [7, 8, 9],
     theme: "archive",
     mark: "03",
@@ -35,15 +35,15 @@ export const REGIONS = [
 ];
 
 export const LEVELS = [
-  { id: 1, regionId: "whisperwood", name: "İlk Kıvılcım", moveLimit: 22, goals: [{ type: 0, count: 9 }, { type: 2, count: 9 }], fogGoal: 6 },
-  { id: 2, regionId: "whisperwood", name: "Köklerin Altı", moveLimit: 21, goals: [{ type: 1, count: 11 }, { type: 4, count: 10 }], fogGoal: 11 },
-  { id: 3, regionId: "whisperwood", name: "Gece Açanlar", moveLimit: 20, goals: [{ type: 3, count: 12 }, { type: 5, count: 10 }], fogGoal: 17 },
-  { id: 4, regionId: "coral", name: "Sığ Sular", moveLimit: 21, goals: [{ type: 0, count: 11 }, { type: 4, count: 12 }], fogGoal: 17 },
-  { id: 5, regionId: "coral", name: "Gelgit Saati", moveLimit: 20, goals: [{ type: 2, count: 14 }, { type: 5, count: 12 }], fogGoal: 22 },
-  { id: 6, regionId: "coral", name: "Derin Akıntı", moveLimit: 19, goals: [{ type: 1, count: 14 }, { type: 3, count: 13 }], fogGoal: 27 },
-  { id: 7, regionId: "archive", name: "Sessiz Raflar", moveLimit: 20, goals: [{ type: 0, count: 14 }, { type: 3, count: 13 }], fogGoal: 27 },
-  { id: 8, regionId: "archive", name: "Kayıp Takımyıldız", moveLimit: 19, goals: [{ type: 2, count: 15 }, { type: 4, count: 14 }], fogGoal: 32 },
-  { id: 9, regionId: "archive", name: "Son Işık", moveLimit: 18, goals: [{ type: 1, count: 16 }, { type: 5, count: 15 }], fogGoal: 36 },
+  { id: 1, regionId: "whisperwood", name: "Kuzey Kapısı", moveLimit: 22, goals: [{ type: 0, count: 9 }, { type: 2, count: 9 }] },
+  { id: 2, regionId: "whisperwood", name: "Kristal Avlu", moveLimit: 21, goals: [{ type: 1, count: 11 }, { type: 4, count: 10 }] },
+  { id: 3, regionId: "whisperwood", name: "Taht Salonu", moveLimit: 20, goals: [{ type: 3, count: 12 }, { type: 5, count: 10 }] },
+  { id: 4, regionId: "coral", name: "Güneş Galerisi", moveLimit: 21, goals: [{ type: 0, count: 11 }, { type: 4, count: 12 }] },
+  { id: 5, regionId: "coral", name: "Altın Köprü", moveLimit: 20, goals: [{ type: 2, count: 14 }, { type: 5, count: 12 }] },
+  { id: 6, regionId: "coral", name: "Mavi Kule", moveLimit: 19, goals: [{ type: 1, count: 14 }, { type: 3, count: 13 }] },
+  { id: 7, regionId: "archive", name: "Yıldız Odası", moveLimit: 20, goals: [{ type: 0, count: 14 }, { type: 3, count: 13 }] },
+  { id: 8, regionId: "archive", name: "Bulut Balkonu", moveLimit: 19, goals: [{ type: 2, count: 15 }, { type: 4, count: 14 }] },
+  { id: 9, regionId: "archive", name: "Son Taç", moveLimit: 18, goals: [{ type: 1, count: 16 }, { type: 5, count: 15 }] },
 ];
 
 const SIZE = 8;
@@ -52,7 +52,6 @@ const LIGHT_PER_TILE = 3;
 const keyOf = (row, col) => `${row}:${col}`;
 const randomTile = () => Math.floor(Math.random() * TILE_META.length);
 const cloneBoard = (board) => board.map((row) => row.map((tile) => ({ ...tile })));
-const cloneFog = (fog) => fog.map((row) => [...row]);
 
 function newTile(type = randomTile()) {
   return { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`, type };
@@ -238,32 +237,11 @@ function expandBombs(board, clear, effects) {
   return expanded;
 }
 
-function makeFog(level) {
-  const fog = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
-  const candidates = [];
-  for (let row = 0; row < SIZE; row += 1) {
-    for (let col = 0; col < SIZE; col += 1) {
-      if ((row * 3 + col * 5 + level.id * 2) % 4 !== 0) candidates.push([row, col]);
-    }
-  }
-  // Keep the veil distributed across the whole board, with deterministic level layouts.
-  let count = 0;
-  for (let index = 0; index < candidates.length && count < level.fogGoal; index += 1) {
-    const [row, col] = candidates[(index * 17 + level.id * 11) % candidates.length];
-    if (!fog[row][col]) {
-      fog[row][col] = true;
-      count += 1;
-    }
-  }
-  return fog;
-}
-
 export function createLevelState(levelId) {
   const level = LEVELS.find((item) => item.id === levelId) ?? LEVELS[0];
   return {
     levelId: level.id,
     board: createPlayableBoard(),
-    fog: makeFog(level),
     collected: Object.fromEntries(level.goals.map(({ type }) => [type, 0])),
     score: 0,
     movesLeft: level.moveLimit,
@@ -278,12 +256,8 @@ export function createLevelState(levelId) {
   };
 }
 
-function countFog(fog) {
-  return fog.reduce((total, row) => total + row.filter(Boolean).length, 0);
-}
-
 function goalsComplete(state, level) {
-  return level.goals.every(({ type, count }) => (state.collected[type] ?? 0) >= count) && countFog(state.fog) === 0;
+  return level.goals.every(({ type, count }) => (state.collected[type] ?? 0) >= count);
 }
 
 function syncCreatedSpecialPositions(board, effects) {
@@ -304,7 +278,6 @@ function settleBoard(state, initialClear = new Set(), initialEffects = []) {
   const next = {
     ...state,
     board: cloneBoard(state.board),
-    fog: cloneFog(state.fog),
     collected: { ...state.collected },
     cascades: 0,
     turnId: state.turnId + 1,
@@ -331,7 +304,6 @@ function settleBoard(state, initialClear = new Set(), initialEffects = []) {
       if (!tile) continue;
       next.clearedCells.push({ row, col });
       next.collected[tile.type] = (next.collected[tile.type] ?? 0) + 1;
-      if (next.fog[row][col]) next.fog[row][col] = false;
       next.score += 10 + Math.min(20, (next.cascades - 1) * 5);
       next.lightCharge = Math.min(LIGHT_COST, next.lightCharge + LIGHT_PER_TILE);
       next.board[row][col] = null;
@@ -361,7 +333,7 @@ function settleBoard(state, initialClear = new Set(), initialEffects = []) {
 function finishTurn(next, level) {
   if (goalsComplete(next, level)) {
     next.status = "won";
-    next.message = "Bölgenin ışığı geri döndü.";
+    next.message = "Taç mücevherleri toplandı.";
   } else if (next.movesLeft <= 0) {
     next.status = "lost";
     next.message = "Hamleler tükendi. Yeniden deneyebilirsin.";
@@ -437,10 +409,6 @@ export function getLevel(levelId) {
 
 export function getRegion(regionId) {
   return REGIONS.find((item) => item.id === regionId) ?? REGIONS[0];
-}
-
-export function getFogRemaining(state) {
-  return countFog(state.fog);
 }
 
 export function getLightCost() {
