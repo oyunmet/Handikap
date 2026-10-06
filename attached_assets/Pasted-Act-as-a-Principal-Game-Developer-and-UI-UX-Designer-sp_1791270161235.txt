@@ -1,0 +1,52 @@
+Act as a Principal Game Developer and UI/UX Designer specializing in polished Match-3 mobile games (like Royal Match). Rebuild and redesign my existing Match-3 web game from scratch to match the exact visual fidelity, mechanics, physics, juicy animations, colors, lighting, and game elements shown in the reference Royal Match screenshots.
+
+### 1. VISUAL ART STYLE & THEME (Juicy Royal Aesthetics)
+- **Palette & Colors**: 
+  - Top & Board Frame: Deep royal blue (#0D3B8B, #1B52B8) with rich 3D gold-beveled borders (#FFD700, #FFA500, #B8860B).
+  - Background: Cozy indoor castle interior with warm brick walls, patterned floor tiles, and soft ambient lighting.
+  - UI Cards (Hedef/Hamle Header Panels): Cream white background (#FFF8E7) inside glossy royal blue frames with bold 3D embossed numbers/text.
+- **Tiles (Taşlar)**:
+  - Red Shields, Yellow Crowns, Blue Royal Shields, Pink/Purple Diamonds, Green Leaves.
+  - All tiles MUST have a 3D claymorphic/skeuomorphic glossy finish, strong highlights, bevels, inner glow, and drop shadows (not flat 2D).
+- **Special Elements & Blockers**:
+  - Vaults/Safes (Kasa): Metallic purple/blue 4x4 safes with gold handles and red centers that open with rotation animations when hit.
+  - Topiary Bears & Bush (Çim/Ayıcık): Textured 3D green foliage/grass tiles that reveal hidden hedge bears underneath.
+  - Magic Hats (Sihirbaz Şapkaları): Dark purple top hats with glowing magenta rims along the bottom rows.
+  - Rockets/Drills: 3D metallic rockets/drills with countdown/hit numbers displayed on yellow badges.
+  - TNT Barrels & Lightballs: Metallic multi-colored lightballs (Color Bombs) and glowing TNT barrels with lit fuses.
+
+### 2. ANIMATIONS, JUICINESS & PARTICLES (HTML5 Canvas / CSS3 / WebGL)
+- **Tile Movement & Physics**:
+  - Tiles must drop with realistic spring gravity, slight overshoot, and bounce (elastic easing) when settling.
+  - Swapping tiles must feature smooth 60fps interpolation with squash-and-stretch scale deformations.
+- **Explosions & Clears**:
+  - When matching tiles or destroying blockers, show explosive radial particle bursts (sparkles, star dust, grass clippings, wood debris).
+  - Add floating flying targets: When a gem or objective target is matched, animate a glowing particle stream (sparkle arc) flying up from the board directly into the "Hedef" counter panel at the top.
+- **Special Booster Effects**:
+  - Propellers/Spinning Tops (Fırıldak): Animate a full 3D spinning motion with motion blur as it launches into the air.
+  - Rockets/Drills: Laser/fire beam trajectory destroying full rows/columns with dynamic screen shake and ember particles.
+  - Lightball (Renk Bombası): Electric lightning arc discharge connecting to all matching colored tiles on the board.
+
+### 3. UI/UX & LAYOUT STRUCTURE
+- **Top Bar**:
+  - Left Panel ("Hedef"): Clean cream card showing remaining target icon counters (Vaults, Grass, Gems, etc.).
+  - Center: King Robert character avatar in a gold 3D arch frame with dynamic animated expressions (smiling, worried on low moves, cheering on wins).
+  - Right Panel ("Hamle"): Big bold 3D move counter text.
+- **Board Container**:
+  - Gold-beveled outer border enclosing dynamic grids (including custom irregular board cutouts like missing corner cells).
+- **Bottom Boosters Panel**:
+  - Circular glossy green/gold buttons for active boosters (Hammer, Crossbow/Bow, Cannon, Jester Hat, Settings).
+  - Red notification badges showing available booster counts (e.g., 17, 22, 16, 26).
+
+### 4. CORE MECHANICS & ALGORITHMS
+- Standard Match-3 swap logic with cascaded gravity drops and automatic match detection.
+- Special Combinations: Rocket (4 in line), Bomb/TNT (T or L shape), Propeller (2x2 square), Lightball (5 in a line).
+- Booster Combinations: Lightball + TNT, Rocket + Propeller, Double Lightball clearing the whole board.
+- Objective tracking logic (degrade blockers tier by tier: Safes open step-by-step, Grass clears, Topiary bears reveal).
+
+### 5. TECHNICAL IMPLEMENTATION REQUIREMENTS
+- Implement using HTML5 Canvas or Pixi.js / Phaser.js / Three.js for ultra-smooth 60 FPS performance and advanced particle systems.
+- Fully responsive layout optimized for mobile screens (portrait 9:16 aspect ratio touch controls).
+- Add rich sound effect triggers (pops, tile clicks, explosions, magical swooshes, victory chimes).
+
+Please generate the complete, fully functional, and visually polished codebase with all visual assets, styles, canvas renderers, and game loops implemented.
