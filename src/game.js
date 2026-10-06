@@ -1,10 +1,9 @@
 export const TILE_META = [
-  { name: "Yakut", color: "#ff5268", deep: "#c82642" },
-  { name: "Zümrüt", color: "#63dc68", deep: "#258d3c" },
-  { name: "Safir", color: "#4d9bff", deep: "#2258c8" },
-  { name: "Ametist", color: "#c27aff", deep: "#803dc5" },
-  { name: "Taç", color: "#ffd951", deep: "#d99919" },
-  { name: "İnci", color: "#76dff0", deep: "#359bb8" },
+  { name: "Yakut", color: "#f3343b", deep: "#b70d21" },
+  { name: "Safir", color: "#1689f8", deep: "#0753bc" },
+  { name: "Taç", color: "#ffc928", deep: "#db8c08" },
+  { name: "Zümrüt", color: "#2bc846", deep: "#087d2f" },
+  { name: "Ametist", color: "#e42fc2", deep: "#a911a7" },
 ];
 
 export const REGIONS = [
@@ -35,15 +34,15 @@ export const REGIONS = [
 ];
 
 export const LEVELS = [
-  { id: 1, regionId: "whisperwood", name: "Kuzey Kapısı", moveLimit: 22, goals: [{ type: 0, count: 9 }, { type: 2, count: 9 }] },
-  { id: 2, regionId: "whisperwood", name: "Kristal Avlu", moveLimit: 21, goals: [{ type: 1, count: 11 }, { type: 4, count: 10 }] },
-  { id: 3, regionId: "whisperwood", name: "Taht Salonu", moveLimit: 20, goals: [{ type: 3, count: 12 }, { type: 5, count: 10 }] },
-  { id: 4, regionId: "coral", name: "Güneş Galerisi", moveLimit: 21, goals: [{ type: 0, count: 11 }, { type: 4, count: 12 }] },
-  { id: 5, regionId: "coral", name: "Altın Köprü", moveLimit: 20, goals: [{ type: 2, count: 14 }, { type: 5, count: 12 }] },
-  { id: 6, regionId: "coral", name: "Mavi Kule", moveLimit: 19, goals: [{ type: 1, count: 14 }, { type: 3, count: 13 }] },
-  { id: 7, regionId: "archive", name: "Yıldız Odası", moveLimit: 20, goals: [{ type: 0, count: 14 }, { type: 3, count: 13 }] },
-  { id: 8, regionId: "archive", name: "Bulut Balkonu", moveLimit: 19, goals: [{ type: 2, count: 15 }, { type: 4, count: 14 }] },
-  { id: 9, regionId: "archive", name: "Son Taç", moveLimit: 18, goals: [{ type: 1, count: 16 }, { type: 5, count: 15 }] },
+  { id: 1, regionId: "whisperwood", name: "Kuzey Kapısı", moveLimit: 22, goals: [{ type: 0, count: 9 }, { type: 1, count: 9 }] },
+  { id: 2, regionId: "whisperwood", name: "Kristal Avlu", moveLimit: 21, goals: [{ type: 3, count: 11 }, { type: 2, count: 10 }] },
+  { id: 3, regionId: "whisperwood", name: "Taht Salonu", moveLimit: 20, goals: [{ type: 4, count: 12 }, { type: 2, count: 10 }] },
+  { id: 4, regionId: "coral", name: "Güneş Galerisi", moveLimit: 21, goals: [{ type: 0, count: 11 }, { type: 2, count: 12 }] },
+  { id: 5, regionId: "coral", name: "Altın Köprü", moveLimit: 20, goals: [{ type: 1, count: 14 }, { type: 4, count: 12 }] },
+  { id: 6, regionId: "coral", name: "Mavi Kule", moveLimit: 19, goals: [{ type: 3, count: 14 }, { type: 0, count: 13 }] },
+  { id: 7, regionId: "archive", name: "Yıldız Odası", moveLimit: 20, goals: [{ type: 0, count: 14 }, { type: 4, count: 13 }] },
+  { id: 8, regionId: "archive", name: "Bulut Balkonu", moveLimit: 19, goals: [{ type: 1, count: 15 }, { type: 2, count: 14 }] },
+  { id: 9, regionId: "archive", name: "Son Taç", moveLimit: 18, goals: [{ type: 3, count: 16 }, { type: 4, count: 15 }] },
 ];
 
 const SIZE = 8;
@@ -93,6 +92,26 @@ function findMatchRuns(board) {
       row = end > row + 1 ? end : row + 1;
     }
   }
+  for (let row = 0; row < SIZE - 1; row += 1) {
+    for (let col = 0; col < SIZE - 1; col += 1) {
+      const type = board[row][col]?.type;
+      if (
+        type !== undefined &&
+        board[row][col + 1]?.type === type &&
+        board[row + 1][col]?.type === type &&
+        board[row + 1][col + 1]?.type === type
+      ) {
+        runs.push({
+          type,
+          orientation: "square",
+          cells: [
+            { row, col }, { row, col: col + 1 },
+            { row: row + 1, col }, { row: row + 1, col: col + 1 },
+          ],
+        });
+      }
+    }
+  }
   return runs;
 }
 
@@ -133,7 +152,7 @@ export function hasAvailableSwap(board) {
         const otherRow = row + dr;
         const otherCol = col + dc;
         if (otherRow >= SIZE || otherCol >= SIZE) continue;
-        if (board[row][col]?.special === "bomb" || board[otherRow][otherCol]?.special === "bomb") return true;
+        if (board[row][col]?.special || board[otherRow][otherCol]?.special) return true;
         const copy = cloneBoard(board);
         [copy[row][col], copy[otherRow][otherCol]] = [copy[otherRow][otherCol], copy[row][col]];
         if (findMatches(copy).size > 0) return true;
@@ -179,40 +198,55 @@ function prepareMatchWave(board, runs, state, preferred = []) {
   const effects = [];
   if (!clear.size) return { clear, effects };
 
-  const longestRun = [...runs].sort((a, b) => b.cells.length - a.cells.length)[0];
-  const hasEightMatch = longestRun?.cells.length >= 8 || clear.size >= 8;
-  const hasFiveMatch = longestRun?.cells.length >= 5 || clear.size >= 5;
-  const fourRun = runs.find((run) => run.cells.length === 4);
-  const reward = hasEightMatch ? "prism" : hasFiveMatch ? "bomb" : fourRun ? "fish" : null;
+  const lineRuns = runs.filter((run) => run.orientation !== "square");
+  const horizontalRuns = lineRuns.filter((run) => run.orientation === "horizontal");
+  const verticalRuns = lineRuns.filter((run) => run.orientation === "vertical");
+  let crossAnchor = null;
+  for (const horizontal of horizontalRuns) {
+    for (const vertical of verticalRuns) {
+      const intersection = horizontal.cells.find((cell) => vertical.cells.some((other) => other.row === cell.row && other.col === cell.col));
+      if (intersection && new Set([...horizontal.cells, ...vertical.cells].map(({ row, col }) => keyOf(row, col))).size >= 5) {
+        crossAnchor = intersection;
+        break;
+      }
+    }
+    if (crossAnchor) break;
+  }
+  const fiveLine = lineRuns.find((run) => run.cells.length >= 5);
+  const fourLine = lineRuns.find((run) => run.cells.length >= 4);
+  const square = runs.find((run) => run.orientation === "square");
+  const longestLine = [...lineRuns].sort((a, b) => b.cells.length - a.cells.length)[0];
+  const reward = crossAnchor ? "bomb"
+    : fiveLine ? "prism"
+      : fourLine ? (fourLine.orientation === "horizontal" ? "rocket-horizontal" : "rocket-vertical")
+        : square ? "fish"
+          : clear.size >= 5 ? "bomb"
+            : null;
   if (!reward) return { clear, effects };
 
-  const anchorCells = reward === "prism" || (hasFiveMatch && longestRun.cells.length < 5)
-    ? [...clear].map((key) => {
+  const anchorCells = reward === "bomb"
+    ? crossAnchor ? [crossAnchor] : [...clear].map((key) => {
       const [row, col] = key.split(":").map(Number);
       return { row, col };
     })
-    : (hasFiveMatch ? longestRun.cells : fourRun.cells);
-  const anchor = chooseAnchor(anchorCells, preferred);
+    : reward === "prism" ? fiveLine.cells
+      : reward === "fish" ? square.cells
+        : fourLine.cells;
+  const anchor = reward === "bomb" && crossAnchor
+    ? crossAnchor
+    : chooseAnchor(anchorCells, preferred);
 
-  if (reward === "prism" || reward === "bomb") {
-    const tile = board[anchor.row][anchor.col];
-    if (tile) {
-      board[anchor.row][anchor.col] = { ...tile, special: reward };
-      clear.delete(keyOf(anchor.row, anchor.col));
-        effects.push({ type: `${reward}-created`, at: anchor, tileId: tile.id });
-    }
-  } else {
-    const from = chooseAnchor(fourRun.cells, preferred);
-    const to = chooseFishTarget(board, clear, state, from);
-    if (to) {
-      clear.add(keyOf(to.row, to.col));
-      effects.push({ type: "fish", from, to });
-    }
+  const tile = board[anchor.row][anchor.col];
+  if (tile) {
+    board[anchor.row][anchor.col] = { ...tile, special: reward };
+    clear.delete(keyOf(anchor.row, anchor.col));
+    const effectType = reward.startsWith("rocket-") ? "rocket-created" : `${reward}-created`;
+    effects.push({ type: effectType, at: anchor, tileId: tile.id, orientation: reward.replace("rocket-", "") });
   }
   return { clear, effects };
 }
 
-function expandBombs(board, clear, effects) {
+function expandSpecials(board, clear, effects, state) {
   const expanded = new Set(clear);
   const queue = [...clear];
   const triggered = new Set();
@@ -221,14 +255,47 @@ function expandBombs(board, clear, effects) {
     if (triggered.has(key)) continue;
     triggered.add(key);
     const [row, col] = key.split(":").map(Number);
-    if (board[row][col]?.special !== "bomb") continue;
-    effects.push({ type: "bomb-explosion", at: { row, col } });
-    for (let targetRow = Math.max(0, row - 1); targetRow <= Math.min(SIZE - 1, row + 1); targetRow += 1) {
-      for (let targetCol = Math.max(0, col - 1); targetCol <= Math.min(SIZE - 1, col + 1); targetCol += 1) {
-        const targetKey = keyOf(targetRow, targetCol);
-        if (!expanded.has(targetKey)) {
-          expanded.add(targetKey);
-          queue.push(targetKey);
+    const tile = board[row]?.[col];
+    const add = (targetRow, targetCol) => {
+      if (targetRow < 0 || targetRow >= SIZE || targetCol < 0 || targetCol >= SIZE) return;
+      const targetKey = keyOf(targetRow, targetCol);
+      if (!expanded.has(targetKey)) {
+        expanded.add(targetKey);
+        queue.push(targetKey);
+      }
+    };
+    if (tile?.special === "bomb") {
+      if (!effects.some((effect) => effect.type === "bomb-explosion" && effect.at.row === row && effect.at.col === col)) {
+        effects.push({ type: "bomb-explosion", at: { row, col } });
+      }
+      for (let targetRow = Math.max(0, row - 1); targetRow <= Math.min(SIZE - 1, row + 1); targetRow += 1) {
+        for (let targetCol = Math.max(0, col - 1); targetCol <= Math.min(SIZE - 1, col + 1); targetCol += 1) add(targetRow, targetCol);
+      }
+    } else if (tile?.special === "rocket-horizontal" || tile?.special === "rocket-vertical") {
+      const orientation = tile.special.endsWith("horizontal") ? "horizontal" : "vertical";
+      if (!effects.some((effect) => effect.type === "rocket-explosion" && effect.at.row === row && effect.at.col === col)) {
+        effects.push({ type: "rocket-explosion", orientation, at: { row, col } });
+      }
+      if (orientation === "horizontal") {
+        for (let targetCol = 0; targetCol < SIZE; targetCol += 1) add(row, targetCol);
+      } else {
+        for (let targetRow = 0; targetRow < SIZE; targetRow += 1) add(targetRow, col);
+      }
+    } else if (tile?.special === "fish") {
+      const target = chooseFishTarget(board, expanded, state, { row, col });
+      if (target) {
+        add(target.row, target.col);
+        if (!effects.some((effect) => effect.type === "fish" && effect.from.row === row && effect.from.col === col)) {
+          effects.push({ type: "fish", from: { row, col }, to: target });
+        }
+      }
+    } else if (tile?.special === "prism") {
+      const existing = effects.find((effect) => effect.type === "prism-explosion" && effect.at.row === row && effect.at.col === col);
+      const color = existing ? existing.color : tile.type;
+      if (!existing) effects.push({ type: "prism-explosion", at: { row, col }, color });
+      for (let targetRow = 0; targetRow < SIZE; targetRow += 1) {
+        for (let targetCol = 0; targetCol < SIZE; targetCol += 1) {
+          if (color === null || board[targetRow][targetCol]?.type === color) add(targetRow, targetCol);
         }
       }
     }
@@ -250,6 +317,8 @@ export function createLevelState(levelId) {
     lastMove: 0,
     turnId: 0,
     clearedCells: [],
+    scorePopups: [],
+    fallingTiles: [],
     specialEffects: [],
     message: "",
   };
@@ -273,14 +342,29 @@ function syncCreatedSpecialPositions(board, effects) {
   }
 }
 
-function settleBoard(state, initialClear = new Set(), initialEffects = []) {
+function positionsById(board) {
+  const positions = new Map();
+  for (let row = 0; row < SIZE; row += 1) {
+    for (let col = 0; col < SIZE; col += 1) {
+      const tile = board[row][col];
+      if (tile) positions.set(tile.id, { row, col });
+    }
+  }
+  return positions;
+}
+
+function settleBoard(state, initialClear = new Set(), initialEffects = [], originBoard = state.board) {
+  const originalPositions = positionsById(originBoard);
   const next = {
     ...state,
     board: cloneBoard(state.board),
     collected: { ...state.collected },
     cascades: 0,
+    lastMove: 0,
     turnId: state.turnId + 1,
     clearedCells: [],
+    scorePopups: [],
+    fallingTiles: [],
     specialEffects: [...initialEffects],
   };
   let clear = new Set(initialClear);
@@ -294,16 +378,26 @@ function settleBoard(state, initialClear = new Set(), initialEffects = []) {
       next.specialEffects.push(...prepared.effects);
     }
     if (!clear.size) break;
-    clear = expandBombs(next.board, clear, next.specialEffects);
+    clear = expandSpecials(next.board, clear, next.specialEffects, next);
     next.cascades += 1;
     next.lastMove += clear.size;
+    const points = clear.size * (100 + Math.min(150, (next.cascades - 1) * 50));
+    const center = [...clear].reduce((total, key) => {
+      const [row, col] = key.split(":").map(Number);
+      return { row: total.row + row, col: total.col + col };
+    }, { row: 0, col: 0 });
+    next.scorePopups.push({
+      id: `${next.turnId}-${next.cascades}`,
+      value: points,
+      at: { row: center.row / clear.size, col: center.col / clear.size },
+    });
+    next.score += points;
     for (const key of clear) {
       const [row, col] = key.split(":").map(Number);
       const tile = next.board[row][col];
       if (!tile) continue;
       next.clearedCells.push({ row, col });
       next.collected[tile.type] = (next.collected[tile.type] ?? 0) + 1;
-      next.score += 10 + Math.min(20, (next.cascades - 1) * 5);
       next.lightCharge = Math.min(LIGHT_COST, next.lightCharge + LIGHT_PER_TILE);
       next.board[row][col] = null;
     }
@@ -326,6 +420,22 @@ function settleBoard(state, initialClear = new Set(), initialEffects = []) {
     next.board = createPlayableBoard();
     next.message = "Taşlar yeniden dizildi.";
   }
+  const finalPositions = positionsById(next.board);
+  for (let row = 0; row < SIZE; row += 1) {
+    for (let col = 0; col < SIZE; col += 1) {
+      const tile = next.board[row][col];
+      if (!tile) continue;
+      const from = originalPositions.get(tile.id);
+      if (from && from.row === row && from.col === col) continue;
+      next.fallingTiles.push({
+        id: tile.id,
+        fromRow: from?.row ?? -1,
+        fromCol: from?.col ?? col,
+        toRow: row,
+        toCol: col,
+      });
+    }
+  }
   return next;
 }
 
@@ -340,50 +450,144 @@ function finishTurn(next, level) {
   return next;
 }
 
+function addCell(clear, row, col) {
+  if (row >= 0 && row < SIZE && col >= 0 && col < SIZE) clear.add(keyOf(row, col));
+}
+
+function addRocketLine(clear, effects, orientation, at) {
+  if (orientation === "horizontal") {
+    for (let col = 0; col < SIZE; col += 1) addCell(clear, at.row, col);
+  } else {
+    for (let row = 0; row < SIZE; row += 1) addCell(clear, row, at.col);
+  }
+  effects.push({ type: "rocket-explosion", orientation, at });
+}
+
+function addBombArea(clear, effects, at, radius = 1) {
+  effects.push({ type: "bomb-explosion", at });
+  for (let row = at.row - radius; row <= at.row + radius; row += 1) {
+    for (let col = at.col - radius; col <= at.col + radius; col += 1) addCell(clear, row, col);
+  }
+}
+
+function prepareSpecialSwap(board, active, state, swappedCells) {
+  const clear = new Set();
+  const effects = [];
+  const addSourceCells = () => {
+    for (const { at } of swappedCells) addCell(clear, at.row, at.col);
+  };
+  const prismCells = active.filter(({ tile }) => tile.special === "prism");
+  const bombCells = active.filter(({ tile }) => tile.special === "bomb");
+  const rocketCells = active.filter(({ tile }) => tile.special?.startsWith("rocket-"));
+  const fishCells = active.filter(({ tile }) => tile.special === "fish");
+  addSourceCells();
+
+  if (prismCells.length) {
+    if (prismCells.length > 1) {
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) addCell(clear, row, col);
+      }
+      for (const prism of prismCells) effects.push({ type: "prism-explosion", at: prism.at, color: null });
+      effects.push({ type: "combo-explosion", combo: "prism-prism", at: prismCells[0].at });
+      return { clear, effects };
+    }
+
+    const prism = prismCells[0];
+    const companion = swappedCells.find(({ at }) => at.row !== prism.at.row || at.col !== prism.at.col);
+    const color = companion?.tile?.type ?? prism.tile.type;
+    const companionIsBomb = companion?.tile?.special === "bomb";
+    const companionIsRocket = companion?.tile?.special?.startsWith("rocket-");
+    for (let row = 0; row < SIZE; row += 1) {
+      for (let col = 0; col < SIZE; col += 1) {
+        const tile = board[row][col];
+        if (tile?.type !== color) continue;
+        if (companionIsBomb) board[row][col] = { ...tile, special: "bomb" };
+        if (companionIsRocket) {
+          board[row][col] = { ...tile, special: (row + col) % 2 ? "rocket-horizontal" : "rocket-vertical" };
+        }
+        addCell(clear, row, col);
+      }
+    }
+    effects.push({ type: "prism-explosion", at: prism.at, color });
+    if (companionIsBomb || companionIsRocket) {
+      effects.push({ type: "combo-explosion", combo: `prism-${companion.tile.special}`, at: prism.at });
+    }
+    for (const fish of fishCells) {
+      const target = chooseFishTarget(board, clear, state, fish.at);
+      if (target) {
+        addCell(clear, target.row, target.col);
+        effects.push({ type: "fish", from: fish.at, to: target });
+      }
+    }
+    return { clear, effects };
+  }
+
+  if (bombCells.length && rocketCells.length) {
+    const center = {
+      row: Math.round((bombCells[0].at.row + rocketCells[0].at.row) / 2),
+      col: Math.round((bombCells[0].at.col + rocketCells[0].at.col) / 2),
+    };
+    addRocketLine(clear, effects, "horizontal", center);
+    addRocketLine(clear, effects, "vertical", center);
+    addBombArea(clear, effects, bombCells[0].at);
+    for (let row = center.row - 1; row <= center.row + 1; row += 1) {
+      for (let col = center.col - 1; col <= center.col + 1; col += 1) addCell(clear, row, col);
+    }
+    effects.push({ type: "combo-explosion", combo: "bomb-rocket", at: center });
+  } else if (bombCells.length > 1) {
+    const center = {
+      row: Math.round((bombCells[0].at.row + bombCells[1].at.row) / 2),
+      col: Math.round((bombCells[0].at.col + bombCells[1].at.col) / 2),
+    };
+    addBombArea(clear, effects, center, 2);
+    effects.push({ type: "combo-explosion", combo: "bomb-bomb", at: center });
+  } else {
+    for (const rocket of rocketCells) {
+      const orientation = rocket.tile.special.endsWith("horizontal") ? "horizontal" : "vertical";
+      addRocketLine(clear, effects, orientation, rocket.at);
+    }
+    for (const bomb of bombCells) addBombArea(clear, effects, bomb.at);
+  }
+
+  for (const fish of fishCells) {
+    const target = chooseFishTarget(board, clear, state, fish.at);
+    if (target) {
+      addCell(clear, target.row, target.col);
+      effects.push({ type: "fish", from: fish.at, to: target });
+    }
+  }
+  if (active.length > 1 && !effects.some((effect) => effect.type === "combo-explosion")) {
+    effects.push({ type: "combo-explosion", combo: active.map(({ tile }) => tile.special).join("-"), at: active[0].at });
+  }
+  return { clear, effects };
+}
+
 export function swapTiles(state, first, second) {
   if (state.status !== "playing" || !isAdjacent(first, second)) return state;
   const level = LEVELS.find((item) => item.id === state.levelId) ?? LEVELS[0];
   const board = cloneBoard(state.board);
   [board[first.row][first.col], board[second.row][second.col]] = [board[second.row][second.col], board[first.row][first.col]];
   const runs = findMatchRuns(board);
-  const swappedBombs = [first, second].filter(({ row, col }) => board[row][col]?.special === "bomb");
-  const prismSources = [first, second].filter(({ row, col }) => state.board[row][col]?.special === "prism");
-  if (runs.length === 0 && swappedBombs.length === 0 && prismSources.length === 0) {
+  const swappedCells = [
+    { at: first, tile: board[first.row][first.col] },
+    { at: second, tile: board[second.row][second.col] },
+  ];
+  const activeSpecials = swappedCells.filter(({ tile }) => tile?.special);
+  if (runs.length === 0 && activeSpecials.length === 0) {
     return { ...state, message: "Eşleşme olmadı; başka bir taş dene." };
   }
-  let prepared = { clear: new Set(), effects: [] };
-  if (prismSources.length) {
-    prepared.clear = cellsFromRuns(runs);
-    const prismEffects = [];
-    if (prismSources.length > 1) {
-      for (let row = 0; row < SIZE; row += 1) {
-        for (let col = 0; col < SIZE; col += 1) prepared.clear.add(keyOf(row, col));
-      }
-      for (const source of prismSources) {
-        const destination = source.row === first.row && source.col === first.col ? second : first;
-        prismEffects.push({ type: "prism-explosion", at: destination, color: null });
-      }
-    } else {
-      const source = prismSources[0];
-      const destination = source.row === first.row && source.col === first.col ? second : first;
-      const color = board[source.row][source.col]?.type;
-      for (let row = 0; row < SIZE; row += 1) {
-        for (let col = 0; col < SIZE; col += 1) {
-          if (board[row][col]?.type === color) prepared.clear.add(keyOf(row, col));
-        }
-      }
-      prepared.clear.add(keyOf(destination.row, destination.col));
-      prismEffects.push({ type: "prism-explosion", at: destination, color });
-    }
-    for (const { row, col } of swappedBombs) prepared.clear.add(keyOf(row, col));
-    prepared.effects = prismEffects;
-  } else if (swappedBombs.length) {
-    prepared.clear = cellsFromRuns(runs);
-    for (const { row, col } of swappedBombs) prepared.clear.add(keyOf(row, col));
-  } else {
-    prepared = prepareMatchWave(board, runs, state, [second, first]);
+  const prepared = runs.length ? prepareMatchWave(board, runs, state, [second, first]) : { clear: new Set(), effects: [] };
+  if (activeSpecials.length) {
+    const activated = prepareSpecialSwap(board, activeSpecials, state, swappedCells);
+    for (const cell of activated.clear) prepared.clear.add(cell);
+    prepared.effects.push(...activated.effects);
   }
-  let next = settleBoard({ ...state, board, movesLeft: state.movesLeft - 1, message: "" }, prepared.clear, prepared.effects);
+  let next = settleBoard(
+    { ...state, board, movesLeft: state.movesLeft - 1, message: "" },
+    prepared.clear,
+    prepared.effects,
+    state.board,
+  );
   next = finishTurn(next, level);
   return next;
 }

@@ -37,7 +37,7 @@ const ROYAL_LEVEL_NAMES = [
   "Safir Geçit", "Ejderha Nöbeti", "Deniz Feneri",
   "Yıldız Odası", "Kayıp Takımyıldız", "Son Taç",
 ];
-const TILE_NAMES = ["Kalkan", "Taç", "Yakut", "Kule", "Hilal", "Mühür"];
+const TILE_NAMES = ["Kırmızı kalkan", "Mavi kalkan", "Taç", "Yaprak", "Elmas"];
 const regionCopy = (region) => ROYAL_REGIONS[REGIONS.findIndex((item) => item.id === region.id)] ?? ROYAL_REGIONS[0];
 const levelCopy = (item) => ROYAL_LEVEL_NAMES[item.id - 1] ?? item.name;
 
@@ -52,6 +52,13 @@ function Glyph({ type, special, className = "" }) {
     strokeLinejoin: "round",
     "aria-hidden": true,
   };
+  if (special === "fish") {
+    return <svg {...common} className={`${common.className} propeller-mark`}>
+      <circle cx="24" cy="24" r="8" fill="currentColor" fillOpacity=".84" stroke="white" />
+      <path d="M21 12c.5-5 5.5-5 6 0l-1 8h-4l-1-8Zm15 9c5 .5 5 5.5 0 6l-8-1v-4l8-1ZM27 36c-.5 5.5-5.5 5.5-6 0l1-8h4l1 8ZM12 27c-5-.5-5-5.5 0-6l8 1v4l-8 1Z" fill="currentColor" stroke="white" strokeWidth="1.2" />
+      <path d="m24 20 4 4-4 4-4-4 4-4Z" fill="#fff6cb" stroke="none" />
+    </svg>;
+  }
   if (special === "bomb") {
     return <svg {...common} className={`${common.className} special-bomb-mark`}>
       <path d="M14 16h20v19l-4 4H18l-4-4V16Z" fill="currentColor" fillOpacity=".84" />
@@ -70,6 +77,16 @@ function Glyph({ type, special, className = "" }) {
       <path d="m24 3 1.2 3.1L28 7l-2.8 1-1.2 3-1.1-3L20 7l2.9-.9L24 3Z" fill="white" stroke="none" />
     </svg>;
   }
+  if (special === "rocket-horizontal" || special === "rocket-vertical") {
+    return <svg {...common} className={`${common.className} rocket-mark`}>
+      <g transform={special === "rocket-vertical" ? "rotate(90 24 24)" : undefined}>
+        <path d="M8 21 30 11l8 8-10 22-5-12-15-8Z" fill="currentColor" fillOpacity=".92" stroke="white" strokeWidth="1.7" />
+        <path d="m19 25 8-8m-14 4 5-1-3 5m13 6-1-5 5 3" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        <path d="m8 21-3 7 8-1m-2 5 7-2-2 7" fill="#ffd45b" stroke="#fff1bd" strokeWidth="1.5" strokeLinejoin="round" />
+        <circle cx="30" cy="19" r="2" fill="#fff4c5" stroke="none" />
+      </g>
+    </svg>;
+  }
   if (type === 0) {
     return <svg {...common}>
       <path d="M24 5 39 11v11c0 9-6 15-15 21C15 37 9 31 9 22V11l15-6Z" fill="currentColor" fillOpacity=".28" />
@@ -80,13 +97,30 @@ function Glyph({ type, special, className = "" }) {
   }
   if (type === 1) {
     return <svg {...common}>
+      <path d="M24 4 39 10v12c0 9-6 16-15 22C15 38 9 31 9 22V10l15-6Z" fill="currentColor" fillOpacity=".32" />
+      <path d="M24 6 37 11v11c0 8-5 14-13 19-8-5-13-11-13-19V11l13-5Z" />
+      <path d="m24 13 8 4v8l-8 8-8-8v-8l8-4Z" fill="currentColor" fillOpacity=".72" />
+      <path d="M20 19h8m-8 5h8m-4-5v10" stroke="white" strokeOpacity=".9" strokeWidth="1.6" />
+      <path d="m17 15 3 2m11-2-3 2" stroke="white" strokeWidth="1.5" />
+    </svg>;
+  }
+  if (type === 2) {
+    return <svg {...common}>
       <path d="m8 13 9 7 7-13 7 13 9-7-4 25H12L8 13Z" fill="currentColor" fillOpacity=".46" />
       <path d="m8 13 9 7 7-13 7 13 9-7-4 25H12L8 13Z" />
       <path d="M12 32h24M13 26h22M17 20l7 7 7-7" stroke="white" strokeOpacity=".88" />
       <circle cx="24" cy="7" r="2" fill="white" stroke="none" />
     </svg>;
   }
-  if (type === 2) {
+  if (type === 3) {
+    return <svg {...common}>
+      <path d="M38 7C19 6 7 15 7 29c0 8 6 13 13 13 14 0 22-14 18-35Z" fill="currentColor" fillOpacity=".42" />
+      <path d="M38 7C19 6 7 15 7 29c0 8 6 13 13 13 14 0 22-14 18-35Z" />
+      <path d="M12 36c8-9 15-16 25-25M21 27l-1-9m-1 17 10 1m-2-17 8 1" stroke="white" strokeOpacity=".88" strokeWidth="1.6" />
+      <path d="M16 36c5-7 11-14 18-20" stroke="#fff" strokeOpacity=".4" strokeWidth="3" />
+    </svg>;
+  }
+  if (type === 4) {
     return <svg {...common}>
       <path d="m24 4 17 14-17 26L7 18 24 4Z" fill="currentColor" fillOpacity=".42" />
       <path d="m24 4 17 14-17 26L7 18 24 4Z" />
@@ -94,27 +128,7 @@ function Glyph({ type, special, className = "" }) {
       <path d="m24 4 7 15-8 3-7-5L24 4Z" fill="white" fillOpacity=".45" />
     </svg>;
   }
-  if (type === 3) {
-    return <svg {...common}>
-      <path d="M10 40V19L24 7l14 12v21H10Z" fill="currentColor" fillOpacity=".3" />
-      <path d="M10 40V19L24 7l14 12v21H10ZM7 40h34M15 23h6v7h-6zm12 0h6v7h-6zM21 40V32h6v8" />
-      <path d="M21 40V32h6v8M17 17l7-6 7 6" stroke="white" strokeOpacity=".85" />
-      <path d="M24 9V4m-3 3h6" />
-    </svg>;
-  }
-  if (type === 4) {
-    return <svg {...common}>
-      <path d="M34 8c-4 2-7 7-7 13 0 8 6 14 14 14-3 5-9 8-16 7C14 41 6 33 6 23S14 5 24 5c4 0 7 1 10 3Z" fill="currentColor" fillOpacity=".42" />
-      <path d="M34 8c-4 2-7 7-7 13 0 8 6 14 14 14-3 5-9 8-16 7C14 41 6 33 6 23S14 5 24 5c4 0 7 1 10 3Z" />
-      <path d="m13 19 2 1m4-8 1 2m-1 21 2-1" stroke="white" strokeOpacity=".9" />
-    </svg>;
-  }
-  return <svg {...common}>
-    <path d="m24 5 5 8 9-2-1 9 7 5-7 6 1 9-9-2-5 8-5-8-9 2 1-9-7-6 7-5-1-9 9 2 5-8Z" fill="currentColor" fillOpacity=".36" />
-    <path d="m24 5 5 8 9-2-1 9 7 5-7 6 1 9-9-2-5 8-5-8-9 2 1-9-7-6 7-5-1-9 9 2 5-8Z" />
-    <circle cx="24" cy="25" r="7" fill="currentColor" fillOpacity=".8" /><circle cx="24" cy="25" r="3" fill="white" stroke="none" />
-    <path d="m13 18 4 2m14 11 4 2" stroke="white" />
-  </svg>;
+  return <svg {...common}><circle cx="24" cy="24" r="17" fill="currentColor" fillOpacity=".4" /><path d="m24 7 5 11 12 2-9 8 2 12-10-6-10 6 2-12-9-8 12-2 5-11Z" /></svg>;
 }
 
 function FishGlyph() {
@@ -130,15 +144,22 @@ function BrandGlyph() {
   return <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 4 33 9v11c0 8-5.5 12.5-13 17-7.5-4.5-13-9-13-17V9l13-5Z" fill="currentColor" stroke="#fff1bd" strokeWidth="1.4" /><path d="m11 15 5 3 4-8 4 8 5-3-2 11H13l-2-11Z" fill="#fff0b0" stroke="#e0ae47" strokeWidth="1.1" /><circle cx="20" cy="21" r="2" fill="#3266a0" /></svg>;
 }
 
-function CrestMascot() {
-  return <svg className="crest-mascot-art" viewBox="0 0 96 106" fill="none" aria-hidden="true">
-    <path d="M48 3 86 17v33c0 23-14 40-38 53C24 90 10 73 10 50V17L48 3Z" fill="#174477" stroke="#f7d777" strokeWidth="4" />
-    <path d="M19 21 48 10l29 11v28c0 18-11 31-29 42-18-11-29-24-29-42V21Z" fill="#315f94" stroke="#fff0b1" strokeWidth="1.5" />
-    <path d="m27 42 9 7 12-23 12 23 9-7-5 23H32l-5-23Z" fill="#f5c558" stroke="#fff0b1" strokeWidth="2" />
-    <circle cx="48" cy="49" r="8" fill="#d9545c" stroke="#ffe9a4" strokeWidth="2" />
-    <path d="M32 76c2-10 8-15 16-15s14 5 16 15H32Z" fill="#edc16b" stroke="#fff0b1" strokeWidth="2" />
-    <path d="M40 68h16m-12 7h8" stroke="#9c673f" strokeWidth="2" strokeLinecap="round" />
-    <path d="M48 14v7M44 17.5h8" stroke="#fff2bd" strokeWidth="1.6" />
+function CrestMascot({ expression = "smile" }) {
+  const mouth = expression === "worried" ? "M39 68c4-4 14-4 18 0" : expression === "celebrate" ? "M39 64c3 8 15 8 18 0" : "M40 65c4 6 12 6 16 0";
+  return <svg className={`crest-mascot-art king-${expression}`} viewBox="0 0 96 106" fill="none" aria-hidden="true">
+    <path d="M9 100c2-15 13-24 39-24s37 9 39 24H9Z" fill="#cf2638" stroke="#ffe29a" strokeWidth="3" />
+    <path d="m26 84 22 16 22-16" fill="#a9132d" stroke="#f4c654" strokeWidth="2" />
+    <path d="M22 42c0-18 11-29 26-29s26 11 26 29v20c0 18-12 28-26 28S22 80 22 62V42Z" fill="#f8c27c" stroke="#a75c36" strokeWidth="2" />
+    <path d="M22 47c-9-4-11 11-2 15m54-15c9-4 11 11 2 15" fill="#f3bd77" stroke="#a75c36" strokeWidth="2" />
+    <path d="M19 35 24 13l13 12 11-20 11 20 13-12 5 22c-17-7-40-7-58 0Z" fill="#f4bd39" stroke="#fff0a6" strokeWidth="3" strokeLinejoin="round" />
+    <path d="M25 34h46v7H25z" fill="#d68b19" stroke="#fff0a6" strokeWidth="1.5" />
+    <circle cx="48" cy="21" r="4" fill="#ee394b" stroke="#fff0a6" strokeWidth="2" />
+    <path d={expression === "worried" ? "M34 48h8m12 0h8" : "M34 47c2-2 5-2 8 0m12 0c3-2 6-2 8 0"} stroke="#51392f" strokeWidth="2.5" strokeLinecap="round" />
+    <ellipse cx="38" cy="54" rx="2" ry="3" fill="#293651" /><ellipse cx="58" cy="54" rx="2" ry="3" fill="#293651" />
+    <path d="M48 55v8l-4 2" stroke="#ac653d" strokeWidth="2" strokeLinecap="round" />
+    <path d="M32 64c4-7 10-8 16-5 6-3 12-2 16 5-4 4-9 5-16 2-7 3-12 2-16-2Z" fill="#f5f3e8" stroke="#c5c0b0" strokeWidth="1.5" />
+    <path d={mouth} stroke="#7b3c30" strokeWidth="2" strokeLinecap="round" />
+    <path d="M18 38c3-13 13-23 30-23m30 23c-3-13-13-23-30-23" stroke="#fff4c7" strokeOpacity=".55" strokeWidth="2" strokeLinecap="round" />
   </svg>;
 }
 
@@ -187,6 +208,9 @@ function App() {
   const pendingDragReleaseRef = useRef(null);
   const boardGridRef = useRef(null);
   const suppressClickRef = useRef(false);
+  const audioContextRef = useRef(null);
+  const gameRef = useRef(game);
+  gameRef.current = game;
 
   const level = useMemo(() => getLevel(game.levelId), [game.levelId]);
   const region = useMemo(() => getRegion(level.regionId), [level.regionId]);
@@ -195,15 +219,24 @@ function App() {
   const currentRegionLevels = LEVELS.filter((item) => item.regionId === region.id);
   const completedInRegion = currentRegionLevels.filter((item) => progress.completed[item.id]).length;
   const chargePercent = Math.min(100, Math.round((game.lightCharge / lightCost) * 100));
+  const sampleCell = boardGridRef.current?.querySelector(".tile-cell");
+  const sampleRect = sampleCell?.getBoundingClientRect();
+  const gridStyle = boardGridRef.current ? window.getComputedStyle(boardGridRef.current) : null;
+  const tilePitchX = (sampleRect?.width ?? 0) + (Number.parseFloat(gridStyle?.columnGap) || 0);
+  const tilePitchY = (sampleRect?.height ?? 0) + (Number.parseFloat(gridStyle?.rowGap) || 0);
   const activeEffect = burstTurnId === game.turnId
-    ? game.specialEffects.find((effect) => ["fish", "bomb-created", "bomb-explosion", "prism-created", "prism-explosion"].includes(effect.type))
+    ? game.specialEffects.find((effect) => ["fish", "fish-created", "bomb-created", "bomb-explosion", "rocket-created", "rocket-explosion", "prism-created", "prism-explosion", "combo-explosion"].includes(effect.type))
     : null;
-  const effectCaption = activeEffect?.type === "fish" ? "PERVANE YOLA ÇIKTI"
-    : activeEffect?.type === "bomb-created" ? "TNT FİÇISI HAZIR"
-      : activeEffect?.type === "bomb-explosion" ? "FİÇI PATLADI"
-        : activeEffect?.type === "prism-created" ? "YILDIZ KÜRESİ DOĞDU"
-          : activeEffect?.type === "prism-explosion" ? "RENKLER TAHTAYI SARDI"
-            : "";
+  const effectCaption = activeEffect?.type === "fish" ? "PERVANE HEDEFE UÇTU"
+    : activeEffect?.type === "fish-created" ? "PERVANE HAZIR"
+      : activeEffect?.type === "bomb-created" ? "TNT HAZIR"
+        : activeEffect?.type === "bomb-explosion" ? "TNT PATLADI"
+          : activeEffect?.type === "rocket-created" ? "ROKET HAZIR"
+            : activeEffect?.type === "rocket-explosion" ? "ROKET HATTI AÇILDI"
+              : activeEffect?.type === "prism-created" ? "IŞIK TOPU HAZIR"
+                : activeEffect?.type === "prism-explosion" ? "RENKLER TAHTAYI SARDI"
+                  : activeEffect?.type === "combo-explosion" ? "GÜÇLER BİRLEŞTİ"
+                    : "";
   const displayGameMessage = (message) => ({
     "Taşlar yeniden dizildi.": "Taşlar yeniden sıralandı.",
     "Eşleşme olmadı; başka bir taş dene.": "Bu hamlede eşleşme yok. Başka bir komşu dene.",
@@ -222,6 +255,29 @@ function App() {
       y: cellRect.top - gridRect.top - (Number.parseFloat(gridStyle.borderTopWidth) || 0) + cellRect.height / 2,
       unit: "px",
     };
+  };
+  const playInvalidSwapFeedback = () => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        const context = audioContextRef.current ?? new AudioContextClass();
+        audioContextRef.current = context;
+        if (context.state === "suspended") void context.resume();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const now = context.currentTime;
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(125, now);
+        oscillator.frequency.exponentialRampToValueAtTime(72, now + 0.075);
+        gain.gain.setValueAtTime(0.075, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now);
+        oscillator.stop(now + 0.115);
+      }
+    } catch { /* Audio may be unavailable or disabled by the browser. */ }
+    try { if ("vibrate" in navigator) navigator.vibrate(12); } catch { /* Haptics are optional on the web. */ }
   };
 
   useEffect(() => {
@@ -242,13 +298,14 @@ function App() {
     const source = pending.drag.sourceElement;
     const accepted = game.turnId !== pending.turnId;
     if (source?.isConnected && !accepted) {
+      playInvalidSwapFeedback();
       source.classList.remove("dragging");
       source.classList.add("drag-return");
       window.setTimeout(() => {
         source.classList.remove("drag-return");
         source.style.removeProperty("--drag-x");
         source.style.removeProperty("--drag-y");
-      }, 260);
+      }, 145);
     } else if (source) {
       source.style.setProperty("transition", "none", "important");
       source.classList.remove("dragging", "drag-return");
@@ -268,7 +325,7 @@ function App() {
             { transform: `translate3d(${x}px, ${y}px, 0)` },
             { transform: "translate3d(0, 0, 0)" },
           ],
-          { duration: 170, easing: "cubic-bezier(.2,.78,.24,1)" },
+          { duration: 180, easing: "cubic-bezier(.2,.78,.24,1)" },
         );
       }
     }
@@ -328,7 +385,9 @@ function App() {
     }
     const isAdjacent = Math.abs(selected.row - row) + Math.abs(selected.col - col) === 1;
     if (isAdjacent) {
-      setGame((current) => swapTiles(current, selected, { row, col }));
+      const next = swapTiles(game, selected, { row, col });
+      if (next.turnId === game.turnId) playInvalidSwapFeedback();
+      setGame(next);
       setSelected(null);
       return;
     }
@@ -381,7 +440,7 @@ function App() {
           source.classList.remove("drag-return");
           source.style.removeProperty("--drag-x");
           source.style.removeProperty("--drag-y");
-        }, 220);
+        }, 145);
       } else {
         source.classList.remove("dragging", "drag-return");
         source.style.removeProperty("--drag-x");
@@ -464,14 +523,15 @@ function App() {
 
       suppressClickRef.current = true;
       window.setTimeout(() => { suppressClickRef.current = false; }, 0);
-      if (shouldSwap && !mapOpen && !targetMode && game.status === "playing") {
+      const currentGame = gameRef.current;
+      if (shouldSwap && !mapOpen && !targetMode && currentGame.status === "playing" && drag.turnId === currentGame.turnId) {
         drag.partner = drag.targetElement ? {
           element: drag.targetElement,
           rect: drag.targetElement.getBoundingClientRect(),
         } : null;
         clearDragTarget(drag);
         pendingDragReleaseRef.current = { drag, turnId: drag.turnId };
-        setGame((current) => swapTiles(current, drag.start, destination));
+        setGame(swapTiles(currentGame, drag.start, destination));
         setSelected(null);
         setToast("");
       } else {
@@ -499,12 +559,13 @@ function App() {
   const retryLevel = () => startLevel(game.levelId);
   const completedCount = Object.keys(progress.completed).filter((id) => Number(id) >= 1 && Number(id) <= 9).length;
   const nextLevel = game.levelId < LEVELS.length ? game.levelId + 1 : null;
+  const kingExpression = game.status === "won" ? "excited" : game.movesLeft <= 5 ? "worried" : "happy";
   return (
     <main className={`app-shell theme-${region.theme}`}>
       <header className="topbar">
-        <div className="brand-lockup" aria-label="Taç Taşları">
+        <div className="brand-lockup" aria-label="Royal Match">
           <span className="brand-mark"><BrandGlyph /></span>
-          <span><span className="brand-name">Taç Taşları</span><span className="brand-caption">KRALİYET BULMACASI</span></span>
+          <span><span className="brand-name">Royal Match</span><span className="brand-caption">KRALİYET BULMACASI</span></span>
         </div>
         <div className="top-actions">
           <button className="text-button" onClick={() => { setMapOpen((open) => !open); setTargetMode(false); setSelected(null); }}>
@@ -607,20 +668,21 @@ function App() {
                   <div className="target-chip-row">
                     {level.goals.map((goal) => {
                       const count = game.collected[goal.type] || 0;
-                      return <div className="target-chip" key={goal.type} style={{ "--target-color": TILE_META[goal.type].color }}>
+                      const complete = count >= goal.count;
+                      return <div className={`target-chip${complete ? " is-complete" : ""}`} key={goal.type} style={{ "--target-color": TILE_META[goal.type].color }}>
                         <span className="target-glyph"><Glyph type={goal.type} /></span>
                         <span className="target-label">{TILE_NAMES[goal.type]}</span>
-                        <strong>{Math.min(count, goal.count)}<i>/{goal.count}</i></strong>
+                        <strong className="target-count" key={`${goal.type}-${count}`}>{Math.min(count, goal.count)}<i>/{goal.count}</i></strong>
                       </div>;
                     })}
                   </div>
                 </section>
-                <div className="center-crest" aria-label="Saray arması">
-                  <span className="crest-spark crest-spark-a" aria-hidden="true" /><CrestMascot /><span className="crest-spark crest-spark-b" aria-hidden="true" />
+                <div className={`center-crest king-${kingExpression}`} aria-label="Kral Robert">
+                  <span className="crest-spark crest-spark-a" aria-hidden="true" /><CrestMascot expression={kingExpression === "excited" ? "celebrate" : kingExpression} /><span className="crest-spark crest-spark-b" aria-hidden="true" />
                 </div>
                 <div className="moves-panel">
                   <span className="status-label">HAMLE</span>
-                  <strong>{game.movesLeft}</strong>
+                  <strong key={`${game.turnId}-${game.movesLeft}`} className={burstTurnId === game.turnId ? "move-counter-pulse" : ""}>{game.movesLeft}</strong>
                   <span className="moves-total">/ {level.moveLimit}</span>
                   <span className="moves-score">PUAN {game.score.toLocaleString("tr-TR")}</span>
                 </div>
@@ -644,22 +706,29 @@ function App() {
                     const isBurstCell = burstTurnId === game.turnId && game.clearedCells.some((cell) => cell.row === rowIndex && cell.col === colIndex);
                     const isBombCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "bomb-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
                     const isPrismCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "prism-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
+                    const isRocketCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "rocket-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
+                    const isFishCreated = burstTurnId === game.turnId && game.specialEffects.some((effect) => effect.type === "fish-created" && effect.at.row === rowIndex && effect.at.col === colIndex);
+                    const falling = burstTurnId === game.turnId ? game.fallingTiles.find((entry) => entry.id === tile.id) : null;
                     const isPrism = tile.special === "prism";
                     const isBomb = tile.special === "bomb";
+                    const isRocket = tile.special === "rocket-horizontal" || tile.special === "rocket-vertical";
+                    const isFish = tile.special === "fish";
                     return (
                       <button
                         key={tile.id}
                         data-row={rowIndex}
                         data-col={colIndex}
-                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isBomb ? " special-bomb" : ""}${isPrism ? " special-prism" : ""}${isBombCreated ? " bomb-created-cell" : ""}${isPrismCreated ? " prism-created-cell" : ""}`}
+                        className={`tile-cell${isSelected ? " selected" : ""}${isBurstCell ? " burst-cell" : ""}${isBomb ? " special-bomb" : ""}${isPrism ? " special-prism" : ""}${isRocket ? ` ${tile.special}` : ""}${isFish ? " special-fish" : ""}${isBombCreated ? " bomb-created-cell" : ""}${isPrismCreated ? " prism-created-cell" : ""}${isRocketCreated ? " rocket-created-cell" : ""}${isFishCreated ? " fish-created-cell" : ""}${falling ? " falling-tile" : ""}`}
                         style={{
                           "--tile-color": isBomb ? "#ffd879" : isPrism ? "#eaf7dc" : meta.color,
                           "--tile-deep": isBomb ? "#d65343" : isPrism ? "#719987" : meta.deep,
                           "--cell-index": rowIndex * 8 + colIndex,
+                          "--fall-x-px": `${falling ? (falling.fromCol - falling.toCol) * tilePitchX : 0}px`,
+                          "--fall-y-px": `${falling ? (falling.fromRow - falling.toRow) * tilePitchY : 0}px`,
                         }}
                         onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}
-                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "TNT fiçısı, " : isPrism ? "ışıklı yıldız küresi, " : ""}${TILE_NAMES[tile.type] ?? meta.name}`}
+                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "TNT, " : isPrism ? "ışık topu, " : isRocket ? "roket, " : isFish ? "pervane, " : ""}${TILE_NAMES[tile.type] ?? meta.name}`}
                         aria-describedby="board-instructions"
                         role="gridcell"
                       >
@@ -708,6 +777,18 @@ function App() {
                         aria-hidden="true"
                       />;
                     }
+                    if (effect.type === "rocket-created" || effect.type === "rocket-explosion") {
+                      const center = getCellCenter(effect.at.row, effect.at.col);
+                      return <span
+                        className={`rocket-board-effect ${effect.orientation ?? "horizontal"} ${effect.type === "rocket-created" ? "created" : "exploded"}`}
+                        key={`rocket-${game.turnId}-${index}`}
+                        style={{
+                          "--effect-x": `${center.x}${center.unit}`,
+                          "--effect-y": `${center.y}${center.unit}`,
+                        }}
+                        aria-hidden="true"
+                      />;
+                    }
                     if (effect.type === "prism-created" || effect.type === "prism-explosion") {
                       const center = getCellCenter(effect.at.row, effect.at.col);
                       return <span
@@ -721,7 +802,28 @@ function App() {
                         aria-hidden="true"
                       />;
                     }
+                    if (effect.type === "combo-explosion") {
+                      const center = getCellCenter(effect.at.row, effect.at.col);
+                      return <span
+                        className="combo-board-effect"
+                        key={`combo-${game.turnId}-${index}`}
+                        style={{
+                          "--effect-x": `${center.x}${center.unit}`,
+                          "--effect-y": `${center.y}${center.unit}`,
+                        }}
+                        aria-hidden="true"
+                      />;
+                    }
                     return null;
+                  })}
+                  {burstTurnId === game.turnId && game.scorePopups.map((popup) => {
+                    const center = getCellCenter(popup.at.row, popup.at.col);
+                    return <span
+                      className="score-float"
+                      key={popup.id}
+                      style={{ "--score-x": `${center.x}${center.unit}`, "--score-y": `${center.y}${center.unit}` }}
+                      aria-hidden="true"
+                    >+{popup.value.toLocaleString("tr-TR")}</span>;
                   })}
                 </div>
                 <div className="board-footer">
@@ -758,17 +860,17 @@ function App() {
                   <span className="booster-count">{Math.min(100, chargePercent)}%</span>
                   <span className="booster-name">Çekiç</span>
                 </button>
-                <button className="booster-button locked" disabled aria-label="Kalkan aracı kilitli">
+                <button className="booster-button locked" disabled aria-label="Örs aracı kilitli">
                   <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 11 4v9c0 7-4 11-11 15C9 27 5 23 5 16V7l11-4Z" stroke="currentColor" strokeWidth="2" /><path d="m12 12 8 8m0-8-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg><LockIcon className="booster-lock" /></span>
-                  <span className="booster-name">Kalkan</span>
+                  <span className="booster-name">Örs</span>
                 </button>
-                <button className="booster-button locked" disabled aria-label="Asa aracı kilitli">
+                <button className="booster-button locked" disabled aria-label="Top aracı kilitli">
                   <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m12 25 12-17m-9 20 3-4-8-6-3 4 8 6Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="m23 3 1.2 3.3L28 8l-3.8 1.4L23 13l-1.3-3.6L18 8l3.7-1.7L23 3Z" fill="currentColor" /></svg><LockIcon className="booster-lock" /></span>
-                  <span className="booster-name">Asa</span>
+                  <span className="booster-name">Top</span>
                 </button>
-                <button className="booster-button locked" disabled aria-label="Taç mührü aracı kilitli">
+                <button className="booster-button locked" disabled aria-label="Taç aracı kilitli">
                   <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="2" /><path d="m8 11 5 3 3-7 3 7 5-3-2 10H10L8 11Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg><LockIcon className="booster-lock" /></span>
-                  <span className="booster-name">Taç mührü</span>
+                  <span className="booster-name">Taç</span>
                 </button>
                 <button className="booster-button settings-button" aria-label="Oyun ayarlarını aç" onClick={() => setSettingsOpen(true)}>
                   <span className="booster-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M13 4h6l1 3 3 1 3-1 3 5-2 2v4l2 2-3 5-3-1-3 1-1 3h-6l-1-3-3-1-3 1-3-5 2-2v-4l-2-2 3-5 3 1 3-1 1-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><circle cx="16" cy="16" r="4" stroke="currentColor" strokeWidth="2" /></svg></span>
@@ -796,7 +898,7 @@ function App() {
               </section>
               <section className="side-card court-note">
                 <span className="note-ornament"><BrandGlyph /></span>
-                <div><span className="eyebrow">SARAY KURALI</span><p>Dörtlü eşleşme pervane doğurur. Beş taş TNT fiçısı, sekiz taş yıldız küresi hazırlar.</p></div>
+                <div><span className="eyebrow">SARAY KURALI</span><p>Dörtlü çizgi roket; 2 × 2 pervane, T/L eşleşmesi TNT ve beşli çizgi ışık topu hazırlar.</p></div>
               </section>
             </aside>
           </div>
@@ -813,7 +915,7 @@ function App() {
           <p className="help-copy">Taşları yan yana getir ve hedeflerini hamlelerin bitmeden tamamla.</p>
           <div className="help-steps">
               <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle veya komşu iki taşa dokun.</strong> Üç aynı taş eşleşince hedef taşları toplarsın.</p></div>
-            <div className="help-step"><span className="step-number">02</span><p><strong>Özel taşları uyandır.</strong> Dörtlüde pervane hedefe uçar; beşlide TNT fiçısı komşu kareleri patlatır; sekizlide yıldız küresi aynı renkteki taşları siler.</p></div>
+            <div className="help-step"><span className="step-number">02</span><p><strong>Özel taşları uyandır.</strong> Dörtlü çizgi roket, 2 × 2 kare pervane, T/L eşleşmesi TNT, beşli çizgi ışık topu oluşturur. İki özel taşı yan yana değiştirerek güçlerini birleştir.</p></div>
             <div className="help-step"><span className="step-number">03</span><p><strong>Taç çekicini doldur.</strong> Temizlediğin taşlar enerjisini artırır. Dolunca 3 × 3 alanı bir kareye dokunarak aç.</p></div>
           </div>
           <div className="help-close"><button className="primary-button" onClick={dismissHelp}>Oyuna başla</button></div>
