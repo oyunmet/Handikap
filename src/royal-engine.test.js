@@ -81,7 +81,10 @@ test("a valid match spends one move, scores gems, and damages an adjacent vault"
   const next = swapTiles(state, { row: 4, col: 3 }, { row: 4, col: 4 });
   assert.equal(next.movesLeft, 36);
   assert.ok(next.score >= 300);
-  assert.ok(next.goals.find(({ id }) => id === "gems").remaining < 41);
+  assert.equal(
+    next.goals.find(({ id }) => id === "gems").remaining,
+    Math.max(0, 41 - next.clearedCells.length),
+  );
   assert.ok(next.board[4][2].hp <= 1);
   if (!next.board[4][2].kind || next.board[4][2].kind !== "blocker") {
     assert.equal(next.goals.find(({ id }) => id === "vault").remaining, 7);
@@ -98,8 +101,23 @@ test("a four-match creates a rocket special", () => {
   put(state, 5, 3, gem("bottom-a", "red"));
   put(state, 6, 3, gem("bottom-b", "red"));
   const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
-  assert.ok(next.specialEffects.some((effect) => effect.type === "special-created" && effect.special.startsWith("rocket-")));
+  const created = next.specialEffects.find((effect) => effect.type === "special-created" && effect.special.startsWith("rocket-"));
+  assert.ok(created);
   assert.ok(next.board.flat().some((cell) => cell?.special?.startsWith("rocket-")));
+  const createdTilePosition = next.board.flatMap((row, rowIndex) =>
+    row.map((cell, colIndex) => cell?.id === created.tileId ? { row: rowIndex, col: colIndex } : null),
+  ).find(Boolean);
+  if (createdTilePosition) assert.deepEqual(created.at, createdTilePosition);
+});
+
+test("a special tile triggers from its destination when swapped without a match", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("rocket", "yellow", "rocket-h"));
+  put(state, 4, 3, gem("plain", "blue"));
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  const rocket = next.specialEffects.find((effect) => effect.type === "rocket");
+  assert.ok(rocket);
+  assert.deepEqual(rocket.at, { row: 4, col: 3 });
 });
 
 test("hammer damages blockers without consuming a move and opens a safe in tiers", () => {

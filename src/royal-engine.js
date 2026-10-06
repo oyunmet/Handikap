@@ -312,7 +312,7 @@ function planMatchWave(board, preferred = []) {
     if (tile) {
       board[anchor.row][anchor.col] = { ...tile, special };
       clear.delete(keyOf(anchor.row, anchor.col));
-      effects.push({ type: "special-created", special, at: anchor });
+      effects.push({ type: "special-created", special, tileId: tile.id, at: anchor });
     }
   }
   return { clear, effects };
@@ -399,6 +399,20 @@ function updateGoal(goals, id, amount = 1) {
   return goals.map((goal) =>
     goal.id === id ? { ...goal, remaining: Math.max(0, goal.remaining - amount) } : goal,
   );
+}
+
+function syncCreatedSpecialPositions(board, effects) {
+  for (let index = 0; index < effects.length; index += 1) {
+    const effect = effects[index];
+    if (effect.type !== "special-created" || !effect.tileId) continue;
+    for (let row = 0; row < BOARD_ROWS; row += 1) {
+      const col = board[row].findIndex((cell) => cell?.id === effect.tileId);
+      if (col >= 0) {
+        effects[index] = { ...effect, at: { row, col } };
+        break;
+      }
+    }
+  }
 }
 
 function hitBlocker(board, row, col, goals, effects, drillClear) {
@@ -586,6 +600,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
   }
 
   next.clearedCells = [...new Map(next.clearedCells.map((cell) => [keyOf(cell.row, cell.col), cell])).values()];
+  syncCreatedSpecialPositions(next.board, next.specialEffects);
   if (!hasAvailableSwap(next.board)) {
     next.board = reshuffleBoard(next.board);
     next.message = "Taşlar yeniden karıştırıldı.";
@@ -731,8 +746,9 @@ export function swapTiles(state, first, second) {
       clear.add(keyOf(second.row, second.col));
     }
   } else {
-    clear.add(keyOf(firstCell.special ? first.row : second.row, firstCell.special ? first.col : second.col));
-    effects.push({ type: "special-activate", at: firstCell.special ? first : second });
+    const activatedAt = firstCell.special ? second : first;
+    clear.add(keyOf(activatedAt.row, activatedAt.col));
+    effects.push({ type: "special-activate", at: activatedAt, special: firstCell.special ? firstCell.special : secondCell.special });
   }
   return settle(next, clear, effects, []);
 }

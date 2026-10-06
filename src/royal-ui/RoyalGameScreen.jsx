@@ -110,12 +110,30 @@ function BlockerArt({ type, hp }) {
         </defs>
         <rect x="4" y="4" width="92" height="92" rx="17" fill="#1b2476" stroke="#dca83c" strokeWidth="4" />
         <rect x="10" y="9" width="80" height="82" rx="14" fill="url(#rg-vault-shell)" stroke="#c0aeff" strokeWidth="4" />
-        <path d="M19 26 73 79M81 26 28 79" stroke="url(#rg-vault-gold)" strokeWidth="15" strokeLinecap="round" />
-        <path d="M18 23 72 76M80 23 27 76" stroke="#fff0a0" strokeWidth="4" strokeLinecap="round" opacity=".85" />
-        <circle cx="50" cy="51" r="17" fill="#ec9b22" stroke="#703a1e" strokeWidth="4" />
-        <circle cx="50" cy="51" r="9" fill="#e53043" stroke="#ffc74e" strokeWidth="3" />
-        <circle cx="18" cy="18" r="4" fill="#f5d766" /><circle cx="82" cy="18" r="4" fill="#f5d766" /><circle cx="18" cy="82" r="4" fill="#f5d766" /><circle cx="82" cy="82" r="4" fill="#f5d766" />
-        {hp < 2 && <path d="M18 48h13m41 0h11M48 18v12m0 41v11" stroke="#e8d8ff" strokeWidth="4" strokeLinecap="round" />}
+        {hp >= 2 ? (
+          <g>
+            <path d="M19 26 73 79M81 26 28 79" stroke="url(#rg-vault-gold)" strokeWidth="15" strokeLinecap="round" />
+            <path d="M18 23 72 76M80 23 27 76" stroke="#fff0a0" strokeWidth="4" strokeLinecap="round" opacity=".85" />
+            <circle cx="50" cy="51" r="17" fill="#ec9b22" stroke="#703a1e" strokeWidth="4" />
+            <circle cx="50" cy="51" r="9" fill="#e53043" stroke="#ffc74e" strokeWidth="3" />
+            <circle cx="18" cy="18" r="4" fill="#f5d766" /><circle cx="82" cy="18" r="4" fill="#f5d766" /><circle cx="18" cy="82" r="4" fill="#f5d766" /><circle cx="82" cy="82" r="4" fill="#f5d766" />
+          </g>
+        ) : (
+          <g>
+            <rect x="18" y="18" width="65" height="67" rx="9" fill="#211d62" stroke="#ffd35b" strokeWidth="4" />
+            <path d="M24 70q9-17 18 0 8-19 17 0 8-14 16 0v9H24z" fill="url(#rg-vault-gold)" stroke="#b56b1e" strokeWidth="2" />
+            <circle cx="35" cy="61" r="6" fill="#ffe66b" stroke="#fff2a0" strokeWidth="1.5" />
+            <circle cx="55" cy="57" r="7" fill="#f6b725" stroke="#fff2a0" strokeWidth="1.5" />
+            <circle cx="70" cy="65" r="5" fill="#ffe66b" stroke="#fff2a0" strokeWidth="1.5" />
+            <g transform="rotate(-31 29 50)">
+              <rect x="11" y="21" width="39" height="61" rx="8" fill="url(#rg-vault-shell)" stroke="#d8c9ff" strokeWidth="4" />
+              <path d="M17 31h27M17 72h27" stroke="#ffd665" strokeWidth="5" strokeLinecap="round" />
+              <circle cx="39" cy="51" r="7" fill="#e99c22" stroke="#68361c" strokeWidth="3" />
+              <circle cx="39" cy="51" r="3" fill="#e53043" stroke="#ffd05b" strokeWidth="2" />
+            </g>
+            <path d="m8 22-3 9 6 4-5 6 7 5" fill="none" stroke="#fff4b2" strokeWidth="3" strokeLinecap="round" />
+          </g>
+        )}
       </svg>
     );
   }
@@ -177,6 +195,66 @@ function GoalGlyph({ id }) {
   return <Jewel color="pink" />;
 }
 
+function SpecialPiece({ color, special }) {
+  if (special === "rocket-h" || special === "rocket-v") {
+    return (
+      <svg className={`rg-special-piece rg-rocket-piece ${special}`} viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="rg-rocket-metal" x2="0" y2="1"><stop stopColor="#fff59a" /><stop offset=".45" stopColor="#ed8c18" /><stop offset="1" stopColor="#b94325" /></linearGradient></defs>
+        <g transform={special === "rocket-v" ? "rotate(90 32 32)" : undefined}>
+          <path d="M8 24h48v16H8z" rx="8" fill="url(#rg-rocket-metal)" stroke="#8e3a25" strokeWidth="3" />
+          <path d="M12 25h8v14h-8zm32 0h8v14h-8z" fill="#f4dfd1" stroke="#a4432c" strokeWidth="2" />
+          <path d="M27 27h10v10H27z" fill="#fffbe6" opacity=".92" />
+          <path d="m4 32 8-8v16z" fill="#f0533c" stroke="#fff0b1" strokeWidth="2" />
+          <path d="m60 32-8-8v16z" fill="#e84932" stroke="#fff0b1" strokeWidth="2" />
+          <path d="M23 20v24M41 20v24" stroke="#fff3b2" strokeWidth="2" />
+        </g>
+      </svg>
+    );
+  }
+  if (special === "tnt") {
+    return (
+      <svg className="rg-special-piece rg-tnt-piece" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="rg-tnt-barrel" x2="0" y2="1"><stop stopColor="#f6cd76" /><stop offset=".35" stopColor="#cf653f" /><stop offset="1" stopColor="#87374d" /></linearGradient></defs>
+        <path d="M22 11c4-7 13-8 18-2l-5 10-10-2z" fill="#9b6042" stroke="#f6da99" strokeWidth="2" />
+        <path d="m37 9 9-4 4 3-10 8" fill="none" stroke="#fff2aa" strokeWidth="3" strokeLinecap="round" />
+        <path d="m50 3 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3Z" fill="#fff48c" />
+        <path d="M15 19h34l-3 34H18z" fill="url(#rg-tnt-barrel)" stroke="#773342" strokeWidth="3" />
+        <path d="M17 24h30M18 47h28" stroke="#ffdf92" strokeWidth="4" />
+        <path d="M22 29h20v13H22z" rx="3" fill="#f9e7a5" stroke="#8b3b3b" strokeWidth="2" />
+        <text x="32" y="39" textAnchor="middle" fontSize="9" fontWeight="1000" fill="#9b3543">TNT</text>
+        <path d="M11 23v25m42-25v25" stroke="#ffd87c" strokeWidth="3" />
+      </svg>
+    );
+  }
+  if (special === "lightball") {
+    return (
+      <svg className="rg-special-piece rg-lightball-piece" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><radialGradient id="rg-lightball-core" cx=".32" cy=".24"><stop stopColor="#fff" /><stop offset=".3" stopColor="#fff7cd" /><stop offset=".72" stopColor="#e9a844" /><stop offset="1" stopColor="#a74d48" /></radialGradient></defs>
+        <circle cx="32" cy="33" r="24" fill="url(#rg-lightball-core)" stroke="#fff1ab" strokeWidth="3" />
+        <path d="M12 24c7-8 15-10 23-7M14 43c7 7 16 9 27 3M42 14c8 5 12 13 11 22" fill="none" stroke="#fff" strokeOpacity=".85" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="19" cy="28" r="4" fill="#e94350" stroke="#fff7c8" strokeWidth="1.5" />
+        <circle cx="35" cy="17" r="4" fill="#32a8ef" stroke="#fff7c8" strokeWidth="1.5" />
+        <circle cx="47" cy="31" r="4" fill="#a54be1" stroke="#fff7c8" strokeWidth="1.5" />
+        <circle cx="30" cy="47" r="4" fill="#46bd62" stroke="#fff7c8" strokeWidth="1.5" />
+        <circle cx="22" cy="41" r="3.5" fill="#ffd13c" stroke="#fff7c8" strokeWidth="1.5" />
+        <path d="m32 1 2.4 6.1L41 9.5l-6.6 2.4L32 18l-2.4-6.1L23 9.5l6.6-2.4L32 1Z" fill="#fff" />
+      </svg>
+    );
+  }
+  if (special === "propeller") {
+    return (
+      <svg className="rg-special-piece rg-propeller-piece" viewBox="0 0 64 64" aria-hidden="true">
+        <g className="rg-propeller-rotor">
+          <path d="M28 27 10 10c-5-5-1-10 5-8l22 13-7 14Zm9 2 18-18c5-5 10-1 8 5L50 38l-13-9Zm-2 8 18 18c5 5 1 10-5 8L26 50l9-13Zm-8-2L9 53c-5 5-10 1-8-5l13-22 13 7Z" fill="#f4a923" stroke="#fff0a7" strokeWidth="2.3" strokeLinejoin="round" />
+        </g>
+        <circle cx="32" cy="32" r="9" fill="#e43c43" stroke="#fff2ae" strokeWidth="3" />
+        <circle cx="32" cy="32" r="3" fill="#fffbdc" />
+      </svg>
+    );
+  }
+  return <Jewel color={color} />;
+}
+
 function BoosterGlyph({ id }) {
   if (id === "hammer") return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="m19 13 12 12-8 8-12-12z" fill="#ffe477" stroke="#995719" strokeWidth="3" /><path d="m29 24 22 24-7 7-23-22z" fill="#8c5426" stroke="#5b361d" strokeWidth="3" /><path d="m9 19 11-11 13 12-10 11z" fill="#d92d41" stroke="#782539" strokeWidth="3" /><path d="m14 17 6-6" stroke="#fff" strokeWidth="3" strokeLinecap="round" /></svg>;
   if (id === "bow") return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 8c22 7 22 41 0 48M16 8l10 24-10 24" fill="none" stroke="#f0ae38" strokeWidth="7" strokeLinecap="round" /><path d="M16 8 51 32 16 56" fill="none" stroke="#fff0ae" strokeWidth="2" /><path d="m38 24 16 8-16 8-4-8z" fill="#ef4c50" stroke="#8b2429" strokeWidth="2" /><path d="M14 9 20 6" stroke="#fff" strokeWidth="3" strokeLinecap="round" /></svg>;
@@ -184,7 +262,15 @@ function BoosterGlyph({ id }) {
   return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M15 13c-5 5-6 11-2 15l10 4-10 4c-4 4-3 10 2 15 5 5 11 6 15 2l2-11 4 11c4 4 10 3 15-2s6-11 2-15l-10-4 10-4c4-4 3-10-2-15s-11-6-15-2l-4 10-2-10c-4-4-10-3-15 2z" fill="#69ce47" stroke="#258c37" strokeWidth="3" /><circle cx="22" cy="24" r="5" fill="#ed3c77" /><circle cx="41" cy="24" r="5" fill="#f9d334" /><circle cx="22" cy="42" r="5" fill="#37aafa" /><circle cx="41" cy="42" r="5" fill="#ed5c30" /><circle cx="32" cy="33" r="8" fill="#ffe342" stroke="#fff5a0" strokeWidth="2" /></svg>;
 }
 
-function GoalPanel({ goals }) {
+function GoalPanel({ goals, won = false }) {
+  if (won) {
+    return (
+      <section className="rg-info-card rg-goal-card rg-reward-card" aria-label="Bölüm ödülü">
+        <div className="rg-card-ribbon">Ödül</div>
+        <div className="rg-coin-reward"><span className="rg-coin-icon" aria-hidden="true">♛</span><strong>10</strong></div>
+      </section>
+    );
+  }
   const goalMeta = [
     { id: "vault", label: "Kasa" },
     { id: "bear", label: "Ayıcık" },
@@ -198,9 +284,9 @@ function GoalPanel({ goals }) {
         {goalMeta.map(({ id, label }) => {
           const goal = goals.find((item) => item.id === id) || { remaining: 0, total: 0 };
           return (
-            <div className="rg-goal-item" key={id} aria-label={`${label}: ${goal.remaining}`}>
+            <div className="rg-goal-item" data-goal-id={id} key={id} aria-label={`${label}: ${goal.remaining}`}>
               <span className="rg-goal-icon"><GoalGlyph id={id} /></span>
-              <span className="rg-goal-count">{goal.remaining}</span>
+              <span className="rg-goal-count" key={`${id}-${goal.remaining}`}>{goal.remaining}</span>
             </div>
           );
         })}
@@ -220,6 +306,10 @@ export default function RoyalGameScreen({
   onRetry = () => {},
   mascotMood = "happy",
   effectLayer = null,
+  rewardLayer = null,
+  settingsDialog = null,
+  onCellRef = () => {},
+  message = "",
 }) {
   const board = Array.isArray(game.board) ? game.board : fallbackBoard;
   const goals = Array.isArray(game.goals) ? game.goals : [
@@ -229,18 +319,14 @@ export default function RoyalGameScreen({
     { id: "gems", remaining: 41, total: 41 },
   ];
   const movesLeft = game.movesLeft ?? 37;
-  const boosters = [
-    { id: "hammer", count: 17 },
-    { id: "bow", count: 22 },
-    { id: "cannon", count: 16 },
-    { id: "jester", count: 26 },
-  ];
+  const boosters = Object.entries(game.boosters || { hammer: 17, bow: 22, cannon: 16, jester: 26 })
+    .map(([id, count]) => ({ id, count }));
 
   return (
     <main className="royal-game-screen">
       <div className="rg-castle-backdrop" aria-hidden="true" />
       <header className="rg-topbar">
-        <GoalPanel goals={goals} />
+        <GoalPanel goals={goals} won={game.status === "won"} />
         <div className={`rg-king-arch rg-mood-${mascotMood}`} aria-label="Kraliyet rehberi">
           <div className="rg-arch-outer"><div className="rg-arch-inner"><img src="/king-avatar.png" alt="" /></div></div>
           <span className="rg-king-glint" />
@@ -263,22 +349,24 @@ export default function RoyalGameScreen({
                 <button
                   type="button"
                   key={key}
-                  className={`rg-cell ${cell ? "rg-cell-filled" : "rg-cell-cutout"} ${cell?.kind === "blocker" ? `rg-cell-${cell.type}` : ""} ${isSelected ? "is-selected" : ""}`}
-                  aria-label={`Row ${rowIndex + 1}, column ${colIndex + 1}: ${accessible}`}
+                  ref={(element) => onCellRef(cell?.id, element)}
+                  data-row={rowIndex}
+                  data-col={colIndex}
+                  className={`rg-cell ${cell ? "rg-cell-filled" : "rg-cell-cutout"} ${cell?.kind === "blocker" ? `rg-cell-${cell.type}` : ""} ${cell?.special ? `rg-cell-special rg-cell-special-${cell.special}` : ""} ${isSelected ? "is-selected" : ""}`}
+                  aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${accessible}`}
                   onClick={() => onCellClick(rowIndex, colIndex)}
                   onPointerDown={(event) => onCellPointerDown(event, rowIndex, colIndex)}
                   disabled={!cell}
                 >
-                  {cell?.kind === "gem" && <Jewel color={cell.color} />}
+                  {cell?.kind === "gem" && <SpecialPiece color={cell.color} special={cell.special} />}
                   {cell?.kind === "blocker" && <BlockerArt type={cell.type} hp={cell.hp ?? 1} />}
-                  {cell?.special && <span className="rg-special-spark" aria-hidden="true">✦</span>}
                 </button>
               );
             }))}
+            {effectLayer && <div className="rg-effects">{effectLayer}</div>}
           </div>
           <div className="rg-board-sheen" aria-hidden="true" />
         </div>
-        {effectLayer && <div className="rg-effects">{effectLayer}</div>}
       </section>
 
       <footer className="rg-bottom-dock" aria-label="Güçlendiriciler">
@@ -291,6 +379,7 @@ export default function RoyalGameScreen({
               onClick={() => onBooster(id)}
               aria-label={`${id} güçlendirici, ${count} adet`}
               aria-pressed={activeBooster === id}
+              disabled={game.status !== "playing" || count <= 0}
             >
               <span className="rg-booster-art"><BoosterGlyph id={id} /></span>
               <span className="rg-booster-count">{count}</span>
@@ -300,13 +389,28 @@ export default function RoyalGameScreen({
             <span className="rg-gear" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M27 5h10l2 7a21 21 0 0 1 5 2l6-4 7 7-4 6a21 21 0 0 1 2 5l7 2v10l-7 2a21 21 0 0 1-2 5l4 6-7 7-6-4a21 21 0 0 1-5 2l-2 7H27l-2-7a21 21 0 0 1-5-2l-6 4-7-7 4-6a21 21 0 0 1-2-5l-7-2V30l7-2a21 21 0 0 1 2-5l-4-6 7-7 6 4a21 21 0 0 1 5-2z" fill="#e4f4f5" stroke="#486789" strokeWidth="3" strokeLinejoin="round" /><circle cx="32" cy="35" r="12" fill="#327ca8" stroke="#d8edee" strokeWidth="4" /><circle cx="32" cy="35" r="5" fill="#a4d7e7" /></svg></span>
           </button>
         </div>
-        {game.status && game.status !== "playing" && (
+        {game.status === "lost" && (
           <div className="rg-status-card" role="status">
-            <strong>{game.status === "won" ? "Harika!" : "Bir tur daha?"}</strong>
-            <button type="button" onClick={onRetry}>{game.status === "won" ? "Devam et" : "Tekrar dene"}</button>
+            <strong>Bir tur daha?</strong>
+            <button type="button" onClick={onRetry}>Tekrar oyna</button>
           </div>
         )}
       </footer>
+      {message && game.status === "playing" && <div className="rg-message-toast" role="status">{message}</div>}
+      {game.status === "won" && (
+        <div className="rg-victory-overlay" role="status">
+          <div className="rg-victory-sparks" aria-hidden="true">{Array.from({ length: 14 }, (_, index) => <i key={index} style={{ "--spark-index": index }} />)}</div>
+          <section className="rg-victory-card">
+            <div className="rg-victory-medal" aria-hidden="true">★</div>
+            <p>BÖLÜM TAMAMLANDI</p>
+            <h1>Harika iş!</h1>
+            <div className="rg-victory-coins"><span className="rg-coin-icon">♛</span><strong>10</strong><small>altın ödül</small></div>
+            <button type="button" onClick={onRetry}>Yeniden oyna</button>
+          </section>
+        </div>
+      )}
+      {rewardLayer}
+      {settingsDialog}
     </main>
   );
 }

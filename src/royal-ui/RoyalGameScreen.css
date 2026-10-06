@@ -417,3 +417,530 @@
 @media (prefers-reduced-motion: reduce) {
   .rg-cell, .rg-cell .rg-jewel, .rg-booster { transition: none; }
 }
+
+/*
+ * Screen-specific finish: tuned to the warm, lacquered arcade look of the
+ * supplied game captures. These overrides are deliberately scoped so the
+ * rest of the app keeps its own visual language.
+ */
+.royal-game-screen {
+  grid-template-rows: 19.2% minmax(0, 1fr) 10.6%;
+  color: #fff4c8;
+  background:
+    linear-gradient(180deg, #164b88 0%, #10427d 18%, transparent 18.2%),
+    #87462d;
+}
+
+.royal-game-screen .rg-topbar {
+  background: linear-gradient(180deg, #164d89 0%, #104580 77%, #0c3975 100%);
+  border-bottom-color: #f7a927;
+  box-shadow: 0 4px 0 #9b4b14, 0 8px 12px rgba(40, 15, 5, .38);
+}
+
+.royal-game-screen .rg-info-card {
+  border-color: #28609e;
+  background: linear-gradient(145deg, #fff9dc 0%, #f6edcb 68%, #e9dcae 100%);
+  box-shadow: inset 0 2px 0 #fffef0, inset 0 -4px 0 #c5b37d, 0 4px 0 #07316a;
+}
+
+.royal-game-screen .rg-card-ribbon {
+  border-color: #ffbd2e;
+  background: linear-gradient(180deg, #2871bd 0%, #0c4c91 66%, #07336d 100%);
+  color: #fff5cb;
+  text-shadow: 0 2px 1px #74390e, 0 0 4px rgba(255, 226, 100, .75);
+  box-shadow: 0 3px 0 #9f4a0d, inset 0 2px 2px rgba(255,255,255,.4);
+}
+
+.royal-game-screen .rg-king-arch {
+  box-shadow: 0 3px 0 #63370f, inset 0 1px 3px #fff8b0, 0 0 0 3px #0a3a78;
+}
+
+.royal-game-screen .rg-playfield {
+  padding-inline: 5.5%;
+}
+
+.royal-game-screen .rg-board-frame {
+  border-color: #f0b82c;
+  background: linear-gradient(145deg, #ffe16a 0%, #a85412 20%, #ffd34d 48%, #8f4518 66%, #f5bd36 100%);
+  box-shadow:
+    0 3px 0 #733707,
+    0 8px 12px rgba(36, 15, 4, .48),
+    inset 0 1px 2px #fff4ae,
+    0 0 0 2px #173c7c;
+}
+
+.royal-game-screen .rg-board-grid {
+  background: linear-gradient(135deg, rgba(81, 105, 148, .38), rgba(214, 228, 240, .68));
+  box-shadow: inset 0 0 0 2px rgba(255, 248, 195, .58);
+}
+
+.royal-game-screen .rg-cell {
+  border-color: rgba(67, 83, 119, .62);
+  border-radius: 3px;
+  background: linear-gradient(145deg, rgba(210, 222, 234, .95), rgba(139, 163, 192, .94));
+  box-shadow: inset 1px 1px 1px rgba(255,255,255,.74), inset 0 -2px 2px rgba(56, 65, 93, .23);
+}
+
+.royal-game-screen .rg-cell-vault {
+  background: linear-gradient(145deg, #7777bf, #302972);
+}
+
+.royal-game-screen .rg-cell-grass,
+.royal-game-screen .rg-cell-bear {
+  background: #aca68f;
+}
+
+.royal-game-screen .rg-cell-hat {
+  background: linear-gradient(#817687, #55495c);
+}
+
+.royal-game-screen .rg-cell-drill {
+  background: linear-gradient(145deg, #a78b59, #77562f);
+}
+
+.royal-game-screen .rg-cell-special {
+  overflow: visible;
+}
+
+.royal-game-screen .rg-special-piece {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 94%;
+  height: 94%;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px rgba(42, 29, 29, .52));
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-rocket-piece {
+  width: 98%;
+  height: 80%;
+}
+
+.royal-game-screen .rg-rocket-piece.rocket-v {
+  width: 80%;
+  height: 98%;
+}
+
+.royal-game-screen .rg-tnt-piece,
+.royal-game-screen .rg-lightball-piece,
+.royal-game-screen .rg-propeller-piece {
+  width: 96%;
+  height: 96%;
+}
+
+.royal-game-screen .rg-propeller-rotor {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rg-propeller-spin 1.8s linear infinite;
+}
+
+.royal-game-screen .rg-special-spark {
+  z-index: 2;
+  color: #fff58b;
+  font-size: clamp(12px, 3.4vw, 17px);
+  text-shadow: 0 1px 0 #a54815, 0 0 5px #ff9c20;
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-effects {
+  inset: 0;
+  z-index: 4;
+  overflow: visible;
+  contain: layout;
+}
+
+.royal-game-screen .rg-settings-dialog > p {
+  margin: 0 0 5px;
+  color: #9c5a17;
+  font-size: 12px;
+  font-weight: 1000;
+  letter-spacing: .12em;
+}
+
+.royal-game-screen .rg-dialog-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 9px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #f5c748;
+  border-radius: 50%;
+  color: #fff5bd;
+  background: linear-gradient(145deg, #2c71ab, #103c75);
+  box-shadow: 0 3px 0 #78400e, inset 0 1px 2px rgba(255,255,255,.48);
+  font-size: 30px;
+}
+
+.royal-game-screen .rg-reward-card .rg-coin-reward {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: #245a18;
+  font-weight: 1000;
+}
+
+.royal-game-screen .rg-reward-card .rg-coin-icon {
+  color: #d98c11;
+  font-size: 28px;
+  text-shadow: 0 1px 0 #fff4b6;
+}
+
+.royal-game-screen .rg-reward-card .rg-coin-reward strong {
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 1px #fff3bd;
+}
+
+.royal-game-screen .rg-effects canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-bottom-dock {
+  background: linear-gradient(180deg, #125094 0%, #0d4788 57%, #093873 100%);
+  border-top-color: #f2ad2b;
+  box-shadow: 0 -3px 0 #793b12, inset 0 4px 8px rgba(74, 151, 220, .25);
+}
+
+.royal-game-screen .rg-booster {
+  border-color: #ffc12e;
+  background:
+    radial-gradient(circle at 31% 19%, rgba(255,255,255,.74) 0 4%, transparent 23%),
+    radial-gradient(circle at 50% 42%, #2579b5 0%, #13529a 56%, #092f70 100%);
+  box-shadow:
+    0 3px 0 #963c13,
+    0 5px 3px rgba(15, 13, 35, .5),
+    0 0 0 2px #e34b27,
+    inset 0 0 0 3px #f4d75a,
+    inset 0 -6px 6px rgba(0, 28, 74, .42);
+}
+
+.royal-game-screen .rg-booster.is-active {
+  box-shadow:
+    0 5px 0 #963c13,
+    0 0 0 3px #fff27c,
+    0 0 0 5px #e34b27,
+    0 0 12px rgba(255, 231, 87, .62),
+    inset 0 0 0 3px #fff17a;
+}
+
+.royal-game-screen .rg-booster:disabled {
+  cursor: default;
+  filter: saturate(.62) brightness(.84);
+}
+
+.royal-game-screen .rg-settings {
+  background:
+    radial-gradient(circle at 31% 18%, rgba(255,255,255,.72) 0 4%, transparent 23%),
+    radial-gradient(circle at 50% 42%, #3984b3 0%, #17528d 56%, #0a326d 100%);
+}
+
+.royal-game-screen .rg-status-card {
+  max-width: calc(100vw - 28px);
+  border-color: #ffd248;
+  background: linear-gradient(180deg, #1b65a9, #0a3777);
+  box-shadow: 0 4px 0 #60330d, inset 0 1px 2px rgba(255,255,255,.26);
+}
+
+.royal-game-screen .rg-status-card button,
+.royal-game-screen .rg-victory-card button {
+  min-height: 42px;
+  border: 2px solid #ffe777;
+  border-radius: 14px;
+  padding: 8px 15px;
+  color: #fff9d8;
+  background: linear-gradient(180deg, #69d535, #288f1a);
+  box-shadow: 0 3px 0 #195d17, inset 0 1px 2px rgba(255,255,255,.55);
+  font: inherit;
+  font-weight: 900;
+  text-shadow: 0 1px 1px rgba(45, 75, 17, .65);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.royal-game-screen .rg-status-card button:focus-visible,
+.royal-game-screen .rg-victory-card button:focus-visible {
+  outline: 3px solid #fff28a;
+  outline-offset: 3px;
+}
+
+.royal-game-screen .rg-message-toast {
+  position: absolute;
+  z-index: 7;
+  top: max(21%, calc(env(safe-area-inset-top) + 150px));
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 30px);
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border: 2px solid #ffe16a;
+  border-radius: 18px;
+  color: #fff8d8;
+  background: linear-gradient(180deg, rgba(25, 94, 157, .97), rgba(9, 48, 105, .97));
+  box-shadow: 0 4px 0 #71390f, inset 0 1px 2px rgba(255,255,255,.36);
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 2px 1px #173c65;
+  pointer-events: none;
+  animation: rg-message-arrive .22s ease-out both;
+}
+
+/* Settings markup is supplied by the game shell; support its existing
+   rg-settings-* hooks without imposing styles on unrelated dialogs. */
+.royal-game-screen .rg-settings-overlay,
+.royal-game-screen .rg-settings-backdrop {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom));
+  background: rgba(7, 27, 62, .68);
+  backdrop-filter: blur(3px);
+}
+
+.royal-game-screen .rg-settings-dialog {
+  position: relative;
+  width: min(100%, 360px);
+  padding: 28px 22px 22px;
+  border: 5px solid #edb82f;
+  border-radius: 23px;
+  color: #174374;
+  background: linear-gradient(145deg, #fff9dc, #eedaa2);
+  box-shadow: 0 6px 0 #78400e, 0 12px 28px rgba(17, 20, 37, .42), inset 0 2px 0 #fff;
+  text-align: center;
+}
+
+.royal-game-screen .rg-settings-dialog h1,
+.royal-game-screen .rg-settings-dialog h2,
+.royal-game-screen .rg-settings-title {
+  margin: 0 38px 18px;
+  color: #184a7c;
+  font-size: clamp(21px, 6vw, 28px);
+  font-weight: 1000;
+  text-shadow: 0 1px 0 rgba(255,255,255,.9);
+}
+
+.royal-game-screen .rg-settings-dialog button,
+.royal-game-screen .rg-settings-action {
+  min-height: 44px;
+  border: 2px solid #f4c747;
+  border-radius: 14px;
+  padding: 9px 15px;
+  color: #fff8d9;
+  background: linear-gradient(180deg, #2269a8, #0b3977);
+  box-shadow: 0 3px 0 #713b13, inset 0 1px 2px rgba(255,255,255,.36);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.royal-game-screen .rg-settings-dialog button:focus-visible,
+.royal-game-screen .rg-settings-action:focus-visible {
+  outline: 3px solid #fff28a;
+  outline-offset: 3px;
+}
+
+.royal-game-screen .rg-settings-close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  color: #fff8d9;
+  background: linear-gradient(#fa7151, #be2530);
+}
+
+/* Reward particles are rendered by the game layer and fly over the board. */
+.royal-game-screen .rg-reward-layer,
+.royal-game-screen .rg-reward-flight-layer,
+.royal-game-screen .rg-reward-flights {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-reward-layer canvas,
+.royal-game-screen .rg-reward-flight-layer canvas,
+.royal-game-screen .rg-reward-flights canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-reward-coin,
+.royal-game-screen .rg-flight-coin,
+.royal-game-screen .rg-reward-particle {
+  position: absolute;
+  display: block;
+  width: clamp(22px, 7vw, 42px);
+  aspect-ratio: 1;
+  border: 2px solid #ffe476;
+  border-radius: 50%;
+  color: #a9570d;
+  background: radial-gradient(circle at 32% 25%, #fff7a9 0 12%, #ffc629 36%, #e9820e 73%, #bd4e09 100%);
+  box-shadow: 0 2px 0 #9c4b0a, inset 0 0 0 2px rgba(255, 242, 137, .8);
+  text-align: center;
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-victory-overlay {
+  position: absolute;
+  z-index: 9;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 47%, rgba(255, 205, 61, .12), rgba(11, 31, 68, .42));
+}
+
+.royal-game-screen .rg-victory-sparks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-victory-sparks i {
+  position: absolute;
+  top: calc(13% + (var(--spark-index) * 5.4%));
+  left: calc(5% + (var(--spark-index) * 6.8%));
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #fffbc1, #ffac20);
+  box-shadow: 0 0 10px rgba(255, 229, 98, .9);
+  opacity: .9;
+  transform: rotate(calc(var(--spark-index) * 29deg));
+  animation: rg-victory-spark 1.8s ease-in-out calc(var(--spark-index) * -0.11s) infinite alternate;
+}
+
+.royal-game-screen .rg-victory-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 340px);
+  padding: 22px 22px 24px;
+  border: 5px solid #f5bf37;
+  border-radius: 26px;
+  color: #fff3c6;
+  background: linear-gradient(160deg, #2870b5, #0a3b7b 76%);
+  box-shadow: 0 6px 0 #783b0e, 0 12px 28px rgba(15, 22, 44, .48), inset 0 2px 2px rgba(255,255,255,.5);
+  text-align: center;
+}
+
+.royal-game-screen .rg-victory-medal {
+  width: 62px;
+  height: 62px;
+  margin: -48px auto 8px;
+  display: grid;
+  place-items: center;
+  border: 4px solid #fff08b;
+  border-radius: 50%;
+  color: #fff7bd;
+  background: radial-gradient(circle at 35% 25%, #ffe985, #efa51c 68%, #bf5711);
+  box-shadow: 0 3px 0 #78400e, inset 0 2px 3px rgba(255,255,255,.72);
+  font-size: 36px;
+  text-shadow: 0 2px 1px #ab5011;
+}
+
+.royal-game-screen .rg-victory-card p {
+  margin: 5px 0 4px;
+  color: #ffe56b;
+  font-size: 13px;
+  font-weight: 1000;
+  letter-spacing: .09em;
+  text-shadow: 0 2px #173460;
+}
+
+.royal-game-screen .rg-victory-card h1 {
+  margin: 0 0 11px;
+  font-size: clamp(28px, 8vw, 38px);
+  line-height: 1.05;
+  text-shadow: 0 3px 0 #74360f;
+}
+
+.royal-game-screen .rg-victory-coins {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px 0 17px;
+  color: #fff4bd;
+  font-weight: 900;
+}
+
+.royal-game-screen .rg-victory-coins .rg-coin-icon {
+  color: #ffca32;
+  font-size: 30px;
+  text-shadow: 0 2px 0 #90450d;
+}
+
+.royal-game-screen .rg-victory-coins strong {
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 2px 0 #74360f;
+}
+
+.royal-game-screen .rg-victory-coins small {
+  font-size: 14px;
+}
+
+@keyframes rg-propeller-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rg-message-arrive {
+  from { opacity: 0; transform: translate(-50%, 7px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes rg-victory-spark {
+  from { opacity: .35; transform: translateY(5px) rotate(0deg) scale(.72); }
+  to { opacity: 1; transform: translateY(-8px) rotate(35deg) scale(1.12); }
+}
+
+@media (max-width: 420px) {
+  .royal-game-screen .rg-board-frame { width: min(100%, 445px); }
+  .royal-game-screen .rg-victory-overlay { padding-inline: 16px; }
+  .royal-game-screen .rg-victory-card { padding-inline: 17px; }
+}
+
+@media (max-width: 360px) {
+  .royal-game-screen { grid-template-rows: 19.2% minmax(0, 1fr) 11.4%; }
+  .royal-game-screen .rg-booster {
+    box-shadow: 0 3px 0 #963c13, 0 0 0 1px #e34b27, inset 0 0 0 2px #f4d75a, inset 0 -4px 5px rgba(0, 28, 74, .42);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .royal-game-screen .rg-propeller-rotor,
+  .royal-game-screen .rg-message-toast,
+  .royal-game-screen .rg-victory-sparks i {
+    animation: none;
+  }
+  .royal-game-screen .rg-cell,
+  .royal-game-screen .rg-cell .rg-jewel,
+  .royal-game-screen .rg-booster {
+    transition: none;
+  }
+}
