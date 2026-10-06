@@ -179,13 +179,14 @@ function App() {
   const getCellCenter = (row, col) => {
     const grid = boardGridRef.current;
     const cell = grid?.querySelector(`.tile-cell[data-row="${row}"][data-col="${col}"]`);
-    if (!grid || !cell) return { x: `${(col + 0.5) * 12.5}%`, y: `${(row + 0.5) * 12.5}%` };
+    if (!grid || !cell) return { x: (col + 0.5) * 12.5, y: (row + 0.5) * 12.5, unit: "%" };
     const gridRect = grid.getBoundingClientRect();
     const cellRect = cell.getBoundingClientRect();
     const gridStyle = window.getComputedStyle(grid);
     return {
-      x: `${cellRect.left - gridRect.left - (Number.parseFloat(gridStyle.borderLeftWidth) || 0) + cellRect.width / 2}px`,
-      y: `${cellRect.top - gridRect.top - (Number.parseFloat(gridStyle.borderTopWidth) || 0) + cellRect.height / 2}px`,
+      x: cellRect.left - gridRect.left - (Number.parseFloat(gridStyle.borderLeftWidth) || 0) + cellRect.width / 2,
+      y: cellRect.top - gridRect.top - (Number.parseFloat(gridStyle.borderTopWidth) || 0) + cellRect.height / 2,
+      unit: "px",
     };
   };
 
@@ -514,10 +515,10 @@ function App() {
                         <span
                           className="fish-flight"
                           style={{
-                            "--from-x": from.x,
-                            "--from-y": from.y,
-                            "--travel-x": `${to.x.replace("px", "") - from.x.replace("px", "")}px`,
-                            "--travel-y": `${to.y.replace("px", "") - from.y.replace("px", "")}px`,
+                            "--from-x": `${from.x}${from.unit}`,
+                            "--from-y": `${from.y}${from.unit}`,
+                            "--travel-x": `${to.x - from.x}px`,
+                            "--travel-y": `${to.y - from.y}px`,
                             "--fish-angle": `${Math.atan2(dy, dx) * (180 / Math.PI)}deg`,
                           }}
                           aria-hidden="true"
@@ -525,8 +526,8 @@ function App() {
                         <span
                           className="fish-impact"
                           style={{
-                            "--effect-x": to.x,
-                            "--effect-y": to.y,
+                            "--effect-x": `${to.x}${to.unit}`,
+                            "--effect-y": `${to.y}${to.unit}`,
                           }}
                           aria-hidden="true"
                         />
@@ -538,8 +539,8 @@ function App() {
                         className={`bomb-board-effect ${effect.type === "bomb-created" ? "created" : "exploded"}`}
                         key={`bomb-${game.turnId}-${index}`}
                         style={{
-                          "--effect-x": center.x,
-                          "--effect-y": center.y,
+                          "--effect-x": `${center.x}${center.unit}`,
+                          "--effect-y": `${center.y}${center.unit}`,
                         }}
                         aria-hidden="true"
                       />;
@@ -550,8 +551,8 @@ function App() {
                         className={`prism-board-effect ${effect.type === "prism-created" ? "created" : "exploded"}`}
                         key={`prism-${game.turnId}-${index}`}
                         style={{
-                          "--effect-x": center.x,
-                          "--effect-y": center.y,
+                          "--effect-x": `${center.x}${center.unit}`,
+                          "--effect-y": `${center.y}${center.unit}`,
                           "--prism-color": TILE_META[effect.color]?.color ?? "#e4f7bd",
                         }}
                         aria-hidden="true"

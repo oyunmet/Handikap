@@ -201,7 +201,7 @@ function prepareMatchWave(board, runs, state, preferred = []) {
     if (tile) {
       board[anchor.row][anchor.col] = { ...tile, special: reward };
       clear.delete(keyOf(anchor.row, anchor.col));
-      effects.push({ type: `${reward}-created`, at: anchor });
+        effects.push({ type: `${reward}-created`, at: anchor, tileId: tile.id });
     }
   } else {
     const from = chooseAnchor(fourRun.cells, preferred);
@@ -286,6 +286,20 @@ function goalsComplete(state, level) {
   return level.goals.every(({ type, count }) => (state.collected[type] ?? 0) >= count) && countFog(state.fog) === 0;
 }
 
+function syncCreatedSpecialPositions(board, effects) {
+  for (let index = 0; index < effects.length; index += 1) {
+    const effect = effects[index];
+    if (!effect.type.endsWith("-created") || !effect.tileId) continue;
+    for (let row = 0; row < SIZE; row += 1) {
+      const col = board[row].findIndex((tile) => tile?.id === effect.tileId);
+      if (col >= 0) {
+        effects[index] = { ...effect, at: { row, col } };
+        break;
+      }
+    }
+  }
+}
+
 function settleBoard(state, initialClear = new Set(), initialEffects = []) {
   const next = {
     ...state,
@@ -332,6 +346,7 @@ function settleBoard(state, initialClear = new Set(), initialEffects = []) {
         next.board[row][col] = survivors[index];
       }
     }
+    syncCreatedSpecialPositions(next.board, next.specialEffects);
     clear = new Set();
     safety += 1;
   }

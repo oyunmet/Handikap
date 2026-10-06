@@ -1137,7 +1137,7 @@ body { color: #193b36; }
 .fish-flight::before {
   content: "";
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   left: -73%;
   top: 41%;
   width: 90%;
@@ -1148,6 +1148,7 @@ body { color: #193b36; }
   transform-origin: right center;
   animation: fish-trail .5s ease-out infinite alternate;
 }
+.fish-glyph { position: relative; z-index: 1; }
 .fish-flight::after {
   content: "";
   position: absolute;
