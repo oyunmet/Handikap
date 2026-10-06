@@ -1,32 +1,32 @@
 export const TILE_META = [
-  { name: "Yakut", color: "#f3343b", deep: "#b70d21" },
-  { name: "Safir", color: "#1689f8", deep: "#0753bc" },
-  { name: "Taç", color: "#ffc928", deep: "#db8c08" },
-  { name: "Zümrüt", color: "#2bc846", deep: "#087d2f" },
-  { name: "Ametist", color: "#e42fc2", deep: "#a911a7" },
+  { name: "Kırmızı kalkan", color: "#f3343b", deep: "#b70d21" },
+  { name: "Mavi kalkan", color: "#1689f8", deep: "#0753bc" },
+  { name: "Altın taç", color: "#ffc928", deep: "#db8c08" },
+  { name: "Yeşil yaprak", color: "#2bc846", deep: "#087d2f" },
+  { name: "Pembe elmas", color: "#e42fc2", deep: "#a911a7" },
 ];
 
 export const REGIONS = [
   {
     id: "whisperwood",
-    name: "Safir Krallığı",
-    subtitle: "Bulutların üstündeki kalenin kapıları açılıyor.",
+    name: "Çiy Bahçesi",
+    subtitle: "İlk filizler sabah ışığında uyanıyor.",
     levels: [1, 2, 3],
     theme: "forest",
     mark: "01",
   },
   {
     id: "coral",
-    name: "Altın Saray",
-    subtitle: "Güneş, mermer salonların üzerine doğuyor.",
+    name: "Güneş Korusu",
+    subtitle: "Arı yolları ve nilüfer göletleri seni bekliyor.",
     levels: [4, 5, 6],
     theme: "coral",
     mark: "02",
   },
   {
     id: "archive",
-    name: "Yıldız Kalesi",
-    subtitle: "Gece göğünde son bir taç ışıldıyor.",
+    name: "Ayçiçeği Terası",
+    subtitle: "Gece açan çiçeklerin sırrını keşfet.",
     levels: [7, 8, 9],
     theme: "archive",
     mark: "03",
@@ -34,15 +34,15 @@ export const REGIONS = [
 ];
 
 export const LEVELS = [
-  { id: 1, regionId: "whisperwood", name: "Kuzey Kapısı", moveLimit: 22, goals: [{ type: 0, count: 9 }, { type: 1, count: 9 }] },
-  { id: 2, regionId: "whisperwood", name: "Kristal Avlu", moveLimit: 21, goals: [{ type: 3, count: 11 }, { type: 2, count: 10 }] },
-  { id: 3, regionId: "whisperwood", name: "Taht Salonu", moveLimit: 20, goals: [{ type: 4, count: 12 }, { type: 2, count: 10 }] },
-  { id: 4, regionId: "coral", name: "Güneş Galerisi", moveLimit: 21, goals: [{ type: 0, count: 11 }, { type: 2, count: 12 }] },
-  { id: 5, regionId: "coral", name: "Altın Köprü", moveLimit: 20, goals: [{ type: 1, count: 14 }, { type: 4, count: 12 }] },
-  { id: 6, regionId: "coral", name: "Mavi Kule", moveLimit: 19, goals: [{ type: 3, count: 14 }, { type: 0, count: 13 }] },
-  { id: 7, regionId: "archive", name: "Yıldız Odası", moveLimit: 20, goals: [{ type: 0, count: 14 }, { type: 4, count: 13 }] },
-  { id: 8, regionId: "archive", name: "Bulut Balkonu", moveLimit: 19, goals: [{ type: 1, count: 15 }, { type: 2, count: 14 }] },
-  { id: 9, regionId: "archive", name: "Son Taç", moveLimit: 18, goals: [{ type: 3, count: 16 }, { type: 4, count: 15 }] },
+  { id: 1, regionId: "whisperwood", name: "İlk Filiz", moveLimit: 22, goals: [{ type: 1, count: 16 }, { type: 2, count: 14 }] },
+  { id: 2, regionId: "whisperwood", name: "Çiy Yolu", moveLimit: 21, goals: [{ type: 3, count: 11 }, { type: 2, count: 10 }] },
+  { id: 3, regionId: "whisperwood", name: "Gül Kemeri", moveLimit: 20, goals: [{ type: 4, count: 12 }, { type: 2, count: 10 }] },
+  { id: 4, regionId: "coral", name: "Arı Patikası", moveLimit: 21, goals: [{ type: 0, count: 11 }, { type: 2, count: 12 }] },
+  { id: 5, regionId: "coral", name: "Nilüfer Göleti", moveLimit: 20, goals: [{ type: 1, count: 14 }, { type: 4, count: 12 }] },
+  { id: 6, regionId: "coral", name: "Papatya Çardağı", moveLimit: 19, goals: [{ type: 3, count: 14 }, { type: 0, count: 13 }] },
+  { id: 7, regionId: "archive", name: "Meyve Bahçesi", moveLimit: 20, goals: [{ type: 0, count: 14 }, { type: 4, count: 13 }] },
+  { id: 8, regionId: "archive", name: "Ay Işığı Serası", moveLimit: 19, goals: [{ type: 1, count: 15 }, { type: 2, count: 14 }] },
+  { id: 9, regionId: "archive", name: "Büyük Hasat", moveLimit: 18, goals: [{ type: 3, count: 16 }, { type: 4, count: 15 }] },
 ];
 
 const SIZE = 8;

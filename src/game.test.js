@@ -7,10 +7,10 @@ function makeQuietState() {
   state.board = Array.from({ length: 8 }, (_, row) =>
     Array.from({ length: 8 }, (_, col) => ({
       id: `fixture-${row}-${col}`,
-      type: (row + col * 2) % 6,
+      type: (row * 2 + col) % 5,
     })),
   );
-  state.collected = { 0: 0, 2: 0 };
+  state.collected = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
   return state;
 }
 
@@ -25,31 +25,36 @@ function withRandomValues(values, callback) {
   }
 }
 
-test("a four-tile match sends a fish to a separate board tile", () => {
+test("a four-tile line creates a rocket that remains on the board", () => {
   const state = makeQuietState();
-  state.board[3][0].type = 0;
+  state.board[2][2].type = 0;
   state.board[3][1].type = 0;
   state.board[3][2].type = 1;
   state.board[3][3].type = 0;
-  state.board[3][4].type = 2;
+  state.board[3][4].type = 0;
 
   const next = swapTiles(state, { row: 2, col: 2 }, { row: 3, col: 2 });
-  const fish = next.specialEffects.find((effect) => effect.type === "fish");
+  const rocket = next.specialEffects.find((effect) => effect.type === "rocket-created");
+  const rocketTile = next.board.flatMap((row, rowIndex) =>
+    row.map((tile, colIndex) => tile?.special?.startsWith("rocket-") ? { tile, row: rowIndex, col: colIndex } : null),
+  ).find(Boolean);
 
-  assert.ok(fish, "the move should create a fish flight");
-  assert.notDeepEqual(fish.from, fish.to, "the fish should fly to another tile");
-  assert.ok(next.clearedCells.some(({ row, col }) => row === fish.to.row && col === fish.to.col));
+  assert.ok(rocket, "the move should create a rocket");
+  assert.ok(rocketTile, "the rocket should remain playable");
+  assert.deepEqual(rocket.at, { row: rocketTile.row, col: rocketTile.col });
   assert.equal(next.movesLeft, state.movesLeft - 1);
 });
 
 test("a level is won when its tile targets are met without a fog goal", () => {
   const state = makeQuietState();
-  state.collected = { 0: 8, 2: 9 };
+  state.collected = { 0: 0, 1: 13, 2: 14, 3: 0, 4: 0 };
+  state.board[2][2].type = 1;
   state.board[3][0].type = 0;
-  state.board[3][1].type = 0;
-  state.board[3][2].type = 1;
-  state.board[3][3].type = 0;
-  state.board[3][4].type = 2;
+  state.board[3][1].type = 1;
+  state.board[3][2].type = 0;
+  state.board[3][3].type = 1;
+  state.board[3][4].type = 1;
+  state.board[3][5].type = 0;
 
   const next = swapTiles(state, { row: 2, col: 2 }, { row: 3, col: 2 });
 
@@ -57,32 +62,63 @@ test("a level is won when its tile targets are met without a fog goal", () => {
   assert.equal("fog" in next, false);
 });
 
-test("a five-tile match leaves a bomb on the board", () => {
+test("a T-shaped match creates a bomb on the board", () => {
   const state = makeQuietState();
-  state.board[3][0].type = 0;
-  state.board[3][1].type = 0;
-  state.board[3][2].type = 1;
-  state.board[3][3].type = 0;
+  state.board[3][2].type = 0;
+  state.board[3][3].type = 1;
   state.board[3][4].type = 0;
-  state.board[2][4].type = 1;
-  state.board[4][4].type = 2;
+  state.board[3][5].type = 0;
+  state.board[2][3].type = 0;
+  state.board[4][3].type = 0;
 
-  const next = withRandomValues([
-    0.18, 0.11, 0.52, 0.11, 0.35, 0.11, 0.18, 0.11,
-  ], () => swapTiles(state, { row: 2, col: 2 }, { row: 3, col: 2 }));
+  const next = swapTiles(state, { row: 3, col: 2 }, { row: 3, col: 3 });
   const bomb = next.board.flat().find((tile) => tile.special === "bomb");
   const bombEffect = next.specialEffects.find((effect) => effect.type === "bomb-created");
   const bombPosition = next.board.flatMap((row, rowIndex) =>
     row.map((tile, colIndex) => tile.special === "bomb" ? { row: rowIndex, col: colIndex } : null),
   ).find(Boolean);
 
-  assert.ok(bomb, "the five-match should leave a bomb for a later move");
+  assert.ok(bomb, "the T-shaped match should leave a bomb for a later move");
   assert.ok(bombEffect);
   assert.deepEqual(bombEffect.at, bombPosition, "the creation animation should follow the bomb after gravity");
-  assert.ok(!next.clearedCells.some(({ row, col }) => row === bombPosition.row && col === bombPosition.col));
 });
 
-test("an eight-tile match leaves a prism at the match anchor", () => {
+test("a 2-by-2 match creates a propeller", () => {
+  const state = makeQuietState();
+  state.board[2][3].type = 1;
+  state.board[3][3].type = 0;
+  state.board[3][4].type = 1;
+  state.board[3][5].type = 2;
+  state.board[4][3].type = 1;
+  state.board[4][4].type = 1;
+  state.board[4][5].type = 2;
+
+  const next = swapTiles(state, { row: 2, col: 3 }, { row: 3, col: 3 });
+  const propeller = next.board.flatMap((row, rowIndex) =>
+    row.map((tile, colIndex) => tile?.special === "fish" ? { row: rowIndex, col: colIndex } : null),
+  ).find(Boolean);
+
+  assert.ok(next.specialEffects.some((effect) => effect.type === "fish-created"));
+  assert.ok(propeller, "the 2-by-2 match should leave a propeller");
+});
+
+test("a five-tile line creates a light ball", () => {
+  const state = makeQuietState();
+  state.board[2][3].type = 0;
+  state.board[3][1].type = 0;
+  state.board[3][2].type = 0;
+  state.board[3][3].type = 1;
+  state.board[3][4].type = 0;
+  state.board[3][5].type = 0;
+
+  const next = swapTiles(state, { row: 2, col: 3 }, { row: 3, col: 3 });
+  const lightBall = next.board.flat().find((tile) => tile?.special === "prism");
+
+  assert.ok(lightBall, "a five-tile line should create a light ball");
+  assert.ok(next.specialEffects.some((effect) => effect.type === "prism-created"));
+});
+
+test("a five-tile run keeps the prism on the match line", () => {
   const state = makeQuietState();
   state.board[3][0].type = 0;
   state.board[3][1].type = 0;

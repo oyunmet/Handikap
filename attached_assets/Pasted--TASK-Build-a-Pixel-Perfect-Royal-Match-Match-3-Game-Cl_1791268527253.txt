@@ -1,0 +1,62 @@
+# TASK: Build a Pixel-Perfect "Royal Match" Match-3 Game Clone in Web Technologies (HTML5 Canvas / Pixi.js / Phaser / Tailwind CSS + Vanilla JS)
+
+## 1. GAME OVERVIEW & VISUAL IDENTITY
+Replicate the exact design, vibrant color scheme, UI layout, animations, feel, and juice of the popular mobile game "Royal Match[span_4](start_span)[span_5](start_span)"[span_4](end_span)[span_5](end_span).
+
+### A. COLOR PALETTE & TEXTURES
+- **Primary Accent Colors:** Deep Royal Blue (`#0F2B66` to `#1D51B0`), Bright Imperial Gold (`#FFD700`, `#FFA500`), Cream/Parchment UI panels (`#FFFDF0` / `#F4E8C1`)[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span).
+- **Jewel/Tile Colors & Shapes (Strict 3D Glossy Aesthetic with Inner Glyphs):**
+  1. **Red:** Rounded shield shape, glossy 3D gel texture with subtle royal crest/lion pattern inside.
+  2. **Blue:** Medieval knight shield shape, rich ocean blue with light reflection streaks and shield lines.
+  3. **Yellow:** Golden Crown shape, metallic shimmer, warm yellow-orange gradient.
+  4. **Green:** Vibrant leaf/emerald shape, glossy nature green with subtle vein texture.
+  5. **Pink/Purple:** Diamond gemstone shape, sharp facets, magenta/violet highlights.
+- **Background Setting:** A bright, sunny cartoon royal castle garden with green grass lawn, stone steps/fountains on the side, and a clear blue sky with fluffy white clouds behind the grid[span_8](start_span)[span_8](end_span).
+
+---
+
+## 2. UI LAYOUT & TOP HEADER STRUCTURE
+The top section must match Royal Match's iconic header layout[span_9](start_span)[span_9](end_span)[span_10](start_span)[span_10](end_span):
+1. **Target Box (Left):**
+   - Cream-colored rounded card with royal gold trim[span_11](start_span)[span_11](end_span)[span_12](start_span)[span_12](end_span).
+   - Shows "Target" in bold yellow/gold text with blue border[span_13](start_span)[span_13](end_span)[span_14](start_span)[span_14](end_span).
+   - Displays required tile icons with remaining counts (e.g., Blue Shield: 16, Gold Crown: 14) with smooth count-down bounce animations upon collecting[span_15](start_span)[span_15](end_span)[span_16](start_span)[span_16](end_span).
+2. **King Mascot Frame (Center):**
+   - Curved gold arch/frame featuring King Robert (animated cartoon king with crown, white mustache, red cape)[span_17](start_span)[span_17](end_span)[span_18](start_span)[span_18](end_span).
+   - Dynamic expressions: Smiles when making matches, looks worried when moves are low (<5), celebrates on level completion[span_19](start_span)[span_19](end_span)[span_20](start_span)[span_20](end_span).
+3. **Moves Counter Box (Right):**
+   - Matching cream card with "Moves" title[span_21](start_span)[span_21](end_span)[span_22](start_span)[span_22](end_span).
+   - Large, clear move counter number (e.g., "22") that pulses slightly when decreased[span_23](start_span)[span_23](end_span)[span_24](start_span)[span_24](end_span).
+
+---
+
+## 3. GRID & TILE SWAP ANIMATIONS (FEEL & JUICE)
+- **Grid Structure:** 8x8 cell grid framed by a golden polished border over an inner dark-green/stone tile mat[span_25](start_span)[span_25](end_span).
+- **Touch & Drag Mechanics (Finger Swiping):**
+  - Smooth 1:1 finger tracking. When a player presses and drags a tile toward a neighbor, the tile smoothly interpolates/follows the gesture.
+  - **Elastic Drag & Snap Back:** If the swap is invalid (no match formed), play a snappy, elastic recoil/shake animation (120ms curve) accompanied by a low-pitch "clack" audio feedback and haptic vibration simulation.
+  - **Valid Swap:** Instant 180ms smooth quadratic easing position swap.
+
+---
+
+## 4. POWER-UPS & SPECIAL COMBINATIONS
+Implement standard Royal Match special boosters created when matching 4+ tiles[span_26](start_span)[span_26](end_span)[span_27](start_span)[span_27](end_span):
+1. **Rocket (Match 4 in line):** Clears entire row or column. Spins and fires across the board with smoke trails and spark particles[span_28](start_span)[span_28](end_span).
+2. **TNT Bomb (Match 5 in T/L shape):** Explosive barrel/bomb that blasts a 3x3 radius with screen shake and fiery particle explosion[span_29](start_span)[span_29](end_span).
+3. **Light Ball / Disco Ball (Match 5 in line):** Colorful sparkling sphere that destroys all tiles of a chosen color when swapped.
+4. **Propeller / Lightening (Match 4 in square):** Flies to target objective tiles automatically with a whirring path animation.
+5. **Booster Combos:** Swapping special tiles together (e.g., TNT + Rocket = Giant double line clear; Light Ball + TNT = Spawns multiple TNTs across board).
+
+---
+
+## 5. PARTICLE EFFECTS & CASCADE PHYSICS
+- **Cascading Gravity:** When tiles match and vanish, upper tiles fall down with realistic acceleration, spring elasticity, and a subtle "bounce" upon landing on bottom tiles.
+- **Match VFX:**
+  - Golden stars, light bursts, and color-matching sparkles burst outward from eliminated tiles[span_30](start_span)[span_30](end_span).
+  - Floating score numbers (+100, +250, "GREAT!", "AMAZING!") popping up with scale-fade CSS/canvas keyframe animation.
+- **Bottom Booster Bar:** 5 circular golden action buttons at the bottom (Hammer, Anvil, Cannon, Royal Crown, Settings) with inner 3D icons[span_31](start_span)[span_31](end_span).
+
+---
+
+## 6. CODE REQUIREMENT
+Please write/organize the code cleanly (index.html, styles.css, script.js or React/Pixi setup). Ensure touch/mouse drag handlers, grid matching logic (checkMatches, dropTiles, createSpecials), and particle rendering loops are fully functional.
