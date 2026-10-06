@@ -1,3 +1,5 @@
+import { getLevelDefinition } from "./royal-levels.js";
+
 export const BOARD_ROWS = 10;
 export const BOARD_COLS = 8;
 
@@ -23,7 +25,6 @@ export const BOARD_MASK = [
   [0, 0, 1, 1, 1, 1, 0, 0],
 ];
 
-const GOAL_TOTALS = { vault: 8, bear: 1, grass: 4, gems: 41 };
 const keyOf = (row, col) => `${row}:${col}`;
 const cellFromKey = (key) => key.split(":").map(Number);
 const inside = (row, col) =>
@@ -50,31 +51,67 @@ function makeBlocker(type, row, col, hp, extra = {}) {
   };
 }
 
-function createBlockerLayout() {
+function orderedCells(cells, variant) {
+  const mode = variant % 4;
+  return [...cells].sort((first, second) => {
+    if (mode === 0) return first.row - second.row || first.col - second.col;
+    if (mode === 1) return second.row - first.row || second.col - first.col;
+    if (mode === 2) return first.col - second.col || first.row - second.row;
+    return (first.row + first.col) - (second.row + second.col)
+      || first.row - second.row
+      || first.col - second.col;
+  });
+}
+
+function createBlockerLayout(level) {
   const blockers = new Map();
-  for (let row = 2; row <= 5; row += 1) {
-    for (let col = 0; col <= 1; col += 1) {
-      blockers.set(keyOf(row, col), makeBlocker("vault", row, col, 2));
+  const occupied = new Set();
+  const fieldCells = [];
+  const bottomCells = [];
+  for (let row = 2; row < BOARD_ROWS; row += 1) {
+    for (let col = 0; col < BOARD_COLS; col += 1) {
+      if (!isPlayable(row, col)) continue;
+      const cell = { row, col };
+      if (row <= 6) fieldCells.push(cell);
+      if (row >= 7) bottomCells.push(cell);
     }
   }
 
-  const grasses = [
-    [2, 4],
-    [2, 5],
-    [3, 4],
-    [3, 5],
-  ];
-  grasses.forEach(([row, col], index) => {
-    blockers.set(
-      keyOf(row, col),
-      makeBlocker("grass", row, col, 1, index === 2 ? { reveal: "bear" } : {}),
-    );
-  });
+  const place = (type, candidates, count, hp, extraForIndex = () => ({}), offset = 0) => {
+    const ordered = orderedCells(candidates, level.layoutVariant);
+    let placed = 0;
+    for (let index = 0; index < ordered.length && placed < count; index += 1) {
+      const cell = ordered[(index + offset) % ordered.length];
+      const key = keyOf(cell.row, cell.col);
+      if (occupied.has(key)) continue;
+      occupied.add(key);
+      blockers.set(key, makeBlocker(type, cell.row, cell.col, hp, extraForIndex(placed)));
+      placed += 1;
+    }
+  };
 
-  for (const [row, col] of [[8, 1], [8, 6], [9, 2], [9, 5]]) {
-    blockers.set(keyOf(row, col), makeBlocker("hat", row, col, 1));
+  const { goals, featureIds } = level;
+  const variant = level.layoutVariant;
+  if (featureIds.includes("vault")) {
+    place("vault", fieldCells, goals.vault, 2, () => ({}), variant);
   }
-  blockers.set(keyOf(9, 4), makeBlocker("drill", 9, 4, 3));
+  if (featureIds.includes("grass")) {
+    const bearCount = goals.bear || 0;
+    place(
+      "grass",
+      fieldCells,
+      goals.grass,
+      1,
+      (index) => index < bearCount ? { reveal: "bear" } : {},
+      variant * 2 + 3,
+    );
+  }
+  if (featureIds.includes("hat")) {
+    place("hat", bottomCells, goals.hat, 1 + Math.floor((level.level - 1) / 250), () => ({}), variant + 1);
+  }
+  if (featureIds.includes("drill")) {
+    place("drill", bottomCells, goals.drill, 2 + Math.floor((level.level - 1) / 160), () => ({}), variant + 4);
+  }
   return blockers;
 }
 
@@ -124,15 +161,15 @@ function fillNewGems(board, blockers = new Map()) {
   return board;
 }
 
-function createPlayableBoard() {
+function createPlayableBoard(level) {
   for (let attempt = 0; attempt < 120; attempt += 1) {
     const board = Array.from({ length: BOARD_ROWS }, () => Array(BOARD_COLS).fill(null));
-    fillNewGems(board, createBlockerLayout());
+    fillNewGems(board, createBlockerLayout(level));
     if (findMatches(board).size === 0 && hasAvailableSwap(board)) return board;
   }
 
   const board = Array.from({ length: BOARD_ROWS }, () => Array(BOARD_COLS).fill(null));
-  fillNewGems(board, createBlockerLayout());
+  fillNewGems(board, createBlockerLayout(level));
   // Keep a guaranteed legal move without creating a match before the first turn.
   const setColor = (row, col, color) => {
     if (isGem(board[row][col])) board[row][col] = { ...board[row][col], color };
@@ -265,7 +302,7 @@ function preferredAnchor(cells, preferred) {
   return cells[Math.floor(cells.length / 2)] ?? null;
 }
 
-function planMatchWave(board, preferred = []) {
+function planMatchWave(board, preferred = [], unlockedSpecials = []) {
   const runs = findMatchRuns(board);
   if (!runs.length) return { clear: new Set(), effects: [] };
 
@@ -291,16 +328,16 @@ function planMatchWave(board, preferred = []) {
   let special = null;
   let anchorCells = [];
 
-  if (cross) {
+  if (cross && unlockedSpecials.includes("tnt")) {
     special = "tnt";
     anchorCells = [cross];
-  } else if (five) {
+  } else if (five && unlockedSpecials.includes("lightball")) {
     special = "lightball";
     anchorCells = five.cells;
-  } else if (four) {
+  } else if (four && unlockedSpecials.includes("rocket")) {
     special = four.orientation === "horizontal" ? "rocket-h" : "rocket-v";
     anchorCells = four.cells;
-  } else if (square) {
+  } else if (square && unlockedSpecials.includes("propeller")) {
     special = "propeller";
     anchorCells = square.cells;
   }
@@ -438,11 +475,15 @@ function hitBlocker(board, row, col, goals, effects, drillClear) {
     goals = updateGoal(goals, "bear");
     board[row][col] = null;
   } else if (cell.type === "drill") {
+    goals = updateGoal(goals, "drill");
     board[row][col] = null;
     effects.push({ type: "drill-launch", at: { row, col } });
     for (let targetCol = 0; targetCol < BOARD_COLS; targetCol += 1) {
       addCell(drillClear, row, targetCol, board);
     }
+  } else if (cell.type === "hat") {
+    goals = updateGoal(goals, "hat");
+    board[row][col] = null;
   } else {
     board[row][col] = null;
   }
@@ -544,7 +585,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
 
   while (clear.size && safety < 24) {
     if (!clear.size) {
-      const plan = planMatchWave(next.board, preferred);
+      const plan = planMatchWave(next.board, preferred, next.unlockedSpecials);
       clear = plan.clear;
       next.specialEffects.push(...plan.effects);
       preferred = [];
@@ -592,7 +633,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
       clear = drillClear;
     } else {
       next.fallingTiles.push(...refillGravity(next.board));
-      const plan = planMatchWave(next.board, []);
+      const plan = planMatchWave(next.board, [], next.unlockedSpecials);
       clear = plan.clear;
       next.specialEffects.push(...plan.effects);
     }
@@ -608,12 +649,18 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
   return finishGame(next);
 }
 
-export function createGameState() {
+export function createGameState(levelNumber = 1) {
+  const level = getLevelDefinition(levelNumber);
   return {
-    board: createPlayableBoard(),
-    goals: Object.entries(GOAL_TOTALS).map(([id, total]) => ({ id, remaining: total, total })),
-    movesLeft: 37,
-    totalMoves: 37,
+    level: level.level,
+    chapter: level.chapter,
+    levelTitle: level.title,
+    levelFeatures: level.featureLabels,
+    unlockedSpecials: [...level.unlockedSpecials],
+    board: createPlayableBoard(level),
+    goals: Object.entries(level.goals).map(([id, total]) => ({ id, remaining: total, total })),
+    movesLeft: level.moves,
+    totalMoves: level.moves,
     score: 0,
     status: "playing",
     boosters: { ...BOOSTER_DEFAULTS },
@@ -738,7 +785,7 @@ export function swapTiles(state, first, second) {
   if (bothSpecial) {
     ({ clear, effects } = specialSwapClear(board, first, second));
   } else if (runs.length) {
-    const plan = planMatchWave(board, [second, first]);
+    const plan = planMatchWave(board, [second, first], state.unlockedSpecials);
     clear = plan.clear;
     effects = plan.effects;
     if (firstCell.special || secondCell.special) {

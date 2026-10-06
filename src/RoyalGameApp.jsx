@@ -4,9 +4,53 @@ import {
   swapTiles,
   useBooster,
 } from "./royal-engine.js";
+import { getLevelDefinition, LEVEL_COUNT } from "./royal-levels.js";
 import RoyalGameEffects from "./royal-ui/RoyalGameEffects.jsx";
 import RoyalGameScreen from "./royal-ui/RoyalGameScreen.jsx";
+import RoyalLevelMap from "./royal-ui/RoyalLevelMap.jsx";
 import "./royal-ui/RoyalGameScreen.css";
+
+const CAMPAIGN_STORAGE_KEY = "royal-match-campaign-v1";
+
+function readCampaignProgress() {
+  const fresh = { unlockedLevel: 1, completedLevels: [] };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY) || "null");
+    if (!saved || typeof saved !== "object") return fresh;
+    const unlockedLevel = Math.min(
+      LEVEL_COUNT,
+      Math.max(1, Math.floor(Number(saved.unlockedLevel) || 1)),
+    );
+    const completedLevels = Array.isArray(saved.completedLevels)
+      ? [...new Set(saved.completedLevels
+        .map(Number)
+        .filter((level) => Number.isInteger(level) && level >= 1 && level <= LEVEL_COUNT))]
+      : [];
+    return { unlockedLevel, completedLevels };
+  } catch {
+    return fresh;
+  }
+}
+
+function writeCampaignProgress(progress) {
+  try {
+    window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    // Keep the campaign playable if browser storage is unavailable.
+  }
+}
+
+function getLevelDetails(levelNumber) {
+  const level = getLevelDefinition(levelNumber);
+  return {
+    chapter: level.chapter,
+    title: level.title,
+    featureLabels: level.featureLabels,
+    description: level.description,
+    moves: level.moves,
+    goals: Object.entries(level.goals).map(([id, remaining]) => ({ id, remaining })),
+  };
+}
 
 function tilePositions(tileRefs) {
   const positions = new Map();
@@ -67,7 +111,7 @@ function RewardFlights({ flights }) {
   );
 }
 
-function SettingsDialog({ onClose, onRestart }) {
+function SettingsDialog({ onClose, onRestart, onLevelMap }) {
   return (
     <div className="rg-settings-overlay" role="presentation" onClick={onClose}>
       <section className="rg-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="rg-settings-title" onClick={(event) => event.stopPropagation()}>
@@ -76,6 +120,7 @@ function SettingsDialog({ onClose, onRestart }) {
         <p>OYUN AYARLARI</p>
         <h2 id="rg-settings-title">Kraliyet Macerası</h2>
         <button type="button" className="rg-restart-button" onClick={onRestart}>Bölümü yeniden başlat</button>
+        <button type="button" className="rg-restart-button rg-map-button" onClick={onLevelMap}>Bölüm haritasına dön</button>
       </section>
     </div>
   );
@@ -87,6 +132,8 @@ function objectiveFlights(previous, next) {
     vault: (next.specialEffects || []).filter((effect) => effect.type === "blocker-break" && effect.blocker === "vault"),
     grass: (next.specialEffects || []).filter((effect) => effect.type === "blocker-break" && effect.blocker === "grass"),
     bear: (next.specialEffects || []).filter((effect) => effect.type === "blocker-break" && effect.blocker === "bear"),
+    hat: (next.specialEffects || []).filter((effect) => effect.type === "blocker-break" && effect.blocker === "hat"),
+    drill: (next.specialEffects || []).filter((effect) => effect.type === "blocker-break" && effect.blocker === "drill"),
   };
   const flights = [];
   for (const goal of previous.goals || []) {
@@ -113,7 +160,10 @@ function objectiveFlights(previous, next) {
 }
 
 export default function RoyalGameApp() {
-  const [game, setGame] = useState(createGameState);
+  const [campaign, setCampaign] = useState(readCampaignProgress);
+  const [selectedLevel, setSelectedLevel] = useState(campaign.unlockedLevel);
+  const [screenMode, setScreenMode] = useState("map");
+  const [game, setGame] = useState(() => createGameState(1));
   const [selectedCell, setSelectedCell] = useState(null);
   const [activeBooster, setActiveBooster] = useState(null);
   const [activeEffectTurn, setActiveEffectTurn] = useState(-1);
@@ -190,27 +240,35 @@ export default function RoyalGameApp() {
   }, [activeBooster, commit, selectedCell]);
 
   const onCellPointerDown = useCallback((event, row, col) => {
-    if (event.button !== 0 || gameRef.current.status !== "playing" || activeBooster) return;
+    if (!event.isPrimary || event.button !== 0 || gameRef.current.status !== "playing" || activeBooster) return;
     const pointerId = event.pointerId;
     const startX = event.clientX;
     const startY = event.clientY;
+    const removePointerListeners = () => {
+      window.removeEventListener("pointerup", pointerUp);
+      window.removeEventListener("pointercancel", pointerCancel);
+    };
     const pointerUp = (upEvent) => {
       if (upEvent.pointerId !== pointerId) return;
-      window.removeEventListener("pointerup", pointerUp);
+      removePointerListeners();
       const moved = Math.hypot(upEvent.clientX - startX, upEvent.clientY - startY) > 15;
       if (!moved) return;
+      suppressClickRef.current = true;
+      window.setTimeout(() => { suppressClickRef.current = false; }, 180);
       const target = document.elementFromPoint(upEvent.clientX, upEvent.clientY)?.closest(".rg-cell[data-row][data-col]");
       if (!target) return;
       const targetRow = Number(target.dataset.row);
       const targetCol = Number(target.dataset.col);
       const adjacent = Math.abs(row - targetRow) + Math.abs(col - targetCol) === 1;
       if (!adjacent) return;
-      suppressClickRef.current = true;
-      window.setTimeout(() => { suppressClickRef.current = false; }, 120);
       const current = gameRef.current;
       commit(current, swapTiles(current, { row, col }, { row: targetRow, col: targetCol }));
     };
+    const pointerCancel = (cancelEvent) => {
+      if (cancelEvent.pointerId === pointerId) removePointerListeners();
+    };
     window.addEventListener("pointerup", pointerUp);
+    window.addEventListener("pointercancel", pointerCancel);
   }, [activeBooster, commit]);
 
   const onBooster = useCallback((boosterId) => {
@@ -219,14 +277,39 @@ export default function RoyalGameApp() {
     setActiveBooster((current) => current === boosterId ? null : boosterId);
   }, []);
 
-  const restart = useCallback(() => {
+  const startLevel = useCallback((levelNumber) => {
+    const level = Math.floor(Number(levelNumber));
+    const justUnlockedNext = level === (gameRef.current.level || 1) + 1
+      && gameRef.current.status === "won";
+    if (!Number.isInteger(level) || level < 1 || level > LEVEL_COUNT) return;
+    if (level > campaign.unlockedLevel && !justUnlockedNext) return;
     window.clearTimeout(effectTimerRef.current);
     window.clearTimeout(flightTimerRef.current);
-    const fresh = createGameState();
+    const fresh = createGameState(level);
     gameRef.current = fresh;
     previousTurnRef.current = fresh;
     oldPositionsRef.current = null;
     setGame(fresh);
+    setSelectedLevel(level);
+    setSelectedCell(null);
+    setActiveBooster(null);
+    setActiveEffectTurn(-1);
+    setFlights([]);
+    setSettingsOpen(false);
+    setScreenMode("game");
+    showMessage("");
+  }, [campaign.unlockedLevel, showMessage]);
+
+  const restart = useCallback(() => {
+    const level = gameRef.current.level || 1;
+    window.clearTimeout(effectTimerRef.current);
+    window.clearTimeout(flightTimerRef.current);
+    const fresh = createGameState(level);
+    gameRef.current = fresh;
+    previousTurnRef.current = fresh;
+    oldPositionsRef.current = null;
+    setGame(fresh);
+    setSelectedLevel(level);
     setSelectedCell(null);
     setActiveBooster(null);
     setActiveEffectTurn(-1);
@@ -234,6 +317,46 @@ export default function RoyalGameApp() {
     setSettingsOpen(false);
     showMessage("");
   }, [showMessage]);
+
+  const returnToMap = useCallback(() => {
+    setSettingsOpen(false);
+    setScreenMode("map");
+    setSelectedLevel(campaign.unlockedLevel);
+    setSelectedCell(null);
+    setActiveBooster(null);
+  }, [campaign.unlockedLevel]);
+
+  const continueCampaign = useCallback(
+    () => startLevel(campaign.unlockedLevel),
+    [campaign.unlockedLevel, startLevel],
+  );
+
+  const nextLevel = useCallback(() => {
+    const level = gameRef.current.level || 1;
+    if (level >= LEVEL_COUNT) returnToMap();
+    else startLevel(level + 1);
+  }, [returnToMap, startLevel]);
+
+  useEffect(() => {
+    if (game.status !== "won") return;
+    setCampaign((current) => {
+      const next = {
+        unlockedLevel: Math.max(
+          current.unlockedLevel,
+          Math.min(LEVEL_COUNT, (game.level || 1) + 1),
+        ),
+        completedLevels: current.completedLevels.includes(game.level)
+          ? current.completedLevels
+          : [...current.completedLevels, game.level].sort((first, second) => first - second),
+      };
+      if (
+        next.unlockedLevel === current.unlockedLevel
+        && next.completedLevels.length === current.completedLevels.length
+      ) return current;
+      writeCampaignProgress(next);
+      return next;
+    });
+  }, [game.level, game.status]);
 
   useEffect(() => {
     if (game.turnId === 0) {
@@ -291,6 +414,20 @@ export default function RoyalGameApp() {
     window.clearTimeout(messageTimerRef.current);
   }, []);
 
+  if (screenMode === "map") {
+    return (
+      <RoyalLevelMap
+        unlockedLevel={campaign.unlockedLevel}
+        completedLevels={campaign.completedLevels}
+        selectedLevel={selectedLevel}
+        onSelectLevel={setSelectedLevel}
+        onStartLevel={startLevel}
+        onContinue={continueCampaign}
+        getLevelDetails={getLevelDetails}
+      />
+    );
+  }
+
   return (
     <>
       <RoyalGameScreen
@@ -302,10 +439,13 @@ export default function RoyalGameApp() {
         onBooster={onBooster}
         onSettings={() => setSettingsOpen(true)}
         onRetry={restart}
+        onNextLevel={nextLevel}
+        onLevelMap={returnToMap}
+        totalLevels={LEVEL_COUNT}
         onCellRef={onCellRef}
         effectLayer={<RoyalGameEffects game={game} active={activeEffectTurn === game.turnId} />}
         rewardLayer={<RewardFlights flights={flights} />}
-        settingsDialog={settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} onRestart={restart} /> : null}
+        settingsDialog={settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} onRestart={restart} onLevelMap={returnToMap} /> : null}
         message={message || game.message}
       />
     </>

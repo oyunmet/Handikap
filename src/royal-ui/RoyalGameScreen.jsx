@@ -192,6 +192,8 @@ function GoalGlyph({ id }) {
   if (id === "vault") return <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="7" fill="#5145a5" stroke="#edc251" strokeWidth="2" /><path d="m8 8 16 16M24 8 8 24" stroke="#ffbe36" strokeWidth="5" strokeLinecap="round" /><circle cx="16" cy="16" r="5" fill="#ef3e48" stroke="#ffd45f" strokeWidth="2" /></svg>;
   if (id === "bear") return <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="8" cy="9" r="6" fill="#54b82c" /><circle cx="24" cy="9" r="6" fill="#54b82c" /><circle cx="16" cy="17" r="13" fill="#69c53a" /><ellipse cx="16" cy="20" rx="7" ry="5" fill="#c6e98b" /><circle cx="12" cy="15" r="1.6" /><circle cx="20" cy="15" r="1.6" /><circle cx="16" cy="19" r="2" /></svg>;
   if (id === "grass") return <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="5" fill="#55b92e" stroke="#36861f" strokeWidth="2" /><path d="M7 24 12 9l3 15 5-18 4 18" fill="none" stroke="#c9f16f" strokeWidth="3" strokeLinecap="round" /><circle cx="10" cy="14" r="2" fill="#f8ffe2" /><circle cx="22" cy="9" r="2" fill="#f8ffe2" /></svg>;
+  if (id === "hat") return <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 24h20v4H6z" rx="2" fill="#492c78" stroke="#241642" strokeWidth="2" /><path d="M9 23 11 10c.4-3 2.6-5 5-5s4.6 2 5 5l2 13z" fill="#252347" stroke="#9d69d0" strokeWidth="2" /><path d="M10 19h12" stroke="#ec48d1" strokeWidth="4" /><circle cx="16" cy="13" r="2" fill="#fff0a1" /></svg>;
+  if (id === "drill") return <svg viewBox="0 0 32 32" aria-hidden="true"><path d="m8 3 16 16-5 5L3 8z" fill="#a9b9d3" stroke="#3b4c68" strokeWidth="2" /><path d="m18 20 7 7-4 4-7-7z" fill="#e5a62c" stroke="#80531a" strokeWidth="2" /><circle cx="12" cy="12" r="3" fill="#f9c43d" stroke="#684a1b" strokeWidth="1.5" /></svg>;
   return <Jewel color="pink" />;
 }
 
@@ -271,12 +273,17 @@ function GoalPanel({ goals, won = false }) {
       </section>
     );
   }
-  const goalMeta = [
-    { id: "vault", label: "Kasa" },
-    { id: "bear", label: "Ayıcık" },
-    { id: "grass", label: "Çim" },
-    { id: "gems", label: "Mücevher" },
-  ];
+  const goalLabels = {
+    vault: "Kasa",
+    bear: "Ayıcık",
+    grass: "Çim",
+    hat: "Şapka",
+    drill: "Matkap",
+    gems: "Mücevher",
+  };
+  const goalMeta = ["vault", "bear", "grass", "hat", "drill", "gems"]
+    .filter((id) => goals.some((goal) => goal.id === id))
+    .map((id) => ({ id, label: goalLabels[id] }));
   return (
     <section className="rg-info-card rg-goal-card" aria-label="Hedefler">
       <div className="rg-card-ribbon">Hedef</div>
@@ -304,6 +311,9 @@ export default function RoyalGameScreen({
   onBooster = () => {},
   onSettings = () => {},
   onRetry = () => {},
+  onNextLevel = () => {},
+  onLevelMap = () => {},
+  totalLevels = 500,
   mascotMood = "happy",
   effectLayer = null,
   rewardLayer = null,
@@ -313,10 +323,8 @@ export default function RoyalGameScreen({
 }) {
   const board = Array.isArray(game.board) ? game.board : fallbackBoard;
   const goals = Array.isArray(game.goals) ? game.goals : [
-    { id: "vault", remaining: 8, total: 8 },
-    { id: "bear", remaining: 1, total: 1 },
-    { id: "grass", remaining: 4, total: 4 },
-    { id: "gems", remaining: 41, total: 41 },
+    { id: "vault", remaining: 3, total: 3 },
+    { id: "gems", remaining: 19, total: 19 },
   ];
   const movesLeft = game.movesLeft ?? 37;
   const boosters = Object.entries(game.boosters || { hammer: 17, bow: 22, cannon: 16, jester: 26 })
@@ -334,6 +342,7 @@ export default function RoyalGameScreen({
         <section className="rg-info-card rg-moves-card" aria-label="Kalan hamle">
           <div className="rg-card-ribbon">Hamle</div>
           <div className="rg-moves-number">{movesLeft}</div>
+          <div className="rg-level-caption">Bölüm {game.level ?? 1} / {totalLevels}</div>
         </section>
       </header>
 
@@ -404,7 +413,9 @@ export default function RoyalGameScreen({
             <p>BÖLÜM TAMAMLANDI</p>
             <h1>Harika iş!</h1>
             <div className="rg-victory-coins"><span className="rg-coin-icon">♛</span><strong>10</strong><small>altın ödül</small></div>
-            <button type="button" onClick={onRetry}>Yeniden oyna</button>
+            <button type="button" onClick={game.level >= totalLevels ? onLevelMap : onNextLevel}>
+              {game.level >= totalLevels ? "Haritaya dön" : "Sonraki bölüm"}
+            </button>
           </section>
         </div>
       )}

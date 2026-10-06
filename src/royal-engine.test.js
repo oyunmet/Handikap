@@ -8,6 +8,7 @@ import {
   swapTiles,
   useBooster,
 } from "./royal-engine.js";
+import { getLevelDefinition, LEVEL_COUNT, LEVELS_PER_CHAPTER } from "./royal-levels.js";
 
 const gem = (id, color, special) => ({ id, kind: "gem", color, ...(special ? { special } : {}) });
 const blocker = (id, type, hp, extra = {}) => ({
@@ -19,9 +20,11 @@ const blocker = (id, type, hp, extra = {}) => ({
   ...extra,
 });
 
-function emptyState() {
-  const state = createGameState();
+function emptyState(levelNumber = LEVEL_COUNT) {
+  const state = createGameState(levelNumber);
   state.board = BOARD_MASK.map((row) => row.map(() => null));
+  state.movesLeft = 37;
+  state.totalMoves = 37;
   state.goals = [
     { id: "vault", remaining: 8, total: 8 },
     { id: "bear", remaining: 1, total: 1 },
@@ -51,18 +54,48 @@ function buildVerticalMatch(state) {
 
 test("initial level has an irregular playable board, objectives, and a legal move", () => {
   const state = createGameState();
+  const definition = getLevelDefinition(1);
   assert.equal(state.board.length, 10);
   assert.equal(state.board[0][0], null);
   assert.equal(state.board[0][7].kind, "gem");
-  assert.equal(state.movesLeft, 37);
+  assert.equal(state.movesLeft, definition.moves);
+  assert.deepEqual(state.unlockedSpecials, []);
   assert.deepEqual(state.goals.map(({ id, remaining }) => [id, remaining]), [
-    ["vault", 8],
-    ["bear", 1],
-    ["grass", 4],
-    ["gems", 41],
+    ...Object.entries(definition.goals),
   ]);
   assert.equal(findMatches(state.board).size, 0);
   assert.equal(hasAvailableSwap(state.board), true);
+});
+
+test("campaign defines 500 distinct challenges across 20 chapters", () => {
+  const definitions = Array.from({ length: LEVEL_COUNT }, (_, index) => getLevelDefinition(index + 1));
+  const signatures = definitions.map(({ chapter, featureIds, goals, moves, unlockedSpecials, layoutVariant }) =>
+    JSON.stringify({ chapter, featureIds, goals, moves, unlockedSpecials, layoutVariant }),
+  );
+  assert.equal(definitions.length, 500);
+  assert.equal(new Set(signatures).size, LEVEL_COUNT);
+  assert.equal(definitions.at(-1).chapter, LEVEL_COUNT / LEVELS_PER_CHAPTER);
+  assert.equal(getLevelDefinition(501).level, LEVEL_COUNT);
+  assert.deepEqual(getLevelDefinition(1).unlockedSpecials, []);
+  assert.deepEqual(getLevelDefinition(2).unlockedSpecials, ["rocket"]);
+  assert.ok(getLevelDefinition(14).unlockedSpecials.includes("lightball"));
+});
+
+test("different levels generate their own board, goals, and available powers", () => {
+  const first = createGameState(1);
+  const featureLevel = createGameState(5);
+  const final = createGameState(LEVEL_COUNT);
+  assert.equal(first.level, 1);
+  assert.equal(featureLevel.level, 5);
+  assert.equal(final.level, LEVEL_COUNT);
+  assert.notDeepEqual(first.goals, final.goals);
+  assert.notDeepEqual(first.board, featureLevel.board);
+  assert.ok(featureLevel.unlockedSpecials.includes("propeller"));
+  assert.ok(final.unlockedSpecials.includes("lightball"));
+  for (const state of [first, featureLevel, final]) {
+    assert.equal(findMatches(state.board).size, 0);
+    assert.equal(hasAvailableSwap(state.board), true);
+  }
 });
 
 test("a non-matching swap does not spend a move", () => {
@@ -110,6 +143,18 @@ test("a four-match creates a rocket special", () => {
   if (createdTilePosition) assert.deepEqual(created.at, createdTilePosition);
 });
 
+test("locked powers do not appear before their campaign unlock", () => {
+  const state = emptyState(1);
+  put(state, 3, 3, gem("top", "red"));
+  put(state, 4, 2, gem("swap", "red"));
+  put(state, 4, 3, gem("middle", "yellow"));
+  put(state, 5, 3, gem("bottom-a", "red"));
+  put(state, 6, 3, gem("bottom-b", "red"));
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  assert.equal(next.specialEffects.some((effect) => effect.type === "special-created"), false);
+  assert.deepEqual(next.unlockedSpecials, []);
+});
+
 test("a special tile triggers from its destination when swapped without a match", () => {
   const state = emptyState();
   put(state, 4, 2, gem("rocket", "yellow", "rocket-h"));
@@ -145,6 +190,20 @@ test("clearing grass reveals and then removes its hidden topiary bear", () => {
   const removedBear = useBooster(firstBearHit, "hammer", { row: 4, col: 2 });
   assert.equal(removedBear.goals.find(({ id }) => id === "bear").remaining, 0);
   assert.equal(removedBear.board[4][2]?.kind, "gem");
+});
+
+test("hat and drill blockers complete their level objectives when cleared", () => {
+  const hatState = emptyState();
+  hatState.goals.push({ id: "hat", remaining: 1, total: 1 });
+  put(hatState, 4, 2, blocker("hat-target", "hat", 1));
+  const hatResult = useBooster(hatState, "hammer", { row: 4, col: 2 });
+  assert.equal(hatResult.goals.find(({ id }) => id === "hat").remaining, 0);
+
+  const drillState = emptyState();
+  drillState.goals.push({ id: "drill", remaining: 1, total: 1 });
+  put(drillState, 4, 2, blocker("drill-target", "drill", 1));
+  const drillResult = useBooster(drillState, "hammer", { row: 4, col: 2 });
+  assert.equal(drillResult.goals.find(({ id }) => id === "drill").remaining, 0);
 });
 
 test("double lightball combination clears the board and is shown in the effect log", () => {
