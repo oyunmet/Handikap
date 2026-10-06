@@ -136,6 +136,26 @@ function createsRunAt(board, row, col, color) {
   return matchesIn(0, 1) || matchesIn(1, 0);
 }
 
+function createsMatchAt(board, row, col, color) {
+  if (createsRunAt(board, row, col, color)) return true;
+  for (const top of [row - 1, row]) {
+    for (const left of [col - 1, col]) {
+      if (!inside(top, left) || !inside(top + 1, left + 1)) continue;
+      const square = [
+        [top, left],
+        [top, left + 1],
+        [top + 1, left],
+        [top + 1, left + 1],
+      ];
+      if (square.every(([squareRow, squareCol]) =>
+        (squareRow === row && squareCol === col)
+          || (isGem(board[squareRow]?.[squareCol]) && board[squareRow][squareCol].color === color),
+      )) return true;
+    }
+  }
+  return false;
+}
+
 function fillNewGems(board, blockers = new Map()) {
   for (let row = 0; row < BOARD_ROWS; row += 1) {
     for (let col = 0; col < BOARD_COLS; col += 1) {
@@ -490,7 +510,7 @@ function hitBlocker(board, row, col, goals, effects, drillClear) {
   return { goals, changed: true };
 }
 
-function refillGravity(board) {
+function refillGravity(board, avoidNewMatches = false) {
   const before = new Map();
   for (let row = 0; row < BOARD_ROWS; row += 1) {
     for (let col = 0; col < BOARD_COLS; col += 1) {
@@ -516,11 +536,25 @@ function refillGravity(board) {
       }
       const firstSurvivorRow = end - survivors.length;
       for (let targetRow = row; targetRow < firstSurvivorRow; targetRow += 1) {
-        let tile = makeGem();
-        let attempts = 0;
-        while (createsRunAt(board, targetRow, col, tile.color) && attempts < 30) {
+        let tile;
+        if (avoidNewMatches) {
+          const safeColors = GEM_COLORS.filter((color) =>
+            !createsMatchAt(board, targetRow, col, color),
+          );
+          tile = makeGem(safeColors[Math.floor(Math.random() * safeColors.length)]);
+        } else {
           tile = makeGem();
-          attempts += 1;
+          let attempts = 0;
+          while (createsRunAt(board, targetRow, col, tile.color) && attempts < 30) {
+            tile = makeGem();
+            attempts += 1;
+          }
+          if (createsRunAt(board, targetRow, col, tile.color)) {
+            const safeColors = GEM_COLORS.filter((color) =>
+              !createsRunAt(board, targetRow, col, color),
+            );
+            tile = makeGem(safeColors[Math.floor(Math.random() * safeColors.length)]);
+          }
         }
         board[targetRow][col] = tile;
       }
@@ -582,8 +616,9 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
   };
   let clear = new Set(initialClear);
   let safety = 0;
+  const maxRandomCascadeWaves = 24;
 
-  while (clear.size && safety < 24) {
+  while (clear.size) {
     if (!clear.size) {
       const plan = planMatchWave(next.board, preferred, next.unlockedSpecials);
       clear = plan.clear;
@@ -635,7 +670,10 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
     if (drillClear.size) {
       clear = drillClear;
     } else {
-      next.fallingTiles.push(...refillGravity(next.board));
+      // Keep resolving any cascade already formed, but stop random refills from
+      // starting an unbounded chain after an unusually long run of cascades.
+      const stableRefill = safety >= maxRandomCascadeWaves;
+      next.fallingTiles.push(...refillGravity(next.board, stableRefill));
       const plan = planMatchWave(next.board, [], next.unlockedSpecials);
       clear = plan.clear;
       next.specialEffects.push(...plan.effects);

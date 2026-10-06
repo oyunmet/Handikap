@@ -286,3 +286,22 @@ test("double lightball combination clears the board and is shown in the effect l
   // Refill can create additional valid matches, so cascades may clear more than the three placed gems.
   assert.ok(next.goals.find(({ id }) => id === "gems").remaining <= 38);
 });
+
+test("a long cascade resolves every match instead of stopping with a matched board", () => {
+  const state = emptyState();
+  state.board = BOARD_MASK.map((row, rowIndex) => row.map((playable, colIndex) =>
+    playable ? gem(`red-${rowIndex}-${colIndex}`, "red") : null,
+  ));
+  const originalRandom = Math.random;
+
+  try {
+    // Force each ordinary refill to keep producing the longest possible chain.
+    Math.random = () => 0;
+    const next = useBooster(state, "jester", { row: 4, col: 3 });
+    assert.equal(next.turnId, state.turnId + 1);
+    assert.ok(next.cascades > 24, "the test must pass through the old cascade limit");
+    assert.equal(findMatches(next.board).size, 0);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
