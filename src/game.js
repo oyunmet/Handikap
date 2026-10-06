@@ -163,7 +163,6 @@ function chooseFishTarget(board, clear, state, from) {
       const remaining = goal ? Math.max(0, goal.count - (state.collected[tile.type] ?? 0)) : 0;
       const distance = Math.abs(row - from.row) + Math.abs(col - from.col);
       const score = (remaining > 0 ? 70 + (remaining / goal.count) * 25 : 0)
-        + (state.fog[row][col] ? 35 : 0)
         + (tile.special === "bomb" ? 55 : 0)
         - distance;
       if (score > bestScore) {

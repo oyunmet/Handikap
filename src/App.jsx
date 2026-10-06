@@ -5,7 +5,6 @@ import {
   TILE_META,
   createLevelState,
   fireLightSeed,
-  getFogRemaining,
   getLevel,
   getLightCost,
   getRegion,
@@ -191,7 +190,6 @@ function App() {
 
   const level = useMemo(() => getLevel(game.levelId), [game.levelId]);
   const region = useMemo(() => getRegion(level.regionId), [level.regionId]);
-  const fogLeft = getFogRemaining(game);
   const lightCost = getLightCost();
   const unlockedLevel = getUnlockedLevel(progress);
   const currentRegionLevels = LEVELS.filter((item) => item.regionId === region.id);
@@ -456,7 +454,7 @@ function App() {
             <span className="legend-item"><i className="legend-dot" /> Tamamlandı</span>
             <span className="legend-item"><i className="legend-dot closed" /> Kilitli</span>
           </div>
-          <p className="map-footer-note">Her üç odanın mührünü tamamla, yeni bir diyarın kapısını aç.</p>
+          <p className="map-footer-note">Her üç bölümü tamamla, yeni bir diyarın kapısını aç.</p>
         </section>
       ) : (
         <div className="page-wrap">
@@ -474,7 +472,7 @@ function App() {
           </div>
 
           {completedCount === 0 && <div className="instructions-banner">
-            <span>Üçlü eşleşmeler mühürleri açar. Uzun diziler özel saray taşları doğurur.</span>
+            <span>Üçlü eşleşmeler hedef taşlarını toplar. Uzun diziler özel saray güçleri doğurur.</span>
             <button onClick={() => setShowHelp(true)}>Kurallara göz at</button>
           </div>}
 
@@ -492,10 +490,6 @@ function App() {
                         <strong>{Math.min(count, goal.count)}<i>/{goal.count}</i></strong>
                       </div>;
                     })}
-                    <div className="target-chip seal-chip">
-                      <span className="seal-mini" aria-hidden="true" /><span className="target-label">Mühür</span>
-                      <strong>{Math.max(0, level.fogGoal - fogLeft)}<i>/{level.fogGoal}</i></strong>
-                    </div>
                   </div>
                 </section>
                 <div className="center-crest" aria-label="Saray arması">
@@ -545,13 +539,12 @@ function App() {
                         }}
                         onPointerDown={(event) => startTileDrag(event, rowIndex, colIndex)}
                         onClick={() => handleTile(rowIndex, colIndex)}
-                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "TNT fiçısı, " : isPrism ? "ışıklı yıldız küresi, " : ""}${TILE_NAMES[tile.type] ?? meta.name}${game.fog[rowIndex][colIndex] ? ", mühürlü" : ""}`}
+                         aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${isBomb ? "TNT fiçısı, " : isPrism ? "ışıklı yıldız küresi, " : ""}${TILE_NAMES[tile.type] ?? meta.name}`}
                         aria-describedby="board-instructions"
                         role="gridcell"
                       >
                         <Glyph type={tile.type} special={tile.special} />
                         {isBurstCell && <span className="match-burst" key={`${game.turnId}-${rowIndex}-${colIndex}`} aria-hidden="true" />}
-                        {game.fog[rowIndex][colIndex] && <span className="fog-veil" aria-hidden="true" />}
                       </button>
                     );
                   }))}
@@ -613,7 +606,6 @@ function App() {
                 </div>
                 <div className="board-footer">
                   <span id="board-instructions" className="board-caption">{targetMode ? <><strong>Çekiç hazır</strong> · bir kareye dokun</> : <>Bir komşu taşı seç. <strong>Tahtayı oku.</strong></>}</span>
-                  <span className="fog-caption">Mühür {Math.max(0, level.fogGoal - fogLeft)} / {level.fogGoal}</span>
                 </div>
                 {game.status !== "playing" && <div className="board-veil">
                   <div className="result-card">
@@ -622,7 +614,7 @@ function App() {
                     </div>
                     <div className="result-kicker">{game.status === "won" ? "BÖLÜM TAMAMLANDI" : "YENİDEN DENE"}</div>
                     <h2 className="result-title">{game.status === "won" ? "Taç yerine oturdu." : "Saray bekliyor."}</h2>
-                    <p className="result-copy">{game.status === "won" ? `${regionCopy(region).name} içindeki ${levelCopy(level)} tamamlandı. Bir sonraki oda açıldı.` : "Hedefleri ve mühürleri gözeterek hamlelerini yeniden kur."}</p>
+                    <p className="result-copy">{game.status === "won" ? `${regionCopy(region).name} içindeki ${levelCopy(level)} tamamlandı. Bir sonraki oda açıldı.` : "Hedefleri gözeterek hamlelerini yeniden kur."}</p>
                     {game.status === "won" && <div className="stars" aria-label={`${getStars(game)} yıldız kazandın`}>
                       {[1, 2, 3].map((star) => <Star key={star} lit={getStars(game) >= star} className="star" />)}
                     </div>}
@@ -698,9 +690,9 @@ function App() {
           <div className="help-top"><div><div className="eyebrow">SARAY KAPILARI AÇILDI</div><h2 className="help-title" id="help-title">Nasıl oynanır?</h2></div>
             <button className="icon-button" aria-label="Yardımı kapat" onClick={dismissHelp}><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg></button>
           </div>
-          <p className="help-copy">Taşları yan yana getir, sarayın mühürlerini kır ve hedeflerini hamlelerin bitmeden tamamla.</p>
+          <p className="help-copy">Taşları yan yana getir ve hedeflerini hamlelerin bitmeden tamamla.</p>
           <div className="help-steps">
-             <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle veya komşu iki taşa dokun.</strong> Üç aynı taş eşleşince hedefleri toplar ve mühürlü kareleri açar.</p></div>
+              <div className="help-step"><span className="step-number">01</span><p><strong>Bir taşı sürükle veya komşu iki taşa dokun.</strong> Üç aynı taş eşleşince hedef taşları toplarsın.</p></div>
             <div className="help-step"><span className="step-number">02</span><p><strong>Özel taşları uyandır.</strong> Dörtlüde pervane hedefe uçar; beşlide TNT fiçısı komşu kareleri patlatır; sekizlide yıldız küresi aynı renkteki taşları siler.</p></div>
             <div className="help-step"><span className="step-number">03</span><p><strong>Taç çekicini doldur.</strong> Temizlediğin taşlar enerjisini artırır. Dolunca 3 × 3 alanı bir kareye dokunarak aç.</p></div>
           </div>
