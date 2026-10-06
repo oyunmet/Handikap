@@ -1,0 +1,45 @@
+Lütfen mevcut Match-3 projesinin (handikap.vercel.app) görsel tasarımını, arayüz düzenini ve taş estetiğini BİREBİR Royal Match oyununun görsel standartlarına getirecek şekilde baştan aşağı yeniden tasarla ve kodla.
+
+Aşağıdaki görsel ve teknik gereksinimleri eksiksiz uygula:
+
+---
+
+### 1. TAŞ TASARIMLARI VE GÖRSEL STİL (TILES & SPRITES)
+- **3D Glossy & Kabartmalı Görünüm:** Taşlar flat/mat pastel renkler yerine son derece canlı, yüksek kontrastlı, parlak (glossy finish) ve 3D hacim hissi veren formda tasarlanmalıdır.
+- **Dinamik 5 Temel Taş Biçimi ve Renk Paleti:**
+  1. Kırmızı Taş: Parlak kırmızı, köşeleri yumuşatılmış 3D küp/kutu formu.
+  2. Mavi Taş: Canlı koyu mavi, parlak kalkan (shield) formu.
+  3. Sarı Taş: Altın sarısı, parlak 3D Kral Tacı (crown) formu.
+  4. Yeşil Taş: Canlı yeşil, damarları belirgin yaprak (leaf) formu.
+  5. Pembe/Mor Taş: Yüksek parlaklıkta keskin 3D Elmas (gem/diamond) formu.
+- **Özel Taşlar (Power-ups):**
+  - **TNT:** Üzerinde kalın siyah "TNT" yazan ahşap fıçı/namlu tasarımı.
+  - **Light Ball / Disco Ball:** Rengarenk, ışık saçan ve etrafında parıltı efektleri olan diskotek küresi.
+  - **Propeller / Pervane:** İki kanatlı, uçmaya hazır dinamik roket/pervane görseli.
+  - **Rocket:** Kırmızı-beyaz çizgili roket formu.
+
+---
+
+### 2. OYUN TAHTASI VE ARKA PLAN (GRID & BACKGROUND)
+- **Izgara (Grid) Yapısı:** Taşların arkasındaki oyun alanı zemininde her bir hücreyi ayıran hafif saydam kiremit/ızgara çizgileri yer almalıdır.
+- **Arka Plan:** Düz yeşil pastel zemin kaldırılmalı; yerine üst tarafta mavi gökyüzü, bulutlar ve alt tarafta çim/kale bahçesi olan derinlikli bir 2D/3D arka plan görseli eklenmelidir.
+
+---
+
+### 3. ARAYÜZ VE PANEL TASARIMI (ROYAL MATCH UI)
+- **Üst Banner (Header):**
+  - Üst kısımda altın sarısı kalın çerçeveli ve koyu mavi zeminli ana banner yer almalıdır.
+  - **Sol Kart (Target/Hedefler):** Seviyede toplanması gereken taş türleri ve hedefler ikonlarıyla birlikte gösterilmelidir.
+  - **Orta Portre:** Ortada altın taçlı karakter (Kral) portresi yer almalı.
+  - **Sağ Kart (Moves/Hamle):** Kalan hamle sayısı büyük, belirgin, krem rengi kart üzerine kalın fontla yazılmalıdır.
+- **Alt Booster Paneli (Bottom Bar):**
+  - Oyun tahtasının hemen altında yan yana dizilmiş 5 adet dairesel buton.
+  - Butonlar altın renkli kalın dış çerçeveye, yeşil iç zemine ve üzerlerinde booster ikonlarına (Çekiç, Yer Değiştirici vb.) sahip olmalıdır.
+
+---
+
+### 4. BİREBİR ARAYÜZ REVIZYONU (MEVCUT SİS/IŞIK TEMASINI MİMARİDEN KALDIR)
+- Ekranda yer alan "İLK KIVILCIM", "IŞIK ALANI", "BAHÇE SİSİ" gibi flat yeşil panelleri kaldır.
+- Yerine tamamen Royal Match tipografisi, altın/mavi renk paleti ve kart mimarisini entegre et.
+
+Projedeki CSS, Canvas/Phaser renderer veya SVG/Image sprite tanımlamalarını bu stil doğrultusunda derhal güncelle ve oyunu çalıştır.
