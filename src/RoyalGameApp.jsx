@@ -8,6 +8,7 @@ import { getLevelDefinition, LEVEL_COUNT } from "./royal-levels.js";
 import RoyalGameEffects from "./royal-ui/RoyalGameEffects.jsx";
 import RoyalGameScreen, { RoyalPreLevelDialog } from "./royal-ui/RoyalGameScreen.jsx";
 import RoyalLevelMap from "./royal-ui/RoyalLevelMap.jsx";
+import { getAdjacentSwipeTarget } from "./royal-ui/swipe-target.js";
 import "./royal-ui/RoyalGameScreen.css";
 
 const CAMPAIGN_STORAGE_KEY = "royal-match-campaign-v1";
@@ -266,26 +267,34 @@ export default function RoyalGameApp() {
     const pointerUp = (upEvent) => {
       if (upEvent.pointerId !== pointerId) return;
       removePointerListeners();
-      const moved = Math.hypot(upEvent.clientX - startX, upEvent.clientY - startY) > 15;
-      if (!moved) return;
-      const target = document.elementFromPoint(upEvent.clientX, upEvent.clientY)?.closest(".rg-cell[data-row][data-col]");
+      const destination = getAdjacentSwipeTarget({
+        row,
+        col,
+        startX,
+        startY,
+        endX: upEvent.clientX,
+        endY: upEvent.clientY,
+      });
+      if (!destination) return;
+      const destinationCell = document.querySelector(
+        `.rg-cell[data-row="${destination.row}"][data-col="${destination.col}"]`,
+      );
+      const releaseCell = document.elementFromPoint(upEvent.clientX, upEvent.clientY)
+        ?.closest(".rg-cell[data-row][data-col]");
       const suppression = {
         expiresAt: Date.now() + 350,
-        cells: new Set([`${row}:${col}`]),
+        cells: new Set([`${row}:${col}`, `${destination.row}:${destination.col}`]),
         timer: null,
       };
-      if (target) suppression.cells.add(`${target.dataset.row}:${target.dataset.col}`);
+      if (releaseCell) suppression.cells.add(`${releaseCell.dataset.row}:${releaseCell.dataset.col}`);
       suppressClickRef.current = suppression;
       suppression.timer = window.setTimeout(() => {
         if (suppressClickRef.current === suppression) suppressClickRef.current = null;
       }, 350);
-      if (!target || target.disabled) return;
-      const targetRow = Number(target.dataset.row);
-      const targetCol = Number(target.dataset.col);
-      const adjacent = Math.abs(row - targetRow) + Math.abs(col - targetCol) === 1;
-      if (!adjacent) return;
+      if (!destinationCell || destinationCell.disabled) return;
       const current = gameRef.current;
-      commit(current, swapTiles(current, { row, col }, { row: targetRow, col: targetCol }));
+      if (current.status !== "playing") return;
+      commit(current, swapTiles(current, { row, col }, destination));
     };
     const pointerCancel = (cancelEvent) => {
       if (cancelEvent.pointerId === pointerId) removePointerListeners();
@@ -473,6 +482,7 @@ export default function RoyalGameApp() {
     window.clearTimeout(effectTimerRef.current);
     window.clearTimeout(flightTimerRef.current);
     window.clearTimeout(messageTimerRef.current);
+    window.clearTimeout(suppressClickRef.current?.timer);
   }, []);
 
   if (screenMode === "map") {

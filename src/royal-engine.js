@@ -771,6 +771,14 @@ export function swapTiles(state, first, second) {
     return { ...state, message: "Yalnızca taşları hareket ettirebilirsin." };
   }
   [board[first.row][first.col], board[second.row][second.col]] = [secondCell, firstCell];
+  const lightballAt = firstCell.special === "lightball"
+    ? second
+    : secondCell.special === "lightball" ? first : null;
+  const partner = firstCell.special === "lightball" ? secondCell : firstCell;
+  if (lightballAt && !partner.special) {
+    const lightball = board[lightballAt.row][lightballAt.col];
+    board[lightballAt.row][lightballAt.col] = { ...lightball, color: partner.color };
+  }
   const runs = findMatchRuns(board);
   if (!runs.length && !firstCell.special && !secondCell.special) {
     return { ...state, message: "Eşleşme olmadı. Başka bir taş dene.", invalidSwap: [first, second] };

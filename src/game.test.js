@@ -75,7 +75,9 @@ test("a T-shaped match creates a bomb on the board", () => {
   const bomb = next.board.flat().find((tile) => tile.special === "bomb");
   const bombEffect = next.specialEffects.find((effect) => effect.type === "bomb-created");
   const bombPosition = next.board.flatMap((row, rowIndex) =>
-    row.map((tile, colIndex) => tile.special === "bomb" ? { row: rowIndex, col: colIndex } : null),
+    row.map((tile, colIndex) => tile.id === bombEffect?.tileId && tile.special === "bomb"
+      ? { row: rowIndex, col: colIndex }
+      : null),
   ).find(Boolean);
 
   assert.ok(bomb, "the T-shaped match should leave a bomb for a later move");

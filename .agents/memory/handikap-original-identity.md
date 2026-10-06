@@ -15,4 +15,4 @@ Use the supplied gameplay screenshots as the source of truth for the 3D tile art
 
 **Why:** The user repeatedly said the game visuals still did not match the supplied screenshots and explicitly asked for identical 3D pieces, depth, animation, and effects.
 
-**How to apply:** Prefer the provided reference art and verify the rendered game screen against it; keep tap and swipe interactions responsive on touch devices.
+**How to apply:** Prefer the provided reference art and verify the rendered game screen against it. For a swipe, use the dominant direction and move only to the immediately adjacent cell, regardless of drag distance; preserve tap-to-select.

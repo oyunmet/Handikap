@@ -165,6 +165,75 @@ test("a special tile triggers from its destination when swapped without a match"
   assert.deepEqual(rocket.at, { row: 4, col: 3 });
 });
 
+test("a lightball swapped with a normal gem clears the partner's color", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("lightball", "blue", "lightball"));
+  put(state, 4, 3, gem("partner", "red"));
+  put(state, 2, 3, gem("red-target", "red"));
+  put(state, 6, 3, gem("blue-target", "blue"));
+
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  const lightball = next.specialEffects.find((effect) => effect.type === "lightball");
+
+  assert.equal(lightball?.color, "red");
+  assert.ok(next.clearedCells.some((cell) => cell.row === 2 && cell.col === 3));
+});
+
+test("a vertical rocket clears its column and reports a vertical beam", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("rocket", "yellow", "rocket-v"));
+  put(state, 4, 3, gem("plain", "blue"));
+  put(state, 2, 3, gem("column-target", "green"));
+
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  const rocket = next.specialEffects.find((effect) => effect.type === "rocket");
+
+  assert.equal(rocket?.orientation, "vertical");
+  assert.ok(next.clearedCells.some((cell) => cell.row === 2 && cell.col === 3));
+});
+
+test("a horizontal rocket clears its row and reports a horizontal beam", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("rocket", "yellow", "rocket-h"));
+  put(state, 4, 3, gem("plain", "blue"));
+  put(state, 4, 6, gem("row-target", "green"));
+
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  const rocket = next.specialEffects.find((effect) => effect.type === "rocket");
+
+  assert.equal(rocket?.orientation, "horizontal");
+  assert.ok(next.clearedCells.some((cell) => cell.row === 4 && cell.col === 6));
+});
+
+test("a TNT tile clears its surrounding 3-by-3 area", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("tnt", "yellow", "tnt"));
+  put(state, 4, 3, gem("plain", "blue"));
+  put(state, 3, 2, gem("blast-target", "green"));
+  put(state, 2, 2, gem("outside-target", "red"));
+
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  const initialWave = next.specialEffects.find((effect) => effect.type === "match-clear");
+
+  assert.ok(next.specialEffects.some((effect) => effect.type === "tnt"));
+  assert.ok(initialWave?.cells.some((cell) => cell.row === 3 && cell.col === 2));
+  assert.equal(initialWave?.cells.some((cell) => cell.row === 2 && cell.col === 2), false);
+});
+
+test("a propeller flies to and clears one priority target", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("propeller", "green", "propeller"));
+  put(state, 4, 3, gem("plain", "blue"));
+  put(state, 4, 4, blocker("prop-target", "vault", 1));
+
+  const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
+  const propeller = next.specialEffects.find((effect) => effect.type === "propeller");
+
+  assert.deepEqual(propeller?.to, { row: 4, col: 4 });
+  assert.ok(next.specialEffects.some((effect) =>
+    effect.type === "blocker-hit" && effect.at?.row === 4 && effect.at?.col === 4));
+});
+
 test("hammer damages blockers without consuming a move and opens a safe in tiers", () => {
   const state = emptyState();
   put(state, 4, 2, blocker("vault-target", "vault", 2));
