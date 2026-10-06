@@ -9,6 +9,22 @@ const gemPalette = {
   pink: ["#ffb4f5", "#e742d7", "#8f2da8"],
 };
 
+const referenceGemSprites = {
+  red: "/royal-reference/gem-red.webp",
+  yellow: "/royal-reference/gem-yellow.webp",
+  blue: "/royal-reference/gem-blue.webp",
+  green: "/royal-reference/gem-green.webp",
+  pink: "/royal-reference/gem-pink.webp",
+};
+
+const referenceSpecialSprites = {
+  "rocket-h": "/royal-reference/special-rocket.webp",
+  "rocket-v": "/royal-reference/special-rocket.webp",
+  tnt: "/royal-reference/special-tnt.webp",
+  lightball: "/royal-reference/special-lightball.webp",
+  propeller: "/royal-reference/special-propeller.webp",
+};
+
 const fallbackBoard = [
   [null, null, null, null, null, { id: "g01", kind: "gem", color: "red" }, { id: "g02", kind: "gem", color: "yellow" }, { id: "g03", kind: "gem", color: "blue" }],
   [
@@ -51,6 +67,17 @@ const fallbackBoard = [
 ];
 
 function Jewel({ color }) {
+  const referenceSprite = referenceGemSprites[color];
+  if (referenceSprite) {
+    return (
+      <img
+        className="rg-jewel rg-reference-piece-art"
+        src={referenceSprite}
+        alt=""
+        draggable={false}
+      />
+    );
+  }
   const colors = gemPalette[color] || gemPalette.blue;
   if (color === "pink") {
     return (
@@ -108,38 +135,14 @@ function Jewel({ color }) {
 function BlockerArt({ type, hp }) {
   if (type === "vault") {
     return (
-      <svg className="rg-blocker-art rg-vault-art" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <linearGradient id="rg-vault-shell" x2="0" y2="1"><stop stopColor="#a79aff" /><stop offset=".28" stopColor="#5742bc" /><stop offset=".78" stopColor="#37318c" /><stop offset="1" stopColor="#272773" /></linearGradient>
-          <linearGradient id="rg-vault-gold" x2="0" y2="1"><stop stopColor="#fff08b" /><stop offset=".45" stopColor="#ffb521" /><stop offset="1" stopColor="#d36a10" /></linearGradient>
-        </defs>
-        <rect x="4" y="4" width="92" height="92" rx="17" fill="#1b2476" stroke="#dca83c" strokeWidth="4" />
-        <rect x="10" y="9" width="80" height="82" rx="14" fill="url(#rg-vault-shell)" stroke="#c0aeff" strokeWidth="4" />
-        {hp >= 2 ? (
-          <g>
-            <path d="M19 26 73 79M81 26 28 79" stroke="url(#rg-vault-gold)" strokeWidth="15" strokeLinecap="round" />
-            <path d="M18 23 72 76M80 23 27 76" stroke="#fff0a0" strokeWidth="4" strokeLinecap="round" opacity=".85" />
-            <circle cx="50" cy="51" r="17" fill="#ec9b22" stroke="#703a1e" strokeWidth="4" />
-            <circle cx="50" cy="51" r="9" fill="#e53043" stroke="#ffc74e" strokeWidth="3" />
-            <circle cx="18" cy="18" r="4" fill="#f5d766" /><circle cx="82" cy="18" r="4" fill="#f5d766" /><circle cx="18" cy="82" r="4" fill="#f5d766" /><circle cx="82" cy="82" r="4" fill="#f5d766" />
-          </g>
-        ) : (
-          <g>
-            <rect x="18" y="18" width="65" height="67" rx="9" fill="#211d62" stroke="#ffd35b" strokeWidth="4" />
-            <path d="M24 70q9-17 18 0 8-19 17 0 8-14 16 0v9H24z" fill="url(#rg-vault-gold)" stroke="#b56b1e" strokeWidth="2" />
-            <circle cx="35" cy="61" r="6" fill="#ffe66b" stroke="#fff2a0" strokeWidth="1.5" />
-            <circle cx="55" cy="57" r="7" fill="#f6b725" stroke="#fff2a0" strokeWidth="1.5" />
-            <circle cx="70" cy="65" r="5" fill="#ffe66b" stroke="#fff2a0" strokeWidth="1.5" />
-            <g transform="rotate(-31 29 50)">
-              <rect x="11" y="21" width="39" height="61" rx="8" fill="url(#rg-vault-shell)" stroke="#d8c9ff" strokeWidth="4" />
-              <path d="M17 31h27M17 72h27" stroke="#ffd665" strokeWidth="5" strokeLinecap="round" />
-              <circle cx="39" cy="51" r="7" fill="#e99c22" stroke="#68361c" strokeWidth="3" />
-              <circle cx="39" cy="51" r="3" fill="#e53043" stroke="#ffd05b" strokeWidth="2" />
-            </g>
-            <path d="m8 22-3 9 6 4-5 6 7 5" fill="none" stroke="#fff4b2" strokeWidth="3" strokeLinecap="round" />
-          </g>
-        )}
-      </svg>
+      <img
+        className="rg-blocker-art rg-vault-art rg-reference-piece-art"
+        src={hp >= 2
+          ? "/royal-reference/blocker-vault-closed.webp"
+          : "/royal-reference/blocker-vault-open.webp"}
+        alt=""
+        draggable={false}
+      />
     );
   }
   if (type === "grass" || type === "bear") {
@@ -169,15 +172,12 @@ function BlockerArt({ type, hp }) {
   }
   if (type === "hat") {
     return (
-      <svg className="rg-blocker-art rg-hat-art" viewBox="0 0 64 64" aria-hidden="true">
-        <defs><linearGradient id="rg-hat" x2="0" y2="1"><stop stopColor="#68449c" /><stop offset="1" stopColor="#261541" /></linearGradient></defs>
-        <ellipse cx="32" cy="48" rx="26" ry="9" fill="#190f2b" />
-        <path d="M16 24h32l-3 22H19z" fill="url(#rg-hat)" stroke="#221230" strokeWidth="3" />
-        <ellipse cx="32" cy="24" rx="17" ry="7" fill="#351b4c" stroke="#b62cd1" strokeWidth="4" />
-        <ellipse cx="32" cy="23" rx="11" ry="3" fill="#ed4be8" />
-        <path d="M20 42h24" stroke="#a82bc8" strokeWidth="4" />
-        <path d="M23 12c5-5 13-5 18 0" fill="none" stroke="#fff" strokeWidth="3" opacity=".45" strokeLinecap="round" />
-      </svg>
+      <img
+        className="rg-blocker-art rg-hat-art rg-reference-piece-art"
+        src="/royal-reference/blocker-hat.webp"
+        alt=""
+        draggable={false}
+      />
     );
   }
   return (
@@ -203,6 +203,21 @@ function GoalGlyph({ id }) {
 }
 
 function SpecialPiece({ color, special }) {
+  const referenceSprite = referenceSpecialSprites[special];
+  if (referenceSprite) {
+    const orientationClass = special === "rocket-v" ? "rocket-v" : "";
+    const specialClass = special?.startsWith("rocket-")
+      ? "rg-rocket-piece"
+      : `rg-${special}-piece`;
+    return (
+      <img
+        className={`rg-special-piece ${specialClass} rg-reference-piece-art ${orientationClass}`}
+        src={referenceSprite}
+        alt=""
+        draggable={false}
+      />
+    );
+  }
   if (special === "rocket-h" || special === "rocket-v") {
     return (
       <svg className={`rg-special-piece rg-rocket-piece ${special}`} viewBox="0 0 64 64" aria-hidden="true">
@@ -447,7 +462,7 @@ export default function RoyalGameScreen({
                   ref={(element) => onCellRef(cell?.id, element)}
                   data-row={rowIndex}
                   data-col={colIndex}
-                  className={`rg-cell ${cell ? "rg-cell-filled" : "rg-cell-cutout"} ${cell?.kind === "blocker" ? `rg-cell-${cell.type}` : ""} ${cell?.special ? `rg-cell-special rg-cell-special-${cell.special}` : ""} ${isSelected ? "is-selected" : ""}`}
+                   className={`rg-cell ${cell ? "rg-cell-filled" : "rg-cell-cutout"} ${cell?.kind === "blocker" ? `rg-cell-${cell.type}` : ""} ${cell?.kind === "gem" || ["vault", "hat"].includes(cell?.type) ? "rg-cell-reference" : ""} ${cell?.special ? `rg-cell-special rg-cell-special-${cell.special}` : ""} ${isSelected ? "is-selected" : ""}`}
                   aria-label={`Satır ${rowIndex + 1}, sütun ${colIndex + 1}: ${accessible}`}
                   onClick={() => onCellClick(rowIndex, colIndex)}
                   onPointerDown={(event) => onCellPointerDown(event, rowIndex, colIndex)}

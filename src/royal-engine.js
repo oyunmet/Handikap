@@ -596,6 +596,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
     const currentWave = new Set(clear);
     const blockerHits = new Set();
     const drillClear = new Set();
+    const matchCells = [];
     let removedGems = 0;
 
     for (const key of currentWave) {
@@ -608,6 +609,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
       if (!isGem(cell)) continue;
       next.board[row][col] = null;
       removedGems += 1;
+      matchCells.push({ row, col, color: cell.color });
       next.clearedCells.push({ row, col, color: cell.color, tileId: cell.id });
       for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const targetRow = row + dr;
@@ -623,6 +625,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
       const result = hitBlocker(next.board, row, col, next.goals, next.specialEffects, drillClear);
       next.goals = result.goals;
     }
+    if (matchCells.length) next.specialEffects.push({ type: "match-clear", cells: matchCells });
     if (removedGems > 0) {
       next.goals = updateGoal(next.goals, "gems", removedGems);
       next.score += removedGems * (100 + Math.min(150, next.cascades * 50));

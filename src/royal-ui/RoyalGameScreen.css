@@ -1439,3 +1439,91 @@
   .rg-prelevel-overlay { animation: none; }
   .rg-prelevel-booster.is-selected { transform: none; }
 }
+
+/* In-game art is sampled from the supplied Royal Match references. */
+.royal-game-screen .rg-castle-backdrop {
+  inset: 19.2% 0 10.6%;
+  background-color: #aa8a77;
+  background-image:
+    url("/royal-reference/stage-wall.webp"),
+    url("/royal-reference/stage-floor.webp"),
+    linear-gradient(180deg, #c7ac96 0%, #b89b86 58%, #76513d 100%);
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-size: 100% auto, 100% auto, 100% 100%;
+  background-position: center top, center bottom, center;
+}
+
+.royal-game-screen .rg-castle-backdrop::before,
+.royal-game-screen .rg-castle-backdrop::after {
+  display: none;
+}
+
+.royal-game-screen .rg-cell-reference {
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(92, 111, 156, .48);
+  border-radius: 3px;
+  background: #8ea9d2;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, .48),
+    inset 0 -2px 2px rgba(48, 67, 108, .3);
+}
+
+.royal-game-screen .rg-cell-reference::before {
+  display: none;
+}
+
+.royal-game-screen .rg-cell .rg-reference-piece-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  border-radius: inherit;
+  filter:
+    drop-shadow(0 2px 0 rgba(30, 43, 79, .48))
+    drop-shadow(0 4px 3px rgba(21, 34, 63, .3));
+  pointer-events: none;
+}
+
+.royal-game-screen .rg-cell .rg-special-piece.rg-reference-piece-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.royal-game-screen .rg-cell .rg-rocket-piece.rocket-v {
+  transform: rotate(90deg);
+}
+
+.royal-game-screen .rg-cell .rg-propeller-piece.rg-reference-piece-art {
+  animation: rg-reference-special-pulse 1.8s ease-in-out infinite;
+}
+
+.royal-game-screen .rg-cell-vault .rg-vault-art,
+.royal-game-screen .rg-cell-hat .rg-hat-art {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.royal-game-screen .rg-cell-special.rg-cell-reference {
+  overflow: hidden;
+  background: #8ea9d2;
+}
+
+@keyframes rg-reference-special-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 2px 0 rgba(30, 43, 79, .42)) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(0 3px 2px rgba(30, 43, 79, .42)) brightness(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .royal-game-screen .rg-cell .rg-propeller-piece.rg-reference-piece-art {
+    animation: none;
+  }
+}

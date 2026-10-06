@@ -230,7 +230,31 @@ export default function RoyalGameEffects({ game, active }) {
         const cellSize = Math.min(width / BOARD_COLS, height / BOARD_ROWS);
         const at = cellPoint(event.at || event.from, width, height);
 
-        if (event.type === "special-created") {
+        if (event.type === "match-clear") {
+          const palette = {
+            red: "#ff5262",
+            yellow: "#ffd44b",
+            blue: "#4bc7ff",
+            green: "#66df56",
+            pink: "#ed77f4",
+          };
+          (event.cells || []).slice(0, 36).forEach((cell, cellIndex) => {
+            const center = cellPoint(cell, width, height);
+            const color = palette[cell.color] || "#fff1a0";
+            drawRing(context, center, p, cellSize * 0.42, color, 1.7);
+            if (local < 600) {
+              burstParticles(
+                context,
+                center,
+                Math.min(1, local / 600),
+                index * 41 + cellIndex,
+                4,
+                [color, "#fff", "#ffe9a0"],
+                0.48,
+              );
+            }
+          });
+        } else if (event.type === "special-created") {
           const color = event.special === "tnt" ? "#ffbf54" : event.special === "lightball" ? "#f7d3ff" : "#fff19d";
           drawRing(context, at, p, cellSize * 0.72, color, 2);
           burstParticles(context, at, p, index + 4, 12, [color, "#fff", "#ffec9d"], 0.65);

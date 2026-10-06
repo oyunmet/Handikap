@@ -184,7 +184,7 @@ export default function RoyalGameApp() {
   const effectTimerRef = useRef(null);
   const flightTimerRef = useRef(null);
   const messageTimerRef = useRef(null);
-  const suppressClickRef = useRef(false);
+  const suppressClickRef = useRef(null);
 
   gameRef.current = game;
 
@@ -215,9 +215,16 @@ export default function RoyalGameApp() {
   }, []);
 
   const onCellClick = useCallback((row, col) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
+    const suppression = suppressClickRef.current;
+    if (suppression && suppression.expiresAt >= Date.now()) {
+      if (suppression.cells.has(`${row}:${col}`)) {
+        window.clearTimeout(suppression.timer);
+        suppressClickRef.current = null;
+        return;
+      }
+    } else if (suppression) {
+      window.clearTimeout(suppression.timer);
+      suppressClickRef.current = null;
     }
     const current = gameRef.current;
     if (current.status !== "playing") return;
@@ -251,19 +258,28 @@ export default function RoyalGameApp() {
     const pointerId = event.pointerId;
     const startX = event.clientX;
     const startY = event.clientY;
+    const sourceElement = event.currentTarget;
     const removePointerListeners = () => {
-      window.removeEventListener("pointerup", pointerUp);
-      window.removeEventListener("pointercancel", pointerCancel);
+      window.removeEventListener("pointerup", pointerUp, true);
+      window.removeEventListener("pointercancel", pointerCancel, true);
     };
     const pointerUp = (upEvent) => {
       if (upEvent.pointerId !== pointerId) return;
       removePointerListeners();
       const moved = Math.hypot(upEvent.clientX - startX, upEvent.clientY - startY) > 15;
       if (!moved) return;
-      suppressClickRef.current = true;
-      window.setTimeout(() => { suppressClickRef.current = false; }, 180);
       const target = document.elementFromPoint(upEvent.clientX, upEvent.clientY)?.closest(".rg-cell[data-row][data-col]");
-      if (!target) return;
+      const suppression = {
+        expiresAt: Date.now() + 350,
+        cells: new Set([`${row}:${col}`]),
+        timer: null,
+      };
+      if (target) suppression.cells.add(`${target.dataset.row}:${target.dataset.col}`);
+      suppressClickRef.current = suppression;
+      suppression.timer = window.setTimeout(() => {
+        if (suppressClickRef.current === suppression) suppressClickRef.current = null;
+      }, 350);
+      if (!target || target.disabled) return;
       const targetRow = Number(target.dataset.row);
       const targetCol = Number(target.dataset.col);
       const adjacent = Math.abs(row - targetRow) + Math.abs(col - targetCol) === 1;
@@ -274,8 +290,13 @@ export default function RoyalGameApp() {
     const pointerCancel = (cancelEvent) => {
       if (cancelEvent.pointerId === pointerId) removePointerListeners();
     };
-    window.addEventListener("pointerup", pointerUp);
-    window.addEventListener("pointercancel", pointerCancel);
+    try {
+      sourceElement.setPointerCapture(pointerId);
+    } catch {
+      // Some embedded browsers reject capture if a pointer is already ending.
+    }
+    window.addEventListener("pointerup", pointerUp, true);
+    window.addEventListener("pointercancel", pointerCancel, true);
   }, [activeBooster, commit]);
 
   const onBooster = useCallback((boosterId) => {
