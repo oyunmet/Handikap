@@ -6,7 +6,7 @@ import {
 } from "./royal-engine.js";
 import { getLevelDefinition, LEVEL_COUNT } from "./royal-levels.js";
 import RoyalGameEffects from "./royal-ui/RoyalGameEffects.jsx";
-import RoyalGameScreen from "./royal-ui/RoyalGameScreen.jsx";
+import RoyalGameScreen, { RoyalPreLevelDialog } from "./royal-ui/RoyalGameScreen.jsx";
 import RoyalLevelMap from "./royal-ui/RoyalLevelMap.jsx";
 import "./royal-ui/RoyalGameScreen.css";
 
@@ -160,9 +160,16 @@ function objectiveFlights(previous, next) {
 }
 
 export default function RoyalGameApp() {
+  const previewScreen = new URLSearchParams(window.location.search).get("preview");
   const [campaign, setCampaign] = useState(readCampaignProgress);
   const [selectedLevel, setSelectedLevel] = useState(campaign.unlockedLevel);
-  const [screenMode, setScreenMode] = useState("map");
+  const [screenMode, setScreenMode] = useState(
+    () => import.meta.env.DEV && previewScreen === "game" ? "game" : "map",
+  );
+  const [preLevelOpen, setPreLevelOpen] = useState(
+    () => import.meta.env.DEV && previewScreen === "start",
+  );
+  const [selectedPreBoosters, setSelectedPreBoosters] = useState([]);
   const [game, setGame] = useState(() => createGameState(1));
   const [selectedCell, setSelectedCell] = useState(null);
   const [activeBooster, setActiveBooster] = useState(null);
@@ -296,9 +303,38 @@ export default function RoyalGameApp() {
     setActiveEffectTurn(-1);
     setFlights([]);
     setSettingsOpen(false);
-    setScreenMode("game");
+    setPreLevelOpen(true);
+    setSelectedPreBoosters([]);
+    setScreenMode("map");
     showMessage("");
   }, [campaign.unlockedLevel, showMessage]);
+
+  const togglePreBooster = useCallback((boosterId) => {
+    setSelectedPreBoosters((current) => (
+      current.includes(boosterId)
+        ? current.filter((id) => id !== boosterId)
+        : [...current, boosterId]
+    ));
+  }, []);
+
+  const beginLevel = useCallback(() => {
+    const current = gameRef.current;
+    const boosters = { ...current.boosters };
+    selectedPreBoosters.forEach((boosterId) => {
+      boosters[boosterId] = (boosters[boosterId] || 0) + 1;
+    });
+    const ready = { ...current, boosters };
+    gameRef.current = ready;
+    setGame(ready);
+    setPreLevelOpen(false);
+    setSelectedPreBoosters([]);
+    setScreenMode("game");
+  }, [selectedPreBoosters]);
+
+  const closePreLevel = useCallback(() => {
+    setPreLevelOpen(false);
+    setSelectedPreBoosters([]);
+  }, []);
 
   const restart = useCallback(() => {
     const level = gameRef.current.level || 1;
@@ -315,11 +351,15 @@ export default function RoyalGameApp() {
     setActiveEffectTurn(-1);
     setFlights([]);
     setSettingsOpen(false);
+    setPreLevelOpen(false);
+    setSelectedPreBoosters([]);
     showMessage("");
   }, [showMessage]);
 
   const returnToMap = useCallback(() => {
     setSettingsOpen(false);
+    setPreLevelOpen(false);
+    setSelectedPreBoosters([]);
     setScreenMode("map");
     setSelectedLevel(campaign.unlockedLevel);
     setSelectedCell(null);
@@ -416,15 +456,28 @@ export default function RoyalGameApp() {
 
   if (screenMode === "map") {
     return (
-      <RoyalLevelMap
-        unlockedLevel={campaign.unlockedLevel}
-        completedLevels={campaign.completedLevels}
-        selectedLevel={selectedLevel}
-        onSelectLevel={setSelectedLevel}
-        onStartLevel={startLevel}
-        onContinue={continueCampaign}
-        getLevelDetails={getLevelDetails}
-      />
+      <>
+        <RoyalLevelMap
+          unlockedLevel={campaign.unlockedLevel}
+          completedLevels={campaign.completedLevels}
+          selectedLevel={selectedLevel}
+          onSelectLevel={setSelectedLevel}
+          onStartLevel={startLevel}
+          onContinue={continueCampaign}
+          getLevelDetails={getLevelDetails}
+        />
+        {preLevelOpen && (
+          <RoyalPreLevelDialog
+            level={game.level}
+            goals={game.goals}
+            moves={game.movesLeft}
+            selectedBoosters={selectedPreBoosters}
+            onToggleBooster={togglePreBooster}
+            onClose={closePreLevel}
+            onPlay={beginLevel}
+          />
+        )}
+      </>
     );
   }
 

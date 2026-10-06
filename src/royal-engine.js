@@ -608,7 +608,7 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
       if (!isGem(cell)) continue;
       next.board[row][col] = null;
       removedGems += 1;
-      next.clearedCells.push({ row, col, color: cell.color });
+      next.clearedCells.push({ row, col, color: cell.color, tileId: cell.id });
       for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const targetRow = row + dr;
         const targetCol = col + dc;
@@ -640,7 +640,9 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
     safety += 1;
   }
 
-  next.clearedCells = [...new Map(next.clearedCells.map((cell) => [keyOf(cell.row, cell.col), cell])).values()];
+  next.clearedCells = [...new Map(
+    next.clearedCells.map((cell) => [`${keyOf(cell.row, cell.col)}:${cell.tileId}`, cell]),
+  ).values()];
   syncCreatedSpecialPositions(next.board, next.specialEffects);
   if (!hasAvailableSwap(next.board)) {
     next.board = reshuffleBoard(next.board);
@@ -811,6 +813,33 @@ export function useBooster(state, boosterId, target) {
 
   if (boosterId === "hammer") {
     if (!board[target.row][target.col]) return state;
+    if (isBlocker(board[target.row][target.col])) {
+      const drillClear = new Set();
+      const result = hitBlocker(board, target.row, target.col, state.goals, effects, drillClear);
+      const next = {
+        ...state,
+        board,
+        goals: result.goals,
+        boosters: { ...state.boosters, hammer: state.boosters.hammer - 1 },
+        turnId: state.turnId + 1,
+        message: "",
+        clearedCells: [],
+        fallingTiles: [],
+        cascades: 0,
+        specialEffects: effects,
+      };
+      if (drillClear.size) return settle(next, drillClear, effects);
+      if (!board[target.row][target.col]) {
+        let gem = makeGem();
+        let attempts = 0;
+        while (createsRunAt(board, target.row, target.col, gem.color) && attempts < 30) {
+          gem = makeGem();
+          attempts += 1;
+        }
+        board[target.row][target.col] = gem;
+      }
+      return finishGame(next);
+    }
     addCell(clear, target.row, target.col, board);
   } else if (boosterId === "bow") {
     addLine(clear, target.row, target.col, "horizontal", board);

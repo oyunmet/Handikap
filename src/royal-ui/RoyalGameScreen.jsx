@@ -59,8 +59,10 @@ function Jewel({ color }) {
           <linearGradient id="rg-diamond" x2="0.9" y2="1"><stop stopColor={colors[0]} /><stop offset=".48" stopColor={colors[1]} /><stop offset="1" stopColor={colors[2]} /></linearGradient>
           <linearGradient id="rg-diamond-side" x2="0" y2="1"><stop stopColor="#ffd6ff" /><stop offset="1" stopColor={colors[1]} /></linearGradient>
         </defs>
+        <path d="M16 8h32l12 15-28 34L4 23z" transform="translate(0 4)" fill="#5c1b78" opacity=".9" />
         <path d="M16 8h32l12 15-28 34L4 23z" fill="url(#rg-diamond)" stroke="#9c279c" strokeWidth="3" strokeLinejoin="round" />
         <path d="m16 8-3 15h38L48 8zM13 23l19 34 7-34z" fill="url(#rg-diamond-side)" opacity=".55" />
+        <path d="m13 23 19 34 7-34" fill="none" stroke="#fff0ff" strokeWidth="2" opacity=".75" />
         <path d="M17 13h13" stroke="#fff" strokeWidth="4" strokeLinecap="round" opacity=".8" />
       </svg>
     );
@@ -69,6 +71,7 @@ function Jewel({ color }) {
     return (
       <svg className="rg-jewel" viewBox="0 0 64 64" aria-hidden="true">
         <defs><linearGradient id="rg-leaf" x2="0" y2="1"><stop stopColor={colors[0]} /><stop offset=".55" stopColor={colors[1]} /><stop offset="1" stopColor={colors[2]} /></linearGradient></defs>
+        <path d="M32 57C10 49 9 23 28 8c2 9 9 10 11 18 5-7 10-8 15-9 2 19-3 34-22 40z" transform="translate(0 4)" fill="#205d14" opacity=".88" />
         <path d="M32 57C10 49 9 23 28 8c2 9 9 10 11 18 5-7 10-8 15-9 2 19-3 34-22 40z" fill="url(#rg-leaf)" stroke="#277a13" strokeWidth="3" />
         <path d="M32 53c2-15 7-26 17-34M31 39l-11-9m14 1 7-9" fill="none" stroke="#e1ff98" strokeWidth="3" strokeLinecap="round" />
         <path d="M24 14c4 2 7 5 8 9" stroke="#fff" strokeWidth="4" opacity=".7" strokeLinecap="round" />
@@ -79,6 +82,7 @@ function Jewel({ color }) {
     return (
       <svg className="rg-jewel rg-crown" viewBox="0 0 64 64" aria-hidden="true">
         <defs><linearGradient id="rg-crown" x2="0" y2="1"><stop stopColor={colors[0]} /><stop offset=".48" stopColor={colors[1]} /><stop offset="1" stopColor={colors[2]} /></linearGradient></defs>
+        <path d="M7 23 20 33 31 11l12 22 14-11-6 31H13z" transform="translate(0 4)" fill="#a54f00" opacity=".9" />
         <path d="M7 23 20 33 31 11l12 22 14-11-6 31H13z" fill="url(#rg-crown)" stroke="#c56a08" strokeWidth="3" strokeLinejoin="round" />
         <path d="M14 47h37" stroke="#fff394" strokeWidth="4" strokeLinecap="round" />
         <circle cx="8" cy="20" r="4" fill="#fff18a" /><circle cx="31" cy="9" r="4" fill="#fff18a" /><circle cx="57" cy="20" r="4" fill="#fff18a" />
@@ -92,6 +96,7 @@ function Jewel({ color }) {
         <linearGradient id={`rg-${color}-gem`} x2="0" y2="1"><stop stopColor={colors[0]} /><stop offset=".42" stopColor={colors[1]} /><stop offset="1" stopColor={colors[2]} /></linearGradient>
         <linearGradient id={`rg-${color}-shine`} x2="1" y2="1"><stop stopColor="#fff" stopOpacity=".95" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
       </defs>
+      <path d="M14 7h36a8 8 0 0 1 8 8v27c0 9-11 15-26 19C17 57 6 51 6 42V15a8 8 0 0 1 8-8z" transform="translate(0 4)" fill={colors[2]} />
       <path d="M14 7h36a8 8 0 0 1 8 8v27c0 9-11 15-26 19C17 57 6 51 6 42V15a8 8 0 0 1 8-8z" fill={`url(#rg-${color}-gem)`} stroke={colors[2]} strokeWidth="3" />
       <path d="M14 11h35a4 4 0 0 1 4 4v23c-7 6-15 9-23 12-10-4-18-8-23-13V15a4 4 0 0 1 7-4z" fill="none" stroke="#d9faff" strokeWidth="2" opacity=".7" />
       <path d="M15 14h13" stroke="url(#rg-${color}-shine)" strokeWidth="5" strokeLinecap="round" />
@@ -262,6 +267,88 @@ function BoosterGlyph({ id }) {
   if (id === "bow") return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 8c22 7 22 41 0 48M16 8l10 24-10 24" fill="none" stroke="#f0ae38" strokeWidth="7" strokeLinecap="round" /><path d="M16 8 51 32 16 56" fill="none" stroke="#fff0ae" strokeWidth="2" /><path d="m38 24 16 8-16 8-4-8z" fill="#ef4c50" stroke="#8b2429" strokeWidth="2" /><path d="M14 9 20 6" stroke="#fff" strokeWidth="3" strokeLinecap="round" /></svg>;
   if (id === "cannon") return <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="35" r="22" fill="#234c76" stroke="#ffd043" strokeWidth="4" /><path d="M18 17 43 14l11 15-17 10-21-9z" fill="#384d6f" stroke="#a7c9da" strokeWidth="3" /><circle cx="30" cy="29" r="7" fill="#171f39" stroke="#ffdf6b" strokeWidth="3" /><circle cx="17" cy="44" r="5" fill="#ed4d50" /><circle cx="29" cy="51" r="5" fill="#f3c633" /><circle cx="43" cy="44" r="5" fill="#41b6ed" /><path d="M20 16 38 14" stroke="#fff" strokeWidth="3" strokeLinecap="round" /></svg>;
   return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M15 13c-5 5-6 11-2 15l10 4-10 4c-4 4-3 10 2 15 5 5 11 6 15 2l2-11 4 11c4 4 10 3 15-2s6-11 2-15l-10-4 10-4c4-4 3-10-2-15s-11-6-15-2l-4 10-2-10c-4-4-10-3-15 2z" fill="#69ce47" stroke="#258c37" strokeWidth="3" /><circle cx="22" cy="24" r="5" fill="#ed3c77" /><circle cx="41" cy="24" r="5" fill="#f9d334" /><circle cx="22" cy="42" r="5" fill="#37aafa" /><circle cx="41" cy="42" r="5" fill="#ed5c30" /><circle cx="32" cy="33" r="8" fill="#ffe342" stroke="#fff5a0" strokeWidth="2" /></svg>;
+}
+
+export function RoyalPreLevelDialog({
+  level = 1,
+  goals = [],
+  moves = 30,
+  selectedBoosters = [],
+  onToggleBooster = () => {},
+  onClose = () => {},
+  onPlay = () => {},
+}) {
+  const labels = {
+    vault: "Kasa",
+    bear: "Ayıcık",
+    grass: "Çim",
+    hat: "Şapka",
+    drill: "Matkap",
+    gems: "Mücevher",
+  };
+  const options = [
+    { id: "bow", label: "Roket" },
+    { id: "cannon", label: "TNT" },
+    { id: "jester", label: "Işık küresi" },
+  ];
+
+  return (
+    <div className="rg-prelevel-overlay" role="presentation" onClick={onClose}>
+      <section
+        className="rg-prelevel-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rg-prelevel-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="rg-prelevel-titlebar">
+          <h2 id="rg-prelevel-title">Bölüm {level}</h2>
+        </div>
+        <button type="button" className="rg-prelevel-close" onClick={onClose} aria-label="Bölüm hazırlığını kapat">×</button>
+        <div className="rg-prelevel-content">
+          <div className="rg-prelevel-objectives">
+            <span className="rg-prelevel-objective-heading">Bölüm hedefleri</span>
+            <div className="rg-prelevel-goals">
+              {goals.map((goal) => (
+                <div className="rg-prelevel-goal" key={goal.id}>
+                  <span className="rg-prelevel-goal-icon"><GoalGlyph id={goal.id} /></span>
+                  <span className="rg-prelevel-goal-copy">
+                    <strong>{labels[goal.id] || goal.id}</strong>
+                    <small>{goal.remaining} adet</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <h3>Güçlendirici seç:</h3>
+          <div className="rg-prelevel-boosters">
+            {options.map((option) => {
+              const selected = selectedBoosters.includes(option.id);
+              return (
+                <button
+                  type="button"
+                  className={`rg-prelevel-booster${selected ? " is-selected" : ""}`}
+                  key={option.id}
+                  onClick={() => onToggleBooster(option.id)}
+                  aria-pressed={selected}
+                  aria-label={`${option.label} güçlendiricisini ${selected ? "seçimden çıkar" : "seç"}`}
+                >
+                  <span className="rg-prelevel-booster-art"><BoosterGlyph id={option.id} /></span>
+                  <span className="rg-prelevel-booster-label">{option.label}</span>
+                  <span className="rg-prelevel-booster-check" aria-hidden="true">{selected ? "✓" : "+"}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="rg-prelevel-note">Seçtiklerin bu bölümde envanterine eklenir.</p>
+          <button type="button" className="rg-prelevel-play" onClick={onPlay}>
+            <span>Oyna</span>
+            <small>{moves} hamle</small>
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function GoalPanel({ goals, won = false }) {
