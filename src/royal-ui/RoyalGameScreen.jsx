@@ -334,7 +334,6 @@ export default function RoyalGameScreen({
         <section className="rg-info-card rg-moves-card" aria-label="Kalan hamle">
           <div className="rg-card-ribbon">Hamle</div>
           <div className="rg-moves-number">{movesLeft}</div>
-          {game.totalMoves != null && <span className="rg-moves-caption">/{game.totalMoves}</span>}
         </section>
       </header>
 

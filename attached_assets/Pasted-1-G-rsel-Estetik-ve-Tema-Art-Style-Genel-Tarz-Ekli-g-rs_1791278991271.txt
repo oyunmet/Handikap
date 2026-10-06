@@ -1,0 +1,46 @@
+1. Görsel Estetik ve Tema (Art Style)
+ Genel Tarz: Ekli görsellerdeki gibi, 3D render edilmiş hissi veren, yüksek kaliteli, stilize, çizgi film (caricature) tarzında bir görsel estetik kullanılmalıdır. Renkler canlı ve doygun olmalıdır.
+ Karakter: Ekranın üst-orta kısmında, görsellerde görülen Kral Robert karakterinin animasyonlu bir portresi yer almalıdır. Seviye hedefleri tamamlandığında veya başarısız olunduğunda Kral'ın tepkileri (gülümseme, üzülme) animasyonla gösterilmelidir.
+ Arka Plan: Arka plan, görsellerdeki gibi bir kraliyet odası (tuğla duvar, kırmızı perdeler, şömine benzeri alan) olmalıdır.
+2. Oyun Tahtası ve Parçalar (Grid & Pieces)
+ Tahta Yapısı: 7 sütun x 8 satır (image_0.png'de görülen standart yapı) veya görsellerdeki gibi girintili-çıkıntılı özel tahta şekilleri oluşturulabilmelidir.
+ Temel Parçalar: Görsellerdeki 3D objeler birebir kopyalanmalıdır:
+ Sarı Kral Tacı
+ Kırmızı Kalkan (Amblemli)
+ Mavi Kalkan (Amblemli)
+ Pembe Mücevher (Diamond)
+ Özel Alan Parçaları:
+ Çimen: Bazı karelerin altında yeşil çimen dokusu olmalıdır. Üzerinde eşleştirme yapıldığında çimen temizlenir.
+ Kasa (Vault/Safe): 2x2 veya 3x3 kare kaplayan, mor-sarı metal kasalar. Yanında eşleştirme yapılarak veya güçlendiricilerle vurularak patlatılır. Patladığında içinden paralar çıkar (image_2.png).
+ Blokaj Parçaları:
+ Sihirbaz Şapkaları (Magic Hats): Alt satırlarda mor ışık saçan şapkalar (image_0.png). Üzerinde eşleştirme yapılarak veya güçlendiricilerle temizlenir.
+3. Oyun Mekanikleri (Gameplay)
+ Temel Eşleştirme: 3 veya daha fazla aynı parçayı yatay veya dikey olarak hizalayarak eşleştirme.
+ Güçlendirici Oluşturma (Power-ups):
+ Roket (Rocket): 4 parçalı eşleştirme. Yatay veya dikey tüm satırı/sütunu temizler.
+ Pervane (Propeller/TNT): T veya L şeklinde 5 parçalı eşleştirme. Patladığında 3x3 bir alanı temizler.
+ Gökkuşağı Topu (Rainbow Ball): 5 parçalı düz eşleştirme. Eşleştirildiği renkli parçaların tamamını tahtadan temizler.
+ Birleşik Güçlendiriciler: Roket+Roket, Roket+Pervane, Roket+Gökkuşağı Topu gibi kombinasyonlar, görsellerdeki gibi (image_1.png, image_3.png, image_9.png) devasa ve karmaşık temizleme efektleri yaratmalıdır.
+4. Kullanıcı Arayüzü (UI)
+ Üst Panel:
+ Hedef (Hedef): Sol üst köşede. Temizlenmesi gereken Kasaların, Çimenlerin veya Mücevherlerin türü ve sayısı (image_0.png).
+ Kral Portresi: Orta kısımda.
+ Hamle (Hamle): Sağ üst köşede. Kalan hamle sayısı (image_0.png).
+ Alt Panel:
+ Güçlendirici Butonları: Altta 5 adet yuvarlak buton (image_0.png'deki sırayla: Balta, Yay, Top, Soytarı Şapkası, Ayar Dişlisi). Her birinin altında kalan sayısı.
+ Kazanma/Kaybetme Ekranları:
+ Seviye tamamlandığında: "ROYAL MATCH!" logosu, uçuşan bayraklar, trompetler ve havai fişekler (image_6.png).
+ Hamle bittiğinde: Kaybetme ekranı ve tekrar deneme seçeneği.
+5. Özel Efektler (VFX)
+Bu, oyunun hissini taklit etmek için en kritik kısımdır.
+ Parça Patlama Efekti: Parçalar eşleştiğinde, görsellerdeki gibi parlak, renkli mücevher kırıntıları ve toz efektleri saçılmalıdır.
+ Güçlendirici Aktarımı: Gökkuşağı Topu aktif olduğunda, tahtadaki diğer parçalara giden parlak ışınlar (image_1.png, image_9.png).
+ Kasa Patlaması: Kasalar patladığında, içinden altın paraların havaya saçılması ve toplanma animasyonu (image_2.png, image_7.png).
+ Tahta Sallanması: Büyük patlamalarda ekranın hafifçe sallanması.
+ Temizleme Animasyonları: Çimenlerin ve şapkaların temizlenme animasyonları yumuşak ve tatmin edici olmalıdır.
+6. Ses ve Müzik (SFX/BGM)
+ Temiz, tatmin edici eşleştirme sesleri ("ding", "pop").
+ Güçlendirici patlamaları için güçlü sesler.
+ Kral'ın tepkileri için sesli efektler.
+ Genel kraliyet temalı, neşeli fon müziği.
+Replit İçin Geliştirme Notu: Lütfen bu detayları kullanarak oyunun görsel bütünlüğünü, animasyon kalitesini ve mekanik derinliğini korumaya odaklanın. Verilen görselleri (image_0.png - image_9.png) görsel referans ve varlık kaynağı olarak kullanın.

@@ -1,10 +1,10 @@
 ---
-name: Handikap's original identity
-description: The user's boundary for using commercial match-3 games as visual or mechanic references.
+name: Royal Match project direction
+description: The user corrected this project's target from a garden game to a Royal Match-style match-3 game.
 ---
 
-Keep Handikap visually distinct and preserve its own garden theme. Use reference games for broad match-3 ideas and visual quality, but do not reproduce their characters, exact tile art, or interface.
+The main app should be a Royal Match-style match-3 game, not the former garden game.
 
-**Why:** The user explicitly said they do not want an exact copy of Royal Match.
+**Why:** The user explicitly corrected the product direction and said to make Royal Match, not the garden game.
 
-**How to apply:** When changing Handikap's visuals or match-3 rules, adapt the reference to Handikap instead of copying branded elements or the exact screen.
+**How to apply:** Keep the main app launch on the royal match-3 game. Do not restore the garden game as the app entry point unless the user asks.

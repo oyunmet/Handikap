@@ -74,7 +74,7 @@ function SettingsDialog({ onClose, onRestart }) {
         <button type="button" className="rg-settings-close" onClick={onClose} aria-label="Ayarları kapat">×</button>
         <div className="rg-dialog-icon" aria-hidden="true">⚙</div>
         <p>OYUN AYARLARI</p>
-        <h2 id="rg-settings-title">Bahçe Macerası</h2>
+        <h2 id="rg-settings-title">Kraliyet Macerası</h2>
         <button type="button" className="rg-restart-button" onClick={onRestart}>Bölümü yeniden başlat</button>
       </section>
     </div>
