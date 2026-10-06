@@ -161,6 +161,31 @@ test("a pre-existing yellow line is cleared without charging an attempted move",
   assert.equal(findMatches(next.board).size, 0);
 });
 
+test("the marked adjacent swap creates and clears four yellow crowns vertically", () => {
+  const state = emptyState(1);
+  put(state, 1, 6, gem("yellow-above", "yellow"));
+  put(state, 2, 6, gem("red-middle", "red"));
+  put(state, 2, 7, gem("yellow-right", "yellow"));
+  put(state, 3, 6, gem("yellow-below-a", "yellow"));
+  put(state, 4, 6, gem("yellow-below-b", "yellow"));
+
+  assert.equal(findMatches(state.board).size, 0);
+
+  const next = swapTiles(state, { row: 2, col: 7 }, { row: 2, col: 6 });
+
+  assert.equal(next.turnId, state.turnId + 1);
+  assert.equal(next.movesLeft, state.movesLeft - 1);
+  for (const tileId of [
+    "yellow-above",
+    "yellow-right",
+    "yellow-below-a",
+    "yellow-below-b",
+  ]) {
+    assert.ok(next.clearedCells.some((cell) => cell.tileId === tileId));
+  }
+  assert.equal(findMatches(next.board).size, 0);
+});
+
 test("a four-match creates a rocket special", () => {
   const state = emptyState();
   put(state, 3, 3, gem("top", "red"));
