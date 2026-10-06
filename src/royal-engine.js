@@ -692,6 +692,19 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
   return finishGame(next);
 }
 
+export function settleExistingMatches(state) {
+  if (state.status !== "playing") return state;
+  const plan = planMatchWave(state.board, [], state.unlockedSpecials);
+  if (!plan.clear.size) return state;
+
+  const resolved = settle(state, plan.clear, plan.effects);
+  return {
+    ...resolved,
+    turnId: state.turnId + 1,
+    movesLeft: state.movesLeft,
+  };
+}
+
 export function createGameState(levelNumber = 1) {
   const level = getLevelDefinition(levelNumber);
   return {
@@ -801,7 +814,10 @@ function specialSwapClear(board, first, second) {
 }
 
 export function swapTiles(state, first, second) {
-  if (state.status !== "playing" || !isAdjacent(first, second)) return state;
+  if (state.status !== "playing") return state;
+  const settled = settleExistingMatches(state);
+  if (settled !== state) return settled;
+  if (!isAdjacent(first, second)) return state;
   const board = cloneBoard(state.board);
   const firstCell = board[first.row]?.[first.col];
   const secondCell = board[second.row]?.[second.col];

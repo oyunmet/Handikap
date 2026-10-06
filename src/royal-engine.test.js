@@ -144,6 +144,23 @@ test("a yellow match formed by an adjacent swap is cleared", () => {
   );
 });
 
+test("a pre-existing yellow line is cleared without charging an attempted move", () => {
+  const state = emptyState();
+  put(state, 0, 4, gem("blue-neighbor", "blue"));
+  put(state, 0, 5, gem("yellow-top-a", "yellow"));
+  put(state, 0, 6, gem("yellow-top-b", "yellow"));
+  put(state, 0, 7, gem("yellow-top-c", "yellow"));
+
+  const next = swapTiles(state, { row: 0, col: 4 }, { row: 0, col: 5 });
+
+  assert.equal(next.turnId, state.turnId + 1);
+  assert.equal(next.movesLeft, state.movesLeft);
+  assert.ok(next.clearedCells.some((cell) => cell.tileId === "yellow-top-a"));
+  assert.ok(next.clearedCells.some((cell) => cell.tileId === "yellow-top-b"));
+  assert.ok(next.clearedCells.some((cell) => cell.tileId === "yellow-top-c"));
+  assert.equal(findMatches(next.board).size, 0);
+});
+
 test("a four-match creates a rocket special", () => {
   const state = emptyState();
   put(state, 3, 3, gem("top", "red"));

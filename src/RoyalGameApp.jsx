@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   createGameState,
+  settleExistingMatches,
   swapTiles,
   useBooster,
 } from "./royal-engine.js";
@@ -412,6 +413,16 @@ export default function RoyalGameApp() {
     if (level >= LEVEL_COUNT) returnToMap();
     else startLevel(level + 1);
   }, [returnToMap, startLevel]);
+
+  useEffect(() => {
+    const settled = settleExistingMatches(game);
+    if (settled === game) return;
+    oldPositionsRef.current = tilePositions(tileRefs);
+    gameRef.current = settled;
+    setGame(settled);
+    setSelectedCell(null);
+    showMessage("Tahtadaki eşleşmeler temizlendi.");
+  }, [game, showMessage]);
 
   useEffect(() => {
     if (game.status !== "won") return;
