@@ -31,6 +31,19 @@ test("diagonal drags follow their dominant axis", () => {
   );
 });
 
+test("a swipe prefers the adjacent tile under the release point", () => {
+  assert.deepEqual(
+    getAdjacentSwipeTarget({
+      ...start,
+      endX: 180,
+      endY: 115,
+      releaseRow: 5,
+      releaseCol: 3,
+    }),
+    { row: 5, col: 3 },
+  );
+});
+
 test("a tap-sized movement and invalid coordinates are not treated as a swipe", () => {
   assert.equal(
     getAdjacentSwipeTarget({ ...start, endX: 109, endY: 112 }),

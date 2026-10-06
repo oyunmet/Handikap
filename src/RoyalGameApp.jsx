@@ -267,6 +267,10 @@ export default function RoyalGameApp() {
     const pointerUp = (upEvent) => {
       if (upEvent.pointerId !== pointerId) return;
       removePointerListeners();
+      const releaseCell = document.elementFromPoint(upEvent.clientX, upEvent.clientY)
+        ?.closest(".rg-cell[data-row][data-col]");
+      const releaseRow = releaseCell ? Number(releaseCell.dataset.row) : undefined;
+      const releaseCol = releaseCell ? Number(releaseCell.dataset.col) : undefined;
       const destination = getAdjacentSwipeTarget({
         row,
         col,
@@ -274,19 +278,21 @@ export default function RoyalGameApp() {
         startY,
         endX: upEvent.clientX,
         endY: upEvent.clientY,
+        releaseRow,
+        releaseCol,
       });
       if (!destination) return;
       const destinationCell = document.querySelector(
         `.rg-cell[data-row="${destination.row}"][data-col="${destination.col}"]`,
       );
-      const releaseCell = document.elementFromPoint(upEvent.clientX, upEvent.clientY)
-        ?.closest(".rg-cell[data-row][data-col]");
       const suppression = {
         expiresAt: Date.now() + 350,
         cells: new Set([`${row}:${col}`, `${destination.row}:${destination.col}`]),
         timer: null,
       };
-      if (releaseCell) suppression.cells.add(`${releaseCell.dataset.row}:${releaseCell.dataset.col}`);
+      if (releaseCell) {
+        suppression.cells.add(`${releaseCell.dataset.row}:${releaseCell.dataset.col}`);
+      }
       suppressClickRef.current = suppression;
       suppression.timer = window.setTimeout(() => {
         if (suppressClickRef.current === suppression) suppressClickRef.current = null;

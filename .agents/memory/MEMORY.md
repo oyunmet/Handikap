@@ -1,3 +1,4 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
 - [Royal Match project direction](handikap-original-identity.md) — The main app should be a royal match-3 game, not the former garden game.
 - [Cascade resolution](cascade-resolution.md) — Clear every line or square match formed by falling tiles before a move settles.
+- [Royal Match specials](royal-match-specials.md) — Preserve the requested match-to-special rules and make every special's full effect visible.

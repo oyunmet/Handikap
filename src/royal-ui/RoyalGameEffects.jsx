@@ -94,8 +94,8 @@ function drawLightning(ctx, from, to, progress, seed, color = "#f8ffff") {
   ctx.lineJoin = "round";
   ctx.strokeStyle = color;
   ctx.shadowColor = color;
-  ctx.shadowBlur = 12;
-  ctx.lineWidth = 2.5;
+  ctx.shadowBlur = 15;
+  ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.moveTo(from.x, from.y);
   for (let index = 1; index < segments; index += 1) {
@@ -104,6 +104,11 @@ function drawLightning(ctx, from, to, progress, seed, color = "#f8ffff") {
     ctx.lineTo(from.x + (to.x - from.x) * t + jitter, from.y + (to.y - from.y) * t - jitter * 0.45);
   }
   ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.strokeStyle = "#fff";
+  ctx.shadowColor = "#fff";
+  ctx.shadowBlur = 7;
+  ctx.lineWidth = 1.7;
   ctx.stroke();
   ctx.restore();
 }
@@ -280,12 +285,32 @@ export default function RoyalGameEffects({ game, active }) {
         } else if (event.type === "lightball") {
           const targets = (game.clearedCells || [])
             .filter((cell) => cell.color === event.color)
-            .slice(0, 22)
-            .map((cell) => cellPoint(cell, width, height));
+            .map((cell) => ({
+              point: cellPoint(cell, width, height),
+              distance: Math.hypot(cell.row - event.at.row, cell.col - event.at.col),
+            }))
+            .sort((first, second) => first.distance - second.distance);
           targets.forEach((target, targetIndex) => {
-            const delayed = Math.max(0, p * 1.55 - targetIndex * 0.024);
-            if (delayed > 0) drawLightning(context, at, target, Math.min(1, delayed), index + targetIndex * 7, "#fff");
-            drawRing(context, target, Math.max(0, p - 0.34), cellSize * 0.36, "#e5fcff", 1.5);
+            const delay = Math.min(0.62, targetIndex * 0.009);
+            const lightningProgress = Math.max(0, Math.min(1, (p - delay) / (1 - delay)));
+            if (lightningProgress > 0) {
+              drawLightning(
+                context,
+                at,
+                target.point,
+                lightningProgress,
+                index + targetIndex * 7,
+                "#ffe576",
+              );
+            }
+            drawRing(
+              context,
+              target.point,
+              Math.max(0, lightningProgress - 0.08),
+              cellSize * 0.36,
+              "#e5fcff",
+              1.5,
+            );
           });
           drawRing(context, at, p, cellSize * 0.95, "#fff3a1", 3);
         } else if (event.type === "propeller") {

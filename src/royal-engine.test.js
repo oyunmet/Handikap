@@ -126,6 +126,24 @@ test("a valid match spends one move, scores gems, and damages an adjacent vault"
   }
 });
 
+test("a yellow match formed by an adjacent swap is cleared", () => {
+  const state = emptyState();
+  put(state, 2, 5, gem("yellow-top", "yellow"));
+  put(state, 3, 5, gem("red-middle", "red"));
+  put(state, 4, 5, gem("yellow-bottom", "yellow"));
+  put(state, 3, 6, gem("yellow-swap", "yellow"));
+
+  const next = swapTiles(state, { row: 3, col: 5 }, { row: 3, col: 6 });
+  const clearedYellow = next.clearedCells.filter((cell) => cell.color === "yellow");
+
+  assert.equal(next.turnId, state.turnId + 1);
+  assert.equal(next.movesLeft, state.movesLeft - 1);
+  assert.deepEqual(
+    clearedYellow.map(({ row, col }) => `${row}:${col}`).sort(),
+    ["2:5", "3:5", "4:5"],
+  );
+});
+
 test("a four-match creates a rocket special", () => {
   const state = emptyState();
   put(state, 3, 3, gem("top", "red"));
@@ -141,6 +159,35 @@ test("a four-match creates a rocket special", () => {
     row.map((cell, colIndex) => cell?.id === created.tileId ? { row: rowIndex, col: colIndex } : null),
   ).find(Boolean);
   if (createdTilePosition) assert.deepEqual(created.at, createdTilePosition);
+});
+
+test("a five-match creates the lightball special", () => {
+  const state = emptyState();
+  put(state, 4, 1, gem("red-left-a", "red"));
+  put(state, 4, 2, gem("red-left-b", "red"));
+  put(state, 4, 3, gem("blue-middle", "blue"));
+  put(state, 4, 4, gem("red-right-a", "red"));
+  put(state, 4, 5, gem("red-right-b", "red"));
+  put(state, 3, 3, gem("red-swap", "red"));
+
+  const next = swapTiles(state, { row: 3, col: 3 }, { row: 4, col: 3 });
+
+  assert.ok(next.specialEffects.some((effect) =>
+    effect.type === "special-created" && effect.special === "lightball"));
+});
+
+test("a 2-by-2 match creates a propeller", () => {
+  const state = emptyState();
+  put(state, 4, 2, gem("red-square-a", "red"));
+  put(state, 4, 3, gem("blue-square", "blue"));
+  put(state, 5, 2, gem("red-square-b", "red"));
+  put(state, 5, 3, gem("red-square-c", "red"));
+  put(state, 3, 3, gem("red-swap", "red"));
+
+  const next = swapTiles(state, { row: 3, col: 3 }, { row: 4, col: 3 });
+
+  assert.ok(next.specialEffects.some((effect) =>
+    effect.type === "special-created" && effect.special === "propeller"));
 });
 
 test("locked powers do not appear before their campaign unlock", () => {
@@ -169,14 +216,27 @@ test("a lightball swapped with a normal gem clears the partner's color", () => {
   const state = emptyState();
   put(state, 4, 2, gem("lightball", "blue", "lightball"));
   put(state, 4, 3, gem("partner", "red"));
-  put(state, 2, 3, gem("red-target", "red"));
   put(state, 6, 3, gem("blue-target", "blue"));
+  const redTargets = [];
+  for (let row = 0; row < BOARD_MASK.length; row += 1) {
+    for (let col = 0; col < BOARD_MASK[row].length; col += 1) {
+      if (!BOARD_MASK[row][col] || (row + col) % 2 !== 0 || state.board[row][col]) continue;
+      if (col === 3 && (row === 3 || row === 5)) continue;
+      const target = gem(`red-target-${row}-${col}`, "red");
+      state.board[row][col] = target;
+      redTargets.push(target.id);
+    }
+  }
 
   const next = swapTiles(state, { row: 4, col: 2 }, { row: 4, col: 3 });
   const lightball = next.specialEffects.find((effect) => effect.type === "lightball");
+  const clearedIds = new Set(next.clearedCells.map(({ tileId }) => tileId));
 
   assert.equal(lightball?.color, "red");
-  assert.ok(next.clearedCells.some((cell) => cell.row === 2 && cell.col === 3));
+  assert.ok(redTargets.length > 22, "the test must include more targets than the former animation cap");
+  assert.ok(redTargets.every((id) => clearedIds.has(id)));
+  assert.ok(clearedIds.has("partner"));
+  assert.equal(clearedIds.has("blue-target"), false);
 });
 
 test("a vertical rocket clears its column and reports a vertical beam", () => {

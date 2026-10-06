@@ -5,9 +5,19 @@ export function getAdjacentSwipeTarget({
   startY,
   endX,
   endY,
+  releaseRow,
+  releaseCol,
 }, threshold = 15) {
   const values = [row, col, startX, startY, endX, endY];
   if (!values.every(Number.isFinite)) return null;
+
+  if (
+    Number.isInteger(releaseRow)
+    && Number.isInteger(releaseCol)
+    && Math.abs(releaseRow - row) + Math.abs(releaseCol - col) === 1
+  ) {
+    return { row: releaseRow, col: releaseCol };
+  }
 
   const deltaX = endX - startX;
   const deltaY = endY - startY;
