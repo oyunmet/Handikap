@@ -47,6 +47,7 @@ function getLevelDetails(levelNumber) {
   return {
     chapter: level.chapter,
     title: level.title,
+    story: level.chapterStory,
     featureLabels: level.featureLabels,
     description: level.description,
     moves: level.moves,

@@ -618,10 +618,12 @@ function settle(state, initialClear, initialEffects = [], preferred = []) {
   let safety = 0;
   const maxRandomCascadeWaves = 24;
 
-  while (clear.size) {
+  while (true) {
     if (!clear.size) {
+      const remainingMatches = findMatches(next.board);
+      if (!remainingMatches.size) break;
       const plan = planMatchWave(next.board, preferred, next.unlockedSpecials);
-      clear = plan.clear;
+      clear = plan.clear.size ? plan.clear : remainingMatches;
       next.specialEffects.push(...plan.effects);
       preferred = [];
     }

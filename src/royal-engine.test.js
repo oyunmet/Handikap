@@ -76,6 +76,7 @@ test("campaign defines 500 distinct challenges across 20 chapters", () => {
   assert.equal(new Set(signatures).size, LEVEL_COUNT);
   assert.equal(definitions.at(-1).chapter, LEVEL_COUNT / LEVELS_PER_CHAPTER);
   assert.equal(getLevelDefinition(501).level, LEVEL_COUNT);
+  assert.ok(definitions.every(({ chapterStory }) => chapterStory?.length > 20));
   assert.deepEqual(getLevelDefinition(1).unlockedSpecials, []);
   assert.deepEqual(getLevelDefinition(2).unlockedSpecials, ["rocket"]);
   assert.ok(getLevelDefinition(14).unlockedSpecials.includes("lightball"));
@@ -146,14 +147,15 @@ test("a yellow match formed by an adjacent swap is cleared", () => {
   }
 });
 
-test("a pre-existing yellow line is cleared without charging an attempted move", () => {
+test("the screenshot's top-row yellow line is cleared without charging an attempted move", () => {
   const state = emptyState();
-  put(state, 0, 4, gem("blue-neighbor", "blue"));
-  put(state, 0, 5, gem("yellow-top-a", "yellow"));
-  put(state, 0, 6, gem("yellow-top-b", "yellow"));
-  put(state, 0, 7, gem("yellow-top-c", "yellow"));
+  put(state, 0, 4, gem("yellow-top-a", "yellow"));
+  put(state, 0, 5, gem("yellow-top-b", "yellow"));
+  put(state, 0, 6, gem("yellow-top-c", "yellow"));
+  put(state, 0, 7, gem("green-neighbor", "green"));
 
-  const next = swapTiles(state, { row: 0, col: 4 }, { row: 0, col: 5 });
+  assert.ok(findMatches(state.board).size > 0);
+  const next = swapTiles(state, { row: 0, col: 6 }, { row: 0, col: 7 });
 
   assert.equal(next.turnId, state.turnId + 1);
   assert.equal(next.movesLeft, state.movesLeft);

@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { LEVEL_COUNT, LEVELS_PER_CHAPTER, getLevelDefinition } from "../royal-levels.js";
+import {
+  LEVEL_COUNT,
+  LEVELS_PER_CHAPTER,
+  getChapterStory,
+  getLevelDefinition,
+} from "../royal-levels.js";
 import "./RoyalLevelMap.css";
 
 const CHAPTERS = Array.from(
@@ -231,7 +236,10 @@ export default function RoyalLevelMap({
           <div className="rlm-king-frame">
             <img src="/king-avatar.png" alt="" />
           </div>
-          <p><strong>Kralın mesajı</strong><span>“Yeni bir oda seni bekliyor.”</span></p>
+          <p>
+            <strong>Kralın mesajı</strong>
+            <span>“{getChapterStory(displayChapter)}”</span>
+          </p>
           <button className="rlm-continue" type="button" onClick={onContinue}>
             Devam et
             <span aria-hidden="true">›</span>
@@ -302,6 +310,10 @@ export default function RoyalLevelMap({
           </div>
           <h2 id="rlm-selected-title">{detail.title || "Kraliyet görevi"}</h2>
           <p className="rlm-detail-chapter">{displayChapter}. bölüm · {chapterTitle}</p>
+          <div className="rlm-story-card">
+            <span>HİKÂYE</span>
+            <p>{detail.story || getChapterStory(displayChapter)}</p>
+          </div>
           <p className="rlm-description">
             {detail.description || "Görevini görmek için haritadan bir seviye seç."}
           </p>
