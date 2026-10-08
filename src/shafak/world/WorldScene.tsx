@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import WorldAtmosphere from "./WorldAtmosphere";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
+import type { PlayerProfile } from "../game/profile";
+import type { Opponent } from "../game/types";
 import "./world-scene.css";
 
 type WorldSceneProps = {
@@ -11,6 +13,9 @@ type WorldSceneProps = {
   vibrationEnabled: boolean;
   onExit: () => void;
   onOpenSettings: () => void;
+  profile: PlayerProfile;
+  onOpenProfile: () => void;
+  onEncounterStart: (opponent: Opponent) => void;
 };
 type Panel = "inventory" | "settings" | null;
 type Vector = { x: number; y: number };
@@ -32,6 +37,9 @@ export default function WorldScene({
   vibrationEnabled,
   onExit,
   onOpenSettings,
+  profile,
+  onOpenProfile,
+  onEncounterStart,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const heldKeys = useRef(new Set<string>());
@@ -50,6 +58,15 @@ export default function WorldScene({
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const [travel, setTravel] = useState(0);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", rain);
+  const opponents: (Opponent & { distance: number })[] = [
+    { id: "ash-scout", name: "Kül İzci", level: 2, winRate: 42, loot: 48, taunt: "Bu yolun sonu sana kapalı!", difficulty: "easy", distance: 18 },
+    { id: "iron-vow", name: "Demir Yemin", level: 4, winRate: 57, loot: 76, taunt: "Ganimetini almaya geldim.", difficulty: "medium", distance: 58 },
+    { id: "dusk-wolf", name: "Alacakaranlık Kurdu", level: 6, winRate: 68, loot: 112, taunt: "Şafak burada sönecek.", difficulty: "hard", distance: 112 },
+  ];
+  const nextOpponent = opponents.find((candidate) => !profile.defeatedOpponents.includes(candidate.id));
+  const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
+  const encounterVisible = Boolean(nextOpponent && encounterDistance <= 25);
+  const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
 
   const wake = useCallback(() => {
     if (audioOn) startAudio();
@@ -243,17 +260,17 @@ export default function WorldScene({
         <div className="world-vignette" />
       </div>
       <header className="world-topbar">
-        <div className="world-profile" aria-label={`${worldText.profileName}, ${worldText.demo}`}>
+        <button className="world-profile" type="button" onClick={onOpenProfile} aria-label={`${profile.name}, seviye ${profile.level}, profili aç`}>
           <span className="world-profile__crest" aria-hidden="true">Ş</span>
           <span className="world-profile__identity">
-            <strong className="world-profile__name">{worldText.profileName}</strong>
-            <span className="world-profile__demo">{worldText.demo}</span>
+            <strong className="world-profile__name">{profile.name}</strong>
+            <span className="world-profile__demo">YOLCU PROFİLİ</span>
           </span>
-          <span className="world-profile__level"><span>{worldText.level}</span><b>01</b></span>
-        </div>
-        <div className="world-currency" aria-label={`${worldText.gold}: 120`} title={worldText.gold}>
+          <span className="world-profile__level"><span>{worldText.level}</span><b>{String(profile.level).padStart(2, "0")}</b></span>
+        </button>
+        <div className="world-currency" aria-label={`${worldText.gold}: ${profile.gold}`} title={worldText.gold}>
           <span className="world-currency__coin" aria-hidden="true" />
-          <span>120</span>
+          <span>{profile.gold.toLocaleString("tr-TR")}</span>
         </div>
       </header>
       <div className={`world-weather${rain ? " world-weather--rain" : ""}`}>
@@ -277,6 +294,22 @@ export default function WorldScene({
         onPointerCancel={releaseJoystick}
       ><span className="world-joystick__nub" /></div>
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
+      {encounterVisible && nextOpponent && (
+        <div className={`world-encounter${canChallenge ? " is-near" : ""}`} aria-live="polite">
+          <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
+          <div className="world-encounter__card">
+            <span className="world-encounter__eyebrow">{canChallenge ? "YAKINDA · MEYDAN OKUMA" : `YOL KESEN · ${Math.ceil(encounterDistance)} M`}</span>
+            <strong>{nextOpponent.name}</strong>
+            <span>Seviye {nextOpponent.level} <i>·</i> Kazanma %{nextOpponent.winRate} <i>·</i> {nextOpponent.loot} altın</span>
+            <em>“{nextOpponent.taunt}”</em>
+            {canChallenge && (
+              <button type="button" className="world-encounter__fight" onClick={() => onEncounterStart(nextOpponent)}>
+                <span aria-hidden="true">⚔</span> SAVAŞ
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <footer className="world-controls">
         <div className="world-navigation">
           <button className="world-exit" type="button" onClick={onExit} aria-label={worldText.exit}>
@@ -309,11 +342,13 @@ export default function WorldScene({
             {panel === "inventory" ? (
               <>
                 <div className="world-inventory">
-                  {worldText.inventorySlots.map((slot, index) => (
-                    <div className="world-inventory__slot" key={index} aria-label={`${slot} ${index + 1}`}><span>{String(index + 1).padStart(2, "0")}</span></div>
+                  {Array.from({ length: 8 }, (_, index) => (
+                    <div className={`world-inventory__slot${profile.items[index] ? " world-inventory__slot--filled" : ""}`} key={index} aria-label={`${profile.items[index] ?? "Boş"} ${index + 1}`}>
+                      {profile.items[index] ? <><i>✦</i><small>{profile.items[index]}</small></> : <span>{String(index + 1).padStart(2, "0")}</span>}
+                    </div>
                   ))}
                 </div>
-                <p className="world-inventory__note">{worldText.inventoryNote}</p>
+                <p className="world-inventory__note">{profile.items.length ? `${profile.items.length} ganimet heybenin içinde.` : worldText.inventoryNote}</p>
               </>
             ) : (
               <>

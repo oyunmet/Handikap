@@ -1,0 +1,68 @@
+.auth-page {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  min-height: 100svh;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 94px 20px 28px;
+  background: #080b12;
+}
+
+.auth-page__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 52% 44%, rgba(131, 79, 49, .19), transparent 43%),
+    linear-gradient(180deg, rgba(8, 11, 18, .66), #080b12 92%),
+    url("/shafak-warrior.png") center 25% / cover no-repeat;
+  opacity: .58;
+}
+
+.auth-page__brand {
+  position: absolute;
+  z-index: 1;
+  top: max(22px, env(safe-area-inset-top));
+  left: max(22px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f0dfbf;
+  text-decoration: none;
+}
+
+.auth-page__brand img {
+  width: 38px;
+  height: 38px;
+}
+
+.auth-page__brand span {
+  display: grid;
+  gap: 1px;
+  font-family: Cinzel, Georgia, serif;
+  letter-spacing: .13em;
+}
+
+.auth-page__brand strong { font-size: 11px; }
+.auth-page__brand small { color: #bba783; font-size: 8px; }
+
+.auth-page > :not(.auth-page__backdrop):not(.auth-page__brand) {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-loading {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  place-items: center;
+  color: #e3d4b9;
+  background: #080b12;
+  font: 600 14px Manrope, sans-serif;
+}
+
+@media (max-width: 520px) {
+  .auth-page { padding-inline: 16px; }
+}

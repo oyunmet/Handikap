@@ -7,9 +7,10 @@
     "dev": "node scripts/dev.mjs",
     "dev:client": "vite --host 0.0.0.0 --port 5000",
     "dev:server": "tsx server/index.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5000",
-    "test": "node --test",
+    "test": "node --import tsx --test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -40,7 +41,7 @@
     "socket.io-client": "^4.8.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2",
+    "vite": "^8.3.3",
     "wouter": "^3.13.0"
   }
 }

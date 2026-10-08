@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="night" x1="5" y1="4" x2="43" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#292233"/>
+      <stop offset="1" stop-color="#080b12"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="14" y1="10" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff0b4"/>
+      <stop offset="1" stop-color="#c17c32"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="14" fill="url(#night)"/>
+  <path d="M24 5 39 11v12c0 9-6 15-15 20C15 38 9 32 9 23V11l15-6Z" fill="#17151d" stroke="url(#gold)" stroke-width="2"/>
+  <path d="M24 10v23M15 15l18 12M33 15 15 27" stroke="url(#gold)" stroke-width="2" stroke-linecap="round"/>
+  <path d="m24 8 2.2 4.7 5.2.6-3.8 3.5.9 5-4.5-2.5-4.5 2.5.9-5-3.8-3.5 5.2-.6L24 8Z" fill="#bd343a" stroke="#f7d18a" stroke-width="1"/>
+</svg>

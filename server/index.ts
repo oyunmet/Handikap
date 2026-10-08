@@ -1,6 +1,16 @@
+import cors from "cors";
+import { clerkMiddleware } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
+import express from "express";
 import { createServer } from "node:http";
 import { Pool } from "pg";
 import { Server as SocketIOServer } from "socket.io";
+import {
+  CLERK_PROXY_PATH,
+  clerkProxyMiddleware,
+  getClerkProxyHost,
+} from "./middlewares/clerkProxyMiddleware";
+import { createProfileApi } from "./profileApi";
 
 const port = Number(process.env.GAME_SERVER_PORT ?? "3001");
 
@@ -9,29 +19,38 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 const database = new Pool();
-const httpServer = createServer(async (request, response) => {
-  if (request.method !== "GET" || request.url !== "/api/health") {
-    response.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify({ error: "Not found" }));
-    return;
-  }
+let databaseStatus: "connected" | "unavailable" | "not_configured" =
+  process.env.DATABASE_URL || process.env.PGHOST ? "unavailable" : "not_configured";
+const app = express();
 
-  try {
-    await database.query("SELECT 1");
-    response.writeHead(200, {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-    });
-    response.end(JSON.stringify({ status: "ok", database: "connected" }));
-  } catch {
-    response.writeHead(503, {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-    });
-    response.end(JSON.stringify({ status: "unavailable", database: "unavailable" }));
+// Clerk's production frontend-API proxy must be mounted before body parsers.
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+app.use(cors({ credentials: true, origin: true }));
+app.use(
+  clerkMiddleware((request) => ({
+    publishableKey: publishableKeyFromHost(
+      getClerkProxyHost(request) ?? "",
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+  })),
+);
+app.use(express.json({ limit: "16kb" }));
+app.use(createProfileApi(database));
+
+app.get("/api/health", async (_request, response) => {
+  if (databaseStatus !== "not_configured") {
+    try {
+      await database.query("SELECT 1");
+      databaseStatus = "connected";
+    } catch {
+      databaseStatus = "unavailable";
+    }
   }
+  response.setHeader("Cache-Control", "no-store");
+  response.json({ status: "ok", database: databaseStatus });
 });
 
+const httpServer = createServer(app);
 const sockets = new SocketIOServer(httpServer, {
   path: "/socket.io",
   serveClient: false,
@@ -42,17 +61,18 @@ sockets.on("connection", (socket) => {
 });
 
 async function startServer() {
-  try {
-    await database.query("SELECT 1");
-  } catch {
-    console.error("PostgreSQL is unavailable; the game server did not start.");
-    await database.end();
-    process.exitCode = 1;
-    return;
+  if (databaseStatus !== "not_configured") {
+    try {
+      await database.query("SELECT 1");
+      databaseStatus = "connected";
+    } catch {
+      databaseStatus = "unavailable";
+      console.warn("PostgreSQL is unavailable; the local game server is starting without persistent database features.");
+    }
   }
 
   httpServer.listen(port, "0.0.0.0", () => {
-    console.log(`[shafak-server] listening on port ${port}; PostgreSQL is connected`);
+    console.log(`[shafak-server] listening on port ${port}; database=${databaseStatus}`);
   });
 }
 

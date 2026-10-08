@@ -1,10 +1,19 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { playUiChime, setSoundEnabled } from "./audio/howler";
+import { useClerk, useUser } from "@clerk/react";
+import { useLocation } from "wouter";
+import { playGameSound, playUiChime, setSoundEnabled } from "./audio/howler";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
+import WorldScene from "./world/WorldScene";
+import DuelIntro from "./game/DuelIntro";
+import DuelArena from "./game/DuelArena";
+import DuelResults from "./game/DuelResults";
+import ProfilePanel from "./game/ProfilePanel";
+import { awardBattle, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import type { BattleRewards, DuelSummary, Opponent } from "./game/types";
 
-type Screen = "opening" | "loading" | "menu";
+type Screen = "opening" | "loading" | "menu" | "world" | "duel-intro" | "duel" | "result";
 type Preferences = {
   sound: boolean;
   vibration: boolean;
@@ -141,15 +150,105 @@ function ArrowIcon() {
 }
 
 function App() {
+  const { user, isLoaded: authLoaded } = useUser();
+  const { signOut } = useClerk();
+  const [, setLocation] = useLocation();
   const [screen, setScreen] = useState<Screen>("opening");
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
+  const [profile, setProfile] = useState<PlayerProfile>(() => readProfile(user?.id));
+  const [profileSyncOwner, setProfileSyncOwner] = useState("");
+  const [profileSyncStatus, setProfileSyncStatus] = useState<"loading" | "ready" | "local">("loading");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [opponent, setOpponent] = useState<Opponent | null>(null);
+  const [duelSummary, setDuelSummary] = useState<DuelSummary | null>(null);
+  const [battleRewards, setBattleRewards] = useState<BattleRewards | null>(null);
+  const [battleSeed, setBattleSeed] = useState(() => Date.now() >>> 0);
   const [announcement, setAnnouncement] = useState("");
   const sceneRef = useRef<HTMLDivElement>(null);
   const systemReducedMotion = useReducedMotion();
   const motionReduced = preferences.reduceMotion || Boolean(systemReducedMotion);
+  const homeAtmosphere = screen === "opening" || screen === "loading" || screen === "menu";
+
+  useEffect(() => {
+    if (!authLoaded) return;
+    let cancelled = false;
+    const accountProfile = readProfile(user?.id);
+    if (user?.firstName && accountProfile.name === "Yolcu") {
+      accountProfile.name = user.firstName.slice(0, 20);
+    }
+    if (!user?.id) {
+      setProfile(accountProfile);
+      setProfileSyncOwner("guest");
+      setProfileSyncStatus("ready");
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setProfileSyncStatus("loading");
+    void (async () => {
+      try {
+        const response = await fetch("/api/profile", { credentials: "include" });
+        if (!response.ok) throw new Error(`Profile load failed (${response.status})`);
+        const result = (await response.json()) as { profile: unknown | null };
+        const nextProfile = result.profile
+          ? normalizePlayerProfile(result.profile)
+          : accountProfile;
+
+        if (!result.profile) {
+          const saveResponse = await fetch("/api/profile", {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(nextProfile),
+          });
+          if (!saveResponse.ok) throw new Error(`Profile creation failed (${saveResponse.status})`);
+        }
+
+        if (!cancelled) {
+          setProfile(nextProfile);
+          setProfileSyncOwner(user.id);
+          setProfileSyncStatus("ready");
+        }
+      } catch {
+        if (!cancelled) {
+          setProfile(accountProfile);
+          setProfileSyncOwner(user.id);
+          setProfileSyncStatus("local");
+          setAnnouncement("Hesap kaydı sunucuya bağlanamadı; bu cihazdaki kayıt kullanılıyor.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoaded, user?.id, user?.firstName]);
+
+  useEffect(() => {
+    if (!authLoaded || profileSyncOwner !== (user?.id ?? "guest")) return;
+    saveProfile(profile, user?.id);
+    if (!user?.id || profileSyncStatus !== "ready") return;
+
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/profile", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      }).then((response) => {
+        if (!response.ok) throw new Error(`Profile save failed (${response.status})`);
+      }).catch(() => {
+        setProfileSyncStatus("local");
+        setAnnouncement("Hesap kaydı güncellenemedi; ilerleme bu cihazda tutuluyor.");
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [authLoaded, profile, profileSyncOwner, profileSyncStatus, user?.id]);
 
   useEffect(() => {
     try {
@@ -253,6 +352,36 @@ function App() {
     setScreen("loading");
   };
 
+  const enterWorld = () => {
+    playFeedback();
+    setScreen("world");
+  };
+
+  const beginEncounter = (nextOpponent: Opponent) => {
+    playFeedback();
+    setOpponent(nextOpponent);
+    setBattleSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    setScreen("duel-intro");
+  };
+
+  const finishEncounter = (summary: DuelSummary) => {
+    const awarded = awardBattle(profile, summary, user?.id);
+    setProfile(awarded.profile);
+    setDuelSummary(summary);
+    setBattleRewards(awarded.rewards);
+    setScreen("result");
+    if (preferences.sound) playGameSound(summary.verdict === "victory" ? "victory" : "defeat");
+    if (preferences.vibration && "vibrate" in navigator) {
+      try { navigator.vibrate(summary.verdict === "victory" ? [20, 45, 35] : 16); } catch { /* Haptics are optional. */ }
+    }
+  };
+
+  const rematch = () => {
+    if (!opponent) return;
+    setBattleSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    setScreen("duel-intro");
+  };
+
   const setPreference = <Key extends keyof Preferences>(
     key: Key,
     value: Preferences[Key],
@@ -280,22 +409,27 @@ function App() {
   const transitionDuration = motionReduced ? 0.16 : 0.68;
 
   return (
-    <main
+    <div
+      role="application"
       className={`shafak-app${motionReduced ? " motion-reduced" : ""}`}
       ref={sceneRef}
       aria-label={tr.brand}
     >
-      <div className="scene-backdrop" aria-hidden="true">
-        <div className="scene-backdrop__image" />
-        <div className="scene-backdrop__haze" />
-        <div className="scene-backdrop__light" />
-        <div className="scene-backdrop__vignette" />
-      </div>
-      <div className="scene-character" aria-hidden="true">
-        <img src="/shafak-warrior.png" alt="" />
-      </div>
-      <EmberLayer quality={preferences.quality} motionReduced={motionReduced} />
-      <div className="scene-grain" aria-hidden="true" />
+      {homeAtmosphere && (
+        <>
+          <div className="scene-backdrop" aria-hidden="true">
+            <div className="scene-backdrop__image" />
+            <div className="scene-backdrop__haze" />
+            <div className="scene-backdrop__light" />
+            <div className="scene-backdrop__vignette" />
+          </div>
+          <div className="scene-character" aria-hidden="true">
+            <img src="/shafak-warrior.png" alt="" />
+          </div>
+          <EmberLayer quality={preferences.quality} motionReduced={motionReduced} />
+          <div className="scene-grain" aria-hidden="true" />
+        </>
+      )}
 
       <AnimatePresence mode="wait">
         {screen === "opening" && (
@@ -471,12 +605,11 @@ function App() {
                     className="menu-action menu-action--primary"
                     type="button"
                     onClick={() => {
-                      playFeedback();
-                      setSettingsOpen(true);
+                      enterWorld();
                     }}
                   >
-                    <span className="menu-action__icon"><SettingsIcon /></span>
-                    <span>{tr.openSettings}</span>
+                    <span className="menu-action__icon"><ArrowIcon /></span>
+                    <span>YOLA ÇIK</span>
                     <ArrowIcon />
                   </button>
                   <button
@@ -484,10 +617,10 @@ function App() {
                     type="button"
                     onClick={() => {
                       playFeedback();
-                      setScreen("opening");
+                      setProfileOpen(true);
                     }}
                   >
-                    {tr.replayOpening}
+                    YOLCU PROFİLİ
                   </button>
                 </div>
               </motion.div>
@@ -499,6 +632,86 @@ function App() {
               <span className="footer-sigil" aria-hidden="true">✦</span>
             </footer>
           </motion.section>
+        )}
+        {screen === "world" && (
+          <motion.div
+            key="world"
+            className="game-screen-shell"
+            initial={{ opacity: 0, scale: motionReduced ? 1 : .985 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: motionReduced ? 1 : 1.02 }}
+            transition={{ duration: motionReduced ? .12 : .42, ease: "easeOut" }}
+          >
+            <WorldScene
+              quality={preferences.quality}
+              motionReduced={motionReduced}
+              soundEnabled={preferences.sound}
+              vibrationEnabled={preferences.vibration}
+              profile={profile}
+              onExit={() => setScreen("menu")}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenProfile={() => setProfileOpen(true)}
+              onEncounterStart={beginEncounter}
+            />
+          </motion.div>
+        )}
+        {screen === "duel-intro" && opponent && (
+          <DuelIntro
+            key="duel-intro"
+            playerName={profile.name}
+          playerLevel={profile.level}
+            opponent={opponent}
+            onComplete={() => setScreen("duel")}
+          />
+        )}
+        {screen === "duel" && opponent && (
+          <DuelArena
+            key={`duel-${battleSeed}`}
+            seed={battleSeed}
+            player={profile}
+            opponent={opponent}
+            soundEnabled={preferences.sound}
+            vibrationEnabled={preferences.vibration}
+            onFinish={finishEncounter}
+          />
+        )}
+        {screen === "result" && duelSummary && battleRewards && opponent && (
+          <DuelResults
+            key="duel-result"
+            summary={duelSummary}
+            rewards={battleRewards}
+            playerName={profile.name}
+            opponentName={opponent.name}
+            onContinue={() => setScreen("world")}
+            onReplay={rematch}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {profileOpen && (
+          <motion.div
+            key="profile"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: motionReduced ? .1 : .2 }}
+          >
+            <ProfilePanel
+              profile={profile}
+              userEmail={user?.primaryEmailAddress?.emailAddress ?? null}
+              accountSaveStatus={profileSyncStatus}
+              onClose={() => setProfileOpen(false)}
+              onRename={(name) => setProfile(renameProfile(profile, name, user?.id))}
+              onAccountAction={() => {
+                if (user) {
+                  void signOut({ redirectUrl: import.meta.env.BASE_URL || "/" });
+                } else {
+                  setLocation("/sign-in");
+                }
+              }}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -611,7 +824,7 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
-    </main>
+    </div>
   );
 }
 

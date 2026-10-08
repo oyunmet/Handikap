@@ -134,7 +134,11 @@
   background: linear-gradient(115deg, rgba(22,22,26,.86), rgba(24,21,22,.55));
   box-shadow: 0 9px 32px rgba(0,0,0,.22);
   backdrop-filter: blur(12px);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
+.world-profile:hover { border-color: rgba(235,199,127,.58); background: linear-gradient(115deg, rgba(42,35,30,.94), rgba(24,21,22,.68)); }
 .world-profile__crest {
   display: grid; width: 42px; height: 46px; flex: 0 0 auto; place-items: center;
   border: 1px solid rgba(222,184,116,.32);
@@ -268,6 +272,41 @@
   box-shadow: 0 4px 15px rgba(0,0,0,.42); transform: translate(-50%,-50%);
 }
 .world-mobile-hint { display: none; }
+.world-encounter {
+  position: absolute; z-index: 4; top: 34%; left: 50%;
+  display: flex; width: min(520px, calc(100% - 28px)); align-items: flex-end; gap: 8px;
+  transform: translateX(-50%); pointer-events: none;
+  animation: encounter-arrive .5s cubic-bezier(.2,.72,.24,1) both;
+}
+.world-encounter__rival {
+  display: grid; width: clamp(64px, 12vw, 112px); height: clamp(96px, 24vh, 204px);
+  flex: 0 0 auto; place-items: end center; overflow: hidden;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,.58)) sepia(.18) hue-rotate(325deg);
+}
+.world-encounter__rival img { width: 150%; height: 110%; object-fit: contain; object-position: bottom; transform: scaleX(-1); }
+.world-encounter__card {
+  display: grid; min-width: 0; gap: 4px; margin-bottom: 11px; padding: 11px 13px;
+  border: 1px solid rgba(228,195,134,.34); border-radius: 4px;
+  background: linear-gradient(130deg, rgba(26,24,27,.93), rgba(13,14,19,.86));
+  box-shadow: 0 12px 38px rgba(0,0,0,.4); backdrop-filter: blur(10px);
+}
+.world-encounter__eyebrow { color: #d9b46e; font-size: 7px; font-weight: 800; letter-spacing: .14em; }
+.world-encounter__card > strong { color: #f4e4c8; font: 600 clamp(13px, 2vw, 18px) var(--font-display, Georgia, serif); }
+.world-encounter__card > span:not(.world-encounter__eyebrow) { color: rgba(235,222,198,.68); font-size: 8px; }
+.world-encounter__card > span i { padding: 0 2px; color: #d2a866; font-style: normal; }
+.world-encounter__card em { color: rgba(220,207,186,.58); font-size: 8px; }
+.world-encounter__fight {
+  display: flex; min-height: 37px; align-items: center; justify-content: center; gap: 9px; margin-top: 3px;
+  border: 1px solid rgba(249,206,132,.8); border-radius: 3px;
+  background: linear-gradient(105deg, #963c37, #512628 70%, #352123);
+  box-shadow: 0 0 16px rgba(208,78,55,.34), inset 0 1px 0 rgba(255,255,255,.14);
+  color: #ffebcf; cursor: pointer; font-size: 10px; font-weight: 900; letter-spacing: .18em;
+  pointer-events: auto; animation: fight-pulse 1.2s ease-in-out infinite alternate;
+}
+.world-encounter__fight span { font-size: 16px; }
+.world-encounter__fight:hover { filter: brightness(1.18); }
+@keyframes encounter-arrive { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes fight-pulse { to { box-shadow: 0 0 24px rgba(219,98,62,.62), inset 0 1px 0 rgba(255,255,255,.2); } }
 .world-rain .world-stage::after {
   position: absolute; inset: 0; content: ""; pointer-events: none;
   opacity: .48; background-image: repeating-linear-gradient(103deg, transparent 0 19px, rgba(201,220,226,.16) 20px, transparent 21px 41px);
@@ -320,6 +359,11 @@
   .world-action { min-width: 47px; min-height: 48px; padding: 5px 7px; }
   .world-joystick { display: block; }
   .world-mobile-hint { display: block; position: absolute; z-index: 3; bottom: 226px; left: 22px; color: rgba(234,219,191,.56); font-size: 8px; letter-spacing: .11em; text-transform: uppercase; }
+  .world-encounter { top: 35%; width: min(390px, calc(100% - 22px)); }
+  .world-encounter__rival { width: 66px; height: 126px; }
+  .world-encounter__card { margin-bottom: 7px; padding: 9px 10px; }
+  .world-encounter__card > span:not(.world-encounter__eyebrow) { font-size: 7px; }
+  .world-encounter__card em { font-size: 7px; }
 }
 @media (max-width: 390px) {
   .world-profile__identity { max-width: 88px; }
@@ -332,4 +376,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .world-scene *, .world-scene *::before, .world-scene *::after { scroll-behavior: auto !important; }
+  .world-encounter, .world-encounter__fight { animation: none; }
 }
