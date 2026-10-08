@@ -1,0 +1,115 @@
+# PROJE: "ŞAFAK SAVAŞÇILARI" — Yürüyüş + Gerçek Zamanlı Taş Birleştirme Düello Oyunu
+
+Sen kıdemli bir oyun geliştiricisi, teknik sanatçı ve UI/UX tasarımcısısın. Aşağıdaki oyunu mobil öncelikli, tarayıcıda çalışan, AAA mobil oyun kalitesinde bir deneyim olarak inşa edeceksin. Her şey akıcı (60 FPS hedefi), cilalı ve "premium" hissettirmeli. Placeholder, düz kutu, varsayılan buton veya sıkıcı geçiş KABUL EDİLMEZ.
+
+## ÇALIŞMA KURALLARI
+- Bu işi AŞAMALARA bölerek yap. Her aşama bitince çalışan bir önizleme ver, kısa özet yaz ve onayımı bekle.
+- Mobil öncelikli tasarla (dokunmatik, dikey ekran), masaüstünde de düzgün çalışsın.
+- Performans: ağır animasyonlar için CSS transform/opacity, canvas veya WebGL kullan; gereksiz re-render yapma. Düşük cihazlarda otomatik "efekt kalitesi" düşürme seçeneği ekle.
+- Kod modüler olsun: oyun durumu (state), render, ağ, ses ve UI ayrı modüllerde.
+- Tüm metinler Türkçe olsun; dil dosyası yapısı kullan (ileride çeviri için).
+
+## OYUN KONSEPTİ
+Oyuncu bir yolda ilerler. Yolda botlarla ve çevrimiçi diğer oyuncularla karşılaşır. Birine yaklaşınca ekranda "SAVAŞ" butonu belirir. Basılırsa taş birleştirme düellosu açılır. İki taraf AYNI taş dizilimiyle ve AYNI hamle sayısıyla oynar. Daha çok puan alan kazanır ve rakibin ganimetini (altın, eşya, kaynak) alır.
+
+---
+
+## AŞAMA 1 — Temel Mimari, Tasarım Sistemi ve Ana Menü
+1. Teknoloji: React + TypeScript + Vite, animasyon için Framer Motion, oyun sahnesi için PixiJS (veya Three.js), ses için Howler.js. Backend için Node.js + WebSocket (Socket.IO) + PostgreSQL.
+2. Tasarım sistemi:
+   - Tema: karanlık fantezi / destansı savaş. Derin lacivert, kor kırmızısı ve altın vurgular.
+   - Renk, tipografi (başlıklar için karakterli bir display font, gövde için okunaklı sans), boşluk ve gölge token'ları tanımla.
+   - Butonlar: metalik/altın kenarlı, basınca ezilen (scale 0.95), parlama süpürmesi (shine sweep) ve haptic titreşim (navigator.vibrate) olan premium butonlar.
+3. Açılış ekranı: logo animasyonu (parıltı + parçacıklar), "Başla" ile sinematik geçiş.
+4. Ana menü: arka planda hafif hareket eden parallax sahne, karakter idle animasyonu, ses ve titreşim ayarları.
+5. Ekranlar arası geçişler: fade + hafif zoom + vignette; asla ani kesme yok.
+6. Global yükleme ekranı: ilerleme çubuğu, ipucu metinleri, akıcı çıkış animasyonu.
+
+## AŞAMA 2 — Yürüyüş Sahnesi (Dünya Haritası / Yol)
+1. Kamera: oyuncuyu arkadan veya yandan takip eden sinematik kamera. Yumuşak takip (lerp), hızlanınca hafif zoom-out, yavaşlayınca zoom-in.
+2. Karakter:
+   - Yüksek kaliteli, stilize savaşçı karakter (sprite sheet veya 3D model). Zırh, pelerin, kılıç detayları olsun.
+   - Animasyonlar: idle (nefes alma, pelerin sallanması), yürüme (ayak ritmiyle sallanma), koşma, durma.
+   - Yürüyüş efektleri: ayak altında toz/kum parçacıkları, ıslak zeminde su sıçraması, adım sesleri (zemine göre değişen), pelerin ve saçlarda rüzgar simülasyonu.
+3. Mekan (premium atmosfer):
+   - Katmanlı parallax arka plan (en az 4–5 katman): uzak dağlar, sis, orta plan ağaçlar/kaleler, ön plan çalı ve taşlar.
+   - Gün batımı/altın saat ışığı, hacimsel ışık huzmeleri (god rays), uçuşan kıvılcım/kül/yaprak parçacıkları.
+   - Hareketli bulutlar, dalgalanan bayraklar, uzaktan duman.
+   - Yol boyunca rastgele üretilen dekor: yıkık kuleler, meşaleler, savaş artıkları. Meşalelerde dinamik titreyen ışık.
+   - Gün/gece veya hava durumu döngüsü (hafif yağmur, sis) — ayarlanabilir.
+4. Kontroller: dokunmatikte sanal joystick veya "dokun ve yürü", masaüstünde WASD/ok tuşları. Hareket yumuşak ivmelenmeli.
+5. HUD: üstte profil, seviye, altın; altta envanter ve ayarlar. Tümü yarı saydam cam (glassmorphism) stilinde, animasyonla açılıp kapansın.
+6. Ortam müziği (döngü) ve katmanlı ses atmosferi (rüzgar, uzak savaş sesleri).
+
+## AŞAMA 3 — Rakipler (Bot + Çevrimiçi Oyuncular) ve Yaklaşma Sistemi
+1. Yolda dolaşan rakipler: botlar ve gerçek oyuncular AYNI görsel kalitede, isim plakası, seviye ve kıyafetleriyle görünsün. Gerçek oyuncuların üstünde belirgin bir rozet olsun.
+2. Çevrimiçi senkronizasyon: Socket.IO ile oyuncu konumları gerçek zamanlı, interpolasyonla akıcı gösterilsin (takılma/ışınlanma olmasın).
+3. Yaklaşma mantığı:
+   - Belirli mesafeye girince rakibin etrafında parlayan bir halka ve tehdit/hazır duruş animasyonu.
+   - Aynı anda "SAVAŞ" butonu alttan yaylanarak çıksın: nabız gibi atan kırmızı-altın parıltı, hafif titreşim ve ses efekti.
+   - Uzaklaşınca buton zarifçe kaybolsun.
+4. Bot davranışı: yolda dolaşma, oyuncuyu fark edince durma, bazen meydan okuma baloncuğu ("Ganimetini alacağım!").
+5. Rakip bilgi kartı: butona basmadan önce rakibin seviyesi, kazanma oranı ve ganimet değeri küçük bir kartta görünsün.
+6. Eşleşme: gerçek oyuncuya savaş isteği gidince kabul/ret ekranı (zaman aşımlı geri sayım) ve bağlantı koparsa bot devralma ya da hükmen sonuç.
+
+## AŞAMA 4 — Savaş Giriş Sinematiği (Geçiş)
+Savaş butonuna basılınca:
+1. Dünya sahnesi yavaşlar (slow-motion), kamera iki karakteri aynı karede toplar, ekran kenarları kararır (vignette).
+2. Ekran çatlama / kılıç darbesi şeklinde yarılma efektiyle düello arenasına geçiş (ani kesme yok).
+3. "VS" ekranı: iki karakter iki yandan hızla kayarak girer, isim/seviye/ganimet bilgileri kıvılcımlarla belirir, ortada ateşli VS yazısı.
+4. 3-2-1 geri sayım: her sayıda ekran sarsıntısı, ses darbesi ve büyüyüp kaybolan rakamlar. Sonra "SAVAŞ!" yazısı.
+
+## AŞAMA 5 — Taş Birleştirme Düello Oyunu (Çekirdek Mekanik)
+1. Tahta: 7x7 (ayarlanabilir), 6 farklı taş türü. Her tür kendine özgü, sihirli kristal/rün taşı görünümünde; ışık yansımaları ve iç parıltı olsun. Taşlar savaş temalı (kılıç, kalkan, ateş, buz, ok, kalp) yapılabilir.
+2. Eşleşme kuralı: iki komşu taşı yer değiştir, 3 veya daha fazla aynı taş yan yana/alt alta gelirse patlar. Zincirleme (kombo) mümkün olsun.
+3. Özel taşlar:
+   - 4'lü eşleşme: satır/sütun temizleyen taş.
+   - 5'li eşleşme: renk bombası.
+   - L/T şekli: patlayıcı taş.
+4. Puanlama: temel puan + kombo çarpanı (her zincirde artan). Büyük kombolarda ekranda dev "KOMBO x5!" yazısı.
+5. HAMLE SAYISI: Her iki oyuncu için eşit ve sabit (varsayılan 20). Hamle sayacı belirgin biçimde ekranda, son 3 hamlede kırmızı nabız efekti.
+6. ADİL OYUN: İki oyuncu AYNI başlangıç tahtasını ve AYNI rastgele taş dizisini (seeded random) alır. Böylece sonuç sadece beceriyle belirlenir.
+7. Rakip modu:
+   - Bot: kolay/orta/zor zeka seviyeleri (zorda en iyi hamleyi arayan bir algoritma, ama hafif insan benzeri hata payıyla).
+   - Çevrimiçi: gerçek zamanlı. İki oyuncu aynı anda oynar, rakibin skoru ve hamle sayısı canlı görünür. Sunucu doğrulaması ile hile önlenir (hamleler sunucuda yeniden hesaplanır).
+8. Tüm animasyonlar akıcı ve tatmin edici olmalı:
+   - Taş değişimi: yaylı (spring) hareket, geçersiz hamlede geri sarsılma.
+   - Patlama: parçacık patlaması, renkli kıvılcımlar, hafif ekran sarsıntısı, halka şok dalgası.
+   - Taşlar düşerken yerçekimi ve hafif sekme; yeni taşlar yukarıdan yağsın.
+   - Kombo arttıkça ses perdesi yükselsin, parçacıklar yoğunlaşsın.
+   - İpucu sistemi: kısa süre hareketsizlikte olası hamleyi parlatan animasyon.
+9. Arena görünümü: tahtanın üstünde veya yanında iki karakter görünür; puan aldıkça karakterler saldırı animasyonu yapar, enerji çubukları (skor) tatmin edici biçimde dolar ve rakibi geçince çubuk parlar.
+10. Duraklat/pes et menüsü, bağlantı kopma yönetimi.
+
+## AŞAMA 6 — Sonuç Ekranı ve Ganimet Sistemi
+1. Hamleler bitince: tahta soluklaşır, "SÜRE DOLDU" yazısı, iki skorun sayarak yükseldiği animasyonlu karşılaştırma.
+2. Kazanan: altın ışık patlaması, konfeti/kıvılcım, zafer pozu ve "ZAFER!" yazısı, ekran çevresinde ışık huzmeleri. Kaybeden: ekran kararır, karakter diz çöker, "YENİLGİ" yazısı (dramatik ama motive edici).
+3. Beraberlik kuralı: eşit puanda, kombo sayısına göre; o da eşitse "beraberlik" ve ganimet el değiştirmez.
+4. Ganimet transferi: rakibin ganimeti sandık açılma animasyonuyla (kapak açılır, ışık fışkırır) altın ve eşyalar sayaçlı biçimde senin envanterine uçar. Kaybedersen ganimetin kaybolması da animasyonla gösterilir.
+5. Ödül özeti: kazanılan altın, XP, seviye atlama animasyonu.
+6. "Yoluna devam et" ve "Tekrar savaş" butonları; yürüyüş sahnesine yumuşak geçiş.
+
+## AŞAMA 7 — İlerleme, Ekonomi ve Hesap Sistemi
+1. Kullanıcı hesabı (giriş/kayıt), profil, seviye, XP, altın, envanter.
+2. Ganimet dengesi: kayıp riskine sınır koy (örneğin sadece o savaş için ortaya konan miktar transfer olur), yeni oyuncular için korunma süresi.
+3. Eşya/kozmetik sistemi: karakter görünümü, taş temaları, savaş efektleri.
+4. Liderlik tablosu, günlük görevler, seri kazanma ödülleri.
+
+## AŞAMA 8 — Cila, Ses, Performans ve Güvenlik
+1. Ses: her etkileşim için ses efekti (buton, taş değişimi, patlama, kombo, zafer, yenilgi), dinamik müzik (yürüyüş sakin, savaş yoğun, geçişte çapraz karartma).
+2. Haptic geri bildirim: kombo ve patlamalarda kısa titreşim.
+3. Tüm animasyonlarda tutarlı easing eğrileri ve süre kuralları; "reduced motion" ayarına saygı.
+4. Sunucu tarafı hile önleme, hız sınırlama, bağlantı yeniden kurma.
+5. Hata durumları için şık ekranlar (bağlantı koptu, rakip ayrıldı).
+6. Yük testi, düşük cihaz testi, son hata ayıklama, kısa bir "nasıl oynanır" öğretici (animasyonlu).
+
+---
+
+## BAŞARI KRİTERLERİ
+- Hiçbir geçiş ani veya sert olmamalı.
+- Yürüyüş sahnesi tek başına bile izlemesi keyifli görünmeli.
+- Taş birleştirme oyunu "bırakamıyorum" hissi vermeli: sesi, titreşimi, parçacıkları, kombo ritmi.
+- Çevrimiçi savaş adil, gecikmesiz ve hile korumalı olmalı.
+- Görsel kimlik tutarlı: aynı renk paleti, aynı font, aynı efekt dili.
+
+ŞİMDİ başla: önce AŞAMA 1'i tamamla, çalışan önizlemeyi göster, özetle ve onayımı bekle. Sonraki aşamaya ben "devam" demeden geçme.
