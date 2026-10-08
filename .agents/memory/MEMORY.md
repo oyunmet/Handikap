@@ -1,5 +1,5 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
-- [Royal Match project direction](handikap-original-identity.md) — The main app should be a royal match-3 game, not the former garden game.
-- [Cascade resolution](cascade-resolution.md) — Clear every line or square match formed by falling tiles before a move settles.
-- [Match-free openings](match-free-openings.md) — Every initial-board generation path must preserve the no-match and legal-move guarantees.
-- [Royal Match specials](royal-match-specials.md) — Preserve the requested match-to-special rules and make every special's full effect visible.
+- [Current game and phase approvals](handikap-original-identity.md) — The active game is Şafak Savaşçıları; finish and preview one approved phase before continuing.
+- [Legacy cascade resolution](cascade-resolution.md) — Cascade-clearing rules apply only when working on the retained Royal Match engine.
+- [Legacy match-free openings](match-free-openings.md) — Preserve valid openings when working on the retained Royal Match engine.
+- [Legacy Royal Match specials](royal-match-specials.md) — Prior special-tile rules apply only to the retained Royal Match engine.

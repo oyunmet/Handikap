@@ -1,17 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <defs>
-    <linearGradient id="blue" x1="5" y1="4" x2="43" y2="46" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3989bd"/>
-      <stop offset="1" stop-color="#123d6b"/>
+    <linearGradient id="night" x1="5" y1="4" x2="43" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#292233"/>
+      <stop offset="1" stop-color="#080b12"/>
     </linearGradient>
     <linearGradient id="gold" x1="14" y1="10" x2="34" y2="34" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#fff0a3"/>
-      <stop offset="1" stop-color="#e2a82e"/>
+      <stop stop-color="#fff0b4"/>
+      <stop offset="1" stop-color="#c17c32"/>
     </linearGradient>
   </defs>
-  <rect width="48" height="48" rx="14" fill="url(#blue)"/>
-  <path d="M24 5 39 11v12c0 9-6 15-15 20C15 38 9 32 9 23V11l15-6Z" fill="url(#gold)" stroke="#fff4bd" stroke-width="1.8"/>
-  <path d="M24 9 35 13v10c0 7-5 12-11 16-6-4-11-9-11-16V13l11-4Z" fill="#2874a4" stroke="#fffaf0" stroke-width="1.4"/>
-  <path d="m14 17 6 4 4-9 4 9 6-4-3 12H17l-3-12Z" fill="url(#gold)" stroke="#fff7cf" stroke-width="1.2" stroke-linejoin="round"/>
-  <circle cx="24" cy="17" r="2.2" fill="#df4350" stroke="#fff4bd" stroke-width="1"/>
+  <rect width="48" height="48" rx="14" fill="url(#night)"/>
+  <path d="M24 5 39 11v12c0 9-6 15-15 20C15 38 9 32 9 23V11l15-6Z" fill="#17151d" stroke="url(#gold)" stroke-width="2"/>
+  <path d="M24 10v23M15 15l18 12M33 15 15 27" stroke="url(#gold)" stroke-width="2" stroke-linecap="round"/>
+  <path d="m24 8 2.2 4.7 5.2.6-3.8 3.5.9 5-4.5-2.5-4.5 2.5.9-5-3.8-3.5 5.2-.6L24 8Z" fill="#bd343a" stroke="#f7d18a" stroke-width="1"/>
 </svg>

@@ -1,18 +1,12 @@
 ---
-name: Royal Match project direction
-description: The user corrected this project's target from a garden game to a Royal Match-style match-3 game.
+name: Current game and phase approvals
+description: The active game direction and the user's staged approval requirement.
 ---
 
-The main app should be a Royal Match-style match-3 game, not the former garden game.
+The active game is “Şafak Savaşçıları”: a dark-fantasy world-walking and real-time tile-duel game. This newer direction supersedes the earlier Royal Match product direction; the retained Royal Match sources are legacy.
 
-Campaign requirement: open on the level map, provide 500 distinct playable levels with varied mechanics, and support touch drag-to-swap.
+The user wants work delivered one phase at a time, with a working preview and short summary after each phase. Wait for the user's explicit approval before starting the next phase.
 
-Use the supplied gameplay screenshots as the source of truth for the 3D tile art, scene styling, and effects; avoid replacing them with generic vector approximations.
+**Why:** The user supplied a newer staged brief for Şafak Savaşçıları and asked to approve each phase before work continues.
 
-**Why:** The user explicitly corrected the product direction and requested 500 levels, distinct features, and working touch movement.
-
-**How to apply:** Keep the Royal Match game as the main app; preserve map-first progression and mobile drag controls. Do not restore the garden game unless the user asks.
-
-**Why:** The user repeatedly said the game visuals still did not match the supplied screenshots and explicitly asked for identical 3D pieces, depth, animation, and effects.
-
-**How to apply:** Prefer the provided reference art and verify the rendered game screen against it. For a swipe, use the dominant direction and move only to the immediately adjacent cell, regardless of drag distance; preserve tap-to-select.
+**How to apply:** Keep future work within the current approved phase; show its running preview and summary, then pause for explicit approval.

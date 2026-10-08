@@ -4,21 +4,30 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5000",
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "vite --host 0.0.0.0 --port 5000",
+    "dev:server": "tsx server/index.ts",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5000",
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@types/howler": "^2.2.13",
+    "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "framer-motion": "^14.0.0",
     "howler": "^2.2.4",
+    "pg": "^8.23.1",
     "pixi.js": "^8.22.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.2"
   }
