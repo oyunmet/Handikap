@@ -1,8 +1,9 @@
 export type WorldMotion = {
   velocityX: number;
   velocityY: number;
-  positionX: number;
+  depth: number;
   distance: number;
+  cameraX: number;
   stepPhase: number;
   stepCount: number;
   stopTime: number;
@@ -30,9 +31,14 @@ export type WorldMotionFrame = WorldMotion & {
   motion: "idle" | "walking" | "running" | "stopped";
 };
 
-const WALK_SPEED = 126;
-const RUN_SPEED = 248;
-const STRIDE_LENGTH = 98;
+export const WORLD_METERS_TO_PIXELS = 38;
+export const LANE_METERS_PER_UNIT = 7;
+export const WORLD_CHUNK_LENGTH_METERS = 30;
+export const WORLD_GATE_INTERVAL_METERS = 144;
+
+const WALK_SPEED = 3.4;
+const RUN_SPEED = 6.8;
+const STRIDE_LENGTH = 1.38;
 const ACCELERATION_SECONDS = 0.19;
 const DECELERATION_SECONDS = 0.31;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -41,12 +47,14 @@ const smoothstep = (start: number, end: number, value: number) => {
   return amount * amount * (3 - 2 * amount);
 };
 
-export function createWorldMotion(): WorldMotion {
+export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
+  const initialDistance = finiteOrZero(distance);
   return {
     velocityX: 0,
     velocityY: 0,
-    positionX: 0,
-    distance: 0,
+    depth: clamp(finiteOrZero(depth), -1, 1),
+    distance: initialDistance,
+    cameraX: initialDistance,
     stepPhase: 0,
     stepCount: 0,
     stopTime: 0,
@@ -91,16 +99,16 @@ export function stepWorldMotion(
   const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend);
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const targetX = input.x * directionScale * targetSpeed;
-  const targetY = input.y * directionScale * targetSpeed;
+  const targetY = input.y * directionScale * targetSpeed / LANE_METERS_PER_UNIT;
   const timeConstant = targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS;
   const response = 1 - Math.exp(-dt / timeConstant);
   const velocityX = state.velocityX + (targetX - state.velocityX) * response;
   const velocityY = state.velocityY + (targetY - state.velocityY) * response;
-  const speed = Math.hypot(velocityX, velocityY);
-  const isMoving = speed > 12;
+  const speed = Math.hypot(velocityX, velocityY * LANE_METERS_PER_UNIT);
+  const isMoving = speed > 0.12;
   const stopTime = isMoving ? 0 : state.stopTime + dt;
-  const distance = state.distance + velocityY * dt;
-  const positionX = clamp(state.positionX + velocityX * dt / 180, -1, 1);
+  const distance = state.distance + velocityX * dt;
+  const depth = clamp(state.depth + velocityY * dt, -1, 1);
   const stepPhase = state.stepPhase + speed * dt / STRIDE_LENGTH * Math.PI * 2;
   const stepCount = Math.floor(stepPhase / Math.PI);
   const footsteps = Math.max(0, stepCount - state.stepCount);
@@ -113,18 +121,20 @@ export function stepWorldMotion(
   const targetZoom = 1 - speedFactor * 0.028;
   const cameraResponse = 1 - Math.exp(-dt / (isMoving ? 0.34 : 0.52));
   const zoom = state.zoom + (targetZoom - state.zoom) * cameraResponse;
-  const targetCameraLead = -clamp(velocityY / RUN_SPEED, -1, 1) * 13;
-  const cameraLead = state.cameraLead + (targetCameraLead - state.cameraLead) * cameraResponse;
+  const cameraTarget = distance + velocityX * 0.22;
+  const cameraX = state.cameraX + (cameraTarget - state.cameraX) * cameraResponse;
+  const cameraLead = clamp((distance - cameraX) * WORLD_METERS_TO_PIXELS, -18, 18);
   const lean = clamp(velocityX / RUN_SPEED, -1, 1) * 2.6;
   const footImpact = (1 + Math.cos(stepPhase)) / 2;
   const squash = isMoving ? footImpact * (0.012 + speedFactor * 0.008) : 0;
   const shadowScale = 1 + speedFactor * 0.24 - squash * 2;
-  const facing = velocityX > 8 ? -1 : velocityX < -8 ? 1 : state.facing;
+  const facing = velocityX > .12 ? -1 : velocityX < -.12 ? 1 : state.facing;
   const nextState: WorldMotion = {
     velocityX,
     velocityY,
-    positionX,
+    depth,
     distance,
+    cameraX,
     stepPhase,
     stepCount,
     stopTime,
@@ -144,7 +154,7 @@ export function stepWorldMotion(
     shadowScale,
     footsteps,
     motion: isMoving
-      ? speed > 175 ? "running" : "walking"
+      ? speed > WALK_SPEED + (RUN_SPEED - WALK_SPEED) * 0.48 ? "running" : "walking"
       : state.hasMoved && stopTime < 0.45 ? "stopped" : "idle",
   };
 }

@@ -1,2 +1,2 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
-- [Current game and phase approvals](handikap-original-identity.md) — The active game is Şafak Savaşçıları; finish and preview one approved phase before continuing.
+- [Current game and staged work](handikap-original-identity.md) — The active game is Şafak Savaşçıları; follow scoped phases in order without interim approval.

@@ -3,7 +3,16 @@ import type { CSSProperties } from "react";
 import { playFootstep } from "../audio/howler";
 import CharacterRenderer from "./CharacterRenderer";
 import WorldAtmosphere from "./WorldAtmosphere";
-import { createWorldMotion, readWorldInput, stepWorldMotion } from "./movement";
+import WorldLighting from "./WorldLighting";
+import WorldScenery from "./WorldScenery";
+import {
+  createWorldMotion,
+  readWorldInput,
+  stepWorldMotion,
+  WORLD_GATE_INTERVAL_METERS,
+  WORLD_METERS_TO_PIXELS,
+} from "./movement";
+import { nextGateDistance } from "./world-generation";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
@@ -20,6 +29,8 @@ type WorldSceneProps = {
   onOpenSettings: () => void;
   profile: PlayerProfile;
   onOpenProfile: () => void;
+  debugWorld?: boolean;
+  debugStartDistance?: number;
 };
 type Panel = "inventory" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
@@ -43,17 +54,22 @@ export default function WorldScene({
   onOpenSettings,
   profile,
   onOpenProfile,
+  debugWorld = false,
+  debugStartDistance = 0,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
-  const motionRef = useRef(createWorldMotion());
+  const motionRef = useRef(createWorldMotion(debugStartDistance));
+  const sceneryRenderRef = useRef<((now: number) => void) | null>(null);
+  const lightingRenderRef = useRef<((now: number) => void) | null>(null);
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
+  const debugHudRef = useRef<HTMLElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(null);
   const [airEnabled, setAirEnabled] = useState(true);
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
-  const [travel, setTravel] = useState(0);
+  const [travel, setTravel] = useState(Math.floor(debugStartDistance));
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
   const opponents: (Opponent & { distance: number })[] = [
@@ -63,7 +79,7 @@ export default function WorldScene({
   ];
   const nextOpponent = opponents.find((candidate) => !profile.defeatedOpponents.includes(candidate.id));
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
-  const encounterVisible = Boolean(nextOpponent && encounterDistance <= 25);
+  const encounterVisible = !debugWorld && Boolean(nextOpponent && encounterDistance <= 25);
   const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
 
   const wake = useCallback(() => {
@@ -86,6 +102,22 @@ export default function WorldScene({
     let frame = 0;
     let previous = 0;
     let lastReactUpdate = 0;
+    let lastDebugUpdate = 0;
+    let lastCanvasRender = 0;
+    let fpsWindowStart = 0;
+    let fpsFrameCount = 0;
+    let sceneWidth = sceneRef.current?.getBoundingClientRect().width || window.innerWidth;
+    const appliedCssVariables = new Map<string, string>();
+    const resizeObserver = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (nextWidth && Number.isFinite(nextWidth)) sceneWidth = nextWidth;
+    });
+    if (sceneRef.current) resizeObserver.observe(sceneRef.current);
+    const setSceneVariable = (root: HTMLElement, property: string, value: string) => {
+      if (appliedCssVariables.get(property) === value) return;
+      appliedCssVariables.set(property, value);
+      root.style.setProperty(property, value);
+    };
     const animate = (now: number) => {
       const dt = Math.min((now - (previous || now)) / 1000, .05);
       previous = now;
@@ -95,32 +127,51 @@ export default function WorldScene({
         dt,
       );
       motionRef.current = frameState;
+      if (now - lastCanvasRender >= 1000 / 30) {
+        lastCanvasRender = now;
+        sceneryRenderRef.current?.(now);
+        lightingRenderRef.current?.(now);
+      }
 
       const root = sceneRef.current;
       if (root) {
-        const followX = frameState.positionX * 76;
+        const pixelsPerMeter = Math.max(30, Math.min(48, sceneWidth * .095));
+        const cameraPixels = frameState.cameraX * pixelsPerMeter;
         const distance = frameState.distance;
-        const parallax = (amount: number, limit: number) => Math.max(-limit, Math.min(limit, amount));
-        root.style.setProperty("--ws-travel", `${distance}px`);
-        root.style.setProperty("--world-zoom", String(frameState.zoom));
-        root.style.setProperty("--ws-player-x", `${followX}px`);
-        root.style.setProperty("--ws-facing-angle", frameState.facing < 0 ? "180deg" : "0deg");
-        root.style.setProperty("--ws-camera-lead", `${motionReduced ? 0 : frameState.cameraLead}px`);
-        root.style.setProperty("--ws-bob", `${motionReduced ? 0 : frameState.bob}px`);
-        root.style.setProperty("--ws-lean", `${motionReduced ? 0 : frameState.lean}deg`);
-        root.style.setProperty("--ws-weight-shift", `${motionReduced ? 0 : frameState.weightShift}px`);
-        root.style.setProperty("--ws-squash", String(motionReduced ? 1 : 1 - frameState.squash));
-        root.style.setProperty("--ws-shadow-scale", String(frameState.shadowScale));
-        root.style.setProperty("--ws-ridge-x", `${followX * .1}px`);
-        root.style.setProperty("--ws-ridge-y", `${parallax(-distance * .045, 90)}px`);
-        root.style.setProperty("--ws-haze-x", `${-followX * .16 + Math.sin(now / 13000) * 14}px`);
-        root.style.setProperty("--ws-ruins-x", `${followX * .42}px`);
-        root.style.setProperty("--ws-ruins-parallax", `${parallax(-distance * .105, 220)}px`);
-        root.style.setProperty("--ws-road-x", `${-followX * .34}px`);
-        root.style.setProperty("--ws-road-y", `${parallax(-distance * .24, 270)}px`);
-        root.style.setProperty("--ws-foreground-x", `${-followX * .55}px`);
-        root.style.setProperty("--ws-foreground-y", `${parallax(-distance * .42, 150)}px`);
-        root.style.setProperty("--ws-sky-y", `${parallax(-distance * .018, 44)}px`);
+        const farOffset = ((cameraPixels * .075) % sceneWidth + sceneWidth) % sceneWidth;
+        setSceneVariable(root, "--ws-travel", `${distance}m`);
+        setSceneVariable(root, "--world-zoom", String(frameState.zoom));
+        setSceneVariable(root, "--ws-player-drift-x", `${motionReduced ? 0 : frameState.cameraLead}px`);
+        setSceneVariable(root, "--ws-facing-angle", frameState.facing < 0 ? "180deg" : "0deg");
+        setSceneVariable(root, "--ws-far-offset", `${farOffset}px`);
+        setSceneVariable(root, "--ws-ridge-shift", `${-cameraPixels * .15}px`);
+        setSceneVariable(root, "--ws-haze-shift", `${-cameraPixels * .25}px`);
+        setSceneVariable(root, "--ws-road-shift", `${-cameraPixels * .76}px`);
+        setSceneVariable(root, "--ws-road-detail-shift", `${-cameraPixels * .54}px`);
+        setSceneVariable(root, "--ws-foreground-shift", `${-cameraPixels * 1.04}px`);
+        setSceneVariable(root, "--ws-depth-y", `${motionReduced ? 0 : -frameState.depth * 46}px`);
+        setSceneVariable(root, "--ws-depth-bottom", `${frameState.depth * 46}px`);
+        setSceneVariable(root, "--ws-bob", `${motionReduced ? 0 : frameState.bob}px`);
+        setSceneVariable(root, "--ws-lean", `${motionReduced ? 0 : frameState.lean}deg`);
+        setSceneVariable(root, "--ws-weight-shift", `${motionReduced ? 0 : frameState.weightShift}px`);
+        setSceneVariable(root, "--ws-squash", String(motionReduced ? 1 : 1 - frameState.squash));
+        setSceneVariable(root, "--ws-shadow-scale", String(frameState.shadowScale));
+      }
+      if (debugHudRef.current) {
+        if (!fpsWindowStart) fpsWindowStart = now;
+        fpsFrameCount += 1;
+        if (now - fpsWindowStart >= 400) {
+          debugHudRef.current.querySelector("[data-debug-fps]")!.textContent =
+            `${Math.round(fpsFrameCount * 1000 / (now - fpsWindowStart))} FPS`;
+          fpsWindowStart = now;
+          fpsFrameCount = 0;
+        }
+        if (now - lastDebugUpdate > 100) {
+          lastDebugUpdate = now;
+          debugHudRef.current.querySelector("[data-debug-distance]")!.textContent = `${frameState.distance.toFixed(2)} m`;
+          debugHudRef.current.querySelector("[data-debug-speed]")!.textContent = `${frameState.speed.toFixed(2)} m/s`;
+          debugHudRef.current.querySelector("[data-debug-camera]")!.textContent = `${frameState.cameraX.toFixed(2)} m`;
+        }
       }
       if (frameState.motion !== lastMotionRef.current) {
         lastMotionRef.current = frameState.motion;
@@ -134,7 +185,7 @@ export default function WorldScene({
           ...current.filter((burst) => burst.expires > now),
           ...Array.from({ length: count }, (_, index) => ({
             id: firstId + index,
-            x: frameState.positionX * 76,
+            x: frameState.cameraLead,
             running,
             expires: now + 720,
           })),
@@ -148,12 +199,15 @@ export default function WorldScene({
       }
       if (now - lastReactUpdate > 220) {
         lastReactUpdate = now;
-        setTravel(Math.floor(frameState.distance / 10) * 10);
+        setTravel(Math.floor(frameState.distance));
       }
       frame = window.requestAnimationFrame(animate);
     };
     frame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+    };
   }, [audioOn, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
@@ -177,6 +231,8 @@ export default function WorldScene({
     if (next === "settings") onOpenSettings();
     setPanel(next);
   };
+  const gateDistance = nextGateDistance(travel);
+  const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
   return (
     <main
       ref={sceneRef}
@@ -200,15 +256,40 @@ export default function WorldScene({
             </filter>
           </defs>
         </svg>
-        <div className="world-stage__sky" />
+        <div className="world-stage__sky">
+          {[-1, 0, 1, 2].map((tileIndex) => (
+            <div
+              className={`world-stage__sky-tile${Math.abs(tileIndex) % 2 === 1 ? " is-mirrored" : ""}`}
+              key={tileIndex}
+              style={{ left: `calc(${tileIndex * 100}% - var(--ws-far-offset, 0px))` }}
+            />
+          ))}
+        </div>
         <div className="world-stage__horizon" />
         <div className="world-plane world-plane--ridge" />
         <div className="world-plane world-plane--haze" />
-        <div className="world-plane world-plane--ruins" />
         <div className="world-plane world-plane--road" />
         <div className="world-plane world-plane--foreground" />
         <div className="world-rays" />
-        <WorldAtmosphere quality={quality} motionReduced={motionReduced} enabled={airEnabled} travel={travel} />
+        <WorldScenery
+          motionRef={motionRef}
+          renderRef={sceneryRenderRef}
+          quality={quality}
+          motionReduced={motionReduced}
+        />
+        <WorldAtmosphere
+          quality={quality}
+          motionReduced={motionReduced}
+          enabled={airEnabled}
+          travel={motionRef.current.cameraX * WORLD_METERS_TO_PIXELS}
+        />
+        <WorldLighting
+          motionRef={motionRef}
+          renderRef={lightingRenderRef}
+          level={profile.level}
+          relicCount={profile.items.length}
+          quality={quality}
+        />
         <div className="world-speed-lines" aria-hidden="true">
           {Array.from({ length: 8 }, (_, index) => (
             <i
@@ -252,6 +333,15 @@ export default function WorldScene({
         </div>
         <CharacterRenderer motion={motion} motionReduced={motionReduced} />
         <div className="world-vignette" />
+        {debugWorld && (
+          <aside className="world-debug" ref={debugHudRef} aria-label="Hata ayıklama hareket ölçümleri">
+            <strong>GEÇİCİ · DÜNYA ÖLÇÜMÜ</strong>
+            <span>Mesafe <b data-debug-distance>{debugStartDistance.toFixed(2)} m</b></span>
+            <span>Hız <b data-debug-speed>0.00 m/s</b></span>
+            <span>Kamera X <b data-debug-camera>{debugStartDistance.toFixed(2)} m</b></span>
+            <span>Çizim <b data-debug-fps>ölçülüyor</b></span>
+          </aside>
+        )}
       </div>
       <header className="world-topbar">
         <button className="world-profile" type="button" onClick={onOpenProfile} aria-label={`${profile.name}, seviye ${profile.level}, profili aç`}>
@@ -267,6 +357,21 @@ export default function WorldScene({
           <span>{profile.gold.toLocaleString("tr-TR")}</span>
         </div>
       </header>
+      <div
+        className="world-progress"
+        role="progressbar"
+        aria-label="Kül Yolu bölüm sonu kapısına ilerleme"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(chapterProgress)}
+      >
+        <div className="world-progress__heading">
+          <span>KÜL YOLU</span>
+          <b>{Math.round(chapterProgress)}%</b>
+        </div>
+        <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
+        <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
+      </div>
       <div className="world-weather">
         <span>{worldText.weather}: {airEnabled ? worldText.clear : worldText.airOff}</span>
         <button

@@ -1,0 +1,84 @@
+# AŞAMA: GERÇEK İLERLEYEN DÜNYA, IŞIK, ENGELLER, KARŞILAŞMA, GÜÇLENME VE HİKÂYE BÖLÜMLERİ
+
+## SORUN (önce bunu anla)
+Şu an oyunda karakter ve arka plan HAREKET ETMİYOR. Joystick'e dokununca sadece "YÜRÜYOR/KOŞUYOR" yazısı değişiyor. Bu, daha önce iki kez istenip çözülmedi. Bu yüzden:
+1. Önce kök nedeni bul ve bana 3-4 cümleyle yaz (girdi mi okunmuyor, durum güncellenmiyor mu, render mi bağlı değil, arka plan tek sabit resim mi?).
+2. Çözümü yaparken "çalışıyor" demeden önce KANITLA: (a) ekrana geçici bir hata ayıklama paneli koy (kat edilen mesafe, hız, kamera X), (b) joystick girdisi verince mesafenin arttığını gösteren otomatik test yaz, (c) önizlemede farklı zamanlarda en az 3 ekran görüntüsü al ve arka plan katmanlarının gerçekten kaydığını doğrula. Doğrulayamadığın her şeyi açıkça "test edemedim" diye yaz. Doğrulamadan "tamamlandı" deme.
+
+## GENEL KURALLAR
+- Aşamalara böl; her aşama sonunda ne değişti / ne test ettin / ne test edemedin yaz ve onayımı bekle.
+- Mobil öncelikli (dikey ekran, dokunmatik), masaüstünde WASD/ok tuşları da çalışsın.
+- Puzzle/eşleştirme kodu zaten kaldırıldıysa dokunma; kalmış ölü kod varsa temizle.
+- Mevcut Clerk girişi, PostgreSQL profil, misafir modu ve sunucu taraflı ödül doğrulaması BOZULMASIN.
+- Oyun mantığı (simülasyon) ile görüntüleme (render) ayrı modüllerde olsun.
+- Efekt kalitesi ayarı (Yüksek/Orta/Düşük) ve "hareketi azalt" desteği olsun. Hedef 60 FPS.
+
+## AŞAMA 1 — GERÇEK İLERLEYEN DÜNYA (en kritik aşama)
+1. Dünya koordinat sistemi: Oyuncunun kat ettiği mesafe (metre) gerçek bir oyun durumu olsun. Yol yatay uzansın (soldan sağa ilerleme, 2.5D yan görünüm), yolun bir genişliği (derinlik bandı) olsun: joystick yukarı/aşağı ile yolun içinde derinlikte kayılabilsin, ileri/geri ile ilerlensin.
+2. Kamera: Karakter ekranın yaklaşık %35 solunda kalsın, dünya kamerayla kayarak ilerlesin. Yumuşak takip (lerp), koşarken hafif geri çekilme ve ileri bakış payı, durunca yaklaşma.
+3. Parallax katmanları (en az 5): en uzak gökyüzü/dağlar (çok yavaş), uzak kale/harabeler, orta plan (kuleler, ağaçlar), yol ve zemin, ön plan (taşlar, çalılar, bayraklar, çok hızlı). Katmanlar mesafeye göre farklı hızlarda kaysın, kesintisiz tekrarlansın (dikişsiz).
+4. Mevcut arka plan resmi tek parça ve tekrarlanmıyor: onu en uzak katman olarak kullan (yavaş kaysın, kenarlarda aynalama veya yumuşak geçişle tekrarlansın). Orta ve ön plan için kodla (canvas/PixiJS) prosedürel siluetler, taşlar, kuleler, bayraklar, meşaleler üret ki dünya sürekli yeni şeyler göstersin ve tekrar ettiği belli olmasın.
+5. Yol parçaları (chunk) olarak üretilsin: ilerledikçe önde yeni parça yüklensin, arkada kalanlar silinsin (nesne havuzu, performans).
+6. Bölüm ilerleme çubuğu: ekranda ince bir yolculuk şeridi (başlangıç → bölüm sonu kapısı/kalesi), kat edilen mesafeyi göstersin. Yolun sonunda büyük bir kapı veya kale görünsün ve yaklaştıkça büyüsün.
+7. Karakter hareketi (tek görsel olduğu için prosedürel): adım ritminde yukarı-aşağı sallanma, hareket yönüne eğilme, hafif ağırlık kayması, pelerinin mesh ile rüzgar ve hızla dalgalanması, yön değişince akıcı dönüş (flip), altında hareketle şekil değiştiren gölge. Her adımda toz/kıvılcım parçacığı ve adım sesi. Idle'da nefes alma.
+8. Animasyon durum makinesi kur (idle, yürü, koş, saldır, blok, atıl, hasar, ölüm). Sonradan sprite sheet takabileceğim şekilde tasarla ve nasıl takılacağını kısaca belgele.
+
+## AŞAMA 2 — "İLERLEDİĞİ YER AYDINLANSIN" (ışık ve karanlık sistemi)
+1. Dünya karanlık başlasın. Karakterin etrafında ve önünde sıcak, yumuşak kenarlı bir ışık alanı (kor/meşale tonu) olsun; ilerledikçe yolun önü aydınlansın, ileride sis ve karanlık (bilinmeyen) kalsın.
+2. Karakterin arkasında yol, aydınlandıktan sonra tamamen kapanmasın: hafif, sönük ışık izi ve minik kıvılcım/kor kalıntıları kalsın (yürüdüğü yol belli olsun). Çok uzakta kalan kısım yavaşça kararsın.
+3. Işık yarıçapı karakter gücüne ve ekipmanına (parlayan kılıç, yadigâr) bağlı olabilsin; güçlendikçe ışık biraz genişlesin.
+4. Meşaleler, kristaller, ateş çukurları yolu yerel olarak aydınlatsın; bunlara yaklaşınca ortam parlasın.
+5. Işık yumuşak geçişlerle çalışsın, performans için tek bir karanlık katmanı üzerinde maskeleme ile yap (her ışık için ayrı pahalı işlem yapma). "Hava: Açık/Kapalı" ayarı sis/kül/ışık huzmelerini açıp kapatsın.
+
+## AŞAMA 3 — YOLDAKİ ENGELLER VE ETKİLEŞİMLER
+Yolda aşağıdaki öğeler rastgele ama adil yerleşsin (bölüme göre sıklık artsın, hiçbiri imkansız olmasın, seed ile üretilsin):
+1. Bloke eden engeller: devrik kayalar, yıkık arabalar, çalı/dikenler. Yolun derinlik bandında etrafından dolaşılabilir; çarpılırsa karakter yavaşlasın.
+2. Hasar veren tuzaklar: ateş çukuru, dikenler, zehir birikintisi. Uyarı ışığı/işaret versin, haksız ölüm olmasın.
+3. Kırılabilir engeller: barikat, sandık kasası. Saldırıyla kırılır, içinden altın/malzeme düşer, kırılma efekti (kıymık parçacıkları, toz).
+4. Etkileşim noktaları: tapınak/mihrap (geçici güçlendirme), gizemli sandıklar, "Mühür Parçası" (hikâye eşyası, Aşama 6'da).
+5. Her engel için ayrı efekt ve ses (çarpma, kırılma, yanma).
+
+## AŞAMA 4 — RAKİP KARŞILAŞMASI VE SAVAŞ BUTONU
+1. Yolda iki tür rakip dolaşsın: (a) BOT (yapay zekâ) — adının yanında net bir "BOT" rozeti olsun; (b) çevrimiçi gerçek oyuncu — SADECE gerçek eşleştirme sistemi hazır olduğunda görünsün, şimdilik yapma. Botları asla gerçek oyuncu gibi gösterme.
+2. Rakibe belirli mesafeye girince: rakibin etrafında tehdit halkası ve hazır duruş, karakterde "uyarı" animasyonu, alt ortada "SAVAŞ" butonu yaylanarak çıksın (nabız atan kırmızı-altın parıltı, ses, titreşim). Uzaklaşınca kaybolsun.
+3. Rakip bilgi kartı: seviye, tehdit derecesi, olası ganimet.
+4. Basınca sinematik geçiş: dünya yavaşlar, ekran yarılır gibi arenaya geçiş, "VS" ekranı, 3-2-1, "SAVAŞ!". Savaş bitince aynı noktadan yola kesintisiz dönüş (ilerleme ve ışık durumu korunur).
+5. Savaşın kendisi gerçek zamanlıdır (önceki prompt'taki savaş sistemi: hafif/ağır saldırı, blok/savuşturma, atılma, 2 yetenek, can + dayanıklılık, hit-stop, kılıç izi, ekran sarsıntısı, hasar sayıları, dinamik kamera). Bu sistem henüz kurulmadıysa bu aşamada kur; kurulduysa sadece yürüyüş dünyasına bağla.
+6. Sonuç sunucuda doğrulanır (girdi kaydı + deterministik simülasyon, istemci ödül göndermez, çift ödül engellenir).
+
+## AŞAMA 5 — GANİMET İLE GÜÇLENME
+1. Ganimet türleri: altın, XP, malzeme (demir parçası, kor taşı, gölge özü), ekipman (kılıç, zırh, pelerin, yadigâr). Nadirlik kademeleri (Sıradan, Nadir, Destansı, Efsanevi) farklı renk ve efektle.
+2. Karakter istatistikleri: Can, Hasar, Savunma, Kritik Şansı, Hareket Hızı, Işık Yarıçapı. Seviye atlayınca ve ekipman takınca artsın.
+3. "Heybe" ekranını gerçek bir envanter ve geliştirme ekranına çevir: ekipman takma/çıkarma, malzeme ve altınla yükseltme, istatistik karşılaştırma okları.
+4. Görsel geri bildirim: ekipman değişince karakterde fark görünsün (kılıçta parıltı, pelerinde renk/ışık, zırhta parlama); seviye atlama ve yükseltmede özel efekt ve ses.
+5. Dengeleme: Rakipler bölümün ve oyuncu seviyesinin zorluğuna göre ölçeklensin; güçlenmek hissedilsin ama oyun anlamsızlaşmasın.
+6. TÜM ödül, ganimet ve envanter değişiklikleri SUNUCUDA hesaplanır ve doğrulanır; istemci doğrudan yazamaz. İleride gerçek oyuncuya karşı kazanılan ganimet için sadece savaşa konan miktar el değiştirecek şekilde tasarla (şimdilik uygulama).
+
+## AŞAMA 6 — HİKÂYE: BÖLÜMLER, GİZEMLİ DİYALOGLAR, İPUÇLARI
+Dünya kurgusu (bunun üzerine geliştir, atmosferi koru): Şafak sönmüş, kral kayıp, yol boyunca yıkık krallıkların kalıntıları var. Yolcu (oyuncu) taşıdığı gizemli bir mühürle bir "kapıya" doğru ilerliyor ve onu kimin, neden yönlendirdiğini bilmiyor. Ton: karanlık, kısa cümleli, gizemli, imalı. Her şey Türkçe.
+1. Bölüm yapısı: Her bölüm yeni mekân teması (örn. Kül Yolu, Çatlak Köprü, Sessiz Nekropol...), yeni rakip türü ve yeni tehlike getirsin. Bölüm sonu = büyük kapı + (isteğe bağlı) küçük bir yönetici savaşı.
+2. Bölüm geçişi sinematiği: Kapıya varınca kamera yavaşlar, ekran sinema şeridi (üstte-altta siyah bantlar) ile kararır; konuşan karakterin portresi belirir, metin daktilo efektiyle akar, arkada atmosferik müzik/ses; dokununca hızlanır, tekrar dokununca sonraki cümle.
+3. Diyalog içeriği: Her bölüm geçişinde 4-8 replik, gizemli bir karakterle (örn. "Gölge Haberci", yaşlı bir muhafızın hayaleti, tuhaf bir tüccar). Yolcunun geçmişi ve mührün sırrı parça parça açılsın; hiçbir şey tam söylenmesin.
+4. SONRAKİ BÖLÜM İPUÇLARI: Her bölümün sonu mutlaka bir sonraki bölümü gizemli biçimde imâ etsin (bir bilmece, bir kehanet, bir uyarı, bir sembol). İpuçları gerçekten bir sonraki bölümde karşılık bulsun: ipucunda geçen sembol, rakip türü veya mekân sonraki bölümde görünsün ("bu buydu" hissi).
+5. Yol boyunca bulunan "Mühür Parçaları" ve küçük anlatı notları toplanabilsin; "Günlük" ekranında koleksiyon ve kilidi açılan hikâye parçaları görünsün (kilitli olanlar silik).
+6. Seçim mekaniği (hafif): Bazı diyaloglarda iki seçenek olsun; küçük sonuç farkı yaratsın (farklı ipucu, farklı küçük ödül), ana hikâyeyi bozmasın.
+7. Hikâye içeriği ayrı bir veri dosyasında (JSON/TS) tutulsun, kod içine gömülmesin; yeni bölüm eklemek kolay olsun. İlk aşamada en az 3 bölümün tam metnini yaz.
+8. Bölüm ilerlemesi, açılan hikâye parçaları ve seçimler PostgreSQL'de hesaba kaydedilsin (misafirde cihazda).
+
+## AŞAMA 7 — CİLA, PERFORMANS, ERİŞİLEBİLİRLİK
+1. Tüm geçişlerde tutarlı easing, ani kesme yok.
+2. Performans: Nesne havuzu, chunk yükleme/boşaltma, görsel sıkıştırma, kod bölme (code splitting), FPS göstergesi seçeneği.
+3. Ses: katmanlı ortam sesi, adım, engel, UI, diyalog yazma sesi; dinamik müzik (yürüyüş sakin, savaş yoğun, hikâyede gizemli).
+4. Kısa, animasyonlu ilk-yürüyüş öğreticisi (joystick, ışık, engeller, savaş butonu).
+5. Hata/bağlantı durumları için şık ekranlar.
+
+## BAŞARI KRİTERLERİ
+- Joystick'e basınca karakter ve dünya gerçekten ilerler; katmanlar farklı hızlarda kayar; mesafe sayacı artar.
+- İlerledikçe yolun önü aydınlanır; arkada hafif iz kalır; uzak kısım karanlık ve gizemli.
+- Yolda engeller ve etkileşimler var; çarpma/kırılma/hasar hissedilir.
+- Rakibe yaklaşınca SAVAŞ butonu çıkar; botlar net şekilde "BOT" etiketli.
+- Ganimetle karakter gözle görülür biçimde güçlenir.
+- Her bölüm sonunda sinematik, gizemli diyalog ve bir sonraki bölümü imâ eden ipucu var.
+- Hiçbir ödül istemciden gelmez; sunucuda doğrulanır.
+
+ŞİMDİ yalnızca AŞAMA 1 ve 2'yi yap. Önce kök nedeni yaz, sonra düzelt, hata ayıklama paneli ve ekran görüntüleriyle hareketi kanıtla. Bitince ne değişti / ne test ettin / ne test edemedin yaz ve onayımı bekle. Ben "devam" demeden Aşama 3'e geçme.
