@@ -205,7 +205,7 @@
 .profile-panel__heading, .profile-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
 .profile-account { display: flex; align-items: center; gap: 9px; margin-top: 12px; padding: 9px 10px; border: 1px solid rgba(231,214,180,.1); border-radius: 4px; background: rgba(255,255,255,.025); color: #b7ad9b; font-size: 9px; }
 .profile-account__status { color: #dbbd7b; font-size: 14px; }
-.profile-account > span:nth-child(2) { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-account > span:nth-child(2) { min-width: 0; flex: 1; overflow: hidden; line-height: 1.45; }
 .profile-account button { min-height: 30px; padding: 0 9px; border: 1px solid rgba(230,197,131,.25); border-radius: 3px; background: transparent; color: #e7ca8b; cursor: pointer; font-size: 8px; font-weight: 800; letter-spacing: .08em; white-space: nowrap; }
 .profile-panel__heading h2 { margin: 7px 0 0; color: #f1e0c0; font: 600 26px var(--font-display, Georgia, serif); }
 .profile-identity { display: flex; align-items: center; gap: 12px; margin: 21px 0 16px; padding: 14px 0; border-top: 1px solid rgba(231,214,180,.1); border-bottom: 1px solid rgba(231,214,180,.1); }

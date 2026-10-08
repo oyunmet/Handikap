@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validatePlayerProfile } from "./profileApi.ts";
+import { validatePlayerProfile, validateProfileRename } from "./profileApi.ts";
 
 const validProfile = {
   name: "Yolcu",
@@ -35,4 +35,10 @@ test("profile API rejects unsafe or oversized values", () => {
   assert.equal(validatePlayerProfile({ ...validProfile, gold: -1 }), null);
   assert.equal(validatePlayerProfile({ ...validProfile, name: "x".repeat(21) }), null);
   assert.equal(validatePlayerProfile(null), null);
+});
+
+test("profile rename accepts only a display name, never client-owned progress", () => {
+  assert.equal(validateProfileRename({ name: "  Yeni   Yolcu " }), "Yeni Yolcu");
+  assert.equal(validateProfileRename({ name: "Yeni Yolcu", gold: 999999 }), null);
+  assert.equal(validateProfileRename({ name: "" }), null);
 });

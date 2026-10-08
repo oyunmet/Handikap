@@ -13,6 +13,7 @@ export type DuelState = {
   status: "playing" | "finished";
 };
 export type DuelMove = { first: number; second: number; score: number };
+export type SubmittedMove = { first: number; second: number };
 export const BOARD_SIZE: number;
 export const DUEL_MOVES: number;
 export const TILE_TYPES: TileType[];

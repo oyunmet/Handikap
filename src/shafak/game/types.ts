@@ -24,3 +24,8 @@ export type BattleRewards = {
   item: string | null;
   lostStake: number;
 };
+
+export type SubmittedMove = {
+  first: number;
+  second: number;
+};

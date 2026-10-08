@@ -10,8 +10,8 @@ import DuelIntro from "./game/DuelIntro";
 import DuelArena from "./game/DuelArena";
 import DuelResults from "./game/DuelResults";
 import ProfilePanel from "./game/ProfilePanel";
-import { awardBattle, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
-import type { BattleRewards, DuelSummary, Opponent } from "./game/types";
+import { awardBattle, defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import type { BattleRewards, DuelSummary, Opponent, SubmittedMove } from "./game/types";
 
 type Screen = "opening" | "loading" | "menu" | "world" | "duel-intro" | "duel" | "result";
 type Preferences = {
@@ -158,7 +158,7 @@ function App() {
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
-  const [profile, setProfile] = useState<PlayerProfile>(() => readProfile(user?.id));
+  const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
   const [profileSyncOwner, setProfileSyncOwner] = useState("");
   const [profileSyncStatus, setProfileSyncStatus] = useState<"loading" | "ready" | "local">("loading");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -166,6 +166,8 @@ function App() {
   const [duelSummary, setDuelSummary] = useState<DuelSummary | null>(null);
   const [battleRewards, setBattleRewards] = useState<BattleRewards | null>(null);
   const [battleSeed, setBattleSeed] = useState(() => Date.now() >>> 0);
+  const [serverDuelId, setServerDuelId] = useState<string | null>(null);
+  const [duelSubmitError, setDuelSubmitError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const sceneRef = useRef<HTMLDivElement>(null);
   const systemReducedMotion = useReducedMotion();
@@ -175,12 +177,8 @@ function App() {
   useEffect(() => {
     if (!authLoaded) return;
     let cancelled = false;
-    const accountProfile = readProfile(user?.id);
-    if (user?.firstName && accountProfile.name === "Yolcu") {
-      accountProfile.name = user.firstName.slice(0, 20);
-    }
     if (!user?.id) {
-      setProfile(accountProfile);
+      setProfile(readProfile());
       setProfileSyncOwner("guest");
       setProfileSyncStatus("ready");
       return () => {
@@ -194,19 +192,8 @@ function App() {
         const response = await fetch("/api/profile", { credentials: "include" });
         if (!response.ok) throw new Error(`Profile load failed (${response.status})`);
         const result = (await response.json()) as { profile: unknown | null };
-        const nextProfile = result.profile
-          ? normalizePlayerProfile(result.profile)
-          : accountProfile;
-
-        if (!result.profile) {
-          const saveResponse = await fetch("/api/profile", {
-            method: "PUT",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nextProfile),
-          });
-          if (!saveResponse.ok) throw new Error(`Profile creation failed (${saveResponse.status})`);
-        }
+        if (!result.profile) throw new Error("The account profile was not initialized by the server.");
+        const nextProfile = normalizePlayerProfile(result.profile);
 
         if (!cancelled) {
           setProfile(nextProfile);
@@ -215,10 +202,10 @@ function App() {
         }
       } catch {
         if (!cancelled) {
-          setProfile(accountProfile);
+          setProfile(normalizePlayerProfile(defaultProfile));
           setProfileSyncOwner(user.id);
           setProfileSyncStatus("local");
-          setAnnouncement("Hesap kaydı sunucuya bağlanamadı; bu cihazdaki kayıt kullanılıyor.");
+          setAnnouncement("Hesap kaydı sunucuya bağlanamadı. Güvenli ödül için giriş yapmış profil sunucusuna erişim gerekli.");
         }
       }
     })();
@@ -230,25 +217,9 @@ function App() {
 
   useEffect(() => {
     if (!authLoaded || profileSyncOwner !== (user?.id ?? "guest")) return;
-    saveProfile(profile, user?.id);
-    if (!user?.id || profileSyncStatus !== "ready") return;
-
-    const timeout = window.setTimeout(() => {
-      void fetch("/api/profile", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      }).then((response) => {
-        if (!response.ok) throw new Error(`Profile save failed (${response.status})`);
-      }).catch(() => {
-        setProfileSyncStatus("local");
-        setAnnouncement("Hesap kaydı güncellenemedi; ilerleme bu cihazda tutuluyor.");
-      });
-    }, 350);
-
-    return () => window.clearTimeout(timeout);
-  }, [authLoaded, profile, profileSyncOwner, profileSyncStatus, user?.id]);
+    if (user?.id) return;
+    saveProfile(profile);
+  }, [authLoaded, profile, profileSyncOwner, user?.id]);
 
   useEffect(() => {
     try {
@@ -357,18 +328,89 @@ function App() {
     setScreen("world");
   };
 
-  const beginEncounter = (nextOpponent: Opponent) => {
+  const beginEncounter = async (nextOpponent: Opponent) => {
     playFeedback();
     setOpponent(nextOpponent);
-    setBattleSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    setDuelSubmitError(null);
+    if (user?.id) {
+      if (profileSyncStatus !== "ready") {
+        setAnnouncement("Hesap sunucusu hazır değil. Ödül güvenliği için çevrimdışı hesap savaşı açılamaz.");
+        return;
+      }
+      try {
+        const response = await fetch("/api/duels/start", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ opponentId: nextOpponent.id }),
+        });
+        const result = (await response.json()) as { duelId?: string; seed?: number; error?: string };
+        if (!response.ok || !result.duelId || !Number.isSafeInteger(result.seed)) {
+          throw new Error(result.error ?? "duel_start_failed");
+        }
+        setServerDuelId(result.duelId);
+        setBattleSeed(result.seed as number);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "";
+        setAnnouncement(code === "opponent_locked"
+          ? "Bu rakiple henüz karşılaşamazsın."
+          : "Sunucu düellosu başlatılamadı; güvenli ödül için yeniden bağlanıp tekrar dene.");
+        return;
+      }
+    } else {
+      setServerDuelId(null);
+      setBattleSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    }
     setScreen("duel-intro");
   };
 
-  const finishEncounter = (summary: DuelSummary) => {
-    const awarded = awardBattle(profile, summary, user?.id);
-    setProfile(awarded.profile);
+  const finishEncounter = async (moves: SubmittedMove[], localSummary: DuelSummary) => {
+    setDuelSubmitError(null);
+    let summary = localSummary;
+    let rewards: BattleRewards;
+    if (user?.id) {
+      if (!serverDuelId) {
+        setDuelSubmitError("Bu oturum için sunucu düellosu bulunamadı. Sayfayı yenileyip tekrar başlat.");
+        return;
+      }
+      try {
+        const response = await fetch("/api/duels/complete", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duelId: serverDuelId, moves }),
+        });
+        const result = (await response.json()) as {
+          summary?: DuelSummary;
+          rewards?: BattleRewards;
+          profile?: unknown;
+          error?: string;
+        };
+        if (!response.ok || !result.summary || !result.rewards || !result.profile) {
+          const messages: Record<string, string> = {
+            duel_too_fast: "Düello sunucu tarafından fazla hızlı bulundu; biraz bekleyip yeniden dene.",
+            duel_already_settled: "Bu düello daha önce işlendi. Profilini güncellemek için sayfayı yenile.",
+            illegal_move: "Hamle listesi doğrulanamadı; ödül eklenmedi.",
+            too_many_moves: "Hamle sınırı aşıldı; ödül eklenmedi.",
+          };
+          throw new Error(messages[result.error ?? ""] ?? "Sunucu düello sonucunu doğrulayamadı; sonucu tekrar göndermeyi dene.");
+        }
+        summary = result.summary;
+        rewards = result.rewards;
+        setProfile(normalizePlayerProfile(result.profile));
+      } catch (error) {
+        setDuelSubmitError(error instanceof Error
+          ? error.message
+          : "Sunucu düello sonucunu doğrulayamadı; sonucu tekrar göndermeyi dene.");
+        return;
+      }
+    } else {
+      const awarded = awardBattle(profile, localSummary);
+      setProfile(awarded.profile);
+      rewards = awarded.rewards;
+    }
     setDuelSummary(summary);
-    setBattleRewards(awarded.rewards);
+    setBattleRewards(rewards);
     setScreen("result");
     if (preferences.sound) playGameSound(summary.verdict === "victory" ? "victory" : "defeat");
     if (preferences.vibration && "vibrate" in navigator) {
@@ -378,8 +420,30 @@ function App() {
 
   const rematch = () => {
     if (!opponent) return;
-    setBattleSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
-    setScreen("duel-intro");
+    void beginEncounter(opponent);
+  };
+
+  const handleRename = (name: string) => {
+    if (!user?.id) {
+      setProfile(renameProfile(profile, name));
+      return;
+    }
+    const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 20) || "Yolcu";
+    setProfile((current) => ({ ...current, name: cleanName }));
+    if (profileSyncStatus !== "ready") return;
+    void fetch("/api/profile", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: cleanName }),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error("Profile rename failed.");
+      const result = (await response.json()) as { profile: unknown };
+      setProfile(normalizePlayerProfile(result.profile));
+    }).catch(() => {
+      setProfileSyncStatus("local");
+      setAnnouncement("Savaşçı adı sunucuya kaydedilemedi; diğer ilerleme alanları etkilenmedi.");
+    });
   };
 
   const setPreference = <Key extends keyof Preferences>(
@@ -673,6 +737,7 @@ function App() {
             soundEnabled={preferences.sound}
             vibrationEnabled={preferences.vibration}
             onFinish={finishEncounter}
+            finishError={duelSubmitError}
           />
         )}
         {screen === "result" && duelSummary && battleRewards && opponent && (
@@ -702,7 +767,7 @@ function App() {
               userEmail={user?.primaryEmailAddress?.emailAddress ?? null}
               accountSaveStatus={profileSyncStatus}
               onClose={() => setProfileOpen(false)}
-              onRename={(name) => setProfile(renameProfile(profile, name, user?.id))}
+              onRename={handleRename}
               onAccountAction={() => {
                 if (user) {
                   void signOut({ redirectUrl: import.meta.env.BASE_URL || "/" });

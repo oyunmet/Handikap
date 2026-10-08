@@ -35,8 +35,8 @@ export default function ProfilePanel({ profile, userEmail, accountSaveStatus, on
                 ? "İlerleme hesabına kaydedilir."
                 : accountSaveStatus === "loading"
                   ? "Hesap kaydı yükleniyor…"
-                  : "Sunucuya ulaşılamadı; kayıt bu cihazda tutuluyor."
-              : "Misafir ilerlemesi bu tarayıcıda saklanır."}
+                  : "Sunucuya ulaşılamadı; çevrimiçi ödüller güvenli biçimde işlenemez."
+              : "Misafir ödülleri yalnızca bu cihazda saklanır; sıralamaya veya çevrimiçi savaşa dahil değildir."}
           </span>
           <button type="button" onClick={onAccountAction}>{userEmail ? "ÇIKIŞ" : "HESAP AÇ / GİRİŞ"}</button>
         </div>
@@ -73,7 +73,7 @@ export default function ProfilePanel({ profile, userEmail, accountSaveStatus, on
           )}
         </section>
         <footer className="profile-panel__foot">
-          <span>{userEmail ? "Hesap ilerlemesi PostgreSQL’de saklanır." : "Misafir ilerlemesi bu tarayıcıda saklanır."}</span>
+          <span>{userEmail ? "Hesap ilerlemesi PostgreSQL’de saklanır." : "Sıralama ve çevrimiçi savaş özellikleri için hesapla giriş yap."}</span>
           <button type="button" onClick={() => { onRename(name); onClose(); }}>Kaydı tamamla</button>
         </footer>
       </section>

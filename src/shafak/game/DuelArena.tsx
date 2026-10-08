@@ -10,7 +10,7 @@ import {
   resolveDuelMove,
 } from "./duel.js";
 import type { PlayerProfile } from "./profile";
-import type { DuelSummary, Opponent } from "./types";
+import type { DuelSummary, Opponent, SubmittedMove } from "./types";
 import "./game.css";
 
 type DuelArenaProps = {
@@ -19,7 +19,8 @@ type DuelArenaProps = {
   opponent: Opponent;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
-  onFinish: (summary: DuelSummary) => void;
+  onFinish: (moves: SubmittedMove[], localSummary: DuelSummary) => void;
+  finishError: string | null;
 };
 
 const tileSymbols: Record<string, string> = {
@@ -58,7 +59,7 @@ function TileMark({ type }: { type: string }) {
   return <span className={`duel-tile__mark duel-tile__mark--${type}`} aria-hidden="true">{tileSymbols[type]}</span>;
 }
 
-export default function DuelArena({ seed, player, opponent, soundEnabled, vibrationEnabled, onFinish }: DuelArenaProps) {
+export default function DuelArena({ seed, player, opponent, soundEnabled, vibrationEnabled, onFinish, finishError }: DuelArenaProps) {
   const [playerState, setPlayerState] = useState(() => createDuelState(seed));
   const [rivalState, setRivalState] = useState(() => createDuelState(seed));
   const [selected, setSelected] = useState<number | null>(null);
@@ -73,6 +74,7 @@ export default function DuelArena({ seed, player, opponent, soundEnabled, vibrat
   const botTimer = useRef<number | null>(null);
   const finishTimer = useRef<number | null>(null);
   const finished = useRef(false);
+  const submittedMoves = useRef<SubmittedMove[]>([]);
 
   useEffect(() => () => {
     if (botTimer.current) window.clearTimeout(botTimer.current);
@@ -94,7 +96,10 @@ export default function DuelArena({ seed, player, opponent, soundEnabled, vibrat
   const announceFinish = (mine: typeof playerState, theirs: typeof rivalState) => {
     if (finished.current) return;
     finished.current = true;
-    finishTimer.current = window.setTimeout(() => onFinish(finishDuel(mine, theirs, opponent)), 480);
+    finishTimer.current = window.setTimeout(
+      () => onFinish([...submittedMoves.current], finishDuel(mine, theirs, opponent)),
+      480,
+    );
   };
 
   const runBotReply = (nextPlayerState: typeof playerState) => {
@@ -145,6 +150,7 @@ export default function DuelArena({ seed, player, opponent, soundEnabled, vibrat
     }
 
     setSelected(null);
+    submittedMoves.current.push({ first: selected, second: index });
     setPlayerState(result.state);
     setTurnEffect((current) => current + 1);
     if (soundEnabled) playGameSound(result.state.lastWaves.length > 1 ? "combo" : "match");
@@ -241,7 +247,7 @@ export default function DuelArena({ seed, player, opponent, soundEnabled, vibrat
             <button type="button" className="game-quiet-button" onClick={() => {
               if (finished.current) return;
               finished.current = true;
-              onFinish({
+              onFinish([...submittedMoves.current], {
                 verdict: "defeat",
                 opponentId: opponent.id,
                 playerScore: playerState.score,
@@ -251,6 +257,25 @@ export default function DuelArena({ seed, player, opponent, soundEnabled, vibrat
                 loot: opponent.loot,
               });
             }}>DÜELLODAN ÇEKİL</button>
+          </section>
+        </div>
+      )}
+      {finishError && (
+        <div className="duel-modal-backdrop">
+          <section className="duel-modal" role="dialog" aria-modal="true" aria-labelledby="duel-submit-error">
+            <span className="game-eyebrow">SONUÇ DOĞRULANAMADI</span>
+            <h2 id="duel-submit-error">Düello sunucuya ulaşmadı.</h2>
+            <p>{finishError}</p>
+            <button
+              type="button"
+              className="game-gold-button"
+              onClick={() => onFinish(
+                [...submittedMoves.current],
+                finishDuel(playerState, rivalState, opponent),
+              )}
+            >
+              TEKRAR DENE
+            </button>
           </section>
         </div>
       )}

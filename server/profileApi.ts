@@ -19,6 +19,24 @@ export type PlayerProfileRecord = {
   dailyKey: string;
 };
 
+export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord {
+  return {
+    name,
+    level: 1,
+    xp: 0,
+    gold: 120,
+    battles: 0,
+    wins: 0,
+    winStreak: 0,
+    bestStreak: 0,
+    items: [],
+    defeatedOpponents: [],
+    dailyBattles: 0,
+    dailyWins: 0,
+    dailyKey: new Date().toISOString().slice(0, 10),
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -39,6 +57,12 @@ function stringList(value: unknown, maximumItems: number): string[] | null {
     return null;
   }
   return [...new Set(value as string[])];
+}
+
+export function validateProfileRename(value: unknown): string | null {
+  if (!isRecord(value) || Object.keys(value).length !== 1 || typeof value.name !== "string") return null;
+  const name = value.name.trim().replace(/\s+/g, " ");
+  return name.length > 0 && name.length <= 20 ? name : null;
 }
 
 export function validatePlayerProfile(value: unknown): PlayerProfileRecord | null {
@@ -124,35 +148,57 @@ export function createProfileApi(database: Pool) {
     response.setHeader("Cache-Control", "no-store");
 
     try {
-      const result = await database.query<{ profile: unknown }>(
+      let result = await database.query<{ profile: unknown }>(
         "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
         [userId],
       );
-      response.json({ profile: result.rows[0]?.profile ?? null });
+      if (!result.rows[0]) {
+        await database.query(
+          `INSERT INTO shafak_player_profiles (user_id, profile, updated_at)
+           VALUES ($1, $2::jsonb, NOW())
+           ON CONFLICT (user_id) DO NOTHING`,
+          [userId, JSON.stringify(createDefaultPlayerProfile())],
+        );
+        result = await database.query<{ profile: unknown }>(
+          "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
+          [userId],
+        );
+      }
+      const profile = validatePlayerProfile(result.rows[0]?.profile);
+      if (!profile) {
+        response.status(503).json({ error: "profile_storage_invalid" });
+        return;
+      }
+      response.json({ profile });
     } catch {
       response.status(503).json({ error: "profile_storage_unavailable" });
     }
   });
 
-  router.put("/api/profile", profileLimit, async (request, response) => {
+  router.patch("/api/profile", profileLimit, async (request, response) => {
     const userId = authenticatedUserId(request, response);
     if (!userId) return;
     response.setHeader("Cache-Control", "no-store");
 
-    const profile = validatePlayerProfile(request.body);
-    if (!profile) {
-      response.status(400).json({ error: "invalid_profile" });
+    const name = validateProfileRename(request.body);
+    if (!name) {
+      response.status(400).json({ error: "invalid_name" });
       return;
     }
 
     try {
-      await database.query(
-        `INSERT INTO shafak_player_profiles (user_id, profile, updated_at)
-         VALUES ($1, $2::jsonb, NOW())
-         ON CONFLICT (user_id) DO UPDATE
-         SET profile = EXCLUDED.profile, updated_at = NOW()`,
-        [userId, JSON.stringify(profile)],
+      const result = await database.query<{ profile: unknown }>(
+        `UPDATE shafak_player_profiles
+         SET profile = jsonb_set(profile, '{name}', to_jsonb($2::text), true), updated_at = NOW()
+         WHERE user_id = $1
+         RETURNING profile`,
+        [userId, name],
       );
+      const profile = validatePlayerProfile(result.rows[0]?.profile);
+      if (!profile) {
+        response.status(404).json({ error: "profile_not_found" });
+        return;
+      }
       response.json({ profile });
     } catch {
       response.status(503).json({ error: "profile_storage_unavailable" });

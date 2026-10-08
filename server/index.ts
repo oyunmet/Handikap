@@ -10,6 +10,7 @@ import {
   clerkProxyMiddleware,
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
+import { createDuelApi } from "./duelApi";
 import { createProfileApi } from "./profileApi";
 
 const port = Number(process.env.GAME_SERVER_PORT ?? "3001");
@@ -36,6 +37,7 @@ app.use(
 );
 app.use(express.json({ limit: "16kb" }));
 app.use(createProfileApi(database));
+app.use(createDuelApi(database));
 
 app.get("/api/health", async (_request, response) => {
   if (databaseStatus !== "not_configured") {
