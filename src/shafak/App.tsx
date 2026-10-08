@@ -1,6 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { useClerk, useUser } from "@clerk/react";
 import { useLocation } from "wouter";
 import { playGameSound, playUiChime, setSoundEnabled } from "./audio/howler";
 import { tr } from "./i18n/tr";
@@ -149,9 +148,18 @@ function ArrowIcon() {
   );
 }
 
-function App() {
-  const { user, isLoaded: authLoaded } = useUser();
-  const { signOut } = useClerk();
+type AppProps = {
+  user: {
+    id: string;
+    firstName: string | null;
+    primaryEmailAddress?: { emailAddress: string } | null;
+  } | null;
+  authLoaded: boolean;
+  allowOfflineGuest?: boolean;
+  signOut: (options: { redirectUrl: string }) => Promise<unknown>;
+};
+
+function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps) {
   const [, setLocation] = useLocation();
   const [screen, setScreen] = useState<Screen>("opening");
   const [progress, setProgress] = useState(0);
@@ -175,7 +183,13 @@ function App() {
   const homeAtmosphere = screen === "opening" || screen === "loading" || screen === "menu";
 
   useEffect(() => {
-    if (!authLoaded) return;
+    if (!authLoaded) {
+      if (!allowOfflineGuest) return;
+      setProfile(readProfile());
+      setProfileSyncOwner("guest");
+      setProfileSyncStatus("ready");
+      return;
+    }
     let cancelled = false;
     if (!user?.id) {
       setProfile(readProfile());
@@ -213,13 +227,13 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [authLoaded, user?.id, user?.firstName]);
+  }, [allowOfflineGuest, authLoaded, user?.id, user?.firstName]);
 
   useEffect(() => {
-    if (!authLoaded || profileSyncOwner !== (user?.id ?? "guest")) return;
+    if ((!authLoaded && !allowOfflineGuest) || profileSyncOwner !== (user?.id ?? "guest")) return;
     if (user?.id) return;
     saveProfile(profile);
-  }, [authLoaded, profile, profileSyncOwner, user?.id]);
+  }, [allowOfflineGuest, authLoaded, profile, profileSyncOwner, user?.id]);
 
   useEffect(() => {
     try {

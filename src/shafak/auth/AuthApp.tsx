@@ -1,4 +1,4 @@
-import { ClerkProvider, Show, SignIn, SignUp, useUser } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { dark } from "@clerk/themes";
 import { trTR } from "@clerk/localizations";
@@ -17,10 +17,6 @@ function stripBase(path: string) {
   return basePath && path.startsWith(basePath)
     ? path.slice(basePath.length) || "/"
     : path;
-}
-
-if (!clerkPubKey) {
-  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in the app environment.");
 }
 
 const clerkAppearance = {
@@ -93,10 +89,12 @@ const clerkAppearance = {
 };
 
 function HomeRoute() {
+  const { isLoaded, isSignedIn } = useUser();
   return (
     <>
-      <Show when="signed-in"><Redirect to="/user-portal" /></Show>
-      <Show when="signed-out"><ShafakApp /></Show>
+      {isLoaded && isSignedIn
+        ? <Redirect to="/user-portal" />
+        : <ClerkBackedGame allowOfflineGuest />}
     </>
   );
 }
@@ -107,7 +105,26 @@ function UserPortal() {
     return <div className="auth-loading" role="status">Hesap bilgileri yükleniyor…</div>;
   }
   if (!isSignedIn) return <Redirect to="/" />;
-  return <ShafakApp />;
+  return <ClerkBackedGame />;
+}
+
+function ClerkBackedGame({ allowOfflineGuest = false }: { allowOfflineGuest?: boolean }) {
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  return (
+    <ShafakApp
+      user={user ? {
+        id: user.id,
+        firstName: user.firstName,
+        primaryEmailAddress: user.primaryEmailAddress
+          ? { emailAddress: user.primaryEmailAddress.emailAddress }
+          : null,
+      } : null}
+      authLoaded={isLoaded}
+      allowOfflineGuest={allowOfflineGuest}
+      signOut={signOut}
+    />
+  );
 }
 
 function SignInPage() {
@@ -171,6 +188,17 @@ function ClerkRoutes() {
 }
 
 export default function AuthApp() {
+  if (!clerkPubKey) {
+    return (
+      <ShafakApp
+        user={null}
+        authLoaded={false}
+        allowOfflineGuest
+        signOut={async () => undefined}
+      />
+    );
+  }
+
   return (
     <Router base={basePath}>
       <ClerkRoutes />
