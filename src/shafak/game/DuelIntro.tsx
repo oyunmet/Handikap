@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { Opponent } from "./types";
+import "./game.css";
 
 type DuelIntroProps = {
   playerName: string;
@@ -78,7 +79,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: reducedMotion ? 0.1 : 0.36, ease: "backOut" }}
       >{beatLabel}</motion.div>
-      <p className="duel-intro__rule">İKİ SAVAŞÇI · AYNI TAHTA · 20 HAMLE</p>
+      <p className="duel-intro__rule">ÜÇ SAYIM · BİR KARŞILAŞMA</p>
     </motion.main>
   );
 }

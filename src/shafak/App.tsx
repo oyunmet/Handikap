@@ -1,22 +1,18 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { playGameSound, playUiChime, setSoundEnabled } from "./audio/howler";
+import { playUiChime, setSoundEnabled } from "./audio/howler";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import WorldScene from "./world/WorldScene";
-import DuelIntro from "./game/DuelIntro";
-import DuelArena from "./game/DuelArena";
-import DuelResults from "./game/DuelResults";
 import ProfilePanel from "./game/ProfilePanel";
-import { awardBattle, defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
-import type { BattleRewards, DuelSummary, Opponent, SubmittedMove } from "./game/types";
+import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
 
-type Screen = "opening" | "loading" | "menu" | "world" | "duel-intro" | "duel" | "result";
+type Screen = "opening" | "loading" | "menu" | "world";
 type Preferences = {
   sound: boolean;
   vibration: boolean;
-  quality: "high" | "balanced";
+  quality: "high" | "balanced" | "low";
   reduceMotion: boolean;
 };
 
@@ -39,7 +35,7 @@ function readPreferences(): Preferences {
       sound: typeof saved.sound === "boolean" ? saved.sound : initialPreferences.sound,
       vibration:
         typeof saved.vibration === "boolean" ? saved.vibration : initialPreferences.vibration,
-      quality: saved.quality === "balanced" ? "balanced" : "high",
+      quality: saved.quality === "low" ? "low" : saved.quality === "balanced" ? "balanced" : "high",
       reduceMotion:
         typeof saved.reduceMotion === "boolean"
           ? saved.reduceMotion
@@ -170,12 +166,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
   const [profileSyncOwner, setProfileSyncOwner] = useState("");
   const [profileSyncStatus, setProfileSyncStatus] = useState<"loading" | "ready" | "local">("loading");
   const [profileOpen, setProfileOpen] = useState(false);
-  const [opponent, setOpponent] = useState<Opponent | null>(null);
-  const [duelSummary, setDuelSummary] = useState<DuelSummary | null>(null);
-  const [battleRewards, setBattleRewards] = useState<BattleRewards | null>(null);
-  const [battleSeed, setBattleSeed] = useState(() => Date.now() >>> 0);
-  const [serverDuelId, setServerDuelId] = useState<string | null>(null);
-  const [duelSubmitError, setDuelSubmitError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const sceneRef = useRef<HTMLDivElement>(null);
   const systemReducedMotion = useReducedMotion();
@@ -340,101 +330,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
   const enterWorld = () => {
     playFeedback();
     setScreen("world");
-  };
-
-  const beginEncounter = async (nextOpponent: Opponent) => {
-    playFeedback();
-    setOpponent(nextOpponent);
-    setDuelSubmitError(null);
-    if (user?.id) {
-      if (profileSyncStatus !== "ready") {
-        setAnnouncement("Hesap sunucusu hazır değil. Ödül güvenliği için çevrimdışı hesap savaşı açılamaz.");
-        return;
-      }
-      try {
-        const response = await fetch("/api/duels/start", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ opponentId: nextOpponent.id }),
-        });
-        const result = (await response.json()) as { duelId?: string; seed?: number; error?: string };
-        if (!response.ok || !result.duelId || !Number.isSafeInteger(result.seed)) {
-          throw new Error(result.error ?? "duel_start_failed");
-        }
-        setServerDuelId(result.duelId);
-        setBattleSeed(result.seed as number);
-      } catch (error) {
-        const code = error instanceof Error ? error.message : "";
-        setAnnouncement(code === "opponent_locked"
-          ? "Bu rakiple henüz karşılaşamazsın."
-          : "Sunucu düellosu başlatılamadı; güvenli ödül için yeniden bağlanıp tekrar dene.");
-        return;
-      }
-    } else {
-      setServerDuelId(null);
-      setBattleSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
-    }
-    setScreen("duel-intro");
-  };
-
-  const finishEncounter = async (moves: SubmittedMove[], localSummary: DuelSummary) => {
-    setDuelSubmitError(null);
-    let summary = localSummary;
-    let rewards: BattleRewards;
-    if (user?.id) {
-      if (!serverDuelId) {
-        setDuelSubmitError("Bu oturum için sunucu düellosu bulunamadı. Sayfayı yenileyip tekrar başlat.");
-        return;
-      }
-      try {
-        const response = await fetch("/api/duels/complete", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ duelId: serverDuelId, moves }),
-        });
-        const result = (await response.json()) as {
-          summary?: DuelSummary;
-          rewards?: BattleRewards;
-          profile?: unknown;
-          error?: string;
-        };
-        if (!response.ok || !result.summary || !result.rewards || !result.profile) {
-          const messages: Record<string, string> = {
-            duel_too_fast: "Düello sunucu tarafından fazla hızlı bulundu; biraz bekleyip yeniden dene.",
-            duel_already_settled: "Bu düello daha önce işlendi. Profilini güncellemek için sayfayı yenile.",
-            illegal_move: "Hamle listesi doğrulanamadı; ödül eklenmedi.",
-            too_many_moves: "Hamle sınırı aşıldı; ödül eklenmedi.",
-          };
-          throw new Error(messages[result.error ?? ""] ?? "Sunucu düello sonucunu doğrulayamadı; sonucu tekrar göndermeyi dene.");
-        }
-        summary = result.summary;
-        rewards = result.rewards;
-        setProfile(normalizePlayerProfile(result.profile));
-      } catch (error) {
-        setDuelSubmitError(error instanceof Error
-          ? error.message
-          : "Sunucu düello sonucunu doğrulayamadı; sonucu tekrar göndermeyi dene.");
-        return;
-      }
-    } else {
-      const awarded = awardBattle(profile, localSummary);
-      setProfile(awarded.profile);
-      rewards = awarded.rewards;
-    }
-    setDuelSummary(summary);
-    setBattleRewards(rewards);
-    setScreen("result");
-    if (preferences.sound) playGameSound(summary.verdict === "victory" ? "victory" : "defeat");
-    if (preferences.vibration && "vibrate" in navigator) {
-      try { navigator.vibrate(summary.verdict === "victory" ? [20, 45, 35] : 16); } catch { /* Haptics are optional. */ }
-    }
-  };
-
-  const rematch = () => {
-    if (!opponent) return;
-    void beginEncounter(opponent);
   };
 
   const handleRename = (name: string) => {
@@ -729,41 +624,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
               onExit={() => setScreen("menu")}
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenProfile={() => setProfileOpen(true)}
-              onEncounterStart={beginEncounter}
             />
           </motion.div>
-        )}
-        {screen === "duel-intro" && opponent && (
-          <DuelIntro
-            key="duel-intro"
-            playerName={profile.name}
-          playerLevel={profile.level}
-            opponent={opponent}
-            onComplete={() => setScreen("duel")}
-          />
-        )}
-        {screen === "duel" && opponent && (
-          <DuelArena
-            key={`duel-${battleSeed}`}
-            seed={battleSeed}
-            player={profile}
-            opponent={opponent}
-            soundEnabled={preferences.sound}
-            vibrationEnabled={preferences.vibration}
-            onFinish={finishEncounter}
-            finishError={duelSubmitError}
-          />
-        )}
-        {screen === "result" && duelSummary && battleRewards && opponent && (
-          <DuelResults
-            key="duel-result"
-            summary={duelSummary}
-            rewards={battleRewards}
-            playerName={profile.name}
-            opponentName={opponent.name}
-            onContinue={() => setScreen("world")}
-            onReplay={rematch}
-          />
         )}
       </AnimatePresence>
 
@@ -868,6 +730,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
                       onClick={() => setPreference("quality", "balanced")}
                     >
                       {tr.balanced}
+                    </button>
+                    <button
+                      className={preferences.quality === "low" ? "is-selected" : ""}
+                      type="button"
+                      aria-pressed={preferences.quality === "low"}
+                      onClick={() => setPreference("quality", "low")}
+                    >
+                      {tr.low}
                     </button>
                   </div>
                 </div>

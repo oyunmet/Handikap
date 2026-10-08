@@ -1,0 +1,82 @@
+# AŞAMA: PUZZLE'I KALDIR, GERÇEK ZAMANLI SAVAŞ + YÜRÜME/SAVAŞ ANİMASYONLARI
+
+Mevcut "Şafak Savaşçıları" projesinde çekirdek oyun artık eşleştirme/bulmaca olmayacak. Yerine GERÇEK ZAMANLI AKSİYON SAVAŞI gelecek. Ayrıca yürüme şu an çalışmıyor ("YÜRÜYOR" yazıyor ama ne karakter ne dünya hareket ediyor). Bunların hepsini AAA mobil oyun kalitesinde, akıcı (60 FPS hedefi), gerçekçi efekt ve animasyonlarla yap. Düz, ucuz veya ani hiçbir şey kabul edilmez.
+
+## ÇALIŞMA KURALLARI
+- Aşamalara böl. Her aşama sonunda: ne değişti, neyi test ettin, neyi test edemedin yaz ve onayımı bekle.
+- Mobil öncelikli (dokunmatik, dikey ekran), masaüstünde klavye de çalışsın.
+- Kodlar modüler: simülasyon (oyun mantığı), render, girdi, ses, UI, ağ AYRI olsun. Simülasyon, render'dan bağımsız çalışabilmeli (sunucuda da koşabilsin).
+- Mevcut hesap sistemi (Clerk, PostgreSQL profil, misafir modu) KORUNSUN ve bozulmasın.
+- Düşük cihazlar için "efekt kalitesi" ayarı (Yüksek/Orta/Düşük) ve "hareketi azalt" desteği ekle.
+
+## AŞAMA 1 — TEMİZLİK: Puzzle'ı tamamen kaldır
+1. Eşleştirme/taş birleştirme oyununa ait TÜM kodu, bileşenleri, testleri, ses/animasyon varlıklarını, metinleri ve veritabanı alanlarını sil. Ölü kod kalmasın.
+2. Düello başlatma/bitirme akışı, ödül ve günlük görev sistemi durmalı ama yeni savaş sistemine uyarlanmak üzere korunmalı (yeniden yazılacak).
+3. Testleri güncelle; typecheck, build ve testler temiz geçmeden bu aşamayı bitirme.
+
+## AŞAMA 2 — YÜRÜME SİSTEMİ (şu an bozuk, düzelt ve geliştir)
+Önce teşhis et: joystick/tuşlar girdiyi gerçekten okuyor mu, hareket durumu (state) güncelleniyor mu, kamera ve dünya buna tepki veriyor mu? Sorunu bul ve bana kısaca yaz.
+1. Hareket: Joystick ve WASD/ok tuşları ile yumuşak ivmelenme ve yavaşlama (anlık başlayıp durma yok). Hız, joystick'in ne kadar itildiğine göre değişsin (yürüme/koşma).
+2. Dünya hareketi: Karakter hareket edince dünya, derinlik katmanlarıyla (parallax) farklı hızlarda kaysın: uzak dağlar çok yavaş, orta plan kaleler orta, ön plan taşlar/bayraklar/zemin hızlı. Yolda ilerlediğini net hissettirsin.
+3. Kamera: Karakteri yumuşak takip etsin (lerp), hızlanınca hafif geri çekilsin, durunca yaklaşsın, hafif öne bakış payı olsun.
+4. Karakter animasyonu (mevcut karakter görselini kullan, kaldırma):
+   - Elimdeki karakter tek bir resim. Gerçekçi yürüme hissi için şu teknikleri birlikte uygula: adım ritmine bağlı yukarı-aşağı sallanma (bob), gövdeyi hareket yönüne eğme, hafif sağa-sola ağırlık kayması, adım anında çok hafif sıkışma/uzama (squash & stretch), pelerinin mesh deformasyonuyla (PixiJS mesh veya benzeri) rüzgar ve hareketle dalgalanması, zırh parıltısının ışıkla kayması.
+   - Karakterin altında gerçekçi yumuşak gölge (hareketle birlikte uzayıp kısalan), yön değiştirince karakterin dönüşü (flip) akıcı geçişle.
+   - Idle: yavaş nefes alma, pelerinde hafif kıpırdama.
+5. Yürüme efektleri: Her adımda ayak altında toz/kum/kıvılcım parçacıkları (zemine göre), koşarken daha yoğun toz ve hız çizgileri, adım sesleri (hız ve zemine göre değişen, hafif rastgele perde farkıyla).
+6. ANİMASYON SİSTEMİ MİMARİSİ: Karakter animasyonlarını durum makinesi (idle, walk, run, attack, block, dodge, hit, die) ile yönet. Her durum için "prosedürel animasyon" yerine ileride sprite sheet veya iskelet animasyonu takabileceğim bir arayüz kur. Yani sonradan sprite sheet yüklediğimde sadece bir ayar değiştirerek geçebileyim. Bunu nasıl yapacağımı kısaca belgele.
+7. Dünya canlılığı: Meşalelerde dinamik titreyen ışık, dalgalanan bayraklar, uçuşan kül/kıvılcım, hareketli sis katmanları, hafif hacimsel ışık huzmeleri. "Hava: Açık/Kapalı" düğmesi bunları açıp kapatsın.
+
+## AŞAMA 3 — GERÇEK ZAMANLI SAVAŞ SİSTEMİ (çekirdek)
+Savaşa girme: Rakibe yaklaşınca "SAVAŞ" butonu çıkıyor (mevcut mantık korunsun). Basılınca kısa sinematik geçiş sonrası gerçek zamanlı arena açılır.
+1. Arena: Yatay 2D/2.5D savaş sahnesi. Katmanlı arka plan, ışıklandırma ve kenarlarda atmosferik efektler. İki karakter karşı karşıya, derinlik hissi.
+2. Kontroller (mobil): Sol altta hareket joystick'i; sağ altta büyük "SALDIRI" butonu, "KALKAN", "ATILMA (dodge)" ve 2 adet "YETENEK" butonu. Masaüstü: WASD + fare/tuşlar. Tüm butonlarda basma animasyonu ve titreşim.
+3. Savaş mekanikleri:
+   - Hafif saldırı zinciri (3 vuruşluk kombo), ağır saldırı (basılı tutma ile şarj), kalkan ile savuşturma (doğru zamanlı blok = karşı saldırı fırsatı), atılma (kısa dokunulmazlık), 2 aktif yetenek (bekleme süreli).
+   - Can ve dayanıklılık (stamina) çubukları. Her eylem dayanıklılık harcar; boşalırsa hareket yavaşlar. Dayanıklılık zamanla dolar.
+   - Hasar hesabı: temel hasar, kritik vuruş şansı, blok azaltması, kombo çarpanı.
+   - Sersemletme (stagger) ve geri savrulma (knockback).
+4. Düşman yapay zekası (3 zorluk: kolay/orta/zor): Mesafe tutma, saldırı örüntüleri, oyuncunun blokuna/atılmasına tepki, arada boşluk bırakma (adil ve öğrenilebilir olsun). Zor seviyede bile "imkansız" hissettirmesin.
+5. Deterministik simülasyon: Oyun mantığını sabit zaman adımıyla (fixed timestep, örn. 60 Hz) ve tohumlu rastgelelikle (seed) çalıştır; render'dan tamamen ayrı olsun. Böylece aynı girdi kaydı aynı sonucu versin.
+6. Bitiş: Biri sıfır cana inerse veya süre (örn. 90 sn) dolarsa biter. Süre dolarsa kalan can yüzdesi kazananı belirler.
+
+## AŞAMA 4 — SAVAŞ EFEKTLERİ VE "HİSSİYAT" (juice)
+Bu aşama oyunun kalitesini belirler; hiçbirini atlama:
+1. Vuruş hissi: İsabette çok kısa dondurma (hit-stop, 40–90 ms), ekran sarsıntısı (hasara göre şiddet), kısa zoom darbesi, vuruş noktasında kıvılcım/kan yerine stilize enerji parçacıkları, vuruş flaşı (beyaz parlama), rakipte kısa renk vurgusu.
+2. Kılıç izi: Her saldırıda yay şeklinde parlayan, yavaşça sönen kılıç izi (slash trail). Hafif/ağır/kritik için farklı renk ve boyut.
+3. Blok/savuşturma: Doğru blokta büyük kıvılcım patlaması, halka şok dalgası, zaman kısa yavaşlama (slow-motion).
+4. Atılma: Arkada kalan hayalet izi (afterimage) ve toz bulutu.
+5. Yetenekler: Her yetenek için ayrı büyük görsel efekt (örn. ateş dalgası, yıldırım darbesi), ekranı kaplayan kısa ışık patlaması, kamera hareketi ve güçlü ses.
+6. Hasar sayıları: Vuruşta yukarı süzülen, kritikte büyük ve altın renkli, yumuşak kaybolan hasar yazıları.
+7. Can çubukları: Hasar alınca "gecikmeli kırmızı iz" efektiyle akıcı azalsın. Can azalınca ekran kenarlarında nabız gibi kırmızı vignette.
+8. Karakter durumları: Hasar alma, sersemleme, ölme animasyonu (yavaş çekimde yere yığılma, pelerin ve toz efekti).
+9. Kamera: Savaşta iki karakteri kadrajda tutan dinamik kamera, büyük vuruşlarda zoom, final vuruşunda sinematik yavaş çekim.
+10. Ses: Her eylem için katmanlı ses (kılıç, kalkan, darbe, yetenek, adım), dinamik müzik (savaşa girişte yoğunlaşma, canın azalmasında gerilim), vuruşlarda hafif titreşim.
+
+## AŞAMA 5 — SAVAŞ GİRİŞİ VE SONUÇ SİNEMATİKLERİ
+1. Giriş: Dünya sahnesi yavaşlar, ekran ortadan yarılır gibi arenaya geçiş, iki karakter kayarak girer, "VS" ekranı (isim, seviye, ganimet), 3-2-1 geri sayım, "SAVAŞ!".
+2. Bitiş: Son vuruşta yavaş çekim ve kamera yakınlaşması, ardından "ZAFER!" (altın ışık huzmeleri, kıvılcımlar) veya "YENİLGİ" (ekran kararır, karakter diz çöker).
+3. Ganimet: Sandık açılma animasyonu, altın/eşyaların sayaçla envantere uçması.
+4. Yürüyüş sahnesine yumuşak geri geçiş.
+
+## AŞAMA 6 — SUNUCU DOĞRULAMASI (hile önleme korunacak)
+1. Önceki kuralı koru: İstemci ödül, skor, altın, XP veya ganimet GÖNDERMEZ. Sunucu düello kimliği ve tohum üretir.
+2. İstemci sadece zaman damgalı girdi kaydını (hangi karede hangi tuşa basıldığı) gönderir. Sunucu aynı deterministik simülasyonla savaşı baştan oynatıp sonucu ve ödülü KENDİSİ hesaplar.
+3. Düello kimliği tekildir, ikinci kez ödüllendirilemez. İmkansız girdi (insanüstü hız, geçersiz sıra, süre aşımı) reddedilir. Hız sınırı olsun.
+4. Testler: sahte sonuç, değiştirilmiş girdi, çift ödül, çok hızlı bitirme senaryoları için otomatik test yaz.
+5. Gerçek oyunculu çevrimiçi savaşı HENÜZ YAPMA; simülasyonu buna hazır (deterministik, render'dan bağımsız) bırak. Vercel'de sürekli çalışan sunucu olmayacağını göz önünde tut ve gerçek oyunculu mod için ne gerektiğini bana kısaca yaz.
+
+## AŞAMA 7 — CİLA VE PERFORMANS
+1. Tüm geçişlerde tutarlı easing ve süre kuralları, hiçbir ani kesme olmasın.
+2. Performans ölçümü (FPS göstergesi seçeneği), büyük JavaScript paketini bölme (code splitting), görselleri sıkıştırma/optimize etme.
+3. Kısa, animasyonlu "nasıl oynanır" öğreticisi (ilk savaşta).
+4. Hata durumları için şık ekranlar.
+
+## BAŞARI KRİTERLERİ
+- Joystick'e dokununca karakter ve dünya GERÇEKTEN hareket eder, ilerlediğim net hissedilir.
+- Savaşta her vuruş "ağırlık" hissettirir: hit-stop, sarsıntı, kıvılcım, ses, titreşim birlikte çalışır.
+- Savaş adil ve öğrenilebilir; ödüller sunucuda doğrulanır.
+- Puzzle'dan tek satır kod kalmaz.
+- Görsel kimlik (karanlık fantezi, kor kırmızısı ve altın) tüm ekranlarda tutarlıdır.
+
+Şimdi AŞAMA 1 ve 2'yi yap (temizlik + yürüme

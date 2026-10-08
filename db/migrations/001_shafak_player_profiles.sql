@@ -11,9 +11,7 @@ CREATE TABLE IF NOT EXISTS shafak_duels (
   seed BIGINT NOT NULL CHECK (seed > 0 AND seed <= 4294967295),
   opponent_id TEXT NOT NULL,
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at TIMESTAMPTZ,
-  moves JSONB CHECK (moves IS NULL OR jsonb_typeof(moves) = 'array'),
-  result JSONB CHECK (result IS NULL OR jsonb_typeof(result) = 'object')
+  completed_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS shafak_duels_user_started_idx

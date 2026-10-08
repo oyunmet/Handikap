@@ -6,7 +6,7 @@ const worldText = {
   gold: "Altın",
   weather: "Hava",
   clear: "Açık",
-  rain: "Yağmur",
+  airOff: "Kapalı",
   inventory: "Heybe",
   settings: "Ayarlar",
   exit: "Yolculuktan çık",

@@ -2,7 +2,7 @@ import type { Application, Graphics } from "pixi.js";
 import { useEffect, useRef } from "react";
 
 type EmberLayerProps = {
-  quality: "high" | "balanced";
+  quality: "high" | "balanced" | "low";
   motionReduced: boolean;
 };
 
@@ -56,11 +56,11 @@ export default function EmberLayer({ quality, motionReduced }: EmberLayerProps) 
 
         const layer = new Container();
         app.stage.addChild(layer);
-        const count = quality === "high" ? 34 : 14;
+        const count = quality === "high" ? 34 : quality === "balanced" ? 14 : 5;
         const colors = [0xf2c66f, 0xc8513d, 0x8d5a48];
 
         for (let index = 0; index < count; index += 1) {
-          const radius = random(0.8, quality === "high" ? 2.2 : 1.5);
+          const radius = random(0.6, quality === "high" ? 2.2 : quality === "balanced" ? 1.5 : 1);
           const graphic = new PixiGraphics()
             .circle(0, 0, radius)
             .fill({ color: colors[index % colors.length], alpha: random(0.38, 0.88) });

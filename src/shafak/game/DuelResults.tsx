@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
 import type { BattleRewards, DuelSummary } from "./types";
 import "./game.css";
 
@@ -13,23 +12,6 @@ type DuelResultsProps = {
   onReplay: () => void;
 };
 
-function useScoreCount(target: number, delay: number) {
-  const [score, setScore] = useState(0);
-  useEffect(() => {
-    setScore(0);
-    let current = 0;
-    const timeout = window.setTimeout(() => {
-      const interval = window.setInterval(() => {
-        current = Math.min(target, current + Math.max(1, Math.ceil(target / 32)));
-        setScore(current);
-        if (current >= target) window.clearInterval(interval);
-      }, 26);
-    }, delay);
-    return () => window.clearTimeout(timeout);
-  }, [delay, target]);
-  return score;
-}
-
 export default function DuelResults({
   summary,
   rewards,
@@ -38,8 +20,6 @@ export default function DuelResults({
   onContinue,
   onReplay,
 }: DuelResultsProps) {
-  const playerScore = useScoreCount(summary.playerScore, 240);
-  const rivalScore = useScoreCount(summary.opponentScore, 520);
   const won = summary.verdict === "victory";
   const drew = summary.verdict === "draw";
   const title = won ? "ZAFER!" : drew ? "BERABERLİK" : "YENİLGİ";
@@ -56,12 +36,12 @@ export default function DuelResults({
       >
         <span className="game-eyebrow">DÜELLO SONUCU</span>
         <h1>{title}</h1>
-        <p className="duel-result__subtitle">{won ? `${opponentName} ganimetini bıraktı.` : drew ? "Tahtada üstünlük kurulamadı." : `${opponentName} bu kez üstün geldi.`}</p>
+        <p className="duel-result__subtitle">{won ? `${opponentName} ganimetini bıraktı.` : drew ? "İki savaşçı da geri çekildi." : `${opponentName} bu kez üstün geldi.`}</p>
 
-        <div className="duel-result__score">
-          <div><span>{playerName}</span><strong>{playerScore.toLocaleString("tr-TR")}</strong><small>PUAN · ×{summary.playerCombo} SERİ</small></div>
-          <span className="duel-result__divider">—</span>
-          <div><span>{opponentName}</span><strong>{rivalScore.toLocaleString("tr-TR")}</strong><small>PUAN · ×{summary.opponentCombo} SERİ</small></div>
+        <div className="duel-result__participants">
+          <strong>{playerName}</strong>
+          <span aria-hidden="true">VS</span>
+          <strong>{opponentName}</strong>
         </div>
 
         <div className="duel-chest" aria-label="Ganimet sandığı">

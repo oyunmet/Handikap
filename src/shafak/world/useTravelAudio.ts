@@ -4,17 +4,16 @@ type AudioRig = {
   context: AudioContext;
   master: GainNode;
   sources: AudioNode[];
-  footsteps: number;
 };
 
-export default function useTravelAudio(enabled: boolean, running: boolean, rain: boolean) {
+export default function useTravelAudio(enabled: boolean, running: boolean, ambience: boolean) {
   const rigRef = useRef<AudioRig | null>(null);
   const enabledRef = useRef(enabled);
   const runningRef = useRef(running);
-  const rainRef = useRef(rain);
+  const ambienceRef = useRef(ambience);
   enabledRef.current = enabled;
   runningRef.current = running;
-  rainRef.current = rain;
+  ambienceRef.current = ambience;
 
   const start = useCallback(() => {
     if (!enabledRef.current || rigRef.current || typeof window === "undefined") return;
@@ -56,29 +55,15 @@ export default function useTravelAudio(enabled: boolean, running: boolean, rain:
       drone.connect(droneGain).connect(master);
       drone.start();
       sources.push(drone);
-      rigRef.current = { context, master, sources, footsteps: 0 };
+      rigRef.current = { context, master, sources };
       void context.resume();
       const animate = () => {
         const active = rigRef.current;
         if (!active || active.context.state === "closed") return;
         const now = active.context.currentTime;
-        active.master.gain.setTargetAtTime(enabledRef.current ? .22 : 0, now, .12);
-        wind.filter.frequency.setTargetAtTime(rainRef.current ? 620 : 360, now, .8);
-        battle.gain.gain.setTargetAtTime(rainRef.current ? .028 : .055, now, .8);
-        if (runningRef.current && now - active.footsteps > (rainRef.current ? .49 : .58)) {
-          active.footsteps = now;
-          const foot = active.context.createOscillator();
-          const envelope = active.context.createGain();
-          foot.type = "triangle";
-          foot.frequency.setValueAtTime(rainRef.current ? 92 : 72, now);
-          foot.frequency.exponentialRampToValueAtTime(rainRef.current ? 54 : 40, now + .085);
-          envelope.gain.setValueAtTime(.0001, now);
-          envelope.gain.exponentialRampToValueAtTime(rainRef.current ? .12 : .16, now + .012);
-          envelope.gain.exponentialRampToValueAtTime(.0001, now + .11);
-          foot.connect(envelope).connect(active.master);
-          foot.start(now);
-          foot.stop(now + .12);
-        }
+        active.master.gain.setTargetAtTime(enabledRef.current && ambienceRef.current ? .22 : 0, now, .12);
+        wind.filter.frequency.setTargetAtTime(ambienceRef.current ? 360 : 280, now, .8);
+        battle.gain.gain.setTargetAtTime(ambienceRef.current && runningRef.current ? .055 : .03, now, .8);
         requestRef.current = window.requestAnimationFrame(animate);
       };
       animate();
@@ -92,6 +77,13 @@ export default function useTravelAudio(enabled: boolean, running: boolean, rain:
     if (!enabled && rigRef.current) rigRef.current.master.gain.setTargetAtTime(0, rigRef.current.context.currentTime, .12);
     return undefined;
   }, [enabled]);
+
+  useEffect(() => {
+    if (rigRef.current) {
+      const { context, master } = rigRef.current;
+      master.gain.setTargetAtTime(enabled && ambience ? .22 : 0, context.currentTime, .12);
+    }
+  }, [ambience, enabled]);
 
   useEffect(() => () => {
     if (requestRef.current) window.cancelAnimationFrame(requestRef.current);

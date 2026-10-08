@@ -11,10 +11,6 @@ export type Opponent = {
 export type DuelSummary = {
   verdict: "victory" | "defeat" | "draw";
   opponentId: string;
-  playerScore: number;
-  opponentScore: number;
-  playerCombo: number;
-  opponentCombo: number;
   loot: number;
 };
 
@@ -23,9 +19,4 @@ export type BattleRewards = {
   xp: number;
   item: string | null;
   lostStake: number;
-};
-
-export type SubmittedMove = {
-  first: number;
-  second: number;
 };

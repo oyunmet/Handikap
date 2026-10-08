@@ -1,19 +1,17 @@
 import { useEffect, useRef } from "react";
 
-type Props = { quality: "high" | "balanced"; motionReduced: boolean; rain: boolean; travel: number };
+type Props = { quality: "high" | "balanced" | "low"; motionReduced: boolean; enabled: boolean; travel: number };
 type Mote = { x: number; y: number; vx: number; vy: number; size: number; phase: number; kind: number };
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
-export default function WorldAtmosphere({ quality, motionReduced, rain, travel }: Props) {
+export default function WorldAtmosphere({ quality, motionReduced, enabled, travel }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const travelRef = useRef(travel);
-  const rainRef = useRef(rain);
   travelRef.current = travel;
-  rainRef.current = rain;
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!host || motionReduced) return undefined;
+    if (!host || motionReduced || !enabled) return undefined;
     let cancelled = false;
     let app: import("pixi.js").Application | null = null;
     let observer: ResizeObserver | null = null;
@@ -29,7 +27,7 @@ export default function WorldAtmosphere({ quality, motionReduced, rain, travel }
           autoDensity: true,
           backgroundAlpha: 0,
           preference: "webgl",
-          resolution: Math.min(window.devicePixelRatio || 1, quality === "high" ? 1.5 : 1),
+          resolution: Math.min(window.devicePixelRatio || 1, quality === "high" ? 1.5 : quality === "balanced" ? 1 : .7),
           resizeTo: host,
           powerPreference: "low-power",
         });
@@ -45,7 +43,7 @@ export default function WorldAtmosphere({ quality, motionReduced, rain, travel }
         const sky = new Container();
         const foreground = new Container();
         instance.stage.addChild(sky, foreground);
-        const count = quality === "high" ? 54 : 22;
+        const count = quality === "high" ? 54 : quality === "balanced" ? 22 : 8;
         const motes: Mote[] = Array.from({ length: count }, () => ({
           x: rand(0, host.clientWidth || innerWidth),
           y: rand(0, host.clientHeight || innerHeight),
@@ -82,7 +80,7 @@ export default function WorldAtmosphere({ quality, motionReduced, rain, travel }
         const torchGlow = new Graphics();
         torchGlow.circle(0, 0, 19).fill({ color: 0xe7a35b, alpha: .085 });
         foreground.addChild(torchGlow);
-        const smoke = Array.from({ length: quality === "high" ? 8 : 4 }, () => {
+        const smoke = Array.from({ length: quality === "high" ? 8 : quality === "balanced" ? 4 : 2 }, () => {
           const puff = new Graphics();
           puff.circle(0, 0, rand(3, 8)).fill({ color: 0xb7a2a0, alpha: .08 });
           sky.addChild(puff);
@@ -107,12 +105,12 @@ export default function WorldAtmosphere({ quality, motionReduced, rain, travel }
             if (mote.x < -5) mote.x = width + 4;
             if (mote.x > width + 5) mote.x = -4;
             graphics[index].position.set(mote.x, mote.y);
-            graphics[index].alpha = (.27 + (Math.sin(elapsed * 2 + mote.phase) + 1) * .22) * (rainRef.current ? .55 : 1);
+            graphics[index].alpha = (.27 + (Math.sin(elapsed * 2 + mote.phase) + 1) * .22);
           });
           cloudGraphics.forEach((cloud, index) => {
             cloud.x = ((elapsed * (4 + index * 1.7) + width * (index * .38 - .1)) % (width + 320)) - 140;
             cloud.y = height * (.18 + index * .105) + Math.sin(elapsed * .16 + index) * 7;
-            cloud.alpha = rainRef.current ? .56 : .92;
+            cloud.alpha = .92;
           });
           flags.forEach((flag, index) => {
             flag.x = width * (.18 + index * .31) - (movement * (.045 + index * .012) % (width * .35));
@@ -142,7 +140,7 @@ export default function WorldAtmosphere({ quality, motionReduced, rain, travel }
       app?.destroy();
       host.querySelector("canvas")?.remove();
     };
-  }, [motionReduced, quality]);
+  }, [enabled, motionReduced, quality]);
 
   return <div className="world-atmosphere" ref={hostRef} aria-hidden="true" />;
 }

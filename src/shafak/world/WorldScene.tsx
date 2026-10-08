@@ -1,13 +1,18 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { playFootstep } from "../audio/howler";
+import CharacterRenderer from "./CharacterRenderer";
 import WorldAtmosphere from "./WorldAtmosphere";
+import { createWorldMotion, readWorldInput, stepWorldMotion } from "./movement";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
+import useWorldInput from "./useWorldInput";
 import type { PlayerProfile } from "../game/profile";
 import type { Opponent } from "../game/types";
 import "./world-scene.css";
 
 type WorldSceneProps = {
-  quality: "high" | "balanced";
+  quality: "high" | "balanced" | "low";
   motionReduced: boolean;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
@@ -15,10 +20,9 @@ type WorldSceneProps = {
   onOpenSettings: () => void;
   profile: PlayerProfile;
   onOpenProfile: () => void;
-  onEncounterStart: (opponent: Opponent) => void;
 };
 type Panel = "inventory" | "settings" | null;
-type Vector = { x: number; y: number };
+type StepBurst = { id: number; x: number; running: boolean; expires: number };
 
 function Icon({ name }: { name: "bag" | "settings" | "exit" }) {
   if (name === "bag") {
@@ -39,25 +43,19 @@ export default function WorldScene({
   onOpenSettings,
   profile,
   onOpenProfile,
-  onEncounterStart,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
-  const heldKeys = useRef(new Set<string>());
-  const inputRef = useRef<Vector>({ x: 0, y: 0 });
-  const velocityRef = useRef<Vector>({ x: 0, y: 0 });
-  const playerXRef = useRef(0);
-  const travelRef = useRef(0);
-  const tapTimerRef = useRef<number | undefined>(undefined);
-  const lastVibrationRef = useRef(0);
+  const motionRef = useRef(createWorldMotion());
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(null);
-  const [rain, setRain] = useState(false);
+  const [airEnabled, setAirEnabled] = useState(true);
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const [travel, setTravel] = useState(0);
-  const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", rain);
+  const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
+  const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
   const opponents: (Opponent & { distance: number })[] = [
     { id: "ash-scout", name: "Kül İzci", level: 2, winRate: 42, loot: 48, taunt: "Bu yolun sonu sana kapalı!", difficulty: "easy", distance: 18 },
     { id: "iron-vow", name: "Demir Yemin", level: 4, winRate: 57, loot: 76, taunt: "Ganimetini almaya geldim.", difficulty: "medium", distance: 58 },
@@ -71,6 +69,7 @@ export default function WorldScene({
   const wake = useCallback(() => {
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
+  const worldInput = useWorldInput(wake);
 
   useEffect(() => {
     setAudioOn(soundEnabled);
@@ -79,102 +78,83 @@ export default function WorldScene({
     setVibrationOn(vibrationEnabled);
   }, [vibrationEnabled]);
 
+  useEffect(() => () => {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(0);
+  }, []);
+
   useEffect(() => {
     let frame = 0;
     let previous = 0;
     let lastReactUpdate = 0;
-    let lastActive = 0;
-    let didMove = false;
     const animate = (now: number) => {
       const dt = Math.min((now - (previous || now)) / 1000, .05);
       previous = now;
-      const keys = heldKeys.current;
-      const keyX = Number(keys.has("arrowright") || keys.has("d")) - Number(keys.has("arrowleft") || keys.has("a"));
-      const keyY = Number(keys.has("arrowup") || keys.has("w")) - Number(keys.has("arrowdown") || keys.has("s"));
-      const requested = inputRef.current;
-      const targetX = Math.max(-1, Math.min(1, keyX || requested.x));
-      const targetY = Math.max(-1, Math.min(1, keyY || requested.y));
-      const sprint = keys.has("shift") || requested.y > .86;
-      const targetSpeed = targetY === 0 && targetX === 0 ? 0 : sprint ? 248 : 126;
-      const velocity = velocityRef.current;
-      const accel = targetSpeed ? 1 - Math.pow(.0018, dt) : 1 - Math.pow(.055, dt);
-      velocity.y += (targetY * targetSpeed - velocity.y) * accel;
-      velocity.x += (targetX * targetSpeed * .72 - velocity.x) * accel;
-      travelRef.current += Math.abs(velocity.y) * dt;
-      playerXRef.current = Math.max(-1, Math.min(1, playerXRef.current + velocity.x * dt / 180));
+      const frameState = stepWorldMotion(
+        motionRef.current,
+        readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current),
+        dt,
+      );
+      motionRef.current = frameState;
 
       const root = sceneRef.current;
       if (root) {
-        const zoom = 1 + Math.min(Math.abs(velocity.y) / 248, 1) * .045;
-        const followX = playerXRef.current * 76;
-        root.style.setProperty("--ws-travel", `${travelRef.current}px`);
-        root.style.setProperty("--world-zoom", String(zoom));
+        const followX = frameState.positionX * 76;
+        const distance = frameState.distance;
+        const parallax = (amount: number, limit: number) => Math.max(-limit, Math.min(limit, amount));
+        root.style.setProperty("--ws-travel", `${distance}px`);
+        root.style.setProperty("--world-zoom", String(frameState.zoom));
         root.style.setProperty("--ws-player-x", `${followX}px`);
-        root.style.setProperty("--ws-ridge-x", `${followX * .16}px`);
-        root.style.setProperty("--ws-ridge-y", `${-travelRef.current * .018}px`);
+        root.style.setProperty("--ws-facing-angle", frameState.facing < 0 ? "180deg" : "0deg");
+        root.style.setProperty("--ws-camera-lead", `${motionReduced ? 0 : frameState.cameraLead}px`);
+        root.style.setProperty("--ws-bob", `${motionReduced ? 0 : frameState.bob}px`);
+        root.style.setProperty("--ws-lean", `${motionReduced ? 0 : frameState.lean}deg`);
+        root.style.setProperty("--ws-weight-shift", `${motionReduced ? 0 : frameState.weightShift}px`);
+        root.style.setProperty("--ws-squash", String(motionReduced ? 1 : 1 - frameState.squash));
+        root.style.setProperty("--ws-shadow-scale", String(frameState.shadowScale));
+        root.style.setProperty("--ws-ridge-x", `${followX * .1}px`);
+        root.style.setProperty("--ws-ridge-y", `${parallax(-distance * .045, 90)}px`);
         root.style.setProperty("--ws-haze-x", `${-followX * .16 + Math.sin(now / 13000) * 14}px`);
-        root.style.setProperty("--ws-ruins-x", `${followX * .5}px`);
-        root.style.setProperty("--ws-ruins-parallax", `${-travelRef.current * .045}px`);
-        root.style.setProperty("--ws-road-x", `${-followX * .25}px`);
-        root.style.setProperty("--ws-road-y", `${-travelRef.current * .075}px`);
-        root.style.setProperty("--ws-foreground-x", `${-followX * .4}px`);
-        root.style.setProperty("--ws-foreground-y", `${-travelRef.current * .16}px`);
-        root.style.setProperty("--ws-travel", `${travelRef.current % 1800}px`);
-        root.style.setProperty("--ws-sky-y", `${-travelRef.current * .014}px`);
+        root.style.setProperty("--ws-ruins-x", `${followX * .42}px`);
+        root.style.setProperty("--ws-ruins-parallax", `${parallax(-distance * .105, 220)}px`);
+        root.style.setProperty("--ws-road-x", `${-followX * .34}px`);
+        root.style.setProperty("--ws-road-y", `${parallax(-distance * .24, 270)}px`);
+        root.style.setProperty("--ws-foreground-x", `${-followX * .55}px`);
+        root.style.setProperty("--ws-foreground-y", `${parallax(-distance * .42, 150)}px`);
+        root.style.setProperty("--ws-sky-y", `${parallax(-distance * .018, 44)}px`);
       }
-      const isMoving = Math.abs(velocity.x) + Math.abs(velocity.y) > 15;
-      if (isMoving) {
-        lastActive = now;
-        didMove = true;
+      if (frameState.motion !== lastMotionRef.current) {
+        lastMotionRef.current = frameState.motion;
+        setMotion(frameState.motion);
       }
-      const nextMotion = isMoving
-        ? Math.abs(velocity.y) > 175 ? "running" : "walking"
-        : didMove && now - lastActive < 850 ? "stopped" : "idle";
-      if (nextMotion !== lastMotionRef.current) {
-        lastMotionRef.current = nextMotion;
-        setMotion(nextMotion);
-      }
-      if (isMoving && vibrationOn && now - lastVibrationRef.current > (sprint ? 650 : 900)) {
-        lastVibrationRef.current = now;
-        if ("vibrate" in navigator) {
-          try { navigator.vibrate(rain ? 10 : 7); } catch { /* Haptics are optional. */ }
+      if (frameState.footsteps > 0) {
+        const count = Math.min(frameState.footsteps, 2);
+        const firstId = frameState.stepCount - count + 1;
+        const running = frameState.motion === "running";
+        setStepBursts((current) => [
+          ...current.filter((burst) => burst.expires > now),
+          ...Array.from({ length: count }, (_, index) => ({
+            id: firstId + index,
+            x: frameState.positionX * 76,
+            running,
+            expires: now + 720,
+          })),
+        ].slice(-16));
+        for (let index = 0; index < count; index += 1) {
+          playFootstep({ running, surface: "stone", enabled: audioOn });
+          if (vibrationOn && "vibrate" in navigator) {
+            try { navigator.vibrate(running ? 8 : 5); } catch { /* Haptics are optional. */ }
+          }
         }
       }
       if (now - lastReactUpdate > 220) {
         lastReactUpdate = now;
-        setTravel(Math.floor(travelRef.current / 10) * 10);
+        setTravel(Math.floor(frameState.distance / 10) * 10);
       }
       frame = window.requestAnimationFrame(animate);
     };
     frame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frame);
-  }, [rain, vibrationOn]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setPanel(null);
-        return;
-      }
-      const key = event.key.toLowerCase();
-      if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", "shift"].includes(key)) {
-        if (event.target instanceof HTMLElement && /input|textarea|select/i.test(event.target.tagName)) return;
-        event.preventDefault();
-        heldKeys.current.add(key);
-        wake();
-      }
-    };
-    const onKeyUp = (event: KeyboardEvent) => heldKeys.current.delete(event.key.toLowerCase());
-    const onBlur = () => { heldKeys.current.clear(); inputRef.current = { x: 0, y: 0 }; };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [wake]);
+  }, [audioOn, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -191,59 +171,35 @@ export default function WorldScene({
     };
   }, [panel]);
 
-  useEffect(() => () => {
-    if (tapTimerRef.current) window.clearTimeout(tapTimerRef.current);
-    if ("vibrate" in navigator) navigator.vibrate(0);
-  }, []);
-
   const openPanel = (next: Exclude<Panel, null>) => {
     wake();
     panelTriggerRef.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
     if (next === "settings") onOpenSettings();
     setPanel(next);
   };
-  const onStagePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick")) return;
-    wake();
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const relativeX = (event.clientX - bounds.left) / bounds.width;
-    inputRef.current = { x: relativeX < .32 ? -.38 : relativeX > .68 ? .38 : 0, y: 1 };
-    if (tapTimerRef.current) window.clearTimeout(tapTimerRef.current);
-    tapTimerRef.current = window.setTimeout(() => { inputRef.current = { x: 0, y: 0 }; }, 1350);
-  };
-  const onJoystickPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    wake();
-    updateJoystick(event);
-  };
-  const updateJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const dx = event.clientX - (rect.left + rect.width / 2);
-    const dy = event.clientY - (rect.top + rect.height / 2);
-    const max = rect.width * .34;
-    const length = Math.min(Math.hypot(dx, dy), max);
-    const scale = length > 0 ? length / Math.hypot(dx, dy) : 0;
-    const x = dx * scale;
-    const y = dy * scale;
-    inputRef.current = { x: x / max, y: -y / max };
-    const nub = event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub");
-    nub?.style.setProperty("transform", `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`);
-  };
-  const releaseJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    inputRef.current = { x: 0, y: 0 };
-    event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub")?.style.setProperty("transform", "translate(-50%,-50%)");
-  };
-
   return (
     <main
       ref={sceneRef}
-      className={`world-scene${rain ? " world-rain" : ""}`}
+      className="world-scene"
       data-quality={quality}
       data-reduced={motionReduced}
+      data-air={airEnabled}
+      data-motion={motion}
       aria-label={worldText.brand}
     >
-      <div className="world-stage" onPointerDown={onStagePointerDown}>
+      <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
+        <svg className="world-motion-filters" aria-hidden="true" focusable="false">
+          <defs>
+            <filter id="world-cape-wind" x="-12%" y="-8%" width="124%" height="116%">
+              <feTurbulence type="fractalNoise" baseFrequency=".014 .042" numOctaves="1" seed="8" result="wind">
+                {!motionReduced && (
+                  <animate attributeName="baseFrequency" values=".014 .042;.023 .06;.014 .042" dur="3.2s" repeatCount="indefinite" />
+                )}
+              </feTurbulence>
+              <feDisplacementMap in="SourceGraphic" in2="wind" scale="5" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        </svg>
         <div className="world-stage__sky" />
         <div className="world-stage__horizon" />
         <div className="world-plane world-plane--ridge" />
@@ -252,11 +208,49 @@ export default function WorldScene({
         <div className="world-plane world-plane--road" />
         <div className="world-plane world-plane--foreground" />
         <div className="world-rays" />
-        <WorldAtmosphere quality={quality} motionReduced={motionReduced} rain={rain} travel={travel} />
-        <div className="world-splashes" aria-hidden="true" />
-        <div className="world-figure" data-motion={motion} aria-hidden="true">
-          <img src="/shafak-warrior.png" alt="" draggable={false} />
+        <WorldAtmosphere quality={quality} motionReduced={motionReduced} enabled={airEnabled} travel={travel} />
+        <div className="world-speed-lines" aria-hidden="true">
+          {Array.from({ length: 8 }, (_, index) => (
+            <i
+              key={index}
+              style={{
+                "--line-x": `${(index % 3) * 35 + 8}%`,
+                "--line-y": `${23 + index * 7}%`,
+                "--line-width": `${20 + (index % 4) * 9}vw`,
+                "--line-delay": `${index * -.07}s`,
+              } as CSSProperties}
+            />
+          ))}
         </div>
+        <div className="world-step-bursts" aria-hidden="true">
+          {stepBursts.map((burst) => {
+            const particleCount = burst.running ? 7 : 4;
+            return (
+              <span
+                className={`world-step-burst${burst.running ? " is-running" : ""}`}
+                key={burst.id}
+                style={{ "--burst-x": `${burst.x}px` } as CSSProperties}
+              >
+                {Array.from({ length: particleCount }, (_, index) => {
+                  const angle = (Math.PI * 2 * (index + 1)) / particleCount + burst.id * .61;
+                  const spread = burst.running ? 20 : 12;
+                  return (
+                    <i
+                      key={`${burst.id}-${index}`}
+                      style={{
+                        "--dust-x": `${Math.cos(angle) * spread}px`,
+                        "--dust-y": `${-(8 + Math.abs(Math.sin(angle)) * spread)}px`,
+                        "--dust-size": `${2 + ((index + burst.id) % 3)}px`,
+                        "--dust-delay": `${index * 18}ms`,
+                      } as CSSProperties}
+                    />
+                  );
+                })}
+              </span>
+            );
+          })}
+        </div>
+        <CharacterRenderer motion={motion} motionReduced={motionReduced} />
         <div className="world-vignette" />
       </div>
       <header className="world-topbar">
@@ -273,38 +267,38 @@ export default function WorldScene({
           <span>{profile.gold.toLocaleString("tr-TR")}</span>
         </div>
       </header>
-      <div className={`world-weather${rain ? " world-weather--rain" : ""}`}>
-        <span>{worldText.weather}: {rain ? worldText.rain : worldText.clear}</span>
+      <div className="world-weather">
+        <span>{worldText.weather}: {airEnabled ? worldText.clear : worldText.airOff}</span>
         <button
           className="world-weather__switch"
           type="button"
           role="switch"
-          aria-checked={rain}
-          aria-label={`${worldText.weather}: ${rain ? worldText.rain : worldText.clear}`}
-          onClick={() => { wake(); setRain((current) => !current); }}
+          aria-checked={airEnabled}
+          aria-label={`${worldText.weather}: ${airEnabled ? worldText.clear : worldText.airOff}`}
+          onClick={() => { wake(); setAirEnabled((current) => !current); }}
         ><span /></button>
       </div>
       <div
         className="world-joystick"
         role="application"
         aria-label={worldText.controls}
-        onPointerDown={onJoystickPointerDown}
-        onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateJoystick(event); }}
-        onPointerUp={releaseJoystick}
-        onPointerCancel={releaseJoystick}
+        onPointerDown={worldInput.onJoystickPointerDown}
+        onPointerMove={worldInput.onJoystickPointerMove}
+        onPointerUp={worldInput.onJoystickPointerUp}
+        onPointerCancel={worldInput.onJoystickPointerCancel}
       ><span className="world-joystick__nub" /></div>
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       {encounterVisible && nextOpponent && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
           <div className="world-encounter__card">
-            <span className="world-encounter__eyebrow">{canChallenge ? "YAKINDA · MEYDAN OKUMA" : `YOL KESEN · ${Math.ceil(encounterDistance)} M`}</span>
+            <span className="world-encounter__eyebrow">{canChallenge ? "SAVAŞ SİSTEMİ HAZIRLANIYOR" : `YOL KESEN · ${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
             <span>Seviye {nextOpponent.level} <i>·</i> Kazanma %{nextOpponent.winRate} <i>·</i> {nextOpponent.loot} altın</span>
             <em>“{nextOpponent.taunt}”</em>
             {canChallenge && (
-              <button type="button" className="world-encounter__fight" onClick={() => onEncounterStart(nextOpponent)}>
-                <span aria-hidden="true">⚔</span> SAVAŞ
+              <button type="button" className="world-encounter__fight" disabled title="Gerçek zamanlı savaş sonraki aşamada eklenecek">
+                <span aria-hidden="true">⚔</span> SAVAŞ YAKINDA
               </button>
             )}
           </div>

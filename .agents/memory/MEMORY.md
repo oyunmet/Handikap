@@ -1,5 +1,2 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
 - [Current game and phase approvals](handikap-original-identity.md) — The active game is Şafak Savaşçıları; finish and preview one approved phase before continuing.
-- [Legacy cascade resolution](cascade-resolution.md) — Cascade-clearing rules apply only when working on the retained Royal Match engine.
-- [Legacy match-free openings](match-free-openings.md) — Preserve valid openings when working on the retained Royal Match engine.
-- [Legacy Royal Match specials](royal-match-specials.md) — Prior special-tile rules apply only to the retained Royal Match engine.
