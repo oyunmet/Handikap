@@ -23,21 +23,11 @@ const database = new Pool();
 let databaseStatus: "connected" | "unavailable" | "not_configured" =
   process.env.DATABASE_URL || process.env.PGHOST ? "unavailable" : "not_configured";
 const app = express();
+const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY?.trim());
 
 // Clerk's production frontend-API proxy must be mounted before body parsers.
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
-app.use(
-  clerkMiddleware((request) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(request) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
-app.use(express.json({ limit: "16kb" }));
-app.use(createProfileApi(database));
-app.use(createDuelApi(database));
 
 app.get("/api/health", async (_request, response) => {
   if (databaseStatus !== "not_configured") {
@@ -51,6 +41,33 @@ app.get("/api/health", async (_request, response) => {
   response.setHeader("Cache-Control", "no-store");
   response.json({ status: "ok", database: databaseStatus });
 });
+
+if (clerkConfigured) {
+  app.use(
+    clerkMiddleware((request) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(request) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY,
+      ),
+    })),
+  );
+}
+
+app.use(express.json({ limit: "16kb" }));
+
+if (clerkConfigured) {
+  app.use(createProfileApi(database));
+  app.use(createDuelApi(database));
+} else {
+  const authUnavailable: express.RequestHandler = (_request, response) => {
+    response.status(503).json({ error: "authentication_unavailable" });
+  };
+
+  app.use(CLERK_PROXY_PATH, authUnavailable);
+  app.use("/api/profile", authUnavailable);
+  app.use("/api/duels", authUnavailable);
+  console.warn("[shafak-server] Clerk is not configured; account and duel APIs are disabled.");
+}
 
 const httpServer = createServer(app);
 const sockets = new SocketIOServer(httpServer, {
