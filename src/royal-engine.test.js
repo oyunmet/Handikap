@@ -99,6 +99,19 @@ test("different levels generate their own board, goals, and available powers", (
   }
 });
 
+test("a level-two opening stays match-free even if random colors repeat", () => {
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0;
+    const state = createGameState(2);
+    assert.equal(state.movesLeft, 36);
+    assert.equal(findMatches(state.board).size, 0);
+    assert.equal(hasAvailableSwap(state.board), true);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
 test("a non-matching swap does not spend a move", () => {
   const state = emptyState();
   put(state, 4, 2, gem("left", "red"));

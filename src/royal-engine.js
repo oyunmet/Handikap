@@ -171,9 +171,18 @@ function fillNewGems(board, blockers = new Map()) {
       if (isGem(board[row][col])) continue;
       let gem = makeGem();
       let attempts = 0;
-      while (createsRunAt(board, row, col, gem.color) && attempts < 30) {
+      while (createsMatchAt(board, row, col, gem.color) && attempts < 30) {
         gem = makeGem();
         attempts += 1;
+      }
+      if (createsMatchAt(board, row, col, gem.color)) {
+        const safeColors = GEM_COLORS.filter((color) =>
+          !createsMatchAt(board, row, col, color),
+        );
+        if (!safeColors.length) {
+          throw new Error(`No match-free gem can be placed at ${row}:${col}.`);
+        }
+        gem = makeGem(safeColors[Math.floor(Math.random() * safeColors.length)]);
       }
       board[row][col] = gem;
     }
@@ -188,22 +197,7 @@ function createPlayableBoard(level) {
     if (findMatches(board).size === 0 && hasAvailableSwap(board)) return board;
   }
 
-  const board = Array.from({ length: BOARD_ROWS }, () => Array(BOARD_COLS).fill(null));
-  fillNewGems(board, createBlockerLayout(level));
-  // Keep a guaranteed legal move without creating a match before the first turn.
-  const setColor = (row, col, color) => {
-    if (isGem(board[row][col])) board[row][col] = { ...board[row][col], color };
-  };
-  setColor(4, 5, "yellow");
-  setColor(4, 6, "red");
-  setColor(4, 7, "blue");
-  setColor(5, 5, "red");
-  setColor(5, 6, "blue");
-  setColor(5, 7, "red");
-  setColor(6, 5, "green");
-  setColor(6, 6, "red");
-  setColor(6, 7, "yellow");
-  return board;
+  throw new Error(`Could not generate a match-free board with a legal move for level ${level.level}.`);
 }
 
 function findMatchRuns(board) {
