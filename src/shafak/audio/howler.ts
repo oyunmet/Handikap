@@ -19,6 +19,7 @@ export function playUiChime() {
 }
 
 type GameCue = "victory" | "defeat";
+type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle";
 type FootstepOptions = { running: boolean; surface: "stone" | "dirt"; enabled: boolean };
 
 const cueNotes: Record<GameCue, number[]> = {
@@ -55,6 +56,42 @@ export function playGameSound(cue: GameCue) {
     });
   } catch {
     // Audio is optional; an unsupported or blocked context must not stop a turn.
+  }
+}
+
+const worldCueNotes: Record<WorldCue, number[]> = {
+  gold: [660, 880],
+  crystal: [523, 784, 1047],
+  seal: [440, 659, 880, 1175],
+  attack: [150, 98],
+  battle: [196, 294, 392],
+};
+
+export function playWorldCue(cue: WorldCue) {
+  if (!soundEnabled || typeof window === "undefined" || !window.AudioContext) return;
+  try {
+    gameAudioContext ??= new window.AudioContext();
+    const context = gameAudioContext;
+    if (context.state === "suspended") void context.resume();
+    const notes = worldCueNotes[cue];
+    const spacing = cue === "attack" ? 0.035 : 0.055;
+    const duration = cue === "attack" ? 0.11 : 0.16;
+    notes.forEach((frequency, index) => {
+      const start = context.currentTime + index * spacing;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = cue === "attack" ? "triangle" : cue === "seal" ? "sine" : "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      if (cue === "attack") oscillator.frequency.exponentialRampToValueAtTime(Math.max(42, frequency * 0.48), start + duration);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(cue === "attack" ? 0.05 : 0.035, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+    });
+  } catch {
+    // Audio is optional; unsupported or blocked contexts must not stop movement.
   }
 }
 

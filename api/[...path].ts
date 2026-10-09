@@ -10,6 +10,7 @@ import {
 } from "../server/middlewares/clerkProxyMiddleware";
 import { createDuelApi } from "../server/duelApi";
 import { createProfileApi } from "../server/profileApi";
+import { createWorldRewardsApi } from "../server/worldRewardsApi";
 
 const app = express();
 const database = new Pool();
@@ -26,6 +27,7 @@ app.use(
 );
 app.use(express.json({ limit: "16kb" }));
 app.use(createProfileApi(database));
+app.use(createWorldRewardsApi(database));
 app.use(createDuelApi(database));
 
 app.get("/api/health", async (_request, response) => {

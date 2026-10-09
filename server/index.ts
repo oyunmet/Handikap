@@ -12,6 +12,7 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import { createDuelApi } from "./duelApi";
 import { createProfileApi } from "./profileApi";
+import { createWorldRewardsApi } from "./worldRewardsApi";
 
 const port = Number(process.env.GAME_SERVER_PORT ?? "3001");
 
@@ -57,6 +58,7 @@ app.use(express.json({ limit: "16kb" }));
 
 if (clerkConfigured) {
   app.use(createProfileApi(database));
+  app.use(createWorldRewardsApi(database));
   app.use(createDuelApi(database));
 } else {
   const authUnavailable: express.RequestHandler = (_request, response) => {

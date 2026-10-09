@@ -12,6 +12,8 @@ import {
   WorldChunks,
 } from "./WorldElements";
 import { createWorldChunk, type WorldChunk } from "./world-generation";
+import WorldRoadEntities from "./WorldRoadEntities";
+import type { WorldRival } from "./world-content";
 
 export type WorldQuality = "high" | "balanced" | "low";
 
@@ -23,6 +25,15 @@ type World3DProps = {
   level: number;
   relicCount: number;
   animationState: CharacterAnimationState;
+  rivals: WorldRival[];
+  collectedPickupIds: ReadonlySet<string>;
+  brokenObstacleIds: ReadonlySet<string>;
+  focusedRival: WorldRival | null;
+  slowMotion: boolean;
+  debugCounters: { rivalCount: number; pickupCount: number; collectedCount: number };
+  onDebugNearestRival: () => void;
+  onDebugNearestPickup: () => void;
+  onDebugSkipDistance: () => void;
 };
 
 type DebugStats = {
@@ -106,9 +117,13 @@ function SceneFog({ airEnabled }: { airEnabled: boolean }) {
 function CameraRig({
   motionRef,
   motionReduced,
+  focusedRival,
+  slowMotion,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   motionReduced: boolean;
+  focusedRival: WorldRival | null;
+  slowMotion: boolean;
 }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const targetRef = useMemo(() => new THREE.Vector3(), []);
@@ -120,17 +135,26 @@ function CameraRig({
     const motion = motionRef.current;
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
     const lateral = motion.depth * 5.2;
-    const response = 1 - Math.exp(-Math.min(delta, 0.05) * 4.5);
-    desiredRef.set(lateral * 0.56, 4.15 + Math.min(speed, 7) * 0.045, 10.2 + Math.min(speed, 7) * 0.18);
+    const scaledDelta = Math.min(delta, 0.05) * (slowMotion ? 0.24 : 1);
+    const response = 1 - Math.exp(-scaledDelta * (focusedRival ? 2.6 : 4.5));
+    if (focusedRival) {
+      const playerX = motion.depth * 5.2;
+      const gap = focusedRival.distance - motion.distance;
+      const rivalX = focusedRival.x;
+      desiredRef.set((playerX + rivalX) * 0.5 + 3.2, 3.55, -gap * 0.5 + 6.1);
+      targetRef.set((playerX + rivalX) * 0.5, 1.15, -gap * 0.5);
+    } else {
+      desiredRef.set(lateral * 0.56, 4.15 + Math.min(speed, 7) * 0.045, 10.2 + Math.min(speed, 7) * 0.18);
+      targetRef.set(lateral * 0.42, 1.25, -11.5);
+    }
     camera.position.lerp(desiredRef, response);
     const runShake = motionReduced ? 0 : THREE.MathUtils.clamp((speed - 4.2) / 2.2, 0, 1);
     const time = _.clock.elapsedTime;
     camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
     camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
-    targetRef.set(lateral * 0.42, 1.25, -11.5);
     camera.lookAt(targetRef);
-    const desiredFov = 54 + Math.min(speed, 7) * 0.7;
-    const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, Math.min(delta, 0.05));
+    const desiredFov = focusedRival ? 48 : 54 + Math.min(speed, 7) * 0.7;
+    const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
       camera.fov = nextFov;
       camera.updateProjectionMatrix();
@@ -186,6 +210,11 @@ function SceneContents({
   level,
   relicCount,
   animationState,
+  rivals,
+  collectedPickupIds,
+  brokenObstacleIds,
+  focusedRival,
+  slowMotion,
   onDebugStats,
 }: World3DProps & { onDebugStats: (stats: DebugStats) => void }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
@@ -231,7 +260,12 @@ function SceneContents({
       <ambientLight color="#c3a99b" intensity={0.4} />
       <directionalLight position={[-8, 14, 8]} color="#f2d2ad" intensity={1.65} />
       <directionalLight position={[7, 7, -10]} color="#b5bad8" intensity={0.62} />
-      <CameraRig motionRef={motionRef} motionReduced={motionReduced} />
+      <CameraRig
+        motionRef={motionRef}
+        motionReduced={motionReduced}
+        focusedRival={focusedRival}
+        slowMotion={slowMotion}
+      />
       <AshSky motionRef={motionRef} />
       <WorldChunks
         chunks={chunks}
@@ -239,6 +273,14 @@ function SceneContents({
         motionReduced={motionReduced}
         quality={quality}
         airEnabled={airEnabled}
+      />
+      <WorldRoadEntities
+        motionRef={motionRef}
+        rivals={rivals}
+        collectedPickupIds={collectedPickupIds}
+        brokenObstacleIds={brokenObstacleIds}
+        focusedRivalId={focusedRival?.id ?? null}
+        reducedMotion={motionReduced}
       />
       <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} />
       <KnightActor
@@ -329,6 +371,12 @@ export default function World3D(props: World3DProps) {
           <span>FPS: {debugStats.fps || "ölçülüyor"} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
           <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
           <span>Dünya: Kül Yolu · Yüklü parça: {debugStats.chunks}</span>
+          <span>BOT: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
+          <div className="world-debug__actions">
+            <button type="button" onClick={props.onDebugNearestRival}>En yakın BOT</button>
+            <button type="button" onClick={props.onDebugNearestPickup}>En yakın eşya</button>
+            <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>
+          </div>
         </aside>
       )}
     </div>

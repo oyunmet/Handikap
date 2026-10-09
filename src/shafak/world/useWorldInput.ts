@@ -20,7 +20,7 @@ export default function useWorldInput(wake: () => void) {
   const tapTimer = useRef<number | undefined>(undefined);
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick")) return;
+  if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
     wake();
     const bounds = event.currentTarget.getBoundingClientRect();
     const relativeX = (event.clientX - bounds.left) / bounds.width;

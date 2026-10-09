@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { playUiChime, setSoundEnabled } from "./audio/howler";
 import { tr } from "./i18n/tr";
@@ -335,6 +335,51 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     setScreen("world");
   };
 
+  const loadClaimedPickups = useCallback(async (chapterId: number) => {
+    if (!user?.id || profileSyncStatus !== "ready") return [];
+    const query = new URLSearchParams({ chapterId: String(chapterId) });
+    const response = await fetch(`/api/profile/pickups?${query}`, { credentials: "include" });
+    if (!response.ok) throw new Error("Pickup history could not be loaded.");
+    const result = (await response.json()) as { claimedPickupIds?: unknown };
+    return Array.isArray(result.claimedPickupIds)
+      ? result.claimedPickupIds.filter((id): id is string => typeof id === "string")
+      : [];
+  }, [profileSyncStatus, user?.id]);
+
+  const claimWorldPickups = useCallback(async (chapterId: number, pickupIds: string[]) => {
+    if (!user?.id) {
+      return { claimedPickupIds: pickupIds, awardedPickupIds: pickupIds, persistent: false };
+    }
+    if (profileSyncStatus !== "ready") throw new Error("Account profile is not ready for pickup claims.");
+    try {
+      const response = await fetch("/api/profile/pickups", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapterId, pickupIds }),
+      });
+      if (!response.ok) throw new Error(`Pickup claim failed (${response.status}).`);
+      const result = (await response.json()) as {
+        profile?: unknown;
+        claimedPickupIds?: unknown;
+        awardedPickupIds?: unknown;
+      };
+      if (!result.profile || !Array.isArray(result.claimedPickupIds) || !Array.isArray(result.awardedPickupIds)) {
+        throw new Error("Pickup claim response was invalid.");
+      }
+      setProfile(normalizePlayerProfile(result.profile));
+      return {
+        claimedPickupIds: result.claimedPickupIds.filter((id): id is string => typeof id === "string"),
+        awardedPickupIds: result.awardedPickupIds.filter((id): id is string => typeof id === "string"),
+        persistent: true,
+      };
+    } catch (error) {
+      setProfileSyncStatus("local");
+      setAnnouncement("Eşya sunucuda doğrulanamadı. Bu ödül profile yazılmadı.");
+      throw error;
+    }
+  }, [profileSyncStatus, user?.id]);
+
   const handleRename = (name: string) => {
     if (!user?.id) {
       setProfile(renameProfile(profile, name));
@@ -624,6 +669,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
               soundEnabled={preferences.sound}
               vibrationEnabled={preferences.vibration}
               profile={profile}
+              onLoadClaimedPickups={loadClaimedPickups}
+              onClaimWorldPickups={claimWorldPickups}
               onExit={() => setScreen("menu")}
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenProfile={() => setProfileOpen(true)}

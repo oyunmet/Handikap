@@ -1,3 +1,3 @@
-- [External npm lockfile portability](external-npm-lockfiles.md) — Replit-generated resolved URLs can break external CI workers such as Vercel.
+- [External npm lockfile portability](external-npm-lockfiles.md) — Normalize private URLs and keep npm/pnpm root dependencies aligned; Vercel may require both.
 - [Current game and staged work](handikap-original-identity.md) — The active game is Şafak Savaşçıları; follow scoped phases in order without interim approval.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.

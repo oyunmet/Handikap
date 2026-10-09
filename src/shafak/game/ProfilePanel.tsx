@@ -71,6 +71,10 @@ export default function ProfilePanel({ profile, userEmail, accountSaveStatus, on
           ) : (
             <p>İlk zaferini kazan ve heybeni doldur.</p>
           )}
+          <div className="profile-materials" aria-label="Toplanan malzemeler">
+            <span><i className="profile-materials__crystal" />Kor Kristali <b>{profile.materials.emberCrystals}</b></span>
+            <span><i className="profile-materials__seal">✦</i>Mühür Parçası <b>{profile.materials.sealFragments}</b></span>
+          </div>
         </section>
         <footer className="profile-panel__foot">
           <span>{userEmail ? "Hesap ilerlemesi PostgreSQL’de saklanır." : "Sıralama ve çevrimiçi savaş özellikleri için hesapla giriş yap."}</span>

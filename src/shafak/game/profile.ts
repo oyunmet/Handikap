@@ -3,6 +3,10 @@ export type PlayerProfile = {
   level: number;
   xp: number;
   gold: number;
+  materials: {
+    emberCrystals: number;
+    sealFragments: number;
+  };
   battles: number;
   wins: number;
   winStreak: number;
@@ -28,6 +32,7 @@ export const defaultProfile: PlayerProfile = {
   level: 1,
   xp: 0,
   gold: 120,
+  materials: { emberCrystals: 0, sealFragments: 0 },
   battles: 0,
   wins: 0,
   winStreak: 0,
@@ -46,12 +51,19 @@ function todayKey() {
 export function normalizePlayerProfile(value: unknown): PlayerProfile {
   const saved = value as Partial<PlayerProfile> | null;
   if (!saved || typeof saved !== "object") return { ...defaultProfile };
+  const savedMaterials = saved.materials && typeof saved.materials === "object"
+    ? saved.materials as Partial<PlayerProfile["materials"]>
+    : {};
   const today = todayKey();
   return {
     name: typeof saved.name === "string" && saved.name.trim() ? saved.name.trim().slice(0, 20) : defaultProfile.name,
     level: finiteNumber(saved.level, defaultProfile.level),
     xp: finiteNumber(saved.xp, defaultProfile.xp),
     gold: finiteNumber(saved.gold, defaultProfile.gold),
+    materials: {
+      emberCrystals: finiteNumber(savedMaterials.emberCrystals, 0),
+      sealFragments: finiteNumber(savedMaterials.sealFragments, 0),
+    },
     battles: finiteNumber(saved.battles, defaultProfile.battles),
     wins: finiteNumber(saved.wins, defaultProfile.wins),
     winStreak: finiteNumber(saved.winStreak, defaultProfile.winStreak),

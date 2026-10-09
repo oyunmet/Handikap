@@ -127,6 +127,11 @@
 .duel-result__sparks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .duel-result__sparks i { position: absolute; top: calc(14% + var(--spark) * 4.1%); left: calc((var(--spark) * 37) % 100%); width: 3px; height: 3px; border-radius: 50%; background: #f6d693; box-shadow: 0 0 9px #f8c76d; animation: victory-spark 2s calc(var(--spark) * -.13s) ease-in-out infinite; }
 @keyframes victory-spark { 0%, 100% { opacity: 0; transform: translateY(8px) scale(.6); } 45% { opacity: .9; transform: translateY(-9px) scale(1.2); } }
+.profile-materials { display: grid; gap: 8px; margin-top: 13px; padding-top: 12px; border-top: 1px solid rgba(231,214,180,.1); }
+.profile-materials span { display: flex; align-items: center; gap: 8px; color: rgba(232,217,189,.72); font-size: 9px; }
+.profile-materials b { margin-left: auto; color: #f1d79d; font-variant-numeric: tabular-nums; }
+.profile-materials__crystal { display: inline-block; width: 8px; height: 11px; transform: rotate(45deg); border: 1px solid #a9fff5; background: linear-gradient(135deg,#b1fff3,#3ecbd5 62%,#256c93); box-shadow: 0 0 7px rgba(91,232,223,.72); }
+.profile-materials__seal { color: #d6a1ff; font-style: normal; text-shadow: 0 0 8px #a967e9; }
 
 @media (max-width: 520px) {
   .duel-intro__versus { gap: 7px; }

@@ -8,6 +8,10 @@ export type PlayerProfileRecord = {
   level: number;
   xp: number;
   gold: number;
+  materials: {
+    emberCrystals: number;
+    sealFragments: number;
+  };
   battles: number;
   wins: number;
   winStreak: number;
@@ -25,6 +29,7 @@ export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord 
     level: 1,
     xp: 0,
     gold: 120,
+    materials: { emberCrystals: 0, sealFragments: 0 },
     battles: 0,
     wins: 0,
     winStreak: 0,
@@ -72,6 +77,13 @@ export function validatePlayerProfile(value: unknown): PlayerProfileRecord | nul
   const level = boundedInteger(value.level, 1, 1000);
   const xp = boundedInteger(value.xp, 0, 1_000_000_000);
   const gold = boundedInteger(value.gold, 0, 1_000_000_000);
+  const materialsValue = isRecord(value.materials) ? value.materials : {};
+  const emberCrystals = value.materials === undefined
+    ? 0
+    : boundedInteger(materialsValue.emberCrystals, 0, 1_000_000_000);
+  const sealFragments = value.materials === undefined
+    ? 0
+    : boundedInteger(materialsValue.sealFragments, 0, 1_000_000_000);
   const battles = boundedInteger(value.battles, 0, 10_000_000);
   const wins = boundedInteger(value.wins, 0, 10_000_000);
   const winStreak = boundedInteger(value.winStreak, 0, 10_000_000);
@@ -90,6 +102,8 @@ export function validatePlayerProfile(value: unknown): PlayerProfileRecord | nul
     level === null ||
     xp === null ||
     gold === null ||
+    emberCrystals === null ||
+    sealFragments === null ||
     battles === null ||
     wins === null ||
     wins > battles ||
@@ -112,6 +126,7 @@ export function validatePlayerProfile(value: unknown): PlayerProfileRecord | nul
     level,
     xp,
     gold,
+    materials: { emberCrystals, sealFragments },
     battles,
     wins,
     winStreak,
