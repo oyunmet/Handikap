@@ -214,7 +214,7 @@ function startAttack(
   actor.attackHit = false;
   actor.chargeStartedTick = -1;
   const speed = side === "player" ? state.playerStats.attackSpeedMultiplier : 1;
-  const botRecovery = state.difficulty === "easy" ? 126 : state.difficulty === "medium" ? 96 : 72;
+  const botRecovery = state.difficulty === "easy" ? 156 : state.difficulty === "medium" ? 108 : 78;
   actor.attackCooldownUntilTick = tick + Math.max(8, Math.round(
     side === "bot" ? botRecovery : (attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed,
   ));
@@ -235,7 +235,8 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
   const player = state.player;
   const gap = distanceBetween(bot, player);
   const difficulty = state.difficulty;
-  const accuracy = difficulty === "easy" ? 0.5 : difficulty === "medium" ? 0.72 : 0.88;
+  const attackChance = difficulty === "easy" ? 0.4 : difficulty === "medium" ? 0.66 : 0.88;
+  const reactionThreshold = difficulty === "easy" ? 0.68 : difficulty === "medium" ? 0.48 : 0.3;
   const retreat = difficulty === "easy" ? 0 : difficulty === "medium" ? 0.16 : 0.28;
   const attackRange = 2.15;
   let move = normalized(player.x - bot.x, player.z - bot.z);
@@ -247,7 +248,7 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
     const roll = random(state);
     const playerThreat = player.attackType !== null && !player.attackHit
       && tick - player.attackStartedTick >= (player.attackType === "heavy" ? 14 : 8);
-    if (playerThreat && roll > accuracy - 0.34 && bot.stamina >= 18) {
+    if (playerThreat && roll > reactionThreshold && bot.stamina >= 18) {
       const dodge = roll > 0.78 && difficulty !== "easy";
       if (dodge) {
         bot.stamina -= 18;
@@ -262,7 +263,7 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
         buttons |= INPUT_BUTTON.block;
         setAction(bot, "block", tick, 30);
       }
-    } else if (gap <= attackRange && roll < accuracy) {
+    } else if (gap <= attackRange && roll < attackChance) {
       const heavy = difficulty !== "easy" && random(state) > 0.72 && bot.stamina >= 25;
       startAttack(state, bot, heavy ? "heavy" : "light", tick, events, "bot");
     }
@@ -287,8 +288,8 @@ function applyDamage(
 ) {
   const gap = distanceBetween(attacker, target);
   const playerAttacking = attacker === state.player;
-  const baseDamage = (attack === "light" ? 17 : attack === "heavy" ? 29 : attack === "skillOne" ? 28 : 36)
-    * (playerAttacking ? 1 : state.difficulty === "easy" ? 0.38 : state.difficulty === "medium" ? 0.58 : 0.78);
+  const baseDamage = (attack === "light" ? 6 : attack === "heavy" ? 10 : attack === "skillOne" ? 11 : 15)
+    * (playerAttacking ? 1 : state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72);
   const reach = (attack === "light" ? 2.35 : attack === "heavy" ? 2.8 : attack === "skillOne" ? 4.8 : 3.7)
     + (playerAttacking ? state.playerStats.attackRangeBonus : 0);
   if (gap > reach || target.hp <= 0) return;

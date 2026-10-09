@@ -186,6 +186,8 @@ function storeErrorText(code: string) {
   return messages[code] ?? "Mağaza işlemi tamamlanamadı. Bağlantıyı kontrol edip yeniden deneyin.";
 }
 
+class StoreActionError extends Error {}
+
 function rewardLabel(amount: number, label: string) {
   return amount > 0 ? `${amount} ${label}` : "";
 }
@@ -272,6 +274,7 @@ export default function WorldScene({
   const [hitFlash, setHitFlash] = useState(false);
   const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
   const combatTutorialOpenRef = useRef(false);
+  const combatTutorialSeenRef = useRef(false);
   const lastBotTelegraphTickRef = useRef(-1);
   const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(false);
   const contentCacheRef = useRef(new Map<number, WorldChapterContent>());
@@ -392,9 +395,9 @@ export default function WorldScene({
         const currentProfile = profileRef.current;
         let nextProfile = currentProfile;
         if (operation === "purchase") {
-          if (currentProfile.inventory.ownedItemIds.includes(item.id)) throw new Error("Bu eşya zaten heybenizde.");
+          if (currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya zaten heybenizde.");
           if (currentProfile.gold < item.price.gold || currentProfile.diamonds < item.price.diamonds) {
-            throw new Error("Altın veya elmas bakiyen bu eşya için yeterli değil.");
+            throw new StoreActionError("Altın veya elmas bakiyen bu eşya için yeterli değil.");
           }
           nextProfile = {
             ...currentProfile,
@@ -407,7 +410,7 @@ export default function WorldScene({
             },
           };
         } else if (operation === "equip") {
-          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new Error("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
           const key = slotEquipmentKey(item.slot);
           nextProfile = {
             ...currentProfile,
@@ -418,17 +421,17 @@ export default function WorldScene({
             },
           };
         } else {
-          if (!item.upgradeable || (item.slot !== "weapon" && item.slot !== "armor")) throw new Error("Bu eşya geliştirilemiyor.");
-          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new Error("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
+          if (!item.upgradeable || (item.slot !== "weapon" && item.slot !== "armor")) throw new StoreActionError("Bu eşya geliştirilemiyor.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
           const currentLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
-          if (currentLevel >= MAX_UPGRADE_LEVEL) throw new Error("Bu eşya en yüksek seviyede.");
+          if (currentLevel >= MAX_UPGRADE_LEVEL) throw new StoreActionError("Bu eşya en yüksek seviyede.");
           const cost = getUpgradeCost(item.slot, currentLevel);
           if (
             currentProfile.gold < cost.gold ||
             currentProfile.materials.ironShards < cost.ironShards ||
             currentProfile.materials.emberCrystals < cost.emberCrystals ||
             currentProfile.materials.sealFragments < cost.sealFragments
-          ) throw new Error("Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.");
+          ) throw new StoreActionError("Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.");
           nextProfile = {
             ...currentProfile,
             gold: currentProfile.gold - cost.gold,
@@ -455,7 +458,7 @@ export default function WorldScene({
         return;
       }
 
-      if (!accountProfileReady) throw new Error("Hesap profili henüz hazır değil.");
+      if (!accountProfileReady) throw new StoreActionError("Hesap profili henüz hazır değil.");
       const mutationKey = `${operation}:${itemId}`;
       let idempotencyKey = storeMutationKeysRef.current.get(mutationKey);
       if (operation !== "equip" && !idempotencyKey) {
@@ -475,7 +478,7 @@ export default function WorldScene({
         fallbackMessage: "Mağaza şu an yüklenemedi, tekrar dene.",
         messageForCode: (code) => storeErrorText(code),
       });
-      if (!result.profile) throw new Error("Sunucudan profil güncellemesi alınamadı.");
+      if (!result.profile) throw new StoreActionError("Sunucudan profil güncellemesi alınamadı.");
       commitBattleProfile(normalizePlayerProfile(result.profile));
       storeMutationKeysRef.current.delete(mutationKey);
       if (operation === "purchase" || operation === "upgrade") {
@@ -490,9 +493,17 @@ export default function WorldScene({
         setStoreError(error.retryable ? "Mağaza şu an yüklenemedi, tekrar dene." : error.message);
         if (error.retryable) setStoreRetryAction({ operation, itemId });
         else storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
-      } else {
-        setStoreError(error instanceof Error ? error.message : "Mağaza şu an yüklenemedi, tekrar dene.");
+      } else if (error instanceof StoreActionError) {
+        setStoreError(error.message);
         storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
+      } else {
+        console.warn("[store] operation failed", {
+          operation,
+          errorName: error instanceof Error ? error.name : "unknown",
+        });
+        setStoreError("Mağaza şu an yüklenemedi, tekrar dene.");
+        if (accountDuelEnabled) setStoreRetryAction({ operation, itemId });
+        else storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
       }
     } finally {
       storeMutationRef.current = false;
@@ -765,6 +776,7 @@ export default function WorldScene({
 
   function closeCombatTutorial() {
     combatTutorialOpenRef.current = false;
+    combatTutorialSeenRef.current = true;
     setCombatTutorialOpen(false);
     try { window.localStorage.setItem("safak-combat-tutorial-seen-v1", "1"); } catch { /* Tutorial still works when storage is unavailable. */ }
   }
@@ -862,7 +874,9 @@ export default function WorldScene({
             if (beat >= 3) {
               updateBattleSession({ phase: "fight", beat: 3 });
               let seen = false;
-              try { seen = window.localStorage.getItem("safak-combat-tutorial-seen-v1") === "1"; } catch { /* Continue with the tutorial on this device session. */ }
+              try { seen = window.localStorage.getItem("safak-combat-tutorial-seen-v1") === "1"; } catch { /* Keep the session value when storage is unavailable. */ }
+              seen = seen || combatTutorialSeenRef.current;
+              combatTutorialSeenRef.current = seen;
               if (!seen) openCombatTutorial();
               return;
             }
@@ -1422,10 +1436,15 @@ export default function WorldScene({
               )}
             </div>
             <DuelHealthBar label={battleSession.rival.name} hp={combatRender.bot.hp} maxHp={combatRender.bot.maxHp} side="bot" />
-            {combatRender.bot.attackType
-              && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty)
-              && <div className="duel-attack-warning" role="status" aria-live="assertive">BOT SALDIRIYOR · BLOKLA YA DA KAÇ</div>}
           </section>
+          {combatRender.bot.attackType
+            && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty)
+            && (
+              <>
+                <div className="duel-ground-warning" aria-hidden="true"><span>KAÇ · KALKAN</span></div>
+                <div className="duel-attack-warning" role="status" aria-live="assertive">BOT SALDIRIYOR · BLOKLA YA DA KAÇ</div>
+              </>
+            )}
           <div className="duel-player-stamina" aria-label={`Dayanıklılık ${Math.ceil(combatRender.player.stamina)} / ${combatRender.player.maxStamina}`}>
             <span>DAYANIKLILIK</span>
             <b>{Math.ceil(combatRender.player.stamina)}</b>
@@ -1444,7 +1463,19 @@ export default function WorldScene({
               >
                 <i />
                 {Boolean(event.damage) && <b>{event.critical ? "!" : ""}{Math.ceil(event.damage ?? 0)}</b>}
-                {event.type === "parry" && <strong>PARRY</strong>}
+                {event.type === "hit" && (
+                  <small>{event.target === "player"
+                    ? `${battleSession.rival.name} → ${profile.name}`
+                    : `${profile.name} → ${battleSession.rival.name}`}</small>
+                )}
+                {(event.type === "block" || event.type === "parry" || (event.type === "dodge" && event.attack)) && (
+                  <small>{event.target === "player"
+                    ? `${battleSession.rival.name} → ${profile.name}`
+                    : `${profile.name} → ${battleSession.rival.name}`}</small>
+                )}
+                {event.type === "block" && <strong>0 HASAR · BLOK</strong>}
+                {event.type === "parry" && <strong>SAVUŞTURMA · 0</strong>}
+                {event.type === "dodge" && <strong>KAÇIŞ · 0 HASAR</strong>}
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
               </div>
             ))}

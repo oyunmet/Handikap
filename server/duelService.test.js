@@ -124,7 +124,7 @@ test("server replays the seeded duel and returns the stored result only once", a
   const request = { duelId: duel.duel_id, inputLog: [[0, 0, 0, 0, 0, 0]] };
   const first = await completeDuel(client, "user-1", request, now);
   const second = await completeDuel(client, "user-1", request, now);
-  assert.equal(first.summary.verdict, "defeat");
+  assert.equal(first.summary.verdict, "draw");
   assert.deepEqual(second, first);
   assert.equal(profileWrites, 1);
   assert.equal(completionWrites, 1);

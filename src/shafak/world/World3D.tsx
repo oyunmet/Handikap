@@ -197,6 +197,7 @@ function CameraRig({
 }
 
 function combatAnimation(action: CombatAction, speed: number) {
+  if (action === "windup") return "block" as const;
   if (action === "attack") return "attack" as const;
   if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo") return "heavyAttack" as const;
   if (action === "block" || action === "dodge" || action === "hit" || action === "die") return action;
