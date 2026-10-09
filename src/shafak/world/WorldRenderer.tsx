@@ -73,7 +73,7 @@ export default function WorldRenderer(props: Props) {
       const currentQuality = stateRef.current.quality;
       const pixelRatio = Math.min(
         window.devicePixelRatio || 1,
-        currentQuality === "high" ? .65 : currentQuality === "balanced" ? .5 : .4,
+        currentQuality === "high" ? .75 : currentQuality === "balanced" ? .6 : .45,
       );
       activeWorker.postMessage({
         type: "resize",

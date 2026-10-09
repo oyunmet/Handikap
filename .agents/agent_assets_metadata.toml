@@ -1,0 +1,58 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "_JHzC9-SFZCn7v-TCZBLj"
+uri = "file://screenshots/world-movement-00m.jpg"
+type = "image"
+title = "Dünya görüntüsü — 0 m"
+description = "Hata ayıklama ölçümüyle, yolculuğun başlangıcındaki 402×874 ekran görüntüsü."
+logical_id = "6888f4d1-dddd-4d46-bb9d-9d9734dac151"
+content_hash = "sha256:a250e2b2be5d564ceecb226aad062b22614d31972e5ecb089244183421422650"
+size = 24631
+mtime_ms = 1791520688485
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:44f84657-dc2f-4e71-8f78-73ccb8e5eb55/6888f4d1-dddd-4d46-bb9d-9d9734dac151/c342baa6-f67a-48f1-bb19-a35ee99f5959"
+storage_version_token = "1791520836034028"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "aQ7zfV76hVOscgVI3YYDJ"
+uri = "file://screenshots/world-movement-08m.jpg"
+type = "image"
+title = "Dünya görüntüsü — 8 m"
+description = "Kamera ve parallax katmanları 8 metrelik konumda."
+logical_id = "bd5ba61b-1ac7-4f8b-8021-5526cb9f1adb"
+content_hash = "sha256:1e5b993d6188f435daf8283a43c32410462c3d6311bce0042ca1b900636ebe7b"
+size = 24814
+mtime_ms = 1791520691281
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:44f84657-dc2f-4e71-8f78-73ccb8e5eb55/bd5ba61b-1ac7-4f8b-8021-5526cb9f1adb/fe2d98e1-7e1e-4f34-a6f8-e88fc8d91336"
+storage_version_token = "1791520837868073"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "iH9NnHRCDTVl3L9ufIbt7"
+uri = "file://screenshots/world-movement-16m.jpg"
+type = "image"
+title = "Dünya görüntüsü — 16 m"
+description = "Kamera ve parallax katmanları 16 metrelik konumda."
+logical_id = "d66691b6-8dca-4b39-9308-d608770d6318"
+content_hash = "sha256:c2212e3d688cad611fb59e301fb8ddb9f725d235c94a140d298e6c9ebf12c625"
+size = 25079
+mtime_ms = 1791520693993
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:44f84657-dc2f-4e71-8f78-73ccb8e5eb55/d66691b6-8dca-4b39-9308-d608770d6318/7bafedb1-0f9d-4717-9f30-3af347ea095b"
+storage_version_token = "1791520839133335"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "TrBIKKeP4Yd27wX_2mARP"
+uri = "file://screenshots/world-autowalk-performance.jpg"
+type = "image"
+title = "Hareket ve FPS ölçümü"
+description = "Otomatik hareket testinde mesafe, hız, kamera ve geliştirme önizlemesinin FPS sayacı."
+logical_id = "867b075e-ad0e-4773-b13d-4c2bc8add943"
+content_hash = "sha256:ecdff7ff89f8c878f35b977b413bd0dea14dc8afc1087a886df8fcde77f072ab"
+size = 24071
+mtime_ms = 1791520675601
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:44f84657-dc2f-4e71-8f78-73ccb8e5eb55/867b075e-ad0e-4773-b13d-4c2bc8add943/aebc5e7a-478e-45f6-a870-d9ffa8aed538"
+storage_version_token = "1791520888034742"
+content_type = "image/jpeg"

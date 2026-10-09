@@ -28,9 +28,6 @@ type WorldSceneProps = {
   onOpenSettings: () => void;
   profile: PlayerProfile;
   onOpenProfile: () => void;
-  debugWorld?: boolean;
-  debugStartDistance?: number;
-  debugAutoWalk?: boolean;
 };
 type Panel = "inventory" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
@@ -54,22 +51,18 @@ export default function WorldScene({
   onOpenSettings,
   profile,
   onOpenProfile,
-  debugWorld = false,
-  debugStartDistance = 0,
-  debugAutoWalk = false,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
-  const motionRef = useRef(createWorldMotion(debugStartDistance));
+  const motionRef = useRef(createWorldMotion());
   const worldRenderRef = useRef<((now: number) => void) | null>(null);
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
-  const debugHudRef = useRef<HTMLElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(null);
   const [airEnabled, setAirEnabled] = useState(true);
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
-  const [travel, setTravel] = useState(Math.floor(debugStartDistance));
+  const [travel, setTravel] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
   const opponents: (Opponent & { distance: number })[] = [
@@ -79,7 +72,7 @@ export default function WorldScene({
   ];
   const nextOpponent = opponents.find((candidate) => !profile.defeatedOpponents.includes(candidate.id));
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
-  const encounterVisible = !debugWorld && Boolean(nextOpponent && encounterDistance <= 25);
+  const encounterVisible = Boolean(nextOpponent && encounterDistance <= 25);
   const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
 
   const wake = useCallback(() => {
@@ -102,11 +95,8 @@ export default function WorldScene({
     let frame = 0;
     let previous = 0;
     let lastReactUpdate = 0;
-    let lastDebugUpdate = 0;
     let lastVisualUpdate = 0;
     let lastCanvasRender = 0;
-    let fpsWindowStart = 0;
-    let fpsFrameCount = 0;
     let sceneWidth = sceneRef.current?.getBoundingClientRect().width || window.innerWidth;
     const appliedCssVariables = new Map<string, string>();
     const resizeObserver = new ResizeObserver((entries) => {
@@ -124,19 +114,17 @@ export default function WorldScene({
       previous = now;
       const frameState = stepWorldMotion(
         motionRef.current,
-        debugAutoWalk
-          ? { x: 1, y: .12, sprint: false, analogMagnitude: 1 }
-          : readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current),
+        readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current),
         dt,
       );
       motionRef.current = frameState;
-      if (now - lastCanvasRender >= 1000 / 12) {
+      if (now - lastCanvasRender >= 1000 / 20) {
         lastCanvasRender = now;
         worldRenderRef.current?.(now);
       }
 
       const root = sceneRef.current;
-      if (root && now - lastVisualUpdate >= 1000 / 30) {
+      if (root && now - lastVisualUpdate >= 1000 / 60) {
         lastVisualUpdate = now;
         const pixelsPerMeter = Math.max(30, Math.min(48, sceneWidth * .095));
         const cameraPixels = frameState.cameraX * pixelsPerMeter;
@@ -159,22 +147,6 @@ export default function WorldScene({
         setSceneVariable(root, "--ws-weight-shift", `${motionReduced ? 0 : frameState.weightShift}px`);
         setSceneVariable(root, "--ws-squash", String(motionReduced ? 1 : 1 - frameState.squash));
         setSceneVariable(root, "--ws-shadow-scale", String(frameState.shadowScale));
-      }
-      if (debugHudRef.current) {
-        if (!fpsWindowStart) fpsWindowStart = now;
-        fpsFrameCount += 1;
-        if (now - fpsWindowStart >= 400) {
-          debugHudRef.current.querySelector("[data-debug-fps]")!.textContent =
-            `${Math.round(fpsFrameCount * 1000 / (now - fpsWindowStart))} FPS`;
-          fpsWindowStart = now;
-          fpsFrameCount = 0;
-        }
-        if (now - lastDebugUpdate > 100) {
-          lastDebugUpdate = now;
-          debugHudRef.current.querySelector("[data-debug-distance]")!.textContent = `${frameState.distance.toFixed(2)} m`;
-          debugHudRef.current.querySelector("[data-debug-speed]")!.textContent = `${frameState.speed.toFixed(2)} m/s`;
-          debugHudRef.current.querySelector("[data-debug-camera]")!.textContent = `${frameState.cameraX.toFixed(2)} m`;
-        }
       }
       if (frameState.motion !== lastMotionRef.current) {
         lastMotionRef.current = frameState.motion;
@@ -211,7 +183,7 @@ export default function WorldScene({
       window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
     };
-  }, [audioOn, debugAutoWalk, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -331,15 +303,6 @@ export default function WorldScene({
         </div>
         <CharacterRenderer motion={motion} motionReduced={motionReduced} />
         <div className="world-vignette" />
-        {debugWorld && (
-          <aside className="world-debug" ref={debugHudRef} aria-label="Hata ayıklama hareket ölçümleri">
-            <strong>GEÇİCİ · DÜNYA ÖLÇÜMÜ</strong>
-            <span>Mesafe <b data-debug-distance>{debugStartDistance.toFixed(2)} m</b></span>
-            <span>Hız <b data-debug-speed>0.00 m/s</b></span>
-            <span>Kamera X <b data-debug-camera>{debugStartDistance.toFixed(2)} m</b></span>
-            <span>Çizim <b data-debug-fps>ölçülüyor</b></span>
-          </aside>
-        )}
       </div>
       <header className="world-topbar">
         <button className="world-profile" type="button" onClick={onOpenProfile} aria-label={`${profile.name}, seviye ${profile.level}, profili aç`}>

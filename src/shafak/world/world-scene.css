@@ -283,17 +283,6 @@
   pointer-events: none;
   background: radial-gradient(ellipse at 52% 48%, transparent 28%, rgba(3,4,7,.37) 100%);
 }
-.world-debug {
-  position: absolute; z-index: 8; top: 170px; left: 14px;
-  display: grid; gap: 4px; min-width: 154px; padding: 9px 11px;
-  border: 1px solid rgba(235,197,124,.48); border-radius: 4px;
-  background: rgba(10,12,16,.84); color: #ead9b8;
-  font: 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-  pointer-events: none;
-}
-.world-debug strong { color: #eac67d; font-size: 8px; letter-spacing: .08em; }
-.world-debug span { display: flex; justify-content: space-between; gap: 9px; }
-.world-debug b { color: #fff1d4; font-variant-numeric: tabular-nums; }
 .world-progress {
   position: absolute; z-index: 7; top: 77px; left: clamp(14px, 3vw, 42px);
   width: min(260px, 45vw); padding: 7px 9px 6px;

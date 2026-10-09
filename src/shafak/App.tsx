@@ -5,7 +5,6 @@ import { playUiChime, setSoundEnabled } from "./audio/howler";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import WorldScene from "./world/WorldScene";
-import { readWorldDebugConfig } from "./world/world-debug";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
 
@@ -158,11 +157,7 @@ type AppProps = {
 
 function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps) {
   const [, setLocation] = useLocation();
-  const worldDebug = readWorldDebugConfig(
-    typeof window === "undefined" ? "" : window.location.search,
-    import.meta.env.DEV,
-  );
-  const [screen, setScreen] = useState<Screen>(() => worldDebug.enabled ? "world" : "opening");
+  const [screen, setScreen] = useState<Screen>("opening");
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -626,9 +621,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
               soundEnabled={preferences.sound}
               vibrationEnabled={preferences.vibration}
               profile={profile}
-              debugWorld={worldDebug.enabled}
-              debugStartDistance={worldDebug.startDistance}
-              debugAutoWalk={worldDebug.autoWalk}
               onExit={() => setScreen("menu")}
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenProfile={() => setProfileOpen(true)}
