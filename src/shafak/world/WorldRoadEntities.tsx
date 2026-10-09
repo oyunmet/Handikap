@@ -18,6 +18,8 @@ type MotionRef = MutableRefObject<WorldMotion>;
 const PICKUP_STYLE = {
   "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.16 },
   "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.25 },
+  "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.2 },
+  "iron-shard": { color: "#d1d8df", glow: "#7d9ba4", size: 0.19 },
   "ember-crystal": { color: "#69e7de", glow: "#35c5d1", size: 0.21 },
   "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.23 },
 } as const;
@@ -85,7 +87,7 @@ function Collectible({
             <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.95} metalness={0.5} roughness={0.24} flatShading />
           </mesh>
         )}
-        <Sparkles count={pickup.kind === "seal-fragment" ? 5 : 3} scale={0.85} size={2.3} speed={reducedMotion ? 0 : 0.3} color={style.color} />
+        <Sparkles count={pickup.kind === "seal-fragment" || pickup.kind === "diamond-small" ? 5 : 3} scale={0.85} size={2.3} speed={reducedMotion ? 0 : 0.3} color={style.color} />
       </group>
     </group>
   );

@@ -16,6 +16,7 @@ import { createWorldChunk, type WorldChunk } from "./world-generation";
 import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldRival } from "./world-content";
 import type { CombatAction, CombatState } from "../game/combat-engine";
+import type { EquipmentVisual } from "../game/store-types";
 
 export type WorldQuality = "high" | "balanced" | "low";
 
@@ -26,6 +27,8 @@ type World3DProps = {
   airEnabled: boolean;
   level: number;
   relicCount: number;
+  equipmentVisual: EquipmentVisual;
+  lightRadius: number;
   animationState: CharacterAnimationState;
   rivals: WorldRival[];
   collectedPickupIds: ReadonlySet<string>;
@@ -206,12 +209,14 @@ function DuelFighter({
   combatStateRef,
   combatRender,
   motionReduced,
+  equipmentVisual,
 }: {
   side: "player" | "bot";
   motionRef: MutableRefObject<WorldMotion>;
   combatStateRef: MutableRefObject<CombatState | null>;
   combatRender: CombatState | null;
   motionReduced: boolean;
+  equipmentVisual: EquipmentVisual;
 }) {
   const actorRoot = useRef<THREE.Group>(null);
   const actorMotion = useMemo(() => ({ current: createWorldMotion() }), []);
@@ -242,10 +247,11 @@ function DuelFighter({
           state={animation}
           motionReduced={motionReduced}
           facingAngle={side === "bot" ? Math.PI : 0}
+          appearance={side === "player" ? equipmentVisual : undefined}
         />
         <pointLight
           position={[0, 1.7, side === "bot" ? -0.2 : 0.2]}
-          color={side === "bot" ? "#ff644f" : "#f5c175"}
+          color={side === "bot" ? "#ff644f" : equipmentVisual.auraColor ?? "#f5c175"}
           intensity={side === "bot" ? 0.95 : 0.62}
           distance={4.5}
         />
@@ -264,7 +270,8 @@ function DuelArena({
   combatStateRef,
   combatRender,
   motionReduced,
-}: Pick<World3DProps, "motionRef" | "combatStateRef" | "combatRender" | "motionReduced">) {
+  equipmentVisual,
+}: Pick<World3DProps, "motionRef" | "combatStateRef" | "combatRender" | "motionReduced" | "equipmentVisual">) {
   return (
     <group position={[0, 0, -motionRef.current.distance]}>
       <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -290,8 +297,8 @@ function DuelArena({
       ))}
       {combatRender && (
         <>
-          <DuelFighter side="player" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} />
-          <DuelFighter side="bot" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} />
+          <DuelFighter side="player" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
+          <DuelFighter side="bot" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
         </>
       )}
     </group>
@@ -302,10 +309,14 @@ function PlayerLight({
   motionRef,
   level,
   relicCount,
+  lightRadius,
+  lightColor,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   level: number;
   relicCount: number;
+  lightRadius: number;
+  lightColor: string;
 }) {
   const lightRef = useRef<THREE.PointLight>(null);
   const glowRef = useRef<THREE.Mesh>(null);
@@ -323,7 +334,7 @@ function PlayerLight({
   });
   return (
     <>
-      <pointLight ref={lightRef} position={[0, 2, -1.4]} color="#ffb36f" intensity={2.8} distance={19 + progression * 3} decay={2} />
+      <pointLight ref={lightRef} position={[0, 2, -1.4]} color={lightColor} intensity={2.8} distance={19 + progression * 3 + lightRadius} decay={2} />
       <mesh ref={glowRef} position={[0, 0.04, -3.2]} scale={[4.5, 0.045, 9]}>
         <sphereGeometry args={[1, 12, 7]} />
         <meshBasicMaterial color="#e78450" transparent opacity={0.12} depthWrite={false} blending={THREE.AdditiveBlending} />
@@ -343,6 +354,8 @@ function SceneContents({
   airEnabled,
   level,
   relicCount,
+  equipmentVisual,
+  lightRadius,
   animationState,
   rivals,
   collectedPickupIds,
@@ -421,15 +434,16 @@ function SceneContents({
         focusedRivalId={focusedRival?.id ?? null}
         reducedMotion={motionReduced}
       />}
-      {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} />}
+      {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
       {combatActive ? (
-        <DuelArena motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} />
+        <DuelArena motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
       ) : (
         <KnightActor
           motionRef={motionRef}
           state={animationState}
           motionReduced={motionReduced}
           footSlipRef={footSlipRef}
+          appearance={equipmentVisual}
         />
       )}
     </>

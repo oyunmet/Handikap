@@ -45,3 +45,24 @@ test("seeded bots choose the same actions and damage on each replay", () => {
   };
   assert.deepEqual(run(), run());
 });
+
+test("server-owned equipment modifiers set combat stats and keep replays deterministic", () => {
+  const stats = {
+    maxHealth: 170,
+    damageMultiplier: 1.18,
+    defenseReduction: 0.12,
+    criticalChance: 0.22,
+    moveSpeedMultiplier: 1.08,
+    attackSpeedMultiplier: 1.1,
+    attackRangeBonus: 0.3,
+  };
+  const state = createCombatState(44112, "medium", stats);
+  assert.equal(state.player.maxHp, 170);
+  assert.equal(state.playerStats.damageMultiplier, 1.18);
+  assert.equal(state.playerStats.defenseReduction, 0.12);
+  const frames = [[0, 0, 0, 0, 0, 0]];
+  assert.deepEqual(
+    replayCombat(44112, "medium", frames, stats).state,
+    state,
+  );
+});

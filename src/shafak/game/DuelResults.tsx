@@ -58,6 +58,7 @@ export default function DuelResults({
         </div>
         <div className="duel-result__rewards">
           <div><span>ALTIN</span><strong>{rewards.gold > 0 ? `+${rewards.gold}` : rewards.lostStake ? `−${rewards.lostStake}` : "—"}</strong></div>
+          <div><span>ELMAS</span><strong>{rewards.diamonds > 0 ? `+${rewards.diamonds}` : "—"}</strong></div>
           <div><span>DENEYİM</span><strong>+{rewards.xp} XP</strong></div>
           <div><span>GANİMET</span><strong>{rewards.item ?? (drew ? "Aktarılmadı" : "Yok")}</strong></div>
         </div>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validatePlayerProfile, validateProfileRename } from "./profileApi.ts";
+import { createDefaultPlayerProfile, validatePlayerProfile, validateProfileRename } from "./profileApi.ts";
 
 const validProfile = {
   name: "Yolcu",
@@ -22,6 +22,23 @@ test("profile API accepts and normalizes a valid account profile", () => {
   const profile = validatePlayerProfile({ ...validProfile, name: "  Şafak   Yolcusu  " });
   assert.equal(profile?.name, "Şafak Yolcusu");
   assert.deepEqual(profile?.items, ["Kül Mührü"]);
+  assert.equal(profile?.diamonds, 0);
+  assert.equal(profile?.materials.ironShards, 0);
+  assert.deepEqual(profile?.equipment, {
+    weaponId: "weapon_ash_sword",
+    armorId: "armor_ash_guard",
+    capeId: "cape_worn",
+    effectId: "effect_none",
+    dyeId: "dye_none",
+  });
+  assert.equal(profile?.inventory.ownedItemIds.length, 5);
+});
+
+test("new profiles start with starter equipment and no purchasable currency", () => {
+  const profile = createDefaultPlayerProfile();
+  assert.equal(profile.gold, 120);
+  assert.equal(profile.diamonds, 0);
+  assert.equal(profile.inventory.ownedItemIds.includes(profile.equipment.weaponId), true);
 });
 
 test("profile API rejects impossible progression and malformed collections", () => {

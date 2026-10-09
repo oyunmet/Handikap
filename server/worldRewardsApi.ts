@@ -119,14 +119,18 @@ export function createWorldRewardsApi(database: Pool) {
       const newlyClaimed = pickups.filter((pickup) => !alreadyClaimed.has(pickup.id));
       const reward = pickupRewardTotals(newlyClaimed);
       const nextGold = currentProfile.gold + reward.gold;
+      const nextDiamonds = currentProfile.diamonds + reward.diamonds;
       const nextMaterials = {
         emberCrystals: currentProfile.materials.emberCrystals + reward.materials.emberCrystals,
         sealFragments: currentProfile.materials.sealFragments + reward.materials.sealFragments,
+        ironShards: currentProfile.materials.ironShards + reward.materials.ironShards,
       };
       if (
         nextGold > 1_000_000_000 ||
+        nextDiamonds > 1_000_000_000 ||
         nextMaterials.emberCrystals > 1_000_000_000 ||
-        nextMaterials.sealFragments > 1_000_000_000
+        nextMaterials.sealFragments > 1_000_000_000 ||
+        nextMaterials.ironShards > 1_000_000_000
       ) {
         response.status(409).json({ error: "reward_limit_reached" });
         await client.query("ROLLBACK");
@@ -145,6 +149,7 @@ export function createWorldRewardsApi(database: Pool) {
       const nextProfile = {
         ...currentProfile,
         gold: nextGold,
+        diamonds: nextDiamonds,
         materials: nextMaterials,
       };
       if (newlyClaimed.length) {

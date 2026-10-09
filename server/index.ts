@@ -12,7 +12,9 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import { createDuelApi } from "./duelApi";
 import { createProfileApi } from "./profileApi";
+import { createStoreApi } from "./storeApi";
 import { createWorldRewardsApi } from "./worldRewardsApi";
+import { STORE_CATALOG } from "./storeCatalog";
 
 const port = Number(process.env.GAME_SERVER_PORT ?? "3001");
 
@@ -43,6 +45,11 @@ app.get("/api/health", async (_request, response) => {
   response.json({ status: "ok", database: databaseStatus });
 });
 
+app.get("/api/store/catalog", (_request, response) => {
+  response.setHeader("Cache-Control", "public, max-age=60");
+  response.json({ items: STORE_CATALOG });
+});
+
 if (clerkConfigured) {
   app.use(
     clerkMiddleware((request) => ({
@@ -60,6 +67,7 @@ if (clerkConfigured) {
   app.use(createProfileApi(database));
   app.use(createWorldRewardsApi(database));
   app.use(createDuelApi(database));
+  app.use(createStoreApi(database));
 } else {
   const authUnavailable: express.RequestHandler = (_request, response) => {
     response.status(503).json({ error: "authentication_unavailable" });
@@ -68,7 +76,8 @@ if (clerkConfigured) {
   app.use(CLERK_PROXY_PATH, authUnavailable);
   app.use("/api/profile", authUnavailable);
   app.use("/api/duels", authUnavailable);
-  console.warn("[shafak-server] Clerk is not configured; account and duel APIs are disabled.");
+  app.use("/api/store", authUnavailable);
+  console.warn("[shafak-server] Clerk is not configured; account, store mutation, and duel APIs are disabled.");
 }
 
 const httpServer = createServer(app);

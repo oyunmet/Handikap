@@ -1,0 +1,46 @@
+Harika ilerleme: toplanabilir öğeler, BOT rakipler ve SAVAŞ butonu canlı sürümde çalışıyor. SORUN: SAVAŞ'a basınca sadece "KARŞILAŞMA SAHNESİ HAZIR" yazan bir VS kartı ve "KEŞFE DÖN" düğmesi çıkıyor; gerçek savaş yok. Şimdi iki iş var: (1) GERÇEK ZAMANLI SAVAŞ, (2) ELMAS/ALTINLA SİLAH VE KOSTÜM ALMA (mağaza ve donatım). Önce 1'i yap, ben onaylayınca 2'ye geç.
+
+## KURALLAR
+- Aşama aşama ilerle; her aşamada: ne değişti / neyi hangi ortamda test ettin (gerçek mobil WebKit dahil) / neyi test EDEMEDİN yaz. Doğrulamadan "tamam" deme. Canlı sürüme yayınlama adımlarını ver.
+- Clerk girişi, PostgreSQL profil, misafir modu, sunucu taraflı ödül doğrulaması ve mevcut toplama/BOT sistemi bozulmasın.
+- Oyun mantığı render'dan ayrı, sabit zaman adımlı (60 Hz), tohumlu (seed) olsun.
+- ?debug=1 paneli: "En yakın rakibe ışınlan", can/dayanıklılık/FPS/aktif animasyon göstergesi, "Savaşı hemen başlat", "Rakibi bir vuruşta öldür" (sadece debug).
+- Botlar "BOT" etiketli kalsın; gerçek oyuncu gibi gösterilmesin. Gerçek oyunculu mod henüz yok.
+
+## AŞAMA C — GERÇEK ZAMANLI SAVAŞ (aynı 3D dünyada)
+1. Giriş akışı: SAVAŞ'a basınca VS kartı (en fazla 1,5-2 sn) → kamera savaş açısına geçer → 3-2-1 geri sayım → "SAVAŞ!" → savaş başlar. VS kartındaki "KEŞFE DÖN" düğmesini kaldır; savaşta yalnızca küçük bir "Pes et" düğmesi olsun (onay istesin).
+2. Arena: Rakibin bulunduğu yer, yol kenarında hafifçe sınırlanmış dairesel bir alan (zeminde ışıklı halka, kenarlarda kor/meşale). Kamera iki karakteri kadrajda tutar, büyük vuruşlarda yaklaşır.
+3. Kontroller (mobil): sol joystick hareket; sağda büyük SALDIRI butonu, KALKAN, ATILMA, 2 YETENEK (bekleme süreli, bekleme dairesi göstergesi). Basma animasyonu + titreşim. Masaüstü: WASD + J/K/L/Boşluk tuşları.
+4. Mekanik: 3 vuruşluk hafif kombo; basılı tutarak ağır saldırı (şarj efekti); zamanlı blokla savuşturma (karşı saldırı fırsatı); atılma (kısa dokunulmazlık); can + dayanıklılık (her eylem harcar, boşalınca yavaşlar); hasar (kritik, blok azaltması, kombo çarpanı); sersemleme ve geri savrulma. Aktif silaha göre menzil/hız/hasar değişsin (Aşama E ile bağlanacak, şimdilik tek varsayılan kılıç).
+5. Karakter animasyonları (kodla, prosedürel): saldırıda omuz-dirsek-bilek zinciriyle kılıç savurma yayı, ayakla ağırlık aktarımı, gövde dönüşü; blok duruşu; atılma yuvarlanması; hasar irkilmesi; ölünce yavaş yere yığılma. Rakiplerde de aynıları (farklı zırh rengi/boyut).
+6. Düşman yapay zekâsı: kolay/orta/zor (rakip seviyesine göre); mesafe tutma, saldırı örüntüleri, blok/atılmaya tepki, arada boşluk bırakma. Adil ve öğrenilebilir olsun; ilk botlar kolay.
+7. Vuruş hissi (hiçbirini atlama): hit-stop (40-90 ms), ekran sarsıntısı, kısa zoom darbesi, vuruş flaşı, kıvılcım parçacıkları, kılıç izi (parlayan yay), blokta kıvılcım patlaması ve şok halkası, atılmada hayalet izi, yetenek başına ayrı büyük efekt (örn. ateş dalgası, yıldırım), yükselen hasar sayıları (kritikte büyük ve altın), gecikmeli kırmızı iz bırakan can çubuğu, can azalınca kırmızı vignette, final vuruşunda yavaş çekim, katmanlı ses ve titreşim.
+8. Bitiş: ZAFER (altın ışık huzmeleri, kıvılcımlar) / YENİLGİ (ekran kararır). Ganimet sandığı açılma animasyonu; altın, elmas ve malzemeler sayaçla envantere uçar. Sonra yürüyüşe kesintisiz dönüş (konum, ilerleme ve toplananlar korunur). Yenilgide ceza makul olsun (küçük altın kaybı, asla karakter kaybı yok).
+9. SUNUCU DOĞRULAMASI: İstemci ödül/altın/elmas/XP göndermez. Sunucu düello kimliği ve tohum üretir; istemci zaman damgalı girdi kaydı gönderir; sunucu aynı deterministik simülasyonu oynatıp sonucu ve ödülü kendisi hesaplar. Düello kimliği tekil (çift ödül yok), imkansız girdi reddedilir, hız sınırı var. Testleri güncelle (sahte sonuç, çift ödül, çok hızlı bitirme).
+10. Hata durumu: Savaş sahnesi yüklenemezse şık bir hata ekranı göster ve yürüyüşe güvenli dön; asla donup kalma.
+
+## AŞAMA E — ELMAS/ALTINLA SİLAH VE KOSTÜM ALMA (MAĞAZA VE DONATIM)
+Mevcut para birimlerini kullan: altın (üstteki sayaç), elmas (turkuaz) ve mor ✦ sayacı. Para birimlerinin ne işe yaradığını ekranda kısaca açıkla. Gerçek parayla ödeme YOK; para birimleri yalnızca oyun içinde kazanılır (toplama, savaş, sandık, günlük görev).
+1. Mağaza ve Heybe ekranı: Mevcut "HEYBE" düğmesini genişlet. Sekmeler: SİLAHLAR, ZIRH/KOSTÜM, PELERİN, EFEKTLER, ENVANTER. Her kart: ad, nadirlik rengi (Sıradan, Nadir, Destansı, Efsanevi), fiyat (altın ve/veya elmas), kısa istatistik özeti, kilitli/sahip/kuşanılı durumu.
+2. 3D ÖNİZLEME: Eşyaya dokununca karakter dönen platformda o eşyayla gösterilsin (silah elde, kostüm üstünde). "Dene → Satın al" akışı; kuşanmadan önce mevcut eşyayla istatistik karşılaştırması (artı/eksi okları).
+3. Eşya türleri:
+   - Silahlar (en az 5): kılıç, çift hançer, savaş baltası, büyük kılıç, mızrak. Her biri menzil, hız, hasar ve saldırı animasyon setini farklılaştırsın.
+   - Zırh/kostüm setleri (en az 4): miğfer, göğüslük, omuzluk, eldiven, bot parçaları ve renk/dekor farklılıkları (ör. Kül Muhafızı, Gece Nöbetçisi, Altın Şövalye, Gölge Avcısı). Kod ile üretilmiş görünümü karakterde GERÇEKTEN değişsin.
+   - Pelerinler (en az 4): renk, kenar işlemesi, uzunluk, parıltı.
+   - Efektler: kılıç izi rengi (kor, buz, zehir, altın), ayak tozu rengi, karakter çevresi ışık (aura) rengi.
+   - Boyalar: elmasla zırh/pelerin renk değiştirme.
+4. İstatistikler: Can, Hasar, Savunma, Kritik Şansı, Hareket Hızı, Işık Yarıçapı. Kuşanılan eşyalar bunları değiştirir; savaş ve yürüyüş mantığına gerçekten bağlansın. Dengeli olsun: pahalı eşya biraz daha güçlü ama aşırı üstün değil; yenilmez karakter oluşmasın.
+5. Yükseltme: Altın + malzeme (demir parçası, kor kristali) ile silah/zırh seviye atlatma; yükseltme animasyonu (kıvılcım, parlama, ses).
+6. Kuşanma: "Kuşan" düğmesi, eşya anında karakterde görünür (yürüyüş sahnesinde ve savaşta).
+7. Ekonomi dengesi (öneri tablosu çıkar, ben onaylayayım): sıradan eşyalar altınla, nadir/destansı eşyalar elmasla; elmas kazanımı yavaş ama adil (toplama, savaş kazanma, sandık, günlük görevler). Tabloyu kısaca yaz.
+8. Satın alma deneyimi: onay penceresi, satın alma animasyonu (parıltı, kısa ses), yetersiz bakiyede nazik uyarı ve "nasıl kazanılır" ipucu, satın alınan eşyada "YENİ" rozeti.
+9. SUNUCU TARAFLI GÜVENLİK: Eşya kataloğu ve fiyatlar SUNUCUDA durur; istemci fiyat veya bakiye göndermez. Satın alma uç noktası tek veritabanı işleminde bakiyeyi kontrol eder, düşer ve eşyayı envantere ekler; aynı isteğin iki kez işlenmesini engeller (idempotency); sahip olunan eşya tekrar alınamaz; kuşanma yalnızca sahip olunan eşyalara izinli. Envanter, kuşanılanlar ve bakiye PostgreSQL'de hesapla saklansın. Hız sınırı ve otomatik testler (yetersiz bakiye, çift satın alma, sahip olmadığı eşyayı kuşanma, fiyat manipülasyonu) yaz. Misafir modunda satın almalar cihazda kalır ve "misafir ilerlemesi hesaba aktarılmaz" uyarısı gösterilir.
+10. Mevcut savaş ödülleri (altın, elmas, malzeme) bu ekonomiye bağlansın; hepsi sunucuda hesaplanır.
+
+## BAŞARI KRİTERLERİ (canlı sürümde, telefonda)
+- SAVAŞ'a basınca gerçekten savaşırım; vuruşlar ağırlık hissettirir; kazanınca ganimet alırım; yürüyüşe kesintisiz dönerim.
+- Mağazadan elmas/altınla silah, kostüm ve pelerin alırım; karakterimde görünür; istatistikler savaşı etkiler.
+- Satın alma ve ödüller sunucuda doğrulanır; hile mümkün değildir.
+- Her şey iPhone'da 45+ FPS hedefiyle akıcıdır; FPS ?debug=1'de görünür.
+
+ŞİMDİ yalnızca AŞAMA C'yi (gerçek zamanlı savaş) yap. Bitince ne değişti / neyi test ettin / neyi test edemedin yaz ve onayımı bekle; ben "devam" demeden Aşama E'ye geçme.

@@ -40,6 +40,14 @@ test("reward totals are derived from seeded pickup kinds and amounts", () => {
     totals.materials.emberCrystals,
     pickups.filter((pickup) => pickup.kind === "ember-crystal").reduce((sum, pickup) => sum + pickup.amount, 0),
   );
+  assert.equal(
+    totals.diamonds,
+    pickups.filter((pickup) => pickup.kind === "diamond-small").reduce((sum, pickup) => sum + pickup.amount, 0),
+  );
+  assert.equal(
+    totals.materials.ironShards,
+    pickups.filter((pickup) => pickup.kind === "iron-shard").reduce((sum, pickup) => sum + pickup.amount, 0),
+  );
   assert.equal(totals.materials.sealFragments, 1);
 });
 

@@ -16,6 +16,7 @@ export type DuelSummary = {
 
 export type BattleRewards = {
   gold: number;
+  diamonds: number;
   xp: number;
   item: string | null;
   lostStake: number;

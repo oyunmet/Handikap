@@ -91,12 +91,14 @@ export function stepWorldMotion(
   state: WorldMotion,
   input: WorldInput,
   deltaSeconds: number,
+  speedMultiplier = 1,
 ): WorldMotionFrame {
   const dt = clamp(finiteOrZero(deltaSeconds), 0, 0.05);
   const magnitude = clamp(Math.hypot(input.x, input.y), 0, 1);
   const analogRun = smoothstep(0.58, 1, clamp(input.analogMagnitude, 0, 1));
   const runBlend = input.sprint ? 1 : analogRun;
-  const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend);
+  const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend)
+    * clamp(finiteOrZero(speedMultiplier) || 1, 0.88, 1.14);
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const targetX = input.x * directionScale * targetSpeed;
   const targetY = input.y * directionScale * targetSpeed;

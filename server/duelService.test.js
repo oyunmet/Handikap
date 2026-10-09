@@ -49,8 +49,10 @@ test("server challenges use a generated BOT id and return server-owned combat se
   assert.equal(challenge.opponent.id, rival.id);
   assert.equal(challenge.opponent.difficulty, rival.difficulty);
   assert.ok(Number.isSafeInteger(challenge.seed));
+  assert.equal(challenge.playerStats.maxHealth, 150);
   assert.equal(inserts.length, 1);
   assert.equal(inserts[0][3], rival.id);
+  assert.deepEqual(JSON.parse(inserts[0][4]), challenge.playerStats);
   assert.equal(reads, 0);
 });
 
@@ -137,6 +139,8 @@ test("the retained server reward calculation preserves the third-win daily quest
   );
 
   assert.equal(awarded.rewards.gold, 148);
+  assert.equal(awarded.rewards.diamonds, 2);
+  assert.equal(awarded.profile.diamonds, 2);
   assert.equal(awarded.profile.gold, 268);
   assert.equal(awarded.profile.dailyBattles, 4);
   assert.equal(awarded.profile.dailyWins, 3);

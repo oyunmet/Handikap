@@ -6,6 +6,7 @@ import type { CharacterAnimationState } from "./character-animation";
 import { solveTwoBoneLeg } from "./leg-ik";
 import type { WorldMotion } from "./movement";
 import { KNIGHT_CONFIG } from "./knight-config";
+import type { EquipmentVisual } from "../game/store-types";
 
 type Knight3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -13,12 +14,13 @@ type Knight3DProps = {
   motionReduced: boolean;
   facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
+  appearance?: EquipmentVisual;
 };
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));
 
-function Cape({ motionRef, motionReduced }: Pick<Knight3DProps, "motionRef" | "motionReduced">) {
+function Cape({ motionRef, motionReduced, appearance }: Pick<Knight3DProps, "motionRef" | "motionReduced" | "appearance">) {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometry = useMemo(() => {
     const columns = 5;
@@ -45,12 +47,12 @@ function Cape({ motionRef, motionReduced }: Pick<Knight3DProps, "motionRef" | "m
   }, []);
   const springs = useMemo(() => Array.from({ length: 8 }, () => ({ x: 0, z: 0, vx: 0, vz: 0 })), []);
   const material = useMemo(() => new THREE.MeshStandardMaterial({
-    color: KNIGHT_CONFIG.colors.cape,
+    color: appearance?.cape ?? KNIGHT_CONFIG.colors.cape,
     roughness: 0.82,
     metalness: 0.02,
     side: THREE.DoubleSide,
     flatShading: true,
-  }), []);
+  }), [appearance?.cape]);
 
   useEffect(() => () => {
     geometry.dispose();
@@ -85,7 +87,7 @@ function Cape({ motionRef, motionReduced }: Pick<Knight3DProps, "motionRef" | "m
     const columns = 5;
     const rows = 7;
     const width = KNIGHT_CONFIG.proportions.capeWidth;
-    const length = KNIGHT_CONFIG.proportions.capeLength;
+    const length = KNIGHT_CONFIG.proportions.capeLength * (appearance?.capeLength ?? 1);
     for (let row = 0; row <= rows; row += 1) {
       const t = row / rows;
       const spring = springs[row];
@@ -109,7 +111,7 @@ function Cape({ motionRef, motionReduced }: Pick<Knight3DProps, "motionRef" | "m
   return <mesh ref={meshRef} geometry={geometry} position={[0, 1.72, 0.12]} material={material} frustumCulled={false} />;
 }
 
-export default function Knight3D({ motionRef, state, motionReduced, facingAngle, footSlipRef }: Knight3DProps) {
+export default function Knight3D({ motionRef, state, motionReduced, facingAngle, footSlipRef, appearance }: Knight3DProps) {
   const rootRef = useRef<THREE.Group>(null);
   const torsoRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
@@ -137,6 +139,31 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
   ], []);
 
   useEffect(() => () => shadowMaterial.dispose(), [shadowMaterial]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const colorByOriginal = new Map<string, string | undefined>([
+      [new THREE.Color(KNIGHT_CONFIG.colors.armor).getHexString(), appearance?.armor],
+      [new THREE.Color(KNIGHT_CONFIG.colors.armorLight).getHexString(), appearance?.armorLight],
+      [new THREE.Color(KNIGHT_CONFIG.colors.armorDark).getHexString(), appearance?.armorDark],
+      [new THREE.Color(KNIGHT_CONFIG.colors.gold).getHexString(), appearance?.trim],
+      [new THREE.Color(KNIGHT_CONFIG.colors.goldLight).getHexString(), appearance?.trim],
+      [new THREE.Color(KNIGHT_CONFIG.colors.steel).getHexString(), appearance?.weaponColor],
+    ]);
+    root.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      for (const material of materials) {
+        if (!("color" in material) || !(material.color instanceof THREE.Color)) continue;
+        const base = String(material.userData.equipmentBaseColor ?? material.color.getHexString());
+        material.userData.equipmentBaseColor = base;
+        const mapped = colorByOriginal.get(base);
+        if (mapped) material.color.set(mapped);
+        else if (colorByOriginal.has(base)) material.color.set(`#${base}`);
+      }
+    });
+  }, [appearance]);
 
   useFrame((frame, delta) => {
     const root = rootRef.current;
@@ -283,7 +310,15 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} scale={[0.72, 1.02, 1]} material={shadowMaterial}>
         <circleGeometry args={[1, 24]} />
       </mesh>
-      <Cape motionRef={motionRef} motionReduced={motionReduced} />
+      <Cape motionRef={motionRef} motionReduced={motionReduced} appearance={appearance} />
+      {appearance?.auraColor && (
+        <pointLight
+          position={[0, 1.05, 0]}
+          color={appearance.auraColor}
+          intensity={0.55}
+          distance={2.7}
+        />
+      )}
 
       <group ref={torsoRef} position={[0, 0, 0]}>
         <mesh position={[0, 1.26, 0]} scale={[0.31, 0.36, 0.2]}>
@@ -399,26 +434,88 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
               <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.76} metalness={0.16} flatShading />
             </mesh>
             <group position={[0.025, -0.4, -0.06]} rotation={[0, 0, -0.2]}>
-              <mesh position={[0, 0.02, 0]}>
-                <cylinderGeometry args={[0.035, 0.045, 0.17, 6]} />
-                <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
-              </mesh>
-              <mesh position={[0, 0.13, 0]}>
-                <boxGeometry args={[0.24, 0.055, 0.07]} />
-                <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.32} metalness={0.76} />
-              </mesh>
-              <mesh position={[0, 0.47, 0]}>
-                <boxGeometry args={[0.105, 0.62, 0.045]} />
-                <meshStandardMaterial color={KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
-              </mesh>
-              <mesh position={[0, 0.81, 0]} rotation={[0, 0, Math.PI]}>
-                <coneGeometry args={[0.052, 0.16, 4]} />
-                <meshStandardMaterial color="#dce0e3" roughness={0.23} metalness={0.86} flatShading />
-              </mesh>
-              <mesh position={[0, 0.45, 0.028]} scale={[0.018, 0.48, 0.008]}>
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial color={KNIGHT_CONFIG.colors.goldLight} roughness={0.3} metalness={0.72} />
-              </mesh>
+              {(appearance?.weaponStyle ?? "sword") === "daggers" ? (
+                [-1, 1].map((side) => (
+                  <group key={side} position={[side * 0.055, 0.27, 0]} rotation={[0, 0, side * 0.14]}>
+                    <mesh position={[0, 0.02, 0]}>
+                      <cylinderGeometry args={[0.026, 0.036, 0.12, 6]} />
+                      <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
+                    </mesh>
+                    <mesh position={[0, 0.28, 0]}>
+                      <boxGeometry args={[0.062, 0.43, 0.032]} />
+                      <meshStandardMaterial color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
+                    </mesh>
+                    <mesh position={[0, 0.51, 0]} rotation={[0, 0, Math.PI]}>
+                      <coneGeometry args={[0.031, 0.08, 4]} />
+                      <meshStandardMaterial color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.23} metalness={0.86} flatShading />
+                    </mesh>
+                  </group>
+                ))
+              ) : appearance?.weaponStyle === "axe" ? (
+                <>
+                  <mesh position={[0, 0.4, 0]}>
+                    <cylinderGeometry args={[0.035, 0.045, 0.76, 6]} />
+                    <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
+                  </mesh>
+                  <mesh position={[0.13, 0.66, 0]}>
+                    <boxGeometry args={[0.25, 0.3, 0.055]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
+                  </mesh>
+                  <mesh position={[0.13, 0.66, -0.025]}>
+                    <coneGeometry args={[0.15, 0.3, 4]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.23} metalness={0.86} flatShading />
+                  </mesh>
+                </>
+              ) : appearance?.weaponStyle === "greatsword" ? (
+                <>
+                  <mesh position={[0, 0.03, 0]}>
+                    <cylinderGeometry args={[0.035, 0.045, 0.17, 6]} />
+                    <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
+                  </mesh>
+                  <mesh position={[0, 0.16, 0]}>
+                    <boxGeometry args={[0.34, 0.065, 0.075]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.32} metalness={0.78} />
+                  </mesh>
+                  <mesh position={[0, 0.55, 0]}>
+                    <boxGeometry args={[0.17, 0.82, 0.06]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
+                  </mesh>
+                  <mesh position={[0, 0.99, 0]} rotation={[0, 0, Math.PI]}>
+                    <coneGeometry args={[0.085, 0.17, 4]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.23} metalness={0.86} flatShading />
+                  </mesh>
+                </>
+              ) : appearance?.weaponStyle === "spear" ? (
+                <>
+                  <mesh position={[0, 0.42, 0]}>
+                    <cylinderGeometry args={[0.024, 0.035, 1.15, 6]} />
+                    <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
+                  </mesh>
+                  <mesh position={[0, 1.04, 0]} rotation={[0, 0, Math.PI]}>
+                    <coneGeometry args={[0.085, 0.32, 5]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.23} metalness={0.86} flatShading />
+                  </mesh>
+                </>
+              ) : (
+                <>
+                  <mesh position={[0, 0.02, 0]}>
+                    <cylinderGeometry args={[0.035, 0.045, 0.17, 6]} />
+                    <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
+                  </mesh>
+                  <mesh position={[0, 0.13, 0]}>
+                    <boxGeometry args={[0.24, 0.055, 0.07]} />
+                    <meshStandardMaterial color={appearance?.trim ?? KNIGHT_CONFIG.colors.gold} roughness={0.32} metalness={0.76} />
+                  </mesh>
+                  <mesh position={[0, 0.47, 0]}>
+                    <boxGeometry args={[0.105, 0.62, 0.045]} />
+                    <meshStandardMaterial color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
+                  </mesh>
+                  <mesh position={[0, 0.81, 0]} rotation={[0, 0, Math.PI]}>
+                    <coneGeometry args={[0.052, 0.16, 4]} />
+                    <meshStandardMaterial color={appearance?.weaponColor ?? "#dce0e3"} roughness={0.23} metalness={0.86} flatShading />
+                  </mesh>
+                </>
+              )}
             </group>
           </group>
         </group>

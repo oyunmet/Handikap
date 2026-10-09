@@ -1,12 +1,13 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi";
-import { replayCombat, type CombatDifficulty, type CombatInputFrame } from "../src/shafak/game/combat-engine";
+import { normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame } from "../src/shafak/game/combat-engine";
 import { getWorldChapter } from "../src/shafak/world/world-content";
+import { calculatePlayerCombatModifiers } from "./storeCatalog";
 
 export type DuelVerdict = "victory" | "defeat" | "draw";
 export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number };
-type BattleRewards = { gold: number; xp: number; item: string | null; lostStake: number };
+type BattleRewards = { gold: number; diamonds: number; xp: number; item: string | null; lostStake: number };
 type ServerOpponent = {
   id: string;
   name: string;
@@ -99,13 +100,16 @@ export function applyServerAward(
   outcome: DuelOutcome,
   now = new Date(),
 ): { profile: PlayerProfileRecord; rewards: BattleRewards } {
+  const normalizedProfile = validatePlayerProfile(profile);
+  if (!normalizedProfile) throw new DuelServiceError(409, "profile_not_ready");
   const today = now.toISOString().slice(0, 10);
-  const base = profile.dailyKey === today
-    ? profile
-    : { ...profile, dailyBattles: 0, dailyWins: 0, dailyKey: today };
+  const base = normalizedProfile.dailyKey === today
+    ? normalizedProfile
+    : { ...normalizedProfile, dailyBattles: 0, dailyWins: 0, dailyKey: today };
   const lostStake = outcome.verdict === "defeat" ? Math.min(20, Math.floor(base.gold * 0.03)) : 0;
   const questBonus = outcome.verdict === "victory" && base.dailyWins === 2 ? 100 : 0;
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
+  const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
   const item = outcome.verdict === "victory" ? "Kül Mührü" : null;
   let level = base.level;
@@ -121,6 +125,7 @@ export function applyServerAward(
     level,
     xp: totalXp,
     gold: Math.max(0, base.gold - lostStake + gold),
+    diamonds: base.diamonds + diamonds,
     battles: base.battles + 1,
     wins,
     winStreak,
@@ -133,7 +138,7 @@ export function applyServerAward(
     dailyWins: base.dailyWins + Number(outcome.verdict === "victory"),
     dailyKey: today,
   };
-  return { profile: next, rewards: { gold, xp, item, lostStake } };
+  return { profile: next, rewards: { gold, diamonds, xp, item, lostStake } };
 }
 
 export async function createDuelChallenge(
@@ -150,6 +155,7 @@ export async function createDuelChallenge(
   );
   const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
+  const playerStats = calculatePlayerCombatModifiers(profile);
   if (profile.defeatedOpponents.includes(opponent.id)) throw new DuelServiceError(403, "opponent_already_defeated");
   const priorWin = await database.query(
     `SELECT duel_id FROM shafak_duels
@@ -177,13 +183,14 @@ export async function createDuelChallenge(
   const duelId = randomUUID();
   const seed = randomInt(1, 0xffff_ffff);
   await database.query(
-    `INSERT INTO shafak_duels (duel_id, user_id, seed, opponent_id, started_at)
-     VALUES ($1, $2, $3, $4, NOW())`,
-    [duelId, userId, seed, opponentId],
+    `INSERT INTO shafak_duels (duel_id, user_id, seed, opponent_id, started_at, player_stats)
+     VALUES ($1, $2, $3, $4, NOW(), $5::jsonb)`,
+    [duelId, userId, seed, opponentId, JSON.stringify(playerStats)],
   );
   return {
     duelId,
     seed,
+    playerStats,
     opponent: {
       id: opponent.id,
       name: opponent.name,
@@ -215,7 +222,7 @@ export async function completeDuel(
   if (!surrendered && !inputLog) throw new DuelServiceError(400, "invalid_input_log");
 
   const duelResult = await client.query(
-    `SELECT duel_id, user_id, seed, opponent_id, started_at, completed_at, completion
+    `SELECT duel_id, user_id, seed, opponent_id, started_at, completed_at, completion, player_stats
      FROM shafak_duels WHERE duel_id = $1 AND user_id = $2 FOR UPDATE`,
     [value.duelId, userId],
   );
@@ -238,7 +245,8 @@ export async function completeDuel(
     if (elapsedMs < 5_000) throw new DuelServiceError(422, "duel_finished_too_quickly");
     verdict = "defeat";
   } else {
-    const replay = replayCombat(Number(duel.seed), opponent.difficulty, inputLog!);
+    const playerStats = normalizePlayerCombatModifiers(duel.player_stats);
+    const replay = replayCombat(Number(duel.seed), opponent.difficulty, inputLog!, playerStats);
     simulatedTicks = replay.state.tick;
     if (!replay.state.ended || !replay.state.verdict || replay.consumedFrames !== inputLog!.length) {
       throw new DuelServiceError(422, "duel_not_finished");
@@ -257,7 +265,7 @@ export async function completeDuel(
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
   const outcome = { verdict, opponentId: opponent.id, loot: opponent.loot };
   const awarded = surrendered
-    ? { profile, rewards: { gold: 0, xp: 0, item: null, lostStake: 0 } }
+    ? { profile, rewards: { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 } }
     : applyServerAward(profile, outcome, now);
   if (!surrendered) {
     await client.query(

@@ -9,6 +9,7 @@ import { KNIGHT_CONFIG } from "./knight-config";
 import Knight3D from "./Knight3D";
 import { resolveGlbClipName } from "./model-animation";
 import type { WorldMotion } from "./movement";
+import type { EquipmentVisual } from "../game/store-types";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -16,6 +17,7 @@ type KnightActorProps = {
   motionReduced: boolean;
   facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
+  appearance?: EquipmentVisual;
 };
 
 function OptionalGlbKnight({ motionRef, state, motionReduced, facingAngle, footSlipRef }: KnightActorProps) {

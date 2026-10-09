@@ -1,21 +1,32 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import DuelControls from "../game/DuelControls";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
+import StorePanel from "../game/store-ui/StorePanel";
+import {
+  getUpgradeCost,
+  MAX_UPGRADE_LEVEL,
+  type EquipmentSlot,
+  type EquipmentVisual,
+  type StoreItem,
+} from "../game/store-types";
+import { getEquipmentBonuses, getEquipmentVisual, getPlayerCombatModifiers } from "../game/store-utils";
 import type { BattleRewards, DuelSummary } from "../game/types";
 import {
   COMBAT_HZ,
   INPUT_BUTTON,
   MAX_INPUT_BUTTONS,
   createCombatState,
+  normalizePlayerCombatModifiers,
   stepCombat,
   type CombatEvent,
   type CombatInput,
   type CombatInputFrame,
   type CombatState,
 } from "../game/combat-engine";
+import type { PlayerCombatModifiers } from "../game/store-types";
 import { resolveCharacterAnimationState } from "./character-animation";
 import {
   createWorldMotion,
@@ -39,6 +50,7 @@ import {
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
+import EquipmentPreview3D from "./EquipmentPreview3D";
 
 const World3D = lazy(() => import("./World3D"));
 import "./world-scene.css";
@@ -62,7 +74,7 @@ type WorldSceneProps = {
     persistent: boolean;
   }>;
 };
-type Panel = "inventory" | "settings" | null;
+type Panel = "store" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
 type PickupFlight = { id: number; kind: WorldPickup["kind"]; amount: number };
 type BattlePhase = "sweep" | "vs" | "countdown" | "fight" | "settling" | "settlement-error" | "result" | "error";
@@ -132,6 +144,66 @@ function getCachedWorldChapters(distance: number, cache: Map<number, WorldChapte
   return chapters;
 }
 
+function slotEquipmentKey(slot: EquipmentSlot) {
+  if (slot === "weapon") return "weaponId" as const;
+  if (slot === "armor") return "armorId" as const;
+  if (slot === "cape") return "capeId" as const;
+  if (slot === "effect") return "effectId" as const;
+  return "dyeId" as const;
+}
+
+function createIdempotencyKey() {
+  if (typeof window === "undefined" || !window.crypto?.getRandomValues) {
+    throw new Error("Güvenli alışveriş anahtarı oluşturulamadı.");
+  }
+  if (window.crypto.randomUUID) return window.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function storeErrorText(code: string) {
+  const messages: Record<string, string> = {
+    insufficient_funds: "Altın veya elmas bakiyen bu eşya için yeterli değil.",
+    insufficient_upgrade_materials: "Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.",
+    item_already_owned: "Bu eşya zaten heybenizde.",
+    item_not_owned: "Bu eşyayı önce satın alıp heybenize eklemelisiniz.",
+    item_not_found: "Bu eşya katalogda bulunamadı; kataloğu yenileyip tekrar deneyin.",
+    item_not_upgradeable: "Bu eşya geliştirilemiyor.",
+    upgrade_max_level: "Bu eşya en yüksek seviyede.",
+    profile_not_ready: "Hesap profili henüz hazır değil.",
+    profile_storage_invalid: "Hesap profili doğrulanamadı.",
+    authentication_required: "Alışveriş için hesabınızda oturum açın.",
+    authentication_unavailable: "Hesap mağazası şu anda kullanılamıyor.",
+    idempotency_key_reused: "İşlem anahtarı çakıştı. Güvenli olması için yeni bir deneme oluşturun.",
+  };
+  return messages[code] ?? "Mağaza işlemi tamamlanamadı. Bağlantıyı kontrol edip yeniden deneyin.";
+}
+
+function rewardLabel(amount: number, label: string) {
+  return amount > 0 ? `${amount} ${label}` : "";
+}
+
+function isStoreCatalogItem(value: unknown): value is StoreItem {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const item = value as Partial<StoreItem>;
+  return typeof item.id === "string" &&
+    /^[a-z0-9_-]{1,60}$/.test(item.id) &&
+    typeof item.name === "string" &&
+    ["weapons", "armor", "capes", "effects", "dyes"].includes(String(item.category)) &&
+    ["weapon", "armor", "cape", "effect", "dye"].includes(String(item.slot)) &&
+    Boolean(item.price && Number.isSafeInteger(item.price.gold) && item.price.gold >= 0 &&
+      Number.isSafeInteger(item.price.diamonds) && item.price.diamonds >= 0) &&
+    typeof item.description === "string" &&
+    typeof item.summary === "string" &&
+    typeof item.upgradeable === "boolean" &&
+    Boolean(item.stats && typeof item.stats === "object") &&
+    Boolean(item.visual && typeof item.visual === "object");
+}
+
 function Icon({ name }: { name: "bag" | "settings" | "exit" }) {
   if (name === "bag") {
     return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 8h14l1 12H4L5 8Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M9 9V6a3 3 0 0 1 6 0v3M8 13h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
@@ -158,11 +230,24 @@ export default function WorldScene({
   onClaimWorldPickups,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
+  const profileRef = useRef(profile);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+  const commitBattleProfile = useCallback((nextProfile: PlayerProfile) => {
+    profileRef.current = nextProfile;
+    onBattleProfile(nextProfile);
+  }, [onBattleProfile]);
   const motionRef = useRef(createWorldMotion());
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(null);
+  const [storeItems, setStoreItems] = useState<StoreItem[]>([]);
+  const [storeCatalogLoading, setStoreCatalogLoading] = useState(false);
+  const [storeBusyItemId, setStoreBusyItemId] = useState<string | null>(null);
+  const [storeMessage, setStoreMessage] = useState("");
+  const [storeError, setStoreError] = useState("");
   const [airEnabled, setAirEnabled] = useState(true);
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
@@ -171,7 +256,7 @@ export default function WorldScene({
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const [collectedPickupIds, setCollectedPickupIds] = useState<Set<string>>(() => new Set());
   const [brokenObstacleIds, setBrokenObstacleIds] = useState<Set<string>>(() => new Set());
-  const [sessionRewards, setSessionRewards] = useState({ gold: 0, materials: { emberCrystals: 0, sealFragments: 0 } });
+  const [sessionRewards, setSessionRewards] = useState({ gold: 0, diamonds: 0, materials: { emberCrystals: 0, sealFragments: 0, ironShards: 0 } });
   const [pickupFlights, setPickupFlights] = useState<PickupFlight[]>([]);
   const [pickupNotice, setPickupNotice] = useState("");
   const [attackAnimation, setAttackAnimation] = useState(false);
@@ -211,6 +296,7 @@ export default function WorldScene({
   const hitStopUntilRef = useRef(0);
   const nextCombatEffectIdRef = useRef(0);
   const nextFlightIdRef = useRef(0);
+  const storeMutationRef = useRef(false);
   const attackAnimationTimerRef = useRef<number | undefined>(undefined);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
   const activeChapters = getCachedWorldChapters(travel, contentCacheRef.current);
@@ -242,8 +328,13 @@ export default function WorldScene({
     )
     .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
   const displayedGold = profile.gold + sessionRewards.gold;
+  const displayedDiamonds = profile.diamonds + sessionRewards.diamonds;
   const displayedCrystals = profile.materials.emberCrystals + sessionRewards.materials.emberCrystals;
   const displayedSeals = profile.materials.sealFragments + sessionRewards.materials.sealFragments;
+  const displayedIronShards = profile.materials.ironShards + sessionRewards.materials.ironShards;
+  const playerCombatStats = useMemo(() => getPlayerCombatModifiers(profile, storeItems), [profile, storeItems]);
+  const equipmentBonuses = useMemo(() => getEquipmentBonuses(profile, storeItems), [profile, storeItems]);
+  const equipmentVisual = useMemo(() => getEquipmentVisual(profile, storeItems), [profile, storeItems]);
   const remainingBarricadeHits = nearestBreakable
     ? obstacleDamageRef.current.get(nearestBreakable.id) ?? nearestBreakable.health
     : 0;
@@ -259,6 +350,138 @@ export default function WorldScene({
   useEffect(() => {
     setVibrationOn(vibrationEnabled);
   }, [vibrationEnabled]);
+  useEffect(() => {
+    const controller = new AbortController();
+    let mounted = true;
+    setStoreCatalogLoading(true);
+    void fetch("/api/store/catalog", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Katalog isteği başarısız (${response.status}).`);
+        const result = await response.json() as { items?: unknown };
+        if (!Array.isArray(result.items) || !result.items.every(isStoreCatalogItem)) {
+          throw new Error("Mağaza kataloğu doğrulanamadı.");
+        }
+        if (mounted) {
+          setStoreItems(result.items);
+          setStoreError("");
+        }
+      })
+      .catch((error: unknown) => {
+        if (mounted && !(error instanceof DOMException && error.name === "AbortError")) {
+          setStoreError(error instanceof Error ? error.message : "Mağaza kataloğu yüklenemedi.");
+        }
+      })
+      .finally(() => {
+        if (mounted) setStoreCatalogLoading(false);
+      });
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, []);
+  const runStoreMutation = useCallback(async (operation: "purchase" | "equip" | "upgrade", itemId: string) => {
+    if (storeMutationRef.current) return;
+    const item = storeItems.find((entry) => entry.id === itemId);
+    if (!item) {
+      setStoreError("Bu eşya katalogda bulunamadı.");
+      return;
+    }
+    if (accountDuelEnabled && !accountProfileReady) {
+      setStoreError("Hesap profili hazır değil; güvenli yerel alışverişe devam edilemiyor.");
+      return;
+    }
+    storeMutationRef.current = true;
+    setStoreBusyItemId(itemId);
+    setStoreError("");
+    setStoreMessage("");
+    try {
+      if (!accountDuelEnabled) {
+        const currentProfile = profileRef.current;
+        let nextProfile = currentProfile;
+        if (operation === "purchase") {
+          if (currentProfile.inventory.ownedItemIds.includes(item.id)) throw new Error("Bu eşya zaten heybenizde.");
+          if (currentProfile.gold < item.price.gold || currentProfile.diamonds < item.price.diamonds) {
+            throw new Error("Altın veya elmas bakiyen bu eşya için yeterli değil.");
+          }
+          nextProfile = {
+            ...currentProfile,
+            gold: currentProfile.gold - item.price.gold,
+            diamonds: currentProfile.diamonds - item.price.diamonds,
+            inventory: {
+              ...currentProfile.inventory,
+              ownedItemIds: [...currentProfile.inventory.ownedItemIds, item.id],
+              newItemIds: [...new Set([...currentProfile.inventory.newItemIds, item.id])],
+            },
+          };
+        } else if (operation === "equip") {
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new Error("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
+          const key = slotEquipmentKey(item.slot);
+          nextProfile = {
+            ...currentProfile,
+            equipment: { ...currentProfile.equipment, [key]: item.id },
+            inventory: {
+              ...currentProfile.inventory,
+              newItemIds: currentProfile.inventory.newItemIds.filter((id) => id !== item.id),
+            },
+          };
+        } else {
+          if (!item.upgradeable || (item.slot !== "weapon" && item.slot !== "armor")) throw new Error("Bu eşya geliştirilemiyor.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new Error("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
+          const currentLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
+          if (currentLevel >= MAX_UPGRADE_LEVEL) throw new Error("Bu eşya en yüksek seviyede.");
+          const cost = getUpgradeCost(item.slot, currentLevel);
+          if (
+            currentProfile.gold < cost.gold ||
+            currentProfile.materials.ironShards < cost.ironShards ||
+            currentProfile.materials.emberCrystals < cost.emberCrystals ||
+            currentProfile.materials.sealFragments < cost.sealFragments
+          ) throw new Error("Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.");
+          nextProfile = {
+            ...currentProfile,
+            gold: currentProfile.gold - cost.gold,
+            materials: {
+              ...currentProfile.materials,
+              ironShards: currentProfile.materials.ironShards - cost.ironShards,
+              emberCrystals: currentProfile.materials.emberCrystals - cost.emberCrystals,
+              sealFragments: currentProfile.materials.sealFragments - cost.sealFragments,
+            },
+            inventory: {
+              ...currentProfile.inventory,
+              upgrades: { ...currentProfile.inventory.upgrades, [item.id]: currentLevel + 1 },
+            },
+          };
+        }
+        commitBattleProfile(normalizePlayerProfile(nextProfile));
+        setStoreMessage(operation === "purchase"
+          ? `${item.name} heybenize eklendi.`
+          : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
+        return;
+      }
+
+      if (!accountProfileReady) throw new Error("Hesap profili henüz hazır değil.");
+      const body = operation === "equip"
+        ? { itemId }
+        : { itemId, idempotencyKey: createIdempotencyKey() };
+      const response = await fetch(`/api/store/${operation}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({})) as { profile?: unknown; error?: string };
+      if (!response.ok) throw new Error(storeErrorText(result.error ?? ""));
+      if (!result.profile) throw new Error("Sunucudan profil güncellemesi alınamadı.");
+      commitBattleProfile(normalizePlayerProfile(result.profile));
+      setStoreMessage(operation === "purchase"
+        ? `${item.name} satın alındı.`
+        : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
+    } catch (error) {
+      setStoreError(error instanceof Error ? error.message : storeErrorText(""));
+    } finally {
+      storeMutationRef.current = false;
+      setStoreBusyItemId(null);
+    }
+  }, [accountDuelEnabled, accountProfileReady, commitBattleProfile, storeItems]);
   useEffect(() => {
     if (!pickupNotice) return undefined;
     const timer = window.setTimeout(() => setPickupNotice(""), 2400);
@@ -304,15 +527,31 @@ export default function WorldScene({
       setCollectedPickupIds(new Set(collectedRef.current));
 
       const awardedPickups = requestedPickups.filter((pickup) => awardedIds.has(pickup.id));
+      const reward = pickupRewardTotals(awardedPickups);
       if (!result.persistent && awardedPickups.length) {
-        const reward = pickupRewardTotals(awardedPickups);
-        setSessionRewards((current) => ({
-          gold: current.gold + reward.gold,
-          materials: {
-            emberCrystals: current.materials.emberCrystals + reward.materials.emberCrystals,
-            sealFragments: current.materials.sealFragments + reward.materials.sealFragments,
-          },
-        }));
+        if (!accountDuelEnabled) {
+          const currentProfile = profileRef.current;
+          commitBattleProfile(normalizePlayerProfile({
+            ...currentProfile,
+            gold: currentProfile.gold + reward.gold,
+            diamonds: currentProfile.diamonds + reward.diamonds,
+            materials: {
+              emberCrystals: currentProfile.materials.emberCrystals + reward.materials.emberCrystals,
+              sealFragments: currentProfile.materials.sealFragments + reward.materials.sealFragments,
+              ironShards: currentProfile.materials.ironShards + reward.materials.ironShards,
+            },
+          }));
+        } else {
+          setSessionRewards((current) => ({
+            gold: current.gold + reward.gold,
+            diamonds: current.diamonds + reward.diamonds,
+            materials: {
+              emberCrystals: current.materials.emberCrystals + reward.materials.emberCrystals,
+              sealFragments: current.materials.sealFragments + reward.materials.sealFragments,
+              ironShards: current.materials.ironShards + reward.materials.ironShards,
+            },
+          }));
+        }
       }
       if (awardedPickups.length) {
         const effects = awardedPickups.map((pickup) => ({
@@ -321,11 +560,14 @@ export default function WorldScene({
           amount: pickup.amount,
         }));
         setPickupFlights((current) => [...current, ...effects].slice(-8));
-        setPickupNotice(
-          `${result.persistent ? "" : "Oturum ödülü · "}${effects.reduce((sum, effect) => sum + effect.amount, 0)} ${
-            awardedPickups.every((pickup) => pickup.kind.startsWith("gold")) ? "altın" : "eşya"
-          } alındı.`,
-        );
+        const rewardParts = [
+          rewardLabel(reward.gold, "altın"),
+          rewardLabel(reward.diamonds, "elmas"),
+          rewardLabel(reward.materials.emberCrystals, "Kor Kristali"),
+          rewardLabel(reward.materials.ironShards, "Demir Kırığı"),
+          rewardLabel(reward.materials.sealFragments, "Mühür Parçası"),
+        ].filter(Boolean);
+        setPickupNotice(`${result.persistent ? "" : "Yerel ödül · "}${rewardParts.join(" · ")} alındı.`);
         for (const pickup of awardedPickups) {
           playWorldCue(pickup.kind === "gold-small" || pickup.kind === "gold-large"
             ? "gold"
@@ -349,7 +591,7 @@ export default function WorldScene({
       setCollectedPickupIds(new Set(collectedRef.current));
       setPickupNotice("Eşya sunucuda doğrulanamadı; bu öğe tekrar toplamak için yerde kaldı.");
     }
-  }, [onClaimWorldPickups, vibrationOn]);
+  }, [accountDuelEnabled, commitBattleProfile, onClaimWorldPickups, vibrationOn]);
 
   const queuePickupClaims = useCallback((chapterId: number, pickupIds: string[]) => {
     let queued = claimQueueRef.current.get(chapterId);
@@ -424,7 +666,7 @@ export default function WorldScene({
     };
     pendingVerdictRef.current = localSummary;
     updateBattleSession({ phase: "settling", summary: localSummary, message: "" });
-    const emptyRewards: BattleRewards = { gold: 0, xp: 0, item: null, lostStake: 0 };
+    const emptyRewards: BattleRewards = { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 };
     playGameSound(verdict === "victory" ? "victory" : "defeat");
 
     if (context.practice) {
@@ -457,7 +699,7 @@ export default function WorldScene({
         if (!result.summary || !result.rewards || !result.profile) {
           throw new Error("Sunucu düello sonucu için eksik yanıt verdi.");
         }
-        onBattleProfile(normalizePlayerProfile(result.profile));
+        commitBattleProfile(normalizePlayerProfile(result.profile));
         updateBattleSession({
           phase: "result",
           summary: result.summary,
@@ -488,9 +730,9 @@ export default function WorldScene({
     }
 
     const awarded = awardBattle(profile, localSummary);
-    onBattleProfile(awarded.profile);
+    commitBattleProfile(awarded.profile);
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
-  }, [onBattleProfile, profile]);
+  }, [commitBattleProfile, profile]);
 
   const beginEncounter = useCallback(async (rival: WorldRival) => {
     if (battleActiveRef.current) return;
@@ -519,6 +761,7 @@ export default function WorldScene({
       let seed: number;
       let difficulty = rival.difficulty;
       let duelId: string | null = null;
+      let playerStats: PlayerCombatModifiers = playerCombatStats;
       if (accountDuelEnabled && !practice) {
         if (!accountProfileReady) throw new Error("Hesap profili sunucuya bağlı değil; düello ödülü güvenle doğrulanamaz.");
         const response = await fetch("/api/duels/start", {
@@ -530,6 +773,7 @@ export default function WorldScene({
         const challenge = await response.json() as {
           duelId?: unknown;
           seed?: unknown;
+          playerStats?: unknown;
           opponent?: { id?: unknown; difficulty?: unknown };
           error?: string;
         };
@@ -538,9 +782,23 @@ export default function WorldScene({
           typeof challenge.duelId !== "string" ||
           typeof challenge.seed !== "number" ||
           !Number.isSafeInteger(challenge.seed) ||
+          !challenge.playerStats ||
+          typeof challenge.playerStats !== "object" ||
+          Array.isArray(challenge.playerStats) ||
           challenge.opponent?.id !== rival.id ||
           !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty))
         ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
+        const stats = challenge.playerStats as Partial<PlayerCombatModifiers>;
+        if (
+          !Number.isFinite(stats.maxHealth) ||
+          !Number.isFinite(stats.damageMultiplier) ||
+          !Number.isFinite(stats.defenseReduction) ||
+          !Number.isFinite(stats.criticalChance) ||
+          !Number.isFinite(stats.moveSpeedMultiplier) ||
+          !Number.isFinite(stats.attackSpeedMultiplier) ||
+          !Number.isFinite(stats.attackRangeBonus)
+        ) throw new Error("Sunucudan gelen savaş nitelikleri geçersiz.");
+        playerStats = normalizePlayerCombatModifiers(stats);
         duelId = challenge.duelId;
         seed = challenge.seed;
         difficulty = challenge.opponent.difficulty as typeof difficulty;
@@ -551,7 +809,7 @@ export default function WorldScene({
       }
 
       activeDuelRef.current = { rival, duelId, seed, practice };
-      const initialCombat = createCombatState(seed, difficulty);
+      const initialCombat = createCombatState(seed, difficulty, playerStats);
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
 
@@ -580,7 +838,7 @@ export default function WorldScene({
         message: error instanceof Error ? error.message : "Düello başlatılamadı.",
       });
     }
-  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced]);
+  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced, playerCombatStats]);
 
   const pressDuelButton = (button: number) => {
     const input = combatInputRef.current;
@@ -704,7 +962,7 @@ export default function WorldScene({
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
       const liveInput = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
       const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
-      let frameState: WorldMotionFrame = stepWorldMotion(motionRef.current, battleActiveRef.current ? stoppedInput : liveInput, 0);
+      let frameState: WorldMotionFrame = stepWorldMotion(motionRef.current, battleActiveRef.current ? stoppedInput : liveInput, 0, playerCombatStats.moveSpeedMultiplier);
       let footsteps = 0;
       const newlyCollected = new Map<number, string[]>();
       let hasCollectedThisFrame = false;
@@ -808,7 +1066,7 @@ export default function WorldScene({
           };
         }
         const simulationStep = fixedStep;
-        let nextFrame = stepWorldMotion(motionRef.current, stepInput, simulationStep);
+        let nextFrame = stepWorldMotion(motionRef.current, stepInput, simulationStep, playerCombatStats.moveSpeedMultiplier);
         const chapters = getCachedWorldChapters(nextFrame.distance, contentCacheRef.current);
         const obstacles = chapters.flatMap((chapter) => chapter.obstacles);
         const playerX = nextFrame.depth * 5.2;
@@ -959,14 +1217,14 @@ export default function WorldScene({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [audioOn, motionReduced, queuePickupClaims, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusFrame = window.requestAnimationFrame(() => sceneRef.current?.querySelector<HTMLElement>(".world-panel__close")?.focus());
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPanel(null);
+      if (event.key === "Escape" && panel !== "store") setPanel(null);
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => {
@@ -1041,6 +1299,8 @@ export default function WorldScene({
             airEnabled={airEnabled}
             level={profile.level}
             relicCount={profile.items.length}
+            equipmentVisual={equipmentVisual}
+            lightRadius={equipmentBonuses.lightRadius}
             animationState={attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
             rivals={battleSession ? [] : nearbyRivals}
             collectedPickupIds={collectedPickupIds}
@@ -1114,7 +1374,11 @@ export default function WorldScene({
               <div
                 key={event.id}
                 className={`duel-combat-fx is-${event.type === "skill" ? event.attack : event.type}${event.target === "player" ? " targets-player" : " targets-bot"}${event.critical ? " is-critical" : ""}`}
-                style={{ "--fx-side": event.target === "player" ? "36%" : "64%" } as CSSProperties}
+                style={{
+                  "--fx-side": event.target === "player" ? "36%" : "64%",
+                  "--fx-color": event.target === "bot" ? equipmentVisual.trailColor ?? "#ffca88" : "#ff7158",
+                  "--fx-glow": event.target === "bot" ? equipmentVisual.trailColor ?? "#ff7847" : "#ff553e",
+                } as CSSProperties}
               >
                 <i />
                 {Boolean(event.damage) && <b>{event.critical ? "!" : ""}{Math.ceil(event.damage ?? 0)}</b>}
@@ -1155,10 +1419,18 @@ export default function WorldScene({
             <span className="world-currency__coin" aria-hidden="true" />
             <span>{displayedGold.toLocaleString("tr-TR")}</span>
           </div>
-          <div className="world-material-hud" aria-label={`Kor Kristali ${displayedCrystals}, Mühür Parçası ${displayedSeals}`}>
+          <div
+            className={`world-currency world-currency--diamond${pickupFlights.some((effect) => effect.kind === "diamond-small") ? " is-collecting" : ""}`}
+            aria-label={`Elmas ${displayedDiamonds}`}
+            title="Elmas · mağaza alışverişi"
+          >
+            <span className="world-currency__diamond" aria-hidden="true" />{displayedDiamonds}
+          </div>
+          <div className="world-material-hud" aria-label={`Kor Kristali ${displayedCrystals}, Demir Kırığı ${displayedIronShards}, Mühür Parçası ${displayedSeals}`}>
             <span><i className="world-material-hud__crystal" />{displayedCrystals}</span>
+            <span><i className="world-material-hud__iron" />{displayedIronShards}</span>
             <span><i className="world-material-hud__seal">✦</i>{displayedSeals}</span>
-            {(sessionRewards.gold > 0 || sessionRewards.materials.emberCrystals > 0 || sessionRewards.materials.sealFragments > 0) && (
+            {(sessionRewards.gold > 0 || sessionRewards.diamonds > 0 || sessionRewards.materials.emberCrystals > 0 || sessionRewards.materials.ironShards > 0 || sessionRewards.materials.sealFragments > 0) && (
               <small>OTURUM</small>
             )}
           </div>
@@ -1168,7 +1440,7 @@ export default function WorldScene({
         <div className="world-pickup-flights" aria-hidden="true">
           {pickupFlights.map((effect) => (
             <span className={`world-pickup-flight is-${effect.kind}`} key={effect.id}>
-              <i>{effect.kind === "gold-small" || effect.kind === "gold-large" ? "◈" : effect.kind === "seal-fragment" ? "✦" : "◆"}</i>
+              <i>{effect.kind === "gold-small" || effect.kind === "gold-large" ? "◈" : effect.kind === "seal-fragment" ? "✦" : effect.kind === "iron-shard" ? "⬟" : "◆"}</i>
               <b>+{effect.amount}</b>
             </span>
           ))}
@@ -1316,7 +1588,7 @@ export default function WorldScene({
           </div>
         </div>
         <div className="world-actions">
-          <button type="button" className="world-action" aria-label={worldText.inventory} onClick={() => openPanel("inventory")}>
+          <button type="button" className="world-action" aria-label={worldText.inventory} onClick={() => openPanel("store")}>
             <Icon name="bag" /><span>{worldText.inventory}</span>
           </button>
           <button type="button" className="world-action" aria-label={worldText.settingsOpen} onClick={() => openPanel("settings")}>
@@ -1324,51 +1596,54 @@ export default function WorldScene({
           </button>
         </div>
       </footer>
-      {panel && (
+      {panel === "store" && (
+        <StorePanel
+          profile={profile}
+          items={storeItems}
+          isGuest={!accountDuelEnabled}
+          accountReady={accountProfileReady}
+          loading={storeCatalogLoading}
+          busyItemId={storeBusyItemId}
+          message={storeMessage}
+          error={storeError}
+          onClose={() => setPanel(null)}
+          onPurchase={(itemId) => void runStoreMutation("purchase", itemId)}
+          onEquip={(itemId) => void runStoreMutation("equip", itemId)}
+          onUpgrade={(itemId) => void runStoreMutation("upgrade", itemId)}
+          renderPreview={(item) => {
+            const key = slotEquipmentKey(item.slot);
+            const previewProfile = {
+              ...profile,
+              equipment: { ...profile.equipment, [key]: item.id },
+            };
+            const previewAppearance: EquipmentVisual = getEquipmentVisual(previewProfile, storeItems);
+            return <EquipmentPreview3D appearance={previewAppearance} />;
+          }}
+        />
+      )}
+      {panel === "settings" && (
         <div className="world-panel-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPanel(null); }}>
           <section className="world-panel" role="dialog" aria-modal="true" aria-labelledby="world-panel-title">
             <div className="world-panel__heading">
               <div>
                 <span className="world-panel__eyebrow">{worldText.brand}</span>
-                <h2 id="world-panel-title">{panel === "inventory" ? worldText.inventoryTitle : worldText.settingsTitle}</h2>
+                <h2 id="world-panel-title">{worldText.settingsTitle}</h2>
               </div>
               <button className="world-panel__close" type="button" aria-label={worldText.close} onClick={() => setPanel(null)}>×</button>
             </div>
-            {panel === "inventory" ? (
-              <>
-                <div className="world-inventory">
-                  {Array.from({ length: 8 }, (_, index) => (
-                    <div className={`world-inventory__slot${profile.items[index] ? " world-inventory__slot--filled" : ""}`} key={index} aria-label={`${profile.items[index] ?? "Boş"} ${index + 1}`}>
-                      {profile.items[index] ? <><i>✦</i><small>{profile.items[index]}</small></> : <span>{String(index + 1).padStart(2, "0")}</span>}
-                    </div>
-                  ))}
-                </div>
-                <p className="world-inventory__note">{profile.items.length ? `${profile.items.length} ganimet heybenin içinde.` : worldText.inventoryNote}</p>
-                <div className="world-inventory__materials">
-                  <span><i className="world-material-hud__crystal" />Kor Kristali <b>{displayedCrystals}</b></span>
-                  <span><i className="world-material-hud__seal">✦</i>Mühür Parçası <b>{displayedSeals}</b></span>
-                  {sessionRewards.gold || sessionRewards.materials.emberCrystals || sessionRewards.materials.sealFragments
-                    ? <small>Misafir ödülleri yalnızca bu oturumda tutulur.</small>
-                    : <small>Hesaba alınan ödüller sunucuda doğrulanır.</small>}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="world-setting">
-                  <span><strong>{worldText.sound}</strong><small>{worldText.soundDescription}</small></span>
-                  <button type="button" role="switch" aria-checked={audioOn} aria-label={audioOn ? worldText.soundOn : worldText.soundOff} onClick={() => {
-                    const next = !audioOn;
-                    setAudioOn(next);
-                    if (next) startAudio();
-                  }}>{audioOn ? worldText.soundOn : worldText.soundOff}</button>
-                </div>
-                <div className="world-setting">
-                  <span><strong>{worldText.vibration}</strong><small>{worldText.vibrationDescription}</small></span>
-                  <button type="button" role="switch" aria-checked={vibrationOn} aria-label={vibrationOn ? worldText.vibrationOn : worldText.vibrationOff} onClick={() => setVibrationOn((current) => !current)}>{vibrationOn ? worldText.vibrationOn : worldText.vibrationOff}</button>
-                </div>
-                <p className="world-inventory__note">{worldText.settingsNote}</p>
-              </>
-            )}
+            <div className="world-setting">
+              <span><strong>{worldText.sound}</strong><small>{worldText.soundDescription}</small></span>
+              <button type="button" role="switch" aria-checked={audioOn} aria-label={audioOn ? worldText.soundOn : worldText.soundOff} onClick={() => {
+                const next = !audioOn;
+                setAudioOn(next);
+                if (next) startAudio();
+              }}>{audioOn ? worldText.soundOn : worldText.soundOff}</button>
+            </div>
+            <div className="world-setting">
+              <span><strong>{worldText.vibration}</strong><small>{worldText.vibrationDescription}</small></span>
+              <button type="button" role="switch" aria-checked={vibrationOn} aria-label={vibrationOn ? worldText.vibrationOn : worldText.vibrationOff} onClick={() => setVibrationOn((current) => !current)}>{vibrationOn ? worldText.vibrationOn : worldText.vibrationOff}</button>
+            </div>
+            <p className="world-inventory__note">{worldText.settingsNote}</p>
           </section>
         </div>
       )}

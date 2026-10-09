@@ -1,7 +1,7 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement";
 import { WORLD_SEED } from "./world-generation";
 
-export type PickupKind = "gold-small" | "gold-large" | "ember-crystal" | "seal-fragment";
+export type PickupKind = "gold-small" | "gold-large" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
 export type WorldPickup = {
   id: string;
@@ -87,6 +87,8 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
     let kind: PickupKind;
     if ([0, 3, 5, 8, 10].includes(index)) kind = index === 3 || index === 10 ? "gold-large" : "gold-small";
     else if (index === 11 && chapterId % 3 === 2) kind = "seal-fragment";
+    else if (index === 7 && chapterId % 2 === 0) kind = "diamond-small";
+    else if (index === 6 && chapterId % 3 === 0) kind = "iron-shard";
     else kind = "ember-crystal";
 
     return {
@@ -97,6 +99,10 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
         ? 6 + Math.floor(random() * 7)
         : kind === "gold-large"
           ? 22 + Math.floor(random() * 15)
+          : kind === "diamond-small"
+            ? 1
+            : kind === "iron-shard"
+              ? 1 + Math.floor(random() * 2)
           : kind === "seal-fragment"
             ? 1
             : 1 + Math.floor(random() * 2),
@@ -109,8 +115,8 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
   const drop: WorldPickup = {
     id: `ash-road:${chapterId}:pickup:barricade-drop`,
     chapterId,
-    kind: "gold-large",
-    amount: 28 + Math.floor(random() * 13),
+    kind: "iron-shard",
+    amount: 1 + Math.floor(random() * 2),
     x: 0,
     distance: chapterStart + 119,
     sourceObstacleId: barricadeId,
@@ -198,11 +204,13 @@ export function pickupRewardTotals(pickups: readonly WorldPickup[]) {
   return pickups.reduce(
     (totals, pickup) => {
       if (pickup.kind === "gold-small" || pickup.kind === "gold-large") totals.gold += pickup.amount;
+      if (pickup.kind === "diamond-small") totals.diamonds += pickup.amount;
       if (pickup.kind === "ember-crystal") totals.materials.emberCrystals += pickup.amount;
       if (pickup.kind === "seal-fragment") totals.materials.sealFragments += pickup.amount;
+      if (pickup.kind === "iron-shard") totals.materials.ironShards += pickup.amount;
       return totals;
     },
-    { gold: 0, materials: { emberCrystals: 0, sealFragments: 0 } },
+    { gold: 0, diamonds: 0, materials: { emberCrystals: 0, sealFragments: 0, ironShards: 0 } },
   );
 }
 

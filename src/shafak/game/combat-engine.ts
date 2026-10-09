@@ -1,3 +1,5 @@
+import type { PlayerCombatModifiers } from "./store-types";
+
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
 export const INPUT_BUTTON = {
@@ -55,6 +57,7 @@ export type CombatState = {
   seed: number;
   rngState: number;
   difficulty: CombatDifficulty;
+  playerStats: PlayerCombatModifiers;
   player: CombatActor;
   bot: CombatActor;
   ended: boolean;
@@ -91,6 +94,32 @@ export type CombatEvent = {
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+export const DEFAULT_PLAYER_COMBAT_MODIFIERS: PlayerCombatModifiers = {
+  maxHealth: 150,
+  damageMultiplier: 1,
+  defenseReduction: 0,
+  criticalChance: 0.12,
+  moveSpeedMultiplier: 1,
+  attackSpeedMultiplier: 1,
+  attackRangeBonus: 0,
+};
+
+export function normalizePlayerCombatModifiers(value: unknown): PlayerCombatModifiers {
+  const source = value && typeof value === "object" ? value as Partial<PlayerCombatModifiers> : {};
+  return {
+    maxHealth: clamp(finiteOr(source.maxHealth, 150), 130, 175),
+    damageMultiplier: clamp(finiteOr(source.damageMultiplier, 1), 0.82, 1.35),
+    defenseReduction: clamp(finiteOr(source.defenseReduction, 0), 0, 0.24),
+    criticalChance: clamp(finiteOr(source.criticalChance, 0.12), 0.08, 0.28),
+    moveSpeedMultiplier: clamp(finiteOr(source.moveSpeedMultiplier, 1), 0.88, 1.14),
+    attackSpeedMultiplier: clamp(finiteOr(source.attackSpeedMultiplier, 1), 0.8, 1.22),
+    attackRangeBonus: clamp(finiteOr(source.attackRangeBonus, 0), -0.3, 0.8),
+  };
+}
+
+function finiteOr(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
 const normalized = (x: number, y: number) => {
   const length = Math.hypot(x, y);
   return length > 1 ? { x: x / length, y: y / length } : { x, y };
@@ -124,14 +153,20 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
   };
 }
 
-export function createCombatState(seed: number, difficulty: CombatDifficulty = "easy"): CombatState {
+export function createCombatState(
+  seed: number,
+  difficulty: CombatDifficulty = "easy",
+  playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
+): CombatState {
   const cleanSeed = (Number.isSafeInteger(seed) ? seed : 1) >>> 0 || 1;
+  const normalizedStats = normalizePlayerCombatModifiers(playerStats);
   return {
     tick: 0,
     seed: cleanSeed,
     rngState: cleanSeed,
     difficulty,
-    player: makeActor(-1.15, 0.15, 150),
+    playerStats: normalizedStats,
+    player: makeActor(-1.15, 0.15, normalizedStats.maxHealth),
     bot: makeActor(1.15, -1.45, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130),
     ended: false,
     verdict: null,
@@ -173,8 +208,9 @@ function startAttack(
   actor.attackStartedTick = tick;
   actor.attackHit = false;
   actor.chargeStartedTick = -1;
-  actor.attackCooldownUntilTick = tick + (attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72);
-  const duration = attack === "light" ? 25 : attack === "heavy" ? 42 : attack === "skillOne" ? 36 : 48;
+  const speed = side === "player" ? state.playerStats.attackSpeedMultiplier : 1;
+  actor.attackCooldownUntilTick = tick + Math.max(8, Math.round((attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed));
+  const duration = Math.max(8, Math.round((attack === "light" ? 25 : attack === "heavy" ? 42 : attack === "skillOne" ? 36 : 48) / speed));
   setAction(actor, attack === "light" ? "attack" : attack === "heavy" ? "heavyAttack" : attack, tick, duration);
   if (attack === "skillOne" || attack === "skillTwo") {
     events.push({ id: tick * 4 + (side === "player" ? 1 : 2), type: "skill", target: side, attack });
@@ -239,7 +275,9 @@ function applyDamage(
 ) {
   const gap = distanceBetween(attacker, target);
   const baseDamage = attack === "light" ? 17 : attack === "heavy" ? 29 : attack === "skillOne" ? 28 : 36;
-  const reach = attack === "light" ? 2.35 : attack === "heavy" ? 2.8 : attack === "skillOne" ? 4.8 : 3.7;
+  const playerAttacking = attacker === state.player;
+  const reach = (attack === "light" ? 2.35 : attack === "heavy" ? 2.8 : attack === "skillOne" ? 4.8 : 3.7)
+    + (playerAttacking ? state.playerStats.attackRangeBonus : 0);
   if (gap > reach || target.hp <= 0) return;
 
   if (tick < target.invulnerableUntilTick) {
@@ -266,14 +304,16 @@ function applyDamage(
     return;
   }
 
-  const critical = random(state) < 0.12;
+  const critical = random(state) < (playerAttacking ? state.playerStats.criticalChance : 0.12);
   let multiplier = 1;
   if (attack === "light" && targetSide === "bot") {
     attacker.combo = tick <= attacker.comboUntilTick ? Math.min(3, attacker.combo + 1) : 1;
     attacker.comboUntilTick = tick + 75;
     multiplier = attacker.combo === 2 ? 1.08 : attacker.combo >= 3 ? 1.2 : 1;
   }
-  const damage = Math.max(1, Math.round(baseDamage * multiplier * (critical ? 1.5 : 1)));
+  const damageMultiplier = playerAttacking ? state.playerStats.damageMultiplier : 1;
+  const defenseMultiplier = targetSide === "player" ? 1 - state.playerStats.defenseReduction : 1;
+  const damage = Math.max(1, Math.round(baseDamage * damageMultiplier * multiplier * (critical ? 1.5 : 1) * defenseMultiplier));
   target.hp = Math.max(0, target.hp - damage);
   target.lastDamage = damage;
   target.staggerUntilTick = tick + (attack === "heavy" ? 21 : 13);
@@ -293,10 +333,10 @@ function applyDamage(
   state.lastImpactStrength = attack === "heavy" || critical ? 1 : 0.7;
 }
 
-function moveActor(actor: CombatActor, x: number, y: number, tick: number, blocking: boolean) {
+function moveActor(actor: CombatActor, x: number, y: number, tick: number, blocking: boolean, speedMultiplier = 1) {
   const direction = normalized(x, y);
   const exhausted = actor.stamina <= 1;
-  const speed = exhausted ? 2.1 : blocking ? 2.65 : 4.5;
+  const speed = (exhausted ? 2.1 : blocking ? 2.65 : 4.5) * speedMultiplier;
   const canMove = tick >= actor.staggerUntilTick && actor.hp > 0;
   const targetX = canMove ? direction.x * speed : 0;
   const targetZ = canMove ? direction.y * speed : 0;
@@ -366,7 +406,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     if (startAttack(next, player, "skillTwo", tick, events, "player")) player.skillTwoCooldownUntilTick = tick + 360;
   }
 
-  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld);
+  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier);
   moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
   player.stamina = Math.min(player.maxStamina, player.stamina + 0.17);
   bot.stamina = Math.min(bot.maxStamina, bot.stamina + 0.14);
@@ -377,7 +417,8 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   ] as const) {
     if (!attacker.attackType || attacker.attackHit) continue;
     const attack = attacker.attackType;
-    const windup = attack === "light" ? 8 : attack === "heavy" ? 15 : attack === "skillOne" ? 12 : 18;
+    const baseWindup = attack === "light" ? 8 : attack === "heavy" ? 15 : attack === "skillOne" ? 12 : 18;
+    const windup = Math.max(4, Math.round(baseWindup / (attacker === player ? next.playerStats.attackSpeedMultiplier : 1)));
     if (tick >= attacker.attackStartedTick + windup) {
       if (attack === "skillTwo") {
         const targetGap = distanceBetween(attacker, target);
@@ -427,8 +468,9 @@ export function replayCombat(
   seed: number,
   difficulty: CombatDifficulty,
   inputLog: readonly CombatInputFrame[],
+  playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
 ) {
-  let state = createCombatState(seed, difficulty);
+  let state = createCombatState(seed, difficulty, playerStats);
   let frameIndex = 0;
   let held: CombatInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
   if (inputLog[0]?.[0] === 0) {
