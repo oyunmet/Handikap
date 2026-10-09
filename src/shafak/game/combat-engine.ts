@@ -18,6 +18,7 @@ export type CombatAction =
   | "walk"
   | "attack"
   | "heavyAttack"
+  | "windup"
   | "block"
   | "dodge"
   | "hit"
@@ -175,6 +176,10 @@ export function createCombatState(
   };
 }
 
+export function getBotAttackWindupTicks(difficulty: CombatDifficulty) {
+  return difficulty === "easy" ? 42 : difficulty === "medium" ? 36 : 30;
+}
+
 function random(state: CombatState) {
   state.rngState = (state.rngState + 0x6d2b79f5) | 0;
   let mixed = state.rngState;
@@ -209,9 +214,16 @@ function startAttack(
   actor.attackHit = false;
   actor.chargeStartedTick = -1;
   const speed = side === "player" ? state.playerStats.attackSpeedMultiplier : 1;
-  actor.attackCooldownUntilTick = tick + Math.max(8, Math.round((attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed));
+  const botRecovery = state.difficulty === "easy" ? 126 : state.difficulty === "medium" ? 96 : 72;
+  actor.attackCooldownUntilTick = tick + Math.max(8, Math.round(
+    side === "bot" ? botRecovery : (attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed,
+  ));
   const duration = Math.max(8, Math.round((attack === "light" ? 25 : attack === "heavy" ? 42 : attack === "skillOne" ? 36 : 48) / speed));
-  setAction(actor, attack === "light" ? "attack" : attack === "heavy" ? "heavyAttack" : attack, tick, duration);
+  if (side === "bot") {
+    setAction(actor, "windup", tick, getBotAttackWindupTicks(state.difficulty) + duration);
+  } else {
+    setAction(actor, attack === "light" ? "attack" : attack === "heavy" ? "heavyAttack" : attack, tick, duration);
+  }
   if (attack === "skillOne" || attack === "skillTwo") {
     events.push({ id: tick * 4 + (side === "player" ? 1 : 2), type: "skill", target: side, attack });
   }
@@ -223,8 +235,8 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
   const player = state.player;
   const gap = distanceBetween(bot, player);
   const difficulty = state.difficulty;
-  const accuracy = difficulty === "easy" ? 0.58 : difficulty === "medium" ? 0.78 : 0.92;
-  const retreat = difficulty === "easy" ? 0 : difficulty === "medium" ? 0.18 : 0.3;
+  const accuracy = difficulty === "easy" ? 0.5 : difficulty === "medium" ? 0.72 : 0.88;
+  const retreat = difficulty === "easy" ? 0 : difficulty === "medium" ? 0.16 : 0.28;
   const attackRange = 2.15;
   let move = normalized(player.x - bot.x, player.z - bot.z);
   let buttons = 0;
@@ -274,8 +286,9 @@ function applyDamage(
   events: CombatEvent[],
 ) {
   const gap = distanceBetween(attacker, target);
-  const baseDamage = attack === "light" ? 17 : attack === "heavy" ? 29 : attack === "skillOne" ? 28 : 36;
   const playerAttacking = attacker === state.player;
+  const baseDamage = (attack === "light" ? 17 : attack === "heavy" ? 29 : attack === "skillOne" ? 28 : 36)
+    * (playerAttacking ? 1 : state.difficulty === "easy" ? 0.38 : state.difficulty === "medium" ? 0.58 : 0.78);
   const reach = (attack === "light" ? 2.35 : attack === "heavy" ? 2.8 : attack === "skillOne" ? 4.8 : 3.7)
     + (playerAttacking ? state.playerStats.attackRangeBonus : 0);
   if (gap > reach || target.hp <= 0) return;
@@ -418,8 +431,13 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     if (!attacker.attackType || attacker.attackHit) continue;
     const attack = attacker.attackType;
     const baseWindup = attack === "light" ? 8 : attack === "heavy" ? 15 : attack === "skillOne" ? 12 : 18;
-    const windup = Math.max(4, Math.round(baseWindup / (attacker === player ? next.playerStats.attackSpeedMultiplier : 1)));
+    const windup = attacker === bot
+      ? getBotAttackWindupTicks(next.difficulty)
+      : Math.max(4, Math.round(baseWindup / next.playerStats.attackSpeedMultiplier));
     if (tick >= attacker.attackStartedTick + windup) {
+      if (attacker === bot && attacker.action === "windup") {
+        setAction(attacker, attack === "light" ? "attack" : "heavyAttack", tick, 24);
+      }
       if (attack === "skillTwo") {
         const targetGap = distanceBetween(attacker, target);
         if (targetGap <= 3.7) {

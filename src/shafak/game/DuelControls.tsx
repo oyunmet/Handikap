@@ -1,14 +1,17 @@
-import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { INPUT_BUTTON } from "./combat-engine";
 
 type DuelControlsProps = {
   disabled?: boolean;
+  stamina: number;
+  attackCooldownSeconds: number;
   skillOneSeconds: number;
   skillTwoSeconds: number;
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   onMove: (x: number, y: number) => void;
   onSurrender: () => void;
+  onOpenHelp: () => void;
 };
 
 function HeldButton({
@@ -18,6 +21,8 @@ function HeldButton({
   onPress,
   onRelease,
   cooldown = 0,
+  disabledReason = "",
+  onBlocked,
 }: {
   button: number;
   label: string;
@@ -25,11 +30,17 @@ function HeldButton({
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   cooldown?: number;
+  disabledReason?: string;
+  onBlocked?: (reason: string) => void;
 }) {
   const pointerRef = useRef<number | null>(null);
   const pressedRef = useRef(false);
   const press = () => {
     if (pressedRef.current) return;
+    if (cooldown > 0 || disabledReason) {
+      onBlocked?.(disabledReason || `Hazır olması için ${cooldown.toFixed(1)} saniye bekle.`);
+      return;
+    }
     pressedRef.current = true;
     onPress(button);
   };
@@ -61,10 +72,10 @@ function HeldButton({
 
   return (
     <button
-      className={`duel-control ${className}`}
+      className={`duel-control ${className}${cooldown > 0 || disabledReason ? " is-unavailable" : ""}`}
       type="button"
       aria-label={label}
-      aria-disabled={cooldown > 0}
+      aria-disabled={cooldown > 0 || !!disabledReason}
       style={{ "--duel-cooldown": `${Math.min(100, Math.max(0, cooldown / 6 * 100))}%` } as CSSProperties}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
@@ -74,23 +85,49 @@ function HeldButton({
       onKeyUp={onKeyUp}
       onBlur={release}
     >
+      <ControlIcon className={className} />
       <span>{label}</span>
       {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
     </button>
   );
 }
 
+function ControlIcon({ className }: { className: string }) {
+  const path = className.includes("attack")
+    ? "M5 19 19 5M12 5h7v7M4 20l5-1-4-4-1 5Z"
+    : className.includes("block")
+      ? "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z"
+      : className.includes("dodge")
+        ? "M4 15c3-6 6-6 9-2s5 4 7-2M5 7l-2 2 2 2M19 15l2-2-2-2"
+        : className.includes("fire")
+          ? "M12 3c1 4-3 5-1 8 1-2 3-3 4-5 4 5 4 9 1 12-3 3-9 1-9-4 0-4 3-6 5-11Z"
+          : "M13 2 5 13h6l-1 9 9-12h-6l1-8Z";
+  return (
+    <svg className="duel-control__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  );
+}
+
 export default function DuelControls({
   disabled = false,
+  stamina,
+  attackCooldownSeconds,
   skillOneSeconds,
   skillTwoSeconds,
   onPress,
   onRelease,
   onMove,
   onSurrender,
+  onOpenHelp,
 }: DuelControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickPointer = useRef<number | null>(null);
+  const [blockedHint, setBlockedHint] = useState("");
+  const showBlockedHint = (reason: string) => {
+    setBlockedHint(reason);
+    window.setTimeout(() => setBlockedHint(""), 1900);
+  };
 
   const readJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
     const element = joystickRef.current;
@@ -140,7 +177,9 @@ export default function DuelControls({
       >
         <span aria-hidden="true" />
       </div>
-      <div className="duel-control-hint">WASD · J saldırı · K kalkan · L atılma · Boşluk / Q yetenek</div>
+      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L KAÇ · BOŞLUK KOR · Q YILDIRIM</div>
+      <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
+      {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
       <div className="duel-control-cluster">
         <div className="duel-control-cluster__skills">
           <HeldButton
@@ -150,6 +189,8 @@ export default function DuelControls({
             onPress={onPress}
             onRelease={onRelease}
             cooldown={skillOneSeconds}
+            disabledReason={stamina < 24 ? "KOR için 24 dayanıklılık gerekli." : ""}
+            onBlocked={showBlockedHint}
           />
           <HeldButton
             button={INPUT_BUTTON.skillTwo}
@@ -158,12 +199,14 @@ export default function DuelControls({
             onPress={onPress}
             onRelease={onRelease}
             cooldown={skillTwoSeconds}
+            disabledReason={stamina < 30 ? "YILDIRIM için 30 dayanıklılık gerekli." : ""}
+            onBlocked={showBlockedHint}
           />
         </div>
         <div className="duel-control-cluster__actions">
-          <HeldButton button={INPUT_BUTTON.dodge} label="ATILMA" className="is-dodge" onPress={onPress} onRelease={onRelease} />
-          <HeldButton button={INPUT_BUTTON.block} label="KALKAN" className="is-block" onPress={onPress} onRelease={onRelease} />
-          <HeldButton button={INPUT_BUTTON.attack} label="SALDIRI" className="is-attack" onPress={onPress} onRelease={onRelease} />
+          <HeldButton button={INPUT_BUTTON.dodge} label="KAÇ" className="is-dodge" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 20 ? "KAÇ için 20 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton button={INPUT_BUTTON.block} label="KALKAN" className="is-block" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 1 ? "Kalkan için dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton button={INPUT_BUTTON.attack} label="SALDIRI" className="is-attack" onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
         </div>
       </div>
     </div>

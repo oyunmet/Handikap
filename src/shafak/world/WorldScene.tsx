@@ -1,10 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
+import { ApiResponseError, requestJson } from "../api-json";
 import DuelControls from "../game/DuelControls";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
+import { STORE_CATALOG } from "../game/store-catalog";
 import {
   getUpgradeCost,
   MAX_UPGRADE_LEVEL,
@@ -19,6 +21,7 @@ import {
   INPUT_BUTTON,
   MAX_INPUT_BUTTONS,
   createCombatState,
+  getBotAttackWindupTicks,
   normalizePlayerCombatModifiers,
   stepCombat,
   type CombatEvent,
@@ -243,13 +246,14 @@ export default function WorldScene({
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(null);
-  const [storeItems, setStoreItems] = useState<StoreItem[]>([]);
-  const [storeCatalogLoading, setStoreCatalogLoading] = useState(false);
+  const storeItems = STORE_CATALOG as StoreItem[];
+  const storeCatalogLoading = false;
   const [storeBusyItemId, setStoreBusyItemId] = useState<string | null>(null);
   const [storeTrialItemId, setStoreTrialItemId] = useState<string | null>(null);
   const [storeCelebrationSignal, setStoreCelebrationSignal] = useState(0);
   const [storeMessage, setStoreMessage] = useState("");
   const [storeError, setStoreError] = useState("");
+  const [storeRetryAction, setStoreRetryAction] = useState<{ operation: "purchase" | "equip" | "upgrade"; itemId: string } | null>(null);
   const [airEnabled, setAirEnabled] = useState(true);
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
@@ -266,6 +270,9 @@ export default function WorldScene({
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [hitFlash, setHitFlash] = useState(false);
+  const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
+  const combatTutorialOpenRef = useRef(false);
+  const lastBotTelegraphTickRef = useRef(-1);
   const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(false);
   const contentCacheRef = useRef(new Map<number, WorldChapterContent>());
   const rivalDistancesRef = useRef(new Map<string, number>());
@@ -363,35 +370,7 @@ export default function WorldScene({
   useEffect(() => {
     setVibrationOn(vibrationEnabled);
   }, [vibrationEnabled]);
-  useEffect(() => {
-    const controller = new AbortController();
-    let mounted = true;
-    setStoreCatalogLoading(true);
-    void fetch("/api/store/catalog", { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Katalog isteği başarısız (${response.status}).`);
-        const result = await response.json() as { items?: unknown };
-        if (!Array.isArray(result.items) || !result.items.every(isStoreCatalogItem)) {
-          throw new Error("Mağaza kataloğu doğrulanamadı.");
-        }
-        if (mounted) {
-          setStoreItems(result.items);
-          setStoreError("");
-        }
-      })
-      .catch((error: unknown) => {
-        if (mounted && !(error instanceof DOMException && error.name === "AbortError")) {
-          setStoreError(error instanceof Error ? error.message : "Mağaza kataloğu yüklenemedi.");
-        }
-      })
-      .finally(() => {
-        if (mounted) setStoreCatalogLoading(false);
-      });
-    return () => {
-      mounted = false;
-      controller.abort();
-    };
-  }, []);
+  const storeMutationKeysRef = useRef(new Map<string, string>());
   const runStoreMutation = useCallback(async (operation: "purchase" | "equip" | "upgrade", itemId: string) => {
     if (storeMutationRef.current) return;
     const item = storeItems.find((entry) => entry.id === itemId);
@@ -406,6 +385,7 @@ export default function WorldScene({
     storeMutationRef.current = true;
     setStoreBusyItemId(itemId);
     setStoreError("");
+    setStoreRetryAction(null);
     setStoreMessage("");
     try {
       if (!accountDuelEnabled) {
@@ -476,19 +456,28 @@ export default function WorldScene({
       }
 
       if (!accountProfileReady) throw new Error("Hesap profili henüz hazır değil.");
+      const mutationKey = `${operation}:${itemId}`;
+      let idempotencyKey = storeMutationKeysRef.current.get(mutationKey);
+      if (operation !== "equip" && !idempotencyKey) {
+        idempotencyKey = createIdempotencyKey();
+        storeMutationKeysRef.current.set(mutationKey, idempotencyKey);
+      }
       const body = operation === "equip"
         ? { itemId }
-        : { itemId, idempotencyKey: createIdempotencyKey() };
-      const response = await fetch(`/api/store/${operation}`, {
+        : { itemId, idempotencyKey };
+      const result = await requestJson<{ profile?: unknown }>(`/api/store/${operation}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+      }, {
+        operation: `store ${operation}`,
+        fallbackMessage: "Mağaza şu an yüklenemedi, tekrar dene.",
+        messageForCode: (code) => storeErrorText(code),
       });
-      const result = await response.json().catch(() => ({})) as { profile?: unknown; error?: string };
-      if (!response.ok) throw new Error(storeErrorText(result.error ?? ""));
       if (!result.profile) throw new Error("Sunucudan profil güncellemesi alınamadı.");
       commitBattleProfile(normalizePlayerProfile(result.profile));
+      storeMutationKeysRef.current.delete(mutationKey);
       if (operation === "purchase" || operation === "upgrade") {
         setStoreCelebrationSignal((signal) => signal + 1);
         playWorldCue("seal");
@@ -497,7 +486,14 @@ export default function WorldScene({
         ? `${item.name} satın alındı.`
         : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
     } catch (error) {
-      setStoreError(error instanceof Error ? error.message : storeErrorText(""));
+      if (error instanceof ApiResponseError) {
+        setStoreError(error.retryable ? "Mağaza şu an yüklenemedi, tekrar dene." : error.message);
+        if (error.retryable) setStoreRetryAction({ operation, itemId });
+        else storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
+      } else {
+        setStoreError(error instanceof Error ? error.message : "Mağaza şu an yüklenemedi, tekrar dene.");
+        storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
+      }
     } finally {
       storeMutationRef.current = false;
       setStoreBusyItemId(null);
@@ -702,21 +698,22 @@ export default function WorldScene({
 
     if (context.duelId) {
       try {
-        const response = await fetch("/api/duels/complete", {
+        const result = await requestJson<{
+          summary?: DuelSummary;
+          rewards?: BattleRewards;
+          profile?: unknown;
+          error?: string;
+        }>("/api/duels/complete", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(surrendered
             ? { duelId: context.duelId, surrendered: true }
             : { duelId: context.duelId, inputLog: inputLogRef.current }),
+        }, {
+          operation: "duel settlement",
+          fallbackMessage: "Düello sonucu şu an doğrulanamadı. Ödül kaydedilmedi; tekrar dene.",
         });
-        const result = await response.json() as {
-          summary?: DuelSummary;
-          rewards?: BattleRewards;
-          profile?: unknown;
-          error?: string;
-        };
-        if (!response.ok) throw new Error(result.error || `Düello doğrulanamadı (${response.status}).`);
         if (!result.summary || !result.rewards || !result.profile) {
           throw new Error("Sunucu düello sonucu için eksik yanıt verdi.");
         }
@@ -755,12 +752,32 @@ export default function WorldScene({
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
   }, [commitBattleProfile, profile]);
 
+  function openCombatTutorial() {
+    const input = combatInputRef.current;
+    input.x = 0;
+    input.y = 0;
+    input.buttons = 0;
+    input.pressed = 0;
+    input.released = 0;
+    combatTutorialOpenRef.current = true;
+    setCombatTutorialOpen(true);
+  }
+
+  function closeCombatTutorial() {
+    combatTutorialOpenRef.current = false;
+    setCombatTutorialOpen(false);
+    try { window.localStorage.setItem("safak-combat-tutorial-seen-v1", "1"); } catch { /* Tutorial still works when storage is unavailable. */ }
+  }
+
   const beginEncounter = useCallback(async (rival: WorldRival) => {
     if (battleActiveRef.current) return;
     battleActiveRef.current = true;
     settlementStartedRef.current = false;
     pendingVerdictRef.current = null;
     resetDuelInput();
+    combatTutorialOpenRef.current = false;
+    setCombatTutorialOpen(false);
+    lastBotTelegraphTickRef.current = -1;
     inputLogRef.current = [[0, 0, 0, 0, 0, 0]];
     lastInputFrameRef.current = inputLogRef.current[0];
     battleFrozenMotionRef.current = {
@@ -785,20 +802,21 @@ export default function WorldScene({
       let playerStats: PlayerCombatModifiers = playerCombatStats;
       if (accountDuelEnabled && !practice) {
         if (!accountProfileReady) throw new Error("Hesap profili sunucuya bağlı değil; düello ödülü güvenle doğrulanamaz.");
-        const response = await fetch("/api/duels/start", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ opponentId: rival.id }),
-        });
-        const challenge = await response.json() as {
+        const challenge = await requestJson<{
           duelId?: unknown;
           seed?: unknown;
           playerStats?: unknown;
           opponent?: { id?: unknown; difficulty?: unknown };
           error?: string;
-        };
-        if (!response.ok) throw new Error(challenge.error || `Düello başlatılamadı (${response.status}).`);
+        }>("/api/duels/start", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ opponentId: rival.id }),
+        }, {
+          operation: "duel start",
+          fallbackMessage: "Hesap düellosu şu an başlatılamıyor. Lütfen daha sonra tekrar dene.",
+        });
         if (
           typeof challenge.duelId !== "string" ||
           typeof challenge.seed !== "number" ||
@@ -843,6 +861,9 @@ export default function WorldScene({
           const advance = (beat: number) => {
             if (beat >= 3) {
               updateBattleSession({ phase: "fight", beat: 3 });
+              let seen = false;
+              try { seen = window.localStorage.getItem("safak-combat-tutorial-seen-v1") === "1"; } catch { /* Continue with the tutorial on this device session. */ }
+              if (!seen) openCombatTutorial();
               return;
             }
             queueBattleTimer(() => {
@@ -991,7 +1012,7 @@ export default function WorldScene({
         if (battleActiveRef.current) {
           const session = battleSessionRef.current;
           const currentCombat = combatStateRef.current;
-          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && now >= hitStopUntilRef.current) {
+          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && now >= hitStopUntilRef.current) {
             const buffered = combatInputRef.current;
             const inputFrame: CombatInputFrame = [
               currentCombat.tick + 1,
@@ -1023,6 +1044,13 @@ export default function WorldScene({
               released: inputFrame[5],
             };
             let stepped = stepCombat(currentCombat, input);
+            if (
+              stepped.state.bot.attackType
+              && stepped.state.bot.attackStartedTick !== lastBotTelegraphTickRef.current
+            ) {
+              lastBotTelegraphTickRef.current = stepped.state.bot.attackStartedTick;
+              playWorldCue("attack");
+            }
             const active = activeDuelRef.current;
             if (
               active?.practice &&
@@ -1389,15 +1417,20 @@ export default function WorldScene({
             <div className="duel-hud__center">
               <span>VS</span>
               <strong>{combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
-              <div className="duel-stamina" aria-label={`Dayanıklılık ${Math.ceil(combatRender.player.stamina)}`}>
-                <i style={{ width: `${Math.max(0, combatRender.player.stamina / combatRender.player.maxStamina * 100)}%` }} />
-              </div>
               {combatRender.player.chargeStartedTick >= 0 && (
                 <small className="duel-charge">AĞIR SALDIRI {Math.min(100, Math.round((combatRender.tick - combatRender.player.chargeStartedTick) / 30 * 100))}%</small>
               )}
             </div>
             <DuelHealthBar label={battleSession.rival.name} hp={combatRender.bot.hp} maxHp={combatRender.bot.maxHp} side="bot" />
+            {combatRender.bot.attackType
+              && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty)
+              && <div className="duel-attack-warning" role="status" aria-live="assertive">BOT SALDIRIYOR · BLOKLA YA DA KAÇ</div>}
           </section>
+          <div className="duel-player-stamina" aria-label={`Dayanıklılık ${Math.ceil(combatRender.player.stamina)} / ${combatRender.player.maxStamina}`}>
+            <span>DAYANIKLILIK</span>
+            <b>{Math.ceil(combatRender.player.stamina)}</b>
+            <i><em style={{ width: `${Math.max(0, combatRender.player.stamina / combatRender.player.maxStamina * 100)}%` }} /></i>
+          </div>
           <div className="duel-combat-effects" aria-hidden="true">
             {combatEvents.map((event) => (
               <div
@@ -1419,6 +1452,8 @@ export default function WorldScene({
           {hitFlash && <div className="duel-hit-flash" aria-hidden="true" />}
           <div className="duel-low-health-vignette" aria-hidden="true" />
           <DuelControls
+            stamina={combatRender.player.stamina}
+            attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             onPress={pressDuelButton}
@@ -1427,7 +1462,25 @@ export default function WorldScene({
             onSurrender={() => {
               if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);
             }}
+            onOpenHelp={openCombatTutorial}
           />
+          {combatTutorialOpen && (
+            <div className="duel-tutorial-backdrop">
+              <section className="duel-tutorial" role="dialog" aria-modal="true" aria-labelledby="duel-tutorial-title">
+                <span className="game-eyebrow">İLK DÜELLO REHBERİ</span>
+                <h2 id="duel-tutorial-title">Kontroller</h2>
+                <p>Oyun bu kısa rehber boyunca duraklar.</p>
+                <div className="duel-tutorial__rows">
+                  <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>Sağdaki büyük düğme · basılı tut: ağır vuruş</i><strong>↘</strong></div>
+                  <div><span aria-hidden="true">⬟</span><b>KALKAN</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">↝</span><b>KAÇ</b><i>Kısa süre hasar almazsın · dayanıklılık harcar</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
+                  <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
+                </div>
+                <button type="button" className="game-gold-button" onClick={closeCombatTutorial}>ANLADIM</button>
+              </section>
+            </div>
+          )}
         </>
       )}
       <header className="world-topbar">
@@ -1642,6 +1695,7 @@ export default function WorldScene({
           onPurchase={(itemId) => void runStoreMutation("purchase", itemId)}
           onEquip={(itemId) => void runStoreMutation("equip", itemId)}
           onUpgrade={(itemId) => void runStoreMutation("upgrade", itemId)}
+          onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId) : undefined}
           renderPreview={(item) => {
             const key = slotEquipmentKey(item.slot);
             const previewProfile = {

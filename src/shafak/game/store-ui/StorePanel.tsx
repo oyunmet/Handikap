@@ -13,6 +13,7 @@ type StorePanelProps = {
   busyItemId: string | null;
   message: string;
   error: string;
+  onRetry?: () => void;
   trialItemId: string | null;
   celebrationSignal: number;
   onClose(): void;
@@ -28,6 +29,7 @@ const tabs: { id: StoreTab; label: string }[] = [
   { id: "armor", label: "ZIRH/KOSTÜM" },
   { id: "capes", label: "PELERİN" },
   { id: "effects", label: "EFEKTLER" },
+  { id: "dyes", label: "BOYALAR" },
   { id: "inventory", label: "ENVANTER" },
 ];
 
@@ -75,6 +77,7 @@ export default function StorePanel({
   busyItemId,
   message,
   error,
+  onRetry,
   trialItemId,
   celebrationSignal,
   onClose,
@@ -94,7 +97,7 @@ export default function StorePanel({
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
   const visibleItems = useMemo(() => {
     if (activeTab === "inventory") return items.filter((item) => ownedSet.has(item.id));
-    if (activeTab === "effects") return items.filter((item) => item.category === "effects" || item.category === "dyes");
+    if (activeTab === "effects") return items.filter((item) => item.category === "effects");
     return items.filter((item) => item.category === activeTab);
   }, [activeTab, items, ownedSet]);
   const selected = visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
@@ -417,6 +420,7 @@ export default function StorePanel({
           <div className={`safak-store__feedback${error ? " is-error" : ""}`} role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"}>
             <span aria-hidden="true">{error ? "!" : "·"}</span>
             <p>{error || message}</p>
+            {error && onRetry && <button type="button" onClick={onRetry}>TEKRAR DENE</button>}
           </div>
         )}
 

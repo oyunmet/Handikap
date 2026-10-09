@@ -1,0 +1,29 @@
+Savaş ve mağaza canlı sürümde (handikap.vercel.app, iPhone Safari) denendi. 3 sorun var. Kota dostu çalış: gereksiz tam test/derleme tekrarı yapma, kısa rapor yaz. Üretim veritabanına dokunma, yayınlama yapma, migration'ı üretime uygulama.
+
+## SORUN 1 — MAĞAZA BOŞ VE HAM TARAYICI HATASI
+Belirti: Mağaza/Heybe ekranında her sekmede "Tezgahta şimdilik eşya yok" yazıyor ve altta ham hata görünüyor: "The string did not match the expected pattern." Bu, Safari'nin geçersiz/boş/HTML cevabı .json() ile okuyamadığında verdiği hata. Misafir modundayım.
+Yap:
+1. Kök nedeni bul ve kısaca yaz: Mağaza kataloğu hangi uç noktadan çekiliyor? Canlı sürümde o uç nokta var mı ve JSON mu dönüyor, yoksa 404/HTML mi? (Canlı sitenin nasıl derlenip yayınlandığını da yaz: Vercel'de sunucu API'leri gerçekten çalışıyor mu, yoksa sadece statik dosyalar mı yayınlanıyor?) Mümkünse canlı uç noktaları curl ile dene.
+2. Katalog artık OYUNUN İÇİNE de gömülsün (paylaşılan bir katalog dosyası): silahlar (en az 5), zırh/kostüm setleri (en az 4), pelerinler (en az 4), efektler (kılıç izi, ayak tozu, aura), boyalar; fiyatlar, nadirlik, istatistikler. Misafir modunda mağaza API'ye bağlı OLMADAN çalışsın. Hesaplı modda satın alma doğrulaması yine sunucuda yapılsın (fiyat ve bakiye sunucudan teyit edilir); sunucu erişilemezse hesaplı kullanıcıya nazik mesaj göster, ama katalog yine görünsün.
+3. Hiçbir ham tarayıcı/teknik hata kullanıcıya gösterilmesin. Tüm API çağrılarında cevabı önce kontrol et (durum kodu, içerik türü, boş gövde), güvenli parse et, hata olursa Türkçe ve şık bir mesaj ("Mağaza şu an yüklenemedi, tekrar dene" + "Tekrar dene" düğmesi) göster; teknik ayrıntıyı yalnızca konsola/?debug=1 paneline yaz.
+4. Mağazada her sekmede gerçekten eşya göründüğünü, satın almanın (misafir), kuşanmanın ve karakterde görünmesinin çalıştığını doğrula. Test edemediğini yaz.
+
+## SORUN 2 — SAVAŞTA ÇOK ÇABUK ÖLÜYORUM
+Belirti: Oyuncu savaşta (Yolcu 150 can, Kül İzci 130 can) çok hızlı can kaybediyor, tepki verme fırsatı yok.
+Yap:
+1. SALDIRI İŞARETİ (telegraph): Düşman vuracağı zaman önce belirgin bir hazırlık animasyonu (silahı kaldırma) + zeminde veya düşmanın üstünde kırmızı uyarı efekti ve kısa ses göstersin. Hazırlık süresi en az 0,5-0,7 sn olsun (kolay botta daha uzun); bu süre içinde kalkan ve atılma ile karşılık verilebilsin.
+2. DENGE (kolay bot "Kül İzci" ve seviye 1-3 botlar): düşman hasarını ve saldırı sıklığını belirgin şekilde düşür, saldırılar arasında doğal boşluklar olsun, ardışık vuruş zinciri yapmasın. Hedefler (otomatik test yaz, deterministik simülasyonla): (a) oyuncu hiçbir şey yapmasa bile kolay bota karşı en az ~20 sn hayatta kalsın, (b) orta beceride bir oyuncu kolay botu yüksek ihtimalle (~80%+) yensin, (c) bir savaş ortalama 45-90 sn sürsün. Zorluk bot seviyesiyle kademeli artsın.
+3. Savaş boyunca hasar kaynağı net olsun: kim kime ne kadar vurdu (hasar sayıları), blokta hasar azaltma, atılmada dokunulmazlık net görülsün.
+4. Dayanıklılık (stamina) çubuğu ve yetenek bekleme göstergeleri ekranda görünsün (can çubuğunun altında dayanıklılık).
+
+## SORUN 3 — TUŞLAR NE İŞE YARIYOR BELLİ DEĞİL VE TAŞIYOR
+Belirti: Savaş kontrollerinde "ATILMA" ve "KALKAN" etiketleri kesiliyor/taşıyor; düğmelerin ne yaptığı anlaşılmıyor.
+Yap:
+1. Düzen: Tüm düğmeler ekran güvenli alanı (safe area) içinde, üst üste binmeden, baş parmağın erişeceği yay şeklinde dizilsin: büyük SALDIRI ortada-sağda, çevresinde KALKAN, ATILMA ve iki YETENEK. Her düğme sabit boyutta, etiket sığsın (veya yalnızca ikon + altında kısa yazı).
+2. Her düğmede net ikon (kılıç, kalkan, kaçış okları, ateş, yıldırım) ve kısa Türkçe etiket (SALDIRI, KALKAN, KAÇ, KOR, YILDIRIM). Yetenek düğmelerinde bekleme süresi dairesi ve geri sayım, dayanıklılık yetmezse sönük görünüm.
+3. İLK SAVAŞTA ANİMASYONLU ÖĞRETİCİ: Savaş başlamadan önce (veya başında oyunu duraklatan) tek seferlik bir katman: her düğmeyi oklarla gösterip ne yaptığını tek cümleyle anlat (örn. "KALKAN: Basılı tut, düşmanın vuruşunu engelle; vuruş anında basarsan karşı saldırı fırsatı", "KAÇ: Kısa süre dokunulmaz olursun, dayanıklılık harcar", "KOR / YILDIRIM: Güçlü yetenekler, bekleme süreleri var"). "Anladım" ile kapanır, bir daha çıkmaz; savaş ekranındaki küçük "?" düğmesiyle tekrar açılabilir.
+4. Düğme basma geri bildirimi (hafif ölçeklenme, ışık, titreşim) ve tuş yetersizse (dayanıklılık/bekleme) neden basılamadığını gösteren küçük uyarı.
+5. Masaüstü tuşlarını da ekranda küçük bir ipucu olarak göster.
+
+## BİTİRİRKEN
+Kısa rapor: ne değişti, neyi test ettin (hangi ortamda), neyi test EDEMEDİN. Canlı sürüme nasıl yayınlanacağını yaz (ben yayınlayacağım). Savaş sunucu doğrulaması, BOT etiketleri ve mevcut ödül mantığı bozulmasın.

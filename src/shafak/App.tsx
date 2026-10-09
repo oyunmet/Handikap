@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { requestJson } from "./api-json";
 import { useLocation } from "wouter";
 import { playUiChime, setSoundEnabled } from "./audio/howler";
 import { tr } from "./i18n/tr";
@@ -196,9 +197,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     setProfileSyncStatus("loading");
     void (async () => {
       try {
-        const response = await fetch("/api/profile", { credentials: "include" });
-        if (!response.ok) throw new Error(`Profile load failed (${response.status})`);
-        const result = (await response.json()) as { profile: unknown | null };
+        const result = await requestJson<{ profile: unknown | null }>("/api/profile", { credentials: "include" }, {
+          operation: "profile load",
+          fallbackMessage: "Hesap bilgileri şu an yüklenemedi. Lütfen tekrar dene.",
+        });
         if (!result.profile) throw new Error("The account profile was not initialized by the server.");
         const nextProfile = normalizePlayerProfile(result.profile);
 
@@ -338,9 +340,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
   const loadClaimedPickups = useCallback(async (chapterId: number) => {
     if (!user?.id || profileSyncStatus !== "ready") return [];
     const query = new URLSearchParams({ chapterId: String(chapterId) });
-    const response = await fetch(`/api/profile/pickups?${query}`, { credentials: "include" });
-    if (!response.ok) throw new Error("Pickup history could not be loaded.");
-    const result = (await response.json()) as { claimedPickupIds?: unknown };
+    const result = await requestJson<{ claimedPickupIds?: unknown }>(`/api/profile/pickups?${query}`, { credentials: "include" }, {
+      operation: "pickup history",
+      fallbackMessage: "Yol ganimeti geçmişi şu an yüklenemedi. Lütfen tekrar dene.",
+    });
     return Array.isArray(result.claimedPickupIds)
       ? result.claimedPickupIds.filter((id): id is string => typeof id === "string")
       : [];
@@ -352,18 +355,19 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     }
     if (profileSyncStatus !== "ready") throw new Error("Account profile is not ready for pickup claims.");
     try {
-      const response = await fetch("/api/profile/pickups", {
+      const result = await requestJson<{
+        profile?: unknown;
+        claimedPickupIds?: unknown;
+        awardedPickupIds?: unknown;
+      }>("/api/profile/pickups", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chapterId, pickupIds }),
+      }, {
+        operation: "pickup claim",
+        fallbackMessage: "Yol ganimeti şu an kaydedilemedi. Lütfen tekrar dene.",
       });
-      if (!response.ok) throw new Error(`Pickup claim failed (${response.status}).`);
-      const result = (await response.json()) as {
-        profile?: unknown;
-        claimedPickupIds?: unknown;
-        awardedPickupIds?: unknown;
-      };
       if (!result.profile || !Array.isArray(result.claimedPickupIds) || !Array.isArray(result.awardedPickupIds)) {
         throw new Error("Pickup claim response was invalid.");
       }
@@ -388,14 +392,15 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 20) || "Yolcu";
     setProfile((current) => ({ ...current, name: cleanName }));
     if (profileSyncStatus !== "ready") return;
-    void fetch("/api/profile", {
+    void requestJson<{ profile: unknown }>("/api/profile", {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: cleanName }),
-    }).then(async (response) => {
-      if (!response.ok) throw new Error("Profile rename failed.");
-      const result = (await response.json()) as { profile: unknown };
+    }, {
+      operation: "profile rename",
+      fallbackMessage: "İsim şu an kaydedilemedi. Lütfen tekrar dene.",
+    }).then((result) => {
       setProfile(normalizePlayerProfile(result.profile));
     }).catch(() => {
       setProfileSyncStatus("local");
