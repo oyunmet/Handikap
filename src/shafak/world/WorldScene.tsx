@@ -106,8 +106,21 @@ type ActiveDuel = {
   practice: boolean;
 };
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
+type DuelFlash = "hit" | "strike" | "skillOne" | "skillTwo" | null;
 
-function DuelHealthBar({ label, hp, maxHp, side }: { label: string; hp: number; maxHp: number; side: "player" | "bot" }) {
+function DuelHealthBar({
+  label,
+  hp,
+  maxHp,
+  side,
+  visualEffectsEnabled,
+}: {
+  label: string;
+  hp: number;
+  maxHp: number;
+  side: "player" | "bot";
+  visualEffectsEnabled: boolean;
+}) {
   const [trail, setTrail] = useState(hp);
   useEffect(() => {
     if (hp >= trail) {
@@ -118,7 +131,8 @@ function DuelHealthBar({ label, hp, maxHp, side }: { label: string; hp: number; 
     return () => window.clearTimeout(timeout);
   }, [hp, trail]);
   const percent = Math.max(0, Math.min(100, (hp / Math.max(1, maxHp)) * 100));
-  const trailPercent = Math.max(percent, Math.min(100, (trail / Math.max(1, maxHp)) * 100));
+  const displayTrail = visualEffectsEnabled ? trail : hp;
+  const trailPercent = Math.max(percent, Math.min(100, (displayTrail / Math.max(1, maxHp)) * 100));
   return (
     <div className={`duel-health duel-health--${side}`}>
       <div className="duel-health__label"><span>{label}</span><b>{Math.ceil(hp)} <i>/ {maxHp}</i></b></div>
@@ -126,6 +140,40 @@ function DuelHealthBar({ label, hp, maxHp, side }: { label: string; hp: number; 
         <i className="duel-health__trail" style={{ width: `${trailPercent}%` }} />
         <i className="duel-health__fill" style={{ width: `${percent}%` }} />
       </div>
+    </div>
+  );
+}
+
+function DuelStaminaBar({
+  stamina,
+  maxStamina,
+  visualEffectsEnabled,
+}: {
+  stamina: number;
+  maxStamina: number;
+  visualEffectsEnabled: boolean;
+}) {
+  const [trail, setTrail] = useState(stamina);
+  useEffect(() => {
+    if (stamina >= trail) {
+      setTrail(stamina);
+      return undefined;
+    }
+    const timeout = window.setTimeout(() => setTrail(stamina), 380);
+    return () => window.clearTimeout(timeout);
+  }, [stamina, trail]);
+  const percent = Math.max(0, Math.min(100, (stamina / Math.max(1, maxStamina)) * 100));
+  const displayTrail = visualEffectsEnabled ? trail : stamina;
+  const trailPercent = Math.max(percent, Math.min(100, (displayTrail / Math.max(1, maxStamina)) * 100));
+
+  return (
+    <div className="duel-player-stamina" aria-label={`Dayanıklılık ${Math.ceil(stamina)} / ${maxStamina}`}>
+      <span>DAYANIKLILIK</span>
+      <b>{Math.ceil(stamina)}</b>
+      <i className="duel-player-stamina__track" role="meter" aria-valuemin={0} aria-valuemax={maxStamina} aria-valuenow={Math.ceil(stamina)}>
+        <i className="duel-player-stamina__trail" style={{ width: `${trailPercent}%` }} />
+        <i className="duel-player-stamina__fill" style={{ width: `${percent}%` }} />
+      </i>
     </div>
   );
 }
@@ -274,7 +322,7 @@ export default function WorldScene({
   const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
-  const [hitFlash, setHitFlash] = useState(false);
+  const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
   const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
   const combatTutorialOpenRef = useRef(false);
   const combatTutorialSeenRef = useRef(false);
@@ -309,10 +357,18 @@ export default function WorldScene({
   const pendingSurrenderRef = useRef(false);
   const settlementStartedRef = useRef(false);
   const hitStopUntilRef = useRef(0);
+  const flashSequenceRef = useRef(0);
   const nextCombatEffectIdRef = useRef(0);
   const nextFlightIdRef = useRef(0);
   const storeMutationRef = useRef(false);
   const attackAnimationTimerRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (visualEffectsEnabled) return;
+    setCombatEvents([]);
+    setCombatFlash(null);
+    hitStopUntilRef.current = window.performance.now();
+  }, [visualEffectsEnabled]);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
   const activeChapters = getCachedWorldChapters(travel, contentCacheRef.current);
   for (const rival of activeChapters.flatMap((chapter) => chapter.rivals)) {
@@ -676,7 +732,8 @@ export default function WorldScene({
     setBattleSession(null);
     setCombatRender(null);
     setCombatEvents([]);
-    setHitFlash(false);
+    setCombatFlash(null);
+    flashSequenceRef.current += 1;
     inputLogRef.current = [];
     lastInputFrameRef.current = null;
     pendingVerdictRef.current = null;
@@ -1093,18 +1150,37 @@ export default function WorldScene({
             }
             combatStateRef.current = stepped.state;
             if (stepped.events.length) {
-              hitStopUntilRef.current = window.performance.now() + Math.min(90, 34 + stepped.events.reduce((sum, event) => sum + (event.type === "hit" ? event.damage ?? 0 : 0), 0) * 0.8);
-              const visualEvents = stepped.events.map((event) => ({
-                ...event,
-                id: ++nextCombatEffectIdRef.current,
-                expiresAt: window.performance.now() + 900,
-              }));
-              setCombatEvents((current) => [...current.filter((event) => event.expiresAt > window.performance.now()), ...visualEvents].slice(-12));
-              const ids = new Set(visualEvents.map((event) => event.id));
-              queueBattleTimer(() => setCombatEvents((current) => current.filter((event) => !ids.has(event.id))), 960);
-              if (stepped.events.some((event) => event.type === "hit" || event.type === "parry" || event.type === "skill")) {
-                setHitFlash(true);
-                queueBattleTimer(() => setHitFlash(false), 75);
+              const impactEvents = stepped.events.filter((event) => event.type === "hit" || event.type === "parry");
+              if (visualEffectsEnabled && impactEvents.length) {
+                const damage = impactEvents.reduce((sum, event) => sum + (event.type === "hit" ? event.damage ?? 0 : 0), 0);
+                hitStopUntilRef.current = window.performance.now() + Math.min(90, Math.max(50, 50 + damage * 0.65));
+              } else if (!visualEffectsEnabled) {
+                hitStopUntilRef.current = window.performance.now();
+              }
+              if (visualEffectsEnabled) {
+                const visualEvents = stepped.events.map((event) => ({
+                  ...event,
+                  id: ++nextCombatEffectIdRef.current,
+                  expiresAt: window.performance.now() + 900,
+                }));
+                setCombatEvents((current) => [...current.filter((event) => event.expiresAt > window.performance.now()), ...visualEvents].slice(-12));
+                const ids = new Set(visualEvents.map((event) => event.id));
+                queueBattleTimer(() => setCombatEvents((current) => current.filter((event) => !ids.has(event.id))), 960);
+              } else {
+                setCombatEvents([]);
+              }
+              const hitEvent = stepped.events.find((event) => event.type === "hit" && event.target === "player")
+                ?? stepped.events.find((event) => event.type === "hit");
+              const skillEvent = stepped.events.find((event) => event.type === "skill");
+              const flash: DuelFlash = hitEvent
+                ? hitEvent.target === "player" ? "hit" : "strike"
+                : skillEvent ? skillEvent.attack === "skillOne" ? "skillOne" : "skillTwo" : null;
+              if (visualEffectsEnabled && flash) {
+                setCombatFlash(flash);
+                const sequence = ++flashSequenceRef.current;
+                queueBattleTimer(() => {
+                  if (flashSequenceRef.current === sequence) setCombatFlash(null);
+                }, 145);
               }
               if (stepped.events.some((event) => event.type === "hit" || event.type === "parry" || event.type === "block")) {
                 playWorldCue("attack");
@@ -1283,7 +1359,7 @@ export default function WorldScene({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [audioOn, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -1353,6 +1429,7 @@ export default function WorldScene({
       data-reduced={motionReduced}
       data-air={airEnabled}
       data-postfx={visualEffectsEnabled}
+      data-finisher={visualEffectsEnabled && battleSession?.phase === "settling"}
       data-motion={motion}
       aria-label={worldText.brand}
     >
@@ -1389,6 +1466,13 @@ export default function WorldScene({
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
             combatStateRef={combatStateRef}
             combatRender={combatRender}
+            combatVisualEvents={visualEffectsEnabled ? combatEvents : []}
+            cinematicIntro={Boolean(visualEffectsEnabled && battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
+            finisherSlowMotion={Boolean(visualEffectsEnabled && battleSession?.phase === "settling")}
+            botTelegraphActive={Boolean(
+              combatRender?.bot.attackType
+              && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty),
+            )}
             opponentName={battleSession?.rival.name ?? ""}
             debugCounters={{
               rivalCount: allRivals.length,
@@ -1439,7 +1523,7 @@ export default function WorldScene({
       {battleSession?.phase === "fight" && combatRender && (
         <>
           <section className="duel-hud" aria-label="Düello durumu">
-            <DuelHealthBar label={profile.name} hp={combatRender.player.hp} maxHp={combatRender.player.maxHp} side="player" />
+            <DuelHealthBar label={profile.name} hp={combatRender.player.hp} maxHp={combatRender.player.maxHp} side="player" visualEffectsEnabled={visualEffectsEnabled} />
             <div className="duel-hud__center">
               <span>VS</span>
               <strong>{combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
@@ -1447,22 +1531,17 @@ export default function WorldScene({
                 <small className="duel-charge">AĞIR SALDIRI {Math.min(100, Math.round((combatRender.tick - combatRender.player.chargeStartedTick) / 30 * 100))}%</small>
               )}
             </div>
-            <DuelHealthBar label={battleSession.rival.name} hp={combatRender.bot.hp} maxHp={combatRender.bot.maxHp} side="bot" />
+            <DuelHealthBar label={battleSession.rival.name} hp={combatRender.bot.hp} maxHp={combatRender.bot.maxHp} side="bot" visualEffectsEnabled={visualEffectsEnabled} />
           </section>
           {combatRender.bot.attackType
             && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty)
             && (
               <>
-                <div className="duel-ground-warning" aria-hidden="true"><span>KAÇ · KALKAN</span></div>
                 <div className="duel-attack-warning" role="status" aria-live="assertive">BOT SALDIRIYOR · BLOKLA YA DA KAÇ</div>
               </>
             )}
-          <div className="duel-player-stamina" aria-label={`Dayanıklılık ${Math.ceil(combatRender.player.stamina)} / ${combatRender.player.maxStamina}`}>
-            <span>DAYANIKLILIK</span>
-            <b>{Math.ceil(combatRender.player.stamina)}</b>
-            <i><em style={{ width: `${Math.max(0, combatRender.player.stamina / combatRender.player.maxStamina * 100)}%` }} /></i>
-          </div>
-          <div className="duel-combat-effects" aria-hidden="true">
+          <DuelStaminaBar stamina={combatRender.player.stamina} maxStamina={combatRender.player.maxStamina} visualEffectsEnabled={visualEffectsEnabled} />
+          {visualEffectsEnabled && <div className="duel-combat-effects" aria-hidden="true">
             {combatEvents.map((event) => (
               <div
                 key={event.id}
@@ -1474,6 +1553,7 @@ export default function WorldScene({
                 } as CSSProperties}
               >
                 <i />
+                <span className="duel-fx-particles" />
                 {Boolean(event.damage) && <b>{event.critical ? "!" : ""}{Math.ceil(event.damage ?? 0)}</b>}
                 {event.type === "hit" && (
                   <small>{event.target === "player"
@@ -1491,9 +1571,9 @@ export default function WorldScene({
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
               </div>
             ))}
-          </div>
-          {hitFlash && <div className="duel-hit-flash" aria-hidden="true" />}
-          <div className="duel-low-health-vignette" aria-hidden="true" />
+          </div>}
+          {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
+          {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
           <DuelControls
             stamina={combatRender.player.stamina}
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
@@ -1692,6 +1772,7 @@ export default function WorldScene({
             playerName={profile.name}
             practice={battleSession.practice}
             note={battleSession.message}
+            visualEffectsEnabled={visualEffectsEnabled}
             canReplay={battleSession.practice || !profile.defeatedOpponents.includes(battleSession.rival.id)}
             onContinue={closeEncounter}
             onReplay={() => {

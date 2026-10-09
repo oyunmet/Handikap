@@ -88,6 +88,8 @@
 .duel-result { padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
 .duel-result__glow { background: radial-gradient(ellipse at 50% 35%, rgba(229, 177, 88, .22), transparent 45%); }
 .duel-result--defeat .duel-result__glow { background: radial-gradient(ellipse at 50% 35%, rgba(132, 49, 47, .19), transparent 45%); }
+.duel-result[data-visual-effects="false"] .duel-result__glow,
+.duel-result[data-visual-effects="false"] .duel-chest__light { opacity: 0; }
 .duel-result__card {
   position: relative;
   width: min(100%, 440px);
@@ -112,6 +114,14 @@
 .duel-chest__lid { position: absolute; top: 6px; width: 53px; height: 17px; border: 2px solid #e9c477; border-radius: 5px 5px 2px 2px; background: linear-gradient(110deg, #a56e38, #573a28); transform: rotate(-7deg); }
 .duel-result__rewards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 14px 0 5px; }
 .duel-result__rewards > div { display: grid; min-height: 58px; align-content: center; gap: 5px; padding: 8px 4px; border: 1px solid rgba(229, 203, 159, .13); border-radius: 3px; background: rgba(255, 255, 255, .025); }
+.duel-result__rewards > div:nth-child(1), .duel-result__rewards > div:nth-child(2) { position: relative; }
+.duel-result__rewards > div:nth-child(1)::before, .duel-result__rewards > div:nth-child(2)::before { position: absolute; top: 5px; right: 7px; font-size: 12px; line-height: 1; }
+.duel-result__rewards > div:nth-child(1)::before { color: #ffd77b; content: "◉"; text-shadow: 0 0 9px #ffb941; }
+.duel-result__rewards > div:nth-child(2)::before { color: #b6f8ff; content: "◆"; text-shadow: 0 0 9px #43d7ee; }
+.duel-result[data-visual-effects="true"] .duel-result__rewards > div:nth-child(1) { animation: duel-reward-arrive .54s .12s cubic-bezier(.16,.8,.25,1) both; }
+.duel-result[data-visual-effects="true"] .duel-result__rewards > div:nth-child(2) { animation: duel-reward-arrive .54s .25s cubic-bezier(.16,.8,.25,1) both; }
+.duel-result[data-visual-effects="true"] .duel-result__rewards > div:nth-child(1)::before { animation: duel-reward-glint 1.2s .3s ease-in-out 2; }
+.duel-result[data-visual-effects="true"] .duel-result__rewards > div:nth-child(2)::before { animation: duel-reward-glint 1.2s .48s ease-in-out 2; }
 .duel-result__rewards span { color: rgba(232, 217, 189, .47); font-size: 7px; font-weight: 800; letter-spacing: .12em; }
 .duel-result__rewards strong { overflow: hidden; color: #edcf91; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .duel-result__item, .duel-result__stake { margin: 9px 0; color: #d8c7a9; font-size: 9px; }
@@ -127,6 +137,8 @@
 .duel-result__sparks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .duel-result__sparks i { position: absolute; top: calc(14% + var(--spark) * 4.1%); left: calc((var(--spark) * 37) % 100%); width: 3px; height: 3px; border-radius: 50%; background: #f6d693; box-shadow: 0 0 9px #f8c76d; animation: victory-spark 2s calc(var(--spark) * -.13s) ease-in-out infinite; }
 @keyframes victory-spark { 0%, 100% { opacity: 0; transform: translateY(8px) scale(.6); } 45% { opacity: .9; transform: translateY(-9px) scale(1.2); } }
+@keyframes duel-reward-arrive { from { opacity: .35; transform: translateY(9px) scale(.92); box-shadow: 0 0 0 rgba(255,205,108,0); } to { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 20px rgba(255,205,108,.13); } }
+@keyframes duel-reward-glint { 0%,100% { transform: scale(.8) rotate(0); filter: brightness(1); } 50% { transform: scale(1.24) rotate(18deg); filter: brightness(1.7); } }
 .profile-materials { display: grid; gap: 8px; margin-top: 13px; padding-top: 12px; border-top: 1px solid rgba(231,214,180,.1); }
 .profile-materials span { display: flex; align-items: center; gap: 8px; color: rgba(232,217,189,.72); font-size: 9px; }
 .profile-materials b { margin-left: auto; color: #f1d79d; font-variant-numeric: tabular-nums; }
@@ -143,5 +155,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .duel-result__sparks i { animation: none; }
+  .duel-result__rewards > div, .duel-result__rewards > div::before { animation: none !important; }
   .game-gold-button { transition-duration: .01ms; }
 }

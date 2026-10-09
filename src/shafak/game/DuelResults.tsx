@@ -8,6 +8,7 @@ type DuelResultsProps = {
   rewards: BattleRewards;
   opponentName: string;
   playerName: string;
+  visualEffectsEnabled: boolean;
   practice?: boolean;
   note?: string;
   canReplay?: boolean;
@@ -20,6 +21,7 @@ export default function DuelResults({
   rewards,
   opponentName,
   playerName,
+  visualEffectsEnabled,
   practice = false,
   note,
   canReplay = true,
@@ -31,14 +33,17 @@ export default function DuelResults({
   const title = won ? "ZAFER!" : drew ? "BERABERLİK" : "YENİLGİ";
 
   return (
-    <main className={`duel-result${won ? " duel-result--victory" : drew ? " duel-result--draw" : " duel-result--defeat"}`}>
+    <main
+      className={`duel-result${won ? " duel-result--victory" : drew ? " duel-result--draw" : " duel-result--defeat"}`}
+      data-visual-effects={visualEffectsEnabled}
+    >
       <div className="duel-result__glow" aria-hidden="true" />
-      {won && <div className="duel-result__sparks" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} style={{ "--spark": index } as CSSProperties} />)}</div>}
+      {won && visualEffectsEnabled && <div className="duel-result__sparks" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} style={{ "--spark": index } as CSSProperties} />)}</div>}
       <motion.section
         className="duel-result__card"
-        initial={{ opacity: 0, y: 18, scale: .95 }}
+        initial={visualEffectsEnabled ? { opacity: 0, y: 18, scale: .95 } : false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: .55, ease: "easeOut" }}
+        transition={{ duration: visualEffectsEnabled ? .55 : 0, ease: "easeOut" }}
       >
         <span className="game-eyebrow">DÜELLO SONUCU</span>
         <h1>{title}</h1>

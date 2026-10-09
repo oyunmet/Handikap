@@ -12,6 +12,7 @@ type Knight3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
   state: CharacterAnimationState;
   motionReduced: boolean;
+  animationTimeScale?: number;
   facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
   appearance?: EquipmentVisual;
@@ -111,7 +112,7 @@ function Cape({ motionRef, motionReduced, appearance }: Pick<Knight3DProps, "mot
   return <mesh ref={meshRef} geometry={geometry} position={[0, 1.72, 0.12]} material={material} frustumCulled={false} />;
 }
 
-export default function Knight3D({ motionRef, state, motionReduced, facingAngle, footSlipRef, appearance }: Knight3DProps) {
+export default function Knight3D({ motionRef, state, motionReduced, animationTimeScale = 1, facingAngle, footSlipRef, appearance }: Knight3DProps) {
   const rootRef = useRef<THREE.Group>(null);
   const torsoRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
@@ -171,7 +172,7 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
     if (!root || !torso) return;
     const motion = motionRef.current;
     const time = frame.clock.elapsedTime;
-    const dt = Math.min(delta, 1 / 30);
+    const dt = Math.min(delta, 1 / 30) * animationTimeScale;
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
     const moving = speed > 0.14;
     const running = speed > 4.9;

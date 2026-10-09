@@ -19,6 +19,7 @@ type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
   state: CharacterAnimationState;
   motionReduced: boolean;
+  animationTimeScale?: number;
   facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
   appearance?: EquipmentVisual;
@@ -146,6 +147,7 @@ function OptionalGlbKnight({
   state,
   modelAnimationState,
   motionReduced,
+  animationTimeScale = 1,
   facingAngle,
   footSlipRef,
   modelConfig,
@@ -211,7 +213,7 @@ function OptionalGlbKnight({
           ? THREE.MathUtils.clamp(speed / 2.2, 0.72, 1.2)
           : 1;
     }
-    mixer.update(Math.min(delta, 0.05) * (motionReduced ? 0.35 : 1));
+    mixer.update(Math.min(delta, 0.05) * (motionReduced ? 0.35 : 1) * animationTimeScale);
     if (footSlipRef) footSlipRef.current = 0;
   });
 
