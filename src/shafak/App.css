@@ -122,6 +122,11 @@
   mix-blend-mode: soft-light;
 }
 
+.shafak-app[data-visual-effects="false"] .scene-grain,
+.shafak-app[data-visual-effects="false"] .scene-backdrop__vignette {
+  display: none;
+}
+
 .screen {
   position: relative;
   display: flex;
@@ -828,9 +833,21 @@
   background: rgba(4, 5, 8, 0.36);
 }
 
+.setting-row--quality {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setting-row--quality .quality-switch {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .quality-switch button {
   min-height: 28px;
-  padding: 0 7px;
+  padding: 0 4px;
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;

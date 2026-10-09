@@ -40,7 +40,10 @@ export default function EmberLayer({ quality, motionReduced }: EmberLayerProps) 
           autoDensity: true,
           backgroundAlpha: 0,
           preference: "webgl",
-          resolution: Math.min(window.devicePixelRatio || 1, 2),
+          resolution: Math.min(
+            window.devicePixelRatio || 1,
+            quality === "high" ? 2 : quality === "balanced" ? 1.5 : 1,
+          ),
           resizeTo: host,
         });
 

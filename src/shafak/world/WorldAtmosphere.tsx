@@ -8,14 +8,17 @@ type Props = {
 };
 
 export default function WorldAtmosphere({ quality, motionReduced, enabled, travel }: Props) {
-  const count = quality === "high" ? 18 : quality === "balanced" ? 11 : 5;
+  const count = quality === "high" ? 24 : quality === "balanced" ? 15 : 5;
   return (
     <div
       className="world-atmosphere"
       data-air={enabled}
       data-quality={quality}
       data-reduced={motionReduced}
-      style={{ "--air-parallax": `${-travel * .018}px` } as CSSProperties}
+      style={{
+        "--air-parallax": `${-travel * .018}px`,
+        "--world-wind-duration": enabled ? "10s" : "18s",
+      } as CSSProperties}
       aria-hidden="true"
     >
       {Array.from({ length: count }, (_, index) => (
@@ -26,9 +29,9 @@ export default function WorldAtmosphere({ quality, motionReduced, enabled, trave
             "--mote-x": `${(index * 73 + 13) % 100}%`,
             "--mote-y": `${(index * 47 + 19) % 88}%`,
             "--mote-size": `${index % 5 === 0 ? 3 : 2}px`,
-            "--mote-duration": `${11 + (index % 7) * 2}s`,
+            "--mote-duration": `${(enabled ? 5.5 : 11) + (index % 7) * (enabled ? 1.05 : 2)}s`,
             "--mote-delay": `${-((index * 7) % 19)}s`,
-            "--mote-drift": `${((index % 5) - 2) * 24}px`,
+            "--mote-drift": `${((index % 5) - 2) * (enabled ? 46 : 24)}px`,
             "--mote-lift": `${36 + (index % 4) * 17}px`,
           } as CSSProperties}
         />

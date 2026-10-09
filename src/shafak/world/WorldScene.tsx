@@ -54,12 +54,14 @@ import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
 import EquipmentPreview3D from "./EquipmentPreview3D";
+import WorldAtmosphere from "./WorldAtmosphere";
 
 const World3D = lazy(() => import("./World3D"));
 import "./world-scene.css";
 
 type WorldSceneProps = {
   quality: "high" | "balanced" | "low";
+  visualEffectsEnabled: boolean;
   motionReduced: boolean;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
@@ -221,6 +223,7 @@ function Icon({ name }: { name: "bag" | "settings" | "exit" }) {
 
 export default function WorldScene({
   quality,
+  visualEffectsEnabled,
   motionReduced,
   soundEnabled,
   vibrationEnabled,
@@ -1349,9 +1352,16 @@ export default function WorldScene({
       data-quality={quality}
       data-reduced={motionReduced}
       data-air={airEnabled}
+      data-postfx={visualEffectsEnabled}
       data-motion={motion}
       aria-label={worldText.brand}
     >
+      <WorldAtmosphere
+        quality={quality}
+        motionReduced={motionReduced}
+        enabled={airEnabled}
+        travel={travel}
+      />
       <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
         <Suspense
           fallback={
@@ -1363,6 +1373,7 @@ export default function WorldScene({
           <World3D
             motionRef={motionRef}
             quality={quality}
+            visualEffectsEnabled={visualEffectsEnabled}
             motionReduced={motionReduced}
             airEnabled={airEnabled}
             level={profile.level}

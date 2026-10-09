@@ -8,12 +8,20 @@ import EmberLayer from "./scene/EmberLayer";
 import WorldScene from "./world/WorldScene";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import {
+  normalizeGraphicsMode,
+  resolveRenderQuality,
+  stepAutoQuality,
+  type GraphicsMode,
+  type RenderQuality,
+} from "./world/graphics-quality";
 
 type Screen = "opening" | "loading" | "menu" | "world";
 type Preferences = {
   sound: boolean;
   vibration: boolean;
-  quality: "high" | "balanced" | "low";
+  quality: GraphicsMode;
+  visualEffects: boolean;
   reduceMotion: boolean;
 };
 
@@ -21,7 +29,8 @@ const PREFERENCES_KEY = "shafak-settings-v1";
 const initialPreferences: Preferences = {
   sound: true,
   vibration: true,
-  quality: "high",
+  quality: "auto",
+  visualEffects: true,
   reduceMotion: false,
 };
 
@@ -36,7 +45,11 @@ function readPreferences(): Preferences {
       sound: typeof saved.sound === "boolean" ? saved.sound : initialPreferences.sound,
       vibration:
         typeof saved.vibration === "boolean" ? saved.vibration : initialPreferences.vibration,
-      quality: saved.quality === "low" ? "low" : saved.quality === "balanced" ? "balanced" : "high",
+      quality: normalizeGraphicsMode(saved.quality),
+      visualEffects:
+        typeof saved.visualEffects === "boolean"
+          ? saved.visualEffects
+          : initialPreferences.visualEffects,
       reduceMotion:
         typeof saved.reduceMotion === "boolean"
           ? saved.reduceMotion
@@ -175,6 +188,56 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
   const systemReducedMotion = useReducedMotion();
   const motionReduced = preferences.reduceMotion || Boolean(systemReducedMotion);
   const homeAtmosphere = screen === "opening" || screen === "loading" || screen === "menu";
+  const [automaticQuality, setAutomaticQuality] = useState<RenderQuality>(() => {
+    if (typeof navigator === "undefined") return "balanced";
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    const limitedCores = (navigator.hardwareConcurrency || 4) <= 4;
+    const limitedMemory = typeof deviceMemory === "number" && deviceMemory <= 4;
+    return limitedCores || limitedMemory || window.devicePixelRatio >= 2.5 ? "balanced" : "high";
+  });
+  const activeQuality = resolveRenderQuality(preferences.quality, automaticQuality);
+
+  useEffect(() => {
+    if (preferences.quality !== "auto" || screen !== "world") return undefined;
+
+    let frameId = 0;
+    let sampleStartedAt = performance.now();
+    let frameCount = 0;
+    let slowSamples = 0;
+    let fastSamples = 0;
+    const sample = (now: number) => {
+      frameCount += 1;
+      const elapsed = now - sampleStartedAt;
+      if (elapsed >= 1_800) {
+        const fps = frameCount * 1_000 / elapsed;
+        frameCount = 0;
+        sampleStartedAt = now;
+
+        if (fps < 34) {
+          slowSamples += 1;
+          fastSamples = 0;
+          if (slowSamples >= 2) {
+            setAutomaticQuality((current) => stepAutoQuality(current, "down"));
+            slowSamples = 0;
+          }
+        } else if (fps > 56) {
+          fastSamples += 1;
+          slowSamples = 0;
+          if (fastSamples >= 4) {
+            setAutomaticQuality((current) => stepAutoQuality(current, "up"));
+            fastSamples = 0;
+          }
+        } else {
+          slowSamples = 0;
+          fastSamples = 0;
+        }
+      }
+      frameId = window.requestAnimationFrame(sample);
+    };
+
+    frameId = window.requestAnimationFrame(sample);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [preferences.quality, screen]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -416,7 +479,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     setAnnouncement(tr.settingsSaved);
   };
 
-  const togglePreference = (key: "sound" | "vibration" | "reduceMotion") => {
+  const togglePreference = (key: "sound" | "vibration" | "visualEffects" | "reduceMotion") => {
     const next = !preferences[key];
     setPreference(key, next);
     if (key === "sound") {
@@ -438,6 +501,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     <div
       role="application"
       className={`shafak-app${motionReduced ? " motion-reduced" : ""}`}
+      data-visual-effects={preferences.visualEffects}
       ref={sceneRef}
       aria-label={tr.brand}
     >
@@ -452,7 +516,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
           <div className="scene-character" aria-hidden="true">
             <img src="/shafak-warrior.png" alt="" />
           </div>
-          <EmberLayer quality={preferences.quality} motionReduced={motionReduced} />
+          <EmberLayer quality={activeQuality} motionReduced={motionReduced} />
           <div className="scene-grain" aria-hidden="true" />
         </>
       )}
@@ -669,7 +733,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
             transition={{ duration: motionReduced ? .12 : .42, ease: "easeOut" }}
           >
             <WorldScene
-              quality={preferences.quality}
+              quality={activeQuality}
+              visualEffectsEnabled={preferences.visualEffects}
               motionReduced={motionReduced}
               soundEnabled={preferences.sound}
               vibrationEnabled={preferences.vibration}
@@ -769,10 +834,26 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
                 />
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
-                    <strong>{tr.effects}</strong>
-                    <small>{tr.effectsDescription}</small>
+                    <strong>{tr.graphics}</strong>
+                    <small>{tr.graphicsDescription}</small>
                   </span>
-                  <div className="quality-switch" role="group" aria-label={tr.effects}>
+                  <div className="quality-switch" role="group" aria-label={tr.graphics}>
+                    <button
+                      className={preferences.quality === "low" ? "is-selected" : ""}
+                      type="button"
+                      aria-pressed={preferences.quality === "low"}
+                      onClick={() => setPreference("quality", "low")}
+                    >
+                      {tr.low}
+                    </button>
+                    <button
+                      className={preferences.quality === "medium" ? "is-selected" : ""}
+                      type="button"
+                      aria-pressed={preferences.quality === "medium"}
+                      onClick={() => setPreference("quality", "medium")}
+                    >
+                      {tr.medium}
+                    </button>
                     <button
                       className={preferences.quality === "high" ? "is-selected" : ""}
                       type="button"
@@ -782,23 +863,21 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
                       {tr.high}
                     </button>
                     <button
-                      className={preferences.quality === "balanced" ? "is-selected" : ""}
+                      className={preferences.quality === "auto" ? "is-selected" : ""}
                       type="button"
-                      aria-pressed={preferences.quality === "balanced"}
-                      onClick={() => setPreference("quality", "balanced")}
+                      aria-pressed={preferences.quality === "auto"}
+                      onClick={() => setPreference("quality", "auto")}
                     >
-                      {tr.balanced}
-                    </button>
-                    <button
-                      className={preferences.quality === "low" ? "is-selected" : ""}
-                      type="button"
-                      aria-pressed={preferences.quality === "low"}
-                      onClick={() => setPreference("quality", "low")}
-                    >
-                      {tr.low}
+                      {tr.automatic}
                     </button>
                   </div>
                 </div>
+                <SettingToggle
+                  label={tr.visualEffects}
+                  description={tr.visualEffectsDescription}
+                  checked={preferences.visualEffects}
+                  onChange={() => togglePreference("visualEffects")}
+                />
                 <SettingToggle
                   label={tr.reduceMotion}
                   description={tr.reduceMotionDescription}

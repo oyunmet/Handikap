@@ -18,12 +18,15 @@ import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldRival } from "./world-content";
 import type { CombatAction, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
+import WorldPostProcessing from "./WorldPostProcessing";
+import { getShadowMapSize } from "./graphics-quality";
 
 export type WorldQuality = "high" | "balanced" | "low";
 
 type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
   quality: WorldQuality;
+  visualEffectsEnabled: boolean;
   motionReduced: boolean;
   airEnabled: boolean;
   level: number;
@@ -119,11 +122,29 @@ function getChunksForDistance(distance: number, cache: Map<number, WorldChunk>) 
 function SceneFog({ airEnabled }: { airEnabled: boolean }) {
   const { scene } = useThree();
   useEffect(() => {
-    scene.fog = new THREE.FogExp2(airEnabled ? "#514047" : "#382f38", airEnabled ? 0.008 : 0.0045);
+    scene.fog = new THREE.FogExp2(airEnabled ? "#574552" : "#353343", airEnabled ? 0.0085 : 0.005);
     return () => {
       scene.fog = null;
     };
   }, [airEnabled, scene]);
+  return null;
+}
+
+function RendererEffects({
+  quality,
+  visualEffectsEnabled,
+}: {
+  quality: WorldQuality;
+  visualEffectsEnabled: boolean;
+}) {
+  const { gl } = useThree();
+  useEffect(() => {
+    gl.toneMapping = visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    gl.toneMappingExposure = visualEffectsEnabled ? 1.12 : 1;
+    gl.shadowMap.enabled = quality !== "low";
+    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    gl.shadowMap.needsUpdate = true;
+  }, [gl, quality, visualEffectsEnabled]);
   return null;
 }
 
@@ -375,6 +396,7 @@ function PlayerLight({
 function SceneContents({
   motionRef,
   quality,
+  visualEffectsEnabled,
   motionReduced,
   airEnabled,
   level,
@@ -398,6 +420,7 @@ function SceneContents({
   const activeChunkRef = useRef(Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS));
   const footSlipRef = useRef(0);
   const { gl } = useThree();
+  const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
   const debugClock = useRef({ last: 0, frames: 0 });
 
   useFrame((frame) => {
@@ -431,11 +454,28 @@ function SceneContents({
   return (
     <>
       <SceneFog airEnabled={airEnabled} />
+      <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={["#252330"]} />
-      <hemisphereLight args={["#d7c4b9", "#27232a", 1.55]} />
-      <ambientLight color="#c3a99b" intensity={0.4} />
-      <directionalLight position={[-8, 14, 8]} color="#f2d2ad" intensity={1.65} />
-      <directionalLight position={[7, 7, -10]} color="#b5bad8" intensity={0.62} />
+      <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
+      <ambientLight color="#77738a" intensity={0.18} />
+      <directionalLight
+        position={[-8, 14, 8]}
+        color="#ffd09a"
+        intensity={2.05}
+        castShadow={quality !== "low"}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
+        shadow-camera-left={-18}
+        shadow-camera-right={18}
+        shadow-camera-top={18}
+        shadow-camera-bottom={-18}
+        shadow-camera-near={0.5}
+        shadow-camera-far={72}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.025}
+      />
+      <directionalLight position={[7, 7, -10]} color="#8887d4" intensity={0.92} />
+      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -523,13 +563,14 @@ export default function World3D(props: World3DProps) {
         <WorldCanvasErrorBoundary>
           <Canvas
             dpr={[minDpr, maxDpr]}
+            shadows={props.quality !== "low"}
             camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.1, far: 380 }}
             gl={{
               alpha: false,
               antialias: props.quality === "high",
               powerPreference: "high-performance",
-              toneMapping: THREE.ACESFilmicToneMapping,
-              toneMappingExposure: 1.24,
+              toneMapping: props.visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
+              toneMappingExposure: props.visualEffectsEnabled ? 1.12 : 1,
             }}
             onCreated={({ gl: renderer, scene }) => {
               renderer.outputColorSpace = THREE.SRGBColorSpace;

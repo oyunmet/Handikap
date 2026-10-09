@@ -332,6 +332,14 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
     }
   });
 
+  useEffect(() => {
+    const root = rootRef.current;
+    root?.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || object.material === shadowMaterial) return;
+      object.castShadow = true;
+    });
+  }, [shadowMaterial]);
+
   return (
     <group ref={rootRef} position={[0, 0, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} scale={[0.72, 1.02, 1]} material={shadowMaterial}>

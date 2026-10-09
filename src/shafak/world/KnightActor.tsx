@@ -28,6 +28,27 @@ type KnightActorProps = {
 
 const warnedModelPaths = new Set<string>();
 
+const GLB_CONTACT_SHADOW_GEOMETRY = new THREE.CircleGeometry(1, 28);
+const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec2 vUv;
+    void main() {
+      float radius = length((vUv - 0.5) * 2.0);
+      float alpha = (1.0 - smoothstep(0.18, 1.0, radius)) * 0.42;
+      gl_FragColor = vec4(0.018, 0.014, 0.024, alpha);
+    }
+  `,
+});
+
 function normalizeMaterialName(name: string) {
   return name.toLocaleLowerCase().replace(/[^a-z0-9ğüşöçıİ]/gi, "");
 }
@@ -78,6 +99,9 @@ function prepareModel(
 ) {
   const model = cloneSkinned(source);
   inspectModelBudget(model, modelPath);
+  model.traverse((object) => {
+    if (object instanceof THREE.Mesh) object.castShadow = true;
+  });
   const ownedMaterials: THREE.Material[] = [];
   if (!modelConfig) return { model, ownedMaterials };
 
@@ -199,6 +223,14 @@ function OptionalGlbKnight({
 
   return (
     <group ref={rootRef}>
+      <mesh
+        geometry={GLB_CONTACT_SHADOW_GEOMETRY}
+        material={GLB_CONTACT_SHADOW_MATERIAL}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.018, 0]}
+        scale={[0.78, 0.52, 1]}
+        dispose={null}
+      />
       <primitive
         object={model}
         rotation={[0, modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing, 0]}

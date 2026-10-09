@@ -75,11 +75,11 @@ function RoadSegment({
 
   return (
     <group ref={rootRef}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow={quality !== "low"}>
         <planeGeometry args={[100, chunk.end - chunk.start]} />
         <meshStandardMaterial color="#50464a" roughness={1} metalness={0} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.045, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.045, 0]} receiveShadow={quality !== "low"}>
         <planeGeometry args={[13.6, chunk.end - chunk.start]} />
         <meshStandardMaterial color="#332f34" roughness={0.98} metalness={0.08} />
       </mesh>
@@ -436,10 +436,10 @@ function createSkyGeometry() {
   const geometry = new THREE.SphereGeometry(260, 32, 16);
   const positions = geometry.getAttribute("position");
   const colors = new Float32Array(positions.count * 3);
-  const horizon = new THREE.Color("#9c5a48");
-  const middle = new THREE.Color("#343044");
-  const zenith = new THREE.Color("#141d32");
-  const dusk = new THREE.Color("#60434a");
+  const horizon = new THREE.Color("#a05d4d");
+  const middle = new THREE.Color("#3a3047");
+  const zenith = new THREE.Color("#11192e");
+  const dusk = new THREE.Color("#6a4654");
   const color = new THREE.Color();
   for (let index = 0; index < positions.count; index += 1) {
     const height = THREE.MathUtils.clamp(positions.getY(index) / 260, -1, 1);
@@ -575,10 +575,10 @@ export function WorldChunks({
       <FinalGate motionRef={motionRef} />
       <group position={[0, 1.4, -12]} visible={airEnabled}>
         <Sparkles
-          count={quality === "high" ? 40 : quality === "balanced" ? 24 : 10}
+          count={quality === "high" ? 48 : quality === "balanced" ? 30 : 12}
           scale={[18, 5, 34]}
-          size={quality === "high" ? 2.3 : 1.6}
-          speed={motionReduced ? 0 : 0.18}
+          size={quality === "high" ? 2.3 : quality === "balanced" ? 1.8 : 1.4}
+          speed={motionReduced ? 0 : 0.42}
           color="#e5a566"
           opacity={0.48}
           noise={0.8}
