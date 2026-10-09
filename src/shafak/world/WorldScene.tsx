@@ -1378,6 +1378,7 @@ export default function WorldScene({
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
             combatStateRef={combatStateRef}
             combatRender={combatRender}
+            opponentName={battleSession?.rival.name ?? ""}
             debugCounters={{
               rivalCount: allRivals.length,
               pickupCount: visiblePickupCount,

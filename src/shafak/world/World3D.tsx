@@ -8,6 +8,7 @@ import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
+import { getOpponentModelConfig, type OpponentModelAnimationState } from "./opponent-model-config";
 import {
   AshSky,
   WorldChunks,
@@ -38,6 +39,7 @@ type World3DProps = {
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
   combatRender: CombatState | null;
+  opponentName: string;
   debugCounters: { rivalCount: number; pickupCount: number; collectedCount: number };
   onDebugNearestRival: () => void;
   onDebugNearestPickup: () => void;
@@ -204,8 +206,16 @@ function combatAnimation(action: CombatAction, speed: number) {
   return speed > 0.28 ? "walk" as const : "idle" as const;
 }
 
+function modelAnimationForState(state: CharacterAnimationState): OpponentModelAnimationState {
+  if (state === "walk" || state === "run") return "run";
+  if (state === "heavyAttack") return "attack";
+  if (state === "die") return "death";
+  return state;
+}
+
 function DuelFighter({
   side,
+  opponentName,
   motionRef,
   combatStateRef,
   combatRender,
@@ -213,6 +223,7 @@ function DuelFighter({
   equipmentVisual,
 }: {
   side: "player" | "bot";
+  opponentName: string;
   motionRef: MutableRefObject<WorldMotion>;
   combatStateRef: MutableRefObject<CombatState | null>;
   combatRender: CombatState | null;
@@ -224,6 +235,16 @@ function DuelFighter({
   const renderedActor = combatRender?.[side];
   const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
   const animation = renderedActor ? combatAnimation(renderedActor.action, speed) : "idle";
+  const modelConfig = side === "bot" ? getOpponentModelConfig(opponentName) : undefined;
+  const modelAnimationState = modelConfig
+    ? combatRender?.ended
+      ? combatRender.verdict === "defeat"
+        ? "victory"
+        : combatRender.verdict === "victory"
+          ? "death"
+          : modelAnimationForState(animation)
+      : modelAnimationForState(animation)
+    : undefined;
 
   useFrame(() => {
     const state = combatStateRef.current;
@@ -249,6 +270,8 @@ function DuelFighter({
           motionReduced={motionReduced}
           facingAngle={side === "bot" ? Math.PI : 0}
           appearance={side === "player" ? equipmentVisual : undefined}
+          modelConfig={modelConfig}
+          modelAnimationState={modelAnimationState}
         />
         <pointLight
           position={[0, 1.7, side === "bot" ? -0.2 : 0.2]}
@@ -267,12 +290,13 @@ function DuelFighter({
 }
 
 function DuelArena({
+  opponentName,
   motionRef,
   combatStateRef,
   combatRender,
   motionReduced,
   equipmentVisual,
-}: Pick<World3DProps, "motionRef" | "combatStateRef" | "combatRender" | "motionReduced" | "equipmentVisual">) {
+}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "motionReduced" | "equipmentVisual">) {
   return (
     <group position={[0, 0, -motionRef.current.distance]}>
       <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -298,8 +322,8 @@ function DuelArena({
       ))}
       {combatRender && (
         <>
-          <DuelFighter side="player" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
-          <DuelFighter side="bot" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
+          <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
+          <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
         </>
       )}
     </group>
@@ -366,6 +390,7 @@ function SceneContents({
   combatActive,
   combatStateRef,
   combatRender,
+  opponentName,
   onDebugStats,
 }: World3DProps & { onDebugStats: (stats: DebugStats) => void }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
@@ -437,7 +462,7 @@ function SceneContents({
       />}
       {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
       {combatActive ? (
-        <DuelArena motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
+        <DuelArena opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} />
       ) : (
         <KnightActor
           motionRef={motionRef}
