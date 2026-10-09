@@ -53,11 +53,19 @@ export function createDuelApi(database: Pool) {
       return;
     }
 
+    let client;
     try {
-      const challenge = await createDuelChallenge(database, userId, request.body.opponentId);
+      client = await database.connect();
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [userId]);
+      const challenge = await createDuelChallenge(client, userId, request.body.opponentId);
+      await client.query("COMMIT");
       response.status(201).json(challenge);
     } catch (error) {
+      if (client) await client.query("ROLLBACK").catch(() => undefined);
       sendServiceError(response, error);
+    } finally {
+      client?.release();
     }
   });
 
@@ -69,9 +77,12 @@ export function createDuelApi(database: Pool) {
     let client;
     try {
       client = await database.connect();
+      await client.query("BEGIN");
       const result = await completeDuel(client, userId, request.body);
+      await client.query("COMMIT");
       response.json(result);
     } catch (error) {
+      if (client) await client.query("ROLLBACK").catch(() => undefined);
       sendServiceError(response, error);
     } finally {
       client?.release();

@@ -1,12 +1,13 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { PerspectiveCamera } from "@react-three/drei";
+import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
+import { createWorldMotion } from "./movement";
 import {
   AshSky,
   WorldChunks,
@@ -14,6 +15,7 @@ import {
 import { createWorldChunk, type WorldChunk } from "./world-generation";
 import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldRival } from "./world-content";
+import type { CombatAction, CombatState } from "../game/combat-engine";
 
 export type WorldQuality = "high" | "balanced" | "low";
 
@@ -30,10 +32,16 @@ type World3DProps = {
   brokenObstacleIds: ReadonlySet<string>;
   focusedRival: WorldRival | null;
   slowMotion: boolean;
+  combatActive: boolean;
+  combatStateRef: MutableRefObject<CombatState | null>;
+  combatRender: CombatState | null;
   debugCounters: { rivalCount: number; pickupCount: number; collectedCount: number };
   onDebugNearestRival: () => void;
   onDebugNearestPickup: () => void;
   onDebugSkipDistance: () => void;
+  onDebugStartBattle: () => void;
+  debugOneHitEnabled: boolean;
+  onToggleDebugOneHit: () => void;
 };
 
 type DebugStats = {
@@ -119,15 +127,20 @@ function CameraRig({
   motionReduced,
   focusedRival,
   slowMotion,
+  combatActive,
+  combatStateRef,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   motionReduced: boolean;
   focusedRival: WorldRival | null;
   slowMotion: boolean;
+  combatActive: boolean;
+  combatStateRef: MutableRefObject<CombatState | null>;
 }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const targetRef = useMemo(() => new THREE.Vector3(), []);
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
+  const impactRef = useRef({ tick: -1, startedAt: 0 });
 
   useFrame((_, delta) => {
     const camera = cameraRef.current;
@@ -135,9 +148,24 @@ function CameraRig({
     const motion = motionRef.current;
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
     const lateral = motion.depth * 5.2;
-    const scaledDelta = Math.min(delta, 0.05) * (slowMotion ? 0.24 : 1);
-    const response = 1 - Math.exp(-scaledDelta * (focusedRival ? 2.6 : 4.5));
-    if (focusedRival) {
+    const combat = combatActive ? combatStateRef.current : null;
+    const scaledDelta = Math.min(delta, 0.05) * (slowMotion && !combat ? 0.24 : 1);
+    const response = 1 - Math.exp(-scaledDelta * (combat ? 5.5 : focusedRival ? 2.6 : 4.5));
+    if (combat) {
+      const centerX = (combat.player.x + combat.bot.x) * 0.5;
+      const centerZ = -motion.distance + (combat.player.z + combat.bot.z) * 0.5;
+      desiredRef.set(centerX + 4.1, 3.25, centerZ + 7.25);
+      targetRef.set(centerX, 1.1, centerZ - 0.35);
+      if (combat.lastImpactTick !== impactRef.current.tick) {
+        impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
+      }
+      const impactAge = _.clock.elapsedTime - impactRef.current.startedAt;
+      const impact = impactAge < 0.13 ? combat.lastImpactStrength * (1 - impactAge / 0.13) : 0;
+      if (impact > 0 && !motionReduced) {
+        camera.position.x += Math.sin(_.clock.elapsedTime * 58) * 0.055 * impact;
+        camera.position.y += Math.cos(_.clock.elapsedTime * 51) * 0.035 * impact;
+      }
+    } else if (focusedRival) {
       const playerX = motion.depth * 5.2;
       const gap = focusedRival.distance - motion.distance;
       const rivalX = focusedRival.x;
@@ -153,7 +181,8 @@ function CameraRig({
     camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
     camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
     camera.lookAt(targetRef);
-    const desiredFov = focusedRival ? 48 : 54 + Math.min(speed, 7) * 0.7;
+    const combatImpact = combat ? combat.lastImpactStrength : 0;
+    const desiredFov = combat ? 45 - combatImpact * 1.1 : focusedRival ? 48 : 54 + Math.min(speed, 7) * 0.7;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
       camera.fov = nextFov;
@@ -162,6 +191,111 @@ function CameraRig({
   });
 
   return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.1} far={380} />;
+}
+
+function combatAnimation(action: CombatAction, speed: number) {
+  if (action === "attack") return "attack" as const;
+  if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo") return "heavyAttack" as const;
+  if (action === "block" || action === "dodge" || action === "hit" || action === "die") return action;
+  return speed > 0.28 ? "walk" as const : "idle" as const;
+}
+
+function DuelFighter({
+  side,
+  motionRef,
+  combatStateRef,
+  combatRender,
+  motionReduced,
+}: {
+  side: "player" | "bot";
+  motionRef: MutableRefObject<WorldMotion>;
+  combatStateRef: MutableRefObject<CombatState | null>;
+  combatRender: CombatState | null;
+  motionReduced: boolean;
+}) {
+  const actorRoot = useRef<THREE.Group>(null);
+  const actorMotion = useMemo(() => ({ current: createWorldMotion() }), []);
+  const renderedActor = combatRender?.[side];
+  const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
+  const animation = renderedActor ? combatAnimation(renderedActor.action, speed) : "idle";
+
+  useFrame(() => {
+    const state = combatStateRef.current;
+    const actor = state?.[side];
+    if (!state || !actor) return;
+    actorMotion.current.depth = THREE.MathUtils.clamp(actor.x / 5.2, -1, 1);
+    actorMotion.current.velocityX = actor.vx;
+    actorMotion.current.velocityY = actor.vz;
+    actorMotion.current.distance = motionRef.current.distance - actor.z;
+    actorMotion.current.cameraX = motionRef.current.cameraX;
+    actorMotion.current.stepPhase = state.tick * 0.13;
+    actorMotion.current.hasMoved = Math.hypot(actor.vx, actor.vz) > 0.25;
+    actorRoot.current?.position.set(0, 0, actor.z);
+  });
+
+  if (!renderedActor) return null;
+  return (
+    <group ref={actorRoot}>
+      <group scale={side === "bot" ? 1.07 : 1}>
+        <KnightActor
+          motionRef={actorMotion}
+          state={animation}
+          motionReduced={motionReduced}
+          facingAngle={side === "bot" ? Math.PI : 0}
+        />
+        <pointLight
+          position={[0, 1.7, side === "bot" ? -0.2 : 0.2]}
+          color={side === "bot" ? "#ff644f" : "#f5c175"}
+          intensity={side === "bot" ? 0.95 : 0.62}
+          distance={4.5}
+        />
+      </group>
+      {side === "bot" && (
+        <Html position={[renderedActor.x, 2.55, renderedActor.z]} center distanceFactor={12} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
+          <span className="world-bot-tag is-focused"><b>BOT</b><span>RAKİP</span></span>
+        </Html>
+      )}
+    </group>
+  );
+}
+
+function DuelArena({
+  motionRef,
+  combatStateRef,
+  combatRender,
+  motionReduced,
+}: Pick<World3DProps, "motionRef" | "combatStateRef" | "combatRender" | "motionReduced">) {
+  return (
+    <group position={[0, 0, -motionRef.current.distance]}>
+      <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[4.05, 4.18, 96]} />
+        <meshBasicMaterial color="#f2a05b" transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 0.045, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[3.78, 3.86, 72]} />
+        <meshBasicMaterial color="#e45c48" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      {[-4.25, 4.25].map((x) => (
+        <group key={x} position={[x, 0, -0.55]}>
+          <mesh position={[0, 0.66, 0]}>
+            <cylinderGeometry args={[0.085, 0.13, 1.3, 7]} />
+            <meshStandardMaterial color="#4b3030" roughness={0.78} />
+          </mesh>
+          <mesh position={[0, 1.43, 0]}>
+            <dodecahedronGeometry args={[0.19, 0]} />
+            <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} />
+          </mesh>
+          <pointLight position={[0, 1.48, 0]} color="#ff7849" intensity={1.15} distance={6} />
+        </group>
+      ))}
+      {combatRender && (
+        <>
+          <DuelFighter side="player" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} />
+          <DuelFighter side="bot" motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} />
+        </>
+      )}
+    </group>
+  );
 }
 
 function PlayerLight({
@@ -215,6 +349,9 @@ function SceneContents({
   brokenObstacleIds,
   focusedRival,
   slowMotion,
+  combatActive,
+  combatStateRef,
+  combatRender,
   onDebugStats,
 }: World3DProps & { onDebugStats: (stats: DebugStats) => void }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
@@ -265,6 +402,8 @@ function SceneContents({
         motionReduced={motionReduced}
         focusedRival={focusedRival}
         slowMotion={slowMotion}
+        combatActive={combatActive}
+        combatStateRef={combatStateRef}
       />
       <AshSky motionRef={motionRef} />
       <WorldChunks
@@ -274,21 +413,25 @@ function SceneContents({
         quality={quality}
         airEnabled={airEnabled}
       />
-      <WorldRoadEntities
+      {!combatActive && <WorldRoadEntities
         motionRef={motionRef}
         rivals={rivals}
         collectedPickupIds={collectedPickupIds}
         brokenObstacleIds={brokenObstacleIds}
         focusedRivalId={focusedRival?.id ?? null}
         reducedMotion={motionReduced}
-      />
-      <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} />
-      <KnightActor
-        motionRef={motionRef}
-        state={animationState}
-        motionReduced={motionReduced}
-        footSlipRef={footSlipRef}
-      />
+      />}
+      {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} />}
+      {combatActive ? (
+        <DuelArena motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} />
+      ) : (
+        <KnightActor
+          motionRef={motionRef}
+          state={animationState}
+          motionReduced={motionReduced}
+          footSlipRef={footSlipRef}
+        />
+      )}
     </>
   );
 }
@@ -370,12 +513,17 @@ export default function World3D(props: World3DProps) {
           <span>Mesafe: {debugStats.distance.toFixed(1)} m · Hız: {debugStats.speed.toFixed(2)} m/sn</span>
           <span>FPS: {debugStats.fps || "ölçülüyor"} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
           <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
+          {props.combatRender && (
+            <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
+          )}
           <span>Dünya: Kül Yolu · Yüklü parça: {debugStats.chunks}</span>
           <span>BOT: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
           <div className="world-debug__actions">
             <button type="button" onClick={props.onDebugNearestRival}>En yakın BOT</button>
             <button type="button" onClick={props.onDebugNearestPickup}>En yakın eşya</button>
             <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>
+            <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
+            <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
           </div>
         </aside>
       )}

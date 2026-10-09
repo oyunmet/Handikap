@@ -8,6 +8,9 @@ type DuelResultsProps = {
   rewards: BattleRewards;
   opponentName: string;
   playerName: string;
+  practice?: boolean;
+  note?: string;
+  canReplay?: boolean;
   onContinue: () => void;
   onReplay: () => void;
 };
@@ -17,6 +20,9 @@ export default function DuelResults({
   rewards,
   opponentName,
   playerName,
+  practice = false,
+  note,
+  canReplay = true,
   onContinue,
   onReplay,
 }: DuelResultsProps) {
@@ -37,6 +43,7 @@ export default function DuelResults({
         <span className="game-eyebrow">DÜELLO SONUCU</span>
         <h1>{title}</h1>
         <p className="duel-result__subtitle">{won ? `${opponentName} ganimetini bıraktı.` : drew ? "İki savaşçı da geri çekildi." : `${opponentName} bu kez üstün geldi.`}</p>
+        {(practice || note) && <p className="duel-result__note">{practice ? "Eğitim düellosu · ödül ve profil ilerlemesi verilmez." : note}</p>}
 
         <div className="duel-result__participants">
           <strong>{playerName}</strong>
@@ -59,7 +66,7 @@ export default function DuelResults({
 
         <div className="duel-result__actions">
           <button type="button" className="game-gold-button" onClick={onContinue}>YOLUNA DEVAM ET</button>
-          <button type="button" className="game-quiet-button" onClick={onReplay}>TEKRAR DÜELLO</button>
+          {canReplay && <button type="button" className="game-quiet-button" onClick={onReplay}>TEKRAR DÜELLO</button>}
         </div>
       </motion.section>
     </main>

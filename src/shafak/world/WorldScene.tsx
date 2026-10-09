@@ -1,6 +1,21 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { playFootstep, playWorldCue } from "../audio/howler";
+import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
+import DuelControls from "../game/DuelControls";
+import DuelResults from "../game/DuelResults";
+import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
+import type { BattleRewards, DuelSummary } from "../game/types";
+import {
+  COMBAT_HZ,
+  INPUT_BUTTON,
+  MAX_INPUT_BUTTONS,
+  createCombatState,
+  stepCombat,
+  type CombatEvent,
+  type CombatInput,
+  type CombatInputFrame,
+  type CombatState,
+} from "../game/combat-engine";
 import { resolveCharacterAnimationState } from "./character-animation";
 import {
   createWorldMotion,
@@ -8,6 +23,7 @@ import {
   stepWorldMotion,
   WORLD_GATE_INTERVAL_METERS,
   type WorldMotionFrame,
+  type WorldMotion,
 } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import {
@@ -25,7 +41,6 @@ import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
 
 const World3D = lazy(() => import("./World3D"));
-import type { PlayerProfile } from "../game/profile";
 import "./world-scene.css";
 
 type WorldSceneProps = {
@@ -36,6 +51,9 @@ type WorldSceneProps = {
   onExit: () => void;
   onOpenSettings: () => void;
   profile: PlayerProfile;
+  accountDuelEnabled: boolean;
+  accountProfileReady: boolean;
+  onBattleProfile: (profile: PlayerProfile) => void;
   onOpenProfile: () => void;
   onLoadClaimedPickups: (chapterId: number) => Promise<string[]>;
   onClaimWorldPickups: (chapterId: number, pickupIds: string[]) => Promise<{
@@ -47,6 +65,53 @@ type WorldSceneProps = {
 type Panel = "inventory" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
 type PickupFlight = { id: number; kind: WorldPickup["kind"]; amount: number };
+type BattlePhase = "sweep" | "vs" | "countdown" | "fight" | "settling" | "settlement-error" | "result" | "error";
+type BattleSession = {
+  rival: WorldRival;
+  phase: BattlePhase;
+  beat: number;
+  practice: boolean;
+  message?: string;
+  summary?: DuelSummary;
+  rewards?: BattleRewards;
+};
+type CombatInputBuffer = {
+  x: number;
+  y: number;
+  buttons: number;
+  pressed: number;
+  released: number;
+};
+type ActiveDuel = {
+  rival: WorldRival;
+  duelId: string | null;
+  seed: number;
+  practice: boolean;
+};
+type CombatVisualEvent = CombatEvent & { expiresAt: number };
+
+function DuelHealthBar({ label, hp, maxHp, side }: { label: string; hp: number; maxHp: number; side: "player" | "bot" }) {
+  const [trail, setTrail] = useState(hp);
+  useEffect(() => {
+    if (hp >= trail) {
+      setTrail(hp);
+      return undefined;
+    }
+    const timeout = window.setTimeout(() => setTrail(hp), 440);
+    return () => window.clearTimeout(timeout);
+  }, [hp, trail]);
+  const percent = Math.max(0, Math.min(100, (hp / Math.max(1, maxHp)) * 100));
+  const trailPercent = Math.max(percent, Math.min(100, (trail / Math.max(1, maxHp)) * 100));
+  return (
+    <div className={`duel-health duel-health--${side}`}>
+      <div className="duel-health__label"><span>{label}</span><b>{Math.ceil(hp)} <i>/ {maxHp}</i></b></div>
+      <div className="duel-health__track" role="meter" aria-label={`${label} canı`} aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={Math.ceil(hp)}>
+        <i className="duel-health__trail" style={{ width: `${trailPercent}%` }} />
+        <i className="duel-health__fill" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
 
 function getCachedWorldChapters(distance: number, cache: Map<number, WorldChapterContent>) {
   const current = Math.max(0, Math.floor(distance / WORLD_GATE_INTERVAL_METERS));
@@ -85,6 +150,9 @@ export default function WorldScene({
   onExit,
   onOpenSettings,
   profile,
+  accountDuelEnabled,
+  accountProfileReady,
+  onBattleProfile,
   onOpenProfile,
   onLoadClaimedPickups,
   onClaimWorldPickups,
@@ -107,7 +175,11 @@ export default function WorldScene({
   const [pickupFlights, setPickupFlights] = useState<PickupFlight[]>([]);
   const [pickupNotice, setPickupNotice] = useState("");
   const [attackAnimation, setAttackAnimation] = useState(false);
-  const [battleEntry, setBattleEntry] = useState<{ rival: WorldRival; phase: "sweep" | "vs" } | null>(null);
+  const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
+  const [combatRender, setCombatRender] = useState<CombatState | null>(null);
+  const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
+  const [hitFlash, setHitFlash] = useState(false);
+  const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(false);
   const contentCacheRef = useRef(new Map<number, WorldChapterContent>());
   const rivalDistancesRef = useRef(new Map<string, number>());
   const collectedRef = useRef(new Set<string>());
@@ -124,7 +196,20 @@ export default function WorldScene({
   const nextAttackAtRef = useRef(0);
   const simulationTimeRef = useRef(0);
   const battleActiveRef = useRef(false);
-  const battleTimerRef = useRef<number | undefined>(undefined);
+  const battleSessionRef = useRef<BattleSession | null>(null);
+  const activeDuelRef = useRef<ActiveDuel | null>(null);
+  const combatStateRef = useRef<CombatState | null>(null);
+  const combatInputRef = useRef<CombatInputBuffer>({ x: 0, y: 0, buttons: 0, pressed: 0, released: 0 });
+  const duelKeyboardKeysRef = useRef(new Set<string>());
+  const inputLogRef = useRef<CombatInputFrame[]>([]);
+  const lastInputFrameRef = useRef<CombatInputFrame | null>(null);
+  const battleTimersRef = useRef<number[]>([]);
+  const battleFrozenMotionRef = useRef<WorldMotion | null>(null);
+  const pendingVerdictRef = useRef<DuelSummary | null>(null);
+  const pendingSurrenderRef = useRef(false);
+  const settlementStartedRef = useRef(false);
+  const hitStopUntilRef = useRef(0);
+  const nextCombatEffectIdRef = useRef(0);
   const nextFlightIdRef = useRef(0);
   const attackAnimationTimerRef = useRef<number | undefined>(undefined);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
@@ -135,7 +220,9 @@ export default function WorldScene({
   const allRivals = activeChapters.flatMap((chapter) => chapter.rivals)
     .map((rival) => ({ ...rival, distance: rivalDistancesRef.current.get(rival.id) ?? rival.distance }));
   const nearbyRivals = allRivals.filter((rival) => Math.abs(rival.distance - travel) <= 105);
-  const rivals = allRivals.filter((rival) => rival.distance >= travel - 8)
+  const rivals = allRivals.filter((rival) =>
+    rival.distance >= travel - 8 && !profile.defeatedOpponents.includes(rival.id),
+  )
     .sort((left, right) => left.distance - right.distance);
   const nextOpponent = rivals[0];
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
@@ -281,23 +368,246 @@ export default function WorldScene({
     claimTimersRef.current.set(chapterId, timer);
   }, [flushPickupClaims]);
 
-  const beginEncounter = useCallback((rival: WorldRival) => {
-    if (battleActiveRef.current) return;
-    battleActiveRef.current = true;
-    setBattleEntry({ rival, phase: "sweep" });
-    playWorldCue("battle");
-    if (battleTimerRef.current) window.clearTimeout(battleTimerRef.current);
-    battleTimerRef.current = window.setTimeout(() => {
-      setBattleEntry((current) => current ? { ...current, phase: "vs" } : null);
-    }, 640);
-  }, []);
+  const queueBattleTimer = (callback: () => void, delay: number) => {
+    const timer = window.setTimeout(() => {
+      battleTimersRef.current = battleTimersRef.current.filter((entry) => entry !== timer);
+      callback();
+    }, delay);
+    battleTimersRef.current.push(timer);
+  };
+
+  const updateBattleSession = (patch: Partial<BattleSession>) => {
+    const current = battleSessionRef.current;
+    if (!current) return;
+    const next = { ...current, ...patch };
+    battleSessionRef.current = next;
+    setBattleSession(next);
+  };
+
+  const resetDuelInput = () => {
+    combatInputRef.current = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
+  };
 
   const closeEncounter = useCallback(() => {
+    for (const timer of battleTimersRef.current) window.clearTimeout(timer);
+    battleTimersRef.current = [];
     battleActiveRef.current = false;
-    if (battleTimerRef.current) window.clearTimeout(battleTimerRef.current);
-    battleTimerRef.current = undefined;
-    setBattleEntry(null);
+    const frozen = battleFrozenMotionRef.current;
+    if (frozen) {
+      motionRef.current = { ...frozen, velocityX: 0, velocityY: 0, hasMoved: false, cameraLead: 0 };
+    }
+    battleFrozenMotionRef.current = null;
+    battleSessionRef.current = null;
+    activeDuelRef.current = null;
+    combatStateRef.current = null;
+    setBattleSession(null);
+    setCombatRender(null);
+    setCombatEvents([]);
+    setHitFlash(false);
+    inputLogRef.current = [];
+    lastInputFrameRef.current = null;
+    pendingVerdictRef.current = null;
+    settlementStartedRef.current = false;
+    hitStopUntilRef.current = 0;
+    resetDuelInput();
   }, []);
+
+  const settleDuel = useCallback(async (verdict: "victory" | "defeat" | "draw", surrendered = false) => {
+    const context = activeDuelRef.current;
+    if (!context || settlementStartedRef.current) return;
+    settlementStartedRef.current = true;
+    pendingSurrenderRef.current = surrendered;
+    const localSummary: DuelSummary = {
+      verdict,
+      opponentId: context.rival.id,
+      loot: context.rival.loot,
+    };
+    pendingVerdictRef.current = localSummary;
+    updateBattleSession({ phase: "settling", summary: localSummary, message: "" });
+    const emptyRewards: BattleRewards = { gold: 0, xp: 0, item: null, lostStake: 0 };
+    playGameSound(verdict === "victory" ? "victory" : "defeat");
+
+    if (context.practice) {
+      updateBattleSession({
+        phase: "result",
+        summary: { ...localSummary, loot: 0 },
+        rewards: emptyRewards,
+        message: "Eğitim düellosu · ödül ve profil ilerlemesi verilmez.",
+      });
+      return;
+    }
+
+    if (context.duelId) {
+      try {
+        const response = await fetch("/api/duels/complete", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(surrendered
+            ? { duelId: context.duelId, surrendered: true }
+            : { duelId: context.duelId, inputLog: inputLogRef.current }),
+        });
+        const result = await response.json() as {
+          summary?: DuelSummary;
+          rewards?: BattleRewards;
+          profile?: unknown;
+          error?: string;
+        };
+        if (!response.ok) throw new Error(result.error || `Düello doğrulanamadı (${response.status}).`);
+        if (!result.summary || !result.rewards || !result.profile) {
+          throw new Error("Sunucu düello sonucu için eksik yanıt verdi.");
+        }
+        onBattleProfile(normalizePlayerProfile(result.profile));
+        updateBattleSession({
+          phase: "result",
+          summary: result.summary,
+          rewards: result.rewards,
+          message: surrendered ? "Düellodan çekildin; bu maç için ödül verilmedi." : "",
+        });
+        return;
+      } catch (error) {
+        settlementStartedRef.current = false;
+        updateBattleSession({
+          phase: "settlement-error",
+          message: error instanceof Error
+            ? `${error.message} Ödül profile yazılmadı; tekrar doğrulayabilirsin.`
+            : "Ödül sunucuda doğrulanamadı; tekrar deneyebilirsin.",
+        });
+        return;
+      }
+    }
+
+    if (surrendered) {
+      updateBattleSession({
+        phase: "result",
+        summary: localSummary,
+        rewards: emptyRewards,
+        message: "Düellodan çekildin; bu maç için ödül verilmedi.",
+      });
+      return;
+    }
+
+    const awarded = awardBattle(profile, localSummary);
+    onBattleProfile(awarded.profile);
+    updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
+  }, [onBattleProfile, profile]);
+
+  const beginEncounter = useCallback(async (rival: WorldRival) => {
+    if (battleActiveRef.current) return;
+    battleActiveRef.current = true;
+    settlementStartedRef.current = false;
+    pendingVerdictRef.current = null;
+    resetDuelInput();
+    inputLogRef.current = [[0, 0, 0, 0, 0, 0]];
+    lastInputFrameRef.current = inputLogRef.current[0];
+    battleFrozenMotionRef.current = {
+      ...motionRef.current,
+      velocityX: 0,
+      velocityY: 0,
+      hasMoved: false,
+      cameraLead: 0,
+    };
+    motionRef.current = battleFrozenMotionRef.current;
+    const practice = debugOneHitEnabled;
+    const initialSession: BattleSession = { rival, phase: "sweep", beat: 0, practice };
+    battleSessionRef.current = initialSession;
+    setBattleSession(initialSession);
+    setCombatEvents([]);
+    playWorldCue("battle");
+
+    try {
+      let seed: number;
+      let difficulty = rival.difficulty;
+      let duelId: string | null = null;
+      if (accountDuelEnabled && !practice) {
+        if (!accountProfileReady) throw new Error("Hesap profili sunucuya bağlı değil; düello ödülü güvenle doğrulanamaz.");
+        const response = await fetch("/api/duels/start", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ opponentId: rival.id }),
+        });
+        const challenge = await response.json() as {
+          duelId?: unknown;
+          seed?: unknown;
+          opponent?: { id?: unknown; difficulty?: unknown };
+          error?: string;
+        };
+        if (!response.ok) throw new Error(challenge.error || `Düello başlatılamadı (${response.status}).`);
+        if (
+          typeof challenge.duelId !== "string" ||
+          typeof challenge.seed !== "number" ||
+          !Number.isSafeInteger(challenge.seed) ||
+          challenge.opponent?.id !== rival.id ||
+          !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty))
+        ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
+        duelId = challenge.duelId;
+        seed = challenge.seed;
+        difficulty = challenge.opponent.difficulty as typeof difficulty;
+      } else {
+        const seedBuffer = new Uint32Array(1);
+        window.crypto.getRandomValues(seedBuffer);
+        seed = seedBuffer[0] || 1;
+      }
+
+      activeDuelRef.current = { rival, duelId, seed, practice };
+      const initialCombat = createCombatState(seed, difficulty);
+      combatStateRef.current = initialCombat;
+      setCombatRender(initialCombat);
+
+      const sweepDuration = motionReduced ? 100 : 260;
+      const versusDuration = motionReduced ? 280 : 860;
+      queueBattleTimer(() => {
+        updateBattleSession({ phase: "vs" });
+        queueBattleTimer(() => {
+          updateBattleSession({ phase: "countdown", beat: 0 });
+          const advance = (beat: number) => {
+            if (beat >= 3) {
+              updateBattleSession({ phase: "fight", beat: 3 });
+              return;
+            }
+            queueBattleTimer(() => {
+              updateBattleSession({ beat: beat + 1 });
+              advance(beat + 1);
+            }, motionReduced ? 300 : 760);
+          };
+          advance(0);
+        }, versusDuration);
+      }, sweepDuration);
+    } catch (error) {
+      updateBattleSession({
+        phase: "error",
+        message: error instanceof Error ? error.message : "Düello başlatılamadı.",
+      });
+    }
+  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced]);
+
+  const pressDuelButton = (button: number) => {
+    const input = combatInputRef.current;
+    if (input.buttons & button) return;
+    input.buttons |= button;
+    input.pressed |= button;
+    if (vibrationOn && "vibrate" in navigator) {
+      try { navigator.vibrate(button === INPUT_BUTTON.attack ? 12 : 8); } catch { /* Haptics are optional. */ }
+    }
+  };
+  const releaseDuelButton = (button: number) => {
+    const input = combatInputRef.current;
+    if (!(input.buttons & button)) return;
+    input.buttons &= ~button;
+    input.released |= button;
+  };
+  const moveDuelPlayer = (x: number, y: number) => {
+    combatInputRef.current.x = Math.round(Math.max(-1, Math.min(1, x)) * 100);
+    combatInputRef.current.y = Math.round(Math.max(-1, Math.min(1, y)) * 100);
+  };
+
+  const debugStartBattle = () => {
+    const target = rivals[0] ?? allRivals
+      .filter((rival) => !profile.defeatedOpponents.includes(rival.id))
+      .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
+    if (target) void beginEncounter(target);
+  };
 
   const requestObstacleAttack = useCallback(() => {
     if (battleActiveRef.current) return;
@@ -307,7 +617,7 @@ export default function WorldScene({
 
   useEffect(() => () => {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(0);
-    if (battleTimerRef.current) window.clearTimeout(battleTimerRef.current);
+    for (const timer of battleTimersRef.current) window.clearTimeout(timer);
     if (attackAnimationTimerRef.current) window.clearTimeout(attackAnimationTimerRef.current);
     for (const timer of claimTimersRef.current.values()) window.clearTimeout(timer);
   }, []);
@@ -322,6 +632,64 @@ export default function WorldScene({
     window.addEventListener("keydown", onActionKeyDown);
     return () => window.removeEventListener("keydown", onActionKeyDown);
   }, [requestObstacleAttack]);
+
+  useEffect(() => {
+    if (battleSession?.phase !== "fight") return undefined;
+    const buttonForKey: Record<string, number> = {
+      j: INPUT_BUTTON.attack,
+      k: INPUT_BUTTON.block,
+      l: INPUT_BUTTON.dodge,
+      " ": INPUT_BUTTON.skillOne,
+      q: INPUT_BUTTON.skillTwo,
+    };
+    const syncKeyboardMovement = () => {
+      const keys = duelKeyboardKeysRef.current;
+      const x = Number(keys.has("d") || keys.has("arrowright")) - Number(keys.has("a") || keys.has("arrowleft"));
+      const y = Number(keys.has("w") || keys.has("arrowup")) - Number(keys.has("s") || keys.has("arrowdown"));
+      moveDuelPlayer(x, y);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest("button,input,textarea,select")) return;
+      const key = event.key.toLowerCase();
+      const normalized = event.code === "Space" ? " " : key;
+      if (["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"].includes(normalized)) {
+        event.preventDefault();
+        duelKeyboardKeysRef.current.add(normalized);
+        syncKeyboardMovement();
+        return;
+      }
+      const button = buttonForKey[normalized];
+      if (button) {
+        event.preventDefault();
+        if (!event.repeat) pressDuelButton(button);
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      const normalized = event.code === "Space" ? " " : event.key.toLowerCase();
+      if (duelKeyboardKeysRef.current.delete(normalized)) {
+        syncKeyboardMovement();
+        return;
+      }
+      const button = buttonForKey[normalized];
+      if (button) releaseDuelButton(button);
+    };
+    const onBlur = () => {
+      for (const button of [INPUT_BUTTON.attack, INPUT_BUTTON.block, INPUT_BUTTON.dodge, INPUT_BUTTON.skillOne, INPUT_BUTTON.skillTwo]) {
+        releaseDuelButton(button);
+      }
+      duelKeyboardKeysRef.current.clear();
+      moveDuelPlayer(0, 0);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      onBlur();
+    };
+  }, [battleSession?.phase]);
 
   useEffect(() => {
     let frame = 0;
@@ -341,8 +709,96 @@ export default function WorldScene({
       const newlyCollected = new Map<number, string[]>();
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
+        if (battleActiveRef.current) {
+          const session = battleSessionRef.current;
+          const currentCombat = combatStateRef.current;
+          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && now >= hitStopUntilRef.current) {
+            const buffered = combatInputRef.current;
+            const inputFrame: CombatInputFrame = [
+              currentCombat.tick + 1,
+              buffered.x,
+              buffered.y,
+              buffered.buttons & MAX_INPUT_BUTTONS,
+              buffered.pressed & MAX_INPUT_BUTTONS,
+              buffered.released & MAX_INPUT_BUTTONS,
+            ];
+            const previousFrame = lastInputFrameRef.current;
+            if (
+              !previousFrame ||
+              inputFrame[1] !== previousFrame[1] ||
+              inputFrame[2] !== previousFrame[2] ||
+              inputFrame[3] !== previousFrame[3] ||
+              inputFrame[4] !== 0 ||
+              inputFrame[5] !== 0
+            ) {
+              inputLogRef.current.push(inputFrame);
+              lastInputFrameRef.current = inputFrame;
+            }
+            buffered.pressed = 0;
+            buffered.released = 0;
+            const input: CombatInput = {
+              x: buffered.x,
+              y: buffered.y,
+              buttons: buffered.buttons & MAX_INPUT_BUTTONS,
+              pressed: inputFrame[4],
+              released: inputFrame[5],
+            };
+            let stepped = stepCombat(currentCombat, input);
+            const active = activeDuelRef.current;
+            if (
+              active?.practice &&
+              stepped.events.some((event) => event.type === "hit" && event.target === "bot") &&
+              !stepped.state.ended
+            ) {
+              stepped = {
+                state: {
+                  ...stepped.state,
+                  bot: { ...stepped.state.bot, hp: 0, action: "die", actionUntilTick: stepped.state.tick + 999 },
+                  ended: true,
+                  verdict: "victory",
+                  lastImpactStrength: 1,
+                },
+                events: [...stepped.events, {
+                  id: stepped.state.tick * 100 + 99,
+                  type: "knockout",
+                  target: "bot",
+                  damage: 0,
+                  critical: false,
+                }],
+              };
+            }
+            combatStateRef.current = stepped.state;
+            if (stepped.events.length) {
+              hitStopUntilRef.current = window.performance.now() + Math.min(90, 34 + stepped.events.reduce((sum, event) => sum + (event.type === "hit" ? event.damage ?? 0 : 0), 0) * 0.8);
+              const visualEvents = stepped.events.map((event) => ({
+                ...event,
+                id: ++nextCombatEffectIdRef.current,
+                expiresAt: window.performance.now() + 900,
+              }));
+              setCombatEvents((current) => [...current.filter((event) => event.expiresAt > window.performance.now()), ...visualEvents].slice(-12));
+              const ids = new Set(visualEvents.map((event) => event.id));
+              queueBattleTimer(() => setCombatEvents((current) => current.filter((event) => !ids.has(event.id))), 960);
+              if (stepped.events.some((event) => event.type === "hit" || event.type === "parry" || event.type === "skill")) {
+                setHitFlash(true);
+                queueBattleTimer(() => setHitFlash(false), 75);
+              }
+              if (stepped.events.some((event) => event.type === "hit" || event.type === "parry" || event.type === "block")) {
+                playWorldCue("attack");
+                if (vibrationOn && "vibrate" in navigator) {
+                  try { navigator.vibrate(stepped.events.some((event) => event.critical) ? [24, 25, 28] : 18); } catch { /* Haptics are optional. */ }
+                }
+              }
+            }
+            if (stepped.state.tick % 3 === 0 || stepped.events.length || stepped.state.ended) {
+              setCombatRender(stepped.state);
+            }
+            if (stepped.state.ended && stepped.state.verdict) void settleDuel(stepped.state.verdict);
+          }
+          accumulator -= fixedStep;
+          continue;
+        }
         simulationTimeRef.current += fixedStep;
-        let stepInput = battleActiveRef.current ? stoppedInput : liveInput;
+        let stepInput = liveInput;
         if (Array.from(trapCooldownRef.current.values()).some((until) => until >= 0 && until > simulationTimeRef.current)) {
           stepInput = {
             ...stepInput,
@@ -351,7 +807,7 @@ export default function WorldScene({
             analogMagnitude: stepInput.analogMagnitude * 0.38,
           };
         }
-        const simulationStep = fixedStep * (battleActiveRef.current ? 0.24 : 1);
+        const simulationStep = fixedStep;
         let nextFrame = stepWorldMotion(motionRef.current, stepInput, simulationStep);
         const chapters = getCachedWorldChapters(nextFrame.distance, contentCacheRef.current);
         const obstacles = chapters.flatMap((chapter) => chapter.obstacles);
@@ -562,6 +1018,8 @@ export default function WorldScene({
     <main
       ref={sceneRef}
       className="world-scene"
+      data-battle={battleSession?.phase ?? "none"}
+      data-danger={combatRender && combatRender.player.hp / combatRender.player.maxHp <= 0.3 ? "true" : "false"}
       data-quality={quality}
       data-reduced={motionReduced}
       data-air={airEnabled}
@@ -584,11 +1042,14 @@ export default function WorldScene({
             level={profile.level}
             relicCount={profile.items.length}
             animationState={attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
-            rivals={nearbyRivals}
+            rivals={battleSession ? [] : nearbyRivals}
             collectedPickupIds={collectedPickupIds}
             brokenObstacleIds={brokenObstacleIds}
-            focusedRival={battleEntry?.rival ?? null}
-            slowMotion={Boolean(battleEntry)}
+            focusedRival={battleSession?.rival ?? null}
+            slowMotion={Boolean(battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
+            combatActive={Boolean(battleSession && battleSession.phase !== "error")}
+            combatStateRef={combatStateRef}
+            combatRender={combatRender}
             debugCounters={{
               rivalCount: allRivals.length,
               pickupCount: visiblePickupCount,
@@ -597,6 +1058,9 @@ export default function WorldScene({
             onDebugNearestRival={debugNearestRival}
             onDebugNearestPickup={debugNearestPickup}
             onDebugSkipDistance={debugSkipDistance}
+            onDebugStartBattle={debugStartBattle}
+            debugOneHitEnabled={debugOneHitEnabled}
+            onToggleDebugOneHit={() => setDebugOneHitEnabled((value) => !value)}
           />
         </Suspense>
         <div className="world-step-bursts" aria-hidden="true">
@@ -629,6 +1093,50 @@ export default function WorldScene({
         </div>
         <div className="world-vignette" />
       </div>
+      {battleSession?.phase === "fight" && combatRender && (
+        <>
+          <section className="duel-hud" aria-label="Düello durumu">
+            <DuelHealthBar label={profile.name} hp={combatRender.player.hp} maxHp={combatRender.player.maxHp} side="player" />
+            <div className="duel-hud__center">
+              <span>VS</span>
+              <strong>{combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
+              <div className="duel-stamina" aria-label={`Dayanıklılık ${Math.ceil(combatRender.player.stamina)}`}>
+                <i style={{ width: `${Math.max(0, combatRender.player.stamina / combatRender.player.maxStamina * 100)}%` }} />
+              </div>
+              {combatRender.player.chargeStartedTick >= 0 && (
+                <small className="duel-charge">AĞIR SALDIRI {Math.min(100, Math.round((combatRender.tick - combatRender.player.chargeStartedTick) / 30 * 100))}%</small>
+              )}
+            </div>
+            <DuelHealthBar label={battleSession.rival.name} hp={combatRender.bot.hp} maxHp={combatRender.bot.maxHp} side="bot" />
+          </section>
+          <div className="duel-combat-effects" aria-hidden="true">
+            {combatEvents.map((event) => (
+              <div
+                key={event.id}
+                className={`duel-combat-fx is-${event.type === "skill" ? event.attack : event.type}${event.target === "player" ? " targets-player" : " targets-bot"}${event.critical ? " is-critical" : ""}`}
+                style={{ "--fx-side": event.target === "player" ? "36%" : "64%" } as CSSProperties}
+              >
+                <i />
+                {Boolean(event.damage) && <b>{event.critical ? "!" : ""}{Math.ceil(event.damage ?? 0)}</b>}
+                {event.type === "parry" && <strong>PARRY</strong>}
+                {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
+              </div>
+            ))}
+          </div>
+          {hitFlash && <div className="duel-hit-flash" aria-hidden="true" />}
+          <div className="duel-low-health-vignette" aria-hidden="true" />
+          <DuelControls
+            skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
+            skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
+            onPress={pressDuelButton}
+            onRelease={releaseDuelButton}
+            onMove={moveDuelPlayer}
+            onSurrender={() => {
+              if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);
+            }}
+          />
+        </>
+      )}
       <header className="world-topbar">
         <button className="world-profile" type="button" onClick={onOpenProfile} aria-label={`${profile.name}, seviye ${profile.level}, profili aç`}>
           <span className="world-profile__crest" aria-hidden="true">Ş</span>
@@ -719,7 +1227,7 @@ export default function WorldScene({
           </div>
         </div>
       )}
-      {nearestBreakable && !battleEntry && (
+      {nearestBreakable && !battleSession && (
         <div className="world-breakable-action">
           <span>BARİKAT · {remainingBarricadeHits} DARBE</span>
           <button type="button" onClick={requestObstacleAttack} aria-label={`Barikata saldır, ${remainingBarricadeHits} darbe kaldı`}>
@@ -727,17 +1235,74 @@ export default function WorldScene({
           </button>
         </div>
       )}
-      {battleEntry && (
-        <div className={`world-battle-entry${battleEntry.phase === "vs" ? " is-vs" : ""}`} role="dialog" aria-modal="true" aria-label="BOT karşılaşması">
+      {battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase) && (
+        <div className={`world-battle-entry${battleSession.phase !== "sweep" ? " is-vs" : ""}`} role="dialog" aria-modal="true" aria-label="BOT karşılaşması">
           <div className="world-battle-entry__vignette" />
           <span className="world-battle-entry__eyebrow">GERÇEK ZAMANLI SAVAŞ · AYNI 3D DÜNYA</span>
           <div className="world-battle-entry__versus">
             <div><small>YOLCU · SEV. {profile.level}</small><strong>{profile.name}</strong></div>
             <b>VS</b>
-            <div><small><i>BOT</i> · SEV. {battleEntry.rival.level}</small><strong>{battleEntry.rival.name}</strong></div>
+            <div><small><i>BOT</i> · SEV. {battleSession.rival.level}</small><strong>{battleSession.rival.name}</strong></div>
           </div>
-          <p>{battleEntry.phase === "sweep" ? "KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" : "KARŞILAŞMA SAHNESİ HAZIR"}</p>
-          <button type="button" onClick={closeEncounter}>KEŞFE DÖN</button>
+          <p>
+            {battleSession.phase === "sweep" ? "KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" :
+              battleSession.phase === "vs" ? "KARŞILAŞMA BAŞLIYOR" :
+                battleSession.beat < 3 ? String(3 - battleSession.beat) : "SAVAŞ!"}
+          </p>
+        </div>
+      )}
+      {battleSession?.phase === "error" && (
+        <div className="duel-error-layer" role="alertdialog" aria-modal="true" aria-labelledby="duel-error-title">
+          <section className="duel-error-card">
+            <span className="game-eyebrow">DÜELLO BAŞLATILAMADI</span>
+            <h2 id="duel-error-title">Bağlantı doğrulanamadı</h2>
+            <p>{battleSession.message}</p>
+            <button type="button" className="game-gold-button" onClick={() => {
+              const rival = battleSession.rival;
+              closeEncounter();
+              window.setTimeout(() => void beginEncounter(rival), 0);
+            }}>TEKRAR DENE</button>
+            <button type="button" className="game-quiet-button" onClick={closeEncounter}>KEŞFE DÖN</button>
+          </section>
+        </div>
+      )}
+      {battleSession?.phase === "settling" && (
+        <div className="duel-settling" role="status" aria-live="polite">
+          <span className="game-eyebrow">SUNUCUDA DOĞRULANIYOR</span>
+          <strong>DÜELLO SONUCU KAYDEDİLİYOR</strong>
+        </div>
+      )}
+      {battleSession?.phase === "settlement-error" && (
+        <div className="duel-error-layer" role="alertdialog" aria-modal="true" aria-labelledby="duel-settlement-title">
+          <section className="duel-error-card">
+            <span className="game-eyebrow">ÖDÜL HENÜZ KAYDEDİLMEDİ</span>
+            <h2 id="duel-settlement-title">Doğrulama bekliyor</h2>
+            <p>{battleSession.message}</p>
+            <button type="button" className="game-gold-button" onClick={() => {
+              const verdict = pendingVerdictRef.current?.verdict ?? "defeat";
+              void settleDuel(verdict, pendingSurrenderRef.current);
+            }}>TEKRAR DOĞRULA</button>
+            <button type="button" className="game-quiet-button" onClick={closeEncounter}>DÜNYAYA DÖN</button>
+          </section>
+        </div>
+      )}
+      {battleSession?.phase === "result" && battleSession.summary && battleSession.rewards && (
+        <div className="duel-result-layer">
+          <DuelResults
+            summary={battleSession.summary}
+            rewards={battleSession.rewards}
+            opponentName={battleSession.rival.name}
+            playerName={profile.name}
+            practice={battleSession.practice}
+            note={battleSession.message}
+            canReplay={battleSession.practice || !profile.defeatedOpponents.includes(battleSession.rival.id)}
+            onContinue={closeEncounter}
+            onReplay={() => {
+              const rival = battleSession.rival;
+              closeEncounter();
+              window.setTimeout(() => void beginEncounter(rival), 0);
+            }}
+          />
         </div>
       )}
       <footer className="world-controls">

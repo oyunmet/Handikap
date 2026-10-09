@@ -11,6 +11,7 @@ type Knight3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
   state: CharacterAnimationState;
   motionReduced: boolean;
+  facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
 };
 
@@ -108,7 +109,7 @@ function Cape({ motionRef, motionReduced }: Pick<Knight3DProps, "motionRef" | "m
   return <mesh ref={meshRef} geometry={geometry} position={[0, 1.72, 0.12]} material={material} frustumCulled={false} />;
 }
 
-export default function Knight3D({ motionRef, state, motionReduced, footSlipRef }: Knight3DProps) {
+export default function Knight3D({ motionRef, state, motionReduced, facingAngle, footSlipRef }: Knight3DProps) {
   const rootRef = useRef<THREE.Group>(null);
   const torsoRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
@@ -170,8 +171,8 @@ export default function Knight3D({ motionRef, state, motionReduced, footSlipRef 
     const deathDrop = state === "die" ? actionProgress * 0.62 : 0;
     root.position.y += (bob - deathDrop - root.position.y) * (1 - Math.exp(-dt * 10));
 
-    let targetYaw = Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
-    if (motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
+    let targetYaw = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
+    if (facingAngle === undefined && motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
     if (!moving || state === "die") targetYaw = 0;
     root.rotation.y = THREE.MathUtils.damp(root.rotation.y, targetYaw, 7, dt);
     const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;

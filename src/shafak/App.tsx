@@ -669,6 +669,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
               soundEnabled={preferences.sound}
               vibrationEnabled={preferences.vibration}
               profile={profile}
+              accountDuelEnabled={Boolean(user?.id)}
+              accountProfileReady={profileSyncStatus === "ready"}
+              onBattleProfile={setProfile}
               onLoadClaimedPickups={loadClaimedPickups}
               onClaimWorldPickups={claimWorldPickups}
               onExit={() => setScreen("menu")}

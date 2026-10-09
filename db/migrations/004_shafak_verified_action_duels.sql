@@ -1,0 +1,3 @@
+ALTER TABLE shafak_duels
+  ADD COLUMN IF NOT EXISTS input_log JSONB,
+  ADD COLUMN IF NOT EXISTS completion JSONB;

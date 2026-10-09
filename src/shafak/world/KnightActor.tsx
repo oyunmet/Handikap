@@ -14,10 +14,11 @@ type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
   state: CharacterAnimationState;
   motionReduced: boolean;
+  facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
 };
 
-function OptionalGlbKnight({ motionRef, state, motionReduced, footSlipRef }: KnightActorProps) {
+function OptionalGlbKnight({ motionRef, state, motionReduced, facingAngle, footSlipRef }: KnightActorProps) {
   const gltf = useGLTF(KNIGHT_CONFIG.modelPath);
   const rootRef = useRef<THREE.Group>(null);
   const model = useMemo(() => cloneSkinned(gltf.scene), [gltf.scene]);
@@ -53,8 +54,8 @@ function OptionalGlbKnight({ motionRef, state, motionReduced, footSlipRef }: Kni
     const motion = motionRef.current;
     if (root) {
       root.position.x = motion.depth * 5.2;
-      root.rotation.y = Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
-      if (motion.velocityY < -0.25) root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
+      root.rotation.y = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
+      if (facingAngle === undefined && motion.velocityY < -0.25) root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
     }
     if (selectedAction) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);
