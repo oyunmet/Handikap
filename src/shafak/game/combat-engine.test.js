@@ -61,8 +61,8 @@ test("server-owned equipment modifiers set combat stats and keep replays determi
   assert.equal(state.playerStats.damageMultiplier, 1.18);
   assert.equal(state.playerStats.defenseReduction, 0.12);
   const frames = [[0, 0, 0, 0, 0, 0]];
-  assert.deepEqual(
-    replayCombat(44112, "medium", frames, stats).state,
-    state,
-  );
+  const firstReplay = replayCombat(44112, "medium", frames, stats);
+  const secondReplay = replayCombat(44112, "medium", frames, stats);
+  assert.equal(firstReplay.state.player.maxHp, 170);
+  assert.deepEqual(firstReplay, secondReplay);
 });

@@ -246,6 +246,8 @@ export default function WorldScene({
   const [storeItems, setStoreItems] = useState<StoreItem[]>([]);
   const [storeCatalogLoading, setStoreCatalogLoading] = useState(false);
   const [storeBusyItemId, setStoreBusyItemId] = useState<string | null>(null);
+  const [storeTrialItemId, setStoreTrialItemId] = useState<string | null>(null);
+  const [storeCelebrationSignal, setStoreCelebrationSignal] = useState(0);
   const [storeMessage, setStoreMessage] = useState("");
   const [storeError, setStoreError] = useState("");
   const [airEnabled, setAirEnabled] = useState(true);
@@ -335,6 +337,17 @@ export default function WorldScene({
   const playerCombatStats = useMemo(() => getPlayerCombatModifiers(profile, storeItems), [profile, storeItems]);
   const equipmentBonuses = useMemo(() => getEquipmentBonuses(profile, storeItems), [profile, storeItems]);
   const equipmentVisual = useMemo(() => getEquipmentVisual(profile, storeItems), [profile, storeItems]);
+  const worldEquipmentVisual = useMemo(() => {
+    if (panel !== "store" || !storeTrialItemId) return equipmentVisual;
+    const trialItem = storeItems.find((item) => item.id === storeTrialItemId);
+    if (!trialItem) return equipmentVisual;
+    const key = slotEquipmentKey(trialItem.slot);
+    const trialProfile = {
+      ...profile,
+      equipment: { ...profile.equipment, [key]: trialItem.id },
+    };
+    return getEquipmentVisual(trialProfile, storeItems);
+  }, [equipmentVisual, panel, profile, storeItems, storeTrialItemId]);
   const remainingBarricadeHits = nearestBreakable
     ? obstacleDamageRef.current.get(nearestBreakable.id) ?? nearestBreakable.health
     : 0;
@@ -452,6 +465,10 @@ export default function WorldScene({
           };
         }
         commitBattleProfile(normalizePlayerProfile(nextProfile));
+        if (operation === "purchase" || operation === "upgrade") {
+          setStoreCelebrationSignal((signal) => signal + 1);
+          playWorldCue("seal");
+        }
         setStoreMessage(operation === "purchase"
           ? `${item.name} heybenize eklendi.`
           : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
@@ -472,6 +489,10 @@ export default function WorldScene({
       if (!response.ok) throw new Error(storeErrorText(result.error ?? ""));
       if (!result.profile) throw new Error("Sunucudan profil güncellemesi alınamadı.");
       commitBattleProfile(normalizePlayerProfile(result.profile));
+      if (operation === "purchase" || operation === "upgrade") {
+        setStoreCelebrationSignal((signal) => signal + 1);
+        playWorldCue("seal");
+      }
       setStoreMessage(operation === "purchase"
         ? `${item.name} satın alındı.`
         : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
@@ -1238,7 +1259,12 @@ export default function WorldScene({
     wake();
     panelTriggerRef.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
     if (next === "settings") onOpenSettings();
+    if (next === "store") setStoreTrialItemId(null);
     setPanel(next);
+  };
+  const closeStorePanel = () => {
+    setStoreTrialItemId(null);
+    setPanel(null);
   };
   const teleportToDistance = (distance: number, x = motionRef.current.depth * 5.2) => {
     const nextDistance = Math.max(0, distance);
@@ -1299,7 +1325,7 @@ export default function WorldScene({
             airEnabled={airEnabled}
             level={profile.level}
             relicCount={profile.items.length}
-            equipmentVisual={equipmentVisual}
+            equipmentVisual={worldEquipmentVisual}
             lightRadius={equipmentBonuses.lightRadius}
             animationState={attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
             rivals={battleSession ? [] : nearbyRivals}
@@ -1330,7 +1356,10 @@ export default function WorldScene({
               <span
                 className={`world-step-burst${burst.running ? " is-running" : ""}`}
                 key={burst.id}
-                style={{ "--burst-x": `${burst.x}px` } as CSSProperties}
+                style={{
+                  "--burst-x": `${burst.x}px`,
+                  "--dust-color": worldEquipmentVisual.dustColor ?? "#d5ad7a",
+                } as CSSProperties}
               >
                 {Array.from({ length: particleCount }, (_, index) => {
                   const angle = (Math.PI * 2 * (index + 1)) / particleCount + burst.id * .61;
@@ -1606,7 +1635,10 @@ export default function WorldScene({
           busyItemId={storeBusyItemId}
           message={storeMessage}
           error={storeError}
-          onClose={() => setPanel(null)}
+          trialItemId={storeTrialItemId}
+          celebrationSignal={storeCelebrationSignal}
+          onClose={closeStorePanel}
+          onTry={setStoreTrialItemId}
           onPurchase={(itemId) => void runStoreMutation("purchase", itemId)}
           onEquip={(itemId) => void runStoreMutation("equip", itemId)}
           onUpgrade={(itemId) => void runStoreMutation("upgrade", itemId)}

@@ -276,8 +276,12 @@
   width: var(--dust-size, 3px);
   height: var(--dust-size, 3px);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(242, 212, 161, .88), rgba(188, 135, 91, .38));
-  box-shadow: 0 0 8px rgba(218, 173, 122, .34);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--dust-color, #f2d4a1) 88%, white),
+    color-mix(in srgb, var(--dust-color, #bc875b) 38%, transparent)
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--dust-color, #daad7a) 34%, transparent);
   animation: step-dust .64s var(--dust-delay, 0ms) ease-out both;
 }
 .world-step-burst.is-running i { animation-duration: .72s; }

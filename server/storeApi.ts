@@ -172,7 +172,10 @@ async function runAccountOperation<T>(
   }
 }
 
-export function createStoreApi(database: Pool) {
+export function createStoreApi(
+  database: Pool,
+  resolveUserId: (request: Request) => string | null = (request) => getAuth(request).userId,
+) {
   const router = Router();
   const catalogLimit = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
   const purchaseLimit = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: true, legacyHeaders: false });
@@ -180,7 +183,7 @@ export function createStoreApi(database: Pool) {
   const upgradeLimit = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: true, legacyHeaders: false });
 
   function authenticatedUserId(request: Request, response: Response): string | null {
-    const userId = getAuth(request).userId;
+    const userId = resolveUserId(request);
     if (!userId) {
       response.status(401).json({ error: "authentication_required" });
       return null;

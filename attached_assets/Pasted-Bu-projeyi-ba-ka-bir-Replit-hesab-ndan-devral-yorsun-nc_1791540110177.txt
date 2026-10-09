@@ -1,0 +1,35 @@
+Bu projeyi başka bir Replit hesabından devralıyorsun; önceki sohbet hafızan yok. Aşağıda bağlam var. Günlük ücretsiz kotam kısıtlı, bu yüzden KOTA DOSTU çalış: gereksiz yere tüm testleri/derlemeyi tekrar tekrar çalıştırma, komutları birleştir, uzun açıklama yazma, bir seferde tek net iş yap.
+
+## PROJE
+"Şafak Savaşçıları": mobil öncelikli 3D yürüyüş + gerçek zamanlı savaş oyunu (Three.js / react-three-fiber, TypeScript, Vite), canlı adres handikap.vercel.app. Mevcut özellikler (olması gerekenler): Clerk girişi, PostgreSQL profil, misafir modu (cihazda), 3D dünya (Kül Yolu: yol, ağaç, kemer, kapı, dağlar), kodla üretilmiş yürüyen şövalye, toplanabilir altın/elmas/kristal, yolda "BOT" etiketli rakipler, SAVAŞ butonu, gerçek zamanlı savaş (60 Hz deterministik simülasyon, sunucuda girdi kaydıyla doğrulama, ödülü sunucu hesaplar), günlük görevler. Bulmaca/eşleştirme oyunu tamamen kaldırıldı.
+
+## DEĞİŞMEZ KURALLAR
+- Botlar "BOT" etiketli kalsın; gerçek oyuncu gibi gösterilmesin. Gerçek oyunculu mod henüz yok.
+- İstemci ödül/altın/elmas/XP/bakiye göndermez; ödüller ve satın almalar SUNUCUDA doğrulanır.
+- Gerçek parayla ödeme YOK; para birimleri yalnızca oyun içinde kazanılır.
+- ÜRETİM veritabanına ve canlı Vercel sürümüne DOKUNMA: harici bir DATABASE_URL'ye karşı migration çalıştırma, yayınlama. Migration'ları yalnızca bu projenin geliştirme veritabanında ve ben isteyince çalıştır.
+- Clerk bu yeni projede yapılandırılmamış olabilir; bu bir hata değil, misafir modu çalışmalı.
+
+## ADIM 1 — DENETİM VE TOPARLAMA (kısa tut)
+Yeni hesapta eksik olabilecekleri düzelt: bağımlılıklar kurulu mu, uygulama başlıyor mu, geliştirme veritabanı boşsa migration'lar TEMİZ bir veritabanında sorunsuz uygulanıyor mu. Sonra kodu inceleyip bana KISA bir tablo ver: "tamam / yarım / yok" olarak (a) gerçek zamanlı savaş, (b) toplanabilirler ve BOT'lar, (c) mağaza/silah/kostüm sistemi (önceki agent bunu yarıda bırakmış olabilir; hangi dosyalar ve tablolar yazılmış, hangileri eksik). Bir kez typecheck, test ve build çalıştır ve sonucu yaz.
+
+## ADIM 2 — AŞAMA E'Yİ TAMAMLA: ELMAS/ALTINLA SİLAH VE KOSTÜM ALMA (yarım kalanı bitir, yapılmışı bozma)
+Mevcut para birimleri: altın, elmas (turkuaz) ve mor ✦ sayacı. Ekranda ne işe yaradıklarını kısaca açıkla.
+1. Mağaza ve Heybe ekranı: "HEYBE" düğmesini genişlet. Sekmeler: SİLAHLAR, ZIRH/KOSTÜM, PELERİN, EFEKTLER, ENVANTER. Kart: ad, nadirlik rengi (Sıradan, Nadir, Destansı, Efsanevi), fiyat (altın ve/veya elmas), istatistik özeti, durum (kilitli/sahip/kuşanılı).
+2. 3D ÖNİZLEME: Eşyaya dokununca karakter dönen platformda o eşyayla gösterilsin. İstatistik karşılaştırması (artı/eksi okları). "Dene → Satın al".
+3. Eşya türleri:
+   - Silahlar (en az 5): kılıç, çift hançer, savaş baltası, büyük kılıç, mızrak. Menzil, hız, hasar ve saldırı animasyon seti farklı olsun; savaşa GERÇEKTEN bağlı.
+   - Zırh/kostüm setleri (en az 4): miğfer, göğüslük, omuzluk, eldiven, bot; renk/dekor farklı (Kül Muhafızı, Gece Nöbetçisi, Altın Şövalye, Gölge Avcısı). Karakterde görünür biçimde değişsin.
+   - Pelerinler (en az 4): renk, kenar işlemesi, uzunluk, parıltı.
+   - Efektler: kılıç izi rengi (kor, buz, zehir, altın), ayak tozu rengi, çevre ışığı (aura) rengi.
+   - Boyalar: elmasla zırh/pelerin renk değiştirme.
+4. İstatistikler (Can, Hasar, Savunma, Kritik, Hız, Işık Yarıçapı) kuşanılan eşyalarla değişsin ve yürüyüş/savaş mantığına bağlansın. Denge: pahalı eşya biraz güçlü ama aşırı üstün değil.
+5. Yükseltme: altın + malzeme (demir parçası, kor kristali) ile seviye atlatma; kıvılcım/parlama/ses animasyonu.
+6. "Kuşan" düğmesi: eşya yürüyüş sahnesinde ve savaşta anında görünsün.
+7. Ekonomi önerisi: sıradan eşyalar altınla, nadir/destansı eşyalar elmasla; elmas kazanımı yavaş ama adil (toplama, savaş kazanma, sandık, günlük görev). Fiyat tablosunu kısaca yaz.
+8. Satın alma deneyimi: onay penceresi, parıltılı animasyon ve ses, yetersiz bakiyede nazik uyarı ve "nasıl kazanılır" ipucu, yeni eşyada "YENİ" rozeti.
+9. SUNUCU GÜVENLİĞİ: Katalog ve fiyatlar sunucuda; istemci fiyat/bakiye göndermez. Satın alma tek veritabanı işleminde bakiyeyi kontrol eder, düşer, eşyayı envantere ekler; aynı isteğin iki kez işlenmesi engellenir (idempotency); sahip olunan eşya tekrar alınamaz; yalnızca sahip olunan eşya kuşanılır. Envanter, kuşanılanlar ve bakiye PostgreSQL'de hesapla saklanır. Hız sınırı ve otomatik testler (yetersiz bakiye, çift satın alma, sahip olmadığını kuşanma, fiyat manipülasyonu). Misafir modunda satın almalar cihazda kalır ve "misafir ilerlemesi hesaba aktarılmaz" uyarısı gösterilir.
+10. Savaş ve toplama ödülleri (altın, elmas, malzeme) bu ekonomiye bağlansın; hepsi sunucuda hesaplanır.
+
+## BİTİRİRKEN
+Kısa rapor yaz: ne değişti, neyi test ettin (hangi ortamda), neyi test EDEMEDİN. Yayınlama yapma. Bitince ben telefonda savaşı ve mağazayı deneyeceğim.

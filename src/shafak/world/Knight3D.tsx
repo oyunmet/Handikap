@@ -187,7 +187,15 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
     } else {
       actionElapsed.current += dt;
     }
-    const actionDuration = state === "die" ? 1.3 : state === "heavyAttack" ? 0.9 : 0.55;
+    const weaponStyle = appearance?.weaponStyle ?? "sword";
+    const attackTempo = weaponStyle === "daggers" ? 1.14
+      : weaponStyle === "axe" ? 0.88
+        : weaponStyle === "greatsword" ? 0.8
+          : weaponStyle === "spear" ? 1.04
+            : 1;
+    const actionDuration = state === "die"
+      ? 1.3
+      : (state === "heavyAttack" ? 0.9 : 0.55) / attackTempo;
     const actionProgress = clamp(actionElapsed.current / actionDuration, 0, 1);
     const idle = state === "idle" || state === "walk" || state === "run";
     const actionSwing = Math.sin(actionProgress * Math.PI);
@@ -279,8 +287,27 @@ export default function Knight3D({ motionRef, state, motionReduced, facingAngle,
     }
     if ((state === "attack" || state === "heavyAttack") && rightArmRef.current) {
       const attackPower = state === "heavyAttack" ? 1.7 : 1.25;
-      rightArmRef.current.rotation.x = -0.6 - actionSwing * attackPower;
-      rightArmRef.current.rotation.z = -0.3 + actionSwing * (state === "heavyAttack" ? 0.8 : 0.6);
+      if (weaponStyle === "daggers") {
+        const alternatingThrust = Math.sin(actionProgress * Math.PI * 2) * 0.22;
+        rightArmRef.current.rotation.x = -0.9 - actionSwing * 0.6 + alternatingThrust;
+        rightArmRef.current.rotation.z = -0.12 - actionSwing * 0.42;
+        if (leftArmRef.current) {
+          leftArmRef.current.rotation.x = -0.82 - actionSwing * 0.52 - alternatingThrust;
+          leftArmRef.current.rotation.z = 0.12 + actionSwing * 0.38;
+        }
+      } else if (weaponStyle === "axe") {
+        rightArmRef.current.rotation.x = -1.15 + actionSwing * (state === "heavyAttack" ? 2.05 : 1.55);
+        rightArmRef.current.rotation.z = 0.12 - actionSwing * 0.38;
+      } else if (weaponStyle === "greatsword") {
+        rightArmRef.current.rotation.x = -0.38 - actionSwing * (state === "heavyAttack" ? 1.4 : 1.08);
+        rightArmRef.current.rotation.z = -0.68 + actionSwing * (state === "heavyAttack" ? 1.2 : 0.86);
+      } else if (weaponStyle === "spear") {
+        rightArmRef.current.rotation.x = -0.98 + actionSwing * (state === "heavyAttack" ? 0.5 : 0.32);
+        rightArmRef.current.rotation.z = -0.04 + actionSwing * 0.08;
+      } else {
+        rightArmRef.current.rotation.x = -0.6 - actionSwing * attackPower;
+        rightArmRef.current.rotation.z = -0.3 + actionSwing * (state === "heavyAttack" ? 0.8 : 0.6);
+      }
     } else if (state === "block") {
       if (leftArmRef.current) leftArmRef.current.rotation.x = -1.0;
       if (rightArmRef.current) rightArmRef.current.rotation.x = -0.8;

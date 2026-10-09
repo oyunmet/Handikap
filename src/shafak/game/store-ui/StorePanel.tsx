@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PlayerProfile } from "../profile";
 import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentStatBonuses, type StoreItem, type StoreTab } from "../store-types";
 import { getItemBonuses } from "../store-utils";
@@ -13,7 +13,10 @@ type StorePanelProps = {
   busyItemId: string | null;
   message: string;
   error: string;
+  trialItemId: string | null;
+  celebrationSignal: number;
   onClose(): void;
+  onTry(itemId: string | null): void;
   onPurchase(itemId: string): void;
   onEquip(itemId: string): void;
   onUpgrade(itemId: string): void;
@@ -72,7 +75,10 @@ export default function StorePanel({
   busyItemId,
   message,
   error,
+  trialItemId,
+  celebrationSignal,
   onClose,
+  onTry,
   onPurchase,
   onEquip,
   onUpgrade,
@@ -81,6 +87,7 @@ export default function StorePanel({
   const [activeTab, setActiveTab] = useState<StoreTab>("weapons");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<StoreItem | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const ownedIds = profile.inventory.ownedItemIds;
@@ -121,6 +128,13 @@ export default function StorePanel({
   }, []);
 
   useEffect(() => {
+    if (!celebrationSignal) return undefined;
+    setCelebrating(true);
+    const timer = window.setTimeout(() => setCelebrating(false), 950);
+    return () => window.clearTimeout(timer);
+  }, [celebrationSignal]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (confirming) setConfirming(null);
@@ -156,7 +170,7 @@ export default function StorePanel({
       if (event.target === event.currentTarget) onClose();
     }}>
       <section
-        className="safak-store"
+        className={`safak-store${celebrating ? " is-celebrating" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="safak-store-title"
@@ -260,6 +274,11 @@ export default function StorePanel({
                       </span>
                       <span className="safak-store__item-name">{item.name}</span>
                       <span className="safak-store__item-summary">{item.summary}</span>
+                      <span className="safak-store__item-price">
+                        {item.price.gold > 0 && <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(item.price.gold)}</span>}
+                        {item.price.diamonds > 0 && <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(item.price.diamonds)}</span>}
+                        {item.price.gold === 0 && item.price.diamonds === 0 && <span>BAŞLANGIÇ EŞYASI</span>}
+                      </span>
                       <span className={`safak-store__item-status${equipped ? " status-equipped" : owned ? " status-owned" : " status-locked"}`}>
                         {equipped ? "KUŞANILDI" : owned ? "HEYBEDE" : "KİLİTLİ"}
                       </span>
@@ -283,6 +302,14 @@ export default function StorePanel({
                   <span className="safak-store__preview-label">DONANIM GÖRÜNÜMÜ</span>
                   <div className="safak-store__preview-art">{renderPreview(selected)}</div>
                   <span className="safak-store__preview-caption">{selected.name}</span>
+                  <button
+                    type="button"
+                    className={`safak-store__try${trialItemId === selected.id ? " is-active" : ""}`}
+                    aria-pressed={trialItemId === selected.id}
+                    onClick={() => onTry(trialItemId === selected.id ? null : selected.id)}
+                  >
+                    {trialItemId === selected.id ? "DENEMEYİ BIRAK" : "DENE · DÜNYADA GÖR"}
+                  </button>
                 </div>
 
                 <div className="safak-store__detail-copy">
@@ -312,7 +339,9 @@ export default function StorePanel({
                         <span>{label}</span>
                         <b>{formatStat(value, statKey)}</b>
                         <span className={`safak-store__difference${difference > 0 ? " is-positive" : difference < 0 ? " is-negative" : ""}`}>
-                          {currentItem ? `${formatStat(difference, statKey)} fark` : "—"}
+                          {currentItem
+                            ? difference > 0 ? `↑ ${formatStat(difference, statKey)}` : difference < 0 ? `↓ ${formatStat(difference, statKey)}` : "↔ 0"
+                            : "—"}
                         </span>
                       </div>
                     );
@@ -395,6 +424,13 @@ export default function StorePanel({
           <span>Yolcu, iyi donanım uzak yolları kolaylaştırır.</span>
           <span>ŞAFAK SAVAŞÇILARI <i>·</i> HEYBE</span>
         </footer>
+        {celebrating && (
+          <div className="safak-store__sparkles" aria-hidden="true">
+            {Array.from({ length: 9 }, (_, index) => (
+              <i key={index} style={{ "--spark-index": index } as CSSProperties}>✦</i>
+            ))}
+          </div>
+        )}
       </section>
 
       {confirming && (

@@ -649,10 +649,69 @@
   .safak-store-confirm { padding: 22px 18px; }
 }
 
+.safak-store__item-price {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: auto;
+  color: #d8c79f;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .04em;
+}
+.safak-store__item-price > span { display: inline-flex; align-items: center; gap: 4px; }
+.safak-store__item-price > span:only-child { color: #b4a27f; font-size: 7px; letter-spacing: .1em; }
+.safak-store__try {
+  position: relative;
+  z-index: 1;
+  min-height: 31px;
+  padding: 0 12px;
+  border: 1px solid rgba(218, 187, 123, .34);
+  border-radius: 2px;
+  background: rgba(22, 24, 27, .8);
+  color: #dfc990 !important;
+  font-size: 8px !important;
+  font-weight: 800 !important;
+  letter-spacing: .12em !important;
+  cursor: pointer;
+}
+.safak-store__try:hover,
+.safak-store__try.is-active { border-color: rgba(240, 211, 145, .72); background: rgba(117, 86, 43, .3); }
+.safak-store__sparkles {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.safak-store__sparkles i {
+  position: absolute;
+  color: #ffdf91;
+  font-size: 17px;
+  font-style: normal;
+  text-shadow: 0 0 10px rgba(255, 203, 101, .95);
+  animation: store-sparkle .95s cubic-bezier(.18,.72,.3,1) both;
+}
+.safak-store__sparkles i:nth-child(1) { left: 8%; top: 34%; }
+.safak-store__sparkles i:nth-child(2) { left: 20%; top: 63%; animation-delay: 35ms; }
+.safak-store__sparkles i:nth-child(3) { left: 31%; top: 24%; animation-delay: 70ms; }
+.safak-store__sparkles i:nth-child(4) { left: 43%; top: 58%; animation-delay: 15ms; }
+.safak-store__sparkles i:nth-child(5) { left: 55%; top: 18%; animation-delay: 55ms; }
+.safak-store__sparkles i:nth-child(6) { left: 67%; top: 66%; animation-delay: 90ms; }
+.safak-store__sparkles i:nth-child(7) { left: 77%; top: 31%; animation-delay: 25ms; }
+.safak-store__sparkles i:nth-child(8) { left: 87%; top: 57%; animation-delay: 65ms; }
+.safak-store__sparkles i:nth-child(9) { left: 94%; top: 23%; animation-delay: 45ms; }
+@keyframes store-sparkle {
+  0% { opacity: 0; transform: translateY(18px) scale(.25) rotate(0deg); }
+  35% { opacity: 1; transform: translateY(-4px) scale(1.1) rotate(55deg); }
+  100% { opacity: 0; transform: translateY(-35px) scale(.55) rotate(110deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .safak-store,
   .safak-store-confirm,
-  .safak-store__skeleton { animation: none; }
+  .safak-store__skeleton,
+  .safak-store__sparkles i { animation: none; }
   .safak-store__item,
   .safak-store__tab::after,
   .safak-store__primary,
