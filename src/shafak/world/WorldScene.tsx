@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep } from "../audio/howler";
-import CharacterRenderer from "./CharacterRenderer";
-import WorldAtmosphere from "./WorldAtmosphere";
-import WorldRenderer from "./WorldRenderer";
+import { resolveCharacterAnimationState } from "./character-animation";
 import {
   createWorldMotion,
   readWorldInput,
   stepWorldMotion,
   WORLD_GATE_INTERVAL_METERS,
-  WORLD_METERS_TO_PIXELS,
+  type WorldMotionFrame,
 } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
+
+const World3D = lazy(() => import("./World3D"));
 import type { PlayerProfile } from "../game/profile";
 import type { Opponent } from "../game/types";
 import "./world-scene.css";
@@ -54,7 +54,6 @@ export default function WorldScene({
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const motionRef = useRef(createWorldMotion());
-  const worldRenderRef = useRef<((now: number) => void) | null>(null);
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
@@ -94,66 +93,37 @@ export default function WorldScene({
   useEffect(() => {
     let frame = 0;
     let previous = 0;
+    let accumulator = 0;
     let lastReactUpdate = 0;
     let lastVisualUpdate = 0;
-    let lastCanvasRender = 0;
-    let sceneWidth = sceneRef.current?.getBoundingClientRect().width || window.innerWidth;
-    const appliedCssVariables = new Map<string, string>();
-    const resizeObserver = new ResizeObserver((entries) => {
-      const nextWidth = entries[0]?.contentRect.width;
-      if (nextWidth && Number.isFinite(nextWidth)) sceneWidth = nextWidth;
-    });
-    if (sceneRef.current) resizeObserver.observe(sceneRef.current);
-    const setSceneVariable = (root: HTMLElement, property: string, value: string) => {
-      if (appliedCssVariables.get(property) === value) return;
-      appliedCssVariables.set(property, value);
-      root.style.setProperty(property, value);
-    };
+    const fixedStep = 1 / 60;
     const animate = (now: number) => {
-      const dt = Math.min((now - (previous || now)) / 1000, .05);
+      const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
       previous = now;
-      const frameState = stepWorldMotion(
-        motionRef.current,
-        readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current),
-        dt,
-      );
-      motionRef.current = frameState;
-      if (now - lastCanvasRender >= 1000 / 20) {
-        lastCanvasRender = now;
-        worldRenderRef.current?.(now);
+      accumulator = Math.min(accumulator + dt, fixedStep * 6);
+      const input = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
+      let frameState: WorldMotionFrame = stepWorldMotion(motionRef.current, input, 0);
+      let footsteps = 0;
+      while (accumulator >= fixedStep) {
+        frameState = stepWorldMotion(motionRef.current, input, fixedStep);
+        motionRef.current = frameState;
+        footsteps += frameState.footsteps;
+        accumulator -= fixedStep;
       }
 
       const root = sceneRef.current;
-      if (root && now - lastVisualUpdate >= 1000 / 60) {
+      if (root && now - lastVisualUpdate >= 1000 / 20) {
         lastVisualUpdate = now;
-        const pixelsPerMeter = Math.max(30, Math.min(48, sceneWidth * .095));
-        const cameraPixels = frameState.cameraX * pixelsPerMeter;
         const distance = frameState.distance;
-        const farOffset = ((cameraPixels * .075) % sceneWidth + sceneWidth) % sceneWidth;
-        setSceneVariable(root, "--ws-travel", `${distance}m`);
-        setSceneVariable(root, "--world-zoom", String(frameState.zoom));
-        setSceneVariable(root, "--ws-player-drift-x", `${motionReduced ? 0 : frameState.cameraLead}px`);
-        setSceneVariable(root, "--ws-facing-angle", frameState.facing < 0 ? "180deg" : "0deg");
-        setSceneVariable(root, "--ws-far-offset", `${farOffset}px`);
-        setSceneVariable(root, "--ws-ridge-shift", `${-cameraPixels * .15}px`);
-        setSceneVariable(root, "--ws-haze-shift", `${-cameraPixels * .25}px`);
-        setSceneVariable(root, "--ws-road-shift", `${-cameraPixels * .76}px`);
-        setSceneVariable(root, "--ws-road-detail-shift", `${-cameraPixels * .54}px`);
-        setSceneVariable(root, "--ws-foreground-shift", `${-cameraPixels * 1.04}px`);
-        setSceneVariable(root, "--ws-depth-y", `${motionReduced ? 0 : -frameState.depth * 46}px`);
-        setSceneVariable(root, "--ws-depth-bottom", `${frameState.depth * 46}px`);
-        setSceneVariable(root, "--ws-bob", `${motionReduced ? 0 : frameState.bob}px`);
-        setSceneVariable(root, "--ws-lean", `${motionReduced ? 0 : frameState.lean}deg`);
-        setSceneVariable(root, "--ws-weight-shift", `${motionReduced ? 0 : frameState.weightShift}px`);
-        setSceneVariable(root, "--ws-squash", String(motionReduced ? 1 : 1 - frameState.squash));
-        setSceneVariable(root, "--ws-shadow-scale", String(frameState.shadowScale));
+        root.style.setProperty("--ws-travel", `${distance}m`);
+        root.style.setProperty("--ws-depth-bottom", `${frameState.depth * 32}px`);
       }
       if (frameState.motion !== lastMotionRef.current) {
         lastMotionRef.current = frameState.motion;
         setMotion(frameState.motion);
       }
-      if (frameState.footsteps > 0) {
-        const count = Math.min(frameState.footsteps, 2);
+      if (footsteps > 0) {
+        const count = Math.min(footsteps, 2);
         const firstId = frameState.stepCount - count + 1;
         const running = frameState.motion === "running";
         setStepBursts((current) => [
@@ -181,7 +151,6 @@ export default function WorldScene({
     frame = window.requestAnimationFrame(animate);
     return () => {
       window.cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
     };
   }, [audioOn, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
 
@@ -219,60 +188,23 @@ export default function WorldScene({
       aria-label={worldText.brand}
     >
       <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
-        <svg className="world-motion-filters" aria-hidden="true" focusable="false">
-          <defs>
-            <filter id="world-cape-wind" x="-12%" y="-8%" width="124%" height="116%">
-              <feTurbulence type="fractalNoise" baseFrequency=".014 .042" numOctaves="1" seed="8" result="wind">
-                {!motionReduced && (
-                  <animate attributeName="baseFrequency" values=".014 .042;.023 .06;.014 .042" dur="3.2s" repeatCount="indefinite" />
-                )}
-              </feTurbulence>
-              <feDisplacementMap in="SourceGraphic" in2="wind" scale="5" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-          </defs>
-        </svg>
-        <div className="world-stage__sky">
-          {[-1, 0, 1, 2].map((tileIndex) => (
-            <div
-              className={`world-stage__sky-tile${Math.abs(tileIndex) % 2 === 1 ? " is-mirrored" : ""}`}
-              key={tileIndex}
-              style={{ left: `calc(${tileIndex * 100}% - var(--ws-far-offset, 0px))` }}
-            />
-          ))}
-        </div>
-        <div className="world-stage__horizon" />
-        <div className="world-plane world-plane--ridge" />
-        <div className="world-plane world-plane--haze" />
-        <div className="world-plane world-plane--road" />
-        <div className="world-plane world-plane--foreground" />
-        <div className="world-rays" />
-        <WorldRenderer
-          motionRef={motionRef}
-          renderRef={worldRenderRef}
-          quality={quality}
-          motionReduced={motionReduced}
-          level={profile.level}
-          relicCount={profile.items.length}
-        />
-        <WorldAtmosphere
-          quality={quality}
-          motionReduced={motionReduced}
-          enabled={airEnabled}
-          travel={motionRef.current.cameraX * WORLD_METERS_TO_PIXELS}
-        />
-        <div className="world-speed-lines" aria-hidden="true">
-          {Array.from({ length: 8 }, (_, index) => (
-            <i
-              key={index}
-              style={{
-                "--line-x": `${(index % 3) * 35 + 8}%`,
-                "--line-y": `${23 + index * 7}%`,
-                "--line-width": `${20 + (index % 4) * 9}vw`,
-                "--line-delay": `${index * -.07}s`,
-              } as CSSProperties}
-            />
-          ))}
-        </div>
+        <Suspense
+          fallback={
+            <div className="world-three-layer" aria-hidden="true">
+              <div className="world-three-fallback">3D dünya hazırlanıyor…</div>
+            </div>
+          }
+        >
+          <World3D
+            motionRef={motionRef}
+            quality={quality}
+            motionReduced={motionReduced}
+            airEnabled={airEnabled}
+            level={profile.level}
+            relicCount={profile.items.length}
+            animationState={resolveCharacterAnimationState(motion)}
+          />
+        </Suspense>
         <div className="world-step-bursts" aria-hidden="true">
           {stepBursts.map((burst) => {
             const particleCount = burst.running ? 7 : 4;
@@ -301,7 +233,6 @@ export default function WorldScene({
             );
           })}
         </div>
-        <CharacterRenderer motion={motion} motionReduced={motionReduced} />
         <div className="world-vignette" />
       </div>
       <header className="world-topbar">

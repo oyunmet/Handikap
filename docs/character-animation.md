@@ -1,7 +1,19 @@
-# Character animation adapter
+# Şövalye animasyonu
 
-The active renderer uses the existing single warrior image with movement-driven pose variables in `WorldScene`. Locomotion and combat use one shared state list: `idle`, `walk`, `run`, `attack`, `block`, `dodge`, `hit`, and `die`. Combat actions override locomotion; the combat scene can pass its action to `CharacterRenderer` without changing movement simulation.
+Oyun içi varsayılan şövalye, `Knight3D.tsx` içinde Three.js geometrileriyle
+oluşturulur. Yürüme ve koşma fazı kat edilen mesafeden sürülür; bacak açıları
+iki kemikli IK ile hesaplanır ve yerde kalan ayak, adım boyunca dünya
+konumunda kilitlenir. Toz ve adım sesi simülasyondaki adım anında tetiklenir.
+Pelerin, kodla üretilmiş bir ağ üzerinde yay-zincir fiziği kullanır.
 
-To switch to a sprite sheet, add the image and fill `CHARACTER_SPRITE_SHEET` in `character-animation.ts` with its frame size, columns, and a clip for each state. Set `CHARACTER_ANIMATION_BACKEND` there to `"sprite-sheet"`. The renderer advances looping clips and holds completed one-shot actions; reduced-motion mode displays the first frame.
+Paylaşılan animasyon durumları `idle`, `walk`, `run`, `attack`, `block`,
+`dodge`, `hit` ve `die` şeklindedir. Savaş davranışları bu aşamada yalnızca
+karakter hareket durumlarıdır; gerçek rakip ve savaş sistemi Aşama 3–4
+kapsamındadır.
 
-To add skeletal animation later, implement a React adapter matching `CharacterAnimationAdapter`, register it in `characterAnimationAdapters`, and change `CHARACTER_ANIMATION_BACKEND` to `"skeletal"`. Keep animation rendering in the adapter; deterministic movement and combat state stay in their independent simulation modules.
+İsteğe bağlı `public/models/hero.glb` bulunursa `KnightActor.tsx` modeli yükler
+ve `AnimationMixer` ile klipleri yumuşak geçişlerle oynatır. Ad eşlemesi
+`KNIGHT_CONFIG.animationClips` içindedir. Eksik/uyumsuz dosya durumunda
+prosedürel şövalyeye dönülür. Modelin ölçeği ve yönü de aynı ayar dosyasındadır.
+GLB ekleme adımları için kök `README.md` dosyasındaki “Şövalye ve model ekleme”
+bölümüne bak.

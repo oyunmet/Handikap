@@ -1,0 +1,81 @@
+# YENİ YÖNTEM: GERÇEK 3D DÜNYA + GERÇEKTEN YÜRÜYEN KARAKTER + YOLDA RAKİP + GERÇEK ZAMANLI SAVAŞ
+
+## DURUM TESPİTİ (canlı sürüm handikap.vercel.app, iPhone)
+- Mesafe sayacı ve "Kül Yolu" ilerleme çubuğu çalışıyor, ama ekranda ilerleme HİSSEDİLMİYOR: ortam neredeyse tamamen siyah, katmanlar görünmez, hiçbir şey yanımdan geçmiyor.
+- Karakter tek bir statik resim; el/ayak hareketi yok, yürümüyor.
+- "Kül İzci" rakibi yalnızca bir kart; dünyada gerçek bir rakip yok, buton "SAVAŞ YAKINDA" diye pasif.
+- 2D parallax yaklaşımı üç denemedir yetersiz kaldı. KARAR: oyunu GERÇEK 3D dünyaya taşı. Bu aşamadan sonra "çalıştı" demeden önce canlı sürümde ve gerçek mobil WebKit'te kanıtlamak zorundasın.
+
+## GENEL KURALLAR
+- Aşamalara böl; her aşamada: ne değişti / ne test ettin (hangi ortamda) / ne test EDEMEDİN yaz ve onayımı bekle. Doğrulamadığın şeyi "tamam" diye raporlama.
+- Mobil öncelikli (iPhone Safari ve Chrome). Masaüstünde WASD de çalışsın.
+- Teknoloji: Three.js + @react-three/fiber + drei (+ gerekirse postprocessing: bloom, vignette). Ses: Howler. Mevcut Clerk girişi, PostgreSQL profil, misafir modu ve sunucu taraflı ödül doğrulaması KORUNSUN.
+- Oyun mantığı (hareket, savaş, hasar) sabit zaman adımlı (60 Hz) ve render'dan AYRI olsun; tohumlu rastgelelik (seed) kullan.
+- Performans hedefi: iPhone'da en az 45, tercihen 60 FPS. Kalite kademeleri (Yüksek/Orta/Düşük) ve "hareketi azalt" desteği. InstancedMesh, düşük poligonlu stilize modeller, doku atlası, piksel oranı sınırı (devicePixelRatio ≤ 2), sis ile görüş mesafesi sınırı, nesne havuzu.
+- ?debug=1 paneli: konum (x,y,z), kat edilen mesafe, hız, FPS, çizim üçgen sayısı, aktif animasyon klibi adı, ayak kayma ölçümü, aktif dünya adı, yüklü parça sayısı.
+- Canlı sürüme (Vercel) nasıl yayınlanacağını adım adım yaz; yayınladığını ve canlı adreste doğruladığını ya da yapamadığını açıkça belirt.
+
+## AŞAMA 1 — GERÇEK 3D DÜNYA VE İLERLEME
+1. Kamera: Karakteri arkadan/omuz üstünden takip eden üçüncü şahıs kamera. Karakter ekranın alt-orta kısmında, yol ileriye (derinliğe) uzanıyor. Hızlanınca hafif geri çekilme ve FOV artışı, durunca yaklaşma, yön değiştirince yumuşak dönüş.
+2. Kontroller: Sol joystick yönünde hareket (kameraya göre). Joystick ne kadar itilirse o kadar hız (yürü → koş). Ani başlama/durma yok, ivmelenme ve yavaşlama var. Karakter hareket yönüne akıcı döner.
+3. Yol: Uzun bir yol şeridi, 40-60 metrelik PARÇALAR (chunk) hâlinde; önde yeni parça yüklenir, arkada kalan silinir. Yolun genişliği var; kenarlarda doğal sınırlar (kaya, uçurum, harabe duvarı). Yolun sonunda büyük bir kapı/kale görünür ve yaklaştıkça gerçekten büyür.
+4. Ortam öğeleri GERÇEK 3D NESNE olarak yerleşsin ve karakter ilerledikçe yanından geçsin: kayalar, ölü ağaçlar, yıkık kemerler ve kuleler, kırık arabalar, kırmızı bayraklar (rüzgarla dalgalanan), meşaleler, kemik/kalıntı yığınları. Seed ile rastgele ama tutarlı yerleşim; tekrarlar belli olmasın (varyasyon: boyut, açı, renk tonu).
+5. Gökyüzü ve uzak plan: Gradyan gökyüzü kubbesi (ufukta kızıl, tepede lacivert), ay/yıldızlar, uzakta dev silüet dağlar ve kale (sisle yumuşatılmış, ilerledikçe yavaşça yaklaşan).
+6. OKUNABİLİRLİK (kritik): Şu anki sürüm neredeyse siyah. Sahne karanlık ve atmosferik olsun ama her şey seçilebilsin: hemisphere ışık + yönlü ay ışığı + karakter kenar (rim) ışığı + minimum ortam ışığı. Yol, kayalar, kuleler net okunmalı. Ekranın hiçbir yeri tamamen siyah olmasın.
+7. "İlerlediği yer aydınlansın": Karakterin etrafında sıcak ışık (nokta ışık + yarı saydam ışık küresi/koni), önde sis ve karanlıkla "bilinmeyen" hissi, ilerledikçe yolun önü açılsın. Arkada kalan yolda sönük kor/kıvılcım izi. Meşalelere ve ateş çukurlarına yaklaşınca çevre yerel olarak parlasın (gerçek nokta ışığı sayısını sınırla; çoğunu emissive materyal ve sahte parıltıyla yap).
+8. Atmosfer efektleri: Alçak sis katmanları, uçuşan kül/kor parçacıkları (rüzgar yönünde), ışık huzmeleri, yer sisi, hafif kamera titreşimi koşarken. "Hava: Açık/Kapalı" düğmesi bunları aç/kapat.
+9. Kanıt: ?debug=1 ile konumun ilerlediğini, yanımdan nesnelerin geçtiğini 3 farklı konumdan alınmış ekran görüntüleriyle göster; ekranlar arası piksel farkını otomatik ölç.
+
+## AŞAMA 2 — GERÇEKTEN YÜRÜYEN KARAKTER (el, ayak, kol, bacak)
+Mevcut karakter resmi artık sadece arayüz portresi (profil, VS ekranı, diyalog) olarak kalsın. Oyun içi karakter GERÇEK, kemikli 3D model olacak.
+YOL A — HEMEN ÇALIŞAN (varsayılan, modeli beklemeden yap):
+- Kodla üretilmiş, eklemli bir şövalye: kafa, boyun, gövde, omuzlar, üst kol, ön kol, el, kalça, üst bacak, diz, alt bacak, ayak; zırh parçaları (omuz pedleri, göğüslük, dizlik, eldiven, bot), kılıç, kırmızı pelerin. Renk paleti mevcut karaktere benzesin (koyu metal, altın detay, kırmızı pelerin). Düşük poligon ama güzel materyal (metalik, kenar ışığı).
+- Gerçek yürüme döngüsü: bacaklar sırayla adım atar, diz bükülür, ayak yere basar ve yerden kalkar, kollar bacaklara zıt sallanır, gövde hafif döner, kafa dengede kalır, kalça yukarı-aşağı gider. Koşma döngüsü daha öne eğik, daha geniş adımlı. Idle: nefes alma, hafif ağırlık kayması, pelerin kıpırdaması.
+- AYAK KAYMASI OLMASIN: Animasyon hızı gerçek yer hızına bağlı olsun (adım uzunluğu = kat edilen mesafe). Ayak yere bastığında toz parçacığı + adım sesi o anda tetiklensin.
+- Pelerin: yay/zincir (spring chain) veya mesh simülasyonuyla hareket ve rüzgara tepki versin.
+YOL B — GERÇEK MODEL İÇİN HAZIR ALTYAPI:
+- /public/models/hero.glb dosyası varsa onu yükle, yoksa YOL A'yı kullan. GLB içindeki animasyon klipleri için eşleme tablosu yap: Idle, Walk, Run, Attack1, Attack2, Attack3, HeavyAttack, Block, Dodge, HitReaction, Death. AnimationMixer ile klipler arası yumuşak geçiş (crossfade). Klip adları farklıysa tek bir ayar dosyasında eşleştirebileyim.
+- Hız ile klip hızı (timeScale) eşleşmesi, yürümeden koşmaya karışım geçişi.
+- Yeni model yüklemenin adımlarını README'ye Türkçe, basit anlatımla yaz.
+Her iki yolda: animasyon durum makinesi (idle, yürü, koş, saldır, blok, atıl, hasar, ölüm), hasar alınca irkilme, ölünce yere yığılma.
+
+## AŞAMA 3 — YOLDA GERÇEK RAKİPLER VE SAVAŞ BUTONU
+1. Yolda dünyada gerçekten duran/devriye gezen 3D rakipler olsun (Kül İzci vb.): aynı iskeletten türeyen, farklı zırh rengi, boyut ve silahlı düşmanlar. Yürüme animasyonlarıyla devriye gezsinler, oyuncuyu fark edince durup dönsünler.
+2. HER bot, adının yanında net bir "BOT" rozeti taşısın (3D etiket + kart). Botlar asla gerçek oyuncu gibi gösterilmesin. Çevrimiçi gerçek oyuncu henüz yok; şimdilik yapma.
+3. Her yürüyüşte yolda seed ile yerleşmiş en az 3-4 rakip karşılaşması olsun (zorluk giderek artsın).
+4. Rakibe belirli mesafeye (örn. 8 m) girince: rakibin etrafında tehdit halkası, rakip kartı (seviye, ganimet), "SAVAŞ" butonu AKTİF olsun ("SAVAŞ YAKINDA" tamamen kalksın). Buton yaylanarak çıksın, nabız gibi parlasın, ses ve titreşim versin. Uzaklaşınca kaybolsun.
+5. Yol engelleri: kaya/barikat (dolaşılır), ateş çukuru/diken tuzakları (uyarı ışığıyla, adil), kırılabilir sandık/barikat (saldırıyla kırılır, ganimet düşer). Her biri efekt ve sesli.
+
+## AŞAMA 4 — AYNI 3D DÜNYADA GERÇEK ZAMANLI SAVAŞ
+Savaş ayrı bir ekrana ATLAMASIN; aynı dünyada, kameranın sinematik biçimde savaş açısına geçmesiyle başlasın.
+1. Giriş: Dünya hafif yavaşlar, kamera iki karakteri kadraja alır, "VS" kartı, 3-2-1, "SAVAŞ!".
+2. Kontroller (mobil): sol joystick hareket; sağda büyük SALDIRI butonu, KALKAN, ATILMA, 2 YETENEK (bekleme süreli). Basma animasyonu + titreşim.
+3. Mekanik: 3 vuruşluk hafif kombo, basılı tutarak ağır saldırı, zamanlı blokla savuşturma (karşı saldırı fırsatı), atılma (kısa dokunulmazlık), can + dayanıklılık, hasar (kritik, blok azaltması, kombo çarpanı), sersemleme ve geri savrulma.
+4. Düşman yapay zekâsı: kolay/orta/zor; mesafe tutma, saldırı örüntüleri, oyuncunun blok/atılmasına tepki, adil ve öğrenilebilir.
+5. Vuruş hissi (hiçbirini atlama): hit-stop (40-90 ms), ekran sarsıntısı, kısa zoom darbesi, vuruş flaşı, kıvılcım parçacıkları, kılıç izi (parlayan yay şeklinde iz), blokta kıvılcım patlaması ve şok dalgası halkası, atılmada hayalet izi, yetenek başına ayrı büyük efekt, yükselen hasar sayıları (kritikte büyük ve altın), gecikmeli kırmızı iz bırakan can çubuğu, can azalınca kırmızı vignette, son vuruşta yavaş çekim, ölme animasyonu, güçlü katmanlı ses.
+6. Bitiş: ZAFER (altın ışık huzmeleri) / YENİLGİ; ganimet sandığı açılma animasyonu; ödüller envantere uçar; yürüyüşe kesintisiz dönüş (konum, ışık ve ilerleme korunur).
+7. SUNUCU DOĞRULAMASI: İstemci ödül/skor/altın/XP göndermez. Sunucu düello kimliği ve tohum üretir; istemci zaman damgalı girdi kaydı gönderir; sunucu aynı deterministik simülasyonu oynatıp sonucu ve ödülü kendisi hesaplar. Düello kimliği tekil (çift ödül yok), imkansız girdi reddedilir, hız sınırı var. Testleri güncelle.
+
+## AŞAMA 5 — FARKLI, GERÇEK DÜNYALAR (BİYOMLAR)
+Dünyalar veri odaklı tanımlansın (kolay yeni dünya eklenebilsin). Her dünya GÖRSEL OLARAK birbirinden net ayrılsın:
+1. KÜL YOLU: kül, kor, yıkık kale, kızıl ufuk, sıcak ışık.
+2. ÇATLAK KÖPRÜ: uçurum kenarı, uzun taş köprü, dipten yükselen sis, rüzgar, uzaktan şimşek.
+3. SESSİZ NEKROPOL: mezarlık, eğri taşlar, mavi ruh ışıkları, soğuk sis, ay.
+4. DONMUŞ GEÇİT: kar, buz kayaları, kutup ışığı (aurora), uçuşan kar taneleri.
+Her dünya için: gökyüzü ve sis renkleri, ışık paleti, zemin rengi/dokusu, nesne seti, hava efekti, müzik, düşman türleri, tehlikeler, uzunluk (metre), bölüm sonu kapısı veya yönetici savaşı.
+Dünya geçişi: Kapıya varınca sinematik, sisle kararma, yeni dünyanın yüklenmesi ve açılış. Karakter ilerledikçe gerçekten o dünyanın içinde ilerlesin; hiçbir alan sabit görüntü olmasın.
+Hikâye altyapısı: Bölüm geçişinde sinema şeritli, daktilo efektli gizemli diyalog ekranı ve bir sonraki bölümü imâ eden ipucu (şimdilik altyapı + ilk iki bölüm için örnek diyalog).
+
+## AŞAMA 6 — GÜÇLENME (kısa)
+Ganimet (altın, malzeme, ekipman, nadirlik renkleri), "Heybe" ekranında ekipman takma ve yükseltme, ekipmanın karakterde görünmesi (kılıç parıltısı, pelerin rengi), istatistikler (can, hasar, savunma, kritik, hız, ışık yarıçapı). Tüm değişiklikler sunucuda doğrulanır.
+
+## BAŞARI KRİTERLERİ (hepsi canlı sürümde, telefonda kontrol edilecek)
+- Joystick'e basınca karakter gerçekten ileri gider; nesneler yanımdan geçer; ortam sürekli değişir.
+- Karakter elleri, kolları, bacakları ve ayaklarıyla yürür/koşar; ayak kayması yoktur.
+- Ortam karanlık ama okunaklıdır; ilerlediği yer aydınlanır.
+- Yolda gerçek rakipler görünür; yaklaşınca SAVAŞ butonu aktif olur; savaş aynı dünyada gerçek zamanlı oynanır.
+- En az 2 farklı dünya birbirinden net ayırt edilir.
+- Ödüller sunucuda hesaplanır; botlar "BOT" etiketlidir.
+- FPS ve test sonuçları dürüstçe raporlanır.
+
+ŞİMDİ yalnızca AŞAMA 1 ve 2'yi yap (3D dünya + yürüyen karakter, Yol A ile). Kök sorunları nasıl çözdüğünü, neyi hangi ortamda test ettiğini ve neyi test edemediğini yaz. Canlı sürüme yayınlama adımlarını ver. Ben "devam" demeden Aşama 3'e geçme.

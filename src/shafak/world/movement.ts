@@ -33,7 +33,7 @@ export type WorldMotionFrame = WorldMotion & {
 
 export const WORLD_METERS_TO_PIXELS = 38;
 export const LANE_METERS_PER_UNIT = 7;
-export const WORLD_CHUNK_LENGTH_METERS = 30;
+export const WORLD_CHUNK_LENGTH_METERS = 48;
 export const WORLD_GATE_INTERVAL_METERS = 144;
 
 const WALK_SPEED = 3.4;
@@ -99,16 +99,16 @@ export function stepWorldMotion(
   const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend);
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const targetX = input.x * directionScale * targetSpeed;
-  const targetY = input.y * directionScale * targetSpeed / LANE_METERS_PER_UNIT;
+  const targetY = input.y * directionScale * targetSpeed;
   const timeConstant = targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS;
   const response = 1 - Math.exp(-dt / timeConstant);
   const velocityX = state.velocityX + (targetX - state.velocityX) * response;
   const velocityY = state.velocityY + (targetY - state.velocityY) * response;
-  const speed = Math.hypot(velocityX, velocityY * LANE_METERS_PER_UNIT);
+  const speed = Math.hypot(velocityX, velocityY);
   const isMoving = speed > 0.12;
   const stopTime = isMoving ? 0 : state.stopTime + dt;
-  const distance = state.distance + velocityX * dt;
-  const depth = clamp(state.depth + velocityY * dt, -1, 1);
+  const distance = state.distance + velocityY * dt;
+  const depth = clamp(state.depth + velocityX * dt / LANE_METERS_PER_UNIT, -1, 1);
   const stepPhase = state.stepPhase + speed * dt / STRIDE_LENGTH * Math.PI * 2;
   const stepCount = Math.floor(stepPhase / Math.PI);
   const footsteps = Math.max(0, stepCount - state.stepCount);
@@ -121,14 +121,14 @@ export function stepWorldMotion(
   const targetZoom = 1 - speedFactor * 0.028;
   const cameraResponse = 1 - Math.exp(-dt / (isMoving ? 0.34 : 0.52));
   const zoom = state.zoom + (targetZoom - state.zoom) * cameraResponse;
-  const cameraTarget = distance + velocityX * 0.22;
+  const cameraTarget = distance + velocityY * 0.22;
   const cameraX = state.cameraX + (cameraTarget - state.cameraX) * cameraResponse;
   const cameraLead = clamp((distance - cameraX) * WORLD_METERS_TO_PIXELS, -18, 18);
   const lean = clamp(velocityX / RUN_SPEED, -1, 1) * 2.6;
   const footImpact = (1 + Math.cos(stepPhase)) / 2;
   const squash = isMoving ? footImpact * (0.012 + speedFactor * 0.008) : 0;
   const shadowScale = 1 + speedFactor * 0.24 - squash * 2;
-  const facing = velocityX > .12 ? -1 : velocityX < -.12 ? 1 : state.facing;
+  const facing = Math.abs(velocityX) > .12 ? (velocityX < 0 ? -1 : 1) : state.facing;
   const nextState: WorldMotion = {
     velocityX,
     velocityY,

@@ -37,7 +37,28 @@
 .world-scene *::after { box-sizing: border-box; }
 .world-scene button { color: inherit; font: inherit; }
 .world-scene button:focus-visible { outline: 2px solid #f1d79d; outline-offset: 4px; }
-.world-stage { position: absolute; inset: 0; overflow: hidden; background: #18151a; }
+.world-stage { position: absolute; inset: 0; overflow: hidden; background: #252330; }
+.world-three-layer {
+  position: absolute; z-index: 2; inset: 0; overflow: hidden; pointer-events: none;
+}
+.world-three-layer > div:first-child {
+  position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
+}
+.world-three-layer canvas { display: block; width: 100%; height: 100%; }
+.world-three-fallback {
+  display: grid; width: 100%; height: 100%; place-items: center;
+  background: linear-gradient(180deg, #22263a, #7d5548 54%, #332b2e);
+  color: #f3dfbd; font-size: 14px; text-align: center;
+}
+.world-debug {
+  position: absolute; z-index: 9; top: 143px; right: 12px; display: grid; gap: 4px;
+  max-width: min(300px, calc(100vw - 24px)); padding: 8px 10px;
+  border: 1px solid rgba(235,198,126,.4); border-radius: 4px;
+  background: rgba(8,10,16,.84); color: #eaddc6;
+  font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  box-shadow: 0 8px 28px rgba(0,0,0,.28); pointer-events: none;
+}
+.world-debug b { color: #f1cd82; letter-spacing: .12em; }
 .world-motion-filters { position: absolute; width: 0; height: 0; overflow: hidden; }
 .world-atmosphere { position: absolute; z-index: 3; inset: 0; overflow: hidden; pointer-events: none; }
 .world-atmosphere::before {
@@ -278,6 +299,7 @@
 .world-scene[data-reduced="true"] .world-step-bursts { display: none; }
 .world-scene[data-air="false"] .world-rays,
 .world-scene[data-air="false"] .world-plane--haze { display: none; }
+.world-scene[data-reduced="true"] .world-three-layer { --motion-reduced: 1; }
 .world-vignette {
   position: absolute; z-index: 6; inset: 0;
   pointer-events: none;
@@ -531,6 +553,7 @@
   .world-profile__demo { font-size: 7px; }
   .world-currency { min-height: 36px; padding: 0 10px; }
   .world-weather { top: 75px; right: 14px; }
+  .world-debug { top: 120px; right: 8px; gap: 3px; padding: 6px 7px; font-size: 8px; }
   .world-figure { left: calc(35% + var(--ws-player-drift-x, 0px)); bottom: clamp(96px, 14vh, 142px); width: clamp(180px, 48vw, 260px); height: min(58vh, 520px); }
   .world-step-burst { bottom: calc(clamp(96px, 14vh, 142px) + var(--ws-depth-bottom, 0px)); }
   .world-controls { right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); left: 14px; }

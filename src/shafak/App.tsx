@@ -157,7 +157,10 @@ type AppProps = {
 
 function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps) {
   const [, setLocation] = useLocation();
-  const [screen, setScreen] = useState<Screen>("opening");
+  const [screen, setScreen] = useState<Screen>(() => {
+    const query = new URLSearchParams(window.location.search);
+    return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "opening";
+  });
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);

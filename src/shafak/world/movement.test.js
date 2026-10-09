@@ -13,8 +13,8 @@ test("keyboard input reads WASD and arrows and normalizes diagonal travel", () =
 });
 
 test("joystick input preserves analog magnitude for walk-to-run speed", () => {
-  const quarter = readWorldInput(new Set(), { x: 0.25, y: 0 });
-  const pushed = readWorldInput(new Set(), { x: 0.9, y: 0 });
+  const quarter = readWorldInput(new Set(), { x: 0, y: 0.25 });
+  const pushed = readWorldInput(new Set(), { x: 0, y: 0.9 });
   let slow = createWorldMotion();
   let fast = createWorldMotion();
   for (let index = 0; index < 45; index += 1) {
@@ -27,7 +27,7 @@ test("joystick input preserves analog magnitude for walk-to-run speed", () => {
 });
 
 test("joystick forward input advances measured distance and the camera", () => {
-  const input = readWorldInput(new Set(), { x: 0.9, y: 0 });
+  const input = readWorldInput(new Set(), { x: 0, y: 0.9 });
   let state = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
     state = stepWorldMotion(state, input, 1 / 60);
@@ -37,9 +37,9 @@ test("joystick forward input advances measured distance and the camera", () => {
   assert.equal(state.motion, "running");
 });
 
-test("keyboard forward/back advances horizontally while W/S changes road depth", () => {
-  const forward = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
-  const depth = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
+test("W/S and up/down advance along the road while A/D changes lanes", () => {
+  const forward = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
+  const lateral = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
   let state = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
     state = stepWorldMotion(state, forward, 1 / 60);
@@ -50,7 +50,7 @@ test("keyboard forward/back advances horizontally while W/S changes road depth",
 
   let depthState = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
-    depthState = stepWorldMotion(depthState, depth, 1 / 60);
+    depthState = stepWorldMotion(depthState, lateral, 1 / 60);
   }
   assert.equal(depthState.distance, 0);
   assert.ok(depthState.depth > 0.25);
@@ -71,12 +71,12 @@ test("releasing input decelerates rather than stopping immediately", () => {
 
 test("forward travel accumulates and updates facing toward movement", () => {
   let state = createWorldMotion();
-  const right = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
+  const right = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
   for (let index = 0; index < 180; index += 1) {
     state = stepWorldMotion(state, right, 1 / 60);
   }
 
-  assert.equal(state.facing, -1);
+  assert.equal(state.facing, 1);
   assert.ok(state.distance > 8);
   assert.ok(state.cameraX > 0);
 });
@@ -93,7 +93,7 @@ test("invalid delta time does not inject movement", () => {
 
 test("backward movement reverses the travel camera instead of freezing at the origin", () => {
   let backward = createWorldMotion();
-  const input = readWorldInput(new Set(["a"]), { x: 0, y: 0 });
+  const input = readWorldInput(new Set(["s"]), { x: 0, y: 0 });
   for (let index = 0; index < 30; index += 1) backward = stepWorldMotion(backward, input, 1 / 60);
   assert.ok(backward.distance < 0);
   assert.ok(backward.cameraX < 0);

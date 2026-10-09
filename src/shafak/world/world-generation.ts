@@ -11,12 +11,15 @@ export const MIN_WORLD_PARALLAX = 0.38;
 export type WorldObjectKind =
   | "tower"
   | "ruin"
+  | "arch"
   | "tree"
   | "flag"
   | "rock"
   | "torch"
   | "crystal"
-  | "firepit";
+  | "firepit"
+  | "cart"
+  | "bones";
 
 export type WorldObject = {
   id: string;
@@ -46,6 +49,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
     random() > 0.5 ? "ruin" : "tower",
     (["torch", "crystal", "firepit"] as const)[Math.floor(random() * 3)],
     random() > 0.5 ? "rock" : "tree",
+    (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
   ];
 
   const objects = kinds.map((kind, objectIndex): WorldObject => ({
@@ -106,7 +110,7 @@ export function nextGateDistance(distance: number) {
 }
 
 function parallaxFor(kind: WorldObjectKind) {
-  if (kind === "tower" || kind === "ruin") return 0.42;
+  if (kind === "tower" || kind === "ruin" || kind === "arch") return 0.42;
   if (kind === "tree") return 0.58;
   if (kind === "flag") return 0.82;
   if (kind === "torch" || kind === "crystal" || kind === "firepit") return 0.9;

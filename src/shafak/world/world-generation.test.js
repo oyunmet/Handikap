@@ -10,7 +10,7 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   const first = createWorldChunk(4, 1234);
   assert.deepEqual(createWorldChunk(4, 1234), first);
   assert.notDeepEqual(createWorldChunk(4, 4321), first);
-  assert.equal(first.objects.length, 7);
+  assert.equal(first.objects.length, 8);
   assert.ok(first.objects.some((object) => ["torch", "crystal", "firepit"].includes(object.kind)));
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
 });
