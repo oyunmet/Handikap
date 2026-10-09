@@ -43,7 +43,7 @@ export default function WorldScenery({ motionRef, renderRef, quality, motionRedu
       height = Math.max(1, bounds.height);
       resolution = Math.min(
         window.devicePixelRatio || 1,
-        stateRef.current.quality === "high" ? 1.15 : stateRef.current.quality === "balanced" ? .9 : .65,
+        stateRef.current.quality === "high" ? .8 : stateRef.current.quality === "balanced" ? .65 : .5,
       );
       canvas.width = Math.round(width * resolution);
       canvas.height = Math.round(height * resolution);
@@ -164,7 +164,7 @@ function drawWorldObject(
   context.scale(size / 56, size / 56);
   context.globalAlpha = object.parallax < .5 ? .72 : object.parallax > .8 ? .92 : .82;
   context.shadowColor = "rgba(0,0,0,.42)";
-  context.shadowBlur = quality === "high" ? 15 : quality === "balanced" ? 8 : 3;
+  context.shadowBlur = quality === "high" ? 6 : quality === "balanced" ? 3 : 0;
   context.fillStyle = "#17181d";
   context.strokeStyle = "#28272a";
   context.lineWidth = 3;

@@ -628,6 +628,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
               profile={profile}
               debugWorld={worldDebug.enabled}
               debugStartDistance={worldDebug.startDistance}
+              debugAutoWalk={worldDebug.autoWalk}
               onExit={() => setScreen("menu")}
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenProfile={() => setProfileOpen(true)}

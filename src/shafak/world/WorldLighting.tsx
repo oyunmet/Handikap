@@ -48,7 +48,7 @@ export default function WorldLighting({
       height = Math.max(1, bounds.height);
       resolution = Math.min(
         window.devicePixelRatio || 1,
-        stateRef.current.quality === "high" ? 1 : stateRef.current.quality === "balanced" ? .8 : .6,
+        stateRef.current.quality === "high" ? .65 : stateRef.current.quality === "balanced" ? .5 : .4,
       );
       canvas.width = Math.round(width * resolution);
       canvas.height = Math.round(height * resolution);
@@ -106,8 +106,8 @@ export default function WorldLighting({
         paintLightMask(context, x, y, lightRadiusFor(object), object.kind === "torch" ? .68 : .78);
       }
 
-      for (let index = 0; index < 9; index += 1) {
-        const x = playerX - 19 - index * 25;
+      for (let index = 0; index < 5; index += 1) {
+        const x = playerX - 19 - index * 30;
         if (x < -12) break;
         const fade = Math.exp(-index * .24);
         paintLightMask(context, x, footY, 25 + (index % 3) * 4, .2 * fade);

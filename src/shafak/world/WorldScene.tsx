@@ -3,8 +3,7 @@ import type { CSSProperties } from "react";
 import { playFootstep } from "../audio/howler";
 import CharacterRenderer from "./CharacterRenderer";
 import WorldAtmosphere from "./WorldAtmosphere";
-import WorldLighting from "./WorldLighting";
-import WorldScenery from "./WorldScenery";
+import WorldRenderer from "./WorldRenderer";
 import {
   createWorldMotion,
   readWorldInput,
@@ -31,6 +30,7 @@ type WorldSceneProps = {
   onOpenProfile: () => void;
   debugWorld?: boolean;
   debugStartDistance?: number;
+  debugAutoWalk?: boolean;
 };
 type Panel = "inventory" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
@@ -56,11 +56,11 @@ export default function WorldScene({
   onOpenProfile,
   debugWorld = false,
   debugStartDistance = 0,
+  debugAutoWalk = false,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const motionRef = useRef(createWorldMotion(debugStartDistance));
-  const sceneryRenderRef = useRef<((now: number) => void) | null>(null);
-  const lightingRenderRef = useRef<((now: number) => void) | null>(null);
+  const worldRenderRef = useRef<((now: number) => void) | null>(null);
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const debugHudRef = useRef<HTMLElement>(null);
@@ -103,6 +103,7 @@ export default function WorldScene({
     let previous = 0;
     let lastReactUpdate = 0;
     let lastDebugUpdate = 0;
+    let lastVisualUpdate = 0;
     let lastCanvasRender = 0;
     let fpsWindowStart = 0;
     let fpsFrameCount = 0;
@@ -123,18 +124,20 @@ export default function WorldScene({
       previous = now;
       const frameState = stepWorldMotion(
         motionRef.current,
-        readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current),
+        debugAutoWalk
+          ? { x: 1, y: .12, sprint: false, analogMagnitude: 1 }
+          : readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current),
         dt,
       );
       motionRef.current = frameState;
-      if (now - lastCanvasRender >= 1000 / 30) {
+      if (now - lastCanvasRender >= 1000 / 12) {
         lastCanvasRender = now;
-        sceneryRenderRef.current?.(now);
-        lightingRenderRef.current?.(now);
+        worldRenderRef.current?.(now);
       }
 
       const root = sceneRef.current;
-      if (root) {
+      if (root && now - lastVisualUpdate >= 1000 / 30) {
+        lastVisualUpdate = now;
         const pixelsPerMeter = Math.max(30, Math.min(48, sceneWidth * .095));
         const cameraPixels = frameState.cameraX * pixelsPerMeter;
         const distance = frameState.distance;
@@ -208,7 +211,7 @@ export default function WorldScene({
       window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
     };
-  }, [audioOn, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, debugAutoWalk, motionReduced, vibrationOn, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -271,24 +274,19 @@ export default function WorldScene({
         <div className="world-plane world-plane--road" />
         <div className="world-plane world-plane--foreground" />
         <div className="world-rays" />
-        <WorldScenery
+        <WorldRenderer
           motionRef={motionRef}
-          renderRef={sceneryRenderRef}
+          renderRef={worldRenderRef}
           quality={quality}
           motionReduced={motionReduced}
+          level={profile.level}
+          relicCount={profile.items.length}
         />
         <WorldAtmosphere
           quality={quality}
           motionReduced={motionReduced}
           enabled={airEnabled}
           travel={motionRef.current.cameraX * WORLD_METERS_TO_PIXELS}
-        />
-        <WorldLighting
-          motionRef={motionRef}
-          renderRef={lightingRenderRef}
-          level={profile.level}
-          relicCount={profile.items.length}
-          quality={quality}
         />
         <div className="world-speed-lines" aria-hidden="true">
           {Array.from({ length: 8 }, (_, index) => (

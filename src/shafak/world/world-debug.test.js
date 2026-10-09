@@ -5,12 +5,13 @@ import { readWorldDebugConfig } from "./world-debug.ts";
 test("world debug preview is available only in development", () => {
   assert.deepEqual(
     readWorldDebugConfig("?worldDebug=1&worldDistance=20", false),
-    { enabled: false, startDistance: 0 },
+    { enabled: false, startDistance: 0, autoWalk: false },
   );
   assert.deepEqual(
-    readWorldDebugConfig("?worldDebug=1&worldDistance=20", true),
-    { enabled: true, startDistance: 20 },
+    readWorldDebugConfig("?worldDebug=1&worldDistance=20&worldAutoWalk=1", true),
+    { enabled: true, startDistance: 20, autoWalk: true },
   );
+  assert.equal(readWorldDebugConfig("?worldDebug=1", true).autoWalk, false);
 });
 
 test("world debug distance is safely bounded", () => {
