@@ -177,7 +177,7 @@ export default function DuelControls({
       >
         <span aria-hidden="true" />
       </div>
-      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L KAÇ · BOŞLUK KOR · Q YILDIRIM</div>
+      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L ATILMA · BOŞLUK KOR · Q YILDIRIM</div>
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
       <div className="duel-control-cluster">
@@ -204,7 +204,7 @@ export default function DuelControls({
           />
         </div>
         <div className="duel-control-cluster__actions">
-          <HeldButton button={INPUT_BUTTON.dodge} label="KAÇ" className="is-dodge" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 20 ? "KAÇ için 20 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton button={INPUT_BUTTON.dodge} label="ATILMA" className="is-dodge" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 20 ? "ATILMA için 20 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
           <HeldButton button={INPUT_BUTTON.block} label="KALKAN" className="is-block" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 1 ? "Kalkan için dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
           <HeldButton button={INPUT_BUTTON.attack} label="SALDIRI" className="is-attack" onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
         </div>

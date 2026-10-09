@@ -1596,7 +1596,7 @@ export default function WorldScene({
                 <div className="duel-tutorial__rows">
                   <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>Sağdaki büyük düğme · basılı tut: ağır vuruş</i><strong>↘</strong></div>
                   <div><span aria-hidden="true">⬟</span><b>KALKAN</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
-                  <div><span aria-hidden="true">↝</span><b>KAÇ</b><i>Kısa süre hasar almazsın · dayanıklılık harcar</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">↝</span><b>ATILMA</b><i>Kısa süre hasar almazsın · dayanıklılık harcar</i><strong>↙</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                 </div>
@@ -1639,6 +1639,17 @@ export default function WorldScene({
               <small>OTURUM</small>
             )}
           </div>
+          <div className="world-weather">
+            <span>{worldText.weather}: {airEnabled ? worldText.clear : worldText.airOff}</span>
+            <button
+              className="world-weather__switch"
+              type="button"
+              role="switch"
+              aria-checked={airEnabled}
+              aria-label={`${worldText.weather}: ${airEnabled ? worldText.clear : worldText.airOff}`}
+              onClick={() => { wake(); setAirEnabled((current) => !current); }}
+            ><span /></button>
+          </div>
         </div>
       </header>
       {pickupFlights.length > 0 && (
@@ -1666,17 +1677,6 @@ export default function WorldScene({
         </div>
         <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
         <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
-      </div>
-      <div className="world-weather">
-        <span>{worldText.weather}: {airEnabled ? worldText.clear : worldText.airOff}</span>
-        <button
-          className="world-weather__switch"
-          type="button"
-          role="switch"
-          aria-checked={airEnabled}
-          aria-label={`${worldText.weather}: ${airEnabled ? worldText.clear : worldText.airOff}`}
-          onClick={() => { wake(); setAirEnabled((current) => !current); }}
-        ><span /></button>
       </div>
       <div
         className="world-joystick"
@@ -1717,9 +1717,20 @@ export default function WorldScene({
           <div className="world-battle-entry__vignette" />
           <span className="world-battle-entry__eyebrow">GERÇEK ZAMANLI SAVAŞ · AYNI 3D DÜNYA</span>
           <div className="world-battle-entry__versus">
-            <div><small>YOLCU · SEV. {profile.level}</small><strong>{profile.name}</strong></div>
+              <div className="world-battle-entry__side world-battle-entry__side--player">
+                <small>YOLCU · SEV. {profile.level}</small>
+                <strong>{profile.name}</strong>
+              </div>
             <b>VS</b>
-            <div><small><i>BOT</i> · SEV. {battleSession.rival.level}</small><strong>{battleSession.rival.name}</strong></div>
+              <div className="world-battle-entry__side world-battle-entry__side--rival">
+                <div className="world-battle-entry__portrait" aria-hidden="true">
+                  <img src="/images/gece-nobetcisi.png" alt="" />
+                </div>
+                <div className="world-battle-entry__rival-copy">
+                  <small><i>BOT</i> · SEV. {battleSession.rival.level}</small>
+                  <strong>{battleSession.rival.name}</strong>
+                </div>
+              </div>
           </div>
           <p>
             {battleSession.phase === "sweep" ? "KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" :
