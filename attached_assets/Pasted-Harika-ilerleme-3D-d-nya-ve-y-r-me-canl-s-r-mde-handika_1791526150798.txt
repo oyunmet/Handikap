@@ -1,0 +1,25 @@
+Harika ilerleme: 3D dünya ve yürüme canlı sürümde (handikap.vercel.app) görünüyor. Şimdi sıradaki aşamalar: TOPLANABİLİR ÖĞELER, YOLDA RAKİPLER, SAVAŞ BUTONU ve GERÇEK ZAMANLI SAVAŞ. Kısa not: şu an yerdeki turuncu kristal sadece dekor (üstüne gelince alınmıyor) ve yolda hiç rakip yok.
+
+## KURALLAR
+- Aşama aşama ilerle; her aşamada ne değişti / neyi hangi ortamda test ettin (özellikle gerçek mobil WebKit) / neyi test edemedin yaz. Doğrulamadan "tamam" deme.
+- Mevcut Clerk girişi, PostgreSQL profil, misafir modu, sunucu taraflı ödül doğrulaması bozulmasın.
+- Oyun mantığı render'dan ayrı, sabit zaman adımlı (60 Hz) ve tohumlu (seed) olsun.
+- Test için ?debug=1 paneline şunları ekle: "En yakın rakibe ışınlan", "En yakın toplanabilire ışınlan", "Mesafeyi atla" düğmeleri; böylece telefonda hızlı test edebileyim. Panelde ayrıca oyuncu konumu, rakip sayısı, toplanan öğe sayısı, FPS görünsün.
+
+## AŞAMA A — TOPLANABİLİR ÖĞELER (altın, kristal, malzeme)
+1. Yoldaki turuncu kristal ve altın parçaları gerçekten toplanabilir olsun: karakter belirli yarıçapa (örn. 1.5 m) girince otomatik toplansın; çok yakınken hafifçe karaktere doğru çekilsin (mıknatıs etkisi).
+2. Toplama efekti: parıltı patlaması, küçük kıvılcım parçacıkları, yukarı süzülüp HUD'daki altın sayacına uçan bir animasyon, sayaç artarken kısa "tık" animasyonu, tatmin edici ses ve kısa titreşim.
+3. Öğe türleri: altın (küçük/büyük), kor kristali (malzeme), nadir "Mühür Parçası". Her biri farklı renk, parıltı ve boyutta; yerde hafifçe dönsün ve yukarı aşağı süzülsün, çevreye yumuşak ışık yaysın.
+4. Yerleşim seed ile, yolun üzerinde ve kenarlarında (bazıları hafif yan yoldan alınır), hiçbiri ulaşılmaz yerde olmasın.
+5. Güvenlik: Altın/malzeme istemcide DOĞRUDAN yazılmaz; toplanan öğeler sunucuya bölüm kimliği + öğe kimlikleri ile bildirilir, sunucu seed'den bu öğelerin gerçekten var olduğunu ve aynı öğenin iki kez sayılmadığını doğrular, sınırı aşan miktarı reddeder.
+
+## AŞAMA B — YOLDA RAKİPLER (BOT) VE SAVAŞ BUTONU
+1. Dünyada gerçek 3D rakipler olsun (şimdilik yalnızca botlar): "Kül İzci" gibi isimler, karakterle aynı iskeletten türeyen ama farklı zırh rengi, boyut ve silahlı modeller. Yolun üzerinde duran veya devriye gezen; yürüme/idle animasyonları olsun.
+2. İlk rakip, oyuncunun başlangıcından yaklaşık 40-60 m ileride görünsün; toplam en az 4 rakip yolda yerleşsin (kapıya yaklaştıkça güçlenen). Seed ile üretilsin.
+3. Her bot adının yanında net bir "BOT" rozeti taşısın (3D etiket ve kart). Botlar asla gerçek oyuncu gibi gösterilmesin. Çevrimiçi gerçek oyuncular henüz yok, yapma.
+4. Oyuncu yaklaşınca (örn. 8 m): rakip oyuncuya döner, etrafında tehdit halkası belirir, rakip kartı (isim, BOT, seviye, tahmini ganimet) çıkar ve "SAVAŞ" butonu AKTİF olur (kırmızı-altın nabız parıltısı, yaylanarak belirme, ses ve titreşim). "SAVAŞ YAKINDA" yazısı tamamen kalksın. Uzaklaşınca buton kaybolsun.
+5. Rakip oyuncuyu fark edince dönüp bakar, çok yaklaşırsa yürüyerek yaklaşır (zorlama yok, butona basmak oyuncunun seçimi).
+6. Yol engelleri: devrilmiş kayalar, dikenli tuzaklar, kırılabilir sandıklar/barikatlar. Bloke edenler dolaşılabilir; tuzaklar uyarı ışığıyla adil; kırılabilirler saldırıyla kırılır ve toplanabilir öğe düşürür.
+
+## AŞAMA C — GERÇEK ZAMANLI SAVAŞ (aynı 3D dünyada)
+1. Giriş: SAVAŞ'a basınca dünya kısa yavaşlar, kamera iki karakteri kadraja alan savaş açısına geçer, "VS" kartı
