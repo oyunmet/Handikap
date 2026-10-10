@@ -8,7 +8,8 @@ import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
-import { getOpponentModelConfig, type OpponentModelAnimationState } from "./opponent-model-config";
+import { getOpponentModelConfig } from "./opponent-model-config";
+import { mapOpponentAnimationState } from "./model-animation";
 import {
   AshSky,
   WorldChunks,
@@ -268,13 +269,6 @@ function combatAnimation(action: CombatAction, speed: number) {
   return speed > 0.28 ? "walk" as const : "idle" as const;
 }
 
-function modelAnimationForState(state: CharacterAnimationState): OpponentModelAnimationState {
-  if (state === "walk" || state === "run") return "run";
-  if (state === "heavyAttack") return "attack";
-  if (state === "die") return "death";
-  return state;
-}
-
 function DuelFighter({
   side,
   opponentName,
@@ -310,8 +304,8 @@ function DuelFighter({
         ? "victory"
         : combatRender.verdict === "victory"
           ? "death"
-          : modelAnimationForState(animation)
-      : modelAnimationForState(animation)
+          : mapOpponentAnimationState(animation, renderedActor?.action)
+      : mapOpponentAnimationState(animation, renderedActor?.action)
     : undefined;
   const defeated = Boolean(
     renderedActor

@@ -10,7 +10,12 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { CharacterAnimationState } from "./character-animation";
 import { KNIGHT_CONFIG } from "./knight-config";
 import Knight3D from "./Knight3D";
-import { resolveGlbClipName, type ModelAnimationState } from "./model-animation";
+import {
+  getOpponentAnimationPlayback,
+  isRootTranslationTrack,
+  resolveGlbClipName,
+  type ModelAnimationState,
+} from "./model-animation";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
@@ -162,15 +167,26 @@ function OptionalGlbKnight({
     [gltf.scene, modelPath, modelConfig],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
+  const animationClips = useMemo(() => {
+    const rootBoneName = modelConfig?.rootBoneName;
+    if (!rootBoneName) return gltf.animations;
+    return gltf.animations.map((clip) => {
+      const inPlaceClip = clip.clone();
+      inPlaceClip.tracks = inPlaceClip.tracks.filter(
+        (track) => !isRootTranslationTrack(track.name, rootBoneName),
+      );
+      return inPlaceClip;
+    });
+  }, [gltf.animations, modelConfig?.rootBoneName]);
   const actions = useMemo(() => {
-    const entries = gltf.animations.map((clip) => [clip.name, mixer.clipAction(clip)] as const);
+    const entries = animationClips.map((clip) => [clip.name, mixer.clipAction(clip)] as const);
     return new Map(entries);
-  }, [gltf.animations, mixer]);
+  }, [animationClips, mixer]);
   const currentAction = useRef<THREE.AnimationAction | null>(null);
   const clipState = modelAnimationState ?? state;
   const selectedClip = resolveGlbClipName(
     clipState,
-    gltf.animations.map((clip) => clip.name),
+    animationClips.map((clip) => clip.name),
     modelConfig?.animationClips,
   );
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
@@ -184,18 +200,51 @@ function OptionalGlbKnight({
     }
     selectedAction.reset();
     selectedAction.enabled = true;
-    selectedAction.clampWhenFinished = ["attack", "dodge", "hit", "die", "death", "victory"].includes(clipState);
+    const opponentPlayback = modelConfig ? getOpponentAnimationPlayback(clipState) : null;
+    selectedAction.clampWhenFinished = opponentPlayback
+      ? opponentPlayback === "holdLastFrame"
+      : ["attack", "dodge", "hit", "die", "death", "victory"].includes(clipState);
+    const playOnce = opponentPlayback
+      ? opponentPlayback !== "loop"
+      : selectedAction.clampWhenFinished;
     selectedAction.setLoop(
-      selectedAction.clampWhenFinished ? THREE.LoopOnce : THREE.LoopRepeat,
-      selectedAction.clampWhenFinished ? 1 : Infinity,
+      playOnce ? THREE.LoopOnce : THREE.LoopRepeat,
+      playOnce ? 1 : Infinity,
     );
     if (previous && previous !== selectedAction) {
-      selectedAction.crossFadeFrom(previous, 0.2, true).play();
+      selectedAction.crossFadeFrom(previous, 0.18, true).play();
     } else {
-      selectedAction.fadeIn(0.2).play();
+      selectedAction.fadeIn(0.18).play();
     }
     currentAction.current = selectedAction;
-  }, [clipState, selectedAction]);
+  }, [clipState, modelConfig, selectedAction]);
+
+  useEffect(() => {
+    if (
+      !modelConfig
+      || !selectedAction
+      || getOpponentAnimationPlayback(clipState) !== "returnToIdle"
+    ) return undefined;
+    const idleClip = resolveGlbClipName(
+      "idle",
+      animationClips.map((clip) => clip.name),
+      modelConfig.animationClips,
+    );
+    const idleAction = idleClip ? actions.get(idleClip) ?? null : null;
+    if (!idleAction || idleAction === selectedAction) return undefined;
+
+    const handleFinished = (event: { action: THREE.AnimationAction }) => {
+      if (event.action !== selectedAction || currentAction.current !== selectedAction) return;
+      idleAction.reset();
+      idleAction.enabled = true;
+      idleAction.clampWhenFinished = false;
+      idleAction.setLoop(THREE.LoopRepeat, Infinity);
+      idleAction.crossFadeFrom(selectedAction, 0.18, true).play();
+      currentAction.current = idleAction;
+    };
+    mixer.addEventListener("finished", handleFinished);
+    return () => mixer.removeEventListener("finished", handleFinished);
+  }, [actions, animationClips, clipState, mixer, modelConfig, selectedAction]);
 
   useFrame((_, delta) => {
     const root = rootRef.current;
