@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
-import { duel360EnabledFromSearch, getDirectionZone, normalizeYaw, yawToward } from "../game/duel-direction";
+import { duel360EnabledFromSearch, getDirectionZone, normalizeYaw, quantizeDuelYaw, yawToward } from "../game/duel-direction";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
@@ -1128,7 +1128,7 @@ export default function WorldScene({
       combatInputRef.current.yaw = initialCombat.player.yaw;
       combatInputRef.current.lockOn = directionalDuelEnabled;
       combatInputRef.current.directional = directionalDuelEnabled;
-      cameraOrbitRef.current.yaw = normalizeYaw(initialCombat.player.yaw - Math.PI);
+      cameraOrbitRef.current.yaw = normalizeYaw(initialCombat.player.yaw - Math.PI * 0.68);
       inputLogRef.current = directionalDuelEnabled
         ? [[
             0,
@@ -1219,7 +1219,7 @@ export default function WorldScene({
     const nextLocked = !duelLockOn;
     const player = combatStateRef.current?.player;
     const input = combatInputRef.current;
-    if (!nextLocked && player) cameraOrbitRef.current.yaw = normalizeYaw(player.yaw - Math.PI);
+    if (!nextLocked && player) cameraOrbitRef.current.yaw = normalizeYaw(player.yaw - Math.PI * 0.68);
     if (player) input.yaw = player.yaw;
     input.lockOn = nextLocked;
     input.directional = true;
@@ -1400,6 +1400,7 @@ export default function WorldScene({
           if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && now >= hitStopUntilRef.current) {
             const buffered = combatInputRef.current;
             if (buffered.lockOn) buffered.yaw = currentCombat.player.yaw;
+            const replayYaw = quantizeDuelYaw(buffered.yaw);
             const inputFrame: CombatInputFrame = directionalDuelEnabled
               ? [
                   currentCombat.tick + 1,
@@ -1408,7 +1409,7 @@ export default function WorldScene({
                   buffered.buttons & MAX_INPUT_BUTTONS,
                   buffered.pressed & MAX_INPUT_BUTTONS,
                   buffered.released & MAX_INPUT_BUTTONS,
-                  Math.round(normalizeYaw(buffered.yaw) * 1_000),
+                  Math.round(replayYaw * 1_000),
                   buffered.lockOn ? 1 : 0,
                 ]
               : [
@@ -1436,7 +1437,7 @@ export default function WorldScene({
               buttons: buffered.buttons & MAX_INPUT_BUTTONS,
               pressed: inputFrame[4],
               released: inputFrame[5],
-              yaw: buffered.yaw,
+              yaw: replayYaw,
               lockOn: buffered.lockOn,
               directional: directionalDuelEnabled,
             };

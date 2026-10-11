@@ -19,6 +19,10 @@ export function normalizeYaw(yaw: number) {
   return wrapped === -Math.PI && yaw > 0 ? Math.PI : wrapped;
 }
 
+export function quantizeDuelYaw(yaw: number) {
+  return Math.round(normalizeYaw(yaw) * 1_000) / 1_000;
+}
+
 export function yawToward(source: DuelPosition, target: DuelPosition) {
   return normalizeYaw(Math.atan2(target.x - source.x, target.z - source.z));
 }

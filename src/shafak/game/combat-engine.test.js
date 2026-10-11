@@ -11,7 +11,7 @@ import {
   replayCombat,
   stepCombat,
 } from "./combat-engine.ts";
-import { normalizeYaw, yawToward } from "./duel-direction.ts";
+import { normalizeYaw, quantizeDuelYaw, yawToward } from "./duel-direction.ts";
 
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
   const seed = 881723;
@@ -191,11 +191,13 @@ test("directional inputs replay yaw and lock state deterministically", () => {
   const seed = 54812;
   let state = createCombatState(seed, "medium");
   let buttons = 0;
-  const frames = [[0, 0, 0, 0, 0, 0, Math.round(state.player.yaw * 1_000), 1]];
+  const frames = [[0, 0, 0, 0, 0, 0, Math.round(quantizeDuelYaw(state.player.yaw) * 1_000), 1]];
 
   for (let tick = 1; tick <= MAX_DUEL_TICKS && !state.ended; tick += 1) {
     const lockOn = tick < 2_700;
-    const yaw = normalizeYaw(tick < 4_000 ? 0.5 : -1.2);
+    const yaw = quantizeDuelYaw(normalizeYaw(
+      (tick < 4_000 ? 0.5 : -1.2) + Math.sin(tick * 0.013) * 0.007,
+    ));
     const nextButtons = tick % 54 === 2 ? INPUT_BUTTON.attack : 0;
     const pressed = nextButtons & ~buttons;
     const released = buttons & ~nextButtons;

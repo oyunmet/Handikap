@@ -11,6 +11,7 @@ import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByName } from "./world-bot-profiles";
 import { mapOpponentAnimationState } from "./model-animation";
+import { getDuelCameraFraming } from "./duel-camera";
 import {
   AshSky,
   WorldChunks,
@@ -234,7 +235,15 @@ const FOG_COLORS = Object.fromEntries(
   Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [biome, new THREE.Color(palette.fog)]),
 ) as Record<keyof typeof WORLD_BIOME_PALETTES, THREE.Color>;
 
-function SceneFog({ motionRef, weatherMode }: { motionRef: MutableRefObject<WorldMotion>; weatherMode: WeatherMode }) {
+function SceneFog({
+  motionRef,
+  weatherMode,
+  combatActive,
+}: {
+  motionRef: MutableRefObject<WorldMotion>;
+  weatherMode: WeatherMode;
+  combatActive: boolean;
+}) {
   const { scene } = useThree();
   const fogRef = useRef<THREE.FogExp2 | null>(null);
   useEffect(() => {
@@ -251,7 +260,9 @@ function SceneFog({ motionRef, weatherMode }: { motionRef: MutableRefObject<Worl
     if (!fog) return;
     const transition = getBiomeTransition(motionRef.current.distance);
     fog.color.lerpColors(FOG_COLORS[transition.from], FOG_COLORS[transition.to], transition.mix);
-    const baseDensity = weatherMode === "fog" ? 0.016 : weatherMode === "rain" ? 0.0095 : weatherMode === "ash" ? 0.0085 : 0.004;
+    const baseDensity = combatActive
+      ? 0.0028
+      : weatherMode === "fog" ? 0.016 : weatherMode === "rain" ? 0.0095 : weatherMode === "ash" ? 0.0085 : 0.004;
     const biomeDensity = transition.biome === "frozen-pass" ? 1.08 : transition.biome === "red-marsh" ? 1.13 : 1;
     fog.density = baseDensity * biomeDensity;
   });
@@ -360,39 +371,29 @@ function CameraRig({
       ? Math.sin(THREE.MathUtils.clamp(skillAge / 0.46, 0, 1) * Math.PI) * (skillPulseRef.current.attack === "skillTwo" ? 3.1 : 2.4)
       : 0;
     if (combat) {
-      const centerX = (combat.player.x + combat.bot.x) * 0.5;
-      const centerZ = -(motion.distance - motion.originDistance) + (combat.player.z + combat.bot.z) * 0.5;
-      const gap = Math.hypot(combat.player.x - combat.bot.x, combat.player.z - combat.bot.z);
-      const aspect = size.width / Math.max(1, size.height);
-      const cameraDistance = THREE.MathUtils.clamp(6.5 + gap * 0.68, 6.7, 8.6) * (aspect < 0.72 ? 1.12 : 1);
+      const framing = getDuelCameraFraming({
+        player: combat.player,
+        bot: combat.bot,
+        aspect: size.width / Math.max(1, size.height),
+        orbitYaw: cameraOrbitRef.current.yaw,
+        lockOn: duelLockOn,
+      });
       const pitch = THREE.MathUtils.clamp(cameraOrbitRef.current.pitch, 0.18, 1.05);
+      const cinematicProgress = cinematicIntro && !motionReduced
+        ? THREE.MathUtils.clamp((_.clock.elapsedTime - (cinematicStartRef.current ?? _.clock.elapsedTime)) / 2, 0, 1)
+        : 1;
+      const easedCinematicProgress = cinematicProgress * cinematicProgress * (3 - 2 * cinematicProgress);
+      const cameraYaw = framing.yaw + (1 - easedCinematicProgress) * 0.22;
+      const cameraDistance = framing.distance + (1 - easedCinematicProgress) * 1.6;
       const horizontal = cameraDistance * Math.cos(pitch);
       const vertical = cameraDistance * Math.sin(pitch);
-      if (cinematicIntro && !motionReduced) {
-        const progress = THREE.MathUtils.clamp((_.clock.elapsedTime - (cinematicStartRef.current ?? _.clock.elapsedTime)) / 2, 0, 1);
-        const eased = progress * progress * (3 - 2 * progress);
-        const introDistance = cameraDistance + (1 - eased) * 2.2;
-        const introHorizontal = introDistance * Math.cos(pitch);
-        const introVertical = introDistance * Math.sin(pitch);
-        desiredRef.set(
-          combat.player.x - Math.sin(combat.player.yaw) * introHorizontal,
-          1.2 + introVertical + (1 - eased) * 0.65,
-          -(motion.distance - motion.originDistance) + combat.player.z - Math.cos(combat.player.yaw) * introHorizontal,
-        );
-      } else if (duelLockOn) {
-        desiredRef.set(
-          combat.player.x - Math.sin(combat.player.yaw) * horizontal,
-          1.2 + vertical,
-          -(motion.distance - motion.originDistance) + combat.player.z - Math.cos(combat.player.yaw) * horizontal,
-        );
-      } else {
-        desiredRef.set(
-          centerX + Math.sin(cameraOrbitRef.current.yaw) * horizontal,
-          1.2 + vertical,
-          centerZ + Math.cos(cameraOrbitRef.current.yaw) * horizontal,
-        );
-      }
-      targetRef.set(centerX, 1.0, centerZ);
+      const centerZ = -(motion.distance - motion.originDistance) + framing.targetZ;
+      desiredRef.set(
+        framing.targetX + Math.sin(cameraYaw) * horizontal,
+        1.15 + vertical,
+        centerZ + Math.cos(cameraYaw) * horizontal,
+      );
+      targetRef.set(framing.targetX, 1.0, centerZ);
       if (combat.lastImpactTick !== impactRef.current.tick) {
         impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
       }
@@ -422,8 +423,17 @@ function CameraRig({
     camera.lookAt(targetRef);
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
+    const duelFov = combat
+      ? getDuelCameraFraming({
+          player: combat.player,
+          bot: combat.bot,
+          aspect: size.width / Math.max(1, size.height),
+          orbitYaw: cameraOrbitRef.current.yaw,
+          lockOn: duelLockOn,
+        }).fov
+      : 45;
     const desiredFov = combat
-      ? 45 - combatImpact * 1.1 - skillZoom - finisherZoom
+      ? duelFov - combatImpact * 1.1 - skillZoom - finisherZoom
       : focusedRival ? (cinematicIntro ? 51 : 48) : 54 + Math.min(speed, 7) * 0.7;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
@@ -882,12 +892,16 @@ function DuelArena({
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
+      <mesh position={[0, -0.045, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[26, 96]} />
+        <meshStandardMaterial color="#302a35" emissive="#211822" emissiveIntensity={0.14} roughness={0.98} />
+      </mesh>
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[4.28, 96]} />
         <meshStandardMaterial
-          color="#29222b"
-          emissive="#201423"
-          emissiveIntensity={0.16}
+          color="#40313a"
+          emissive="#4d2926"
+          emissiveIntensity={0.24}
           roughness={0.94}
           metalness={0.04}
         />
@@ -1178,10 +1192,17 @@ function SceneContents({
   return (
     <>
       <ProceduralEnvironment />
-      <SceneFog motionRef={motionRef} weatherMode={weatherMode} />
+      <SceneFog motionRef={motionRef} weatherMode={weatherMode} combatActive={combatActive} />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
-      <color attach="background" args={["#252330"]} />
+      <color attach="background" args={[combatActive ? "#39343e" : "#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
+      {combatActive && (
+        <>
+          <hemisphereLight args={["#f2d7c0", "#4b4355", 1.1]} />
+          <directionalLight position={[4, 7, 6]} color="#ffe1bd" intensity={2.2} />
+          <directionalLight position={[-5, 4, -3]} color="#acd8e8" intensity={1.25} />
+        </>
+      )}
       <directionalLight
         position={[-8, 14, 8]}
         color="#ffd09a"
@@ -1198,7 +1219,7 @@ function SceneContents({
         shadow-bias={-0.0002}
         shadow-normalBias={0.025}
       />
-      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
+      {!combatActive && visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
