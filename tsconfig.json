@@ -12,5 +12,5 @@
     "types": ["vite/client", "node"],
     "allowImportingTsExtensions": true
   },
-  "include": ["src/shafak/**/*.ts", "src/shafak/**/*.tsx", "server/**/*.ts"]
+  "include": ["api/**/*.ts", "src/shafak/**/*.ts", "src/shafak/**/*.tsx", "server/**/*.ts"]
 }
