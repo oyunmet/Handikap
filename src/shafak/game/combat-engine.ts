@@ -1,15 +1,4 @@
 import type { PlayerCombatModifiers } from "./store-types.ts";
-import {
-  ATTACK_HALF_ANGLE_RADIANS,
-  SHIELD_HALF_ANGLE_RADIANS,
-  getDirectionalDamageMultiplier,
-  getDirectionZone,
-  isWithinFacingCone,
-  normalizeYaw,
-  turnYawToward,
-  yawToward,
-  type DirectionZone,
-} from "./duel-direction.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
@@ -21,9 +10,6 @@ export const INPUT_BUTTON = {
   skillTwo: 16,
 } as const;
 export const MAX_INPUT_BUTTONS = 31;
-export const DUEL_ARENA_RADIUS = 3.9;
-export const DUEL_ARENA_CENTER_Z = -0.6;
-export const MAX_INPUT_TURN_RADIANS_PER_TICK = 0.14;
 
 export type CombatDifficulty = "easy" | "medium" | "hard";
 export type CombatSide = "player" | "bot";
@@ -46,7 +32,6 @@ export type CombatActor = {
   z: number;
   vx: number;
   vz: number;
-  yaw: number;
   hp: number;
   maxHp: number;
   stamina: number;
@@ -88,12 +73,9 @@ export type CombatInput = {
   buttons: number;
   pressed: number;
   released: number;
-  yaw?: number;
-  lockOn?: boolean;
-  directional?: boolean;
 };
 
-export type LegacyCombatInputFrame = readonly [
+export type CombatInputFrame = readonly [
   tick: number,
   x: number,
   y: number,
@@ -101,28 +83,15 @@ export type LegacyCombatInputFrame = readonly [
   pressed: number,
   released: number,
 ];
-export type DirectionalCombatInputFrame = readonly [
-  tick: number,
-  x: number,
-  y: number,
-  buttons: number,
-  pressed: number,
-  released: number,
-  yawMilliRadians: number,
-  lockOn: number,
-];
-export type CombatInputFrame = LegacyCombatInputFrame | DirectionalCombatInputFrame;
 
 export type CombatEvent = {
   id: number;
-  type: "hit" | "block" | "parry" | "dodge" | "skill" | "knockout" | "whiff";
+  type: "hit" | "block" | "parry" | "dodge" | "skill" | "knockout";
   target: CombatSide;
   attack?: CombatAttack;
   damage?: number;
   critical?: boolean;
   combo?: number;
-  directionZone?: DirectionZone;
-  damageMultiplier?: number;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -153,10 +122,8 @@ function finiteOr(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 const normalized = (x: number, y: number) => {
-  const safeX = finiteOr(x, 0);
-  const safeY = finiteOr(y, 0);
-  const length = Math.hypot(safeX, safeY);
-  return length > 1 ? { x: safeX / length, y: safeY / length } : { x: safeX, y: safeY };
+  const length = Math.hypot(x, y);
+  return length > 1 ? { x: x / length, y: y / length } : { x, y };
 };
 
 function makeActor(x: number, z: number, hp: number): CombatActor {
@@ -165,7 +132,6 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
     z,
     vx: 0,
     vz: 0,
-    yaw: 0,
     hp,
     maxHp: hp,
     stamina: 100,
@@ -195,18 +161,14 @@ export function createCombatState(
 ): CombatState {
   const cleanSeed = (Number.isSafeInteger(seed) ? seed : 1) >>> 0 || 1;
   const normalizedStats = normalizePlayerCombatModifiers(playerStats);
-  const player = makeActor(-1.15, 0.15, normalizedStats.maxHealth);
-  const bot = makeActor(1.15, -1.45, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130);
-  player.yaw = yawToward(player, bot);
-  bot.yaw = yawToward(bot, player);
   return {
     tick: 0,
     seed: cleanSeed,
     rngState: cleanSeed,
     difficulty,
     playerStats: normalizedStats,
-    player,
-    bot,
+    player: makeActor(-1.15, 0.15, normalizedStats.maxHealth),
+    bot: makeActor(1.15, -1.45, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130),
     ended: false,
     verdict: null,
     lastImpactTick: -10_000,
@@ -248,27 +210,6 @@ function resolveCombatActorOverlap(player: CombatActor, rival: CombatActor) {
   player.z -= nz * correction;
   rival.x += nx * correction;
   rival.z += nz * correction;
-}
-
-export function constrainActorToArena(actor: Pick<CombatActor, "x" | "z" | "vx" | "vz">) {
-  const offsetX = finiteOr(actor.x, 0);
-  const offsetZ = finiteOr(actor.z, DUEL_ARENA_CENTER_Z) - DUEL_ARENA_CENTER_Z;
-  const distance = Math.hypot(offsetX, offsetZ);
-  if (distance <= DUEL_ARENA_RADIUS) {
-    actor.x = offsetX;
-    actor.z = offsetZ + DUEL_ARENA_CENTER_Z;
-    return actor;
-  }
-  const nx = distance > 0 ? offsetX / distance : 0;
-  const nz = distance > 0 ? offsetZ / distance : 1;
-  actor.x = nx * DUEL_ARENA_RADIUS;
-  actor.z = DUEL_ARENA_CENTER_Z + nz * DUEL_ARENA_RADIUS;
-  const velocityX = finiteOr(actor.vx, 0);
-  const velocityZ = finiteOr(actor.vz, 0);
-  const outwardSpeed = velocityX * nx + velocityZ * nz;
-  actor.vx = outwardSpeed > 0 ? velocityX - nx * outwardSpeed : velocityX;
-  actor.vz = outwardSpeed > 0 ? velocityZ - nz * outwardSpeed : velocityZ;
-  return actor;
 }
 
 function startAttack(
@@ -359,7 +300,6 @@ function applyDamage(
   attack: CombatAttack,
   tick: number,
   events: CombatEvent[],
-  directional: boolean,
 ) {
   const gap = distanceBetween(attacker, target);
   const playerAttacking = attacker === state.player;
@@ -369,27 +309,12 @@ function applyDamage(
     + (playerAttacking ? state.playerStats.attackRangeBonus : 0);
   if (gap > reach || target.hp <= 0) return;
 
-  const attackHalfAngle = attack === "skillTwo" ? Math.PI / 2 : ATTACK_HALF_ANGLE_RADIANS;
-  if (directional && !isWithinFacingCone(attacker, target, attacker.yaw, attackHalfAngle)) {
-    attacker.attackHit = true;
-    attacker.attackType = null;
-    events.push({
-      id: tick * 4 + (targetSide === "player" ? 1 : 2),
-      type: "whiff",
-      target: targetSide,
-      attack,
-      directionZone: getDirectionZone(target, attacker),
-    });
-    return;
-  }
-
   if (tick < target.invulnerableUntilTick) {
     events.push({ id: tick * 4 + 2, type: "dodge", target: targetSide, attack });
     return;
   }
 
-  const facingBlock = !directional || isWithinFacingCone(target, attacker, target.yaw, SHIELD_HALF_ANGLE_RADIANS);
-  const blocking = target.action === "block" && tick < target.actionUntilTick && target.stamina > 0 && facingBlock;
+  const blocking = target.action === "block" && tick < target.actionUntilTick && target.stamina > 0;
   if (blocking) {
     const parry = tick - target.blockStartedTick <= 10;
     target.stamina = Math.max(0, target.stamina - (parry ? 5 : 12));
@@ -417,9 +342,7 @@ function applyDamage(
   }
   const damageMultiplier = playerAttacking ? state.playerStats.damageMultiplier : 1;
   const defenseMultiplier = targetSide === "player" ? 1 - state.playerStats.defenseReduction : 1;
-  const directionZone = directional ? getDirectionZone(target, attacker) : undefined;
-  const angleMultiplier = directionZone ? getDirectionalDamageMultiplier(directionZone) : 1;
-  const damage = Math.max(1, Math.round(baseDamage * damageMultiplier * multiplier * angleMultiplier * (critical ? 1.5 : 1) * defenseMultiplier));
+  const damage = Math.max(1, Math.round(baseDamage * damageMultiplier * multiplier * (critical ? 1.5 : 1) * defenseMultiplier));
   target.hp = Math.max(0, target.hp - damage);
   target.lastDamage = damage;
   target.staggerUntilTick = tick + (attack === "heavy" ? 21 : 13);
@@ -434,26 +357,12 @@ function applyDamage(
     damage,
     critical,
     combo: targetSide === "bot" ? attacker.combo : undefined,
-    directionZone,
-    damageMultiplier: directional ? angleMultiplier : undefined,
   });
   state.lastImpactTick = tick;
   state.lastImpactStrength = attack === "heavy" || critical ? 1 : 0.7;
 }
 
-function moveActor(
-  actor: CombatActor,
-  x: number,
-  y: number,
-  tick: number,
-  blocking: boolean,
-  speedMultiplier = 1,
-  directional = false,
-) {
-  actor.x = finiteOr(actor.x, 0);
-  actor.z = finiteOr(actor.z, DUEL_ARENA_CENTER_Z);
-  actor.vx = finiteOr(actor.vx, 0);
-  actor.vz = finiteOr(actor.vz, 0);
+function moveActor(actor: CombatActor, x: number, y: number, tick: number, blocking: boolean, speedMultiplier = 1) {
   const direction = normalized(x, y);
   const exhausted = actor.stamina <= 1;
   const speed = (exhausted ? 2.1 : blocking ? 2.65 : 4.5) * speedMultiplier;
@@ -462,31 +371,14 @@ function moveActor(
   const targetZ = canMove ? direction.y * speed : 0;
   actor.vx += (targetX - actor.vx) * 0.24;
   actor.vz += (targetZ - actor.vz) * 0.24;
-  actor.x += actor.vx / COMBAT_HZ;
-  actor.z += actor.vz / COMBAT_HZ;
-  if (directional) {
-    constrainActorToArena(actor);
-  } else {
-    actor.x = clamp(actor.x, -3.45, 3.45);
-    actor.z = clamp(actor.z, -2.15, 2.15);
-  }
+  actor.x = clamp(actor.x + actor.vx / COMBAT_HZ, -3.45, 3.45);
+  actor.z = clamp(actor.z + actor.vz / COMBAT_HZ, -2.15, 2.15);
   if (Math.abs(actor.vx) < 0.08) actor.vx = 0;
   if (Math.abs(actor.vz) < 0.08) actor.vz = 0;
 }
 
 export function stepCombat(state: CombatState, input: CombatInput): { state: CombatState; events: CombatEvent[] } {
   if (state.ended) return { state, events: [] };
-  const directional = input.directional === true;
-  input = {
-    x: clamp(finiteOr(input.x, 0), -100, 100),
-    y: clamp(finiteOr(input.y, 0), -100, 100),
-    buttons: Math.trunc(finiteOr(input.buttons, 0)) & MAX_INPUT_BUTTONS,
-    pressed: Math.trunc(finiteOr(input.pressed, 0)) & MAX_INPUT_BUTTONS,
-    released: Math.trunc(finiteOr(input.released, 0)) & MAX_INPUT_BUTTONS,
-    yaw: normalizeYaw(finiteOr(input.yaw, state.player.yaw)),
-    lockOn: input.lockOn !== false,
-    directional,
-  };
   const next: CombatState = {
     ...state,
     tick: state.tick + 1,
@@ -498,13 +390,6 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const events: CombatEvent[] = [];
   const player = next.player;
   const bot = next.bot;
-  if (directional) {
-    const playerYaw = input.lockOn
-      ? yawToward(player, bot)
-      : normalizeYaw(input.yaw ?? player.yaw);
-    player.yaw = turnYawToward(player.yaw, playerYaw, MAX_INPUT_TURN_RADIANS_PER_TICK);
-    bot.yaw = turnYawToward(bot.yaw, yawToward(bot, player), MAX_INPUT_TURN_RADIANS_PER_TICK);
-  }
   const botInput = chooseBotIntent(next, tick, events);
   const buttons = input.buttons & MAX_INPUT_BUTTONS;
   const playerBlockHeld = Boolean(buttons & INPUT_BUTTON.block);
@@ -550,13 +435,9 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     if (startAttack(next, player, "skillTwo", tick, events, "player")) player.skillTwoCooldownUntilTick = tick + 360;
   }
 
-  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier, directional);
-  moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block), 1, directional);
+  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier);
+  moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
   resolveCombatActorOverlap(player, bot);
-  if (directional) {
-    constrainActorToArena(player);
-    constrainActorToArena(bot);
-  }
   player.stamina = Math.min(player.maxStamina, player.stamina + 0.17);
   bot.stamina = Math.min(bot.maxStamina, bot.stamina + 0.14);
 
@@ -577,13 +458,13 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
       if (attack === "skillTwo") {
         const targetGap = distanceBetween(attacker, target);
         if (targetGap <= 3.7) {
-          applyDamage(next, attacker, target, targetSide, attack, tick, events, directional);
+          applyDamage(next, attacker, target, targetSide, attack, tick, events);
         } else {
           attacker.attackHit = true;
           attacker.attackType = null;
         }
       } else {
-        applyDamage(next, attacker, target, targetSide, attack, tick, events, directional);
+        applyDamage(next, attacker, target, targetSide, attack, tick, events);
       }
     }
     if (attacker.attackType && tick > attacker.attackStartedTick + windup + 9) {
@@ -626,29 +507,10 @@ export function replayCombat(
 ) {
   let state = createCombatState(seed, difficulty, playerStats);
   let frameIndex = 0;
-  let held: CombatInput = {
-    x: 0,
-    y: 0,
-    buttons: 0,
-    pressed: 0,
-    released: 0,
-    yaw: state.player.yaw,
-    lockOn: true,
-    directional: false,
-  };
+  let held: CombatInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
   if (inputLog[0]?.[0] === 0) {
     const initial = inputLog[0];
-    const directional = initial.length === 8;
-    held = {
-      x: initial[1],
-      y: initial[2],
-      buttons: initial[3],
-      pressed: 0,
-      released: 0,
-      yaw: directional ? initial[6] / 1_000 : state.player.yaw,
-      lockOn: directional ? initial[7] === 1 : true,
-      directional,
-    };
+    held = { x: initial[1], y: initial[2], buttons: initial[3], pressed: 0, released: 0 };
     frameIndex = 1;
   }
   while (!state.ended && state.tick < MAX_DUEL_TICKS) {
@@ -657,17 +519,7 @@ export function replayCombat(
     let released = 0;
     while (frameIndex < inputLog.length && inputLog[frameIndex][0] === nextTick) {
       const frame = inputLog[frameIndex];
-      const directional = frame.length === 8;
-      held = {
-        x: frame[1],
-        y: frame[2],
-        buttons: frame[3],
-        pressed: frame[4],
-        released: frame[5],
-        yaw: directional ? frame[6] / 1_000 : state.player.yaw,
-        lockOn: directional ? frame[7] === 1 : true,
-        directional,
-      };
+      held = { x: frame[1], y: frame[2], buttons: frame[3], pressed: frame[4], released: frame[5] };
       pressed |= frame[4];
       released |= frame[5];
       frameIndex += 1;

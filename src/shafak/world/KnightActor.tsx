@@ -1,4 +1,4 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import { Html, useProgress } from "@react-three/drei";
@@ -9,7 +9,6 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { CharacterAnimationState } from "./character-animation";
 import { KNIGHT_CONFIG } from "./knight-config";
-import { NORMALIZED_FIGHTER_HEIGHT } from "./render-safety";
 import Knight3D from "./Knight3D";
 import {
   getOpponentAnimationPlayback,
@@ -35,11 +34,6 @@ type KnightActorProps = {
 };
 
 const warnedModelPaths = new Set<string>();
-const reportedModelPaths = new Set<string>();
-const modelLoadStartedAt = new Map<string, number>();
-const resizedTextures = new WeakSet<THREE.Texture>();
-const MAX_MODEL_TEXTURE_SIZE = 1_024;
-const MODEL_LOAD_TIMEOUT_MS = 8_000;
 
 const GLB_CONTACT_SHADOW_GEOMETRY = new THREE.CircleGeometry(1, 28);
 const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
@@ -67,13 +61,13 @@ function normalizeMaterialName(name: string) {
 }
 
 function inspectModelBudget(model: THREE.Object3D, modelPath: string) {
+  if (warnedModelPaths.has(modelPath)) return;
+  warnedModelPaths.add(modelPath);
+
   let triangles = 0;
   let largestTextureDimension = 0;
-  let meshCount = 0;
-  let materialCount = 0;
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
-    meshCount += 1;
     const geometry = object.geometry;
     const availableCount = geometry.index?.count ?? geometry.getAttribute("position")?.count ?? 0;
     const requestedCount = geometry.drawRange.count === Infinity
@@ -84,7 +78,6 @@ function inspectModelBudget(model: THREE.Object3D, modelPath: string) {
 
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
-      materialCount += 1;
       for (const value of Object.values(material)) {
         if (!(value instanceof THREE.Texture)) continue;
         const image = value.image ?? value.source?.data;
@@ -98,77 +91,12 @@ function inspectModelBudget(model: THREE.Object3D, modelPath: string) {
     }
   });
 
-  if (warnedModelPaths.has(modelPath)) {
-    return { triangles, largestTextureDimension, meshCount, materialCount };
-  }
-  warnedModelPaths.add(modelPath);
   if (triangles > 50_000) {
     console.warn(`[shafak-model] ${modelPath} has ${triangles.toLocaleString("tr-TR")} triangles (recommended: under 50,000).`);
   }
-  if (largestTextureDimension > MAX_MODEL_TEXTURE_SIZE) {
-    console.warn(`[shafak-model] ${modelPath} has a ${largestTextureDimension}px texture; it will be reduced to ${MAX_MODEL_TEXTURE_SIZE}px.`);
+  if (largestTextureDimension > 2_048) {
+    console.warn(`[shafak-model] ${modelPath} has a ${largestTextureDimension}px texture (recommended: 2,048px or smaller).`);
   }
-  if (!meshCount) console.warn(`[shafak-model] ${modelPath} contains no meshes; using the procedural fighter.`);
-  if (!meshCount) throw new Error(`The GLB model at ${modelPath} has no visible meshes.`);
-  return { triangles, largestTextureDimension, meshCount, materialCount };
-}
-
-function resizeTextureIfNeeded(texture: THREE.Texture) {
-  if (resizedTextures.has(texture)) return;
-  resizedTextures.add(texture);
-  const image = texture.image as (CanvasImageSource & {
-    width?: number;
-    height?: number;
-    naturalWidth?: number;
-    naturalHeight?: number;
-    videoWidth?: number;
-    videoHeight?: number;
-  }) | undefined;
-  const width = Number(image?.width ?? image?.videoWidth ?? image?.naturalWidth ?? 0);
-  const height = Number(image?.height ?? image?.videoHeight ?? image?.naturalHeight ?? 0);
-  const largest = Math.max(width, height);
-  if (!image || !Number.isFinite(largest) || largest <= MAX_MODEL_TEXTURE_SIZE || width < 1 || height < 1) return;
-
-  try {
-    const scale = MAX_MODEL_TEXTURE_SIZE / largest;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const context = canvas.getContext("2d", { alpha: true });
-    if (!context) return;
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    texture.image = canvas;
-    texture.needsUpdate = true;
-  } catch (error) {
-    console.warn(`[shafak-model] Could not downscale a texture for ${texture.name || "unnamed material"}.`, error);
-  }
-}
-
-function normalizeModelBounds(model: THREE.Object3D, modelPath: string) {
-  model.updateMatrixWorld(true);
-  const bounds = new THREE.Box3().setFromObject(model);
-  const size = bounds.getSize(new THREE.Vector3());
-  const center = bounds.getCenter(new THREE.Vector3());
-  if (
-    !Number.isFinite(size.y)
-    || size.y <= 0.001
-    || !Number.isFinite(center.x)
-    || !Number.isFinite(center.y)
-    || !Number.isFinite(center.z)
-  ) {
-    throw new Error(`The GLB model at ${modelPath} has invalid bounds.`);
-  }
-
-  const scale = NORMALIZED_FIGHTER_HEIGHT / size.y;
-  model.scale.multiplyScalar(scale);
-  model.updateMatrixWorld(true);
-  const normalizedBounds = new THREE.Box3().setFromObject(model);
-  const normalizedCenter = normalizedBounds.getCenter(new THREE.Vector3());
-  model.position.x -= normalizedCenter.x;
-  model.position.y -= normalizedBounds.min.y;
-  model.position.z -= normalizedCenter.z;
-  model.updateMatrixWorld(true);
-  return scale;
 }
 
 function prepareModel(
@@ -178,55 +106,10 @@ function prepareModel(
   castShadow = true,
 ) {
   const model = cloneSkinned(source);
-  const budget = inspectModelBudget(model, modelPath);
-  const normalizationScale = normalizeModelBounds(model, modelPath);
+  inspectModelBudget(model, modelPath);
   model.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    object.castShadow = castShadow;
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    for (const material of materials) {
-      for (const value of Object.values(material)) {
-        if (value instanceof THREE.Texture) resizeTextureIfNeeded(value);
-      }
-      const safeMaterial = material as THREE.Material & {
-        emissiveIntensity?: number;
-        roughness?: number;
-        metalness?: number;
-        transparent?: boolean;
-        opacity?: number;
-        alphaMap?: THREE.Texture | null;
-      };
-      if (typeof safeMaterial.emissiveIntensity === "number" && !Number.isFinite(safeMaterial.emissiveIntensity)) {
-        safeMaterial.emissiveIntensity = 0;
-      } else if (typeof safeMaterial.emissiveIntensity === "number") {
-        safeMaterial.emissiveIntensity = THREE.MathUtils.clamp(safeMaterial.emissiveIntensity, 0, 1.5);
-      }
-      if (typeof safeMaterial.roughness === "number" && !Number.isFinite(safeMaterial.roughness)) safeMaterial.roughness = 0.8;
-      if (typeof safeMaterial.metalness === "number" && !Number.isFinite(safeMaterial.metalness)) safeMaterial.metalness = 0;
-      if (
-        safeMaterial.transparent
-        && (safeMaterial.opacity ?? 1) >= 0.999
-        && !safeMaterial.alphaMap
-      ) safeMaterial.transparent = false;
-    }
+    if (object instanceof THREE.Mesh) object.castShadow = castShadow;
   });
-  if (!reportedModelPaths.has(modelPath)) {
-    reportedModelPaths.add(modelPath);
-    const startedAt = modelLoadStartedAt.get(modelPath);
-    const loadMs = startedAt === undefined ? null : Math.max(0, performance.now() - startedAt);
-    const normalizedBounds = new THREE.Box3().setFromObject(model);
-    const normalizedSize = normalizedBounds.getSize(new THREE.Vector3());
-    console.info("[shafak-model] Loaded and normalized.", {
-      modelPath,
-      loadMs,
-      meshCount: budget.meshCount,
-      materialCount: budget.materialCount,
-      triangles: budget.triangles,
-      largestSourceTexturePx: budget.largestTextureDimension,
-      normalizedHeight: Number(normalizedSize.y.toFixed(3)),
-      normalizationScale,
-    });
-  }
   const ownedMaterials: THREE.Material[] = [];
   if (!modelConfig) return { model, ownedMaterials };
 
@@ -279,7 +162,6 @@ function OptionalGlbKnight({
   castShadow = true,
 }: KnightActorProps) {
   const modelPath = modelConfig?.modelPath ?? KNIGHT_CONFIG.modelPath;
-  if (!modelLoadStartedAt.has(modelPath)) modelLoadStartedAt.set(modelPath, performance.now());
   const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
     loader.setMeshoptDecoder(MeshoptDecoder);
   }) as GLTF;
@@ -384,8 +266,7 @@ function OptionalGlbKnight({
           ? THREE.MathUtils.clamp(speed / 2.2, 0.72, 1.2)
           : 1;
     }
-    const safeDelta = Number.isFinite(delta) ? THREE.MathUtils.clamp(delta, 0, 0.05) : 0;
-    mixer.update(safeDelta * (motionReduced ? 0.35 : 1) * animationTimeScale);
+    mixer.update(Math.min(delta, 0.05) * (motionReduced ? 0.35 : 1) * animationTimeScale);
     if (footSlipRef) footSlipRef.current = 0;
   });
 
@@ -435,17 +316,8 @@ type BoundaryState = { failed: boolean };
 
 function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
   const { progress } = useProgress();
-  const [timedOut, setTimedOut] = useState(false);
   const { modelConfig, modelAnimationState: _modelAnimationState, ...knightProps } = props;
   const appearance = knightProps.appearance ?? modelConfig?.appearance;
-  useEffect(() => {
-    if (!modelConfig?.modelPath) return undefined;
-    const timer = window.setTimeout(() => {
-      setTimedOut(true);
-      console.error(`[shafak-model] ${modelConfig.modelPath} exceeded the ${MODEL_LOAD_TIMEOUT_MS}ms load limit; keeping the procedural fighter visible.`);
-    }, MODEL_LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [modelConfig?.modelPath]);
   return (
     <>
       <group scale={modelConfig?.scale ?? 1}>
@@ -454,7 +326,7 @@ function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
       {modelConfig && (
         <Html position={[0, 2.65, 0]} center distanceFactor={9} zIndexRange={[30, 0]}>
           <div className="duel-model-loading" role="status" aria-live="polite">
-            <span>{timedOut ? "Yedek savaşçı kullanılıyor" : "Rakip yükleniyor"}</span>
+            <span>Rakip yükleniyor</span>
             <span className="duel-model-loading__track" aria-hidden="true">
               <i style={{ width: `${Math.max(5, Math.min(100, progress))}%` }} />
             </span>
@@ -470,10 +342,6 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   static getDerivedStateFromError(): BoundaryState {
     return { failed: true };
-  }
-
-  componentDidCatch(error: Error) {
-    console.error("[shafak-model] GLB load/render failed; switched to the procedural fighter.", error);
   }
 
   render() {

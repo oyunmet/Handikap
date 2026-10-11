@@ -3,7 +3,6 @@ import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
-import { getDirectionZone, normalizeYaw } from "../game/duel-direction";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
@@ -126,9 +125,6 @@ type CombatInputBuffer = {
   buttons: number;
   pressed: number;
   released: number;
-  yaw: number;
-  lockOn: boolean;
-  directional: boolean;
 };
 type ActiveDuel = {
   rival: WorldRival;
@@ -462,7 +458,6 @@ export default function WorldScene({
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
   const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
-  const [duelLockOn, setDuelLockOn] = useState(true);
   const combatTutorialOpenRef = useRef(false);
   const combatTutorialSeenRef = useRef(false);
   const lastBotTelegraphTickRef = useRef(-1);
@@ -489,17 +484,7 @@ export default function WorldScene({
   const battleSessionRef = useRef<BattleSession | null>(null);
   const activeDuelRef = useRef<ActiveDuel | null>(null);
   const combatStateRef = useRef<CombatState | null>(null);
-  const combatInputRef = useRef<CombatInputBuffer>({
-    x: 0,
-    y: 0,
-    buttons: 0,
-    pressed: 0,
-    released: 0,
-    yaw: 0,
-    lockOn: true,
-    directional: true,
-  });
-  const cameraOrbitRef = useRef({ yaw: 0, pitch: 0.4 });
+  const combatInputRef = useRef<CombatInputBuffer>({ x: 0, y: 0, buttons: 0, pressed: 0, released: 0 });
   const duelKeyboardKeysRef = useRef(new Set<string>());
   const inputLogRef = useRef<CombatInputFrame[]>([]);
   const lastInputFrameRef = useRef<CombatInputFrame | null>(null);
@@ -900,17 +885,7 @@ export default function WorldScene({
   };
 
   const resetDuelInput = () => {
-    combatInputRef.current = {
-      x: 0,
-      y: 0,
-      buttons: 0,
-      pressed: 0,
-      released: 0,
-      yaw: 0,
-      lockOn: true,
-      directional: true,
-    };
-    setDuelLockOn(true);
+    combatInputRef.current = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
   };
 
   const closeEncounter = useCallback(() => {
@@ -1046,7 +1021,7 @@ export default function WorldScene({
     combatTutorialOpenRef.current = false;
     setCombatTutorialOpen(false);
     lastBotTelegraphTickRef.current = -1;
-    inputLogRef.current = [[0, 0, 0, 0, 0, 0, 0, 1]];
+    inputLogRef.current = [[0, 0, 0, 0, 0, 0]];
     lastInputFrameRef.current = inputLogRef.current[0];
     battleFrozenMotionRef.current = {
       ...motionRef.current,
@@ -1117,19 +1092,6 @@ export default function WorldScene({
 
       activeDuelRef.current = { rival, duelId, seed, practice };
       const initialCombat = createCombatState(seed, difficulty, playerStats);
-      combatInputRef.current.yaw = initialCombat.player.yaw;
-      cameraOrbitRef.current.yaw = normalizeYaw(initialCombat.player.yaw - Math.PI);
-      inputLogRef.current = [[
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        Math.round(normalizeYaw(initialCombat.player.yaw) * 1_000),
-        1,
-      ]];
-      lastInputFrameRef.current = inputLogRef.current[0];
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
 
@@ -1181,39 +1143,8 @@ export default function WorldScene({
     input.released |= button;
   };
   const moveDuelPlayer = (x: number, y: number) => {
-    const input = combatInputRef.current;
-    const player = combatStateRef.current?.player;
-    const heading = input.lockOn
-      ? player?.yaw ?? input.yaw
-      : normalizeYaw(cameraOrbitRef.current.yaw + Math.PI);
-    input.yaw = input.lockOn ? player?.yaw ?? heading : heading;
-    input.directional = true;
-    const horizontal = Math.max(-1, Math.min(1, Number.isFinite(x) ? x : 0));
-    const forward = Math.max(-1, Math.min(1, Number.isFinite(y) ? y : 0));
-    const cos = Math.cos(heading);
-    const sin = Math.sin(heading);
-    input.x = Math.round((horizontal * cos + forward * sin) * 100);
-    input.y = Math.round((-horizontal * sin + forward * cos) * 100);
-  };
-
-  const toggleDuelLock = () => {
-    const nextLocked = !duelLockOn;
-    const player = combatStateRef.current?.player;
-    const input = combatInputRef.current;
-    if (!nextLocked && player) cameraOrbitRef.current.yaw = normalizeYaw(player.yaw - Math.PI);
-    if (player) input.yaw = player.yaw;
-    input.lockOn = nextLocked;
-    input.directional = true;
-    setDuelLockOn(nextLocked);
-  };
-
-  const orbitDuelCamera = (deltaX: number, deltaY: number) => {
-    if (duelLockOn) return;
-    const orbit = cameraOrbitRef.current;
-    orbit.yaw = normalizeYaw(orbit.yaw - deltaX * 0.008);
-    orbit.pitch = Math.max(0.18, Math.min(1.05, orbit.pitch + deltaY * 0.006));
-    combatInputRef.current.yaw = normalizeYaw(orbit.yaw + Math.PI);
-    combatInputRef.current.directional = true;
+    combatInputRef.current.x = Math.round(Math.max(-1, Math.min(1, x)) * 100);
+    combatInputRef.current.y = Math.round(Math.max(-1, Math.min(1, y)) * 100);
   };
 
   const debugStartBattle = () => {
@@ -1326,8 +1257,6 @@ export default function WorldScene({
     );
     const collisionPosition = { x: 0, distance: 0 };
     const newlyCollected = new Map<number, string[]>();
-    let consecutiveFrameErrors = 0;
-    let recoveryRequested = false;
     const animate = (now: number) => {
       if (document.visibilityState === "hidden") {
         frame = 0;
@@ -1335,7 +1264,6 @@ export default function WorldScene({
         accumulator = 0;
         return;
       }
-      try {
       const currentMotion = motionRef.current;
       if (
         !Number.isFinite(currentMotion.velocityX)
@@ -1348,9 +1276,8 @@ export default function WorldScene({
         || !Number.isFinite(currentMotion.cameraLead)
       ) Object.assign(currentMotion, lastFiniteMotion);
       else Object.assign(lastFiniteMotion, currentMotion);
-      const frameNow = Number.isFinite(now) ? now : performance.now();
-      const dt = Math.min(Math.max(0, (frameNow - (previous || frameNow)) / 1000), fixedStep * 6);
-      previous = frameNow;
+      const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
+      previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
       const liveInput = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
       const worldPausedForStory = Boolean(storyDialogueRef.current);
@@ -1375,9 +1302,8 @@ export default function WorldScene({
         if (battleActiveRef.current) {
           const session = battleSessionRef.current;
           const currentCombat = combatStateRef.current;
-          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && frameNow >= hitStopUntilRef.current) {
+          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && now >= hitStopUntilRef.current) {
             const buffered = combatInputRef.current;
-            if (buffered.lockOn) buffered.yaw = currentCombat.player.yaw;
             const inputFrame: CombatInputFrame = [
               currentCombat.tick + 1,
               buffered.x,
@@ -1385,21 +1311,15 @@ export default function WorldScene({
               buffered.buttons & MAX_INPUT_BUTTONS,
               buffered.pressed & MAX_INPUT_BUTTONS,
               buffered.released & MAX_INPUT_BUTTONS,
-              Math.round(normalizeYaw(buffered.yaw) * 1_000),
-              buffered.lockOn ? 1 : 0,
             ];
             const previousFrame = lastInputFrameRef.current;
-            const previousYaw = previousFrame?.length === 8 ? previousFrame[6] : null;
-            const previousLockOn = previousFrame?.length === 8 ? previousFrame[7] : null;
             if (
               !previousFrame ||
               inputFrame[1] !== previousFrame[1] ||
               inputFrame[2] !== previousFrame[2] ||
               inputFrame[3] !== previousFrame[3] ||
               inputFrame[4] !== 0 ||
-              inputFrame[5] !== 0 ||
-              inputFrame[6] !== previousYaw ||
-              inputFrame[7] !== previousLockOn
+              inputFrame[5] !== 0
             ) {
               inputLogRef.current.push(inputFrame);
               lastInputFrameRef.current = inputFrame;
@@ -1412,9 +1332,6 @@ export default function WorldScene({
               buttons: buffered.buttons & MAX_INPUT_BUTTONS,
               pressed: inputFrame[4],
               released: inputFrame[5],
-              yaw: buffered.yaw,
-              lockOn: buffered.lockOn,
-              directional: true,
             };
             let stepped = stepCombat(currentCombat, input);
             if (
@@ -1646,8 +1563,8 @@ export default function WorldScene({
       for (const [chapterId, ids] of newlyCollected) queuePickupClaims(chapterId, ids);
 
       const root = sceneRef.current;
-      if (root && frameNow - lastVisualUpdate >= 1000 / 20) {
-        lastVisualUpdate = frameNow;
+      if (root && now - lastVisualUpdate >= 1000 / 20) {
+        lastVisualUpdate = now;
         const distance = frameState.distance;
         root.style.setProperty("--ws-travel", `${distance}m`);
         root.style.setProperty("--ws-depth-bottom", `${frameState.depth * 32}px`);
@@ -1661,12 +1578,12 @@ export default function WorldScene({
         const firstId = frameState.stepCount - count + 1;
         const running = frameState.motion === "running";
         setStepBursts((current) => [
-          ...current.filter((burst) => burst.expires > frameNow),
+          ...current.filter((burst) => burst.expires > now),
           ...Array.from({ length: count }, (_, index) => ({
             id: firstId + index,
             x: frameState.cameraLead,
             running,
-            expires: frameNow + 720,
+            expires: now + 720,
           })),
         ].slice(-16));
         for (let index = 0; index < count; index += 1) {
@@ -1676,24 +1593,12 @@ export default function WorldScene({
           }
         }
       }
-      if (frameNow - lastReactUpdate > 220) {
-        lastReactUpdate = frameNow;
+      if (now - lastReactUpdate > 220) {
+        lastReactUpdate = now;
         setTravel(Math.floor(frameState.distance));
         setRivalRefresh((current) => current + 1);
       }
-      consecutiveFrameErrors = 0;
-      recoveryRequested = false;
-      } catch (error) {
-        consecutiveFrameErrors += 1;
-        console.error("[shafak-world] Animation frame failed; preserving the last valid state.", error);
-        if (consecutiveFrameErrors >= 3 && !recoveryRequested) {
-          recoveryRequested = true;
-          consecutiveFrameErrors = 0;
-          window.dispatchEvent(new CustomEvent("shafak:scene-recovery", { detail: { error } }));
-        }
-      } finally {
-        if (!document.hidden) frame = window.requestAnimationFrame(animate);
-      }
+      frame = window.requestAnimationFrame(animate);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
@@ -1705,9 +1610,9 @@ export default function WorldScene({
         worldInput.joystick.current = { x: 0, y: 0 };
         combatInputRef.current.x = 0;
         combatInputRef.current.y = 0;
-        combatInputRef.current.released |= combatInputRef.current.buttons;
         combatInputRef.current.buttons = 0;
         combatInputRef.current.pressed = 0;
+        combatInputRef.current.released = 0;
         return;
       }
       previous = 0;
@@ -1841,8 +1746,6 @@ export default function WorldScene({
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
             combatStateRef={combatStateRef}
             combatRender={combatRender}
-            cameraOrbitRef={cameraOrbitRef}
-            duelLockOn={duelLockOn}
             combatVisualEvents={visualEffectsEnabled ? combatEvents : []}
             cinematicIntro={Boolean(visualEffectsEnabled && battleSession && ["sweep", "vs"].includes(battleSession.phase))}
             finisherSlowMotion={Boolean(visualEffectsEnabled && battleSession?.phase === "settling")}
@@ -1946,27 +1849,11 @@ export default function WorldScene({
                 {event.type === "parry" && <strong>SAVUŞTURMA · 0</strong>}
                 {event.type === "dodge" && <strong>KAÇIŞ · 0 HASAR</strong>}
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
-                {event.type === "whiff" && <strong>VURUŞ YÖNÜ DIŞINDA</strong>}
-                {event.type === "hit" && event.directionZone && event.directionZone !== "front" && (
-                  <strong>{event.directionZone === "rear" ? "ARKA" : "YAN"} · ×{event.damageMultiplier?.toFixed(2)}</strong>
-                )}
               </div>
             ))}
           </div>}
           {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
           {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
-          <div
-            className={`duel-heading-ring is-${getDirectionZone(combatRender.player, combatRender.bot)}`}
-            role="status"
-            aria-label={`Hedef yönü: ${getDirectionZone(combatRender.player, combatRender.bot)}`}
-            style={{ "--duel-heading": `${combatRender.player.yaw}rad` } as CSSProperties}
-          >
-            <i aria-hidden="true" />
-            <span>{getDirectionZone(combatRender.player, combatRender.bot) === "front" ? "ÖN"
-              : getDirectionZone(combatRender.player, combatRender.bot) === "rear" ? "ARKA"
-                : getDirectionZone(combatRender.player, combatRender.bot) === "left" ? "SOL" : "SAĞ"}</span>
-            <small>{duelLockOn ? "KİLİTLİ" : "SERBEST"}</small>
-          </div>
           <DuelControls
             stamina={combatRender.player.stamina}
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
@@ -1975,9 +1862,6 @@ export default function WorldScene({
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onMove={moveDuelPlayer}
-            lockOn={duelLockOn}
-            onToggleLock={toggleDuelLock}
-            onOrbit={orbitDuelCamera}
             onSurrender={() => {
               if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);
             }}
@@ -1995,9 +1879,6 @@ export default function WorldScene({
                   <div><span aria-hidden="true">↝</span><b>ATILMA</b><i>Kısa süre hasar almazsın · dayanıklılık harcar</i><strong>↙</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
-                  <div><span aria-hidden="true">◉</span><b>YÖN</b><i>Sol çubukla ileri, geri ve yan adım at; hedef kilidi varsayılan olarak açık.</i><strong>↕</strong></div>
-                  <div><span aria-hidden="true">⌖</span><b>KAMERA</b><i>Hedef kilidini kapat, boş alanda sürükleyerek 360° çevreyi gör.</i><strong>⟳</strong></div>
-                  <div><span aria-hidden="true">➤</span><b>YAN / ARKA</b><i>Hedefin önüne dönük kalkan bloklar; yandan ve arkadan vuruşlar daha güçlüdür.</i><strong>×</strong></div>
                 </div>
                 <button type="button" className="game-gold-button" onClick={closeCombatTutorial}>ANLADIM</button>
               </section>
