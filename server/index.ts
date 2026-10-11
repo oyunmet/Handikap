@@ -24,6 +24,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const databaseConnection = createDatabaseConnection(process.env.DATABASE_URL);
 const database = databaseConnection.pool;
 const app = express();
+app.set("trust proxy", 1);
 const clerkConfigured = Boolean(
   process.env.CLERK_SECRET_KEY?.trim() &&
   process.env.CLERK_PUBLISHABLE_KEY?.trim(),

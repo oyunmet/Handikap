@@ -32,6 +32,7 @@ async function createApiHandler(): Promise<ApiHandler> {
   const express = expressModule.default;
   const cors = corsModule.default;
   const app = express();
+  app.set("trust proxy", 1);
   const databaseConnection = databaseModule.createDatabaseConnection(
     process.env.DATABASE_URL,
     { max: 1 },
