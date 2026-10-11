@@ -46,8 +46,8 @@ export function getAutoQualityAction(fps: number, sustainedForMs: number): "down
   return null;
 }
 
-export function getPixelRatioCap(quality: RenderQuality): number {
-  return PIXEL_RATIO_CAP[quality];
+export function getPixelRatioCap(quality: RenderQuality, touchDevice = false): number {
+  return touchDevice ? 1 : PIXEL_RATIO_CAP[quality];
 }
 
 export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: number): number {

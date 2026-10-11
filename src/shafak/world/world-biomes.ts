@@ -88,6 +88,19 @@ export const BIOME_CHAPTER_SPAN = 3;
 export const BIOME_SPAN_METERS = WORLD_GATE_INTERVAL_METERS * BIOME_CHAPTER_SPAN;
 export const BIOME_TRANSITION_METERS = 48;
 
+export function getWorldFogDensity(weather: WeatherMode, biome: WorldBiome, combatActive = false) {
+  if (combatActive) return 0.0028;
+  const baseDensity = weather === "fog"
+    ? 0.006
+    : weather === "rain"
+      ? 0.0042
+      : weather === "ash"
+        ? 0.0038
+        : 0.0025;
+  const biomeMultiplier = biome === "frozen-pass" ? 1.08 : biome === "red-marsh" ? 1.13 : 1;
+  return baseDensity * biomeMultiplier;
+}
+
 export function getBiomeForDistance(distance: number): WorldBiome {
   const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
   const section = Math.floor(safeDistance / BIOME_SPAN_METERS);
