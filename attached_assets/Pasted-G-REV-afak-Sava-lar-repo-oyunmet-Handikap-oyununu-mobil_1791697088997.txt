@@ -1,0 +1,27 @@
+GÖREV: "Şafak Savaşçıları" (repo: oyunmet/Handikap) oyununu mobil öncelikli, premium kalitede bir karanlık-fantastik 3B aksiyon oyununa dönüştür. Hedef: iPhone Safari'de akıcı (≥50 FPS), takılmayan, sinematik görünen bir oyun.
+
+KORUNACAKLAR (DOKUNMA)
+- Vite + TypeScript + Three.js yapısı, api/[...path].ts (Vercel Function), db/migrations, Clerk/PostgreSQL profil akışı.
+- Rigli şövalye GLB modelinin rig, skin ağırlıkları, kılıç bağlama ve merkezleme ayarları. Yalnızca animasyon eşlemesi ve materyal iyileştirmesi yapılabilir. Klip adları: Idle, Walk, Run, Attack1, Block, Dodge, HitReaction, Cast_Fire, Cast_Lightning, Death, Victory.
+- Vercel'de Socket.IO çalışmaz. Gerçek zamanlı özellikleri bunun varsayımıyla tasarla (bot düellosu istemci tarafı; online için polling/uyumlu servis).
+- Mevcut oyun mekaniği (Kül Yolu, altın/elmas, Heybe, bot düellosu, dayanıklılık, yetenek butonları) bozulmasın.
+
+ÇALIŞMA KURALLARI
+- Her aşamanın sonunda: npm run typecheck, npm test, npm run build çalıştır. ?debug=1 panelinde FPS, draw call, üçgen sayısı, bellek göster.
+- Her aşamayı ayrı commit yap. Bir aşama bitmeden diğerine geçme. Kota biterse nerede kaldığını docs/PROGRESS.md dosyasına yaz.
+- Gerçek cihaz ölçümü yapamıyorsan bunu açıkça belirt, "doğrulandı" deme.
+
+═══ AŞAMA 1 — PERFORMANS VE AKICILIK (önce bu) ═══
+1. Profil çıkar: donma/takılma nedenlerini bul (GC baskısı, her karede nesne/vektör oluşturma, çok draw call, gölge/post-process maliyeti, dev texture, React yeniden render'ları).
+2. Düzelt:
+   - Sabit zaman adımlı oyun döngüsü (fixed timestep + interpolasyon), delta clamp (sekme dönüşünde sıçrama olmasın).
+   - Nesne havuzu (object pooling): parçacıklar, hasar sayıları, mermiler, ses örnekleri. Karede new Vector3/Color oluşturma.
+   - InstancedMesh: ağaç, kaya, sütun, meşale, harabe parçaları. Statik geometriyi birleştir.
+   - Dünya parçalarını (48 m chunk) önceden arka planda yükle; eski parçaları dispose et (geometry, material, texture sızıntısı sıfır).
+   - Uzak nesneler için LOD ve distance culling; sis ile uzak kesimi gizle.
+   - Mobilde pixelRatio üst sınırı (≤1.75), gölge haritası 1024, tek yönlü ışık + hemisphere, post-process'i sade tut.
+   - Adaptif kalite: FPS 3 sn boyunca 45 altına inerse otomatik düşür (pixelRatio → gölge → parçacık sayısı → bloom). Ayarlar'a Düşük/Orta/Yüksek seçeneği ekle.
+   - HUD güncellemelerini React render döngüsünden ayır (ref/DOM doğrudan güncelle ya da throttle ile).
+   - Düello sahnesine geçişte yükleme donması olmasın: kaynakları dünya sırasında önceden ısıt (shader warm-up), geçişte gizli yükleme perdesi kullan.
+3. Kabul ölçütü: yolda koşarken ve düelloda 50+ FPS hedefi, 100 ms üstü kare sıçraması yok, 5 dk oynayınca bellek artmıyor.
+
