@@ -1312,6 +1312,35 @@
 .duel-heading-ring.is-left,
 .duel-heading-ring.is-right { border-color: rgba(255,192,107,.72); color: #ffd08e; }
 .duel-tutorial__rows { max-height: min(54vh, 420px); overflow-y: auto; overscroll-behavior: contain; }
+.world-debug__events {
+  display: grid;
+  gap: 5px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(235,198,126,.22);
+}
+.world-debug__events > div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.world-debug__events > div b { font-size: 8px; letter-spacing: .08em; }
+.world-debug__events button {
+  padding: 4px 6px;
+  border: 1px solid rgba(235,198,126,.35);
+  border-radius: 3px;
+  background: rgba(128,83,43,.2);
+  color: #f0dbb6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 7px;
+}
+.world-debug__events button:disabled { opacity: .48; cursor: default; }
+.world-debug__events pre {
+  max-height: 98px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: rgba(244,230,211,.78);
+  font: 7px/1.4 ui-monospace, monospace;
+}
 @media (max-width: 430px) {
   .duel-lock-toggle { top: max(116px, calc(env(safe-area-inset-top) + 104px)); }
   .duel-heading-ring { top: max(160px, calc(env(safe-area-inset-top) + 148px)); }

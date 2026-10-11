@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
-import { getDirectionZone, normalizeYaw } from "../game/duel-direction";
+import { duel360EnabledFromSearch, getDirectionZone, normalizeYaw, yawToward } from "../game/duel-direction";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
@@ -464,6 +464,9 @@ export default function WorldScene({
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
   const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
+  const [directionalDuelEnabled] = useState(() => duel360EnabledFromSearch(
+    typeof window === "undefined" ? "" : window.location.search,
+  ));
   const [duelLockOn, setDuelLockOn] = useState(true);
   const combatTutorialOpenRef = useRef(false);
   const combatTutorialSeenRef = useRef(false);
@@ -499,7 +502,7 @@ export default function WorldScene({
     released: 0,
     yaw: 0,
     lockOn: true,
-    directional: true,
+    directional: directionalDuelEnabled,
   });
   const cameraOrbitRef = useRef({ yaw: 0, pitch: 0.4 });
   const duelKeyboardKeysRef = useRef(new Set<string>());
@@ -910,10 +913,10 @@ export default function WorldScene({
       pressed: 0,
       released: 0,
       yaw: 0,
-      lockOn: true,
-      directional: true,
+      lockOn: directionalDuelEnabled,
+      directional: directionalDuelEnabled,
     };
-    setDuelLockOn(true);
+    setDuelLockOn(directionalDuelEnabled);
   };
 
   const closeEncounter = useCallback(() => {
@@ -1049,7 +1052,9 @@ export default function WorldScene({
     combatTutorialOpenRef.current = false;
     setCombatTutorialOpen(false);
     lastBotTelegraphTickRef.current = -1;
-    inputLogRef.current = [[0, 0, 0, 0, 0, 0, 0, 1]];
+    inputLogRef.current = directionalDuelEnabled
+      ? [[0, 0, 0, 0, 0, 0, 0, 1]]
+      : [[0, 0, 0, 0, 0, 0]];
     lastInputFrameRef.current = inputLogRef.current[0];
     battleFrozenMotionRef.current = {
       ...motionRef.current,
@@ -1121,17 +1126,21 @@ export default function WorldScene({
       activeDuelRef.current = { rival, duelId, seed, practice };
       const initialCombat = createCombatState(seed, difficulty, playerStats);
       combatInputRef.current.yaw = initialCombat.player.yaw;
+      combatInputRef.current.lockOn = directionalDuelEnabled;
+      combatInputRef.current.directional = directionalDuelEnabled;
       cameraOrbitRef.current.yaw = normalizeYaw(initialCombat.player.yaw - Math.PI);
-      inputLogRef.current = [[
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        Math.round(normalizeYaw(initialCombat.player.yaw) * 1_000),
-        1,
-      ]];
+      inputLogRef.current = directionalDuelEnabled
+        ? [[
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            Math.round(normalizeYaw(initialCombat.player.yaw) * 1_000),
+            1,
+          ]]
+        : [[0, 0, 0, 0, 0, 0]];
       lastInputFrameRef.current = inputLogRef.current[0];
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
@@ -1166,7 +1175,7 @@ export default function WorldScene({
         message: error instanceof Error ? error.message : "Düello başlatılamadı.",
       });
     }
-  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced, playerCombatStats]);
+  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, directionalDuelEnabled, motionReduced, playerCombatStats]);
 
   const pressDuelButton = (button: number) => {
     const input = combatInputRef.current;
@@ -1185,14 +1194,20 @@ export default function WorldScene({
   };
   const moveDuelPlayer = (x: number, y: number) => {
     const input = combatInputRef.current;
+    const horizontal = Math.max(-1, Math.min(1, Number.isFinite(x) ? x : 0));
+    const forward = Math.max(-1, Math.min(1, Number.isFinite(y) ? y : 0));
+    if (!directionalDuelEnabled) {
+      input.x = Math.round(horizontal * 100);
+      input.y = Math.round(forward * 100);
+      input.directional = false;
+      return;
+    }
     const player = combatStateRef.current?.player;
     const heading = input.lockOn
       ? player?.yaw ?? input.yaw
       : normalizeYaw(cameraOrbitRef.current.yaw + Math.PI);
     input.yaw = input.lockOn ? player?.yaw ?? heading : heading;
     input.directional = true;
-    const horizontal = Math.max(-1, Math.min(1, Number.isFinite(x) ? x : 0));
-    const forward = Math.max(-1, Math.min(1, Number.isFinite(y) ? y : 0));
     const cos = Math.cos(heading);
     const sin = Math.sin(heading);
     input.x = Math.round((horizontal * cos + forward * sin) * 100);
@@ -1200,6 +1215,7 @@ export default function WorldScene({
   };
 
   const toggleDuelLock = () => {
+    if (!directionalDuelEnabled) return;
     const nextLocked = !duelLockOn;
     const player = combatStateRef.current?.player;
     const input = combatInputRef.current;
@@ -1211,7 +1227,7 @@ export default function WorldScene({
   };
 
   const orbitDuelCamera = (deltaX: number, deltaY: number) => {
-    if (duelLockOn) return;
+    if (!directionalDuelEnabled || duelLockOn) return;
     const orbit = cameraOrbitRef.current;
     orbit.yaw = normalizeYaw(orbit.yaw - deltaX * 0.008);
     orbit.pitch = Math.max(0.18, Math.min(1.05, orbit.pitch + deltaY * 0.006));
@@ -1384,28 +1400,30 @@ export default function WorldScene({
           if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && now >= hitStopUntilRef.current) {
             const buffered = combatInputRef.current;
             if (buffered.lockOn) buffered.yaw = currentCombat.player.yaw;
-            const inputFrame: CombatInputFrame = [
-              currentCombat.tick + 1,
-              buffered.x,
-              buffered.y,
-              buffered.buttons & MAX_INPUT_BUTTONS,
-              buffered.pressed & MAX_INPUT_BUTTONS,
-              buffered.released & MAX_INPUT_BUTTONS,
-              Math.round(normalizeYaw(buffered.yaw) * 1_000),
-              buffered.lockOn ? 1 : 0,
-            ];
+            const inputFrame: CombatInputFrame = directionalDuelEnabled
+              ? [
+                  currentCombat.tick + 1,
+                  buffered.x,
+                  buffered.y,
+                  buffered.buttons & MAX_INPUT_BUTTONS,
+                  buffered.pressed & MAX_INPUT_BUTTONS,
+                  buffered.released & MAX_INPUT_BUTTONS,
+                  Math.round(normalizeYaw(buffered.yaw) * 1_000),
+                  buffered.lockOn ? 1 : 0,
+                ]
+              : [
+                  currentCombat.tick + 1,
+                  buffered.x,
+                  buffered.y,
+                  buffered.buttons & MAX_INPUT_BUTTONS,
+                  buffered.pressed & MAX_INPUT_BUTTONS,
+                  buffered.released & MAX_INPUT_BUTTONS,
+                ];
             const previousFrame = lastInputFrameRef.current;
-            const previousYaw = previousFrame?.length === 8 ? previousFrame[6] : null;
-            const previousLockOn = previousFrame?.length === 8 ? previousFrame[7] : null;
             if (
               !previousFrame ||
-              inputFrame[1] !== previousFrame[1] ||
-              inputFrame[2] !== previousFrame[2] ||
-              inputFrame[3] !== previousFrame[3] ||
-              inputFrame[4] !== 0 ||
-              inputFrame[5] !== 0 ||
-              inputFrame[6] !== previousYaw ||
-              inputFrame[7] !== previousLockOn
+              inputFrame.length !== previousFrame.length ||
+              inputFrame.slice(1).some((value, index) => value !== previousFrame[index + 1])
             ) {
               inputLogRef.current.push(inputFrame);
               lastInputFrameRef.current = inputFrame;
@@ -1420,7 +1438,7 @@ export default function WorldScene({
               released: inputFrame[5],
               yaw: buffered.yaw,
               lockOn: buffered.lockOn,
-              directional: true,
+              directional: directionalDuelEnabled,
             };
             let stepped = stepCombat(currentCombat, input);
             if (
@@ -1718,8 +1736,9 @@ export default function WorldScene({
         combatInputRef.current.pressed = 0;
         combatInputRef.current.released = 0;
         combatInputRef.current.yaw = combatStateRef.current?.player.yaw ?? 0;
-        combatInputRef.current.lockOn = true;
-        combatInputRef.current.directional = true;
+        combatInputRef.current.lockOn = directionalDuelEnabled;
+        combatInputRef.current.directional = directionalDuelEnabled;
+        setDuelLockOn(directionalDuelEnabled);
         return;
       }
       previous = 0;
@@ -1732,7 +1751,7 @@ export default function WorldScene({
       window.cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [audioOn, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, directionalDuelEnabled, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -1963,10 +1982,10 @@ export default function WorldScene({
           </div>}
           {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
           {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
-        {combatRender && (
+        {directionalDuelEnabled && combatRender && (
           <div
             className={`duel-heading-ring is-${getDirectionZone(combatRender.player, combatRender.bot)}`}
-            style={{ "--duel-heading": `${normalizeYaw(combatRender.player.yaw)}rad` } as CSSProperties}
+            style={{ "--duel-heading": `${normalizeYaw(yawToward(combatRender.player, combatRender.bot) - combatRender.player.yaw)}rad` } as CSSProperties}
             aria-label={`Rakip oyuncunun ${getDirectionZone(combatRender.player, combatRender.bot)} yönünde`}
           >
             <i aria-hidden="true" />
@@ -1982,6 +2001,7 @@ export default function WorldScene({
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onMove={moveDuelPlayer}
+            directionalEnabled={directionalDuelEnabled}
             lockOn={duelLockOn}
             onToggleLock={toggleDuelLock}
             onOrbit={orbitDuelCamera}

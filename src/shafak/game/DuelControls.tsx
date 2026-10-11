@@ -10,6 +10,7 @@ type DuelControlsProps = {
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   onMove: (x: number, y: number) => void;
+  directionalEnabled: boolean;
   lockOn: boolean;
   onToggleLock: () => void;
   onOrbit: (deltaX: number, deltaY: number) => void;
@@ -121,6 +122,7 @@ export default function DuelControls({
   onPress,
   onRelease,
   onMove,
+  directionalEnabled,
   lockOn,
   onToggleLock,
   onOrbit,
@@ -190,7 +192,7 @@ export default function DuelControls({
   return (
     <div className={`duel-controls${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
       <button className="duel-forfeit" type="button" onClick={onSurrender} disabled={disabled}>PES ET</button>
-      <button
+      {directionalEnabled && <button
         className={`duel-lock-toggle${lockOn ? " is-locked" : " is-free"}`}
         type="button"
         onClick={onToggleLock}
@@ -199,8 +201,8 @@ export default function DuelControls({
         aria-label={lockOn ? "Hedef kilidini kapat ve kamerayı serbest bırak" : "Hedef kilidini aç"}
       >
         <span aria-hidden="true">{lockOn ? "◎" : "⌖"}</span>{lockOn ? "HEDEF KİLİTLİ" : "SERBEST"}
-      </button>
-      <div
+      </button>}
+      {directionalEnabled && <div
         className={`duel-camera-orbit${lockOn ? " is-locked" : ""}`}
         role="application"
         aria-label={lockOn ? "Kamera kilitli. Serbest kamera için hedef kilidini kapat." : "Sürükleyerek kamerayı 360 derece döndür."}
@@ -211,7 +213,7 @@ export default function DuelControls({
         onPointerCancel={onOrbitRelease}
       >
         <span>{lockOn ? "KİLİDİ AÇ · KAMERAYI DÖNDÜR" : "KAMERAYI SÜRÜKLE"}</span>
-      </div>
+      </div>}
       <div
         ref={joystickRef}
         className="duel-stick"

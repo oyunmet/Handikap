@@ -1,5 +1,5 @@
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
-import type { MutableRefObject } from "react";
+import type { ErrorInfo, MutableRefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import { Html, useProgress } from "@react-three/drei";
 import * as THREE from "three";
@@ -19,6 +19,7 @@ import {
 import type { OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
+import { emitWorldDiagnostic } from "./world-diagnostics";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -93,10 +94,61 @@ function inspectModelBudget(model: THREE.Object3D, modelPath: string) {
 
   if (triangles > 50_000) {
     console.warn(`[shafak-model] ${modelPath} has ${triangles.toLocaleString("tr-TR")} triangles (recommended: under 50,000).`);
+    emitWorldDiagnostic("model-budget", `${modelPath}: ${triangles} üçgen (önerilen üst sınır 50.000).`);
   }
   if (largestTextureDimension > 2_048) {
     console.warn(`[shafak-model] ${modelPath} has a ${largestTextureDimension}px texture (recommended: 2,048px or smaller).`);
+    emitWorldDiagnostic("model-budget", `${modelPath}: ${largestTextureDimension}px doku boyutu.`);
   }
+}
+
+function downscaleTexture(
+  texture: THREE.Texture,
+  modelPath: string,
+  cache: Map<THREE.Texture, THREE.Texture | null>,
+) {
+  if (cache.has(texture)) return cache.get(texture) ?? null;
+  const image = texture.image as (CanvasImageSource & {
+    width?: number;
+    height?: number;
+    naturalWidth?: number;
+    naturalHeight?: number;
+    videoWidth?: number;
+    videoHeight?: number;
+  }) | undefined;
+  const width = Number(image?.width ?? image?.videoWidth ?? image?.naturalWidth ?? 0);
+  const height = Number(image?.height ?? image?.videoHeight ?? image?.naturalHeight ?? 0);
+  const largestSide = Math.max(width, height);
+  if (largestSide <= 2_048 || !width || !height || typeof document === "undefined") {
+    cache.set(texture, null);
+    return null;
+  }
+
+  const scale = 2_048 / largestSide;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const context = canvas.getContext("2d");
+  if (!context || !image) {
+    emitWorldDiagnostic("model-budget", `${modelPath}: ${width}×${height}px doku küçültülemedi; özgün doku korunuyor.`);
+    cache.set(texture, null);
+    return null;
+  }
+  try {
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    emitWorldDiagnostic("model-budget", `${modelPath}: doku küçültme başarısız: ${message}`);
+    cache.set(texture, null);
+    return null;
+  }
+  const resized = texture.clone();
+  resized.image = canvas;
+  resized.mipmaps = [];
+  resized.needsUpdate = true;
+  cache.set(texture, resized);
+  emitWorldDiagnostic("model-budget", `${modelPath}: ${width}×${height}px doku ${canvas.width}×${canvas.height}px olarak küçültüldü.`);
+  return resized;
 }
 
 function prepareModel(
@@ -107,11 +159,46 @@ function prepareModel(
 ) {
   const model = cloneSkinned(source);
   inspectModelBudget(model, modelPath);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const dimensions = bounds.getSize(new THREE.Vector3());
+  const modelHeight = dimensions.y;
+  if (!Number.isFinite(modelHeight) || modelHeight <= 0 || modelHeight > 100) {
+    emitWorldDiagnostic("model-budget", `${modelPath}: geçersiz model sınırı (${dimensions.toArray().join(", ")}); güvenli ölçek uygulandı.`);
+    model.scale.setScalar(0.01);
+  } else if (modelHeight > 3.4) {
+    const normalizationScale = 3.4 / modelHeight;
+    model.scale.multiplyScalar(normalizationScale);
+    model.position.y -= bounds.min.y * normalizationScale;
+    emitWorldDiagnostic("model-budget", `${modelPath}: model yüksekliği ${modelHeight.toFixed(2)} m'den 3,4 m sınırına normalize edildi.`);
+  }
   model.traverse((object) => {
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
   });
   const ownedMaterials: THREE.Material[] = [];
-  if (!modelConfig) return { model, ownedMaterials };
+  const ownedTextures: THREE.Texture[] = [];
+  const textureCache = new Map<THREE.Texture, THREE.Texture | null>();
+
+  model.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    let changed = false;
+    const resizedMaterials = materials.map((original) => {
+      let customized: THREE.Material | null = null;
+      for (const [key, value] of Object.entries(original)) {
+        if (!(value instanceof THREE.Texture)) continue;
+        const resized = downscaleTexture(value, modelPath, textureCache);
+        if (!resized) continue;
+        customized ??= original.clone();
+        (customized as THREE.Material & Record<string, unknown>)[key] = resized;
+        if (!ownedTextures.includes(resized)) ownedTextures.push(resized);
+        changed = true;
+      }
+      if (!customized) return original;
+      ownedMaterials.push(customized);
+      return customized;
+    });
+    if (changed) object.material = Array.isArray(object.material) ? resizedMaterials : resizedMaterials[0];
+  });
 
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -119,14 +206,14 @@ function prepareModel(
     let changed = false;
     const materials = originalMaterials.map((original) => {
       const materialName = normalizeMaterialName(original.name);
-      const isCape = modelConfig.materialNameAliases.cape.some((alias) =>
+      const isCape = modelConfig?.materialNameAliases.cape.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const isAccent = modelConfig.materialNameAliases.accent.some((alias) =>
+      const isAccent = modelConfig?.materialNameAliases.accent.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
       const color = isCape
-        ? modelConfig.appearance.cape
+        ? modelConfig?.appearance.cape
         : isAccent
-          ? modelConfig.appearance.trim
+          ? modelConfig?.appearance.trim
           : undefined;
       if (!color) return original;
       const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
@@ -146,7 +233,7 @@ function prepareModel(
     if (changed) object.material = Array.isArray(object.material) ? materials : materials[0];
   });
 
-  return { model, ownedMaterials };
+  return { model, ownedMaterials, ownedTextures };
 }
 
 function OptionalGlbKnight({
@@ -166,7 +253,7 @@ function OptionalGlbKnight({
     loader.setMeshoptDecoder(MeshoptDecoder);
   }) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
-  const { model, ownedMaterials } = useMemo(
+  const { model, ownedMaterials, ownedTextures } = useMemo(
     () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow),
     [gltf.scene, modelPath, modelConfig, castShadow],
   );
@@ -274,7 +361,8 @@ function OptionalGlbKnight({
     mixer.stopAllAction();
     mixer.uncacheRoot(model);
     for (const material of ownedMaterials) material.dispose();
-  }, [mixer, model, ownedMaterials]);
+    for (const texture of ownedTextures) texture.dispose();
+  }, [mixer, model, ownedMaterials, ownedTextures]);
 
   return (
     <group ref={rootRef}>
@@ -344,6 +432,11 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
     return { failed: true };
   }
 
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    console.error("[shafak-model] Opponent GLB failed; using the primitive fallback.", error);
+    emitWorldDiagnostic("model-error", error.stack ?? error.message);
+  }
+
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;
   }
@@ -353,7 +446,9 @@ export default function KnightActor(props: KnightActorProps) {
   const { modelConfig, modelAnimationState: _modelAnimationState, ...knightProps } = props;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
-      <Knight3D {...knightProps} appearance={knightProps.appearance ?? modelConfig?.appearance} />
+      {modelConfig?.modelPath
+        ? <PrimitiveKnightFallback />
+        : <Knight3D {...knightProps} appearance={knightProps.appearance ?? modelConfig?.appearance} />}
     </group>
   );
 
@@ -366,5 +461,46 @@ export default function KnightActor(props: KnightActorProps) {
         <OptionalGlbKnight {...props} />
       </Suspense>
     </ModelErrorBoundary>
+  );
+}
+
+function PrimitiveKnightFallback() {
+  return (
+    <group>
+      <mesh position={[0, 1.03, 0]} castShadow>
+        <capsuleGeometry args={[0.34, 0.76, 4, 8]} />
+        <meshStandardMaterial color="#4f5560" metalness={0.42} roughness={0.68} />
+      </mesh>
+      <mesh position={[0, 1.82, 0]} castShadow>
+        <sphereGeometry args={[0.26, 10, 8]} />
+        <meshStandardMaterial color="#747984" metalness={0.5} roughness={0.58} />
+      </mesh>
+      <mesh position={[0, 1.92, 0.03]} castShadow>
+        <boxGeometry args={[0.42, 0.11, 0.42]} />
+        <meshStandardMaterial color="#34333a" metalness={0.52} roughness={0.62} />
+      </mesh>
+      <mesh position={[0, 1.79, 0.245]}>
+        <boxGeometry args={[0.3, 0.045, 0.025]} />
+        <meshBasicMaterial color="#ffb372" toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0.67, -0.25]} rotation={[-0.12, 0, 0]} castShadow>
+        <boxGeometry args={[0.72, 0.9, 0.08]} />
+        <meshStandardMaterial color="#542b37" roughness={0.88} side={THREE.DoubleSide} />
+      </mesh>
+      <group position={[0.43, 1.04, 0.12]} rotation={[0.04, 0, -0.42]}>
+        <mesh position={[0, 0.36, 0]} castShadow>
+          <boxGeometry args={[0.095, 0.75, 0.06]} />
+          <meshStandardMaterial color="#d7dce0" metalness={0.83} roughness={0.3} />
+        </mesh>
+        <mesh position={[0, -0.04, 0]}>
+          <boxGeometry args={[0.34, 0.075, 0.08]} />
+          <meshStandardMaterial color="#c99a5a" metalness={0.72} roughness={0.38} />
+        </mesh>
+        <mesh position={[0, -0.2, 0]}>
+          <cylinderGeometry args={[0.055, 0.07, 0.27, 6]} />
+          <meshStandardMaterial color="#38252a" roughness={0.82} />
+        </mesh>
+      </group>
+    </group>
   );
 }

@@ -1,5 +1,9 @@
 export type DirectionZone = "front" | "left" | "right" | "rear";
 
+export function duel360EnabledFromSearch(search: string) {
+  return new URLSearchParams(search).get("duel360") !== "0";
+}
+
 export type DuelPosition = {
   x: number;
   z: number;

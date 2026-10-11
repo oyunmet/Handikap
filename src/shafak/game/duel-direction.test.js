@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  duel360EnabledFromSearch,
   getDirectionalDamageMultiplier,
   getDirectionZone,
   isWithinFacingCone,
@@ -9,6 +10,12 @@ import {
   turnYawToward,
   yawToward,
 } from "./duel-direction.ts";
+
+test("the 360 duel is enabled by default and can be disabled for a safe rollback", () => {
+  assert.equal(duel360EnabledFromSearch(""), true);
+  assert.equal(duel360EnabledFromSearch("?duel360=1"), true);
+  assert.equal(duel360EnabledFromSearch("?duel360=0"), false);
+});
 
 test("yaw wrapping and turning use the shortest circular direction", () => {
   assert.equal(normalizeYaw(3 * Math.PI), Math.PI);

@@ -1,12 +1,8 @@
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
-import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
-import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
-import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
@@ -116,54 +112,6 @@ type World3DProps = {
   debugOneHitEnabled: boolean;
   onToggleDebugOneHit: () => void;
 };
-
-const DUEL_MODEL_PATH = "/models/gece-nobetcisi.glb";
-
-function configureDuelModelLoader(loader: GLTFLoader) {
-  loader.setMeshoptDecoder(MeshoptDecoder);
-}
-
-function DuelModelShaderWarmup() {
-  const gltf = useLoader(GLTFLoader, DUEL_MODEL_PATH, configureDuelModelLoader) as GLTF;
-  const warmModel = useMemo(() => {
-    const model = cloneSkinned(gltf.scene);
-    model.traverse((object) => {
-      if ((object as THREE.Mesh).isMesh) object.frustumCulled = false;
-    });
-    return model;
-  }, [gltf.scene]);
-  const warmupRef = useRef<THREE.Group>(null);
-  const { gl, scene, camera } = useThree();
-
-  useEffect(() => {
-    const group = warmupRef.current;
-    if (!group) return undefined;
-    group.visible = true;
-    void gl.compileAsync(scene, camera).catch(() => undefined);
-    group.visible = false;
-    return () => {
-      group.visible = false;
-    };
-  }, [camera, gl, scene]);
-
-  return (
-    <group ref={warmupRef} position={[0, -100, 0]} visible={false}>
-      <primitive object={warmModel} dispose={null} />
-    </group>
-  );
-}
-
-class WarmupErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
 
 type DebugStats = {
   x: number;
@@ -1152,43 +1100,6 @@ function SceneContents({
     }
   }, [onPerformanceStats, performanceMonitorEnabled]);
 
-  useEffect(() => {
-    useLoader.preload(GLTFLoader, DUEL_MODEL_PATH, configureDuelModelLoader);
-  }, []);
-
-  const { camera, scene } = useThree();
-  const hasCombatRender = combatRender !== null;
-
-  useEffect(() => {
-    if (!combatActive || !hasCombatRender) return undefined;
-
-    let idleHandle = 0;
-    let timeoutHandle = 0;
-    let cancelled = false;
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    const warmDuelShaders = () => {
-      if (cancelled) return;
-      void gl.compileAsync(scene, camera).catch(() => {
-        // Shader warm-up is best-effort; the normal renderer handles unsupported cases.
-      });
-    };
-
-    if (idleWindow.requestIdleCallback) {
-      idleHandle = idleWindow.requestIdleCallback(warmDuelShaders, { timeout: 700 });
-    } else {
-      timeoutHandle = window.setTimeout(warmDuelShaders, 0);
-    }
-
-    return () => {
-      cancelled = true;
-      if (idleHandle) idleWindow.cancelIdleCallback?.(idleHandle);
-      if (timeoutHandle) window.clearTimeout(timeoutHandle);
-    };
-  }, [camera, combatActive, gl, hasCombatRender, scene]);
-
   useFrame((frame, delta) => {
     lastSceneFrameAt = performance.now();
     const motion = motionRef.current;
@@ -1312,9 +1223,6 @@ function SceneContents({
           weather={weatherMode}
         />
       </group>
-      <WarmupErrorBoundary>
-        <Suspense fallback={null}><DuelModelShaderWarmup /></Suspense>
-      </WarmupErrorBoundary>
       {!combatActive && <WorldRoadEntities
         motionRef={motionRef}
         rivals={rivals}
@@ -1360,6 +1268,7 @@ export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [contextLost, setContextLost] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const [firstFrameReported, setFirstFrameReported] = useState(false);
   const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
@@ -1399,16 +1308,22 @@ export default function World3D(props: World3DProps) {
   const retryWebGL = useCallback(() => {
     autoRecoveryAttemptsRef.current = 0;
     setContextLost(false);
+    setRecoveryMessage("");
     setFirstFrameReported(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
   const retryCanvasAfterError = useCallback((error?: Error) => {
     if (error) emitWorldDiagnostic("recovery", error.stack ?? error.message);
-    if (autoRecoveryAttemptsRef.current >= 1) return;
+    if (autoRecoveryAttemptsRef.current >= 1) {
+      setRecoveryMessage(error?.message ?? "3D sahne çizim üretmiyor.");
+      return;
+    }
     autoRecoveryAttemptsRef.current += 1;
+    setRecoveryMessage("");
     window.setTimeout(() => {
       setContextLost(false);
+      setRecoveryMessage("");
       setFirstFrameReported(false);
       setWebglAvailable(null);
       setCanvasAttempt((attempt) => attempt + 1);
@@ -1417,6 +1332,7 @@ export default function World3D(props: World3DProps) {
   const markContextLost = useCallback(() => setContextLost(true), []);
   const rebuildRestoredContext = useCallback(() => {
     setContextLost(false);
+    setRecoveryMessage("");
     setFirstFrameReported(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
@@ -1495,14 +1411,14 @@ export default function World3D(props: World3DProps) {
   useEffect(() => {
     if (webglAvailable !== true || contextLost) return undefined;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "hidden" || !lastSceneFrameAt) return;
+      if (document.visibilityState === "hidden" || !firstFrameReported || !lastSceneFrameAt) return;
       if (performance.now() - lastSceneFrameAt < 2_500) return;
       emitWorldDiagnostic("render", "Görünür sekmede 2,5 saniyedir WebGL kare sinyali alınmıyor.");
       lastSceneFrameAt = performance.now();
       retryCanvasAfterError(new Error("WebGL render loop durdu."));
     }, 1_500);
     return () => window.clearInterval(timer);
-  }, [canvasAttempt, contextLost, retryCanvasAfterError, webglAvailable]);
+  }, [canvasAttempt, contextLost, firstFrameReported, retryCanvasAfterError, webglAvailable]);
 
   useEffect(() => {
     if (!webglAvailable) return undefined;
@@ -1511,6 +1427,21 @@ export default function World3D(props: World3DProps) {
     }, 10_000);
     return () => window.clearTimeout(timer);
   }, [canvasAttempt, webglAvailable]);
+
+  const debugBiomeTransition = getBiomeTransition(debugStats.distance);
+  const debugBaseFogDensity = props.weatherMode === "fog"
+    ? 0.016
+    : props.weatherMode === "rain"
+      ? 0.0095
+      : props.weatherMode === "ash"
+        ? 0.0085
+        : 0.004;
+  const debugBiomeDensity = debugBiomeTransition.biome === "frozen-pass"
+    ? 1.08
+    : debugBiomeTransition.biome === "red-marsh"
+      ? 1.13
+      : 1;
+  const debugFogDensity = debugBaseFogDensity * debugBiomeDensity;
 
   return (
     <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
@@ -1580,11 +1511,11 @@ export default function World3D(props: World3DProps) {
           </div>
         </div>
       )}
-      {contextLost && (
+      {(contextLost || recoveryMessage) && (
         <div className="world-three-recovery" role="alert">
           <div>
-            <strong>3D sahne durakladı</strong>
-            <span>Grafik bağlamı kesildi. Sahneyi yeniden yükleyip devam edebilirsin.</span>
+            <strong>{contextLost ? "3D sahne durakladı" : "3D sahne yeniden yüklenemedi"}</strong>
+            <span>{recoveryMessage || "Grafik bağlamı kesildi. Sahneyi yeniden yükleyip devam edebilirsin."}</span>
             <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
           </div>
         </div>
@@ -1602,7 +1533,7 @@ export default function World3D(props: World3DProps) {
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
-          <span>Dünya: Kül Yolu · Yüklü parça: {debugStats.chunks}</span>
+          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {props.weatherMode} · Sis: {debugFogDensity.toFixed(4)} · Parça: {debugStats.chunks}</span>
           <span>Rakip: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
           <div className="world-debug__actions">
             <button type="button" onClick={props.onDebugNearestRival}>En yakın rakip</button>
