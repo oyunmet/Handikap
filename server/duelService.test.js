@@ -92,8 +92,24 @@ test("input tapes reject broken button transitions and client-invented fields", 
     [12, 0, 0, 1, 1, 0],
     [14, 0, 0, 0, 0, 1],
   ]);
+  assert.deepEqual(validateCombatInputLog([
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [12, 0, 0, 1, 1, 0, 3142, 0],
+  ]), [
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [12, 0, 0, 1, 1, 0, 3142, 0],
+  ]);
   assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 1, 0]]), null);
   assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 900]]), null);
+  assert.equal(validateCombatInputLog([
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 2],
+  ]), null);
+  assert.equal(validateCombatInputLog([
+    [0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+  ]), null);
+  assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0, 3_143, 1]]), null);
 });
 
 test("server replays the seeded duel and returns the stored result only once", async () => {

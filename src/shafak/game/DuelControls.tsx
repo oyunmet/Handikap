@@ -10,6 +10,9 @@ type DuelControlsProps = {
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   onMove: (x: number, y: number) => void;
+  lockOn: boolean;
+  onToggleLock: () => void;
+  onOrbit: (deltaX: number, deltaY: number) => void;
   onSurrender: () => void;
   onOpenHelp: () => void;
 };
@@ -118,11 +121,16 @@ export default function DuelControls({
   onPress,
   onRelease,
   onMove,
+  lockOn,
+  onToggleLock,
+  onOrbit,
   onSurrender,
   onOpenHelp,
 }: DuelControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickPointer = useRef<number | null>(null);
+  const orbitPointer = useRef<number | null>(null);
+  const previousOrbitPoint = useRef({ x: 0, y: 0 });
   const [blockedHint, setBlockedHint] = useState("");
   const showBlockedHint = (reason: string) => {
     setBlockedHint(reason);
@@ -161,10 +169,49 @@ export default function DuelControls({
     joystickRef.current?.style.setProperty("--stick-y", "0px");
     onMove(0, 0);
   };
+  const onOrbitDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (disabled || lockOn) return;
+    event.preventDefault();
+    orbitPointer.current = event.pointerId;
+    previousOrbitPoint.current = { x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onOrbitMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (orbitPointer.current !== event.pointerId) return;
+    event.preventDefault();
+    const previous = previousOrbitPoint.current;
+    onOrbit(event.clientX - previous.x, event.clientY - previous.y);
+    previousOrbitPoint.current = { x: event.clientX, y: event.clientY };
+  };
+  const onOrbitRelease = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (orbitPointer.current === event.pointerId) orbitPointer.current = null;
+  };
 
   return (
     <div className={`duel-controls${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
       <button className="duel-forfeit" type="button" onClick={onSurrender} disabled={disabled}>PES ET</button>
+      <button
+        className={`duel-lock-toggle${lockOn ? " is-locked" : " is-free"}`}
+        type="button"
+        onClick={onToggleLock}
+        disabled={disabled}
+        aria-pressed={lockOn}
+        aria-label={lockOn ? "Hedef kilidini kapat ve kamerayı serbest bırak" : "Hedef kilidini aç"}
+      >
+        <span aria-hidden="true">{lockOn ? "◎" : "⌖"}</span>{lockOn ? "HEDEF KİLİTLİ" : "SERBEST"}
+      </button>
+      <div
+        className={`duel-camera-orbit${lockOn ? " is-locked" : ""}`}
+        role="application"
+        aria-label={lockOn ? "Kamera kilitli. Serbest kamera için hedef kilidini kapat." : "Kamera yörüngesi. Sürükleyerek kamerayı döndür."}
+        aria-disabled={disabled || lockOn}
+        onPointerDown={onOrbitDown}
+        onPointerMove={onOrbitMove}
+        onPointerUp={onOrbitRelease}
+        onPointerCancel={onOrbitRelease}
+      >
+        <span>{lockOn ? "KİLİDİ AÇ · KAMERAYI DÖNDÜR" : "KAMERAYI SÜRÜKLE"}</span>
+      </div>
       <div
         ref={joystickRef}
         className="duel-stick"

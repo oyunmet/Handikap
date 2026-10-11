@@ -55,13 +55,18 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
   const frames: CombatInputFrame[] = [];
   let previousTick = -1;
   let previousButtons = 0;
+  let frameLength: 6 | 8 | null = null;
   for (const entry of value) {
     if (
       !Array.isArray(entry) ||
-      entry.length !== 6 ||
+      (entry.length !== 6 && entry.length !== 8) ||
       entry.some((part) => typeof part !== "number" || !Number.isSafeInteger(part))
     ) return null;
+    if (frameLength !== null && frameLength !== entry.length) return null;
+    frameLength = entry.length;
     const [tick, x, y, buttons, pressed, released] = entry as number[];
+    const yawMilliRadians = entry.length === 8 ? entry[6] : 0;
+    const lockOn = entry.length === 8 ? entry[7] : 1;
     if (
       tick < 0 ||
       tick > 5_400 ||
@@ -75,7 +80,10 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
       pressed < 0 ||
       pressed > 31 ||
       released < 0 ||
-      released > 31
+      released > 31 ||
+      yawMilliRadians < -3_142 ||
+      yawMilliRadians > 3_142 ||
+      (lockOn !== 0 && lockOn !== 1)
     ) return null;
     const expectedButtons = ((previousButtons | pressed) & ~released) & 31;
     if (
@@ -84,7 +92,11 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
       (released & (previousButtons | pressed)) !== released
     ) return null;
     if (tick === 0 && (x !== 0 || y !== 0 || buttons !== 0 || pressed !== 0 || released !== 0)) return null;
-    frames.push([tick, x, y, buttons, pressed, released]);
+    if (entry.length === 8) {
+      frames.push([tick, x, y, buttons, pressed, released, yawMilliRadians, lockOn]);
+    } else {
+      frames.push([tick, x, y, buttons, pressed, released]);
+    }
     previousTick = tick;
     previousButtons = buttons;
   }
