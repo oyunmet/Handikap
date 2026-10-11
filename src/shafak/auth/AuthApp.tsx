@@ -2,7 +2,7 @@ import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { dark } from "@clerk/themes";
 import { trTR } from "@clerk/localizations";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Router, Switch, Redirect, useLocation, Link } from "wouter";
 import "./auth.css";
 
@@ -11,13 +11,56 @@ const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
 );
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL?.trim();
+const clerkProxyProps = clerkProxyUrl ? { proxyUrl: clerkProxyUrl } : {};
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const CLERK_READY_TIMEOUT_MS = 8_000;
 
 function stripBase(path: string) {
   return basePath && path.startsWith(basePath)
     ? path.slice(basePath.length) || "/"
     : path;
+}
+
+function useClerkReadyTimeout(isLoaded: boolean) {
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setTimedOut(false);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setTimedOut(true), CLERK_READY_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [isLoaded]);
+
+  return timedOut;
+}
+
+function ClerkLoadingError() {
+  return (
+    <main className="auth-loading auth-loading--error" role="alert">
+      <section>
+        <strong>Oturum bilgileri yüklenemedi</strong>
+        <p>Clerk veya hesap bilgileri 8 saniye içinde hazır olmadı. Bağlantını kontrol edip yeniden deneyebilirsin.</p>
+        <button type="button" onClick={() => window.location.reload()}>Yeniden dene</button>
+      </section>
+    </main>
+  );
+}
+
+function SsoCallbackRedirect() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    setLocation(
+      `/sign-in/sso-callback${window.location.search}${window.location.hash}`,
+      { replace: true },
+    );
+  }, [setLocation]);
+
+  return <div className="auth-loading" role="status">Oturum bağlantısı tamamlanıyor…</div>;
 }
 
 const clerkAppearance = {
@@ -90,17 +133,13 @@ const clerkAppearance = {
 };
 
 function HomeRoute() {
-  const { isLoaded, isSignedIn } = useUser();
-  if (!isLoaded) return <div className="auth-loading" role="status">Hesap bilgileri yükleniyor…</div>;
+  const { isSignedIn } = useUser();
   if (isSignedIn) return <Redirect to="/user-portal" />;
   return import.meta.env.DEV ? <ClerkBackedGame allowOfflineGuest /> : <Redirect to="/sign-in" />;
 }
 
 function UserPortal() {
-  const { isLoaded, isSignedIn } = useUser();
-  if (!isLoaded) {
-    return <div className="auth-loading" role="status">Hesap bilgileri yükleniyor…</div>;
-  }
+  const { isSignedIn } = useUser();
   if (!isSignedIn) return <Redirect to="/" />;
   return <ClerkBackedGame />;
 }
@@ -162,12 +201,33 @@ function SignUpPage() {
   );
 }
 
+function ClerkSessionRoutes() {
+  const { isLoaded } = useUser();
+  const timedOut = useClerkReadyTimeout(isLoaded);
+
+  if (!isLoaded) {
+    return timedOut
+      ? <ClerkLoadingError />
+      : <div className="auth-loading" role="status">Hesap bilgileri yükleniyor…</div>;
+  }
+
+  return (
+    <Switch>
+      <Route path="/" component={HomeRoute} />
+      <Route path="/user-portal" component={UserPortal} />
+      <Route path="/sign-in/*?" component={SignInPage} />
+      <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route><Redirect to="/" /></Route>
+    </Switch>
+  );
+}
+
 function ClerkRoutes() {
   const [, setLocation] = useLocation();
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
+      {...clerkProxyProps}
       appearance={clerkAppearance}
       localization={trTR}
       signInUrl={`${basePath}/sign-in`}
@@ -175,13 +235,7 @@ function ClerkRoutes() {
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
-      <Switch>
-        <Route path="/" component={HomeRoute} />
-        <Route path="/user-portal" component={UserPortal} />
-        <Route path="/sign-in/*?" component={SignInPage} />
-        <Route path="/sign-up/*?" component={SignUpPage} />
-        <Route><Redirect to="/" /></Route>
-      </Switch>
+      <ClerkSessionRoutes />
     </ClerkProvider>
   );
 }
@@ -201,7 +255,10 @@ export default function AuthApp() {
 
   return (
     <Router base={basePath}>
-      <ClerkRoutes />
+      <Switch>
+        <Route path="/sso-callback" component={SsoCallbackRedirect} />
+        <Route><ClerkRoutes /></Route>
+      </Switch>
     </Router>
   );
 }
