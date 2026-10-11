@@ -1,0 +1,28 @@
+Handikap oyununu Vercel'de (handikap.vercel.app) çalıştırıyorum ve şu sorunları düzeltmeni istiyorum. Tüm değişiklikleri yap, test et ve GitHub reposuna (oyunmet/Handikap, ana dal) commit/push et. Vercel push'tan sonra otomatik deploy ediyor.
+
+ORTAM BİLGİSİ
+- Uygulama Vercel'de çalışıyor, Replit'te değil. Replit yönetimli Clerk kurulumunu KULLANMA ve ekleme.
+- Vercel'de şu değişkenler zaten tanımlı: CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, VITE_CLERK_PUBLISHABLE_KEY (pk_test_ ile başlıyor). VITE_CLERK_PROXY_URL bilerek SİLİNDİ.
+
+1) 404 NOT_FOUND SORUNU (öncelikli)
+Giriş yapmaya çalışınca Vercel'in kendi 404 sayfası açılıyor. Sebep: SPA fallback yok, Clerk yönlendirmeleri (/sign-in/*, /sign-up/*, /sso-callback gibi) Vercel'de dosya bulamıyor.
+- Repo kökündeki vercel.json dosyasını kontrol et. Varsa mevcut ayarları ve api klasörünü bozma, yoksa oluştur.
+- /api/ ile başlayanlar hariç tüm yolları /index.html'e yönlendiren bir rewrite ekle:
+  { "rewrites": [ { "source": "/((?!api/).*)", "destination": "/index.html" } ] }
+- Clerk bileşenlerinin (SignIn, SignUp) routing ayarını kontrol et: path tabanlı kullanılıyorsa path, signInUrl, signUpUrl, afterSignInUrl, afterSignUpUrl değerleri gerçek rotalarla birebir uyumlu olsun. Hash tabanlı routing daha güvenliyse onu kullan. Clerk'in yönlendirdiği her adres (sso-callback dahil) uygulamada karşılanıyor olsun.
+
+2) PROXY KODUNU TEMİZLE
+- Kodda VITE_CLERK_PROXY_URL kullanılan yer varsa, değişken tanımlı DEĞİLSE proxyUrl hiç verilmesin (undefined). Boş veya hatalı proxy adresi Clerk'in yüklenmesini engellememeli.
+- /api/__clerk için bir proxy ekleme, gerek yok.
+
+3) YÜKLEME EKRANINDA TAKILMA
+Daha önce "Hesap bilgileri yükleniyor…" ekranında sonsuza kadar takılma sorunu yaşadım.
+- Clerk veya oturum bilgisi 8 saniyede hazır olmazsa yüklemeyi bırak, Türkçe açık bir hata mesajı ve "Yeniden dene" butonu göster.
+- Üretimde Clerk anahtarı yoksa da yükleme ekranında kalma, net bir kurulum mesajı göster.
+
+4) DOĞRULAMA
+- npm run typecheck, npm test ve npm run build başarılı olsun.
+- Üretim derlemesinde rotaların fallback ile çalıştığını kontrol et: /, /sign-in, /sign-up ve /sso-callback doğrudan açılınca 404 vermemeli.
+- Mevcut oyun, savaş ve performans değişikliklerine dokunma.
+
+Bitince ne değiştirdiğini kısaca yaz: değişen dosyalar, vercel.json'un son hali ve push edilen commit.
