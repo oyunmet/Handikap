@@ -302,6 +302,37 @@ function storeErrorText(code: string) {
   return messages[code] ?? "Mağaza işlemi tamamlanamadı. Bağlantıyı kontrol edip yeniden deneyin.";
 }
 
+function duelStartErrorText(error: unknown) {
+  if (!(error instanceof ApiResponseError)) {
+    return error instanceof Error ? error.message : "Düello başlatılamadı.";
+  }
+  if (error.status === 401 || error.code === "authentication_required") {
+    return "Oturum doğrulanamadı. Oyuncu profilinden yeniden giriş yap.";
+  }
+  if (error.status === 429) {
+    return "Çok fazla deneme yapıldı. Bir dakika bekleyip yeniden dene.";
+  }
+  if (error.code === "network_error" || error.status === 0) {
+    return "Düello sunucusuna ulaşılamadı. İnternet bağlantısını kontrol et.";
+  }
+  if (error.code === "opponent_already_defeated") {
+    return "Bu rakibi daha önce yendin. Yoldaki bir sonraki rakibe ilerle.";
+  }
+  if (error.code === "duel_already_active") {
+    return "Önceki düello sunucuda açık kaldı. Sayfayı yenileyip tekrar dene.";
+  }
+  if (error.code === "profile_not_ready") {
+    return "Hesap profili sunucuda hazır değil. Profili yenileyip tekrar dene.";
+  }
+  if (error.code === "unknown_opponent") {
+    return "Rakip bilgisi sunucuyla eşleşmedi. Oyunu yenileyip tekrar dene.";
+  }
+  if (error.code === "duel_storage_unavailable") {
+    return "Düello sunucuda kaydedilemedi. Biraz sonra tekrar dene.";
+  }
+  return `Düello başlatılamadı (${error.code}, HTTP ${error.status}). Bu kod sorunun kaynağını gösterir.`;
+}
+
 function pickupErrorText(error: unknown) {
   if (!(error instanceof ApiResponseError)) {
     return "Ödül doğrulanamadı; eşya yerde kaldı.";
@@ -1172,7 +1203,7 @@ export default function WorldScene({
     } catch (error) {
       updateBattleSession({
         phase: "error",
-        message: error instanceof Error ? error.message : "Düello başlatılamadı.",
+        message: duelStartErrorText(error),
       });
     }
   }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, directionalDuelEnabled, motionReduced, playerCombatStats]);

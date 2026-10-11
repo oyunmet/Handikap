@@ -30,6 +30,13 @@ export type WorldObjectKind =
   | "reed"
   | "mangrove";
 
+export const WORLD_ROADSIDE_PROP_KINDS: ReadonlySet<WorldObjectKind> = new Set([
+  "tower",
+  "ruin",
+  "tree",
+  "mangrove",
+]);
+
 export type WorldObject = {
   id: string;
   worldX: number;
@@ -87,11 +94,15 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       ];
 
   const objects = kinds.map((kind, objectIndex): WorldObject => {
-    const roadside = random() < 0.5 ? -1 : 1;
+    const lane = kind === "arch"
+      ? 0
+      : WORLD_ROADSIDE_PROP_KINDS.has(kind)
+        ? (random() < 0.5 ? -1 : 1) * (WORLD_PROP_MIN_LANE + random() * WORLD_PROP_LANE_SPAN)
+        : (random() * 1.55) - 0.78;
     return {
       id: `${index}:${objectIndex}`,
       worldX: start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4),
-      lane: roadside * (WORLD_PROP_MIN_LANE + random() * WORLD_PROP_LANE_SPAN),
+      lane,
       kind,
       biome,
       scale: 0.72 + random() * 0.62,

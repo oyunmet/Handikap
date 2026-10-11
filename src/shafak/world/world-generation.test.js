@@ -7,6 +7,7 @@ import {
   WORLD_PROP_LANE_SPACING,
   WORLD_PROP_MAX_HALF_WIDTH,
   WORLD_PROP_MIN_LANE,
+  WORLD_ROADSIDE_PROP_KINDS,
   WORLD_ROAD_HALF_WIDTH,
 } from "./world-generation.ts";
 
@@ -19,17 +20,23 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
 });
 
-test("scenic structures stay outside the playable road and cannot block the camera", () => {
+test("tall scenery stays beside the road while the open arches and low road props remain visible", () => {
   for (let seed = 0; seed < 24; seed += 1) {
     for (let chunkIndex = 0; chunkIndex < 24; chunkIndex += 1) {
       const chunk = createWorldChunk(chunkIndex, seed + 1);
       for (const object of chunk.objects) {
         const lateralDistance = Math.abs(object.lane) * WORLD_PROP_LANE_SPACING;
-        assert.ok(Math.abs(object.lane) >= WORLD_PROP_MIN_LANE);
-        assert.ok(
-          lateralDistance > WORLD_ROAD_HALF_WIDTH + WORLD_PROP_MAX_HALF_WIDTH,
-          `${object.kind} in chunk ${chunkIndex} overlaps the road`,
-        );
+        if (object.kind === "arch") {
+          assert.equal(object.lane, 0, "the arch remains centered over the path");
+        } else if (WORLD_ROADSIDE_PROP_KINDS.has(object.kind)) {
+          assert.ok(Math.abs(object.lane) >= WORLD_PROP_MIN_LANE);
+          assert.ok(
+            lateralDistance > WORLD_ROAD_HALF_WIDTH + WORLD_PROP_MAX_HALF_WIDTH,
+            `${object.kind} in chunk ${chunkIndex} overlaps the road`,
+          );
+        } else {
+          assert.ok(object.lane >= -0.78 && object.lane <= 0.77);
+        }
       }
     }
   }

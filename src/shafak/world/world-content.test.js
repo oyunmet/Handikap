@@ -9,6 +9,7 @@ import {
   validatePickupIds,
 } from "./world-content.ts";
 import { WORLD_BOT_PROFILES } from "./world-bot-profiles.ts";
+import { nextGateDistance } from "./world-generation.ts";
 
 test("seeded chapter content is stable and contains four escalating rivals", () => {
   const first = getWorldChapter(0);
@@ -36,6 +37,19 @@ test("seeded chapter content is stable and contains four escalating rivals", () 
   assert.ok(first.rivals.every((rival) => rival.id.includes(":rival:")));
   assert.ok(first.rivals.every((rival, index) => index === 0 || rival.level > first.rivals[index - 1].level));
   assert.ok(getWorldChapter(2).pickups.some((pickup) => pickup.kind === "seal-fragment"));
+});
+
+test("chapters retain the rock, spike, and breakable barricade plus the next gate", () => {
+  const chapter = getWorldChapter(0);
+  assert.deepEqual(
+    chapter.obstacles.map((obstacle) => obstacle.kind),
+    ["rock", "spike-trap", "barricade"],
+  );
+  assert.deepEqual(
+    chapter.obstacles.map((obstacle) => obstacle.distance),
+    [42, 77, 116],
+  );
+  assert.equal(nextGateDistance(78), 144);
 });
 
 test("rival identities are stable and distinct across at least 48 encounters", () => {

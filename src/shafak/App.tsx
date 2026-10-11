@@ -951,6 +951,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           >
             <ProfilePanel
               profile={profile}
+              isAuthenticated={Boolean(user?.id)}
               userEmail={user?.primaryEmailAddress?.emailAddress ?? null}
               accountSaveStatus={profileSyncStatus}
               onClose={() => setProfileOpen(false)}
