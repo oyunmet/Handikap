@@ -4,7 +4,11 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
-import { nextGateDistance } from "./world-generation";
+import {
+  nextGateDistance,
+  WORLD_PROP_LANE_SPACING,
+  WORLD_ROAD_HALF_WIDTH,
+} from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import { WORLD_SKY_SPHERE_RADIUS } from "./world-render-config";
@@ -251,8 +255,8 @@ function RoadSurface({ motionRef, quality, weather }: { motionRef: MotionRef; qu
         receiveShadow={quality !== "low"}
         dispose={null}
       />
-      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[-6.75, 0.02, 0]} dispose={null} />
-      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[6.75, 0.02, 0]} dispose={null} />
+      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[-WORLD_ROAD_HALF_WIDTH, 0.02, 0]} dispose={null} />
+      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[WORLD_ROAD_HALF_WIDTH, 0.02, 0]} dispose={null} />
       <HorizonFogBank motionRef={motionRef} weather={weather} />
     </group>
   );
@@ -385,7 +389,7 @@ function WorldProp({
   return (
     <group
       ref={rootRef}
-      position={[object.lane * 9.3, 0, 0]}
+      position={[object.lane * WORLD_PROP_LANE_SPACING, 0, 0]}
       rotation={[0, (object.flickerSeed % 628) / 100, 0]}
       scale={scale}
     >

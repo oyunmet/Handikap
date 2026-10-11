@@ -16,7 +16,7 @@ import {
   resolveGlbClipName,
   type ModelAnimationState,
 } from "./model-animation";
-import type { OpponentModelConfig } from "./opponent-model-config";
+import { getOpponentPartColor, type OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
 import { emitWorldDiagnostic } from "./world-diagnostics";
@@ -56,10 +56,6 @@ const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
     }
   `,
 });
-
-function normalizeMaterialName(name: string) {
-  return name.toLocaleLowerCase().replace(/[^a-z0-9ğüşöçıİ]/gi, "");
-}
 
 function inspectModelBudget(model: THREE.Object3D, modelPath: string) {
   if (warnedModelPaths.has(modelPath)) return;
@@ -205,16 +201,9 @@ function prepareModel(
     const originalMaterials = Array.isArray(object.material) ? object.material : [object.material];
     let changed = false;
     const materials = originalMaterials.map((original) => {
-      const materialName = normalizeMaterialName(original.name);
-      const isCape = modelConfig?.materialNameAliases.cape.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
-      const isAccent = modelConfig?.materialNameAliases.accent.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
-      const color = isCape
-        ? modelConfig?.appearance.cape
-        : isAccent
-          ? modelConfig?.appearance.trim
-          : undefined;
+      const color = modelConfig
+        ? getOpponentPartColor(object.name, original.name, modelConfig)
+        : undefined;
       if (!color) return original;
       const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
       if (!originalColor?.isColor) return original;

@@ -8,6 +8,11 @@ import { getBiomeForDistance, type WorldBiome } from "./world-biomes.ts";
 export const WORLD_SEED = 0x5afacafe;
 export const WORLD_CHUNK_OBJECTS = 7;
 export const MIN_WORLD_PARALLAX = 0.38;
+export const WORLD_PROP_LANE_SPACING = 9.3;
+export const WORLD_PROP_MIN_LANE = 1.18;
+export const WORLD_PROP_LANE_SPAN = 0.24;
+export const WORLD_ROAD_HALF_WIDTH = 6.75;
+export const WORLD_PROP_MAX_HALF_WIDTH = 2.7;
 
 export type WorldObjectKind =
   | "tower"
@@ -81,16 +86,19 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
       ];
 
-  const objects = kinds.map((kind, objectIndex): WorldObject => ({
-    id: `${index}:${objectIndex}`,
-    worldX: start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4),
-    lane: (random() * 1.55) - 0.78,
-    kind,
-    biome,
-    scale: 0.72 + random() * 0.62,
-    parallax: parallaxFor(kind),
-    flickerSeed: Math.floor(random() * 10000),
-  }));
+  const objects = kinds.map((kind, objectIndex): WorldObject => {
+    const roadside = random() < 0.5 ? -1 : 1;
+    return {
+      id: `${index}:${objectIndex}`,
+      worldX: start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4),
+      lane: roadside * (WORLD_PROP_MIN_LANE + random() * WORLD_PROP_LANE_SPAN),
+      kind,
+      biome,
+      scale: 0.72 + random() * 0.62,
+      parallax: parallaxFor(kind),
+      flickerSeed: Math.floor(random() * 10000),
+    };
+  });
 
   return {
     index,

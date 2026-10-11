@@ -4,6 +4,10 @@ import {
   createWorldChunk,
   getVisibleWorldChunks,
   nextGateDistance,
+  WORLD_PROP_LANE_SPACING,
+  WORLD_PROP_MAX_HALF_WIDTH,
+  WORLD_PROP_MIN_LANE,
+  WORLD_ROAD_HALF_WIDTH,
 } from "./world-generation.ts";
 
 test("world chunks are deterministic for a seed and vary between seeds", () => {
@@ -13,6 +17,22 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   assert.equal(first.objects.length, 8);
   assert.ok(first.objects.some((object) => ["torch", "crystal", "firepit"].includes(object.kind)));
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
+});
+
+test("scenic structures stay outside the playable road and cannot block the camera", () => {
+  for (let seed = 0; seed < 24; seed += 1) {
+    for (let chunkIndex = 0; chunkIndex < 24; chunkIndex += 1) {
+      const chunk = createWorldChunk(chunkIndex, seed + 1);
+      for (const object of chunk.objects) {
+        const lateralDistance = Math.abs(object.lane) * WORLD_PROP_LANE_SPACING;
+        assert.ok(Math.abs(object.lane) >= WORLD_PROP_MIN_LANE);
+        assert.ok(
+          lateralDistance > WORLD_ROAD_HALF_WIDTH + WORLD_PROP_MAX_HALF_WIDTH,
+          `${object.kind} in chunk ${chunkIndex} overlaps the road`,
+        );
+      }
+    }
+  }
 });
 
 test("visible world chunks stay bounded and reuse generated chunks", () => {

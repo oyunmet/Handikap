@@ -17,7 +17,7 @@ test("lock-on camera centers both fighters and shows them from a side angle", ()
 
   assert.equal(framing.targetX, 0);
   assert.equal(framing.targetZ, -0.65);
-  assert.ok(screenWidthShare > 0.8, `fighters should not line up behind one another (${screenWidthShare})`);
+  assert.ok(screenWidthShare > 0.94, `camera should show both fighters in a clear side-on view (${screenWidthShare})`);
 });
 
 test("portrait framing zooms out as fighters separate and remains bounded", () => {

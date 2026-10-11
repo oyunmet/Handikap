@@ -51,7 +51,7 @@ export function getDuelCameraFraming({
     ? Math.atan2(dx, dz)
     : finiteOr(player.yaw ?? 0, 0);
   const yaw = lockOn
-    ? normalizeYaw(fightYaw - Math.PI * 0.68)
+    ? normalizeYaw(fightYaw - Math.PI * 0.58)
     : normalizeYaw(finiteOr(orbitYaw, 0));
 
   // Derive the zoom from horizontal FOV so both fighters remain visible on
