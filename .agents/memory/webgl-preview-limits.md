@@ -14,3 +14,9 @@ Do not create and forcibly lose a throwaway WebGL context before mounting the re
 **Why:** Browser WebGL APIs can exist even when context creation fails, and an extra context consumes scarce device resources without proving the actual scene can render.
 
 **How to apply:** Use API presence only as a lightweight preflight; never call `getContext()` plus `WEBGL_lose_context` as a probe before React Three Fiber creates its renderer.
+
+Do not use `readPixels()` from the default drawing buffer as a production black-screen detector on iOS. Keep pixel sampling diagnostic-only; use actual context-loss and render-loop signals for recovery.
+
+**Why:** On iPhone Safari, default-buffer readback can report near-black while the scene is visibly drawing, which falsely triggers a blocking recovery panel.
+
+**How to apply:** Never gate movement or scene recovery on sampled framebuffer brightness unless the renderer uses a verified readable render target and the check has been confirmed on a real device.

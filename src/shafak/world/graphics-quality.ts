@@ -54,15 +54,11 @@ export function getWorldRenderPixelRatio(
   quality: RenderQuality,
   devicePixelRatio: number,
   touchDevice = false,
-  recovering = false,
 ): number {
   const dpr = Number.isFinite(devicePixelRatio)
     ? Math.max(1, Math.min(4, devicePixelRatio))
     : 1;
-  const recoveryCap = touchDevice && recovering
-    ? 0.75
-    : getPixelRatioCap(quality, touchDevice);
-  return Math.min(2, recoveryCap, dpr);
+  return Math.min(2, getPixelRatioCap(quality, touchDevice), dpr);
 }
 
 export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: number): number {

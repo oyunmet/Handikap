@@ -35,10 +35,6 @@ import {
 } from "./world-diagnostics";
 import WorldPostProcessing from "./WorldPostProcessing";
 import { getShadowMapSize, getWorldRenderPixelRatio } from "./graphics-quality";
-import {
-  advanceBlackFrameSamples,
-  BLACK_FRAME_LUMINANCE_THRESHOLD,
-} from "./render-health";
 import { WORLD_CAMERA_FAR } from "./world-render-config";
 import {
   createFrameMetricsAccumulator,
@@ -1129,9 +1125,6 @@ function SceneContents({
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
   const activeChunkRef = useRef(Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS));
   const footSlipRef = useRef(0);
-  const darkPixelWindowsRef = useRef(0);
-  const pixelRecoverySentRef = useRef(false);
-  const touchPixelSampleAtRef = useRef(-1_000);
   const prefetchCancelRef = useRef<(() => void) | null>(null);
   const initialPrefetchRef = useRef(false);
   const { gl } = useThree();
@@ -1177,24 +1170,6 @@ function SceneContents({
   useFrame((frame, delta) => {
     lastSceneFrameAt = performance.now();
     const motion = motionRef.current;
-    const observePixels = (pixelSample: ReturnType<typeof sampleRendererPixels>) => {
-      const health = advanceBlackFrameSamples(
-        darkPixelWindowsRef.current,
-        pixelSample.meanLuminance,
-      );
-      darkPixelWindowsRef.current = health.consecutiveSamples;
-      if (health.shouldRecover && !pixelRecoverySentRef.current) {
-        pixelRecoverySentRef.current = true;
-        emitWorldDiagnostic("render", "İki ardışık ölçümde siyah kare bulundu; düşük yükte sahne kurtarma başlatıldı.");
-        window.dispatchEvent(new CustomEvent("shafak:scene-recovery", {
-          detail: { message: "WebGL iki ölçümde siyah kare üretti." },
-        }));
-      } else if (pixelSample.meanLuminance !== null
-        && pixelSample.meanLuminance >= BLACK_FRAME_LUMINANCE_THRESHOLD) {
-        pixelRecoverySentRef.current = false;
-      }
-      return pixelSample;
-    };
     if (gl.info.render.calls > 0) {
       zeroDrawCallFramesRef.current = 0;
       zeroDrawRecoverySentRef.current = false;
@@ -1237,7 +1212,7 @@ function SceneContents({
       const elapsed = now - monitor.startedAt;
       if (elapsed >= 1) {
         const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
-        const pixelSample = observePixels(sampleRendererPixels(gl));
+        const pixelSample = sampleRendererPixels(gl);
         const background = frame.scene.background;
         const fog = frame.scene.fog;
         onDebugStats({
@@ -1275,13 +1250,6 @@ function SceneContents({
         monitor.frames = 0;
         monitor.longFrames = 0;
         monitor.maxFrameMs = 0;
-      }
-    }
-    if (!debugEnabled && touchRenderer) {
-      const now = frame.clock.elapsedTime * 1_000;
-      if (now - touchPixelSampleAtRef.current >= 1_000) {
-        touchPixelSampleAtRef.current = now;
-        observePixels(sampleRendererPixels(gl));
       }
     }
     // Count the complete next render, including EffectComposer's extra passes.
@@ -1434,12 +1402,7 @@ export default function World3D(props: World3DProps) {
   });
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const maxDpr = getWorldRenderPixelRatio(
-    props.quality,
-    pixelRatio,
-    touchRenderer,
-    canvasAttempt > 0,
-  );
+  const maxDpr = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
   const markFirstFrame = useCallback(() => {
     setFirstFrameReported(true);
@@ -1587,7 +1550,7 @@ export default function World3D(props: World3DProps) {
         >
           <Canvas
             dpr={[minDpr, maxDpr]}
-            shadows={props.quality !== "low" && canvasAttempt === 0}
+            shadows={props.quality !== "low"}
             camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: WORLD_CAMERA_FAR }}
             gl={{
               alpha: false,

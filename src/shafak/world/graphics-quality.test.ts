@@ -49,8 +49,6 @@ test("world pixel ratio stays within the mobile rendering budget", () => {
   assert.equal(getPixelRatioCap("high", true), 1);
   assert.equal(getPixelRatioCap("balanced", true), 1);
   assert.equal(getWorldRenderPixelRatio("high", 2, true), 1);
-  assert.equal(getWorldRenderPixelRatio("high", 2, true, true), 0.75);
-  assert.equal(getWorldRenderPixelRatio("high", 2, false, true), 1.5);
 });
 
 test("shadow maps stay within the quality budget and scale with device DPR", () => {
