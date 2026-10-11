@@ -50,5 +50,6 @@ export function resolveGlbClipName(
   if (state === "walk") return resolveGlbClipName("idle", availableNames, animationClips);
   if (state === "run") return resolveGlbClipName("walk", availableNames, animationClips)
     ?? resolveGlbClipName("idle", availableNames, animationClips);
+  if (state !== "idle") return resolveGlbClipName("idle", availableNames, animationClips);
   return null;
 }

@@ -46,7 +46,7 @@ export const OPPONENT_MODEL_CONFIGS = {
     },
     materialNameAliases: {
       cape: ["cape", "cloak", "mantle", "pelerin"],
-      accent: ["trim", "accent", "rune", "highlight", "vurgu"],
+      accent: ["trim", "accent", "rune", "highlight", "vurgu", "gold", "metal"],
     },
     animationClips: {
       idle: ["Idle"],

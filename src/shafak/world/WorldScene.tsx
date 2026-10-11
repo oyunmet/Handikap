@@ -45,6 +45,7 @@ import {
   readWorldInput,
   stepWorldMotion,
   WORLD_GATE_INTERVAL_METERS,
+  WORLD_ORIGIN_REBASE_INTERVAL_METERS,
   type WorldMotionFrame,
   type WorldMotion,
 } from "./movement";
@@ -82,6 +83,7 @@ type WorldSceneProps = {
   quality: "high" | "balanced" | "low";
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
+  performanceMonitorEnabled: boolean;
   soundEnabled: boolean;
   soundVolume: number;
   musicVolume: number;
@@ -371,6 +373,7 @@ export default function WorldScene({
   quality,
   visualEffectsEnabled,
   motionReduced,
+  performanceMonitorEnabled,
   soundEnabled,
   soundVolume,
   musicVolume,
@@ -1629,6 +1632,7 @@ export default function WorldScene({
     motionRef.current = {
       ...motionRef.current,
       distance: nextDistance,
+      originDistance: Math.floor(nextDistance / WORLD_ORIGIN_REBASE_INTERVAL_METERS) * WORLD_ORIGIN_REBASE_INTERVAL_METERS,
       cameraX: nextDistance,
       depth: nextDepth,
       velocityX: 0,
@@ -1700,6 +1704,7 @@ export default function WorldScene({
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
             motionReduced={motionReduced}
+            performanceMonitorEnabled={performanceMonitorEnabled}
             weatherMode={weatherMode}
             level={profile.level}
             relicCount={profile.items.length}

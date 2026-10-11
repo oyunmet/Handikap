@@ -215,12 +215,12 @@ function getParts(object: WorldObject): PartSpec[] {
   return parts;
 }
 
-function buildStaticBatches(objects: WorldObject[]): StaticBatch[] {
+function buildStaticBatches(objects: WorldObject[], originDistance: number): StaticBatch[] {
   const batches = new Map<string, StaticBatch>();
   const root = new THREE.Object3D();
   const partTransform = new THREE.Object3D();
   for (const object of objects) {
-    root.position.set(object.lane * 9.3, 0, -object.worldX);
+    root.position.set(object.lane * 9.3, 0, -(object.worldX - originDistance));
     root.rotation.set(0, (object.flickerSeed % 628) / 100, 0);
     root.scale.setScalar(object.scale);
     root.updateMatrix();
@@ -269,14 +269,16 @@ function InstancedPropBatch({ batch }: { batch: StaticBatch }) {
 export default function WorldStaticBatches({
   objects,
   motionRef,
+  originDistance,
 }: {
   objects: WorldObject[];
   motionRef: MotionRef;
+  originDistance: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const batches = useMemo(() => buildStaticBatches(objects), [objects]);
+  const batches = useMemo(() => buildStaticBatches(objects, originDistance), [objects, originDistance]);
   useFrame(() => {
-    if (groupRef.current) groupRef.current.position.z = motionRef.current.cameraX;
+    if (groupRef.current) groupRef.current.position.z = motionRef.current.cameraX - originDistance;
   });
 
   return (

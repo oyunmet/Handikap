@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createWorldMotion, interpolateWorldMotion, readWorldInput, stepWorldMotion } from "./movement.ts";
+import {
+  createWorldMotion,
+  getWorldOriginDistance,
+  interpolateWorldMotion,
+  readWorldInput,
+  stepWorldMotion,
+  WORLD_ORIGIN_REBASE_INTERVAL_METERS,
+} from "./movement.ts";
 
 test("keyboard input reads WASD and arrows and normalizes diagonal travel", () => {
   const diagonal = readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 });
@@ -114,4 +121,22 @@ test("backward movement reverses the travel camera instead of freezing at the or
   for (let index = 0; index < 30; index += 1) backward = stepWorldMotion(backward, input, 1 / 60);
   assert.ok(backward.distance < 0);
   assert.ok(backward.cameraX < 0);
+});
+
+test("floating origin keeps render coordinates bounded while preserving absolute distance", () => {
+  const threshold = WORLD_ORIGIN_REBASE_INTERVAL_METERS;
+  let state = createWorldMotion(threshold - 0.01);
+  assert.equal(state.originDistance, 0);
+
+  state = stepWorldMotion(state, readWorldInput(new Set(["w"]), { x: 0, y: 0 }), 0.05);
+  assert.ok(state.distance > threshold);
+  assert.equal(state.originDistance, threshold);
+  assert.ok(state.distance - state.originDistance < 1);
+  assert.equal(getWorldOriginDistance(threshold * 10 + 3), threshold * 10);
+  assert.equal(getWorldOriginDistance(-threshold), 0);
+
+  const interpolated = createWorldMotion();
+  interpolateWorldMotion(state, state, 0.5, interpolated);
+  assert.equal(interpolated.distance, state.distance);
+  assert.equal(interpolated.originDistance, state.originDistance);
 });

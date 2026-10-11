@@ -1,8 +1,12 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
@@ -23,6 +27,11 @@ import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engi
 import type { EquipmentVisual } from "../game/store-types";
 import WorldPostProcessing from "./WorldPostProcessing";
 import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
+import {
+  createFrameMetricsAccumulator,
+  recordFrameMetric,
+  type FrameMetricsSnapshot,
+} from "./frame-metrics";
 import {
   getDuelVfxKind,
   LIGHTNING_BOLT_COUNT,
@@ -69,6 +78,7 @@ type World3DProps = {
   quality: WorldQuality;
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
+  performanceMonitorEnabled: boolean;
   weatherMode: WeatherMode;
   level: number;
   relicCount: number;
@@ -96,6 +106,54 @@ type World3DProps = {
   debugOneHitEnabled: boolean;
   onToggleDebugOneHit: () => void;
 };
+
+const DUEL_MODEL_PATH = "/models/gece-nobetcisi.glb";
+
+function configureDuelModelLoader(loader: GLTFLoader) {
+  loader.setMeshoptDecoder(MeshoptDecoder);
+}
+
+function DuelModelShaderWarmup() {
+  const gltf = useLoader(GLTFLoader, DUEL_MODEL_PATH, configureDuelModelLoader) as GLTF;
+  const warmModel = useMemo(() => {
+    const model = cloneSkinned(gltf.scene);
+    model.traverse((object) => {
+      if ((object as THREE.Mesh).isMesh) object.frustumCulled = false;
+    });
+    return model;
+  }, [gltf.scene]);
+  const warmupRef = useRef<THREE.Group>(null);
+  const { gl, scene, camera } = useThree();
+
+  useEffect(() => {
+    const group = warmupRef.current;
+    if (!group) return undefined;
+    group.visible = true;
+    void gl.compileAsync(scene, camera).catch(() => undefined);
+    group.visible = false;
+    return () => {
+      group.visible = false;
+    };
+  }, [camera, gl, scene]);
+
+  return (
+    <group ref={warmupRef} position={[0, -100, 0]} visible={false}>
+      <primitive object={warmModel} dispose={null} />
+    </group>
+  );
+}
+
+class WarmupErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 type DebugStats = {
   x: number;
@@ -325,7 +383,7 @@ function CameraRig({
       : 0;
     if (combat) {
       const centerX = (combat.player.x + combat.bot.x) * 0.5;
-      const centerZ = -motion.distance + (combat.player.z + combat.bot.z) * 0.5;
+      const centerZ = -(motion.distance - motion.originDistance) + (combat.player.z + combat.bot.z) * 0.5;
       if (cinematicIntro && !motionReduced) {
         const progress = THREE.MathUtils.clamp((_.clock.elapsedTime - (cinematicStartRef.current ?? _.clock.elapsedTime)) / 2, 0, 1);
         const eased = progress * progress * (3 - 2 * progress);
@@ -794,7 +852,21 @@ function DuelArena({
   botTelegraphActive,
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
   return (
-    <group position={[0, 0, -motionRef.current.distance]}>
+    <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
+      <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[4.28, 96]} />
+        <meshStandardMaterial
+          color="#29222b"
+          emissive="#201423"
+          emissiveIntensity={0.16}
+          roughness={0.94}
+          metalness={0.04}
+        />
+      </mesh>
+      <mesh position={[0, 0.026, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[4.22, 4.3, 96]} />
+        <meshBasicMaterial color="#855248" transparent opacity={0.3} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
       <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[4.05, 4.18, 96]} />
         <meshBasicMaterial color="#f2a05b" transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
@@ -811,7 +883,7 @@ function DuelArena({
           </mesh>
           <mesh position={[0, 1.43, 0]}>
             <dodecahedronGeometry args={[0.19, 0]} />
-            <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} />
+            <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} depthWrite={false} />
           </mesh>
         </group>
       ))}
@@ -891,7 +963,9 @@ function WorldCollisionDebug({
   }, [grid]);
 
   useFrame(() => {
-    if (rootRef.current) rootRef.current.position.z = motionRef.current.cameraX;
+    if (rootRef.current) {
+      rootRef.current.position.z = motionRef.current.cameraX - motionRef.current.originDistance;
+    }
   });
 
   return (
@@ -899,7 +973,7 @@ function WorldCollisionDebug({
       {colliders.map((collider) => (
         <mesh
           key={collider.id}
-          position={[collider.x, 0.055, -collider.distance]}
+          position={[collider.x, 0.055, -(collider.distance - motionRef.current.originDistance)]}
           rotation={collider.shape === "circle" ? [-Math.PI / 2, 0, 0] : undefined}
         >
           {collider.shape === "circle"
@@ -938,9 +1012,12 @@ function SceneContents({
   combatRender,
   opponentName,
   onDebugStats,
+  performanceMonitorEnabled,
+  onPerformanceStats,
   debugEnabled,
 }: World3DProps & {
   onDebugStats: (stats: DebugStats) => void;
+  onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   debugEnabled: boolean;
 }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
@@ -952,6 +1029,7 @@ function SceneContents({
   const { gl } = useThree();
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
+  const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
 
   const scheduleChunkPrefetch = (chunkIndex: number) => {
     prefetchCancelRef.current?.();
@@ -977,6 +1055,17 @@ function SceneContents({
   };
 
   useEffect(() => () => prefetchCancelRef.current?.(), []);
+
+  useEffect(() => {
+    performanceMetricsRef.current = createFrameMetricsAccumulator();
+    if (!performanceMonitorEnabled) {
+      onPerformanceStats({ averageFps: 0, minimumFps: 0, averageFrameMs: 0, longFrames: 0 });
+    }
+  }, [onPerformanceStats, performanceMonitorEnabled]);
+
+  useEffect(() => {
+    useLoader.preload(GLTFLoader, DUEL_MODEL_PATH, configureDuelModelLoader);
+  }, []);
 
   const { camera, scene } = useThree();
   const hasCombatRender = combatRender !== null;
@@ -1013,6 +1102,14 @@ function SceneContents({
 
   useFrame((frame, delta) => {
     const motion = motionRef.current;
+    if (performanceMonitorEnabled) {
+      const stats = recordFrameMetric(
+        performanceMetricsRef.current,
+        frame.clock.elapsedTime * 1_000,
+        delta * 1_000,
+      );
+      if (stats) onPerformanceStats(stats);
+    }
     const currentChunk = Math.floor(motion.distance / WORLD_CHUNK_LENGTH_METERS);
     if (!initialPrefetchRef.current) {
       initialPrefetchRef.current = true;
@@ -1037,7 +1134,7 @@ function SceneContents({
         onDebugStats({
           x: motion.depth * 5.2,
           y: 0,
-          z: -motion.distance,
+          z: -(motion.distance - motion.originDistance),
           distance: motion.distance,
           speed: Math.hypot(motion.velocityX, motion.velocityY),
           fps: Math.round(monitor.frames / elapsed),
@@ -1101,13 +1198,18 @@ function SceneContents({
         finisherSlowMotion={finisherSlowMotion}
       />
       <AshSky motionRef={motionRef} />
-      <WorldChunks
-        chunks={chunks}
-        motionRef={motionRef}
-        motionReduced={motionReduced}
-        quality={quality}
-        weather={weatherMode}
-      />
+      <group visible={!combatActive} name="road-world">
+        <WorldChunks
+          chunks={chunks}
+          motionRef={motionRef}
+          motionReduced={motionReduced}
+          quality={quality}
+          weather={weatherMode}
+        />
+      </group>
+      <WarmupErrorBoundary>
+        <Suspense fallback={null}><DuelModelShaderWarmup /></Suspense>
+      </WarmupErrorBoundary>
       {!combatActive && <WorldRoadEntities
         motionRef={motionRef}
         rivals={rivals}
@@ -1155,6 +1257,12 @@ export default function World3D(props: World3DProps) {
   const [contextLost, setContextLost] = useState(false);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const autoRecoveryAttemptsRef = useRef(0);
+  const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
+    averageFps: 0,
+    minimumFps: 0,
+    averageFrameMs: 0,
+    longFrames: 0,
+  });
   const [debugStats, setDebugStats] = useState<DebugStats>({
     x: 0,
     y: 0,
@@ -1253,7 +1361,12 @@ export default function World3D(props: World3DProps) {
             )}
           >
             <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
-            <SceneContents {...props} debugEnabled={debugEnabled} onDebugStats={setDebugStats} />
+            <SceneContents
+              {...props}
+              debugEnabled={debugEnabled}
+              onDebugStats={setDebugStats}
+              onPerformanceStats={setPerformanceStats}
+            />
           </Canvas>
         </WorldCanvasErrorBoundary>
       ) : (
@@ -1294,6 +1407,15 @@ export default function World3D(props: World3DProps) {
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
             <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
           </div>
+        </aside>
+      )}
+      {props.performanceMonitorEnabled && (
+        <aside className="world-performance" aria-label="Canlı kare hızı ve kare süresi">
+          <b>PERFORMANS</b>
+          <span>Ort. FPS <strong>{performanceStats.averageFps ? performanceStats.averageFps.toFixed(0) : "ölçülüyor"}</strong></span>
+          <span>En düşük FPS <strong>{performanceStats.minimumFps ? performanceStats.minimumFps.toFixed(0) : "ölçülüyor"}</strong></span>
+          <span>Ort. kare <strong>{performanceStats.averageFrameMs ? `${performanceStats.averageFrameMs.toFixed(1)} ms` : "ölçülüyor"}</strong></span>
+          <span>Uzun kare (&gt;50 ms) <strong>{performanceStats.longFrames}</strong></span>
         </aside>
       )}
     </div>

@@ -59,6 +59,12 @@ function resumeGameAudio(context: AudioContext) {
   if (context.state === "suspended") void context.resume().catch(() => undefined);
 }
 
+export function primeGameAudio() {
+  if (!soundEnabled || typeof window === "undefined") return;
+  const context = getGameAudioContext();
+  if (context) resumeGameAudio(context);
+}
+
 export function playUiChime() {
   if (soundEnabled) uiChime.play();
 }

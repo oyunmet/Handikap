@@ -1,4 +1,4 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import { Html, useProgress } from "@react-three/drei";
@@ -157,6 +157,7 @@ function OptionalGlbKnight({
   animationTimeScale = 1,
   facingAngle,
   footSlipRef,
+  appearance,
   modelConfig,
   castShadow = true,
 }: KnightActorProps) {
@@ -285,12 +286,27 @@ function OptionalGlbKnight({
         scale={[0.78, 0.52, 1]}
         dispose={null}
       />
-      <primitive
-        object={model}
-        rotation={[0, modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing, 0]}
-        scale={modelConfig?.scale ?? KNIGHT_CONFIG.modelScale}
-        dispose={null}
-      />
+      {selectedAction ? (
+        <primitive
+          object={model}
+          rotation={[0, modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing, 0]}
+          scale={modelConfig?.scale ?? KNIGHT_CONFIG.modelScale}
+          dispose={null}
+        />
+      ) : (
+        <group scale={modelConfig?.scale ?? KNIGHT_CONFIG.modelScale}>
+          <Knight3D
+            motionRef={motionRef}
+            state={state}
+            motionReduced={motionReduced}
+            animationTimeScale={animationTimeScale}
+            facingAngle={facingAngle}
+            footSlipRef={footSlipRef}
+            castShadow={castShadow}
+            appearance={appearance ?? modelConfig?.appearance}
+          />
+        </group>
+      )}
     </group>
   );
 }
@@ -334,8 +350,6 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 export default function KnightActor(props: KnightActorProps) {
-  const [modelAvailable, setModelAvailable] = useState(false);
-  const modelPath = props.modelConfig?.modelPath ?? KNIGHT_CONFIG.modelPath;
   const { modelConfig, modelAnimationState: _modelAnimationState, ...knightProps } = props;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
@@ -343,19 +357,9 @@ export default function KnightActor(props: KnightActorProps) {
     </group>
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setModelAvailable(false);
-    void fetch(modelPath, { method: "HEAD", signal: controller.signal })
-      .then((response) => {
-        const contentType = response.headers.get("content-type") ?? "";
-        setModelAvailable(response.ok && !contentType.includes("text/html"));
-      })
-      .catch(() => setModelAvailable(false));
-    return () => controller.abort();
-  }, [modelPath]);
-
-  if (!modelAvailable) return proceduralFallback;
+  // The hero and regular rivals intentionally use the sword-equipped procedural
+  // rig. Only opponents with an explicit GLB config should start a model request.
+  if (!modelConfig?.modelPath) return proceduralFallback;
   return (
     <ModelErrorBoundary fallback={proceduralFallback}>
       <Suspense fallback={<ModelLoadingFallback props={props} />}>

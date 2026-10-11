@@ -1,12 +1,11 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { requestJson } from "./api-json";
 import { useLocation } from "wouter";
-import { playUiChime, setSoundEnabled, setSoundVolume } from "./audio/howler";
+import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
-import WorldScene from "./world/WorldScene";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
 import {
@@ -18,6 +17,8 @@ import {
   type RenderQuality,
 } from "./world/graphics-quality";
 
+const WorldScene = lazy(() => import("./world/WorldScene"));
+
 type Screen = "opening" | "loading" | "menu" | "world";
 type Preferences = {
   sound: boolean;
@@ -27,6 +28,7 @@ type Preferences = {
   quality: GraphicsMode;
   visualEffects: boolean;
   reduceMotion: boolean;
+  performanceMonitor: boolean;
 };
 
 const PREFERENCES_KEY = "shafak-settings-v1";
@@ -38,6 +40,7 @@ const initialPreferences: Preferences = {
   quality: "medium",
   visualEffects: true,
   reduceMotion: false,
+  performanceMonitor: false,
 };
 
 function readPreferences(): Preferences {
@@ -72,6 +75,10 @@ function readPreferences(): Preferences {
         typeof saved.reduceMotion === "boolean"
           ? saved.reduceMotion
           : initialPreferences.reduceMotion,
+      performanceMonitor:
+        typeof saved.performanceMonitor === "boolean"
+          ? saved.performanceMonitor
+          : initialPreferences.performanceMonitor,
     };
   } catch {
     return initialPreferences;
@@ -465,6 +472,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
 
   const enterWorld = () => {
     playFeedback();
+    primeGameAudio();
     setScreen("world");
   };
 
@@ -547,7 +555,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     setAnnouncement(tr.settingsSaved);
   };
 
-  const togglePreference = (key: "sound" | "vibration" | "visualEffects" | "reduceMotion") => {
+  const togglePreference = (key: "sound" | "vibration" | "visualEffects" | "reduceMotion" | "performanceMonitor") => {
     const next = !preferences[key];
     setPreference(key, next);
     if (key === "sound") {
@@ -800,27 +808,30 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
             exit={{ opacity: 0, scale: motionReduced ? 1 : 1.02 }}
             transition={{ duration: motionReduced ? .12 : .42, ease: "easeOut" }}
           >
-            <WorldScene
-              quality={activeQuality}
-              visualEffectsEnabled={preferences.visualEffects}
-              motionReduced={motionReduced}
-              soundEnabled={preferences.sound}
-              soundVolume={preferences.soundVolume}
-              musicVolume={preferences.musicVolume}
-              onSoundEnabledChange={(enabled) => setPreference("sound", enabled)}
-              onSoundVolumeChange={(value) => setPreference("soundVolume", value)}
-              onMusicVolumeChange={(value) => setPreference("musicVolume", value)}
-              vibrationEnabled={preferences.vibration}
-              profile={profile}
-              accountDuelEnabled={Boolean(user?.id)}
-              accountProfileReady={profileSyncStatus === "ready"}
-              onBattleProfile={setProfile}
-              onLoadClaimedPickups={loadClaimedPickups}
-              onClaimWorldPickups={claimWorldPickups}
-              onExit={() => setScreen("menu")}
-              onOpenSettings={() => setSettingsOpen(true)}
-              onOpenProfile={() => setProfileOpen(true)}
-            />
+            <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
+              <WorldScene
+                quality={activeQuality}
+                visualEffectsEnabled={preferences.visualEffects}
+                motionReduced={motionReduced}
+                performanceMonitorEnabled={preferences.performanceMonitor}
+                soundEnabled={preferences.sound}
+                soundVolume={preferences.soundVolume}
+                musicVolume={preferences.musicVolume}
+                onSoundEnabledChange={(enabled) => setPreference("sound", enabled)}
+                onSoundVolumeChange={(value) => setPreference("soundVolume", value)}
+                onMusicVolumeChange={(value) => setPreference("musicVolume", value)}
+                vibrationEnabled={preferences.vibration}
+                profile={profile}
+                accountDuelEnabled={Boolean(user?.id)}
+                accountProfileReady={profileSyncStatus === "ready"}
+                onBattleProfile={setProfile}
+                onLoadClaimedPickups={loadClaimedPickups}
+                onClaimWorldPickups={claimWorldPickups}
+                onExit={() => setScreen("menu")}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenProfile={() => setProfileOpen(true)}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
@@ -970,6 +981,12 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
                   description={tr.reduceMotionDescription}
                   checked={preferences.reduceMotion || Boolean(systemReducedMotion)}
                   onChange={() => togglePreference("reduceMotion")}
+                />
+                <SettingToggle
+                  label="FPS ve kare süresi"
+                  description="Ortalama/en düşük FPS ve 50 ms üzeri kare sayısını gösterir."
+                  checked={preferences.performanceMonitor}
+                  onChange={() => togglePreference("performanceMonitor")}
                 />
               </div>
 

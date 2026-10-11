@@ -3,6 +3,7 @@ export type WorldMotion = {
   velocityY: number;
   depth: number;
   distance: number;
+  originDistance: number;
   cameraX: number;
   stepPhase: number;
   stepCount: number;
@@ -35,6 +36,7 @@ export const WORLD_METERS_TO_PIXELS = 38;
 export const LANE_METERS_PER_UNIT = 7;
 export const WORLD_CHUNK_LENGTH_METERS = 48;
 export const WORLD_GATE_INTERVAL_METERS = 144;
+export const WORLD_ORIGIN_REBASE_INTERVAL_METERS = 1024;
 
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6.8;
@@ -54,6 +56,7 @@ export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
     velocityY: 0,
     depth: clamp(finiteOrZero(depth), -1, 1),
     distance: initialDistance,
+    originDistance: getWorldOriginDistance(initialDistance),
     cameraX: initialDistance,
     stepPhase: 0,
     stepCount: 0,
@@ -111,6 +114,7 @@ export function stepWorldMotion(
   const isMoving = speed > 0.12;
   const stopTime = isMoving ? 0 : state.stopTime + dt;
   const distance = state.distance + velocityY * dt;
+  const originDistance = getWorldOriginDistance(distance);
   const depth = clamp(state.depth + velocityX * dt / LANE_METERS_PER_UNIT, -1, 1);
   const stepPhase = state.stepPhase + speed * dt / STRIDE_LENGTH * Math.PI * 2;
   const stepCount = Math.floor(stepPhase / Math.PI);
@@ -137,6 +141,7 @@ export function stepWorldMotion(
   frame.velocityY = velocityY;
   frame.depth = depth;
   frame.distance = distance;
+  frame.originDistance = originDistance;
   frame.cameraX = cameraX;
   frame.stepPhase = stepPhase;
   frame.stepCount = stepCount;
@@ -170,6 +175,7 @@ export function interpolateWorldMotion(
   target.velocityY = lerp(previous.velocityY, current.velocityY);
   target.depth = lerp(previous.depth, current.depth);
   target.distance = lerp(previous.distance, current.distance);
+  target.originDistance = current.originDistance;
   target.cameraX = lerp(previous.cameraX, current.cameraX);
   target.stepPhase = lerp(previous.stepPhase, current.stepPhase);
   target.stopTime = lerp(previous.stopTime, current.stopTime);
@@ -178,6 +184,13 @@ export function interpolateWorldMotion(
   target.stepCount = current.stepCount;
   target.hasMoved = current.hasMoved;
   target.facing = current.facing;
+}
+
+export function getWorldOriginDistance(distance: number) {
+  const finiteDistance = finiteOrZero(distance);
+  return finiteDistance > 0
+    ? Math.floor(finiteDistance / WORLD_ORIGIN_REBASE_INTERVAL_METERS) * WORLD_ORIGIN_REBASE_INTERVAL_METERS
+    : 0;
 }
 
 function finiteOrZero(value: number) {

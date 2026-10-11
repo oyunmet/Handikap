@@ -2,10 +2,11 @@ import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { dark } from "@clerk/themes";
 import { trTR } from "@clerk/localizations";
+import { lazy, Suspense } from "react";
 import { Route, Router, Switch, Redirect, useLocation, Link } from "wouter";
-import ShafakApp from "../App";
 import "./auth.css";
 
+const ShafakApp = lazy(() => import("../App"));
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
@@ -90,13 +91,9 @@ const clerkAppearance = {
 
 function HomeRoute() {
   const { isLoaded, isSignedIn } = useUser();
-  return (
-    <>
-      {isLoaded && isSignedIn
-        ? <Redirect to="/user-portal" />
-        : <ClerkBackedGame allowOfflineGuest />}
-    </>
-  );
+  if (!isLoaded) return <div className="auth-loading" role="status">Hesap bilgileri yükleniyor…</div>;
+  if (isSignedIn) return <Redirect to="/user-portal" />;
+  return import.meta.env.DEV ? <ClerkBackedGame allowOfflineGuest /> : <Redirect to="/sign-in" />;
 }
 
 function UserPortal() {
@@ -112,18 +109,20 @@ function ClerkBackedGame({ allowOfflineGuest = false }: { allowOfflineGuest?: bo
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   return (
-    <ShafakApp
-      user={user ? {
-        id: user.id,
-        firstName: user.firstName,
-        primaryEmailAddress: user.primaryEmailAddress
-          ? { emailAddress: user.primaryEmailAddress.emailAddress }
-          : null,
-      } : null}
-      authLoaded={isLoaded}
-      allowOfflineGuest={allowOfflineGuest}
-      signOut={signOut}
-    />
+    <Suspense fallback={<div className="auth-loading" role="status">Oyun hazırlanıyor…</div>}>
+      <ShafakApp
+        user={user ? {
+          id: user.id,
+          firstName: user.firstName,
+          primaryEmailAddress: user.primaryEmailAddress
+            ? { emailAddress: user.primaryEmailAddress.emailAddress }
+            : null,
+        } : null}
+        authLoaded={isLoaded}
+        allowOfflineGuest={allowOfflineGuest}
+        signOut={signOut}
+      />
+    </Suspense>
   );
 }
 
@@ -190,12 +189,13 @@ function ClerkRoutes() {
 export default function AuthApp() {
   if (!clerkPubKey) {
     return (
-      <ShafakApp
-        user={null}
-        authLoaded={false}
-        allowOfflineGuest
-        signOut={async () => undefined}
-      />
+      <main className="auth-page" role="alert">
+        <div className="auth-page__backdrop" aria-hidden="true" />
+        <section className="auth-loading">
+          <strong>Clerk yapılandırması eksik</strong>
+          <span>Misafir oyunu yalnızca geliştirme ortamında kullanılabilir.</span>
+        </section>
+      </main>
     );
   }
 

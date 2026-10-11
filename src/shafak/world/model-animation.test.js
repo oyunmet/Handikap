@@ -18,7 +18,8 @@ test("GLB clip names are resolved case-insensitively from one configurable map",
 test("missing locomotion clips fall back to a usable idle or walking clip", () => {
   assert.equal(resolveGlbClipName("walk", ["Idle"]), "Idle");
   assert.equal(resolveGlbClipName("run", ["Walk"]), "Walk");
-  assert.equal(resolveGlbClipName("block", ["Idle"]), null);
+  assert.equal(resolveGlbClipName("block", ["Idle"]), "Idle");
+  assert.equal(resolveGlbClipName("attack", ["Walk"]), null);
 });
 
 test("Gölge Şövalyesi maps every model state to its exact GLB clip", () => {
@@ -59,8 +60,12 @@ test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and cl
     "Idle", "Walk", "Run", "Attack1", "Block", "Dodge", "HitReaction",
     "Cast_Fire", "Cast_Lightning", "Death", "Victory",
   ];
+  const goldAccent = model.materials.find((material) => material.name === "Gold_Accent");
 
   assert.deepEqual(model.animations.map((clip) => clip.name), expectedClips);
+  assert.ok(goldAccent, "the configured opponent GLB should contain its gold accent material");
+  assert.ok(config.materialNameAliases.accent.some((alias) =>
+    goldAccent.name.toLowerCase().includes(alias.toLowerCase())));
   assert.equal(model.skins.length, 1);
   assert.equal(model.nodes[model.skins[0].skeleton].name, config.rootBoneName);
   const rootIndex = model.skins[0].skeleton;

@@ -1,0 +1,30 @@
+Önceki performans, çarpışma ve etiket düzeltmeleri için teşekkürler. Şimdi KALAN işleri yap. Mevcut özellikleri, tasarımı, iskeleti ve kılıç bağlantısını bozma.
+
+1) GECE SAVAŞÇISI VE BOZUK KARAKTERLER
+- Oyundaki tüm karakter modellerini (kahraman, tüm rakipler, gece savaşçısı) tek tek yükleyip incele: kaybolan uzuv, yanlış ölçek/yön, T-pozu, bozuk materyal, şeffaf parça, yere gömülü veya havada duran model.
+- Gece savaşçısını diğer karakterlerle birebir aynı sisteme getir: aynı iskelet/animasyon yapısı, aynı ölçek, aynı yön (Y-up, +Z), aynı Idle/Walk/Run/Attack1/Block/Dodge/HitReaction/Death/Victory klipleri, aynı materyal ve ışık yaklaşımı. Tasarım ruhunu (karanlık, gece teması) koru.
+- Animasyon yüklenemezse karakter T-pozunda kalmasın, güvenli bekleme duruşuna düşsün.
+- Her modeli bir kez yükle, SkeletonUtils.clone ile çoğalt.
+- Sonunda her karakter için bir kontrol tablosu ver: model adı, ölçek, animasyon durumu, düzeltilen sorun.
+
+2) SAVAŞTA EKRAN KARIŞMASI
+- Savaş sırasında yol sahnesi nesnelerinin gizlendiğini veya ayrı temiz arenada savaşıldığını doğrula ve düzelt.
+- Savaşa giriş/çıkışta kamera geçişini yumuşat (lerp). Savaş kamerası hem oyuncuyu hem rakibi net göstersin, hiçbir nesne önüne girmesin.
+- Z-fighting ve saydamlık sırası hatalarını düzelt (near/far, renderOrder, depthWrite, ofset).
+- Savaş başlayınca yol arayüzü (joystick, KONUŞ/SAVAŞ kartı) tamamen gizlensin, bitince dönsün. İki panel üst üste kalmasın.
+- Savaş bitince tüm efekt, projektil ve parçacıklar temizlensin.
+
+3) SİYAH EKRAN
+- canvas üzerinde webglcontextlost ve webglcontextrestored olaylarını dinle: kayıpta preventDefault çağır, restored olunca renderer, texture ve materyalleri yeniden kurup oyunu kaldığı yerden devam ettir.
+- Sahne geçişlerinde (yol → savaş → yol) paylaşılan kaynakları yok etmeden diğerlerini dispose et; bellek artışı olup olmadığını 3 dakikalık yürüyüş testinde kontrol et.
+- Çok ilerleyince kayan nokta hassasiyeti için floating origin ekle.
+
+4) İLK SAVAŞ DONMASI VE AÇILIŞ
+- Savaş modeli, animasyonları, efektleri ve sesleri oyun açılırken ön yükle; renderer.compile ile shader'ları önceden derle.
+- Ana JS paketini küçült: 3D/oyun kodunu ve büyük kütüphaneleri dinamik import (lazy load) ile böl, kullanılmayan kodu temizle, hedef: açılış paketi 500 KB gzip altı olmasa bile en az yarıya insin. Önce/sonra boyutu raporla.
+
+5) ÖLÇÜM
+- Performans ayarlarına açılıp kapanabilen bir FPS ve kare süresi göstergesi ekle (ortalama FPS, en düşük FPS, uzun kare sayısı), böylece iPhone'da gerçek ölçüm yapabileyim.
+- Clerk yapılandırması olmayan ortamda da oyun yürüyüşü, savaş ve efektler test edilebilsin diye misafir/geliştirme modu varsa onu kullan, yoksa güvenli bir şekilde ekle (üretimde kapalı).
+
+Bitince: değişen dosyaları, paket boyutu önce/sonra değerini ve neyi ölçemediğini açıkça yaz.

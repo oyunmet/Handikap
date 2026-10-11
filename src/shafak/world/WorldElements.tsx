@@ -832,13 +832,17 @@ export function WorldChunks({
       object.kind !== "flag" && object.kind !== "torch" && object.kind !== "firepit" && object.kind !== "crystal" &&
       Math.abs(object.worldX - motionRef.current.distance) <= 190,
     ),
-    [objects, staticLodChunk],
+    [objects, staticLodChunk, motionRef.current.originDistance],
   );
   return (
     <>
       <RoadSurface motionRef={motionRef} quality={quality} weather={weather} />
       {chunks.map((chunk) => <RoadSegment key={`road-${chunk.index}`} chunk={chunk} quality={quality} />)}
-      <WorldStaticBatches objects={staticObjects} motionRef={motionRef} />
+      <WorldStaticBatches
+        objects={staticObjects}
+        motionRef={motionRef}
+        originDistance={motionRef.current.originDistance}
+      />
       {animatedObjects.map((object) => (
         <WorldProp
           key={object.id}
