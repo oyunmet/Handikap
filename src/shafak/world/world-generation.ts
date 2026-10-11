@@ -75,6 +75,7 @@ export function getVisibleWorldChunks(
   viewportWidth: number,
   seed = WORLD_SEED,
   cache: Map<number, WorldChunk> = new Map(),
+  output: WorldChunk[] = [],
 ): WorldChunk[] {
   const safeWidth = Math.max(1, Number.isFinite(viewportWidth) ? viewportWidth : 1);
   const worldMargin = safeWidth / (WORLD_METERS_TO_PIXELS * MIN_WORLD_PARALLAX)
@@ -82,7 +83,8 @@ export function getVisibleWorldChunks(
   const center = Number.isFinite(cameraX) ? cameraX : 0;
   const first = Math.floor((center - worldMargin) / WORLD_CHUNK_LENGTH_METERS);
   const last = Math.floor((center + worldMargin) / WORLD_CHUNK_LENGTH_METERS);
-  const chunks: WorldChunk[] = [];
+  const chunks = output;
+  chunks.length = 0;
 
   for (let index = first; index <= last; index += 1) {
     let chunk = cache.get(index);
@@ -102,6 +104,14 @@ export function getVisibleWorldChunks(
   }
 
   return chunks;
+}
+
+export function fillWorldObjects(chunks: readonly WorldChunk[], output: WorldObject[] = []): WorldObject[] {
+  output.length = 0;
+  for (const chunk of chunks) {
+    for (const object of chunk.objects) output.push(object);
+  }
+  return output;
 }
 
 export function nextGateDistance(distance: number) {

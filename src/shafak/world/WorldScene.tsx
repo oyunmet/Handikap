@@ -1111,13 +1111,13 @@ export default function WorldScene({
     let lastReactUpdate = 0;
     let lastVisualUpdate = 0;
     const fixedStep = 1 / 60;
+    const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
     const newlyCollected = new Map<number, string[]>();
     const animate = (now: number) => {
       const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
       previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
       const liveInput = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
-      const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
       let frameState: WorldMotionFrame = stepWorldMotion(motionRef.current, battleActiveRef.current ? stoppedInput : liveInput, 0, playerCombatStats.moveSpeedMultiplier);
       let footsteps = 0;
       newlyCollected.clear();

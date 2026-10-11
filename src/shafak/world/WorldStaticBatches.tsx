@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useFrame } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { WorldMotion } from "./movement";

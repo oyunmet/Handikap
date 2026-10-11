@@ -626,6 +626,39 @@ function SceneContents({
 
   useEffect(() => () => prefetchCancelRef.current?.(), []);
 
+  const { camera, scene } = useThree();
+  const hasCombatRender = combatRender !== null;
+
+  useEffect(() => {
+    if (!combatActive || !hasCombatRender) return undefined;
+
+    let idleHandle = 0;
+    let timeoutHandle = 0;
+    let cancelled = false;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const warmDuelShaders = () => {
+      if (cancelled) return;
+      void gl.compileAsync(scene, camera).catch(() => {
+        // Shader warm-up is best-effort; the normal renderer handles unsupported cases.
+      });
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(warmDuelShaders, { timeout: 700 });
+    } else {
+      timeoutHandle = window.setTimeout(warmDuelShaders, 0);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle) idleWindow.cancelIdleCallback?.(idleHandle);
+      if (timeoutHandle) window.clearTimeout(timeoutHandle);
+    };
+  }, [camera, combatActive, gl, hasCombatRender, scene]);
+
   useFrame((frame, delta) => {
     const motion = motionRef.current;
     const currentChunk = Math.floor(motion.distance / WORLD_CHUNK_LENGTH_METERS);
@@ -638,42 +671,45 @@ function SceneContents({
       setChunks(getChunksForDistance(motion.distance, chunkCacheRef.current));
       scheduleChunkPrefetch(currentChunk + 5);
     }
-    if (!debugEnabled) return;
-    const now = frame.clock.elapsedTime;
-    const monitor = debugClock.current;
-    const frameMs = delta * 1_000;
-    if (!monitor.startedAt) monitor.startedAt = now;
-    monitor.frames += 1;
-    monitor.maxFrameMs = Math.max(monitor.maxFrameMs, frameMs);
-    if (frameMs > 100) monitor.longFrames += 1;
-    const elapsed = now - monitor.startedAt;
-    if (elapsed >= 1) {
-      const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
-      onDebugStats({
-        x: motion.depth * 5.2,
-        y: 0,
-        z: -motion.distance,
-        distance: motion.distance,
-        speed: Math.hypot(motion.velocityX, motion.velocityY),
-        fps: Math.round(monitor.frames / elapsed),
-        drawCalls: gl.info.render.calls,
-        triangles: gl.info.render.triangles,
-        geometries: gl.info.memory.geometries,
-        textures: gl.info.memory.textures,
-        heapMb: browserPerformance.memory
-          ? Math.round(browserPerformance.memory.usedJSHeapSize / (1024 * 1024))
-          : null,
-        maxFrameMs: Math.round(monitor.maxFrameMs),
-        longFrames: monitor.longFrames,
-        animation: animationState,
-        footSlip: footSlipRef.current,
-        chunks: chunks.length,
-      });
-      monitor.startedAt = now;
-      monitor.frames = 0;
-      monitor.longFrames = 0;
-      monitor.maxFrameMs = 0;
+    if (debugEnabled) {
+      const now = frame.clock.elapsedTime;
+      const monitor = debugClock.current;
+      const frameMs = delta * 1_000;
+      if (!monitor.startedAt) monitor.startedAt = now;
+      monitor.frames += 1;
+      monitor.maxFrameMs = Math.max(monitor.maxFrameMs, frameMs);
+      if (frameMs > 100) monitor.longFrames += 1;
+      const elapsed = now - monitor.startedAt;
+      if (elapsed >= 1) {
+        const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
+        onDebugStats({
+          x: motion.depth * 5.2,
+          y: 0,
+          z: -motion.distance,
+          distance: motion.distance,
+          speed: Math.hypot(motion.velocityX, motion.velocityY),
+          fps: Math.round(monitor.frames / elapsed),
+          drawCalls: gl.info.render.calls,
+          triangles: gl.info.render.triangles,
+          geometries: gl.info.memory.geometries,
+          textures: gl.info.memory.textures,
+          heapMb: browserPerformance.memory
+            ? Math.round(browserPerformance.memory.usedJSHeapSize / (1024 * 1024))
+            : null,
+          maxFrameMs: Math.round(monitor.maxFrameMs),
+          longFrames: monitor.longFrames,
+          animation: animationState,
+          footSlip: footSlipRef.current,
+          chunks: chunks.length,
+        });
+        monitor.startedAt = now;
+        monitor.frames = 0;
+        monitor.longFrames = 0;
+        monitor.maxFrameMs = 0;
+      }
     }
+    // Count the complete next render, including EffectComposer's extra passes.
+    gl.info.reset();
   });
 
   return (
@@ -813,7 +849,7 @@ export default function World3D(props: World3DProps) {
             }}
             onCreated={({ gl: renderer, scene }) => {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
-              renderer.info.autoReset = true;
+              renderer.info.autoReset = false;
               scene.background = new THREE.Color("#252330");
             }}
             fallback={<div className="world-three-fallback" role="status">Bu tarayıcı 3D sahneyi başlatamadı.</div>}

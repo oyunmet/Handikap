@@ -17,10 +17,28 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
 
 test("visible world chunks stay bounded and reuse generated chunks", () => {
   const cache = new Map();
-  const first = getVisibleWorldChunks(44, 390, 99, cache);
-  const second = getVisibleWorldChunks(44, 390, 99, cache);
+  const output = [];
+  const first = getVisibleWorldChunks(44, 390, 99, cache, output);
+  const second = getVisibleWorldChunks(44, 390, 99, cache, output);
   assert.deepEqual(second, first);
+  assert.equal(first, output);
   assert.ok(first.length > 1 && first.length < 12);
+  assert.ok(cache.size <= 32);
+});
+
+test("reused world buffers and chunk data stay bounded through a five-minute run", () => {
+  const cache = new Map();
+  const output = [];
+  const frames = 5 * 60 * 60;
+  let maxCacheSize = 0;
+  for (let frame = 0; frame <= frames; frame += 1) {
+    const distance = (frame / 60) * 5;
+    const chunks = getVisibleWorldChunks(distance, 390, 99, cache, output);
+    assert.equal(chunks, output);
+    assert.ok(chunks.length > 0);
+    maxCacheSize = Math.max(maxCacheSize, cache.size);
+  }
+  assert.ok(maxCacheSize <= 32);
   assert.ok(cache.size <= 32);
 });
 

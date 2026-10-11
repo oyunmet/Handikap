@@ -8,6 +8,7 @@ const uiChime = new Howl({
   src: ["/shafak-ui-chime.wav"],
   volume: 0.2,
   preload: true,
+  pool: 4,
 });
 
 export function setSoundEnabled(enabled: boolean) {

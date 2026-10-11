@@ -5,6 +5,18 @@ import WorldLighting from "./WorldLighting";
 import WorldScenery from "./WorldScenery";
 
 type RenderRef = MutableRefObject<((now: number) => void) | null>;
+type RendererFrame = {
+  type: "frame";
+  now: number;
+  cameraX: number;
+  depth: number;
+  velocityX: number;
+  velocityY: number;
+  level: number;
+  relicCount: number;
+  quality: "high" | "balanced" | "low";
+  motionReduced: boolean;
+};
 type Props = {
   motionRef: MutableRefObject<WorldMotion>;
   renderRef: RenderRef;
@@ -68,6 +80,31 @@ export default function WorldRenderer(props: Props) {
 
     const activeWorker = worker;
     workerRef.current = activeWorker;
+    const frameMessage: RendererFrame = {
+      type: "frame",
+      now: 0,
+      cameraX: 0,
+      depth: 0,
+      velocityX: 0,
+      velocityY: 0,
+      level: 1,
+      relicCount: 0,
+      quality: stateRef.current.quality,
+      motionReduced: stateRef.current.motionReduced,
+    };
+    let frameInFlight = false;
+    let framePending = false;
+    const dispatchFrame = () => {
+      frameInFlight = true;
+      framePending = false;
+      activeWorker.postMessage(frameMessage);
+    };
+    const onWorkerMessage = (event: MessageEvent<{ type?: string }>) => {
+      if (event.data?.type !== "frame-complete") return;
+      frameInFlight = false;
+      if (framePending) dispatchFrame();
+    };
+    activeWorker.addEventListener("message", onWorkerMessage);
     const sendResize = () => {
       const bounds = sceneryCanvas.getBoundingClientRect();
       const currentQuality = stateRef.current.quality;
@@ -90,18 +127,20 @@ export default function WorldRenderer(props: Props) {
     const renderWorker = (now: number) => {
       const current = stateRef.current;
       const motion = current.motionRef.current;
-      activeWorker.postMessage({
-        type: "frame",
-        now,
-        cameraX: motion.cameraX,
-        depth: motion.depth,
-        velocityX: motion.velocityX,
-        velocityY: motion.velocityY,
-        level: current.level,
-        relicCount: current.relicCount,
-        quality: current.quality,
-        motionReduced: current.motionReduced,
-      });
+      frameMessage.now = now;
+      frameMessage.cameraX = motion.cameraX;
+      frameMessage.depth = motion.depth;
+      frameMessage.velocityX = motion.velocityX;
+      frameMessage.velocityY = motion.velocityY;
+      frameMessage.level = current.level;
+      frameMessage.relicCount = current.relicCount;
+      frameMessage.quality = current.quality;
+      frameMessage.motionReduced = current.motionReduced;
+      if (frameInFlight) {
+        framePending = true;
+        return;
+      }
+      dispatchFrame();
     };
     renderRef.current = renderWorker;
     const onWorkerError = () => setOffscreenSupported(false);
@@ -112,6 +151,7 @@ export default function WorldRenderer(props: Props) {
       if (resizeWorkerRef.current === sendResize) resizeWorkerRef.current = null;
       workerRef.current = null;
       observer.disconnect();
+      activeWorker.removeEventListener("message", onWorkerMessage);
       activeWorker.removeEventListener("error", onWorkerError);
       activeWorker.terminate();
     };

@@ -6,9 +6,11 @@ import {
   type WorldMotion,
 } from "./movement";
 import {
+  fillWorldObjects,
   getVisibleWorldChunks,
   nextGateDistance,
   WORLD_SEED,
+  type WorldChunk,
   type WorldObject,
 } from "./world-generation";
 
@@ -37,6 +39,8 @@ export default function WorldScenery({ motionRef, renderRef, quality, motionRedu
     let lastCameraX = Number.NaN;
     let lastDepth = Number.NaN;
     const chunkCache = new Map();
+    const chunkBuffer: WorldChunk[] = [];
+    const visibleObjects: WorldObject[] = [];
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
       width = Math.max(1, bounds.width);
@@ -75,8 +79,9 @@ export default function WorldScenery({ motionRef, renderRef, quality, motionRedu
         width,
         WORLD_SEED,
         chunkCache,
+        chunkBuffer,
       );
-      const objects = visibleChunks.flatMap((chunk) => chunk.objects)
+      const objects = fillWorldObjects(visibleChunks, visibleObjects)
         .sort((left, right) => left.lane - right.lane);
 
       for (const chunk of visibleChunks) {

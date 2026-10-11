@@ -3,8 +3,10 @@ import type { MutableRefObject } from "react";
 import { WORLD_METERS_TO_PIXELS, type WorldMotion } from "./movement";
 import { calculateWorldLightRadius } from "./world-lighting-model";
 import {
+  fillWorldObjects,
   getVisibleWorldChunks,
   WORLD_SEED,
+  type WorldChunk,
   type WorldObject,
 } from "./world-generation";
 
@@ -42,6 +44,9 @@ export default function WorldLighting({
     let lastLevel = Number.NaN;
     let lastRelicCount = Number.NaN;
     const chunkCache = new Map();
+    const chunkBuffer: WorldChunk[] = [];
+    const visibleObjects: WorldObject[] = [];
+    const lightObjects: WorldObject[] = [];
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
       width = Math.max(1, bounds.width);
@@ -96,9 +101,12 @@ export default function WorldLighting({
         width,
         WORLD_SEED,
         chunkCache,
+        chunkBuffer,
       );
-      const lightObjects = visibleChunks.flatMap((chunk) => chunk.objects)
-        .filter(isLightSource);
+      lightObjects.length = 0;
+      for (const object of fillWorldObjects(visibleChunks, visibleObjects)) {
+        if (isLightSource(object)) lightObjects.push(object);
+      }
       for (const object of lightObjects) {
         const x = playerX + (object.worldX - camera) * pixelsPerMeter * object.parallax;
         if (x < -120 || x > width + 120) continue;

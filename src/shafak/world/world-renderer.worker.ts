@@ -3,6 +3,7 @@ import {
 } from "./movement";
 import { calculateWorldLightRadius } from "./world-lighting-model";
 import {
+  fillWorldObjects,
   getVisibleWorldChunks,
   nextGateDistance,
   WORLD_SEED,
@@ -48,6 +49,11 @@ let lastLightLevel = Number.NaN;
 let lastLightRelics = Number.NaN;
 const sceneryChunks = new Map<number, WorldChunk>();
 const lightingChunks = new Map<number, WorldChunk>();
+const sceneryVisibleChunks: WorldChunk[] = [];
+const lightingVisibleChunks: WorldChunk[] = [];
+const sceneryObjects: WorldObject[] = [];
+const lightingObjects: WorldObject[] = [];
+const lightingSources: WorldObject[] = [];
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 self.onmessage = (event: MessageEvent<RendererMessage>) => {
@@ -67,28 +73,33 @@ self.onmessage = (event: MessageEvent<RendererMessage>) => {
     lastLightCamera = Number.NaN;
     return;
   }
-  if (!sceneryContext || !lightingContext) return;
+  if (message.type !== "frame") return;
+  try {
+    if (!sceneryContext || !lightingContext) return;
 
-  const cameraX = Number.isFinite(message.cameraX) ? message.cameraX : 0;
-  const depth = clamp(Number.isFinite(message.depth) ? message.depth : 0, -1, 1);
-  if (cameraX !== lastSceneryCamera || depth !== lastSceneryDepth) {
-    drawScenery(sceneryContext, cameraX, depth, message.now, message.quality, message.motionReduced || (
-      Math.abs(message.velocityX) < .05 && Math.abs(message.velocityY) < .005
-    ));
-    lastSceneryCamera = cameraX;
-    lastSceneryDepth = depth;
-  }
-  if (
-    cameraX !== lastLightCamera
-    || depth !== lastLightDepth
-    || message.level !== lastLightLevel
-    || message.relicCount !== lastLightRelics
-  ) {
-    drawLighting(lightingContext, cameraX, depth, message.level, message.relicCount);
-    lastLightCamera = cameraX;
-    lastLightDepth = depth;
-    lastLightLevel = message.level;
-    lastLightRelics = message.relicCount;
+    const cameraX = Number.isFinite(message.cameraX) ? message.cameraX : 0;
+    const depth = clamp(Number.isFinite(message.depth) ? message.depth : 0, -1, 1);
+    if (cameraX !== lastSceneryCamera || depth !== lastSceneryDepth) {
+      drawScenery(sceneryContext, cameraX, depth, message.now, message.quality, message.motionReduced || (
+        Math.abs(message.velocityX) < .05 && Math.abs(message.velocityY) < .005
+      ));
+      lastSceneryCamera = cameraX;
+      lastSceneryDepth = depth;
+    }
+    if (
+      cameraX !== lastLightCamera
+      || depth !== lastLightDepth
+      || message.level !== lastLightLevel
+      || message.relicCount !== lastLightRelics
+    ) {
+      drawLighting(lightingContext, cameraX, depth, message.level, message.relicCount);
+      lastLightCamera = cameraX;
+      lastLightDepth = depth;
+      lastLightLevel = message.level;
+      lastLightRelics = message.relicCount;
+    }
+  } finally {
+    self.postMessage({ type: "frame-complete" });
   }
 };
 
@@ -117,8 +128,8 @@ function drawScenery(
   context.clearRect(0, 0, viewWidth, viewHeight);
   const pixelsPerMeter = clamp(viewWidth * .095, 30, 48);
   const anchorX = viewWidth * .35;
-  const chunks = getVisibleWorldChunks(cameraX, viewWidth, WORLD_SEED, sceneryChunks);
-  const objects = chunks.flatMap((chunk) => chunk.objects).sort((a, b) => a.lane - b.lane);
+  const chunks = getVisibleWorldChunks(cameraX, viewWidth, WORLD_SEED, sceneryChunks, sceneryVisibleChunks);
+  const objects = fillWorldObjects(chunks, sceneryObjects).sort((a, b) => a.lane - b.lane);
   for (const object of objects) {
     const x = anchorX + (object.worldX - cameraX) * pixelsPerMeter * object.parallax;
     if (x < -100 || x > viewWidth + 100) continue;
@@ -304,9 +315,15 @@ function drawLighting(
   paintMask(context, playerX, footY - height * .09, radius * .62, .92);
   paintMask(context, playerX + width * .16, footY - height * .2, radius * .82, .86);
 
-  const chunks = getVisibleWorldChunks(cameraX, width, WORLD_SEED, lightingChunks);
-  for (const object of chunks.flatMap((chunk) => chunk.objects)) {
+  const chunks = getVisibleWorldChunks(cameraX, width, WORLD_SEED, lightingChunks, lightingVisibleChunks);
+  const visibleObjects = fillWorldObjects(chunks, lightingObjects);
+  const lightObjects = lightingSources;
+  lightObjects.length = 0;
+  for (const object of visibleObjects) {
     if (object.kind !== "torch" && object.kind !== "crystal" && object.kind !== "firepit") continue;
+    lightObjects.push(object);
+  }
+  for (const object of lightObjects) {
     const x = playerX + (object.worldX - cameraX) * pixelsPerMeter * object.parallax;
     if (x < -100 || x > width + 100) continue;
     const y = height * .64 + object.lane * height * .13 - 28;
