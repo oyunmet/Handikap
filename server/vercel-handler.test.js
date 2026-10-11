@@ -119,7 +119,7 @@ test("explicit pickup route returns JSON instead of a Vercel path-level 404", as
   assert.equal(body.error, "authentication_unavailable");
 });
 
-test("explicit duel routes reach the API handler instead of Vercel path-level 404s", async (t) => {
+test("explicit duel routes accept large input tapes and reach the API handler", async (t) => {
   process.env.DATABASE_URL = "";
   process.env.CLERK_SECRET_KEY = "";
   process.env.CLERK_PUBLISHABLE_KEY = "";
@@ -147,7 +147,12 @@ test("explicit duel routes reach the API handler instead of Vercel path-level 40
     const response = await fetch(`http://127.0.0.1:${address.port}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: path === "/api/duels/complete"
+        ? JSON.stringify({
+            duelId: "00000000-0000-0000-0000-000000000000",
+            inputLog: Array.from({ length: 1_800 }, (_, index) => [index + 1, 0, 0, 0, 0, 0]),
+          })
+        : "{}",
     });
     const body = await response.json();
 

@@ -34,7 +34,7 @@ import {
   type WorldDiagnostic,
 } from "./world-diagnostics";
 import WorldPostProcessing from "./WorldPostProcessing";
-import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
+import { getShadowMapSize, getWorldRenderPixelRatio } from "./graphics-quality";
 import { WORLD_CAMERA_FAR } from "./world-render-config";
 import {
   createFrameMetricsAccumulator,
@@ -51,7 +51,6 @@ import {
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
-const MAX_WORLD_PIXEL_RATIO = 2;
 let lastSceneFrameAt = 0;
 
 function createProceduralEnvironmentMap() {
@@ -1420,8 +1419,9 @@ export default function World3D(props: World3DProps) {
     litPixelSamples: 0,
     pixelSampleCount: 0,
   });
+  const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const maxDpr = Math.min(MAX_WORLD_PIXEL_RATIO, getPixelRatioCap(props.quality), pixelRatio);
+  const maxDpr = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
   const markFirstFrame = useCallback(() => {
     setFirstFrameReported(true);
