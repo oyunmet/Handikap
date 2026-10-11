@@ -776,7 +776,7 @@ function CloudLayer({
   );
 }
 
-export function AshSky({ motionRef }: { motionRef: MotionRef }) {
+export function AshSky({ motionRef, combatActive = false }: { motionRef: MotionRef; combatActive?: boolean }) {
   const moonPosition: [number, number, number] = [48, 54, -108];
   useFrame(() => {
     const transition = getBiomeTransition(motionRef.current.distance);
@@ -806,9 +806,13 @@ export function AshSky({ motionRef }: { motionRef: MotionRef }) {
         <sphereGeometry args={[2.15, 12, 8]} />
         <meshStandardMaterial color="#ead3b0" emissive="#9f785f" emissiveIntensity={0.38} roughness={0.8} />
       </mesh>
-      <MountainLayer motionRef={motionRef} layer="far" depth={0.025} colorKey="mountainFar" seed={0x101f881} />
-      <MountainLayer motionRef={motionRef} layer="mid" depth={0.055} colorKey="mountainMid" seed={0x204eb2} />
-      <MountainLayer motionRef={motionRef} layer="near" depth={0.1} colorKey="mountainNear" seed={0x73428} />
+      {!combatActive && (
+        <>
+          <MountainLayer motionRef={motionRef} layer="far" depth={0.025} colorKey="mountainFar" seed={0x101f881} />
+          <MountainLayer motionRef={motionRef} layer="mid" depth={0.055} colorKey="mountainMid" seed={0x204eb2} />
+          <MountainLayer motionRef={motionRef} layer="near" depth={0.1} colorKey="mountainNear" seed={0x73428} />
+        </>
+      )}
     </>
   );
 }

@@ -4,4 +4,5 @@
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
 - [WebGL preview limits](webgl-preview-limits.md) — A successful GLB load and live controls do not prove pixels rendered when the preview browser lacks WebGL.
 - [Duel replay precision](duel-replay-precision.md) — Simulate the same quantized yaw that is stored in the server's duel input tape.
+- [Account duel recovery](account-duel-recovery.md) — Reconnect to the stored challenge after a mobile refresh instead of leaving the next fight blocked.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.

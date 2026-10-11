@@ -135,6 +135,7 @@ type BattleSession = {
   phase: BattlePhase;
   beat: number;
   practice: boolean;
+  resumed?: boolean;
   message?: string;
   errorCode?: string;
   errorStatus?: number;
@@ -321,6 +322,20 @@ function storeErrorText(code: string) {
   return messages[code] ?? "Mağaza işlemi tamamlanamadı. Bağlantıyı kontrol edip yeniden deneyin.";
 }
 
+function resolveWorldRivalId(value: unknown): WorldRival | null {
+  if (typeof value !== "string") return null;
+  const match = /^ash-road:(\d{1,7}):rival:([0-3])$/.exec(value);
+  if (!match) return null;
+  const chapterId = Number(match[1]);
+  if (!Number.isSafeInteger(chapterId) || chapterId > 1_000_000) return null;
+  try {
+    const rival = getWorldChapter(chapterId).rivals[Number(match[2])];
+    return rival?.id === value ? rival : null;
+  } catch {
+    return null;
+  }
+}
+
 function duelStartErrorText(error: unknown) {
   if (!(error instanceof ApiResponseError)) {
     return error instanceof Error ? error.message : "Düello başlatılamadı.";
@@ -338,7 +353,7 @@ function duelStartErrorText(error: unknown) {
     return "Bu rakibi daha önce yendin. Yoldaki bir sonraki rakibe ilerle.";
   }
   if (error.code === "duel_already_active") {
-    return "Önceki düello sunucuda açık kaldı. Sayfayı yenileyip tekrar dene.";
+    return "Yarım kalan düello sunucuda yeniden bağlanamadı. Bir kez daha dene.";
   }
   if (error.code === "profile_not_ready") {
     return "Hesap profili sunucuda hazır değil. Profili yenileyip tekrar dene.";
@@ -1130,6 +1145,8 @@ export default function WorldScene({
     try {
       let seed: number;
       let difficulty = rival.difficulty;
+      let sessionRival = rival;
+      let resumed = false;
       let duelId: string | null = null;
       let playerStats: PlayerCombatModifiers = playerCombatStats;
       if (accountDuelEnabled && !practice) {
@@ -1138,7 +1155,8 @@ export default function WorldScene({
           duelId?: unknown;
           seed?: unknown;
           playerStats?: unknown;
-          opponent?: { id?: unknown; difficulty?: unknown };
+          opponent?: { id?: unknown; name?: unknown; level?: unknown; loot?: unknown; difficulty?: unknown };
+          resumed?: unknown;
           error?: string;
         }>("/api/duels/start", {
           method: "POST",
@@ -1149,6 +1167,9 @@ export default function WorldScene({
           operation: "duel start",
           fallbackMessage: "Hesap düellosu şu an başlatılamıyor. Lütfen daha sonra tekrar dene.",
         }, { maxRetries: 1, baseDelayMs: 600, retryOn429: false });
+        const returnedOpponent = challenge.opponent;
+        const returnedRival = resolveWorldRivalId(returnedOpponent?.id);
+        const returnedDifficulty = returnedOpponent?.difficulty;
         if (
           typeof challenge.duelId !== "string" ||
           typeof challenge.seed !== "number" ||
@@ -1156,9 +1177,27 @@ export default function WorldScene({
           !challenge.playerStats ||
           typeof challenge.playerStats !== "object" ||
           Array.isArray(challenge.playerStats) ||
-          challenge.opponent?.id !== rival.id ||
-          !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty))
+          !returnedOpponent ||
+          !returnedRival ||
+          typeof returnedOpponent.name !== "string" ||
+          typeof returnedOpponent.level !== "number" ||
+          !Number.isSafeInteger(returnedOpponent.level) ||
+          returnedOpponent.level < 1 ||
+          typeof returnedOpponent.loot !== "number" ||
+          !Number.isSafeInteger(returnedOpponent.loot) ||
+          returnedOpponent.loot < 0 ||
+          !["easy", "medium", "hard"].includes(String(returnedDifficulty)) ||
+          (challenge.resumed !== undefined && typeof challenge.resumed !== "boolean") ||
+          (challenge.resumed !== true && returnedOpponent.id !== rival.id)
         ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
+        sessionRival = {
+          ...returnedRival,
+          name: returnedOpponent.name,
+          level: returnedOpponent.level,
+          loot: returnedOpponent.loot,
+          difficulty: returnedDifficulty as typeof difficulty,
+        };
+        resumed = challenge.resumed === true;
         const stats = challenge.playerStats as Partial<PlayerCombatModifiers>;
         if (
           !Number.isFinite(stats.maxHealth) ||
@@ -1172,14 +1211,14 @@ export default function WorldScene({
         playerStats = normalizePlayerCombatModifiers(stats);
         duelId = challenge.duelId;
         seed = challenge.seed;
-        difficulty = challenge.opponent.difficulty as typeof difficulty;
+        difficulty = returnedDifficulty as typeof difficulty;
       } else {
         const seedBuffer = new Uint32Array(1);
         window.crypto.getRandomValues(seedBuffer);
         seed = seedBuffer[0] || 1;
       }
 
-      activeDuelRef.current = { rival, duelId, seed, practice };
+      activeDuelRef.current = { rival: sessionRival, duelId, seed, practice };
       const initialCombat = createCombatState(seed, difficulty, playerStats);
       combatInputRef.current.yaw = initialCombat.player.yaw;
       combatInputRef.current.lockOn = directionalDuelEnabled;
@@ -1200,7 +1239,7 @@ export default function WorldScene({
       lastInputFrameRef.current = inputLogRef.current[0];
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
-      const initialSession: BattleSession = { rival, phase: "sweep", beat: 0, practice };
+      const initialSession: BattleSession = { rival: sessionRival, phase: "sweep", beat: 0, practice, resumed };
       battleSessionRef.current = initialSession;
       setBattleSession(initialSession);
       setDuelStartPending(false);
@@ -2261,7 +2300,8 @@ export default function WorldScene({
               </div>
           </div>
           <p className={battleSession.phase === "countdown" ? "world-battle-entry__countdown" : undefined}>
-            {battleSession.phase === "sweep" ? "KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" :
+            {battleSession.resumed && battleSession.phase === "sweep" ? "YARIM KALAN DÜELLOYA YENİDEN BAĞLANDIN" :
+              battleSession.phase === "sweep" ? "KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" :
               battleSession.phase === "vs" ? "KARŞILAŞMA BAŞLIYOR" :
                 battleSession.beat < 3 ? String(3 - battleSession.beat) : "SAVAŞ!"}
           </p>

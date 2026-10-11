@@ -168,6 +168,56 @@ export async function createDuelChallenge(
   const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
   const playerStats = calculatePlayerCombatModifiers(profile);
+  await database.query(
+    `UPDATE shafak_duels
+     SET completed_at = NOW()
+     WHERE user_id = $1 AND completed_at IS NULL AND started_at < NOW() - INTERVAL '30 minutes'`,
+    [userId],
+  );
+  const activeResult = await database.query(
+    `SELECT duel_id, seed, opponent_id, player_stats FROM shafak_duels
+     WHERE user_id = $1 AND completed_at IS NULL
+     LIMIT 1`,
+    [userId],
+  );
+  const activeDuel = activeResult.rows[0];
+  if (activeDuel) {
+    const activeOpponent = resolveOpponent(activeDuel.opponent_id);
+    const storedStats = activeDuel.player_stats;
+    const requiredStats = [
+      "maxHealth",
+      "damageMultiplier",
+      "defenseReduction",
+      "criticalChance",
+      "moveSpeedMultiplier",
+      "attackSpeedMultiplier",
+      "attackRangeBonus",
+    ];
+    if (
+      typeof activeDuel.duel_id !== "string" ||
+      !Number.isSafeInteger(Number(activeDuel.seed)) ||
+      Number(activeDuel.seed) < 1 ||
+      Number(activeDuel.seed) > 0xffff_ffff ||
+      !activeOpponent ||
+      !storedStats ||
+      typeof storedStats !== "object" ||
+      Array.isArray(storedStats) ||
+      requiredStats.some((key) =>
+        typeof (storedStats as Record<string, unknown>)[key] !== "number" ||
+        !Number.isFinite((storedStats as Record<string, number>)[key]),
+      )
+    ) {
+      throw new DuelServiceError(503, "duel_storage_unavailable");
+    }
+    return {
+      duelId: activeDuel.duel_id,
+      seed: Number(activeDuel.seed),
+      playerStats: storedStats,
+      opponent: activeOpponent,
+      resumed: true,
+    };
+  }
+
   if (profile.defeatedOpponents.includes(opponent.id)) throw new DuelServiceError(403, "opponent_already_defeated");
   const priorWin = await database.query(
     `SELECT duel_id FROM shafak_duels
@@ -178,26 +228,12 @@ export async function createDuelChallenge(
   );
   if (priorWin.rows[0]) throw new DuelServiceError(403, "opponent_already_defeated");
 
-  await database.query(
-    `UPDATE shafak_duels
-     SET completed_at = NOW()
-     WHERE user_id = $1 AND completed_at IS NULL AND started_at < NOW() - INTERVAL '30 minutes'`,
-    [userId],
-  );
-  const activeResult = await database.query(
-    `SELECT duel_id FROM shafak_duels
-     WHERE user_id = $1 AND completed_at IS NULL
-     LIMIT 1`,
-    [userId],
-  );
-  if (activeResult.rows[0]) throw new DuelServiceError(409, "duel_already_active");
-
   const duelId = randomUUID();
   const seed = randomInt(1, 0xffff_ffff);
   await database.query(
     `INSERT INTO shafak_duels (duel_id, user_id, seed, opponent_id, started_at, player_stats)
      VALUES ($1, $2, $3, $4, NOW(), $5::jsonb)`,
-    [duelId, userId, seed, opponentId, JSON.stringify(playerStats)],
+    [duelId, userId, seed, opponent.id, JSON.stringify(playerStats)],
   );
   return {
     duelId,
@@ -210,6 +246,7 @@ export async function createDuelChallenge(
       loot: opponent.loot,
       difficulty: opponent.difficulty,
     },
+    resumed: false,
   };
 }
 

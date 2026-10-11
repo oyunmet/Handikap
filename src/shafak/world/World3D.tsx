@@ -1131,6 +1131,7 @@ function SceneContents({
   const prefetchCancelRef = useRef<(() => void) | null>(null);
   const initialPrefetchRef = useRef(false);
   const { gl } = useThree();
+  const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
   const zeroDrawCallFramesRef = useRef(0);
@@ -1305,7 +1306,9 @@ function SceneContents({
         shadow-bias={-0.0002}
         shadow-normalBias={0.025}
       />
-      {!combatActive && visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
+      {!combatActive && visualEffectsEnabled && quality !== "low" && !touchRenderer && (
+        <WorldPostProcessing quality={quality} />
+      )}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -1320,7 +1323,7 @@ function SceneContents({
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
       />
-      <AshSky motionRef={motionRef} />
+      <AshSky motionRef={motionRef} combatActive={combatActive} />
       <group visible={!combatActive} name="road-world">
         <WorldChunks
           chunks={chunks}
