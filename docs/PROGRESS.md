@@ -37,3 +37,44 @@ yapılmadı.
 Gerçek iPhone Safari'de `/?debug=1&scene=world` açıp yolda ve bir düelloda
 oynarken 5 dakika ölçüm yap. FPS'nin 50 veya üstünde, 100 ms üzeri kare
 sıçramalarının sıfır ve belleğin sabit kaldığını cihaz üzerinde doğrula.
+
+## Aşama 2 — Görsel kalite ve atmosfer
+
+**Durum:** Kod çalışmaları ve yerel doğrulama tamamlandı. WebGL içeriği için
+gerçek cihaz görsel/FPS kabul testi henüz yapılmadı.
+
+### Tamamlananlar
+
+- Kül Yolu, Donmuş Geçit ve Kızıl Bataklık paletleri bölüm kapıları arasında
+  yumuşak geçiş yapıyor; her biyom için ayrı çevre öğeleri üretiliyor.
+- Dört hava durumu (Açık, Kül, Yağmur, Sis) mevcut atmosferi kapatmak yerine
+  parçacık, sis, yol yansıması ve ekran katmanlarını değiştiriyor.
+- Üç instanced dağ katmanı ve iki bulut katmanı parallax yapıyor; ay, yıldız ve
+  düşük maliyetli ufuk sisi korunuyor.
+- Yol kaplama, çatlak/solmuş çizgi, normal ve pürüzlülük dokuları kodla üretiliyor;
+  yol kenarı taşları sürüş alanını boş bırakıyor.
+- Harabelere yıkık taş/rubble ayrıntıları eklendi. Donmuş kristaller ve bataklık
+  sazlığı/ağaçları hem 3D statik gruplarda hem 2D/worker yedeğinde çiziliyor.
+- Sıcak ana ışığa düşük maliyetli soğuk dolgu/rim ışığı eklendi; en yakın dört
+  çevre ateşi gerçek ışık kullanıyor, uzaktakiler glow yedeğini kullanıyor.
+- Kalite ayarı düşük olmadığında seçici, düşük şiddetli bloom; mevcut ACES,
+  vignette ve hafif film grain ile birlikte çalışıyor.
+
+### Yerel doğrulama
+
+- `npm run typecheck` — geçti.
+- `npm test` — 68 test geçti; biyom sırası/geçişi, hava durumu döngüsü ve
+  biyom-özel çevre üretimi test ediliyor.
+- `npm run build` — geçti; ana JavaScript paketi 500 kB üzerinde uyarısı sürüyor.
+- Bu preview tarayıcısı WebGL bağlamı sağlayamadığı için yeni 3D atmosfer, gerçek
+  cihaz FPS'i ve GPU sayaçları burada ölçülemedi. Aşama 1'deki iPhone kabul testi
+  de hâlâ açık.
+
+## Devam edecek aşamalar
+
+- **Aşama 3:** Dört ayırt edilebilir BOT görünümü/AI davranışı, karakter çevre
+  haritası ve adım/toz etkileşimlerinin kalan eksikleri.
+- **Aşama 4:** Mevcut düello sistemini gereksinimlerle karşılaştırıp eksik
+  kamerayı, darbeyi, yetenek telegraph'ını ve parçacık bütçesini tamamla.
+- **Aşama 5:** Türkçe hikâye/kapı/NPC diyalogları, biyom tabanlı ambiyans müziği
+  ve ses seviyesi ayarları; ardından bütünleşik hata kurtarma ve son doğrulama.

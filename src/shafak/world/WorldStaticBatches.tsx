@@ -21,7 +21,7 @@ type MaterialSpec = {
 };
 
 type ShapeSpec = {
-  type: "box" | "cylinder" | "cone" | "dodecahedron" | "sphere" | "torus";
+  type: "box" | "cylinder" | "cone" | "dodecahedron" | "octahedron" | "sphere" | "torus";
   args: number[];
 };
 
@@ -54,6 +54,9 @@ function getGeometry(shape: ShapeSpec) {
     case "dodecahedron":
       geometry = new THREE.DodecahedronGeometry(...(shape.args as [number, number]));
       break;
+    case "octahedron":
+      geometry = new THREE.OctahedronGeometry(...(shape.args as [number, number]));
+      break;
     case "sphere":
       geometry = new THREE.SphereGeometry(...(shape.args as [number, number, number]));
       break;
@@ -76,8 +79,18 @@ function getMaterial(spec: MaterialSpec) {
 }
 
 function getParts(object: WorldObject): PartSpec[] {
+  const biomeStone = object.biome === "frozen-pass"
+    ? "#637985"
+    : object.biome === "red-marsh"
+      ? "#5c4545"
+      : "#615655";
+  const biomeWood = object.biome === "frozen-pass"
+    ? "#465a67"
+    : object.biome === "red-marsh"
+      ? "#362b31"
+      : "#332b2b";
   const darkStone: MaterialSpec = {
-    color: object.flickerSeed % 3 === 0 ? "#51484a" : "#615655",
+    color: object.flickerSeed % 3 === 0 ? "#51484a" : biomeStone,
     roughness: 0.94,
     flatShading: true,
   };
@@ -108,6 +121,10 @@ function getParts(object: WorldObject): PartSpec[] {
       box(darkStone, [-0.82, 1.3, 0], [0.52, 2.6, 0.55]);
       box({ color: "#73635e", roughness: 0.96, flatShading: true }, [0.82, 1.78, 0], [0.54, 3.55, 0.58]);
       box({ color: "#655653", roughness: 0.96, flatShading: true }, [0, 3.45, 0], [1.8, 0.52, 0.64]);
+      box(darkStone, [-1.06, 0.31, -0.22], [0.88, 0.48, 0.7], [0, 0.16, -0.08]);
+      box({ color: biomeStone, roughness: 0.99, flatShading: true }, [1.06, 0.21, 0.3], [0.72, 0.31, 0.68], [0.08, -0.2, 0.12]);
+      add("cone", [0.24, 0.52, 4], darkStone, [-0.82, 2.72, 0.02], [1, 1, 1], [0, 0.2, 0.24]);
+      add("cone", [0.28, 0.6, 4], darkStone, [0.82, 2.14, 0], [1, 1, 1], [0, -0.16, -0.18]);
       break;
     case "arch":
       cylinder([0.34, 0.46, 3.5, 6], { color: "#77655e", roughness: 0.95, flatShading: true }, [-1.45, 1.75, 0]);
@@ -115,10 +132,10 @@ function getParts(object: WorldObject): PartSpec[] {
       add("torus", [1.45, 0.27, 5, 10, Math.PI], { color: "#817069", roughness: 0.92, flatShading: true }, [0, 3.35, 0]);
       break;
     case "tree":
-      cylinder([0.17, 0.31, 2.4, 6], wood("#332b2b"), [0, 1.2, 0]);
-      cylinder([0.08, 0.13, 1.45, 5], wood("#382f2e"), [-0.5, 2.2, 0], [0, 0, -0.62]);
-      cylinder([0.08, 0.13, 1.62, 5], wood("#382f2e"), [0.48, 2.55, 0], [0, 0, 0.7]);
-      add("cone", [0.76, 1.42, 5], wood("#282b2d"), [0.1, 3.1, 0]);
+      cylinder([0.17, 0.31, 2.4, 6], wood(biomeWood), [0, 1.2, 0]);
+      cylinder([0.08, 0.13, 1.45, 5], wood(biomeWood), [-0.5, 2.2, 0], [0, 0, -0.62]);
+      cylinder([0.08, 0.13, 1.62, 5], wood(biomeWood), [0.48, 2.55, 0], [0, 0, 0.7]);
+      add("cone", [0.76, 1.42, 5], wood(object.biome === "frozen-pass" ? "#718693" : "#282b2d"), [0.1, 3.1, 0]);
       break;
     case "rock":
       add("dodecahedron", [0.86, 0], { color: darkStone.color, roughness: 0.98, flatShading: true }, [0, 0.45, 0], [1, 1, 1], [0.14, 0.36, 0]);
@@ -158,6 +175,41 @@ function getParts(object: WorldObject): PartSpec[] {
         add("sphere", [0.1, 5, 4], { color: "#c5b89e", roughness: 0.86, flatShading: true }, [x, y + 0.43, z]);
       }
       add("sphere", [0.25, 6, 5], { color: "#baac91", roughness: 0.86, flatShading: true }, [0.25, 0.22, -0.38], [1, 1, 1], [0, 0.2, 0.6]);
+      add("dodecahedron", [0.31, 0], { color: "#c0b197", roughness: 0.9, flatShading: true }, [0.76, 0.26, -0.08], [1, 0.82, 0.76]);
+      box({ color: "#66594b", roughness: 0.97 }, [0.76, 0.17, -0.34], [0.36, 0.06, 0.08]);
+      break;
+    case "ice-crystal":
+      add("octahedron", [0.62, 0], {
+        color: "#a5d9e8",
+        emissive: "#58b8da",
+        emissiveIntensity: 0.46,
+        metalness: 0.16,
+        roughness: 0.25,
+        flatShading: true,
+      }, [0, 0.92, 0], [0.7, 1.7, 0.7], [0.05, 0.1, 0.08]);
+      add("octahedron", [0.4, 0], {
+        color: "#d0f2f2",
+        emissive: "#83d8ee",
+        emissiveIntensity: 0.32,
+        metalness: 0.2,
+        roughness: 0.22,
+        flatShading: true,
+      }, [0.42, 0.56, 0.16], [0.56, 1.25, 0.56], [0.12, 0, -0.18]);
+      break;
+    case "reed":
+      for (let index = 0; index < 5; index += 1) {
+        const x = (index - 2) * 0.19;
+        const lean = (index - 2) * 0.12;
+        cylinder([0.025, 0.045, 1.7 + (index % 2) * 0.6, 5], wood("#826c46"), [x, 0.85, 0], [0, 0, lean]);
+        add("cone", [0.11, 0.46, 4], wood(index % 2 ? "#8b9862" : "#707c50"), [x + lean * 0.4, 1.68 + (index % 2) * 0.3, 0], [0.62, 1, 0.48], [0, 0, lean]);
+      }
+      break;
+    case "mangrove":
+      cylinder([0.24, 0.43, 2.9, 6], wood("#453434"), [0, 1.35, 0]);
+      cylinder([0.09, 0.15, 2.1, 5], wood("#55403a"), [-0.65, 2.3, 0], [0, 0, -0.72]);
+      cylinder([0.09, 0.15, 2.35, 5], wood("#463638"), [0.55, 2.55, 0], [0, 0, 0.78]);
+      cylinder([0.07, 0.14, 1.6, 5], wood("#574137"), [-0.26, 0.55, 0.12], [0, 0, -0.94]);
+      cylinder([0.07, 0.14, 1.72, 5], wood("#574137"), [0.27, 0.57, -0.12], [0, 0, 0.96]);
       break;
   }
   return parts;

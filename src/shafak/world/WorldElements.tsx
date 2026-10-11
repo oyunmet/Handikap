@@ -6,6 +6,7 @@ import type { MutableRefObject } from "react";
 import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
+import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import type { WorldQuality } from "./World3D";
 import WorldStaticBatches from "./WorldStaticBatches";
 
@@ -19,12 +20,143 @@ const STONE_MATERIAL = new THREE.MeshStandardMaterial({
   metalness: 0.06,
   flatShading: true,
 });
+const ROAD_TEXTURE_SIZE = 128;
+function createRoadTextures() {
+  const roadHeight = new Float32Array(ROAD_TEXTURE_SIZE * ROAD_TEXTURE_SIZE);
+  const colorData = new Uint8Array(ROAD_TEXTURE_SIZE * ROAD_TEXTURE_SIZE * 4);
+  const roughnessData = new Uint8Array(ROAD_TEXTURE_SIZE * ROAD_TEXTURE_SIZE * 4);
+  const normalData = new Uint8Array(ROAD_TEXTURE_SIZE * ROAD_TEXTURE_SIZE * 4);
+  const hash = (x: number, y: number) => {
+    const value = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+
+  for (let y = 0; y < ROAD_TEXTURE_SIZE; y += 1) {
+    for (let x = 0; x < ROAD_TEXTURE_SIZE; x += 1) {
+      const u = x / ROAD_TEXTURE_SIZE;
+      const v = y / ROAD_TEXTURE_SIZE;
+      const noise = hash(x, y);
+      const fissureA = Math.abs(u - (0.43 + Math.sin(v * 19) * 0.035 + Math.sin(v * 41) * 0.012));
+      const fissureB = Math.abs(u - (0.58 + Math.sin(v * 13 + 1.7) * 0.05));
+      const cracked = fissureA < 0.004 || fissureB < 0.003;
+      const markerDistance = Math.min(Math.abs(u - 0.2), Math.abs(u - 0.8));
+      const marker = markerDistance < 0.008 && Math.floor(v * 22) % 5 < 3;
+      const index = y * ROAD_TEXTURE_SIZE + x;
+      roadHeight[index] = (noise - 0.5) * 0.08 - (cracked ? 0.24 : 0) + (marker ? 0.015 : 0);
+
+      const pixel = index * 4;
+      const grit = Math.round((noise - 0.5) * 22);
+      const base = cracked ? 115 + grit : marker ? 187 + grit : 218 + grit;
+      colorData[pixel] = Math.max(0, Math.min(255, base + 5));
+      colorData[pixel + 1] = Math.max(0, Math.min(255, base));
+      colorData[pixel + 2] = Math.max(0, Math.min(255, base - 2));
+      colorData[pixel + 3] = 255;
+      roughnessData[pixel] = cracked ? 248 : marker ? 166 : 224;
+      roughnessData[pixel + 1] = roughnessData[pixel];
+      roughnessData[pixel + 2] = roughnessData[pixel];
+      roughnessData[pixel + 3] = 255;
+    }
+  }
+
+  for (let y = 0; y < ROAD_TEXTURE_SIZE; y += 1) {
+    for (let x = 0; x < ROAD_TEXTURE_SIZE; x += 1) {
+      const left = roadHeight[y * ROAD_TEXTURE_SIZE + Math.max(0, x - 1)];
+      const right = roadHeight[y * ROAD_TEXTURE_SIZE + Math.min(ROAD_TEXTURE_SIZE - 1, x + 1)];
+      const above = roadHeight[Math.max(0, y - 1) * ROAD_TEXTURE_SIZE + x];
+      const below = roadHeight[Math.min(ROAD_TEXTURE_SIZE - 1, y + 1) * ROAD_TEXTURE_SIZE + x];
+      const nx = -(right - left) * 3.4;
+      const ny = -(below - above) * 3.4;
+      const length = Math.hypot(nx, ny, 1);
+      const pixel = (y * ROAD_TEXTURE_SIZE + x) * 4;
+      normalData[pixel] = Math.round((nx / length * 0.5 + 0.5) * 255);
+      normalData[pixel + 1] = Math.round((ny / length * 0.5 + 0.5) * 255);
+      normalData[pixel + 2] = Math.round((1 / length * 0.5 + 0.5) * 255);
+      normalData[pixel + 3] = 255;
+    }
+  }
+
+  const create = (data: Uint8Array, colorSpace: THREE.ColorSpace = THREE.NoColorSpace) => {
+    const texture = new THREE.DataTexture(data, ROAD_TEXTURE_SIZE, ROAD_TEXTURE_SIZE, THREE.RGBAFormat);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 24);
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.generateMipmaps = true;
+    texture.anisotropy = 4;
+    texture.colorSpace = colorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  return {
+    color: create(colorData, THREE.SRGBColorSpace),
+    normal: create(normalData),
+    roughness: create(roughnessData),
+  };
+}
+const ROAD_TEXTURES = createRoadTextures();
 const ROAD_TERRAIN_GEOMETRY = new THREE.PlaneGeometry(100, WORLD_GATE_INTERVAL_METERS * 6);
-const ROAD_TERRAIN_MATERIAL = new THREE.MeshStandardMaterial({ color: "#50464a", roughness: 1, metalness: 0 });
+const ROAD_TERRAIN_MATERIAL = new THREE.MeshStandardMaterial({ color: "#5a504b", roughness: 1, metalness: 0 });
 const ROAD_SURFACE_GEOMETRY = new THREE.PlaneGeometry(13.6, WORLD_GATE_INTERVAL_METERS * 6);
-const ROAD_SURFACE_MATERIAL = new THREE.MeshStandardMaterial({ color: "#332f34", roughness: 0.98, metalness: 0.08 });
+const ROAD_SURFACE_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#40383b",
+  map: ROAD_TEXTURES.color,
+  normalMap: ROAD_TEXTURES.normal,
+  roughnessMap: ROAD_TEXTURES.roughness,
+  roughness: 0.96,
+  metalness: 0.03,
+});
 const ROAD_RAIL_GEOMETRY = new THREE.BoxGeometry(0.26, 0.08, WORLD_GATE_INTERVAL_METERS * 6);
 const ROAD_RAIL_MATERIAL = new THREE.MeshStandardMaterial({ color: "#897164", roughness: 0.9 });
+const ROAD_PALETTE_COLORS = Object.fromEntries(
+  Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [
+    biome,
+    {
+      ground: new THREE.Color(palette.ground),
+      road: new THREE.Color(palette.road),
+      fog: new THREE.Color(palette.fog),
+      sky: new THREE.Color(palette.skyTint),
+      cloud: new THREE.Color(palette.cloud),
+      particles: new THREE.Color(palette.particles),
+    },
+  ]),
+) as Record<keyof typeof WORLD_BIOME_PALETTES, {
+  ground: THREE.Color;
+  road: THREE.Color;
+  fog: THREE.Color;
+  sky: THREE.Color;
+  cloud: THREE.Color;
+  particles: THREE.Color;
+}>;
+const HORIZON_FOG_GEOMETRY = new THREE.PlaneGeometry(150, 28);
+const HORIZON_FOG_MATERIAL = new THREE.ShaderMaterial({
+  uniforms: {
+    uColor: { value: new THREE.Color("#69505a") },
+    uOpacity: { value: 0.2 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    varying vec2 vUv;
+    void main() {
+      float heightFalloff = 1.0 - smoothstep(0.08, 0.95, vUv.y);
+      float sideFade = smoothstep(0.0, 0.14, vUv.x) * (1.0 - smoothstep(0.86, 1.0, vUv.x));
+      gl_FragColor = vec4(uColor, heightFalloff * sideFade * uOpacity);
+    }
+  `,
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  toneMapped: false,
+});
 
 function seededRandom(seed: number) {
   let value = seed >>> 0;
@@ -49,7 +181,7 @@ function RoadSegment({
     const random = seededRandom(chunk.index * 0x45d9f3b);
     const count = quality === "high" ? 30 : quality === "balanced" ? 20 : 12;
     return Array.from({ length: count }, () => ({
-      x: (random() - 0.5) * 12.6,
+      x: (random() < 0.5 ? -1 : 1) * (5.7 + random() * 1.45),
       z: (random() - 0.5) * 45,
       y: 0.012 + random() * 0.025,
       scale: [0.16 + random() * 0.42, 0.025 + random() * 0.04, 0.18 + random() * 0.48] as const,
@@ -85,12 +217,20 @@ function RoadSegment({
   );
 }
 
-function RoadSurface({ motionRef, quality }: { motionRef: MotionRef; quality: WorldQuality }) {
+function RoadSurface({ motionRef, quality, weather }: { motionRef: MotionRef; quality: WorldQuality; weather: WeatherMode }) {
   const rootRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (!rootRef.current) return;
-    const chunkStart = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS) * WORLD_GATE_INTERVAL_METERS;
+    const distance = motionRef.current.distance;
+    const chunkStart = Math.floor(distance / WORLD_GATE_INTERVAL_METERS) * WORLD_GATE_INTERVAL_METERS;
     rootRef.current.position.z = motionRef.current.cameraX - (chunkStart + WORLD_GATE_INTERVAL_METERS * 2);
+    const transition = getBiomeTransition(distance);
+    const from = ROAD_PALETTE_COLORS[transition.from];
+    const to = ROAD_PALETTE_COLORS[transition.to];
+    ROAD_TERRAIN_MATERIAL.color.lerpColors(from.ground, to.ground, transition.mix);
+    ROAD_SURFACE_MATERIAL.color.lerpColors(from.road, to.road, transition.mix);
+    ROAD_SURFACE_MATERIAL.roughness = weather === "rain" ? 0.32 : 0.96;
+    ROAD_SURFACE_MATERIAL.metalness = weather === "rain" ? 0.24 : 0.03;
   });
   return (
     <group ref={rootRef}>
@@ -112,7 +252,29 @@ function RoadSurface({ motionRef, quality }: { motionRef: MotionRef; quality: Wo
       />
       <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[-6.75, 0.02, 0]} dispose={null} />
       <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[6.75, 0.02, 0]} dispose={null} />
+      <HorizonFogBank motionRef={motionRef} weather={weather} />
     </group>
+  );
+}
+
+function HorizonFogBank({ motionRef, weather }: { motionRef: MotionRef; weather: WeatherMode }) {
+  useFrame(() => {
+    const transition = getBiomeTransition(motionRef.current.distance);
+    const from = ROAD_PALETTE_COLORS[transition.from].fog;
+    const to = ROAD_PALETTE_COLORS[transition.to].fog;
+    HORIZON_FOG_MATERIAL.uniforms.uColor.value.lerpColors(from, to, transition.mix);
+    HORIZON_FOG_MATERIAL.uniforms.uOpacity.value =
+      weather === "fog" ? 0.56 : weather === "rain" ? 0.28 : weather === "ash" ? 0.2 : 0.08;
+  });
+  return (
+    <mesh
+      geometry={HORIZON_FOG_GEOMETRY}
+      material={HORIZON_FOG_MATERIAL}
+      position={[0, 12, -78]}
+      renderOrder={1}
+      frustumCulled={false}
+      dispose={null}
+    />
   );
 }
 
@@ -478,49 +640,184 @@ function createStarGeometry() {
 
 const STAR_GEOMETRY = createStarGeometry();
 
-function FarMountains({ motionRef }: { motionRef: MotionRef }) {
-  const rootRef = useRef<THREE.Group>(null);
-  const shapes = useMemo(() => {
-    const random = seededRandom(0x101f881);
-    return Array.from({ length: 11 }, (_, index) => ({
-      x: (index - 5) * 18 + (random() - 0.5) * 8,
-      y: 9 + random() * 8,
-      z: -86 - random() * 32,
-      radius: 16 + random() * 15,
-      height: 25 + random() * 24,
-      color: ["#2b2935", "#33303a", "#3c3038"][index % 3],
-      rotation: random() * 0.45,
-    }));
-  }, []);
+type MountainColorKey = "mountainFar" | "mountainMid" | "mountainNear";
+const MOUNTAIN_COLORS = Object.fromEntries(
+  Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [
+    biome,
+    {
+      mountainFar: new THREE.Color(palette.mountainFar),
+      mountainMid: new THREE.Color(palette.mountainMid),
+      mountainNear: new THREE.Color(palette.mountainNear),
+    },
+  ]),
+) as Record<keyof typeof WORLD_BIOME_PALETTES, Record<MountainColorKey, THREE.Color>>;
+
+function MountainLayer({
+  motionRef,
+  layer,
+  depth,
+  colorKey,
+  seed,
+}: {
+  motionRef: MotionRef;
+  layer: "far" | "mid" | "near";
+  depth: number;
+  colorKey: MountainColorKey;
+  seed: number;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const geometry = useMemo(() => new THREE.ConeGeometry(1, 2, 5), []);
+  const material = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#33303a",
+    roughness: 1,
+    flatShading: true,
+  }), []);
+  const instances = useMemo(() => {
+    const random = seededRandom(seed);
+    const count = layer === "near" ? 13 : layer === "mid" ? 16 : 20;
+    const offsets = [-120, 0, 120];
+    return offsets.flatMap((offset) => Array.from({ length: count }, (_, index) => ({
+      x: (index - (count - 1) / 2) * (layer === "near" ? 19 : 16) + (random() - 0.5) * 9,
+      y: (layer === "far" ? 7 : 8) + random() * (layer === "near" ? 9 : 7),
+      z: (layer === "far" ? -123 : layer === "mid" ? -99 : -78) + offset + random() * 13,
+      radius: (layer === "near" ? 17 : 13) + random() * (layer === "near" ? 16 : 13),
+      height: (layer === "near" ? 25 : 19) + random() * (layer === "near" ? 25 : 19),
+      rotation: (random() - 0.5) * 0.52,
+    })));
+  }, [layer, seed]);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const transform = new THREE.Object3D();
+    instances.forEach((mountain, index) => {
+      transform.position.set(mountain.x, mountain.y, mountain.z);
+      transform.rotation.set(0, mountain.rotation, 0);
+      transform.scale.set(mountain.radius, mountain.height / 2, mountain.radius * 0.34);
+      transform.updateMatrix();
+      mesh.setMatrixAt(index, transform.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [instances]);
+
   useFrame(() => {
-    if (!rootRef.current) return;
-    rootRef.current.position.z = -((motionRef.current.cameraX * 0.12) % 88);
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    mesh.position.z = -((motionRef.current.cameraX * depth) % 120);
+    const transition = getBiomeTransition(motionRef.current.distance);
+    material.color.lerpColors(
+      MOUNTAIN_COLORS[transition.from][colorKey],
+      MOUNTAIN_COLORS[transition.to][colorKey],
+      transition.mix,
+    );
   });
+
   return (
-    <group ref={rootRef}>
-      {shapes.map((mountain, index) => (
-        <mesh
-          key={index}
-          position={[mountain.x, mountain.y, mountain.z]}
-          rotation={[0, mountain.rotation, 0]}
-          scale={[1.2, 1, 0.7]}
-        >
-          <coneGeometry args={[mountain.radius, mountain.height, 5]} />
-          <meshStandardMaterial color={mountain.color} roughness={1} flatShading />
-        </mesh>
-      ))}
-    </group>
+    <instancedMesh
+      ref={meshRef}
+      args={[geometry, material, instances.length]}
+      frustumCulled={false}
+      castShadow={false}
+      receiveShadow={false}
+    />
+  );
+}
+
+function CloudLayer({
+  motionRef,
+  seed,
+  altitude,
+  depth,
+  opacity,
+}: {
+  motionRef: MotionRef;
+  seed: number;
+  altitude: number;
+  depth: number;
+  opacity: number;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const geometry = useMemo(() => new THREE.SphereGeometry(1, 8, 6), []);
+  const material = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#c69d8e",
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  }), [opacity]);
+  const instances = useMemo(() => {
+    const random = seededRandom(seed);
+    const clouds = Array.from({ length: 11 }, () => ({
+      x: (random() - 0.5) * 210,
+      y: altitude + (random() - 0.5) * 5,
+      z: -112 + (random() - 0.5) * 18,
+      scale: [8 + random() * 10, 1.8 + random() * 2.6, 2 + random() * 2.5] as const,
+    }));
+    return [-150, 0, 150].flatMap((offset) => clouds.map((cloud) => ({ ...cloud, z: cloud.z + offset })));
+  }, [altitude, seed]);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const transform = new THREE.Object3D();
+    instances.forEach((cloud, index) => {
+      transform.position.set(cloud.x, cloud.y, cloud.z);
+      transform.scale.set(...cloud.scale);
+      transform.updateMatrix();
+      mesh.setMatrixAt(index, transform.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [instances]);
+
+  useFrame(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    mesh.position.z = -((motionRef.current.cameraX * depth) % 150);
+    const transition = getBiomeTransition(motionRef.current.distance);
+    material.color.lerpColors(
+      ROAD_PALETTE_COLORS[transition.from].cloud,
+      ROAD_PALETTE_COLORS[transition.to].cloud,
+      transition.mix,
+    );
+  });
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[
+        geometry,
+        material,
+        instances.length,
+      ]}
+      frustumCulled={false}
+      renderOrder={-1}
+    />
   );
 }
 
 export function AshSky({ motionRef }: { motionRef: MotionRef }) {
   const moonPosition: [number, number, number] = [48, 54, -108];
+  useFrame(() => {
+    const transition = getBiomeTransition(motionRef.current.distance);
+    SKY_MATERIAL.color.lerpColors(
+      ROAD_PALETTE_COLORS[transition.from].sky,
+      ROAD_PALETTE_COLORS[transition.to].sky,
+      transition.mix,
+    );
+  });
   return (
     <>
       <mesh geometry={SKY_GEOMETRY} material={SKY_MATERIAL} frustumCulled={false} dispose={null} />
+      <CloudLayer motionRef={motionRef} seed={0x524f4e} altitude={34} depth={0.025} opacity={0.12} />
+      <CloudLayer motionRef={motionRef} seed={0x132e9f} altitude={28} depth={0.045} opacity={0.1} />
       <points geometry={STAR_GEOMETRY} frustumCulled={false} dispose={null}>
         <pointsMaterial color="#f8dba4" size={0.72} sizeAttenuation={false} transparent opacity={0.72} depthWrite={false} />
       </points>
+      <mesh position={moonPosition}>
+        <sphereGeometry args={[7.6, 10, 8]} />
+        <meshBasicMaterial color="#eac29b" transparent opacity={0.035} depthWrite={false} />
+      </mesh>
       <mesh position={moonPosition}>
         <sphereGeometry args={[5.5, 10, 8]} />
         <meshBasicMaterial color="#eac29b" transparent opacity={0.09} depthWrite={false} />
@@ -529,7 +826,9 @@ export function AshSky({ motionRef }: { motionRef: MotionRef }) {
         <sphereGeometry args={[2.15, 12, 8]} />
         <meshStandardMaterial color="#ead3b0" emissive="#9f785f" emissiveIntensity={0.38} roughness={0.8} />
       </mesh>
-      <FarMountains motionRef={motionRef} />
+      <MountainLayer motionRef={motionRef} layer="far" depth={0.025} colorKey="mountainFar" seed={0x101f881} />
+      <MountainLayer motionRef={motionRef} layer="mid" depth={0.055} colorKey="mountainMid" seed={0x204eb2} />
+      <MountainLayer motionRef={motionRef} layer="near" depth={0.1} colorKey="mountainNear" seed={0x73428} />
     </>
   );
 }
@@ -539,13 +838,13 @@ export function WorldChunks({
   motionRef,
   motionReduced,
   quality,
-  airEnabled,
+  weather,
 }: {
   chunks: WorldChunk[];
   motionRef: MotionRef;
   motionReduced: boolean;
   quality: WorldQuality;
-  airEnabled: boolean;
+  weather: WeatherMode;
 }) {
   const objects = useMemo(() => chunks.flatMap((chunk) => chunk.objects), [chunks]);
   const staticLodChunk = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS);
@@ -569,12 +868,16 @@ export function WorldChunks({
     let firstId = "";
     let secondId = "";
     let thirdId = "";
+    let fourthId = "";
     let firstDistance = 40;
     let secondDistance = 40;
     let thirdDistance = 40;
+    let fourthDistance = 40;
     for (const object of lightCandidates) {
       const distance = Math.abs(object.worldX - motionRef.current.distance);
       if (distance < firstDistance) {
+        fourthDistance = thirdDistance;
+        fourthId = thirdId;
         thirdDistance = secondDistance;
         thirdId = secondId;
         secondDistance = firstDistance;
@@ -582,23 +885,31 @@ export function WorldChunks({
         firstDistance = distance;
         firstId = object.id;
       } else if (distance < secondDistance) {
+        fourthDistance = thirdDistance;
+        fourthId = thirdId;
         thirdDistance = secondDistance;
         thirdId = secondId;
         secondDistance = distance;
         secondId = object.id;
       } else if (distance < thirdDistance) {
+        fourthDistance = thirdDistance;
+        fourthId = thirdId;
         thirdDistance = distance;
         thirdId = object.id;
+      } else if (distance < fourthDistance) {
+        fourthDistance = distance;
+        fourthId = object.id;
       }
     }
     localLightIds.current.clear();
     if (firstId) localLightIds.current.add(firstId);
     if (secondId) localLightIds.current.add(secondId);
     if (thirdId) localLightIds.current.add(thirdId);
+    if (fourthId) localLightIds.current.add(fourthId);
   });
   return (
     <>
-      <RoadSurface motionRef={motionRef} quality={quality} />
+      <RoadSurface motionRef={motionRef} quality={quality} weather={weather} />
       {chunks.map((chunk) => <RoadSegment key={`road-${chunk.index}`} chunk={chunk} quality={quality} />)}
       <WorldStaticBatches objects={staticObjects} motionRef={motionRef} />
       {animatedObjects.map((object) => (
@@ -611,13 +922,13 @@ export function WorldChunks({
         />
       ))}
       <FinalGate motionRef={motionRef} />
-      <group position={[0, 1.4, -12]} visible={airEnabled}>
+      <group position={[0, 1.4, -12]} visible={weather !== "clear"}>
         <Sparkles
           count={quality === "high" ? 48 : quality === "balanced" ? 30 : 12}
           scale={[18, 5, 34]}
           size={quality === "high" ? 2.3 : quality === "balanced" ? 1.8 : 1.4}
           speed={motionReduced ? 0 : 0.42}
-          color="#e5a566"
+          color={weather === "rain" ? "#a5dcf5" : weather === "fog" ? "#c7d4d9" : weather === "ash" ? "#e5a566" : "#e5a566"}
           opacity={0.48}
           noise={0.8}
         />

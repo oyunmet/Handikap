@@ -4,6 +4,8 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import * as THREE from "three";
 
 const VignetteGrainShader = {
   uniforms: {
@@ -29,8 +31,8 @@ const VignetteGrainShader = {
     void main() {
       vec3 color = texture2D(tDiffuse, vUv).rgb;
       float edge = smoothstep(0.28, 0.98, length((vUv - 0.5) * vec2(1.08, 0.86)));
-      float grain = (randomNoise(gl_FragCoord.xy + uTime * 60.0) - 0.5) * 0.014;
-      color *= 1.0 - edge * 0.18;
+      float grain = (randomNoise(gl_FragCoord.xy + uTime * 60.0) - 0.5) * 0.008;
+      color *= 1.0 - edge * 0.15;
       color += grain;
       gl_FragColor = vec4(color, 1.0);
     }
@@ -40,6 +42,7 @@ const VignetteGrainShader = {
 type Pipeline = {
   composer: EffectComposer;
   filmPass: ShaderPass;
+  bloomPass: UnrealBloomPass;
 };
 
 function ComposerOutput({ pipeline }: { pipeline: Pipeline }) {
@@ -57,7 +60,7 @@ function ComposerOutput({ pipeline }: { pipeline: Pipeline }) {
   return null;
 }
 
-export default function WorldPostProcessing() {
+export default function WorldPostProcessing({ quality }: { quality: "high" | "balanced" | "low" }) {
   const { gl, scene, camera } = useThree();
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
 
@@ -66,10 +69,17 @@ export default function WorldPostProcessing() {
     try {
       const composer = new EffectComposer(gl);
       composer.addPass(new RenderPass(scene, camera));
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(1, 1),
+        quality === "high" ? 0.22 : 0.14,
+        0.34,
+        0.86,
+      );
+      composer.addPass(bloomPass);
       const filmPass = new ShaderPass(VignetteGrainShader);
       composer.addPass(filmPass);
       composer.addPass(new OutputPass());
-      nextPipeline = { composer, filmPass };
+      nextPipeline = { composer, filmPass, bloomPass };
       setPipeline(nextPipeline);
     } catch (error) {
       console.warn("[shafak-world] Post-processing could not start; rendering without it.", error);
@@ -82,7 +92,7 @@ export default function WorldPostProcessing() {
         setPipeline((current) => current === nextPipeline ? null : current);
       }
     };
-  }, [camera, gl, scene]);
+  }, [camera, gl, quality, scene]);
 
   return pipeline ? <ComposerOutput pipeline={pipeline} /> : null;
 }

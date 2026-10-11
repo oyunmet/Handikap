@@ -15,6 +15,7 @@ import {
   WorldChunks,
 } from "./WorldElements";
 import { createWorldChunk, type WorldChunk } from "./world-generation";
+import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
@@ -30,7 +31,7 @@ type World3DProps = {
   quality: WorldQuality;
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
-  airEnabled: boolean;
+  weatherMode: WeatherMode;
   level: number;
   relicCount: number;
   equipmentVisual: EquipmentVisual;
@@ -131,14 +132,33 @@ function getChunksForDistance(distance: number, cache: Map<number, WorldChunk>) 
   return visible;
 }
 
-function SceneFog({ airEnabled }: { airEnabled: boolean }) {
+const FOG_COLORS = Object.fromEntries(
+  Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [biome, new THREE.Color(palette.fog)]),
+) as Record<keyof typeof WORLD_BIOME_PALETTES, THREE.Color>;
+
+function SceneFog({ motionRef, weatherMode }: { motionRef: MutableRefObject<WorldMotion>; weatherMode: WeatherMode }) {
   const { scene } = useThree();
+  const fogRef = useRef<THREE.FogExp2 | null>(null);
+  const color = useMemo(() => new THREE.Color(), []);
   useEffect(() => {
-    scene.fog = new THREE.FogExp2(airEnabled ? "#574552" : "#353343", airEnabled ? 0.0085 : 0.005);
+    const fog = new THREE.FogExp2("#69505a", 0.0085);
+    fogRef.current = fog;
+    scene.fog = fog;
     return () => {
+      fogRef.current = null;
       scene.fog = null;
     };
-  }, [airEnabled, scene]);
+  }, [scene]);
+  useFrame(() => {
+    const fog = fogRef.current;
+    if (!fog) return;
+    const transition = getBiomeTransition(motionRef.current.distance);
+    fog.color.lerpColors(FOG_COLORS[transition.from], FOG_COLORS[transition.to], transition.mix);
+    const baseDensity = weatherMode === "fog" ? 0.016 : weatherMode === "rain" ? 0.0095 : weatherMode === "ash" ? 0.0085 : 0.004;
+    const biomeDensity = transition.biome === "frozen-pass" ? 1.08 : transition.biome === "red-marsh" ? 1.13 : 1;
+    fog.density = baseDensity * biomeDensity;
+    color.copy(fog.color);
+  });
   return null;
 }
 
@@ -566,7 +586,7 @@ function SceneContents({
   quality,
   visualEffectsEnabled,
   motionReduced,
-  airEnabled,
+  weatherMode,
   level,
   relicCount,
   equipmentVisual,
@@ -714,10 +734,11 @@ function SceneContents({
 
   return (
     <>
-      <SceneFog airEnabled={airEnabled} />
+      <SceneFog motionRef={motionRef} weatherMode={weatherMode} />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={["#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
+      <directionalLight position={[9, 7, -9]} color="#a7d9ef" intensity={0.42} />
       <directionalLight
         position={[-8, 14, 8]}
         color="#ffd09a"
@@ -734,7 +755,7 @@ function SceneContents({
         shadow-bias={-0.0002}
         shadow-normalBias={0.025}
       />
-      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing />}
+      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -753,7 +774,7 @@ function SceneContents({
         motionRef={motionRef}
         motionReduced={motionReduced}
         quality={quality}
-        airEnabled={airEnabled}
+        weather={weatherMode}
       />
       {!combatActive && <WorldRoadEntities
         motionRef={motionRef}

@@ -3,6 +3,7 @@ import {
   WORLD_CHUNK_LENGTH_METERS,
   WORLD_METERS_TO_PIXELS,
 } from "./movement";
+import { getBiomeForDistance, type WorldBiome } from "./world-biomes";
 
 export const WORLD_SEED = 0x5afacafe;
 export const WORLD_CHUNK_OBJECTS = 7;
@@ -19,13 +20,17 @@ export type WorldObjectKind =
   | "crystal"
   | "firepit"
   | "cart"
-  | "bones";
+  | "bones"
+  | "ice-crystal"
+  | "reed"
+  | "mangrove";
 
 export type WorldObject = {
   id: string;
   worldX: number;
   lane: number;
   kind: WorldObjectKind;
+  biome: WorldBiome;
   scale: number;
   parallax: number;
   flickerSeed: number;
@@ -35,28 +40,53 @@ export type WorldChunk = {
   index: number;
   start: number;
   end: number;
+  biome: WorldBiome;
   objects: WorldObject[];
 };
 
 export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const random = seededRandom((seed ^ Math.imul(index, 0x9e3779b1)) >>> 0);
   const start = index * WORLD_CHUNK_LENGTH_METERS;
-  const kinds: WorldObjectKind[] = [
-    random() > 0.5 ? "tower" : "ruin",
-    random() > 0.46 ? "tree" : "rock",
-    "flag",
-    random() > 0.5 ? "rock" : "tree",
-    random() > 0.5 ? "ruin" : "tower",
-    (["torch", "crystal", "firepit"] as const)[Math.floor(random() * 3)],
-    random() > 0.5 ? "rock" : "tree",
-    (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
-  ];
+  const biome = getBiomeForDistance(start + WORLD_CHUNK_LENGTH_METERS / 2);
+  const kinds: WorldObjectKind[] = biome === "frozen-pass"
+    ? [
+      random() > 0.5 ? "tower" : "ruin",
+      random() > 0.55 ? "ice-crystal" : "rock",
+      "flag",
+      random() > 0.5 ? "ice-crystal" : "tree",
+      random() > 0.5 ? "ruin" : "arch",
+      random() > 0.5 ? "crystal" : "torch",
+      "ice-crystal",
+      random() > 0.5 ? "cart" : "bones",
+    ]
+    : biome === "red-marsh"
+      ? [
+        random() > 0.5 ? "ruin" : "tower",
+        "mangrove",
+        "flag",
+        random() > 0.5 ? "reed" : "tree",
+        random() > 0.5 ? "arch" : "ruin",
+        random() > 0.5 ? "firepit" : "torch",
+        "reed",
+        random() > 0.5 ? "bones" : "cart",
+      ]
+      : [
+        random() > 0.5 ? "tower" : "ruin",
+        random() > 0.46 ? "tree" : "rock",
+        "flag",
+        random() > 0.5 ? "rock" : "tree",
+        random() > 0.5 ? "ruin" : "tower",
+        (["torch", "crystal", "firepit"] as const)[Math.floor(random() * 3)],
+        random() > 0.5 ? "rock" : "tree",
+        (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
+      ];
 
   const objects = kinds.map((kind, objectIndex): WorldObject => ({
     id: `${index}:${objectIndex}`,
     worldX: start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4),
     lane: (random() * 1.55) - 0.78,
     kind,
+    biome,
     scale: 0.72 + random() * 0.62,
     parallax: parallaxFor(kind),
     flickerSeed: Math.floor(random() * 10000),
@@ -66,6 +96,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
     index,
     start,
     end: start + WORLD_CHUNK_LENGTH_METERS,
+    biome,
     objects,
   };
 }
@@ -124,6 +155,9 @@ function parallaxFor(kind: WorldObjectKind) {
   if (kind === "tree") return 0.58;
   if (kind === "flag") return 0.82;
   if (kind === "torch" || kind === "crystal" || kind === "firepit") return 0.9;
+  if (kind === "ice-crystal") return 0.74;
+  if (kind === "mangrove") return 0.58;
+  if (kind === "reed") return 0.84;
   return 1;
 }
 

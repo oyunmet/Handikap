@@ -75,6 +75,14 @@
   transform: translate3d(var(--air-parallax, 0px), 0, 0);
   animation: world-mist-drift var(--world-wind-duration, 18s) ease-in-out infinite alternate;
 }
+.world-atmosphere[data-weather="fog"]::before {
+  inset: 8% -25% 14%;
+  background:
+    radial-gradient(ellipse at 22% 74%, rgba(204,211,211,.3), transparent 40%),
+    radial-gradient(ellipse at 74% 68%, rgba(185,200,204,.28), transparent 44%),
+    linear-gradient(180deg, transparent 35%, rgba(190,198,199,.18) 76%, transparent);
+  filter: blur(28px);
+}
 .world-atmosphere__mote {
   position: absolute; top: var(--mote-y); left: var(--mote-x);
   width: var(--mote-size); height: var(--mote-size); border-radius: 50%;
@@ -86,10 +94,18 @@
   background: radial-gradient(circle, rgba(255,202,130,.88), rgba(224,127,71,.18));
   box-shadow: 0 0 8px rgba(234,144,76,.4);
 }
-.world-atmosphere[data-air="false"] { display: none; }
+.world-atmosphere[data-weather="rain"]::before { opacity: .2; }
+.world-atmosphere__rain {
+  position: absolute; inset: -30% -20%; opacity: .23;
+  background: repeating-linear-gradient(106deg, transparent 0 19px, rgba(184,220,238,.52) 20px 21px, transparent 22px 31px);
+  animation: world-rain-fall .72s linear infinite;
+  transform: skewX(-8deg);
+}
 .world-atmosphere[data-reduced="true"]::before,
-.world-atmosphere[data-reduced="true"] .world-atmosphere__mote { animation: none; }
+.world-atmosphere[data-reduced="true"] .world-atmosphere__mote,
+.world-atmosphere[data-reduced="true"] .world-atmosphere__rain { animation: none; }
 .world-scene[data-quality="low"] .world-atmosphere__mote:nth-child(n+4) { display: none; }
+.world-scene[data-quality="low"] .world-atmosphere__rain { opacity: .13; }
 .world-scene[data-postfx="false"] .world-vignette { display: none; }
 .world-scene[data-postfx="true"] .world-vignette { opacity: .2; }
 .world-stage__sky {
@@ -104,6 +120,11 @@
   backface-visibility: hidden;
 }
 .world-stage__sky-tile.is-mirrored { transform: scaleX(-1); }
+.world-stage__sky::before {
+  position: absolute; z-index: 1; inset: 0; content: ""; pointer-events: none;
+  background: radial-gradient(ellipse at 52% 64%, color-mix(in srgb, var(--biome-horizon, #995b4a) 34%, transparent), transparent 62%);
+  mix-blend-mode: color;
+}
 .world-stage__sky::after {
   position: absolute; inset: 0; content: ""; pointer-events: none;
   background:
@@ -111,6 +132,10 @@
     radial-gradient(ellipse at 82% 47%, rgba(255,154,79,.15), transparent 27%),
     linear-gradient(90deg, rgba(9,11,17,.48), transparent 55%, rgba(12,12,16,.24));
 }
+.world-scene[data-biome="frozen-pass"] .world-stage__sky-tile { filter: hue-rotate(148deg) saturate(.75) brightness(.78); }
+.world-scene[data-biome="red-marsh"] .world-stage__sky-tile { filter: hue-rotate(-18deg) sepia(.24) saturate(1.02) brightness(.72); }
+.world-scene[data-weather="rain"] .world-stage__sky-tile { filter: saturate(.63) brightness(.65); }
+.world-scene[data-weather="fog"] .world-stage__sky::after { background: linear-gradient(180deg,rgba(25,31,40,.3),rgba(96,112,119,.2) 54%,rgba(15,15,20,.62)); }
 .world-stage__horizon {
   position: absolute; z-index: 1; inset: 0;
   background: linear-gradient(90deg, rgba(9,11,17,.36), transparent 48%, rgba(12,12,16,.16)),
@@ -155,6 +180,15 @@
   border-top: 1px solid rgba(221,180,131,.24);
   filter: saturate(.72) brightness(.82);
 }
+.world-scene[data-biome="frozen-pass"] .world-plane--ridge { filter: hue-rotate(139deg) saturate(.75) brightness(1.2); }
+.world-scene[data-biome="frozen-pass"] .world-plane--haze { filter: hue-rotate(132deg) saturate(.84) brightness(1.16) blur(24px); }
+.world-scene[data-biome="frozen-pass"] .world-plane--road { filter: hue-rotate(143deg) saturate(.76) brightness(1.16); }
+.world-scene[data-biome="frozen-pass"] .world-plane--foreground { filter: hue-rotate(135deg) saturate(.72) brightness(1.22); }
+.world-scene[data-biome="red-marsh"] .world-plane--ridge { filter: hue-rotate(-18deg) sepia(.26) saturate(1.12); }
+.world-scene[data-biome="red-marsh"] .world-plane--haze { filter: hue-rotate(-14deg) sepia(.2) saturate(1.1) blur(24px); }
+.world-scene[data-biome="red-marsh"] .world-plane--road { filter: hue-rotate(-12deg) sepia(.18) saturate(1.08) brightness(.82); }
+.world-scene[data-weather="rain"] .world-plane--road { filter: saturate(.78) brightness(.66); }
+.world-scene[data-weather="fog"] .world-plane--haze { opacity: .88; }
 .world-plane--foreground {
   z-index: 2; inset: 71% 0 -18%;
   opacity: .72;
@@ -404,7 +438,7 @@
   backdrop-filter: blur(12px) saturate(1.1);
 }
 .world-weather__switch {
-  position: relative; width: 34px; height: 19px; padding: 2px;
+  position: relative; width: 44px; height: 22px; padding: 3px;
   border: 1px solid rgba(229,204,161,.34); border-radius: 99px;
   background: rgba(20,22,27,.82); cursor: pointer;
 }
@@ -412,7 +446,10 @@
   display: block; width: 13px; height: 13px; border-radius: 50%;
   background: #e8c37d; transition: transform .2s ease;
 }
-.world-weather__switch[aria-checked="true"] span { transform: translateX(14px); background: #f1d59b; }
+.world-weather__switch.is-clear span { transform: translateX(0); background: #e8d294; }
+.world-weather__switch.is-ash span { transform: translateX(8px); background: #dda773; }
+.world-weather__switch.is-rain span { transform: translateX(16px); background: #a6dff4; }
+.world-weather__switch.is-fog span { transform: translateX(22px); background: #ccd5d8; }
 .world-controls {
   position: absolute; z-index: 5; right: clamp(14px, 3vw, 42px); bottom: max(20px, env(safe-area-inset-bottom));
   left: clamp(14px, 3vw, 42px); display: flex; align-items: flex-end; justify-content: space-between; gap: 14px;
@@ -729,6 +766,7 @@
 }
 @keyframes world-ray-drift { from { transform: translate3d(-.4%,0,0); opacity: .2; } to { transform: translate3d(.5%,-.5%,0); opacity: .38; } }
 @keyframes world-mist-drift { from { opacity: .32; } to { opacity: .78; } }
+@keyframes world-rain-fall { from { transform: translate3d(0, -6%, 0) skewX(-8deg); } to { transform: translate3d(-5%, 7%, 0) skewX(-8deg); } }
 @keyframes world-ash-drift {
   0% { opacity: 0; transform: translate3d(0, 18px, 0) scale(.62); }
   20% { opacity: .52; }

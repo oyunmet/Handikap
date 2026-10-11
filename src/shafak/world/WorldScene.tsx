@@ -56,9 +56,17 @@ import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
 import EquipmentPreview3D from "./EquipmentPreview3D";
 import WorldAtmosphere from "./WorldAtmosphere";
+import { getBiomeForDistance, nextWeatherMode, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 
 const World3D = lazy(() => import("./World3D"));
 import "./world-scene.css";
+
+const WEATHER_LABELS: Record<WeatherMode, string> = {
+  clear: "Açık",
+  ash: "Kül",
+  rain: "Yağmur",
+  fog: "Sis",
+};
 
 type WorldSceneProps = {
   quality: "high" | "balanced" | "low";
@@ -342,7 +350,8 @@ export default function WorldScene({
   const [storeMessage, setStoreMessage] = useState("");
   const [storeError, setStoreError] = useState("");
   const [storeRetryAction, setStoreRetryAction] = useState<{ operation: "purchase" | "equip" | "upgrade"; itemId: string } | null>(null);
-  const [airEnabled, setAirEnabled] = useState(true);
+  const [weatherMode, setWeatherMode] = useState<WeatherMode>("ash");
+  const airEnabled = weatherMode !== "clear";
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const [travel, setTravel] = useState(0);
@@ -1476,6 +1485,8 @@ export default function WorldScene({
   const debugSkipDistance = () => teleportToDistance(travel + 25);
   const gateDistance = nextGateDistance(travel);
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
+  const sceneBiome = getBiomeForDistance(travel);
+  const scenePalette = WORLD_BIOME_PALETTES[sceneBiome];
   return (
     <main
       ref={sceneRef}
@@ -1485,15 +1496,22 @@ export default function WorldScene({
       data-quality={quality}
       data-reduced={motionReduced}
       data-air={airEnabled}
+      data-weather={weatherMode}
+      data-biome={sceneBiome}
       data-postfx={visualEffectsEnabled}
       data-finisher={visualEffectsEnabled && battleSession?.phase === "settling"}
       data-motion={motion}
+      style={{
+        "--biome-sky": scenePalette.skyTint,
+        "--biome-horizon": scenePalette.horizon,
+        "--biome-particles": scenePalette.particles,
+      } as CSSProperties}
       aria-label={worldText.brand}
     >
       <WorldAtmosphere
         quality={quality}
         motionReduced={motionReduced}
-        enabled={airEnabled}
+        weather={weatherMode}
         travel={travel}
       />
       <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
@@ -1509,7 +1527,7 @@ export default function WorldScene({
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
             motionReduced={motionReduced}
-            airEnabled={airEnabled}
+            weatherMode={weatherMode}
             level={profile.level}
             relicCount={profile.items.length}
             equipmentVisual={worldEquipmentVisual}
@@ -1697,14 +1715,12 @@ export default function WorldScene({
             )}
           </div>
           <div className="world-weather">
-            <span>{worldText.weather}: {airEnabled ? worldText.clear : worldText.airOff}</span>
+            <span>{worldText.weather}: {WEATHER_LABELS[weatherMode]}</span>
             <button
-              className="world-weather__switch"
+              className={`world-weather__switch is-${weatherMode}`}
               type="button"
-              role="switch"
-              aria-checked={airEnabled}
-              aria-label={`${worldText.weather}: ${airEnabled ? worldText.clear : worldText.airOff}`}
-              onClick={() => { wake(); setAirEnabled((current) => !current); }}
+              aria-label={`Hava: ${WEATHER_LABELS[weatherMode]}. Sonraki hava durumuna geç`}
+              onClick={() => { wake(); setWeatherMode(nextWeatherMode); }}
             ><span /></button>
           </div>
         </div>

@@ -194,6 +194,51 @@ function drawProp(
     context.ellipse(-7, -49, 13, 11, -.25, 0, Math.PI * 2);
     context.ellipse(10, -55, 14, 12, .2, 0, Math.PI * 2);
     context.fill();
+  } else if (object.kind === "ice-crystal") {
+    const glow = context.createRadialGradient(0, -29, 1, 0, -29, 31);
+    glow.addColorStop(0, "rgba(148,226,255,.4)");
+    glow.addColorStop(1, "rgba(87,177,220,0)");
+    context.fillStyle = glow;
+    context.fillRect(-32, -61, 64, 64);
+    context.fillStyle = "#9bcbd9";
+    context.beginPath();
+    context.moveTo(-2, -64);
+    context.lineTo(11, -38);
+    context.lineTo(4, -8);
+    context.lineTo(-11, -39);
+    context.closePath();
+    context.fill();
+  } else if (object.kind === "reed") {
+    context.strokeStyle = "#71815a";
+    context.lineWidth = 3;
+    for (let blade = -2; blade <= 2; blade += 1) {
+      context.beginPath();
+      context.moveTo(blade * 6, 0);
+      context.quadraticCurveTo(blade * 7 + sway * .15, -25, blade * 9 + sway * .3, -56);
+      context.stroke();
+      context.fillStyle = "#957d50";
+      context.fillRect(blade * 9 + sway * .3 - 1, -58, 3, 12);
+    }
+  } else if (object.kind === "mangrove") {
+    context.strokeStyle = "#48363a";
+    context.lineWidth = 8;
+    context.beginPath();
+    context.moveTo(0, 0);
+    context.lineTo(1, -49);
+    context.moveTo(0, -25);
+    context.lineTo(-18, -46);
+    context.moveTo(0, -31);
+    context.lineTo(18, -56);
+    context.moveTo(-2, -32);
+    context.lineTo(-28, -12);
+    context.moveTo(2, -32);
+    context.lineTo(30, -9);
+    context.stroke();
+    context.fillStyle = "rgba(89,102,67,.88)";
+    context.beginPath();
+    context.ellipse(-8, -50, 11, 7, -.4, 0, Math.PI * 2);
+    context.ellipse(18, -58, 12, 7, .35, 0, Math.PI * 2);
+    context.fill();
   } else if (object.kind === "flag") {
     context.fillStyle = "#29252a";
     context.fillRect(-1, -66, 2, 66);
