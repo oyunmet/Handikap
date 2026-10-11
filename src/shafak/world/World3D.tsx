@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PerspectiveCamera } from "@react-three/drei";
@@ -115,7 +115,7 @@ type DebugStats = {
 };
 
 class WorldCanvasErrorBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; onRetry: () => void },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -132,12 +132,40 @@ class WorldCanvasErrorBoundary extends Component<
     if (this.state.failed) {
       return (
         <div className="world-three-fallback" role="alert">
-          3D sahne başlatılamadı. WebGL destekli bir tarayıcıyla yeniden deneyin.
+          <div className="world-three-fallback__content">
+            <span>3D sahne başlatılamadı. WebGL destekli bir tarayıcıyla yeniden deneyin.</span>
+            <button type="button" onClick={this.props.onRetry}>YENİDEN DENE</button>
+          </div>
         </div>
       );
     }
     return this.props.children;
   }
+}
+
+function CanvasContextGuard({
+  onLost,
+  onRestored,
+}: {
+  onLost: () => void;
+  onRestored: () => void;
+}) {
+  const { gl } = useThree();
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleLost = (event: Event) => {
+      event.preventDefault();
+      onLost();
+    };
+    const handleRestored = () => onRestored();
+    canvas.addEventListener("webglcontextlost", handleLost);
+    canvas.addEventListener("webglcontextrestored", handleRestored);
+    return () => {
+      canvas.removeEventListener("webglcontextlost", handleLost);
+      canvas.removeEventListener("webglcontextrestored", handleRestored);
+    };
+  }, [gl, onLost, onRestored]);
+  return null;
 }
 
 function supportsWebGL() {
@@ -1093,6 +1121,8 @@ function isDebugEnabled() {
 export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
+  const [contextLost, setContextLost] = useState(false);
+  const [canvasAttempt, setCanvasAttempt] = useState(0);
   const [debugStats, setDebugStats] = useState<DebugStats>({
     x: 0,
     y: 0,
@@ -1114,6 +1144,17 @@ export default function World3D(props: World3DProps) {
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const maxDpr = Math.min(getPixelRatioCap(props.quality), pixelRatio);
   const minDpr = Math.min(1, maxDpr);
+  const retryWebGL = useCallback(() => {
+    setContextLost(false);
+    setWebglAvailable(null);
+    setCanvasAttempt((attempt) => attempt + 1);
+  }, []);
+  const markContextLost = useCallback(() => setContextLost(true), []);
+  const rebuildRestoredContext = useCallback(() => {
+    setContextLost(false);
+    setWebglAvailable(null);
+    setCanvasAttempt((attempt) => attempt + 1);
+  }, []);
 
   useEffect(() => {
     const syncDebug = () => setDebugEnabled(isDebugEnabled());
@@ -1124,14 +1165,14 @@ export default function World3D(props: World3DProps) {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGL()));
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [canvasAttempt]);
 
   return (
     <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
       {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
       ) : webglAvailable ? (
-        <WorldCanvasErrorBoundary>
+        <WorldCanvasErrorBoundary key={canvasAttempt} onRetry={retryWebGL}>
           <Canvas
             dpr={[minDpr, maxDpr]}
             shadows={props.quality !== "low"}
@@ -1148,14 +1189,34 @@ export default function World3D(props: World3DProps) {
               renderer.info.autoReset = false;
               scene.background = new THREE.Color("#252330");
             }}
-            fallback={<div className="world-three-fallback" role="status">Bu tarayıcı 3D sahneyi başlatamadı.</div>}
+            fallback={(
+              <div className="world-three-fallback" role="alert">
+                <div className="world-three-fallback__content">
+                  <span>Bu tarayıcı 3D sahneyi başlatamadı.</span>
+                  <button type="button" onClick={retryWebGL}>YENİDEN DENE</button>
+                </div>
+              </div>
+            )}
           >
+            <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
             <SceneContents {...props} debugEnabled={debugEnabled} onDebugStats={setDebugStats} />
           </Canvas>
         </WorldCanvasErrorBoundary>
       ) : (
         <div className="world-three-fallback" role="alert">
-          Bu tarayıcı WebGL ile 3D sahneyi başlatamıyor. Oyunu WebGL destekli bir tarayıcıda açın.
+          <div className="world-three-fallback__content">
+            <span>Bu tarayıcı WebGL ile 3D sahneyi başlatamıyor. Oyunu WebGL destekli bir tarayıcıda açın.</span>
+            <button type="button" onClick={retryWebGL}>YENİDEN DENE</button>
+          </div>
+        </div>
+      )}
+      {contextLost && (
+        <div className="world-three-recovery" role="alert">
+          <div>
+            <strong>3D sahne durakladı</strong>
+            <span>Grafik bağlamı kesildi. Sahneyi yeniden yükleyip devam edebilirsin.</span>
+            <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
+          </div>
         </div>
       )}
       {debugEnabled && (

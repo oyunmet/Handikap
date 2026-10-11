@@ -1,7 +1,10 @@
 import { Howl, Howler } from "howler";
+import { normalizeAudioVolume } from "./audio-settings";
 
 let soundEnabled = true;
+let soundVolume = 0.78;
 let gameAudioContext: AudioContext | null = null;
+let gameAudioGain: GainNode | null = null;
 let footstepNoiseBuffer: AudioBuffer | null = null;
 
 const uiChime = new Howl({
@@ -14,6 +17,46 @@ const uiChime = new Howl({
 export function setSoundEnabled(enabled: boolean) {
   soundEnabled = enabled;
   Howler.mute(!enabled);
+  updateGameAudioGain();
+}
+
+export function setSoundVolume(volume: number) {
+  soundVolume = normalizeAudioVolume(volume, soundVolume);
+  Howler.volume(soundVolume);
+  updateGameAudioGain();
+}
+
+function updateGameAudioGain() {
+  if (!gameAudioContext || !gameAudioGain || gameAudioContext.state === "closed") return;
+  gameAudioGain.gain.setTargetAtTime(
+    soundEnabled ? soundVolume : 0,
+    gameAudioContext.currentTime,
+    0.06,
+  );
+}
+
+function getGameAudioContext() {
+  if (typeof window === "undefined" || !window.AudioContext) return null;
+  if (gameAudioContext?.state === "closed") {
+    gameAudioContext = null;
+    gameAudioGain = null;
+  }
+  if (gameAudioContext) return gameAudioContext;
+  try {
+    gameAudioContext = new window.AudioContext();
+    gameAudioGain = gameAudioContext.createGain();
+    gameAudioGain.gain.value = soundEnabled ? soundVolume : 0;
+    gameAudioGain.connect(gameAudioContext.destination);
+    return gameAudioContext;
+  } catch {
+    gameAudioContext = null;
+    gameAudioGain = null;
+    return null;
+  }
+}
+
+function resumeGameAudio(context: AudioContext) {
+  if (context.state === "suspended") void context.resume().catch(() => undefined);
 }
 
 export function playUiChime() {
@@ -31,13 +74,12 @@ const cueNotes: Record<GameCue, number[]> = {
 
 export function playGameSound(cue: GameCue) {
   if (!soundEnabled || typeof window === "undefined") return;
-  const AudioContextClass = window.AudioContext;
-  if (!AudioContextClass) return;
 
   try {
-    gameAudioContext ??= new AudioContextClass();
-    const context = gameAudioContext;
-    if (context.state === "suspended") void context.resume();
+    const context = getGameAudioContext();
+    const bus = gameAudioGain;
+    if (!context || !bus) return;
+    resumeGameAudio(context);
     const notes = cueNotes[cue];
     const spacing = 0.085;
     const duration = 0.2;
@@ -52,7 +94,7 @@ export function playGameSound(cue: GameCue) {
       gain.gain.exponentialRampToValueAtTime(0.055, start + 0.018);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
       oscillator.connect(gain);
-      gain.connect(context.destination);
+      gain.connect(bus);
       oscillator.start(start);
       oscillator.stop(start + duration + 0.02);
     });
@@ -73,9 +115,10 @@ const worldCueNotes: Record<WorldCue, number[]> = {
 export function playWorldCue(cue: WorldCue) {
   if (!soundEnabled || typeof window === "undefined" || !window.AudioContext) return;
   try {
-    gameAudioContext ??= new window.AudioContext();
-    const context = gameAudioContext;
-    if (context.state === "suspended") void context.resume();
+    const context = getGameAudioContext();
+    const bus = gameAudioGain;
+    if (!context || !bus) return;
+    resumeGameAudio(context);
     const notes = worldCueNotes[cue];
     const spacing = cue === "attack" ? 0.035 : cue === "telegraph" ? 0.04 : 0.055;
     const duration = cue === "attack" ? 0.11 : cue === "telegraph" ? 0.13 : 0.16;
@@ -90,7 +133,7 @@ export function playWorldCue(cue: WorldCue) {
       gain.gain.setValueAtTime(0.0001, start);
       gain.gain.exponentialRampToValueAtTime(cue === "attack" ? 0.05 : cue === "telegraph" ? 0.027 : 0.035, start + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-      oscillator.connect(gain).connect(context.destination);
+      oscillator.connect(gain).connect(bus);
       oscillator.start(start);
       oscillator.stop(start + duration + 0.02);
     });
@@ -101,13 +144,12 @@ export function playWorldCue(cue: WorldCue) {
 
 export function playFootstep({ running, surface, enabled }: FootstepOptions) {
   if (!enabled || !soundEnabled || typeof window === "undefined") return;
-  const AudioContextClass = window.AudioContext;
-  if (!AudioContextClass) return;
 
   try {
-    gameAudioContext ??= new AudioContextClass();
-    const context = gameAudioContext;
-    if (context.state === "suspended") void context.resume();
+    const context = getGameAudioContext();
+    const bus = gameAudioGain;
+    if (!context || !bus) return;
+    resumeGameAudio(context);
     const now = context.currentTime;
     const variation = .92 + Math.random() * .16;
     const thump = context.createOscillator();
@@ -118,7 +160,7 @@ export function playFootstep({ running, surface, enabled }: FootstepOptions) {
     thumpGain.gain.setValueAtTime(.0001, now);
     thumpGain.gain.exponentialRampToValueAtTime(running ? .09 : .07, now + .009);
     thumpGain.gain.exponentialRampToValueAtTime(.0001, now + .105);
-    thump.connect(thumpGain).connect(context.destination);
+    thump.connect(thumpGain).connect(bus);
     thump.start(now);
     thump.stop(now + .11);
 
@@ -140,7 +182,7 @@ export function playFootstep({ running, surface, enabled }: FootstepOptions) {
     noiseGain.gain.setValueAtTime(.0001, now);
     noiseGain.gain.exponentialRampToValueAtTime(running ? .047 : .032, now + .006);
     noiseGain.gain.exponentialRampToValueAtTime(.0001, now + .052);
-    noise.connect(filter).connect(noiseGain).connect(context.destination);
+    noise.connect(filter).connect(noiseGain).connect(bus);
     noise.start(now, Math.random() * (footstepNoiseBuffer.duration - .06));
     noise.stop(now + .06);
   } catch {

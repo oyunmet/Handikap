@@ -2,7 +2,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { requestJson } from "./api-json";
 import { useLocation } from "wouter";
-import { playUiChime, setSoundEnabled } from "./audio/howler";
+import { playUiChime, setSoundEnabled, setSoundVolume } from "./audio/howler";
+import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import WorldScene from "./world/WorldScene";
@@ -20,6 +21,8 @@ import {
 type Screen = "opening" | "loading" | "menu" | "world";
 type Preferences = {
   sound: boolean;
+  soundVolume: number;
+  musicVolume: number;
   vibration: boolean;
   quality: GraphicsMode;
   visualEffects: boolean;
@@ -29,6 +32,8 @@ type Preferences = {
 const PREFERENCES_KEY = "shafak-settings-v1";
 const initialPreferences: Preferences = {
   sound: true,
+  soundVolume: DEFAULT_SOUND_VOLUME,
+  musicVolume: DEFAULT_MUSIC_VOLUME,
   vibration: true,
   quality: "auto",
   visualEffects: true,
@@ -44,6 +49,8 @@ function readPreferences(): Preferences {
 
     return {
       sound: typeof saved.sound === "boolean" ? saved.sound : initialPreferences.sound,
+      soundVolume: normalizeAudioVolume(saved.soundVolume, initialPreferences.soundVolume),
+      musicVolume: normalizeAudioVolume(saved.musicVolume, initialPreferences.musicVolume),
       vibration:
         typeof saved.vibration === "boolean" ? saved.vibration : initialPreferences.vibration,
       quality: normalizeGraphicsMode(saved.quality),
@@ -59,6 +66,45 @@ function readPreferences(): Preferences {
   } catch {
     return initialPreferences;
   }
+}
+
+function VolumeSetting({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const percent = Math.round(value * 100);
+  return (
+    <div className="setting-row setting-row--volume">
+      <span className="setting-row__copy">
+        <strong id={`${id}-label`}>{label}</strong>
+        <small>{description}</small>
+      </span>
+      <div className="setting-volume">
+        <input
+          id={id}
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          value={percent}
+          aria-label={label}
+          aria-labelledby={`${id}-label`}
+          aria-valuetext={`${percent}%`}
+          onChange={(event) => onChange(Number(event.currentTarget.value) / 100)}
+        />
+        <output htmlFor={id}>{percent}%</output>
+      </div>
+    </div>
+  );
 }
 
 function Crest({ small = false }: { small?: boolean }) {
@@ -311,6 +357,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
       // The current session still honours the settings when storage is unavailable.
     }
     setSoundEnabled(preferences.sound);
+    setSoundVolume(preferences.soundVolume);
   }, [preferences]);
 
   useEffect(() => {
@@ -748,6 +795,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
               visualEffectsEnabled={preferences.visualEffects}
               motionReduced={motionReduced}
               soundEnabled={preferences.sound}
+              soundVolume={preferences.soundVolume}
+              musicVolume={preferences.musicVolume}
+              onSoundEnabledChange={(enabled) => setPreference("sound", enabled)}
+              onSoundVolumeChange={(value) => setPreference("soundVolume", value)}
+              onMusicVolumeChange={(value) => setPreference("musicVolume", value)}
               vibrationEnabled={preferences.vibration}
               profile={profile}
               accountDuelEnabled={Boolean(user?.id)}
@@ -836,6 +888,20 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
                   description={tr.soundDescription}
                   checked={preferences.sound}
                   onChange={() => togglePreference("sound")}
+                />
+                <VolumeSetting
+                  id="sound-effects-volume"
+                  label="Ses efektleri"
+                  description="Adımlar, darbeler ve arayüz sesleri"
+                  value={preferences.soundVolume}
+                  onChange={(value) => setPreference("soundVolume", value)}
+                />
+                <VolumeSetting
+                  id="music-volume"
+                  label="Bölüm müziği"
+                  description="Biyoma göre değişen arka plan müziği"
+                  value={preferences.musicVolume}
+                  onChange={(value) => setPreference("musicVolume", value)}
                 />
                 <SettingToggle
                   label={tr.vibration}

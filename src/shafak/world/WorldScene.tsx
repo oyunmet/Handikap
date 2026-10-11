@@ -32,6 +32,13 @@ import {
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { resolveCharacterAnimationState } from "./character-animation";
 import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
+import StoryDialogueOverlay from "./StoryDialogueOverlay";
+import {
+  getChapterStoryDialogue,
+  getNpcStoryDialogue,
+  getOpeningStoryDialogue,
+  type StoryDialogue,
+} from "./story-dialogue";
 import {
   createWorldMotion,
   interpolateWorldMotion,
@@ -74,6 +81,11 @@ type WorldSceneProps = {
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
   soundEnabled: boolean;
+  soundVolume: number;
+  musicVolume: number;
+  onSoundEnabledChange: (enabled: boolean) => void;
+  onSoundVolumeChange: (volume: number) => void;
+  onMusicVolumeChange: (volume: number) => void;
   vibrationEnabled: boolean;
   onExit: () => void;
   onOpenSettings: () => void;
@@ -310,11 +322,57 @@ function Icon({ name }: { name: "bag" | "settings" | "exit" }) {
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
+function WorldVolumeSlider({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+  onUserGesture,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: number;
+  onChange: (value: number) => void;
+  onUserGesture: () => void;
+}) {
+  const percent = Math.round(value * 100);
+  return (
+    <div className="world-setting world-setting--volume">
+      <span><strong>{label}</strong><small>{description}</small></span>
+      <div className="world-volume-slider">
+        <input
+          id={id}
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          value={percent}
+          aria-label={label}
+          aria-valuetext={`${percent}%`}
+          onPointerDown={onUserGesture}
+          onChange={(event) => {
+            onUserGesture();
+            onChange(Number(event.currentTarget.value) / 100);
+          }}
+        />
+        <output htmlFor={id}>{percent}%</output>
+      </div>
+    </div>
+  );
+}
+
 export default function WorldScene({
   quality,
   visualEffectsEnabled,
   motionReduced,
   soundEnabled,
+  soundVolume,
+  musicVolume,
+  onSoundEnabledChange,
+  onSoundVolumeChange,
+  onMusicVolumeChange,
   vibrationEnabled,
   onExit,
   onOpenSettings,
@@ -357,6 +415,7 @@ export default function WorldScene({
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const [travel, setTravel] = useState(0);
+  const currentChapterId = Math.max(0, Math.floor(travel / WORLD_GATE_INTERVAL_METERS));
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const [collectedPickupIds, setCollectedPickupIds] = useState<Set<string>>(() => new Set());
@@ -366,6 +425,7 @@ export default function WorldScene({
   const [pickupNotice, setPickupNotice] = useState("");
   const [attackAnimation, setAttackAnimation] = useState(false);
   const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
+  const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => getOpeningStoryDialogue());
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
@@ -373,6 +433,8 @@ export default function WorldScene({
   const combatTutorialOpenRef = useRef(false);
   const combatTutorialSeenRef = useRef(false);
   const lastBotTelegraphTickRef = useRef(-1);
+  const storyDialogueRef = useRef<StoryDialogue | null>(storyDialogue);
+  const storyChapterRef = useRef(0);
   const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(false);
   const contentCacheRef = useRef(new Map<number, WorldChapterContent>());
   const rivalDistancesRef = useRef(new Map<string, number>());
@@ -415,7 +477,14 @@ export default function WorldScene({
     setCombatFlash(null);
     hitStopUntilRef.current = window.performance.now();
   }, [visualEffectsEnabled]);
-  const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
+  const startAudio = useTravelAudio(
+    audioOn,
+    motion === "walking" || motion === "running",
+    airEnabled,
+    soundVolume,
+    musicVolume,
+    currentChapterId,
+  );
   const activeContent = getCachedWorldContent(travel, contentCacheRef.current);
   for (const rival of activeContent.rivals) {
     if (!rivalDistancesRef.current.has(rival.id)) rivalDistancesRef.current.set(rival.id, rival.distance);
@@ -471,6 +540,32 @@ export default function WorldScene({
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
   const worldInput = useWorldInput(wake);
+  const showStoryDialogue = useCallback((dialogue: StoryDialogue) => {
+    storyDialogueRef.current = dialogue;
+    worldInput.heldKeys.current.clear();
+    worldInput.joystick.current = { x: 0, y: 0 };
+    motionRef.current = {
+      ...motionRef.current,
+      velocityX: 0,
+      velocityY: 0,
+      hasMoved: false,
+      cameraLead: 0,
+    };
+    setStoryDialogue(dialogue);
+  }, [worldInput.heldKeys, worldInput.joystick]);
+  const closeStoryDialogue = useCallback(() => {
+    storyDialogueRef.current = null;
+    worldInput.heldKeys.current.clear();
+    worldInput.joystick.current = { x: 0, y: 0 };
+    setStoryDialogue(null);
+    if (audioOn) startAudio(true);
+  }, [audioOn, startAudio, worldInput.heldKeys, worldInput.joystick]);
+
+  useEffect(() => {
+    if (currentChapterId <= storyChapterRef.current) return;
+    storyChapterRef.current = currentChapterId;
+    showStoryDialogue(getChapterStoryDialogue(currentChapterId));
+  }, [currentChapterId, showStoryDialogue]);
 
   useEffect(() => {
     setAudioOn(soundEnabled);
@@ -888,7 +983,7 @@ export default function WorldScene({
   }
 
   const beginEncounter = useCallback(async (rival: WorldRival) => {
-    if (battleActiveRef.current) return;
+    if (battleActiveRef.current || storyDialogueRef.current) return;
     battleActiveRef.current = true;
     settlementStartedRef.current = false;
     pendingVerdictRef.current = null;
@@ -1030,7 +1125,7 @@ export default function WorldScene({
   };
 
   const requestObstacleAttack = useCallback(() => {
-    if (battleActiveRef.current) return;
+    if (battleActiveRef.current || storyDialogueRef.current) return;
     attackRequestedRef.current = true;
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
@@ -1129,11 +1224,24 @@ export default function WorldScene({
       previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
       const liveInput = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
-      let frameState: WorldMotionFrame = stepWorldMotion(motionRef.current, battleActiveRef.current ? stoppedInput : liveInput, 0, playerCombatStats.moveSpeedMultiplier);
+      const worldPausedForStory = Boolean(storyDialogueRef.current);
+      let frameState: WorldMotionFrame = stepWorldMotion(
+        motionRef.current,
+        battleActiveRef.current || worldPausedForStory ? stoppedInput : liveInput,
+        0,
+        playerCombatStats.moveSpeedMultiplier,
+      );
       let footsteps = 0;
       newlyCollected.clear();
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
+        if (storyDialogueRef.current && !battleActiveRef.current) {
+          const pausedFrame = stepWorldMotion(motionRef.current, stoppedInput, fixedStep, playerCombatStats.moveSpeedMultiplier);
+          frameState = pausedFrame;
+          motionRef.current = pausedFrame;
+          accumulator -= fixedStep;
+          continue;
+        }
         if (battleActiveRef.current) {
           const session = battleSessionRef.current;
           const currentCombat = combatStateRef.current;
@@ -1773,6 +1881,19 @@ export default function WorldScene({
             <strong>{nextOpponent.name}</strong>
             <span>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</span>
             <em>“{nextOpponent.taunt}”</em>
+            {getNpcStoryDialogue(nextOpponent.name, currentChapterId) && (
+              <button
+                type="button"
+                className="world-encounter__talk"
+                onClick={() => {
+                  wake();
+                  const dialogue = getNpcStoryDialogue(nextOpponent.name, currentChapterId);
+                  if (dialogue) showStoryDialogue(dialogue);
+                }}
+              >
+                KONUŞ
+              </button>
+            )}
             {canChallenge && (
               <button type="button" className="world-encounter__fight" onClick={() => beginEncounter(nextOpponent)}>
                 <span aria-hidden="true">⚔</span> SAVAŞ
@@ -1934,9 +2055,26 @@ export default function WorldScene({
               <button type="button" role="switch" aria-checked={audioOn} aria-label={audioOn ? worldText.soundOn : worldText.soundOff} onClick={() => {
                 const next = !audioOn;
                 setAudioOn(next);
-                if (next) startAudio();
+                if (next) startAudio(true);
+                onSoundEnabledChange(next);
               }}>{audioOn ? worldText.soundOn : worldText.soundOff}</button>
             </div>
+            <WorldVolumeSlider
+              id="world-sound-volume"
+              label="Ses efektleri"
+              description="Adımlar, darbeler ve arayüz"
+              value={soundVolume}
+              onChange={onSoundVolumeChange}
+              onUserGesture={() => { if (audioOn) startAudio(true); }}
+            />
+            <WorldVolumeSlider
+              id="world-music-volume"
+              label="Bölüm müziği"
+              description="Her biyoma özel, döngülü müzik"
+              value={musicVolume}
+              onChange={onMusicVolumeChange}
+              onUserGesture={() => { if (audioOn) startAudio(true); }}
+            />
             <div className="world-setting">
               <span><strong>{worldText.vibration}</strong><small>{worldText.vibrationDescription}</small></span>
               <button type="button" role="switch" aria-checked={vibrationOn} aria-label={vibrationOn ? worldText.vibrationOn : worldText.vibrationOff} onClick={() => setVibrationOn((current) => !current)}>{vibrationOn ? worldText.vibrationOn : worldText.vibrationOff}</button>
@@ -1944,6 +2082,14 @@ export default function WorldScene({
             <p className="world-inventory__note">{worldText.settingsNote}</p>
           </section>
         </div>
+      )}
+      {storyDialogue && (
+        <StoryDialogueOverlay
+          key={storyDialogue.id}
+          dialogue={storyDialogue}
+          motionReduced={motionReduced}
+          onClose={closeStoryDialogue}
+        />
       )}
     </main>
   );

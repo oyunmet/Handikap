@@ -125,7 +125,40 @@ testi henüz yapılmadı.
 - Bu preview tarayıcısı WebGL sağlayamadığından 3D efektler ve gerçek FPS burada
   görsel olarak ölçülemedi. Aşama 1'deki iPhone kabul testi hâlâ açık.
 
-## Devam edecek aşamalar
+## Aşama 5 — Hikâye, ses ve kurtarma
 
-- **Aşama 5:** Türkçe hikâye/kapı/NPC diyalogları, biyom tabanlı ambiyans müziği,
-  ayrı ses seviyesi ayarları ve hata kurtarma; ardından son doğrulama.
+**Durum:** Kod ve yerel doğrulama tamamlandı. Gerçek cihaz ve WebGL bağlamını
+bilerek düşürerek yapılan kabul testi henüz yapılmadı.
+
+### Tamamlananlar
+
+- Oyun dünyası açılışında ve bölüm kapısı geçişlerinde atlanabilir, yazı efekti
+  ve kontrol ipuçları olan Türkçe diyalog açılıyor; sahne diyalog boyunca
+  hareketi duraklatıyor. Azaltılmış hareket ayarı yazı efektini hızlandırıyor.
+- Demir Yemin'in bölüm biyomuna göre değişen özel konuşma seçenekleri eklendi;
+  hikâye metinleri ayrı bir kaynak dosyada tutuluyor.
+- Dosyasız Web Audio ile döngülü, biyoma göre değişen müzik ve prosedürel
+  yol/atmosfer sesleri eklendi. Efekt ve müzik düzeyleri hem oyun ayarından hem
+  genel ayarlardan düzenlenip kaydediliyor; değerler güvenli aralığa çekiliyor.
+- Ses bağlamı yalnızca kullanıcı etkileşimiyle başlıyor/devam ediyor; iOS
+  otomatik oynatma kısıtlamasına uygun. Ses kapatılınca her iki karışım da
+  yumuşakça susturuluyor.
+- WebGL bağlamı kaybında sahne duraklatılıyor; bağlam geri gelince yeniden
+  oluşturuluyor. Başlatma/geri yükleme hatasında görünür “Yeniden dene” kontrolü
+  var.
+- Yeni hikâye/ses kontrolleri güvenli alanları kullanıyor; kaydırma panelleri
+  küçük ve yatay telefon ekranlarında taşmıyor. Yeni ayar düğmeleri ve ilgili
+  oyun eylemleri en az 44 px dokunma yüksekliğine sahip.
+
+### Yerel doğrulama
+
+- `npm run typecheck` — geçti.
+- `npm test` — 74 test geçti; kaydedilmiş ses değerleri, üç bölüm müzik dizisi,
+  açılış/bölüm diyalogları ve Demir Yemin'in bağlamsal konuşmaları kapsanıyor.
+- `npm run build` — geçti. Ana JavaScript paketi 1,684 kB, ayrı 3D dünya paketi
+  174 kB; Vite ana paket için 500 kB üstü uyarısı veriyor.
+- `git diff --check` — geçti.
+- Bu yerel kontrol gerçek iPhone Safari FPS/bellek ölçümü veya WebGL bağlam
+  kaybını zorlayarak sınamayı içermiyor. Aşama 1'de listelenen 50+ FPS, sıfır
+  100 ms üzeri kare ve 5 dakikalık sabit bellek kabulü hâlâ açık; FPS, üçgen,
+  draw call ve bellek değerleri gerçek cihazda ölçülmüş gibi raporlanmamalı.

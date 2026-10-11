@@ -1,0 +1,72 @@
+GÖREV: "Şafak Savaşçıları" (repo: oyunmet/Handikap) oyununu mobil öncelikli, premium kalitede bir karanlık-fantastik 3B aksiyon oyununa dönüştür. Hedef: iPhone Safari'de akıcı (≥50 FPS), takılmayan, sinematik görünen bir oyun.
+
+KORUNACAKLAR (DOKUNMA)
+- Vite + TypeScript + Three.js yapısı, api/[...path].ts (Vercel Function), db/migrations, Clerk/PostgreSQL profil akışı.
+- Rigli şövalye GLB modelinin rig, skin ağırlıkları, kılıç bağlama ve merkezleme ayarları. Yalnızca animasyon eşlemesi ve materyal iyileştirmesi yapılabilir. Klip adları: Idle, Walk, Run, Attack1, Block, Dodge, HitReaction, Cast_Fire, Cast_Lightning, Death, Victory.
+- Vercel'de Socket.IO çalışmaz. Gerçek zamanlı özellikleri bunun varsayımıyla tasarla (bot düellosu istemci tarafı; online için polling/uyumlu servis).
+- Mevcut oyun mekaniği (Kül Yolu, altın/elmas, Heybe, bot düellosu, dayanıklılık, yetenek butonları) bozulmasın.
+
+ÇALIŞMA KURALLARI
+- Her aşamanın sonunda: npm run typecheck, npm test, npm run build çalıştır. ?debug=1 panelinde FPS, draw call, üçgen sayısı, bellek göster.
+- Her aşamayı ayrı commit yap. Bir aşama bitmeden diğerine geçme. Kota biterse nerede kaldığını docs/PROGRESS.md dosyasına yaz.
+- Gerçek cihaz ölçümü yapamıyorsan bunu açıkça belirt, "doğrulandı" deme.
+
+═══ AŞAMA 1 — PERFORMANS VE AKICILIK (önce bu) ═══
+1. Profil çıkar: donma/takılma nedenlerini bul (GC baskısı, her karede nesne/vektör oluşturma, çok draw call, gölge/post-process maliyeti, dev texture, React yeniden render'ları).
+2. Düzelt:
+   - Sabit zaman adımlı oyun döngüsü (fixed timestep + interpolasyon), delta clamp (sekme dönüşünde sıçrama olmasın).
+   - Nesne havuzu (object pooling): parçacıklar, hasar sayıları, mermiler, ses örnekleri. Karede new Vector3/Color oluşturma.
+   - InstancedMesh: ağaç, kaya, sütun, meşale, harabe parçaları. Statik geometriyi birleştir.
+   - Dünya parçalarını (48 m chunk) önceden arka planda yükle; eski parçaları dispose et (geometry, material, texture sızıntısı sıfır).
+   - Uzak nesneler için LOD ve distance culling; sis ile uzak kesimi gizle.
+   - Mobilde pixelRatio üst sınırı (≤1.75), gölge haritası 1024, tek yönlü ışık + hemisphere, post-process'i sade tut.
+   - Adaptif kalite: FPS 3 sn boyunca 45 altına inerse otomatik düşür (pixelRatio → gölge → parçacık sayısı → bloom). Ayarlar'a Düşük/Orta/Yüksek seçeneği ekle.
+   - HUD güncellemelerini React render döngüsünden ayır (ref/DOM doğrudan güncelle ya da throttle ile).
+   - Düello sahnesine geçişte yükleme donması olmasın: kaynakları dünya sırasında önceden ısıt (shader warm-up), geçişte gizli yükleme perdesi kullan.
+3. Kabul ölçütü: yolda koşarken ve düelloda 50+ FPS hedefi, 100 ms üstü kare sıçraması yok, 5 dk oynayınca bellek artmıyor.
+
+═══ AŞAMA 2 — GÖRSEL KALİTE VE ATMOSFER ═══
+Dünya (Kül Yolu): şu an düz ve loş. Şunları ekle:
+- Gökyüzü: gradyan + hareketli bulut katmanları, uzakta dağ silüetleri için 3 katmanlı parallax, soluk ay/güneş diski, yıldız parçacıkları.
+- Işık: sıcak/soğuk ışık kontrastı, rim light, meşalelerde titreşen noktasal ışıklar (sınırlı sayıda, en yakın 4 tanesi gerçek ışık, kalanı sahte parıltı sprite'ı).
+- Derinlik: yükseklik sisi (exponential height fog), yol boyunca hafif toz/kül parçacıkları, rüzgârla savrulan kıvılcımlar, yerde yaklaşık kül izleri.
+- Zemin: yol dokusu (procedural normal/roughness), kenarlarda taş, çatlak, eski çizgi işaretleri; harabeler daha detaylı (kırık sütun, yıkık kemer, bayrak, kafatası, kırık araba).
+- Renk: ACES tone mapping, hafif bloom (sadece parlak yerlerde), vignette, hafif film grain. Aşırı karartma yok; HUD arkasında bile sahne okunur olsun.
+- Hava durumu anahtarı ("HAVA: AÇIK") gerçekten çalışsın: yağmur/kül yağışı/sis modları.
+- Dünya (biyom) çeşitliliği: Kül Yolu dışında en az 2 yeni bölge (örn. Donmuş Geçit: kar, buz kristalleri; Kızıl Bataklık: sis, ateşböcekleri). Her bölge kendi palet, sis, parçacık ve prop setine sahip; bölüm kapısından geçince yumuşak geçiş.
+
+═══ AŞAMA 3 — KARAKTERLER, ANİMASYON, HAREKET HİSSİ ═══
+- Şövalye: normal map/AO/emissive (gözlerde ve kılıç rünlerinde hafif parıltı), metal materyalde yansıma için küçük bir env map, pelerin için cloth benzeri verlet/sinüs simülasyonu (rüzgâr + hareket yönüne tepki).
+- Yürüme/koşma: ayak kayması yok (hız ile animasyon hızını eşle), idle↔walk↔run arası 0.2 sn blend, joystick itme miktarına göre karıştırma, dönüşte gövde eğilmesi, durunca hafif nefes, ayak izi tozu.
+- Botlar: tek tip değil. En az 4 düşman tipi (Kapı Muhafızı, Demir Yemin, Kül Okçusu, Gölge Şövalyesi): farklı silüet, renk, boy, silah ve seviye ile ölçeklenen ayırt edici kıyafet detayı. Başlarında okunur isim etiketi (mesafeye göre ölçeklenen, sahnede asla minicik değil).
+- Botlar yolda devriye gezsin, oyuncuyu görünce başını çevirsin, yaklaşınca meydan okuma animasyonu yapsın.
+- Yakalama: Yerdeki altın/elmaslar dönsün, parıldasın, oyuncu yaklaşınca mıknatıs gibi çekilip toplanma efekti + kısa ses versin.
+
+═══ AŞAMA 4 — DÜELLO: SİNEMATİK VE HİSSİYAT ═══
+Mevcut sorunlar: iki karakter de arkadan görünüyor, sahne çok karanlık, VS kartında yazılar çakışıyor.
+- Giriş sinematiği (≈2 sn): kamera düşman ve oyuncuyu yandan/çapraz açıyla gösterir, sonra omuz üstü savaş kamerasına yumuşakça geçer. VS kartını yeniden tasarla: sol/sağ iki taraf net ayrılsın, "SEV." ve isim aynı satırda çakışmasın, portre ortada, kenar çizgisi altın, giriş/çıkış animasyonlu, 3-2-1 geri sayımı büyük ve okunur.
+- Savaş kamerası: karakterler birbirine dönük, ikisi de profilden/3-4 açıdan görünür, arena çemberi net, arka planda dramatik bir mekân (kapı kemeri, meşaleler, ateş kâseleri). Ritmik hafif kamera nefesi, vuruşta kısa sarsıntı, hızlı saldırıda hafif FOV zoom.
+- Dövüş hissi:
+  - Saldırı: windup → vuruş → toparlanma, vuruş anında 60–80 ms hit-stop (hit freeze), kılıç izi (trail), kıvılcım ve darbe halkası.
+  - Hasar sayıları: sahnede yükselen, kritikte büyük ve altın; blokta "BLOKLANDI", kaçışta "KAÇTI".
+  - Bot saldırısı telegraf'ı: zeminde kırmızı uyarı dairesi (mevcut olanı koru) + silahta parlama + sesli ipucu; blok/kaçış için net zaman penceresi, mükemmel blokta (perfect block) yavaş çekim ve karşı saldırı fırsatı.
+  - Yetenekler: Kor (ateş topu, iz bırakan parçacıklar, patlama), Yıldırım (ekranın kısa süreli beyazlaması + zincir şimşek), Atılma (iz gölgesi), Kalkan (enerji kalkanı kabarcığı, vuruşta dalgalanma). Her birinin cooldown'ı dairesel olarak net görünsün.
+  - Can barları: akıcı azalan (gecikmeli ikinci "hayalet" bar), düşük canda kırmızı kenar nabzı. Dayanıklılık bitince ağır nefes + yavaşlama efekti.
+  - Bitiş: Death/Victory animasyonu, yavaş çekim son vuruş, ganimet ekranı (altın/elmas sayarak artan), "Devam" butonu; yenilgide kaybedilen şey net yazılsın.
+- Düello performansı: parçacıklar havuzdan, max ~300 aktif; efektler çakışınca kare düşmesin.
+
+═══ AŞAMA 5 — ARAYÜZ, SES, HİKÂYE ═══
+- HUD sadeleşsin: üstte profil kartı küçük, kaynaklar tek satır, ilerleme çubuğu ince; ekranın ortası temiz. Dokunma hedefleri ≥44 px, güvenli alanlara (safe-area-inset) uyum, yatay/dikey ve küçük telefonlarda taşma yok.
+- Tipografi tutarlı (başlıkta mevcut serif, gövdede okunur sans), tüm Türkçe karakterler doğru (İ, ı, Ş, Ğ), metinlerde büyük/küçük harf bozulması yok.
+- Ses (Web Audio, dosyasız prosedürel ya da küçük sıkıştırılmış): ortam rüzgârı, ayak sesleri (zemine göre), kılıç/blok/darbe, yetenekler, altın toplama, UI tıklaması, bölüm müziği (loop, ilk dokunuştan sonra başlasın, Ayarlar'da ses/müzik kaydırıcıları, iOS autoplay kısıtına uyumlu).
+- Hikâye: her bölümün başında ve bölüm kapısında sinematik, kısa, gizemli diyalog kartları (daktilo efektli), sonraki bölüme dair ipucu bırakan bir cümle; NPC "Demir Yemin" gibi karakterler yolda anlamlı replikler söylesin. Hikâye metinleri src altında ayrı bir veri dosyasında (kolay düzenlenebilir).
+- Heybe/Mağaza: elmas ve altınla kostüm, kılıç, pelerin rengi, aura satın alma; satın alınan ürün karakterde anında görünsün.
+- Profil/ilerleme veritabanına doğru kaydedilsin; çevrimdışı/hatalı API'de oyun çökmesin.
+
+GENEL KALİTE KURALLARI
+- Hiçbir aşamada yeni harici ücretli servis ekleme. Büyük binary dosya ekleme; tüm yeni asset'ler toplamda 3 MB altında kalsın.
+- Her yeni sistem için kısa birim testi (havuz, kalite ölçekleme, hasar hesabı).
+- Hata sınırları (error boundary) ve WebGL context kaybı durumunda nazik bir yeniden yükleme ekranı.
+- Sonunda: yapılanların listesi, ölçülen FPS/üçgen/draw call değerleri (ölçülemeyenleri "ölçülmedi" diye işaretle), bilinen eksikler ve sonraki önerilerle docs/PROGRESS.md'yi güncelle.
+
+ŞİMDİ AŞAMA 1'İ BAŞLAT. Bitirince özet ver ve onay beklemeden Aşama 2'ye geç; kota bitmeden önce PROGRESS.md'yi güncelle.
