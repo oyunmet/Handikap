@@ -21,7 +21,7 @@ export function playUiChime() {
 }
 
 type GameCue = "victory" | "defeat";
-type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle";
+type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph";
 type FootstepOptions = { running: boolean; surface: "stone" | "dirt"; enabled: boolean };
 
 const cueNotes: Record<GameCue, number[]> = {
@@ -67,6 +67,7 @@ const worldCueNotes: Record<WorldCue, number[]> = {
   seal: [440, 659, 880, 1175],
   attack: [150, 98],
   battle: [196, 294, 392],
+  telegraph: [740, 510],
 };
 
 export function playWorldCue(cue: WorldCue) {
@@ -76,17 +77,18 @@ export function playWorldCue(cue: WorldCue) {
     const context = gameAudioContext;
     if (context.state === "suspended") void context.resume();
     const notes = worldCueNotes[cue];
-    const spacing = cue === "attack" ? 0.035 : 0.055;
-    const duration = cue === "attack" ? 0.11 : 0.16;
+    const spacing = cue === "attack" ? 0.035 : cue === "telegraph" ? 0.04 : 0.055;
+    const duration = cue === "attack" ? 0.11 : cue === "telegraph" ? 0.13 : 0.16;
     notes.forEach((frequency, index) => {
       const start = context.currentTime + index * spacing;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = cue === "attack" ? "triangle" : cue === "seal" ? "sine" : "sine";
+      oscillator.type = cue === "attack" || cue === "telegraph" ? "triangle" : "sine";
       oscillator.frequency.setValueAtTime(frequency, start);
       if (cue === "attack") oscillator.frequency.exponentialRampToValueAtTime(Math.max(42, frequency * 0.48), start + duration);
+      if (cue === "telegraph") oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.72, start + duration);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(cue === "attack" ? 0.05 : 0.035, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(cue === "attack" ? 0.05 : cue === "telegraph" ? 0.027 : 0.035, start + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
       oscillator.connect(gain).connect(context.destination);
       oscillator.start(start);

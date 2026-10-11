@@ -1,0 +1,22 @@
+import type { CombatEvent } from "../game/combat-engine";
+
+export const MAX_ACTIVE_DUEL_VFX = 12;
+export const LIGHTNING_BOLT_COUNT = 3;
+export const LIGHTNING_SEGMENT_COUNT = 6;
+export const MAX_DUEL_VFX_EVENT_PARTICLES = LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT;
+export const DUEL_DEATH_PARTICLE_COUNT = 26;
+export const MAX_ACTIVE_DUEL_PARTICLES =
+  MAX_ACTIVE_DUEL_VFX * MAX_DUEL_VFX_EVENT_PARTICLES + DUEL_DEATH_PARTICLE_COUNT;
+
+export type DuelVfxKind = "fireball" | "lightning" | "shield" | "afterimage" | "shockwave" | "none";
+
+export function getDuelVfxKind(event: Pick<CombatEvent, "type" | "attack">): DuelVfxKind {
+  if (event.type === "skill") {
+    if (event.attack === "skillOne") return "fireball";
+    if (event.attack === "skillTwo") return "lightning";
+  }
+  if (event.type === "block" || event.type === "parry") return "shield";
+  if (event.type === "dodge") return "afterimage";
+  if (event.type === "hit") return "shockwave";
+  return "none";
+}

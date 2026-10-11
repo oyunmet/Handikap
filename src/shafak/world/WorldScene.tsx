@@ -31,6 +31,7 @@ import {
 } from "../game/combat-engine";
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { resolveCharacterAnimationState } from "./character-animation";
+import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import {
   createWorldMotion,
   interpolateWorldMotion,
@@ -145,7 +146,7 @@ function DuelHealthBar({
   return (
     <div className={`duel-health duel-health--${side}`}>
       <div className="duel-health__label"><span>{label}</span><b>{Math.ceil(hp)} <i>/ {maxHp}</i></b></div>
-      <div className="duel-health__track" role="meter" aria-label={`${label} canı`} aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={Math.ceil(hp)}>
+      <div className={`duel-health__track${percent <= 25 && visualEffectsEnabled ? " is-low" : ""}`} role="meter" aria-label={`${label} canı`} aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={Math.ceil(hp)}>
         <i className="duel-health__trail" style={{ width: `${trailPercent}%` }} />
         <i className="duel-health__fill" style={{ width: `${percent}%` }} />
       </div>
@@ -174,10 +175,11 @@ function DuelStaminaBar({
   const percent = Math.max(0, Math.min(100, (stamina / Math.max(1, maxStamina)) * 100));
   const displayTrail = visualEffectsEnabled ? trail : stamina;
   const trailPercent = Math.max(percent, Math.min(100, (displayTrail / Math.max(1, maxStamina)) * 100));
+  const exhausted = percent <= 16;
 
   return (
-    <div className="duel-player-stamina" aria-label={`Dayanıklılık ${Math.ceil(stamina)} / ${maxStamina}`}>
-      <span>DAYANIKLILIK</span>
+    <div className={`duel-player-stamina${exhausted && visualEffectsEnabled ? " is-depleted" : ""}`} aria-label={`Dayanıklılık ${Math.ceil(stamina)} / ${maxStamina}${exhausted ? ", ağır nefes" : ""}`}>
+      <span>{exhausted ? "DAYANIKLILIK · AĞIR NEFES" : "DAYANIKLILIK"}</span>
       <b>{Math.ceil(stamina)}</b>
       <i className="duel-player-stamina__track" role="meter" aria-valuemin={0} aria-valuemax={maxStamina} aria-valuenow={Math.ceil(stamina)}>
         <i className="duel-player-stamina__trail" style={{ width: `${trailPercent}%` }} />
@@ -968,8 +970,8 @@ export default function WorldScene({
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
 
-      const sweepDuration = motionReduced ? 100 : 260;
-      const versusDuration = motionReduced ? 280 : 860;
+      const sweepDuration = motionReduced ? 100 : 900;
+      const versusDuration = motionReduced ? 280 : 1_100;
       queueBattleTimer(() => {
         updateBattleSession({ phase: "vs" });
         queueBattleTimer(() => {
@@ -1197,7 +1199,9 @@ export default function WorldScene({
                 }],
               };
             }
+            const botWasWindingUp = combatStateRef.current?.bot.action === "windup";
             combatStateRef.current = stepped.state;
+            if (!botWasWindingUp && stepped.state.bot.action === "windup") playWorldCue("telegraph");
             if (stepped.events.length) {
               const impactEvents = stepped.events.filter((event) => event.type === "hit" || event.type === "parry");
               if (visualEffectsEnabled && impactEvents.length) {
@@ -1212,7 +1216,7 @@ export default function WorldScene({
                   id: ++nextCombatEffectIdRef.current,
                   expiresAt: window.performance.now() + 900,
                 }));
-                setCombatEvents((current) => [...current.filter((event) => event.expiresAt > window.performance.now()), ...visualEvents].slice(-12));
+                setCombatEvents((current) => [...current.filter((event) => event.expiresAt > window.performance.now()), ...visualEvents].slice(-MAX_ACTIVE_DUEL_VFX));
                 const ids = new Set(visualEvents.map((event) => event.id));
                 queueBattleTimer(() => setCombatEvents((current) => current.filter((event) => !ids.has(event.id))), 960);
               } else {
@@ -1542,7 +1546,7 @@ export default function WorldScene({
             combatStateRef={combatStateRef}
             combatRender={combatRender}
             combatVisualEvents={visualEffectsEnabled ? combatEvents : []}
-            cinematicIntro={Boolean(visualEffectsEnabled && battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
+            cinematicIntro={Boolean(visualEffectsEnabled && battleSession && ["sweep", "vs"].includes(battleSession.phase))}
             finisherSlowMotion={Boolean(visualEffectsEnabled && battleSession?.phase === "settling")}
             botTelegraphActive={Boolean(
               combatRender?.bot.attackType
@@ -1805,7 +1809,7 @@ export default function WorldScene({
                 </div>
               </div>
           </div>
-          <p>
+          <p className={battleSession.phase === "countdown" ? "world-battle-entry__countdown" : undefined}>
             {battleSession.phase === "sweep" ? "KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" :
               battleSession.phase === "vs" ? "KARŞILAŞMA BAŞLIYOR" :
                 battleSession.beat < 3 ? String(3 - battleSession.beat) : "SAVAŞ!"}

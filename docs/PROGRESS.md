@@ -96,9 +96,36 @@ gerçek cihaz görsel/FPS kabul testi henüz yapılmadı.
 - Gerçek cihaz FPS'i ve WebGL sahne pikselleri preview ortamında doğrulanamıyor;
   Aşama 1'deki gerçek iPhone kabul ölçümü hâlâ açık.
 
+## Aşama 4 — Düello, kamera ve HUD
+
+**Durum:** Kod ve yerel doğrulama tamamlandı. WebGL'li gerçek cihaz görsel kabul
+testi henüz yapılmadı.
+
+### Tamamlananlar
+
+- Düello girişi yaklaşık iki saniyelik tarama/VS sinematiğiyle açılıyor, ardından
+  3-2-1 geri sayımında yakın dövüş kamerasına geçiyor; azaltılmış hareket ayarı
+  kısa girişi koruyor.
+- BOT saldırı hazırlığında kırmızı yer halkası, silah parıltısı ve tek seferlik
+  kısa sesli uyarı birlikte tetikleniyor.
+- Ateş topu, şimşek, blok/parry kalkanı, dodge ardıl görüntüsü ve vuruş halkası
+  gerçek savaşçı konumlarında gösteriliyor. 12 olay/216 olay noktası ve 26'lık
+  bitirici kül bütçesi toplam 242 ile 300 sınırının altında.
+- Düşük can göstergesi yanıp sönüyor; tükenen dayanıklılık ağır nefes etiketi ve
+  model hareketiyle belirtiliyor. Geri sayım mobil ekranda daha görünür.
+- Mevcut düello, hit-stop, kamera sarsıntısı, blok/parry/dodge ve sonuç/ödül
+  akışları korunuyor; azaltılmış hareket ve görsel efekt ayarları uygulanıyor.
+
+### Yerel doğrulama
+
+- `npm run typecheck` — geçti.
+- `npm test` — 70 test geçti; olay-etki eşlemesi ve efekt bütçesi eklendi.
+- `npm run build` — geçti; Vite ana JavaScript paketi için 500 kB üstü uyarısı
+  sürüyor.
+- Bu preview tarayıcısı WebGL sağlayamadığından 3D efektler ve gerçek FPS burada
+  görsel olarak ölçülemedi. Aşama 1'deki iPhone kabul testi hâlâ açık.
+
 ## Devam edecek aşamalar
 
-- **Aşama 4:** Düello kamera/arena sunumu, saldırı telgrafı, yetenek efektleri ve
-  okunaklı HUD'ın kalan işlerini tamamla.
 - **Aşama 5:** Türkçe hikâye/kapı/NPC diyalogları, biyom tabanlı ambiyans müziği,
   ayrı ses seviyesi ayarları ve hata kurtarma; ardından son doğrulama.

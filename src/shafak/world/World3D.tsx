@@ -22,6 +22,13 @@ import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engi
 import type { EquipmentVisual } from "../game/store-types";
 import WorldPostProcessing from "./WorldPostProcessing";
 import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
+import {
+  getDuelVfxKind,
+  LIGHTNING_BOLT_COUNT,
+  LIGHTNING_SEGMENT_COUNT,
+  MAX_ACTIVE_DUEL_VFX,
+  type DuelVfxKind,
+} from "./duel-vfx";
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
@@ -249,6 +256,7 @@ function CameraRig({
   const targetRef = useMemo(() => new THREE.Vector3(), []);
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
   const impactRef = useRef({ tick: -1, startedAt: 0 });
+  const cinematicStartRef = useRef<number | null>(null);
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
     id: -1,
     startedAt: 0,
@@ -262,6 +270,8 @@ function CameraRig({
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
     const lateral = motion.depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
+    if (cinematicIntro) cinematicStartRef.current ??= _.clock.elapsedTime;
+    else cinematicStartRef.current = null;
     const scaledDelta = Math.min(delta, 0.05) * ((slowMotion && !combat) || finisherSlowMotion ? 0.24 : 1);
     const response = 1 - Math.exp(-scaledDelta * (combat ? 5.5 : focusedRival ? 2.6 : 4.5));
     let latestSkillEvent: CombatVisualEvent | undefined;
@@ -285,7 +295,13 @@ function CameraRig({
     if (combat) {
       const centerX = (combat.player.x + combat.bot.x) * 0.5;
       const centerZ = -motion.distance + (combat.player.z + combat.bot.z) * 0.5;
-      desiredRef.set(centerX + 4.1, 3.25, centerZ + 7.25);
+      if (cinematicIntro && !motionReduced) {
+        const progress = THREE.MathUtils.clamp((_.clock.elapsedTime - (cinematicStartRef.current ?? _.clock.elapsedTime)) / 2, 0, 1);
+        const eased = progress * progress * (3 - 2 * progress);
+        desiredRef.set(centerX + 7.2 - eased * 4.5, 3.7 - eased * 0.35, centerZ + 3.6 + eased * 3.6);
+      } else {
+        desiredRef.set(centerX + 4.1, 3.25, centerZ + 7.25);
+      }
       targetRef.set(centerX, 1.1, centerZ - 0.35);
       if (combat.lastImpactTick !== impactRef.current.tick) {
         impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
@@ -402,6 +418,14 @@ function DuelFighter({
     const visualRoot = actorVisualRoot.current;
     if (!visualRoot) return;
     const baseScale = side === "bot" ? 1.07 : 1;
+    const staminaRatio = side === "player" && renderedActor
+      ? renderedActor.stamina / Math.max(1, renderedActor.maxStamina)
+      : 1;
+    const exhaustion = visualEffectsEnabled && !motionReduced && !defeated
+      ? THREE.MathUtils.clamp((0.2 - staminaRatio) / 0.2, 0, 1)
+      : 0;
+    visualRoot.position.y = Math.sin(frame.clock.elapsedTime * 4.6) * 0.026 * exhaustion;
+    visualRoot.rotation.x = Math.sin(frame.clock.elapsedTime * 2.4) * 0.018 * exhaustion;
     if (!visualEffectsEnabled || !defeated) {
       deathStartedAtRef.current = null;
       visualRoot.scale.setScalar(baseScale);
@@ -509,17 +533,21 @@ function DuelAshDispersal({ active, x }: { active: boolean; x: number }) {
   return <points ref={pointsRef} geometry={geometry} material={material} position={[x, 0.025, 0]} frustumCulled={false} />;
 }
 
-function DuelTelegraph({ combatStateRef }: { combatStateRef: MutableRefObject<CombatState | null> }) {
+function DuelTelegraph({ combatStateRef, motionReduced }: { combatStateRef: MutableRefObject<CombatState | null>; motionReduced: boolean }) {
   const ringRef = useRef<THREE.Group>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const glintMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const glintLightRef = useRef<THREE.PointLight>(null);
 
   useFrame((frame) => {
     const bot = combatStateRef.current?.bot;
-    if (!bot || !ringRef.current || !materialRef.current) return;
-    const pulse = (Math.sin(frame.clock.elapsedTime * 17) + 1) * 0.5;
+    if (!bot || !ringRef.current || !materialRef.current || !glintMaterialRef.current || !glintLightRef.current) return;
+    const pulse = motionReduced ? 0.5 : (Math.sin(frame.clock.elapsedTime * 17) + 1) * 0.5;
     ringRef.current.position.set(bot.x, 0.07, bot.z + 0.88);
     ringRef.current.scale.setScalar(0.94 + pulse * 0.12);
     materialRef.current.opacity = 0.48 + pulse * 0.34;
+    glintMaterialRef.current.opacity = 0.25 + pulse * 0.72;
+    glintLightRef.current.intensity = 0.25 + pulse * 1.1;
   });
 
   return (
@@ -532,7 +560,197 @@ function DuelTelegraph({ combatStateRef }: { combatStateRef: MutableRefObject<Co
         <circleGeometry args={[0.72, 40]} />
         <meshBasicMaterial color="#c20e27" transparent opacity={0.16} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
+      <mesh position={[0.36, 1.18, -0.76]} rotation={[0.08, 0, -0.48]}>
+        <boxGeometry args={[0.095, 0.62, 0.055]} />
+        <meshBasicMaterial ref={glintMaterialRef} color="#fff0ae" transparent opacity={0.8} toneMapped={false} />
+      </mesh>
+      <pointLight ref={glintLightRef} position={[0.36, 1.18, -0.76]} color="#ffc86d" intensity={0.8} distance={2.4} />
     </group>
+  );
+}
+
+function DuelCombatVisual({
+  event,
+  kind,
+  combatStateRef,
+  motionReduced,
+}: {
+  event: CombatVisualEvent;
+  kind: DuelVfxKind;
+  combatStateRef: MutableRefObject<CombatState | null>;
+  motionReduced: boolean;
+}) {
+  const fireballRef = useRef<THREE.Group>(null);
+  const lightningMaterialRef = useRef<THREE.LineBasicMaterial>(null);
+  const shieldRef = useRef<THREE.Mesh>(null);
+  const shieldMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const afterimageRef = useRef<THREE.Group>(null);
+  const afterimageMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const shockwaveRef = useRef<THREE.Mesh>(null);
+  const shockwaveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const lightningPositions = useMemo(
+    () => new Float32Array(LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT * 2 * 3),
+    [],
+  );
+  const lightningGeometry = useMemo(() => new THREE.BufferGeometry(), []);
+  const start = useMemo(() => new THREE.Vector3(), []);
+  const end = useMemo(() => new THREE.Vector3(), []);
+  const first = useMemo(() => new THREE.Vector3(), []);
+  const second = useMemo(() => new THREE.Vector3(), []);
+
+  useEffect(() => {
+    const attribute = new THREE.BufferAttribute(lightningPositions, 3);
+    attribute.setUsage(THREE.DynamicDrawUsage);
+    lightningGeometry.setAttribute("position", attribute);
+    return () => lightningGeometry.dispose();
+  }, [lightningGeometry, lightningPositions]);
+
+  useFrame((frame) => {
+    const state = combatStateRef.current;
+    if (!state) return;
+    const actor = state[event.target];
+    const opponent = state[event.target === "player" ? "bot" : "player"];
+    const age = THREE.MathUtils.clamp((performance.now() - (event.expiresAt - 900)) / 900, 0, 1);
+    const fade = 1 - age;
+    start.set(actor.x + (event.target === "player" ? 0.26 : -0.26), 1.1, actor.z - 0.42);
+    end.set(opponent.x, 1.04, opponent.z - 0.08);
+
+    if (kind === "fireball" && fireballRef.current) {
+      fireballRef.current.position.lerpVectors(start, end, age);
+      fireballRef.current.position.y += Math.sin(age * Math.PI) * 0.35;
+      fireballRef.current.scale.setScalar(motionReduced ? 0.92 : 0.82 + Math.sin(frame.clock.elapsedTime * 24) * 0.08 + (1 - age) * 0.16);
+      fireballRef.current.visible = age < 1;
+    }
+
+    if (kind === "lightning" && lightningMaterialRef.current) {
+      let vertex = 0;
+      for (let bolt = 0; bolt < LIGHTNING_BOLT_COUNT; bolt += 1) {
+        const branchOffset = (bolt - (LIGHTNING_BOLT_COUNT - 1) / 2) * 0.18;
+        for (let segment = 0; segment < LIGHTNING_SEGMENT_COUNT; segment += 1) {
+          const t0 = segment / LIGHTNING_SEGMENT_COUNT;
+          const t1 = (segment + 1) / LIGHTNING_SEGMENT_COUNT;
+          const offsetPoint = (point: THREE.Vector3, progress: number) => {
+            point.lerpVectors(start, end, progress);
+            const effectTime = motionReduced ? 0 : frame.clock.elapsedTime;
+            const jagged = Math.sin(progress * 27 + bolt * 13 + event.id * 0.7 + effectTime * 74) * 0.13;
+            const envelope = Math.sin(progress * Math.PI);
+            point.x += branchOffset * envelope + jagged * envelope;
+            point.y += Math.sin(progress * 41 + bolt * 4 + effectTime * 82) * 0.15 * envelope;
+          };
+          offsetPoint(first, t0);
+          offsetPoint(second, t1);
+          lightningPositions[vertex++] = first.x;
+          lightningPositions[vertex++] = first.y;
+          lightningPositions[vertex++] = first.z;
+          lightningPositions[vertex++] = second.x;
+          lightningPositions[vertex++] = second.y;
+          lightningPositions[vertex++] = second.z;
+        }
+      }
+      const positions = lightningGeometry.getAttribute("position") as THREE.BufferAttribute;
+      positions.needsUpdate = true;
+      lightningMaterialRef.current.opacity = fade * (motionReduced ? 0.8 : 0.72 + Math.sin(frame.clock.elapsedTime * 58) * 0.2);
+    }
+
+    if ((kind === "shield") && shieldRef.current && shieldMaterialRef.current) {
+      const defender = state[event.target];
+      shieldRef.current.position.set(defender.x, 1.02, defender.z - 0.1);
+      shieldRef.current.scale.set(0.7 + age * 0.34, 1.02 + age * 0.22, 0.54 + age * 0.22);
+      shieldMaterialRef.current.opacity = fade * (event.type === "parry" ? 0.34 : 0.2);
+    }
+
+    if (kind === "afterimage" && afterimageRef.current && afterimageMaterialRef.current) {
+      const dodging = state[event.target];
+      afterimageRef.current.position.set(
+        dodging.x - THREE.MathUtils.clamp(dodging.vx * 0.12, -0.3, 0.3),
+        0.04,
+        dodging.z - THREE.MathUtils.clamp(dodging.vz * 0.12, -0.34, 0.34),
+      );
+      afterimageRef.current.rotation.y = Math.atan2(dodging.vx, -dodging.vz);
+      afterimageRef.current.scale.setScalar(1 - age * 0.1);
+      afterimageMaterialRef.current.opacity = fade * 0.28;
+    }
+
+    if (kind === "shockwave" && shockwaveRef.current && shockwaveMaterialRef.current) {
+      shockwaveRef.current.position.set(opponent.x, 0.065, opponent.z - 0.1);
+      shockwaveRef.current.scale.setScalar(0.5 + age * 2.1);
+      shockwaveMaterialRef.current.opacity = fade * 0.85;
+    }
+  });
+
+  return (
+    <>
+      {kind === "fireball" && (
+        <group ref={fireballRef}>
+          <mesh>
+            <icosahedronGeometry args={[0.24, 1]} />
+            <meshStandardMaterial color="#ffbc62" emissive="#ff4f16" emissiveIntensity={2.1} toneMapped={false} />
+          </mesh>
+          <mesh scale={1.5}>
+            <sphereGeometry args={[0.24, 10, 8]} />
+            <meshBasicMaterial color="#ff6a27" transparent opacity={0.22} depthWrite={false} />
+          </mesh>
+          <pointLight color="#ff642f" intensity={2} distance={3.2} />
+        </group>
+      )}
+      {kind === "lightning" && (
+        <lineSegments geometry={lightningGeometry} frustumCulled={false}>
+          <lineBasicMaterial
+            ref={lightningMaterialRef}
+            color="#a8f3ff"
+            transparent
+            opacity={0.9}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </lineSegments>
+      )}
+      {kind === "shield" && (
+        <mesh ref={shieldRef}>
+          <icosahedronGeometry args={[0.72, 1]} />
+          <meshBasicMaterial
+            ref={shieldMaterialRef}
+            color={event.type === "parry" ? "#ffe8a0" : "#7ae7ff"}
+            wireframe
+            transparent
+            opacity={0.28}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+      {kind === "afterimage" && (
+        <group ref={afterimageRef}>
+          <mesh position={[0, 0.92, 0]}>
+            <capsuleGeometry args={[0.19, 0.56, 4, 6]} />
+            <meshBasicMaterial
+              ref={afterimageMaterialRef}
+              color="#a7ecf5"
+              transparent
+              opacity={0.3}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          <mesh position={[0, 1.66, 0]}>
+            <sphereGeometry args={[0.16, 8, 6]} />
+            <meshBasicMaterial color="#d6faff" transparent opacity={0.2} depthWrite={false} />
+          </mesh>
+        </group>
+      )}
+      {kind === "shockwave" && (
+        <mesh ref={shockwaveRef} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.24, 0.42, 28]} />
+          <meshBasicMaterial
+            ref={shockwaveMaterialRef}
+            color={event.critical ? "#ffe9a8" : "#ff9d62"}
+            transparent
+            opacity={0.8}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+    </>
   );
 }
 
@@ -541,12 +759,13 @@ function DuelArena({
   motionRef,
   combatStateRef,
   combatRender,
+  combatVisualEvents,
   motionReduced,
   equipmentVisual,
   visualEffectsEnabled,
   finisherSlowMotion,
   botTelegraphActive,
-}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
+}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
   return (
     <group position={[0, 0, -motionRef.current.distance]}>
       <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -570,7 +789,19 @@ function DuelArena({
           <pointLight position={[0, 1.48, 0]} color="#ff7849" intensity={1.15} distance={6} />
         </group>
       ))}
-      {visualEffectsEnabled && botTelegraphActive && <DuelTelegraph combatStateRef={combatStateRef} />}
+      {visualEffectsEnabled && botTelegraphActive && <DuelTelegraph combatStateRef={combatStateRef} motionReduced={motionReduced} />}
+      {visualEffectsEnabled && combatVisualEvents
+        .filter((event) => getDuelVfxKind(event) !== "none")
+        .slice(-MAX_ACTIVE_DUEL_VFX)
+        .map((event) => (
+          <DuelCombatVisual
+            key={event.id}
+            event={event}
+            kind={getDuelVfxKind(event)}
+            combatStateRef={combatStateRef}
+            motionReduced={motionReduced}
+          />
+        ))}
       {combatRender && (
         <>
           <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
@@ -834,6 +1065,7 @@ function SceneContents({
           motionRef={motionRef}
           combatStateRef={combatStateRef}
           combatRender={combatRender}
+          combatVisualEvents={combatVisualEvents}
           motionReduced={motionReduced}
           equipmentVisual={equipmentVisual}
           visualEffectsEnabled={visualEffectsEnabled}
