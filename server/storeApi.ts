@@ -5,14 +5,14 @@ import type { Pool, PoolClient } from "pg";
 import {
   createDefaultPlayerProfile,
   validatePlayerProfile,
-} from "./profileApi";
+} from "./profileApi.ts";
 import {
   calculatePlayerCombatModifiers,
   getStoreItem,
   STORE_CATALOG,
-} from "./storeCatalog";
-import type { PlayerProfile } from "../src/shafak/game/profile";
-import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentLoadout, type EquipmentSlot, type StoreItem } from "../src/shafak/game/store-types";
+} from "./storeCatalog.ts";
+import type { PlayerProfile } from "../src/shafak/game/profile.ts";
+import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentLoadout, type EquipmentSlot, type StoreItem } from "../src/shafak/game/store-types.ts";
 
 type StoreOperation = "purchase" | "upgrade";
 type StoredOperationResponse = {

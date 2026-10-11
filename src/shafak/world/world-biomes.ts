@@ -1,4 +1,4 @@
-import { WORLD_GATE_INTERVAL_METERS } from "./movement";
+import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 
 export type WorldBiome = "ash-road" | "frozen-pass" | "red-marsh";
 export type WeatherMode = "clear" | "ash" | "rain" | "fog";

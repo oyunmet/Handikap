@@ -2,8 +2,8 @@ import {
   WORLD_GATE_INTERVAL_METERS,
   WORLD_CHUNK_LENGTH_METERS,
   WORLD_METERS_TO_PIXELS,
-} from "./movement";
-import { getBiomeForDistance, type WorldBiome } from "./world-biomes";
+} from "./movement.ts";
+import { getBiomeForDistance, type WorldBiome } from "./world-biomes.ts";
 
 export const WORLD_SEED = 0x5afacafe;
 export const WORLD_CHUNK_OBJECTS = 7;

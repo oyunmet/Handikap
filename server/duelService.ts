@@ -1,9 +1,9 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
-import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi";
-import { normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame } from "../src/shafak/game/combat-engine";
-import { getWorldChapter } from "../src/shafak/world/world-content";
-import { calculatePlayerCombatModifiers } from "./storeCatalog";
+import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi.ts";
+import { normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame } from "../src/shafak/game/combat-engine.ts";
+import { getWorldChapter } from "../src/shafak/world/world-content.ts";
+import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
 
 export type DuelVerdict = "victory" | "defeat" | "draw";
 export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number };

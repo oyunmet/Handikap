@@ -18,7 +18,7 @@ test("guest gameplay and server purchases share the same populated catalog", () 
   }
 });
 
-test("the Vercel catalog handler returns the shared catalog as public JSON", () => {
+test("the Vercel catalog handler returns the shared catalog as public JSON", async () => {
   const headers = {};
   let status = 0;
   let body;
@@ -29,7 +29,7 @@ test("the Vercel catalog handler returns the shared catalog as public JSON", () 
     end(value) { body = value; },
   };
 
-  catalogHandler({ method: "GET" }, response);
+  await catalogHandler({ method: "GET" }, response);
 
   assert.equal(status, 200);
   assert.match(headers["Cache-Control"], /max-age=60/);

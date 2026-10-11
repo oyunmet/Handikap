@@ -1,4 +1,4 @@
-import type { EquipmentSlot, StoreItem } from "./store-types";
+import type { EquipmentSlot, StoreItem } from "./store-types.ts";
 
 const item = (
   id: string,

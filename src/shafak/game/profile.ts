@@ -1,4 +1,4 @@
-import type { EquipmentLoadout, PlayerInventory } from "./store-types";
+import type { EquipmentLoadout, PlayerInventory } from "./store-types.ts";
 
 export type PlayerProfile = {
   name: string;

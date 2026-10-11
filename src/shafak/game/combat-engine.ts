@@ -1,4 +1,4 @@
-import type { PlayerCombatModifiers } from "./store-types";
+import type { PlayerCombatModifiers } from "./store-types.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;

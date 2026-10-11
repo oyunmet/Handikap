@@ -1,4 +1,4 @@
-import type { EquipmentVisual } from "../game/store-types";
+import type { EquipmentVisual } from "../game/store-types.ts";
 
 export type WorldBotArchetype = "gate-warden" | "iron-oath" | "ash-archer" | "shadow-knight";
 export type WorldBotWeapon = "sword" | "axe" | "spear" | "mace" | "bow" | "greatsword";

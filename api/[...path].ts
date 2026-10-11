@@ -19,14 +19,14 @@ async function createApiHandler(): Promise<ApiHandler> {
   ] = await Promise.all([
     import("express"),
     import("cors"),
-    import("../db/postgres"),
+    import("../db/postgres.ts"),
     import("@clerk/express"),
     import("@clerk/shared/keys"),
-    import("../server/middlewares/clerkProxyMiddleware"),
-    import("../server/duelApi"),
-    import("../server/profileApi"),
-    import("../server/storeApi"),
-    import("../server/worldRewardsApi"),
+    import("../server/middlewares/clerkProxyMiddleware.ts"),
+    import("../server/duelApi.ts"),
+    import("../server/profileApi.ts"),
+    import("../server/storeApi.ts"),
+    import("../server/worldRewardsApi.ts"),
   ]);
 
   const express = expressModule.default;
@@ -143,7 +143,7 @@ export default async function handler(
     );
 
     if (response.headersSent) {
-      response.end();
+      if (!response.writableEnded) response.end();
       return;
     }
 

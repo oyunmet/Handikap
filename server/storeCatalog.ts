@@ -1,15 +1,15 @@
-import type { PlayerProfileRecord } from "./profileApi";
+import type { PlayerProfileRecord } from "./profileApi.ts";
 import type {
   EquipmentStatBonuses,
   PlayerCombatModifiers,
-} from "../src/shafak/game/store-types";
-import { getUpgradeBonuses, MAX_UPGRADE_LEVEL } from "../src/shafak/game/store-types";
+} from "../src/shafak/game/store-types.ts";
+import { getUpgradeBonuses, MAX_UPGRADE_LEVEL } from "../src/shafak/game/store-types.ts";
 import {
   DEFAULT_EQUIPMENT,
   getStoreItem,
   STARTER_ITEM_IDS,
   STORE_CATALOG,
-} from "../src/shafak/game/store-catalog";
+} from "../src/shafak/game/store-catalog.ts";
 
 export { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS, STORE_CATALOG };
 

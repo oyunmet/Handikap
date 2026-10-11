@@ -2,7 +2,7 @@ import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
-import { completeDuel, createDuelChallenge, DuelServiceError } from "./duelService";
+import { completeDuel, createDuelChallenge, DuelServiceError } from "./duelService.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

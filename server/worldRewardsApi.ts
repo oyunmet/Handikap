@@ -2,14 +2,14 @@ import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool, PoolClient } from "pg";
-import { createDefaultPlayerProfile, validatePlayerProfile } from "./profileApi";
+import { createDefaultPlayerProfile, validatePlayerProfile } from "./profileApi.ts";
 import {
   getWorldChapter,
   isValidChapterId,
   MAX_PICKUPS_PER_CLAIM,
   pickupRewardTotals,
   validatePickupIds,
-} from "../src/shafak/world/world-content";
+} from "../src/shafak/world/world-content.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

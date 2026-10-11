@@ -1,7 +1,7 @@
-import { WORLD_GATE_INTERVAL_METERS } from "./movement";
-import { WORLD_SEED } from "./world-generation";
-import { createWorldChunk } from "./world-generation";
-import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles";
+import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
+import { WORLD_SEED } from "./world-generation.ts";
+import { createWorldChunk } from "./world-generation.ts";
+import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 

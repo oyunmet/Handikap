@@ -2,8 +2,8 @@ import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
-import type { EquipmentLoadout, PlayerInventory } from "../src/shafak/game/store-types";
-import { DEFAULT_EQUIPMENT, STARTER_ITEM_IDS } from "./storeCatalog";
+import type { EquipmentLoadout, PlayerInventory } from "../src/shafak/game/store-types.ts";
+import { DEFAULT_EQUIPMENT, STARTER_ITEM_IDS } from "./storeCatalog.ts";
 
 export type PlayerProfileRecord = {
   name: string;
