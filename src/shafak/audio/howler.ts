@@ -2,6 +2,7 @@ import { Howl, Howler } from "howler";
 
 let soundEnabled = true;
 let gameAudioContext: AudioContext | null = null;
+let footstepNoiseBuffer: AudioBuffer | null = null;
 
 const uiChime = new Howl({
   src: ["/shafak-ui-chime.wav"],
@@ -118,23 +119,26 @@ export function playFootstep({ running, surface, enabled }: FootstepOptions) {
     thump.start(now);
     thump.stop(now + .11);
 
-    const noiseLength = Math.max(1, Math.floor(context.sampleRate * .055));
-    const noiseBuffer = context.createBuffer(1, noiseLength, context.sampleRate);
-    const noiseData = noiseBuffer.getChannelData(0);
-    for (let index = 0; index < noiseData.length; index += 1) {
-      noiseData[index] = (Math.random() * 2 - 1) * .35;
+    if (!footstepNoiseBuffer || footstepNoiseBuffer.sampleRate !== context.sampleRate) {
+      const noiseLength = Math.max(1, Math.floor(context.sampleRate * .8));
+      footstepNoiseBuffer = context.createBuffer(1, noiseLength, context.sampleRate);
+      const noiseData = footstepNoiseBuffer.getChannelData(0);
+      for (let index = 0; index < noiseData.length; index += 1) {
+        noiseData[index] = (Math.random() * 2 - 1) * .35;
+      }
     }
     const noise = context.createBufferSource();
     const filter = context.createBiquadFilter();
     const noiseGain = context.createGain();
-    noise.buffer = noiseBuffer;
+    noise.buffer = footstepNoiseBuffer;
+    noise.playbackRate.value = variation;
     filter.type = "lowpass";
     filter.frequency.value = (surface === "stone" ? 1100 : 720) * variation;
     noiseGain.gain.setValueAtTime(.0001, now);
     noiseGain.gain.exponentialRampToValueAtTime(running ? .047 : .032, now + .006);
     noiseGain.gain.exponentialRampToValueAtTime(.0001, now + .052);
     noise.connect(filter).connect(noiseGain).connect(context.destination);
-    noise.start(now);
+    noise.start(now, Math.random() * (footstepNoiseBuffer.duration - .06));
     noise.stop(now + .06);
   } catch {
     // Footsteps are an optional enhancement; audio failures must not block movement.

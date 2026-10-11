@@ -161,6 +161,28 @@ export function stepWorldMotion(
   };
 }
 
+export function interpolateWorldMotion(
+  previous: WorldMotion,
+  current: WorldMotion,
+  alpha: number,
+  target: WorldMotion,
+) {
+  const amount = clamp(finiteOrZero(alpha), 0, 1);
+  const lerp = (from: number, to: number) => from + (to - from) * amount;
+  target.velocityX = lerp(previous.velocityX, current.velocityX);
+  target.velocityY = lerp(previous.velocityY, current.velocityY);
+  target.depth = lerp(previous.depth, current.depth);
+  target.distance = lerp(previous.distance, current.distance);
+  target.cameraX = lerp(previous.cameraX, current.cameraX);
+  target.stepPhase = lerp(previous.stepPhase, current.stepPhase);
+  target.stopTime = lerp(previous.stopTime, current.stopTime);
+  target.zoom = lerp(previous.zoom, current.zoom);
+  target.cameraLead = lerp(previous.cameraLead, current.cameraLead);
+  target.stepCount = current.stepCount;
+  target.hasMoved = current.hasMoved;
+  target.facing = current.facing;
+}
+
 function finiteOrZero(value: number) {
   return Number.isFinite(value) ? value : 0;
 }

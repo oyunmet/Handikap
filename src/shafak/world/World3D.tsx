@@ -20,7 +20,7 @@ import type { WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
 import WorldPostProcessing from "./WorldPostProcessing";
-import { getShadowMapSize } from "./graphics-quality";
+import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
@@ -65,7 +65,13 @@ type DebugStats = {
   distance: number;
   speed: number;
   fps: number;
+  drawCalls: number;
   triangles: number;
+  geometries: number;
+  textures: number;
+  heapMb: number | null;
+  maxFrameMs: number;
+  longFrames: number;
   animation: CharacterAnimationState;
   footSlip: number;
   chunks: number;
@@ -580,40 +586,93 @@ function SceneContents({
   combatRender,
   opponentName,
   onDebugStats,
-}: World3DProps & { onDebugStats: (stats: DebugStats) => void }) {
+  debugEnabled,
+}: World3DProps & {
+  onDebugStats: (stats: DebugStats) => void;
+  debugEnabled: boolean;
+}) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
   const activeChunkRef = useRef(Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS));
   const footSlipRef = useRef(0);
+  const prefetchCancelRef = useRef<(() => void) | null>(null);
+  const initialPrefetchRef = useRef(false);
   const { gl } = useThree();
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
-  const debugClock = useRef({ last: 0, frames: 0 });
+  const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
 
-  useFrame((frame) => {
+  const scheduleChunkPrefetch = (chunkIndex: number) => {
+    prefetchCancelRef.current?.();
+    prefetchCancelRef.current = null;
+    if (chunkCacheRef.current.has(chunkIndex)) return;
+    const run = () => {
+      prefetchCancelRef.current = null;
+      if (!chunkCacheRef.current.has(chunkIndex)) {
+        chunkCacheRef.current.set(chunkIndex, createWorldChunk(chunkIndex));
+      }
+    };
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(run, { timeout: 600 });
+      prefetchCancelRef.current = () => idleWindow.cancelIdleCallback?.(handle);
+    } else {
+      const handle = window.setTimeout(run, 0);
+      prefetchCancelRef.current = () => window.clearTimeout(handle);
+    }
+  };
+
+  useEffect(() => () => prefetchCancelRef.current?.(), []);
+
+  useFrame((frame, delta) => {
     const motion = motionRef.current;
     const currentChunk = Math.floor(motion.distance / WORLD_CHUNK_LENGTH_METERS);
+    if (!initialPrefetchRef.current) {
+      initialPrefetchRef.current = true;
+      scheduleChunkPrefetch(currentChunk + 5);
+    }
     if (currentChunk !== activeChunkRef.current) {
       activeChunkRef.current = currentChunk;
       setChunks(getChunksForDistance(motion.distance, chunkCacheRef.current));
+      scheduleChunkPrefetch(currentChunk + 5);
     }
+    if (!debugEnabled) return;
     const now = frame.clock.elapsedTime;
-    debugClock.current.frames += 1;
-    if (now - debugClock.current.last >= 0.25) {
-      const elapsed = now - debugClock.current.last;
+    const monitor = debugClock.current;
+    const frameMs = delta * 1_000;
+    if (!monitor.startedAt) monitor.startedAt = now;
+    monitor.frames += 1;
+    monitor.maxFrameMs = Math.max(monitor.maxFrameMs, frameMs);
+    if (frameMs > 100) monitor.longFrames += 1;
+    const elapsed = now - monitor.startedAt;
+    if (elapsed >= 1) {
+      const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
       onDebugStats({
         x: motion.depth * 5.2,
         y: 0,
         z: -motion.distance,
         distance: motion.distance,
         speed: Math.hypot(motion.velocityX, motion.velocityY),
-        fps: debugClock.current.last === 0 ? 0 : Math.round(debugClock.current.frames / elapsed),
+        fps: Math.round(monitor.frames / elapsed),
+        drawCalls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures,
+        heapMb: browserPerformance.memory
+          ? Math.round(browserPerformance.memory.usedJSHeapSize / (1024 * 1024))
+          : null,
+        maxFrameMs: Math.round(monitor.maxFrameMs),
+        longFrames: monitor.longFrames,
         animation: animationState,
         footSlip: footSlipRef.current,
         chunks: chunks.length,
       });
-      debugClock.current.last = now;
-      debugClock.current.frames = 0;
+      monitor.startedAt = now;
+      monitor.frames = 0;
+      monitor.longFrames = 0;
+      monitor.maxFrameMs = 0;
     }
   });
 
@@ -623,7 +682,6 @@ function SceneContents({
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={["#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
-      <ambientLight color="#77738a" intensity={0.18} />
       <directionalLight
         position={[-8, 14, 8]}
         color="#ffd09a"
@@ -640,8 +698,7 @@ function SceneContents({
         shadow-bias={-0.0002}
         shadow-normalBias={0.025}
       />
-      <directionalLight position={[7, 7, -10]} color="#8887d4" intensity={0.92} />
-      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
+      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing />}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -711,17 +768,19 @@ export default function World3D(props: World3DProps) {
     distance: 0,
     speed: 0,
     fps: 0,
+    drawCalls: 0,
     triangles: 0,
+    geometries: 0,
+    textures: 0,
+    heapMb: null,
+    maxFrameMs: 0,
+    longFrames: 0,
     animation: "idle",
     footSlip: 0,
     chunks: 0,
   });
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const maxDpr = props.quality === "high"
-    ? Math.min(2, pixelRatio)
-    : props.quality === "balanced"
-      ? Math.min(1.5, pixelRatio)
-      : Math.min(1, pixelRatio);
+  const maxDpr = Math.min(getPixelRatioCap(props.quality), pixelRatio);
   const minDpr = Math.min(1, maxDpr);
 
   useEffect(() => {
@@ -759,7 +818,7 @@ export default function World3D(props: World3DProps) {
             }}
             fallback={<div className="world-three-fallback" role="status">Bu tarayıcı 3D sahneyi başlatamadı.</div>}
           >
-            <SceneContents {...props} onDebugStats={setDebugStats} />
+            <SceneContents {...props} debugEnabled={debugEnabled} onDebugStats={setDebugStats} />
           </Canvas>
         </WorldCanvasErrorBoundary>
       ) : (
@@ -772,7 +831,9 @@ export default function World3D(props: World3DProps) {
           <b>3D DEBUG · KÜL YOLU</b>
           <span>Konum: x {debugStats.x.toFixed(2)} · y {debugStats.y.toFixed(2)} · z {debugStats.z.toFixed(2)}</span>
           <span>Mesafe: {debugStats.distance.toFixed(1)} m · Hız: {debugStats.speed.toFixed(2)} m/sn</span>
-          <span>FPS: {debugStats.fps || "ölçülüyor"} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
+          <span>FPS: {debugStats.fps || "ölçülüyor"} · Draw: {debugStats.drawCalls} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
+          <span>Geometri/Doku: {debugStats.geometries}/{debugStats.textures} · JS heap: {debugStats.heapMb === null ? "n/a" : `${debugStats.heapMb} MB`}</span>
+          <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
           <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>

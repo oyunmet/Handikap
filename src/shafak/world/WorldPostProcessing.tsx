@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import type { RenderQuality } from "./graphics-quality";
 
 const VignetteGrainShader = {
   uniforms: {
@@ -60,7 +57,7 @@ function ComposerOutput({ pipeline }: { pipeline: Pipeline }) {
   return null;
 }
 
-export default function WorldPostProcessing({ quality }: { quality: RenderQuality }) {
+export default function WorldPostProcessing() {
   const { gl, scene, camera } = useThree();
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
 
@@ -69,12 +66,6 @@ export default function WorldPostProcessing({ quality }: { quality: RenderQualit
     try {
       const composer = new EffectComposer(gl);
       composer.addPass(new RenderPass(scene, camera));
-      composer.addPass(new UnrealBloomPass(
-        new THREE.Vector2(1, 1),
-        quality === "high" ? 0.2 : 0.12,
-        0.52,
-        0.82,
-      ));
       const filmPass = new ShaderPass(VignetteGrainShader);
       composer.addPass(filmPass);
       composer.addPass(new OutputPass());
@@ -91,7 +82,7 @@ export default function WorldPostProcessing({ quality }: { quality: RenderQualit
         setPipeline((current) => current === nextPipeline ? null : current);
       }
     };
-  }, [camera, gl, quality, scene]);
+  }, [camera, gl, scene]);
 
   return pipeline ? <ComposerOutput pipeline={pipeline} /> : null;
 }

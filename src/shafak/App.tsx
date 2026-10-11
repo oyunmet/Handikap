@@ -9,6 +9,7 @@ import WorldScene from "./world/WorldScene";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
 import {
+  getAutoQualityAction,
   normalizeGraphicsMode,
   resolveRenderQuality,
   stepAutoQuality,
@@ -203,33 +204,43 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     let frameId = 0;
     let sampleStartedAt = performance.now();
     let frameCount = 0;
-    let slowSamples = 0;
-    let fastSamples = 0;
+    let slowDuration = 0;
+    let fastDuration = 0;
     const sample = (now: number) => {
+      if (document.visibilityState === "hidden") {
+        frameCount = 0;
+        sampleStartedAt = now;
+        slowDuration = 0;
+        fastDuration = 0;
+        frameId = window.requestAnimationFrame(sample);
+        return;
+      }
       frameCount += 1;
       const elapsed = now - sampleStartedAt;
-      if (elapsed >= 1_800) {
+      if (elapsed >= 1_000) {
         const fps = frameCount * 1_000 / elapsed;
         frameCount = 0;
         sampleStartedAt = now;
 
-        if (fps < 34) {
-          slowSamples += 1;
-          fastSamples = 0;
-          if (slowSamples >= 2) {
-            setAutomaticQuality((current) => stepAutoQuality(current, "down"));
-            slowSamples = 0;
-          }
+        if (fps < 45) {
+          slowDuration += elapsed;
+          fastDuration = 0;
         } else if (fps > 56) {
-          fastSamples += 1;
-          slowSamples = 0;
-          if (fastSamples >= 4) {
-            setAutomaticQuality((current) => stepAutoQuality(current, "up"));
-            fastSamples = 0;
-          }
+          fastDuration += elapsed;
+          slowDuration = 0;
         } else {
-          slowSamples = 0;
-          fastSamples = 0;
+          slowDuration = 0;
+          fastDuration = 0;
+        }
+
+        const action = getAutoQualityAction(
+          fps,
+          fps < 45 ? slowDuration : fastDuration,
+        );
+        if (action) {
+          setAutomaticQuality((current) => stepAutoQuality(current, action));
+          slowDuration = 0;
+          fastDuration = 0;
         }
       }
       frameId = window.requestAnimationFrame(sample);

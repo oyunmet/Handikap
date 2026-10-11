@@ -7,6 +7,7 @@ import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
 import type { WorldQuality } from "./World3D";
+import WorldStaticBatches from "./WorldStaticBatches";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
@@ -18,6 +19,12 @@ const STONE_MATERIAL = new THREE.MeshStandardMaterial({
   metalness: 0.06,
   flatShading: true,
 });
+const ROAD_TERRAIN_GEOMETRY = new THREE.PlaneGeometry(100, WORLD_GATE_INTERVAL_METERS * 6);
+const ROAD_TERRAIN_MATERIAL = new THREE.MeshStandardMaterial({ color: "#50464a", roughness: 1, metalness: 0 });
+const ROAD_SURFACE_GEOMETRY = new THREE.PlaneGeometry(13.6, WORLD_GATE_INTERVAL_METERS * 6);
+const ROAD_SURFACE_MATERIAL = new THREE.MeshStandardMaterial({ color: "#332f34", roughness: 0.98, metalness: 0.08 });
+const ROAD_RAIL_GEOMETRY = new THREE.BoxGeometry(0.26, 0.08, WORLD_GATE_INTERVAL_METERS * 6);
+const ROAD_RAIL_MATERIAL = new THREE.MeshStandardMaterial({ color: "#897164", roughness: 0.9 });
 
 function seededRandom(seed: number) {
   let value = seed >>> 0;
@@ -32,14 +39,11 @@ function seededRandom(seed: number) {
 
 function RoadSegment({
   chunk,
-  motionRef,
   quality,
 }: {
   chunk: WorldChunk;
-  motionRef: MotionRef;
   quality: WorldQuality;
 }) {
-  const rootRef = useRef<THREE.Group>(null);
   const stonesRef = useRef<THREE.InstancedMesh>(null);
   const stones = useMemo(() => {
     const random = seededRandom(chunk.index * 0x45d9f3b);
@@ -68,29 +72,8 @@ function RoadSegment({
     mesh.computeBoundingSphere();
   }, [stones]);
 
-  useFrame(() => {
-    if (!rootRef.current) return;
-    rootRef.current.position.z = -((chunk.start + (chunk.end - chunk.start) / 2) - motionRef.current.cameraX);
-  });
-
   return (
-    <group ref={rootRef}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow={quality !== "low"}>
-        <planeGeometry args={[100, chunk.end - chunk.start]} />
-        <meshStandardMaterial color="#50464a" roughness={1} metalness={0} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.045, 0]} receiveShadow={quality !== "low"}>
-        <planeGeometry args={[13.6, chunk.end - chunk.start]} />
-        <meshStandardMaterial color="#332f34" roughness={0.98} metalness={0.08} />
-      </mesh>
-      <mesh position={[-6.75, 0.02, 0]}>
-        <boxGeometry args={[0.26, 0.08, chunk.end - chunk.start]} />
-        <meshStandardMaterial color="#897164" roughness={0.9} />
-      </mesh>
-      <mesh position={[6.75, 0.02, 0]}>
-        <boxGeometry args={[0.26, 0.08, chunk.end - chunk.start]} />
-        <meshStandardMaterial color="#897164" roughness={0.9} />
-      </mesh>
+    <>
       <instancedMesh
         ref={stonesRef}
         args={[STONE_GEOMETRY, STONE_MATERIAL, stones.length]}
@@ -98,12 +81,44 @@ function RoadSegment({
         receiveShadow={false}
         dispose={null}
       />
+    </>
+  );
+}
+
+function RoadSurface({ motionRef, quality }: { motionRef: MotionRef; quality: WorldQuality }) {
+  const rootRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (!rootRef.current) return;
+    const chunkStart = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS) * WORLD_GATE_INTERVAL_METERS;
+    rootRef.current.position.z = motionRef.current.cameraX - (chunkStart + WORLD_GATE_INTERVAL_METERS * 2);
+  });
+  return (
+    <group ref={rootRef}>
+      <mesh
+        geometry={ROAD_TERRAIN_GEOMETRY}
+        material={ROAD_TERRAIN_MATERIAL}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.2, 0]}
+        receiveShadow={quality !== "low"}
+        dispose={null}
+      />
+      <mesh
+        geometry={ROAD_SURFACE_GEOMETRY}
+        material={ROAD_SURFACE_MATERIAL}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.045, 0]}
+        receiveShadow={quality !== "low"}
+        dispose={null}
+      />
+      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[-6.75, 0.02, 0]} dispose={null} />
+      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[6.75, 0.02, 0]} dispose={null} />
     </group>
   );
 }
 
 function FlagCloth({ motionReduced }: { motionReduced: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const lastUpdateRef = useRef(-1);
   const geometry = useMemo(() => {
     const columns = 4;
     const rows = 3;
@@ -135,6 +150,8 @@ function FlagCloth({ motionReduced }: { motionReduced: boolean }) {
   }, [geometry, material]);
 
   useFrame((frame) => {
+    if (lastUpdateRef.current >= 0 && frame.clock.elapsedTime - lastUpdateRef.current < 1 / 30) return;
+    lastUpdateRef.current = frame.clock.elapsedTime;
     const attribute = geometry.getAttribute("position") as THREE.BufferAttribute;
     const time = motionReduced ? 0 : frame.clock.elapsedTime;
     const columns = 4;
@@ -207,7 +224,12 @@ function WorldProp({
 
   useFrame((frame) => {
     const cameraX = motionRef.current.cameraX;
-    if (rootRef.current) rootRef.current.position.z = -(object.worldX - cameraX);
+    if (rootRef.current) {
+      const distance = Math.abs(object.worldX - motionRef.current.distance);
+      rootRef.current.position.z = -(object.worldX - cameraX);
+      rootRef.current.visible = distance <= 190;
+      if (distance > 190) return;
+    }
     if (swayRef.current && object.kind === "flag") {
       swayRef.current.rotation.z = motionReduced ? 0 : Math.sin(frame.clock.elapsedTime * 1.5 + object.flickerSeed) * 0.035;
     }
@@ -329,30 +351,9 @@ function WorldProp({
       {(object.kind === "torch" || object.kind === "firepit") && (
         <group>
           {object.kind === "torch" ? (
-            <>
-              <mesh position={[0, 0.9, 0]}>
-                <cylinderGeometry args={[0.07, 0.12, 1.8, 6]} />
-                <meshStandardMaterial color="#4a3028" roughness={0.88} />
-              </mesh>
-              <mesh position={[0, 1.72, 0]}>
-                <cylinderGeometry args={[0.22, 0.16, 0.2, 6]} />
-                <meshStandardMaterial color="#777071" roughness={0.82} metalness={0.34} />
-              </mesh>
-          <group position={[0, 1.82, 0]}><Flame sourceId={object.id} localLightIds={localLightIds} /></group>
-            </>
+            <group position={[0, 1.82, 0]}><Flame sourceId={object.id} localLightIds={localLightIds} /></group>
           ) : (
-            <>
-              {Array.from({ length: 7 }, (_, index) => {
-                const angle = (index / 7) * Math.PI * 2;
-                return (
-                  <mesh key={index} position={[Math.cos(angle) * 0.58, 0.16, Math.sin(angle) * 0.58]}>
-                    <dodecahedronGeometry args={[0.28, 0]} />
-                    <meshStandardMaterial color={index % 2 ? "#6d5951" : "#82706a"} roughness={0.96} flatShading />
-                  </mesh>
-                );
-              })}
-              <group position={[0, 0.28, 0]}><Flame sourceId={object.id} localLightIds={localLightIds} /></group>
-            </>
+            <group position={[0, 0.28, 0]}><Flame sourceId={object.id} localLightIds={localLightIds} /></group>
           )}
         </group>
       )}
@@ -546,32 +547,69 @@ export function WorldChunks({
   quality: WorldQuality;
   airEnabled: boolean;
 }) {
-  const lightCandidates = chunks.flatMap((chunk) => chunk.objects)
-    .filter((object) => object.kind === "torch" || object.kind === "firepit" || object.kind === "crystal");
+  const objects = useMemo(() => chunks.flatMap((chunk) => chunk.objects), [chunks]);
+  const staticLodChunk = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS);
+  const animatedObjects = useMemo(
+    () => objects.filter((object) => object.kind === "flag" || object.kind === "torch" || object.kind === "firepit" || object.kind === "crystal"),
+    [objects],
+  );
+  const staticObjects = useMemo(
+    () => objects.filter((object) =>
+      object.kind !== "flag" && object.kind !== "torch" && object.kind !== "firepit" && object.kind !== "crystal" &&
+      Math.abs(object.worldX - motionRef.current.distance) <= 190,
+    ),
+    [objects, staticLodChunk],
+  );
+  const lightCandidates = useMemo(
+    () => animatedObjects.filter((object) => object.kind === "torch" || object.kind === "firepit" || object.kind === "crystal"),
+    [animatedObjects],
+  );
   const localLightIds = useRef(new Set<string>());
   useFrame(() => {
-    const nearest = lightCandidates
-      .map((object) => ({ id: object.id, distance: Math.abs(object.worldX - motionRef.current.cameraX) }))
-      .filter((object) => object.distance < 40)
-      .sort((left, right) => left.distance - right.distance)
-      .slice(0, 3);
+    let firstId = "";
+    let secondId = "";
+    let thirdId = "";
+    let firstDistance = 40;
+    let secondDistance = 40;
+    let thirdDistance = 40;
+    for (const object of lightCandidates) {
+      const distance = Math.abs(object.worldX - motionRef.current.distance);
+      if (distance < firstDistance) {
+        thirdDistance = secondDistance;
+        thirdId = secondId;
+        secondDistance = firstDistance;
+        secondId = firstId;
+        firstDistance = distance;
+        firstId = object.id;
+      } else if (distance < secondDistance) {
+        thirdDistance = secondDistance;
+        thirdId = secondId;
+        secondDistance = distance;
+        secondId = object.id;
+      } else if (distance < thirdDistance) {
+        thirdDistance = distance;
+        thirdId = object.id;
+      }
+    }
     localLightIds.current.clear();
-    for (const light of nearest) localLightIds.current.add(light.id);
+    if (firstId) localLightIds.current.add(firstId);
+    if (secondId) localLightIds.current.add(secondId);
+    if (thirdId) localLightIds.current.add(thirdId);
   });
   return (
     <>
-      {chunks.map((chunk) => <RoadSegment key={`road-${chunk.index}`} chunk={chunk} motionRef={motionRef} quality={quality} />)}
-      {chunks.flatMap((chunk) => chunk.objects.map((object) => {
-        return (
-          <WorldProp
-            key={object.id}
-            object={object}
-            motionRef={motionRef}
-            motionReduced={motionReduced}
-            localLightIds={localLightIds}
-          />
-        );
-      }))}
+      <RoadSurface motionRef={motionRef} quality={quality} />
+      {chunks.map((chunk) => <RoadSegment key={`road-${chunk.index}`} chunk={chunk} quality={quality} />)}
+      <WorldStaticBatches objects={staticObjects} motionRef={motionRef} />
+      {animatedObjects.map((object) => (
+        <WorldProp
+          key={object.id}
+          object={object}
+          motionRef={motionRef}
+          motionReduced={motionReduced}
+          localLightIds={localLightIds}
+        />
+      ))}
       <FinalGate motionRef={motionRef} />
       <group position={[0, 1.4, -12]} visible={airEnabled}>
         <Sparkles

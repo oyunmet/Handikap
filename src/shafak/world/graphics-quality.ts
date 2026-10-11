@@ -1,6 +1,17 @@
 export type GraphicsMode = "low" | "medium" | "high" | "auto";
 export type RenderQuality = "low" | "balanced" | "high";
 
+export const AUTO_QUALITY_DOWN_FPS = 45;
+export const AUTO_QUALITY_DOWN_AFTER_MS = 3_000;
+export const AUTO_QUALITY_UP_FPS = 56;
+export const AUTO_QUALITY_UP_AFTER_MS = 6_000;
+
+const PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
+  low: 1,
+  balanced: 1.35,
+  high: 1.75,
+};
+
 export function normalizeGraphicsMode(value: unknown): GraphicsMode {
   if (value === "low" || value === "medium" || value === "high" || value === "auto") {
     return value;
@@ -28,8 +39,19 @@ export function stepAutoQuality(current: RenderQuality, direction: "down" | "up"
   return current === "low" ? "balanced" : "high";
 }
 
+export function getAutoQualityAction(fps: number, sustainedForMs: number): "down" | "up" | null {
+  if (!Number.isFinite(fps) || !Number.isFinite(sustainedForMs)) return null;
+  if (fps < AUTO_QUALITY_DOWN_FPS && sustainedForMs >= AUTO_QUALITY_DOWN_AFTER_MS) return "down";
+  if (fps > AUTO_QUALITY_UP_FPS && sustainedForMs >= AUTO_QUALITY_UP_AFTER_MS) return "up";
+  return null;
+}
+
+export function getPixelRatioCap(quality: RenderQuality): number {
+  return PIXEL_RATIO_CAP[quality];
+}
+
 export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: number): number {
   const dpr = Number.isFinite(devicePixelRatio) ? Math.max(1, Math.min(4, devicePixelRatio)) : 1;
   const deviceScaledSize = Math.ceil((dpr * 512) / 256) * 256;
-  return Math.min(SHADOW_BUDGET[quality], deviceScaledSize);
+  return Math.min(1_024, SHADOW_BUDGET[quality], deviceScaledSize);
 }

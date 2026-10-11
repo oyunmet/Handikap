@@ -33,6 +33,7 @@ import type { PlayerCombatModifiers } from "../game/store-types";
 import { resolveCharacterAnimationState } from "./character-animation";
 import {
   createWorldMotion,
+  interpolateWorldMotion,
   readWorldInput,
   stepWorldMotion,
   WORLD_GATE_INTERVAL_METERS,
@@ -178,8 +179,28 @@ function DuelStaminaBar({
   );
 }
 
-function getCachedWorldChapters(distance: number, cache: Map<number, WorldChapterContent>) {
+type WorldContentSnapshot = {
+  chapters: WorldChapterContent[];
+  rivals: WorldRival[];
+  pickups: WorldPickup[];
+  obstacles: WorldObstacle[];
+};
+
+const worldContentSnapshots = new WeakMap<
+  Map<number, WorldChapterContent>,
+  Map<number, WorldContentSnapshot>
+>();
+
+function getCachedWorldContent(distance: number, cache: Map<number, WorldChapterContent>) {
   const current = Math.max(0, Math.floor(distance / WORLD_GATE_INTERVAL_METERS));
+  let snapshots = worldContentSnapshots.get(cache);
+  if (!snapshots) {
+    snapshots = new Map();
+    worldContentSnapshots.set(cache, snapshots);
+  }
+  let snapshot = snapshots.get(current);
+  if (snapshot) return snapshot;
+
   const first = Math.max(0, current - 1);
   const last = Math.min(1_000_000, current + 2);
   const chapters: WorldChapterContent[] = [];
@@ -191,10 +212,20 @@ function getCachedWorldChapters(distance: number, cache: Map<number, WorldChapte
     }
     chapters.push(content);
   }
+  snapshot = {
+    chapters,
+    rivals: chapters.flatMap((chapter) => chapter.rivals),
+    pickups: chapters.flatMap((chapter) => chapter.pickups),
+    obstacles: chapters.flatMap((chapter) => chapter.obstacles),
+  };
+  snapshots.set(current, snapshot);
   for (const chapterId of cache.keys()) {
     if (chapterId < current - 2 || chapterId > current + 3) cache.delete(chapterId);
   }
-  return chapters;
+  for (const chapterId of snapshots.keys()) {
+    if (chapterId < current - 2 || chapterId > current + 3) snapshots.delete(chapterId);
+  }
+  return snapshot;
 }
 
 function slotEquipmentKey(slot: EquipmentSlot) {
@@ -295,6 +326,10 @@ export default function WorldScene({
     onBattleProfile(nextProfile);
   }, [onBattleProfile]);
   const motionRef = useRef(createWorldMotion());
+  const renderMotionRef = useRef<WorldMotion | null>(null);
+  const previousMotionRef = useRef<WorldMotion | null>(null);
+  if (!renderMotionRef.current) renderMotionRef.current = { ...motionRef.current };
+  if (!previousMotionRef.current) previousMotionRef.current = { ...motionRef.current };
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
@@ -370,11 +405,11 @@ export default function WorldScene({
     hitStopUntilRef.current = window.performance.now();
   }, [visualEffectsEnabled]);
   const startAudio = useTravelAudio(audioOn, motion === "walking" || motion === "running", airEnabled);
-  const activeChapters = getCachedWorldChapters(travel, contentCacheRef.current);
-  for (const rival of activeChapters.flatMap((chapter) => chapter.rivals)) {
+  const activeContent = getCachedWorldContent(travel, contentCacheRef.current);
+  for (const rival of activeContent.rivals) {
     if (!rivalDistancesRef.current.has(rival.id)) rivalDistancesRef.current.set(rival.id, rival.distance);
   }
-  const allRivals = activeChapters.flatMap((chapter) => chapter.rivals)
+  const allRivals = activeContent.rivals
     .map((rival) => ({ ...rival, distance: rivalDistancesRef.current.get(rival.id) ?? rival.distance }));
   const nearbyRivals = allRivals.filter((rival) => Math.abs(rival.distance - travel) <= 105);
   const rivals = allRivals.filter((rival) =>
@@ -385,12 +420,12 @@ export default function WorldScene({
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
   const encounterVisible = Boolean(nextOpponent && encounterDistance <= 25);
   const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
-  const allPickups = activeChapters.flatMap((chapter) => chapter.pickups);
+  const allPickups = activeContent.pickups;
   const visiblePickupCount = allPickups.filter((pickup) =>
     !collectedPickupIds.has(pickup.id) &&
     (!pickup.sourceObstacleId || brokenObstacleIds.has(pickup.sourceObstacleId)),
   ).length;
-  const nearestBreakable = activeChapters.flatMap((chapter) => chapter.obstacles)
+  const nearestBreakable = activeContent.obstacles
     .filter((obstacle) =>
       obstacle.kind === "barricade" &&
       !brokenObstacleIds.has(obstacle.id) &&
@@ -1066,12 +1101,17 @@ export default function WorldScene({
   }, [battleSession?.phase]);
 
   useEffect(() => {
+    const previousMotion = previousMotionRef.current;
+    const interpolatedMotion = renderMotionRef.current;
+    if (!previousMotion || !interpolatedMotion) return undefined;
+
     let frame = 0;
     let previous = 0;
     let accumulator = 0;
     let lastReactUpdate = 0;
     let lastVisualUpdate = 0;
     const fixedStep = 1 / 60;
+    const newlyCollected = new Map<number, string[]>();
     const animate = (now: number) => {
       const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
       previous = now;
@@ -1080,7 +1120,7 @@ export default function WorldScene({
       const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
       let frameState: WorldMotionFrame = stepWorldMotion(motionRef.current, battleActiveRef.current ? stoppedInput : liveInput, 0, playerCombatStats.moveSpeedMultiplier);
       let footsteps = 0;
-      const newlyCollected = new Map<number, string[]>();
+      newlyCollected.clear();
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
         if (battleActiveRef.current) {
@@ -1199,7 +1239,14 @@ export default function WorldScene({
         }
         simulationTimeRef.current += fixedStep;
         let stepInput = liveInput;
-        if (Array.from(trapCooldownRef.current.values()).some((until) => until >= 0 && until > simulationTimeRef.current)) {
+        let trapSlowdownActive = false;
+        for (const until of trapCooldownRef.current.values()) {
+          if (until >= 0 && until > simulationTimeRef.current) {
+            trapSlowdownActive = true;
+            break;
+          }
+        }
+        if (trapSlowdownActive) {
           stepInput = {
             ...stepInput,
             x: stepInput.x * 0.38,
@@ -1208,9 +1255,10 @@ export default function WorldScene({
           };
         }
         const simulationStep = fixedStep;
+        Object.assign(previousMotion, motionRef.current);
         let nextFrame = stepWorldMotion(motionRef.current, stepInput, simulationStep, playerCombatStats.moveSpeedMultiplier);
-        const chapters = getCachedWorldChapters(nextFrame.distance, contentCacheRef.current);
-        const obstacles = chapters.flatMap((chapter) => chapter.obstacles);
+        const worldContent = getCachedWorldContent(nextFrame.distance, contentCacheRef.current);
+        const obstacles = worldContent.obstacles;
         const playerX = nextFrame.depth * 5.2;
         const safeDistance = resolveWorldObstacleCollision(
           motionRef.current.distance,
@@ -1230,7 +1278,7 @@ export default function WorldScene({
           };
         }
 
-        for (const rival of chapters.flatMap((chapter) => chapter.rivals)) {
+        for (const rival of worldContent.rivals) {
           const rivalDistance = rivalDistancesRef.current.get(rival.id) ?? rival.distance;
           const gap = rivalDistance - nextFrame.distance;
           if (gap > 2.7 && gap <= 8) {
@@ -1292,7 +1340,7 @@ export default function WorldScene({
         }
 
         if (loadedClaimChaptersRef.current.has(Math.floor(nextFrame.distance / WORLD_GATE_INTERVAL_METERS))) {
-          for (const pickup of chapters.flatMap((chapter) => chapter.pickups)) {
+          for (const pickup of worldContent.pickups) {
             if (
               (pickup.sourceObstacleId && !brokenRef.current.has(pickup.sourceObstacleId)) ||
               collectedRef.current.has(pickup.id) ||
@@ -1314,6 +1362,13 @@ export default function WorldScene({
         footsteps += frameState.footsteps;
         accumulator -= fixedStep;
       }
+      if (battleActiveRef.current) Object.assign(previousMotion, motionRef.current);
+      interpolateWorldMotion(
+        previousMotion,
+        motionRef.current,
+        accumulator / fixedStep,
+        interpolatedMotion,
+      );
       if (hasCollectedThisFrame) setCollectedPickupIds(new Set(collectedRef.current));
       for (const [chapterId, ids] of newlyCollected) queuePickupClaims(chapterId, ids);
 
@@ -1399,10 +1454,12 @@ export default function WorldScene({
       velocityY: 0,
       cameraLead: 0,
     };
+    if (previousMotionRef.current) Object.assign(previousMotionRef.current, motionRef.current);
+    if (renderMotionRef.current) Object.assign(renderMotionRef.current, motionRef.current);
     setTravel(Math.floor(nextDistance));
   };
   const debugNearestRival = () => {
-    const target = activeChapters.flatMap((chapter) => chapter.rivals)
+    const target = activeContent.rivals
       .map((rival) => ({ ...rival, distance: rivalDistancesRef.current.get(rival.id) ?? rival.distance }))
       .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
     if (target) teleportToDistance(Math.max(0, target.distance - 4));

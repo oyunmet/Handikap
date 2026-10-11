@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createWorldMotion, readWorldInput, stepWorldMotion } from "./movement.ts";
+import { createWorldMotion, interpolateWorldMotion, readWorldInput, stepWorldMotion } from "./movement.ts";
 
 test("keyboard input reads WASD and arrows and normalizes diagonal travel", () => {
   const diagonal = readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 });
@@ -89,6 +89,23 @@ test("invalid delta time does not inject movement", () => {
   );
   assert.equal(result.speed, 0);
   assert.equal(result.distance, 0);
+});
+
+test("fixed-step render interpolation fills the gap without replacing simulation state", () => {
+  const previous = createWorldMotion(12, -0.4);
+  const current = stepWorldMotion(
+    previous,
+    readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 }),
+    1 / 60,
+  );
+  const target = createWorldMotion();
+  interpolateWorldMotion(previous, current, 0.5, target);
+
+  assert.equal(target.distance, (previous.distance + current.distance) / 2);
+  assert.equal(target.depth, (previous.depth + current.depth) / 2);
+  assert.equal(target.stepCount, current.stepCount);
+  assert.equal(target.hasMoved, current.hasMoved);
+  assert.equal(previous.distance, 12);
 });
 
 test("backward movement reverses the travel camera instead of freezing at the origin", () => {
