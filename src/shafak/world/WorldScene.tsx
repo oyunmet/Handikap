@@ -99,6 +99,7 @@ const DUEL_DIRECTION_LABELS = {
 } as const;
 
 type WorldSceneProps = {
+  active?: boolean;
   apiRequest: AuthenticatedApiRequest;
   apiRequestWithRetry: AuthenticatedApiRequestWithRetry;
   quality: "high" | "balanced" | "low";
@@ -461,6 +462,7 @@ function WorldVolumeSlider({
 }
 
 export default function WorldScene({
+  active = true,
   apiRequest,
   apiRequestWithRetry,
   quality,
@@ -565,6 +567,7 @@ export default function WorldScene({
   const simulationTimeRef = useRef(0);
   const battleActiveRef = useRef(false);
   const battleSessionRef = useRef<BattleSession | null>(null);
+  const duelFrameReadyRef = useRef(false);
   const activeDuelRef = useRef<ActiveDuel | null>(null);
   const combatStateRef = useRef<CombatState | null>(null);
   const combatInputRef = useRef<CombatInputBuffer>({
@@ -970,6 +973,14 @@ export default function WorldScene({
     battleTimersRef.current.push(timer);
   };
 
+  useEffect(() => {
+    const onDuelFrameReady = () => {
+      duelFrameReadyRef.current = true;
+    };
+    window.addEventListener("shafak:duel-frame-ready", onDuelFrameReady);
+    return () => window.removeEventListener("shafak:duel-frame-ready", onDuelFrameReady);
+  }, []);
+
   const updateBattleSession = (patch: Partial<BattleSession>) => {
     const current = battleSessionRef.current;
     if (!current) return;
@@ -1002,6 +1013,7 @@ export default function WorldScene({
       motionRef.current = { ...frozen, velocityX: 0, velocityY: 0, hasMoved: false, cameraLead: 0 };
     }
     battleFrozenMotionRef.current = null;
+    duelFrameReadyRef.current = false;
     battleSessionRef.current = null;
     activeDuelRef.current = null;
     combatStateRef.current = null;
@@ -1220,6 +1232,7 @@ export default function WorldScene({
 
       activeDuelRef.current = { rival: sessionRival, duelId, seed, practice };
       const initialCombat = createCombatState(seed, difficulty, playerStats);
+      duelFrameReadyRef.current = false;
       combatInputRef.current.yaw = initialCombat.player.yaw;
       combatInputRef.current.lockOn = directionalDuelEnabled;
       combatInputRef.current.directional = directionalDuelEnabled;
@@ -1249,25 +1262,32 @@ export default function WorldScene({
       const versusDuration = motionReduced ? 280 : 1_100;
       queueBattleTimer(() => {
         updateBattleSession({ phase: "vs" });
-        queueBattleTimer(() => {
-          updateBattleSession({ phase: "countdown", beat: 0 });
-          const advance = (beat: number) => {
-            if (beat >= 3) {
-              updateBattleSession({ phase: "fight", beat: 3 });
-              let seen = false;
-              try { seen = window.localStorage.getItem("safak-combat-tutorial-seen-v1") === "1"; } catch { /* Keep the session value when storage is unavailable. */ }
-              seen = seen || combatTutorialSeenRef.current;
-              combatTutorialSeenRef.current = seen;
-              if (!seen) openCombatTutorial();
-              return;
-            }
-            queueBattleTimer(() => {
-              updateBattleSession({ beat: beat + 1 });
-              advance(beat + 1);
-            }, motionReduced ? 300 : 760);
-          };
-          advance(0);
-        }, versusDuration);
+        const advanceAfterReadyFrame = () => {
+          if (!duelFrameReadyRef.current) {
+            queueBattleTimer(advanceAfterReadyFrame, 50);
+            return;
+          }
+          queueBattleTimer(() => {
+            updateBattleSession({ phase: "countdown", beat: 0 });
+            const advance = (beat: number) => {
+              if (beat >= 3) {
+                updateBattleSession({ phase: "fight", beat: 3 });
+                let seen = false;
+                try { seen = window.localStorage.getItem("safak-combat-tutorial-seen-v1") === "1"; } catch { /* Keep the session value when storage is unavailable. */ }
+                seen = seen || combatTutorialSeenRef.current;
+                combatTutorialSeenRef.current = seen;
+                if (!seen) openCombatTutorial();
+                return;
+              }
+              queueBattleTimer(() => {
+                updateBattleSession({ beat: beat + 1 });
+                advance(beat + 1);
+              }, motionReduced ? 300 : 760);
+            };
+            advance(0);
+          }, versusDuration);
+        };
+        advanceAfterReadyFrame();
       }, sweepDuration);
     } catch (error) {
       const errorSession: BattleSession = {
@@ -1373,6 +1393,7 @@ export default function WorldScene({
   }, []);
 
   useEffect(() => {
+    if (!active) return undefined;
     const onActionKeyDown = (event: KeyboardEvent) => {
       if (event.code !== "Space" && event.key.toLowerCase() !== "e") return;
       if (event.target instanceof HTMLElement && event.target.closest("button,input,textarea,select")) return;
@@ -1381,10 +1402,10 @@ export default function WorldScene({
     };
     window.addEventListener("keydown", onActionKeyDown);
     return () => window.removeEventListener("keydown", onActionKeyDown);
-  }, [requestObstacleAttack]);
+  }, [active, requestObstacleAttack]);
 
   useEffect(() => {
-    if (battleSession?.phase !== "fight") return undefined;
+    if (!active || battleSession?.phase !== "fight") return undefined;
     const buttonForKey: Record<string, number> = {
       j: INPUT_BUTTON.attack,
       k: INPUT_BUTTON.block,
@@ -1439,9 +1460,10 @@ export default function WorldScene({
       window.removeEventListener("blur", onBlur);
       onBlur();
     };
-  }, [battleSession?.phase]);
+  }, [active, battleSession?.phase]);
 
   useEffect(() => {
+    if (!active) return undefined;
     const previousMotion = previousMotionRef.current;
     const interpolatedMotion = renderMotionRef.current;
     if (!previousMotion || !interpolatedMotion) return undefined;
@@ -1868,8 +1890,15 @@ export default function WorldScene({
     return () => {
       window.cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      worldInput.heldKeys.current.clear();
+      worldInput.joystick.current = { x: 0, y: 0 };
+      combatInputRef.current.x = 0;
+      combatInputRef.current.y = 0;
+      combatInputRef.current.buttons = 0;
+      combatInputRef.current.pressed = 0;
+      combatInputRef.current.released = 0;
     };
-  }, [audioOn, directionalDuelEnabled, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
+  }, [active, audioOn, directionalDuelEnabled, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -1971,6 +2000,7 @@ export default function WorldScene({
           }
         >
           <World3D
+            active={active}
             motionRef={motionRef}
             collisionGrid={getCachedWorldContent(motionRef.current.distance, contentCacheRef.current).collisionGrid}
             quality={quality}

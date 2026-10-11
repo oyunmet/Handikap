@@ -1,13 +1,11 @@
 export function nextWorldRecoveryStage(currentStage: number, errorMessage = ""): number {
   const stage = Number.isFinite(currentStage)
-    ? Math.max(0, Math.min(5, Math.floor(currentStage)))
+    ? Math.max(0, Math.min(4, Math.floor(currentStage)))
     : 0;
-  if (stage >= 4) return 5;
+  if (stage >= 3) return 4;
   if (
-    stage < 2
+    stage < 1
     && /error creating webgl context|could not create a webgl context/i.test(errorMessage)
-  ) {
-    return 3;
-  }
+  ) return 2;
   return stage + 1;
 }

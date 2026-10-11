@@ -9,7 +9,7 @@ import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
-import { getWorldBotProfileByName } from "./world-bot-profiles";
+import { getWorldBotProfileByName, WORLD_BOT_PROFILES } from "./world-bot-profiles";
 import { mapOpponentAnimationState } from "./model-animation";
 import { getDuelCameraFraming } from "./duel-camera";
 import {
@@ -21,6 +21,7 @@ import {
   getBiomeTransition,
   getWorldFogDensity,
   WORLD_BIOME_PALETTES,
+  type WorldBiome,
   type WeatherMode,
 } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
@@ -36,6 +37,7 @@ import {
 import WorldPostProcessing from "./WorldPostProcessing";
 import WorldV2Atmosphere from "./WorldV2Atmosphere";
 import WorldV2Terrain from "./WorldV2Terrain";
+import { WorldV2DuelActor, WorldV2Travel } from "./WorldV2Gameplay";
 import { worldVersionFromSearch } from "./world-version";
 import { nextWorldRecoveryStage } from "./world-recovery";
 import { getShadowMapSize, getWorldRenderPixelRatio } from "./graphics-quality";
@@ -52,6 +54,13 @@ import {
   MAX_ACTIVE_DUEL_VFX,
   type DuelVfxKind,
 } from "./duel-vfx";
+import WorldRenderCanary from "./WorldRenderCanary";
+import {
+  createWorldCanarySnapshot,
+  isWorldRenderDead,
+  type WorldCanarySnapshot,
+} from "./world-canary";
+import { WorldResourcePool } from "./world-resource-pool";
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
@@ -84,9 +93,10 @@ function createProceduralEnvironmentMap() {
   return texture;
 }
 
-const PROCEDURAL_ENVIRONMENT_MAP = createProceduralEnvironmentMap();
+const WORLD_RESOURCE_POOL = new WorldResourcePool();
 
 export type World3DProps = {
+  active?: boolean;
   motionRef: MutableRefObject<WorldMotion>;
   collisionGrid: WorldCollisionGrid;
   quality: WorldQuality;
@@ -122,6 +132,11 @@ export type World3DProps = {
   onDebugStartBattle: () => void;
   debugOneHitEnabled: boolean;
   onToggleDebugOneHit: () => void;
+  onSelfTestCombo?: (
+    biome: WorldBiome,
+    opponentTitle: string,
+    pixel: WorldCanarySnapshot["lastPixel"],
+  ) => void;
 };
 
 type DebugStats = {
@@ -152,51 +167,10 @@ type DebugStats = {
   pixelLuminance: number | null;
   litPixelSamples: number;
   pixelSampleCount: number;
+  canaryState: WorldCanarySnapshot["state"];
+  canaryConsecutiveBlack: number;
+  canaryPixel: WorldCanarySnapshot["lastPixel"];
 };
-
-function sampleRendererPixels(renderer: THREE.WebGLRenderer) {
-  // Debug-only telemetry. The default framebuffer may be invalidated after
-  // presentation, so these samples must never trigger production recovery.
-  const context = renderer.getContext();
-  const width = context.drawingBufferWidth;
-  const height = context.drawingBufferHeight;
-  if (context.isContextLost() || width < 1 || height < 1) {
-    return { meanLuminance: null, litSamples: 0, sampleCount: 0 };
-  }
-
-  const points: Array<readonly [number, number]> = [];
-  for (let row = 0; row < 4; row += 1) {
-    for (let column = 0; column < 4; column += 1) {
-      points.push([(column + 0.5) / 4, (row + 0.5) / 4]);
-    }
-  }
-  const pixel = new Uint8Array(4);
-  let luminanceSum = 0;
-  let litSamples = 0;
-  try {
-    for (const [xRatio, yRatio] of points) {
-      context.readPixels(
-        Math.min(width - 1, Math.floor(width * xRatio)),
-        Math.min(height - 1, Math.floor(height * yRatio)),
-        1,
-        1,
-        context.RGBA,
-        context.UNSIGNED_BYTE,
-        pixel,
-      );
-      const luminance = (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]) / 255;
-      luminanceSum += luminance;
-      if (luminance > 0.02) litSamples += 1;
-    }
-  } catch {
-    return { meanLuminance: null, litSamples: 0, sampleCount: 0 };
-  }
-  return {
-    meanLuminance: luminanceSum / points.length,
-    litSamples,
-    sampleCount: points.length,
-  };
-}
 
 class WorldCanvasErrorBoundary extends Component<
   { children: ReactNode; onRetry: () => void; onError: (error: Error) => void },
@@ -332,10 +306,12 @@ function SceneFog({
   motionRef,
   weatherMode,
   combatActive,
+  safeLightingRef,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   weatherMode: WeatherMode;
   combatActive: boolean;
+  safeLightingRef: MutableRefObject<boolean>;
 }) {
   const { scene } = useThree();
   const fogRef = useRef<THREE.FogExp2 | null>(null);
@@ -353,7 +329,10 @@ function SceneFog({
     if (!fog) return;
     const transition = getBiomeTransition(motionRef.current.distance);
     fog.color.lerpColors(FOG_COLORS[transition.from], FOG_COLORS[transition.to], transition.mix);
-    fog.density = getWorldFogDensity(weatherMode, transition.biome, combatActive);
+    const density = getWorldFogDensity(weatherMode, transition.biome, combatActive);
+    fog.density = safeLightingRef.current
+      ? THREE.MathUtils.clamp(Number.isFinite(density) ? density : 0.0035, 0.0025, 0.0045)
+      : Number.isFinite(density) ? Math.max(0.0025, density) : 0.0035;
   });
   return null;
 }
@@ -363,13 +342,75 @@ function ProceduralEnvironment() {
   useEffect(() => {
     const previousEnvironment = scene.environment;
     const previousIntensity = scene.environmentIntensity;
-    scene.environment = PROCEDURAL_ENVIRONMENT_MAP;
+    const lease = WORLD_RESOURCE_POOL.acquire(
+      "world:procedural-environment:v1",
+      createProceduralEnvironmentMap,
+    );
+    scene.environment = lease.value;
     scene.environmentIntensity = 0.62;
     return () => {
       scene.environment = previousEnvironment;
       scene.environmentIntensity = previousIntensity;
+      lease.release();
     };
   }, [scene]);
+  return null;
+}
+
+function SceneLightingSafety({
+  motionRef,
+  safeLightingRef,
+  combatActive,
+}: {
+  motionRef: MutableRefObject<WorldMotion>;
+  safeLightingRef: MutableRefObject<boolean>;
+  combatActive: boolean;
+}) {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    let timer = 0;
+    const restore = () => {
+      window.clearTimeout(timer);
+      safeLightingRef.current = false;
+      scene.background = new THREE.Color(combatActive ? "#39343e" : "#252330");
+      gl.toneMappingExposure = 1.12;
+    };
+    const forceBiomeLighting = () => {
+      window.clearTimeout(timer);
+      const transition = getBiomeTransition(motionRef.current.distance);
+      const palette = WORLD_BIOME_PALETTES[transition.biome];
+      scene.background = new THREE.Color(palette.skyTint);
+      if (scene.fog instanceof THREE.FogExp2) {
+        const currentDensity = scene.fog.density;
+        scene.fog.density = THREE.MathUtils.clamp(
+          Number.isFinite(currentDensity) ? currentDensity : 0.0035,
+          0.0025,
+          0.0045,
+        );
+      }
+      gl.toneMappingExposure = THREE.MathUtils.clamp(
+        Number.isFinite(gl.toneMappingExposure) ? Math.max(gl.toneMappingExposure, 1.12) : 1.12,
+        1.12,
+        1.5,
+      );
+      safeLightingRef.current = true;
+      emitWorldDiagnostic("lighting", `Güvenli ${palette.label} biyom ışığı ve pozlaması 10 saniyeliğine etkin.`);
+      timer = window.setTimeout(restore, 10_000);
+    };
+    window.addEventListener("shafak:scene-low-brightness", forceBiomeLighting);
+    return () => {
+      window.removeEventListener("shafak:scene-low-brightness", forceBiomeLighting);
+      window.clearTimeout(timer);
+      safeLightingRef.current = false;
+    };
+  }, [combatActive, gl, motionRef, safeLightingRef, scene]);
+
+  useFrame(() => {
+    if (!safeLightingRef.current) return;
+    if (!Number.isFinite(gl.toneMappingExposure) || gl.toneMappingExposure < 1.12) {
+      gl.toneMappingExposure = 1.12;
+    }
+  });
   return null;
 }
 
@@ -1002,10 +1043,25 @@ function DuelArena({
   visualEffectsEnabled,
   finisherSlowMotion,
   botTelegraphActive,
-}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
+  worldV2Enabled,
+}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive"> & {
+  worldV2Enabled: boolean;
+}) {
+  const frameReadyRef = useRef(false);
+  const reportDuelFrameReady = useCallback(() => {
+    if (frameReadyRef.current) return;
+    frameReadyRef.current = true;
+    window.dispatchEvent(new CustomEvent("shafak:duel-frame-ready"));
+  }, []);
+
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
-      <mesh position={[0, -0.045, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <mesh
+        position={[0, -0.045, -0.6]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+        onAfterRender={reportDuelFrameReady}
+      >
         <circleGeometry args={[26, 96]} />
         <meshStandardMaterial color="#302a35" emissive="#211822" emissiveIntensity={0.14} roughness={0.98} />
       </mesh>
@@ -1062,8 +1118,17 @@ function DuelArena({
         ))}
       {combatRender && (
         <>
-          <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
-          <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
+          {worldV2Enabled ? (
+            <>
+              <WorldV2DuelActor side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} finisherSlowMotion={finisherSlowMotion} />
+              <WorldV2DuelActor side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} finisherSlowMotion={finisherSlowMotion} />
+            </>
+          ) : (
+            <>
+              <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
+              <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
+            </>
+          )}
         </>
       )}
     </group>
@@ -1197,30 +1262,34 @@ function SceneContents({
   const zeroDrawCallFramesRef = useRef(0);
   const zeroDrawRecoverySentRef = useRef(false);
   const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
+  const safeLightingRef = useRef(false);
+  const canarySnapshotRef = useRef(createWorldCanarySnapshot());
+  const reportCanaryStatus = useCallback((snapshot: WorldCanarySnapshot) => {
+    canarySnapshotRef.current = snapshot;
+    if (!isSelfTestEnabled() || !combatActive || snapshot.state !== "healthy") return;
+    const opponentTitle = getWorldBotProfileByName(opponentName)?.title;
+    if (!opponentTitle) return;
+    onSelfTestCombo?.(
+      getBiomeTransition(motionRef.current.distance).biome,
+      opponentTitle,
+      snapshot.lastPixel,
+    );
+  }, [combatActive, motionRef, onSelfTestCombo, opponentName]);
 
   const worldV2Enabled = worldVersionFromSearch(window.location.search) === "v2";
   useEffect(() => {
     if (recoveryStage === 1) {
-      scene.background = new THREE.Color("#47373a");
-      if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.density = Number.isFinite(scene.fog.density)
-          ? Math.max(0.0025, Math.min(0.0045, scene.fog.density))
-          : 0.0035;
-      }
-      gl.toneMappingExposure = 1;
-      emitWorldDiagnostic("recovery", "Kurtarma 1/4: arka plan, sis ve pozlama güvenli değerlere alındı.");
-    } else if (recoveryStage === 2) {
       scene.traverse((object) => {
         const mesh = object as THREE.Mesh;
         if (!mesh.material) return;
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         for (const material of materials) material.needsUpdate = true;
       });
-      emitWorldDiagnostic("recovery", "Kurtarma 2/4: sahne materyalleri yeniden derlenmek üzere işaretlendi.");
+      emitWorldDiagnostic("recovery", "Kurtarma 1/3: materyaller ve shader programları yenilenmek üzere işaretlendi.");
     }
     zeroDrawCallFramesRef.current = 0;
     zeroDrawRecoverySentRef.current = false;
-  }, [gl, recoveryStage, scene]);
+  }, [recoveryStage, scene]);
 
   const scheduleChunkPrefetch = (chunkIndex: number) => {
     prefetchCancelRef.current?.();
@@ -1257,16 +1326,32 @@ function SceneContents({
   useFrame((frame, delta) => {
     lastSceneFrameAt = performance.now();
     const motion = motionRef.current;
-    if (gl.info.render.calls > 0) {
+    let visibleRenderables = 0;
+    frame.scene.traverseVisible((object) => {
+      const renderable = object as THREE.Object3D & {
+        isMesh?: boolean;
+        isPoints?: boolean;
+        isLine?: boolean;
+        isSprite?: boolean;
+      };
+      if (renderable.isMesh || renderable.isPoints || renderable.isLine || renderable.isSprite) {
+        visibleRenderables += 1;
+      }
+    });
+    if (!isWorldRenderDead({
+      calls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      visibleRenderables,
+    })) {
       zeroDrawCallFramesRef.current = 0;
       zeroDrawRecoverySentRef.current = false;
     } else {
       zeroDrawCallFramesRef.current += 1;
-      if (zeroDrawCallFramesRef.current >= 120 && !zeroDrawRecoverySentRef.current) {
+      if (zeroDrawCallFramesRef.current >= 3 && !zeroDrawRecoverySentRef.current) {
         zeroDrawRecoverySentRef.current = true;
-        emitWorldDiagnostic("render", "120 kare boyunca WebGL draw call üretilmedi.");
+        emitWorldDiagnostic("render", "Görünür nesneler varken 3 kare boyunca draw call ve üçgen sayısı sıfır.");
         window.dispatchEvent(new CustomEvent("shafak:scene-recovery", {
-          detail: { message: "3D sahne 120 kare boyunca çizim üretmedi." },
+          detail: { message: "3D render hattı draw call üretmedi." },
         }));
       }
     }
@@ -1299,7 +1384,7 @@ function SceneContents({
       const elapsed = now - monitor.startedAt;
       if (elapsed >= 1) {
         const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
-        const pixelSample = sampleRendererPixels(gl);
+        const canarySnapshot = canarySnapshotRef.current;
         const background = frame.scene.background;
         const fog = frame.scene.fog;
         onDebugStats({
@@ -1329,9 +1414,12 @@ function SceneContents({
           fogDensity: fog instanceof THREE.FogExp2 ? fog.density : 0,
           programs: gl.info.programs?.length ?? 0,
           lights: frame.scene.children.filter((child) => child instanceof THREE.Light && child.visible).length,
-          pixelLuminance: pixelSample.meanLuminance,
-          litPixelSamples: pixelSample.litSamples,
-          pixelSampleCount: pixelSample.sampleCount,
+          pixelLuminance: canarySnapshot.lastSceneLuminance,
+          litPixelSamples: canarySnapshot.passed,
+          pixelSampleCount: canarySnapshot.samples,
+          canaryState: canarySnapshot.state,
+          canaryConsecutiveBlack: canarySnapshot.consecutiveBlack,
+          canaryPixel: canarySnapshot.lastPixel,
         });
         monitor.startedAt = now;
         monitor.frames = 0;
@@ -1346,7 +1434,17 @@ function SceneContents({
   return (
     <>
       <ProceduralEnvironment />
-      <SceneFog motionRef={motionRef} weatherMode={weatherMode} combatActive={combatActive} />
+      <SceneFog
+        motionRef={motionRef}
+        weatherMode={weatherMode}
+        combatActive={combatActive}
+        safeLightingRef={safeLightingRef}
+      />
+      <SceneLightingSafety
+        motionRef={motionRef}
+        safeLightingRef={safeLightingRef}
+        combatActive={combatActive}
+      />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={[combatActive ? "#39343e" : "#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
@@ -1390,41 +1488,62 @@ function SceneContents({
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
       />
-      {worldV2Enabled ? (
+      {worldV2Enabled && !combatActive ? (
         <WorldV2Atmosphere
           motionRef={motionRef}
           weather={weatherMode}
           quality={quality}
           motionReduced={motionReduced}
         />
-      ) : (
+      ) : !worldV2Enabled ? (
         <AshSky motionRef={motionRef} combatActive={combatActive} />
-      )}
-      {worldV2Enabled && quality !== "low" && (
+      ) : null}
+      {worldV2Enabled && !combatActive && (
         <WorldV2Terrain
           motionRef={motionRef}
           weather={weatherMode}
           quality={quality}
         />
       )}
-      <group visible={!combatActive} name="road-world">
-        <WorldChunks
-          chunks={chunks}
-          motionRef={motionRef}
-          motionReduced={motionReduced}
-          quality={quality}
-          weather={weatherMode}
-        />
-      </group>
-      {!combatActive && <WorldRoadEntities
-        motionRef={motionRef}
-        rivals={rivals}
-        collectedPickupIds={collectedPickupIds}
-        brokenObstacleIds={brokenObstacleIds}
-        focusedRivalId={focusedRival?.id ?? null}
-        reducedMotion={motionReduced}
-      />}
-      {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
+      {worldV2Enabled ? (
+        !combatActive && (
+          <WorldV2Travel
+            motionRef={motionRef}
+            animationState={animationState}
+            motionReduced={motionReduced}
+            quality={quality}
+            rivals={rivals}
+            collectedPickupIds={collectedPickupIds}
+            brokenObstacleIds={brokenObstacleIds}
+            focusedRival={focusedRival}
+            equipmentVisual={equipmentVisual}
+            level={level}
+            relicCount={relicCount}
+            lightRadius={lightRadius}
+          />
+        )
+      ) : (
+        <>
+          <group visible={!combatActive} name="road-world">
+            <WorldChunks
+              chunks={chunks}
+              motionRef={motionRef}
+              motionReduced={motionReduced}
+              quality={quality}
+              weather={weatherMode}
+            />
+          </group>
+          {!combatActive && <WorldRoadEntities
+            motionRef={motionRef}
+            rivals={rivals}
+            collectedPickupIds={collectedPickupIds}
+            brokenObstacleIds={brokenObstacleIds}
+            focusedRivalId={focusedRival?.id ?? null}
+            reducedMotion={motionReduced}
+          />}
+          {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
+        </>
+      )}
       {combatActive ? (
         <DuelArena
           opponentName={opponentName}
@@ -1437,17 +1556,21 @@ function SceneContents({
           visualEffectsEnabled={visualEffectsEnabled}
           finisherSlowMotion={finisherSlowMotion}
           botTelegraphActive={botTelegraphActive}
+          worldV2Enabled={worldV2Enabled}
         />
       ) : (
-        <KnightActor
-          motionRef={motionRef}
-          state={animationState}
-          motionReduced={motionReduced}
-          footSlipRef={footSlipRef}
-          appearance={equipmentVisual}
-        />
+        !worldV2Enabled && (
+          <KnightActor
+            motionRef={motionRef}
+            state={animationState}
+            motionReduced={motionReduced}
+            footSlipRef={footSlipRef}
+            appearance={equipmentVisual}
+          />
+        )
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
+      <WorldRenderCanary onStatus={reportCanaryStatus} />
     </>
   );
 }
@@ -1458,7 +1581,13 @@ function isDebugEnabled() {
   return query.get("debug") === "1" || query.get("selftest") === "1";
 }
 
+function isSelfTestEnabled() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("selftest") === "1";
+}
+
 export default function World3D(props: World3DProps) {
+  const active = props.active ?? true;
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [contextLost, setContextLost] = useState(false);
@@ -1469,6 +1598,23 @@ export default function World3D(props: World3DProps) {
   const [firstFrameReported, setFirstFrameReported] = useState(false);
   const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
   const [debugCopied, setDebugCopied] = useState(false);
+  const [selfTestRows, setSelfTestRows] = useState<ReadonlyMap<string, WorldCanarySnapshot["lastPixel"]>>(
+    () => new Map(),
+  );
+  const recordSelfTestCombo = useCallback((
+    biome: WorldBiome,
+    opponentTitle: string,
+    pixel: WorldCanarySnapshot["lastPixel"],
+  ) => {
+    const key = `${biome}:${opponentTitle}`;
+    setSelfTestRows((current) => {
+      if (current.has(key)) return current;
+      const next = new Map(current);
+      next.set(key, pixel);
+      return next;
+    });
+  }, []);
+  const selfTestEnabled = isSelfTestEnabled();
   const recoveryStageRef = useRef(0);
   const lastRecoveryFailureWasContextCreationRef = useRef(false);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
@@ -1505,6 +1651,9 @@ export default function World3D(props: World3DProps) {
     pixelLuminance: null,
     litPixelSamples: 0,
     pixelSampleCount: 0,
+    canaryState: "waiting",
+    canaryConsecutiveBlack: 0,
+    canaryPixel: null,
   });
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
@@ -1531,23 +1680,22 @@ export default function World3D(props: World3DProps) {
       lastRecoveryFailureWasContextCreationRef.current = true;
     }
     const nextStage = nextWorldRecoveryStage(recoveryStageRef.current, error?.message);
-    if (nextStage > 4) {
+    if (nextStage > 3) {
       setRecoveryMessage("Sahne yenilenemedi · Yeniden yükle");
       return;
     }
     recoveryStageRef.current = nextStage;
-    emitWorldDiagnostic("recovery", `Kurtarma ${nextStage}/4 başlatıldı.`);
+    emitWorldDiagnostic("recovery", `Kurtarma ${nextStage}/3 başlatıldı.`);
     setContextLost(false);
     setRecoveryMessage("Sahne yenileniyor…");
     setRecoveryStage(nextStage);
-    if (nextStage >= 3) {
+    if (nextStage === 1 || nextStage === 3) {
       setFirstFrameReported(false);
-      if (nextStage === 4 && !lastRecoveryFailureWasContextCreationRef.current) {
-        setSceneAttempt((attempt) => attempt + 1);
-      } else {
-        setWebglAvailable(null);
-        setCanvasAttempt((attempt) => attempt + 1);
-      }
+      setSceneAttempt((attempt) => attempt + 1);
+    } else if (nextStage === 2) {
+      setFirstFrameReported(false);
+      setWebglAvailable(null);
+      setCanvasAttempt((attempt) => attempt + 1);
     }
   }, []);
   const markContextLost = useCallback(() => {
@@ -1556,13 +1704,12 @@ export default function World3D(props: World3DProps) {
     setContextLost(true);
   }, []);
   const rebuildRestoredContext = useCallback(() => {
-    recoveryStageRef.current = Math.max(recoveryStageRef.current, 3);
+    recoveryStageRef.current = Math.max(recoveryStageRef.current, 1);
     setRecoveryStage(recoveryStageRef.current);
     setContextLost(false);
     setRecoveryMessage("Sahne yenileniyor…");
     setFirstFrameReported(false);
-    setWebglAvailable(null);
-    setCanvasAttempt((attempt) => attempt + 1);
+    setSceneAttempt((attempt) => attempt + 1);
   }, []);
 
   const copyDebugEvents = useCallback(() => {
@@ -1616,12 +1763,12 @@ export default function World3D(props: World3DProps) {
   }, [retryCanvasAfterError]);
 
   useEffect(() => {
-    if (!contextLost) return undefined;
+    if (!contextLost || !active) return undefined;
     const timer = window.setTimeout(() => {
       retryCanvasAfterError(new Error("WebGL bağlamı 2,5 saniyede geri yüklenmedi."));
     }, 2_500);
     return () => window.clearTimeout(timer);
-  }, [contextLost, retryCanvasAfterError]);
+  }, [active, contextLost, retryCanvasAfterError]);
 
   useEffect(() => {
     const syncDebug = () => setDebugEnabled(isDebugEnabled());
@@ -1635,16 +1782,16 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt]);
 
   useEffect(() => {
-    if (webglAvailable !== true || firstFrameReported || contextLost) return undefined;
+    if (!active || webglAvailable !== true || firstFrameReported || contextLost) return undefined;
     const timer = window.setTimeout(() => {
       emitWorldDiagnostic("render", "Canvas başlatıldı ancak 3 saniyede ilk çizim karesi gelmedi.");
       retryCanvasAfterError(new Error("3D sahne ilk kareyi çizmedi."));
     }, 3_000);
     return () => window.clearTimeout(timer);
-  }, [canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
-    if (webglAvailable !== true || contextLost) return undefined;
+    if (!active || webglAvailable !== true || contextLost) return undefined;
     const timer = window.setInterval(() => {
       if (document.visibilityState === "hidden" || !firstFrameReported || !lastSceneFrameAt) return;
       if (performance.now() - lastSceneFrameAt < 2_500) return;
@@ -1653,10 +1800,10 @@ export default function World3D(props: World3DProps) {
       retryCanvasAfterError(new Error("WebGL render loop durdu."));
     }, 1_500);
     return () => window.clearInterval(timer);
-  }, [canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
-    if (!webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
+    if (!active || !webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
     const timer = window.setTimeout(() => {
       recoveryStageRef.current = 0;
       lastRecoveryFailureWasContextCreationRef.current = false;
@@ -1665,17 +1812,17 @@ export default function World3D(props: World3DProps) {
       emitWorldDiagnostic("recovery", "Sahne 10 saniye boyunca çizim üretti; kurtarma sayacı sıfırlandı.");
     }, 10_000);
     return () => window.clearTimeout(timer);
-  }, [canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
-    if (!firstFrameReported || recoveryStage === 0 || recoveryStage >= 3) return undefined;
+    if (!active || !firstFrameReported || recoveryStage === 0 || recoveryStage >= 3) return undefined;
     const timer = window.setTimeout(() => {
       if (lastSceneFrameAt && performance.now() - lastSceneFrameAt < 1_500) {
         setRecoveryMessage("");
       }
     }, 1_200);
     return () => window.clearTimeout(timer);
-  }, [firstFrameReported, recoveryStage]);
+  }, [active, firstFrameReported, recoveryStage]);
 
   const debugBiomeTransition = getBiomeTransition(debugStats.distance);
   const debugFogDensity = getWorldFogDensity(
@@ -1683,6 +1830,7 @@ export default function World3D(props: World3DProps) {
     debugBiomeTransition.biome,
     props.combatActive,
   );
+  const activeOpponentTitle = getWorldBotProfileByName(props.opponentName)?.title;
 
   return (
     <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
@@ -1695,6 +1843,7 @@ export default function World3D(props: World3DProps) {
           onError={retryCanvasAfterError}
         >
           <Canvas
+            frameloop={active ? "always" : "never"}
             dpr={[minDpr, maxDpr]}
             shadows={props.quality !== "low"}
             camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: WORLD_CAMERA_FAR }}
@@ -1745,7 +1894,9 @@ export default function World3D(props: World3DProps) {
               onError={retryCanvasAfterError}
             >
               <SceneContents
+                key={sceneAttempt}
                 {...props}
+                onSelfTestCombo={recordSelfTestCombo}
                 debugEnabled={debugEnabled}
                 recoveryStage={recoveryStage}
                 onDebugStats={setDebugStats}
@@ -1786,7 +1937,49 @@ export default function World3D(props: World3DProps) {
           )}
           <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {props.weatherMode} · Sis: {debugFogDensity.toFixed(4)} · Parça: {debugStats.chunks}</span>
           <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · BG: {debugStats.background} · Pozlama: {debugStats.exposure.toFixed(2)} · Işık: {debugStats.lights} · Sis: {debugStats.fogDensity.toFixed(4)}</span>
-          <span>ReadPixels luma: {debugStats.pixelLuminance === null ? "bekleniyor" : debugStats.pixelLuminance.toFixed(3)} · Aydınlık örnek: {debugStats.litPixelSamples}/{debugStats.pixelSampleCount} · Shader programı: {debugStats.programs}</span>
+          <span>Kanarya: {debugStats.canaryState} · Siyah art arda: {debugStats.canaryConsecutiveBlack}/5 · Sahne luma: {debugStats.pixelLuminance === null ? "bekleniyor" : debugStats.pixelLuminance.toFixed(3)} · Parlak örnek: {debugStats.litPixelSamples}/{debugStats.pixelSampleCount} · Shader: {debugStats.programs}</span>
+          {selfTestEnabled && (
+            <section className="world-debug__selftest" aria-label="Biyom ve rakip WebGL canary test tablosu">
+              <b>SELF-TEST · BİYOM × RAKİP</b>
+              <div className="world-debug__selftest-scroll">
+                <table>
+                  <thead>
+                    <tr><th>Biyom</th><th>Rakip sınıfı</th><th>readPixels RGBA</th><th>Sonuç</th></tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(WORLD_BIOME_PALETTES).flatMap(([biomeKey, palette]) => {
+                      const biome = biomeKey as WorldBiome;
+                      return WORLD_BOT_PROFILES.map((botProfile) => {
+                        const key = `${biome}:${botProfile.title}`;
+                        const sampledPixel = selfTestRows.get(key);
+                        const activeCombo = debugBiomeTransition.biome === biome
+                          && props.combatActive
+                          && activeOpponentTitle === botProfile.title;
+                        const status = sampledPixel
+                          ? "GEÇTİ"
+                          : activeCombo && debugStats.canaryState === "black"
+                            ? "SİYAH"
+                            : activeCombo && debugStats.canaryState === "healthy"
+                              ? "ÖRNEK BEKLENİYOR"
+                              : "BEKLENİYOR";
+                        const pixel = sampledPixel
+                          ?? (activeCombo ? debugStats.canaryPixel : null);
+                        return (
+                          <tr key={key} data-status={status === "GEÇTİ" ? "passed" : status === "SİYAH" ? "failed" : "waiting"}>
+                            <td>{palette.label}</td>
+                            <td>{botProfile.title}</td>
+                            <td>{pixel ? pixel.join(",") : "—"}</td>
+                            <td>{status}</td>
+                          </tr>
+                        );
+                      });
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <small>Yalnızca düello açıkken ve aynı karede kırmızı kanarya okunduğunda “GEÇTİ” işaretlenir.</small>
+            </section>
+          )}
           <span>Rakip: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
           <div className="world-debug__actions">
             <button type="button" onClick={props.onDebugNearestRival}>En yakın rakip</button>

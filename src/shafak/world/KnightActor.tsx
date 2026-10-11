@@ -177,23 +177,24 @@ function prepareModel(
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
-    let changed = false;
+    let hasResizedTexture = false;
     const resizedMaterials = materials.map((original) => {
-      let customized: THREE.Material | null = null;
+      const customized = original.clone();
+      ownedMaterials.push(customized);
       for (const [key, value] of Object.entries(original)) {
         if (!(value instanceof THREE.Texture)) continue;
         const resized = downscaleTexture(value, modelPath, textureCache);
         if (!resized) continue;
-        customized ??= original.clone();
         (customized as THREE.Material & Record<string, unknown>)[key] = resized;
         if (!ownedTextures.includes(resized)) ownedTextures.push(resized);
-        changed = true;
+        hasResizedTexture = true;
       }
-      if (!customized) return original;
-      ownedMaterials.push(customized);
       return customized;
     });
-    if (changed) object.material = Array.isArray(object.material) ? resizedMaterials : resizedMaterials[0];
+    object.material = Array.isArray(object.material) ? resizedMaterials : resizedMaterials[0];
+    if (hasResizedTexture) {
+      emitWorldDiagnostic("model-budget", `${modelPath}: klonlanan materyaller için doku bütçesi uygulandı.`);
+    }
   });
 
   model.traverse((object) => {
@@ -205,19 +206,11 @@ function prepareModel(
         ? getOpponentPartColor(object.name, original.name, modelConfig)
         : undefined;
       if (!color) return original;
-      const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
-      if (!originalColor?.isColor) return original;
-
-      const customized = original.clone();
-      const materialColor = (customized as THREE.Material & { color?: THREE.Color }).color;
-      if (!materialColor?.isColor) {
-        customized.dispose();
-        return original;
-      }
+      const materialColor = (original as THREE.Material & { color?: THREE.Color }).color;
+      if (!materialColor?.isColor) return original;
       materialColor.set(color);
-      ownedMaterials.push(customized);
       changed = true;
-      return customized;
+      return original;
     });
     if (changed) object.material = Array.isArray(object.material) ? materials : materials[0];
   });

@@ -56,8 +56,9 @@ export default function WorldV2Terrain({
     );
     material.roughness = weather === "rain" ? 0.72 : 0.98;
     material.metalness = weather === "rain" ? 0.025 : 0;
+    material.flatShading = quality !== "high";
     terrainRef.current.position.set(camera.position.x * 0.88, 0, camera.position.z * 0.92 - 24);
-    terrainRef.current.visible = quality !== "low";
+    terrainRef.current.visible = true;
   });
 
   return (
