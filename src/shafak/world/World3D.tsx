@@ -17,7 +17,12 @@ import {
   WorldChunks,
 } from "./WorldElements";
 import { createWorldChunk, type WorldChunk } from "./world-generation";
-import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
+import {
+  getBiomeTransition,
+  getWorldFogDensity,
+  WORLD_BIOME_PALETTES,
+  type WeatherMode,
+} from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldCollisionGrid, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
@@ -30,6 +35,7 @@ import {
 } from "./world-diagnostics";
 import WorldPostProcessing from "./WorldPostProcessing";
 import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
+import { WORLD_CAMERA_FAR } from "./world-render-config";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -260,11 +266,7 @@ function SceneFog({
     if (!fog) return;
     const transition = getBiomeTransition(motionRef.current.distance);
     fog.color.lerpColors(FOG_COLORS[transition.from], FOG_COLORS[transition.to], transition.mix);
-    const baseDensity = combatActive
-      ? 0.0028
-      : weatherMode === "fog" ? 0.016 : weatherMode === "rain" ? 0.0095 : weatherMode === "ash" ? 0.0085 : 0.004;
-    const biomeDensity = transition.biome === "frozen-pass" ? 1.08 : transition.biome === "red-marsh" ? 1.13 : 1;
-    fog.density = baseDensity * biomeDensity;
+    fog.density = getWorldFogDensity(weatherMode, transition.biome, combatActive);
   });
   return null;
 }
@@ -442,7 +444,7 @@ function CameraRig({
     }
   });
 
-  return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.6} far={190} />;
+  return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.6} far={WORLD_CAMERA_FAR} />;
 }
 
 function combatAnimation(action: CombatAction, speed: number) {
@@ -1450,19 +1452,11 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt, webglAvailable]);
 
   const debugBiomeTransition = getBiomeTransition(debugStats.distance);
-  const debugBaseFogDensity = props.weatherMode === "fog"
-    ? 0.016
-    : props.weatherMode === "rain"
-      ? 0.0095
-      : props.weatherMode === "ash"
-        ? 0.0085
-        : 0.004;
-  const debugBiomeDensity = debugBiomeTransition.biome === "frozen-pass"
-    ? 1.08
-    : debugBiomeTransition.biome === "red-marsh"
-      ? 1.13
-      : 1;
-  const debugFogDensity = debugBaseFogDensity * debugBiomeDensity;
+  const debugFogDensity = getWorldFogDensity(
+    props.weatherMode,
+    debugBiomeTransition.biome,
+    props.combatActive,
+  );
 
   return (
     <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
@@ -1477,7 +1471,7 @@ export default function World3D(props: World3DProps) {
           <Canvas
             dpr={[minDpr, maxDpr]}
             shadows={props.quality !== "low"}
-            camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: 190 }}
+            camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: WORLD_CAMERA_FAR }}
             gl={{
               alpha: false,
               antialias: false,

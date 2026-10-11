@@ -1046,8 +1046,8 @@
 .duel-hit-flash.is-skillTwo { background: radial-gradient(ellipse at center,rgba(120,221,255,.37),rgba(82,126,255,.12) 42%,transparent 72%); mix-blend-mode: screen; }
 .world-scene[data-battle="settling"] .world-stage { filter: saturate(.55) contrast(1.08); transform: scale(1.018); transition: filter .22s ease, transform .22s ease; }
 .world-scene[data-finisher="true"] .world-stage { transform-origin: 50% 48%; animation: duel-finisher-slowmo .72s cubic-bezier(.16,.68,.25,1) both; }
-.duel-result-layer,.duel-error-layer { position: absolute; z-index: 15; inset: 0; display: grid; place-items: center; padding: max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom)); background: rgba(5,6,10,.64); backdrop-filter: blur(5px); }
-.duel-error-layer { background: rgba(5,6,10,.34); backdrop-filter: blur(2px); }
+.duel-result-layer,.duel-error-layer { position: absolute; z-index: 15; inset: 0; display: grid; place-items: center; padding: max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom)); background: rgba(5,6,10,.64); }
+.duel-error-layer { background: rgba(5,6,10,.46); }
 .duel-result-layer .duel-result { position: absolute; inset: 0; min-height: 100%; background: radial-gradient(ellipse at 50% 50%,rgba(26,22,22,.58),rgba(6,7,11,.74)); }
 .duel-result-layer .duel-result__card { max-height: calc(100svh - 32px); overflow-y: auto; }
 .duel-result__note { margin: 10px 0 0; color: #d8b77c; font-size: 9px; }

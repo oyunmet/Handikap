@@ -7,6 +7,7 @@ import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
+import { WORLD_SKY_SPHERE_RADIUS } from "./world-render-config";
 import type { WorldQuality } from "./World3D";
 import WorldStaticBatches from "./WorldStaticBatches";
 
@@ -571,7 +572,7 @@ function CrystalProp({ object }: { object: WorldObject }) {
 }
 
 function createSkyGeometry() {
-  const geometry = new THREE.SphereGeometry(260, 32, 16);
+  const geometry = new THREE.SphereGeometry(WORLD_SKY_SPHERE_RADIUS, 32, 16);
   const positions = geometry.getAttribute("position");
   const colors = new Float32Array(positions.count * 3);
   const horizon = new THREE.Color("#a05d4d");
@@ -580,7 +581,7 @@ function createSkyGeometry() {
   const dusk = new THREE.Color("#6a4654");
   const color = new THREE.Color();
   for (let index = 0; index < positions.count; index += 1) {
-    const height = THREE.MathUtils.clamp(positions.getY(index) / 260, -1, 1);
+    const height = THREE.MathUtils.clamp(positions.getY(index) / WORLD_SKY_SPHERE_RADIUS, -1, 1);
     const blend = THREE.MathUtils.smoothstep(height, -0.25, 0.62);
     color.copy(horizon).lerp(middle, THREE.MathUtils.smoothstep(height, -0.12, 0.38));
     color.lerp(zenith, THREE.MathUtils.smoothstep(height, 0.24, 0.92));
