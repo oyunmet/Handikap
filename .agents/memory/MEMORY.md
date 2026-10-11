@@ -3,3 +3,4 @@
 - [Current game and staged work](handikap-original-identity.md) — The active game is Şafak Savaşçıları; follow scoped phases in order without interim approval.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
 - [WebGL preview limits](webgl-preview-limits.md) — A successful GLB load and live controls do not prove pixels rendered when the preview browser lacks WebGL.
+- [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.

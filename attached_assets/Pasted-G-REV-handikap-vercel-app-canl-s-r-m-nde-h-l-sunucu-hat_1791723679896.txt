@@ -1,0 +1,45 @@
+GÖREV: handikap.vercel.app canlı sürümünde hâlâ sunucu hataları var. Kök nedeni kanıtla bul, KALICI düzelt, canlıda uçtan uca doğrula. Kredi sınırım dar: aynı dosyaları tekrar tekrar açma, uzun düşünme, kontrolleri birleştir, tek seferde çalış.
+
+GÜNCEL DURUM
+- Açılış ekranı şu an: "Oturum doğrulanamadı. Yeniden giriş yapıp tekrar dene." (Önceden "Hesap kaydı sunucuya bağlanamadı" ve oyunda "Eşya sunucuda doğrulanamadı" çıkıyordu.)
+- Yorum: /api artık erişilebilir ama sunucu Clerk oturum token'ını doğrulayamıyor (401). Altın/eşya toplama ve profil kaydı buna bağlı.
+- Önceki turdaki düzeltmeleri KORU: 401/503 ayrımı, eşya isteğinde en fazla 2 tekrar, Vercel'de bağımsız API rotası, global pool, Supabase SSL, health endpoint.
+- Kod commit/push EDİLMEDİ ve migration 001–005 Supabase'de ÇALIŞTIRILMADI.
+
+ONAYLARIM (soru sorma, bunlara göre ilerle)
+- main'e push etmeni ve bunun Vercel production deploy'unu başlatmasını ONAYLIYORUM.
+- 002_remove_match_duel_data.sql'in shafak_duels.moves ve result sütunlarındaki eski taş birleştirme verisini kalıcı silmesini ONAYLIYORUM. Ama silmeden önce tabloda kaç satır olduğunu say ve raporla; satır varsa önce yedeğini al (CSV/JSON). Tablo Supabase'de yoksa silinecek veri de yoktur, bunu yaz.
+
+ADIM 1 – CLERK 401 KÖK NEDEN (en öncelikli)
+a) Sunucudaki auth kodunu (clerkMiddleware / verifyToken / getAuth, [...path].ts ve ilgili api dosyaları) incele. Şunları ara ve gerekirse düzelt:
+   - proxyUrl, CLERK_PROXY_URL, domain, isSatellite ayarları. Frontend'deki VITE_CLERK_PROXY_URL'i sildik; sunucuda hâlâ proxy ayarı varsa KALDIR.
+   - authorizedParties varsa https://handikap.vercel.app içermeli; uyumsuzsa kaldır veya düzelt.
+   - Token'ın nereden okunduğu: Authorization: Bearer başlığı mı, cookie mi? Vercel serverless ortamında Bearer başlığı birincil olmalı.
+b) İstemci tarafı: API çağrılarında token'ın `await getToken()` ile her istekte taze alınıp `Authorization: Bearer <token>` olarak gönderildiğini doğrula. getToken() null dönerse API'yi çağırma, kullanıcıyı girişe yönlendir. 401 gelirse BİR kez `getToken({ skipCache: true })` ile yenileyip tekrar dene; yine 401 ise "Oturum doğrulanamadı" göster ve giriş ekranına dön.
+c) Anahtar tutarlılığı: Vercel'deki CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY ve (build zamanında gömülen) VITE_CLERK_PUBLISHABLE_KEY AYNI Clerk uygulamasından olmalı (hepsi pk_test/sk_test, aynı instance). Publishable key'in base64 gövdesini çözüp instance host'unu çıkar; secret key'in aynı instance'a ait olduğunu Clerk Backend API'ye basit bir çağrıyla (örn. kullanıcı listesi limit=1) doğrula. Değerleri ASLA yazdırma; sadece "eşleşiyor/eşleşmiyor" raporla. Replit'in kendi Clerk entegrasyonu anahtarlarıyla Vercel'dekiler farklıysa bunu açıkça yaz.
+d) Sunucu 401 verirken yanıt gövdesine ve loga gizli bilgi içermeyen bir neden kodu ekle (örn. token-expired, token-invalid-signature, token-iat-in-the-future, secret-key-invalid, authorized-party-mismatch, header-missing). Böylece Vercel loglarından sebep okunabilsin.
+
+ADIM 2 – UÇTAN UCA CANLI TEST
+- Clerk dev instance'ında (pk_test/sk_test) test kullanıcısı için Backend API ile oturum ve token üret (Create session + Create session token), bu token'la canlı https://handikap.vercel.app/api/profile ve eşya toplama endpoint'ine curl at. Token'ı ve secret'ı çıktıya yazma. Test bitince test oturumunu revoke et.
+- Kontrol et: tokensiz → 401 (neden kodu ile), geçerli token → 200, token geçerli ama DB kapalıysa → 503.
+- İlk girişte profil yoksa otomatik oluşturulsun (upsert, tekrar kayıt oluşmasın).
+
+ADIM 3 – MİGRATION (Supabase)
+- DATABASE_URL (Supabase) erişimin varsa: migration'ı Session pooler/Direct (5432) üzerinden 001–005 sırasıyla çalıştır, idempotent olsun. Sonra tabloların var olduğunu SELECT ile doğrula ve tablo listesini yaz. Uygulama çalışma anında Transaction pooler (6543) + prepared statement kapalı kalsın.
+- Erişimin YOKSA: 001–005'i tek dosyada birleştir (/supabase/all_migrations.sql, idempotent, 002'deki yıkıcı kısım ayrı ve yorum satırıyla işaretli) ve bana "Supabase → SQL Editor'e yapıştır" için hazır ver. Çalıştırdıktan sonra /api/health tablo kontrolüyle doğrulayacağız.
+- Şifrede özel karakter varsa URL-encode gerektiğini kontrol et.
+
+ADIM 4 – GIT VE DEPLOY
+- git status, commit, `git push origin main`. `git log origin/main -1` ile push'u kanıtla.
+- Vercel deploy'unun Ready olduğunu doğrula. Env değişkeni değiştiyse redeploy gerektiğini belirt (VITE_ ile başlayanlar build zamanında gömülür).
+- Deploy sonrası canlıda /api/health çağır ve yanıtı göster: db bağlantısı, gerekli tablolar, Clerk key varlığı ve geçerliliği (true/false), ortam adı. 200 ve her şey ok görmeden "çözüldü" deme.
+
+ADIM 5 – İSTEMCİ DAVRANIŞI
+- "Hesap kaydı sunucuya bağlanamadı" yalnızca gerçek ağ/503 hatasında çıksın; 401'de "Oturum doğrulanamadı" + giriş yönlendirmesi çıksın. Aynı uyarı ekranda tekrar tekrar belirmesin (spam yok).
+- Altın/eşya toplama başarısızsa eşya yerde kalsın ama hata mesajı kısa ve en fazla birkaç saniye görünsün.
+
+KURALLAR
+- Gizli anahtar, şifre, token ve bağlantı adresini loglama, commit etme, çıktıya yazma.
+- Karakter, animasyon, 3D model, efekt ve oyun mekaniğine DOKUNMA. Sadece auth, API, veritabanı, Vercel yapılandırması ve ilgili hata yönetimi.
+- Bir adım başarısız olursa dur, gerçek hata mesajını (gizli bilgi olmadan) göster, düzelt, tekrar dene. "Muhtemelen çalışır" deme, kanıtla.
+- Sonunda KISA rapor ver: kök neden, değişen dosyalar, çalıştırılan komutlar, canlı test sonuçları ve BENİM elle yapmam gerekenler (Vercel redeploy, env, Supabase SQL).
