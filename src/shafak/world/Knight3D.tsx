@@ -480,7 +480,11 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
           </mesh>
           <mesh position={[0, 0.03, -0.202]} scale={[0.12, 0.012, 0.006]}>
             <boxGeometry args={[1, 1, 1]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.visor} emissive={KNIGHT_CONFIG.colors.visor} emissiveIntensity={0.32} />
+            <meshStandardMaterial
+              color={appearance?.auraColor ?? KNIGHT_CONFIG.colors.visor}
+              emissive={appearance?.auraColor ?? KNIGHT_CONFIG.colors.visor}
+              emissiveIntensity={appearance?.armorStyle === "shadow" ? 0.8 : 0.52}
+            />
           </mesh>
           <mesh position={[0, -0.09, -0.17]}>
             <boxGeometry args={[0.24, 0.07, 0.08]} />
@@ -604,6 +608,38 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
                     <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.23} metalness={0.86} flatShading />
                   </mesh>
                 </>
+              ) : appearance?.weaponStyle === "bow" ? (
+                <>
+                  <mesh position={[0, 0.47, 0]} rotation={[0, 0, Math.PI / 2]}>
+                    <torusGeometry args={[0.3, 0.034, 5, 12, Math.PI * 1.55]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? "#c8905a"} roughness={0.6} metalness={0.12} />
+                  </mesh>
+                  <mesh position={[0, 0.48, -0.012]}>
+                    <cylinderGeometry args={[0.009, 0.009, 0.56, 4]} />
+                    <meshStandardMaterial color="#e0d2b8" roughness={0.65} />
+                  </mesh>
+                  <mesh position={[0.035, 0.47, -0.018]}>
+                    <boxGeometry args={[0.012, 0.34, 0.008]} />
+                    <meshStandardMaterial color="#ffe0a1" emissive="#ff9b48" emissiveIntensity={0.24} />
+                  </mesh>
+                </>
+              ) : appearance?.weaponStyle === "mace" ? (
+                <>
+                  <mesh position={[0, 0.38, 0]}>
+                    <cylinderGeometry args={[0.045, 0.052, 0.72, 6]} />
+                    <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
+                  </mesh>
+                  <mesh position={[0.02, 0.8, 0]}>
+                    <dodecahedronGeometry args={[0.19, 0]} />
+                    <meshStandardMaterial color={appearance.weaponColor ?? KNIGHT_CONFIG.colors.steel} metalness={0.74} roughness={0.28} flatShading />
+                  </mesh>
+                  {[-1, 1].map((side) => (
+                    <mesh key={side} position={[side * 0.19, 0.8, 0]} rotation={[0, 0, -side * Math.PI / 2]}>
+                      <coneGeometry args={[0.07, 0.2, 4]} />
+                      <meshStandardMaterial color={appearance?.trim ?? "#bd9a5d"} metalness={0.58} roughness={0.34} />
+                    </mesh>
+                  ))}
+                </>
               ) : (
                 <>
                   <mesh position={[0, 0.02, 0]}>
@@ -616,7 +652,22 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
                   </mesh>
                   <mesh position={[0, 0.47, 0]}>
                     <boxGeometry args={[0.105, 0.62, 0.045]} />
-                    <meshStandardMaterial color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
+                    <meshStandardMaterial
+                      color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel}
+                      emissive={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel}
+                      emissiveIntensity={0.12}
+                      roughness={0.29}
+                      metalness={0.84}
+                    />
+                  </mesh>
+                  <mesh position={[0, 0.47, -0.026]}>
+                    <boxGeometry args={[0.012, 0.32, 0.008]} />
+                    <meshStandardMaterial
+                      color={appearance?.auraColor ?? "#f5c175"}
+                      emissive={appearance?.auraColor ?? "#f5c175"}
+                      emissiveIntensity={0.72}
+                      toneMapped={false}
+                    />
                   </mesh>
                   <mesh position={[0, 0.81, 0]} rotation={[0, 0, Math.PI]}>
                     <coneGeometry args={[0.052, 0.16, 4]} />

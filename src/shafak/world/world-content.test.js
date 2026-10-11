@@ -6,6 +6,7 @@ import {
   resolveWorldObstacleCollision,
   validatePickupIds,
 } from "./world-content.ts";
+import { WORLD_BOT_PROFILES } from "./world-bot-profiles.ts";
 
 test("seeded chapter content is stable and contains four escalating BOTs", () => {
   const first = getWorldChapter(0);
@@ -13,7 +14,21 @@ test("seeded chapter content is stable and contains four escalating BOTs", () =>
   assert.notDeepEqual(getWorldChapter(1), first);
   assert.equal(first.pickups.length, 13);
   assert.equal(first.rivals.length, 4);
-  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["sword", "axe", "spear", "mace"]);
+  assert.deepEqual(first.rivals.map((rival) => rival.name), [
+    "Kapı Muhafızı",
+    "Demir Yemin",
+    "Kül Okçusu",
+    "Gölge Şövalyesi",
+  ]);
+  assert.deepEqual(first.rivals.map((rival) => rival.archetype), WORLD_BOT_PROFILES.map((profile) => profile.archetype));
+  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["greatsword", "mace", "bow", "spear"]);
+  assert.deepEqual(WORLD_BOT_PROFILES.map((profile) => profile.appearance.weaponStyle), [
+    "greatsword",
+    "mace",
+    "bow",
+    "daggers",
+  ]);
+  assert.equal(new Set(first.rivals.map((rival) => rival.armorTint)).size, 4);
   assert.equal(new Set(first.rivals.map((rival) => rival.name)).size, 4);
   assert.ok(first.rivals[0].distance >= 51 && first.rivals[0].distance <= 53);
   assert.ok(first.rivals.every((rival) => rival.id.includes(":bot:")));

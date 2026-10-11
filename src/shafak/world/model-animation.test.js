@@ -21,8 +21,8 @@ test("missing locomotion clips fall back to a usable idle or walking clip", () =
   assert.equal(resolveGlbClipName("block", ["Idle"]), null);
 });
 
-test("Gece Nöbetçisi maps every model state to its exact GLB clip", () => {
-  const config = OPPONENT_MODEL_CONFIGS["Gece Nöbetçisi"];
+test("Gölge Şövalyesi maps every model state to its exact GLB clip", () => {
+  const config = OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"];
   assert.equal(config.modelPath, "/models/gece-nobetcisi.glb");
   assert.equal(config.scale, 1);
   assert.equal(config.modelFacing, 0);
@@ -46,7 +46,7 @@ test("Gece Nöbetçisi maps every model state to its exact GLB clip", () => {
   }
 });
 
-test("Gece Nöbetçisi GLB has its expected rig, feet-on-ground bounds, and clips", () => {
+test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {
   const buffer = fs.readFileSync(new URL("../../../public/models/gece-nobetcisi.glb", import.meta.url));
   assert.equal(buffer.toString("ascii", 0, 4), "glTF");
   assert.equal(buffer.readUInt32LE(4), 2);
@@ -54,7 +54,7 @@ test("Gece Nöbetçisi GLB has its expected rig, feet-on-ground bounds, and clip
   assert.equal(buffer.readUInt32LE(16), 0x4e4f534a);
   const jsonLength = buffer.readUInt32LE(12);
   const model = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").replace(/\0+$/, "").trim());
-  const config = OPPONENT_MODEL_CONFIGS["Gece Nöbetçisi"];
+  const config = OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"];
   const expectedClips = [
     "Idle", "Walk", "Run", "Attack1", "Block", "Dodge", "HitReaction",
     "Cast_Fire", "Cast_Lightning", "Death", "Victory",

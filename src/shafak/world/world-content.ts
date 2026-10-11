@@ -1,5 +1,6 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement";
 import { WORLD_SEED } from "./world-generation";
+import { getWorldBotProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles";
 
 export type PickupKind = "gold-small" | "gold-large" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -39,7 +40,8 @@ export type WorldRival = {
   distance: number;
   armorTint: string;
   size: number;
-  weapon: "sword" | "axe" | "spear" | "mace";
+  archetype: WorldBotArchetype;
+  weapon: WorldBotWeapon;
 };
 
 export type WorldChapterContent = {
@@ -56,16 +58,6 @@ export const MAX_CHAPTER_ID = 1_000_000;
 
 const PICKUP_DISTANCES = [10, 19, 28, 34, 62, 69, 92, 99, 105, 123, 129, 138] as const;
 const PICKUP_LANES = [-4.8, -3.2, 0, 3.2, 4.8] as const;
-const RIVAL_NAMES = ["Kül İzci", "Demir Yemin", "Gece Nöbetçisi", "Kapı Muhafızı"] as const;
-const RIVAL_TINTS = ["#a44e47", "#4e6f85", "#71619a", "#9b763d"] as const;
-const WEAPONS = ["sword", "axe", "spear", "mace"] as const;
-const TAUNTS = [
-  "Kül Yolu'nda ilerlemek kolay değil.",
-  "Bu geçitten sağ çıkabilecek misin?",
-  "Kapıya yaklaşmana izin vermeyeceğim.",
-  "Son adımını dikkatli at, yolcu.",
-] as const;
-
 function seededRandom(seed: number) {
   let value = seed >>> 0;
   return () => {
@@ -161,21 +153,25 @@ function createObstacles(chapterId: number): WorldObstacle[] {
 
 function createRivals(chapterId: number, random: () => number): WorldRival[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
-  return RIVAL_NAMES.map((name, index) => ({
-    id: `ash-road:${chapterId}:bot:${index}`,
-    name,
-    level: Math.min(1000, 2 + chapterId * 2 + index * 2),
-    winRate: 42 + index * 9 + Math.min(24, chapterId * 2),
-    loot: 48 + index * 24 + chapterId * 6,
-    taunt: TAUNTS[index],
-    difficulty: index === 0 ? "easy" : index === 3 ? "hard" : "medium",
-    chapterId,
-    x: index % 2 === 0 ? -3.6 : 3.4,
-    distance: chapterStart + [52, 84, 109, 134][index] + (random() - 0.5) * 2,
-    armorTint: RIVAL_TINTS[index],
-    size: 0.92 + index * 0.055,
-    weapon: WEAPONS[index],
-  }));
+  return Array.from({ length: 4 }, (_, index) => {
+    const profile = getWorldBotProfile(index);
+    return {
+      id: `ash-road:${chapterId}:bot:${index}`,
+      name: profile.name,
+      archetype: profile.archetype,
+      level: Math.min(1000, 2 + chapterId * 2 + index * 2),
+      winRate: 42 + index * 9 + Math.min(24, chapterId * 2),
+      loot: 48 + index * 24 + chapterId * 6,
+      taunt: profile.taunt,
+      difficulty: profile.difficulty,
+      chapterId,
+      x: index % 2 === 0 ? -3.6 : 3.4,
+      distance: chapterStart + [52, 84, 109, 134][index] + (random() - 0.5) * 2,
+      armorTint: profile.armorTint,
+      size: profile.size + Math.min(0.12, chapterId * 0.005),
+      weapon: profile.weapon,
+    };
+  });
 }
 
 export function isValidChapterId(value: unknown): value is number {

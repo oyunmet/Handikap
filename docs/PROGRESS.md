@@ -70,11 +70,35 @@ gerçek cihaz görsel/FPS kabul testi henüz yapılmadı.
   cihaz FPS'i ve GPU sayaçları burada ölçülemedi. Aşama 1'deki iPhone kabul testi
   de hâlâ açık.
 
+## Aşama 3 — Karakterler ve BOT'lar
+
+**Durum:** Kod ve yerel doğrulama tamamlandı.
+
+### Tamamlananlar
+
+- Dört BOT görünümü ve adı ayrışıyor: Kapı Muhafızı (iki elli kılıç), Demir
+  Yemin (gürz/kalkan), Kül Okçusu (yay/sadak), Gölge Şövalyesi (ikiz hançer).
+- Botlar mevcut devriye, oyuncuyu fark etme, yaklaşma ve meydan okuma akışını
+  koruyor; her arketipin ayrı repliği var.
+- İlk BOT kolay, orta gruptaki iki BOT orta, son BOT zor kalıyor; seviye ve
+  bölüm ilerledikçe ödül/seviye ölçeklemesi korunuyor.
+- Şövalyelerin miğfer/omuz ve silah ayrıntıları, kumaş pelerini, çevre ışığı,
+  göz ve kılıçtaki düşük maliyetli emissive vurgular arketipe göre değişiyor.
+- Mevcut prosedürel çevre yansıması, animasyon geçişleri, ayak IK, toz/adım ve
+  mıknatıslı eşya toplama/ses akışları korunuyor.
+
+### Yerel doğrulama
+
+- `npm run typecheck` — geçti.
+- `npm test` — 68 test geçti; BOT kimliği, rol silahları, ayrı görünüm renkleri,
+  seeded içerik ve sunucu tarafı düello tekrarı doğrulandı.
+- `npm run build` — geçti; Vite ana paketin 500 kB üstü olduğunu bildiriyor.
+- Gerçek cihaz FPS'i ve WebGL sahne pikselleri preview ortamında doğrulanamıyor;
+  Aşama 1'deki gerçek iPhone kabul ölçümü hâlâ açık.
+
 ## Devam edecek aşamalar
 
-- **Aşama 3:** Dört ayırt edilebilir BOT görünümü/AI davranışı, karakter çevre
-  haritası ve adım/toz etkileşimlerinin kalan eksikleri.
-- **Aşama 4:** Mevcut düello sistemini gereksinimlerle karşılaştırıp eksik
-  kamerayı, darbeyi, yetenek telegraph'ını ve parçacık bütçesini tamamla.
-- **Aşama 5:** Türkçe hikâye/kapı/NPC diyalogları, biyom tabanlı ambiyans müziği
-  ve ses seviyesi ayarları; ardından bütünleşik hata kurtarma ve son doğrulama.
+- **Aşama 4:** Düello kamera/arena sunumu, saldırı telgrafı, yetenek efektleri ve
+  okunaklı HUD'ın kalan işlerini tamamla.
+- **Aşama 5:** Türkçe hikâye/kapı/NPC diyalogları, biyom tabanlı ambiyans müziği,
+  ayrı ses seviyesi ayarları ve hata kurtarma; ardından son doğrulama.

@@ -22,7 +22,7 @@ export type EquipmentVisual = {
   cape?: string;
   capeLength?: number;
   armorStyle?: "ash" | "watch" | "royal" | "shadow";
-  weaponStyle?: "sword" | "daggers" | "axe" | "greatsword" | "spear";
+  weaponStyle?: "sword" | "daggers" | "axe" | "greatsword" | "spear" | "bow" | "mace";
   weaponColor?: string;
   auraColor?: string;
   trailColor?: string;

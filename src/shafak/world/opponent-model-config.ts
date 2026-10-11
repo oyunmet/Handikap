@@ -27,22 +27,22 @@ export type OpponentModelConfig = {
 };
 
 export const OPPONENT_MODEL_CONFIGS = {
-  "Gece Nöbetçisi": {
+  "Gölge Şövalyesi": {
     modelPath: "/models/gece-nobetcisi.glb",
     // Native bounds are Y=0..1.8, feet at ground, and forward is +Z.
     scale: 1,
     modelFacing: 0,
     rootBoneName: "Rig_Hips",
     appearance: {
-      armor: "#253946",
-      armorLight: "#547987",
-      armorDark: "#14252f",
-      trim: "#86cfd4",
-      cape: "#273b52",
-      armorStyle: "watch",
-      weaponStyle: "sword",
-      weaponColor: "#a9dce0",
-      auraColor: "#62c4c8",
+      armor: "#302d3e",
+      armorLight: "#68617e",
+      armorDark: "#191925",
+      trim: "#a88ce0",
+      cape: "#403253",
+      armorStyle: "shadow",
+      weaponStyle: "daggers",
+      weaponColor: "#bda9ec",
+      auraColor: "#9d85e7",
     },
     materialNameAliases: {
       cape: ["cape", "cloak", "mantle", "pelerin"],

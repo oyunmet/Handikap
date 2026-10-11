@@ -12,6 +12,7 @@ import {
   type WorldPickup,
   type WorldRival,
 } from "./world-content";
+import { getWorldBotProfileByName } from "./world-bot-profiles";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -155,59 +156,57 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
   );
 }
 
-function RivalWeapon({ rival }: { rival: WorldRival }) {
+function BotSignature({ rival }: { rival: WorldRival }) {
   const tint = rival.armorTint;
   return (
-    <group position={[rival.x + 0.48, 0.56, -0.12]} rotation={[0, 0, -0.18]}>
-      <mesh position={[0, 0.52, 0]}>
-        <cylinderGeometry args={[0.045, 0.06, rival.weapon === "spear" ? 1.9 : 1.42, 6]} />
-        <meshStandardMaterial color="#46332b" roughness={0.78} />
-      </mesh>
-      {rival.weapon === "sword" && (
+    <group>
+      {rival.archetype === "gate-warden" && (
         <>
-          <mesh position={[0, 1.27, 0]}>
-            <boxGeometry args={[0.12, 0.75, 0.07]} />
-            <meshStandardMaterial color="#cad4d9" metalness={0.78} roughness={0.24} />
+          <mesh position={[0, 1.52, 0.18]} scale={[0.68, 0.34, 0.18]} castShadow>
+            <icosahedronGeometry args={[1, 0]} />
+            <meshStandardMaterial color={tint} metalness={0.7} roughness={0.34} flatShading />
           </mesh>
-          <mesh position={[0, 0.79, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <boxGeometry args={[0.38, 0.09, 0.12]} />
-            <meshStandardMaterial color={tint} metalness={0.42} roughness={0.42} />
+          <mesh position={[0, 2.02, 0]} rotation={[0, 0, Math.PI]} castShadow>
+            <coneGeometry args={[0.12, 0.42, 5]} />
+            <meshStandardMaterial color="#e7bd73" metalness={0.64} roughness={0.3} />
           </mesh>
         </>
       )}
-      {rival.weapon === "axe" && (
+      {rival.archetype === "iron-oath" && (
         <>
-          <mesh position={[0.18, 1.03, 0]}>
-            <boxGeometry args={[0.5, 0.5, 0.13]} />
-            <meshStandardMaterial color="#aab7bd" metalness={0.72} roughness={0.3} />
+          <mesh position={[-0.58, 1.03, 0.05]} rotation={[0, 0, -0.08]} castShadow>
+            <boxGeometry args={[0.42, 0.64, 0.16]} />
+            <meshStandardMaterial color="#3f5966" metalness={0.62} roughness={0.38} />
           </mesh>
-          <mesh position={[0.22, 1.03, -0.01]}>
-            <coneGeometry args={[0.28, 0.54, 4]} />
-            <meshStandardMaterial color={tint} metalness={0.48} roughness={0.34} />
+          <mesh position={[-0.58, 1.03, -0.045]} rotation={[0, 0, -0.08]}>
+            <octahedronGeometry args={[0.19, 0]} />
+            <meshStandardMaterial color={tint} emissive={tint} emissiveIntensity={0.12} metalness={0.48} roughness={0.36} />
           </mesh>
         </>
       )}
-      {rival.weapon === "spear" && (
-        <mesh position={[0, 1.58, 0]}>
-          <coneGeometry args={[0.17, 0.58, 5]} />
-          <meshStandardMaterial color="#d7e2e5" metalness={0.82} roughness={0.2} />
-        </mesh>
-      )}
-      {rival.weapon === "mace" && (
+      {rival.archetype === "ash-archer" && (
         <>
-          <mesh position={[0, 1.28, 0]}>
-            <dodecahedronGeometry args={[0.3, 0]} />
-            <meshStandardMaterial color="#8b979d" metalness={0.74} roughness={0.28} flatShading />
+          <mesh position={[0.18, 1.18, 0.28]} rotation={[0.12, 0, -0.06]} castShadow>
+            <cylinderGeometry args={[0.14, 0.2, 0.62, 7]} />
+            <meshStandardMaterial color="#55382f" roughness={0.82} />
           </mesh>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.31, 1.28, 0]} rotation={[0, 0, -side * Math.PI / 2]}>
-              <coneGeometry args={[0.1, 0.28, 4]} />
-              <meshStandardMaterial color={tint} metalness={0.52} roughness={0.36} />
+          {[-0.08, 0.08].map((offset) => (
+            <mesh key={offset} position={[0.18 + offset, 1.62, 0.27]} rotation={[0, 0, offset * 1.8]}>
+              <cylinderGeometry args={[0.018, 0.018, 0.44, 4]} />
+              <meshStandardMaterial color="#d5c8a7" roughness={0.62} />
             </mesh>
           ))}
-          <mesh position={[0, 1.59, 0]}>
-            <coneGeometry args={[0.1, 0.28, 4]} />
-            <meshStandardMaterial color={tint} metalness={0.52} roughness={0.36} />
+        </>
+      )}
+      {rival.archetype === "shadow-knight" && (
+        <>
+          <mesh position={[0, 1.86, 0.035]} scale={[0.29, 0.34, 0.26]} castShadow>
+            <coneGeometry args={[1, 1, 5]} />
+            <meshStandardMaterial color="#2a2239" roughness={0.8} flatShading />
+          </mesh>
+          <mesh position={[0, 1.3, 0.225]} rotation={[0, 0, Math.PI / 4]} scale={[0.57, 0.1, 0.09]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color="#9d85e7" emissive="#634aa5" emissiveIntensity={0.35} roughness={0.42} />
           </mesh>
         </>
       )}
@@ -231,6 +230,7 @@ function BotActor({
   const rootRef = useRef<THREE.Group>(null);
   const poseRef = useRef(createWorldMotion());
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
+  const profile = getWorldBotProfileByName(rival.name);
   const tintAppliedRef = useRef(false);
   const [noticed, setNoticed] = useState(false);
   const [walking, setWalking] = useState(false);
@@ -290,9 +290,10 @@ function BotActor({
           motionRef={poseRef}
           state={walking ? "walk" : "idle"}
           motionReduced={reducedMotion}
+          appearance={profile?.appearance}
         />
       </group>
-      <RivalWeapon rival={rival} />
+      <BotSignature rival={rival} />
       <mesh position={[rival.x - 0.38, 1.52, 0.02]} rotation={[0, 0, rival.weapon === "axe" ? -0.16 : 0.08]}>
         <dodecahedronGeometry args={[rival.weapon === "mace" ? 0.34 : 0.27, 0]} />
         <meshStandardMaterial color={rival.armorTint} roughness={0.38} metalness={0.62} flatShading />
