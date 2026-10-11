@@ -82,10 +82,17 @@ async function createApiHandler(): Promise<ApiHandler> {
     app.use(storeApiModule.createStoreApi(database));
   } else {
     const accountApiUnavailable: import("express").RequestHandler = (
-      _request,
+      request,
       response,
     ) => {
       const authUnavailable = !clerkConfigured;
+      if (!authUnavailable && !clerkModule.getAuth(request).userId) {
+        response.status(401).json({
+          error: "authentication_required",
+          message: "Bu işlem için oturum açın.",
+        });
+        return;
+      }
       response.status(503).json({
         error: authUnavailable
           ? "authentication_unavailable"

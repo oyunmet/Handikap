@@ -87,7 +87,12 @@ export async function requestJson<T>(
         status: response.status,
       });
     }
-    throw new ApiResponseError(options.fallbackMessage, response.status, "unreadable_body", true);
+    throw new ApiResponseError(
+      options.fallbackMessage,
+      response.status,
+      "unreadable_body",
+      isRetryableStatus(response.status),
+    );
   }
   if (!body.trim()) {
     if (options.logFailures !== false) {

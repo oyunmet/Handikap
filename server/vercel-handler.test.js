@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import handler from "../api/[...path].ts";
+import pickupHandler from "../api/profile/pickups.ts";
 
 function getModuleSpecifiers(source) {
   const specifiers = [];
@@ -25,6 +26,7 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const pending = [
     resolve(projectRoot, "api/[...path].ts"),
+    resolve(projectRoot, "api/profile/pickups.ts"),
     resolve(projectRoot, "api/store/catalog.ts"),
   ];
   const visited = new Set();
@@ -76,9 +78,39 @@ test("Vercel API handler initializes lazily and returns health errors as JSON", 
 
   assert.equal(response.status, 503);
   assert.match(response.headers.get("content-type") ?? "", /application\/json/);
-  assert.deepEqual(body, {
-    status: "error",
-    database: "not_configured",
-    error: "DATABASE_URL ayarlanmamış. Supabase PostgreSQL bağlantı adresini ekleyin.",
+  assert.equal(body.status, "error");
+  assert.equal(body.db, "error");
+  assert.equal(body.database, "not_configured");
+  assert.equal(body.tables.status, "unchecked");
+  assert.equal(body.clerkSecretKeyConfigured, false);
+  assert.equal(body.error, "DATABASE_URL ayarlanmamış. Supabase PostgreSQL bağlantı adresini ekleyin.");
+  assert.ok(["development", "test"].includes(body.environment));
+});
+
+test("explicit pickup route returns JSON instead of a Vercel path-level 404", async (t) => {
+  const server = createServer((request, response) => {
+    void pickupHandler(request, response);
   });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  );
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/profile/pickups?chapterId=0`,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+  assert.equal(body.error, "authentication_unavailable");
 });

@@ -1,13 +1,16 @@
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDatabaseConnection, safeDatabaseError } from "../db/postgres";
+import {
+  createDatabaseConnection,
+  safeDatabaseError,
+  selectMigrationDatabaseUrl,
+} from "../db/postgres";
 
 const migrationsPath = resolve("db/migrations");
 const migrationFiles = (await readdir(migrationsPath))
   .filter((file) => file.endsWith(".sql"))
   .sort();
-const migrationDatabaseUrl =
-  process.env.MIGRATION_DATABASE_URL?.trim() || process.env.DATABASE_URL;
+const migrationDatabaseUrl = selectMigrationDatabaseUrl();
 const databaseConnection = createDatabaseConnection(migrationDatabaseUrl, {
   max: 1,
 });

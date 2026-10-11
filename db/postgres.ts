@@ -13,6 +13,15 @@ export const REQUIRED_DATABASE_TABLES = [
   "shafak_store_transactions",
 ] as const;
 
+export function selectMigrationDatabaseUrl(
+  env: {
+    MIGRATION_DATABASE_URL?: string;
+    DATABASE_URL?: string;
+  } = process.env,
+) {
+  return env.MIGRATION_DATABASE_URL?.trim() || env.DATABASE_URL;
+}
+
 export type DatabaseHealth = {
   status: "ok" | "error";
   db: "ok" | "error";

@@ -1,5 +1,5 @@
 import cors from "cors";
-import { clerkMiddleware } from "@clerk/express";
+import { clerkMiddleware, getAuth } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import express from "express";
 import { createServer } from "node:http";
@@ -76,8 +76,15 @@ if (clerkConfigured && database) {
   app.use(createDuelApi(database));
   app.use(createStoreApi(database));
 } else {
-  const accountApiUnavailable: express.RequestHandler = (_request, response) => {
+  const accountApiUnavailable: express.RequestHandler = (request, response) => {
     const authUnavailable = !clerkConfigured;
+    if (!authUnavailable && !getAuth(request).userId) {
+      response.status(401).json({
+        error: "authentication_required",
+        message: "Bu işlem için oturum açın.",
+      });
+      return;
+    }
     response.status(503).json({
       error: authUnavailable ? "authentication_unavailable" : "database_unavailable",
       message: authUnavailable

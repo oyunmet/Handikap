@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ApiResponseError, requestJson } from "./api-json.ts";
+import { ApiResponseError, requestJson, requestJsonWithRetry } from "./api-json.ts";
 
 const options = {
   operation: "store test",
@@ -65,4 +65,47 @@ test("valid JSON responses are returned", async () => {
   }), async () => {
     assert.deepEqual(await requestJson("/api/store/catalog", {}, options), { items: [1, 2] });
   });
+});
+
+test("transient server errors are retried with a bounded attempt count", async () => {
+  let calls = 0;
+  await withFetch(async () => {
+    calls += 1;
+    return calls < 3
+      ? new Response(JSON.stringify({ error: "pickup_storage_unavailable" }), {
+          status: 503,
+          headers: { "content-type": "application/json" },
+        })
+      : new Response(JSON.stringify({ claimedPickupIds: ["pickup-1"] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+  }, async () => {
+    const result = await requestJsonWithRetry("/api/profile/pickups", {
+      method: "POST",
+      body: JSON.stringify({ pickupIds: ["pickup-1"] }),
+    }, options, { maxRetries: 2, baseDelayMs: 0 });
+    assert.deepEqual(result, { claimedPickupIds: ["pickup-1"] });
+  });
+  assert.equal(calls, 3);
+});
+
+test("authentication and validation errors are not retried", async () => {
+  let calls = 0;
+  await withFetch(async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ error: "authentication_required" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+  }, async () => {
+    await assert.rejects(
+      requestJsonWithRetry("/api/profile/pickups", { method: "POST" }, options, {
+        maxRetries: 2,
+        baseDelayMs: 0,
+      }),
+      (error) => error instanceof ApiResponseError && error.status === 401 && !error.retryable,
+    );
+  });
+  assert.equal(calls, 1);
 });
