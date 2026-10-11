@@ -4,6 +4,7 @@ import { dark } from "@clerk/themes";
 import { trTR } from "@clerk/localizations";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Router, Switch, Redirect, useLocation, Link } from "wouter";
+import { getClerkProxyUrl } from "./clerk-proxy";
 import "./auth.css";
 
 const ShafakApp = lazy(() => import("../App"));
@@ -11,7 +12,11 @@ const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
 );
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL?.trim();
+const configuredClerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const clerkProxyUrl = getClerkProxyUrl(configuredClerkProxyUrl);
+if (configuredClerkProxyUrl?.trim() && !clerkProxyUrl) {
+  console.warn("Ignoring invalid VITE_CLERK_PROXY_URL; continuing without a Clerk proxy.");
+}
 const clerkProxyProps = clerkProxyUrl ? { proxyUrl: clerkProxyUrl } : {};
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const CLERK_READY_TIMEOUT_MS = 8_000;
