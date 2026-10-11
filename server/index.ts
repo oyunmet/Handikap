@@ -3,8 +3,11 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import express from "express";
 import { createServer } from "node:http";
-import { Pool } from "pg";
 import { Server as SocketIOServer } from "socket.io";
+import {
+  checkDatabaseHealth,
+  createDatabaseConnection,
+} from "../db/postgres";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -22,9 +25,8 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("GAME_SERVER_PORT must be a valid port number.");
 }
 
-const database = new Pool();
-let databaseStatus: "connected" | "unavailable" | "not_configured" =
-  process.env.DATABASE_URL || process.env.PGHOST ? "unavailable" : "not_configured";
+const databaseConnection = createDatabaseConnection(process.env.DATABASE_URL);
+const database = databaseConnection.pool;
 const app = express();
 const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY?.trim());
 
@@ -33,16 +35,9 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
 
 app.get("/api/health", async (_request, response) => {
-  if (databaseStatus !== "not_configured") {
-    try {
-      await database.query("SELECT 1");
-      databaseStatus = "connected";
-    } catch {
-      databaseStatus = "unavailable";
-    }
-  }
+  const health = await checkDatabaseHealth(databaseConnection);
   response.setHeader("Cache-Control", "no-store");
-  response.json({ status: "ok", database: databaseStatus });
+  response.status(health.status === "ok" ? 200 : 503).json(health);
 });
 
 app.get("/api/store/catalog", (_request, response) => {
@@ -63,21 +58,32 @@ if (clerkConfigured) {
 
 app.use(express.json({ limit: "256kb" }));
 
-if (clerkConfigured) {
+if (clerkConfigured && database) {
   app.use(createProfileApi(database));
   app.use(createWorldRewardsApi(database));
   app.use(createDuelApi(database));
   app.use(createStoreApi(database));
 } else {
-  const authUnavailable: express.RequestHandler = (_request, response) => {
-    response.status(503).json({ error: "authentication_unavailable" });
+  const accountApiUnavailable: express.RequestHandler = (_request, response) => {
+    const authUnavailable = !clerkConfigured;
+    response.status(503).json({
+      error: authUnavailable ? "authentication_unavailable" : "database_unavailable",
+      message: authUnavailable
+        ? "Kimlik doğrulama yapılandırılmamış."
+        : databaseConnection.error ??
+          "Veritabanı bağlantısı kurulamadı. Supabase bağlantı ayarlarını kontrol edin.",
+    });
   };
 
-  app.use(CLERK_PROXY_PATH, authUnavailable);
-  app.use("/api/profile", authUnavailable);
-  app.use("/api/duels", authUnavailable);
-  app.use("/api/store", authUnavailable);
-  console.warn("[shafak-server] Clerk is not configured; account, store mutation, and duel APIs are disabled.");
+  if (!clerkConfigured) app.use(CLERK_PROXY_PATH, accountApiUnavailable);
+  app.use("/api/profile", accountApiUnavailable);
+  app.use("/api/duels", accountApiUnavailable);
+  app.use("/api/store", accountApiUnavailable);
+  console.warn(
+    clerkConfigured
+      ? "[shafak-server] DATABASE_URL is unavailable; persistent account and duel APIs are disabled."
+      : "[shafak-server] Clerk is not configured; account, store mutation, and duel APIs are disabled.",
+  );
 }
 
 const httpServer = createServer(app);
@@ -91,24 +97,23 @@ sockets.on("connection", (socket) => {
 });
 
 async function startServer() {
-  if (databaseStatus !== "not_configured") {
-    try {
-      await database.query("SELECT 1");
-      databaseStatus = "connected";
-    } catch {
-      databaseStatus = "unavailable";
-      console.warn("PostgreSQL is unavailable; the local game server is starting without persistent database features.");
-    }
+  const health = await checkDatabaseHealth(databaseConnection);
+  if (health.status === "error") {
+    console.warn(
+      `${health.error} The local game server will start without persistent database features.`,
+    );
   }
 
   httpServer.listen(port, "0.0.0.0", () => {
-    console.log(`[shafak-server] listening on port ${port}; database=${databaseStatus}`);
+    console.log(
+      `[shafak-server] listening on port ${port}; database=${health.database}`,
+    );
   });
 }
 
 async function stopServer() {
   sockets.close(async () => {
-    await database.end();
+    await database?.end();
   });
 }
 

@@ -2,7 +2,10 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import cors from "cors";
 import express from "express";
-import { Pool } from "pg";
+import {
+  checkDatabaseHealth,
+  createDatabaseConnection,
+} from "../db/postgres";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -14,25 +17,19 @@ import { createStoreApi } from "../server/storeApi";
 import { createWorldRewardsApi } from "../server/worldRewardsApi";
 
 const app = express();
-const database = new Pool();
+const databaseConnection = createDatabaseConnection(process.env.DATABASE_URL, {
+  max: 1,
+});
+const database = databaseConnection.pool;
 const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY?.trim());
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
 
 app.get("/api/health", async (_request, response) => {
-  let status: "connected" | "unavailable" | "not_configured" =
-    process.env.DATABASE_URL || process.env.PGHOST ? "unavailable" : "not_configured";
-  if (status !== "not_configured") {
-    try {
-      await database.query("SELECT 1");
-      status = "connected";
-    } catch {
-      status = "unavailable";
-    }
-  }
+  const health = await checkDatabaseHealth(databaseConnection);
   response.setHeader("Cache-Control", "no-store");
-  response.json({ status: "ok", database: status });
+  response.status(health.status === "ok" ? 200 : 503).json(health);
 });
 
 if (clerkConfigured) {
@@ -47,19 +44,26 @@ if (clerkConfigured) {
 }
 app.use(express.json({ limit: "16kb" }));
 
-if (clerkConfigured) {
+if (clerkConfigured && database) {
   app.use(createProfileApi(database));
   app.use(createWorldRewardsApi(database));
   app.use(createDuelApi(database));
   app.use(createStoreApi(database));
 } else {
-  const authUnavailable: express.RequestHandler = (_request, response) => {
-    response.status(503).json({ error: "authentication_unavailable" });
+  const accountApiUnavailable: express.RequestHandler = (_request, response) => {
+    const authUnavailable = !clerkConfigured;
+    response.status(503).json({
+      error: authUnavailable ? "authentication_unavailable" : "database_unavailable",
+      message: authUnavailable
+        ? "Kimlik doğrulama yapılandırılmamış."
+        : databaseConnection.error ??
+          "Veritabanı bağlantısı kurulamadı. Supabase bağlantı ayarlarını kontrol edin.",
+    });
   };
-  app.use(CLERK_PROXY_PATH, authUnavailable);
-  app.use("/api/profile", authUnavailable);
-  app.use("/api/duels", authUnavailable);
-  app.use("/api/store", authUnavailable);
+  if (!clerkConfigured) app.use(CLERK_PROXY_PATH, accountApiUnavailable);
+  app.use("/api/profile", accountApiUnavailable);
+  app.use("/api/duels", accountApiUnavailable);
+  app.use("/api/store", accountApiUnavailable);
 }
 
 export default app;

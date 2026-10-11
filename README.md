@@ -41,6 +41,27 @@ profil ve düello API'lerini Vercel Function olarak sunar. Vercel yapılandırma
 SPA sayfa yollarını ve Replit içi npm adreslerinin derleme sırasında herkese açık
 npm adreslerine çevrilmesini ayarlar.
 
+### Supabase PostgreSQL kurulumu
+
+1. Vercel Production ortamındaki `DATABASE_URL` için Supabase **Connect → Transaction
+   pooler** URI'sini kullan (port `6543`). Uygulama Supabase adreslerinde SSL
+   bağlantısını zorunlu tutar ve Vercel Function pool boyutunu 1 bağlantıyla
+   sınırlar.
+2. Yeni şemayı oluşturmak için Supabase **Connect → Session pooler** URI'sini
+   kullan (port `5432`). Bu URI'yi yalnızca migration çalıştıracağın güvenli
+   yerel ortamda `DATABASE_URL` olarak ayarla; parola içindeki özel karakterleri
+   URI kurallarına göre percent-encode et.
+3. Depo kökünde `npm run db:migrate` çalıştır. Komut `db/migrations` içindeki
+   migration'ları sıralı uygular; profiller, düellolar, pickup ödülleri ve mağaza
+   tablolarını oluşturur. `DATABASE_URL` tanımlı değilse komut açık hata verir.
+4. Migration tamamlandıktan sonra Vercel Production `DATABASE_URL` değerinin
+   Transaction pooler URI'si olduğundan emin ol ve yeni deploy'da `/api/health`
+   yanıtının `200` ve `"database": "connected"` olduğunu kontrol et.
+
+Yeni ve boş veritabanında migration'lar güvenle uygulanabilir. `002` migration'ı
+eski düello verilerindeki `moves` ve `result` sütunlarını siler; bunu mevcut
+verisi olan bir veritabanına uygulamadan önce yedek al.
+
 1. Projeyi GitHub'a gönder, sonra Vercel'de **Add New → Project** üzerinden
    depoyu içe aktar. Proje kökü olarak depo kökünü seç.
 2. Framework ayarını **Vite** olarak doğrula. `vercel.json` şu komutları ayarlar:
@@ -56,11 +77,7 @@ npm adreslerine çevrilmesini ayarlar.
    anahtarlarını Git'e veya README'ye koyma.
 4. Clerk kullanıyorsan Vercel alan adını Clerk uygulamasında izin verilen
    alan adlarına ekle. Veritabanı Vercel'den erişilebilir olmalı.
-5. İlk yayın öncesi veritabanı yedeği al ve `db/migrations` içeriğini incele.
-   `npm run db:migrate`, `002_remove_match_duel_data.sql` içindeki eski `moves`
-   ve `result` sütunlarını kalıcı olarak siler; üretim veritabanında yalnızca bu
-   işlemi onaylayarak çalıştır.
-6. Vercel'de **Deploy**'a bas. Yayın sonrası `/api/health` ve giriş/profil
+5. Vercel'de **Deploy**'a bas. Yayın sonrası `/api/health` ve giriş/profil
    akışlarını doğrula; oyun ekranında `?debug=1` ile 3D bilgilerini kontrol et.
 
 **Socket.IO notu:** Replit'te `server/index.ts` Socket.IO sunucusu açar;
