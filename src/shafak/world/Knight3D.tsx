@@ -7,6 +7,7 @@ import { solveTwoBoneLeg } from "./leg-ik";
 import type { WorldMotion } from "./movement";
 import { KNIGHT_CONFIG } from "./knight-config";
 import type { EquipmentVisual } from "../game/store-types";
+import { resolveCharacterTargetYaw } from "./character-facing";
 
 type Knight3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -289,9 +290,13 @@ export default function Knight3D({
     const deathDrop = state === "die" ? actionProgress * 0.62 : 0;
     root.position.y += (bob - deathDrop - root.position.y) * (1 - Math.exp(-dt * 10));
 
-    let targetYaw = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
-    if (facingAngle === undefined && motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
-    if (!moving || state === "die") targetYaw = 0;
+    const targetYaw = resolveCharacterTargetYaw(
+      facingAngle,
+      motion.velocityX,
+      motion.velocityY,
+      moving,
+      state === "die",
+    );
     root.rotation.y = THREE.MathUtils.damp(root.rotation.y, targetYaw, 7, dt);
     const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;
     root.rotation.z = THREE.MathUtils.damp(root.rotation.z, fall, 5, dt);
