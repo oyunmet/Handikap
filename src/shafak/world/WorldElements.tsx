@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import {
+  getChunkCameraRelativeZ,
   nextGateDistance,
   WORLD_PROP_LANE_SPACING,
   WORLD_ROAD_HALF_WIDTH,
@@ -176,11 +177,14 @@ function seededRandom(seed: number) {
 
 function RoadSegment({
   chunk,
+  motionRef,
   quality,
 }: {
   chunk: WorldChunk;
+  motionRef: MotionRef;
   quality: WorldQuality;
 }) {
+  const rootRef = useRef<THREE.Group>(null);
   const stonesRef = useRef<THREE.InstancedMesh>(null);
   const stones = useMemo(() => {
     const random = seededRandom(chunk.index * 0x45d9f3b);
@@ -209,8 +213,18 @@ function RoadSegment({
     mesh.computeBoundingSphere();
   }, [stones]);
 
+  useFrame(() => {
+    if (rootRef.current) {
+      rootRef.current.position.z = getChunkCameraRelativeZ(
+        chunk.start,
+        chunk.end,
+        motionRef.current.cameraX,
+      );
+    }
+  });
+
   return (
-    <>
+    <group ref={rootRef}>
       <instancedMesh
         ref={stonesRef}
         args={[STONE_GEOMETRY, STONE_MATERIAL, stones.length]}
@@ -218,7 +232,7 @@ function RoadSegment({
         receiveShadow={false}
         dispose={null}
       />
-    </>
+    </group>
   );
 }
 
@@ -846,7 +860,14 @@ export function WorldChunks({
   return (
     <>
       <RoadSurface motionRef={motionRef} quality={quality} weather={weather} />
-      {chunks.map((chunk) => <RoadSegment key={`road-${chunk.index}`} chunk={chunk} quality={quality} />)}
+      {chunks.map((chunk) => (
+        <RoadSegment
+          key={`road-${chunk.index}`}
+          chunk={chunk}
+          motionRef={motionRef}
+          quality={quality}
+        />
+      ))}
       <WorldStaticBatches
         objects={staticObjects}
         motionRef={motionRef}

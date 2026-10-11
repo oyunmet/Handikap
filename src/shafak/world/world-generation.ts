@@ -56,6 +56,10 @@ export type WorldChunk = {
   objects: WorldObject[];
 };
 
+export function getChunkCameraRelativeZ(start: number, end: number, cameraX: number) {
+  return cameraX - (start + end) / 2;
+}
+
 export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const random = seededRandom((seed ^ Math.imul(index, 0x9e3779b1)) >>> 0);
   const start = index * WORLD_CHUNK_LENGTH_METERS;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createWorldChunk,
+  getChunkCameraRelativeZ,
   getVisibleWorldChunks,
   nextGateDistance,
   WORLD_PROP_LANE_SPACING,
@@ -18,6 +19,17 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   assert.equal(first.objects.length, 8);
   assert.ok(first.objects.some((object) => ["torch", "crystal", "firepit"].includes(object.kind)));
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
+});
+
+test("roadside geometry stays attached to its own chunk as the camera advances", () => {
+  const cameraX = 56;
+  const currentChunkZ = getChunkCameraRelativeZ(48, 96, cameraX);
+  const previousChunkZ = getChunkCameraRelativeZ(0, 48, cameraX);
+  const nextChunkZ = getChunkCameraRelativeZ(96, 144, cameraX);
+
+  assert.equal(currentChunkZ, -16);
+  assert.equal(previousChunkZ - currentChunkZ, 48);
+  assert.equal(currentChunkZ - nextChunkZ, 48);
 });
 
 test("tall scenery stays beside the road while the open arches and low road props remain visible", () => {
