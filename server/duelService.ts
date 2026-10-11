@@ -33,13 +33,13 @@ export const DUEL_ENGINE_ENABLED = true;
 
 function resolveOpponent(opponentId: unknown): ServerOpponent | null {
   if (typeof opponentId !== "string") return null;
-  const match = /^ash-road:(\d{1,7}):bot:([0-3])$/.exec(opponentId);
+  const match = /^ash-road:(\d{1,7}):(rival|bot):([0-3])$/.exec(opponentId);
   if (!match) return null;
   const chapterId = Number(match[1]);
-  const rivalIndex = Number(match[2]);
+  const rivalIndex = Number(match[3]);
   if (!Number.isSafeInteger(chapterId) || chapterId > 1_000_000) return null;
   const rival = getWorldChapter(chapterId).rivals[rivalIndex];
-  if (!rival || rival.id !== opponentId) return null;
+  if (!rival || (match[2] === "rival" && rival.id !== opponentId)) return null;
   const maximumLootByRival = [48, 72, 96, 120][rivalIndex];
   return {
     id: rival.id,

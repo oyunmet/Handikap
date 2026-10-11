@@ -197,6 +197,21 @@ function distanceBetween(left: CombatActor, right: CombatActor) {
   return Math.hypot(left.x - right.x, left.z - right.z);
 }
 
+function resolveCombatActorOverlap(player: CombatActor, rival: CombatActor) {
+  const minimumDistance = 1.08;
+  const dx = rival.x - player.x;
+  const dz = rival.z - player.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance >= minimumDistance) return;
+  const nx = distance > 0.0001 ? dx / distance : 1;
+  const nz = distance > 0.0001 ? dz / distance : 0;
+  const correction = (minimumDistance - distance) * 0.5;
+  player.x -= nx * correction;
+  player.z -= nz * correction;
+  rival.x += nx * correction;
+  rival.z += nz * correction;
+}
+
 function startAttack(
   state: CombatState,
   actor: CombatActor,
@@ -422,6 +437,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
 
   moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier);
   moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
+  resolveCombatActorOverlap(player, bot);
   player.stamina = Math.min(player.maxStamina, player.stamina + 0.17);
   bot.stamina = Math.min(bot.maxStamina, bot.stamina + 0.14);
 

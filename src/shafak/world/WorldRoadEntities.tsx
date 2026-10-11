@@ -111,7 +111,7 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
   return (
     <group ref={rootRef} position={[obstacle.x, 0, 0]}>
       {obstacle.kind === "rock" ? (
-        <mesh position={[0, 0.72, 0]} rotation={[0.1, 0.7, 0.2]} castShadow>
+        <mesh position={[0, 0.72, 0]} rotation={[0.1, 0.7, 0.2]}>
           <dodecahedronGeometry args={[0.92, 0]} />
           <meshStandardMaterial color="#625b5a" roughness={0.94} flatShading />
         </mesh>
@@ -122,7 +122,7 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
             <meshStandardMaterial color="#553438" roughness={0.82} />
           </mesh>
           {[-1.25, 0, 1.25].map((x) => (
-            <mesh key={x} position={[x, 0.55, 0]} rotation={[0, 0, 0.12]} castShadow>
+            <mesh key={x} position={[x, 0.55, 0]} rotation={[0, 0, 0.12]}>
               <coneGeometry args={[0.24, 0.95, 5]} />
               <meshStandardMaterial color="#c7c0b2" metalness={0.58} roughness={0.32} />
             </mesh>
@@ -131,11 +131,10 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
             <ringGeometry args={[2.3, 2.45, 32]} />
             <meshBasicMaterial color="#ff795b" transparent opacity={0.46} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
-          <pointLight position={[0, 0.3, 0]} color="#ec705b" intensity={0.3} distance={4.5} />
         </group>
       ) : (
         <group>
-          <mesh position={[0, 0.62, 0]} castShadow>
+          <mesh position={[0, 0.62, 0]}>
             <boxGeometry args={[obstacle.width, 1.12, 0.48]} />
             <meshStandardMaterial color="#745340" roughness={0.86} />
           </mesh>
@@ -149,7 +148,6 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
             <boxGeometry args={[2.75, 0.13, 0.56]} />
             <meshStandardMaterial color="#3b2927" roughness={0.9} />
           </mesh>
-          <pointLight position={[0, 1.1, 0.6]} color="#f1a553" intensity={0.42} distance={4} />
         </group>
       )}
     </group>
@@ -162,11 +160,11 @@ function BotSignature({ rival }: { rival: WorldRival }) {
     <group>
       {rival.archetype === "gate-warden" && (
         <>
-          <mesh position={[0, 1.52, 0.18]} scale={[0.68, 0.34, 0.18]} castShadow>
+          <mesh position={[0, 1.52, 0.18]} scale={[0.68, 0.34, 0.18]}>
             <icosahedronGeometry args={[1, 0]} />
             <meshStandardMaterial color={tint} metalness={0.7} roughness={0.34} flatShading />
           </mesh>
-          <mesh position={[0, 2.02, 0]} rotation={[0, 0, Math.PI]} castShadow>
+          <mesh position={[0, 2.02, 0]} rotation={[0, 0, Math.PI]}>
             <coneGeometry args={[0.12, 0.42, 5]} />
             <meshStandardMaterial color="#e7bd73" metalness={0.64} roughness={0.3} />
           </mesh>
@@ -174,7 +172,7 @@ function BotSignature({ rival }: { rival: WorldRival }) {
       )}
       {rival.archetype === "iron-oath" && (
         <>
-          <mesh position={[-0.58, 1.03, 0.05]} rotation={[0, 0, -0.08]} castShadow>
+          <mesh position={[-0.58, 1.03, 0.05]} rotation={[0, 0, -0.08]}>
             <boxGeometry args={[0.42, 0.64, 0.16]} />
             <meshStandardMaterial color="#3f5966" metalness={0.62} roughness={0.38} />
           </mesh>
@@ -186,7 +184,7 @@ function BotSignature({ rival }: { rival: WorldRival }) {
       )}
       {rival.archetype === "ash-archer" && (
         <>
-          <mesh position={[0.18, 1.18, 0.28]} rotation={[0.12, 0, -0.06]} castShadow>
+          <mesh position={[0.18, 1.18, 0.28]} rotation={[0.12, 0, -0.06]}>
             <cylinderGeometry args={[0.14, 0.2, 0.62, 7]} />
             <meshStandardMaterial color="#55382f" roughness={0.82} />
           </mesh>
@@ -200,7 +198,7 @@ function BotSignature({ rival }: { rival: WorldRival }) {
       )}
       {rival.archetype === "shadow-knight" && (
         <>
-          <mesh position={[0, 1.86, 0.035]} scale={[0.29, 0.34, 0.26]} castShadow>
+          <mesh position={[0, 1.86, 0.035]} scale={[0.29, 0.34, 0.26]}>
             <coneGeometry args={[1, 1, 5]} />
             <meshStandardMaterial color="#2a2239" roughness={0.8} flatShading />
           </mesh>
@@ -290,6 +288,7 @@ function BotActor({
           motionRef={poseRef}
           state={walking ? "walk" : "idle"}
           motionReduced={reducedMotion}
+          castShadow={focused}
           appearance={profile?.appearance}
         />
       </group>
@@ -308,10 +307,9 @@ function BotActor({
           depthWrite={false}
         />
       </mesh>
-      {noticed && <pointLight position={[rival.x, 1.6, 0]} color="#f06d51" intensity={0.5} distance={4} />}
       <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-        <span className={`world-bot-tag${focused ? " is-focused" : ""}${walking ? " is-challenging" : ""}`} data-weapon={rival.weapon}>
-          <b>{rival.name}</b><span>{walking ? "MEYDAN OKU" : `SEV. ${rival.level}`}</span>
+        <span className={`world-rival-tag${focused ? " is-focused" : ""}${walking ? " is-challenging" : ""}`} data-weapon={rival.weapon}>
+          <b>{rival.name}</b><span>{walking ? "MEYDAN OKU" : rival.title}</span>
         </span>
       </Html>
     </group>

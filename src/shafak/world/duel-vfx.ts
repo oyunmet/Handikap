@@ -1,6 +1,6 @@
 import type { CombatEvent } from "../game/combat-engine";
 
-export const MAX_ACTIVE_DUEL_VFX = 12;
+export const MAX_ACTIVE_DUEL_VFX = 9;
 export const LIGHTNING_BOLT_COUNT = 3;
 export const LIGHTNING_SEGMENT_COUNT = 6;
 export const MAX_DUEL_VFX_EVENT_PARTICLES = LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT;

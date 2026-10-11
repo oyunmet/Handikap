@@ -48,6 +48,16 @@ test("seeded bots choose the same actions and damage on each replay", () => {
   assert.deepEqual(run(), run());
 });
 
+test("combatants cannot occupy the same space during a duel", () => {
+  const initial = createCombatState(7712, "easy");
+  initial.player.x = 0;
+  initial.player.z = 0;
+  initial.bot.x = 0;
+  initial.bot.z = 0;
+  const state = stepCombat(initial, { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 }).state;
+  assert.ok(Math.hypot(state.player.x - state.bot.x, state.player.z - state.bot.z) >= 1.08 - 1e-9);
+});
+
 test("server-owned equipment modifiers set combat stats and keep replays deterministic", () => {
   const stats = {
     maxHealth: 170,

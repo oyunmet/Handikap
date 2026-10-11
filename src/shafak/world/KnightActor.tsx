@@ -27,6 +27,7 @@ type KnightActorProps = {
   animationTimeScale?: number;
   facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
+  castShadow?: boolean;
   appearance?: EquipmentVisual;
   modelConfig?: OpponentModelConfig;
   modelAnimationState?: ModelAnimationState;
@@ -102,11 +103,12 @@ function prepareModel(
   source: THREE.Object3D,
   modelPath: string,
   modelConfig?: OpponentModelConfig,
+  castShadow = true,
 ) {
   const model = cloneSkinned(source);
   inspectModelBudget(model, modelPath);
   model.traverse((object) => {
-    if (object instanceof THREE.Mesh) object.castShadow = true;
+    if (object instanceof THREE.Mesh) object.castShadow = castShadow;
   });
   const ownedMaterials: THREE.Material[] = [];
   if (!modelConfig) return { model, ownedMaterials };
@@ -156,6 +158,7 @@ function OptionalGlbKnight({
   facingAngle,
   footSlipRef,
   modelConfig,
+  castShadow = true,
 }: KnightActorProps) {
   const modelPath = modelConfig?.modelPath ?? KNIGHT_CONFIG.modelPath;
   const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
@@ -163,8 +166,8 @@ function OptionalGlbKnight({
   }) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
   const { model, ownedMaterials } = useMemo(
-    () => prepareModel(gltf.scene, modelPath, modelConfig),
-    [gltf.scene, modelPath, modelConfig],
+    () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow),
+    [gltf.scene, modelPath, modelConfig, castShadow],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {

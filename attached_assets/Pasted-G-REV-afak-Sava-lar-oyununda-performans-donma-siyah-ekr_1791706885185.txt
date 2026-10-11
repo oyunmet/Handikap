@@ -1,0 +1,111 @@
+GÖREV: "Şafak Savaşçıları" oyununda performans, donma, siyah ekran, çarpışma, karakter ve isim etiketi sorunlarını KÖKTEN çöz. Oyunun görünümünü, hikâyesini, arayüzünü ve çalışan özelliklerini (dükkân, altın/elmas, Clerk girişi, PostgreSQL profilleri, savaş sistemi, Kül Yolu) BOZMA. Sadece aşağıdaki sorunları düzelt. Önce kodu tara, her sorunun gerçek kök nedenini bul, sonra düzelt. Tahmin ederek yama yapma.
+
+HEDEF CİHAZ: iPhone Safari (orta seviye mobil GPU). Her karar mobilde 60 FPS (en kötü durumda sabit 30 FPS) hedefine göre verilsin.
+
+──────────────────────────────
+1) DONMA / TAKILMA (EN ÖNEMLİ)
+──────────────────────────────
+Belirtiler: oyun sık sık donuyor, yürürken ve savaşta takılıyor.
+
+Yapılacaklar:
+- Kodu profille: render döngüsünde (requestAnimationFrame) her karede yapılan gereksiz işleri bul. Her karede yeni nesne/vektör/geometri/materyal OLUŞTURMA (new THREE.Vector3, new Material vb.). Önceden oluştur, yeniden kullan (object pooling).
+- Geometri, materyal ve texture'ları SADECE bir kez oluştur ve paylaş. Aynı tipteki nesneler (ağaç, taş, sütun, kule, mızrak, meşale, kaya) için InstancedMesh kullan. Draw call sayısını mümkün olan en aza indir (hedef: kare başına 100'ün altı).
+- Ekranda görünmeyen nesneleri çizme: frustum culling açık olsun; oyuncunun arkasında kalan ve çok uzaktaki parçalar sahneden kaldırılsın veya gizlensin. Yol parçalarını (chunk) oyuncunun önüne doğru dinamik yükle, arkada kalanları temizle ve BELLEKTEN DE SİL (geometry.dispose, material.dispose, texture.dispose). Bellek sızıntısı olmasın.
+- Gölgeleri sadeleştir: sadece oyuncu ve en yakın düşman gölge düşürsün, gölge haritası 1024 veya altı, tek ışık kaynağı gölge üretsin. Mobilde gerçek zamanlı gölge ağır ise sahte (blob) gölge kullan.
+- Işık sayısını azalt (en fazla 1 yönlü ışık + 1 ortam ışığı; meşale ışıkları sahte glow sprite olsun, gerçek PointLight olmasın).
+- Post-processing (bloom, blur, SSAO, DOF vb.) mobilde kapalı olsun veya çok hafif olsun. Ağır efektleri kaldır.
+- Renderer ayarları: antialias kapalı veya sadece ihtiyaç halinde, setPixelRatio en fazla min(devicePixelRatio, 1.5), powerPreference "high-performance". Çözünürlüğü FPS'e göre dinamik ayarla: FPS 40'ın altına düşerse pixel ratio'yu otomatik düşür, toparlanırsa yükselt.
+- Parçacık (toz, kıvılcım, kül) sayısını mobilde sınırla (toplam en fazla 150-200) ve havuzla.
+- Sis (fog) yakın mesafede başlasın; uzak nesneler zaten görünmesin, böylece çizim mesafesi kısalsın.
+- Texture'ları küçült (en fazla 1024x1024, mümkünse 512), mümkünse sıkıştır. GLB modelleri optimize et (poligon sayısını düşür, gereksiz animasyon ve materyali at).
+- React tarafında: oyun döngüsü React state'i her karede güncellemesin. HUD (altın, mesafe, yüzde) sadece değer değiştiğinde ve en fazla saniyede 4-5 kez güncellensin. Gereksiz re-render'ları React.memo / useRef ile engelle. Ağır hesaplar render sırasında yapılmasın.
+- Ağ isteklerini (Clerk, API, veritabanı) oyun döngüsünden tamamen ayır. Yürürken her karede veya sık aralıkla sunucuya istek atma; ilerlemeyi toplu ve seyrek kaydet (örn. 10-15 saniyede bir ve savaş sonunda). Rakip ve çok oyunculu güncellemeleri throttle edilsin.
+- Ses ve yükleme işlemleri ana döngüyü bloklamasın. Büyük dosyaları baştan yükle, oyun sırasında ilk kez yükleme yapma (ilk savaşta takılmanın nedeni genelde budur). Savaş modeli, efektleri ve sesleri oyun açılırken ön yükle (preload) ve ısındır (renderer.compile ile shader'ları önceden derle).
+- Sayfa arka plana gidip gelince veya iPhone ekranı kilitlenip açılınca döngü düzgün durup devam etsin (visibilitychange).
+- Ayarlar menüsüne "Performans" seçeneği ekle: Düşük / Orta / Yüksek. Varsayılan "Orta", cihaz yavaşsa otomatik "Düşük" olsun. İsteğe bağlı FPS göstergesi de ayarlardan aç/kapat yapılabilsin.
+
+──────────────────────────────
+2) SİYAH EKRAN
+──────────────────────────────
+Belirtiler: oyun sırasında ekran bazen tamamen siyah oluyor.
+
+Yapılacaklar:
+- WebGL context kaybını yakala: canvas üzerinde "webglcontextlost" ve "webglcontextrestored" olaylarını dinle. Kayıp olunca event.preventDefault() çağır, restored olunca renderer, texture ve materyalleri yeniden kur ve oyunu kaldığı yerden devam ettir. Kullanıcı siyah ekranda kalmasın.
+- Siyah ekranın olası nedenlerini tek tek kontrol et ve düzelt: (a) bellek taşması (texture/geometry sızıntısı), (b) çok büyük texture, (c) hatalı veya NaN transform değerleri (konum, ölçek, kamera), (d) kamera near/far değerlerinin yanlış olması, (e) oyuncu çok ilerleyince kayan nokta hassasiyeti (floating origin: dünyayı geri kaydır), (f) savaşa geçişte sahnenin temizlenip yenisinin hatalı kurulması, (g) yakalanmamış JavaScript hataları.
+- Tüm sahne değişimlerinde (yol → savaş → yola dönüş) önceki sahnedeki her şeyi düzgün dispose et ama paylaşılan kaynakları (oyuncu modeli vb.) yok etme.
+- Genel bir hata sınırı (error boundary) ekle: bir hata olursa siyah ekran yerine "Bağlantı yenileniyor…" benzeri şık bir ekran göstersin ve sahneyi otomatik yeniden kursun.
+- NaN kontrolü: oyuncu, kamera ve rakip konumlarında NaN/Infinity oluşursa son geçerli değere geri dön.
+
+──────────────────────────────
+3) NESNELERİN İÇİNDEN GEÇME (ÇARPIŞMA)
+──────────────────────────────
+Belirtiler: kahraman ve rakipler sütunların, kemerin, kayaların, kulelerin, taşların içinden geçiyor.
+
+Yapılacaklar:
+- Hafif ve performanslı bir çarpışma sistemi kur. Ağır fizik motoru kullanma. Her dekoratif engel (sütun, kemer ayakları, kaya, kule, büyük taş, sivri taş, kutu bloklar) için basit bir çarpışma şekli tanımla: daire (silindir) veya eksene hizalı kutu (AABB) yeterli. Karmaşık mesh ile çarpışma kontrolü YAPMA.
+- Oyuncu da bir daire/kapsül olsun. Hareket sırasında engele girerse oyuncuyu engelin kenarından dışarı it ve engel boyunca KAYMASINI sağla (duvara yapışıp durmasın). Sadece ilerleme yönünü değil, yan ve derinlik hareketini de kontrol et.
+- Kamera engellerin içine girmesin; engel arkasında kalırsa kamerayı yaklaştır veya engeli saydamlaştır.
+- Çarpışma sorgularını hızlandırmak için basit bir uzamsal ızgara (spatial grid) kullan ve sadece oyuncunun yakınındaki engelleri kontrol et.
+- Rakipler ve savaştaki düşmanlar da engellerden geçmesin, aynı çarpışma sistemini kullansınlar. Yolda engele takılırlarsa etrafından dolaşsınlar.
+- Yol kenarlarında görünmez ama etkili sınır duvarları koy, oyuncu yoldan veya haritadan dışarı çıkamasın.
+- Savaş alanında düşman ile oyuncunun birbirinin içine girmesini engelle (minimum mesafe).
+- Debug için ayarlardan açılabilen bir çarpışma görünümü ekle (çarpışma şekillerini çizsin), böylece eksik kalan engeller kolayca bulunsun.
+- Altın, elmas gibi toplanabilir nesneler çarpışmadan etkilenmesin, yine toplanabilsin.
+
+──────────────────────────────
+4) SAVAŞTA EKRANIN KARIŞMASI
+──────────────────────────────
+Belirtiler: bazı savaşlarda ekran karışıyor, görüntü bozuluyor.
+
+Yapılacaklar:
+- Savaş başlarken yol sahnesini DONDUR/GİZLE ama savaş sahnesinde yol nesnelerinin üst üste binmediğinden emin ol. Savaş ayrı ve temiz bir sahne/arena olarak kurulsun veya yol sahnesindeki alakasız nesneler tamamen gizlensin.
+- Kamera savaşa girerken ve çıkarken ani sıçrama yapmasın; yumuşak geçiş (lerp) kullan. Savaş kamerası sabit ve net bir açıdan hem oyuncuyu hem düşmanı göstersin, hiçbir nesne kameranın önüne girmesin.
+- Z-fighting (üst üste binen yüzeylerin titremesi) ve saydamlık sıralaması hatalarını düzelt: kamera near değerini makul tut (0.1 yerine 0.5-1 gibi), far değerini gereksiz büyütme, üst üste binen düzlemlere küçük ofset ver, saydam materyallerde depthWrite ve renderOrder'ı doğru ayarla.
+- Arayüz katmanları (VS kartı, SAVAŞ/KONUŞ paneli, yetenek butonları, stamina çubuğu) oyun görüntüsünün üstünde düzgün katmanlansın (z-index), dokunma alanları birbirine karışmasın. Savaş başlayınca yol arayüzü (joystick, KONUŞ/SAVAŞ kartı) tamamen gizlensin; savaş bitince geri gelsin. Ekranda iki ayrı panel üst üste kalmasın.
+- Savaş bitince tüm geçici efektler, projektiller ve parçacıklar temizlensin (sızıntı olmasın).
+- Savaş sırasında ekran titremesi (screen shake) ve flaş efektleri hafif tutulsun, mobilde ekranı bozmasın.
+- Savaş başlama anındaki takılmayı önlemek için savaş varlıklarını (model, animasyon, efekt, ses) önceden yükle.
+
+──────────────────────────────
+5) BOZUK KARAKTERLER VE GECE SAVAŞÇISI
+──────────────────────────────
+Belirtiler: bazı karakterler bozuk görünüyor. 3D yaptığımız gece savaşçısı diğerleri gibi düzgün değil.
+
+Yapılacaklar:
+- Oyundaki TÜM karakterleri (kahraman, Demir Yemin, kırmızı pelerinli düşman, kahverengi/bronz zırhlı rakip, diğer tüm rakipler) tek tek incele. Hatalı olanları bul: kaybolan uzuvlar, yanlış ölçek, ters dönmüş model, yamuk duruş, bozuk materyal, şeffaf kalan parçalar, kemik/animasyon uyumsuzluğu, yere gömülü veya havada duran model. Hepsini düzelt.
+- Tüm karakterler aynı kalite seviyesinde, aynı çizim stilinde, aynı ışıklandırmada ve aynı ölçek mantığında olsun. Yere basma noktaları (ayakların zemine temas ettiği yer) doğru olsun, kimse havada veya yerin altında kalmasın.
+- Her karakterin yürüme, koşma, bekleme, saldırı, blok, kaçınma, hasar alma, ölme animasyonu çalışsın ve geçişler yumuşak olsun. Animasyon klip adlarını ve sürelerini koru (Idle, Walk, Run, Attack1, Block, Dodge, HitReaction, Death, Victory). Animasyon çalışmayan karakter T-pozunda kalmasın; bir sebeple animasyon yüklenemezse güvenli bir bekleme duruşuna düşsün.
+- GECE SAVAŞÇISI: 3D olarak yaptığımız gece savaşçısını diğer karakterlerle aynı sisteme getir: aynı iskelet/animasyon yapısı, aynı ölçek ve yön (Y-up, +Z'ye bakar), aynı yürüme/saldırı/ölme animasyonları, aynı materyal ve ışık yaklaşımı, aynı çarpışma ve isim etiketi sistemi. Diğer karakterlerin nasıl yüklendiğini ve nasıl animasyonlandığını örnek al ve gece savaşçısını birebir aynı şekilde entegre et. Görünümü bozuksa (materyal, doku, yön, ölçek, kafa/zırh parçaları) düzelt; ama tasarımının ruhunu koru (karanlık, gece temalı, havalı).
+- Zaten düzgün çalışan hazır kemikli şövalye modelinin (fantasy_knight_rigged) iskeletine, kemik ağırlıklarına ve kılıç bağlantısına DOKUNMA.
+- Bütün karakterlerde GLB boyutunu küçük tut ve modelleri bir kez yükleyip klonla (SkeletonUtils.clone), her rakip için yeniden indirme/yükleme yapma.
+- Uzaktaki rakiplerde düşük detaylı hâl kullan (LOD) veya animasyonu seyrekleştir.
+
+──────────────────────────────
+6) "BOT" YAZISINI KALDIR (İSİM ETİKETLERİ VE KARTLAR)
+──────────────────────────────
+Belirtiler: karşılaşılan rakiplerin kartında "BOT · YOLUNU KESİYOR" yazıyor. Oyuncu rakiplerin bot olduğunu görmesin; hepsi gerçek savaşçılar gibi görünsün.
+
+Yapılacaklar:
+- Arayüzün ve kodun TÜM yerlerinde kullanıcıya görünen "BOT" ifadesini bul ve kaldır: karşılaşma kartı (KONUŞ/SAVAŞ paneli), VS kartı, savaş ekranı, isim etiketleri, sonuç ekranı, bildirimler, ayarlar, ipuçları, yükleme metinleri ve dünyadaki 3D/2D isim levhaları. Metinlerde, buton etiketlerinde, aria-label ve title özelliklerinde de kalmasın.
+- "BOT · YOLUNU KESİYOR" yerine rakibe uygun, hikâyeye yakışan kısa etiketler kullan. Örnekler: "SAVAŞÇI · YOLUNU KESİYOR", "GEZGİN · YOLUNU KESİYOR", "NÖBETÇİ · YOLUNU KESİYOR". Etiket rakibin sınıfına/ünvanına göre rastgele ve tutarlı seçilsin (aynı rakip hep aynı etiketi göstersin). Gerçek oyuncu karşılaşmalarında da aynı kart biçimi kullanılsın ki bot ile gerçek oyuncu ayırt edilemesin.
+- Rakip isimleri (Demir Yemin gibi) oyuncu adı gibi doğal, havalı ve çeşitli olsun. Yinelenen isim sayısını azalt; en az 40-50 farklı isim ve ünvan havuzu hazırla (Türkçe/fantastik karışık: Demir Yemin, Kara Kılıç, Gece Nöbetçisi, Kül Gezgini, Kızıl Pelerin, Sessiz Gölge vb.). Rakip seviyesi oyuncunun seviyesine yakın değerlerde atanıp ismi, seviyesi ve ganimet tahmini kartta görünsün.
+- Kodda dahili olarak "bot" değişken/alan adları kalabilir (kod kırılmasın), ama kullanıcıya giden hiçbir metinde, API cevabında, ağ yanıtında görünen alanda veya sayfa kaynağında oyuncunun okuyabileceği şekilde "bot" kelimesi geçmesin. Arama: "BOT", "Bot", "bot" kelimelerini tüm arayüz metinlerinde tara ve sonuçları raporla.
+- Etiketler sahne içinde küçük, okunur ve performansı düşürmeden (tek canvas/sprite havuzu) çizilsin; uzaktaki etiketler gizlensin, yaklaşınca belirsin.
+
+──────────────────────────────
+7) DOĞRULAMA (BİTİRMEDEN ÖNCE ZORUNLU)
+──────────────────────────────
+Her maddeyi gerçekten test et ve sonunda kısa bir rapor ver:
+- Mobil ekran boyutunda (390x844) oyun akıcı çalışıyor mu? FPS değerini yaz.
+- Yolda 3 dakika kesintisiz yürü: donma, bellek artışı, siyah ekran var mı?
+- Sütun, kemer, kaya, kule ve taşlara yürümeyi dene: içinden geçiyor mu?
+- En az 5 farklı rakiple savaş yap: ekran karışıyor mu, savaştan sonra yola düzgün dönüyor mu?
+- Tüm karakterleri sırayla göster: bozuk olan kaldı mı? Gece savaşçısı diğerleriyle aynı kalitede mi?
+- Arayüzün hiçbir yerinde "BOT" yazısı kaldı mı? (kart, VS ekranı, etiket, bildirim, sonuç ekranı)
+- Giriş (Clerk), profil kaydı, dükkân, altın/elmas toplama ve savaş ödülleri hâlâ çalışıyor mu?
+- Konsolda hata veya uyarı kaldı mı?
+
+KURALLAR:
+- Mevcut özellikleri silme, tasarımı ve arayüz stilini değiştirme.
+- Değişiklikleri küçük parçalar halinde değil, sorunun kökünü çözecek şekilde yap; çözemediğin bir şey olursa nedenini açıkça yaz.
+- Bitince hangi dosyada neyi değiştirdiğini ve ölçülen performans iyileşmesini (önce/sonra FPS) kısaca özetle.

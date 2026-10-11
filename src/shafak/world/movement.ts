@@ -92,6 +92,7 @@ export function stepWorldMotion(
   input: WorldInput,
   deltaSeconds: number,
   speedMultiplier = 1,
+  target?: WorldMotionFrame,
 ): WorldMotionFrame {
   const dt = clamp(finiteOrZero(deltaSeconds), 0, 0.05);
   const magnitude = clamp(Math.hypot(input.x, input.y), 0, 1);
@@ -131,34 +132,30 @@ export function stepWorldMotion(
   const squash = isMoving ? footImpact * (0.012 + speedFactor * 0.008) : 0;
   const shadowScale = 1 + speedFactor * 0.24 - squash * 2;
   const facing = Math.abs(velocityX) > .12 ? (velocityX < 0 ? -1 : 1) : state.facing;
-  const nextState: WorldMotion = {
-    velocityX,
-    velocityY,
-    depth,
-    distance,
-    cameraX,
-    stepPhase,
-    stepCount,
-    stopTime,
-    hasMoved: state.hasMoved || isMoving,
-    zoom,
-    cameraLead,
-    facing,
-  };
-
-  return {
-    ...nextState,
-    speed,
-    bob: isMoving ? movingBob : idleBreath,
-    lean: isMoving ? lean : 0,
-    weightShift,
-    squash,
-    shadowScale,
-    footsteps,
-    motion: isMoving
-      ? speed > WALK_SPEED + (RUN_SPEED - WALK_SPEED) * 0.48 ? "running" : "walking"
-      : state.hasMoved && stopTime < 0.45 ? "stopped" : "idle",
-  };
+  const frame = target ?? {} as WorldMotionFrame;
+  frame.velocityX = velocityX;
+  frame.velocityY = velocityY;
+  frame.depth = depth;
+  frame.distance = distance;
+  frame.cameraX = cameraX;
+  frame.stepPhase = stepPhase;
+  frame.stepCount = stepCount;
+  frame.stopTime = stopTime;
+  frame.hasMoved = state.hasMoved || isMoving;
+  frame.zoom = zoom;
+  frame.cameraLead = cameraLead;
+  frame.facing = facing;
+  frame.speed = speed;
+  frame.bob = isMoving ? movingBob : idleBreath;
+  frame.lean = isMoving ? lean : 0;
+  frame.weightShift = weightShift;
+  frame.squash = squash;
+  frame.shadowScale = shadowScale;
+  frame.footsteps = footsteps;
+  frame.motion = isMoving
+    ? speed > WALK_SPEED + (RUN_SPEED - WALK_SPEED) * 0.48 ? "running" : "walking"
+    : state.hasMoved && stopTime < 0.45 ? "stopped" : "idle";
+  return frame;
 }
 
 export function interpolateWorldMotion(

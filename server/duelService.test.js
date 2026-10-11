@@ -27,7 +27,7 @@ const profile = {
   dailyKey: "2026-10-08",
 };
 
-test("server challenges use a generated BOT id and return server-owned combat settings", async () => {
+test("server challenges use a generated rival id and return server-owned combat settings", async () => {
   const rival = getWorldChapter(0).rivals[0];
   const inserts = [];
   let reads = 0;
@@ -54,6 +54,14 @@ test("server challenges use a generated BOT id and return server-owned combat se
   assert.equal(inserts[0][3], rival.id);
   assert.deepEqual(JSON.parse(inserts[0][4]), challenge.playerStats);
   assert.equal(reads, 0);
+
+  const legacyChallenge = await createDuelChallenge(
+    database,
+    "user-1",
+    rival.id.replace(":rival:", ":bot:"),
+  );
+  assert.equal(legacyChallenge.opponent.id, rival.id);
+  assert.ok(!JSON.stringify(legacyChallenge).toLowerCase().includes("bot"));
 });
 
 test("a client cannot submit a requested result or rewards", async () => {

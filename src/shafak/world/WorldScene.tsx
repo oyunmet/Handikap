@@ -53,8 +53,10 @@ import {
   getWorldChapter,
   PICKUP_RADIUS_METERS,
   pickupRewardTotals,
-  resolveWorldObstacleCollision,
+  buildWorldCollisionGrid,
+  resolveWorldPathCollision,
   type WorldChapterContent,
+  type WorldCollisionGrid,
   type WorldObstacle,
   type WorldPickup,
   type WorldRival,
@@ -206,6 +208,7 @@ type WorldContentSnapshot = {
   rivals: WorldRival[];
   pickups: WorldPickup[];
   obstacles: WorldObstacle[];
+  collisionGrid: WorldCollisionGrid;
 };
 
 const worldContentSnapshots = new WeakMap<
@@ -239,6 +242,7 @@ function getCachedWorldContent(distance: number, cache: Map<number, WorldChapter
     rivals: chapters.flatMap((chapter) => chapter.rivals),
     pickups: chapters.flatMap((chapter) => chapter.pickups),
     obstacles: chapters.flatMap((chapter) => chapter.obstacles),
+    collisionGrid: buildWorldCollisionGrid(chapters),
   };
   snapshots.set(current, snapshot);
   for (const chapterId of cache.keys()) {
@@ -1216,10 +1220,36 @@ export default function WorldScene({
     let accumulator = 0;
     let lastReactUpdate = 0;
     let lastVisualUpdate = 0;
+    const lastFiniteMotion = { ...motionRef.current };
     const fixedStep = 1 / 60;
     const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
+    const frameScratch = stepWorldMotion(
+      motionRef.current,
+      stoppedInput,
+      0,
+      playerCombatStats.moveSpeedMultiplier,
+    );
+    const collisionPosition = { x: 0, distance: 0 };
     const newlyCollected = new Map<number, string[]>();
     const animate = (now: number) => {
+      if (document.visibilityState === "hidden") {
+        frame = 0;
+        previous = 0;
+        accumulator = 0;
+        return;
+      }
+      const currentMotion = motionRef.current;
+      if (
+        !Number.isFinite(currentMotion.velocityX)
+        || !Number.isFinite(currentMotion.velocityY)
+        || !Number.isFinite(currentMotion.depth)
+        || !Number.isFinite(currentMotion.distance)
+        || !Number.isFinite(currentMotion.cameraX)
+        || !Number.isFinite(currentMotion.stepPhase)
+        || !Number.isFinite(currentMotion.zoom)
+        || !Number.isFinite(currentMotion.cameraLead)
+      ) Object.assign(currentMotion, lastFiniteMotion);
+      else Object.assign(lastFiniteMotion, currentMotion);
       const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
       previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
@@ -1230,13 +1260,14 @@ export default function WorldScene({
         battleActiveRef.current || worldPausedForStory ? stoppedInput : liveInput,
         0,
         playerCombatStats.moveSpeedMultiplier,
+        frameScratch,
       );
       let footsteps = 0;
       newlyCollected.clear();
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
         if (storyDialogueRef.current && !battleActiveRef.current) {
-          const pausedFrame = stepWorldMotion(motionRef.current, stoppedInput, fixedStep, playerCombatStats.moveSpeedMultiplier);
+          const pausedFrame = stepWorldMotion(motionRef.current, stoppedInput, fixedStep, playerCombatStats.moveSpeedMultiplier, frameScratch);
           frameState = pausedFrame;
           motionRef.current = pausedFrame;
           accumulator -= fixedStep;
@@ -1377,26 +1408,34 @@ export default function WorldScene({
         }
         const simulationStep = fixedStep;
         Object.assign(previousMotion, motionRef.current);
-        let nextFrame = stepWorldMotion(motionRef.current, stepInput, simulationStep, playerCombatStats.moveSpeedMultiplier);
+        let nextFrame = stepWorldMotion(
+          motionRef.current,
+          stepInput,
+          simulationStep,
+          playerCombatStats.moveSpeedMultiplier,
+          frameScratch,
+        );
         const worldContent = getCachedWorldContent(nextFrame.distance, contentCacheRef.current);
         const obstacles = worldContent.obstacles;
         const playerX = nextFrame.depth * 5.2;
-        const safeDistance = resolveWorldObstacleCollision(
-          motionRef.current.distance,
+        const resolvedPosition = resolveWorldPathCollision(
           motionRef.current.depth * 5.2,
+          motionRef.current.distance,
+          nextFrame.depth * 5.2,
           nextFrame.distance,
-          playerX,
-          obstacles,
+          worldContent.collisionGrid,
           brokenRef.current,
+          collisionPosition,
         );
-        if (Math.abs(safeDistance - nextFrame.distance) > 0.0001) {
-          nextFrame = {
-            ...nextFrame,
-            distance: safeDistance,
-            cameraX: Math.min(nextFrame.cameraX, safeDistance),
-            velocityY: 0,
-            speed: Math.abs(nextFrame.velocityX),
-          };
+        if (
+          Math.abs(resolvedPosition.distance - nextFrame.distance) > 0.0001
+          || Math.abs(resolvedPosition.x - playerX) > 0.0001
+        ) {
+          nextFrame.depth = resolvedPosition.x / 5.2;
+          nextFrame.distance = resolvedPosition.distance;
+          nextFrame.cameraX = Math.min(nextFrame.cameraX, resolvedPosition.distance);
+          nextFrame.velocityY = 0;
+          nextFrame.speed = Math.abs(nextFrame.velocityX);
         }
 
         for (const rival of worldContent.rivals) {
@@ -1531,9 +1570,30 @@ export default function WorldScene({
       }
       frame = window.requestAnimationFrame(animate);
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+        previous = 0;
+        accumulator = 0;
+        worldInput.heldKeys.current.clear();
+        worldInput.joystick.current = { x: 0, y: 0 };
+        combatInputRef.current.x = 0;
+        combatInputRef.current.y = 0;
+        combatInputRef.current.buttons = 0;
+        combatInputRef.current.pressed = 0;
+        combatInputRef.current.released = 0;
+        return;
+      }
+      previous = 0;
+      accumulator = 0;
+      if (!frame) frame = window.requestAnimationFrame(animate);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     frame = window.requestAnimationFrame(animate);
     return () => {
       window.cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [audioOn, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
 
@@ -1636,6 +1696,7 @@ export default function WorldScene({
         >
           <World3D
             motionRef={motionRef}
+            collisionGrid={getCachedWorldContent(motionRef.current.distance, contentCacheRef.current).collisionGrid}
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
             motionReduced={motionReduced}
@@ -1724,7 +1785,7 @@ export default function WorldScene({
             && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty)
             && (
               <>
-                <div className="duel-attack-warning" role="status" aria-live="assertive">BOT SALDIRIYOR · BLOKLA YA DA KAÇ</div>
+                <div className="duel-attack-warning" role="status" aria-live="assertive">RAKİP SALDIRIYOR · BLOKLA YA DA KAÇ</div>
               </>
             )}
           <DuelStaminaBar stamina={combatRender.player.stamina} maxStamina={combatRender.player.maxStamina} visualEffectsEnabled={visualEffectsEnabled} />
@@ -1877,7 +1938,7 @@ export default function WorldScene({
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
           <div className="world-encounter__card">
-            <span className="world-encounter__eyebrow"><b>BOT</b> · {canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
+            <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
             <span>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</span>
             <em>“{nextOpponent.taunt}”</em>
@@ -1911,7 +1972,7 @@ export default function WorldScene({
         </div>
       )}
       {battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase) && (
-        <div className={`world-battle-entry${battleSession.phase !== "sweep" ? " is-vs" : ""}`} role="dialog" aria-modal="true" aria-label="BOT karşılaşması">
+        <div className={`world-battle-entry${battleSession.phase !== "sweep" ? " is-vs" : ""}`} role="dialog" aria-modal="true" aria-label="Savaşçı karşılaşması">
           <div className="world-battle-entry__vignette" />
           <span className="world-battle-entry__eyebrow">GERÇEK ZAMANLI SAVAŞ · AYNI 3D DÜNYA</span>
           <div className="world-battle-entry__versus">
@@ -1925,7 +1986,7 @@ export default function WorldScene({
                   <img src="/images/gece-nobetcisi.png" alt="" />
                 </div>
                 <div className="world-battle-entry__rival-copy">
-                  <small><i>BOT</i> · SEV. {battleSession.rival.level}</small>
+                  <small><i>{battleSession.rival.title}</i> · SEV. {battleSession.rival.level}</small>
                   <strong>{battleSession.rival.name}</strong>
                 </div>
               </div>

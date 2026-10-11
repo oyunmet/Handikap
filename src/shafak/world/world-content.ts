@@ -1,6 +1,7 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement";
 import { WORLD_SEED } from "./world-generation";
-import { getWorldBotProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles";
+import { createWorldChunk } from "./world-generation";
+import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles";
 
 export type PickupKind = "gold-small" | "gold-large" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -30,6 +31,7 @@ export type WorldObstacle = {
 export type WorldRival = {
   id: string;
   name: string;
+  title: string;
   level: number;
   winRate: number;
   loot: number;
@@ -43,6 +45,19 @@ export type WorldRival = {
   archetype: WorldBotArchetype;
   weapon: WorldBotWeapon;
 };
+
+export type WorldCollider = {
+  id: string;
+  x: number;
+  distance: number;
+  shape: "circle" | "box";
+  radius: number;
+  halfWidth: number;
+  halfDepth: number;
+  breakableId?: string;
+};
+
+export type WorldCollisionGrid = Map<number, Map<number, WorldCollider[]>>;
 
 export type WorldChapterContent = {
   chapterId: number;
@@ -154,10 +169,11 @@ function createObstacles(chapterId: number): WorldObstacle[] {
 function createRivals(chapterId: number, random: () => number): WorldRival[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
   return Array.from({ length: 4 }, (_, index) => {
-    const profile = getWorldBotProfile(index);
+    const profile = getWorldRivalProfile(chapterId, index);
     return {
-      id: `ash-road:${chapterId}:bot:${index}`,
+      id: `ash-road:${chapterId}:rival:${index}`,
       name: profile.name,
+      title: profile.title,
       archetype: profile.archetype,
       level: Math.min(1000, 2 + chapterId * 2 + index * 2),
       winRate: 42 + index * 9 + Math.min(24, chapterId * 2),
@@ -232,6 +248,154 @@ export function resolveWorldObstacleCollision(
   return Math.abs(resolvedDistance - previousDistance) < 0.0001 && resolvedDistance !== nextDistance
     ? previousDistance
     : resolvedDistance;
+}
+
+const COLLISION_CELL_SIZE = 12;
+const PLAYER_COLLISION_RADIUS = 0.42;
+
+export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]): WorldCollisionGrid {
+  const grid: WorldCollisionGrid = new Map();
+  const add = (collider: WorldCollider) => {
+    const cellX = Math.floor(collider.x / COLLISION_CELL_SIZE);
+    const cellDistance = Math.floor(collider.distance / COLLISION_CELL_SIZE);
+    let row = grid.get(cellX);
+    if (!row) {
+      row = new Map();
+      grid.set(cellX, row);
+    }
+    const cell = row.get(cellDistance);
+    if (cell) cell.push(collider);
+    else row.set(cellDistance, [collider]);
+  };
+
+  for (const chapter of chapters) {
+    for (const obstacle of chapter.obstacles) {
+      if (obstacle.kind === "spike-trap") continue;
+      add({
+        id: obstacle.id,
+        x: obstacle.x,
+        distance: obstacle.distance,
+        shape: obstacle.kind === "rock" ? "circle" : "box",
+        radius: obstacle.width * 0.58,
+        halfWidth: obstacle.width / 2,
+        halfDepth: obstacle.kind === "barricade" ? 0.3 : 0.5,
+        breakableId: obstacle.kind === "barricade" ? obstacle.id : undefined,
+      });
+    }
+
+    for (let index = chapter.chapterId * 3; index < chapter.chapterId * 3 + 3; index += 1) {
+      const chunk = createWorldChunk(index);
+      for (const object of chunk.objects) {
+        const centerX = object.lane * 9.3;
+        const scale = object.scale;
+        const yaw = (object.flickerSeed % 628) / 100;
+        const addOffsetCircle = (offsetX: number, radius: number, suffix: string) => {
+          add({
+            id: `${object.id}:${suffix}`,
+            x: centerX + Math.cos(yaw) * offsetX * scale,
+            distance: object.worldX + Math.sin(yaw) * offsetX * scale,
+            shape: "circle",
+            radius: radius * scale,
+            halfWidth: radius * scale,
+            halfDepth: radius * scale,
+          });
+        };
+
+        if (object.kind === "tower") addOffsetCircle(0, 1.2, "tower");
+        else if (object.kind === "ruin") {
+          addOffsetCircle(-0.82, 0.42, "pillar-a");
+          addOffsetCircle(0.82, 0.44, "pillar-b");
+        } else if (object.kind === "arch") {
+          addOffsetCircle(-1.45, 0.48, "arch-a");
+          addOffsetCircle(1.45, 0.48, "arch-b");
+        } else if (object.kind === "rock" || object.kind === "ice-crystal") {
+          addOffsetCircle(0, object.kind === "rock" ? 1.18 : 0.58, object.kind);
+        } else if (object.kind === "tree" || object.kind === "mangrove") {
+          addOffsetCircle(0, object.kind === "tree" ? 0.34 : 0.46, object.kind);
+        } else if (object.kind === "cart") {
+          add({
+            id: `${object.id}:cart`,
+            x: centerX,
+            distance: object.worldX,
+            shape: "box",
+            radius: 0,
+            halfWidth: 0.95 * scale,
+            halfDepth: 0.55 * scale,
+          });
+        }
+      }
+    }
+  }
+  return grid;
+}
+
+export function resolveWorldPathCollision(
+  previousX: number,
+  previousDistance: number,
+  nextX: number,
+  nextDistance: number,
+  grid: WorldCollisionGrid,
+  brokenObstacleIds: ReadonlySet<string>,
+  target: { x: number; distance: number } = { x: 0, distance: 0 },
+) {
+  const startX = Number.isFinite(previousX) ? previousX : 0;
+  const startDistance = Number.isFinite(previousDistance) ? Math.max(0, previousDistance) : 0;
+  const requestedX = Number.isFinite(nextX) ? nextX : startX;
+  const requestedDistance = Number.isFinite(nextDistance) ? Math.max(0, nextDistance) : startDistance;
+  const travelX = requestedX - startX;
+  const travelDistance = requestedDistance - startDistance;
+  const segments = Math.max(1, Math.min(128, Math.ceil(Math.hypot(travelX, travelDistance) / 0.35)));
+  const stepX = travelX / segments;
+  const stepDistance = travelDistance / segments;
+  const minCellX = Math.floor((Math.min(startX, requestedX) - 2) / COLLISION_CELL_SIZE);
+  const maxCellX = Math.floor((Math.max(startX, requestedX) + 2) / COLLISION_CELL_SIZE);
+  const minCellDistance = Math.floor((Math.min(startDistance, requestedDistance) - 2) / COLLISION_CELL_SIZE);
+  const maxCellDistance = Math.floor((Math.max(startDistance, requestedDistance) + 2) / COLLISION_CELL_SIZE);
+  let x = startX;
+  let distance = startDistance;
+
+  for (let segment = 1; segment <= segments; segment += 1) {
+    x += stepX;
+    distance += stepDistance;
+    for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+      const row = grid.get(cellX);
+      if (!row) continue;
+      for (let cellDistance = minCellDistance; cellDistance <= maxCellDistance; cellDistance += 1) {
+        const colliders = row.get(cellDistance);
+        if (!colliders) continue;
+        for (const collider of colliders) {
+          if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
+          if (collider.shape === "circle") {
+            const dx = x - collider.x;
+            const dz = distance - collider.distance;
+            const minimum = collider.radius + PLAYER_COLLISION_RADIUS;
+            const gapSquared = dx * dx + dz * dz;
+            if (gapSquared >= minimum * minimum) continue;
+            const gap = Math.sqrt(gapSquared);
+            const nx = gap > 0.0001 ? dx / gap : (startX <= collider.x ? -1 : 1);
+            const nz = gap > 0.0001 ? dz / gap : 0;
+            const push = minimum - gap;
+            x += nx * push;
+            distance += nz * push;
+          } else {
+            const halfWidth = collider.halfWidth + PLAYER_COLLISION_RADIUS;
+            const halfDepth = collider.halfDepth + PLAYER_COLLISION_RADIUS;
+            const dx = x - collider.x;
+            const dz = distance - collider.distance;
+            if (Math.abs(dx) >= halfWidth || Math.abs(dz) >= halfDepth) continue;
+            const pushX = halfWidth - Math.abs(dx);
+            const pushZ = halfDepth - Math.abs(dz);
+            if (pushX < pushZ) x += (dx < 0 ? -1 : 1) * pushX;
+            else distance += (dz < 0 ? -1 : 1) * pushZ;
+          }
+        }
+      }
+    }
+  }
+
+  target.x = Math.max(-5.05, Math.min(5.05, x));
+  target.distance = Math.max(0, distance);
+  return target;
 }
 
 export function validatePickupIds(chapterId: number, pickupIds: unknown): WorldPickup[] | null {

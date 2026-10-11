@@ -15,6 +15,7 @@ type Knight3DProps = {
   animationTimeScale?: number;
   facingAngle?: number;
   footSlipRef?: MutableRefObject<number>;
+  castShadow?: boolean;
   appearance?: EquipmentVisual;
 };
 
@@ -184,7 +185,16 @@ function Cape({ motionRef, motionReduced, appearance }: Pick<Knight3DProps, "mot
   return <mesh ref={meshRef} geometry={geometry} position={[0, 1.72, 0.12]} material={material} frustumCulled={false} />;
 }
 
-export default function Knight3D({ motionRef, state, motionReduced, animationTimeScale = 1, facingAngle, footSlipRef, appearance }: Knight3DProps) {
+export default function Knight3D({
+  motionRef,
+  state,
+  motionReduced,
+  animationTimeScale = 1,
+  facingAngle,
+  footSlipRef,
+  castShadow = true,
+  appearance,
+}: Knight3DProps) {
   const rootRef = useRef<THREE.Group>(null);
   const torsoRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
@@ -409,9 +419,9 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
     const root = rootRef.current;
     root?.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || object.material === shadowMaterial) return;
-      object.castShadow = true;
+      object.castShadow = castShadow;
     });
-  }, [shadowMaterial]);
+  }, [shadowMaterial, castShadow]);
 
   return (
     <group ref={rootRef} position={[0, 0, 0]}>
@@ -419,15 +429,6 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
         <circleGeometry args={[1, 24]} />
       </mesh>
       <Cape motionRef={motionRef} motionReduced={motionReduced} appearance={appearance} />
-      {appearance?.auraColor && (
-        <pointLight
-          position={[0, 1.05, 0]}
-          color={appearance.auraColor}
-          intensity={0.55}
-          distance={2.7}
-        />
-      )}
-
       <group ref={torsoRef} position={[0, 0, 0]}>
         <mesh position={[0, 1.26, 0]} scale={[0.31, 0.36, 0.2]}>
           <icosahedronGeometry args={[1, 1]} />

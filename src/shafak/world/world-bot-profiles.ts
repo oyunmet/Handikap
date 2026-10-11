@@ -5,6 +5,7 @@ export type WorldBotWeapon = "sword" | "axe" | "spear" | "mace" | "bow" | "great
 
 export type WorldBotProfile = {
   name: string;
+  title: string;
   archetype: WorldBotArchetype;
   weapon: WorldBotWeapon;
   difficulty: "easy" | "medium" | "hard";
@@ -14,7 +15,24 @@ export type WorldBotProfile = {
   taunt: string;
 };
 
-export const WORLD_BOT_PROFILES: readonly WorldBotProfile[] = [
+const WORLD_RIVAL_NAMES = [
+  "Kapı Muhafızı", "Demir Yemin", "Kül Okçusu", "Gölge Şövalyesi",
+  "Kızıl Hisar", "Bozkır Yeminlisi", "Kül İzci", "Sessiz Gölge",
+  "Taş Nöbetçi", "Kara Kılıç", "Duman Avcısı", "Gece Nöbetçisi",
+  "Kalkanlı Aras", "Çelik Ant", "Yitik İzci", "Karanlık Miğfer",
+  "Kızıl Pelerin", "Taş Mühür", "Kül Gezgini", "Mor Hançer",
+  "Kuzey Kapısı", "Demir Pençe", "Uzak Atıcı", "Gece Kargası",
+  "Geçit Bekçisi", "Bakır Yemin", "Kırık Yay", "Sessiz Cellat",
+  "Karanlık Sancak", "Yitik Şövalye", "Kor İzci", "Ayaz Gölgesi",
+  "Son Kale Bekçisi", "Ateş Yemini", "Sis Avcısı", "Ay Işığı Kılıcı",
+  "Gümüş Kapı", "Kara Kalkan", "Kül Muhafızı", "Dilsiz Nöbetçi",
+  "Uçurum Bekçisi", "Yitik Ant", "Sessiz Okçu", "Gece Savaşçısı",
+  "Kızıl Mızrak", "Donmuş Yemin", "Kül Pençesi", "Solgun Kılıç",
+] as const;
+
+const RIVAL_TITLES = ["NÖBETÇİ", "YEMİNLİ SAVAŞÇI", "KÜL GEZGİNİ", "GÖLGE SAVAŞÇISI"] as const;
+
+const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
   {
     name: "Kapı Muhafızı",
     archetype: "gate-warden",
@@ -97,10 +115,34 @@ export const WORLD_BOT_PROFILES: readonly WorldBotProfile[] = [
   },
 ];
 
+export const WORLD_BOT_PROFILES: readonly WorldBotProfile[] = WORLD_ARCHETYPE_PROFILES.map((profile, index) => ({
+  ...profile,
+  title: RIVAL_TITLES[index],
+}));
+
 export function getWorldBotProfile(index: number) {
   return WORLD_BOT_PROFILES[((Math.floor(index) % WORLD_BOT_PROFILES.length) + WORLD_BOT_PROFILES.length) % WORLD_BOT_PROFILES.length];
 }
 
+export function getWorldRivalProfile(chapterId: number, rivalIndex: number) {
+  const archetypeIndex = ((Math.floor(rivalIndex) % WORLD_ARCHETYPE_PROFILES.length) + WORLD_ARCHETYPE_PROFILES.length)
+    % WORLD_ARCHETYPE_PROFILES.length;
+  const nameIndex = ((Math.floor(chapterId) * WORLD_ARCHETYPE_PROFILES.length + archetypeIndex) % WORLD_RIVAL_NAMES.length
+    + WORLD_RIVAL_NAMES.length) % WORLD_RIVAL_NAMES.length;
+  return {
+    ...WORLD_ARCHETYPE_PROFILES[archetypeIndex],
+    name: WORLD_RIVAL_NAMES[nameIndex],
+    title: RIVAL_TITLES[archetypeIndex],
+  };
+}
+
 export function getWorldBotProfileByName(name: string) {
-  return WORLD_BOT_PROFILES.find((profile) => profile.name === name);
+  const nameIndex = WORLD_RIVAL_NAMES.indexOf(name as (typeof WORLD_RIVAL_NAMES)[number]);
+  if (nameIndex < 0) return undefined;
+  const archetypeIndex = nameIndex % WORLD_ARCHETYPE_PROFILES.length;
+  return {
+    ...WORLD_ARCHETYPE_PROFILES[archetypeIndex],
+    name: WORLD_RIVAL_NAMES[nameIndex],
+    title: RIVAL_TITLES[archetypeIndex],
+  };
 }

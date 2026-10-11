@@ -9,7 +9,7 @@ export const AUTO_QUALITY_UP_AFTER_MS = 6_000;
 const PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
   low: 1,
   balanced: 1.35,
-  high: 1.75,
+  high: 1.5,
 };
 
 export function normalizeGraphicsMode(value: unknown): GraphicsMode {

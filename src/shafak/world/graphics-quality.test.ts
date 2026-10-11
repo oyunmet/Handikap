@@ -42,7 +42,7 @@ test("automatic quality lowers after three seconds below 45 FPS and recovers gra
 });
 
 test("world pixel ratio stays within the mobile rendering budget", () => {
-  assert.equal(getPixelRatioCap("high"), 1.75);
+  assert.equal(getPixelRatioCap("high"), 1.5);
   assert.equal(getPixelRatioCap("balanced"), 1.35);
   assert.equal(getPixelRatioCap("low"), 1);
 });

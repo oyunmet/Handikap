@@ -333,26 +333,12 @@ function FlagCloth({ motionReduced }: { motionReduced: boolean }) {
   return <mesh ref={meshRef} geometry={geometry} material={material} frustumCulled={false} />;
 }
 
-function Flame({
-  color = "#f7a957",
-  sourceId,
-  localLightIds,
-}: {
-  color?: string;
-  sourceId: string;
-  localLightIds: LocalLightIds;
-}) {
+function Flame({ color = "#f7a957" }: { color?: string }) {
   const flameRef = useRef<THREE.Mesh>(null);
-  const lightRef = useRef<THREE.PointLight>(null);
   useFrame((state) => {
     const pulse = 0.88 + Math.sin(state.clock.elapsedTime * 13.4) * 0.1
       + Math.sin(state.clock.elapsedTime * 7.1 + 1.7) * 0.08;
-    const isActive = localLightIds.current.has(sourceId);
     if (flameRef.current) flameRef.current.scale.y = pulse;
-    if (lightRef.current) {
-      lightRef.current.visible = isActive;
-      lightRef.current.intensity = isActive ? 1.5 + pulse * 0.75 : 0;
-    }
   });
   return (
     <group>
@@ -364,7 +350,6 @@ function Flame({
         <sphereGeometry args={[1, 7, 5]} />
         <meshBasicMaterial color={color} transparent opacity={0.12} depthWrite={false} />
       </mesh>
-      <pointLight ref={lightRef} position={[0, 0.25, 0]} color={color} distance={10} decay={2} intensity={0} />
     </group>
   );
 }
@@ -373,12 +358,10 @@ function WorldProp({
   object,
   motionRef,
   motionReduced,
-  localLightIds,
 }: {
   object: WorldObject;
   motionRef: MotionRef;
   motionReduced: boolean;
-  localLightIds: LocalLightIds;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const scale = object.scale;
@@ -513,14 +496,14 @@ function WorldProp({
       {(object.kind === "torch" || object.kind === "firepit") && (
         <group>
           {object.kind === "torch" ? (
-            <group position={[0, 1.82, 0]}><Flame sourceId={object.id} localLightIds={localLightIds} /></group>
+            <group position={[0, 1.82, 0]}><Flame /></group>
           ) : (
-            <group position={[0, 0.28, 0]}><Flame sourceId={object.id} localLightIds={localLightIds} /></group>
+            <group position={[0, 0.28, 0]}><Flame /></group>
           )}
         </group>
       )}
       {object.kind === "crystal" && (
-        <CrystalProp object={object} localLightIds={localLightIds} />
+        <CrystalProp object={object} />
       )}
       {object.kind === "cart" && (
         <group position={[0, 0.48, 0]} rotation={[0, 0, -0.12]}>
@@ -572,14 +555,7 @@ function WorldProp({
   );
 }
 
-function CrystalProp({ object, localLightIds }: { object: WorldObject; localLightIds: LocalLightIds }) {
-  const lightRef = useRef<THREE.PointLight>(null);
-  useFrame(() => {
-    if (!lightRef.current) return;
-    const isActive = localLightIds.current.has(object.id);
-    lightRef.current.visible = isActive;
-    lightRef.current.intensity = isActive ? 1.2 : 0;
-  });
+function CrystalProp({ object }: { object: WorldObject }) {
   return (
     <group>
       <mesh position={[0, 0.9, 0]} rotation={[0.12, 0.3, 0.12]}>
@@ -590,7 +566,6 @@ function CrystalProp({ object, localLightIds }: { object: WorldObject; localLigh
         <octahedronGeometry args={[0.46, 0]} />
         <meshStandardMaterial color="#b27654" emissive="#a64e34" emissiveIntensity={0.56} metalness={0.22} roughness={0.35} flatShading />
       </mesh>
-      <pointLight ref={lightRef} position={[0, 0.9, 0]} color="#ee935e" intensity={0} distance={9} />
     </group>
   );
 }
@@ -859,54 +834,6 @@ export function WorldChunks({
     ),
     [objects, staticLodChunk],
   );
-  const lightCandidates = useMemo(
-    () => animatedObjects.filter((object) => object.kind === "torch" || object.kind === "firepit" || object.kind === "crystal"),
-    [animatedObjects],
-  );
-  const localLightIds = useRef(new Set<string>());
-  useFrame(() => {
-    let firstId = "";
-    let secondId = "";
-    let thirdId = "";
-    let fourthId = "";
-    let firstDistance = 40;
-    let secondDistance = 40;
-    let thirdDistance = 40;
-    let fourthDistance = 40;
-    for (const object of lightCandidates) {
-      const distance = Math.abs(object.worldX - motionRef.current.distance);
-      if (distance < firstDistance) {
-        fourthDistance = thirdDistance;
-        fourthId = thirdId;
-        thirdDistance = secondDistance;
-        thirdId = secondId;
-        secondDistance = firstDistance;
-        secondId = firstId;
-        firstDistance = distance;
-        firstId = object.id;
-      } else if (distance < secondDistance) {
-        fourthDistance = thirdDistance;
-        fourthId = thirdId;
-        thirdDistance = secondDistance;
-        thirdId = secondId;
-        secondDistance = distance;
-        secondId = object.id;
-      } else if (distance < thirdDistance) {
-        fourthDistance = thirdDistance;
-        fourthId = thirdId;
-        thirdDistance = distance;
-        thirdId = object.id;
-      } else if (distance < fourthDistance) {
-        fourthDistance = distance;
-        fourthId = object.id;
-      }
-    }
-    localLightIds.current.clear();
-    if (firstId) localLightIds.current.add(firstId);
-    if (secondId) localLightIds.current.add(secondId);
-    if (thirdId) localLightIds.current.add(thirdId);
-    if (fourthId) localLightIds.current.add(fourthId);
-  });
   return (
     <>
       <RoadSurface motionRef={motionRef} quality={quality} weather={weather} />
@@ -918,7 +845,6 @@ export function WorldChunks({
           object={object}
           motionRef={motionRef}
           motionReduced={motionReduced}
-          localLightIds={localLightIds}
         />
       ))}
       <FinalGate motionRef={motionRef} />
@@ -978,7 +904,6 @@ function FinalGate({ motionRef }: { motionRef: MotionRef }) {
             <coneGeometry args={[0.34, 1.4, 5]} />
             <meshStandardMaterial color="#c19964" metalness={0.45} roughness={0.4} flatShading />
           </mesh>
-          <pointLight position={[0, 0, 0.5]} color="#e88951" intensity={1.2} distance={18} />
         </group>
       ))}
       {Array.from({ length: 7 }, (_, index) => (

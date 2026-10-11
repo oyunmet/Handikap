@@ -9,6 +9,7 @@ import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
+import { getWorldBotProfileByName } from "./world-bot-profiles";
 import { mapOpponentAnimationState } from "./model-animation";
 import {
   AshSky,
@@ -17,7 +18,7 @@ import {
 import { createWorldChunk, type WorldChunk } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
-import type { WorldRival } from "./world-content";
+import type { WorldCollisionGrid, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
 import WorldPostProcessing from "./WorldPostProcessing";
@@ -64,6 +65,7 @@ const PROCEDURAL_ENVIRONMENT_MAP = createProceduralEnvironmentMap();
 
 type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
+  collisionGrid: WorldCollisionGrid;
   quality: WorldQuality;
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
@@ -115,7 +117,7 @@ type DebugStats = {
 };
 
 class WorldCanvasErrorBoundary extends Component<
-  { children: ReactNode; onRetry: () => void },
+  { children: ReactNode; onRetry: () => void; onError: () => void },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -126,6 +128,7 @@ class WorldCanvasErrorBoundary extends Component<
 
   componentDidCatch(error: Error, _info: ErrorInfo) {
     console.error("[shafak-world] 3D canvas failed to start.", error);
+    this.props.onError();
   }
 
   render() {
@@ -370,7 +373,7 @@ function CameraRig({
     }
   });
 
-  return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.1} far={380} />;
+  return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.6} far={190} />;
 }
 
 function combatAnimation(action: CombatAction, speed: number) {
@@ -475,20 +478,18 @@ function DuelFighter({
           animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
           facingAngle={side === "bot" ? Math.PI : 0}
           appearance={side === "player" ? equipmentVisual : undefined}
+          castShadow
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}
-        />
-        <pointLight
-          position={[0, 1.7, side === "bot" ? -0.2 : 0.2]}
-          color={side === "bot" ? "#ff644f" : equipmentVisual.auraColor ?? "#f5c175"}
-          intensity={side === "bot" ? 0.95 : 0.62}
-          distance={4.5}
         />
       </group>
       {visualEffectsEnabled && <DuelAshDispersal active={defeated} x={renderedActor.x} />}
       {side === "bot" && (
         <Html position={[renderedActor.x, 2.55, renderedActor.z]} center distanceFactor={12} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
-          <span className="world-bot-tag is-focused"><b>BOT</b><span>RAKİP</span></span>
+          <span className="world-rival-tag is-focused">
+            <b>{opponentName}</b>
+            <span>{getWorldBotProfileByName(opponentName)?.title ?? "SAVAŞÇI"}</span>
+          </span>
         </Html>
       )}
     </group>
@@ -592,7 +593,6 @@ function DuelTelegraph({ combatStateRef, motionReduced }: { combatStateRef: Muta
         <boxGeometry args={[0.095, 0.62, 0.055]} />
         <meshBasicMaterial ref={glintMaterialRef} color="#fff0ae" transparent opacity={0.8} toneMapped={false} />
       </mesh>
-      <pointLight ref={glintLightRef} position={[0.36, 1.18, -0.76]} color="#ffc86d" intensity={0.8} distance={2.4} />
     </group>
   );
 }
@@ -718,7 +718,6 @@ function DuelCombatVisual({
             <sphereGeometry args={[0.24, 10, 8]} />
             <meshBasicMaterial color="#ff6a27" transparent opacity={0.22} depthWrite={false} />
           </mesh>
-          <pointLight color="#ff642f" intensity={2} distance={3.2} />
         </group>
       )}
       {kind === "lightning" && (
@@ -814,7 +813,6 @@ function DuelArena({
             <dodecahedronGeometry args={[0.19, 0]} />
             <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} />
           </mesh>
-          <pointLight position={[0, 1.48, 0]} color="#ff7849" intensity={1.15} distance={6} />
         </group>
       ))}
       {visualEffectsEnabled && botTelegraphActive && <DuelTelegraph combatStateRef={combatStateRef} motionReduced={motionReduced} />}
@@ -853,37 +851,70 @@ function PlayerLight({
   lightRadius: number;
   lightColor: string;
 }) {
-  const lightRef = useRef<THREE.PointLight>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const progression = Math.min(0.6, Math.max(0, level - 1) * 0.035 + relicCount * 0.04);
-  useFrame((_, delta) => {
+  useFrame(() => {
     const motion = motionRef.current;
-    const speed = Math.hypot(motion.velocityX, motion.velocityY);
     const x = motion.depth * 5.2;
-    if (lightRef.current) {
-      lightRef.current.position.x += (x - lightRef.current.position.x) * (1 - Math.exp(-delta * 9));
-      lightRef.current.position.z = -1.4;
-      lightRef.current.intensity = 2.8 + progression + Math.min(speed, 7) * 0.08;
-    }
     if (glowRef.current) glowRef.current.position.x = x;
   });
   return (
     <>
-      <pointLight ref={lightRef} position={[0, 2, -1.4]} color={lightColor} intensity={2.8} distance={19 + progression * 3 + lightRadius} decay={2} />
-      <mesh ref={glowRef} position={[0, 0.04, -3.2]} scale={[4.5, 0.045, 9]}>
+      <mesh ref={glowRef} position={[0, 0.04, -3.2]} scale={[4.5 + lightRadius * 0.08, 0.045, 9]}>
         <sphereGeometry args={[1, 12, 7]} />
-        <meshBasicMaterial color="#e78450" transparent opacity={0.12} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color={lightColor} transparent opacity={0.09 + progression * 0.025} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh position={[0, 0.14, -1.8]} scale={[4.4, 0.06, 6.6]}>
         <sphereGeometry args={[1, 10, 6]} />
-        <meshBasicMaterial color="#f0ae70" transparent opacity={0.075} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color={lightColor} transparent opacity={0.06 + progression * 0.018} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </>
   );
 }
 
+function WorldCollisionDebug({
+  grid,
+  motionRef,
+}: {
+  grid: WorldCollisionGrid;
+  motionRef: MutableRefObject<WorldMotion>;
+}) {
+  const rootRef = useRef<THREE.Group>(null);
+  const colliders = useMemo(() => {
+    const result = [];
+    for (const row of grid.values()) {
+      for (const cell of row.values()) {
+        for (const collider of cell) result.push(collider);
+      }
+    }
+    return result;
+  }, [grid]);
+
+  useFrame(() => {
+    if (rootRef.current) rootRef.current.position.z = motionRef.current.cameraX;
+  });
+
+  return (
+    <group ref={rootRef}>
+      {colliders.map((collider) => (
+        <mesh
+          key={collider.id}
+          position={[collider.x, 0.055, -collider.distance]}
+          rotation={collider.shape === "circle" ? [-Math.PI / 2, 0, 0] : undefined}
+        >
+          {collider.shape === "circle"
+            ? <ringGeometry args={[Math.max(0.02, collider.radius - 0.055), collider.radius, 18]} />
+            : <boxGeometry args={[collider.halfWidth * 2, 0.03, collider.halfDepth * 2]} />}
+          <meshBasicMaterial color={collider.breakableId ? "#ff9c5a" : "#7ce6b2"} wireframe transparent opacity={0.82} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function SceneContents({
   motionRef,
+  collisionGrid,
   quality,
   visualEffectsEnabled,
   motionReduced,
@@ -1040,7 +1071,6 @@ function SceneContents({
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={["#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
-      <directionalLight position={[9, 7, -9]} color="#a7d9ef" intensity={0.42} />
       <directionalLight
         position={[-8, 14, 8]}
         color="#ffd09a"
@@ -1109,6 +1139,7 @@ function SceneContents({
           appearance={equipmentVisual}
         />
       )}
+      {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
     </>
   );
 }
@@ -1123,6 +1154,7 @@ export default function World3D(props: World3DProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [contextLost, setContextLost] = useState(false);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
+  const autoRecoveryAttemptsRef = useRef(0);
   const [debugStats, setDebugStats] = useState<DebugStats>({
     x: 0,
     y: 0,
@@ -1145,9 +1177,19 @@ export default function World3D(props: World3DProps) {
   const maxDpr = Math.min(getPixelRatioCap(props.quality), pixelRatio);
   const minDpr = Math.min(1, maxDpr);
   const retryWebGL = useCallback(() => {
+    autoRecoveryAttemptsRef.current = 0;
     setContextLost(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
+  }, []);
+  const retryCanvasAfterError = useCallback(() => {
+    if (autoRecoveryAttemptsRef.current >= 1) return;
+    autoRecoveryAttemptsRef.current += 1;
+    window.setTimeout(() => {
+      setContextLost(false);
+      setWebglAvailable(null);
+      setCanvasAttempt((attempt) => attempt + 1);
+    }, 500);
   }, []);
   const markContextLost = useCallback(() => setContextLost(true), []);
   const rebuildRestoredContext = useCallback(() => {
@@ -1167,19 +1209,31 @@ export default function World3D(props: World3DProps) {
     return () => window.cancelAnimationFrame(frame);
   }, [canvasAttempt]);
 
+  useEffect(() => {
+    if (!webglAvailable) return undefined;
+    const timer = window.setTimeout(() => {
+      autoRecoveryAttemptsRef.current = 0;
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, [canvasAttempt, webglAvailable]);
+
   return (
     <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
       {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
       ) : webglAvailable ? (
-        <WorldCanvasErrorBoundary key={canvasAttempt} onRetry={retryWebGL}>
+        <WorldCanvasErrorBoundary
+          key={canvasAttempt}
+          onRetry={retryWebGL}
+          onError={retryCanvasAfterError}
+        >
           <Canvas
             dpr={[minDpr, maxDpr]}
             shadows={props.quality !== "low"}
-            camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.1, far: 380 }}
+            camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: 190 }}
             gl={{
               alpha: false,
-              antialias: props.quality === "high",
+              antialias: false,
               powerPreference: "high-performance",
               toneMapping: props.visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
               toneMappingExposure: props.visualEffectsEnabled ? 1.12 : 1,
@@ -1232,9 +1286,9 @@ export default function World3D(props: World3DProps) {
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
           <span>Dünya: Kül Yolu · Yüklü parça: {debugStats.chunks}</span>
-          <span>BOT: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
+          <span>Rakip: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
           <div className="world-debug__actions">
-            <button type="button" onClick={props.onDebugNearestRival}>En yakın BOT</button>
+            <button type="button" onClick={props.onDebugNearestRival}>En yakın rakip</button>
             <button type="button" onClick={props.onDebugNearestPickup}>En yakın eşya</button>
             <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>

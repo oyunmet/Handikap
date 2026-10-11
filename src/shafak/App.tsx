@@ -35,7 +35,7 @@ const initialPreferences: Preferences = {
   soundVolume: DEFAULT_SOUND_VOLUME,
   musicVolume: DEFAULT_MUSIC_VOLUME,
   vibration: true,
-  quality: "auto",
+  quality: "medium",
   visualEffects: true,
   reduceMotion: false,
 };
@@ -45,7 +45,17 @@ function readPreferences(): Preferences {
     const saved = JSON.parse(localStorage.getItem(PREFERENCES_KEY) ?? "null") as
       | Partial<Preferences>
       | null;
-    if (!saved) return initialPreferences;
+    if (!saved) {
+      const deviceMemory = typeof navigator === "undefined"
+        ? undefined
+        : (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+      const limitedCores = typeof navigator !== "undefined" && (navigator.hardwareConcurrency || 4) <= 4;
+      const limitedMemory = typeof deviceMemory === "number" && deviceMemory <= 4;
+      return {
+        ...initialPreferences,
+        quality: limitedCores || limitedMemory ? "low" : "medium",
+      };
+    }
 
     return {
       sound: typeof saved.sound === "boolean" ? saved.sound : initialPreferences.sound,
@@ -240,7 +250,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
     const limitedCores = (navigator.hardwareConcurrency || 4) <= 4;
     const limitedMemory = typeof deviceMemory === "number" && deviceMemory <= 4;
-    return limitedCores || limitedMemory || window.devicePixelRatio >= 2.5 ? "balanced" : "high";
+    return limitedCores || limitedMemory ? "low" : "balanced";
   });
   const activeQuality = resolveRenderQuality(preferences.quality, automaticQuality);
 

@@ -20,8 +20,8 @@ test("each combat event selects its matching readable arena effect", () => {
   assert.equal(getDuelVfxKind({ type: "knockout" }), "none");
 });
 
-test("bounded duel effects and finisher ash stay below the 300-particle target", () => {
+test("bounded duel effects and finisher ash stay below the 200-particle mobile target", () => {
   assert.equal(MAX_DUEL_VFX_EVENT_PARTICLES, LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT);
   assert.equal(MAX_ACTIVE_DUEL_PARTICLES, MAX_ACTIVE_DUEL_VFX * MAX_DUEL_VFX_EVENT_PARTICLES + DUEL_DEATH_PARTICLE_COUNT);
-  assert.ok(MAX_ACTIVE_DUEL_PARTICLES <= 300);
+  assert.ok(MAX_ACTIVE_DUEL_PARTICLES <= 200);
 });
