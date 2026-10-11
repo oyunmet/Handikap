@@ -34,6 +34,10 @@ import {
   type WorldDiagnostic,
 } from "./world-diagnostics";
 import WorldPostProcessing from "./WorldPostProcessing";
+import WorldV2Atmosphere from "./WorldV2Atmosphere";
+import WorldV2Terrain from "./WorldV2Terrain";
+import { worldVersionFromSearch } from "./world-version";
+import { nextWorldRecoveryStage } from "./world-recovery";
 import { getShadowMapSize, getWorldRenderPixelRatio } from "./graphics-quality";
 import { WORLD_CAMERA_FAR } from "./world-render-config";
 import {
@@ -82,7 +86,7 @@ function createProceduralEnvironmentMap() {
 
 const PROCEDURAL_ENVIRONMENT_MAP = createProceduralEnvironmentMap();
 
-type World3DProps = {
+export type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
   collisionGrid: WorldCollisionGrid;
   quality: WorldQuality;
@@ -151,6 +155,8 @@ type DebugStats = {
 };
 
 function sampleRendererPixels(renderer: THREE.WebGLRenderer) {
+  // Debug-only telemetry. The default framebuffer may be invalidated after
+  // presentation, so these samples must never trigger production recovery.
   const context = renderer.getContext();
   const width = context.drawingBufferWidth;
   const height = context.drawingBufferHeight;
@@ -158,13 +164,12 @@ function sampleRendererPixels(renderer: THREE.WebGLRenderer) {
     return { meanLuminance: null, litSamples: 0, sampleCount: 0 };
   }
 
-  const points: ReadonlyArray<readonly [number, number]> = [
-    [0.5, 0.5],
-    [0.25, 0.35],
-    [0.75, 0.35],
-    [0.25, 0.7],
-    [0.75, 0.7],
-  ];
+  const points: Array<readonly [number, number]> = [];
+  for (let row = 0; row < 4; row += 1) {
+    for (let column = 0; column < 4; column += 1) {
+      points.push([(column + 0.5) / 4, (row + 0.5) / 4]);
+    }
+  }
   const pixel = new Uint8Array(4);
   let luminanceSum = 0;
   let litSamples = 0;
@@ -224,6 +229,39 @@ class WorldCanvasErrorBoundary extends Component<
   }
 }
 
+class WorldSceneErrorBoundary extends Component<
+  { children: ReactNode; resetKey: number; onError: (error: Error) => void },
+  { failed: boolean; resetKey: number }
+> {
+  constructor(props: { children: ReactNode; resetKey: number; onError: (error: Error) => void }) {
+    super(props);
+    this.state = { failed: false, resetKey: props.resetKey };
+  }
+
+  static getDerivedStateFromProps(
+    props: { resetKey: number },
+    state: { failed: boolean; resetKey: number },
+  ) {
+    return props.resetKey !== state.resetKey
+      ? { failed: false, resetKey: props.resetKey }
+      : null;
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[shafak-world] 3D scene content failed.", error);
+    emitWorldDiagnostic("scene", error.message);
+    this.props.onError(error);
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 function CanvasContextGuard({
   onLost,
   onRestored,
@@ -266,8 +304,7 @@ function FirstFrameGuard({ onFirstFrame }: { onFirstFrame: () => void }) {
 function supportsWebGL() {
   // Do not create and destroy a throwaway WebGL context on iOS. The renderer
   // below is the authoritative capability check and owns the only live context.
-  return typeof WebGL2RenderingContext !== "undefined"
-    || typeof WebGLRenderingContext !== "undefined";
+  return typeof WebGL2RenderingContext !== "undefined";
 }
 
 function getChunksForDistance(distance: number, cache: Map<number, WorldChunk>) {
@@ -386,6 +423,8 @@ function CameraRig({
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
   const impactRef = useRef({ tick: -1, startedAt: 0 });
   const cinematicStartRef = useRef<number | null>(null);
+  const lastFiniteDesiredRef = useRef(new THREE.Vector3(0, 4.15, 10.2));
+  const lastFiniteTargetRef = useRef(new THREE.Vector3(0, 1.25, -11.5));
   const { size } = useThree();
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
     id: -1,
@@ -397,12 +436,16 @@ function CameraRig({
     const camera = cameraRef.current;
     if (!camera) return;
     const motion = motionRef.current;
-    const speed = Math.hypot(motion.velocityX, motion.velocityY);
-    const lateral = motion.depth * 5.2;
+    const velocityX = Number.isFinite(motion.velocityX) ? motion.velocityX : 0;
+    const velocityY = Number.isFinite(motion.velocityY) ? motion.velocityY : 0;
+    const depth = Number.isFinite(motion.depth) ? THREE.MathUtils.clamp(motion.depth, -1, 1) : 0;
+    const speed = Math.hypot(velocityX, velocityY);
+    const lateral = depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
     if (cinematicIntro) cinematicStartRef.current ??= _.clock.elapsedTime;
     else cinematicStartRef.current = null;
-    const scaledDelta = Math.min(delta, 0.05) * ((slowMotion && !combat) || finisherSlowMotion ? 0.24 : 1);
+    const safeDelta = Number.isFinite(delta) ? THREE.MathUtils.clamp(delta, 0, 0.05) : 0;
+    const scaledDelta = safeDelta * ((slowMotion && !combat) || finisherSlowMotion ? 0.24 : 1);
     const response = 1 - Math.exp(-scaledDelta * (combat ? 5.5 : focusedRival ? 2.6 : 4.5));
     let latestSkillEvent: CombatVisualEvent | undefined;
     for (let index = combatVisualEvents.length - 1; index >= 0; index -= 1) {
@@ -467,7 +510,22 @@ function CameraRig({
       desiredRef.set(lateral * 0.56, 4.15 + Math.min(speed, 7) * 0.045, 10.2 + Math.min(speed, 7) * 0.18);
       targetRef.set(lateral * 0.42, 1.25, -11.5);
     }
-    camera.position.lerp(desiredRef, response);
+    const desiredFinite = [
+      desiredRef.x, desiredRef.y, desiredRef.z,
+      targetRef.x, targetRef.y, targetRef.z,
+    ].every(Number.isFinite);
+    if (desiredFinite) {
+      lastFiniteDesiredRef.current.copy(desiredRef);
+      lastFiniteTargetRef.current.copy(targetRef);
+    } else {
+      desiredRef.copy(lastFiniteDesiredRef.current);
+      targetRef.copy(lastFiniteTargetRef.current);
+      emitWorldDiagnostic("camera", "Geçersiz kamera hedefi güvenli son konuma alındı.");
+    }
+    if (![camera.position.x, camera.position.y, camera.position.z].every(Number.isFinite)) {
+      camera.position.copy(lastFiniteDesiredRef.current);
+    }
+    camera.position.lerp(desiredRef, Number.isFinite(response) ? response : 0);
     const runShake = motionReduced ? 0 : THREE.MathUtils.clamp((speed - 4.2) / 2.2, 0, 1);
     const time = _.clock.elapsedTime;
     camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
@@ -484,9 +542,12 @@ function CameraRig({
           lockOn: duelLockOn,
         }).fov
       : 45;
-    const desiredFov = combat
+    const rawDesiredFov = combat
       ? duelFov - combatImpact * 1.1 - skillZoom - finisherZoom
       : focusedRival ? (cinematicIntro ? 51 : 48) : 54 + Math.min(speed, 7) * 0.7;
+    const desiredFov = Number.isFinite(rawDesiredFov)
+      ? THREE.MathUtils.clamp(rawDesiredFov, 32, 68)
+      : 54;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
       camera.fov = nextFov;
@@ -1116,10 +1177,12 @@ function SceneContents({
   performanceMonitorEnabled,
   onPerformanceStats,
   debugEnabled,
+  recoveryStage,
 }: World3DProps & {
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   debugEnabled: boolean;
+  recoveryStage: number;
 }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
@@ -1127,13 +1190,37 @@ function SceneContents({
   const footSlipRef = useRef(0);
   const prefetchCancelRef = useRef<(() => void) | null>(null);
   const initialPrefetchRef = useRef(false);
-  const { gl } = useThree();
+  const { gl, scene } = useThree();
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
   const zeroDrawCallFramesRef = useRef(0);
   const zeroDrawRecoverySentRef = useRef(false);
   const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
+
+  const worldV2Enabled = worldVersionFromSearch(window.location.search) === "v2";
+  useEffect(() => {
+    if (recoveryStage === 1) {
+      scene.background = new THREE.Color("#47373a");
+      if (scene.fog instanceof THREE.FogExp2) {
+        scene.fog.density = Number.isFinite(scene.fog.density)
+          ? Math.max(0.0025, Math.min(0.0045, scene.fog.density))
+          : 0.0035;
+      }
+      gl.toneMappingExposure = 1;
+      emitWorldDiagnostic("recovery", "Kurtarma 1/4: arka plan, sis ve pozlama güvenli değerlere alındı.");
+    } else if (recoveryStage === 2) {
+      scene.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.material) return;
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const material of materials) material.needsUpdate = true;
+      });
+      emitWorldDiagnostic("recovery", "Kurtarma 2/4: sahne materyalleri yeniden derlenmek üzere işaretlendi.");
+    }
+    zeroDrawCallFramesRef.current = 0;
+    zeroDrawRecoverySentRef.current = false;
+  }, [gl, recoveryStage, scene]);
 
   const scheduleChunkPrefetch = (chunkIndex: number) => {
     prefetchCancelRef.current?.();
@@ -1303,7 +1390,23 @@ function SceneContents({
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
       />
-      <AshSky motionRef={motionRef} combatActive={combatActive} />
+      {worldV2Enabled ? (
+        <WorldV2Atmosphere
+          motionRef={motionRef}
+          weather={weatherMode}
+          quality={quality}
+          motionReduced={motionReduced}
+        />
+      ) : (
+        <AshSky motionRef={motionRef} combatActive={combatActive} />
+      )}
+      {worldV2Enabled && quality !== "low" && (
+        <WorldV2Terrain
+          motionRef={motionRef}
+          weather={weatherMode}
+          quality={quality}
+        />
+      )}
       <group visible={!combatActive} name="road-world">
         <WorldChunks
           chunks={chunks}
@@ -1361,10 +1464,13 @@ export default function World3D(props: World3DProps) {
   const [contextLost, setContextLost] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("");
   const [canvasAttempt, setCanvasAttempt] = useState(0);
+  const [sceneAttempt, setSceneAttempt] = useState(0);
+  const [recoveryStage, setRecoveryStage] = useState(0);
   const [firstFrameReported, setFirstFrameReported] = useState(false);
   const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
   const [debugCopied, setDebugCopied] = useState(false);
-  const autoRecoveryAttemptsRef = useRef(0);
+  const recoveryStageRef = useRef(0);
+  const lastRecoveryFailureWasContextCreationRef = useRef(false);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
     averageFps: 0,
     minimumFps: 0,
@@ -1406,10 +1512,13 @@ export default function World3D(props: World3DProps) {
   const minDpr = Math.min(1, maxDpr);
   const markFirstFrame = useCallback(() => {
     setFirstFrameReported(true);
+    setRecoveryMessage("");
     emitWorldDiagnostic("render", "3D sahnenin ilk karesi çizildi.");
   }, []);
   const retryWebGL = useCallback(() => {
-    autoRecoveryAttemptsRef.current = 0;
+    recoveryStageRef.current = 0;
+    lastRecoveryFailureWasContextCreationRef.current = false;
+    setRecoveryStage(0);
     setContextLost(false);
     setRecoveryMessage("");
     setFirstFrameReported(false);
@@ -1418,24 +1527,39 @@ export default function World3D(props: World3DProps) {
   }, []);
   const retryCanvasAfterError = useCallback((error?: Error) => {
     if (error) emitWorldDiagnostic("recovery", error.stack ?? error.message);
-    if (autoRecoveryAttemptsRef.current >= 1) {
-      setRecoveryMessage(error?.message ?? "3D sahne çizim üretmiyor.");
+    if (error && /error creating webgl context|could not create a webgl context/i.test(error.message)) {
+      lastRecoveryFailureWasContextCreationRef.current = true;
+    }
+    const nextStage = nextWorldRecoveryStage(recoveryStageRef.current, error?.message);
+    if (nextStage > 4) {
+      setRecoveryMessage("Sahne yenilenemedi · Yeniden yükle");
       return;
     }
-    autoRecoveryAttemptsRef.current += 1;
-    setRecoveryMessage("");
-    window.setTimeout(() => {
-      setContextLost(false);
-      setRecoveryMessage("");
-      setFirstFrameReported(false);
-      setWebglAvailable(null);
-      setCanvasAttempt((attempt) => attempt + 1);
-    }, 500);
-  }, []);
-  const markContextLost = useCallback(() => setContextLost(true), []);
-  const rebuildRestoredContext = useCallback(() => {
+    recoveryStageRef.current = nextStage;
+    emitWorldDiagnostic("recovery", `Kurtarma ${nextStage}/4 başlatıldı.`);
     setContextLost(false);
-    setRecoveryMessage("");
+    setRecoveryMessage("Sahne yenileniyor…");
+    setRecoveryStage(nextStage);
+    if (nextStage >= 3) {
+      setFirstFrameReported(false);
+      if (nextStage === 4 && !lastRecoveryFailureWasContextCreationRef.current) {
+        setSceneAttempt((attempt) => attempt + 1);
+      } else {
+        setWebglAvailable(null);
+        setCanvasAttempt((attempt) => attempt + 1);
+      }
+    }
+  }, []);
+  const markContextLost = useCallback(() => {
+    lastRecoveryFailureWasContextCreationRef.current = true;
+    setRecoveryMessage("Sahne yenileniyor…");
+    setContextLost(true);
+  }, []);
+  const rebuildRestoredContext = useCallback(() => {
+    recoveryStageRef.current = Math.max(recoveryStageRef.current, 3);
+    setRecoveryStage(recoveryStageRef.current);
+    setContextLost(false);
+    setRecoveryMessage("Sahne yenileniyor…");
     setFirstFrameReported(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
@@ -1492,6 +1616,14 @@ export default function World3D(props: World3DProps) {
   }, [retryCanvasAfterError]);
 
   useEffect(() => {
+    if (!contextLost) return undefined;
+    const timer = window.setTimeout(() => {
+      retryCanvasAfterError(new Error("WebGL bağlamı 2,5 saniyede geri yüklenmedi."));
+    }, 2_500);
+    return () => window.clearTimeout(timer);
+  }, [contextLost, retryCanvasAfterError]);
+
+  useEffect(() => {
     const syncDebug = () => setDebugEnabled(isDebugEnabled());
     window.addEventListener("popstate", syncDebug);
     return () => window.removeEventListener("popstate", syncDebug);
@@ -1509,7 +1641,7 @@ export default function World3D(props: World3DProps) {
       retryCanvasAfterError(new Error("3D sahne ilk kareyi çizmedi."));
     }, 3_000);
     return () => window.clearTimeout(timer);
-  }, [canvasAttempt, contextLost, firstFrameReported, retryCanvasAfterError, webglAvailable]);
+  }, [canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
     if (webglAvailable !== true || contextLost) return undefined;
@@ -1521,15 +1653,29 @@ export default function World3D(props: World3DProps) {
       retryCanvasAfterError(new Error("WebGL render loop durdu."));
     }, 1_500);
     return () => window.clearInterval(timer);
-  }, [canvasAttempt, contextLost, firstFrameReported, retryCanvasAfterError, webglAvailable]);
+  }, [canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
-    if (!webglAvailable) return undefined;
+    if (!webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
     const timer = window.setTimeout(() => {
-      autoRecoveryAttemptsRef.current = 0;
+      recoveryStageRef.current = 0;
+      lastRecoveryFailureWasContextCreationRef.current = false;
+      setRecoveryStage(0);
+      setRecoveryMessage("");
+      emitWorldDiagnostic("recovery", "Sahne 10 saniye boyunca çizim üretti; kurtarma sayacı sıfırlandı.");
     }, 10_000);
     return () => window.clearTimeout(timer);
-  }, [canvasAttempt, webglAvailable]);
+  }, [canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, webglAvailable]);
+
+  useEffect(() => {
+    if (!firstFrameReported || recoveryStage === 0 || recoveryStage >= 3) return undefined;
+    const timer = window.setTimeout(() => {
+      if (lastSceneFrameAt && performance.now() - lastSceneFrameAt < 1_500) {
+        setRecoveryMessage("");
+      }
+    }, 1_200);
+    return () => window.clearTimeout(timer);
+  }, [firstFrameReported, recoveryStage]);
 
   const debugBiomeTransition = getBiomeTransition(debugStats.distance);
   const debugFogDensity = getWorldFogDensity(
@@ -1555,12 +1701,15 @@ export default function World3D(props: World3DProps) {
             gl={{
               alpha: false,
               antialias: false,
-              preserveDrawingBuffer: debugEnabled,
+              preserveDrawingBuffer: false,
               powerPreference: "high-performance",
               toneMapping: props.visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
               toneMappingExposure: props.visualEffectsEnabled ? 1.12 : 1,
             }}
             onCreated={({ gl: renderer, scene }) => {
+              if (!renderer.capabilities.isWebGL2) {
+                throw new Error("Bu dünya yalnızca WebGL 2 ile çalışır.");
+              }
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.info.autoReset = false;
               lastSceneFrameAt = performance.now();
@@ -1590,13 +1739,19 @@ export default function World3D(props: World3DProps) {
             )}
           >
             <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
-            <FirstFrameGuard onFirstFrame={markFirstFrame} />
-            <SceneContents
-              {...props}
-              debugEnabled={debugEnabled}
-              onDebugStats={setDebugStats}
-              onPerformanceStats={setPerformanceStats}
-            />
+            <FirstFrameGuard key={sceneAttempt} onFirstFrame={markFirstFrame} />
+            <WorldSceneErrorBoundary
+              resetKey={sceneAttempt}
+              onError={retryCanvasAfterError}
+            >
+              <SceneContents
+                {...props}
+                debugEnabled={debugEnabled}
+                recoveryStage={recoveryStage}
+                onDebugStats={setDebugStats}
+                onPerformanceStats={setPerformanceStats}
+              />
+            </WorldSceneErrorBoundary>
           </Canvas>
         </WorldCanvasErrorBoundary>
       ) : (
@@ -1610,7 +1765,7 @@ export default function World3D(props: World3DProps) {
       {(contextLost || recoveryMessage) && (
         <div className="world-three-recovery" role="alert">
           <div>
-            <strong>{contextLost ? "3D sahne durakladı" : "3D sahne yeniden yüklenemedi"}</strong>
+            <strong>{recoveryMessage === "Sahne yenileniyor…" ? "Sahne yenileniyor…" : contextLost ? "3D sahne durakladı" : "3D sahne yeniden yüklenemedi"}</strong>
             <span>{recoveryMessage || "Grafik bağlamı kesildi. Sahneyi yeniden yükleyip devam edebilirsin."}</span>
             <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
           </div>

@@ -14,6 +14,7 @@ import { useLocation } from "wouter";
 import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
 import { tr } from "./i18n/tr";
+import { shouldStartInWorld } from "./world/world-version";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
@@ -305,13 +306,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ),
     [getToken, handleApiUnauthorized],
   );
-  const [screen, setScreen] = useState<Screen>(() => {
-    const query = new URLSearchParams(window.location.search);
-    return query.get("selftest") === "1"
-      || (query.get("debug") === "1" && query.get("scene") === "world")
-      ? "world"
-      : "opening";
-  });
+  const [screen, setScreen] = useState<Screen>(() =>
+    shouldStartInWorld(window.location.search) ? "world" : "opening",
+  );
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
