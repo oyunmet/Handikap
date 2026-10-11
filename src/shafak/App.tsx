@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { requestJson } from "./api-json";
+import { ApiResponseError, requestJson, requestJsonWithRetry } from "./api-json";
 import { useLocation } from "wouter";
 import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
@@ -42,6 +42,32 @@ const initialPreferences: Preferences = {
   reduceMotion: false,
   performanceMonitor: false,
 };
+
+function profileSyncErrorMessage(error: unknown) {
+  if (!(error instanceof ApiResponseError)) {
+    return "Hesap profili yüklenemedi. Lütfen yeniden dene.";
+  }
+  if (error.status === 401 || error.code === "authentication_required") {
+    return "Oturum doğrulanamadı. Yeniden giriş yapıp tekrar dene.";
+  }
+  if (error.code === "authentication_unavailable") {
+    return "Kimlik doğrulama hizmeti şu anda kullanılamıyor.";
+  }
+  if (
+    error.code === "database_unavailable" ||
+    error.code === "profile_storage_unavailable" ||
+    error.status === 0
+  ) {
+    return "Hesap profili veritabanına şu anda ulaşılamıyor.";
+  }
+  if (error.code === "profile_storage_invalid") {
+    return "Sunucudaki hesap profili doğrulanamadı.";
+  }
+  if (error.status === 503) {
+    return "Hesap profili hizmeti geçici olarak kullanılamıyor.";
+  }
+  return "Hesap profili yüklenemedi. Lütfen yeniden dene.";
+}
 
 function readPreferences(): Preferences {
   try {
@@ -346,12 +372,12 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
           setProfileSyncOwner(user.id);
           setProfileSyncStatus("ready");
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setProfile(normalizePlayerProfile(defaultProfile));
           setProfileSyncOwner(user.id);
           setProfileSyncStatus("local");
-          setAnnouncement("Hesap kaydı sunucuya bağlanamadı. Güvenli ödül için giriş yapmış profil sunucusuna erişim gerekli.");
+          setAnnouncement(profileSyncErrorMessage(error));
         }
       }
     })();
@@ -492,9 +518,16 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     if (!user?.id) {
       return { claimedPickupIds: pickupIds, awardedPickupIds: pickupIds, persistent: false };
     }
-    if (profileSyncStatus !== "ready") throw new Error("Account profile is not ready for pickup claims.");
+    if (profileSyncStatus !== "ready") {
+      throw new ApiResponseError(
+        "Hesap profili sunucuya bağlı değil.",
+        profileSyncStatus === "local" ? 401 : 503,
+        profileSyncStatus === "local" ? "authentication_required" : "profile_not_ready",
+        false,
+      );
+    }
     try {
-      const result = await requestJson<{
+      const result = await requestJsonWithRetry<{
         profile?: unknown;
         claimedPickupIds?: unknown;
         awardedPickupIds?: unknown;
@@ -506,9 +539,27 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
       }, {
         operation: "pickup claim",
         fallbackMessage: "Yol ganimeti şu an kaydedilemedi. Lütfen tekrar dene.",
-      });
+        messageForCode: (code) => {
+          if (code === "authentication_required") return "Oturum doğrulanamadı.";
+          if (code === "invalid_pickup_claim" || code === "invalid_pickup_ids") {
+            return "Eşya bilgisi sunucudaki bölümle uyuşmuyor.";
+          }
+          if (code === "pickup_storage_unavailable") {
+            return "Ödül sunucusu şu anda kullanılamıyor.";
+          }
+          if (code === "profile_storage_invalid") {
+            return "Sunucudaki hesap profili doğrulanamadı.";
+          }
+          return "Yol ganimeti şu an kaydedilemedi. Lütfen tekrar dene.";
+        },
+      }, { maxRetries: 2, baseDelayMs: 350 });
       if (!result.profile || !Array.isArray(result.claimedPickupIds) || !Array.isArray(result.awardedPickupIds)) {
-        throw new Error("Pickup claim response was invalid.");
+        throw new ApiResponseError(
+          "Sunucudan geçersiz eşya doğrulama yanıtı alındı.",
+          502,
+          "invalid_pickup_response",
+          false,
+        );
       }
       setProfile(normalizePlayerProfile(result.profile));
       return {
@@ -517,8 +568,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
         persistent: true,
       };
     } catch (error) {
-      setProfileSyncStatus("local");
-      setAnnouncement("Eşya sunucuda doğrulanamadı. Bu ödül profile yazılmadı.");
+      if (error instanceof ApiResponseError && error.status === 401) {
+        setProfileSyncStatus("local");
+        setAnnouncement("Oturum doğrulanamadı. Yeniden giriş yap.");
+      }
       throw error;
     }
   }, [profileSyncStatus, user?.id]);

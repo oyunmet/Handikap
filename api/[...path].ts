@@ -47,8 +47,20 @@ async function createApiHandler(): Promise<ApiHandler> {
 
   app.get("/api/health", async (_request, response) => {
     const health = await databaseModule.checkDatabaseHealth(databaseConnection);
+    const isHealthy = health.status === "ok" && clerkConfigured;
+    const healthResponse = {
+      ...health,
+      status: isHealthy ? "ok" : "error",
+      db: health.db,
+      clerkSecretKeyConfigured: clerkConfigured,
+      environment:
+        process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
+      ...(!clerkConfigured && health.status === "ok"
+        ? { error: "Clerk secret key is not configured." }
+        : {}),
+    };
     response.setHeader("Cache-Control", "no-store");
-    response.status(health.status === "ok" ? 200 : 503).json(health);
+    response.status(isHealthy ? 200 : 503).json(healthResponse);
   });
 
   if (clerkConfigured) {

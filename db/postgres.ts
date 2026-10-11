@@ -6,13 +6,30 @@ export type DatabaseConnection =
   | { pool: Pool; state: "configured"; error: null }
   | { pool: null; state: "not_configured" | "invalid"; error: string };
 
-export type DatabaseHealth =
-  | { status: "ok"; database: "connected" }
-  | {
-      status: "error";
-      database: "not_configured" | "invalid" | "unavailable";
-      error: string;
-    };
+export const REQUIRED_DATABASE_TABLES = [
+  "shafak_player_profiles",
+  "shafak_duels",
+  "shafak_pickup_claims",
+  "shafak_store_transactions",
+] as const;
+
+export type DatabaseHealth = {
+  status: "ok" | "error";
+  db: "ok" | "error";
+  database:
+    | "connected"
+    | "not_configured"
+    | "invalid"
+    | "unavailable"
+    | "schema_incomplete";
+  tables: {
+    status: "ok" | "missing" | "unavailable" | "unchecked";
+    required: readonly string[];
+    missing: string[];
+  };
+  error?: string;
+  code?: string;
+};
 
 type PoolOptions = { max?: number };
 
@@ -22,6 +39,50 @@ const INVALID_URL_ERROR =
   "DATABASE_URL geçersiz. Geçerli bir postgresql:// veya postgres:// adresi kullanın.";
 const CONNECTION_ERROR =
   "Veritabanı bağlantısı kurulamadı. Supabase DATABASE_URL ve pooler ayarlarını kontrol edin.";
+
+function supabaseUrl(value: string) {
+  try {
+    const hostname = new URL(value).hostname;
+    return (
+      hostname.endsWith(".supabase.co") ||
+      hostname.endsWith(".pooler.supabase.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function errorCodeFrom(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("code" in error)) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && /^[A-Z0-9_]{3,12}$/.test(code)
+    ? code
+    : undefined;
+}
+
+export function safeDatabaseError(error: unknown) {
+  const code = errorCodeFrom(error);
+  const messages: Record<string, string> = {
+    "28P01": "Veritabanı kimlik doğrulaması başarısız; Supabase kullanıcı ve parola ayarlarını kontrol edin.",
+    "3D000": "Veritabanı adı bulunamadı; Supabase bağlantı ayarlarını kontrol edin.",
+    "08001": CONNECTION_ERROR,
+    "08006": CONNECTION_ERROR,
+    ECONNREFUSED: CONNECTION_ERROR,
+    ECONNRESET: CONNECTION_ERROR,
+    ETIMEDOUT: "Veritabanı bağlantısı zaman aşımına uğradı; Supabase pooler ve ağ durumunu kontrol edin.",
+    ENOTFOUND: "Veritabanı sunucu adı çözümlenemedi; bağlantı adresini kontrol edin.",
+    EHOSTUNREACH: CONNECTION_ERROR,
+    CERT_HAS_EXPIRED: "Veritabanı TLS sertifikasının süresi dolmuş.",
+    SELF_SIGNED_CERT_IN_CHAIN: "Veritabanı TLS doğrulaması başarısız.",
+  };
+
+  return {
+    error: code
+      ? messages[code] ?? `Veritabanı işlemi başarısız oldu (kod: ${code}).`
+      : CONNECTION_ERROR,
+    ...(code ? { code } : {}),
+  };
+}
 
 export function normalizeDatabaseUrl(value: string): string {
   try {
@@ -33,13 +94,10 @@ export function normalizeDatabaseUrl(value: string): string {
       throw new Error("Unsupported database URL.");
     }
 
-    const isSupabase =
-      url.hostname.endsWith(".supabase.co") ||
-      url.hostname.endsWith(".pooler.supabase.com");
-
-    if (isSupabase) {
+    if (supabaseUrl(value)) {
       // Supabase requires SSL. Preserve libpq's `require` behavior so pg
-      // encrypts the connection without requiring a separately installed CA.
+      // encrypts the connection. createDatabaseConnection also sets the SSL
+      // object explicitly so the pooler does not depend on CA-chain settings.
       url.searchParams.set("sslmode", "require");
       url.searchParams.set("uselibpqcompat", "true");
     }
@@ -66,16 +124,26 @@ export function createDatabaseConnection(
     const max =
       Number.isInteger(options.max) && (options.max ?? 0) > 0
         ? options.max!
-        : 10;
+        : 2;
+    const isSupabase = supabaseUrl(normalizedUrl);
+    const poolUrl = new URL(normalizedUrl);
+    if (isSupabase) {
+      // pg-connection-string SSL query parameters replace Pool's `ssl` object.
+      // Keep SSL explicit and let pg use the TLS settings below.
+      poolUrl.searchParams.delete("sslmode");
+      poolUrl.searchParams.delete("uselibpqcompat");
+    }
 
     // Supabase transaction pooling only rejects named prepared statements.
     // node-postgres uses them only when a query config includes `name`;
     // this project does not name its queries.
     const pool = new Pool({
-      connectionString: normalizedUrl,
+      connectionString: poolUrl.toString(),
       max,
       connectionTimeoutMillis: 5_000,
       query_timeout: 10_000,
+      idleTimeoutMillis: 10_000,
+      ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
     });
 
     return { pool, state: "configured", error: null };
@@ -87,22 +155,57 @@ export function createDatabaseConnection(
 export async function checkDatabaseHealth(
   connection: DatabaseConnection,
 ): Promise<DatabaseHealth> {
+  const requiredTables = REQUIRED_DATABASE_TABLES;
+  const uncheckedTables = {
+    status: "unchecked" as const,
+    required: requiredTables,
+    missing: [],
+  };
   if (!connection.pool) {
     return {
       status: "error",
+      db: "error",
       database: connection.state,
+      tables: uncheckedTables,
       error: connection.error,
     };
   }
 
   try {
     await connection.pool.query("SELECT 1");
-    return { status: "ok", database: "connected" };
-  } catch {
+    const result = await connection.pool.query<{ table_name: string }>(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = current_schema()
+         AND table_name = ANY($1::text[])
+       ORDER BY table_name`,
+      [[...requiredTables]],
+    );
+    const found = new Set(result.rows.map((row) => row.table_name));
+    const missing = requiredTables.filter((table) => !found.has(table));
+    if (missing.length) {
+      return {
+        status: "error",
+        db: "error",
+        database: "schema_incomplete",
+        tables: { status: "missing", required: requiredTables, missing },
+        error: `Gerekli veritabanı tabloları eksik: ${missing.join(", ")}.`,
+      };
+    }
+    return {
+      status: "ok",
+      db: "ok",
+      database: "connected",
+      tables: { status: "ok", required: requiredTables, missing: [] },
+    };
+  } catch (error) {
+    const safeError = safeDatabaseError(error);
     return {
       status: "error",
+      db: "error",
       database: "unavailable",
-      error: CONNECTION_ERROR,
+      tables: uncheckedTables,
+      ...safeError,
     };
   }
 }

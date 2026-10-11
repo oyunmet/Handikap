@@ -36,8 +36,20 @@ app.use(cors({ credentials: true, origin: true }));
 
 app.get("/api/health", async (_request, response) => {
   const health = await checkDatabaseHealth(databaseConnection);
+  const isHealthy = health.status === "ok" && clerkConfigured;
+  const healthResponse = {
+    ...health,
+    status: isHealthy ? "ok" : "error",
+    db: health.db,
+    clerkSecretKeyConfigured: clerkConfigured,
+    environment:
+      process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
+    ...(!clerkConfigured && health.status === "ok"
+      ? { error: "Clerk secret key is not configured." }
+      : {}),
+  };
   response.setHeader("Cache-Control", "no-store");
-  response.status(health.status === "ok" ? 200 : 503).json(health);
+  response.status(isHealthy ? 200 : 503).json(healthResponse);
 });
 
 app.get("/api/store/catalog", (_request, response) => {

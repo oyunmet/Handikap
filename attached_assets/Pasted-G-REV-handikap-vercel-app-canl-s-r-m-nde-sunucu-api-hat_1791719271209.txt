@@ -1,0 +1,55 @@
+GÖREV: handikap.vercel.app canlı sürümünde sunucu (/api) hataları var. Bunları tahmin yürütmeden, kanıt toplayarak teşhis et ve KALICI olarak çöz. Yarım bırakma; her adımın sonucunu raporla.
+
+CANLI HATALAR
+1) Açılış ekranında: "Hesap kaydı sunucuya bağlanamadı. Güvenli ödül için giriş yapmış profil sunucusuna erişim gerekli."
+2) Oyunda yerden eşya/altın toplarken: "Eşya sunucuda doğrulanamadı; bu öğe tekrar toplamak için yerde kaldı."
+İkisi de /api tarafının (Clerk doğrulaması veya veritabanı) çalışmadığını gösteriyor. Altın/elmas toplama ve profil kaydı sunucuya bağlı olduğu için bu hatalar oyunu bozuyor.
+
+BAĞLAM
+- Repo: github.com/oyunmet/Handikap (sen düzenliyorsun, Vercel main'den deploy ediyor)
+- Veritabanı: Supabase PostgreSQL. Vercel Production'da DATABASE_URL = Transaction pooler (port 6543)
+- Giriş: Clerk (pk_test anahtarı). Vercel'de CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, VITE_CLERK_PUBLISHABLE_KEY var; VITE_CLERK_PROXY_URL silindi
+- Son durumda Supabase SSL, health endpoint ve `npm run db:migrate` (migrasyon 001–005) için kod yazıldı AMA commit/push edilmedi ve migrasyon Supabase'de çalıştırılmadı
+
+ADIM 1 – GIT DURUMU
+- `git status` ve `git log -5` göster.
+- Commit edilmemiş tüm değişiklikleri commit edip origin/main'e push et. Push'un başarılı olduğunu `git log origin/main -1` ile kanıtla.
+- Push sonrası Vercel'in yeni commit'ten deploy aldığını doğrula (deployment durumu Ready olmalı).
+
+ADIM 2 – VERİTABANI VE MİGRASYON
+- Migrasyon scriptinin (`npm run db:migrate`) 6543 pooler yerine Supabase'in Session pooler veya Direct (5432) adresini kullanabilmesini sağla. Bunun için ayrı bir env değişkeni ekle (örn. MIGRATION_DATABASE_URL); yoksa DATABASE_URL'e düş. Uygulama çalışma anında 6543'te kalsın.
+- 6543 (Transaction pooler) kullanılıyorsa pg/postgres istemcisinde prepared statement kullanımını kapat (postgres.js için `prepare: false`; node-pg için named statement kullanma).
+- SSL: Supabase için `ssl: { rejectUnauthorized: false }` veya uygun SSL ayarı olduğundan emin ol.
+- Migrasyonları 001–005 sırasıyla çalıştır. Idempotent olsunlar (IF NOT EXISTS). Sonra tabloların gerçekten oluştuğunu bir SELECT sorgusuyla doğrula ve tablo listesini raporla.
+- Bağlantı adresinde şifrede özel karakter (@ # / ? :) varsa URL-encode gerektiğini kontrol et ve gerekirse beni uyar.
+- Eğer Supabase'e erişimin yoksa bunu açıkça yaz ve bana TAM olarak hangi komutu veya SQL'i nerede çalıştıracağımı ver (kopyala-yapıştır hazır).
+
+ADIM 3 – HEALTH ENDPOINT VE TEŞHİS
+- /api/health şunu döndürsün: veritabanı bağlantısı (SELECT 1), gerekli tabloların varlığı, Clerk secret key'in tanımlı olup olmadığı (değeri ASLA yazma, sadece true/false), ortam adı.
+- Hata olursa hata mesajını (şifre/anahtar sızdırmadan) JSON içinde döndür; böylece sorunun sebebi tarayıcıdan görülsün.
+- Deploy sonrası canlıda https://handikap.vercel.app/api/health isteğini at ve gelen yanıtı olduğu gibi bana göster. 200 ve db:ok görmeden "çözüldü" deme.
+
+ADIM 4 – VERCEL YAPILANDIRMASI
+- vercel.json ve api/ klasörünü incele: /api/* istekleri serverless fonksiyona doğru yönleniyor mu, SPA rewrite /api yollarını yutuyor mu, 404 NOT_FOUND veriyor mu? Gerekirse düzelt.
+- Vercel'de gerekli env değişkenlerinin tam listesini çıkar (DATABASE_URL, CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, VITE_CLERK_PUBLISHABLE_KEY, varsa diğerleri) ve hangilerinin eksik olabileceğini yaz. Env eklendiyse REDEPLOY gerektiğini hatırlat; ben redeploy edeceğim.
+- Serverless fonksiyon için bağlantı havuzunu düzgün yönet (global tek pool, max küçük, idle timeout) ki Supabase bağlantı limiti dolmasın.
+
+ADIM 5 – CLERK DOĞRULAMA
+- Sunucu tarafında Clerk token doğrulamasının (clerkMiddleware/verifyToken) pk_test/sk_test çifti ile uyumlu olduğunu kontrol et. Anahtar çiftleri aynı Clerk uygulamasından olmalı.
+- Giriş yapmamış kullanıcı için net bir 401, giriş yapmış ama DB hatası olan kullanıcı için net bir 503 dön; ikisini karıştırma. Oyunda "Hesap kaydı sunucuya bağlanamadı" mesajı sadece gerçek bağlantı hatasında çıksın.
+- Giriş yapılınca profil kaydı yoksa otomatik oluşturulsun (upsert). Aynı kullanıcı için tekrar tekrar kayıt oluşmasın.
+
+ADIM 6 – EŞYA TOPLAMA (İKİNCİ HATA)
+- Altın/elmas/eşya toplama endpoint'ini incele. "Eşya sunucuda doğrulanamadı" hangi koşulda atılıyor? Sebep DB hatası mı, auth mı, yoksa yanlış doğrulama mı (örn. istemci ve sunucu eşya kimliği uyuşmazlığı)?
+- DB/auth düzelince bu endpoint'in gerçekten çalıştığını bir test isteğiyle kanıtla.
+- İstemci tarafında: sunucu geçici hata verirse eşyayı yerde bırakıp aynı hatayı sonsuz göstermek yerine en fazla 2–3 otomatik tekrar dene (üstel bekleme), hata mesajını ekranda kısa tut ve tekrarlı spam yapma.
+
+ADIM 7 – DOĞRULAMA VE RAPOR
+- typecheck, test ve build geçsin.
+- Canlıda şunları kanıtla: (a) /api/health 200, (b) giriş sonrası profil oluşuyor/okunuyor, (c) bir altın/eşya toplama isteği sunucuda başarılı.
+- Sonunda kısa bir rapor ver: kök neden, değiştirilen dosyalar, çalıştırılan komutlar, canlı test sonuçları ve BENİM elle yapmam gereken adımlar (Vercel redeploy, env, Supabase SQL gibi).
+
+KURALLAR
+- Rig, animasyon, 3D model ve oyun mekaniği dosyalarına DOKUNMA; sadece sunucu, veritabanı, auth, Vercel yapılandırması ve ilgili istemci hata yönetimi.
+- Gizli anahtarları, şifreleri ve bağlantı adreslerini loglama, commit etme veya cevabında gösterme.
+- Bir adım başarısız olursa dur, gerçek hata mesajını göster, sebebini açıkla ve düzeltip tekrar dene. "Muhtemelen çalışır" deme; kanıtla.

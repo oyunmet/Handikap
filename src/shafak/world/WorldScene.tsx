@@ -295,6 +295,25 @@ function storeErrorText(code: string) {
   return messages[code] ?? "Mağaza işlemi tamamlanamadı. Bağlantıyı kontrol edip yeniden deneyin.";
 }
 
+function pickupErrorText(error: unknown) {
+  if (!(error instanceof ApiResponseError)) {
+    return "Ödül doğrulanamadı; eşya yerde kaldı.";
+  }
+  if (error.status === 401 || error.code === "authentication_required") {
+    return "Oturum doğrulanamadı; yeniden giriş yap.";
+  }
+  if (error.code === "invalid_pickup_claim" || error.code === "invalid_pickup_ids") {
+    return "Eşya sunucudaki bölümle uyuşmuyor; yeniden yükle.";
+  }
+  if (error.retryable || error.code === "pickup_storage_unavailable") {
+    return "Ödül sunucusu geçici olarak erişilemiyor; eşya yerde kaldı.";
+  }
+  if (error.status === 503 || error.code === "profile_not_ready") {
+    return "Hesap sunucuya bağlı değil; eşya yerde kaldı.";
+  }
+  return "Ödül doğrulanamadı; eşya yerde kaldı.";
+}
+
 class StoreActionError extends Error {}
 
 function rewardLabel(amount: number, label: string) {
@@ -447,6 +466,7 @@ export default function WorldScene({
   const rivalDistancesRef = useRef(new Map<string, number>());
   const collectedRef = useRef(new Set<string>());
   const pendingPickupIdsRef = useRef(new Set<string>());
+  const deferredPickupIdsRef = useRef(new Set<string>());
   const brokenRef = useRef(new Set<string>());
   const obstacleDamageRef = useRef(new Map<string, number>());
   const loadedClaimChaptersRef = useRef(new Set<number>());
@@ -818,13 +838,14 @@ export default function WorldScene({
       } else if (pickupIds.some((id) => !claimedIds.has(id))) {
         setPickupNotice("Eşya ödülü doğrulanamadı; tekrar dene.");
       }
-    } catch {
+    } catch (error) {
       for (const id of pickupIds) {
         pendingPickupIdsRef.current.delete(id);
         collectedRef.current.delete(id);
+        deferredPickupIdsRef.current.add(id);
       }
       setCollectedPickupIds(new Set(collectedRef.current));
-      setPickupNotice("Eşya sunucuda doğrulanamadı; bu öğe tekrar toplamak için yerde kaldı.");
+      setPickupNotice(pickupErrorText(error));
     }
   }, [accountDuelEnabled, commitBattleProfile, onClaimWorldPickups, vibrationOn]);
 
@@ -1510,6 +1531,10 @@ export default function WorldScene({
               pendingPickupIdsRef.current.has(pickup.id)
             ) continue;
             const distance = Math.hypot(pickup.x - playerX, pickup.distance - nextFrame.distance);
+            if (deferredPickupIdsRef.current.has(pickup.id)) {
+              if (distance <= PICKUP_RADIUS_METERS + 1) continue;
+              deferredPickupIdsRef.current.delete(pickup.id);
+            }
             if (distance > PICKUP_RADIUS_METERS) continue;
             const chapterQueue = newlyCollected.get(pickup.chapterId) ?? [];
             chapterQueue.push(pickup.id);
