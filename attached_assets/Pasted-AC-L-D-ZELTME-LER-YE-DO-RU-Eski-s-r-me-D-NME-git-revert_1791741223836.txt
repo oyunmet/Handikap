@@ -1,0 +1,52 @@
+ACİL DÜZELTME (İLERİYE DOĞRU). Eski sürüme DÖNME, git revert/reset YAPMA, yeni özellik EKLEME. Mevcut kodu cerrahi olarak düzelt. iPhone (Chrome/Safari) canlı oyun bozuk. Kanıtım ekran görüntülerinden:
+
+1) SİYAH SAHNE: Yürürken (Kül Yolu ~%54-62) ve düello sırasında 3D sahne büyük ölçüde siyah. HUD, isim etiketleri (Kül Okçusu, Gölge Şövalyesi, Demir Yemin) ve joystick çalışıyor, etiketler doğru yerde hareket ediyor. Yani oyun döngüsü canlı, sadece WebGL çizimi kararıyor. Bazen ekranın alt köşesinde ışık alan küçük zemin parçaları görünüyor (sahne tamamen ölü değil: ışık/sis/pozlama/kaynak sorunu şüphesi). Aynı sahne bazen sorunsuz çiziliyor (aralıklı hata).
+2) DÜELLO GİRİŞİ: "AYNI 3D DÜNYA · KAMERA İKİ SAVAŞÇIYA ODAKLANIYOR" ekranında kamera dağ/zemin geometrisinin içinde, arkada dev karanlık şekiller.
+3) DÜELLO BAŞLATMA: Bazen "Bağlantı doğrulanamadı / Hesap düellosu şu an başlatılamıyor" çıkıyor (daha önce düzelmişti, geri geldi).
+4) DÜELLO HUD: Pusula göstergesinde "FRONT" İngilizce, "?" düğmesinin ve rakip isim etiketinin üstüne biniyor.
+
+KURALLAR
+- Rig'li GLB karakterlerin iskelet/skin/klip adlarına dokunma. Clerk, Supabase, ödül, mağaza, pickups akışını bozma.
+- Git geçmişini silme, force push yapma. Tam dosya ver.
+- Her adım sonunda typecheck + test + build çalıştır. Geçmeyenle ilerleme.
+- "Düzeldi" deme, KANIT göster (aşağıdaki selftest ve kare görüntüleri).
+
+ADIM 1: KANITLA BUL (düzeltmeden önce)
+a) Son 15 commit'in diff'ini incele (sadece okumak için, geri alma yok). Render, sahne kurulumu, dispose, ışık, sis, kamera, hava (HAVA: KÜL geçişi), model önbelleği ile ilgili değişiklikleri listele; siyah ekrana yol açabilecek olanları işaretle.
+b) Şu şüphelileri tek tek test et ve her biri için "bulundu / bulunmadı + kanıt" yaz:
+   - Paylaşılan/önbellekteki geometri, materyal, texture'ların dispose edilmesi (klonlar aynı materyali paylaşıyorsa bir sahneyi dispose etmek diğerini karartır).
+   - Sahne geçişinde ışıkların, fog'un, scene.background'un, renderer.toneMappingExposure değerinin silinmesi/sıfırlanması/NaN olması (hava geçişi animasyonu dahil).
+   - webglcontextlost olayı (iOS bellek baskısı); olay dinlenmiyor mu, restore sonrası sahne yeniden kuruluyor mu.
+   - Post-processing/EffectComposer veya render target kullanılıyorsa, boyut 0, NaN veya hatalı pass.
+   - Kamera near/far, kamera NaN, kameranın geometri içinde kalması.
+   - Bir mesh/materyal shader derleme hatası (renderer.debug.onShaderError).
+   - Render döngüsünde yakalanmamış hata.
+c) ?debug=1 iken ekranın altında küçük bir şerit göster: son 20 hata/uyarı (window.onerror, unhandledrejection, shader hataları, GLB hataları, context lost/restored), FPS, renderer.info (geometries, textures, programs), ışık sayısı + yoğunluk, fog near/far, exposure, scene.background, kamera konumu, "son kare ortalama parlaklık", render döngüsü canlı mı. "Kopyala" düğmesi ekle.
+d) /?selftest=1 sayfası ekle (iPhone'da açıp sonucu sana atacağım): her rakip ve karakter (Kül Okçusu, Demir Yemin, Gölge Şövalyesi ve diğerleri) × her biyom için sahneyi kurup render et, render çağrısından HEMEN SONRA gl.readPixels ile ekran boyunca dağılmış en az 25 noktadan örnek al, ortalama parlaklık ve farklı renk sayısını hesapla, "siyah kare" mi karar ver. Sonuç tablosu (geçti/kaldı + sebep) ekranda gösterilsin ve kopyalanabilsin. Aynı testi Playwright ile (headless Chromium, --use-gl=swiftshader) Replit'te de çalıştır ve ekran görüntülerini kaydet. Çalıştırılamazsa nedenini yaz, iPhone selftest'ine güven.
+
+ADIM 2: DÜZELT (bulunan sebebe göre; aşağıdakiler her durumda uygula)
+- Kaynak sahipliği: Yalnızca sahnenin KENDİ oluşturduğu nesneleri dispose et. Önbellekteki orijinal GLB'nin geometri/materyal/texture'larına ve paylaşılan kaynaklara dispose ÇAĞIRMA. Klonlarken materyalleri de klonla (veya referans sayacı kullan).
+- Işık/sis/arka plan/pozlama: Her sahne kurulumunda ve her hava geçişinden sonra biyom varsayılanlarına güvenli şekilde ayarla; tüm değerler isFinite kontrolünden geçsin, geçersizse son geçerli değere dön. Ambient + yönlü ışık HER sahnede garanti olsun. Fog far değeri sahne boyutundan küçük olmasın. scene.background siyah olmasın (biyom rengi).
+- Siyah kare koruması (en kritik): Render sonrası ~1 saniyede bir küçük örneklemle parlaklık ölç. 5 ardışık ölçüm "siyah" ise (sahnede görünür nesne varken) şu kademeli kurtarmayı çalıştır ve hangi adımın işe yaradığını logla: (1) ışık/fog/exposure/background'u varsayılana sıfırla, (2) materyalleri needsUpdate yap ve gerekirse paylaşılan kaynakları yeniden yükle, (3) renderer'ı yeniden oluştur / context'i geri yükle, (4) sahneyi baştan kur. Hepsi başarısızsa sessiz siyah bırakma: "Sahne yenilenemedi · Yeniden yükle" kartı göster.
+- webglcontextlost: preventDefault et, restored'da renderer ve sahneyi yeniden kur; "Sahne yenileniyor…" göster.
+- requestAnimationFrame döngüsünü try/catch ile sar; hata döngüyü durdurmasın, 3 ardışık hatada sahneyi yeniden kur.
+- iOS bellek: pixel ratio üst sınırı min(devicePixelRatio, 2), texture max 1024px, gölge çözünürlüğü düşük, post-processing varsa iOS'ta kapat veya sadeleştir. Aynı anda yalnızca tek sahne yüklü olsun (düelloya girerken yürüme sahnesini hafızadan düşür, dönerken yeniden kur).
+- Düello kamerası: arena merkezini ve iki dövüşçüyü çevreleyen güvenli bir kamera. Kamera hedefine raycast at; arada dağ/zemin/duvar varsa kamerayı hedefe yaklaştır, kameranın içinde kaldığı veya arkasında kaldığı geometrileri düello süresince gizle ya da şeffaflaştır (arena yarıçapı + 8 m içindeki dekor). Düello arenası, açık ve düz bir zemin üzerinde başlasın (gerekirse arenayı en yakın boş alana taşı). Giriş ekranı (VS kartı) sırasında kamera hazır olana kadar sahne siyah/yarım görünmesin: giriş kartı kameranın ilk geçerli karesi çizilene kadar kalsın.
+- Düello başlatma (/api/duels/start):
+   • Sunucu: her hata için net sebep kodu logla ve döndür (AUTH_EXPIRED, RATE_LIMIT, DB_TIMEOUT, VALIDATION, INTERNAL). Rate limiter anahtarları ve limitleri gözden geçir (trust proxy ayarı var; limit düello başlatmak için fazla sıkı mı?). Serverless için DB bağlantısı: pool/pooler URL, kısa timeout, soğuk başlangıçta yeniden dene.
+   • İstemci: isteği göndermeden önce Clerk oturum jetonunu taze al (cache atla). 401/5xx/ağ hatasında 600 ms sonra TEK kez otomatik yeniden dene. Hata kartında küçük gri "Kod: …" satırı göster. "Tekrar dene" düğmesi gerçekten yeniden denesin.
+- SAVAŞ düğmesi: rakip menzile girince rakip kartında görünsün; Kül Okçusu, Demir Yemin, Gölge Şövalyesi için ayrı ayrı test et.
+- DÜELLO HUD: Pusula/yön göstergesini Türkçeleştir: ÖN / ARKA / SAĞ / SOL, alt yazı "RAKİP". Konumu "?" düğmesi ve rakip isim etiketiyle çakışmayacak şekilde değiştir (ör. HEDEF KİLİTLİ rozetinin hemen altında, ekran ortasında küçük bir halka). Küçük ekranlarda (iPhone 375-430 px) hiçbir HUD öğesi üst üste binmesin; güvenli alan (safe-area) payını kullan.
+
+ADIM 3: DOĞRULA (zorunlu, kanıtlı)
+1. Selftest tablosu: tüm karakter × biyom kombinasyonları "geçti".
+2. Playwright ekran görüntüleri (veya yapılamazsa gerekçe): Kül Yolu %54, %62, %79 (rakip menzile girerken), duello giriş kartı sonrası ilk kare, düello içi (her rakip için), düello sonrası yola dönüş. Hiçbiri siyah olmasın.
+3. 60 saniyelik dayanıklılık testi: yürü → düello → dön → yürü, 5 tur, siyah kare sayısı 0, context lost olursa kurtarma çalışsın (testte WEBGL_lose_context ile zorla kaybettir ve kurtarmayı doğrula).
+4. Düello başlatma: 20 ardışık başlatmada hata oranı, hata varsa kod dağılımı.
+5. typecheck, test, build sonuçları. Commit + push, canlıya giden commit hash'i. Push hatasında TAM çıktıyı göster.
+
+TESLİM RAPORU
+- Kök neden(ler): hangi dosya/satır, neden siyah oluyordu (kanıtla).
+- Değişen dosyalar listesi.
+- Selftest ve ekran görüntüsü sonuçları.
+- Hâlâ iPhone'da elle denenmesi gerekenler (kısa liste).
