@@ -1,7 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
-import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
+import {
+  ApiResponseError,
+  type AuthenticatedApiRequest,
+  type AuthenticatedApiRequestWithRetry,
+} from "../api-json";
 import DuelControls from "../game/DuelControls";
 import { duel360EnabledFromSearch, getDirectionZone, normalizeYaw, quantizeDuelYaw, yawToward } from "../game/duel-direction";
 import DuelResults from "../game/DuelResults";
@@ -68,7 +72,13 @@ import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
 import EquipmentPreview3D from "./EquipmentPreview3D";
 import WorldAtmosphere from "./WorldAtmosphere";
-import { getBiomeForDistance, nextWeatherMode, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
+import {
+  BIOME_SPAN_METERS,
+  getBiomeForDistance,
+  nextWeatherMode,
+  WORLD_BIOME_PALETTES,
+  type WeatherMode,
+} from "./world-biomes";
 import { getEncounterRangeState } from "./encounter-range";
 import { emitWorldDiagnostic } from "./world-diagnostics";
 
@@ -81,9 +91,16 @@ const WEATHER_LABELS: Record<WeatherMode, string> = {
   rain: "Yağmur",
   fog: "Sis",
 };
+const DUEL_DIRECTION_LABELS = {
+  front: "ÖN",
+  left: "SOL",
+  right: "SAĞ",
+  rear: "ARKA",
+} as const;
 
 type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequest;
+  apiRequestWithRetry: AuthenticatedApiRequestWithRetry;
   quality: "high" | "balanced" | "low";
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
@@ -119,6 +136,8 @@ type BattleSession = {
   beat: number;
   practice: boolean;
   message?: string;
+  errorCode?: string;
+  errorStatus?: number;
   summary?: DuelSummary;
   rewards?: BattleRewards;
 };
@@ -428,6 +447,7 @@ function WorldVolumeSlider({
 
 export default function WorldScene({
   apiRequest,
+  apiRequestWithRetry,
   quality,
   visualEffectsEnabled,
   motionReduced,
@@ -490,7 +510,12 @@ export default function WorldScene({
   const [pickupNotice, setPickupNotice] = useState("");
   const [attackAnimation, setAttackAnimation] = useState(false);
   const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
-  const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => getOpeningStoryDialogue());
+  const [duelStartPending, setDuelStartPending] = useState(false);
+  const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => {
+    const selfTestMode = typeof window !== "undefined"
+      && new URLSearchParams(window.location.search).get("selftest") === "1";
+    return selfTestMode ? null : getOpeningStoryDialogue();
+  });
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
@@ -504,7 +529,9 @@ export default function WorldScene({
   const lastBotTelegraphTickRef = useRef(-1);
   const storyDialogueRef = useRef<StoryDialogue | null>(storyDialogue);
   const storyChapterRef = useRef(0);
-  const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(false);
+  const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("selftest") === "1",
+  );
   const contentCacheRef = useRef(new Map<number, WorldChapterContent>());
   const rivalDistancesRef = useRef(new Map<string, number>());
   const collectedRef = useRef(new Set<string>());
@@ -954,6 +981,7 @@ export default function WorldScene({
     for (const timer of battleTimersRef.current) window.clearTimeout(timer);
     battleTimersRef.current = [];
     battleActiveRef.current = false;
+    setDuelStartPending(false);
     const frozen = battleFrozenMotionRef.current;
     if (frozen) {
       motionRef.current = { ...frozen, velocityX: 0, velocityY: 0, hasMoved: false, cameraLead: 0 };
@@ -1096,11 +1124,8 @@ export default function WorldScene({
     };
     motionRef.current = battleFrozenMotionRef.current;
     const practice = debugOneHitEnabled;
-    const initialSession: BattleSession = { rival, phase: "sweep", beat: 0, practice };
-    battleSessionRef.current = initialSession;
-    setBattleSession(initialSession);
+    setDuelStartPending(true);
     setCombatEvents([]);
-    playWorldCue("battle");
 
     try {
       let seed: number;
@@ -1109,7 +1134,7 @@ export default function WorldScene({
       let playerStats: PlayerCombatModifiers = playerCombatStats;
       if (accountDuelEnabled && !practice) {
         if (!accountProfileReady) throw new Error("Hesap profili sunucuya bağlı değil; düello ödülü güvenle doğrulanamaz.");
-        const challenge = await apiRequest<{
+        const challenge = await apiRequestWithRetry<{
           duelId?: unknown;
           seed?: unknown;
           playerStats?: unknown;
@@ -1123,7 +1148,7 @@ export default function WorldScene({
         }, {
           operation: "duel start",
           fallbackMessage: "Hesap düellosu şu an başlatılamıyor. Lütfen daha sonra tekrar dene.",
-        });
+        }, { maxRetries: 1, baseDelayMs: 600, retryOn429: false });
         if (
           typeof challenge.duelId !== "string" ||
           typeof challenge.seed !== "number" ||
@@ -1175,6 +1200,11 @@ export default function WorldScene({
       lastInputFrameRef.current = inputLogRef.current[0];
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
+      const initialSession: BattleSession = { rival, phase: "sweep", beat: 0, practice };
+      battleSessionRef.current = initialSession;
+      setBattleSession(initialSession);
+      setDuelStartPending(false);
+      playWorldCue("battle");
 
       const sweepDuration = motionReduced ? 100 : 900;
       const versusDuration = motionReduced ? 280 : 1_100;
@@ -1201,12 +1231,29 @@ export default function WorldScene({
         }, versusDuration);
       }, sweepDuration);
     } catch (error) {
-      updateBattleSession({
+      const errorSession: BattleSession = {
+        rival,
         phase: "error",
+        beat: 0,
+        practice,
         message: duelStartErrorText(error),
-      });
+        ...(error instanceof ApiResponseError
+          ? { errorCode: error.code, errorStatus: error.status }
+          : { errorCode: "client_error" }),
+      };
+      battleSessionRef.current = errorSession;
+      setBattleSession(errorSession);
+      setDuelStartPending(false);
     }
-  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, directionalDuelEnabled, motionReduced, playerCombatStats]);
+  }, [
+    accountDuelEnabled,
+    accountProfileReady,
+    apiRequestWithRetry,
+    debugOneHitEnabled,
+    directionalDuelEnabled,
+    motionReduced,
+    playerCombatStats,
+  ]);
 
   const pressDuelButton = (button: number) => {
     const input = combatInputRef.current;
@@ -1844,6 +1891,7 @@ export default function WorldScene({
     if (target) teleportToDistance(target.distance, target.x);
   };
   const debugSkipDistance = () => teleportToDistance(travel + 25);
+  const debugNextBiome = () => teleportToDistance(motionRef.current.distance + BIOME_SPAN_METERS);
   const gateDistance = nextGateDistance(travel);
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
   const sceneBiome = getBiomeForDistance(travel);
@@ -1922,6 +1970,7 @@ export default function WorldScene({
             onDebugNearestRival={debugNearestRival}
             onDebugNearestPickup={debugNearestPickup}
             onDebugSkipDistance={debugSkipDistance}
+            onDebugNextBiome={debugNextBiome}
             onDebugStartBattle={debugStartBattle}
             debugOneHitEnabled={debugOneHitEnabled}
             onToggleDebugOneHit={() => setDebugOneHitEnabled((value) => !value)}
@@ -2018,10 +2067,10 @@ export default function WorldScene({
           <div
             className={`duel-heading-ring is-${getDirectionZone(combatRender.player, combatRender.bot)}`}
             style={{ "--duel-heading": `${normalizeYaw(yawToward(combatRender.player, combatRender.bot) - combatRender.player.yaw)}rad` } as CSSProperties}
-            aria-label={`Rakip oyuncunun ${getDirectionZone(combatRender.player, combatRender.bot)} yönünde`}
+            aria-label={`Rakip oyuncunun ${DUEL_DIRECTION_LABELS[getDirectionZone(combatRender.player, combatRender.bot)]} yönünde`}
           >
             <i aria-hidden="true" />
-            <strong>{getDirectionZone(combatRender.player, combatRender.bot).toLocaleUpperCase("tr-TR")}</strong>
+            <strong>{DUEL_DIRECTION_LABELS[getDirectionZone(combatRender.player, combatRender.bot)]}</strong>
             <small>RAKİP</small>
           </div>
         )}
@@ -2164,8 +2213,14 @@ export default function WorldScene({
               </button>
             )}
             {canChallenge && (
-              <button type="button" className="world-encounter__fight" onClick={() => beginEncounter(nextOpponent)}>
-                <span aria-hidden="true">⚔</span> SAVAŞ
+              <button
+                type="button"
+                className="world-encounter__fight"
+                disabled={duelStartPending}
+                onClick={() => beginEncounter(nextOpponent)}
+              >
+                <span aria-hidden="true">⚔</span>
+                {duelStartPending ? "DÜELLO DOĞRULANIYOR" : "SAVAŞ"}
               </button>
             )}
           </div>
@@ -2177,6 +2232,12 @@ export default function WorldScene({
           <button type="button" onClick={requestObstacleAttack} aria-label={`Barikata saldır, ${remainingBarricadeHits} darbe kaldı`}>
             <span aria-hidden="true">⚔</span> SALDIR
           </button>
+        </div>
+      )}
+      {duelStartPending && !battleSession && (
+        <div className="duel-start-pending" role="status" aria-live="polite">
+          <span className="game-eyebrow">HESAP DÜELLOSU</span>
+          <strong>Rakip sunucuda doğrulanıyor…</strong>
         </div>
       )}
       {battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase) && (
@@ -2210,8 +2271,14 @@ export default function WorldScene({
         <div className="duel-error-layer" role="alertdialog" aria-modal="true" aria-labelledby="duel-error-title">
           <section className="duel-error-card">
             <span className="game-eyebrow">DÜELLO BAŞLATILAMADI</span>
-            <h2 id="duel-error-title">Bağlantı doğrulanamadı</h2>
+            <h2 id="duel-error-title">Düello başlatılamadı</h2>
             <p>{battleSession.message}</p>
+            {battleSession.errorCode && (
+              <small className="duel-error-diagnostic">
+                Hata kodu: {battleSession.errorCode}
+                {typeof battleSession.errorStatus === "number" ? ` · HTTP ${battleSession.errorStatus}` : ""}
+              </small>
+            )}
             <button type="button" className="game-gold-button" onClick={() => {
               const rival = battleSession.rival;
               closeEncounter();

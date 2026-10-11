@@ -80,3 +80,41 @@ test("duel start and pickup routes accept Vercel proxy headers without rate-limi
   assert.equal(pickupResponse.status, 401);
   assert.deepEqual(validationErrors, []);
 });
+
+test("duel start gives a clear rate-limit response after 30 requests", async (t) => {
+  const app = express();
+  app.set("trust proxy", 1);
+  app.use(express.json());
+  app.use(createDuelApi({}));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve, reject) => {
+    server.once("listening", resolve);
+    server.once("error", reject);
+  });
+  t.after(() => new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  }));
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const url = `http://127.0.0.1:${address.port}/api/duels/start`;
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Forwarded-For": "198.51.100.22",
+  };
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ opponentId: "ash-sentinel" }),
+    });
+    assert.equal(response.status, 401, `request ${attempt + 1} should reach auth`);
+  }
+  const limited = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ opponentId: "ash-sentinel" }),
+  });
+  assert.equal(limited.status, 429);
+  assert.deepEqual(await limited.json(), { error: "rate_limited" });
+});

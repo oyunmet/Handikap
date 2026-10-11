@@ -96,6 +96,27 @@ test("transient server errors are retried with a bounded attempt count", async (
   assert.equal(calls, 3);
 });
 
+test("rate-limit responses are not retried when explicitly disabled", async () => {
+  let calls = 0;
+  await withFetch(async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ error: "rate_limited" }), {
+      status: 429,
+      headers: { "content-type": "application/json" },
+    });
+  }, async () => {
+    await assert.rejects(
+      requestJsonWithRetry("/api/duels/start", { method: "POST" }, options, {
+        maxRetries: 1,
+        baseDelayMs: 0,
+        retryOn429: false,
+      }),
+      (error) => error instanceof ApiResponseError && error.status === 429,
+    );
+  });
+  assert.equal(calls, 1);
+});
+
 test("authentication and validation errors are not retried", async () => {
   let calls = 0;
   await withFetch(async () => {

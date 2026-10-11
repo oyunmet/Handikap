@@ -307,7 +307,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   );
   const [screen, setScreen] = useState<Screen>(() => {
     const query = new URLSearchParams(window.location.search);
-    return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "opening";
+    return query.get("selftest") === "1"
+      || (query.get("debug") === "1" && query.get("scene") === "world")
+      ? "world"
+      : "opening";
   });
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
@@ -914,6 +917,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
               <WorldScene
                 apiRequest={authApiRequest}
+                apiRequestWithRetry={authApiRequestWithRetry}
                 quality={activeQuality}
                 visualEffectsEnabled={preferences.visualEffects}
                 motionReduced={motionReduced}

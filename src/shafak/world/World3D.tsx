@@ -115,6 +115,7 @@ type World3DProps = {
   onDebugNearestRival: () => void;
   onDebugNearestPickup: () => void;
   onDebugSkipDistance: () => void;
+  onDebugNextBiome: () => void;
   onDebugStartBattle: () => void;
   debugOneHitEnabled: boolean;
   onToggleDebugOneHit: () => void;
@@ -137,7 +138,61 @@ type DebugStats = {
   animation: CharacterAnimationState;
   footSlip: number;
   chunks: number;
+  cameraX: number;
+  cameraY: number;
+  cameraZ: number;
+  exposure: number;
+  background: string;
+  fogDensity: number;
+  programs: number;
+  lights: number;
+  pixelLuminance: number | null;
+  litPixelSamples: number;
+  pixelSampleCount: number;
 };
+
+function sampleRendererPixels(renderer: THREE.WebGLRenderer) {
+  const context = renderer.getContext();
+  const width = context.drawingBufferWidth;
+  const height = context.drawingBufferHeight;
+  if (context.isContextLost() || width < 1 || height < 1) {
+    return { meanLuminance: null, litSamples: 0, sampleCount: 0 };
+  }
+
+  const points: ReadonlyArray<readonly [number, number]> = [
+    [0.5, 0.5],
+    [0.25, 0.35],
+    [0.75, 0.35],
+    [0.25, 0.7],
+    [0.75, 0.7],
+  ];
+  const pixel = new Uint8Array(4);
+  let luminanceSum = 0;
+  let litSamples = 0;
+  try {
+    for (const [xRatio, yRatio] of points) {
+      context.readPixels(
+        Math.min(width - 1, Math.floor(width * xRatio)),
+        Math.min(height - 1, Math.floor(height * yRatio)),
+        1,
+        1,
+        context.RGBA,
+        context.UNSIGNED_BYTE,
+        pixel,
+      );
+      const luminance = (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]) / 255;
+      luminanceSum += luminance;
+      if (luminance > 0.02) litSamples += 1;
+    }
+  } catch {
+    return { meanLuminance: null, litSamples: 0, sampleCount: 0 };
+  }
+  return {
+    meanLuminance: luminanceSum / points.length,
+    litSamples,
+    sampleCount: points.length,
+  };
+}
 
 class WorldCanvasErrorBoundary extends Component<
   { children: ReactNode; onRetry: () => void; onError: (error: Error) => void },
@@ -204,20 +259,16 @@ function FirstFrameGuard({ onFirstFrame }: { onFirstFrame: () => void }) {
   useFrame(() => {
     if (reportedRef.current) return;
     reportedRef.current = true;
-    onFirstFrame();
+    window.requestAnimationFrame(() => onFirstFrame());
   });
   return null;
 }
 
 function supportsWebGL() {
-  try {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
-    context?.getExtension("WEBGL_lose_context")?.loseContext();
-    return Boolean(context);
-  } catch {
-    return false;
-  }
+  // Do not create and destroy a throwaway WebGL context on iOS. The renderer
+  // below is the authoritative capability check and owns the only live context.
+  return typeof WebGL2RenderingContext !== "undefined"
+    || typeof WebGLRenderingContext !== "undefined";
 }
 
 function getChunksForDistance(distance: number, cache: Map<number, WorldChunk>) {
@@ -1075,6 +1126,8 @@ function SceneContents({
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
   const activeChunkRef = useRef(Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS));
   const footSlipRef = useRef(0);
+  const darkPixelWindowsRef = useRef(0);
+  const pixelRecoverySentRef = useRef(false);
   const prefetchCancelRef = useRef<(() => void) | null>(null);
   const initialPrefetchRef = useRef(false);
   const { gl } = useThree();
@@ -1161,6 +1214,13 @@ function SceneContents({
       const elapsed = now - monitor.startedAt;
       if (elapsed >= 1) {
         const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
+        const pixelSample = debugEnabled ? sampleRendererPixels(gl) : {
+          meanLuminance: null,
+          litSamples: 0,
+          sampleCount: 0,
+        };
+        const background = frame.scene.background;
+        const fog = frame.scene.fog;
         onDebugStats({
           x: motion.depth * 5.2,
           y: 0,
@@ -1180,7 +1240,31 @@ function SceneContents({
           animation: animationState,
           footSlip: footSlipRef.current,
           chunks: chunks.length,
+          cameraX: frame.camera.position.x,
+          cameraY: frame.camera.position.y,
+          cameraZ: frame.camera.position.z,
+          exposure: gl.toneMappingExposure,
+          background: background instanceof THREE.Color ? `#${background.getHexString()}` : background ? "texture" : "none",
+          fogDensity: fog instanceof THREE.FogExp2 ? fog.density : 0,
+          programs: gl.info.programs?.length ?? 0,
+          lights: frame.scene.children.filter((child) => child instanceof THREE.Light && child.visible).length,
+          pixelLuminance: pixelSample.meanLuminance,
+          litPixelSamples: pixelSample.litSamples,
+          pixelSampleCount: pixelSample.sampleCount,
         });
+        if (pixelSample.meanLuminance !== null && pixelSample.meanLuminance < 0.004) {
+          darkPixelWindowsRef.current += 1;
+          if (darkPixelWindowsRef.current >= 2 && !pixelRecoverySentRef.current) {
+            pixelRecoverySentRef.current = true;
+            emitWorldDiagnostic("render", "ReadPixels iki ardışık ölçümde siyah kare buldu; sahne kurtarma başlatıldı.");
+            window.dispatchEvent(new CustomEvent("shafak:scene-recovery", {
+              detail: { message: "WebGL iki ölçümde siyah kare üretti." },
+            }));
+          }
+        } else {
+          darkPixelWindowsRef.current = 0;
+          pixelRecoverySentRef.current = false;
+        }
         monitor.startedAt = now;
         monitor.frames = 0;
         monitor.longFrames = 0;
@@ -1284,7 +1368,8 @@ function SceneContents({
 
 function isDebugEnabled() {
   if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("debug") === "1";
+  const query = new URLSearchParams(window.location.search);
+  return query.get("debug") === "1" || query.get("selftest") === "1";
 }
 
 export default function World3D(props: World3DProps) {
@@ -1320,6 +1405,17 @@ export default function World3D(props: World3DProps) {
     animation: "idle",
     footSlip: 0,
     chunks: 0,
+    cameraX: 0,
+    cameraY: 0,
+    cameraZ: 0,
+    exposure: 1,
+    background: "n/a",
+    fogDensity: 0,
+    programs: 0,
+    lights: 0,
+    pixelLuminance: null,
+    litPixelSamples: 0,
+    pixelSampleCount: 0,
   });
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const maxDpr = Math.min(MAX_WORLD_PIXEL_RATIO, getPixelRatioCap(props.quality), pixelRatio);
@@ -1475,6 +1571,7 @@ export default function World3D(props: World3DProps) {
             gl={{
               alpha: false,
               antialias: false,
+              preserveDrawingBuffer: debugEnabled,
               powerPreference: "high-performance",
               toneMapping: props.visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
               toneMappingExposure: props.visualEffectsEnabled ? 1.12 : 1,
@@ -1549,11 +1646,14 @@ export default function World3D(props: World3DProps) {
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
           <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {props.weatherMode} · Sis: {debugFogDensity.toFixed(4)} · Parça: {debugStats.chunks}</span>
+          <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · BG: {debugStats.background} · Pozlama: {debugStats.exposure.toFixed(2)} · Işık: {debugStats.lights} · Sis: {debugStats.fogDensity.toFixed(4)}</span>
+          <span>ReadPixels luma: {debugStats.pixelLuminance === null ? "bekleniyor" : debugStats.pixelLuminance.toFixed(3)} · Aydınlık örnek: {debugStats.litPixelSamples}/{debugStats.pixelSampleCount} · Shader programı: {debugStats.programs}</span>
           <span>Rakip: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
           <div className="world-debug__actions">
             <button type="button" onClick={props.onDebugNearestRival}>En yakın rakip</button>
             <button type="button" onClick={props.onDebugNearestPickup}>En yakın eşya</button>
             <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>
+            <button type="button" onClick={props.onDebugNextBiome}>Sonraki biyom</button>
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
             <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
           </div>

@@ -1050,6 +1050,15 @@
 .duel-error-layer { background: rgba(5,6,10,.46); }
 .duel-result-layer .duel-result { position: absolute; inset: 0; min-height: 100%; background: radial-gradient(ellipse at 50% 50%,rgba(26,22,22,.58),rgba(6,7,11,.74)); }
 .duel-result-layer .duel-result__card { max-height: calc(100svh - 32px); overflow-y: auto; }
+.duel-error-diagnostic { color: rgba(235,222,198,.62); font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.duel-start-pending {
+  position: absolute; z-index: 14; top: max(132px, calc(env(safe-area-inset-top) + 116px)); left: 50%;
+  display: grid; justify-items: center; gap: 5px; min-width: min(250px, calc(100% - 32px));
+  padding: 10px 14px; border: 1px solid rgba(226,190,125,.42); border-radius: 4px;
+  background: rgba(12,12,17,.88); box-shadow: 0 8px 24px rgba(0,0,0,.34);
+  transform: translateX(-50%); pointer-events: none;
+}
+.duel-start-pending strong { color: #f2e4cb; font-size: 11px; }
 .duel-result__note { margin: 10px 0 0; color: #d8b77c; font-size: 9px; }
 .duel-error-card { width: min(100%,420px); padding: clamp(24px,5vw,40px); border: 1px solid rgba(231,201,153,.32); background: linear-gradient(145deg,rgba(37,29,27,.98),rgba(12,13,18,.99)); color: #f4e8d4; text-align: center; box-shadow: 0 20px 70px #0009; }
 .duel-error-card h2 { margin: 13px 0 9px; color: #e9c17b; font: 700 clamp(25px,6vw,38px) var(--font-display,Georgia,serif); }
@@ -1275,7 +1284,7 @@
   position: absolute;
   z-index: 9;
   top: max(164px, calc(env(safe-area-inset-top) + 150px));
-  right: max(12px, calc(env(safe-area-inset-right) + 12px));
+  left: max(12px, calc(env(safe-area-inset-left) + 12px));
   width: 56px;
   height: 56px;
   display: grid;
