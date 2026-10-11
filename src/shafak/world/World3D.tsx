@@ -25,6 +25,12 @@ import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldCollisionGrid, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
+import {
+  appendWorldDiagnostic,
+  emitWorldDiagnostic,
+  formatWorldDiagnostics,
+  type WorldDiagnostic,
+} from "./world-diagnostics";
 import WorldPostProcessing from "./WorldPostProcessing";
 import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
 import {
@@ -42,6 +48,8 @@ import {
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
+const MAX_WORLD_PIXEL_RATIO = 2;
+let lastSceneFrameAt = 0;
 
 function createProceduralEnvironmentMap() {
   const width = 128;
@@ -93,6 +101,8 @@ type World3DProps = {
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
   combatRender: CombatState | null;
+  cameraOrbitRef: MutableRefObject<{ yaw: number; pitch: number }>;
+  duelLockOn: boolean;
   combatVisualEvents: CombatVisualEvent[];
   cinematicIntro: boolean;
   finisherSlowMotion: boolean;
@@ -175,7 +185,7 @@ type DebugStats = {
 };
 
 class WorldCanvasErrorBoundary extends Component<
-  { children: ReactNode; onRetry: () => void; onError: () => void },
+  { children: ReactNode; onRetry: () => void; onError: (error: Error) => void },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -186,7 +196,8 @@ class WorldCanvasErrorBoundary extends Component<
 
   componentDidCatch(error: Error, _info: ErrorInfo) {
     console.error("[shafak-world] 3D canvas failed to start.", error);
-    this.props.onError();
+    emitWorldDiagnostic("canvas", error.message);
+    this.props.onError(error);
   }
 
   render() {
@@ -216,9 +227,13 @@ function CanvasContextGuard({
     const canvas = gl.domElement;
     const handleLost = (event: Event) => {
       event.preventDefault();
+      emitWorldDiagnostic("webgl", "webglcontextlost: grafik bağlamı kesildi.");
       onLost();
     };
-    const handleRestored = () => onRestored();
+    const handleRestored = () => {
+      emitWorldDiagnostic("webgl", "webglcontextrestored: grafik bağlamı geri geldi.");
+      onRestored();
+    };
     canvas.addEventListener("webglcontextlost", handleLost);
     canvas.addEventListener("webglcontextrestored", handleRestored);
     return () => {
@@ -226,6 +241,16 @@ function CanvasContextGuard({
       canvas.removeEventListener("webglcontextrestored", handleRestored);
     };
   }, [gl, onLost, onRestored]);
+  return null;
+}
+
+function FirstFrameGuard({ onFirstFrame }: { onFirstFrame: () => void }) {
+  const reportedRef = useRef(false);
+  useFrame(() => {
+    if (reportedRef.current) return;
+    reportedRef.current = true;
+    onFirstFrame();
+  });
   return null;
 }
 
@@ -325,6 +350,8 @@ function CameraRig({
   slowMotion,
   combatActive,
   combatStateRef,
+  cameraOrbitRef,
+  duelLockOn,
   combatVisualEvents,
   visualEffectsEnabled,
   cinematicIntro,
@@ -336,6 +363,8 @@ function CameraRig({
   slowMotion: boolean;
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
+  cameraOrbitRef: MutableRefObject<{ yaw: number; pitch: number }>;
+  duelLockOn: boolean;
   combatVisualEvents: CombatVisualEvent[];
   visualEffectsEnabled: boolean;
   cinematicIntro: boolean;
@@ -346,6 +375,7 @@ function CameraRig({
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
   const impactRef = useRef({ tick: -1, startedAt: 0 });
   const cinematicStartRef = useRef<number | null>(null);
+  const { size } = useThree();
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
     id: -1,
     startedAt: 0,
@@ -384,14 +414,37 @@ function CameraRig({
     if (combat) {
       const centerX = (combat.player.x + combat.bot.x) * 0.5;
       const centerZ = -(motion.distance - motion.originDistance) + (combat.player.z + combat.bot.z) * 0.5;
+      const gap = Math.hypot(combat.player.x - combat.bot.x, combat.player.z - combat.bot.z);
+      const aspect = size.width / Math.max(1, size.height);
+      const cameraDistance = THREE.MathUtils.clamp(6.5 + gap * 0.68, 6.7, 8.6) * (aspect < 0.72 ? 1.12 : 1);
+      const pitch = THREE.MathUtils.clamp(cameraOrbitRef.current.pitch, 0.18, 1.05);
+      const horizontal = cameraDistance * Math.cos(pitch);
+      const vertical = cameraDistance * Math.sin(pitch);
       if (cinematicIntro && !motionReduced) {
         const progress = THREE.MathUtils.clamp((_.clock.elapsedTime - (cinematicStartRef.current ?? _.clock.elapsedTime)) / 2, 0, 1);
         const eased = progress * progress * (3 - 2 * progress);
-        desiredRef.set(centerX + 7.2 - eased * 4.5, 3.7 - eased * 0.35, centerZ + 3.6 + eased * 3.6);
+        const introDistance = cameraDistance + (1 - eased) * 2.2;
+        const introHorizontal = introDistance * Math.cos(pitch);
+        const introVertical = introDistance * Math.sin(pitch);
+        desiredRef.set(
+          combat.player.x - Math.sin(combat.player.yaw) * introHorizontal,
+          1.2 + introVertical + (1 - eased) * 0.65,
+          -(motion.distance - motion.originDistance) + combat.player.z - Math.cos(combat.player.yaw) * introHorizontal,
+        );
+      } else if (duelLockOn) {
+        desiredRef.set(
+          combat.player.x - Math.sin(combat.player.yaw) * horizontal,
+          1.2 + vertical,
+          -(motion.distance - motion.originDistance) + combat.player.z - Math.cos(combat.player.yaw) * horizontal,
+        );
       } else {
-        desiredRef.set(centerX + 4.1, 3.25, centerZ + 7.25);
+        desiredRef.set(
+          centerX + Math.sin(cameraOrbitRef.current.yaw) * horizontal,
+          1.2 + vertical,
+          centerZ + Math.cos(cameraOrbitRef.current.yaw) * horizontal,
+        );
       }
-      targetRef.set(centerX, 1.1, centerZ - 0.35);
+      targetRef.set(centerX, 1.0, centerZ);
       if (combat.lastImpactTick !== impactRef.current.tick) {
         impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
       }
@@ -534,7 +587,7 @@ function DuelFighter({
           state={animation}
           motionReduced={motionReduced}
           animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
-          facingAngle={side === "bot" ? Math.PI : 0}
+          facingAngle={renderedActor.yaw}
           appearance={side === "player" ? equipmentVisual : undefined}
           castShadow
           modelConfig={modelConfig}
@@ -550,6 +603,34 @@ function DuelFighter({
           </span>
         </Html>
       )}
+      <group position={[renderedActor.x, 0.055, renderedActor.z]} rotation={[0, renderedActor.yaw, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.42, 0.47, 32]} />
+          <meshBasicMaterial
+            color={side === "player" ? "#71ded5" : "#ff9778"}
+            transparent
+            opacity={0.5}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        <mesh position={[0, 0.045, 0.74]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.14, 0.34, 3]} />
+          <meshBasicMaterial color={side === "player" ? "#a2fff0" : "#ffb094"} transparent opacity={0.82} depthWrite={false} />
+        </mesh>
+        {visualEffectsEnabled && renderedActor.attackType && !renderedActor.attackHit && (
+          <mesh position={[0, 0.07, 0.78]} rotation={[Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.28, 0.92]} />
+            <meshBasicMaterial
+              color={renderedActor.attackType === "skillTwo" ? "#75ecff" : "#ffcf88"}
+              transparent
+              opacity={0.48}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        )}
+      </group>
     </group>
   );
 }
@@ -875,8 +956,11 @@ function DuelArena({
         <ringGeometry args={[3.78, 3.86, 72]} />
         <meshBasicMaterial color="#e45c48" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      {[-4.25, 4.25].map((x) => (
-        <group key={x} position={[x, 0, -0.55]}>
+      {Array.from({ length: 8 }, (_, index) => {
+        const angle = (index / 8) * Math.PI * 2;
+        const radius = 4.14;
+        return (
+        <group key={index} position={[Math.sin(angle) * radius, 0, -0.6 + Math.cos(angle) * radius]}>
           <mesh position={[0, 0.66, 0]}>
             <cylinderGeometry args={[0.085, 0.13, 1.3, 7]} />
             <meshStandardMaterial color="#4b3030" roughness={0.78} />
@@ -886,7 +970,8 @@ function DuelArena({
             <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} depthWrite={false} />
           </mesh>
         </group>
-      ))}
+        );
+      })}
       {visualEffectsEnabled && botTelegraphActive && <DuelTelegraph combatStateRef={combatStateRef} motionReduced={motionReduced} />}
       {visualEffectsEnabled && combatVisualEvents
         .filter((event) => getDuelVfxKind(event) !== "none")
@@ -1005,6 +1090,8 @@ function SceneContents({
   slowMotion,
   combatActive,
   combatStateRef,
+  cameraOrbitRef,
+  duelLockOn,
   combatVisualEvents,
   cinematicIntro,
   finisherSlowMotion,
@@ -1029,6 +1116,8 @@ function SceneContents({
   const { gl } = useThree();
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
+  const zeroDrawCallFramesRef = useRef(0);
+  const zeroDrawRecoverySentRef = useRef(false);
   const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
 
   const scheduleChunkPrefetch = (chunkIndex: number) => {
@@ -1101,7 +1190,21 @@ function SceneContents({
   }, [camera, combatActive, gl, hasCombatRender, scene]);
 
   useFrame((frame, delta) => {
+    lastSceneFrameAt = performance.now();
     const motion = motionRef.current;
+    if (gl.info.render.calls > 0) {
+      zeroDrawCallFramesRef.current = 0;
+      zeroDrawRecoverySentRef.current = false;
+    } else {
+      zeroDrawCallFramesRef.current += 1;
+      if (zeroDrawCallFramesRef.current >= 120 && !zeroDrawRecoverySentRef.current) {
+        zeroDrawRecoverySentRef.current = true;
+        emitWorldDiagnostic("render", "120 kare boyunca WebGL draw call üretilmedi.");
+        window.dispatchEvent(new CustomEvent("shafak:scene-recovery", {
+          detail: { message: "3D sahne 120 kare boyunca çizim üretmedi." },
+        }));
+      }
+    }
     if (performanceMonitorEnabled) {
       const stats = recordFrameMetric(
         performanceMetricsRef.current,
@@ -1192,6 +1295,8 @@ function SceneContents({
         slowMotion={slowMotion}
         combatActive={combatActive}
         combatStateRef={combatStateRef}
+        cameraOrbitRef={cameraOrbitRef}
+        duelLockOn={duelLockOn}
         combatVisualEvents={combatVisualEvents}
         visualEffectsEnabled={visualEffectsEnabled}
         cinematicIntro={cinematicIntro}
@@ -1256,6 +1361,9 @@ export default function World3D(props: World3DProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [contextLost, setContextLost] = useState(false);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
+  const [firstFrameReported, setFirstFrameReported] = useState(false);
+  const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
+  const [debugCopied, setDebugCopied] = useState(false);
   const autoRecoveryAttemptsRef = useRef(0);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
     averageFps: 0,
@@ -1282,19 +1390,26 @@ export default function World3D(props: World3DProps) {
     chunks: 0,
   });
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const maxDpr = Math.min(getPixelRatioCap(props.quality), pixelRatio);
+  const maxDpr = Math.min(MAX_WORLD_PIXEL_RATIO, getPixelRatioCap(props.quality), pixelRatio);
   const minDpr = Math.min(1, maxDpr);
+  const markFirstFrame = useCallback(() => {
+    setFirstFrameReported(true);
+    emitWorldDiagnostic("render", "3D sahnenin ilk karesi çizildi.");
+  }, []);
   const retryWebGL = useCallback(() => {
     autoRecoveryAttemptsRef.current = 0;
     setContextLost(false);
+    setFirstFrameReported(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
-  const retryCanvasAfterError = useCallback(() => {
+  const retryCanvasAfterError = useCallback((error?: Error) => {
+    if (error) emitWorldDiagnostic("recovery", error.stack ?? error.message);
     if (autoRecoveryAttemptsRef.current >= 1) return;
     autoRecoveryAttemptsRef.current += 1;
     window.setTimeout(() => {
       setContextLost(false);
+      setFirstFrameReported(false);
       setWebglAvailable(null);
       setCanvasAttempt((attempt) => attempt + 1);
     }, 500);
@@ -1302,9 +1417,60 @@ export default function World3D(props: World3DProps) {
   const markContextLost = useCallback(() => setContextLost(true), []);
   const rebuildRestoredContext = useCallback(() => {
     setContextLost(false);
+    setFirstFrameReported(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
+
+  const copyDebugEvents = useCallback(() => {
+    const text = formatWorldDiagnostics(debugEvents);
+    if (!navigator.clipboard?.writeText) {
+      setDebugCopied(false);
+      return;
+    }
+    void navigator.clipboard.writeText(text).then(() => {
+      setDebugCopied(true);
+      window.setTimeout(() => setDebugCopied(false), 1_800);
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      emitWorldDiagnostic("clipboard", `Tanı kayıtları kopyalanamadı: ${message}`);
+    });
+  }, [debugEvents]);
+
+  useEffect(() => {
+    const onDiagnostic = (event: Event) => {
+      const detail = (event as CustomEvent<WorldDiagnostic>).detail;
+      if (!detail || typeof detail.message !== "string") return;
+      setDebugEvents((current) => appendWorldDiagnostic(current, detail));
+    };
+    const onError = (event: ErrorEvent) => {
+      const stack = event.error instanceof Error ? event.error.stack : "";
+      const location = event.filename ? ` (${event.filename}:${event.lineno}:${event.colno})` : "";
+      emitWorldDiagnostic("uncaught", `${event.message}${location}${stack ? `\n${stack}` : ""}`);
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const message = reason instanceof Error ? reason.stack ?? reason.message : String(reason);
+      emitWorldDiagnostic("promise", message);
+    };
+    window.addEventListener("shafak:world-diagnostic", onDiagnostic);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("shafak:world-diagnostic", onDiagnostic);
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
+  useEffect(() => {
+    const recoverScene = (event: Event) => {
+      const detail = (event as CustomEvent<{ error?: Error; message?: string }>).detail;
+      retryCanvasAfterError(detail?.error ?? new Error(detail?.message ?? "3D sahne çizim durdu."));
+    };
+    window.addEventListener("shafak:scene-recovery", recoverScene);
+    return () => window.removeEventListener("shafak:scene-recovery", recoverScene);
+  }, [retryCanvasAfterError]);
 
   useEffect(() => {
     const syncDebug = () => setDebugEnabled(isDebugEnabled());
@@ -1316,6 +1482,27 @@ export default function World3D(props: World3DProps) {
     const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGL()));
     return () => window.cancelAnimationFrame(frame);
   }, [canvasAttempt]);
+
+  useEffect(() => {
+    if (webglAvailable !== true || firstFrameReported || contextLost) return undefined;
+    const timer = window.setTimeout(() => {
+      emitWorldDiagnostic("render", "Canvas başlatıldı ancak 3 saniyede ilk çizim karesi gelmedi.");
+      retryCanvasAfterError(new Error("3D sahne ilk kareyi çizmedi."));
+    }, 3_000);
+    return () => window.clearTimeout(timer);
+  }, [canvasAttempt, contextLost, firstFrameReported, retryCanvasAfterError, webglAvailable]);
+
+  useEffect(() => {
+    if (webglAvailable !== true || contextLost) return undefined;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden" || !lastSceneFrameAt) return;
+      if (performance.now() - lastSceneFrameAt < 2_500) return;
+      emitWorldDiagnostic("render", "Görünür sekmede 2,5 saniyedir WebGL kare sinyali alınmıyor.");
+      lastSceneFrameAt = performance.now();
+      retryCanvasAfterError(new Error("WebGL render loop durdu."));
+    }, 1_500);
+    return () => window.clearInterval(timer);
+  }, [canvasAttempt, contextLost, retryCanvasAfterError, webglAvailable]);
 
   useEffect(() => {
     if (!webglAvailable) return undefined;
@@ -1349,7 +1536,22 @@ export default function World3D(props: World3DProps) {
             onCreated={({ gl: renderer, scene }) => {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.info.autoReset = false;
+              lastSceneFrameAt = performance.now();
+              const previousShaderError = renderer.debug.onShaderError;
+              renderer.debug.checkShaderErrors = true;
+              renderer.debug.onShaderError = (context, program, vertexShader, fragmentShader) => {
+                const logs = [
+                  context.getProgramInfoLog(program),
+                  context.getShaderInfoLog(vertexShader),
+                  context.getShaderInfoLog(fragmentShader),
+                ].filter(Boolean).join("\n").slice(0, 1_800);
+                emitWorldDiagnostic("shader", logs || "WebGL shader/program derleme hatası.");
+                if (typeof previousShaderError === "function") {
+                  previousShaderError(context, program, vertexShader, fragmentShader);
+                }
+              };
               scene.background = new THREE.Color("#252330");
+              emitWorldDiagnostic("webgl", `Renderer hazır; DPR ${renderer.getPixelRatio().toFixed(2)}, maksimum doku ${renderer.getContext().getParameter(renderer.getContext().MAX_TEXTURE_SIZE)} px.`);
             }}
             fallback={(
               <div className="world-three-fallback" role="alert">
@@ -1361,6 +1563,7 @@ export default function World3D(props: World3DProps) {
             )}
           >
             <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
+            <FirstFrameGuard onFirstFrame={markFirstFrame} />
             <SceneContents
               {...props}
               debugEnabled={debugEnabled}
@@ -1394,6 +1597,7 @@ export default function World3D(props: World3DProps) {
           <span>FPS: {debugStats.fps || "ölçülüyor"} · Draw: {debugStats.drawCalls} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
           <span>Geometri/Doku: {debugStats.geometries}/{debugStats.textures} · JS heap: {debugStats.heapMb === null ? "n/a" : `${debugStats.heapMb} MB`}</span>
           <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
+          <span>Render döngüsü: {debugStats.fps > 0 ? "CANLI" : "BAŞLAMADI"} · İlk kare: {firstFrameReported ? "EVET" : "BEKLENİYOR"} · Aktif rakip: {props.combatActive ? props.opponentName : props.focusedRival?.name ?? "yok"} · Model: {props.combatActive && getOpponentModelConfig(props.opponentName)?.modelPath ? "GLB" : "prosedürel"}</span>
           <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
@@ -1406,6 +1610,15 @@ export default function World3D(props: World3DProps) {
             <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
             <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
+          </div>
+          <div className="world-debug__events">
+            <div>
+              <b>SON {debugEvents.length} TANILAMA KAYDI</b>
+              <button type="button" onClick={copyDebugEvents} disabled={!debugEvents.length}>
+                {debugCopied ? "KOPYALANDI" : "KAYITLARI KOPYALA"}
+              </button>
+            </div>
+            <pre>{debugEvents.length ? formatWorldDiagnostics(debugEvents) : "Henüz tanılama kaydı yok."}</pre>
           </div>
         </aside>
       )}

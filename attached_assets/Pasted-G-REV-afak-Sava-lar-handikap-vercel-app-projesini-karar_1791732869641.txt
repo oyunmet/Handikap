@@ -1,0 +1,68 @@
+GÖREV: Şafak Savaşçıları (handikap.vercel.app) projesini kararlı, hızlı ve eksiksiz hale getir. Aşağıdaki aşamaları SIRAYLA yap. Bir aşama doğrulanmadan sonrakine geçme. Her aşama sonunda kısa rapor ver.
+
+GENEL KURALLAR
+- Rig'li GLB karakterlerin iskeletine, skin ağırlıklarına ve klip adlarına (Idle, Walk, Run, Attack1, Block, Dodge, HitReaction, Cast_Fire, Cast_Lightning, Death, Victory) DOKUNMA.
+- Çalışan sistemleri bozma: Clerk girişi, Supabase/PostgreSQL, /api/duels/start, pickups, ödül ve mağaza akışı.
+- Git geçmişini silme, force push yapma. Tam dosya ver, diff verme.
+- Her aşamadan sonra typecheck, test ve build çalıştır. Geçmeyen şeyle ilerleme.
+- Yerel sunucu ve Vercel build'i aynı şekilde çalışmalı.
+
+━━━━━━━━ AŞAMA 1: ÇALIŞAN SÜRÜME DÖN (kalıcı geri alma) ━━━━━━━━
+Durum: Son değişikliklerden sonra canlı oyun bozuldu. Kül Yolu'nda yaklaşık %79'da "Gölge Şövalyesi" rakibi menzile girince 3D sahne tamamen siyah oluyor (HUD ve rakip kartı görünmeye devam ediyor), SAVAŞ düğmesi kayboldu, savaşlarda da siyah ekran var. Vercel'de geri alma yeterli değil, kodun GitHub'da düzelmesi gerekiyor.
+1. git log --oneline -20 ile commit'leri listele. Siyah ekran/360° dönüş prompt'undan hemen ÖNCEKİ çalışan commit'i bul (SAVAŞ düğmesi görünüyor, ilerlerken sahne siyaha dönmüyor). Hangi commit'i seçtiğini ve nedenini yaz.
+2. Aradaki commit'leri git revert ile geri al (geçmişi koru). Çakışmaları çöz. Tek bir commit'te topla: "Siyah ekran sorunu: son değişiklikleri geri al".
+3. typecheck, test, build çalıştır. Yerelde şunu doğrula: Kül Yolu'nda ilerle, Gölge Şövalyesi'ne yaklaş, kart + SAVAŞ düğmesi çıksın, düello başlasın.
+4. Commit ve push yap (origin main). Push hatası olursa TAM çıktısını göster. Canlıya giden commit hash'ini yaz.
+5. Geri alınan commit'lerin listesini ve içerdikleri özellikleri (hangileri kaybolacak) raporla.
+
+━━━━━━━━ AŞAMA 2: SİYAH EKRANIN KÖK NEDENİ ━━━━━━━━
+Geri alma sonrası bile siyah ekran görülürse, ya da bozan değişikliği anlamak için:
+1. iPhone'da konsola erişemiyorum. ?debug=1 iken ekranın altında küçük bir hata şeridi göster: yakalanmamış hatalar (window.onerror, unhandledrejection), three.js shader/materyal derleme hataları, GLB yükleme hataları, webglcontextlost/restored olayları, FPS, geometri/texture sayısı, aktif rakip adı, render döngüsü canlı mı. Son 20 kayıt kopyalanabilir olsun.
+2. Her rakip ve karakteri (Kül Okçusu, Demir Yemin, Gölge Şövalyesi ve diğerleri) sırayla yükleyen bir test yaz: bounding box, ölçek, materyal sayısı, texture boyutu, yükleme süresi, NaN kontrolü. Sorunlu olanı raporla.
+3. Özellikle Gölge Şövalyesi (gece savaşçısı): model, materyal, ölçek, animasyon klipleri, pozisyon. Bu rakip menzile girince sahnenin kararmasının sebebini bul.
+4. Kontrol listesi, her biri için "bulundu / bulunmadı" yaz: WebGL context kaybı, sahne geçişinde dispose edilmeyen kaynaklar (bellek), GLB yükleme hatası/timeout, hatalı kamera (modelin içinde/dışında), model ölçeği/merkezi tutarsızlığı, iOS'ta sorunlu materyal (büyük texture, emissive/transparent), NaN/Infinity pozisyon veya kamera, ışık/fog/arka plan siyah, procedural yol/biyom boş geometri, requestAnimationFrame döngüsünü durduran hata, aşırı pixel ratio/gölge ayarı.
+
+━━━━━━━━ AŞAMA 3: KALICI DÜZELTMELER ━━━━━━━━
+- Bir rakipte hata tüm sahneyi öldürmesin: rakip yükleme/çizim hatasını izole et (try/catch), hatalı rakibi yedek basit modelle (kapsül gövde + kafa + kılıç) değiştir, sahne çizilmeye devam etsin.
+- Tüm karakterler için ortak normalize adımı: modeli yüksekliğe göre ölçekle, ayağı y=0'a oturt, merkezi XZ'de sıfırla.
+- requestAnimationFrame döngüsünü try/catch ile sar; döngü hiçbir hatada durmasın. Ard arda 3 hatada sahneyi yeniden kur.
+- webglcontextlost olursa renderer ve sahneyi yeniden kur, "Sahne yenileniyor…" göster.
+- Sahne geçişlerinde (yürüme ↔ düello) geometri, materyal, texture, mixer dispose et. GLB'leri önbellekten klonla (SkeletonUtils.clone).
+- Duel kamerası: iki dövüşçünün orta noktasına bakan, mesafeye göre otomatik uzaklaşan, karakter içine girmeyen kamera.
+- iOS için: pixel ratio üst sınırı min(devicePixelRatio, 2), düşük gölge çözünürlüğü, texture'ları max 1024px, visibilitychange sonrası güvenli render yeniden başlatma.
+- Her biyomda garanti ışık seti, makul fog, siyah olmayan fallback arka plan; boş geometri üretilirse güvenli varsayılan yol.
+- Siyah ekran güvenlik ağı: sahne kurulduktan 2 sn içinde ilk kare çizilmediyse bir kez otomatik yeniden kur, olmazsa "Sahne yüklenemedi · Tekrar dene" kartı göster.
+- NaN/Infinity koruması: kamera, pozisyon, mixer delta için isFinite kontrolü.
+
+SAVAŞ DÜĞMESİ: Rakip menzile girince (eskiden olduğu gibi) rakip kartında SAVAŞ düğmesi görünsün. Görünme koşulunu bul ve Kül Okçusu, Demir Yemin, Gölge Şövalyesi dahil TÜM rakipler için çalıştığını test et. Rakibin kartı varken sahne siyah kalıyorsa düğme yine de çalışsın.
+
+DOĞRULAMA (Aşama 3 sonu): Her rakip için "yaklaş → kart + SAVAŞ düğmesi → düello → düello sonu → yola dön" akışını otomatik test et. Tüm karakter × biyom kombinasyonlarında sahnenin boş/siyah olmadığını denetleyen test ekle (renderer'dan küçük bir kare okuyup tamamen siyah mı bak). Sonuç tablosunu raporla. Commit + push yap.
+
+━━━━━━━━ AŞAMA 4: 360° DÖNÜŞ VE YÖNLÜ SALDIRI (Aşama 3 tamamen geçince) ━━━━━━━━
+Özelliği feature flag arkasında (varsayılan KAPALI) geliştir. Tüm testler geçince AÇ.
+- Hareket: sol joystick kameraya göre 360° serbest hareket, karakter hareket yönüne yumuşak dönsün. Varsayılan olarak rakibe kilitlenme (lock-on): oyuncu rakibin etrafında daire çizer (strafe), yüzü rakibe dönük kalır. Ekranda "KİLİT" aç/kapa düğmesi; kapalıyken karakter hareket yönüne baksın.
+- Kamera: ekranın boş alanında sürükleyerek 360° yörünge dönüşü, dikey açı sınırlı (10°–60°), arena dışına çıkmasın. Kilit açıkken kamera oyuncunun arkasından rakibe baksın ve yumuşakça takip etsin.
+- Arena: yuvarlak sınır, oyuncu ve rakip dışarı çıkamasın, gövde çarpışması (yarıçap) ile iç içe geçmesinler.
+- Pozisyon bölgeleri: oyuncunun rakibe göre açısını ÖN / ARKA / SAĞ / SOL (rakibin kendi yönüne göre, ±45° sınırlar) olarak hesapla. Rakibin etrafında bölgeyi gösteren küçük pusula/halka göstergesi ekle.
+- Yönlü saldırı: SALDIRI oyuncunun baktığı yöne koni/yay (menzil ve ±60° ayarlanabilir sabit) hasar alanıyla vursun. Saldırı sırasında yönelim kilitli, kısa bir ileri adım (lunge). Hasar çarpanları ayrı sabit nesnesinde: ARKA +%35 (sırttan vuruş), YAN +%15, ÖN normal. Ekranda "SIRTTAN VURUŞ!" / "YANDAN VURUŞ" vurgusu.
+- Rakip botlar da aynı mantıkla oyuncunun yönüne göre vurur; bot dönüş hızı makul olsun (arkasına geçmek mümkün ama kolay değil).
+- KALKAN yalnızca baktığın yönden gelen saldırıyı engellesin (arkadan etkisiz). ATILMA joystick yönüne yapılsın (joystick boşsa geriye). KOR ve YILDIRIM baktığın yöne atılsın, ±15° aim assist.
+- Online düelloda x, z, yaw bilgisi mevcut akışa eklensin, hasar sunucuda doğrulansın. Mevcut düello başlatma, sonuç kaydı, ödül akışı bozulmasın. Vercel serverless sınırı yüzünden gerçek zamanlı yapı yoksa mevcut yöntemi (polling vb.) koru.
+- Dokunmatik: sol alt joystick ve sağ düğmeler yerinde kalsın; kamera döndürme boş orta/üst alanda. Joystick + kamera + saldırı aynı anda çalışsın. "?" yardım ekranını yeni kontrollere göre Türkçe güncelle.
+- Görsel: oyuncu ayağında ince yön oku/halka, saldırıda kılıç izi, rakipte vuruş yönüne göre HitReaction. Efektler sınırlı, nesne havuzu, 60 FPS hedefi.
+- Testler: açı bölgesi hesabı, hasar çarpanı, kalkan yönü, arena sınırı, lock-on. Hepsi geçince feature flag'i AÇ, tüm rakipler ve biyomlar için Aşama 3 akış testini yeniden çalıştır.
+
+━━━━━━━━ AŞAMA 5: SON KONTROL VE TESLİM ━━━━━━━━
+- Performans: ana JS paketini küçültmek için koda göre bölme (lazy load) ve ağır GLB/texture'ları ihtiyaç anında yükle; iPhone'da hedef 30+ FPS, ideali 60.
+- Konsolda kalan hata ve uyarıları temizle (ör. url.parse DeprecationWarning'in kaynağı bizim kodsa düzelt).
+- Son commit + push, canlıya giden commit hash'ini yaz.
+
+TESLİM RAPORU
+1. Aşama 1: geri alınan commit'ler ve kaybolan özellikler.
+2. Siyah ekranın kök nedeni (hangi rakip/model/kod ve neden).
+3. Değişen dosyaların listesi.
+4. Rakip × akış ve karakter × biyom test tabloları.
+5. 360° özelliği testleri ve flag durumu.
+6. typecheck, test, build sonuçları.
+7. Canlı commit hash'i.
+8. iPhone'da elle denenmesi gerekenlerin kısa listesi.
