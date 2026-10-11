@@ -1,0 +1,44 @@
+═══ AŞAMA 2 — GÖRSEL KALİTE VE ATMOSFER ═══
+Dünya (Kül Yolu): şu an düz ve loş. Şunları ekle:
+- Gökyüzü: gradyan + hareketli bulut katmanları, uzakta dağ silüetleri için 3 katmanlı parallax, soluk ay/güneş diski, yıldız parçacıkları.
+- Işık: sıcak/soğuk ışık kontrastı, rim light, meşalelerde titreşen noktasal ışıklar (sınırlı sayıda, en yakın 4 tanesi gerçek ışık, kalanı sahte parıltı sprite'ı).
+- Derinlik: yükseklik sisi (exponential height fog), yol boyunca hafif toz/kül parçacıkları, rüzgârla savrulan kıvılcımlar, yerde yaklaşık kül izleri.
+- Zemin: yol dokusu (procedural normal/roughness), kenarlarda taş, çatlak, eski çizgi işaretleri; harabeler daha detaylı (kırık sütun, yıkık kemer, bayrak, kafatası, kırık araba).
+- Renk: ACES tone mapping, hafif bloom (sadece parlak yerlerde), vignette, hafif film grain. Aşırı karartma yok; HUD arkasında bile sahne okunur olsun.
+- Hava durumu anahtarı ("HAVA: AÇIK") gerçekten çalışsın: yağmur/kül yağışı/sis modları.
+- Dünya (biyom) çeşitliliği: Kül Yolu dışında en az 2 yeni bölge (örn. Donmuş Geçit: kar, buz kristalleri; Kızıl Bataklık: sis, ateşböcekleri). Her bölge kendi palet, sis, parçacık ve prop setine sahip; bölüm kapısından geçince yumuşak geçiş.
+
+═══ AŞAMA 3 — KARAKTERLER, ANİMASYON, HAREKET HİSSİ ═══
+- Şövalye: normal map/AO/emissive (gözlerde ve kılıç rünlerinde hafif parıltı), metal materyalde yansıma için küçük bir env map, pelerin için cloth benzeri verlet/sinüs simülasyonu (rüzgâr + hareket yönüne tepki).
+- Yürüme/koşma: ayak kayması yok (hız ile animasyon hızını eşle), idle↔walk↔run arası 0.2 sn blend, joystick itme miktarına göre karıştırma, dönüşte gövde eğilmesi, durunca hafif nefes, ayak izi tozu.
+- Botlar: tek tip değil. En az 4 düşman tipi (Kapı Muhafızı, Demir Yemin, Kül Okçusu, Gölge Şövalyesi): farklı silüet, renk, boy, silah ve seviye ile ölçeklenen ayırt edici kıyafet detayı. Başlarında okunur isim etiketi (mesafeye göre ölçeklenen, sahnede asla minicik değil).
+- Botlar yolda devriye gezsin, oyuncuyu görünce başını çevirsin, yaklaşınca meydan okuma animasyonu yapsın.
+- Yakalama: Yerdeki altın/elmaslar dönsün, parıldasın, oyuncu yaklaşınca mıknatıs gibi çekilip toplanma efekti + kısa ses versin.
+
+═══ AŞAMA 4 — DÜELLO: SİNEMATİK VE HİSSİYAT ═══
+Mevcut sorunlar: iki karakter de arkadan görünüyor, sahne çok karanlık, VS kartında yazılar çakışıyor.
+- Giriş sinematiği (≈2 sn): kamera düşman ve oyuncuyu yandan/çapraz açıyla gösterir, sonra omuz üstü savaş kamerasına yumuşakça geçer. VS kartını yeniden tasarla: sol/sağ iki taraf net ayrılsın, "SEV." ve isim aynı satırda çakışmasın, portre ortada, kenar çizgisi altın, giriş/çıkış animasyonlu, 3-2-1 geri sayımı büyük ve okunur.
+- Savaş kamerası: karakterler birbirine dönük, ikisi de profilden/3-4 açıdan görünür, arena çemberi net, arka planda dramatik bir mekân (kapı kemeri, meşaleler, ateş kâseleri). Ritmik hafif kamera nefesi, vuruşta kısa sarsıntı, hızlı saldırıda hafif FOV zoom.
+- Dövüş hissi:
+  - Saldırı: windup → vuruş → toparlanma, vuruş anında 60–80 ms hit-stop (hit freeze), kılıç izi (trail), kıvılcım ve darbe halkası.
+  - Hasar sayıları: sahnede yükselen, kritikte büyük ve altın; blokta "BLOKLANDI", kaçışta "KAÇTI".
+  - Bot saldırısı telegraf'ı: zeminde kırmızı uyarı dairesi (mevcut olanı koru) + silahta parlama + sesli ipucu; blok/kaçış için net zaman penceresi, mükemmel blokta (perfect block) yavaş çekim ve karşı saldırı fırsatı.
+  - Yetenekler: Kor (ateş topu, iz bırakan parçacıklar, patlama), Yıldırım (ekranın kısa süreli beyazlaması + zincir şimşek), Atılma (iz gölgesi), Kalkan (enerji kalkanı kabarcığı, vuruşta dalgalanma). Her birinin cooldown'ı dairesel olarak net görünsün.
+  - Can barları: akıcı azalan (gecikmeli ikinci "hayalet" bar), düşük canda kırmızı kenar nabzı. Dayanıklılık bitince ağır nefes + yavaşlama efekti.
+  - Bitiş: Death/Victory animasyonu, yavaş çekim son vuruş, ganimet ekranı (altın/elmas sayarak artan), "Devam" butonu; yenilgide kaybedilen şey net yazılsın.
+- Düello performansı: parçacıklar havuzdan, max ~300 aktif; efektler çakışınca kare düşmesin.
+
+═══ AŞAMA 5 — ARAYÜZ, SES, HİKÂYE ═══
+- HUD sadeleşsin: üstte profil kartı küçük, kaynaklar tek satır, ilerleme çubuğu ince; ekranın ortası temiz. Dokunma hedefleri ≥44 px, güvenli alanlara (safe-area-inset) uyum, yatay/dikey ve küçük telefonlarda taşma yok.
+- Tipografi tutarlı (başlıkta mevcut serif, gövdede okunur sans), tüm Türkçe karakterler doğru (İ, ı, Ş, Ğ), metinlerde büyük/küçük harf bozulması yok.
+- Ses (Web Audio, dosyasız prosedürel ya da küçük sıkıştırılmış): ortam rüzgârı, ayak sesleri (zemine göre), kılıç/blok/darbe, yetenekler, altın toplama, UI tıklaması, bölüm müziği (loop, ilk dokunuştan sonra başlasın, Ayarlar'da ses/müzik kaydırıcıları, iOS autoplay kısıtına uyumlu).
+- Hikâye: her bölümün başında ve bölüm kapısında sinematik, kısa, gizemli diyalog kartları (daktilo efektli), sonraki bölüme dair ipucu bırakan bir cümle; NPC "Demir Yemin" gibi karakterler yolda anlamlı replikler söylesin. Hikâye metinleri src altında ayrı bir veri dosyasında (kolay düzenlenebilir).
+- Heybe/Mağaza: elmas ve altınla kostüm, kılıç, pelerin rengi, aura satın alma; satın alınan ürün karakterde anında görünsün.
+- Profil/ilerleme veritabanına doğru kaydedilsin; çevrimdışı/hatalı API'de oyun çökmesin.
+
+GENEL KALİTE KURALLARI
+- Hiçbir aşamada yeni harici ücretli servis ekleme. Büyük binary dosya ekleme; tüm yeni asset'ler toplamda 3 MB altında kalsın.
+- Her yeni sistem için kısa birim testi (havuz, kalite ölçekleme, hasar hesabı).
+- Hata sınırları (error boundary) ve WebGL context kaybı durumunda nazik bir yeniden yükleme ekranı.
+- Sonunda: yapılanların listesi, ölçülen FPS/üçgen/draw call değerleri (ölçülemeyenleri "ölçülmedi" diye işaretle), bilinen eksikler ve sonraki önerilerle docs/PROGRESS.md'yi güncelle.
+

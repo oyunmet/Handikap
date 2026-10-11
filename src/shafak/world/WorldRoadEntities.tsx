@@ -155,6 +155,66 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
   );
 }
 
+function RivalWeapon({ rival }: { rival: WorldRival }) {
+  const tint = rival.armorTint;
+  return (
+    <group position={[rival.x + 0.48, 0.56, -0.12]} rotation={[0, 0, -0.18]}>
+      <mesh position={[0, 0.52, 0]}>
+        <cylinderGeometry args={[0.045, 0.06, rival.weapon === "spear" ? 1.9 : 1.42, 6]} />
+        <meshStandardMaterial color="#46332b" roughness={0.78} />
+      </mesh>
+      {rival.weapon === "sword" && (
+        <>
+          <mesh position={[0, 1.27, 0]}>
+            <boxGeometry args={[0.12, 0.75, 0.07]} />
+            <meshStandardMaterial color="#cad4d9" metalness={0.78} roughness={0.24} />
+          </mesh>
+          <mesh position={[0, 0.79, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <boxGeometry args={[0.38, 0.09, 0.12]} />
+            <meshStandardMaterial color={tint} metalness={0.42} roughness={0.42} />
+          </mesh>
+        </>
+      )}
+      {rival.weapon === "axe" && (
+        <>
+          <mesh position={[0.18, 1.03, 0]}>
+            <boxGeometry args={[0.5, 0.5, 0.13]} />
+            <meshStandardMaterial color="#aab7bd" metalness={0.72} roughness={0.3} />
+          </mesh>
+          <mesh position={[0.22, 1.03, -0.01]}>
+            <coneGeometry args={[0.28, 0.54, 4]} />
+            <meshStandardMaterial color={tint} metalness={0.48} roughness={0.34} />
+          </mesh>
+        </>
+      )}
+      {rival.weapon === "spear" && (
+        <mesh position={[0, 1.58, 0]}>
+          <coneGeometry args={[0.17, 0.58, 5]} />
+          <meshStandardMaterial color="#d7e2e5" metalness={0.82} roughness={0.2} />
+        </mesh>
+      )}
+      {rival.weapon === "mace" && (
+        <>
+          <mesh position={[0, 1.28, 0]}>
+            <dodecahedronGeometry args={[0.3, 0]} />
+            <meshStandardMaterial color="#8b979d" metalness={0.74} roughness={0.28} flatShading />
+          </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * 0.31, 1.28, 0]} rotation={[0, 0, -side * Math.PI / 2]}>
+              <coneGeometry args={[0.1, 0.28, 4]} />
+              <meshStandardMaterial color={tint} metalness={0.52} roughness={0.36} />
+            </mesh>
+          ))}
+          <mesh position={[0, 1.59, 0]}>
+            <coneGeometry args={[0.1, 0.28, 4]} />
+            <meshStandardMaterial color={tint} metalness={0.52} roughness={0.36} />
+          </mesh>
+        </>
+      )}
+    </group>
+  );
+}
+
 const EMPTY_BROKEN = new Set<string>();
 
 function BotActor({
@@ -183,7 +243,11 @@ function BotActor({
     const gap = rival.distance - playerDistance;
     const detected = gap > -0.5 && gap <= 18;
     const approaching = gap > 2.7 && gap <= 8;
-    root.position.set(0, 0, -(rival.distance - motion.cameraX));
+    const patrol = detected ? 0 : Math.sin(frame.clock.elapsedTime * 0.7 + rival.level) * 0.26;
+    const challengeStep = approaching && !reducedMotion
+      ? Math.sin(frame.clock.elapsedTime * 4.8) * 0.12
+      : 0;
+    root.position.set(patrol, 0, -(rival.distance - motion.cameraX) + challengeStep);
     root.scale.setScalar(rival.size);
     root.visible = Math.abs(gap) <= 105;
     if (detected) {
@@ -228,6 +292,11 @@ function BotActor({
           motionReduced={reducedMotion}
         />
       </group>
+      <RivalWeapon rival={rival} />
+      <mesh position={[rival.x - 0.38, 1.52, 0.02]} rotation={[0, 0, rival.weapon === "axe" ? -0.16 : 0.08]}>
+        <dodecahedronGeometry args={[rival.weapon === "mace" ? 0.34 : 0.27, 0]} />
+        <meshStandardMaterial color={rival.armorTint} roughness={0.38} metalness={0.62} flatShading />
+      </mesh>
       <mesh position={[rival.x, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={focused ? [1.45, 1.62, 32] : [1.05, 1.18, 24]} />
         <meshBasicMaterial
@@ -240,8 +309,8 @@ function BotActor({
       </mesh>
       {noticed && <pointLight position={[rival.x, 1.6, 0]} color="#f06d51" intensity={0.5} distance={4} />}
       <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-        <span className={`world-bot-tag${focused ? " is-focused" : ""}`}>
-          <b>BOT</b><span>SEV. {rival.level}</span>
+        <span className={`world-bot-tag${focused ? " is-focused" : ""}${walking ? " is-challenging" : ""}`} data-weapon={rival.weapon}>
+          <b>{rival.name}</b><span>{walking ? "MEYDAN OKU" : `SEV. ${rival.level}`}</span>
         </span>
       </Html>
     </group>

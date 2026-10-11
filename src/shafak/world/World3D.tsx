@@ -26,6 +26,35 @@ import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
 
+function createProceduralEnvironmentMap() {
+  const width = 128;
+  const height = 64;
+  const pixels = new Uint8Array(width * height * 3);
+  for (let y = 0; y < height; y += 1) {
+    const elevation = 1 - Math.abs((y / height) * 2 - 1);
+    for (let x = 0; x < width; x += 1) {
+      const u = x / width;
+      const warm = Math.exp(-(((u - 0.16) / 0.12) ** 2 + ((y / height - 0.43) / 0.19) ** 2));
+      const cool = Math.exp(-(((u - 0.68) / 0.17) ** 2 + ((y / height - 0.47) / 0.22) ** 2));
+      const horizon = Math.exp(-(((y / height - 0.51) / 0.12) ** 2));
+      const index = (y * width + x) * 3;
+      pixels[index] = Math.min(255, Math.round(12 + elevation * 13 + warm * 111 + horizon * 21));
+      pixels[index + 1] = Math.min(255, Math.round(15 + elevation * 17 + warm * 63 + cool * 26 + horizon * 23));
+      pixels[index + 2] = Math.min(255, Math.round(23 + elevation * 31 + cool * 69 + horizon * 31));
+    }
+  }
+  const texture = new THREE.DataTexture(pixels, width, height, THREE.RGBFormat);
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+const PROCEDURAL_ENVIRONMENT_MAP = createProceduralEnvironmentMap();
+
 type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
   quality: WorldQuality;
@@ -139,7 +168,6 @@ const FOG_COLORS = Object.fromEntries(
 function SceneFog({ motionRef, weatherMode }: { motionRef: MutableRefObject<WorldMotion>; weatherMode: WeatherMode }) {
   const { scene } = useThree();
   const fogRef = useRef<THREE.FogExp2 | null>(null);
-  const color = useMemo(() => new THREE.Color(), []);
   useEffect(() => {
     const fog = new THREE.FogExp2("#69505a", 0.0085);
     fogRef.current = fog;
@@ -157,8 +185,22 @@ function SceneFog({ motionRef, weatherMode }: { motionRef: MutableRefObject<Worl
     const baseDensity = weatherMode === "fog" ? 0.016 : weatherMode === "rain" ? 0.0095 : weatherMode === "ash" ? 0.0085 : 0.004;
     const biomeDensity = transition.biome === "frozen-pass" ? 1.08 : transition.biome === "red-marsh" ? 1.13 : 1;
     fog.density = baseDensity * biomeDensity;
-    color.copy(fog.color);
   });
+  return null;
+}
+
+function ProceduralEnvironment() {
+  const { scene } = useThree();
+  useEffect(() => {
+    const previousEnvironment = scene.environment;
+    const previousIntensity = scene.environmentIntensity;
+    scene.environment = PROCEDURAL_ENVIRONMENT_MAP;
+    scene.environmentIntensity = 0.62;
+    return () => {
+      scene.environment = previousEnvironment;
+      scene.environmentIntensity = previousIntensity;
+    };
+  }, [scene]);
   return null;
 }
 
@@ -734,6 +776,7 @@ function SceneContents({
 
   return (
     <>
+      <ProceduralEnvironment />
       <SceneFog motionRef={motionRef} weatherMode={weatherMode} />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={["#252330"]} />

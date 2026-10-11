@@ -21,6 +21,78 @@ type Knight3DProps = {
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));
 
+function createArmorMaps() {
+  const size = 64;
+  const colorData = new Uint8Array(size * size * 4);
+  const roughnessData = new Uint8Array(size * size * 4);
+  const normalData = new Uint8Array(size * size * 4);
+  const height = new Float32Array(size * size);
+  const hash = (x: number, y: number) => {
+    const value = Math.sin(x * 91.7 + y * 247.3) * 13927.17;
+    return value - Math.floor(value);
+  };
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = y * size + x;
+      const noise = hash(x, y);
+      const seam = x % 32 < 1 || y % 32 < 1;
+      const scratch = (x + y * 3) % 47 < 1 && noise > 0.52;
+      height[index] = (noise - 0.5) * 0.1 - (seam ? 0.12 : 0) + (scratch ? 0.08 : 0);
+      const pixel = index * 4;
+      const base = seam ? 137 : 222 + Math.round((noise - 0.5) * 19) - (scratch ? 18 : 0);
+      colorData[pixel] = base;
+      colorData[pixel + 1] = Math.max(0, base - (seam ? 2 : 4));
+      colorData[pixel + 2] = Math.max(0, base - (seam ? 4 : 8));
+      colorData[pixel + 3] = 255;
+      roughnessData[pixel] = scratch ? 232 : seam ? 194 : 160 + Math.round(noise * 40);
+      roughnessData[pixel + 1] = roughnessData[pixel];
+      roughnessData[pixel + 2] = roughnessData[pixel];
+      roughnessData[pixel + 3] = 255;
+    }
+  }
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const left = height[y * size + Math.max(0, x - 1)];
+      const right = height[y * size + Math.min(size - 1, x + 1)];
+      const above = height[Math.max(0, y - 1) * size + x];
+      const below = height[Math.min(size - 1, y + 1) * size + x];
+      const nx = -(right - left) * 4;
+      const ny = -(below - above) * 4;
+      const length = Math.hypot(nx, ny, 1);
+      const pixel = (y * size + x) * 4;
+      normalData[pixel] = Math.round((nx / length * 0.5 + 0.5) * 255);
+      normalData[pixel + 1] = Math.round((ny / length * 0.5 + 0.5) * 255);
+      normalData[pixel + 2] = Math.round((1 / length * 0.5 + 0.5) * 255);
+      normalData[pixel + 3] = 255;
+    }
+  }
+  const texture = (data: Uint8Array, colorSpace: THREE.ColorSpace = THREE.NoColorSpace) => {
+    const result = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    result.wrapS = result.wrapT = THREE.RepeatWrapping;
+    result.repeat.set(2, 2);
+    result.colorSpace = colorSpace;
+    result.generateMipmaps = true;
+    result.minFilter = THREE.LinearMipmapLinearFilter;
+    result.magFilter = THREE.LinearFilter;
+    result.anisotropy = 4;
+    result.needsUpdate = true;
+    return result;
+  };
+  return {
+    color: texture(colorData, THREE.SRGBColorSpace),
+    normal: texture(normalData),
+    roughness: texture(roughnessData),
+  };
+}
+
+const ARMOR_MAPS = createArmorMaps();
+const ARMOR_MAP_PROPS: THREE.MeshStandardMaterialParameters = {
+  map: ARMOR_MAPS.color,
+  normalMap: ARMOR_MAPS.normal,
+  normalScale: new THREE.Vector2(0.17, 0.17),
+  roughnessMap: ARMOR_MAPS.roughness,
+};
+
 function Cape({ motionRef, motionReduced, appearance }: Pick<Knight3DProps, "motionRef" | "motionReduced" | "appearance">) {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometry = useMemo(() => {
@@ -359,11 +431,11 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
       <group ref={torsoRef} position={[0, 0, 0]}>
         <mesh position={[0, 1.26, 0]} scale={[0.31, 0.36, 0.2]}>
           <icosahedronGeometry args={[1, 1]} />
-          <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} roughness={0.48} metalness={0.72} flatShading />
+          <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.48} metalness={0.72} flatShading />
         </mesh>
         <mesh position={[0, 1.28, -0.174]} scale={[0.235, 0.25, 0.055]}>
           <octahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorLight} roughness={0.42} metalness={0.78} flatShading />
+          <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.42} metalness={0.78} flatShading />
         </mesh>
         <mesh position={[0, 1.08, -0.208]} scale={[0.13, 0.025, 0.025]}>
           <boxGeometry args={[1, 1, 1]} />
@@ -385,7 +457,7 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
           <group key={side}>
             <mesh position={[side * 0.35, 1.54, 0]}>
               <sphereGeometry args={[0.225, 8, 6]} />
-              <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.78} flatShading />
+              <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.78} flatShading />
             </mesh>
             <mesh position={[side * 0.35, 1.55, -0.038]} scale={[0.8, 0.18, 0.3]}>
               <boxGeometry args={[0.4, 0.1, 0.08]} />
@@ -396,11 +468,11 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
         <group ref={headRef} position={[0, 1.76, 0]}>
           <mesh position={[0, 0.08, 0]} scale={[0.21, 0.25, 0.19]}>
             <sphereGeometry args={[1, 8, 6]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.36} metalness={0.78} flatShading />
+            <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorDark} roughness={0.36} metalness={0.78} flatShading />
           </mesh>
           <mesh position={[0, 0.2, 0]}>
             <coneGeometry args={[0.205, 0.2, 6]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.7} flatShading />
+            <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.7} flatShading />
           </mesh>
           <mesh position={[0, 0.025, -0.176]} scale={[0.16, 0.055, 0.03]}>
             <boxGeometry args={[1, 1, 1]} />
@@ -425,7 +497,7 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
         <group ref={leftArmRef} position={[-0.46, 1.48, 0]}>
           <mesh position={[0, -KNIGHT_CONFIG.proportions.upperArm / 2, 0]}>
             <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 7]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
+            <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
           </mesh>
           <mesh position={[0, -0.42, -0.01]}>
             <sphereGeometry args={[0.115, 7, 5]} />
@@ -434,7 +506,7 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
           <group ref={leftElbowRef} position={[0, -0.43, 0]}>
             <mesh position={[0, -KNIGHT_CONFIG.proportions.forearm / 2, 0]}>
               <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 7]} />
-              <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
+              <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
             </mesh>
             <mesh position={[0, -0.37, -0.02]}>
               <boxGeometry args={[0.16, 0.15, 0.17]} />
@@ -450,7 +522,7 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
         <group ref={rightArmRef} position={[0.46, 1.48, 0]}>
           <mesh position={[0, -KNIGHT_CONFIG.proportions.upperArm / 2, 0]}>
             <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 7]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
+            <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
           </mesh>
           <mesh position={[0, -0.42, -0.01]}>
             <sphereGeometry args={[0.115, 7, 5]} />
@@ -459,7 +531,7 @@ export default function Knight3D({ motionRef, state, motionReduced, animationTim
           <group ref={rightElbowRef} position={[0, -0.43, 0]}>
             <mesh position={[0, -KNIGHT_CONFIG.proportions.forearm / 2, 0]}>
               <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 7]} />
-              <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
+              <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
             </mesh>
             <mesh position={[0, -0.37, -0.02]}>
               <boxGeometry args={[0.16, 0.15, 0.17]} />

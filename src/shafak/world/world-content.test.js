@@ -13,6 +13,8 @@ test("seeded chapter content is stable and contains four escalating BOTs", () =>
   assert.notDeepEqual(getWorldChapter(1), first);
   assert.equal(first.pickups.length, 13);
   assert.equal(first.rivals.length, 4);
+  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["sword", "axe", "spear", "mace"]);
+  assert.equal(new Set(first.rivals.map((rival) => rival.name)).size, 4);
   assert.ok(first.rivals[0].distance >= 51 && first.rivals[0].distance <= 53);
   assert.ok(first.rivals.every((rival) => rival.id.includes(":bot:")));
   assert.ok(first.rivals.every((rival, index) => index === 0 || rival.level > first.rivals[index - 1].level));
