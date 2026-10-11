@@ -13,6 +13,7 @@ import {
 } from "./storeCatalog.ts";
 import type { PlayerProfile } from "../src/shafak/game/profile.ts";
 import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentLoadout, type EquipmentSlot, type StoreItem } from "../src/shafak/game/store-types.ts";
+import { sendAuthenticationRequired } from "./auth.ts";
 
 type StoreOperation = "purchase" | "upgrade";
 type StoredOperationResponse = {
@@ -185,7 +186,7 @@ export function createStoreApi(
   function authenticatedUserId(request: Request, response: Response): string | null {
     const userId = resolveUserId(request);
     if (!userId) {
-      response.status(401).json({ error: "authentication_required" });
+      sendAuthenticationRequired(request, response);
       return null;
     }
     return userId;

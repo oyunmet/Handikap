@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
-import { ApiResponseError, requestJson } from "../api-json";
+import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
@@ -80,6 +80,7 @@ const WEATHER_LABELS: Record<WeatherMode, string> = {
 };
 
 type WorldSceneProps = {
+  apiRequest: AuthenticatedApiRequest;
   quality: "high" | "balanced" | "low";
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
@@ -389,6 +390,7 @@ function WorldVolumeSlider({
 }
 
 export default function WorldScene({
+  apiRequest,
   quality,
   visualEffectsEnabled,
   motionReduced,
@@ -695,7 +697,7 @@ export default function WorldScene({
       const body = operation === "equip"
         ? { itemId }
         : { itemId, idempotencyKey };
-      const result = await requestJson<{ profile?: unknown }>(`/api/store/${operation}`, {
+      const result = await apiRequest<{ profile?: unknown }>(`/api/store/${operation}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -938,7 +940,7 @@ export default function WorldScene({
 
     if (context.duelId) {
       try {
-        const result = await requestJson<{
+        const result = await apiRequest<{
           summary?: DuelSummary;
           rewards?: BattleRewards;
           profile?: unknown;
@@ -1043,7 +1045,7 @@ export default function WorldScene({
       let playerStats: PlayerCombatModifiers = playerCombatStats;
       if (accountDuelEnabled && !practice) {
         if (!accountProfileReady) throw new Error("Hesap profili sunucuya bağlı değil; düello ödülü güvenle doğrulanamaz.");
-        const challenge = await requestJson<{
+        const challenge = await apiRequest<{
           duelId?: unknown;
           seed?: unknown;
           playerStats?: unknown;

@@ -1,7 +1,7 @@
-import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool, PoolClient } from "pg";
+import { requireAuthenticatedUserId } from "./auth.ts";
 import { createDefaultPlayerProfile, validatePlayerProfile } from "./profileApi.ts";
 import {
   getWorldChapter,
@@ -22,12 +22,7 @@ function parseChapterId(value: unknown) {
 }
 
 function authenticatedUserId(request: Request, response: Response) {
-  const userId = getAuth(request).userId;
-  if (!userId) {
-    response.status(401).json({ error: "authentication_required" });
-    return null;
-  }
-  return userId;
+  return requireAuthenticatedUserId(request, response);
 }
 
 export function createWorldRewardsApi(database: Pool) {

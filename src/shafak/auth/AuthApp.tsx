@@ -1,23 +1,12 @@
-import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from "@clerk/react";
-import { publishableKeyFromHost } from "@clerk/react/internal";
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from "@clerk/react";
 import { dark } from "@clerk/themes";
 import { trTR } from "@clerk/localizations";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Router, Switch, Redirect, useLocation, Link } from "wouter";
-import { getClerkProxyUrl } from "./clerk-proxy";
 import "./auth.css";
 
 const ShafakApp = lazy(() => import("../App"));
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
-const configuredClerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
-const clerkProxyUrl = getClerkProxyUrl(configuredClerkProxyUrl);
-if (configuredClerkProxyUrl?.trim() && !clerkProxyUrl) {
-  console.warn("Ignoring invalid VITE_CLERK_PROXY_URL; continuing without a Clerk proxy.");
-}
-const clerkProxyProps = clerkProxyUrl ? { proxyUrl: clerkProxyUrl } : {};
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim() ?? "";
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const CLERK_READY_TIMEOUT_MS = 8_000;
 
@@ -151,6 +140,7 @@ function UserPortal() {
 
 function ClerkBackedGame({ allowOfflineGuest = false }: { allowOfflineGuest?: boolean }) {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const { signOut } = useClerk();
   return (
     <Suspense fallback={<div className="auth-loading" role="status">Oyun hazırlanıyor…</div>}>
@@ -165,6 +155,7 @@ function ClerkBackedGame({ allowOfflineGuest = false }: { allowOfflineGuest?: bo
         authLoaded={isLoaded}
         allowOfflineGuest={allowOfflineGuest}
         signOut={signOut}
+        getToken={getToken}
       />
     </Suspense>
   );
@@ -178,6 +169,11 @@ function SignInPage() {
         <img src={`${basePath}/logo.svg`} alt="" />
         <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
       </Link>
+      {new URLSearchParams(window.location.search).get("auth_error") === "session" && (
+        <p role="alert" style={{ color: "#e27f69", textAlign: "center" }}>
+          Oturum doğrulanamadı. Lütfen yeniden giriş yap.
+        </p>
+      )}
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
@@ -232,7 +228,6 @@ function ClerkRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      {...clerkProxyProps}
       appearance={clerkAppearance}
       localization={trTR}
       signInUrl={`${basePath}/sign-in`}

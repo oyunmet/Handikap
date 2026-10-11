@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ApiResponseError, requestJson, requestJsonWithRetry } from "./api-json.ts";
+import {
+  ApiResponseError,
+  requestAuthenticatedJson,
+  requestAuthenticatedJsonWithRetry,
+  requestJson,
+  requestJsonWithRetry,
+} from "./api-json.ts";
 
 const options = {
   operation: "store test",
@@ -108,4 +114,113 @@ test("authentication and validation errors are not retried", async () => {
     );
   });
   assert.equal(calls, 1);
+});
+
+test("authenticated requests fetch a fresh token and send it as a bearer header", async () => {
+  let tokenCalls = 0;
+  let requestHeaders;
+  await withFetch(async (_input, init) => {
+    tokenCalls += 1;
+    requestHeaders = new Headers(init.headers);
+    return new Response(JSON.stringify({ profile: {} }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }, async () => {
+    const result = await requestAuthenticatedJson(
+      "/api/profile",
+      { credentials: "include" },
+      options,
+      async () => "fresh-session-jwt",
+    );
+    assert.deepEqual(result, { profile: {} });
+  });
+  assert.equal(tokenCalls, 1);
+  assert.equal(requestHeaders.get("authorization"), "Bearer fresh-session-jwt");
+});
+
+test("a 401 forces one token refresh and retries only once", async () => {
+  const tokenOptions = [];
+  let requestCalls = 0;
+  await withFetch(async () => {
+    requestCalls += 1;
+    return requestCalls === 1
+      ? new Response(JSON.stringify({ error: "authentication_required" }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        })
+      : new Response(JSON.stringify({ profile: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+  }, async () => {
+    const result = await requestAuthenticatedJson(
+      "/api/profile",
+      {},
+      options,
+      async (tokenOptionsArg) => {
+        tokenOptions.push(tokenOptionsArg);
+        return tokenOptions.length === 1 ? "cached-token" : "refreshed-token";
+      },
+    );
+    assert.deepEqual(result, { profile: {} });
+  });
+  assert.equal(requestCalls, 2);
+  assert.deepEqual(tokenOptions, [undefined, { skipCache: true }]);
+});
+
+test("missing tokens prevent the API call and signal the caller to sign in", async () => {
+  let requestCalls = 0;
+  let unauthorizedCalls = 0;
+  await withFetch(async () => {
+    requestCalls += 1;
+    return new Response("{}");
+  }, async () => {
+    await assert.rejects(
+      requestAuthenticatedJson(
+        "/api/profile",
+        {},
+        options,
+        async () => null,
+        () => { unauthorizedCalls += 1; },
+      ),
+      (error) => error instanceof ApiResponseError
+        && error.status === 401
+        && error.code === "session_missing",
+    );
+  });
+  assert.equal(requestCalls, 0);
+  assert.equal(unauthorizedCalls, 1);
+});
+
+test("pickup retries remain bounded and a 401 still refreshes only once", async () => {
+  const tokenOptions = [];
+  let requestCalls = 0;
+  await withFetch(async () => {
+    requestCalls += 1;
+    return requestCalls === 1
+      ? new Response(JSON.stringify({ error: "authentication_required" }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        })
+      : new Response(JSON.stringify({ claimedPickupIds: ["pickup-1"] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+  }, async () => {
+    const result = await requestAuthenticatedJsonWithRetry(
+      "/api/profile/pickups",
+      { method: "POST" },
+      options,
+      async (tokenOptionsArg) => {
+        tokenOptions.push(tokenOptionsArg);
+        return "session-jwt";
+      },
+      undefined,
+      { maxRetries: 2, baseDelayMs: 0 },
+    );
+    assert.deepEqual(result, { claimedPickupIds: ["pickup-1"] });
+  });
+  assert.equal(requestCalls, 2);
+  assert.deepEqual(tokenOptions, [undefined, { skipCache: true }]);
 });

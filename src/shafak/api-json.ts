@@ -10,6 +10,23 @@ export type ApiRetryOptions = {
   baseDelayMs?: number;
 };
 
+export type ClerkTokenGetter = (
+  options?: { skipCache?: boolean },
+) => Promise<string | null>;
+
+export type AuthenticatedApiRequest = <T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  options: ApiJsonOptions,
+) => Promise<T>;
+
+export type AuthenticatedApiRequestWithRetry = <T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  options: ApiJsonOptions,
+  retryOptions?: ApiRetryOptions,
+) => Promise<T>;
+
 export class ApiResponseError extends Error {
   constructor(
     message: string,
@@ -165,4 +182,87 @@ export async function requestJsonWithRetry<T>(
       });
     }
   }
+}
+
+async function withFreshBearerToken<T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  options: ApiJsonOptions,
+  getToken: ClerkTokenGetter,
+  onUnauthorized: (() => void) | undefined,
+  perform: (authorizedInit: RequestInit) => Promise<T>,
+): Promise<T> {
+  let refreshed = false;
+
+  for (;;) {
+    const token = await getToken(refreshed ? { skipCache: true } : undefined);
+    if (!token) {
+      const error = new ApiResponseError(
+        "Oturum doğrulanamadı. Yeniden giriş yap.",
+        401,
+        "session_missing",
+        false,
+      );
+      onUnauthorized?.();
+      throw error;
+    }
+
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+    const authorizedInit: RequestInit = {
+      ...init,
+      headers,
+      credentials: init.credentials ?? "include",
+    };
+
+    try {
+      return await perform(authorizedInit);
+    } catch (error) {
+      if (!(error instanceof ApiResponseError) || error.status !== 401) {
+        throw error;
+      }
+      if (!refreshed) {
+        refreshed = true;
+        continue;
+      }
+      onUnauthorized?.();
+      throw error;
+    }
+  }
+}
+
+export function requestAuthenticatedJson<T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  options: ApiJsonOptions,
+  getToken: ClerkTokenGetter,
+  onUnauthorized?: () => void,
+): Promise<T> {
+  return withFreshBearerToken(
+    input,
+    init,
+    options,
+    getToken,
+    onUnauthorized,
+    (authorizedInit) => requestJson<T>(input, authorizedInit, options),
+  );
+}
+
+export function requestAuthenticatedJsonWithRetry<T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  options: ApiJsonOptions,
+  getToken: ClerkTokenGetter,
+  onUnauthorized?: () => void,
+  retryOptions: ApiRetryOptions = {},
+): Promise<T> {
+  return withFreshBearerToken(
+    input,
+    init,
+    options,
+    getToken,
+    onUnauthorized,
+    (authorizedInit) =>
+      requestJsonWithRetry<T>(input, authorizedInit, options, retryOptions),
+  );
 }

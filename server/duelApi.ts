@@ -1,7 +1,7 @@
-import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
+import { requireAuthenticatedUserId } from "./auth.ts";
 import { completeDuel, createDuelChallenge, DuelServiceError } from "./duelService.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,12 +32,7 @@ export function createDuelApi(database: Pool) {
   });
 
   function authenticatedUserId(request: Request, response: Response) {
-    const userId = getAuth(request).userId;
-    if (!userId) {
-      response.status(401).json({ error: "authentication_required" });
-      return null;
-    }
-    return userId;
+    return requireAuthenticatedUserId(request, response);
   }
 
   router.post("/api/duels/start", startLimit, async (request, response) => {

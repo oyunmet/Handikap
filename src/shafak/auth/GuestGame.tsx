@@ -7,6 +7,7 @@ export default function GuestGame() {
       authLoaded={false}
       allowOfflineGuest
       signOut={async () => undefined}
+      getToken={async () => null}
     />
   );
 }

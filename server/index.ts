@@ -1,6 +1,5 @@
 import cors from "cors";
-import { clerkMiddleware, getAuth } from "@clerk/express";
-import { publishableKeyFromHost } from "@clerk/shared/keys";
+import { clerkMiddleware } from "@clerk/express";
 import express from "express";
 import { createServer } from "node:http";
 import { Server as SocketIOServer } from "socket.io";
@@ -8,11 +7,8 @@ import {
   checkDatabaseHealth,
   createDatabaseConnection,
 } from "../db/postgres";
-import {
-  CLERK_PROXY_PATH,
-  clerkProxyMiddleware,
-  getClerkProxyHost,
-} from "./middlewares/clerkProxyMiddleware";
+import { requireAuthenticatedUserId } from "./auth";
+import { checkClerkKeyHealth } from "./clerk-health";
 import { createDuelApi } from "./duelApi";
 import { createProfileApi } from "./profileApi";
 import { createStoreApi } from "./storeApi";
@@ -28,25 +24,43 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const databaseConnection = createDatabaseConnection(process.env.DATABASE_URL);
 const database = databaseConnection.pool;
 const app = express();
-const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY?.trim());
+const clerkConfigured = Boolean(
+  process.env.CLERK_SECRET_KEY?.trim() &&
+  process.env.CLERK_PUBLISHABLE_KEY?.trim(),
+);
 
-// Clerk's production frontend-API proxy must be mounted before body parsers.
-app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
 
 app.get("/api/health", async (_request, response) => {
-  const health = await checkDatabaseHealth(databaseConnection);
-  const isHealthy = health.status === "ok" && clerkConfigured;
+  const [health, clerkKeyHealth] = await Promise.all([
+    checkDatabaseHealth(databaseConnection),
+    checkClerkKeyHealth(),
+  ]);
+  const keysMatch =
+    clerkKeyHealth.secretKeyValid &&
+    clerkKeyHealth.publishableKeyValid &&
+    clerkKeyHealth.clientPublishableKeyValid &&
+    clerkKeyHealth.publishableKeysMatch &&
+    clerkKeyHealth.secretKeyMatchesPublishableKey;
+  const isHealthy = health.status === "ok" && clerkConfigured && keysMatch;
   const healthResponse = {
     ...health,
     status: isHealthy ? "ok" : "error",
     db: health.db,
-    clerkSecretKeyConfigured: clerkConfigured,
+    clerkSecretKeyConfigured: clerkKeyHealth.secretKeyConfigured,
+    clerkPublishableKeyConfigured: clerkKeyHealth.publishableKeyConfigured,
+    clerkKeyHealth,
     environment:
       process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
-    ...(!clerkConfigured && health.status === "ok"
+    ...(health.status === "error"
+      ? { error: health.error ?? "Database health check failed." }
+      : !clerkKeyHealth.secretKeyConfigured
       ? { error: "Clerk secret key is not configured." }
-      : {}),
+      : !clerkKeyHealth.publishableKeyConfigured
+        ? { error: "Clerk publishable key is not configured." }
+        : !keysMatch
+          ? { error: "Clerk keys could not be validated as belonging to one instance." }
+          : {}),
   };
   response.setHeader("Cache-Control", "no-store");
   response.status(isHealthy ? 200 : 503).json(healthResponse);
@@ -58,14 +72,9 @@ app.get("/api/store/catalog", (_request, response) => {
 });
 
 if (clerkConfigured) {
-  app.use(
-    clerkMiddleware((request) => ({
-      publishableKey: publishableKeyFromHost(
-        getClerkProxyHost(request) ?? "",
-        process.env.CLERK_PUBLISHABLE_KEY,
-      ),
-    })),
-  );
+  app.use(clerkMiddleware({
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+  }));
 }
 
 app.use(express.json({ limit: "256kb" }));
@@ -78,11 +87,7 @@ if (clerkConfigured && database) {
 } else {
   const accountApiUnavailable: express.RequestHandler = (request, response) => {
     const authUnavailable = !clerkConfigured;
-    if (!authUnavailable && !getAuth(request).userId) {
-      response.status(401).json({
-        error: "authentication_required",
-        message: "Bu işlem için oturum açın.",
-      });
+    if (!authUnavailable && !requireAuthenticatedUserId(request, response)) {
       return;
     }
     response.status(503).json({
@@ -94,7 +99,6 @@ if (clerkConfigured && database) {
     });
   };
 
-  if (!clerkConfigured) app.use(CLERK_PROXY_PATH, accountApiUnavailable);
   app.use("/api/profile", accountApiUnavailable);
   app.use("/api/duels", accountApiUnavailable);
   app.use("/api/store", accountApiUnavailable);

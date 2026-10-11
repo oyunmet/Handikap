@@ -10,8 +10,8 @@ async function createApiHandler(): Promise<ApiHandler> {
     corsModule,
     databaseModule,
     clerkModule,
-    clerkKeysModule,
-    clerkProxyModule,
+    authModule,
+    clerkHealthModule,
     duelApiModule,
     profileApiModule,
     storeApiModule,
@@ -21,8 +21,8 @@ async function createApiHandler(): Promise<ApiHandler> {
     import("cors"),
     import("../db/postgres.ts"),
     import("@clerk/express"),
-    import("@clerk/shared/keys"),
-    import("../server/middlewares/clerkProxyMiddleware.ts"),
+    import("../server/auth.ts"),
+    import("../server/clerk-health.ts"),
     import("../server/duelApi.ts"),
     import("../server/profileApi.ts"),
     import("../server/storeApi.ts"),
@@ -37,41 +37,51 @@ async function createApiHandler(): Promise<ApiHandler> {
     { max: 1 },
   );
   const database = databaseConnection.pool;
-  const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY?.trim());
-
-  app.use(
-    clerkProxyModule.CLERK_PROXY_PATH,
-    clerkProxyModule.clerkProxyMiddleware(),
+  const clerkConfigured = Boolean(
+    process.env.CLERK_SECRET_KEY?.trim() &&
+    process.env.CLERK_PUBLISHABLE_KEY?.trim(),
   );
   app.use(cors({ credentials: true, origin: true }));
 
   app.get("/api/health", async (_request, response) => {
-    const health = await databaseModule.checkDatabaseHealth(databaseConnection);
-    const isHealthy = health.status === "ok" && clerkConfigured;
+    const [health, clerkKeyHealth] = await Promise.all([
+      databaseModule.checkDatabaseHealth(databaseConnection),
+      clerkHealthModule.checkClerkKeyHealth(),
+    ]);
+    const keysMatch =
+      clerkKeyHealth.secretKeyValid &&
+      clerkKeyHealth.publishableKeyValid &&
+      clerkKeyHealth.clientPublishableKeyValid &&
+      clerkKeyHealth.publishableKeysMatch &&
+      clerkKeyHealth.secretKeyMatchesPublishableKey;
+    const isHealthy = health.status === "ok" && clerkConfigured && keysMatch;
     const healthResponse = {
       ...health,
       status: isHealthy ? "ok" : "error",
       db: health.db,
-      clerkSecretKeyConfigured: clerkConfigured,
+      clerkSecretKeyConfigured: clerkKeyHealth.secretKeyConfigured,
+      clerkPublishableKeyConfigured: clerkKeyHealth.publishableKeyConfigured,
+      clerkKeyHealth,
       environment:
         process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
-      ...(!clerkConfigured && health.status === "ok"
+      ...(health.status === "error"
+        ? { error: health.error ?? "Database health check failed." }
+        : !clerkKeyHealth.secretKeyConfigured
         ? { error: "Clerk secret key is not configured." }
-        : {}),
+        : !clerkKeyHealth.publishableKeyConfigured
+          ? { error: "Clerk publishable key is not configured." }
+          : !keysMatch
+            ? { error: "Clerk keys could not be validated as belonging to one instance." }
+            : {}),
     };
     response.setHeader("Cache-Control", "no-store");
     response.status(isHealthy ? 200 : 503).json(healthResponse);
   });
 
   if (clerkConfigured) {
-    app.use(
-      clerkModule.clerkMiddleware((request) => ({
-        publishableKey: clerkKeysModule.publishableKeyFromHost(
-          clerkProxyModule.getClerkProxyHost(request) ?? "",
-          process.env.CLERK_PUBLISHABLE_KEY,
-        ),
-      })),
-    );
+    app.use(clerkModule.clerkMiddleware({
+      publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+    }));
   }
   app.use(express.json({ limit: "16kb" }));
 
@@ -86,11 +96,7 @@ async function createApiHandler(): Promise<ApiHandler> {
       response,
     ) => {
       const authUnavailable = !clerkConfigured;
-      if (!authUnavailable && !clerkModule.getAuth(request).userId) {
-        response.status(401).json({
-          error: "authentication_required",
-          message: "Bu işlem için oturum açın.",
-        });
+      if (!authUnavailable && !authModule.requireAuthenticatedUserId(request, response)) {
         return;
       }
       response.status(503).json({
@@ -103,9 +109,6 @@ async function createApiHandler(): Promise<ApiHandler> {
             "Veritabanı bağlantısı kurulamadı. Supabase bağlantı ayarlarını kontrol edin.",
       });
     };
-    if (!clerkConfigured) {
-      app.use(clerkProxyModule.CLERK_PROXY_PATH, accountApiUnavailable);
-    }
     app.use("/api/profile", accountApiUnavailable);
     app.use("/api/duels", accountApiUnavailable);
     app.use("/api/store", accountApiUnavailable);

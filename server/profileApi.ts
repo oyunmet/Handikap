@@ -1,7 +1,7 @@
-import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
+import { requireAuthenticatedUserId } from "./auth.ts";
 import type { EquipmentLoadout, PlayerInventory } from "../src/shafak/game/store-types.ts";
 import { DEFAULT_EQUIPMENT, STARTER_ITEM_IDS } from "./storeCatalog.ts";
 
@@ -215,12 +215,7 @@ export function createProfileApi(database: Pool) {
   });
 
   function authenticatedUserId(request: Request, response: Response): string | null {
-    const userId = getAuth(request).userId;
-    if (!userId) {
-      response.status(401).json({ error: "authentication_required" });
-      return null;
-    }
-    return userId;
+    return requireAuthenticatedUserId(request, response);
   }
 
   router.get("/api/profile", profileLimit, async (request, response) => {

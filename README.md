@@ -72,9 +72,10 @@ verisi olan bir veritabanına uygulamadan önce yedek al.
    değerini ekle. Bu çalışma alanında Clerk şu an yapılandırılmamış; giriş
    özelliklerini Vercel'de de kullanmak istersen kendi Clerk uygulamanı
    yapılandırıp `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_PUBLISHABLE_KEY` ve
-   `CLERK_SECRET_KEY` değerlerini güvenli biçimde ekle. İsteğe bağlı aynı-kaynak
-   Clerk proxy adresi `VITE_CLERK_PROXY_URL=/api/__clerk` şeklindedir. Clerk
-   anahtarlarını Git'e veya README'ye koyma.
+   `CLERK_SECRET_KEY` değerlerini güvenli biçimde ekle. Sunucu ve istemci
+   publishable key'leri aynı Clerk uygulamasına ait olmalı; kimliği doğrulanmış
+   API isteklerinde Clerk session Bearer token'ı kullanılır. Clerk anahtarlarını
+   Git'e veya README'ye koyma.
 4. Clerk kullanıyorsan Vercel alan adını Clerk uygulamasında izin verilen
    alan adlarına ekle. Veritabanı Vercel'den erişilebilir olmalı.
 5. Vercel'de **Deploy**'a bas. Yayın sonrası `/api/health` ve giriş/profil

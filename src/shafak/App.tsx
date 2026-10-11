@@ -1,6 +1,15 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { ApiResponseError, requestJson, requestJsonWithRetry } from "./api-json";
+import {
+  ApiResponseError,
+  requestAuthenticatedJson,
+  requestAuthenticatedJsonWithRetry,
+  type ApiJsonOptions,
+  type ApiRetryOptions,
+  type AuthenticatedApiRequest,
+  type AuthenticatedApiRequestWithRetry,
+  type ClerkTokenGetter,
+} from "./api-json";
 import { useLocation } from "wouter";
 import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
@@ -257,10 +266,45 @@ type AppProps = {
   authLoaded: boolean;
   allowOfflineGuest?: boolean;
   signOut: (options: { redirectUrl: string }) => Promise<unknown>;
+  getToken: ClerkTokenGetter;
 };
 
-function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps) {
+function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }: AppProps) {
   const [, setLocation] = useLocation();
+  const authRedirectedRef = useRef(false);
+  const handleApiUnauthorized = useCallback(() => {
+    if (authRedirectedRef.current) return;
+    authRedirectedRef.current = true;
+    setLocation("/sign-in?auth_error=session");
+  }, [setLocation]);
+  const authApiRequest = useCallback<AuthenticatedApiRequest>(
+    <T,>(input: RequestInfo | URL, init: RequestInit, options: ApiJsonOptions) =>
+      requestAuthenticatedJson<T>(
+        input,
+        init,
+        options,
+        getToken,
+        handleApiUnauthorized,
+      ),
+    [getToken, handleApiUnauthorized],
+  );
+  const authApiRequestWithRetry = useCallback<AuthenticatedApiRequestWithRetry>(
+    <T,>(
+      input: RequestInfo | URL,
+      init: RequestInit,
+      options: ApiJsonOptions,
+      retryOptions?: ApiRetryOptions,
+    ) =>
+      requestAuthenticatedJsonWithRetry<T>(
+        input,
+        init,
+        options,
+        getToken,
+        handleApiUnauthorized,
+        retryOptions,
+      ),
+    [getToken, handleApiUnauthorized],
+  );
   const [screen, setScreen] = useState<Screen>(() => {
     const query = new URLSearchParams(window.location.search);
     return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "opening";
@@ -286,6 +330,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     return limitedCores || limitedMemory ? "low" : "balanced";
   });
   const activeQuality = resolveRenderQuality(preferences.quality, automaticQuality);
+
+  useEffect(() => {
+    authRedirectedRef.current = false;
+  }, [user?.id]);
 
   useEffect(() => {
     if (preferences.quality !== "auto" || screen !== "world") return undefined;
@@ -360,7 +408,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     setProfileSyncStatus("loading");
     void (async () => {
       try {
-        const result = await requestJson<{ profile: unknown | null }>("/api/profile", { credentials: "include" }, {
+        const result = await authApiRequest<{ profile: unknown | null }>("/api/profile", { credentials: "include" }, {
           operation: "profile load",
           fallbackMessage: "Hesap bilgileri şu an yüklenemedi. Lütfen tekrar dene.",
         });
@@ -385,7 +433,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     return () => {
       cancelled = true;
     };
-  }, [allowOfflineGuest, authLoaded, user?.id, user?.firstName]);
+  }, [allowOfflineGuest, authApiRequest, authLoaded, user?.id, user?.firstName]);
 
   useEffect(() => {
     if ((!authLoaded && !allowOfflineGuest) || profileSyncOwner !== (user?.id ?? "guest")) return;
@@ -505,14 +553,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
   const loadClaimedPickups = useCallback(async (chapterId: number) => {
     if (!user?.id || profileSyncStatus !== "ready") return [];
     const query = new URLSearchParams({ chapterId: String(chapterId) });
-    const result = await requestJson<{ claimedPickupIds?: unknown }>(`/api/profile/pickups?${query}`, { credentials: "include" }, {
+    const result = await authApiRequest<{ claimedPickupIds?: unknown }>(`/api/profile/pickups?${query}`, { credentials: "include" }, {
       operation: "pickup history",
       fallbackMessage: "Yol ganimeti geçmişi şu an yüklenemedi. Lütfen tekrar dene.",
     });
     return Array.isArray(result.claimedPickupIds)
       ? result.claimedPickupIds.filter((id): id is string => typeof id === "string")
       : [];
-  }, [profileSyncStatus, user?.id]);
+  }, [authApiRequest, profileSyncStatus, user?.id]);
 
   const claimWorldPickups = useCallback(async (chapterId: number, pickupIds: string[]) => {
     if (!user?.id) {
@@ -527,7 +575,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
       );
     }
     try {
-      const result = await requestJsonWithRetry<{
+      const result = await authApiRequestWithRetry<{
         profile?: unknown;
         claimedPickupIds?: unknown;
         awardedPickupIds?: unknown;
@@ -574,7 +622,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
       }
       throw error;
     }
-  }, [profileSyncStatus, user?.id]);
+  }, [authApiRequestWithRetry, profileSyncStatus, user?.id]);
 
   const handleRename = (name: string) => {
     if (!user?.id) {
@@ -584,7 +632,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
     const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 20) || "Yolcu";
     setProfile((current) => ({ ...current, name: cleanName }));
     if (profileSyncStatus !== "ready") return;
-    void requestJson<{ profile: unknown }>("/api/profile", {
+    void authApiRequest<{ profile: unknown }>("/api/profile", {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -594,9 +642,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
       fallbackMessage: "İsim şu an kaydedilemedi. Lütfen tekrar dene.",
     }).then((result) => {
       setProfile(normalizePlayerProfile(result.profile));
-    }).catch(() => {
+    }).catch((error) => {
       setProfileSyncStatus("local");
-      setAnnouncement("Savaşçı adı sunucuya kaydedilemedi; diğer ilerleme alanları etkilenmedi.");
+      setAnnouncement(error instanceof ApiResponseError && error.status === 401
+        ? "Oturum doğrulanamadı. Yeniden giriş yap."
+        : "Savaşçı adı sunucuya kaydedilemedi; diğer ilerleme alanları etkilenmedi.");
     });
   };
 
@@ -863,6 +913,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut }: AppProps)
           >
             <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
               <WorldScene
+                apiRequest={authApiRequest}
                 quality={activeQuality}
                 visualEffectsEnabled={preferences.visualEffects}
                 motionReduced={motionReduced}
