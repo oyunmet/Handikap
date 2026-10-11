@@ -149,6 +149,8 @@ bilerek düşürerek yapılan kabul testi henüz yapılmadı.
 - Yeni hikâye/ses kontrolleri güvenli alanları kullanıyor; kaydırma panelleri
   küçük ve yatay telefon ekranlarında taşmıyor. Yeni ayar düğmeleri ve ilgili
   oyun eylemleri en az 44 px dokunma yüksekliğine sahip.
+- Düello sahnesindeki “Pes et” ve yardım düğmeleri de 44 px dokunma hedefi oldu;
+  telefonda yardım düğmesi büyüyen vazgeçme düğmesiyle çakışmayacak şekilde aşağı alındı.
 
 ### Yerel doğrulama
 
@@ -158,6 +160,8 @@ bilerek düşürerek yapılan kabul testi henüz yapılmadı.
 - `npm run build` — geçti. Ana JavaScript paketi 1,684 kB, ayrı 3D dünya paketi
   174 kB; Vite ana paket için 500 kB üstü uyarısı veriyor.
 - `git diff --check` — geçti.
+- Replit önizlemesi başlatıldı; açılış hikâye kartı yükleniyor ve tarayıcı konsolunda
+  uygulama hatası görünmüyor. Bu görüntü düello etkileşimini veya WebGL pikselini doğrulamıyor.
 - Bu yerel kontrol gerçek iPhone Safari FPS/bellek ölçümü veya WebGL bağlam
   kaybını zorlayarak sınamayı içermiyor. Aşama 1'de listelenen 50+ FPS, sıfır
   100 ms üzeri kare ve 5 dakikalık sabit bellek kabulü hâlâ açık; FPS, üçgen,
