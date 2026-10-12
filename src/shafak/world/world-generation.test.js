@@ -15,6 +15,23 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
 });
 
+test("large architecture stays outside the player's camera corridor", () => {
+  for (let index = 0; index < 100; index += 1) {
+    const chunk = createWorldChunk(index);
+    for (const object of chunk.objects) {
+      if (!["tower", "ruin", "arch"].includes(object.kind)) continue;
+      assert.ok(
+        Math.abs(object.lane * 9.3) >= 6.696,
+        `${object.kind} ${object.id} spawned inside the road camera corridor`,
+      );
+    }
+  }
+
+  const towerAfterDemirYemin = createWorldChunk(1).objects.find((object) => object.kind === "tower");
+  assert.ok(towerAfterDemirYemin);
+  assert.ok(Math.abs(towerAfterDemirYemin.lane * 9.3) >= 6.696);
+});
+
 test("visible world chunks stay bounded and reuse generated chunks", () => {
   const cache = new Map();
   const output = [];

@@ -81,16 +81,24 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
       ];
 
-  const objects = kinds.map((kind, objectIndex): WorldObject => ({
-    id: `${index}:${objectIndex}`,
-    worldX: start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4),
-    lane: (random() * 1.55) - 0.78,
-    kind,
-    biome,
-    scale: 0.72 + random() * 0.62,
-    parallax: parallaxFor(kind),
-    flickerSeed: Math.floor(random() * 10000),
-  }));
+  const objects = kinds.map((kind, objectIndex): WorldObject => {
+    const worldX = start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4);
+    const lane = (random() * 1.55) - 0.78;
+    const roadsideLane = kind === "tower" || kind === "ruin" || kind === "arch"
+      ? (lane < 0 ? -1 : 1) * Math.max(Math.abs(lane), 0.72)
+      : lane;
+
+    return {
+      id: `${index}:${objectIndex}`,
+      worldX,
+      lane: roadsideLane,
+      kind,
+      biome,
+      scale: 0.72 + random() * 0.62,
+      parallax: parallaxFor(kind),
+      flickerSeed: Math.floor(random() * 10000),
+    };
+  });
 
   return {
     index,

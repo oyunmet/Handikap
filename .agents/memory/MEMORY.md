@@ -4,3 +4,4 @@
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
 - [WebGL preview limits](webgl-preview-limits.md) — A successful GLB load and live controls do not prove pixels rendered when the preview browser lacks WebGL.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
+- [World camera clearance](world-camera-clearance.md) — Keep tall roadside structures outside the camera corridor; player collision does not prevent scenery from blocking the view.
