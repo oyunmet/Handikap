@@ -21,6 +21,7 @@ import type { EquipmentVisual } from "../game/store-types";
 import type { TraversalState } from "./traversal";
 import {
   appendWorldDiagnostic,
+  appendWorldDiagnostics,
   emitWorldDiagnostic,
   formatWorldDiagnostics,
   setWorldDiagnosticContext,
@@ -1456,6 +1457,8 @@ export default function World3D(props: World3DProps) {
   const [recoveryStage, setRecoveryStage] = useState(0);
   const [firstFrameReported, setFirstFrameReported] = useState(false);
   const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
+  const pendingDebugEventsRef = useRef<WorldDiagnostic[]>([]);
+  const debugEventFlushTimerRef = useRef<number | null>(null);
   const [debugCopied, setDebugCopied] = useState(false);
   const [blackCapture, setBlackCapture] = useState<BlackFrameCapture | null>(null);
   const [persistedVisualTier, setPersistedVisualTier] = useState<SafeVisualTier>(readPersistedSafeVisualTier);
@@ -1572,12 +1575,19 @@ export default function World3D(props: World3DProps) {
   }, []);
   const retryCanvasAfterError = useCallback((error?: Error) => {
     if (error) emitWorldDiagnostic("recovery", error.stack ?? error.message);
-    if (error && /error creating webgl context|could not create a webgl context/i.test(error.message)) {
+    const contextCreationFailed = Boolean(
+      error && /error creating webgl context|could not create a webgl context/i.test(error.message),
+    );
+    if (contextCreationFailed) {
       lastRecoveryFailureWasContextCreationRef.current = true;
     }
     const nextStage = nextWorldRecoveryStage(recoveryStageRef.current, error?.message);
     if (nextStage > 3) {
-      setRecoveryMessage("Sahne yenilenemedi · Yeniden yükle");
+      setRecoveryMessage("Sahne yenilenemedi · WebGL destekli tarayıcıda yeniden dene");
+      if (lastRecoveryFailureWasContextCreationRef.current) {
+        setWebglAvailable(false);
+        setContextLost(false);
+      }
       return;
     }
     recoveryStageRef.current = nextStage;
@@ -1585,7 +1595,11 @@ export default function World3D(props: World3DProps) {
     setContextLost(false);
     setRecoveryMessage("Sahne yenileniyor…");
     setRecoveryStage(nextStage);
-    if (nextStage === 2) {
+    if (contextCreationFailed) {
+      setFirstFrameReported(false);
+      setWebglAvailable(null);
+      setCanvasAttempt((attempt) => attempt + 1);
+    } else if (nextStage === 2) {
       setFirstFrameReported(false);
       setWebglAvailable(null);
       setCanvasAttempt((attempt) => attempt + 1);
@@ -1689,10 +1703,23 @@ export default function World3D(props: World3DProps) {
   }, [settleRecovery]);
 
   useEffect(() => {
+    const flushDebugEvents = () => {
+      debugEventFlushTimerRef.current = null;
+      const pending = pendingDebugEventsRef.current;
+      if (pending.length === 0) return;
+      pendingDebugEventsRef.current = [];
+      setDebugEvents((current) => appendWorldDiagnostics(current, pending));
+    };
     const onDiagnostic = (event: Event) => {
       const detail = (event as CustomEvent<WorldDiagnostic>).detail;
       if (!detail || typeof detail.message !== "string") return;
-      setDebugEvents((current) => appendWorldDiagnostic(current, detail));
+      pendingDebugEventsRef.current = appendWorldDiagnostic(
+        pendingDebugEventsRef.current,
+        detail,
+      );
+      if (debugEventFlushTimerRef.current === null) {
+        debugEventFlushTimerRef.current = window.setTimeout(flushDebugEvents, 100);
+      }
     };
     const onError = (event: ErrorEvent) => {
       const stack = event.error instanceof Error ? event.error.stack : "";
@@ -1711,6 +1738,11 @@ export default function World3D(props: World3DProps) {
       window.removeEventListener("shafak:world-diagnostic", onDiagnostic);
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
+      if (debugEventFlushTimerRef.current !== null) {
+        window.clearTimeout(debugEventFlushTimerRef.current);
+        debugEventFlushTimerRef.current = null;
+      }
+      pendingDebugEventsRef.current = [];
     };
   }, []);
 

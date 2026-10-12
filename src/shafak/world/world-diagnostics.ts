@@ -32,6 +32,16 @@ export function appendWorldDiagnostic(
   return [...current, next].slice(-safeLimit);
 }
 
+export function appendWorldDiagnostics(
+  current: readonly WorldDiagnostic[],
+  additions: readonly WorldDiagnostic[],
+  limit = 200,
+) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 200;
+  if (additions.length === 0) return [...current];
+  return [...current, ...additions.slice(-safeLimit)].slice(-safeLimit);
+}
+
 export function formatWorldDiagnostics(events: readonly WorldDiagnostic[]) {
   return events.map(({ at, category, message, playerState, travelPercent }) => {
     const context = [

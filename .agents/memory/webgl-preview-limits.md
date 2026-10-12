@@ -20,3 +20,9 @@ Do not use `readPixels()` from the default drawing buffer as a production black-
 **Why:** On iPhone Safari, default-buffer readback can report near-black while the scene is visibly drawing, which falsely triggers a blocking recovery panel.
 
 **How to apply:** Never gate movement or scene recovery on sampled framebuffer brightness unless the renderer uses a verified readable render target and the check has been confirmed on a real device.
+
+When renderer creation fails, global diagnostics can fire while React is committing the Canvas error path. Do not synchronously update React state from that diagnostic event; queue and coalesce entries, then flush asynchronously. Bound context-creation retries and show a terminal compatibility/retry screen instead of an indefinite “reloading” state.
+
+**Why:** The Replit screenshot browser for this project cannot create a WebGL context. Synchronously appending each renderer error to React state caused a maximum-update-depth crash, while a scene-only retry did not create a new renderer and left the recovery overlay stuck.
+
+**How to apply:** Treat missing WebGL separately from black rendered frames. Batch debug events outside the renderer/error commit stack, remount the Canvas for context-creation retries, then exit cleanly to a user-facing retry screen when retries are exhausted.

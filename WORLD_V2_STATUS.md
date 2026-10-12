@@ -66,6 +66,7 @@ Son güncelleme: 2026-10-12
 
 - Ana 3D çizici `World3D.tsx` içindeki React Three Fiber `<Canvas>`'ıdır; şu an dünya ekranı ağacı ile birlikte mount/unmount edilir. Render seçenekleri antialias kapalı, `powerPreference: "high-performance"` ve her zaman `preserveDrawingBuffer: false`; WebGL 2 olmayan context reddedilir.
 - Canvas context kaybını yakalar, ilk kare/render döngüsünü izler ve dört aşamalı kurtarma uygular: güvenli sahne varsayılanları, materyal yeniden derleme, renderer remount ve tam sahne remount. Renderer uygulama ömrü boyunca yaşayan tekil bir kaynak değildir.
+- Renderer-init tanıları React state'ine toplu/asenkron aktarılır. WebGL context oluşturma hatasında Canvas gerçek renderer remount'larıyla sınırlı sayıda denenir; başarısızsa kalıcı “yeniden yükleniyor” yerine Türkçe uyumluluk/yeniden deneme ekranı gösterilir.
 - Debug/selftest path'inde renderer varsayılan drawing buffer'ından 16 noktada `readPixels` örneklemesi vardır. Önceki iPhone Safari incelemesinde varsayılan buffer readback'i görünür sahnede bile siyaha yakın değerler verebildi. Bu örneklem yalnızca debug tanısıdır; doğrulanmamış default-buffer luminansı production kurtarma tetikleyicisi değildir.
 - Bilinen siyah ekranın kök nedeni mevcut koddan ve eldeki geçmişten kesinleştirilemedi. Checkout geçmişi tek grafted commit gösterdiğinden önceki renderer değişikliklerinin tam diff'i bu workspace'te mevcut değil. Faz 1'in hedefi tek hata senaryosu varsaymak değil; geçerli context/render sinyalleri ve güvenli kaynak sahipliğiyle kurtarılabilir mimari kurmaktır.
 
@@ -73,6 +74,8 @@ Son güncelleme: 2026-10-12
 
 - Yeni renderer artık tek yoldur: V2 atmosferi/zemini/yol etkileşimleri ve V2 düello oyuncularını kullanır; V1 renderer modülleri ve seçim dalı kaldırıldı. Recovery/context korumaları ve sunucuya bağlı hareket/ödül/düello sözleşmeleri korundu.
 - Replit screenshot runner bu projede WebGL context kuramadı (`Error creating WebGL context`); sahne bu yüzden runner'da çizilemedi. Bu, shader/GLB hatasının kanıtı değildir; WebGL destekli tarayıcı ve iPhone doğrulaması ayrı raporlanmalıdır.
+- Replit preview hata yolu düzeltmeden sonra yakalandı: HUD kullanılabilir kalıyor ve terminal yeniden deneme/uyumluluk ekranı açılıyor; React “Maximum update depth” çökmesi oluşmuyor. Preview 3D pikselleri doğrulayamadı.
+- Son yerel doğrulama: 168 test geçti, TypeScript denetimi ve production build başarılı. `WorldScene` minified paketi yaklaşık 1.08 MB; Vite'ın 500 kB üzeri chunk uyarısı sürüyor.
 - 60 FPS, iPhone'da 10 dakikalık siyah-kare sıfır testi, 20 tur renderer.info sabitliği, tüm biyom/rakip/hava kombinasyonları ve zorunlu context-loss dayanıklılığı henüz doğrulanmadı. Production build ayrıca `WorldScene` için 1 MB üstü minified chunk uyarısı veriyor.
 - Doğrudan ekrandan `readPixels` testi ile “iPhone'da siyah kare yok” kabulü çelişebilir. Üretim kurtarmasında kullanılacak luminans kanıtı varsa, okunabilir render target üzerinde cihazda doğrulanmalı; default framebuffer örneklemi iOS kurtarma tetikleyicisi yapılmamalıdır.
 - Eski renderer bu talep kapsamında kaldırıldı. Sonraki doğrulama çalışmaları sırasında default framebuffer `readPixels` sonucu iOS production kurtarmasını tetiklememelidir.
