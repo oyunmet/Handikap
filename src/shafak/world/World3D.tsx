@@ -31,6 +31,7 @@ import {
   getWorldRenderPixelRatio,
   shouldEnableWorldShadows,
 } from "./graphics-quality";
+import { getTravelCameraSettings } from "./camera-settings";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -325,6 +326,7 @@ function RendererEffects({
 function CameraRig({
   motionRef,
   motionReduced,
+  touchRenderer,
   focusedRival,
   slowMotion,
   combatActive,
@@ -336,6 +338,7 @@ function CameraRig({
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   motionReduced: boolean;
+  touchRenderer: boolean;
   focusedRival: WorldRival | null;
   slowMotion: boolean;
   combatActive: boolean;
@@ -361,6 +364,7 @@ function CameraRig({
     if (!camera) return;
     const motion = motionRef.current;
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
+    const travelCamera = getTravelCameraSettings(speed, touchRenderer);
     const lateral = motion.depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
     if (cinematicIntro) cinematicStartRef.current ??= _.clock.elapsedTime;
@@ -414,11 +418,11 @@ function CameraRig({
       desiredRef.set((playerX + rivalX) * 0.5 + 3.2 + orbit, 3.55 + Math.abs(orbit) * 0.12, -gap * 0.5 + 6.1 + orbitDepth);
       targetRef.set((playerX + rivalX) * 0.5 + orbit * 0.22, 1.15, -gap * 0.5);
     } else {
-      desiredRef.set(lateral * 0.56, 4.15 + Math.min(speed, 7) * 0.045, 10.2 + Math.min(speed, 7) * 0.18);
-      targetRef.set(lateral * 0.42, 1.25, -11.5);
+      desiredRef.set(lateral * 0.56, travelCamera.height, travelCamera.distanceBehind);
+      targetRef.set(lateral * 0.42, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
     }
     camera.position.lerp(desiredRef, response);
-    const runShake = motionReduced ? 0 : THREE.MathUtils.clamp((speed - 4.2) / 2.2, 0, 1);
+    const runShake = motionReduced ? 0 : travelCamera.runShake;
     const time = _.clock.elapsedTime;
     camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
     camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
@@ -427,7 +431,7 @@ function CameraRig({
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
       ? 45 - combatImpact * 1.1 - skillZoom - finisherZoom
-      : focusedRival ? (cinematicIntro ? 51 : 48) : 54 + Math.min(speed, 7) * 0.7;
+      : focusedRival ? (cinematicIntro ? 51 : 48) : travelCamera.fieldOfView;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
       camera.fov = nextFov;
@@ -435,7 +439,16 @@ function CameraRig({
     }
   });
 
-  return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.6} far={190} />;
+  return (
+    <PerspectiveCamera
+      ref={cameraRef}
+      makeDefault
+      position={[0, 4.15, touchRenderer ? 6.5 : 10.2]}
+      fov={54}
+      near={0.6}
+      far={190}
+    />
+  );
 }
 
 function combatAnimation(action: CombatAction, speed: number) {
@@ -1194,6 +1207,7 @@ function SceneContents({
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
+        touchRenderer={touchRenderer}
         focusedRival={focusedRival}
         slowMotion={slowMotion}
         combatActive={combatActive}

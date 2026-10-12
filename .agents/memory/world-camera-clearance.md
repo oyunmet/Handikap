@@ -3,8 +3,8 @@ name: World camera clearance
 description: Procedural scenery placement constraints that keep the third-person view unobstructed.
 ---
 
-Place tall roadside architecture (towers, ruins, and arches) outside the playable camera corridor. Player collision can stop movement through a structure, but it does not stop the camera's forward sightline from entering or passing behind that structure.
+Keep the mobile travel camera outside the swept volume of road obstacles; moving tall scenery to the roadside alone does not prevent a near-field occlusion.
 
-**Why:** The third-person camera looks well ahead of and behind the player. A large prop generated in the center lane can fill the view during movement even when the player itself is collision-blocked.
+**Why:** The running camera offset and movement camera lag can place the camera behind a central obstacle while the player has already passed it. Stopping changes that offset and can make the scene appear to recover.
 
-**How to apply:** When adding a tall prop kind to procedural world generation, force its lane to a road edge and add a deterministic test across multiple chunks. Keep small pickups and low ground obstacles on their existing lanes.
+**How to apply:** When changing mobile camera offsets or obstacle placement, test camera world position against the full depth of nearby road obstacles at running speed and at rest. Do not assume that moving tall props off the center lane fixes motion-linked black screens.
