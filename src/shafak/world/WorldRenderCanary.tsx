@@ -11,9 +11,6 @@ import {
 import { emitWorldDiagnostic } from "./world-diagnostics";
 
 const CANARY_INTERVAL_FRAMES = 30;
-const CANARY_RECOVERY_EVENT = "shafak:scene-recovery";
-const CANARY_LIGHTING_EVENT = "shafak:scene-low-brightness";
-
 type Props = {
   onStatus?: (snapshot: WorldCanarySnapshot) => void;
 };
@@ -40,8 +37,6 @@ export default function WorldRenderCanary({ onStatus }: Props) {
   const samplePendingRef = useRef(false);
   const firstSampleRequestedRef = useRef(false);
   const monitorRef = useRef(createWorldCanarySnapshot());
-  const recoverySentRef = useRef(false);
-  const lightingResetSentRef = useRef(false);
   const targetSize = useMemo(() => new THREE.Vector2(), []);
   const savedViewport = useMemo(() => new THREE.Vector4(), []);
   const savedScissor = useMemo(() => new THREE.Vector4(), []);
@@ -49,6 +44,10 @@ export default function WorldRenderCanary({ onStatus }: Props) {
   const scenePixel = useMemo(() => new Uint8Array(4), []);
   const worldPosition = useMemo(() => new THREE.Vector3(), []);
   const worldQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const touchRenderer = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
+    [],
+  );
   const onStatusRef = useRef(onStatus);
   const mesh = useMemo(() => {
     const geometry = new THREE.PlaneGeometry(1, 1);
@@ -70,6 +69,17 @@ export default function WorldRenderCanary({ onStatus }: Props) {
   useEffect(() => {
     onStatusRef.current = onStatus;
   }, [onStatus]);
+
+  useEffect(() => {
+    if (!touchRenderer) return;
+    const snapshot = recordWorldCanarySample(monitorRef.current, null).snapshot;
+    monitorRef.current = snapshot;
+    onStatusRef.current?.(snapshot);
+    emitWorldDiagnostic(
+      "canary",
+      "Dokunmatik cihazda framebuffer piksel kontrolü kapalı; sahne render ve bağlam sinyalleriyle izleniyor.",
+    );
+  }, [touchRenderer]);
 
   useEffect(() => {
     scene.add(mesh);
@@ -161,21 +171,6 @@ export default function WorldRenderCanary({ onStatus }: Props) {
           `sahne parlaklığı ${result.snapshot.lastSceneLuminance?.toFixed(3) ?? "yok"}.`,
         );
 
-        if (result.shouldRestoreLighting && !lightingResetSentRef.current) {
-          lightingResetSentRef.current = true;
-          emitWorldDiagnostic("lighting", "Kanarya parlak; sahne karanlık. Biyom güvenli ışığı, sisi ve pozlaması geri yükleniyor.");
-          window.dispatchEvent(new CustomEvent(CANARY_LIGHTING_EVENT));
-        }
-        if (result.snapshot.consecutiveDim === 0) lightingResetSentRef.current = false;
-
-        if (result.shouldRecover && !recoverySentRef.current) {
-          recoverySentRef.current = true;
-          emitWorldDiagnostic("canary", "Kanarya beş ölçüm üst üste siyah; render hattı kurtarma başlatıyor.");
-          window.dispatchEvent(new CustomEvent(CANARY_RECOVERY_EVENT, {
-            detail: { error: new Error("Üretim kanaryası 5 ardışık ölçümde siyah okundu.") },
-          }));
-        }
-        if (result.snapshot.consecutiveBlack === 0) recoverySentRef.current = false;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         emitWorldDiagnostic("canary", `Kanarya pikseli okunamadı: ${message}`);
@@ -202,6 +197,11 @@ export default function WorldRenderCanary({ onStatus }: Props) {
 
   useFrame(() => {
     frameRef.current += 1;
+    if (touchRenderer) {
+      samplePendingRef.current = false;
+      mesh.visible = false;
+      return;
+    }
     const sampleNow = shouldSampleWorldCanary(frameRef.current, CANARY_INTERVAL_FRAMES);
     if (sampleNow) {
       samplePendingRef.current = true;

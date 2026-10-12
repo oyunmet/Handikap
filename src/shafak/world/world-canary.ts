@@ -13,8 +13,6 @@ export type WorldCanarySnapshot = {
 
 export type WorldCanaryResult = {
   snapshot: WorldCanarySnapshot;
-  shouldRecover: boolean;
-  shouldRestoreLighting: boolean;
 };
 
 export function createWorldCanarySnapshot(): WorldCanarySnapshot {
@@ -64,8 +62,6 @@ export function recordWorldCanarySample(
   if (!pixel) {
     return {
       snapshot: { ...current, state: current.samples ? current.state : "unavailable" },
-      shouldRecover: false,
-      shouldRestoreLighting: false,
     };
   }
 
@@ -87,8 +83,6 @@ export function recordWorldCanarySample(
 
   return {
     snapshot,
-    shouldRecover: consecutiveBlack >= 5 && current.consecutiveBlack < 5,
-    shouldRestoreLighting: consecutiveDim >= 5 && current.consecutiveDim < 5,
   };
 }
 

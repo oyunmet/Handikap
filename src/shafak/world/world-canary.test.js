@@ -17,38 +17,34 @@ test("the production canary samples every thirtieth frame only", () => {
   assert.equal(shouldSampleWorldCanary(Number.NaN), false);
 });
 
-test("the canary requires a bright red pixel and five consecutive misses to request recovery", () => {
+test("the canary reports repeated dark samples for diagnostics only", () => {
   const brightRed = [255, 0, 0, 255];
   assert.equal(isBrightRedCanary(brightRed), true);
   assert.equal(isBrightRedCanary([0, 0, 0, 255]), false);
   let snapshot = createWorldCanarySnapshot();
 
   for (let index = 0; index < 4; index += 1) {
-    const result = recordWorldCanarySample(snapshot, [0, 0, 0, 255]);
-    snapshot = result.snapshot;
-    assert.equal(result.shouldRecover, false);
+    snapshot = recordWorldCanarySample(snapshot, [0, 0, 0, 255]).snapshot;
   }
   const fifth = recordWorldCanarySample(snapshot, [0, 0, 0, 255]);
-  assert.equal(fifth.shouldRecover, true);
   assert.equal(fifth.snapshot.consecutiveBlack, 5);
-  assert.equal(recordWorldCanarySample(fifth.snapshot, [0, 0, 0, 255]).shouldRecover, false);
+  assert.equal(Object.hasOwn(fifth, "shouldRecover"), false);
+  assert.equal(recordWorldCanarySample(fifth.snapshot, [0, 0, 0, 255]).snapshot.consecutiveBlack, 6);
   assert.equal(recordWorldCanarySample(fifth.snapshot, brightRed).snapshot.consecutiveBlack, 0);
 });
 
-test("a bright canary plus five dim scene samples requests a lighting reset", () => {
+test("dim scene samples are tracked without requesting a lighting override", () => {
   const blackScene = [[0, 0, 0, 255], [2, 2, 2, 255], [1, 1, 1, 255]];
   assert.equal(meanSceneLuminance(blackScene) < 0.025, true);
   assert.equal(meanSceneLuminance([[255, 0, 0, 255]]) > 0.025, true);
   let snapshot = createWorldCanarySnapshot();
   for (let index = 0; index < 4; index += 1) {
-    const result = recordWorldCanarySample(snapshot, [255, 0, 0, 255], blackScene);
-    snapshot = result.snapshot;
-    assert.equal(result.shouldRestoreLighting, false);
+    snapshot = recordWorldCanarySample(snapshot, [255, 0, 0, 255], blackScene).snapshot;
   }
   const fifth = recordWorldCanarySample(snapshot, [255, 0, 0, 255], blackScene);
-  assert.equal(fifth.shouldRestoreLighting, true);
   assert.equal(fifth.snapshot.state, "healthy");
   assert.equal(fifth.snapshot.consecutiveDim, 5);
+  assert.equal(Object.hasOwn(fifth, "shouldRestoreLighting"), false);
 });
 
 test("zero calls and triangles indicate a dead renderer only when a visible renderable exists", () => {
