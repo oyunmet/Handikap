@@ -76,12 +76,21 @@
 .world-three-recovery strong { font: 600 22px var(--font-display, Georgia, serif); }
 .world-three-recovery span { color: rgba(235,222,198,.75); font-size: 12px; line-height: 1.7; }
 .world-debug {
-  position: absolute; z-index: 9; top: 143px; right: 12px; display: grid; gap: 4px;
-  max-width: min(300px, calc(100vw - 24px)); padding: 8px 10px;
+  position: absolute; z-index: 9; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); left: 8px;
+  display: block; max-width: none; max-height: min(38vh, 340px); overflow: auto; padding: 7px 9px;
   border: 1px solid rgba(235,198,126,.4); border-radius: 4px;
   background: rgba(8,10,16,.84); color: #eaddc6;
   font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
   box-shadow: 0 8px 28px rgba(0,0,0,.28); pointer-events: auto;
+}
+.world-debug summary { cursor: pointer; list-style: none; color: #f1cd82; font-weight: 800; letter-spacing: .08em; }
+.world-debug summary::-webkit-details-marker { display: none; }
+.world-debug[open] { display: grid; gap: 4px; }
+.world-debug__black-capture { color: #ff9b81 !important; }
+.world-debug__stress {
+  min-height: 40px; padding: 6px 10px; border: 1px solid rgba(255,155,129,.65);
+  border-radius: 4px; background: rgba(92,31,26,.95); color: #ffe3ca;
+  cursor: pointer; font: 800 10px/1.2 ui-monospace, monospace;
 }
 .world-debug b { color: #f1cd82; letter-spacing: .12em; }
 .world-performance {
@@ -884,7 +893,7 @@
   .world-resource-hud { flex: 1 0 100%; max-width: 100%; gap: 5px; }
   .world-weather { gap: 5px; padding: 6px 7px; font-size: 7px; }
   .world-progress { top: max(156px, calc(env(safe-area-inset-top) + 148px)); width: min(230px, 55vw); }
-  .world-debug { top: 120px; right: 8px; gap: 3px; padding: 6px 7px; font-size: 8px; }
+  .world-debug { right: 6px; bottom: calc(6px + env(safe-area-inset-bottom)); left: 6px; max-height: min(42vh, 380px); padding: 6px 7px; font-size: 8px; }
   .world-debug__actions button { min-height: 28px; }
   .world-figure { left: calc(35% + var(--ws-player-drift-x, 0px)); bottom: clamp(96px, 14vh, 142px); width: clamp(180px, 48vw, 260px); height: min(58vh, 520px); }
   .world-step-burst { bottom: calc(clamp(96px, 14vh, 142px) + var(--ws-depth-bottom, 0px)); }

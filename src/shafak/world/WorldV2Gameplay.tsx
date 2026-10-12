@@ -225,12 +225,6 @@ function V2Player({
         <circleGeometry args={[0.44, 22]} />
         <meshBasicMaterial color="#080b14" transparent opacity={0.38} depthWrite={false} />
       </mesh>
-      <pointLight
-        position={[0, 1.25, 0]}
-        color={equipmentVisual.auraColor ?? "#ffb36f"}
-        intensity={THREE.MathUtils.clamp(0.35 + level * 0.018 + relicCount * 0.012, 0.35, 1.25)}
-        distance={Math.max(4, Number.isFinite(lightRadius) ? lightRadius : 4)}
-      />
     </group>
   );
 }
@@ -287,7 +281,6 @@ function V2Pickup({
           </mesh>
         )}
       </group>
-      <pointLight color={color} intensity={0.45} distance={2.4} />
     </group>
   );
 }
@@ -483,7 +476,6 @@ function V2Gate({ motionRef }: { motionRef: MotionRef }) {
         <torusGeometry args={[1.62, 0.075, 10, 56]} />
         <meshStandardMaterial color="#85efe5" emissive="#39d8ce" emissiveIntensity={0.8} toneMapped={false} />
       </mesh>
-      <pointLight position={[0, 2.8, 1]} color="#73efe5" intensity={2.1} distance={12} />
       <Html position={[0, 5.3, 0]} center distanceFactor={20} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
         <span className="world-v2-gate-label">YENİ UFUK</span>
       </Html>

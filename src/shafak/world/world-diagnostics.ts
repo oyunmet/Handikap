@@ -52,7 +52,7 @@ export function emitWorldDiagnostic(category: string, message: string) {
   }
   window.dispatchEvent(new CustomEvent("shafak:world-diagnostic", {
     detail: {
-      at: new Date().toLocaleTimeString("tr-TR", { hour12: false }),
+      at: new Date().toISOString(),
       category,
       message: message.slice(0, MAX_DIAGNOSTIC_MESSAGE_LENGTH),
       ...context,

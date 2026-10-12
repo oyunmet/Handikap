@@ -7,6 +7,9 @@ export type WorldProbeRecoveryState = {
   firstFrameAt: number;
   blackSamples: number;
   recentRecoveryAt: number[];
+  lastRecoveryAttemptAt?: number;
+  detectionEmitted?: boolean;
+  healthySamples?: number;
 };
 
 export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {

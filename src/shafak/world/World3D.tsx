@@ -61,6 +61,7 @@ import {
 } from "./duel-vfx";
 import WorldRenderCanary from "./WorldRenderCanary";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
+import type { WorldProbeRecoveryState } from "./world-screen-probe";
 import {
   createWorldCanarySnapshot,
   isWorldRenderDead,
@@ -192,7 +193,10 @@ type DebugStats = {
   materials: number;
   particleSystems: number;
   weather: WeatherMode;
+  safeVisualTier: "standard" | "lambert" | "basic";
 };
+
+type SafeVisualTier = "lambert" | "basic" | null;
 
 type BlackFrameCapture = {
   at: string;
@@ -467,21 +471,38 @@ function RendererEffects({
   return null;
 }
 
-function WorldShaderWarmup() {
+function WorldShaderWarmup({
+  fallbackMaterials,
+}: {
+  fallbackMaterials: { lambert: THREE.MeshLambertMaterial; basic: THREE.MeshBasicMaterial };
+}) {
   const { gl, scene, camera } = useThree();
   const startedRef = useRef(false);
   useFrame(() => {
     if (startedRef.current) return;
     startedRef.current = true;
     window.requestAnimationFrame(() => {
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const fallbackScene = new THREE.Scene();
+      fallbackScene.fog = scene.fog;
+      fallbackScene.add(new THREE.HemisphereLight("#c6b6b9", "#1a1b2b", 0.62));
+      fallbackScene.add(new THREE.DirectionalLight("#ffd09a", 2.05));
+      fallbackScene.add(new THREE.Mesh(geometry, fallbackMaterials.lambert));
+      fallbackScene.add(new THREE.Mesh(geometry, fallbackMaterials.basic));
       const before = gl.info.programs?.length ?? 0;
-      void gl.compileAsync(scene, camera).then(() => {
-        const after = gl.info.programs?.length ?? 0;
-        emitWorldDiagnostic("shader-warmup", `Mevcut sahne shader'ları ısıtıldı; program ${before} → ${after}.`);
-      }).catch((error: unknown) => {
-        const message = error instanceof Error ? error.stack ?? error.message : String(error);
-        emitWorldDiagnostic("shader-warmup", `Shader ön ısıtma başarısız: ${message}`);
-      });
+      void (async () => {
+        try {
+          await gl.compileAsync(scene, camera);
+          await gl.compileAsync(fallbackScene, camera);
+          const after = gl.info.programs?.length ?? 0;
+          emitWorldDiagnostic("shader-warmup", `Sahne, Lambert ve Basic shader'ları ısıtıldı; program ${before} → ${after}.`);
+        } catch (error) {
+          const message = error instanceof Error ? error.stack ?? error.message : String(error);
+          emitWorldDiagnostic("shader-warmup", `Shader ön ısıtma başarısız: ${message}`);
+        } finally {
+          geometry.dispose();
+        }
+      })();
     });
   }, -1);
   return null;
@@ -642,7 +663,7 @@ function CameraRig({
       ? duelFov - combatImpact * 1.1 - skillZoom - finisherZoom
       : focusedRival ? (cinematicIntro ? 51 : 48) : 54 + Math.min(speed, 7) * 0.7;
     const desiredFov = Number.isFinite(rawDesiredFov)
-      ? THREE.MathUtils.clamp(rawDesiredFov, 32, 68)
+      ? THREE.MathUtils.clamp(rawDesiredFov, 40, 85)
       : 54;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
@@ -1301,11 +1322,15 @@ function SceneContents({
   onPerformanceStats,
   debugEnabled,
   recoveryStage,
+  persistedVisualTier,
+  blackProbeRecoveryStateRef,
 }: World3DProps & {
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   debugEnabled: boolean;
   recoveryStage: number;
+  persistedVisualTier: SafeVisualTier;
+  blackProbeRecoveryStateRef: MutableRefObject<WorldProbeRecoveryState>;
 }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
@@ -1316,6 +1341,31 @@ function SceneContents({
   const { gl, scene } = useThree();
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const [shadowQuality] = useState(quality);
+  const fallbackMaterials = useMemo(() => ({
+    lambert: new THREE.MeshLambertMaterial({ color: "#ffffff", fog: true }),
+    basic: new THREE.MeshBasicMaterial({ color: "#ffffff", fog: true }),
+  }), []);
+  const safeVisualTier = recoveryStage >= 2
+    ? "basic"
+    : recoveryStage === 1
+      ? "lambert"
+      : persistedVisualTier ?? "standard";
+  useEffect(() => {
+    const material = safeVisualTier === "lambert"
+      ? fallbackMaterials.lambert
+      : safeVisualTier === "basic"
+        ? fallbackMaterials.basic
+        : null;
+    scene.overrideMaterial = material;
+    if (material) emitWorldDiagnostic("visual-tier", `Güvenli görsel kipi etkin: ${safeVisualTier}.`);
+    return () => {
+      if (scene.overrideMaterial === material) scene.overrideMaterial = null;
+    };
+  }, [fallbackMaterials, safeVisualTier, scene]);
+  useEffect(() => () => {
+    fallbackMaterials.lambert.dispose();
+    fallbackMaterials.basic.dispose();
+  }, [fallbackMaterials]);
   const shadowMapSize = getShadowMapSize(shadowQuality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
   const zeroDrawCallFramesRef = useRef(0);
@@ -1521,7 +1571,7 @@ function SceneContents({
           emitWorldDiagnostic("weather", `Hava değişti ${previousWeatherRef.current} → ${weatherMode}.`);
           previousWeatherRef.current = weatherMode;
         }
-        const effectsKey = `${combatActive ? "duel" : focusedRival?.id ?? "travel"}|${visualEffectsEnabled ? "vfx" : "no-vfx"}`;
+        const effectsKey = `${combatActive ? `duel:${opponentName}` : focusedRival?.id ?? "travel"}|${visualEffectsEnabled ? "vfx" : "no-vfx"}|${combatVisualEvents.length}`;
         if (previousEffectsRef.current && previousEffectsRef.current !== effectsKey) {
           emitWorldDiagnostic("rival-effects", `Rakip halkası/aura bağlamı değişti: ${previousEffectsRef.current} → ${effectsKey}.`);
         }
@@ -1584,6 +1634,7 @@ function SceneContents({
           materials: materialIds.size,
           particleSystems,
           weather: weatherMode,
+          safeVisualTier,
         });
         monitor.startedAt = now;
         monitor.frames = 0;
@@ -1610,7 +1661,7 @@ function SceneContents({
         combatActive={combatActive}
       />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
-      <WorldShaderWarmup />
+      <WorldShaderWarmup fallbackMaterials={fallbackMaterials} />
       <color attach="background" args={[combatActive ? "#39343e" : "#252330"]} />
       <hemisphereLight
         name="world-hemisphere"
@@ -1739,7 +1790,7 @@ function SceneContents({
         )
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
-      <WorldBlackFrameProbe />
+      <WorldBlackFrameProbe recoveryStateRef={blackProbeRecoveryStateRef} />
       <WorldRenderCanary onStatus={reportCanaryStatus} />
     </>
   );
@@ -1762,6 +1813,16 @@ function isStressTestEnabled() {
   return query.get("debug") === "1" && query.get("stress") === "1";
 }
 
+function readPersistedSafeVisualTier(): SafeVisualTier {
+  if (typeof window === "undefined" || !window.matchMedia("(pointer: coarse)").matches) return null;
+  try {
+    const stored = window.localStorage.getItem("shafak-world-safe-visual-tier");
+    return stored === "basic" || stored === "lambert" ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function World3D(props: World3DProps) {
   const active = props.active ?? true;
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
@@ -1777,6 +1838,15 @@ export default function World3D(props: World3DProps) {
   const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
   const [debugCopied, setDebugCopied] = useState(false);
   const [blackCapture, setBlackCapture] = useState<BlackFrameCapture | null>(null);
+  const [persistedVisualTier, setPersistedVisualTier] = useState<SafeVisualTier>(readPersistedSafeVisualTier);
+  const blackProbeRecoveryStateRef = useRef<WorldProbeRecoveryState>({
+    firstFrameAt: 0,
+    blackSamples: 0,
+    recentRecoveryAt: [],
+    lastRecoveryAttemptAt: 0,
+    detectionEmitted: false,
+    healthySamples: 0,
+  });
   const [selfTestRows, setSelfTestRows] = useState<ReadonlyMap<string, WorldCanarySnapshot["lastPixel"]>>(
     () => new Map(),
   );
@@ -1796,9 +1866,8 @@ export default function World3D(props: World3DProps) {
   const selfTestEnabled = isSelfTestEnabled();
   const stressTestEnabled = isStressTestEnabled();
   const recoveryStageRef = useRef(0);
+  const lastRecoverySourceRef = useRef<string | null>(null);
   const lastRecoveryFailureWasContextCreationRef = useRef(false);
-  const diagnosticSnapshotRef = useRef({ debugEvents, debugStats });
-  diagnosticSnapshotRef.current = { debugEvents, debugStats };
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
     averageFps: 0,
     minimumFps: 0,
@@ -1850,7 +1919,10 @@ export default function World3D(props: World3DProps) {
     materials: 0,
     particleSystems: 0,
     weather: props.weatherMode,
+    safeVisualTier: persistedVisualTier ?? "standard",
   });
+  const diagnosticSnapshotRef = useRef({ debugEvents, debugStats });
+  diagnosticSnapshotRef.current = { debugEvents, debugStats };
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const maxDpr = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
@@ -1904,6 +1976,27 @@ export default function World3D(props: World3DProps) {
       setSceneAttempt((attempt) => attempt + 1);
     }
   }, []);
+  const settleRecovery = useCallback(() => {
+    const settledStage = recoveryStageRef.current;
+    if (settledStage === 0) return;
+    const tier: SafeVisualTier = settledStage >= 2 ? "basic" : "lambert";
+    setPersistedVisualTier(tier);
+    if (touchRenderer) {
+      try {
+        window.localStorage.setItem("shafak-world-safe-visual-tier", tier);
+        emitWorldDiagnostic("visual-tier", `Dokunmatik cihaz için ${tier} kipi kalıcı kaydedildi.`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        emitWorldDiagnostic("visual-tier", `Görsel kip kalıcı kaydedilemedi: ${message}`);
+      }
+    }
+    recoveryStageRef.current = 0;
+    lastRecoveryFailureWasContextCreationRef.current = false;
+    lastRecoverySourceRef.current = null;
+    setRecoveryStage(0);
+    setRecoveryMessage("");
+    emitWorldDiagnostic("recovery", `Kurtarma ${settledStage}/3 sonrası kararlı görüntü doğrulandı; ${tier} kipinde devam ediliyor.`);
+  }, [touchRenderer]);
   const markContextLost = useCallback(() => {
     lastRecoveryFailureWasContextCreationRef.current = true;
     setRecoveryMessage("Sahne yenileniyor…");
@@ -1964,13 +2057,18 @@ export default function World3D(props: World3DProps) {
       );
     };
     const onStressComplete = () => setStressWalkEnabled(false);
+    const onBlackFrameHealthy = () => {
+      if (lastRecoverySourceRef.current === "black-frame-probe") settleRecovery();
+    };
     window.addEventListener("shafak:black-frame-detected", onBlackFrame);
     window.addEventListener("shafak:stress-auto-walk-complete", onStressComplete);
+    window.addEventListener("shafak:black-frame-healthy", onBlackFrameHealthy);
     return () => {
       window.removeEventListener("shafak:black-frame-detected", onBlackFrame);
       window.removeEventListener("shafak:stress-auto-walk-complete", onStressComplete);
+      window.removeEventListener("shafak:black-frame-healthy", onBlackFrameHealthy);
     };
-  }, []);
+  }, [settleRecovery]);
 
   useEffect(() => {
     const onDiagnostic = (event: Event) => {
@@ -2002,6 +2100,8 @@ export default function World3D(props: World3DProps) {
     if (!debugEnabled) return undefined;
     const previousWarn = console.warn;
     const previousError = console.error;
+    const needsUpdateCounts = new Map<string, number>();
+    let needsUpdateTimer: number | null = null;
     const renderArgs = (args: unknown[]) => args.map((value) => {
       if (value instanceof Error) return value.stack ?? value.message;
       if (typeof value === "string") return value;
@@ -2015,6 +2115,19 @@ export default function World3D(props: World3DProps) {
       previousError.apply(console, args);
       emitWorldDiagnostic("console.error", renderArgs(args));
     };
+    const flushNeedsUpdateCounts = () => {
+      needsUpdateTimer = null;
+      if (!needsUpdateCounts.size) return;
+      const entries = [...needsUpdateCounts.entries()];
+      const total = entries.reduce((sum, [, count]) => sum + count, 0);
+      const summary = entries
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 20)
+        .map(([name, count]) => `${name}×${count}`)
+        .join(", ");
+      needsUpdateCounts.clear();
+      emitWorldDiagnostic("needsUpdate", `needsUpdate=true toplam ${total}: ${summary}`);
+    };
 
     const restoreAccessors: Array<() => void> = [];
     for (const prototype of [THREE.Material.prototype, THREE.Texture.prototype]) {
@@ -2024,11 +2137,11 @@ export default function World3D(props: World3DProps) {
         ...descriptor,
         set(this: THREE.Material | THREE.Texture, value: boolean) {
           if (value === true) {
-            const resource = this as THREE.Material & THREE.Texture;
-            emitWorldDiagnostic(
-              "needsUpdate",
-              `${resource.type ?? "kaynak"} needsUpdate=true${resource.name ? ` · ${resource.name}` : ""}.`,
-            );
+            const resource = this as unknown as { type?: string; name?: string };
+            const type = resource.type ?? this.constructor.name ?? "kaynak";
+            const key = `${type}${resource.name ? `:${resource.name}` : ""}`;
+            needsUpdateCounts.set(key, (needsUpdateCounts.get(key) ?? 0) + 1);
+            if (needsUpdateTimer === null) needsUpdateTimer = window.setTimeout(flushNeedsUpdateCounts, 250);
           }
           descriptor.set?.call(this, value);
         },
@@ -2038,13 +2151,18 @@ export default function World3D(props: World3DProps) {
     return () => {
       console.warn = previousWarn;
       console.error = previousError;
+      if (needsUpdateTimer !== null) window.clearTimeout(needsUpdateTimer);
+      flushNeedsUpdateCounts();
       restoreAccessors.reverse().forEach((restore) => restore());
     };
   }, [debugEnabled]);
 
   useEffect(() => {
     const recoverScene = (event: Event) => {
-      const detail = (event as CustomEvent<{ error?: Error; message?: string }>).detail;
+      const detail = (event as CustomEvent<{ error?: Error; message?: string; source?: string }>).detail;
+      if (detail?.source === "black-frame-probe" || !lastRecoverySourceRef.current) {
+        lastRecoverySourceRef.current = detail?.source ?? "renderer-watchdog";
+      }
       retryCanvasAfterError(detail?.error ?? new Error(detail?.message ?? "3D sahne çizim durdu."));
     };
     window.addEventListener("shafak:scene-recovery", recoverScene);
@@ -2095,15 +2213,13 @@ export default function World3D(props: World3DProps) {
 
   useEffect(() => {
     if (!active || !webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
+    if (lastRecoverySourceRef.current === "black-frame-probe") return undefined;
     const timer = window.setTimeout(() => {
-      recoveryStageRef.current = 0;
+      settleRecovery();
       lastRecoveryFailureWasContextCreationRef.current = false;
-      setRecoveryStage(0);
-      setRecoveryMessage("");
-      emitWorldDiagnostic("recovery", "Sahne 10 saniye boyunca çizim üretti; kurtarma sayacı sıfırlandı.");
     }, 10_000);
     return () => window.clearTimeout(timer);
-  }, [active, canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, settleRecovery, touchRenderer, webglAvailable]);
 
   useEffect(() => {
     if (!active || !firstFrameReported || recoveryStage === 0 || recoveryStage >= 3) return undefined;
@@ -2160,13 +2276,13 @@ export default function World3D(props: World3DProps) {
                 : context.getParameter(context.RENDERER));
               setRendererName(activeRendererName);
               const previousShaderError = renderer.debug.onShaderError;
-              renderer.debug.checkShaderErrors = true;
-              renderer.debug.onShaderError = (context, program, vertexShader, fragmentShader) => {
+              renderer.debug.checkShaderErrors = debugEnabled;
+              if (debugEnabled) renderer.debug.onShaderError = (context, program, vertexShader, fragmentShader) => {
                 const logs = [
-                  context.getProgramInfoLog(program),
-                  context.getShaderInfoLog(vertexShader),
-                  context.getShaderInfoLog(fragmentShader),
-                ].filter(Boolean).join("\n").slice(0, 1_800);
+                  `Program Info Log:\n${context.getProgramInfoLog(program) ?? ""}`,
+                  `Vertex Shader Info Log:\n${context.getShaderInfoLog(vertexShader) ?? ""}`,
+                  `Fragment Shader Info Log:\n${context.getShaderInfoLog(fragmentShader) ?? ""}`,
+                ].filter((line) => !line.endsWith(":\n")).join("\n").slice(0, 8_000);
                 emitWorldDiagnostic("shader", logs || "WebGL shader/program derleme hatası.");
                 if (typeof previousShaderError === "function") {
                   previousShaderError(context, program, vertexShader, fragmentShader);
@@ -2196,6 +2312,8 @@ export default function World3D(props: World3DProps) {
                 onSelfTestCombo={recordSelfTestCombo}
                 debugEnabled={debugEnabled}
                 recoveryStage={recoveryStage}
+                persistedVisualTier={persistedVisualTier}
+                blackProbeRecoveryStateRef={blackProbeRecoveryStateRef}
                 onDebugStats={setDebugStats}
                 onPerformanceStats={setPerformanceStats}
               />
@@ -2232,11 +2350,11 @@ export default function World3D(props: World3DProps) {
           <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
           <span>Render döngüsü: {debugStats.fps > 0 ? "CANLI" : "BAŞLAMADI"} · İlk kare: {firstFrameReported ? "EVET" : "BEKLENİYOR"} · Aktif rakip: {props.combatActive ? props.opponentName : props.focusedRival?.name ?? "yok"} · Model: {props.combatActive && getOpponentModelConfig(props.opponentName)?.modelPath ? "GLB" : "prosedürel"}</span>
           <span>WebGL aygıtı: {rendererName}</span>
-          <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
+          <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m · Güvenli görsel kip: {debugStats.safeVisualTier}</span>
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
-          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {debugStats.weather} · Sis: {debugStats.fogMode} {debugStats.fogNear === null ? "" : `${debugStats.fogNear}/${debugStats.fogFar}`} ${debugStats.fogDensity.toFixed(4)} ${debugStats.fogColor} · Parça: {debugStats.chunks}</span>
+          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {debugStats.weather} · Sis: {debugStats.fogMode} {debugStats.fogNear === null ? "" : `${debugStats.fogNear}/${debugStats.fogFar}`} · {debugStats.fogDensity.toFixed(4)} · {debugStats.fogColor} · Parça: {debugStats.chunks}</span>
           <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · FOV/yakın/uzak: {debugStats.cameraFov.toFixed(1)}/{debugStats.cameraNear.toFixed(1)}/{debugStats.cameraFar.toFixed(0)} · finite={debugStats.cameraFinite ? "evet" : "HAYIR"} · BG: {debugStats.background} · pozlama: {debugStats.exposure.toFixed(2)}</span>
           <span>Işık: {debugStats.lights} görünür/{debugStats.shadowLights} gölge · {debugStats.lightTypes || "yok"} · Parçacık sistemi/nesnesi: {debugStats.particleSystems}</span>
           <span>Kanarya: {debugStats.canaryState} · Siyah art arda: {debugStats.canaryConsecutiveBlack}/5 · Sahne luma: {debugStats.pixelLuminance === null ? "bekleniyor" : debugStats.pixelLuminance.toFixed(3)} · Parlak örnek: {debugStats.litPixelSamples}/{debugStats.pixelSampleCount} · Shader: {debugStats.programs}</span>
