@@ -74,7 +74,7 @@ export const MAX_PICKUPS_PER_CLAIM = 14;
 export const MAX_CHAPTER_ID = 1_000_000;
 
 const PICKUP_DISTANCES = [10, 19, 28, 34, 62, 69, 92, 99, 105, 123, 129, 138] as const;
-const PICKUP_LANES = [-4.8, -3.2, 0, 3.2, 4.8] as const;
+const PICKUP_LANES = [-3.2, -1.6, 0, 1.6, 3.2] as const;
 function seededRandom(seed: number) {
   let value = seed >>> 0;
   return () => {
@@ -136,7 +136,7 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
     chapterId,
     kind: "treasure-cache",
     amount: 75 + Math.floor(random() * 26),
-    x: 4.8,
+    x: 0,
     distance: chapterStart + 58,
   };
 

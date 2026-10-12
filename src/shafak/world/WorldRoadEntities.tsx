@@ -19,7 +19,7 @@ type MotionRef = MutableRefObject<WorldMotion>;
 const PICKUP_STYLE = {
   "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.16 },
   "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.25 },
-  "treasure-cache": { color: "#f1ca70", glow: "#e39532", size: 0.29 },
+  "treasure-cache": { color: "#f1ca70", glow: "#e39532", size: 0.38 },
   "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.2 },
   "iron-shard": { color: "#d1d8df", glow: "#7d9ba4", size: 0.19 },
   "ember-crystal": { color: "#69e7de", glow: "#35c5d1", size: 0.21 },
@@ -110,6 +110,11 @@ function Collectible({
         )}
         <Sparkles count={pickup.kind === "seal-fragment" || pickup.kind === "diamond-small" ? 5 : 3} scale={0.85} size={2.3} speed={reducedMotion ? 0 : 0.3} color={style.color} />
       </group>
+      {pickup.kind === "treasure-cache" && (
+        <Html position={[0, 1.45, 0]} center distanceFactor={12} zIndexRange={[14, 0]} style={{ pointerEvents: "none" }}>
+          <span className="world-pickup-tag">ALTIN SANDIĞI · {pickup.amount} ALTIN</span>
+        </Html>
+      )}
     </group>
   );
 }
@@ -117,6 +122,11 @@ function Collectible({
 function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; motionRef: MotionRef; broken: boolean }) {
   const rootRef = useRef<THREE.Group>(null);
   const warningRef = useRef<THREE.Mesh>(null);
+  const obstacleLabel = obstacle.kind === "spike-trap"
+    ? "TUZAK · ZIPLA"
+    : obstacle.kind === "low-bar"
+      ? "ALÇAK ENGEL · EĞİL"
+      : obstacle.kind === "barricade" ? "BARİKAT · SALDIR" : "KAYA · ZIPLA";
   useFrame((frame) => {
     if (!rootRef.current) return;
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
@@ -130,6 +140,9 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
 
   return (
     <group ref={rootRef} position={[obstacle.x, 0, 0]}>
+      <Html position={[0, 2.12, 0]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
+        <span className={`world-obstacle-tag is-${obstacle.kind}`}>{obstacleLabel}</span>
+      </Html>
       {obstacle.kind === "rock" ? (
         <mesh position={[0, 0.72, 0]} rotation={[0.1, 0.7, 0.2]}>
           <dodecahedronGeometry args={[0.92, 0]} />
@@ -237,12 +250,10 @@ const EMPTY_BROKEN = new Set<string>();
 function BotActor({
   rival,
   motionRef,
-  reducedMotion,
   focused,
 }: {
   rival: WorldRival;
   motionRef: MotionRef;
-  reducedMotion: boolean;
   focused: boolean;
 }) {
   const rootRef = useRef<THREE.Group>(null);
@@ -250,33 +261,16 @@ function BotActor({
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
   const profile = getWorldBotProfileByName(rival.name);
   const tintAppliedRef = useRef(false);
-  const [noticed, setNoticed] = useState(false);
-  const [walking, setWalking] = useState(false);
 
-  useFrame((frame) => {
+  useFrame(() => {
     const root = rootRef.current;
     if (!root) return;
     const motion = motionRef.current;
-    const playerDistance = motion.distance;
-    const gap = rival.distance - playerDistance;
-    const detected = gap > -0.5 && gap <= 18;
-    const approaching = gap > 2.7 && gap <= 8;
-    const patrol = detected ? 0 : Math.sin(frame.clock.elapsedTime * 0.7 + rival.level) * 0.26;
-    const challengeStep = approaching && !reducedMotion
-      ? Math.sin(frame.clock.elapsedTime * 4.8) * 0.12
-      : 0;
-    root.position.set(patrol, 0, -(rival.distance - motion.cameraX) + challengeStep);
+    root.position.set(0, 0, -(rival.distance - motion.cameraX));
     root.scale.setScalar(rival.size);
+    const gap = rival.distance - motion.distance;
     root.visible = gap >= -12 && gap <= 105;
-    if (detected) {
-      const dx = motion.depth * 5.2 - rival.x;
-      const dz = gap;
-      root.rotation.y = Math.atan2(dx, -dz) + Math.PI;
-    } else {
-      root.rotation.y = Math.sin(frame.clock.elapsedTime * 0.34 + rival.level) * 0.08;
-    }
-    if (detected !== noticed) setNoticed(detected);
-    if (approaching !== walking) setWalking(approaching);
+    root.rotation.y = 0;
 
     if (!tintAppliedRef.current) {
       root.traverse((object) => {
@@ -299,15 +293,17 @@ function BotActor({
 
   const botMotion = poseRef.current;
   botMotion.depth = 0;
-  botMotion.velocityY = walking ? 1.4 : 0;
+  botMotion.velocityX = 0;
+  botMotion.velocityY = 0;
 
   return (
     <group ref={rootRef}>
       <group position={[rival.x, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
-          state={walking ? "walk" : "idle"}
-          motionReduced={reducedMotion}
+          state="idle"
+          motionReduced
+          animationTimeScale={0}
           castShadow={focused}
           appearance={profile?.appearance}
         />
@@ -320,16 +316,16 @@ function BotActor({
       <mesh position={[rival.x, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={focused ? [1.45, 1.62, 32] : [1.05, 1.18, 24]} />
         <meshBasicMaterial
-          color={noticed || focused ? "#ff704f" : rival.armorTint}
+          color={focused ? "#ff704f" : rival.armorTint}
           transparent
-          opacity={noticed || focused ? 0.6 : 0.24}
+          opacity={focused ? 0.6 : 0.24}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
       </mesh>
       <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-        <span className={`world-rival-tag${focused ? " is-focused" : ""}${walking ? " is-challenging" : ""}`} data-weapon={rival.weapon}>
-          <b>{rival.name}</b><span>{walking ? "MEYDAN OKU" : rival.title}</span>
+        <span className={`world-rival-tag${focused ? " is-focused" : ""}`} data-weapon={rival.weapon}>
+          <b>{rival.name}</b><span>{rival.title}</span>
         </span>
       </Html>
     </group>
@@ -402,7 +398,6 @@ export default function WorldRoadEntities({
           key={rival.id}
           rival={rival}
           motionRef={motionRef}
-          reducedMotion={reducedMotion}
           focused={rival.id === focusedRivalId}
         />
       ))}

@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { WorldMotion } from "./movement";
+import { COMBAT_ARENA_CENTER_Z, COMBAT_ARENA_RADIUS, type CombatState } from "../game/combat-engine";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 
 type World2DFallbackProps = {
   motionRef: { current: WorldMotion };
+  combatStateRef: { current: CombatState | null };
   rivals: WorldRival[];
   pickups: WorldPickup[];
   obstacles: WorldObstacle[];
@@ -151,8 +153,32 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
     context.beginPath();
     context.ellipse(width / 2, height * .72, width * .35, height * .13, 0, 0, Math.PI * 2);
     context.stroke();
-    drawFighter(context, width * .35, height * .77, Math.min(1.8, width / 250), "#654e4a", 1);
-    drawFighter(context, width * .65, height * .77, Math.min(1.8, width / 250), "#514255", -1);
+    const combat = props.combatStateRef.current;
+    const player = combat?.player;
+    const bot = combat?.bot;
+    const actorScreenPosition = (actor: CombatState["player"]) => ({
+      x: width / 2 + (actor.x / COMBAT_ARENA_RADIUS) * width * .28,
+      y: height * .72 + ((actor.z - COMBAT_ARENA_CENTER_Z) / COMBAT_ARENA_RADIUS) * height * .1,
+    });
+    const playerPosition = player ? actorScreenPosition(player) : { x: width * .35, y: height * .77 };
+    const botPosition = bot ? actorScreenPosition(bot) : { x: width * .65, y: height * .77 };
+    const fighterScale = Math.min(1.8, width / 250);
+    drawFighter(
+      context,
+      playerPosition.x,
+      playerPosition.y,
+      fighterScale,
+      "#654e4a",
+      botPosition.x >= playerPosition.x ? 1 : -1,
+    );
+    drawFighter(
+      context,
+      botPosition.x,
+      botPosition.y,
+      fighterScale,
+      "#514255",
+      playerPosition.x >= botPosition.x ? 1 : -1,
+    );
     context.fillStyle = "#f0d9ad";
     context.textAlign = "center";
     context.font = "700 11px system-ui, sans-serif";
@@ -198,15 +224,32 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
     } else if (entity.kind === "pickup") {
       const pickup = entity.value as WorldPickup;
       const radius = 3 + point.depth * 7;
-      context.fillStyle = pickup.kind.startsWith("gold") || pickup.kind === "treasure-cache"
-        ? "#f2c969"
-        : pickup.kind === "diamond-small" ? "#75e8e8" : "#cb9cf4";
-      context.shadowColor = context.fillStyle;
-      context.shadowBlur = radius * 1.5;
-      context.beginPath();
-      context.arc(point.x, point.y - radius * 2, radius, 0, Math.PI * 2);
-      context.fill();
-      context.shadowBlur = 0;
+      if (pickup.kind === "treasure-cache") {
+        context.save();
+        context.translate(point.x, point.y - radius * 1.6);
+        context.shadowColor = "#f2c969";
+        context.shadowBlur = radius * 1.8;
+        context.fillStyle = "#70472d";
+        context.fillRect(-radius * 1.8, -radius * .65, radius * 3.6, radius * 1.8);
+        context.fillStyle = "#e3b954";
+        context.fillRect(-radius * 1.95, -radius * 1.15, radius * 3.9, radius * .72);
+        context.fillRect(-radius * .24, -radius * .75, radius * .48, radius * 1.85);
+        context.shadowBlur = 0;
+        context.fillStyle = "#f4dfa9";
+        context.textAlign = "center";
+        context.font = `800 ${Math.max(7, radius * .85)}px system-ui, sans-serif`;
+        context.fillText("ALTIN SANDIĞI", 0, -radius * 1.55);
+        context.restore();
+      } else {
+        context.fillStyle = pickup.kind.startsWith("gold") ? "#f2c969"
+          : pickup.kind === "diamond-small" ? "#75e8e8" : "#cb9cf4";
+        context.shadowColor = context.fillStyle;
+        context.shadowBlur = radius * 1.5;
+        context.beginPath();
+        context.arc(point.x, point.y - radius * 2, radius, 0, Math.PI * 2);
+        context.fill();
+        context.shadowBlur = 0;
+      }
     } else {
       const obstacle = entity.value as WorldObstacle;
       const obstacleSize = 8 + point.depth * 28;
@@ -229,6 +272,16 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
           context.fillRect(-obstacleSize, -obstacleSize * 1.8, obstacleSize * 2, obstacleSize * .2);
         }
       }
+      context.fillStyle = "#f5d9aa";
+      context.textAlign = "center";
+      context.font = `700 ${Math.max(7, 8 * point.depth)}px system-ui, sans-serif`;
+      context.fillText(
+        obstacle.kind === "spike-trap" ? "ZIPLA"
+          : obstacle.kind === "low-bar" ? "EĞİL"
+            : obstacle.kind === "barricade" ? "SALDIR" : "ZIPLA",
+        0,
+        -obstacleSize * 1.05,
+      );
       context.restore();
     }
   }

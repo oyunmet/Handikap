@@ -396,9 +396,9 @@ function CameraRig({
         const eased = progress * progress * (3 - 2 * progress);
         desiredRef.set(centerX + 7.2 - eased * 4.5, 3.7 - eased * 0.35, centerZ + 3.6 + eased * 3.6);
       } else {
-        desiredRef.set(centerX + 4.1, 3.25, centerZ + 7.25);
+        desiredRef.set(centerX + 1.35, 3.05, centerZ + 8.3);
       }
-      targetRef.set(centerX, 1.1, centerZ - 0.35);
+      targetRef.set(centerX, 1.08, centerZ);
       if (combat.lastImpactTick !== impactRef.current.tick) {
         impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
       }
@@ -562,14 +562,6 @@ function DuelFighter({
         />
       </group>
       {visualEffectsEnabled && <DuelAshDispersal active={defeated} x={renderedActor.x} />}
-      {side === "bot" && (
-        <Html position={[renderedActor.x, 2.55, renderedActor.z]} center distanceFactor={12} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
-          <span className="world-rival-tag is-focused">
-            <b>{opponentName}</b>
-            <span>{getWorldBotProfileByName(opponentName)?.title ?? "SAVAŞÇI"}</span>
-          </span>
-        </Html>
-      )}
     </group>
   );
 }
@@ -1225,16 +1217,18 @@ function SceneContents({
         finisherSlowMotion={finisherSlowMotion}
       />
       <AshSky motionRef={motionRef} />
-      <group name="road-world">
-        <WorldChunks
-          chunks={chunks}
-          motionRef={motionRef}
-          motionReduced={motionReduced}
-          quality={quality}
-          weather={weatherMode}
-          unlockedThroughChapter={unlockedThroughChapter}
-        />
-      </group>
+      {!combatActive && (
+        <group name="road-world">
+          <WorldChunks
+            chunks={chunks}
+            motionRef={motionRef}
+            motionReduced={motionReduced}
+            quality={quality}
+            weather={weatherMode}
+            unlockedThroughChapter={unlockedThroughChapter}
+          />
+        </group>
+      )}
       <WarmupErrorBoundary>
         <Suspense fallback={null}><DuelModelShaderWarmup /></Suspense>
       </WarmupErrorBoundary>
@@ -1331,6 +1325,7 @@ export default function World3D(props: World3DProps) {
   const fallback = (
     <World2DFallback
       motionRef={props.motionRef}
+      combatStateRef={props.combatStateRef}
       rivals={props.rivals}
       pickups={props.pickups}
       obstacles={props.obstacles}

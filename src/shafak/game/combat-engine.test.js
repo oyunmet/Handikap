@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   INPUT_BUTTON,
+  COMBAT_ARENA_CENTER_Z,
+  COMBAT_ARENA_RADIUS,
   MAX_DUEL_TICKS,
   createCombatState,
   getBotAttackWindupTicks,
@@ -56,6 +58,27 @@ test("combatants cannot occupy the same space during a duel", () => {
   initial.bot.z = 0;
   const state = stepCombat(initial, { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 }).state;
   assert.ok(Math.hypot(state.player.x - state.bot.x, state.player.z - state.bot.z) >= 1.08 - 1e-9);
+});
+
+test("combat movement can advance toward the opponent along the arena depth axis", () => {
+  const initial = createCombatState(8123, "easy");
+  const moved = stepCombat(initial, { x: 0, y: -100, buttons: 0, pressed: 0, released: 0 }).state;
+  assert.ok(moved.player.z < initial.player.z);
+  assert.equal(moved.player.x, initial.player.x);
+});
+
+test("both combatants stay inside the circular duel arena while moving diagonally", () => {
+  let state = createCombatState(8124, "medium");
+  state.bot.x = 3;
+  state.bot.z = COMBAT_ARENA_CENTER_Z;
+  for (let tick = 0; tick < 240; tick += 1) {
+    state = stepCombat(state, { x: 100, y: 100, buttons: 0, pressed: 0, released: 0 }).state;
+    for (const actor of [state.player, state.bot]) {
+      assert.ok(
+        Math.hypot(actor.x, actor.z - COMBAT_ARENA_CENTER_Z) <= COMBAT_ARENA_RADIUS + 1e-9,
+      );
+    }
+  }
 });
 
 test("server-owned equipment modifiers set combat stats and keep replays deterministic", () => {

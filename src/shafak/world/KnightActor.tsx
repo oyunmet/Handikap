@@ -261,9 +261,11 @@ function OptionalGlbKnight({
           root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
         }
       } else {
+        const modelFacing = modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing;
+        const targetYaw = facingAngle - modelFacing;
         const turn = Math.atan2(
-          Math.sin(facingAngle - root.rotation.y),
-          Math.cos(facingAngle - root.rotation.y),
+          Math.sin(targetYaw - root.rotation.y),
+          Math.cos(targetYaw - root.rotation.y),
         );
         root.rotation.y += turn * (1 - Math.exp(-Math.max(0, Math.min(delta, 0.05)) * 10));
       }

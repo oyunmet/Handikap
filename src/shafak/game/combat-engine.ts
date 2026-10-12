@@ -2,6 +2,8 @@ import type { PlayerCombatModifiers } from "./store-types.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
+export const COMBAT_ARENA_CENTER_Z = -0.6;
+export const COMBAT_ARENA_RADIUS = 3.62;
 export const INPUT_BUTTON = {
   attack: 1,
   block: 2,
@@ -167,8 +169,8 @@ export function createCombatState(
     rngState: cleanSeed,
     difficulty,
     playerStats: normalizedStats,
-    player: makeActor(-1.15, 0.15, normalizedStats.maxHealth),
-    bot: makeActor(1.15, -1.45, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130),
+    player: makeActor(-1.25, COMBAT_ARENA_CENTER_Z, normalizedStats.maxHealth),
+    bot: makeActor(1.25, COMBAT_ARENA_CENTER_Z, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130),
     ended: false,
     verdict: null,
     lastImpactTick: -10_000,
@@ -371,10 +373,27 @@ function moveActor(actor: CombatActor, x: number, y: number, tick: number, block
   const targetZ = canMove ? direction.y * speed : 0;
   actor.vx += (targetX - actor.vx) * 0.24;
   actor.vz += (targetZ - actor.vz) * 0.24;
-  actor.x = clamp(actor.x + actor.vx / COMBAT_HZ, -3.45, 3.45);
-  actor.z = clamp(actor.z + actor.vz / COMBAT_HZ, -2.15, 2.15);
+  actor.x += actor.vx / COMBAT_HZ;
+  actor.z += actor.vz / COMBAT_HZ;
   if (Math.abs(actor.vx) < 0.08) actor.vx = 0;
   if (Math.abs(actor.vz) < 0.08) actor.vz = 0;
+}
+
+function constrainActorToArena(actor: CombatActor) {
+  const dx = actor.x;
+  const dz = actor.z - COMBAT_ARENA_CENTER_Z;
+  const distance = Math.hypot(dx, dz);
+  if (distance <= COMBAT_ARENA_RADIUS) return;
+
+  const nx = dx / distance;
+  const nz = dz / distance;
+  actor.x = nx * COMBAT_ARENA_RADIUS;
+  actor.z = COMBAT_ARENA_CENTER_Z + nz * COMBAT_ARENA_RADIUS;
+  const outwardSpeed = actor.vx * nx + actor.vz * nz;
+  if (outwardSpeed > 0) {
+    actor.vx -= nx * outwardSpeed;
+    actor.vz -= nz * outwardSpeed;
+  }
 }
 
 export function stepCombat(state: CombatState, input: CombatInput): { state: CombatState; events: CombatEvent[] } {
@@ -438,6 +457,8 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier);
   moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
   resolveCombatActorOverlap(player, bot);
+  constrainActorToArena(player);
+  constrainActorToArena(bot);
   player.stamina = Math.min(player.maxStamina, player.stamina + 0.17);
   bot.stamina = Math.min(bot.maxStamina, bot.stamina + 0.14);
 
