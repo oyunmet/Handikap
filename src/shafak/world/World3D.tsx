@@ -394,8 +394,8 @@ function CameraRig({
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 7.2 : 7.8,
-        touchRenderer ? 2.4 : 1.6,
+        touchRenderer ? 8.2 : 8.7,
+        touchRenderer ? 0.55 : 0.8,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -508,6 +508,8 @@ function DuelFighter({
         || (side === "bot" && combatRender.verdict === "victory")
       ))),
   );
+  const isAttackBeat = Boolean(renderedActor && ["attack", "heavyAttack", "skillOne", "skillTwo", "parry"].includes(renderedActor.action));
+  const combatGlow = side === "player" ? "#ffad58" : "#6de0e5";
 
   useFrame(() => {
     const state = combatStateRef.current;
@@ -548,6 +550,21 @@ function DuelFighter({
   if (!renderedActor) return null;
   return (
     <group ref={actorRoot}>
+      {visualEffectsEnabled && (
+        <>
+          <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.48, isAttackBeat ? 0.76 : 0.66, 32]} />
+            <meshBasicMaterial color={isAttackBeat ? "#fff0ad" : combatGlow} transparent opacity={isAttackBeat ? 0.64 : 0.24} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+          <pointLight
+            position={[0, 1.55, 0.25]}
+            color={isAttackBeat ? "#fff0ad" : combatGlow}
+            intensity={isAttackBeat ? 12 : 3.2}
+            distance={isAttackBeat ? 5.5 : 3.8}
+            decay={2}
+          />
+        </>
+      )}
       <group ref={actorVisualRoot} scale={side === "bot" ? 1.07 : 1}>
         <KnightActor
           motionRef={actorMotion}
@@ -869,8 +886,9 @@ function DuelArena({
         <circleGeometry args={[42, 96]} />
         <meshBasicMaterial color="#302830" side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
-      <pointLight position={[0, 5.2, 1.4]} color="#ffe0b0" intensity={68} distance={24} decay={2} />
-      <pointLight position={[0, 4.1, -3.4]} color="#a5daf0" intensity={28} distance={22} decay={2} />
+      <pointLight position={[0, 5.2, 2.2]} color="#ffe0b0" intensity={82} distance={24} decay={2} />
+      <pointLight position={[0, 4.1, -3.8]} color="#a5daf0" intensity={42} distance={22} decay={2} />
+      <pointLight position={[-3.2, 2.8, -0.4]} color="#ff795c" intensity={16} distance={10} decay={2} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[4.28, 96]} />
         <meshStandardMaterial

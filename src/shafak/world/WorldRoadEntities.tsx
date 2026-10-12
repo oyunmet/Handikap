@@ -44,7 +44,7 @@ function Collectible({
     ? "coin"
     : pickup.kind === "gold-large"
       ? "large-coin"
-      : pickup.kind === "treasure-cache" ? "cache" : "crystal";
+      : pickup.kind === "treasure-cache" ? "large-coin" : "crystal";
 
   useFrame((frame) => {
     const root = rootRef.current;
@@ -87,21 +87,6 @@ function Collectible({
             <cylinderGeometry args={[0.74, 0.74, 0.2, 12]} />
             <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.78} metalness={0.86} roughness={0.2} />
           </mesh>
-        ) : geometry === "cache" ? (
-          <group scale={style.size * 1.9}>
-            <mesh position={[0, 0.15, 0]}>
-              <boxGeometry args={[0.86, 0.52, 0.62]} />
-              <meshStandardMaterial color="#79502f" emissive={style.glow} emissiveIntensity={0.22} metalness={0.42} roughness={0.56} />
-            </mesh>
-            <mesh position={[0, 0.47, 0]}>
-              <boxGeometry args={[0.98, 0.12, 0.72]} />
-              <meshStandardMaterial color={style.color} metalness={0.72} roughness={0.3} />
-            </mesh>
-            <mesh position={[0, 0.18, 0.33]}>
-              <boxGeometry args={[0.12, 0.55, 0.05]} />
-              <meshStandardMaterial color="#d6ae57" metalness={0.82} roughness={0.23} />
-            </mesh>
-          </group>
         ) : (
           <mesh scale={style.size}>
             <octahedronGeometry args={[0.9, 0]} />
@@ -112,7 +97,7 @@ function Collectible({
       </group>
       {pickup.kind === "treasure-cache" && (
         <Html position={[0, 1.45, 0]} center distanceFactor={12} zIndexRange={[14, 0]} style={{ pointerEvents: "none" }}>
-          <span className="world-pickup-tag">ALTIN SANDIĞI · {pickup.amount} ALTIN</span>
+          <span className="world-pickup-tag">ALTIN · {pickup.amount}</span>
         </Html>
       )}
     </group>
@@ -122,15 +107,24 @@ function Collectible({
 function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; motionRef: MotionRef; broken: boolean }) {
   const rootRef = useRef<THREE.Group>(null);
   const warningRef = useRef<THREE.Mesh>(null);
+  const chestLidRef = useRef<THREE.Group>(null);
   const obstacleLabel = obstacle.kind === "spike-trap"
     ? "TUZAK · ZIPLA"
     : obstacle.kind === "low-bar"
       ? "ALÇAK ENGEL · EĞİL"
-      : obstacle.kind === "barricade" ? "BARİKAT · SALDIR" : "KAYA · ZIPLA";
+      : obstacle.kind === "barricade"
+        ? "BARİKAT · SALDIR"
+        : obstacle.kind === "treasure-chest"
+          ? broken ? "SANDIK AÇILDI · ALTIN" : "HAZİNE · ZIPLA VE KIR"
+          : "KAYA · ZIPLA";
   useFrame((frame) => {
     if (!rootRef.current) return;
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
-    rootRef.current.visible = !broken && Math.abs(obstacle.distance - motionRef.current.distance) <= 112;
+    rootRef.current.visible = (obstacle.kind === "treasure-chest" || !broken) && Math.abs(obstacle.distance - motionRef.current.distance) <= 112;
+    if (chestLidRef.current) {
+      const target = broken ? -1.18 : 0;
+      chestLidRef.current.rotation.x = THREE.MathUtils.damp(chestLidRef.current.rotation.x, target, 8, 0.05);
+    }
     if (warningRef.current) {
       const pulse = 0.42 + (Math.sin(frame.clock.elapsedTime * 4.4) + 1) * 0.11;
       const nearby = Math.abs(obstacle.distance - motionRef.current.distance) < 10;
@@ -148,6 +142,43 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
           <dodecahedronGeometry args={[0.92, 0]} />
           <meshStandardMaterial color="#625b5a" roughness={0.94} flatShading />
         </mesh>
+      ) : obstacle.kind === "treasure-chest" ? (
+        <group>
+          <mesh position={[0, 0.38, 0]}>
+            <boxGeometry args={[1.78, 0.72, 1.08]} />
+            <meshStandardMaterial color="#714326" roughness={0.65} metalness={0.22} />
+          </mesh>
+          <mesh position={[0, 0.4, 0.55]}>
+            <boxGeometry args={[1.82, 0.12, 0.08]} />
+            <meshStandardMaterial color="#eab95d" emissive="#bf7925" emissiveIntensity={0.42} metalness={0.76} roughness={0.25} />
+          </mesh>
+          {[-0.69, 0, 0.69].map((x) => (
+            <mesh key={x} position={[x, 0.39, 0.56]}>
+              <boxGeometry args={[0.09, 0.74, 0.08]} />
+              <meshStandardMaterial color="#f3cf76" emissive="#d39735" emissiveIntensity={0.3} metalness={0.8} roughness={0.23} />
+            </mesh>
+          ))}
+          <group ref={chestLidRef} position={[0, 0.72, -0.49]}>
+            <mesh position={[0, 0.04, 0.49]}>
+              <boxGeometry args={[1.86, 0.2, 1.08]} />
+              <meshStandardMaterial color="#92592b" roughness={0.53} metalness={0.24} />
+            </mesh>
+            <mesh position={[0, -0.01, 0.98]}>
+              <boxGeometry args={[0.25, 0.2, 0.09]} />
+              <meshStandardMaterial color="#ffe58a" emissive="#ffc44f" emissiveIntensity={0.7} metalness={0.88} roughness={0.18} />
+            </mesh>
+          </group>
+          {broken && (
+            <>
+              <mesh position={[0, 0.84, 0]}>
+                <icosahedronGeometry args={[0.3, 1]} />
+                <meshStandardMaterial color="#ffe792" emissive="#ffac34" emissiveIntensity={2.1} metalness={0.55} roughness={0.18} />
+              </mesh>
+              <pointLight position={[0, 1.1, 0]} color="#ffb84d" intensity={8} distance={4} />
+              <Sparkles count={14} position={[0, 1.1, 0]} scale={1.7} size={3.2} speed={0.42} color="#ffdf83" />
+            </>
+          )}
+        </group>
       ) : obstacle.kind === "spike-trap" ? (
         <group>
           <mesh position={[0, 0.05, 0]}>

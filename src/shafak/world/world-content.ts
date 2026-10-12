@@ -15,7 +15,7 @@ export type WorldPickup = {
   sourceObstacleId?: string;
 };
 
-export type WorldObstacleKind = "rock" | "spike-trap" | "low-bar" | "barricade";
+export type WorldObstacleKind = "rock" | "spike-trap" | "low-bar" | "barricade" | "treasure-chest";
 
 export type WorldObstacle = {
   id: string;
@@ -138,6 +138,7 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
     amount: 75 + Math.floor(random() * 26),
     x: 0,
     distance: chapterStart + 58,
+    sourceObstacleId: `ash-road:${chapterId}:obstacle:treasure-chest`,
   };
 
   return [...regular, treasureCache, drop];
@@ -182,6 +183,16 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       width: 2.5,
       health: 3,
       dropPickupId: `ash-road:${chapterId}:pickup:barricade-drop`,
+    },
+    {
+      id: `ash-road:${chapterId}:obstacle:treasure-chest`,
+      chapterId,
+      kind: "treasure-chest",
+      x: 0,
+      distance: chapterStart + 58,
+      width: 2.1,
+      health: 1,
+      dropPickupId: `ash-road:${chapterId}:pickup:treasure-cache`,
     },
   ];
 }
@@ -301,10 +312,10 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         radius: obstacle.width * 0.58,
         halfWidth: obstacle.width / 2,
         halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
-        breakableId: obstacle.kind === "barricade" ? obstacle.id : undefined,
+        breakableId: obstacle.kind === "barricade" || obstacle.kind === "treasure-chest" ? obstacle.id : undefined,
         requiredAction: obstacle.kind === "low-bar"
           ? "crouch"
-          : obstacle.kind === "rock" ? "jump" : undefined,
+          : obstacle.kind === "rock" || obstacle.kind === "treasure-chest" ? "jump" : undefined,
       });
     }
 

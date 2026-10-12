@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 type Vector = { x: number; y: number };
 
@@ -21,6 +21,8 @@ export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
   const tapTimer = useRef<number | undefined>(undefined);
+  const toggledActionsRef = useRef(new Set<"shift" | "c">());
+  const [toggledActions, setToggledActions] = useState<ReadonlySet<"shift" | "c">>(() => new Set());
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
   if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
@@ -82,6 +84,27 @@ export default function useWorldInput(wake: () => void) {
     }
   }, []);
 
+  const toggleAction = useCallback((key: "shift" | "c") => {
+    const next = new Set(toggledActionsRef.current);
+    if (next.has(key)) {
+      next.delete(key);
+      heldKeys.current.delete(key);
+    } else {
+      next.add(key);
+      heldKeys.current.add(key);
+    }
+    toggledActionsRef.current = next;
+    setToggledActions(next);
+    wake();
+  }, [wake]);
+
+  const clearActions = useCallback(() => {
+    heldKeys.current.clear();
+    joystick.current = { x: 0, y: 0 };
+    toggledActionsRef.current.clear();
+    setToggledActions(new Set());
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key === " " ? "space" : event.key.toLowerCase();
@@ -94,10 +117,7 @@ export default function useWorldInput(wake: () => void) {
     const onKeyUp = (event: KeyboardEvent) => {
       heldKeys.current.delete(event.key === " " ? "space" : event.key.toLowerCase());
     };
-    const onBlur = () => {
-      heldKeys.current.clear();
-      joystick.current = { x: 0, y: 0 };
-    };
+    const onBlur = clearActions;
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -106,7 +126,7 @@ export default function useWorldInput(wake: () => void) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [wake]);
+  }, [clearActions, wake]);
 
   useEffect(() => () => {
     if (tapTimer.current) window.clearTimeout(tapTimer.current);
@@ -122,5 +142,8 @@ export default function useWorldInput(wake: () => void) {
     onJoystickPointerCancel: releaseJoystick,
     onActionPointerDown,
     onActionPointerUp,
+    toggleAction,
+    isActionToggled: (key: "shift" | "c") => toggledActions.has(key),
+    clearActions,
   };
 }

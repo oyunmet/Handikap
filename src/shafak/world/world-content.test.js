@@ -41,13 +41,19 @@ test("seeded chapter content is stable and contains four escalating rivals", () 
 
 test("road rewards stay within reach and each chapter includes visible hazards", () => {
   const chapter = getWorldChapter(0);
-  const chest = chapter.pickups.find((pickup) => pickup.kind === "treasure-cache");
-  assert.ok(chest);
-  assert.equal(chest.x, 0);
+  const cachePickup = chapter.pickups.find((pickup) => pickup.kind === "treasure-cache");
+  assert.ok(cachePickup);
+  assert.equal(cachePickup.x, 0);
   assert.ok(chapter.pickups.every((pickup) => Math.abs(pickup.x) <= 3.2));
-  for (const kind of ["rock", "spike-trap", "low-bar", "barricade"]) {
+  for (const kind of ["rock", "spike-trap", "low-bar", "barricade", "treasure-chest"]) {
     assert.ok(chapter.obstacles.some((obstacle) => obstacle.kind === kind), `missing ${kind}`);
   }
+  const treasureObstacle = chapter.obstacles.find((obstacle) => obstacle.kind === "treasure-chest");
+  const chestReward = chapter.pickups.find((pickup) => pickup.kind === "treasure-cache");
+  assert.ok(treasureObstacle);
+  assert.ok(chestReward);
+  assert.equal(treasureObstacle.dropPickupId, chestReward.id);
+  assert.equal(chestReward.sourceObstacleId, treasureObstacle.id);
 });
 
 test("rival identities are stable and distinct across at least 48 encounters", () => {

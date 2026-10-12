@@ -287,11 +287,13 @@ export default function Knight3D({
     root.position.x += (lateralPosition + idleWeightShift - root.position.x) * (1 - Math.exp(-dt * 8));
     const bob = moving && !motionReduced ? Math.abs(Math.sin(phase * 2)) * (running ? 0.055 : 0.032) : 0;
     const deathDrop = state === "die" ? actionProgress * 0.62 : 0;
-    root.position.y += (bob - deathDrop - root.position.y) * (1 - Math.exp(-dt * 10));
+    root.position.y += (motion.jumpHeight + bob - deathDrop - root.position.y) * (1 - Math.exp(-dt * 14));
+    const crouchScale = motion.crouching ? 0.72 : 1;
+    root.scale.y += (crouchScale - root.scale.y) * (1 - Math.exp(-dt * 12));
 
     let targetYaw = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
     if (facingAngle === undefined && motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
-    if (!moving || state === "die") targetYaw = 0;
+    if (facingAngle === undefined && (!moving || state === "die")) targetYaw = 0;
     root.rotation.y = THREE.MathUtils.damp(root.rotation.y, targetYaw, 7, dt);
     const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;
     root.rotation.z = THREE.MathUtils.damp(root.rotation.z, fall, 5, dt);

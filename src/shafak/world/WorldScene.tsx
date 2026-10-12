@@ -589,6 +589,7 @@ export default function WorldScene({
   const [pickupFlights, setPickupFlights] = useState<PickupFlight[]>([]);
   const [pickupNotice, setPickupNotice] = useState("");
   const [attackAnimation, setAttackAnimation] = useState(false);
+  const [chestSlamActive, setChestSlamActive] = useState(false);
   const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
   const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => getOpeningStoryDialogue());
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
@@ -607,6 +608,7 @@ export default function WorldScene({
   const deferredPickupIdsRef = useRef(new Set<string>());
   const brokenRef = useRef(new Set<string>());
   const obstacleDamageRef = useRef(new Map<string, number>());
+  const chestSlamRef = useRef<{ obstacleId: string; elapsed: number } | null>(null);
   const loadedClaimChaptersRef = useRef(new Set<number>());
   const loadingClaimChaptersRef = useRef(new Set<number>());
   const claimLoaderRef = useRef(onLoadClaimedPickups);
@@ -679,6 +681,15 @@ export default function WorldScene({
       Math.abs(obstacle.x - motionRef.current.depth * 5.2) <= obstacle.width / 2 + 1.4,
     )
     .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
+  const nearestTreasureChest = activeContent.obstacles
+    .filter((obstacle) =>
+      obstacle.kind === "treasure-chest" &&
+      !brokenObstacleIds.has(obstacle.id) &&
+      !chestSlamActive &&
+      Math.abs(obstacle.distance - travel) <= 3.2 &&
+      Math.abs(obstacle.x - motionRef.current.depth * 5.2) <= obstacle.width / 2 + 1.3,
+    )
+    .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
   const displayedGold = profile.gold + sessionRewards.gold;
   const displayedDiamonds = profile.diamonds + sessionRewards.diamonds;
   const displayedCrystals = profile.materials.emberCrystals + sessionRewards.materials.emberCrystals;
@@ -708,8 +719,7 @@ export default function WorldScene({
   const worldInput = useWorldInput(wake);
   const showStoryDialogue = useCallback((dialogue: StoryDialogue) => {
     storyDialogueRef.current = dialogue;
-    worldInput.heldKeys.current.clear();
-    worldInput.joystick.current = { x: 0, y: 0 };
+    worldInput.clearActions();
     motionRef.current = {
       ...motionRef.current,
       velocityX: 0,
@@ -721,8 +731,7 @@ export default function WorldScene({
   }, [worldInput.heldKeys, worldInput.joystick]);
   const closeStoryDialogue = useCallback(() => {
     storyDialogueRef.current = null;
-    worldInput.heldKeys.current.clear();
-    worldInput.joystick.current = { x: 0, y: 0 };
+    worldInput.clearActions();
     setStoryDialogue(null);
     if (audioOn) startAudio(true);
   }, [audioOn, startAudio, worldInput.heldKeys, worldInput.joystick]);
@@ -1308,6 +1317,17 @@ export default function WorldScene({
     attackRequestedRef.current = true;
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
+  const requestTreasureSlam = useCallback(() => {
+    if (battleActiveRef.current || storyDialogueRef.current || chestSlamRef.current || !nearestTreasureChest) return;
+    chestSlamRef.current = { obstacleId: nearestTreasureChest.id, elapsed: 0 };
+    setChestSlamActive(true);
+    setPickupNotice("Zıpla ve yere sert inerek hazine sandığını kır!");
+    if (audioOn) startAudio();
+  }, [audioOn, nearestTreasureChest, startAudio]);
+  const requestWorldInteraction = useCallback(() => {
+    if (nearestTreasureChest) requestTreasureSlam();
+    else requestObstacleAttack();
+  }, [nearestTreasureChest, requestObstacleAttack, requestTreasureSlam]);
 
   useEffect(() => () => {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(0);
@@ -1321,11 +1341,11 @@ export default function WorldScene({
       if (event.key.toLowerCase() !== "e") return;
       if (event.target instanceof HTMLElement && event.target.closest("button,input,textarea,select")) return;
       event.preventDefault();
-      requestObstacleAttack();
+      requestWorldInteraction();
     };
     window.addEventListener("keydown", onActionKeyDown);
     return () => window.removeEventListener("keydown", onActionKeyDown);
-  }, [requestObstacleAttack]);
+  }, [requestWorldInteraction]);
 
   useEffect(() => {
     if (battleSession?.phase !== "fight") return undefined;
@@ -1583,6 +1603,9 @@ export default function WorldScene({
           };
         }
         const simulationStep = fixedStep;
+        if (chestSlamRef.current) {
+          stepInput = { x: 0, y: 0, sprint: false, jump: false, crouch: false, analogMagnitude: 0 };
+        }
         Object.assign(previousMotion, motionRef.current);
         let nextFrame = stepWorldMotion(
           motionRef.current,
@@ -1591,6 +1614,27 @@ export default function WorldScene({
           playerCombatStats.moveSpeedMultiplier,
           frameScratch,
         );
+        let chestImpactId: string | null = null;
+        const activeSlam = chestSlamRef.current;
+        if (activeSlam) {
+          activeSlam.elapsed += simulationStep;
+          const riseDuration = 0.3;
+          const fallDuration = 0.24;
+          if (activeSlam.elapsed < riseDuration) {
+            nextFrame.jumpHeight = 1.65 * Math.sin((activeSlam.elapsed / riseDuration) * Math.PI / 2);
+          } else {
+            const fallProgress = Math.min(1, (activeSlam.elapsed - riseDuration) / fallDuration);
+            nextFrame.jumpHeight = 1.65 * (1 - fallProgress) ** 2;
+          }
+          nextFrame.jumpVelocity = (nextFrame.jumpHeight - motionRef.current.jumpHeight) / simulationStep;
+          nextFrame.jumpHeld = false;
+          nextFrame.crouching = false;
+          if (activeSlam.elapsed >= riseDuration + fallDuration) {
+            nextFrame.jumpHeight = 0;
+            nextFrame.jumpVelocity = 0;
+            chestImpactId = activeSlam.obstacleId;
+          }
+        }
         const worldContent = getCachedWorldContent(nextFrame.distance, contentCacheRef.current);
         const obstacles = worldContent.obstacles;
         const playerX = nextFrame.depth * 5.2;
@@ -1630,6 +1674,22 @@ export default function WorldScene({
             nextFrame.motion = "idle";
             nextFrame.footsteps = 0;
           }
+        }
+
+        if (chestImpactId) {
+          chestSlamRef.current = null;
+          const chest = obstacles.find((obstacle) => obstacle.id === chestImpactId && obstacle.kind === "treasure-chest");
+          if (chest && !brokenRef.current.has(chest.id)) {
+            brokenRef.current.add(chest.id);
+            setBrokenObstacleIds(new Set(brokenRef.current));
+            const reward = worldContent.pickups.find((pickup) => pickup.id === chest.dropPickupId);
+            setPickupNotice(`Sandık kırıldı! ${reward?.amount ?? 75} altın çıktı.`);
+            playWorldCue("attack");
+            if (vibrationOn && "vibrate" in navigator) {
+              try { navigator.vibrate([32, 24, 42]); } catch { /* Haptics are optional. */ }
+            }
+          }
+          setChestSlamActive(false);
         }
 
         if (attackRequestedRef.current && simulationTimeRef.current >= nextAttackAtRef.current) {
@@ -1780,7 +1840,7 @@ export default function WorldScene({
         frame = 0;
         previous = 0;
         accumulator = 0;
-        worldInput.heldKeys.current.clear();
+        worldInput.clearActions();
         worldInput.joystick.current = { x: 0, y: 0 };
         combatInputRef.current.x = 0;
         combatInputRef.current.y = 0;
@@ -1931,7 +1991,7 @@ export default function WorldScene({
             relicCount={profile.items.length}
             equipmentVisual={worldEquipmentVisual}
             lightRadius={equipmentBonuses.lightRadius}
-            animationState={attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
+            animationState={chestSlamActive ? "heavyAttack" : attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
             rivals={battleSession ? [] : nearbyRivals}
             pickups={allPickups}
             obstacles={activeContent.obstacles}
@@ -2181,13 +2241,11 @@ export default function WorldScene({
         <div className="world-movement-actions" role="group" aria-label="Yol hareket tuşları">
           <button
             type="button"
-            className="world-movement-action"
-            aria-label="Eğil"
+            className={`world-movement-action${worldInput.isActionToggled("c") ? " is-toggled" : ""}`}
+            aria-label={worldInput.isActionToggled("c") ? "Eğilmeyi kapat" : "Eğil"}
+            aria-pressed={worldInput.isActionToggled("c")}
             title="Eğil"
-            onPointerDown={(event) => worldInput.onActionPointerDown(event, "c")}
-            onPointerUp={(event) => worldInput.onActionPointerUp(event, "c")}
-            onPointerCancel={(event) => worldInput.onActionPointerUp(event, "c")}
-            onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "c")}
+            onClick={() => worldInput.toggleAction("c")}
           ><span aria-hidden="true">↓</span><small>EĞİL</small></button>
           <button
             type="button"
@@ -2201,13 +2259,11 @@ export default function WorldScene({
           ><span aria-hidden="true">↑</span><small>ZIPLA</small></button>
           <button
             type="button"
-            className="world-movement-action"
-            aria-label="Koş"
+            className={`world-movement-action${worldInput.isActionToggled("shift") ? " is-toggled" : ""}`}
+            aria-label={worldInput.isActionToggled("shift") ? "Koşmayı kapat" : "Koş"}
+            aria-pressed={worldInput.isActionToggled("shift")}
             title="Koş"
-            onPointerDown={(event) => worldInput.onActionPointerDown(event, "shift")}
-            onPointerUp={(event) => worldInput.onActionPointerUp(event, "shift")}
-            onPointerCancel={(event) => worldInput.onActionPointerUp(event, "shift")}
-            onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "shift")}
+            onClick={() => worldInput.toggleAction("shift")}
           ><span aria-hidden="true">»</span><small>KOŞ</small></button>
         </div>
       )}
@@ -2253,6 +2309,14 @@ export default function WorldScene({
           <span>BARİKAT · {remainingBarricadeHits} DARBE</span>
           <button type="button" onClick={requestObstacleAttack} aria-label={`Barikata saldır, ${remainingBarricadeHits} darbe kaldı`}>
             <span aria-hidden="true">⚔</span> SALDIR
+          </button>
+        </div>
+      )}
+      {nearestTreasureChest && !battleSession && (
+        <div className="world-breakable-action is-chest">
+          <span>HAZİNE SANDIĞI</span>
+          <button type="button" onClick={requestTreasureSlam} aria-label="Zıplayıp yere sert inerek hazine sandığını kır">
+            <span aria-hidden="true">↓</span> SANDIĞI KIR
           </button>
         </div>
       )}

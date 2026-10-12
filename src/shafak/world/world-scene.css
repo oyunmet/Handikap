@@ -628,6 +628,7 @@
   box-shadow: 0 5px 16px rgba(0,0,0,.28); touch-action: none; user-select: none;
 }
 .world-movement-action:active { transform: translateY(1px); border-color: rgba(235,199,127,.8); background: rgba(83,61,42,.9); }
+.world-movement-action.is-toggled { border-color: rgba(242,201,105,.9); background: rgba(111,75,42,.92); box-shadow: 0 0 14px rgba(238,178,79,.28), inset 0 0 12px rgba(248,203,111,.12); }
 .world-movement-action span { color: #e2c17e; font-size: 19px; line-height: 1; }
 .world-movement-action small { color: rgba(240,225,198,.76); font-size: 6px; font-weight: 800; letter-spacing: .08em; }
 .world-mobile-hint { display: none; }
@@ -778,6 +779,7 @@
 .world-obstacle-tag.is-spike-trap { background: rgba(78, 24, 22, .9); }
 .world-obstacle-tag.is-low-bar { background: rgba(67, 45, 26, .9); }
 .world-obstacle-tag.is-barricade { background: rgba(53, 38, 29, .9); }
+.world-obstacle-tag.is-treasure-chest { border-color: rgba(255,211,104,.94); color: #ffe6a4; background: rgba(77,47,18,.94); box-shadow: 0 0 15px rgba(255,184,55,.42); }
 .duel-model-loading {
   display: grid; width: 112px; gap: 5px; padding: 5px 7px;
   border: 1px solid rgba(134,207,212,.44); border-radius: 3px;
@@ -804,6 +806,9 @@
   font-size: 9px; font-weight: 900; letter-spacing: .15em;
 }
 .world-breakable-action button span { margin-right: 5px; }
+.world-breakable-action.is-chest { border-color: rgba(255,210,111,.64); box-shadow: 0 0 18px rgba(239,169,54,.2), 0 5px 18px rgba(0,0,0,.3); }
+.world-breakable-action.is-chest > span { color: #ffe4a2; }
+.world-breakable-action.is-chest button { border-color: rgba(255,223,135,.9); background: linear-gradient(110deg,#ab711f,#61421f); }
 .world-battle-entry {
   position: absolute; z-index: 11; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 18px; padding: 24px;

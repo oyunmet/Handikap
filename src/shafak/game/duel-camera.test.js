@@ -4,7 +4,7 @@ import { getDuelCameraPose, getDuelFacingAngle } from "./duel-camera.ts";
 
 test("duel camera stays behind the player while aiming at the opponent", () => {
   for (const [player, opponent] of [
-    [{ x: -1.25, z: -0.6 }, { x: 1.25, z: -0.6 }],
+    [{ x: 0, z: 0.75 }, { x: 0, z: -1.95 }],
     [{ x: 0.8, z: 1.2 }, { x: -1.6, z: -1.1 }],
   ]) {
     const pose = getDuelCameraPose(player, opponent, -120);
@@ -23,4 +23,13 @@ test("duel camera stays behind the player while aiming at the opponent", () => {
     assert.ok(pose.target.x > Math.min(player.x, opponent.x) - 1e-9);
     assert.ok(pose.target.x < Math.max(player.x, opponent.x) + 1e-9);
   }
+});
+
+test("the camera stays almost directly behind the player for a straight face-off", () => {
+  const player = { x: 0, z: 0.75 };
+  const opponent = { x: 0, z: -1.95 };
+  const pose = getDuelCameraPose(player, opponent, 0, 8.2, 0.55);
+  assert.ok(pose.position.z > player.z);
+  assert.ok(Math.abs(pose.position.x - player.x) < 1);
+  assert.ok(pose.target.z < player.z && pose.target.z > opponent.z);
 });

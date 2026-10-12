@@ -255,6 +255,8 @@ function OptionalGlbKnight({
     const motion = motionRef.current;
     if (root) {
       root.position.x = motion.depth * 5.2;
+      root.position.y = motion.jumpHeight;
+      root.scale.y = THREE.MathUtils.damp(root.scale.y, motion.crouching ? 0.72 : 1, 12, Math.min(delta, 0.05));
       if (facingAngle === undefined) {
         root.rotation.y = Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
         if (motion.velocityY < -0.25) {

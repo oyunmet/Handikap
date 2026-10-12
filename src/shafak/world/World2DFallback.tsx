@@ -191,7 +191,7 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
 
   const visibleEntities = [
     ...props.obstacles
-      .filter((obstacle) => !props.brokenObstacleIds.has(obstacle.id))
+      .filter((obstacle) => !props.brokenObstacleIds.has(obstacle.id) || obstacle.kind === "treasure-chest")
       .map((obstacle) => ({ distance: obstacle.distance, kind: "obstacle" as const, value: obstacle })),
     ...props.pickups
       .filter((pickup) =>
@@ -229,16 +229,15 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
         context.translate(point.x, point.y - radius * 1.6);
         context.shadowColor = "#f2c969";
         context.shadowBlur = radius * 1.8;
-        context.fillStyle = "#70472d";
-        context.fillRect(-radius * 1.8, -radius * .65, radius * 3.6, radius * 1.8);
-        context.fillStyle = "#e3b954";
-        context.fillRect(-radius * 1.95, -radius * 1.15, radius * 3.9, radius * .72);
-        context.fillRect(-radius * .24, -radius * .75, radius * .48, radius * 1.85);
+        context.fillStyle = "#f2c969";
+        context.beginPath();
+        context.arc(0, 0, radius * 1.1, 0, Math.PI * 2);
+        context.fill();
         context.shadowBlur = 0;
         context.fillStyle = "#f4dfa9";
         context.textAlign = "center";
         context.font = `800 ${Math.max(7, radius * .85)}px system-ui, sans-serif`;
-        context.fillText("ALTIN SANDIĞI", 0, -radius * 1.55);
+        context.fillText(`ALTIN · ${pickup.amount}`, 0, -radius * 1.55);
         context.restore();
       } else {
         context.fillStyle = pickup.kind.startsWith("gold") ? "#f2c969"
@@ -255,7 +254,28 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
       const obstacleSize = 8 + point.depth * 28;
       context.save();
       context.translate(point.x, point.y);
-      if (obstacle.kind === "spike-trap") {
+      if (obstacle.kind === "treasure-chest") {
+        const opened = props.brokenObstacleIds.has(obstacle.id);
+        context.shadowColor = opened ? "#ffd66d" : "#d99842";
+        context.shadowBlur = obstacleSize * .8;
+        context.fillStyle = "#714326";
+        context.fillRect(-obstacleSize, -obstacleSize * .88, obstacleSize * 2, obstacleSize * .9);
+        context.fillStyle = "#eab95d";
+        context.fillRect(-obstacleSize * 1.04, -obstacleSize * .92, obstacleSize * 2.08, obstacleSize * .18);
+        context.fillRect(-obstacleSize * .64, -obstacleSize * .9, obstacleSize * .15, obstacleSize * .86);
+        context.fillRect(obstacleSize * .49, -obstacleSize * .9, obstacleSize * .15, obstacleSize * .86);
+        context.fillStyle = "#ffe792";
+        context.fillRect(-obstacleSize * .13, -obstacleSize * .6, obstacleSize * .26, obstacleSize * .26);
+        if (opened) {
+          context.fillStyle = "#e9b74f";
+          context.save();
+          context.translate(0, -obstacleSize * .98);
+          context.rotate(-.8);
+          context.fillRect(-obstacleSize * 1.04, -obstacleSize * .13, obstacleSize * 2.08, obstacleSize * .22);
+          context.restore();
+        }
+        context.shadowBlur = 0;
+      } else if (obstacle.kind === "spike-trap") {
         context.fillStyle = "#c65654";
         context.beginPath();
         context.moveTo(-obstacleSize, 0);
@@ -276,7 +296,8 @@ function drawWorld(context: CanvasRenderingContext2D, width: number, height: num
       context.textAlign = "center";
       context.font = `700 ${Math.max(7, 8 * point.depth)}px system-ui, sans-serif`;
       context.fillText(
-        obstacle.kind === "spike-trap" ? "ZIPLA"
+        obstacle.kind === "treasure-chest" ? props.brokenObstacleIds.has(obstacle.id) ? "SANDIK AÇILDI" : "ZIPLA VE KIR"
+          : obstacle.kind === "spike-trap" ? "ZIPLA"
           : obstacle.kind === "low-bar" ? "EĞİL"
             : obstacle.kind === "barricade" ? "SALDIR" : "ZIPLA",
         0,

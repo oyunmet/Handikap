@@ -11,6 +11,13 @@ import {
   stepCombat,
 } from "./combat-engine.ts";
 
+test("duel fighters begin facing each other along the arena depth", () => {
+  const state = createCombatState(21, "easy");
+  assert.equal(state.player.x, state.bot.x);
+  assert.ok(state.player.z > state.bot.z);
+  assert.ok(Math.abs(state.player.z - state.bot.z) > 2.5);
+});
+
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
   const seed = 881723;
   let state = createCombatState(seed, "medium");
