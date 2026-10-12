@@ -66,3 +66,7 @@ export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: numbe
   const deviceScaledSize = Math.ceil((dpr * 512) / 256) * 256;
   return Math.min(1_024, SHADOW_BUDGET[quality], deviceScaledSize);
 }
+
+export function shouldEnableWorldShadows(quality: RenderQuality, touchDevice = false): boolean {
+  return quality !== "low" && !touchDevice;
+}

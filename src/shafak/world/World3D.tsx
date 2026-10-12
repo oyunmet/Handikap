@@ -40,7 +40,11 @@ import WorldV2Terrain from "./WorldV2Terrain";
 import { WorldV2DuelActor, WorldV2Travel } from "./WorldV2Gameplay";
 import { worldVersionFromSearch } from "./world-version";
 import { nextWorldRecoveryStage } from "./world-recovery";
-import { getShadowMapSize, getWorldRenderPixelRatio } from "./graphics-quality";
+import {
+  getShadowMapSize,
+  getWorldRenderPixelRatio,
+  shouldEnableWorldShadows,
+} from "./graphics-quality";
 import { WORLD_CAMERA_FAR } from "./world-render-config";
 import {
   createFrameMetricsAccumulator,
@@ -424,13 +428,14 @@ function RendererEffects({
   visualEffectsEnabled: boolean;
 }) {
   const { gl } = useThree();
+  const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   useEffect(() => {
     gl.toneMapping = visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
     gl.toneMappingExposure = visualEffectsEnabled ? 1.12 : 1;
-    gl.shadowMap.enabled = quality !== "low";
+    gl.shadowMap.enabled = shouldEnableWorldShadows(quality, touchRenderer);
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
     gl.shadowMap.needsUpdate = true;
-  }, [gl, quality, visualEffectsEnabled]);
+  }, [gl, quality, touchRenderer, visualEffectsEnabled]);
   return null;
 }
 
@@ -1854,7 +1859,7 @@ export default function World3D(props: World3DProps) {
           <Canvas
             frameloop={active ? "always" : "never"}
             dpr={[minDpr, maxDpr]}
-            shadows={props.quality !== "low"}
+            shadows={shouldEnableWorldShadows(props.quality, touchRenderer)}
             camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: WORLD_CAMERA_FAR }}
             gl={{
               alpha: false,
