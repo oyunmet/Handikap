@@ -51,4 +51,8 @@ export const KNIGHT_CONFIG = {
   },
 } as const;
 
+export function getKnightActorRootYaw(facingAngle: number) {
+  return facingAngle - KNIGHT_CONFIG.modelFacing;
+}
+
 export type KnightConfig = typeof KNIGHT_CONFIG;

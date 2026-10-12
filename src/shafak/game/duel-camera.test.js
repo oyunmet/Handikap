@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getDuelCameraPose, getDuelFacingAngle } from "./duel-camera.ts";
+import { getKnightActorRootYaw } from "../world/knight-config.ts";
 
 test("duel camera stays behind the player while aiming at the opponent", () => {
   for (const [player, opponent] of [
@@ -16,12 +17,25 @@ test("duel camera stays behind the player while aiming at the opponent", () => {
     const cameraHeadingDot = (cameraFromPlayerX * dx + cameraFromPlayerZ * dz) / length;
     assert.ok(cameraHeadingDot < 0, "camera must be on the player's rear side");
 
-    const angle = getDuelFacingAngle(player, opponent);
-    const playerForwardX = Math.sin(angle);
-    const playerForwardZ = Math.cos(angle);
+    const rootYaw = getKnightActorRootYaw(getDuelFacingAngle(player, opponent));
+    const playerForwardX = -Math.sin(rootYaw);
+    const playerForwardZ = -Math.cos(rootYaw);
     assert.ok(playerForwardX * dx + playerForwardZ * dz > 0);
     assert.ok(pose.target.x > Math.min(player.x, opponent.x) - 1e-9);
     assert.ok(pose.target.x < Math.max(player.x, opponent.x) + 1e-9);
+  }
+});
+
+test("procedural duel fighters turn their armored fronts toward one another", () => {
+  const player = { x: 0, z: 0.75 };
+  const opponent = { x: 0, z: -1.95 };
+  for (const [actor, rival] of [[player, opponent], [opponent, player]]) {
+    const dx = rival.x - actor.x;
+    const dz = rival.z - actor.z;
+    const yaw = getKnightActorRootYaw(getDuelFacingAngle(actor, rival));
+    const frontX = -Math.sin(yaw);
+    const frontZ = -Math.cos(yaw);
+    assert.ok(frontX * dx + frontZ * dz > 0, "each armored front must point toward the rival");
   }
 });
 

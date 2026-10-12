@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import { solveTwoBoneLeg } from "./leg-ik";
 import type { WorldMotion } from "./movement";
-import { KNIGHT_CONFIG } from "./knight-config";
+import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
 import type { EquipmentVisual } from "../game/store-types";
 
 type Knight3DProps = {
@@ -291,7 +291,9 @@ export default function Knight3D({
     const crouchScale = motion.crouching ? 0.72 : 1;
     root.scale.y += (crouchScale - root.scale.y) * (1 - Math.exp(-dt * 12));
 
-    let targetYaw = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
+    let targetYaw = facingAngle === undefined
+      ? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)))
+      : getKnightActorRootYaw(facingAngle);
     if (facingAngle === undefined && motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
     if (facingAngle === undefined && (!moving || state === "die")) targetYaw = 0;
     root.rotation.y = THREE.MathUtils.damp(root.rotation.y, targetYaw, 7, dt);
