@@ -64,6 +64,44 @@ test("server challenges use a generated rival id and return server-owned combat 
   assert.ok(!JSON.stringify(legacyChallenge).toLowerCase().includes("bot"));
 });
 
+test("retrying a duel start reuses the active challenge for the same opponent", async () => {
+  const rival = getWorldChapter(0).rivals[0];
+  const existing = {
+    duel_id: "f4b13e71-45e7-43a4-aea0-460de2c6c22f",
+    seed: 77331,
+    opponent_id: rival.id,
+    player_stats: {
+      maxHealth: 150,
+      damageMultiplier: 1,
+      defenseReduction: 0,
+      criticalChance: 0.05,
+      moveSpeedMultiplier: 1,
+      attackSpeedMultiplier: 1,
+      attackRangeBonus: 0,
+    },
+  };
+  let inserts = 0;
+  const database = {
+    async query(sql) {
+      if (sql.startsWith("SELECT profile")) return { rows: [{ profile }] };
+      if (sql.startsWith("UPDATE shafak_duels")) return { rowCount: 0, rows: [] };
+      if (sql.includes("completion->'summary'")) return { rows: [] };
+      if (sql.includes("completed_at IS NULL")) return { rows: [existing] };
+      if (sql.startsWith("INSERT INTO shafak_duels")) {
+        inserts += 1;
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`Unexpected query ${sql}`);
+    },
+  };
+
+  const challenge = await createDuelChallenge(database, "user-1", rival.id);
+  assert.equal(challenge.duelId, existing.duel_id);
+  assert.equal(challenge.seed, existing.seed);
+  assert.equal(challenge.opponent.id, rival.id);
+  assert.equal(inserts, 0);
+});
+
 test("a client cannot submit a requested result or rewards", async () => {
   let queries = 0;
   const client = {

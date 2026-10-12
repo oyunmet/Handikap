@@ -814,12 +814,14 @@ export function WorldChunks({
   motionReduced,
   quality,
   weather,
+  unlockedThroughChapter,
 }: {
   chunks: WorldChunk[];
   motionRef: MotionRef;
   motionReduced: boolean;
   quality: WorldQuality;
   weather: WeatherMode;
+  unlockedThroughChapter: number;
 }) {
   const objects = useMemo(() => chunks.flatMap((chunk) => chunk.objects), [chunks]);
   const staticLodChunk = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS);
@@ -851,7 +853,7 @@ export function WorldChunks({
           motionReduced={motionReduced}
         />
       ))}
-      <FinalGate motionRef={motionRef} />
+      <FinalGate motionRef={motionRef} unlockedThroughChapter={unlockedThroughChapter} />
       <group position={[0, 1.4, -12]} visible={weather !== "clear"}>
         <Sparkles
           count={quality === "high" ? 48 : quality === "balanced" ? 30 : 12}
@@ -867,17 +869,31 @@ export function WorldChunks({
   );
 }
 
-function FinalGate({ motionRef }: { motionRef: MotionRef }) {
+function FinalGate({
+  motionRef,
+  unlockedThroughChapter,
+}: {
+  motionRef: MotionRef;
+  unlockedThroughChapter: number;
+}) {
   const groupRef = useRef<THREE.Group>(null);
   const flareRef = useRef<THREE.Mesh>(null);
+  const gateDistanceAtRender = nextGateDistance(motionRef.current.distance);
+  const gateChapterAtRender = Math.max(0, Math.floor(gateDistanceAtRender / WORLD_GATE_INTERVAL_METERS) - 1);
+  const gateOpen = gateChapterAtRender < unlockedThroughChapter;
   useFrame((frame) => {
     if (!groupRef.current) return;
     const distance = motionRef.current.distance;
     const gateDistance = nextGateDistance(distance);
+    const gateChapterId = Math.max(0, Math.floor(gateDistance / WORLD_GATE_INTERVAL_METERS) - 1);
+    const gateIsOpen = gateChapterId < unlockedThroughChapter;
     groupRef.current.position.z = -(gateDistance - distance);
     if (flareRef.current) {
       const material = flareRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.12 + (Math.sin(frame.clock.elapsedTime * 1.4) + 1) * 0.045;
+      material.color.set(gateIsOpen ? "#79e2b7" : "#f29a62");
+      material.opacity = gateIsOpen
+        ? 0.24 + (Math.sin(frame.clock.elapsedTime * 1.4) + 1) * 0.07
+        : 0.12 + (Math.sin(frame.clock.elapsedTime * 1.4) + 1) * 0.045;
     }
   });
   return (
@@ -894,7 +910,7 @@ function FinalGate({ motionRef }: { motionRef: MotionRef }) {
         <boxGeometry args={[14.7, 2.3, 2.8]} />
         <meshStandardMaterial color="#705957" roughness={0.9} flatShading />
       </mesh>
-      <mesh position={[0, 5.1, 0.06]}>
+      <mesh position={[0, 5.1, 0.06]} visible={!gateOpen}>
         <boxGeometry args={[9.2, 8.2, 0.7]} />
         <meshStandardMaterial color="#1b1a22" emissive="#713f37" emissiveIntensity={0.14} roughness={0.86} />
       </mesh>

@@ -255,8 +255,18 @@ function OptionalGlbKnight({
     const motion = motionRef.current;
     if (root) {
       root.position.x = motion.depth * 5.2;
-      root.rotation.y = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
-      if (facingAngle === undefined && motion.velocityY < -0.25) root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
+      if (facingAngle === undefined) {
+        root.rotation.y = Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
+        if (motion.velocityY < -0.25) {
+          root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
+        }
+      } else {
+        const turn = Math.atan2(
+          Math.sin(facingAngle - root.rotation.y),
+          Math.cos(facingAngle - root.rotation.y),
+        );
+        root.rotation.y += turn * (1 - Math.exp(-Math.max(0, Math.min(delta, 0.05)) * 10));
+      }
     }
     if (selectedAction) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);

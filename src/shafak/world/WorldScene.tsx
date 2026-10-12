@@ -62,6 +62,16 @@ import {
   type WorldPickup,
   type WorldRival,
 } from "./world-content";
+import {
+  inferWorldProgressFromDefeatedOpponents,
+  isWorldChapterCleared,
+  limitWorldDistanceAtGate,
+  readWorldProgress,
+  saveWorldProgress,
+  unlockWorldGate,
+  WORLD_GATE_INTERACTION_RANGE_METERS,
+  type WorldProgress,
+} from "./world-progress.ts";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
@@ -81,6 +91,7 @@ const WEATHER_LABELS: Record<WeatherMode, string> = {
 
 type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequest;
+  userId?: string;
   quality: "high" | "balanced" | "low";
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
@@ -105,6 +116,7 @@ type WorldSceneProps = {
     awardedPickupIds: string[];
     persistent: boolean;
   }>;
+  onSaveWorldPosition: (position: { distance: number; depth: number }) => Promise<void>;
 };
 type Panel = "store" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
@@ -391,6 +403,7 @@ function WorldVolumeSlider({
 
 export default function WorldScene({
   apiRequest,
+  userId,
   quality,
   visualEffectsEnabled,
   motionReduced,
@@ -411,9 +424,40 @@ export default function WorldScene({
   onOpenProfile,
   onLoadClaimedPickups,
   onClaimWorldPickups,
+  onSaveWorldPosition,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const profileRef = useRef(profile);
+  const [worldProgress, setWorldProgress] = useState<WorldProgress>(() => {
+    const localProgress = readWorldProgress(userId);
+    const savedPosition = userId && accountProfileReady ? profile.worldProgress : null;
+    return inferWorldProgressFromDefeatedOpponents(
+      savedPosition
+        ? { ...localProgress, distance: savedPosition.distance, depth: savedPosition.depth, unlockedThroughChapter: 0 }
+        : localProgress,
+      profile.defeatedOpponents,
+    );
+  });
+  const [travel, setTravel] = useState(Math.floor(worldProgress.distance));
+  const worldProgressRef = useRef(worldProgress);
+  const progressUserIdRef = useRef(userId);
+  const accountPositionLoadedUserRef = useRef(accountProfileReady && userId ? userId : null);
+  const cloudSaveInFlightRef = useRef(false);
+  const lastCloudSaveAtRef = useRef(0);
+  const saveCloudProgress = useCallback((progress: WorldProgress, force = false) => {
+    if (!userId || !accountProfileReady || progressUserIdRef.current !== userId) return;
+    const now = Date.now();
+    if (cloudSaveInFlightRef.current || (!force && now - lastCloudSaveAtRef.current < 10_000)) return;
+    cloudSaveInFlightRef.current = true;
+    lastCloudSaveAtRef.current = now;
+    void onSaveWorldPosition({ distance: progress.distance, depth: progress.depth })
+      .catch(() => {
+        // Local progress remains available if account synchronization is temporarily unavailable.
+      })
+      .finally(() => {
+        cloudSaveInFlightRef.current = false;
+      });
+  }, [accountProfileReady, onSaveWorldPosition, userId]);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
@@ -421,11 +465,102 @@ export default function WorldScene({
     profileRef.current = nextProfile;
     onBattleProfile(nextProfile);
   }, [onBattleProfile]);
-  const motionRef = useRef(createWorldMotion());
+  const motionRef = useRef(createWorldMotion(worldProgress.distance, worldProgress.depth));
   const renderMotionRef = useRef<WorldMotion | null>(null);
   const previousMotionRef = useRef<WorldMotion | null>(null);
   if (!renderMotionRef.current) renderMotionRef.current = { ...motionRef.current };
   if (!previousMotionRef.current) previousMotionRef.current = { ...motionRef.current };
+  useEffect(() => {
+    const userChanged = progressUserIdRef.current !== userId;
+    const accountPositionJustLoaded = Boolean(
+      userId && accountProfileReady && accountPositionLoadedUserRef.current !== userId,
+    );
+    if (!userChanged && !accountPositionJustLoaded && !profile.defeatedOpponents) return;
+
+    const applyProgress = (nextProgress: WorldProgress) => {
+      worldProgressRef.current = nextProgress;
+      motionRef.current = createWorldMotion(nextProgress.distance, nextProgress.depth);
+      if (previousMotionRef.current) Object.assign(previousMotionRef.current, motionRef.current);
+      if (renderMotionRef.current) Object.assign(renderMotionRef.current, motionRef.current);
+      setWorldProgress(nextProgress);
+      setTravel(Math.floor(nextProgress.distance));
+    };
+
+    if (userChanged) {
+      saveWorldProgress({
+        ...worldProgressRef.current,
+        distance: motionRef.current.distance,
+        depth: motionRef.current.depth,
+      }, progressUserIdRef.current);
+      progressUserIdRef.current = userId;
+      accountPositionLoadedUserRef.current = accountProfileReady && userId ? userId : null;
+      const localProgress = readWorldProgress(userId);
+      const savedPosition = userId && accountProfileReady ? profile.worldProgress : null;
+      applyProgress(inferWorldProgressFromDefeatedOpponents(
+        savedPosition
+          ? { ...localProgress, distance: savedPosition.distance, depth: savedPosition.depth, unlockedThroughChapter: 0 }
+          : localProgress,
+        profile.defeatedOpponents,
+      ));
+      return;
+    }
+
+    if (accountPositionJustLoaded) {
+      accountPositionLoadedUserRef.current = userId;
+      if (profile.worldProgress) {
+        const localProgress = readWorldProgress(userId);
+        applyProgress(inferWorldProgressFromDefeatedOpponents({
+          ...localProgress,
+          distance: profile.worldProgress.distance,
+          depth: profile.worldProgress.depth,
+          unlockedThroughChapter: 0,
+        }, profile.defeatedOpponents));
+        return;
+      }
+    }
+
+    const currentProgress = {
+      ...worldProgressRef.current,
+      distance: motionRef.current.distance,
+      depth: motionRef.current.depth,
+    };
+    const inferred = inferWorldProgressFromDefeatedOpponents(currentProgress, profile.defeatedOpponents);
+    if (
+      inferred.distance !== currentProgress.distance
+      || inferred.depth !== currentProgress.depth
+      || inferred.unlockedThroughChapter !== currentProgress.unlockedThroughChapter
+    ) {
+      applyProgress(inferred);
+    }
+  }, [accountProfileReady, profile.defeatedOpponents, profile.worldProgress, userId]);
+  useEffect(() => {
+    const persistProgress = () => {
+      const progress = {
+        ...worldProgressRef.current,
+        distance: motionRef.current.distance,
+        depth: motionRef.current.depth,
+      };
+      saveWorldProgress(progress, progressUserIdRef.current);
+      saveCloudProgress(progress, true);
+    };
+    const persistWhenHidden = () => {
+      if (document.visibilityState === "hidden") persistProgress();
+    };
+    const syncAccountPosition = () => saveCloudProgress({
+      ...worldProgressRef.current,
+      distance: motionRef.current.distance,
+      depth: motionRef.current.depth,
+    });
+    const syncInterval = window.setInterval(syncAccountPosition, 10_000);
+    window.addEventListener("pagehide", persistProgress);
+    document.addEventListener("visibilitychange", persistWhenHidden);
+    return () => {
+      persistProgress();
+      window.clearInterval(syncInterval);
+      window.removeEventListener("pagehide", persistProgress);
+      document.removeEventListener("visibilitychange", persistWhenHidden);
+    };
+  }, [saveCloudProgress]);
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
@@ -442,7 +577,6 @@ export default function WorldScene({
   const airEnabled = weatherMode !== "clear";
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
-  const [travel, setTravel] = useState(0);
   const currentChapterId = Math.max(0, Math.floor(travel / WORLD_GATE_INTERVAL_METERS));
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
@@ -525,7 +659,12 @@ export default function WorldScene({
     rival.distance >= travel - 8 && !profile.defeatedOpponents.includes(rival.id),
   )
     .sort((left, right) => left.distance - right.distance);
-  const nextOpponent = rivals[0];
+  const nextOpponent = allRivals
+    .filter((rival) => Math.abs(rival.distance - travel) <= 25)
+    .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
+  const nextOpponentDefeated = Boolean(
+    nextOpponent && profile.defeatedOpponents.includes(nextOpponent.id),
+  );
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
   const encounterVisible = Boolean(nextOpponent && encounterDistance <= 25);
   const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
@@ -1059,6 +1198,15 @@ export default function WorldScene({
         }, {
           operation: "duel start",
           fallbackMessage: "Hesap düellosu şu an başlatılamıyor. Lütfen daha sonra tekrar dene.",
+          messageForCode: (code, status) => {
+            if (status === 429) return "Çok sık deneme yaptın. Biraz bekleyip tekrar dene.";
+            if (code === "duel_already_active") return "Hesabında başka bir düello açık. Önce o karşılaşmayı tamamla.";
+            if (code === "opponent_already_defeated") return "Bu rakibi zaten yendin. Haritaya dönüp ilerlemeye devam et.";
+            if (code === "unknown_opponent") return "Rakip bilgisi güncel değil. Haritayı yenileyip tekrar dene.";
+            if (code === "profile_not_ready") return "Hesap profilin henüz hazır değil. Biraz bekleyip yeniden dene.";
+            if (code === "authentication_required") return "Oturum doğrulanamadı. Yeniden giriş yap.";
+            return "Hesap düellosu şu an başlatılamıyor. Lütfen daha sonra tekrar dene.";
+          },
         });
         if (
           typeof challenge.duelId !== "string" ||
@@ -1246,6 +1394,7 @@ export default function WorldScene({
     let accumulator = 0;
     let lastReactUpdate = 0;
     let lastVisualUpdate = 0;
+    let lastProgressSave = 0;
     const lastFiniteMotion = { ...motionRef.current };
     const fixedStep = 1 / 60;
     const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
@@ -1464,6 +1613,23 @@ export default function WorldScene({
           nextFrame.speed = Math.abs(nextFrame.velocityX);
         }
 
+        const gateLimitedDistance = limitWorldDistanceAtGate(
+          motionRef.current.distance,
+          nextFrame.distance,
+          worldProgressRef.current.unlockedThroughChapter,
+        );
+        if (gateLimitedDistance < nextFrame.distance) {
+          nextFrame.distance = gateLimitedDistance;
+          nextFrame.cameraX = Math.min(nextFrame.cameraX, gateLimitedDistance);
+          nextFrame.velocityY = 0;
+          nextFrame.speed = Math.abs(nextFrame.velocityX);
+          nextFrame.hasMoved = nextFrame.speed > 0.12;
+          if (!nextFrame.hasMoved) {
+            nextFrame.motion = "idle";
+            nextFrame.footsteps = 0;
+          }
+        }
+
         for (const rival of worldContent.rivals) {
           const rivalDistance = rivalDistancesRef.current.get(rival.id) ?? rival.distance;
           const gap = rivalDistance - nextFrame.distance;
@@ -1559,6 +1725,15 @@ export default function WorldScene({
         accumulator / fixedStep,
         interpolatedMotion,
       );
+      worldProgressRef.current = {
+        ...worldProgressRef.current,
+        distance: frameState.distance,
+        depth: frameState.depth,
+      };
+      if (now - lastProgressSave >= 1_000) {
+        saveWorldProgress(worldProgressRef.current, progressUserIdRef.current);
+        lastProgressSave = now;
+      }
       if (hasCollectedThisFrame) setCollectedPickupIds(new Set(collectedRef.current));
       for (const [chapterId, ids] of newlyCollected) queuePickupClaims(chapterId, ids);
 
@@ -1687,6 +1862,26 @@ export default function WorldScene({
   };
   const debugSkipDistance = () => teleportToDistance(travel + 25);
   const gateDistance = nextGateDistance(travel);
+  const chapterRivals = getWorldChapter(currentChapterId).rivals;
+  const defeatedChapterRivals = chapterRivals.filter((rival) =>
+    profile.defeatedOpponents.includes(rival.id),
+  ).length;
+  const roomCleared = isWorldChapterCleared(currentChapterId, profile.defeatedOpponents);
+  const gateLocked = worldProgress.unlockedThroughChapter <= currentChapterId;
+  const gatePromptVisible = gateLocked
+    && gateDistance - travel <= WORLD_GATE_INTERACTION_RANGE_METERS;
+  const openWorldGate = () => {
+    wake();
+    if (!roomCleared) return;
+    const nextProgress = unlockWorldGate({
+      ...worldProgressRef.current,
+      distance: motionRef.current.distance,
+      depth: motionRef.current.depth,
+    }, currentChapterId, true);
+    worldProgressRef.current = nextProgress;
+    setWorldProgress(nextProgress);
+    saveWorldProgress(nextProgress, progressUserIdRef.current);
+  };
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
   const sceneBiome = getBiomeForDistance(travel);
   const scenePalette = WORLD_BIOME_PALETTES[sceneBiome];
@@ -1727,6 +1922,7 @@ export default function WorldScene({
         >
           <World3D
             motionRef={motionRef}
+            unlockedThroughChapter={worldProgress.unlockedThroughChapter}
             collisionGrid={getCachedWorldContent(motionRef.current.distance, contentCacheRef.current).collisionGrid}
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
@@ -1956,6 +2152,20 @@ export default function WorldScene({
         <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
         <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
       </div>
+      {gatePromptVisible && (
+        <section className="world-gate-prompt" aria-label="Bölüm geçidi">
+          <span className="world-gate-prompt__eyebrow">BÖLÜM {currentChapterId + 1} · GEÇİT</span>
+          <strong>{roomCleared ? "Yol temizlendi" : "Kapı kilitli"}</strong>
+          <span className="world-gate-prompt__progress">
+            {roomCleared
+              ? "Bu odadaki tüm rakipleri yendin."
+              : `Rakipleri yen: ${defeatedChapterRivals}/${chapterRivals.length}`}
+          </span>
+          <button type="button" onClick={openWorldGate} disabled={!roomCleared}>
+            {roomCleared ? "KAPIYI AÇ" : "KİLİTLİ"}
+          </button>
+        </section>
+      )}
       <div
         className="world-joystick"
         role="application"

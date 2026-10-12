@@ -80,6 +80,7 @@ const PROCEDURAL_ENVIRONMENT_MAP = createProceduralEnvironmentMap();
 
 type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
+  unlockedThroughChapter: number;
   collisionGrid: WorldCollisionGrid;
   quality: WorldQuality;
   visualEffectsEnabled: boolean;
@@ -485,6 +486,10 @@ function DuelFighter({
   const deathStartedAtRef = useRef<number | null>(null);
   const actorMotion = useMemo(() => ({ current: createWorldMotion() }), []);
   const renderedActor = combatRender?.[side];
+  const opposingActor = combatRender?.[side === "player" ? "bot" : "player"];
+  const facingAngle = renderedActor && opposingActor
+    ? Math.atan2(opposingActor.x - renderedActor.x, opposingActor.z - renderedActor.z)
+    : side === "bot" ? Math.PI : 0;
   const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
   const animation = renderedActor ? combatAnimation(renderedActor.action, speed) : "idle";
   const modelConfig = side === "bot" ? getOpponentModelConfig(opponentName) : undefined;
@@ -551,7 +556,7 @@ function DuelFighter({
           state={animation}
           motionReduced={motionReduced}
           animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
-          facingAngle={side === "bot" ? Math.PI : 0}
+          facingAngle={facingAngle}
           appearance={side === "player" ? equipmentVisual : undefined}
           castShadow
           modelConfig={modelConfig}
@@ -870,6 +875,8 @@ function DuelArena({
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
+      <pointLight position={[0, 4.6, 1.4]} color="#ffc17e" intensity={40} distance={18} decay={2} />
+      <pointLight position={[0, 3.4, -3.4]} color="#92c7dd" intensity={15} distance={15} decay={2} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[4.28, 96]} />
         <meshStandardMaterial
@@ -1005,6 +1012,7 @@ function WorldCollisionDebug({
 
 function SceneContents({
   motionRef,
+  unlockedThroughChapter,
   collisionGrid,
   quality,
   visualEffectsEnabled,
@@ -1187,6 +1195,7 @@ function SceneContents({
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
       <color attach="background" args={["#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
+      {combatActive && <ambientLight color="#ffdbb3" intensity={0.6} />}
       <directionalLight
         position={[-8, 14, 8]}
         color="#ffd09a"
@@ -1218,13 +1227,14 @@ function SceneContents({
         finisherSlowMotion={finisherSlowMotion}
       />
       <AshSky motionRef={motionRef} />
-      <group visible={!combatActive} name="road-world">
+      <group name="road-world">
         <WorldChunks
           chunks={chunks}
           motionRef={motionRef}
           motionReduced={motionReduced}
           quality={quality}
           weather={weatherMode}
+          unlockedThroughChapter={unlockedThroughChapter}
         />
       </group>
       <WarmupErrorBoundary>

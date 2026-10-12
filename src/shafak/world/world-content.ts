@@ -3,7 +3,7 @@ import { WORLD_SEED } from "./world-generation.ts";
 import { createWorldChunk } from "./world-generation.ts";
 import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles.ts";
 
-export type PickupKind = "gold-small" | "gold-large" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
+export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
 export type WorldPickup = {
   id: string;
@@ -15,7 +15,7 @@ export type WorldPickup = {
   sourceObstacleId?: string;
 };
 
-export type WorldObstacleKind = "rock" | "spike-trap" | "barricade";
+export type WorldObstacleKind = "rock" | "spike-trap" | "low-bar" | "barricade";
 
 export type WorldObstacle = {
   id: string;
@@ -55,6 +55,7 @@ export type WorldCollider = {
   halfWidth: number;
   halfDepth: number;
   breakableId?: string;
+  requiredAction?: "crouch";
 };
 
 export type WorldCollisionGrid = Map<number, Map<number, WorldCollider[]>>;
@@ -129,7 +130,16 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
     sourceObstacleId: barricadeId,
   };
 
-  return [...regular, drop];
+  const treasureCache: WorldPickup = {
+    id: `ash-road:${chapterId}:pickup:treasure-cache`,
+    chapterId,
+    kind: "treasure-cache",
+    amount: 75 + Math.floor(random() * 26),
+    x: 4.8,
+    distance: chapterStart + 58,
+  };
+
+  return [...regular, treasureCache, drop];
 }
 
 function createObstacles(chapterId: number): WorldObstacle[] {
@@ -151,6 +161,15 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       x: 0,
       distance: chapterStart + 77,
       width: 3.8,
+      health: 0,
+    },
+    {
+      id: `ash-road:${chapterId}:obstacle:low-bar`,
+      chapterId,
+      kind: "low-bar",
+      x: 0,
+      distance: chapterStart + 88,
+      width: 5.2,
       health: 0,
     },
     {
@@ -215,7 +234,9 @@ export function getWorldContentAround(distance: number, chapterRadius = 1) {
 export function pickupRewardTotals(pickups: readonly WorldPickup[]) {
   return pickups.reduce(
     (totals, pickup) => {
-      if (pickup.kind === "gold-small" || pickup.kind === "gold-large") totals.gold += pickup.amount;
+      if (pickup.kind === "gold-small" || pickup.kind === "gold-large" || pickup.kind === "treasure-cache") {
+        totals.gold += pickup.amount;
+      }
       if (pickup.kind === "diamond-small") totals.diamonds += pickup.amount;
       if (pickup.kind === "ember-crystal") totals.materials.emberCrystals += pickup.amount;
       if (pickup.kind === "seal-fragment") totals.materials.sealFragments += pickup.amount;
@@ -278,8 +299,9 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         shape: obstacle.kind === "rock" ? "circle" : "box",
         radius: obstacle.width * 0.58,
         halfWidth: obstacle.width / 2,
-        halfDepth: obstacle.kind === "barricade" ? 0.3 : 0.5,
+        halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
         breakableId: obstacle.kind === "barricade" ? obstacle.id : undefined,
+        requiredAction: obstacle.kind === "low-bar" ? "crouch" : undefined,
       });
     }
 
@@ -337,6 +359,7 @@ export function resolveWorldPathCollision(
   grid: WorldCollisionGrid,
   brokenObstacleIds: ReadonlySet<string>,
   target: { x: number; distance: number } = { x: 0, distance: 0 },
+  clearance: { crouching?: boolean; jumpHeight?: number } = {},
 ) {
   const startX = Number.isFinite(previousX) ? previousX : 0;
   const startDistance = Number.isFinite(previousDistance) ? Math.max(0, previousDistance) : 0;
@@ -365,6 +388,7 @@ export function resolveWorldPathCollision(
         if (!colliders) continue;
         for (const collider of colliders) {
           if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
+          if (collider.requiredAction === "crouch" && clearance.crouching) continue;
           if (collider.shape === "circle") {
             const dx = x - collider.x;
             const dz = distance - collider.distance;

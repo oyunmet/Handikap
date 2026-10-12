@@ -420,6 +420,24 @@
   box-shadow: 0 0 8px rgba(235,165,87,.72); transition: width .28s ease;
 }
 .world-progress__distance { display: block; color: rgba(229,211,179,.47); font-size: 6px; letter-spacing: .12em; text-align: right; }
+.world-gate-prompt {
+  position: absolute; z-index: 8; top: 44%; left: 50%; display: grid;
+  width: min(290px, calc(100% - 32px)); justify-items: center; gap: 7px;
+  padding: 14px 16px; border: 1px solid rgba(235,198,126,.54); border-radius: 5px;
+  background: linear-gradient(145deg, rgba(29,24,26,.93), rgba(12,14,19,.91));
+  box-shadow: 0 10px 36px rgba(0,0,0,.48), inset 0 1px rgba(255,255,255,.06);
+  backdrop-filter: blur(12px); text-align: center; transform: translateX(-50%);
+  pointer-events: auto;
+}
+.world-gate-prompt__eyebrow { color: #e3c285; font-size: 8px; font-weight: 800; letter-spacing: .17em; }
+.world-gate-prompt strong { color: #f4e8d2; font: 600 18px var(--font-display, Georgia, serif); }
+.world-gate-prompt__progress { color: rgba(238,224,198,.76); font-size: 10px; line-height: 1.45; }
+.world-gate-prompt button {
+  min-height: 40px; margin-top: 3px; padding: 0 18px; border: 1px solid rgba(235,198,126,.72);
+  border-radius: 3px; background: linear-gradient(135deg, #8b563d, #5c3a32);
+  color: #fff0d0; cursor: pointer; font-size: 9px; font-weight: 900; letter-spacing: .14em;
+}
+.world-gate-prompt button:disabled { border-color: rgba(226,213,190,.2); background: rgba(126,123,122,.18); color: rgba(235,225,210,.58); cursor: not-allowed; }
 .world-topbar {
   position: absolute; z-index: 5; top: max(14px, env(safe-area-inset-top));
   right: max(clamp(14px, 3vw, 42px), env(safe-area-inset-right));
@@ -880,6 +898,8 @@
   .world-resource-hud { flex: 1 0 100%; max-width: 100%; gap: 5px; }
   .world-weather { gap: 5px; padding: 6px 7px; font-size: 7px; }
   .world-progress { top: max(156px, calc(env(safe-area-inset-top) + 148px)); width: min(230px, 55vw); }
+  .world-gate-prompt { top: 41%; width: min(290px, calc(100% - 26px)); }
+  .world-gate-prompt strong { font-size: 16px; }
   .world-debug { top: 120px; right: 8px; gap: 3px; padding: 6px 7px; font-size: 8px; }
   .world-debug__actions button { min-height: 28px; }
   .world-figure { left: calc(35% + var(--ws-player-drift-x, 0px)); bottom: clamp(96px, 14vh, 142px); width: clamp(180px, 48vw, 260px); height: min(58vh, 520px); }
@@ -946,13 +966,14 @@
 .world-scene:not([data-battle="none"]) .world-controls,
 .world-scene:not([data-battle="none"]) .world-pickup-notice,
 .world-scene:not([data-battle="none"]) .world-pickup-flights,
+.world-scene:not([data-battle="none"]) .world-gate-prompt,
 .world-scene:not([data-battle="none"]) .world-step-bursts { display: none !important; }
 
 .world-scene[data-battle="fight"] .world-stage::after {
   position: absolute;
   z-index: 2;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 48%, transparent 47%, rgba(7, 8, 13, .28) 100%);
+  background: radial-gradient(ellipse at 50% 48%, transparent 54%, rgba(7, 8, 13, .12) 100%);
   content: "";
   pointer-events: none;
 }

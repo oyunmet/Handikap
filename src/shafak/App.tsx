@@ -624,6 +624,22 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     }
   }, [authApiRequestWithRetry, profileSyncStatus, user?.id]);
 
+  const saveWorldPosition = useCallback(async (position: { distance: number; depth: number }) => {
+    if (!user?.id || profileSyncStatus !== "ready") return;
+    await authApiRequestWithRetry<{ worldProgress?: unknown }>("/api/profile/world-progress", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(position),
+    }, {
+      operation: "world progress save",
+      fallbackMessage: "Yol konumu hesaba şu an eşitlenemedi.",
+      messageForCode: (code) => code === "invalid_world_progress"
+        ? "Yol konumu hesap ilerlemesiyle uyuşmuyor."
+        : "Yol konumu hesaba şu an eşitlenemedi.",
+    }, { maxRetries: 1, baseDelayMs: 350 });
+  }, [authApiRequestWithRetry, profileSyncStatus, user?.id]);
+
   const handleRename = (name: string) => {
     if (!user?.id) {
       setProfile(renameProfile(profile, name));
@@ -914,6 +930,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
               <WorldScene
                 apiRequest={authApiRequest}
+                userId={user?.id}
                 quality={activeQuality}
                 visualEffectsEnabled={preferences.visualEffects}
                 motionReduced={motionReduced}
@@ -931,6 +948,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onBattleProfile={setProfile}
                 onLoadClaimedPickups={loadClaimedPickups}
                 onClaimWorldPickups={claimWorldPickups}
+                onSaveWorldPosition={saveWorldPosition}
                 onExit={() => setScreen("menu")}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onOpenProfile={() => setProfileOpen(true)}

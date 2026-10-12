@@ -96,12 +96,34 @@ export function inferWorldProgressFromDefeatedOpponents(
     furthestChapter = chapterId;
   }
 
-  if (furthestDistance < 0) return progress;
+  let clearedThroughChapter = 0;
+  while (isWorldChapterCleared(clearedThroughChapter, defeatedOpponentIds)) {
+    clearedThroughChapter += 1;
+  }
   return normalizeWorldProgress({
     ...progress,
-    distance: Math.max(progress.distance, furthestDistance + 2),
-    unlockedThroughChapter: Math.max(progress.unlockedThroughChapter, furthestChapter),
+    distance: furthestDistance < 0
+      ? progress.distance
+      : Math.max(progress.distance, furthestDistance + 2),
+    unlockedThroughChapter: Math.max(
+      progress.unlockedThroughChapter,
+      furthestChapter,
+      clearedThroughChapter,
+    ),
   });
+}
+
+export function isWorldChapterCleared(
+  chapterId: number,
+  defeatedOpponentIds: readonly string[],
+): boolean {
+  try {
+    const defeated = new Set(defeatedOpponentIds);
+    const rivals = getWorldChapter(chapterId).rivals;
+    return rivals.length > 0 && rivals.every((rival) => defeated.has(rival.id));
+  } catch {
+    return false;
+  }
 }
 
 export function unlockWorldGate(
@@ -128,5 +150,6 @@ export function limitWorldDistanceAtGate(
 
   const stopDistance =
     (chapterId + 1) * WORLD_GATE_INTERVAL_METERS - WORLD_GATE_STOP_OFFSET_METERS;
+  if (current > stopDistance && next < current) return next;
   return Math.min(next, stopDistance);
 }

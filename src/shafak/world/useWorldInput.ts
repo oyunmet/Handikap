@@ -12,6 +12,9 @@ const MOVEMENT_KEYS = new Set([
   "s",
   "d",
   "shift",
+  "space",
+  "control",
+  "c",
 ]);
 
 export default function useWorldInput(wake: () => void) {
@@ -60,16 +63,37 @@ export default function useWorldInput(wake: () => void) {
       ?.style.setProperty("transform", "translate(-50%,-50%)");
   }, []);
 
+  const onActionPointerDown = useCallback((
+    event: ReactPointerEvent<HTMLButtonElement>,
+    key: "shift" | "space" | "c",
+  ) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    heldKeys.current.add(key);
+    wake();
+  }, [wake]);
+  const onActionPointerUp = useCallback((
+    event: ReactPointerEvent<HTMLButtonElement>,
+    key: "shift" | "space" | "c",
+  ) => {
+    heldKeys.current.delete(key);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
+      const key = event.key === " " ? "space" : event.key.toLowerCase();
       if (!MOVEMENT_KEYS.has(key)) return;
       if (event.target instanceof HTMLElement && /input|textarea|select/i.test(event.target.tagName)) return;
       event.preventDefault();
       heldKeys.current.add(key);
       wake();
     };
-    const onKeyUp = (event: KeyboardEvent) => heldKeys.current.delete(event.key.toLowerCase());
+    const onKeyUp = (event: KeyboardEvent) => {
+      heldKeys.current.delete(event.key === " " ? "space" : event.key.toLowerCase());
+    };
     const onBlur = () => {
       heldKeys.current.clear();
       joystick.current = { x: 0, y: 0 };
@@ -96,5 +120,7 @@ export default function useWorldInput(wake: () => void) {
     onJoystickPointerMove: updateJoystick,
     onJoystickPointerUp: releaseJoystick,
     onJoystickPointerCancel: releaseJoystick,
+    onActionPointerDown,
+    onActionPointerUp,
   };
 }

@@ -1,6 +1,10 @@
 export type WorldMotion = {
   velocityX: number;
   velocityY: number;
+  jumpHeight: number;
+  jumpVelocity: number;
+  jumpHeld: boolean;
+  crouching: boolean;
   depth: number;
   distance: number;
   originDistance: number;
@@ -18,6 +22,8 @@ export type WorldInput = {
   x: number;
   y: number;
   sprint: boolean;
+  jump: boolean;
+  crouch: boolean;
   analogMagnitude: number;
 };
 
@@ -54,6 +60,10 @@ export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
   return {
     velocityX: 0,
     velocityY: 0,
+    jumpHeight: 0,
+    jumpVelocity: 0,
+    jumpHeld: false,
+    crouching: false,
     depth: clamp(finiteOrZero(depth), -1, 1),
     distance: initialDistance,
     originDistance: getWorldOriginDistance(initialDistance),
@@ -86,6 +96,8 @@ export function readWorldInput(
     x: x * scale,
     y: y * scale,
     sprint: keys.has("shift"),
+    jump: keys.has("space"),
+    crouch: keys.has("control") || keys.has("c"),
     analogMagnitude: hasKeyboardDirection ? 0 : clamp(magnitude, 0, 1),
   };
 }
@@ -100,8 +112,19 @@ export function stepWorldMotion(
   const dt = clamp(finiteOrZero(deltaSeconds), 0, 0.05);
   const magnitude = clamp(Math.hypot(input.x, input.y), 0, 1);
   const analogRun = smoothstep(0.58, 1, clamp(input.analogMagnitude, 0, 1));
-  const runBlend = input.sprint ? 1 : analogRun;
+  let jumpVelocity = state.jumpVelocity;
+  let jumpHeight = state.jumpHeight;
+  const jumpPressed = input.jump && !state.jumpHeld;
+  if (jumpPressed && !input.crouch && jumpHeight <= 0.001) jumpVelocity = 7.2;
+  if (jumpVelocity !== 0 || jumpHeight > 0) {
+    jumpVelocity -= 19.5 * dt;
+    jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
+    if (jumpHeight === 0) jumpVelocity = 0;
+  }
+  const crouching = input.crouch && jumpHeight <= 0.05;
+  const runBlend = crouching ? 0 : input.sprint ? 1 : analogRun;
   const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend)
+    * (crouching ? 0.56 : 1)
     * clamp(finiteOrZero(speedMultiplier) || 1, 0.88, 1.14);
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const targetX = input.x * directionScale * targetSpeed;
@@ -109,11 +132,13 @@ export function stepWorldMotion(
   const timeConstant = targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS;
   const response = 1 - Math.exp(-dt / timeConstant);
   const velocityX = state.velocityX + (targetX - state.velocityX) * response;
-  const velocityY = state.velocityY + (targetY - state.velocityY) * response;
+  let velocityY = state.velocityY + (targetY - state.velocityY) * response;
+  const requestedDistance = state.distance + velocityY * dt;
+  const distance = Math.max(0, requestedDistance);
+  if (requestedDistance <= 0) velocityY = 0;
   const speed = Math.hypot(velocityX, velocityY);
   const isMoving = speed > 0.12;
   const stopTime = isMoving ? 0 : state.stopTime + dt;
-  const distance = state.distance + velocityY * dt;
   const originDistance = getWorldOriginDistance(distance);
   const depth = clamp(state.depth + velocityX * dt / LANE_METERS_PER_UNIT, -1, 1);
   const stepPhase = state.stepPhase + speed * dt / STRIDE_LENGTH * Math.PI * 2;
@@ -139,6 +164,10 @@ export function stepWorldMotion(
   const frame = target ?? {} as WorldMotionFrame;
   frame.velocityX = velocityX;
   frame.velocityY = velocityY;
+  frame.jumpHeight = jumpHeight;
+  frame.jumpVelocity = jumpVelocity;
+  frame.jumpHeld = input.jump;
+  frame.crouching = crouching;
   frame.depth = depth;
   frame.distance = distance;
   frame.originDistance = originDistance;
@@ -173,6 +202,10 @@ export function interpolateWorldMotion(
   const lerp = (from: number, to: number) => from + (to - from) * amount;
   target.velocityX = lerp(previous.velocityX, current.velocityX);
   target.velocityY = lerp(previous.velocityY, current.velocityY);
+  target.jumpHeight = lerp(previous.jumpHeight, current.jumpHeight);
+  target.jumpVelocity = current.jumpVelocity;
+  target.jumpHeld = current.jumpHeld;
+  target.crouching = current.crouching;
   target.depth = lerp(previous.depth, current.depth);
   target.distance = lerp(previous.distance, current.distance);
   target.originDistance = current.originDistance;

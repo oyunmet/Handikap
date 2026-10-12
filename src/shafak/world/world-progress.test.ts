@@ -3,6 +3,7 @@ import test from "node:test";
 import { getWorldChapter } from "./world-content.ts";
 import {
   inferWorldProgressFromDefeatedOpponents,
+  isWorldChapterCleared,
   limitWorldDistanceAtGate,
   normalizeWorldProgress,
   readWorldProgress,
@@ -37,9 +38,17 @@ test("requires the whole current room to be cleared before unlocking its gate", 
   });
 });
 
+test("does not mistake one victory for clearing the entire chapter", () => {
+  const rivals = getWorldChapter(0).rivals;
+  assert.equal(isWorldChapterCleared(0, [rivals[0].id]), false);
+  assert.equal(isWorldChapterCleared(0, rivals.map((rival) => rival.id)), true);
+});
+
 test("stops travel at a locked gate but allows retreat and passage after unlock", () => {
   assert.equal(limitWorldDistanceAtGate(140, 145, 0), 144 - 2.8);
   assert.equal(limitWorldDistanceAtGate(140, 138, 0), 138);
+  assert.equal(limitWorldDistanceAtGate(143, 142, 0), 142);
+  assert.equal(limitWorldDistanceAtGate(143, 143, 0), 144 - 2.8);
   assert.equal(limitWorldDistanceAtGate(140, 145, 1), 145);
 });
 

@@ -19,6 +19,7 @@ export type PlayerProfile = {
   bestStreak: number;
   items: string[];
   defeatedOpponents: string[];
+  worldProgress: { distance: number; depth: number } | null;
   dailyBattles: number;
   dailyWins: number;
   dailyKey: string;
@@ -58,6 +59,7 @@ export const defaultProfile: PlayerProfile = {
   bestStreak: 0,
   items: [],
   defeatedOpponents: [],
+  worldProgress: null,
   dailyBattles: 0,
   dailyWins: 0,
   dailyKey: new Date().toISOString().slice(0, 10),
@@ -73,6 +75,9 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
   const savedMaterials = saved.materials && typeof saved.materials === "object"
     ? saved.materials as Partial<PlayerProfile["materials"]>
     : {};
+  const savedWorldProgress = saved.worldProgress && typeof saved.worldProgress === "object"
+    ? saved.worldProgress as Partial<NonNullable<PlayerProfile["worldProgress"]>>
+    : null;
   const today = todayKey();
   return {
     name: typeof saved.name === "string" && saved.name.trim() ? saved.name.trim().slice(0, 20) : defaultProfile.name,
@@ -95,6 +100,17 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
     defeatedOpponents: Array.isArray(saved.defeatedOpponents)
       ? saved.defeatedOpponents.filter((item): item is string => typeof item === "string").slice(-30)
       : [],
+    worldProgress: savedWorldProgress
+      && typeof savedWorldProgress.distance === "number"
+      && Number.isFinite(savedWorldProgress.distance)
+      && savedWorldProgress.distance >= 0
+      && typeof savedWorldProgress.depth === "number"
+      && Number.isFinite(savedWorldProgress.depth)
+      ? {
+          distance: savedWorldProgress.distance,
+          depth: Math.max(-1, Math.min(1, savedWorldProgress.depth)),
+        }
+      : null,
     dailyBattles: saved.dailyKey === today ? finiteNumber(saved.dailyBattles, 0) : 0,
     dailyWins: saved.dailyKey === today ? finiteNumber(saved.dailyWins, 0) : 0,
     dailyKey: today,

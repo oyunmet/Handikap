@@ -173,12 +173,37 @@ export async function createDuelChallenge(
     [userId],
   );
   const activeResult = await database.query(
-    `SELECT duel_id FROM shafak_duels
+    `SELECT duel_id, seed, opponent_id, player_stats FROM shafak_duels
      WHERE user_id = $1 AND completed_at IS NULL
      LIMIT 1`,
     [userId],
   );
-  if (activeResult.rows[0]) throw new DuelServiceError(409, "duel_already_active");
+  const activeDuel = activeResult.rows[0];
+  if (activeDuel) {
+    const activeSeed = Number(activeDuel.seed);
+    if (
+      activeDuel.opponent_id === opponent.id &&
+      typeof activeDuel.duel_id === "string" &&
+      Number.isSafeInteger(activeSeed) &&
+      activeSeed > 0 &&
+      activeSeed <= 0xffff_ffff &&
+      isRecord(activeDuel.player_stats)
+    ) {
+      return {
+        duelId: activeDuel.duel_id,
+        seed: activeSeed,
+        playerStats: normalizePlayerCombatModifiers(activeDuel.player_stats),
+        opponent: {
+          id: opponent.id,
+          name: opponent.name,
+          level: opponent.level,
+          loot: opponent.loot,
+          difficulty: opponent.difficulty,
+        },
+      };
+    }
+    throw new DuelServiceError(409, "duel_already_active");
+  }
 
   const duelId = randomUUID();
   const seed = randomInt(1, 0xffff_ffff);
