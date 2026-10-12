@@ -82,6 +82,12 @@ import {
 import { getEncounterRangeState } from "./encounter-range";
 import { emitWorldDiagnostic } from "./world-diagnostics";
 
+function stressWalkQueryEnabled() {
+  if (typeof window === "undefined") return false;
+  const query = new URLSearchParams(window.location.search);
+  return query.get("debug") === "1" && query.get("stress") === "1";
+}
+
 const World3D = lazy(() => import("./World3D"));
 import "./world-scene.css";
 
@@ -498,6 +504,11 @@ export default function WorldScene({
   const motionRef = useRef(createWorldMotion());
   const renderMotionRef = useRef<WorldMotion | null>(null);
   const previousMotionRef = useRef<WorldMotion | null>(null);
+  const stressAutoWalkRef = useRef(false);
+  const stressOriginMotionRef = useRef<WorldMotion | null>(null);
+  const stressTargetDistanceRef = useRef(0);
+  const stressOriginSimulationTimeRef = useRef<number | null>(null);
+  const stressOriginNextAttackAtRef = useRef<number | null>(null);
   if (!renderMotionRef.current) renderMotionRef.current = { ...motionRef.current };
   if (!previousMotionRef.current) previousMotionRef.current = { ...motionRef.current };
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
@@ -561,6 +572,27 @@ export default function WorldScene({
   const claimLoaderRef = useRef(onLoadClaimedPickups);
   const claimQueueRef = useRef(new Map<number, Set<string>>());
   const claimTimersRef = useRef(new Map<number, number>());
+  const finishStressAutoWalk = useCallback((restoreMotion: boolean) => {
+    const origin = stressOriginMotionRef.current;
+    stressAutoWalkRef.current = false;
+    attackRequestedRef.current = false;
+    if (restoreMotion && origin) {
+      Object.assign(motionRef.current, origin);
+      if (previousMotionRef.current) Object.assign(previousMotionRef.current, origin);
+      if (renderMotionRef.current) Object.assign(renderMotionRef.current, origin);
+      if (stressOriginSimulationTimeRef.current !== null) {
+        simulationTimeRef.current = stressOriginSimulationTimeRef.current;
+      }
+      if (stressOriginNextAttackAtRef.current !== null) {
+        nextAttackAtRef.current = stressOriginNextAttackAtRef.current;
+      }
+      emitWorldDiagnostic("stress-walk", `200 m otomatik yürüyüşü ${origin.distance.toFixed(1)} m başlangıç noktasına sıfırlandı.`);
+    }
+    stressOriginMotionRef.current = null;
+    stressOriginSimulationTimeRef.current = null;
+    stressOriginNextAttackAtRef.current = null;
+    window.dispatchEvent(new CustomEvent("shafak:stress-auto-walk-complete"));
+  }, []);
   const trapCooldownRef = useRef(new Map<string, number>());
   const attackRequestedRef = useRef(false);
   const nextAttackAtRef = useRef(0);
@@ -947,6 +979,35 @@ export default function WorldScene({
       setPickupNotice(pickupErrorText(error));
     }
   }, [accountDuelEnabled, commitBattleProfile, onClaimWorldPickups, vibrationOn]);
+
+  useEffect(() => {
+    if (!stressWalkQueryEnabled()) return undefined;
+    const onStressWalk = (event: Event) => {
+      const enabled = Boolean((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled);
+      if (!enabled) {
+        finishStressAutoWalk(true);
+        return;
+      }
+      if (!active || battleActiveRef.current || storyDialogueRef.current) {
+        emitWorldDiagnostic("stress-walk", "Otomatik yürüyüş başlatılmadı: aktif dünya, düello dışında ve diyalogsuz olmalı.");
+        window.dispatchEvent(new CustomEvent("shafak:stress-auto-walk-complete"));
+        return;
+      }
+      const origin = { ...motionRef.current };
+      stressOriginMotionRef.current = origin;
+      stressTargetDistanceRef.current = origin.distance + 200;
+      stressOriginSimulationTimeRef.current = simulationTimeRef.current;
+      stressOriginNextAttackAtRef.current = nextAttackAtRef.current;
+      stressAutoWalkRef.current = true;
+      attackRequestedRef.current = false;
+      emitWorldDiagnostic("stress-walk", "Otomatik 200 m yürüyüş başladı; çarpışma, rakip kayması, tuzak, toplama ve ödül işlemleri devre dışı.");
+    };
+    window.addEventListener("shafak:stress-auto-walk", onStressWalk);
+    return () => {
+      window.removeEventListener("shafak:stress-auto-walk", onStressWalk);
+      if (stressAutoWalkRef.current) finishStressAutoWalk(true);
+    };
+  }, [active, finishStressAutoWalk]);
 
   const queuePickupClaims = useCallback((chapterId: number, pickupIds: string[]) => {
     let queued = claimQueueRef.current.get(chapterId);
@@ -1513,7 +1574,11 @@ export default function WorldScene({
       const dt = Math.min(Math.max(0, (now - (previous || now)) / 1000), fixedStep * 6);
       previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
-      const liveInput = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
+      if (stressAutoWalkRef.current && storyDialogueRef.current) finishStressAutoWalk(true);
+      const stressRunActive = stressAutoWalkRef.current;
+      const liveInput = stressRunActive
+        ? { x: 0, y: 1, sprint: true, analogMagnitude: 1 }
+        : readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
       const worldPausedForStory = Boolean(storyDialogueRef.current);
       let frameState: WorldMotionFrame = stepWorldMotion(
         motionRef.current,
@@ -1671,7 +1736,7 @@ export default function WorldScene({
             break;
           }
         }
-        if (trapSlowdownActive) {
+        if (trapSlowdownActive && !stressAutoWalkRef.current) {
           stepInput = {
             ...stepInput,
             x: stepInput.x * 0.38,
@@ -1691,15 +1756,17 @@ export default function WorldScene({
         const worldContent = getCachedWorldContent(nextFrame.distance, contentCacheRef.current);
         const obstacles = worldContent.obstacles;
         const playerX = nextFrame.depth * 5.2;
-        const resolvedPosition = resolveWorldPathCollision(
-          motionRef.current.depth * 5.2,
-          motionRef.current.distance,
-          nextFrame.depth * 5.2,
-          nextFrame.distance,
-          worldContent.collisionGrid,
-          brokenRef.current,
-          collisionPosition,
-        );
+        const resolvedPosition = stressAutoWalkRef.current
+          ? { x: playerX, distance: nextFrame.distance }
+          : resolveWorldPathCollision(
+              motionRef.current.depth * 5.2,
+              motionRef.current.distance,
+              nextFrame.depth * 5.2,
+              nextFrame.distance,
+              worldContent.collisionGrid,
+              brokenRef.current,
+              collisionPosition,
+            );
         if (
           Math.abs(resolvedPosition.distance - nextFrame.distance) > 0.0001
           || Math.abs(resolvedPosition.x - playerX) > 0.0001
@@ -1711,15 +1778,17 @@ export default function WorldScene({
           nextFrame.speed = Math.abs(nextFrame.velocityX);
         }
 
-        for (const rival of worldContent.rivals) {
-          const rivalDistance = rivalDistancesRef.current.get(rival.id) ?? rival.distance;
-          const gap = rivalDistance - nextFrame.distance;
-          if (gap > 2.7 && gap <= 8) {
-            rivalDistancesRef.current.set(rival.id, Math.max(nextFrame.distance + 2.7, rivalDistance - fixedStep * 1.4));
+        if (!stressAutoWalkRef.current) {
+          for (const rival of worldContent.rivals) {
+            const rivalDistance = rivalDistancesRef.current.get(rival.id) ?? rival.distance;
+            const gap = rivalDistance - nextFrame.distance;
+            if (gap > 2.7 && gap <= 8) {
+              rivalDistancesRef.current.set(rival.id, Math.max(nextFrame.distance + 2.7, rivalDistance - fixedStep * 1.4));
+            }
           }
         }
 
-        if (attackRequestedRef.current && simulationTimeRef.current >= nextAttackAtRef.current) {
+        if (!stressAutoWalkRef.current && attackRequestedRef.current && simulationTimeRef.current >= nextAttackAtRef.current) {
           attackRequestedRef.current = false;
           nextAttackAtRef.current = simulationTimeRef.current + 0.34;
           const target = obstacles
@@ -1752,27 +1821,29 @@ export default function WorldScene({
           }
         }
 
-        for (const obstacle of obstacles) {
-          if (obstacle.kind !== "spike-trap") continue;
-          const longitudinal = Math.abs(obstacle.distance - nextFrame.distance);
-          const lateral = Math.abs(obstacle.x - playerX);
-          if (longitudinal > 5 || lateral > obstacle.width / 2 + 1.8) {
-            trapCooldownRef.current.delete(obstacle.id);
-            continue;
-          }
-          const cooldown = trapCooldownRef.current.get(obstacle.id);
-          if (longitudinal <= 1.25 && lateral <= obstacle.width / 2 && cooldown === undefined) {
-            trapCooldownRef.current.set(obstacle.id, simulationTimeRef.current + 1.1);
-            setPickupNotice("Dikenli tuzak! 1 saniye yavaşladın.");
-            if (vibrationOn && "vibrate" in navigator) {
-              try { navigator.vibrate([35, 35, 25]); } catch { /* Haptics are optional. */ }
+        if (!stressAutoWalkRef.current) {
+          for (const obstacle of obstacles) {
+            if (obstacle.kind !== "spike-trap") continue;
+            const longitudinal = Math.abs(obstacle.distance - nextFrame.distance);
+            const lateral = Math.abs(obstacle.x - playerX);
+            if (longitudinal > 5 || lateral > obstacle.width / 2 + 1.8) {
+              trapCooldownRef.current.delete(obstacle.id);
+              continue;
             }
-          } else if (cooldown !== undefined && cooldown >= 0 && simulationTimeRef.current >= cooldown) {
-            trapCooldownRef.current.set(obstacle.id, -1);
+            const cooldown = trapCooldownRef.current.get(obstacle.id);
+            if (longitudinal <= 1.25 && lateral <= obstacle.width / 2 && cooldown === undefined) {
+              trapCooldownRef.current.set(obstacle.id, simulationTimeRef.current + 1.1);
+              setPickupNotice("Dikenli tuzak! 1 saniye yavaşladın.");
+              if (vibrationOn && "vibrate" in navigator) {
+                try { navigator.vibrate([35, 35, 25]); } catch { /* Haptics are optional. */ }
+              }
+            } else if (cooldown !== undefined && cooldown >= 0 && simulationTimeRef.current >= cooldown) {
+              trapCooldownRef.current.set(obstacle.id, -1);
+            }
           }
         }
 
-        if (loadedClaimChaptersRef.current.has(Math.floor(nextFrame.distance / WORLD_GATE_INTERVAL_METERS))) {
+        if (!stressAutoWalkRef.current && loadedClaimChaptersRef.current.has(Math.floor(nextFrame.distance / WORLD_GATE_INTERVAL_METERS))) {
           for (const pickup of worldContent.pickups) {
             if (
               (pickup.sourceObstacleId && !brokenRef.current.has(pickup.sourceObstacleId)) ||
@@ -1797,6 +1868,19 @@ export default function WorldScene({
         frameState = nextFrame;
         motionRef.current = frameState;
         footsteps += frameState.footsteps;
+        if (stressAutoWalkRef.current && frameState.distance >= stressTargetDistanceRef.current) {
+          finishStressAutoWalk(true);
+          frameState = stepWorldMotion(
+            motionRef.current,
+            stoppedInput,
+            0,
+            playerCombatStats.moveSpeedMultiplier,
+            frameScratch,
+          );
+          Object.assign(previousMotion, motionRef.current);
+          accumulator = 0;
+          break;
+        }
         accumulator -= fixedStep;
       }
       if (battleActiveRef.current) Object.assign(previousMotion, motionRef.current);
@@ -1842,8 +1926,10 @@ export default function WorldScene({
       }
       if (now - lastReactUpdate > 220) {
         lastReactUpdate = now;
-        setTravel(Math.floor(frameState.distance));
-        setRivalRefresh((current) => current + 1);
+        if (!stressAutoWalkRef.current) {
+          setTravel(Math.floor(frameState.distance));
+          setRivalRefresh((current) => current + 1);
+        }
       }
       frame = window.requestAnimationFrame(animate);
       consecutiveFrameErrors = 0;
@@ -1898,7 +1984,7 @@ export default function WorldScene({
       combatInputRef.current.pressed = 0;
       combatInputRef.current.released = 0;
     };
-  }, [active, audioOn, directionalDuelEnabled, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
+  }, [active, audioOn, directionalDuelEnabled, finishStressAutoWalk, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
