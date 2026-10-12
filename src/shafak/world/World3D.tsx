@@ -32,6 +32,7 @@ import {
   recordFrameMetric,
   type FrameMetricsSnapshot,
 } from "./frame-metrics";
+import { hasWebGLApi } from "./webgl-support";
 import {
   getDuelVfxKind,
   LIGHTNING_BOLT_COUNT,
@@ -230,14 +231,13 @@ function CanvasContextGuard({
 }
 
 function supportsWebGL() {
-  try {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
-    context?.getExtension("WEBGL_lose_context")?.loseContext();
-    return Boolean(context);
-  } catch {
-    return false;
-  }
+  if (typeof window === "undefined") return false;
+  // Do not consume a mobile browser's limited WebGL contexts with a throwaway
+  // canvas. The React Three Fiber Canvas below is the authoritative check.
+  return hasWebGLApi(
+    typeof WebGL2RenderingContext === "undefined" ? undefined : WebGL2RenderingContext,
+    typeof WebGLRenderingContext === "undefined" ? undefined : WebGLRenderingContext,
+  );
 }
 
 function getChunksForDistance(distance: number, cache: Map<number, WorldChunk>) {
