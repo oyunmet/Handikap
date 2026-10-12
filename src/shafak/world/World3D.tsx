@@ -61,6 +61,7 @@ import {
   type WorldCanarySnapshot,
 } from "./world-canary";
 import { getWorldRenderWatchdogTimeouts } from "./world-render-watchdog";
+import { isWorldWatchdogEnabled } from "./world-watchdog-mode";
 import { WorldResourcePool } from "./world-resource-pool";
 
 export type WorldQuality = "high" | "balanced" | "low";
@@ -1246,11 +1247,13 @@ function SceneContents({
   onPerformanceStats,
   debugEnabled,
   recoveryStage,
+  watchdogEnabled,
 }: World3DProps & {
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   debugEnabled: boolean;
   recoveryStage: number;
+  watchdogEnabled: boolean;
 }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
@@ -1329,36 +1332,38 @@ function SceneContents({
   useFrame((frame, delta) => {
     lastSceneFrameAt = performance.now();
     const motion = motionRef.current;
-    let visibleRenderables = 0;
-    const noGpuWork = gl.info.render.calls === 0 && gl.info.render.triangles === 0;
-    if (noGpuWork) {
-      frame.scene.traverseVisible((object) => {
-        const renderable = object as THREE.Object3D & {
-          isMesh?: boolean;
-          isPoints?: boolean;
-          isLine?: boolean;
-          isSprite?: boolean;
-        };
-        if (renderable.isMesh || renderable.isPoints || renderable.isLine || renderable.isSprite) {
-          visibleRenderables += 1;
+    if (watchdogEnabled) {
+      let visibleRenderables = 0;
+      const noGpuWork = gl.info.render.calls === 0 && gl.info.render.triangles === 0;
+      if (noGpuWork) {
+        frame.scene.traverseVisible((object) => {
+          const renderable = object as THREE.Object3D & {
+            isMesh?: boolean;
+            isPoints?: boolean;
+            isLine?: boolean;
+            isSprite?: boolean;
+          };
+          if (renderable.isMesh || renderable.isPoints || renderable.isLine || renderable.isSprite) {
+            visibleRenderables += 1;
+          }
+        });
+      }
+      if (!isWorldRenderDead({
+        calls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        visibleRenderables,
+      })) {
+        zeroDrawCallFramesRef.current = 0;
+        zeroDrawRecoverySentRef.current = false;
+      } else {
+        zeroDrawCallFramesRef.current += 1;
+        if (zeroDrawCallFramesRef.current >= 3 && !zeroDrawRecoverySentRef.current) {
+          zeroDrawRecoverySentRef.current = true;
+          emitWorldDiagnostic("render", "Görünür nesneler varken 3 kare boyunca draw call ve üçgen sayısı sıfır.");
+          window.dispatchEvent(new CustomEvent("shafak:scene-recovery", {
+            detail: { message: "3D render hattı draw call üretmedi." },
+          }));
         }
-      });
-    }
-    if (!isWorldRenderDead({
-      calls: gl.info.render.calls,
-      triangles: gl.info.render.triangles,
-      visibleRenderables,
-    })) {
-      zeroDrawCallFramesRef.current = 0;
-      zeroDrawRecoverySentRef.current = false;
-    } else {
-      zeroDrawCallFramesRef.current += 1;
-      if (zeroDrawCallFramesRef.current >= 3 && !zeroDrawRecoverySentRef.current) {
-        zeroDrawRecoverySentRef.current = true;
-        emitWorldDiagnostic("render", "Görünür nesneler varken 3 kare boyunca draw call ve üçgen sayısı sıfır.");
-        window.dispatchEvent(new CustomEvent("shafak:scene-recovery", {
-          detail: { message: "3D render hattı draw call üretmedi." },
-        }));
       }
     }
     if (performanceMonitorEnabled) {
@@ -1576,7 +1581,7 @@ function SceneContents({
         )
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
-      <WorldRenderCanary onStatus={reportCanaryStatus} />
+      {watchdogEnabled && <WorldRenderCanary onStatus={reportCanaryStatus} />}
     </>
   );
 }
@@ -1595,6 +1600,9 @@ function isSelfTestEnabled() {
 export default function World3D(props: World3DProps) {
   const active = props.active ?? true;
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
+  const [watchdogEnabled, setWatchdogEnabled] = useState(() => (
+    typeof window !== "undefined" && isWorldWatchdogEnabled(window.location.search)
+  ));
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [rendererName, setRendererName] = useState("bilinmiyor");
   const [contextLost, setContextLost] = useState(false);
@@ -1623,6 +1631,7 @@ export default function World3D(props: World3DProps) {
   }, []);
   const selfTestEnabled = isSelfTestEnabled();
   const recoveryStageRef = useRef(0);
+  const contextLossRecoveryRef = useRef(false);
   const lastRecoveryFailureWasContextCreationRef = useRef(false);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
     averageFps: 0,
@@ -1669,10 +1678,12 @@ export default function World3D(props: World3DProps) {
   const markFirstFrame = useCallback(() => {
     setFirstFrameReported(true);
     setRecoveryMessage("");
+    contextLossRecoveryRef.current = false;
     emitWorldDiagnostic("render", "3D sahnenin ilk karesi çizildi.");
   }, []);
   const retryWebGL = useCallback(() => {
     recoveryStageRef.current = 0;
+    contextLossRecoveryRef.current = false;
     lastRecoveryFailureWasContextCreationRef.current = false;
     setRecoveryStage(0);
     setContextLost(false);
@@ -1682,19 +1693,20 @@ export default function World3D(props: World3DProps) {
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
   const retryCanvasAfterError = useCallback((error?: Error) => {
+    if (!watchdogEnabled) return;
     if (error) emitWorldDiagnostic("recovery", error.stack ?? error.message);
     if (error && /error creating webgl context|could not create a webgl context/i.test(error.message)) {
       lastRecoveryFailureWasContextCreationRef.current = true;
     }
     const nextStage = nextWorldRecoveryStage(recoveryStageRef.current, error?.message);
     if (nextStage > 3) {
-      setRecoveryMessage("Sahne yenilenemedi · Yeniden yükle");
+      setRecoveryMessage(contextLossRecoveryRef.current ? "Sahne yenilenemedi · Yeniden yükle" : "");
       return;
     }
     recoveryStageRef.current = nextStage;
     emitWorldDiagnostic("recovery", `Kurtarma ${nextStage}/3 başlatıldı.`);
     setContextLost(false);
-    setRecoveryMessage("Sahne yenileniyor…");
+    setRecoveryMessage("");
     setRecoveryStage(nextStage);
     if (nextStage === 2) {
       setFirstFrameReported(false);
@@ -1704,20 +1716,25 @@ export default function World3D(props: World3DProps) {
       setFirstFrameReported(false);
       setSceneAttempt((attempt) => attempt + 1);
     }
-  }, []);
+  }, [watchdogEnabled]);
   const markContextLost = useCallback(() => {
+    contextLossRecoveryRef.current = true;
     lastRecoveryFailureWasContextCreationRef.current = true;
-    setRecoveryMessage("Sahne yenileniyor…");
+    setRecoveryMessage("");
     setContextLost(true);
   }, []);
   const rebuildRestoredContext = useCallback(() => {
+    if (!watchdogEnabled) {
+      setContextLost(false);
+      return;
+    }
     recoveryStageRef.current = Math.max(recoveryStageRef.current, 1);
     setRecoveryStage(recoveryStageRef.current);
     setContextLost(false);
-    setRecoveryMessage("Sahne yenileniyor…");
+    setRecoveryMessage("");
     setFirstFrameReported(false);
     setSceneAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [watchdogEnabled]);
 
   const copyDebugEvents = useCallback(() => {
     const text = formatWorldDiagnostics(debugEvents);
@@ -1762,25 +1779,31 @@ export default function World3D(props: World3DProps) {
 
   useEffect(() => {
     const recoverScene = (event: Event) => {
+      if (!watchdogEnabled) return;
       const detail = (event as CustomEvent<{ error?: Error; message?: string }>).detail;
       retryCanvasAfterError(detail?.error ?? new Error(detail?.message ?? "3D sahne çizim durdu."));
     };
     window.addEventListener("shafak:scene-recovery", recoverScene);
     return () => window.removeEventListener("shafak:scene-recovery", recoverScene);
-  }, [retryCanvasAfterError]);
+  }, [retryCanvasAfterError, watchdogEnabled]);
 
   useEffect(() => {
-    if (!contextLost || !active) return undefined;
+    if (!watchdogEnabled || !contextLost || !active) return undefined;
     const timer = window.setTimeout(() => {
       retryCanvasAfterError(new Error("WebGL bağlamı 2,5 saniyede geri yüklenmedi."));
     }, 2_500);
     return () => window.clearTimeout(timer);
-  }, [active, contextLost, retryCanvasAfterError]);
+  }, [active, contextLost, retryCanvasAfterError, watchdogEnabled]);
 
   useEffect(() => {
     const syncDebug = () => setDebugEnabled(isDebugEnabled());
+    const syncWatchdog = () => setWatchdogEnabled(isWorldWatchdogEnabled(window.location.search));
     window.addEventListener("popstate", syncDebug);
-    return () => window.removeEventListener("popstate", syncDebug);
+    window.addEventListener("popstate", syncWatchdog);
+    return () => {
+      window.removeEventListener("popstate", syncDebug);
+      window.removeEventListener("popstate", syncWatchdog);
+    };
   }, []);
 
   useEffect(() => {
@@ -1789,17 +1812,17 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt]);
 
   useEffect(() => {
-    if (!active || webglAvailable !== true || firstFrameReported || contextLost) return undefined;
+    if (!watchdogEnabled || !active || webglAvailable !== true || firstFrameReported || contextLost) return undefined;
     const timeoutMs = getWorldRenderWatchdogTimeouts(rendererName).firstFrameMs;
     const timer = window.setTimeout(() => {
       emitWorldDiagnostic("render", `Canvas ${timeoutMs / 1_000} saniyede ilk çizim karesi üretmedi.`);
       retryCanvasAfterError(new Error("3D sahne ilk kareyi çizmedi."));
     }, timeoutMs);
     return () => window.clearTimeout(timer);
-  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, rendererName, retryCanvasAfterError, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, rendererName, retryCanvasAfterError, sceneAttempt, watchdogEnabled, webglAvailable]);
 
   useEffect(() => {
-    if (!active || webglAvailable !== true || contextLost) return undefined;
+    if (!watchdogEnabled || !active || webglAvailable !== true || contextLost) return undefined;
     const timeoutMs = getWorldRenderWatchdogTimeouts(rendererName).renderStallMs;
     const timer = window.setInterval(() => {
       if (document.visibilityState === "hidden" || !firstFrameReported || !lastSceneFrameAt) return;
@@ -1809,10 +1832,10 @@ export default function World3D(props: World3DProps) {
       retryCanvasAfterError(new Error("WebGL render loop durdu."));
     }, 1_500);
     return () => window.clearInterval(timer);
-  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, rendererName, retryCanvasAfterError, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, rendererName, retryCanvasAfterError, sceneAttempt, watchdogEnabled, webglAvailable]);
 
   useEffect(() => {
-    if (!active || !webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
+    if (!watchdogEnabled || !active || !webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
     const timer = window.setTimeout(() => {
       recoveryStageRef.current = 0;
       lastRecoveryFailureWasContextCreationRef.current = false;
@@ -1821,17 +1844,17 @@ export default function World3D(props: World3DProps) {
       emitWorldDiagnostic("recovery", "Sahne 10 saniye boyunca çizim üretti; kurtarma sayacı sıfırlandı.");
     }, 10_000);
     return () => window.clearTimeout(timer);
-  }, [active, canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, firstFrameReported, recoveryStage, sceneAttempt, watchdogEnabled, webglAvailable]);
 
   useEffect(() => {
-    if (!active || !firstFrameReported || recoveryStage === 0 || recoveryStage >= 3) return undefined;
+    if (!watchdogEnabled || !active || !firstFrameReported || recoveryStage === 0 || recoveryStage >= 3) return undefined;
     const timer = window.setTimeout(() => {
       if (lastSceneFrameAt && performance.now() - lastSceneFrameAt < 1_500) {
         setRecoveryMessage("");
       }
     }, 1_200);
     return () => window.clearTimeout(timer);
-  }, [active, firstFrameReported, recoveryStage]);
+  }, [active, firstFrameReported, recoveryStage, watchdogEnabled]);
 
   const debugBiomeTransition = getBiomeTransition(debugStats.distance);
   const debugFogDensity = getWorldFogDensity(
@@ -1914,6 +1937,7 @@ export default function World3D(props: World3DProps) {
                 onSelfTestCombo={recordSelfTestCombo}
                 debugEnabled={debugEnabled}
                 recoveryStage={recoveryStage}
+                watchdogEnabled={watchdogEnabled}
                 onDebugStats={setDebugStats}
                 onPerformanceStats={setPerformanceStats}
               />
@@ -1928,11 +1952,11 @@ export default function World3D(props: World3DProps) {
           </div>
         </div>
       )}
-      {(contextLost || recoveryMessage) && (
+      {recoveryMessage === "Sahne yenilenemedi · Yeniden yükle" && contextLossRecoveryRef.current && (
         <div className="world-three-recovery" role="alert">
           <div>
-            <strong>{recoveryMessage === "Sahne yenileniyor…" ? "Sahne yenileniyor…" : contextLost ? "3D sahne durakladı" : "3D sahne yeniden yüklenemedi"}</strong>
-            <span>{recoveryMessage || "Grafik bağlamı kesildi. Sahneyi yeniden yükleyip devam edebilirsin."}</span>
+            <strong>3D sahne yeniden yüklenemedi</strong>
+            <span>Grafik bağlamı kayboldu ve geri yükleme denemeleri tamamlandı.</span>
             <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
           </div>
         </div>
