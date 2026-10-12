@@ -18,6 +18,39 @@ type Props = {
   onStatus?: (snapshot: WorldCanarySnapshot) => void;
 };
 
+export function readWorldCanaryPixel(
+  renderer: THREE.WebGLRenderer,
+  target: THREE.WebGLRenderTarget,
+  canaryScene: THREE.Scene,
+  canaryCamera: THREE.Camera,
+  pixel: Uint8Array,
+): CanaryPixel {
+  const previousTarget = renderer.getRenderTarget();
+  const previousViewport = renderer.getViewport(new THREE.Vector4());
+  const previousScissor = renderer.getScissor(new THREE.Vector4());
+  const previousScissorTest = renderer.getScissorTest();
+  const previousRenderStats = { ...renderer.info.render };
+  try {
+    renderer.setRenderTarget(target);
+    renderer.setViewport(0, 0, 4, 4);
+    renderer.setScissorTest(false);
+    renderer.clear(true, true, true);
+    renderer.render(canaryScene, canaryCamera);
+    renderer.readRenderTargetPixels(target, 2, 2, 1, 1, pixel);
+    return [pixel[0], pixel[1], pixel[2], pixel[3]];
+  } finally {
+    renderer.setRenderTarget(previousTarget);
+    renderer.setViewport(previousViewport);
+    renderer.setScissor(previousScissor);
+    renderer.setScissorTest(previousScissorTest);
+    renderer.info.render.calls = previousRenderStats.calls;
+    renderer.info.render.triangles = previousRenderStats.triangles;
+    renderer.info.render.points = previousRenderStats.points;
+    renderer.info.render.lines = previousRenderStats.lines;
+    renderer.info.render.frame = previousRenderStats.frame;
+  }
+}
+
 export default function WorldRenderCanary({ onStatus }: Props) {
   const { gl } = useThree();
   const frameRef = useRef(0);
@@ -52,8 +85,6 @@ export default function WorldRenderCanary({ onStatus }: Props) {
     result.position.z = 1;
     return result;
   }, []);
-  const savedViewport = useMemo(() => new THREE.Vector4(), []);
-  const savedScissor = useMemo(() => new THREE.Vector4(), []);
 
   useEffect(() => {
     onStatusRef.current = onStatus;
@@ -81,23 +112,8 @@ export default function WorldRenderCanary({ onStatus }: Props) {
     const context = renderer.getContext();
     if (context.isContextLost()) return;
 
-    const previousTarget = renderer.getRenderTarget();
-    let previousScissorTest = false;
-    let savedState = false;
     try {
-      renderer.getViewport(savedViewport);
-      renderer.getScissor(savedScissor);
-      previousScissorTest = renderer.getScissorTest();
-      savedState = true;
-
-      renderer.setRenderTarget(target);
-      renderer.setViewport(0, 0, 4, 4);
-      renderer.setScissorTest(false);
-      renderer.clear(true, true, true);
-      renderer.render(canaryScene, canaryCamera);
-      renderer.readRenderTargetPixels(target, 2, 2, 1, 1, pixel);
-
-      const sample = [pixel[0], pixel[1], pixel[2], pixel[3]] as CanaryPixel;
+      const sample = readWorldCanaryPixel(renderer, target, canaryScene, canaryCamera, pixel);
       const result = recordWorldCanarySample(monitorRef.current, sample);
       monitorRef.current = result.snapshot;
       onStatusRef.current?.(result.snapshot);
@@ -124,13 +140,6 @@ export default function WorldRenderCanary({ onStatus }: Props) {
       emitWorldDiagnostic("canary", `RenderTarget kanaryası okunamadı: ${message}`);
       monitorRef.current = { ...monitorRef.current, state: "unavailable" };
       onStatusRef.current?.(monitorRef.current);
-    } finally {
-      if (savedState) {
-        renderer.setRenderTarget(previousTarget);
-        renderer.setViewport(savedViewport);
-        renderer.setScissor(savedScissor);
-        renderer.setScissorTest(previousScissorTest);
-      }
     }
   }, -1);
 

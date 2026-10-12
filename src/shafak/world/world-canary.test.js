@@ -34,8 +34,9 @@ test("the canary requires a bright red pixel and five consecutive misses to requ
   assert.equal(recordWorldCanarySample(fifth.snapshot, [0, 0, 0, 255]).shouldRecover, false);
   let tenthSnapshot = fifth.snapshot;
   for (let index = 0; index < 4; index += 1) {
-    tenthSnapshot = recordWorldCanarySample(tenthSnapshot, [0, 0, 0, 255]).snapshot;
-    assert.equal(recordWorldCanarySample(tenthSnapshot, [0, 0, 0, 255]).shouldRecover, false);
+    const next = recordWorldCanarySample(tenthSnapshot, [0, 0, 0, 255]);
+    assert.equal(next.shouldRecover, false);
+    tenthSnapshot = next.snapshot;
   }
   const tenth = recordWorldCanarySample(tenthSnapshot, [0, 0, 0, 255]);
   assert.equal(tenth.shouldRecover, true);

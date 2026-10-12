@@ -6,3 +6,4 @@
 - [Duel replay precision](duel-replay-precision.md) — Simulate the same quantized yaw that is stored in the server's duel input tape.
 - [Account duel recovery](account-duel-recovery.md) — Reconnect to the stored challenge after a mobile refresh instead of leaving the next fight blocked.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
+- [Push ownership](push-ownership.md) — The user handles remote pushes; do not push project changes from the agent.

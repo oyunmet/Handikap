@@ -45,6 +45,13 @@
   position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
 }
 .world-three-layer canvas { display: block; width: 100%; height: 100%; }
+.world-three-loading {
+  position: absolute; z-index: 7; inset: 0; display: grid; align-content: center;
+  justify-items: center; gap: 8px; padding: 24px; background: rgba(8,10,15,.64);
+  color: #f3dfbd; font: 600 13px/1.5 var(--font-display, Georgia, serif);
+  text-align: center; pointer-events: none;
+}
+.world-three-loading span { color: rgba(235,222,198,.72); font: 11px/1.5 ui-monospace, monospace; }
 .world-three-fallback {
   display: grid; width: 100%; height: 100%; place-items: center;
   background: linear-gradient(180deg, #22263a, #7d5548 54%, #332b2e);
