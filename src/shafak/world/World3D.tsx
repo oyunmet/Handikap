@@ -46,6 +46,7 @@ import {
   MAX_ACTIVE_DUEL_VFX,
   type DuelVfxKind,
 } from "./duel-vfx";
+import { getDuelCameraPose, getDuelFacingAngle } from "../game/duel-camera";
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
@@ -265,21 +266,21 @@ const FOG_COLORS = Object.fromEntries(
   Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [biome, new THREE.Color(palette.fog)]),
 ) as Record<keyof typeof WORLD_BIOME_PALETTES, THREE.Color>;
 
-function SceneFog({ motionRef, weatherMode }: { motionRef: MutableRefObject<WorldMotion>; weatherMode: WeatherMode }) {
+function SceneFog({ motionRef, weatherMode, combatActive }: { motionRef: MutableRefObject<WorldMotion>; weatherMode: WeatherMode; combatActive: boolean }) {
   const { scene } = useThree();
   const fogRef = useRef<THREE.FogExp2 | null>(null);
   useEffect(() => {
     const fog = new THREE.FogExp2("#69505a", 0.0085);
     fogRef.current = fog;
-    scene.fog = fog;
+    scene.fog = combatActive ? null : fog;
     return () => {
       fogRef.current = null;
       scene.fog = null;
     };
-  }, [scene]);
+  }, [combatActive, scene]);
   useFrame(() => {
     const fog = fogRef.current;
-    if (!fog) return;
+    if (!fog || combatActive) return;
     const transition = getBiomeTransition(motionRef.current.distance);
     fog.color.lerpColors(FOG_COLORS[transition.from], FOG_COLORS[transition.to], transition.mix);
     const baseDensity = weatherMode === "fog" ? 0.016 : weatherMode === "rain" ? 0.0095 : weatherMode === "ash" ? 0.0085 : 0.004;
@@ -389,16 +390,15 @@ function CameraRig({
       ? Math.sin(THREE.MathUtils.clamp(skillAge / 0.46, 0, 1) * Math.PI) * (skillPulseRef.current.attack === "skillTwo" ? 3.1 : 2.4)
       : 0;
     if (combat) {
-      const centerX = (combat.player.x + combat.bot.x) * 0.5;
-      const centerZ = -(motion.distance - motion.originDistance) + (combat.player.z + combat.bot.z) * 0.5;
-      if (cinematicIntro && !motionReduced) {
-        const progress = THREE.MathUtils.clamp((_.clock.elapsedTime - (cinematicStartRef.current ?? _.clock.elapsedTime)) / 2, 0, 1);
-        const eased = progress * progress * (3 - 2 * progress);
-        desiredRef.set(centerX + 7.2 - eased * 4.5, 3.7 - eased * 0.35, centerZ + 3.6 + eased * 3.6);
-      } else {
-        desiredRef.set(centerX + 1.35, 3.05, centerZ + 8.3);
-      }
-      targetRef.set(centerX, 1.08, centerZ);
+      const pose = getDuelCameraPose(
+        combat.player,
+        combat.bot,
+        -(motion.distance - motion.originDistance),
+        touchRenderer ? 7.2 : 7.8,
+        touchRenderer ? 2.4 : 1.6,
+      );
+      desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
+      targetRef.set(pose.target.x, pose.target.y, pose.target.z);
       if (combat.lastImpactTick !== impactRef.current.tick) {
         impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
       }
@@ -429,7 +429,7 @@ function CameraRig({
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
-      ? 45 - combatImpact * 1.1 - skillZoom - finisherZoom
+      ? (touchRenderer ? 56 : 48) - combatImpact * 1.1 - skillZoom - finisherZoom
       : focusedRival ? (cinematicIntro ? 51 : 48) : travelCamera.fieldOfView;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
@@ -486,7 +486,7 @@ function DuelFighter({
   const renderedActor = combatRender?.[side];
   const opposingActor = combatRender?.[side === "player" ? "bot" : "player"];
   const facingAngle = renderedActor && opposingActor
-    ? Math.atan2(opposingActor.x - renderedActor.x, opposingActor.z - renderedActor.z)
+    ? getDuelFacingAngle(renderedActor, opposingActor)
     : side === "bot" ? Math.PI : 0;
   const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
   const animation = renderedActor ? combatAnimation(renderedActor.action, speed) : "idle";
@@ -865,14 +865,18 @@ function DuelArena({
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
-      <pointLight position={[0, 4.6, 1.4]} color="#ffc17e" intensity={40} distance={18} decay={2} />
-      <pointLight position={[0, 3.4, -3.4]} color="#92c7dd" intensity={15} distance={15} decay={2} />
+      <mesh position={[0, -0.11, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[42, 96]} />
+        <meshBasicMaterial color="#302830" side={THREE.DoubleSide} toneMapped={false} />
+      </mesh>
+      <pointLight position={[0, 5.2, 1.4]} color="#ffe0b0" intensity={68} distance={24} decay={2} />
+      <pointLight position={[0, 4.1, -3.4]} color="#a5daf0" intensity={28} distance={22} decay={2} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[4.28, 96]} />
         <meshStandardMaterial
-          color="#29222b"
-          emissive="#201423"
-          emissiveIntensity={0.16}
+          color="#493a44"
+          emissive="#30242f"
+          emissiveIntensity={0.28}
           roughness={0.94}
           metalness={0.04}
         />
@@ -1181,11 +1185,11 @@ function SceneContents({
   return (
     <>
       <ProceduralEnvironment />
-      <SceneFog motionRef={motionRef} weatherMode={weatherMode} />
+      <SceneFog motionRef={motionRef} weatherMode={weatherMode} combatActive={combatActive} />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
-      <color attach="background" args={["#252330"]} />
+      <color attach="background" args={[combatActive ? "#46353e" : "#252330"]} />
       <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
-      {combatActive && <ambientLight color="#ffdbb3" intensity={0.6} />}
+      {combatActive && <ambientLight color="#ffdbb3" intensity={1.25} />}
       <directionalLight
         position={[-8, 14, 8]}
         color="#ffd09a"
@@ -1216,7 +1220,7 @@ function SceneContents({
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
       />
-      <AshSky motionRef={motionRef} />
+      {!combatActive && <AshSky motionRef={motionRef} />}
       {!combatActive && (
         <group name="road-world">
           <WorldChunks
