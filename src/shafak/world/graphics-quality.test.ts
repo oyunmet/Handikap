@@ -5,9 +5,11 @@ import {
   AUTO_QUALITY_DOWN_FPS,
   getAutoQualityAction,
   getPixelRatioCap,
+  getWorldRenderPixelRatio,
   getShadowMapSize,
   normalizeGraphicsMode,
   resolveRenderQuality,
+  shouldEnableWorldShadows,
   stepAutoQuality,
 } from "./graphics-quality.ts";
 
@@ -45,6 +47,9 @@ test("world pixel ratio stays within the mobile rendering budget", () => {
   assert.equal(getPixelRatioCap("high"), 1.5);
   assert.equal(getPixelRatioCap("balanced"), 1.35);
   assert.equal(getPixelRatioCap("low"), 1);
+  assert.equal(getWorldRenderPixelRatio("high", 3), 1.5);
+  assert.equal(getWorldRenderPixelRatio("high", 3, true), 1);
+  assert.equal(getWorldRenderPixelRatio("balanced", 0.75, true), 1);
 });
 
 test("shadow maps stay within the quality budget and scale with device DPR", () => {
@@ -53,4 +58,10 @@ test("shadow maps stay within the quality budget and scale with device DPR", () 
   assert.equal(getShadowMapSize("high", 4), 1_024);
   assert.equal(getShadowMapSize("balanced", 4), 1_024);
   assert.equal(getShadowMapSize("low", 4), 512);
+});
+
+test("world shadows are disabled on touch renderers regardless of selected quality", () => {
+  assert.equal(shouldEnableWorldShadows("high"), true);
+  assert.equal(shouldEnableWorldShadows("high", true), false);
+  assert.equal(shouldEnableWorldShadows("low"), false);
 });

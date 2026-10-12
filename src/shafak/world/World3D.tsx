@@ -26,7 +26,11 @@ import type { WorldCollisionGrid, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
 import WorldPostProcessing from "./WorldPostProcessing";
-import { getPixelRatioCap, getShadowMapSize } from "./graphics-quality";
+import {
+  getShadowMapSize,
+  getWorldRenderPixelRatio,
+  shouldEnableWorldShadows,
+} from "./graphics-quality";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -1015,7 +1019,9 @@ function SceneContents({
   performanceMonitorEnabled,
   onPerformanceStats,
   debugEnabled,
+  touchRenderer,
 }: World3DProps & {
+  touchRenderer: boolean;
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   debugEnabled: boolean;
@@ -1172,7 +1178,7 @@ function SceneContents({
         position={[-8, 14, 8]}
         color="#ffd09a"
         intensity={2.05}
-        castShadow={quality !== "low"}
+        castShadow={shouldEnableWorldShadows(quality, touchRenderer)}
         shadow-mapSize-width={shadowMapSize}
         shadow-mapSize-height={shadowMapSize}
         shadow-camera-left={-18}
@@ -1184,7 +1190,7 @@ function SceneContents({
         shadow-bias={-0.0002}
         shadow-normalBias={0.025}
       />
-      {visualEffectsEnabled && quality !== "low" && <WorldPostProcessing quality={quality} />}
+      {visualEffectsEnabled && quality !== "low" && !touchRenderer && <WorldPostProcessing quality={quality} />}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -1282,7 +1288,8 @@ export default function World3D(props: World3DProps) {
     chunks: 0,
   });
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const maxDpr = Math.min(getPixelRatioCap(props.quality), pixelRatio);
+  const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const maxDpr = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
   const retryWebGL = useCallback(() => {
     autoRecoveryAttemptsRef.current = 0;
@@ -1337,7 +1344,7 @@ export default function World3D(props: World3DProps) {
         >
           <Canvas
             dpr={[minDpr, maxDpr]}
-            shadows={props.quality !== "low"}
+            shadows={shouldEnableWorldShadows(props.quality, touchRenderer)}
             camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: 190 }}
             gl={{
               alpha: false,
@@ -1363,6 +1370,7 @@ export default function World3D(props: World3DProps) {
             <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
             <SceneContents
               {...props}
+              touchRenderer={touchRenderer}
               debugEnabled={debugEnabled}
               onDebugStats={setDebugStats}
               onPerformanceStats={setPerformanceStats}

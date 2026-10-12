@@ -247,7 +247,7 @@ function BotActor({
       : 0;
     root.position.set(patrol, 0, -(rival.distance - motion.cameraX) + challengeStep);
     root.scale.setScalar(rival.size);
-    root.visible = Math.abs(gap) <= 105;
+    root.visible = gap >= -12 && gap <= 105;
     if (detected) {
       const dx = motion.depth * 5.2 - rival.x;
       const dz = gap;
@@ -353,6 +353,10 @@ export default function WorldRoadEntities({
     [chapters, unlockedPickupIds],
   );
   const visibleObstacles = useMemo(() => chapters.flatMap((content) => content.obstacles), [chapters]);
+  const activeRivals = rivals.filter((rival) => {
+    const gap = rival.distance - motionRef.current.distance;
+    return gap >= -12 && gap <= 105;
+  });
 
   return (
     <>
@@ -373,7 +377,7 @@ export default function WorldRoadEntities({
           broken={brokenObstacleIds.has(obstacle.id)}
         />
       ))}
-      {rivals.map((rival) => (
+      {activeRivals.map((rival) => (
         <BotActor
           key={rival.id}
           rival={rival}

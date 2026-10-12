@@ -46,8 +46,23 @@ export function getAutoQualityAction(fps: number, sustainedForMs: number): "down
   return null;
 }
 
-export function getPixelRatioCap(quality: RenderQuality): number {
-  return PIXEL_RATIO_CAP[quality];
+export function getPixelRatioCap(quality: RenderQuality, touchDevice = false): number {
+  return touchDevice ? 1 : PIXEL_RATIO_CAP[quality];
+}
+
+export function getWorldRenderPixelRatio(
+  quality: RenderQuality,
+  devicePixelRatio: number,
+  touchDevice = false,
+): number {
+  const dpr = Number.isFinite(devicePixelRatio)
+    ? Math.max(1, Math.min(4, devicePixelRatio))
+    : 1;
+  return Math.min(getPixelRatioCap(quality, touchDevice), dpr);
+}
+
+export function shouldEnableWorldShadows(quality: RenderQuality, touchDevice = false): boolean {
+  return quality !== "low" && !touchDevice;
 }
 
 export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: number): number {
