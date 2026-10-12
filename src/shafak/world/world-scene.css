@@ -406,8 +406,9 @@
 .world-scene[data-air="false"] .world-plane--haze { display: none; }
 .world-scene[data-reduced="true"] .world-three-layer { --motion-reduced: 1; }
 @media (pointer: coarse) {
-  /* Touch devices already render weather in WebGL; avoid a filtered full-screen layer over Safari's canvas. */
-  .world-atmosphere { display: none; }
+  /* Avoid full-screen DOM compositing layers over Safari's WebGL canvas during movement. */
+  .world-atmosphere,
+  .world-speed-lines { display: none; }
 }
 .world-vignette {
   position: absolute; z-index: 6; inset: 0;

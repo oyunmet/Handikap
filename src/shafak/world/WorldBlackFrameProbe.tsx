@@ -19,11 +19,19 @@ export default function WorldBlackFrameProbe({
   recoveryStateRef: MutableRefObject<WorldProbeRecoveryState>;
 }) {
   const { gl, scene, camera } = useThree();
+  const touchRenderer = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
+    [],
+  );
   const frameRef = useRef(0);
   const blackSamplesRef = useRef(recoveryStateRef.current.blackSamples);
   const recoveryRef = recoveryStateRef;
-  const pixelBuffer = useMemo(() => new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4), []);
+  const pixelBuffer = useMemo(
+    () => touchRenderer ? null : new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4),
+    [touchRenderer],
+  );
   const target = useMemo(() => {
+    if (touchRenderer) return null;
     const result = new THREE.WebGLRenderTarget(PROBE_WIDTH, PROBE_HEIGHT, {
       depthBuffer: true,
       stencilBuffer: false,
@@ -36,10 +44,18 @@ export default function WorldBlackFrameProbe({
     result.texture.colorSpace = THREE.SRGBColorSpace;
     result.texture.generateMipmaps = false;
     return result;
-  }, []);
-  useEffect(() => () => target.dispose(), [target]);
+  }, [touchRenderer]);
+  useEffect(() => () => target?.dispose(), [target]);
+  useEffect(() => {
+    if (!touchRenderer) return;
+    emitWorldDiagnostic(
+      "black-frame-probe",
+      "Dokunmatik cihazda ek sahne çizimi ve piksel okuması kapalı; Canvas bağlamı ve kare akışı izleniyor.",
+    );
+  }, [touchRenderer]);
 
   useFrame(({ clock }, delta) => {
+    if (touchRenderer || !target || !pixelBuffer) return;
     frameRef.current += 1;
     const now = performance.now();
     recoveryRef.current.firstFrameAt ||= now;
