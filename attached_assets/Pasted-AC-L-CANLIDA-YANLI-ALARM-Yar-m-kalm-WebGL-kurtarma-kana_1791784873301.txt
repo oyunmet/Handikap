@@ -1,0 +1,29 @@
+ACİL: CANLIDA YANLIŞ ALARM. Yarım kalmış WebGL kurtarma/kanarya sistemi canlıya (parametresiz handikap.vercel.app) çıktı. iPhone'da oyun yüklenir yüklenmez (Kül Yolu %2, KAPI 141 m) HUD çalışıyor ama 3D tuval yerine şu kart çıkıyor: "3D SAHNE YENİDEN YÜKLENEMEDİ / Sahne yenilenemedi · Yeniden yükle / SAHNEYİ YENİDEN YÜKLE". Yani kurtarma kademeleri başlangıçta tükeniyor. Bu büyük ihtimalle yanlış alarm.
+
+BAĞLAM: Proje "Şafak Savaşçıları" (Vercel + Express, React Three Fiber/three.js). Önceki hesapta v2 dünya, referans sayaçlı kaynak havuzu ve "kanarya" modülü eklendi, push edildi. WORLD_V2_STATUS.md'yi oku. Önceki oturumun bilinen açık işleri: (1) kurtarma yazılım WebGL'de uzun karelerde ve ilk shader derlemesinde (3 sn ilk-kare sınırı) art arda tetikleniyor, (2) kanarya ekranın varsayılan tamponundan okunuyor. Mevcut dalı ve canlıya çıkan dalı (muhtemelen main) git log ile kontrol et. Gereksiz dosya okuma yapma, kotam sınırlı.
+
+KURALLAR: Oyun mantığı, API, kimlik doğrulama, veritabanı, ödül, mağaza bozulmasın. Kanıtsız "tamam" deme. Her görev sonunda typecheck + test + build, sonra commit + push. Yapamadığını nedeniyle yaz.
+
+G1 (HOTFIX, önce bunu yap, canlı dala push serbest):
+- "Sahne yenilenemedi" metnini arayıp kartı hangi bileşenin, hangi koşulda gösterdiğini bul.
+- Parametresiz (varsayılan) rotada kanarya/kurtarma/izleme mantığını VARSAYILAN KAPAT. ?watchdog=on ile açılsın, ?watchdog=off ile kapansın. Kart yalnızca KESİN durumda çıksın (webglcontextlost olup tüm geri yükleme denemeleri bitti).
+- Hotfix canlı dala push, commit hash'i yaz. Beklenen sonuç: parametresiz URL'de kart çıkmaz, oyun yüklenir.
+
+G2 (v2-wip dalında, teşhis): Alarmın nedenini koddan belirle ve debug şeridinde "Neden kodu" olarak göster: CTX_LOST, CANARY_BLACK, NO_FIRST_FRAME, ZERO_DRAW_CALLS, FRAMELOOP_PAUSED. Şu şüphelileri tek tek kontrol et:
+ a) kanarya varsayılan çerçeve tamponundan, sunumdan sonra ya da render'dan ayrı bir görevde okunuyor (iOS siyah döner),
+ b) ilk kare eşiği soğuk başlangıçta (shader derleme, büyük chunk) aşılıyor,
+ c) kalıcı Canvas mount'u: gizliyken ya da duraklatılmışken kare sayacı ilerlemiyor ve "ölü" sayılıyor,
+ d) sayaçlar sıfırlanmıyor, kademeler art arda tetikleniyor (backoff yok).
+
+G3 (v2-wip, sağlam kanarya):
+- Kanaryayı varsayılan tampon yerine 4x4 WebGLRenderTarget'a çiz (parlak MeshBasicMaterial quad, aynı renderer) ve ~30 karede bir readRenderTargetPixels ile oku. Bu sunum durumundan bağımsızdır. Parlak okunuyorsa hat sağlamdır.
+- Diğer kesin sinyaller: gl.isContextLost(), görünür nesne varken renderer.info.render.calls = 0.
+- Kurtarma yalnızca KESİN sinyalde: context lost, ya da kare ilerlerken kanarya 5 ardışık ölçümde siyah.
+- Eşikler duvar saati yerine ardışık ÇİZİLMİŞ kareyle ölçülsün; 250 ms üstü kareleri ve sekme gizliyken geçen süreyi sayma; duraklatılmış döngüde izleme çalışmasın.
+- İlk çizim için en az 20 sn hoşgörü; shader'ları yükleme göstergesi arkasında önceden derle (renderer.compileAsync varsa kullan). Bu sürede hata kartı değil yükleme göstergesi görünsün.
+- Kademe 1 yalnızca yumuşak sıfırlama (ışık/sis/pozlama/arka plan varsayılana, materyal yenileme), sahneyi sökmez. Kademe 2+ (renderer/context yeniden kur, sahneyi baştan yükle) dakikada en fazla 2 kez; sonra dur.
+- Kart yalnızca tüm kademeler tükenince çıksın, içinde küçük "Kod: <neden>" satırı olsun, düğme renderer+sahneyi gerçekten yeniden kursun (olmazsa location.reload).
+
+G4 (v2-wip, test): Mock renderer ile birim testleri: yavaş kare, gizli sekme, soğuk başlangıç, duraklatılmış döngü → kurtarma YOK; context lost ve sürekli siyah kanarya (kare ilerlerken) → kurtarma VAR; backoff çalışıyor. Yazılım WebGL'de (varsa) uçtan uca dene; kütüphane eksikse mock testlerle yetin ve bunu yaz.
+
+TESLİM: G1 canlı commit hash'i; G2 bulunan neden(ler); G3-G4 v2-wip commit hash'i; iPhone test talimatı: canlı URL (parametresiz), <v2-wip önizleme adresi>?debug=1&watchdog=on ve ?world=v2&debug=1; ne arayacağımı ve şeritte hangi neden kodlarının ne anlama geldiğini yaz. V2 etiketleri ve diğer açık işlere BU turda girme.

@@ -87,7 +87,8 @@ export function recordWorldCanarySample(
 
   return {
     snapshot,
-    shouldRecover: consecutiveBlack >= 5 && current.consecutiveBlack < 5,
+    shouldRecover: consecutiveBlack >= 5
+      && Math.floor(consecutiveBlack / 5) > Math.floor(current.consecutiveBlack / 5),
     shouldRestoreLighting: consecutiveDim >= 5 && current.consecutiveDim < 5,
   };
 }

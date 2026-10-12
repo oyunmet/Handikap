@@ -8,209 +8,130 @@ import {
   type CanaryPixel,
   type WorldCanarySnapshot,
 } from "./world-canary";
+import { shouldCountWorldWatchdogFrame } from "./world-render-watchdog";
 import { emitWorldDiagnostic } from "./world-diagnostics";
 
 const CANARY_INTERVAL_FRAMES = 30;
 const CANARY_RECOVERY_EVENT = "shafak:scene-recovery";
-const CANARY_LIGHTING_EVENT = "shafak:scene-low-brightness";
 
 type Props = {
   onStatus?: (snapshot: WorldCanarySnapshot) => void;
 };
 
-function readPixel(
-  renderer: THREE.WebGLRenderer,
-  context: WebGL2RenderingContext,
-  x: number,
-  y: number,
-  target: Uint8Array,
-) {
-  const renderTarget = renderer.getRenderTarget();
-  if (renderTarget) {
-    renderer.readRenderTargetPixels(renderTarget, x, y, 1, 1, target);
-  } else {
-    context.readPixels(x, y, 1, 1, context.RGBA, context.UNSIGNED_BYTE, target);
-  }
-  return [target[0], target[1], target[2], target[3]] as CanaryPixel;
-}
-
 export default function WorldRenderCanary({ onStatus }: Props) {
-  const { scene } = useThree();
+  const { gl } = useThree();
   const frameRef = useRef(0);
-  const samplePendingRef = useRef(false);
-  const firstSampleRequestedRef = useRef(false);
   const monitorRef = useRef(createWorldCanarySnapshot());
-  const recoverySentRef = useRef(false);
-  const lightingResetSentRef = useRef(false);
-  const targetSize = useMemo(() => new THREE.Vector2(), []);
-  const savedViewport = useMemo(() => new THREE.Vector4(), []);
-  const savedScissor = useMemo(() => new THREE.Vector4(), []);
-  const canaryPixel = useMemo(() => new Uint8Array(4), []);
-  const scenePixel = useMemo(() => new Uint8Array(4), []);
-  const worldPosition = useMemo(() => new THREE.Vector3(), []);
-  const worldQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const onStatusRef = useRef(onStatus);
+  const pixel = useMemo(() => new Uint8Array(4), []);
+  const target = useMemo(() => new THREE.WebGLRenderTarget(4, 4, {
+    format: THREE.RGBAFormat,
+    type: THREE.UnsignedByteType,
+    depthBuffer: false,
+    stencilBuffer: false,
+    generateMipmaps: false,
+  }), []);
+  const material = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#ff0000",
+    toneMapped: false,
+    depthTest: false,
+    depthWrite: false,
+  }), []);
   const mesh = useMemo(() => {
-    const geometry = new THREE.PlaneGeometry(1, 1);
-    const material = new THREE.MeshBasicMaterial({
-      color: "#ff0000",
-      depthTest: false,
-      depthWrite: false,
-      fog: false,
-      toneMapped: false,
-    });
-    const result = new THREE.Mesh(geometry, material);
+    const result = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
     result.name = "world-render-canary";
-    result.frustumCulled = false;
-    result.renderOrder = 1_000_000;
-    result.visible = false;
+    return result;
+  }, [material]);
+  const canaryScene = useMemo(() => {
+    const result = new THREE.Scene();
+    result.add(mesh);
+    return result;
+  }, [mesh]);
+  const canaryCamera = useMemo(() => {
+    const result = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    result.position.z = 1;
     return result;
   }, []);
+  const savedViewport = useMemo(() => new THREE.Vector4(), []);
+  const savedScissor = useMemo(() => new THREE.Vector4(), []);
 
   useEffect(() => {
     onStatusRef.current = onStatus;
   }, [onStatus]);
 
-  useEffect(() => {
-    scene.add(mesh);
-    const previousViewport = new THREE.Vector4();
-    const previousScissor = new THREE.Vector4();
+  useEffect(() => () => {
+    target.dispose();
+    mesh.geometry.dispose();
+    material.dispose();
+  }, [material, mesh, target]);
+
+  useFrame((_state, delta) => {
+    const frameIsEligible = shouldCountWorldWatchdogFrame({
+      active: true,
+      visible: document.visibilityState !== "hidden",
+      paused: false,
+      deltaMs: delta * 1_000,
+    });
+    if (!frameIsEligible) return;
+
+    frameRef.current += 1;
+    if (!shouldSampleWorldCanary(frameRef.current, CANARY_INTERVAL_FRAMES)) return;
+
+    const renderer = gl as THREE.WebGLRenderer;
+    const context = renderer.getContext();
+    if (context.isContextLost()) return;
+
+    const previousTarget = renderer.getRenderTarget();
     let previousScissorTest = false;
     let savedState = false;
-
-    mesh.onBeforeRender = (renderer, _activeScene, activeCamera) => {
-      if (!samplePendingRef.current) return;
-      if (!(activeCamera instanceof THREE.PerspectiveCamera)) {
-        samplePendingRef.current = false;
-        return;
-      }
-      const activeRenderer = renderer as THREE.WebGLRenderer;
-      const dpr = Math.max(1, activeRenderer.getPixelRatio());
-      activeRenderer.getDrawingBufferSize(targetSize);
-      const bufferWidth = Math.max(4, Math.floor(targetSize.x));
-      const bufferHeight = Math.max(4, Math.floor(targetSize.y));
-      const viewHeight = 2 * 0.72 * Math.tan(
-        THREE.MathUtils.degToRad(THREE.MathUtils.clamp(
-          Number.isFinite(activeCamera.fov) ? activeCamera.fov : 54,
-          20,
-          100,
-        )) * 0.5,
-      );
-      const pixelWorldSize = viewHeight / bufferHeight;
-      const viewWidth = viewHeight * Math.max(0.2, activeCamera.aspect);
-      const canarySize = 8 / dpr;
-      mesh.scale.set(pixelWorldSize * 8, pixelWorldSize * 8, 1);
-      worldPosition.set(
-        viewWidth * 0.5 - pixelWorldSize * 4.5,
-        -viewHeight * 0.5 + pixelWorldSize * 4.5,
-        -0.72,
-      );
-      activeCamera.localToWorld(worldPosition);
-      activeCamera.getWorldQuaternion(worldQuaternion);
-      mesh.position.copy(worldPosition);
-      mesh.quaternion.copy(worldQuaternion);
-      mesh.updateMatrix();
-      mesh.updateMatrixWorld(true);
-
-      activeRenderer.getViewport(previousViewport);
-      activeRenderer.getScissor(previousScissor);
-      previousScissorTest = activeRenderer.getScissorTest();
+    try {
+      renderer.getViewport(savedViewport);
+      renderer.getScissor(savedScissor);
+      previousScissorTest = renderer.getScissorTest();
       savedState = true;
 
-      const logicalWidth = bufferWidth / dpr;
-      const logicalHeight = bufferHeight / dpr;
-      activeRenderer.setViewport(0, 0, logicalWidth, logicalHeight);
-      activeRenderer.setScissor(logicalWidth - canarySize, 0, canarySize, canarySize);
-      activeRenderer.setScissorTest(true);
-    };
+      renderer.setRenderTarget(target);
+      renderer.setViewport(0, 0, 4, 4);
+      renderer.setScissorTest(false);
+      renderer.clear(true, true, true);
+      renderer.render(canaryScene, canaryCamera);
+      renderer.readRenderTargetPixels(target, 2, 2, 1, 1, pixel);
 
-    mesh.onAfterRender = (renderer) => {
-      if (!samplePendingRef.current) return;
-      samplePendingRef.current = false;
-      const activeRenderer = renderer as THREE.WebGLRenderer;
-      const context = activeRenderer.getContext() as WebGL2RenderingContext;
-      try {
-        if (context.isContextLost()) return;
-        activeRenderer.getDrawingBufferSize(targetSize);
-        const width = Math.max(1, Math.floor(targetSize.x));
-        const height = Math.max(1, Math.floor(targetSize.y));
-        const pixel = readPixel(activeRenderer, context, width - 4, 4, canaryPixel);
-        const brightnessPixels: CanaryPixel[] = [];
-        const points = [
-          [Math.round(width * 0.34), Math.round(height * 0.48)],
-          [Math.round(width * 0.5), Math.round(height * 0.52)],
-          [Math.round(width * 0.68), Math.round(height * 0.48)],
-        ] as const;
-        for (const [x, y] of points) {
-          brightnessPixels.push(readPixel(
-            activeRenderer,
-            context,
-            THREE.MathUtils.clamp(x, 0, width - 1),
-            THREE.MathUtils.clamp(y, 0, height - 1),
-            scenePixel,
-          ));
-        }
+      const sample = [pixel[0], pixel[1], pixel[2], pixel[3]] as CanaryPixel;
+      const result = recordWorldCanarySample(monitorRef.current, sample);
+      monitorRef.current = result.snapshot;
+      onStatusRef.current?.(result.snapshot);
+      emitWorldDiagnostic(
+        "canary",
+        `RenderTarget 4×4 · örnek ${result.snapshot.samples}: ${sample.join(",")} · ` +
+          `siyah ${result.snapshot.consecutiveBlack}/5.`,
+      );
 
-        const result = recordWorldCanarySample(monitorRef.current, pixel, brightnessPixels);
-        monitorRef.current = result.snapshot;
-        onStatusRef.current?.(result.snapshot);
+      if (result.shouldRecover) {
         emitWorldDiagnostic(
           "canary",
-          `Örnek ${result.snapshot.samples}: ${pixel[0]},${pixel[1]},${pixel[2]} · ` +
-          `karanlık ${result.snapshot.consecutiveBlack}/5 · ` +
-          `sahne parlaklığı ${result.snapshot.lastSceneLuminance?.toFixed(3) ?? "yok"}.`,
+          `Kanarya beş ardışık örnekte karanlık; neden CANARY_BLACK · ardışık kare ${frameRef.current}.`,
         );
-
-        if (result.shouldRestoreLighting && !lightingResetSentRef.current) {
-          lightingResetSentRef.current = true;
-          emitWorldDiagnostic("lighting", "Kanarya parlak; sahne karanlık. Biyom güvenli ışığı, sisi ve pozlaması geri yükleniyor.");
-          window.dispatchEvent(new CustomEvent(CANARY_LIGHTING_EVENT));
-        }
-        if (result.snapshot.consecutiveDim === 0) lightingResetSentRef.current = false;
-
-        if (result.shouldRecover && !recoverySentRef.current) {
-          recoverySentRef.current = true;
-          emitWorldDiagnostic("canary", "Kanarya beş ölçüm üst üste siyah; render hattı kurtarma başlatıyor.");
-          window.dispatchEvent(new CustomEvent(CANARY_RECOVERY_EVENT, {
-            detail: { error: new Error("Üretim kanaryası 5 ardışık ölçümde siyah okundu.") },
-          }));
-        }
-        if (result.snapshot.consecutiveBlack === 0) recoverySentRef.current = false;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        emitWorldDiagnostic("canary", `Kanarya pikseli okunamadı: ${message}`);
-        monitorRef.current = { ...monitorRef.current, state: "unavailable" };
-        onStatusRef.current?.(monitorRef.current);
-      } finally {
-        if (savedState) {
-          activeRenderer.setViewport(previousViewport);
-          activeRenderer.setScissor(previousScissor);
-          activeRenderer.setScissorTest(previousScissorTest);
-          savedState = false;
-        }
+        window.dispatchEvent(new CustomEvent(CANARY_RECOVERY_EVENT, {
+          detail: {
+            reasonCode: "CANARY_BLACK",
+            error: new Error("4×4 WebGLRenderTarget kanaryası beş ardışık ölçümde siyah okundu."),
+          },
+        }));
       }
-    };
-
-    return () => {
-      scene.remove(mesh);
-      mesh.onBeforeRender = () => undefined;
-      mesh.onAfterRender = () => undefined;
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    };
-  }, [canaryPixel, mesh, scene, scenePixel, targetSize]);
-
-  useFrame(() => {
-    frameRef.current += 1;
-    const sampleNow = shouldSampleWorldCanary(frameRef.current, CANARY_INTERVAL_FRAMES);
-    if (sampleNow) {
-      samplePendingRef.current = true;
-      if (!firstSampleRequestedRef.current) {
-        firstSampleRequestedRef.current = true;
-        emitWorldDiagnostic("canary", "İlk 30 kare tamamlandı; aynı WebGL bağlamında piksel örneklemesi başlıyor.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      emitWorldDiagnostic("canary", `RenderTarget kanaryası okunamadı: ${message}`);
+      monitorRef.current = { ...monitorRef.current, state: "unavailable" };
+      onStatusRef.current?.(monitorRef.current);
+    } finally {
+      if (savedState) {
+        renderer.setRenderTarget(previousTarget);
+        renderer.setViewport(savedViewport);
+        renderer.setScissor(savedScissor);
+        renderer.setScissorTest(previousScissorTest);
       }
     }
-    mesh.visible = samplePendingRef.current;
   }, -1);
 
   return null;

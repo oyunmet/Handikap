@@ -39,7 +39,12 @@ import WorldV2Atmosphere from "./WorldV2Atmosphere";
 import WorldV2Terrain from "./WorldV2Terrain";
 import { WorldV2DuelActor, WorldV2Travel } from "./WorldV2Gameplay";
 import { worldVersionFromSearch } from "./world-version";
-import { nextWorldRecoveryStage } from "./world-recovery";
+import {
+  decideWorldRecovery,
+  isWorldRecoveryReason,
+  shouldRecoverForWorldReason,
+  type WorldRecoveryReason,
+} from "./world-recovery";
 import { getShadowMapSize, getWorldRenderPixelRatio } from "./graphics-quality";
 import { WORLD_CAMERA_FAR } from "./world-render-config";
 import {
@@ -60,7 +65,11 @@ import {
   isWorldRenderDead,
   type WorldCanarySnapshot,
 } from "./world-canary";
-import { getWorldRenderWatchdogTimeouts } from "./world-render-watchdog";
+import {
+  shouldCountWorldWatchdogFrame,
+  shouldReportFirstFrameTimeout,
+  WORLD_FIRST_FRAME_GRACE_MS,
+} from "./world-render-watchdog";
 import { isWorldWatchdogEnabled } from "./world-watchdog-mode";
 import { WorldResourcePool } from "./world-resource-pool";
 
