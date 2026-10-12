@@ -1,0 +1,52 @@
+KESİN ÇÖZÜM: HAREKET SIRASINDA SİYAH EKRAN + SAVAŞTA YANLIŞ YÖN
+
+BAĞLAM (önceki konuşma yok, WORLD_V2_STATUS.md varsa oku, gereksiz dosya okuma yapma, kotam sınırlı)
+Proje: "Şafak Savaşçıları", React Three Fiber/three.js oyunu (canlı: handikap.vercel.app, Vercel). iPhone Chrome/Safari'de oynuyorum. Parametresiz (varsayılan) dünyada gözlemlediğim hata, kanıtlarla:
+- Karakter dururken (DİNLENİYOR) sahne HER ZAMAN çiziliyor. Karakter hareket ederken (YÜRÜYOR/KOŞUYOR) sahne sık sık tamamen kararıyor, bazen çiziliyor (aralıklı).
+- Sorun ilk Demir Yemin rakibinin yakınında (~%53-55) başlıyor, Gölge Şövalyesi yakınında (~%83-92) tekrar çıkıyor.
+- Siyah karelerde HUD, isim etiketleri ve oyuncunun ayağı yakınında küçük altın adım tozu noktaları GÖRÜNÜYOR. Yani render döngüsü ve çizim hattı canlı; ışıklı nesneler (arazi, gökyüzü, karakterler) çizilmiyor, ışıksız parçacıklar çiziliyor.
+- Masaüstü/SwiftShader'da sorun yok, yalnızca iPhone'da. Mevcut kanarya ışıksız bir kare çizdiği için bu hatayı yakalayamıyor.
+- Savaşlarda oyuncu karakteri kameraya dönük duruyor, savaştığı rakibe dönük savaşmıyor.
+
+BAŞLICA HİPOTEZ (kanıtla doğrula/çürüt, ama aşağıdaki düzeltmeleri hipotez doğrulanmasa da uygula): Çalışma anında ışık sayısı, sis, gölge veya materyal özellikleri değişiyor (yeni ışık ekleme/çıkarma, visible aç/kapa, fog null↔Fog, needsUpdate, yeni materyal oluşturma, transparent/side/vertexColors değişimi). Bu, tüm ışıklı materyallerin shader'ını yeniden derletiyor; iPhone'da derleme başarısız olunca (uniform/varying/texture unit sınırı) ışıklı nesneler çizilmiyor. İkincil şüpheliler: yol parçası (chunk) geri dönüşümü ve havuz mantığı, adım tozu ve rakip halkası/aura efektlerinin ışık/materyal yaratması, hava (HAVA: KÜL) geçişi, kamera yay kolu/FOV, NaN değerler.
+
+KURALLAR: Oyun mantığı, API, kimlik doğrulama, veritabanı, ödül, mağaza ve sunucu doğrulamalı savaş hesapları bozulmasın. GLB/rig varsa dokunma. Tam dosya ver. Git push'u BEN yapacağım (sende GitHub kimlik doğrulaması çalışmıyor): her adım sonunda typecheck + test + build, sonra commit et, dal adını ve tam push komutunu yaz. Değişiklikler main'e gidecek (önizleme ortamı Clerk olmadan açılmıyor), bu yüzden her adım küçük, güvenli, geri alınabilir olsun; teşhis araçları yalnızca ?debug=1 ile görünsün. "Düzeldi" deme, kanıt göster; doğrulayamadığını nedeniyle yaz.
+
+ADIM 1: TEŞHİS ARACI (iPhone'da konsola erişemiyorum; tüm kanıt ekranda ve kopyalanabilir olsun)
+- ?debug=1 iken ekranın altına katlanabilir tanı şeridi:
+  • console.error/console.warn ve window.onerror çıktıları (özellikle "THREE.WebGLProgram: Shader Error", "Program Info Log", "Context Lost"). renderer.debug.checkShaderErrors açık, renderer.debug.onShaderError bağlı: tam hata metni şeritte.
+  • Her 0.5 sn: görünür ışık sayısı ve türleri, scene.fog (var/yok, near/far/density, renk), toneMappingExposure, kamera konumu/fov/near/far (isFinite), renderer.info (programs, geometries, textures, calls, triangles), gölge atan ışık sayısı, aktif parçacık sistemi sayısı, yol parçası (chunk) üretim/geri dönüşüm olayları, rakip etkisi (halka/aura) açılış-kapanışı, hava durumu.
+  • Olay günlüğü (son 200 olay): ışık ekle/çıkar/visible değişimi, materyal oluşturma, needsUpdate=true çağrıları, program sayısı değişimi (yeni shader derleme anı), her olayın zaman damgası ve oyuncu durumu (duruyor/yürüyor/koşuyor) ve yol %.
+  • "Kopyala" düğmesi: bu verinin tamamını panoya kopyalasın.
+- OTOMATİK YÜRÜME testi: ?debug=1&stress=1 ile ekranda "OTOMATİK YÜRÜ" düğmesi; karakteri parmaksız ileri yürütsün/koştursun (yol sonuna kadar, sonra başa dönsün), böylece ben sadece açıp logu kopyalayayım.
+- GERÇEK SİYAH ALGILAMA: Her ~15 karede ana sahneyi (aynı kamera, aynı ışıklar, aynı materyaller) 32x18'lik bir WebGLRenderTarget'a ayrıca çiz, readRenderTargetPixels ile ortalama parlaklığı ve farklı renk sayısını ölç. Eşiğin altındaysa (ve kanarya parlak olsa bile) "KARARMA YAKALANDI" kaydı oluştur: o anki tüm tanı verisini (yukarıdaki liste + son 50 olay) tek paket olarak sakla ve şeritte göster. Mevcut kanarya (ışıksız) tek başına yeterli DEĞİL, kaldır ya da bunun yanında yardımcı olarak bırak.
+
+ADIM 2: YAPISAL DÜZELTMELER (hipotez doğrulanmasa da hepsini uygula)
+a) SABİT IŞIK KÜMESİ: Işıkları sahne kurulurken bir kez oluştur ve ömür boyu aynı say (ör. 1 yönlü + 1 hemisphere + gerekiyorsa sabit 1 nokta ışık). Çalışma anında ışık ekleme, çıkarma, visible aç/kapa YOK; efekt gerekiyorsa intensity değiştir (0 olabilir). Rakip halkası/aura, adım tozu, toplanabilir parıltısı, kıvılcım gibi efektler ışık KULLANMASIN: ışıksız (MeshBasicMaterial/additive, emissive) materyal ve sprite kullan.
+b) SABİT SİS: scene.fog'u kurulumda bir kez oluştur, null yapma; yalnızca near/far/density/renk değerlerini isFinite korumalı güncelle. Gölge atan ışık sayısı ve shadowMap ayarı sabit kalsın.
+c) SHADER ÖN ISITMA: Yükleme kartı arkasında, oyun başlamadan önce sahnedeki TÜM materyal varyantlarını (tüm rakipler, toplanabilirler, barikat, bayrak, kapı, hava durumları, sis var, ışıklı/ışıksız) renderer.compile/compileAsync ile derle; yürüme sırasında program sayısı sabit kalmalı. Programlar arttıysa bunu kaydet.
+d) MATERYAL DİSİPLİNİ: Materyalleri tür başına paylaş (önbellek); adım, parçacık, yol parçası, etiket için çalışma anında yeni materyal/geometri/texture oluşturma; havuzla. Kodda needsUpdate=true, transparent/side/vertexColors/flatShading/map değişimi aramalarını bul, kare başına çağrıları kaldır.
+e) YOL PARÇASI (CHUNK) GERİ DÖNÜŞÜMÜ: Geri dönüştürülen parçalar paylaşılan geometri/materyali dispose etmesin; yalnızca kendi kaynaklarını. Kaynak sahipliği referans sayacıyla. Parça geri dönüşümü sırasında nesne sayısı ve program sayısı sabit kalmalı.
+f) KAMERA/FOV: koşarken FOV değişimi ve kamera sallanması isFinite korumalı, FOV 40-85 arasında sınırlı, near/far sabit; yay kolu çarpışması kamerayı asla geometri içine sokmasın (minimum mesafe, hedefe raycast).
+g) GÜVENLİ GÖRÜNÜM KADEMELERİ (garanti): Siyah algılama tetiklenirse kademeli kurtarma çalıştır ve kalıcı yap (oturum boyunca): (1) tüm materyalleri needsUpdate yap + renderer.compile, (2) hâlâ siyahsa ışıklı materyalleri (MeshStandard vb.) daha basit MeshLambertMaterial'a, sonra gerekirse MeshBasicMaterial + vertex color/baked tonlamaya düşür, ekstra ışıkları kapat, gölgeyi kapat, sabit 2 ışıkla devam et, (3) hâlâ siyahsa renderer'ı yeniden kur. Hangi kademenin işe yaradığını logla. Bu kademe sistemi mevcut FPS kalite kademesiyle birleşsin (YÜKSEK=Standard, ORTA=Lambert, DÜŞÜK=Basic). iOS'ta yüksek kademe başarısızsa bunu hatırla (localStorage) ve sonraki açılışta doğrudan çalışan kademeyle başla.
+h) Parametresiz rotada kurtarma varsayılan KAPALI kalmıştı. Yeni siyah algılama + kademe sistemi varsayılan AÇIK olsun ama yanlış alarm vermesin: ardışık 5 ölçüm siyah olmalı, sekme gizliyken ve 250 ms üstü kareler sayılmasın, ilk 20 sn hoşgörü, kademe geçişleri dakikada en fazla 2 kez, hata kartı yalnızca tüm kademeler tükenince.
+
+ADIM 3: SAVAŞTA YÖN (rakibe dönük dövüşme)
+- Düello modunda oyuncu karakterinin yönü (yaw) her karede rakibe bakacak şekilde ayarlansın (hedef kilidi varsayılan açık). Yaw = atan2(dx, dz) ile hesapla ve MODEL_FORWARD_OFFSET sabitiyle modelin gerçek ileri eksenine göre düzelt (modelin ileri ekseninin +Z mi -Z mi +X mi olduğunu kodda/model üzerinde kontrol et; kameraya dönük kalmasının sebebi büyük ihtimalle eksen/işaret hatası, kameraya bakma (billboard/lookAt kamera) ya da yanlış hedef). En kısa açı farkıyla yumuşak dönüş (shortest-angle damp) kullan. Rakip de oyuncuya dönük olsun.
+- Sadece rakibe doğru dövüş: SALDIRI anında karakter rakibe doğru snap yapsın (aim assist), vuruş hasar konisi o yönde olsun. KALKAN yalnızca rakibe dönük yönden gelen saldırıyı engellesin. Hedef kilidi kapalıyken karakter hareket yönüne bakar (eski davranış korunur).
+- Düello kamerası oyuncunun arkasında/omzunda, rakibe bakacak şekilde konumlansın; başlangıçta iki karakter karşılıklı dursun (pozisyon ve yaw doğrulanmalı).
+- Birim testi: bilinen konumlar için hesaplanan yaw'ın modelin ileri vektörünü rakibe çevirdiğini doğrula (açı farkı < 5°). Düello başladıktan 1 sn sonra oyuncu ileri vektörü ile rakibe yönelim arasındaki açı < 10° olmalı.
+
+ADIM 4: DOĞRULAMA
+- Mock/birim testleri: sabit ışık sayısı (hareket simülasyonunda ışık sayısı ve program sayısı değişmiyor), chunk geri dönüşümünde paylaşılan kaynağa dispose çağrısı yok, kamera/FOV/sis değerleri hareket boyunca isFinite.
+- Yazılım WebGL'de (varsa) 200 m'lik otomatik yürüme: siyah kare 0, renderer.info.programs sabit. Çalışmazsa nedenini yaz.
+- typecheck, test, build geçsin.
+
+TESLİM RAPORU
+1. Kök neden: kanıtla (hangi dosya/satır, ne zaman ışık/sis/materyal değişiyordu ya da başka sebep) ve neden iOS'ta bozuluyordu. Bulamadıysan hangi şüphelileri çürüttüğünü yaz.
+2. Değişen dosyalar, commit hash'leri, push komutu ve dal adı.
+3. iPhone test talimatı (net): 
+   • handikap.vercel.app/?debug=1&stress=1 aç, "OTOMATİK YÜRÜ"ye bas, yol sonuna kadar izle; siyah olursa tanı şeridindeki "Kopyala" ile logu kopyalayıp bana yapıştırayım.
+   • Normal açılışta (parametresiz) elle yürü/koş, Demir Yemin ve Gölge Şövalyesi'ne yaklaş; siyah çıkmamalı.
+   • Düelloya gir; karakterim rakibe dönük dövüşmeli.
+   • Tanı şeridindeki alanların ne anlama geldiğini kısaca yaz.

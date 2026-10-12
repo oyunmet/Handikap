@@ -5,7 +5,7 @@ import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
-import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
+import { WORLD_CHUNK_LENGTH_METERS, WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
@@ -32,6 +32,7 @@ import {
   appendWorldDiagnostic,
   emitWorldDiagnostic,
   formatWorldDiagnostics,
+  setWorldDiagnosticContext,
   type WorldDiagnostic,
 } from "./world-diagnostics";
 import WorldPostProcessing from "./WorldPostProcessing";
@@ -59,6 +60,7 @@ import {
   type DuelVfxKind,
 } from "./duel-vfx";
 import WorldRenderCanary from "./WorldRenderCanary";
+import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import {
   createWorldCanarySnapshot,
   isWorldRenderDead,
@@ -176,6 +178,32 @@ type DebugStats = {
   canaryState: WorldCanarySnapshot["state"];
   canaryConsecutiveBlack: number;
   canaryPixel: WorldCanarySnapshot["lastPixel"];
+  routePercent: number;
+  lightTypes: string;
+  shadowLights: number;
+  fogMode: string;
+  fogNear: number | null;
+  fogFar: number | null;
+  fogColor: string;
+  cameraFov: number;
+  cameraNear: number;
+  cameraFar: number;
+  cameraFinite: boolean;
+  materials: number;
+  particleSystems: number;
+  weather: WeatherMode;
+};
+
+type BlackFrameCapture = {
+  at: string;
+  averageLuminance: number;
+  uniqueColors: number;
+  blackSamples: number;
+  elapsedMs: number;
+  snapshot: {
+    stats: DebugStats;
+    recentEvents: WorldDiagnostic[];
+  };
 };
 
 class WorldCanvasErrorBoundary extends Component<
@@ -429,13 +457,33 @@ function RendererEffects({
 }) {
   const { gl } = useThree();
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const shadowsEnabledRef = useRef(shouldEnableWorldShadows(quality, touchRenderer));
   useEffect(() => {
-    gl.toneMapping = visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
     gl.toneMappingExposure = visualEffectsEnabled ? 1.12 : 1;
-    gl.shadowMap.enabled = shouldEnableWorldShadows(quality, touchRenderer);
+    gl.shadowMap.enabled = shadowsEnabledRef.current;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
-    gl.shadowMap.needsUpdate = true;
-  }, [gl, quality, touchRenderer, visualEffectsEnabled]);
+  }, [gl, visualEffectsEnabled]);
+  return null;
+}
+
+function WorldShaderWarmup() {
+  const { gl, scene, camera } = useThree();
+  const startedRef = useRef(false);
+  useFrame(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    window.requestAnimationFrame(() => {
+      const before = gl.info.programs?.length ?? 0;
+      void gl.compileAsync(scene, camera).then(() => {
+        const after = gl.info.programs?.length ?? 0;
+        emitWorldDiagnostic("shader-warmup", `Mevcut sahne shader'ları ısıtıldı; program ${before} → ${after}.`);
+      }).catch((error: unknown) => {
+        const message = error instanceof Error ? error.stack ?? error.message : String(error);
+        emitWorldDiagnostic("shader-warmup", `Shader ön ısıtma başarısız: ${message}`);
+      });
+    });
+  }, -1);
   return null;
 }
 
@@ -1148,12 +1196,14 @@ function PlayerLight({
   relicCount,
   lightRadius,
   lightColor,
+  visible,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   level: number;
   relicCount: number;
   lightRadius: number;
   lightColor: string;
+  visible: boolean;
 }) {
   const glowRef = useRef<THREE.Mesh>(null);
   const progression = Math.min(0.6, Math.max(0, level - 1) * 0.035 + relicCount * 0.04);
@@ -1163,7 +1213,7 @@ function PlayerLight({
     if (glowRef.current) glowRef.current.position.x = x;
   });
   return (
-    <>
+    <group visible={visible} name="player-light-effects">
       <mesh ref={glowRef} position={[0, 0.04, -3.2]} scale={[4.5 + lightRadius * 0.08, 0.045, 9]}>
         <sphereGeometry args={[1, 12, 7]} />
         <meshBasicMaterial color={lightColor} transparent opacity={0.09 + progression * 0.025} depthWrite={false} blending={THREE.AdditiveBlending} />
@@ -1172,7 +1222,7 @@ function PlayerLight({
         <sphereGeometry args={[1, 10, 6]} />
         <meshBasicMaterial color={lightColor} transparent opacity={0.06 + progression * 0.018} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-    </>
+    </group>
   );
 }
 
@@ -1265,13 +1315,19 @@ function SceneContents({
   const initialPrefetchRef = useRef(false);
   const { gl, scene } = useThree();
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-  const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
+  const [shadowQuality] = useState(quality);
+  const shadowMapSize = getShadowMapSize(shadowQuality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
   const zeroDrawCallFramesRef = useRef(0);
   const zeroDrawRecoverySentRef = useRef(false);
   const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
   const safeLightingRef = useRef(false);
   const canarySnapshotRef = useRef(createWorldCanarySnapshot());
+  const previousProgramCountRef = useRef<number | null>(null);
+  const knownLightsRef = useRef(new Map<string, string>());
+  const knownMaterialsRef = useRef(new Set<string>());
+  const previousEffectsRef = useRef("");
+  const previousWeatherRef = useRef(weatherMode);
   const reportCanaryStatus = useCallback((snapshot: WorldCanarySnapshot) => {
     canarySnapshotRef.current = snapshot;
     if (!isSelfTestEnabled() || !combatActive || snapshot.state !== "healthy") return;
@@ -1380,8 +1436,14 @@ function SceneContents({
       scheduleChunkPrefetch(currentChunk + 5);
     }
     if (currentChunk !== activeChunkRef.current) {
+      const previousChunk = activeChunkRef.current;
       activeChunkRef.current = currentChunk;
-      setChunks(getChunksForDistance(motion.distance, chunkCacheRef.current));
+      const nextChunks = getChunksForDistance(motion.distance, chunkCacheRef.current);
+      setChunks(nextChunks);
+      emitWorldDiagnostic(
+        "world-chunk",
+        `Yol parçası değişti ${previousChunk} → ${currentChunk}; görünür=${nextChunks.length}, önbellek=${chunkCacheRef.current.size}.`,
+      );
       scheduleChunkPrefetch(currentChunk + 5);
     }
     if (debugEnabled) {
@@ -1393,17 +1455,94 @@ function SceneContents({
       monitor.maxFrameMs = Math.max(monitor.maxFrameMs, frameMs);
       if (frameMs > 100) monitor.longFrames += 1;
       const elapsed = now - monitor.startedAt;
-      if (elapsed >= 1) {
+      if (elapsed >= 0.5) {
         const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
         const canarySnapshot = canarySnapshotRef.current;
         const background = frame.scene.background;
         const fog = frame.scene.fog;
+        const camera = frame.camera as THREE.PerspectiveCamera;
+        const lightStates = new Map<string, string>();
+        const lightTypes: string[] = [];
+        const materialIds = new Set<string>();
+        let visibleLights = 0;
+        let shadowLights = 0;
+        let particleSystems = 0;
+        frame.scene.traverse((object) => {
+          if (object instanceof THREE.Light) {
+            const lightDescription = `${object.type}|${object.visible ? "visible" : "hidden"}|${object.intensity.toFixed(2)}`;
+            lightStates.set(object.uuid, lightDescription);
+            if (object.visible) {
+              visibleLights += 1;
+              lightTypes.push(`${object.type}(${object.intensity.toFixed(2)})`);
+            }
+            if (object.visible && object.castShadow) shadowLights += 1;
+          }
+          const renderable = object as THREE.Object3D & {
+            isPoints?: boolean;
+            material?: THREE.Material | THREE.Material[];
+          };
+          if (
+            (renderable.isPoints && object.visible)
+            || (object.visible && /particle|dust|ash|spark|step/i.test(object.name))
+          ) particleSystems += 1;
+          const materials = renderable.material
+            ? Array.isArray(renderable.material) ? renderable.material : [renderable.material]
+            : [];
+          for (const material of materials) materialIds.add(material.uuid);
+        });
+        const previousLights = knownLightsRef.current;
+        for (const [uuid, state] of lightStates) {
+          const previous = previousLights.get(uuid);
+          if (previous !== state) {
+            emitWorldDiagnostic("light-change", `${previous ? "Işık görünürlüğü/özelliği değişti" : "Işık eklendi"}: ${state} · ${uuid.slice(0, 8)}.`);
+          }
+        }
+        for (const uuid of previousLights.keys()) {
+          if (!lightStates.has(uuid)) emitWorldDiagnostic("light-change", `Işık kaldırıldı: ${uuid.slice(0, 8)}.`);
+        }
+        knownLightsRef.current = lightStates;
+        if (knownMaterialsRef.current.size > 0) {
+          for (const id of materialIds) {
+            if (!knownMaterialsRef.current.has(id)) {
+              emitWorldDiagnostic("material-change", `Yeni materyal sahneye eklendi: ${id.slice(0, 8)}.`);
+            }
+          }
+          for (const id of knownMaterialsRef.current) {
+            if (!materialIds.has(id)) emitWorldDiagnostic("material-change", `Materyal sahneden çıkarıldı: ${id.slice(0, 8)}.`);
+          }
+        }
+        knownMaterialsRef.current = materialIds;
+        const programCount = gl.info.programs?.length ?? 0;
+        if (previousProgramCountRef.current !== null && previousProgramCountRef.current !== programCount) {
+          emitWorldDiagnostic("shader-program", `Program sayısı değişti ${previousProgramCountRef.current} → ${programCount}.`);
+        }
+        previousProgramCountRef.current = programCount;
+        if (previousWeatherRef.current !== weatherMode) {
+          emitWorldDiagnostic("weather", `Hava değişti ${previousWeatherRef.current} → ${weatherMode}.`);
+          previousWeatherRef.current = weatherMode;
+        }
+        const effectsKey = `${combatActive ? "duel" : focusedRival?.id ?? "travel"}|${visualEffectsEnabled ? "vfx" : "no-vfx"}`;
+        if (previousEffectsRef.current && previousEffectsRef.current !== effectsKey) {
+          emitWorldDiagnostic("rival-effects", `Rakip halkası/aura bağlamı değişti: ${previousEffectsRef.current} → ${effectsKey}.`);
+        }
+        previousEffectsRef.current = effectsKey;
+        const routePercent = ((motion.distance % WORLD_GATE_INTERVAL_METERS) + WORLD_GATE_INTERVAL_METERS) % WORLD_GATE_INTERVAL_METERS
+          / WORLD_GATE_INTERVAL_METERS * 100;
+        const speed = Math.hypot(motion.velocityX, motion.velocityY);
+        const playerState = combatActive ? "savaşta" : speed < 0.08 ? "duruyor" : speed > 4.9 ? "koşuyor" : "yürüyor";
+        const finiteCameraValues = [
+          camera.position.x, camera.position.y, camera.position.z,
+          camera.fov, camera.near, camera.far,
+        ];
+        const fogColor = fog instanceof THREE.Fog || fog instanceof THREE.FogExp2
+          ? `#${fog.color.getHexString()}`
+          : "yok";
         onDebugStats({
           x: motion.depth * 5.2,
           y: 0,
           z: -(motion.distance - motion.originDistance),
           distance: motion.distance,
-          speed: Math.hypot(motion.velocityX, motion.velocityY),
+          speed,
           fps: Math.round(monitor.frames / elapsed),
           drawCalls: gl.info.render.calls,
           triangles: gl.info.render.triangles,
@@ -1424,13 +1563,27 @@ function SceneContents({
           background: background instanceof THREE.Color ? `#${background.getHexString()}` : background ? "texture" : "none",
           fogDensity: fog instanceof THREE.FogExp2 ? fog.density : 0,
           programs: gl.info.programs?.length ?? 0,
-          lights: frame.scene.children.filter((child) => child instanceof THREE.Light && child.visible).length,
+          lights: visibleLights,
           pixelLuminance: canarySnapshot.lastSceneLuminance,
           litPixelSamples: canarySnapshot.passed,
           pixelSampleCount: canarySnapshot.samples,
           canaryState: canarySnapshot.state,
           canaryConsecutiveBlack: canarySnapshot.consecutiveBlack,
           canaryPixel: canarySnapshot.lastPixel,
+          routePercent,
+          lightTypes: lightTypes.join(", ") || "yok",
+          shadowLights,
+          fogMode: fog instanceof THREE.FogExp2 ? "FogExp2" : fog instanceof THREE.Fog ? "Fog" : "yok",
+          fogNear: fog instanceof THREE.Fog ? fog.near : null,
+          fogFar: fog instanceof THREE.Fog ? fog.far : null,
+          fogColor,
+          cameraFov: camera.fov,
+          cameraNear: camera.near,
+          cameraFar: camera.far,
+          cameraFinite: finiteCameraValues.every(Number.isFinite),
+          materials: materialIds.size,
+          particleSystems,
+          weather: weatherMode,
         });
         monitor.startedAt = now;
         monitor.frames = 0;
@@ -1457,20 +1610,18 @@ function SceneContents({
         combatActive={combatActive}
       />
       <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
+      <WorldShaderWarmup />
       <color attach="background" args={[combatActive ? "#39343e" : "#252330"]} />
-      <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
-      {combatActive && (
-        <>
-          <hemisphereLight args={["#f2d7c0", "#4b4355", 1.1]} />
-          <directionalLight position={[4, 7, 6]} color="#ffe1bd" intensity={2.2} />
-          <directionalLight position={[-5, 4, -3]} color="#acd8e8" intensity={1.25} />
-        </>
-      )}
+      <hemisphereLight
+        name="world-hemisphere"
+        args={[combatActive ? "#f2d7c0" : "#c6b6b9", combatActive ? "#4b4355" : "#1a1b2b", combatActive ? 1.1 : 0.62]}
+      />
       <directionalLight
+        name="world-key"
         position={[-8, 14, 8]}
-        color="#ffd09a"
-        intensity={2.05}
-        castShadow={quality !== "low"}
+        color={combatActive ? "#ffe1bd" : "#ffd09a"}
+        intensity={combatActive ? 2.2 : 2.05}
+        castShadow
         shadow-mapSize-width={shadowMapSize}
         shadow-mapSize-height={shadowMapSize}
         shadow-camera-left={-18}
@@ -1552,7 +1703,14 @@ function SceneContents({
             focusedRivalId={focusedRival?.id ?? null}
             reducedMotion={motionReduced}
           />}
-          {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
+          <PlayerLight
+            motionRef={motionRef}
+            level={level}
+            relicCount={relicCount}
+            lightRadius={lightRadius}
+            lightColor={equipmentVisual.auraColor ?? "#ffb36f"}
+            visible={!combatActive}
+          />
         </>
       )}
       {combatActive ? (
@@ -1581,6 +1739,7 @@ function SceneContents({
         )
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
+      <WorldBlackFrameProbe />
       <WorldRenderCanary onStatus={reportCanaryStatus} />
     </>
   );
@@ -1597,9 +1756,16 @@ function isSelfTestEnabled() {
   return new URLSearchParams(window.location.search).get("selftest") === "1";
 }
 
+function isStressTestEnabled() {
+  if (typeof window === "undefined") return false;
+  const query = new URLSearchParams(window.location.search);
+  return query.get("debug") === "1" && query.get("stress") === "1";
+}
+
 export default function World3D(props: World3DProps) {
   const active = props.active ?? true;
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
+  const [stressWalkEnabled, setStressWalkEnabled] = useState(false);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [rendererName, setRendererName] = useState("bilinmiyor");
   const [contextLost, setContextLost] = useState(false);
@@ -1610,6 +1776,7 @@ export default function World3D(props: World3DProps) {
   const [firstFrameReported, setFirstFrameReported] = useState(false);
   const [debugEvents, setDebugEvents] = useState<WorldDiagnostic[]>([]);
   const [debugCopied, setDebugCopied] = useState(false);
+  const [blackCapture, setBlackCapture] = useState<BlackFrameCapture | null>(null);
   const [selfTestRows, setSelfTestRows] = useState<ReadonlyMap<string, WorldCanarySnapshot["lastPixel"]>>(
     () => new Map(),
   );
@@ -1627,8 +1794,11 @@ export default function World3D(props: World3DProps) {
     });
   }, []);
   const selfTestEnabled = isSelfTestEnabled();
+  const stressTestEnabled = isStressTestEnabled();
   const recoveryStageRef = useRef(0);
   const lastRecoveryFailureWasContextCreationRef = useRef(false);
+  const diagnosticSnapshotRef = useRef({ debugEvents, debugStats });
+  diagnosticSnapshotRef.current = { debugEvents, debugStats };
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
     averageFps: 0,
     minimumFps: 0,
@@ -1666,11 +1836,35 @@ export default function World3D(props: World3DProps) {
     canaryState: "waiting",
     canaryConsecutiveBlack: 0,
     canaryPixel: null,
+    routePercent: 0,
+    lightTypes: "bekleniyor",
+    shadowLights: 0,
+    fogMode: "bekleniyor",
+    fogNear: null,
+    fogFar: null,
+    fogColor: "n/a",
+    cameraFov: 54,
+    cameraNear: 0.6,
+    cameraFar: WORLD_CAMERA_FAR,
+    cameraFinite: true,
+    materials: 0,
+    particleSystems: 0,
+    weather: props.weatherMode,
   });
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const maxDpr = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
+  const [canvasShadows] = useState(() => shouldEnableWorldShadows(props.quality, touchRenderer));
+
+  useEffect(() => setWorldDiagnosticContext(() => {
+    const motion = props.motionRef.current;
+    const speed = Math.hypot(motion.velocityX, motion.velocityY);
+    const playerState = props.combatActive ? "savaşta" : speed < 0.08 ? "duruyor" : speed > 4.9 ? "koşuyor" : "yürüyor";
+    const routePercent = ((motion.distance % WORLD_GATE_INTERVAL_METERS) + WORLD_GATE_INTERVAL_METERS)
+      % WORLD_GATE_INTERVAL_METERS / WORLD_GATE_INTERVAL_METERS * 100;
+    return { playerState, travelPercent: routePercent };
+  }), [props.combatActive, props.motionRef]);
   const markFirstFrame = useCallback(() => {
     setFirstFrameReported(true);
     setRecoveryMessage("");
@@ -1725,7 +1919,13 @@ export default function World3D(props: World3DProps) {
   }, []);
 
   const copyDebugEvents = useCallback(() => {
-    const text = formatWorldDiagnostics(debugEvents);
+    const text = JSON.stringify({
+      capturedAt: new Date().toISOString(),
+      renderer: rendererName,
+      stats: debugStats,
+      events: debugEvents,
+      blackFrameCapture: blackCapture,
+    }, null, 2);
     if (!navigator.clipboard?.writeText) {
       setDebugCopied(false);
       return;
@@ -1737,7 +1937,40 @@ export default function World3D(props: World3DProps) {
       const message = error instanceof Error ? error.message : String(error);
       emitWorldDiagnostic("clipboard", `Tanı kayıtları kopyalanamadı: ${message}`);
     });
-  }, [debugEvents]);
+  }, [blackCapture, debugEvents, debugStats, rendererName]);
+
+  const toggleStressWalk = useCallback(() => {
+    const enabled = !stressWalkEnabled;
+    setStressWalkEnabled(enabled);
+    window.dispatchEvent(new CustomEvent("shafak:stress-auto-walk", { detail: { enabled } }));
+  }, [stressWalkEnabled]);
+
+  useEffect(() => {
+    const onBlackFrame = (event: Event) => {
+      const detail = (event as CustomEvent<Omit<BlackFrameCapture, "snapshot">>).detail;
+      if (!detail) return;
+      const current = diagnosticSnapshotRef.current;
+      const capture: BlackFrameCapture = {
+        ...detail,
+        snapshot: {
+          stats: current.debugStats,
+          recentEvents: current.debugEvents.slice(-50),
+        },
+      };
+      setBlackCapture(capture);
+      emitWorldDiagnostic(
+        "black-frame-capture",
+        `KARARMA YAKALANDI · ${detail.averageLuminance.toFixed(4)} luma, ${detail.uniqueColors} renk; tanı paketi son 50 olayla saklandı.`,
+      );
+    };
+    const onStressComplete = () => setStressWalkEnabled(false);
+    window.addEventListener("shafak:black-frame-detected", onBlackFrame);
+    window.addEventListener("shafak:stress-auto-walk-complete", onStressComplete);
+    return () => {
+      window.removeEventListener("shafak:black-frame-detected", onBlackFrame);
+      window.removeEventListener("shafak:stress-auto-walk-complete", onStressComplete);
+    };
+  }, []);
 
   useEffect(() => {
     const onDiagnostic = (event: Event) => {
@@ -1764,6 +1997,50 @@ export default function World3D(props: World3DProps) {
       window.removeEventListener("unhandledrejection", onRejection);
     };
   }, []);
+
+  useEffect(() => {
+    if (!debugEnabled) return undefined;
+    const previousWarn = console.warn;
+    const previousError = console.error;
+    const renderArgs = (args: unknown[]) => args.map((value) => {
+      if (value instanceof Error) return value.stack ?? value.message;
+      if (typeof value === "string") return value;
+      try { return JSON.stringify(value); } catch { return String(value); }
+    }).join(" ").slice(0, 8_000);
+    console.warn = (...args: unknown[]) => {
+      previousWarn.apply(console, args);
+      emitWorldDiagnostic("console.warn", renderArgs(args));
+    };
+    console.error = (...args: unknown[]) => {
+      previousError.apply(console, args);
+      emitWorldDiagnostic("console.error", renderArgs(args));
+    };
+
+    const restoreAccessors: Array<() => void> = [];
+    for (const prototype of [THREE.Material.prototype, THREE.Texture.prototype]) {
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, "needsUpdate");
+      if (typeof descriptor?.set !== "function") continue;
+      Object.defineProperty(prototype, "needsUpdate", {
+        ...descriptor,
+        set(this: THREE.Material | THREE.Texture, value: boolean) {
+          if (value === true) {
+            const resource = this as THREE.Material & THREE.Texture;
+            emitWorldDiagnostic(
+              "needsUpdate",
+              `${resource.type ?? "kaynak"} needsUpdate=true${resource.name ? ` · ${resource.name}` : ""}.`,
+            );
+          }
+          descriptor.set?.call(this, value);
+        },
+      });
+      restoreAccessors.push(() => Object.defineProperty(prototype, "needsUpdate", descriptor));
+    }
+    return () => {
+      console.warn = previousWarn;
+      console.error = previousError;
+      restoreAccessors.reverse().forEach((restore) => restore());
+    };
+  }, [debugEnabled]);
 
   useEffect(() => {
     const recoverScene = (event: Event) => {
@@ -1859,14 +2136,14 @@ export default function World3D(props: World3DProps) {
           <Canvas
             frameloop={active ? "always" : "never"}
             dpr={[minDpr, maxDpr]}
-            shadows={shouldEnableWorldShadows(props.quality, touchRenderer)}
+            shadows={canvasShadows}
             camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: WORLD_CAMERA_FAR }}
             gl={{
               alpha: false,
               antialias: false,
               preserveDrawingBuffer: false,
               powerPreference: "high-performance",
-              toneMapping: props.visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
+              toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: props.visualEffectsEnabled ? 1.12 : 1,
             }}
             onCreated={({ gl: renderer, scene }) => {
@@ -1943,12 +2220,15 @@ export default function World3D(props: World3DProps) {
         </div>
       )}
       {debugEnabled && (
-        <aside className="world-debug" aria-label="3D dünya hata ayıklama bilgileri">
+        <details className="world-debug" aria-label="3D dünya tanılama">
+          <summary>
+            TANILAMA · {debugStats.animation} · {debugStats.routePercent.toFixed(0)}% · {debugStats.programs} shader
+          </summary>
           <b>3D DEBUG · KÜL YOLU</b>
           <span>Konum: x {debugStats.x.toFixed(2)} · y {debugStats.y.toFixed(2)} · z {debugStats.z.toFixed(2)}</span>
-          <span>Mesafe: {debugStats.distance.toFixed(1)} m · Hız: {debugStats.speed.toFixed(2)} m/sn</span>
+          <span>Durum: {debugStats.speed < 0.08 ? "duruyor" : debugStats.speed > 4.9 ? "koşuyor" : "yürüyor"} · Mesafe: {debugStats.distance.toFixed(1)} m · Yol: {debugStats.routePercent.toFixed(1)}% · Hız: {debugStats.speed.toFixed(2)} m/sn</span>
           <span>FPS: {debugStats.fps || "ölçülüyor"} · Draw: {debugStats.drawCalls} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
-          <span>Geometri/Doku: {debugStats.geometries}/{debugStats.textures} · JS heap: {debugStats.heapMb === null ? "n/a" : `${debugStats.heapMb} MB`}</span>
+          <span>Program/Geometri/Doku: {debugStats.programs}/{debugStats.geometries}/{debugStats.textures} · Materyal: {debugStats.materials} · JS heap: {debugStats.heapMb === null ? "n/a" : `${debugStats.heapMb} MB`}</span>
           <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
           <span>Render döngüsü: {debugStats.fps > 0 ? "CANLI" : "BAŞLAMADI"} · İlk kare: {firstFrameReported ? "EVET" : "BEKLENİYOR"} · Aktif rakip: {props.combatActive ? props.opponentName : props.focusedRival?.name ?? "yok"} · Model: {props.combatActive && getOpponentModelConfig(props.opponentName)?.modelPath ? "GLB" : "prosedürel"}</span>
           <span>WebGL aygıtı: {rendererName}</span>
@@ -1956,8 +2236,9 @@ export default function World3D(props: World3DProps) {
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
-          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {props.weatherMode} · Sis: {debugFogDensity.toFixed(4)} · Parça: {debugStats.chunks}</span>
-          <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · BG: {debugStats.background} · Pozlama: {debugStats.exposure.toFixed(2)} · Işık: {debugStats.lights} · Sis: {debugStats.fogDensity.toFixed(4)}</span>
+          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {debugStats.weather} · Sis: {debugStats.fogMode} {debugStats.fogNear === null ? "" : `${debugStats.fogNear}/${debugStats.fogFar}`} ${debugStats.fogDensity.toFixed(4)} ${debugStats.fogColor} · Parça: {debugStats.chunks}</span>
+          <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · FOV/yakın/uzak: {debugStats.cameraFov.toFixed(1)}/{debugStats.cameraNear.toFixed(1)}/{debugStats.cameraFar.toFixed(0)} · finite={debugStats.cameraFinite ? "evet" : "HAYIR"} · BG: {debugStats.background} · pozlama: {debugStats.exposure.toFixed(2)}</span>
+          <span>Işık: {debugStats.lights} görünür/{debugStats.shadowLights} gölge · {debugStats.lightTypes || "yok"} · Parçacık sistemi/nesnesi: {debugStats.particleSystems}</span>
           <span>Kanarya: {debugStats.canaryState} · Siyah art arda: {debugStats.canaryConsecutiveBlack}/5 · Sahne luma: {debugStats.pixelLuminance === null ? "bekleniyor" : debugStats.pixelLuminance.toFixed(3)} · Parlak örnek: {debugStats.litPixelSamples}/{debugStats.pixelSampleCount} · Shader: {debugStats.programs}</span>
           {selfTestEnabled && (
             <section className="world-debug__selftest" aria-label="Biyom ve rakip WebGL canary test tablosu">
@@ -2013,6 +2294,17 @@ export default function World3D(props: World3DProps) {
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
             <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
           </div>
+          {blackCapture && (
+            <b className="world-debug__black-capture">
+              KARARMA YAKALANDI · {blackCapture.averageLuminance.toFixed(4)} luma · {blackCapture.uniqueColors} renk ·
+              {blackCapture.snapshot.recentEvents.length} son olay kayıtlı
+            </b>
+          )}
+          {stressTestEnabled && (
+            <button className="world-debug__stress" type="button" onClick={toggleStressWalk}>
+              {stressWalkEnabled ? "OTOMATİK YÜRÜYÜŞÜ DURDUR" : "OTOMATİK YÜRÜ"}
+            </button>
+          )}
           <div className="world-debug__events">
             <div>
               <b>SON {debugEvents.length} TANILAMA KAYDI</b>
@@ -2022,7 +2314,7 @@ export default function World3D(props: World3DProps) {
             </div>
             <pre>{debugEvents.length ? formatWorldDiagnostics(debugEvents) : "Henüz tanılama kaydı yok."}</pre>
           </div>
-        </aside>
+        </details>
       )}
       {props.performanceMonitorEnabled && (
         <aside className="world-performance" aria-label="Canlı kare hızı ve kare süresi">

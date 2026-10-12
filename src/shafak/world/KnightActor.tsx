@@ -16,6 +16,7 @@ import {
   resolveGlbClipName,
   type ModelAnimationState,
 } from "./model-animation";
+import { dampCharacterYaw, getCharacterRootYawForModel } from "./character-facing";
 import { getOpponentPartColor, type OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
@@ -324,8 +325,15 @@ function OptionalGlbKnight({
     const motion = motionRef.current;
     if (root) {
       root.position.x = motion.depth * 5.2;
-      root.rotation.y = facingAngle ?? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
-      if (facingAngle === undefined && motion.velocityY < -0.25) root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
+      const targetYaw = facingAngle === undefined
+        ? motion.velocityY < -0.25
+          ? Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY))
+          : Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)))
+        : getCharacterRootYawForModel(
+          facingAngle,
+          modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing,
+        );
+      root.rotation.y = dampCharacterYaw(root.rotation.y, targetYaw, 7, Math.min(delta, 1 / 30));
     }
     if (selectedAction) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);

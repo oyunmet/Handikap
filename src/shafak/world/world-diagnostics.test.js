@@ -2,16 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appendWorldDiagnostic, formatWorldDiagnostics } from "./world-diagnostics.ts";
 
-test("world diagnostics retain only the newest twenty entries and copy as plain text", () => {
-  const events = Array.from({ length: 22 }, (_, index) => ({
+test("world diagnostics retain the newest two hundred entries and format movement context", () => {
+  const events = Array.from({ length: 205 }, (_, index) => ({
     at: `00:${String(index).padStart(2, "0")}`,
     category: "render",
     message: `event-${index}`,
+    playerState: "koşuyor",
+    travelPercent: 53.4,
   })).reduce((current, event) => appendWorldDiagnostic(current, event), []);
 
-  assert.equal(events.length, 20);
-  assert.equal(events[0].message, "event-2");
-  assert.equal(events[19].message, "event-21");
-  assert.match(formatWorldDiagnostics(events), /^\[00:02\] render: event-2/);
-  assert.match(formatWorldDiagnostics(events), /\[00:21\] render: event-21$/);
+  assert.equal(events.length, 200);
+  assert.equal(events[0].message, "event-5");
+  assert.equal(events[199].message, "event-204");
+  assert.match(formatWorldDiagnostics(events), /^\[00:05\] \[durum=koşuyor yol=53\.4%\] render: event-5/);
+  assert.match(formatWorldDiagnostics(events), /\[00:204\] \[durum=koşuyor yol=53\.4%\] render: event-204$/);
 });
