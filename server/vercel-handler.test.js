@@ -5,6 +5,8 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import handler from "../api/[...path].ts";
+import duelStartHandler from "../api/duels/start.ts";
+import duelCompleteHandler from "../api/duels/complete.ts";
 import pickupHandler from "../api/profile/pickups.ts";
 
 function getModuleSpecifiers(source) {
@@ -26,6 +28,8 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const pending = [
     resolve(projectRoot, "api/[...path].ts"),
+    resolve(projectRoot, "api/duels/start.ts"),
+    resolve(projectRoot, "api/duels/complete.ts"),
     resolve(projectRoot, "api/profile/pickups.ts"),
     resolve(projectRoot, "api/store/catalog.ts"),
   ];
@@ -113,4 +117,45 @@ test("explicit pickup route returns JSON instead of a Vercel path-level 404", as
   assert.equal(response.status, 503);
   assert.match(response.headers.get("content-type") ?? "", /application\/json/);
   assert.equal(body.error, "authentication_unavailable");
+});
+
+test("explicit duel routes reach the API handler instead of returning a Vercel path-level 404", async (t) => {
+  const routes = new Map([
+    ["/api/duels/start", duelStartHandler],
+    ["/api/duels/complete", duelCompleteHandler],
+  ]);
+  const server = createServer((request, response) => {
+    const route = routes.get(request.url?.split("?")[0] ?? "");
+    if (route) void route(request, response);
+    else {
+      response.statusCode = 404;
+      response.end();
+    }
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  );
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  for (const path of routes.keys()) {
+    const response = await fetch(`http://127.0.0.1:${address.port}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 503, `${path} should reach the API handler`);
+    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+    assert.equal(body.error, "authentication_unavailable");
+  }
 });
