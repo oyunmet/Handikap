@@ -1,5 +1,6 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Normalize private URLs and keep npm/pnpm root dependencies aligned; Vercel may require both.
 - [Vercel native TypeScript imports](vercel-native-typescript-imports.md) — In this Node 24 project, local ESM imports in API graphs must name `.ts` explicitly; `tsx` can hide missing extensions.
+- [Vercel Preview guest mode](vercel-preview-guest-mode.md) — Allow offline guest play in Preview only; keep Production entry and account APIs protected.
 - [Current game and staged work](handikap-original-identity.md) — The active game is Şafak Savaşçıları; follow scoped phases in order without interim approval.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
 - [WebGL preview and iOS readback limits](webgl-preview-limits.md) — Never let default-framebuffer pixel readback trigger production recovery on touch devices.

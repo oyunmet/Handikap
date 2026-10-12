@@ -76,6 +76,9 @@ verisi olan bir veritabanına uygulamadan önce yedek al.
    publishable key'leri aynı Clerk uygulamasına ait olmalı; kimliği doğrulanmış
    API isteklerinde Clerk session Bearer token'ı kullanılır. Clerk anahtarlarını
    Git'e veya README'ye koyma.
+   Clerk anahtarı olmayan Vercel Preview deploy'ları yalnızca cihazda saklanan
+   misafir oyununu açar; Production ortamı Clerk yapılandırılana kadar kapalı
+   kalır.
 4. Clerk kullanıyorsan Vercel alan adını Clerk uygulamasında izin verilen
    alan adlarına ekle. Veritabanı Vercel'den erişilebilir olmalı.
 5. Vercel'de **Deploy**'a bas. Yayın sonrası `/api/health` ve giriş/profil
