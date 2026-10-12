@@ -1238,6 +1238,7 @@ function SceneContents({
   botTelegraphActive,
   combatRender,
   opponentName,
+  onSelfTestCombo,
   onDebugStats,
   performanceMonitorEnabled,
   onPerformanceStats,
@@ -1327,17 +1328,20 @@ function SceneContents({
     lastSceneFrameAt = performance.now();
     const motion = motionRef.current;
     let visibleRenderables = 0;
-    frame.scene.traverseVisible((object) => {
-      const renderable = object as THREE.Object3D & {
-        isMesh?: boolean;
-        isPoints?: boolean;
-        isLine?: boolean;
-        isSprite?: boolean;
-      };
-      if (renderable.isMesh || renderable.isPoints || renderable.isLine || renderable.isSprite) {
-        visibleRenderables += 1;
-      }
-    });
+    const noGpuWork = gl.info.render.calls === 0 && gl.info.render.triangles === 0;
+    if (noGpuWork) {
+      frame.scene.traverseVisible((object) => {
+        const renderable = object as THREE.Object3D & {
+          isMesh?: boolean;
+          isPoints?: boolean;
+          isLine?: boolean;
+          isSprite?: boolean;
+        };
+        if (renderable.isMesh || renderable.isPoints || renderable.isLine || renderable.isSprite) {
+          visibleRenderables += 1;
+        }
+      });
+    }
     if (!isWorldRenderDead({
       calls: gl.info.render.calls,
       triangles: gl.info.render.triangles,

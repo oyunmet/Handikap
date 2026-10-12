@@ -378,13 +378,13 @@ function V2Rival({
   motionRef,
   focused,
   reducedMotion,
-  labelIndex,
+  labelTargetRef,
 }: {
   rival: WorldRival;
   motionRef: MotionRef;
   focused: boolean;
   reducedMotion: boolean;
-  labelIndex: number;
+  labelTargetRef: MutableRefObject<string | null>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const tagRef = useRef<THREE.Group>(null);
@@ -404,7 +404,10 @@ function V2Rival({
     root.rotation.y = detected
       ? Math.atan2(motion.depth * 5.2 - rival.x, -gap) + Math.PI
       : Math.sin(frame.clock.elapsedTime * 0.34 + rival.level) * 0.08;
-    if (tagRef.current) tagRef.current.position.y = 2.86 + (labelIndex % 3) * 0.45;
+    if (tagRef.current) {
+      tagRef.current.position.y = 2.86;
+      tagRef.current.visible = labelTargetRef.current === rival.id;
+    }
   });
   return (
     <group ref={rootRef} position={[rival.x, 0, 0]} name={`world-v2-rival-${rival.id}`}>
@@ -571,12 +574,28 @@ export function WorldV2Travel({
   | "relicCount"
   | "lightRadius"
 >) {
+  const labelTargetRef = useRef<string | null>(null);
   const [chapter, setChapter] = useState(() => (
     Math.max(0, Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS))
   ));
   useFrame(() => {
-    const next = Math.max(0, Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS));
+    const motion = motionRef.current;
+    const next = Math.max(0, Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS));
     if (next !== chapter) setChapter(next);
+    if (focusedRival) {
+      labelTargetRef.current = focusedRival.id;
+      return;
+    }
+    let nearestId: string | null = null;
+    let nearestGap = 42;
+    for (const rival of rivals) {
+      const gap = Math.abs(rival.distance - motion.distance);
+      if (gap < nearestGap) {
+        nearestGap = gap;
+        nearestId = rival.id;
+      }
+    }
+    labelTargetRef.current = nearestId;
   });
   const chapters = useMemo(() => getWorldContentAround(chapter, 1), [chapter]);
   const unlockedPickups = useMemo(() => {
@@ -610,14 +629,14 @@ export function WorldV2Travel({
       {pickups.map((pickup) => !collectedPickupIds.has(pickup.id) && (
         <V2Pickup key={pickup.id} pickup={pickup} motionRef={motionRef} />
       ))}
-      {rivals.map((rival, index) => (
+      {rivals.map((rival) => (
         <V2Rival
           key={rival.id}
           rival={rival}
           motionRef={motionRef}
           focused={focusedRival?.id === rival.id}
           reducedMotion={motionReduced}
-          labelIndex={index}
+          labelTargetRef={labelTargetRef}
         />
       ))}
       <V2Player

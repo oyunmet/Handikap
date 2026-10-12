@@ -43,6 +43,7 @@
     "http-proxy-middleware": "^3.0.7",
     "pg": "^8.23.1",
     "pixi.js": "^8.22.0",
+    "playwright": "^1.64.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "socket.io": "^4.8.4",

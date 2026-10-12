@@ -35,7 +35,7 @@ function readPixel(
 }
 
 export default function WorldRenderCanary({ onStatus }: Props) {
-  const { camera, gl, size } = useThree();
+  const { camera, gl, scene, size } = useThree();
   const frameRef = useRef(0);
   const samplePendingRef = useRef(false);
   const monitorRef = useRef(createWorldCanarySnapshot());
@@ -46,6 +46,9 @@ export default function WorldRenderCanary({ onStatus }: Props) {
   const savedScissor = useMemo(() => new THREE.Vector4(), []);
   const canaryPixel = useMemo(() => new Uint8Array(4), []);
   const scenePixel = useMemo(() => new Uint8Array(4), []);
+  const worldPosition = useMemo(() => new THREE.Vector3(), []);
+  const worldQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const onStatusRef = useRef(onStatus);
   const mesh = useMemo(() => {
     const geometry = new THREE.PlaneGeometry(1, 1);
     const material = new THREE.MeshBasicMaterial({
@@ -64,7 +67,11 @@ export default function WorldRenderCanary({ onStatus }: Props) {
   }, []);
 
   useEffect(() => {
-    camera.add(mesh);
+    onStatusRef.current = onStatus;
+  }, [onStatus]);
+
+  useEffect(() => {
+    scene.add(mesh);
     const previousViewport = new THREE.Vector4();
     const previousScissor = new THREE.Vector4();
     let previousScissorTest = false;
@@ -118,7 +125,7 @@ export default function WorldRenderCanary({ onStatus }: Props) {
 
         const result = recordWorldCanarySample(monitorRef.current, pixel, brightnessPixels);
         monitorRef.current = result.snapshot;
-        onStatus?.(result.snapshot);
+        onStatusRef.current?.(result.snapshot);
         emitWorldDiagnostic(
           "canary",
           `Örnek ${result.snapshot.samples}: ${pixel[0]},${pixel[1]},${pixel[2]} · ` +
@@ -145,7 +152,7 @@ export default function WorldRenderCanary({ onStatus }: Props) {
         const message = error instanceof Error ? error.message : String(error);
         emitWorldDiagnostic("canary", `Kanarya pikseli okunamadı: ${message}`);
         monitorRef.current = { ...monitorRef.current, state: "unavailable" };
-        onStatus?.(monitorRef.current);
+        onStatusRef.current?.(monitorRef.current);
       } finally {
         if (savedState) {
           activeRenderer.setViewport(previousViewport);
@@ -157,13 +164,13 @@ export default function WorldRenderCanary({ onStatus }: Props) {
     };
 
     return () => {
-      camera.remove(mesh);
+      scene.remove(mesh);
       mesh.onBeforeRender = () => undefined;
       mesh.onAfterRender = () => undefined;
       mesh.geometry.dispose();
       (mesh.material as THREE.Material).dispose();
     };
-  }, [camera, canaryPixel, mesh, onStatus, scenePixel, targetSize]);
+  }, [canaryPixel, mesh, scene, scenePixel, targetSize]);
 
   useFrame(({ camera: activeCamera, size: activeSize }) => {
     frameRef.current += 1;
@@ -183,13 +190,17 @@ export default function WorldRenderCanary({ onStatus }: Props) {
     const viewWidth = viewHeight * Math.max(0.2, activeCamera.aspect);
     const canaryWorldSize = pixelWorldSize * 4;
     mesh.scale.set(canaryWorldSize, canaryWorldSize, 1);
-    mesh.position.set(
+    worldPosition.set(
       viewWidth * 0.5 - pixelWorldSize * 2.5,
       -viewHeight * 0.5 + pixelWorldSize * 2.5,
       -distance,
     );
+    activeCamera.localToWorld(worldPosition);
+    activeCamera.getWorldQuaternion(worldQuaternion);
+    mesh.position.copy(worldPosition);
+    mesh.quaternion.copy(worldQuaternion);
     mesh.updateMatrix();
-  });
+  }, -1);
 
   return null;
 }
