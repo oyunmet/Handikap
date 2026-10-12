@@ -10,6 +10,7 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
+import World2DFallback from "./World2DFallback";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
@@ -22,7 +23,7 @@ import {
 import { createWorldChunk, type WorldChunk } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
-import type { WorldCollisionGrid, WorldRival } from "./world-content";
+import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
 import WorldPostProcessing from "./WorldPostProcessing";
@@ -93,8 +94,12 @@ type World3DProps = {
   lightRadius: number;
   animationState: CharacterAnimationState;
   rivals: WorldRival[];
+  pickups: WorldPickup[];
+  obstacles: WorldObstacle[];
   collectedPickupIds: ReadonlySet<string>;
   brokenObstacleIds: ReadonlySet<string>;
+  defeatedOpponentIds: readonly string[];
+  playerName: string;
   focusedRival: WorldRival | null;
   slowMotion: boolean;
   combatActive: boolean;
@@ -182,7 +187,7 @@ type DebugStats = {
 };
 
 class WorldCanvasErrorBoundary extends Component<
-  { children: ReactNode; onRetry: () => void; onError: () => void },
+  { children: ReactNode; fallback: ReactNode; onRetry: () => void; onError: () => void },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -198,14 +203,7 @@ class WorldCanvasErrorBoundary extends Component<
 
   render() {
     if (this.state.failed) {
-      return (
-        <div className="world-three-fallback" role="alert">
-          <div className="world-three-fallback__content">
-            <span>3D sahne başlatılamadı. WebGL destekli bir tarayıcıyla yeniden deneyin.</span>
-            <button type="button" onClick={this.props.onRetry}>YENİDEN DENE</button>
-          </div>
-        </div>
-      );
+      return this.props.fallback;
     }
     return this.props.children;
   }
@@ -1330,6 +1328,21 @@ export default function World3D(props: World3DProps) {
       setCanvasAttempt((attempt) => attempt + 1);
     }, 500);
   }, []);
+  const fallback = (
+    <World2DFallback
+      motionRef={props.motionRef}
+      rivals={props.rivals}
+      pickups={props.pickups}
+      obstacles={props.obstacles}
+      collectedPickupIds={props.collectedPickupIds}
+      brokenObstacleIds={props.brokenObstacleIds}
+      defeatedOpponentIds={props.defeatedOpponentIds}
+      combatActive={props.combatActive}
+      opponentName={props.opponentName}
+      playerName={props.playerName}
+      onRetry={retryWebGL}
+    />
+  );
   const markContextLost = useCallback(() => setContextLost(true), []);
   const rebuildRestoredContext = useCallback(() => {
     setContextLost(false);
@@ -1363,6 +1376,7 @@ export default function World3D(props: World3DProps) {
       ) : webglAvailable ? (
         <WorldCanvasErrorBoundary
           key={canvasAttempt}
+          fallback={fallback}
           onRetry={retryWebGL}
           onError={retryCanvasAfterError}
         >
@@ -1382,14 +1396,7 @@ export default function World3D(props: World3DProps) {
               renderer.info.autoReset = false;
               scene.background = new THREE.Color("#252330");
             }}
-            fallback={(
-              <div className="world-three-fallback" role="alert">
-                <div className="world-three-fallback__content">
-                  <span>Bu tarayıcı 3D sahneyi başlatamadı.</span>
-                  <button type="button" onClick={retryWebGL}>YENİDEN DENE</button>
-                </div>
-              </div>
-            )}
+            fallback={fallback}
           >
             <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
             <SceneContents
@@ -1402,12 +1409,7 @@ export default function World3D(props: World3DProps) {
           </Canvas>
         </WorldCanvasErrorBoundary>
       ) : (
-        <div className="world-three-fallback" role="alert">
-          <div className="world-three-fallback__content">
-            <span>Bu tarayıcı WebGL ile 3D sahneyi başlatamıyor. Oyunu WebGL destekli bir tarayıcıda açın.</span>
-            <button type="button" onClick={retryWebGL}>YENİDEN DENE</button>
-          </div>
-        </div>
+        fallback
       )}
       {contextLost && (
         <div className="world-three-recovery" role="alert">

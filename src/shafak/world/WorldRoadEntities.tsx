@@ -19,6 +19,7 @@ type MotionRef = MutableRefObject<WorldMotion>;
 const PICKUP_STYLE = {
   "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.16 },
   "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.25 },
+  "treasure-cache": { color: "#f1ca70", glow: "#e39532", size: 0.29 },
   "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.2 },
   "iron-shard": { color: "#d1d8df", glow: "#7d9ba4", size: 0.19 },
   "ember-crystal": { color: "#69e7de", glow: "#35c5d1", size: 0.21 },
@@ -39,7 +40,11 @@ function Collectible({
   const rootRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
   const style = PICKUP_STYLE[pickup.kind];
-  const geometry = pickup.kind === "gold-small" ? "coin" : pickup.kind === "gold-large" ? "large-coin" : "crystal";
+  const geometry = pickup.kind === "gold-small"
+    ? "coin"
+    : pickup.kind === "gold-large"
+      ? "large-coin"
+      : pickup.kind === "treasure-cache" ? "cache" : "crystal";
 
   useFrame((frame) => {
     const root = rootRef.current;
@@ -82,6 +87,21 @@ function Collectible({
             <cylinderGeometry args={[0.74, 0.74, 0.2, 12]} />
             <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.78} metalness={0.86} roughness={0.2} />
           </mesh>
+        ) : geometry === "cache" ? (
+          <group scale={style.size * 1.9}>
+            <mesh position={[0, 0.15, 0]}>
+              <boxGeometry args={[0.86, 0.52, 0.62]} />
+              <meshStandardMaterial color="#79502f" emissive={style.glow} emissiveIntensity={0.22} metalness={0.42} roughness={0.56} />
+            </mesh>
+            <mesh position={[0, 0.47, 0]}>
+              <boxGeometry args={[0.98, 0.12, 0.72]} />
+              <meshStandardMaterial color={style.color} metalness={0.72} roughness={0.3} />
+            </mesh>
+            <mesh position={[0, 0.18, 0.33]}>
+              <boxGeometry args={[0.12, 0.55, 0.05]} />
+              <meshStandardMaterial color="#d6ae57" metalness={0.82} roughness={0.23} />
+            </mesh>
+          </group>
         ) : (
           <mesh scale={style.size}>
             <octahedronGeometry args={[0.9, 0]} />

@@ -55,7 +55,7 @@ export type WorldCollider = {
   halfWidth: number;
   halfDepth: number;
   breakableId?: string;
-  requiredAction?: "crouch";
+  requiredAction?: "crouch" | "jump";
 };
 
 export type WorldCollisionGrid = Map<number, Map<number, WorldCollider[]>>;
@@ -69,6 +69,7 @@ export type WorldChapterContent = {
 
 export const PICKUP_MAGNET_RADIUS_METERS = 5.2;
 export const PICKUP_RADIUS_METERS = 1.5;
+export const WORLD_JUMP_CLEARANCE_METERS = 0.78;
 export const MAX_PICKUPS_PER_CLAIM = 14;
 export const MAX_CHAPTER_ID = 1_000_000;
 
@@ -301,7 +302,9 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         halfWidth: obstacle.width / 2,
         halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
         breakableId: obstacle.kind === "barricade" ? obstacle.id : undefined,
-        requiredAction: obstacle.kind === "low-bar" ? "crouch" : undefined,
+        requiredAction: obstacle.kind === "low-bar"
+          ? "crouch"
+          : obstacle.kind === "rock" ? "jump" : undefined,
       });
     }
 
@@ -389,6 +392,7 @@ export function resolveWorldPathCollision(
         for (const collider of colliders) {
           if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
           if (collider.requiredAction === "crouch" && clearance.crouching) continue;
+          if (collider.requiredAction === "jump" && (clearance.jumpHeight ?? 0) >= WORLD_JUMP_CLEARANCE_METERS) continue;
           if (collider.shape === "circle") {
             const dx = x - collider.x;
             const dz = distance - collider.distance;

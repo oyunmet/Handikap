@@ -19,6 +19,34 @@ test("keyboard input reads WASD and arrows and normalizes diagonal travel", () =
   assert.deepEqual([north.x, north.y], [0, 1]);
 });
 
+test("mobile action keys map to jump, crouch, and sprint", () => {
+  const input = readWorldInput(new Set(["space", "c", "shift"]), { x: 0, y: 1 });
+  assert.equal(input.jump, true);
+  assert.equal(input.crouch, true);
+  assert.equal(input.sprint, true);
+});
+
+test("sprint accelerates faster than walking and jump/crouch change motion", () => {
+  const walking = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
+  const running = readWorldInput(new Set(["w", "shift"]), { x: 0, y: 0 });
+  const walkFrame = stepWorldMotion(createWorldMotion(), walking, 1 / 30);
+  const runFrame = stepWorldMotion(createWorldMotion(), running, 1 / 30);
+  const jumpFrame = stepWorldMotion(
+    createWorldMotion(),
+    readWorldInput(new Set(["space"]), { x: 0, y: 0 }),
+    1 / 60,
+  );
+  const crouchFrame = stepWorldMotion(
+    createWorldMotion(),
+    readWorldInput(new Set(["c", "w"]), { x: 0, y: 0 }),
+    1 / 60,
+  );
+
+  assert.ok(runFrame.speed > walkFrame.speed);
+  assert.ok(jumpFrame.jumpHeight > 0);
+  assert.equal(crouchFrame.crouching, true);
+});
+
 test("joystick input preserves analog magnitude for walk-to-run speed", () => {
   const quarter = readWorldInput(new Set(), { x: 0, y: 0.25 });
   const pushed = readWorldInput(new Set(), { x: 0, y: 0.9 });

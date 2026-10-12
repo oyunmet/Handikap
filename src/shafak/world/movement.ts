@@ -134,7 +134,7 @@ export function stepWorldMotion(
   const velocityX = state.velocityX + (targetX - state.velocityX) * response;
   let velocityY = state.velocityY + (targetY - state.velocityY) * response;
   const requestedDistance = state.distance + velocityY * dt;
-  const distance = Math.max(0, requestedDistance);
+  const distance = requestedDistance;
   if (requestedDistance <= 0) velocityY = 0;
   const speed = Math.hypot(velocityX, velocityY);
   const isMoving = speed > 0.12;

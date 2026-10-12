@@ -2,6 +2,6 @@
 - [Vercel native TypeScript imports](vercel-native-typescript-imports.md) — In this Node 24 project, local ESM imports in API graphs must name `.ts` explicitly; `tsx` can hide missing extensions.
 - [Game identity and hosting](handikap-original-identity.md) — Şafak Savaşçıları is active; production uses external Vercel, separate from Replit deployment status.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
-- [WebGL preview limits](webgl-preview-limits.md) — A successful GLB load and live controls do not prove pixels rendered when the preview browser lacks WebGL.
+- [WebGL preview limits](webgl-preview-limits.md) — Distinguish preview renderer failure from asset failure; preserve playability with a lightweight 2D fallback.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.

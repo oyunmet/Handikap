@@ -7,6 +7,7 @@ import {
   resolveWorldObstacleCollision,
   resolveWorldPathCollision,
   validatePickupIds,
+  WORLD_JUMP_CLEARANCE_METERS,
 } from "./world-content.ts";
 import { WORLD_BOT_PROFILES } from "./world-bot-profiles.ts";
 
@@ -14,7 +15,7 @@ test("seeded chapter content is stable and contains four escalating rivals", () 
   const first = getWorldChapter(0);
   assert.deepEqual(getWorldChapter(0), first);
   assert.notDeepEqual(getWorldChapter(1), first);
-  assert.equal(first.pickups.length, 13);
+  assert.equal(first.pickups.length, 14);
   assert.equal(first.rivals.length, 4);
   assert.deepEqual(first.rivals.map((rival) => rival.name), [
     "Kapı Muhafızı",
@@ -64,7 +65,7 @@ test("reward totals are derived from seeded pickup kinds and amounts", () => {
   const totals = pickupRewardTotals(pickups);
   assert.equal(
     totals.gold,
-    pickups.filter((pickup) => pickup.kind.startsWith("gold")).reduce((sum, pickup) => sum + pickup.amount, 0),
+    pickups.filter((pickup) => pickup.kind.startsWith("gold") || pickup.kind === "treasure-cache").reduce((sum, pickup) => sum + pickup.amount, 0),
   );
   assert.equal(
     totals.materials.emberCrystals,
@@ -136,4 +137,46 @@ test("spatial collision grid blocks props, permits lateral sliding, and enforces
       assert.ok(cell.every((collider) => !collider.id.includes("pickup")));
     }
   }
+});
+
+test("crouching clears a low bar while standing remains blocked", () => {
+  const collider = {
+    id: "low-bar",
+    x: 0,
+    distance: 10,
+    shape: "box",
+    radius: 0,
+    halfWidth: 1,
+    halfDepth: 0.38,
+    requiredAction: "crouch",
+  };
+  const grid = new Map([[0, new Map([[0, [collider]]])]]);
+  const standing = resolveWorldPathCollision(0, 7, 0, 13, grid, new Set());
+  const crouching = resolveWorldPathCollision(
+    0, 7, 0, 13, grid, new Set(), { x: 0, distance: 0 }, { crouching: true },
+  );
+
+  assert.ok(standing.distance < 13);
+  assert.ok(Math.abs(crouching.distance - 13) < 1e-8);
+});
+
+test("jumping clears a rock collider only after reaching jump clearance", () => {
+  const collider = {
+    id: "jumpable-rock",
+    x: 0,
+    distance: 10,
+    shape: "circle",
+    radius: 1,
+    halfWidth: 1,
+    halfDepth: 1,
+    requiredAction: "jump",
+  };
+  const grid = new Map([[0, new Map([[0, [collider]]])]]);
+  const blocked = resolveWorldPathCollision(0, 7, 0, 13, grid, new Set());
+  const cleared = resolveWorldPathCollision(
+    0, 7, 0, 13, grid, new Set(), { x: 0, distance: 0 }, { jumpHeight: WORLD_JUMP_CLEARANCE_METERS },
+  );
+
+  assert.ok(blocked.distance < 13);
+  assert.ok(Math.abs(cleared.distance - 13) < 1e-8);
 });

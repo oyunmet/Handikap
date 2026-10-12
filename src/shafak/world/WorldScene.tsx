@@ -56,6 +56,7 @@ import {
   pickupRewardTotals,
   buildWorldCollisionGrid,
   resolveWorldPathCollision,
+  WORLD_JUMP_CLEARANCE_METERS,
   type WorldChapterContent,
   type WorldCollisionGrid,
   type WorldObstacle,
@@ -143,6 +144,8 @@ type ActiveDuel = {
   duelId: string | null;
   seed: number;
   practice: boolean;
+  rematch: boolean;
+  oneHit: boolean;
 };
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
 type DuelFlash = "hit" | "strike" | "skillOne" | "skillTwo" | null;
@@ -506,7 +509,7 @@ export default function WorldScene({
     }
 
     if (accountPositionJustLoaded) {
-      accountPositionLoadedUserRef.current = userId;
+      accountPositionLoadedUserRef.current = userId ?? null;
       if (profile.worldProgress) {
         const localProgress = readWorldProgress(userId);
         applyProgress(inferWorldProgressFromDefeatedOpponents({
@@ -599,7 +602,6 @@ export default function WorldScene({
   const storyChapterRef = useRef(0);
   const [debugOneHitEnabled, setDebugOneHitEnabled] = useState(false);
   const contentCacheRef = useRef(new Map<number, WorldChapterContent>());
-  const rivalDistancesRef = useRef(new Map<string, number>());
   const collectedRef = useRef(new Set<string>());
   const pendingPickupIdsRef = useRef(new Set<string>());
   const deferredPickupIdsRef = useRef(new Set<string>());
@@ -649,11 +651,7 @@ export default function WorldScene({
     currentChapterId,
   );
   const activeContent = getCachedWorldContent(travel, contentCacheRef.current);
-  for (const rival of activeContent.rivals) {
-    if (!rivalDistancesRef.current.has(rival.id)) rivalDistancesRef.current.set(rival.id, rival.distance);
-  }
-  const allRivals = activeContent.rivals
-    .map((rival) => ({ ...rival, distance: rivalDistancesRef.current.get(rival.id) ?? rival.distance }));
+  const allRivals = activeContent.rivals;
   const nearbyRivals = allRivals.filter((rival) => Math.abs(rival.distance - travel) <= 105);
   const rivals = allRivals.filter((rival) =>
     rival.distance >= travel - 8 && !profile.defeatedOpponents.includes(rival.id),
@@ -1072,7 +1070,9 @@ export default function WorldScene({
         phase: "result",
         summary: { ...localSummary, loot: 0 },
         rewards: emptyRewards,
-        message: "Eğitim düellosu · ödül ve profil ilerlemesi verilmez.",
+        message: context.rematch
+          ? "Yeniden düello · ödül ve profil ilerlemesi verilmez."
+          : "Eğitim düellosu · ödül ve profil ilerlemesi verilmez.",
       });
       return;
     }
@@ -1170,7 +1170,8 @@ export default function WorldScene({
       cameraLead: 0,
     };
     motionRef.current = battleFrozenMotionRef.current;
-    const practice = debugOneHitEnabled;
+    const rematch = profile.defeatedOpponents.includes(rival.id);
+    const practice = debugOneHitEnabled || rematch;
     const initialSession: BattleSession = { rival, phase: "sweep", beat: 0, practice };
     battleSessionRef.current = initialSession;
     setBattleSession(initialSession);
@@ -1238,7 +1239,7 @@ export default function WorldScene({
         seed = seedBuffer[0] || 1;
       }
 
-      activeDuelRef.current = { rival, duelId, seed, practice };
+      activeDuelRef.current = { rival, duelId, seed, practice, rematch, oneHit: debugOneHitEnabled };
       const initialCombat = createCombatState(seed, difficulty, playerStats);
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
@@ -1273,7 +1274,7 @@ export default function WorldScene({
         message: error instanceof Error ? error.message : "Düello başlatılamadı.",
       });
     }
-  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced, playerCombatStats]);
+  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced, playerCombatStats, profile.defeatedOpponents]);
 
   const pressDuelButton = (button: number) => {
     const input = combatInputRef.current;
@@ -1317,7 +1318,7 @@ export default function WorldScene({
 
   useEffect(() => {
     const onActionKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== "Space" && event.key.toLowerCase() !== "e") return;
+      if (event.key.toLowerCase() !== "e") return;
       if (event.target instanceof HTMLElement && event.target.closest("button,input,textarea,select")) return;
       event.preventDefault();
       requestObstacleAttack();
@@ -1397,7 +1398,7 @@ export default function WorldScene({
     let lastProgressSave = 0;
     const lastFiniteMotion = { ...motionRef.current };
     const fixedStep = 1 / 60;
-    const stoppedInput = { x: 0, y: 0, sprint: false, analogMagnitude: 0 };
+    const stoppedInput = { x: 0, y: 0, sprint: false, jump: false, crouch: false, analogMagnitude: 0 };
     const frameScratch = stepWorldMotion(
       motionRef.current,
       stoppedInput,
@@ -1492,7 +1493,7 @@ export default function WorldScene({
             }
             const active = activeDuelRef.current;
             if (
-              active?.practice &&
+              active?.oneHit &&
               stepped.events.some((event) => event.type === "hit" && event.target === "bot") &&
               !stepped.state.ended
             ) {
@@ -1601,6 +1602,7 @@ export default function WorldScene({
           worldContent.collisionGrid,
           brokenRef.current,
           collisionPosition,
+          { crouching: nextFrame.crouching, jumpHeight: nextFrame.jumpHeight },
         );
         if (
           Math.abs(resolvedPosition.distance - nextFrame.distance) > 0.0001
@@ -1627,14 +1629,6 @@ export default function WorldScene({
           if (!nextFrame.hasMoved) {
             nextFrame.motion = "idle";
             nextFrame.footsteps = 0;
-          }
-        }
-
-        for (const rival of worldContent.rivals) {
-          const rivalDistance = rivalDistancesRef.current.get(rival.id) ?? rival.distance;
-          const gap = rivalDistance - nextFrame.distance;
-          if (gap > 2.7 && gap <= 8) {
-            rivalDistancesRef.current.set(rival.id, Math.max(nextFrame.distance + 2.7, rivalDistance - fixedStep * 1.4));
           }
         }
 
@@ -1680,7 +1674,12 @@ export default function WorldScene({
             continue;
           }
           const cooldown = trapCooldownRef.current.get(obstacle.id);
-          if (longitudinal <= 1.25 && lateral <= obstacle.width / 2 && cooldown === undefined) {
+          if (
+            longitudinal <= 1.25 &&
+            lateral <= obstacle.width / 2 &&
+            cooldown === undefined &&
+            nextFrame.jumpHeight < WORLD_JUMP_CLEARANCE_METERS
+          ) {
             trapCooldownRef.current.set(obstacle.id, simulationTimeRef.current + 1.1);
             setPickupNotice("Dikenli tuzak! 1 saniye yavaşladın.");
             if (vibrationOn && "vibrate" in navigator) {
@@ -1847,7 +1846,6 @@ export default function WorldScene({
   };
   const debugNearestRival = () => {
     const target = activeContent.rivals
-      .map((rival) => ({ ...rival, distance: rivalDistancesRef.current.get(rival.id) ?? rival.distance }))
       .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
     if (target) teleportToDistance(Math.max(0, target.distance - 4));
   };
@@ -1935,8 +1933,12 @@ export default function WorldScene({
             lightRadius={equipmentBonuses.lightRadius}
             animationState={attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
             rivals={battleSession ? [] : nearbyRivals}
+            pickups={allPickups}
+            obstacles={activeContent.obstacles}
             collectedPickupIds={collectedPickupIds}
             brokenObstacleIds={brokenObstacleIds}
+            defeatedOpponentIds={profile.defeatedOpponents}
+            playerName={profile.name}
             focusedRival={battleSession?.rival ?? null}
             slowMotion={Boolean(battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
@@ -2175,31 +2177,72 @@ export default function WorldScene({
         onPointerUp={worldInput.onJoystickPointerUp}
         onPointerCancel={worldInput.onJoystickPointerCancel}
       ><span className="world-joystick__nub" /></div>
+      {!battleSession && (
+        <div className="world-movement-actions" role="group" aria-label="Yol hareket tuşları">
+          <button
+            type="button"
+            className="world-movement-action"
+            aria-label="Eğil"
+            title="Eğil"
+            onPointerDown={(event) => worldInput.onActionPointerDown(event, "c")}
+            onPointerUp={(event) => worldInput.onActionPointerUp(event, "c")}
+            onPointerCancel={(event) => worldInput.onActionPointerUp(event, "c")}
+            onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "c")}
+          ><span aria-hidden="true">↓</span><small>EĞİL</small></button>
+          <button
+            type="button"
+            className="world-movement-action"
+            aria-label="Zıpla"
+            title="Zıpla"
+            onPointerDown={(event) => worldInput.onActionPointerDown(event, "space")}
+            onPointerUp={(event) => worldInput.onActionPointerUp(event, "space")}
+            onPointerCancel={(event) => worldInput.onActionPointerUp(event, "space")}
+            onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "space")}
+          ><span aria-hidden="true">↑</span><small>ZIPLA</small></button>
+          <button
+            type="button"
+            className="world-movement-action"
+            aria-label="Koş"
+            title="Koş"
+            onPointerDown={(event) => worldInput.onActionPointerDown(event, "shift")}
+            onPointerUp={(event) => worldInput.onActionPointerUp(event, "shift")}
+            onPointerCancel={(event) => worldInput.onActionPointerUp(event, "shift")}
+            onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "shift")}
+          ><span aria-hidden="true">»</span><small>KOŞ</small></button>
+        </div>
+      )}
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       {encounterVisible && nextOpponent && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
           <div className="world-encounter__card">
-            <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
+            <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
             <span>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</span>
             <em>“{nextOpponent.taunt}”</em>
-            {getNpcStoryDialogue(nextOpponent.name, currentChapterId) && (
-              <button
-                type="button"
-                className="world-encounter__talk"
-                onClick={() => {
-                  wake();
-                  const dialogue = getNpcStoryDialogue(nextOpponent.name, currentChapterId);
-                  if (dialogue) showStoryDialogue(dialogue);
-                }}
-              >
-                KONUŞ
-              </button>
-            )}
+            <button
+              type="button"
+              className="world-encounter__talk"
+              onClick={() => {
+                wake();
+                const dialogue = getNpcStoryDialogue(nextOpponent.name, currentChapterId) ?? {
+                  id: `story-npc-${nextOpponent.id}`,
+                  kind: "npc" as const,
+                  title: nextOpponentDefeated ? "YENİDEN KARŞILAŞMA" : "YOLCULARIN SÖZÜ",
+                  speaker: nextOpponent.name.toLocaleUpperCase("tr-TR"),
+                  lines: [nextOpponent.taunt],
+                  hint: nextOpponentDefeated
+                    ? "Kılıcını yeniden kuşanabilir ya da yoluna devam edebilirsin."
+                    : "Karşılaşma sana kalmış; istersen konuşup yoluna devam et.",
+                };
+                showStoryDialogue(dialogue);
+              }}
+            >
+              KONUŞ
+            </button>
             {canChallenge && (
               <button type="button" className="world-encounter__fight" onClick={() => beginEncounter(nextOpponent)}>
-                <span aria-hidden="true">⚔</span> SAVAŞ
+                <span aria-hidden="true">⚔</span> {nextOpponentDefeated ? "YENİDEN DÜELLO" : "SAVAŞ"}
               </button>
             )}
           </div>
