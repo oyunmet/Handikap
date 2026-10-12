@@ -7,7 +7,7 @@ import { solveTwoBoneLeg } from "./leg-ik";
 import type { WorldMotion } from "./movement";
 import { KNIGHT_CONFIG } from "./knight-config";
 import type { EquipmentVisual } from "../game/store-types";
-import { dampCharacterYaw, getCharacterRootYawForModel, resolveCharacterTargetYaw } from "./character-facing";
+import { dampCharacterYaw, resolveCharacterTargetYaw } from "./character-facing";
 
 type Knight3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -297,9 +297,7 @@ export default function Knight3D({
       moving,
       state === "die",
     );
-    const targetYaw = facingAngle === undefined
-      ? worldFacingYaw
-      : getCharacterRootYawForModel(worldFacingYaw, KNIGHT_CONFIG.modelFacing);
+    const targetYaw = worldFacingYaw;
     root.rotation.y = dampCharacterYaw(root.rotation.y, targetYaw, 7, dt);
     const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;
     root.rotation.z = THREE.MathUtils.damp(root.rotation.z, fall, 5, dt);
