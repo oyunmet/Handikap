@@ -1959,6 +1959,7 @@ export default function WorldScene({
     if (target) teleportToDistance(target.distance, target.x);
   };
   const debugSkipDistance = () => teleportToDistance(travel + 25);
+  const debugSetRoutePoint = (distance: number) => teleportToDistance(distance);
   const debugNextBiome = () => teleportToDistance(motionRef.current.distance + BIOME_SPAN_METERS);
   const gateDistance = nextGateDistance(travel);
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
@@ -2039,6 +2040,7 @@ export default function WorldScene({
             onDebugNearestRival={debugNearestRival}
             onDebugNearestPickup={debugNearestPickup}
             onDebugSkipDistance={debugSkipDistance}
+            onDebugRoutePoint={debugSetRoutePoint}
             onDebugNextBiome={debugNextBiome}
             onDebugStartBattle={debugStartBattle}
             debugOneHitEnabled={debugOneHitEnabled}

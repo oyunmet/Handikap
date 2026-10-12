@@ -35,9 +35,10 @@ function readPixel(
 }
 
 export default function WorldRenderCanary({ onStatus }: Props) {
-  const { camera, gl, scene, size } = useThree();
+  const { scene } = useThree();
   const frameRef = useRef(0);
   const samplePendingRef = useRef(false);
+  const firstSampleRequestedRef = useRef(false);
   const monitorRef = useRef(createWorldCanarySnapshot());
   const recoverySentRef = useRef(false);
   const lightingResetSentRef = useRef(false);
@@ -77,20 +78,47 @@ export default function WorldRenderCanary({ onStatus }: Props) {
     let previousScissorTest = false;
     let savedState = false;
 
-    mesh.onBeforeRender = (renderer) => {
+    mesh.onBeforeRender = (renderer, _activeScene, activeCamera) => {
       if (!samplePendingRef.current) return;
+      if (!(activeCamera instanceof THREE.PerspectiveCamera)) {
+        samplePendingRef.current = false;
+        return;
+      }
       const activeRenderer = renderer as THREE.WebGLRenderer;
       const dpr = Math.max(1, activeRenderer.getPixelRatio());
       activeRenderer.getDrawingBufferSize(targetSize);
+      const bufferWidth = Math.max(4, Math.floor(targetSize.x));
+      const bufferHeight = Math.max(4, Math.floor(targetSize.y));
+      const viewHeight = 2 * 0.72 * Math.tan(
+        THREE.MathUtils.degToRad(THREE.MathUtils.clamp(
+          Number.isFinite(activeCamera.fov) ? activeCamera.fov : 54,
+          20,
+          100,
+        )) * 0.5,
+      );
+      const pixelWorldSize = viewHeight / bufferHeight;
+      const viewWidth = viewHeight * Math.max(0.2, activeCamera.aspect);
+      const canarySize = 8 / dpr;
+      mesh.scale.set(pixelWorldSize * 8, pixelWorldSize * 8, 1);
+      worldPosition.set(
+        viewWidth * 0.5 - pixelWorldSize * 4.5,
+        -viewHeight * 0.5 + pixelWorldSize * 4.5,
+        -0.72,
+      );
+      activeCamera.localToWorld(worldPosition);
+      activeCamera.getWorldQuaternion(worldQuaternion);
+      mesh.position.copy(worldPosition);
+      mesh.quaternion.copy(worldQuaternion);
+      mesh.updateMatrix();
+      mesh.updateMatrixWorld(true);
+
       activeRenderer.getViewport(previousViewport);
       activeRenderer.getScissor(previousScissor);
       previousScissorTest = activeRenderer.getScissorTest();
       savedState = true;
 
-      const bufferWidth = Math.max(4, Math.floor(targetSize.x));
       const logicalWidth = bufferWidth / dpr;
-      const logicalHeight = Math.max(4, Math.floor(targetSize.y)) / dpr;
-      const canarySize = 4 / dpr;
+      const logicalHeight = bufferHeight / dpr;
       activeRenderer.setViewport(0, 0, logicalWidth, logicalHeight);
       activeRenderer.setScissor(logicalWidth - canarySize, 0, canarySize, canarySize);
       activeRenderer.setScissorTest(true);
@@ -106,7 +134,7 @@ export default function WorldRenderCanary({ onStatus }: Props) {
         activeRenderer.getDrawingBufferSize(targetSize);
         const width = Math.max(1, Math.floor(targetSize.x));
         const height = Math.max(1, Math.floor(targetSize.y));
-        const pixel = readPixel(activeRenderer, context, width - 2, 2, canaryPixel);
+        const pixel = readPixel(activeRenderer, context, width - 4, 4, canaryPixel);
         const brightnessPixels: CanaryPixel[] = [];
         const points = [
           [Math.round(width * 0.34), Math.round(height * 0.48)],
@@ -172,34 +200,17 @@ export default function WorldRenderCanary({ onStatus }: Props) {
     };
   }, [canaryPixel, mesh, scene, scenePixel, targetSize]);
 
-  useFrame(({ camera: activeCamera, size: activeSize }) => {
+  useFrame(() => {
     frameRef.current += 1;
     const sampleNow = shouldSampleWorldCanary(frameRef.current, CANARY_INTERVAL_FRAMES);
-    mesh.visible = sampleNow;
-    samplePendingRef.current = sampleNow;
-    if (!sampleNow || !(activeCamera instanceof THREE.PerspectiveCamera)) return;
-
-    const dpr = Math.max(1, gl.getPixelRatio());
-    const drawingBufferHeight = Math.max(1, activeSize.height * dpr);
-    const safeFov = Number.isFinite(activeCamera.fov)
-      ? THREE.MathUtils.clamp(activeCamera.fov, 20, 100)
-      : 54;
-    const distance = Math.max(activeCamera.near + 0.12, 0.72);
-    const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(safeFov) * 0.5);
-    const pixelWorldSize = viewHeight / drawingBufferHeight;
-    const viewWidth = viewHeight * Math.max(0.2, activeCamera.aspect);
-    const canaryWorldSize = pixelWorldSize * 4;
-    mesh.scale.set(canaryWorldSize, canaryWorldSize, 1);
-    worldPosition.set(
-      viewWidth * 0.5 - pixelWorldSize * 2.5,
-      -viewHeight * 0.5 + pixelWorldSize * 2.5,
-      -distance,
-    );
-    activeCamera.localToWorld(worldPosition);
-    activeCamera.getWorldQuaternion(worldQuaternion);
-    mesh.position.copy(worldPosition);
-    mesh.quaternion.copy(worldQuaternion);
-    mesh.updateMatrix();
+    if (sampleNow) {
+      samplePendingRef.current = true;
+      if (!firstSampleRequestedRef.current) {
+        firstSampleRequestedRef.current = true;
+        emitWorldDiagnostic("canary", "İlk 30 kare tamamlandı; aynı WebGL bağlamında piksel örneklemesi başlıyor.");
+      }
+    }
+    mesh.visible = samplePendingRef.current;
   }, -1);
 
   return null;

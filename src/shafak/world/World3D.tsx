@@ -60,6 +60,7 @@ import {
   isWorldRenderDead,
   type WorldCanarySnapshot,
 } from "./world-canary";
+import { getWorldRenderWatchdogTimeouts } from "./world-render-watchdog";
 import { WorldResourcePool } from "./world-resource-pool";
 
 export type WorldQuality = "high" | "balanced" | "low";
@@ -128,6 +129,7 @@ export type World3DProps = {
   onDebugNearestRival: () => void;
   onDebugNearestPickup: () => void;
   onDebugSkipDistance: () => void;
+  onDebugRoutePoint: (distance: number) => void;
   onDebugNextBiome: () => void;
   onDebugStartBattle: () => void;
   debugOneHitEnabled: boolean;
@@ -1594,6 +1596,7 @@ export default function World3D(props: World3DProps) {
   const active = props.active ?? true;
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
+  const [rendererName, setRendererName] = useState("bilinmiyor");
   const [contextLost, setContextLost] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("");
   const [canvasAttempt, setCanvasAttempt] = useState(0);
@@ -1693,13 +1696,13 @@ export default function World3D(props: World3DProps) {
     setContextLost(false);
     setRecoveryMessage("Sahne yenileniyor…");
     setRecoveryStage(nextStage);
-    if (nextStage === 1 || nextStage === 3) {
-      setFirstFrameReported(false);
-      setSceneAttempt((attempt) => attempt + 1);
-    } else if (nextStage === 2) {
+    if (nextStage === 2) {
       setFirstFrameReported(false);
       setWebglAvailable(null);
       setCanvasAttempt((attempt) => attempt + 1);
+    } else if (nextStage === 3) {
+      setFirstFrameReported(false);
+      setSceneAttempt((attempt) => attempt + 1);
     }
   }, []);
   const markContextLost = useCallback(() => {
@@ -1787,24 +1790,26 @@ export default function World3D(props: World3DProps) {
 
   useEffect(() => {
     if (!active || webglAvailable !== true || firstFrameReported || contextLost) return undefined;
+    const timeoutMs = getWorldRenderWatchdogTimeouts(rendererName).firstFrameMs;
     const timer = window.setTimeout(() => {
-      emitWorldDiagnostic("render", "Canvas başlatıldı ancak 3 saniyede ilk çizim karesi gelmedi.");
+      emitWorldDiagnostic("render", `Canvas ${timeoutMs / 1_000} saniyede ilk çizim karesi üretmedi.`);
       retryCanvasAfterError(new Error("3D sahne ilk kareyi çizmedi."));
-    }, 3_000);
+    }, timeoutMs);
     return () => window.clearTimeout(timer);
-  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, rendererName, retryCanvasAfterError, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
     if (!active || webglAvailable !== true || contextLost) return undefined;
+    const timeoutMs = getWorldRenderWatchdogTimeouts(rendererName).renderStallMs;
     const timer = window.setInterval(() => {
       if (document.visibilityState === "hidden" || !firstFrameReported || !lastSceneFrameAt) return;
-      if (performance.now() - lastSceneFrameAt < 2_500) return;
-      emitWorldDiagnostic("render", "Görünür sekmede 2,5 saniyedir WebGL kare sinyali alınmıyor.");
+      if (performance.now() - lastSceneFrameAt < timeoutMs) return;
+      emitWorldDiagnostic("render", `Görünür sekmede ${timeoutMs / 1_000} saniyedir WebGL kare sinyali alınmıyor.`);
       lastSceneFrameAt = performance.now();
       retryCanvasAfterError(new Error("WebGL render loop durdu."));
     }, 1_500);
     return () => window.clearInterval(timer);
-  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, retryCanvasAfterError, sceneAttempt, webglAvailable]);
+  }, [active, canvasAttempt, contextLost, firstFrameReported, recoveryStage, rendererName, retryCanvasAfterError, sceneAttempt, webglAvailable]);
 
   useEffect(() => {
     if (!active || !webglAvailable || !firstFrameReported || recoveryStage === 0) return undefined;
@@ -1866,6 +1871,12 @@ export default function World3D(props: World3DProps) {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.info.autoReset = false;
               lastSceneFrameAt = performance.now();
+              const context = renderer.getContext();
+              const rendererInfo = context.getExtension("WEBGL_debug_renderer_info");
+              const activeRendererName = String(rendererInfo
+                ? context.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL)
+                : context.getParameter(context.RENDERER));
+              setRendererName(activeRendererName);
               const previousShaderError = renderer.debug.onShaderError;
               renderer.debug.checkShaderErrors = true;
               renderer.debug.onShaderError = (context, program, vertexShader, fragmentShader) => {
@@ -1880,7 +1891,7 @@ export default function World3D(props: World3DProps) {
                 }
               };
               scene.background = new THREE.Color("#252330");
-              emitWorldDiagnostic("webgl", `Renderer hazır; DPR ${renderer.getPixelRatio().toFixed(2)}, maksimum doku ${renderer.getContext().getParameter(renderer.getContext().MAX_TEXTURE_SIZE)} px.`);
+              emitWorldDiagnostic("webgl", `Renderer hazır: ${activeRendererName}; DPR ${renderer.getPixelRatio().toFixed(2)}, maksimum doku ${context.getParameter(context.MAX_TEXTURE_SIZE)} px.`);
             }}
             fallback={(
               <div className="world-three-fallback" role="alert">
@@ -1935,6 +1946,7 @@ export default function World3D(props: World3DProps) {
           <span>Geometri/Doku: {debugStats.geometries}/{debugStats.textures} · JS heap: {debugStats.heapMb === null ? "n/a" : `${debugStats.heapMb} MB`}</span>
           <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
           <span>Render döngüsü: {debugStats.fps > 0 ? "CANLI" : "BAŞLAMADI"} · İlk kare: {firstFrameReported ? "EVET" : "BEKLENİYOR"} · Aktif rakip: {props.combatActive ? props.opponentName : props.focusedRival?.name ?? "yok"} · Model: {props.combatActive && getOpponentModelConfig(props.opponentName)?.modelPath ? "GLB" : "prosedürel"}</span>
+          <span>WebGL aygıtı: {rendererName}</span>
           <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
@@ -1989,6 +2001,9 @@ export default function World3D(props: World3DProps) {
             <button type="button" onClick={props.onDebugNearestRival}>En yakın rakip</button>
             <button type="button" onClick={props.onDebugNearestPickup}>En yakın eşya</button>
             <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>
+            {[0, 25, 54, 79, 92].map((distance) => (
+              <button key={distance} type="button" onClick={() => props.onDebugRoutePoint(distance)}>Rota {distance} m</button>
+            ))}
             <button type="button" onClick={props.onDebugNextBiome}>Sonraki biyom</button>
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
             <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
