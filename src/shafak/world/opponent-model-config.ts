@@ -45,8 +45,8 @@ export const OPPONENT_MODEL_CONFIGS = {
       auraColor: "#9d85e7",
     },
     materialNameAliases: {
-      cape: ["cape", "cloak", "mantle", "pelerin", "tabard", "cloth"],
-      accent: ["trim", "accent", "rune", "highlight", "vurgu", "gold", "metal", "spike"],
+      cape: ["cape", "cloak", "mantle", "pelerin"],
+      accent: ["trim", "accent", "rune", "highlight", "vurgu", "gold", "metal"],
     },
     animationClips: {
       idle: ["Idle"],
@@ -66,36 +66,4 @@ export const OPPONENT_MODEL_CONFIGS = {
 
 export function getOpponentModelConfig(name: string | undefined) {
   return name ? OPPONENT_MODEL_CONFIGS[name as keyof typeof OPPONENT_MODEL_CONFIGS] : undefined;
-}
-
-function normalizePartName(name: string) {
-  return name.toLocaleLowerCase().replace(/[^a-z0-9ğüşöçıİ]/gi, "");
-}
-
-export function getOpponentPartColor(
-  meshName: string,
-  materialName: string,
-  config: OpponentModelConfig,
-) {
-  const mesh = normalizePartName(meshName);
-  const material = normalizePartName(materialName);
-  const matchesAlias = (name: string, aliases: readonly string[]) =>
-    aliases.some((alias) => name.includes(normalizePartName(alias)));
-  if (matchesAlias(material, config.materialNameAliases.accent)
-    || matchesAlias(mesh, config.materialNameAliases.accent)) {
-    return config.appearance.trim;
-  }
-  if (matchesAlias(material, config.materialNameAliases.cape)
-    || matchesAlias(mesh, config.materialNameAliases.cape)) {
-    return config.appearance.cape;
-  }
-  const names = `${mesh}|${material}`;
-  if (/blade|dagger|weapon|sword/.test(names)) return config.appearance.weaponColor;
-  if (/head|face|skin|hair|joint|under|inner|boot|sole|grip/.test(names)) {
-    return config.appearance.armorDark;
-  }
-  if (/light|plate|pectoral|chest|pauldron|greave|gauntlet|bracer|helmet|helm|knee/.test(names)) {
-    return config.appearance.armorLight;
-  }
-  return config.appearance.armor;
 }

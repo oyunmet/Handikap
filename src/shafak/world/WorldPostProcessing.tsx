@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
@@ -6,7 +6,6 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import * as THREE from "three";
-import { emitWorldDiagnostic } from "./world-diagnostics";
 
 const VignetteGrainShader = {
   uniforms: {
@@ -46,30 +45,16 @@ type Pipeline = {
   bloomPass: UnrealBloomPass;
 };
 
-function ComposerOutput({
-  pipeline,
-  onFailure,
-}: {
-  pipeline: Pipeline;
-  onFailure: (error: unknown) => void;
-}) {
+function ComposerOutput({ pipeline }: { pipeline: Pipeline }) {
   const { size } = useThree();
-  const failedRef = useRef(false);
 
   useEffect(() => {
-    if (size.width < 1 || size.height < 1) return;
     pipeline.composer.setSize(size.width, size.height);
   }, [pipeline, size.height, size.width]);
 
   useFrame((state, delta) => {
-    if (failedRef.current || size.width < 1 || size.height < 1) return;
     pipeline.filmPass.uniforms.uTime.value = state.clock.elapsedTime;
-    try {
-      pipeline.composer.render(Math.min(delta, 0.05));
-    } catch (error) {
-      failedRef.current = true;
-      onFailure(error);
-    }
+    pipeline.composer.render(Math.min(delta, 0.05));
   }, 1);
 
   return null;
@@ -78,12 +63,6 @@ function ComposerOutput({
 export default function WorldPostProcessing({ quality }: { quality: "high" | "balanced" | "low" }) {
   const { gl, scene, camera } = useThree();
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
-  const disableBrokenPipeline = useCallback((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    emitWorldDiagnostic("postprocessing", `Efekt zinciri devre dışı bırakıldı: ${message}`);
-    console.warn("[shafak-world] Post-processing failed; rendering without effects.", error);
-    setPipeline(null);
-  }, []);
 
   useEffect(() => {
     let nextPipeline: Pipeline | null = null;
@@ -103,8 +82,6 @@ export default function WorldPostProcessing({ quality }: { quality: "high" | "ba
       nextPipeline = { composer, filmPass, bloomPass };
       setPipeline(nextPipeline);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      emitWorldDiagnostic("postprocessing", `Efekt zinciri başlatılamadı: ${message}`);
       console.warn("[shafak-world] Post-processing could not start; rendering without it.", error);
       setPipeline(null);
     }
@@ -117,5 +94,5 @@ export default function WorldPostProcessing({ quality }: { quality: "high" | "ba
     };
   }, [camera, gl, quality, scene]);
 
-  return pipeline ? <ComposerOutput pipeline={pipeline} onFailure={disableBrokenPipeline} /> : null;
+  return pipeline ? <ComposerOutput pipeline={pipeline} /> : null;
 }

@@ -1,13 +1,6 @@
-import { useCallback, useEffect, useRef, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 
 type Vector = { x: number; y: number };
-export type TravelAction = "sprint" | "jump" | "dash";
-type TravelActions = {
-  sprint: boolean;
-  jumpHeld: boolean;
-  jumpPressed: boolean;
-  dashPressed: boolean;
-};
 
 const MOVEMENT_KEYS = new Set([
   "arrowup",
@@ -21,30 +14,10 @@ const MOVEMENT_KEYS = new Set([
   "shift",
 ]);
 
-export default function useWorldInput(
-  wake: () => void,
-  battleActiveRef?: MutableRefObject<boolean>,
-  storyDialogueRef?: MutableRefObject<unknown>,
-) {
+export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
-  const actions = useRef<TravelActions>({
-    sprint: false,
-    jumpHeld: false,
-    jumpPressed: false,
-    dashPressed: false,
-  });
   const tapTimer = useRef<number | undefined>(undefined);
-  const setAction = useCallback((action: TravelAction, pressed: boolean) => {
-    if (action === "sprint") {
-      actions.current.sprint = pressed;
-    } else if (action === "jump") {
-      if (pressed && !actions.current.jumpHeld) actions.current.jumpPressed = true;
-      actions.current.jumpHeld = pressed;
-    } else if (pressed) {
-      actions.current.dashPressed = true;
-    }
-  }, []);
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
   if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
@@ -90,42 +63,16 @@ export default function useWorldInput(
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
-      if (event.target instanceof HTMLElement && event.target.closest("button, input, textarea, select")) return;
-      if (battleActiveRef?.current || storyDialogueRef?.current != null) return;
-      if (event.code === "Space") {
-        event.preventDefault();
-        setAction("jump", true);
-        wake();
-        return;
-      }
-      if (key === "alt" || key === "q") {
-        event.preventDefault();
-        if (!event.repeat) setAction("dash", true);
-        wake();
-        return;
-      }
       if (!MOVEMENT_KEYS.has(key)) return;
+      if (event.target instanceof HTMLElement && /input|textarea|select/i.test(event.target.tagName)) return;
       event.preventDefault();
       heldKeys.current.add(key);
-      if (key === "shift") setAction("sprint", true);
       wake();
     };
-    const onKeyUp = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      if (event.code === "Space") {
-        setAction("jump", false);
-        return;
-      }
-      if (key === "shift") setAction("sprint", false);
-      heldKeys.current.delete(key);
-    };
+    const onKeyUp = (event: KeyboardEvent) => heldKeys.current.delete(event.key.toLowerCase());
     const onBlur = () => {
       heldKeys.current.clear();
       joystick.current = { x: 0, y: 0 };
-      actions.current.sprint = false;
-      actions.current.jumpHeld = false;
-      actions.current.jumpPressed = false;
-      actions.current.dashPressed = false;
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -135,7 +82,7 @@ export default function useWorldInput(
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [battleActiveRef, setAction, storyDialogueRef, wake]);
+  }, [wake]);
 
   useEffect(() => () => {
     if (tapTimer.current) window.clearTimeout(tapTimer.current);
@@ -144,8 +91,6 @@ export default function useWorldInput(
   return {
     heldKeys,
     joystick,
-    actions,
-    setAction,
     onStagePointerDown,
     onJoystickPointerDown,
     onJoystickPointerMove: updateJoystick,

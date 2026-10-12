@@ -1,9 +1,6 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Normalize private URLs and keep npm/pnpm root dependencies aligned; Vercel may require both.
 - [Vercel native TypeScript imports](vercel-native-typescript-imports.md) — In this Node 24 project, local ESM imports in API graphs must name `.ts` explicitly; `tsx` can hide missing extensions.
-- [Vercel Preview guest mode](vercel-preview-guest-mode.md) — Allow offline guest play in Preview only; keep Production entry and account APIs protected.
 - [Current game and staged work](handikap-original-identity.md) — The active game is Şafak Savaşçıları; follow scoped phases in order without interim approval.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
-- [WebGL preview and iOS readback limits](webgl-preview-limits.md) — Never let default-framebuffer pixel readback trigger production recovery on touch devices.
-- [Duel replay precision](duel-replay-precision.md) — Simulate the same quantized yaw that is stored in the server's duel input tape.
-- [Account duel recovery](account-duel-recovery.md) — Reconnect to the stored challenge after a mobile refresh instead of leaving the next fight blocked.
+- [WebGL preview limits](webgl-preview-limits.md) — A successful GLB load and live controls do not prove pixels rendered when the preview browser lacks WebGL.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.

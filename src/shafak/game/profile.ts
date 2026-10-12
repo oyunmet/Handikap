@@ -30,14 +30,6 @@ export type BattleOutcome = {
   loot: number;
 };
 
-export function getTotalProfileXp(profile: Pick<PlayerProfile, "level" | "xp">) {
-  const level = Number.isFinite(profile.level) ? Math.max(1, Math.floor(profile.level)) : 1;
-  const xp = Number.isFinite(profile.xp) ? Math.max(0, Math.floor(profile.xp)) : 0;
-  const completedLevels = level - 1;
-  const total = xp + completedLevels * 100 + (45 * completedLevels * (completedLevels + 1)) / 2;
-  return Number.isFinite(total) ? Math.min(Number.MAX_SAFE_INTEGER, total) : Number.MAX_SAFE_INTEGER;
-}
-
 const STORAGE_KEY = "shafak-local-profile-v1";
 const storageKeyFor = (userId?: string) => `${STORAGE_KEY}:${userId || "guest"}`;
 

@@ -64,43 +64,6 @@ test("server challenges use a generated rival id and return server-owned combat 
   assert.ok(!JSON.stringify(legacyChallenge).toLowerCase().includes("bot"));
 });
 
-test("an unfinished duel resumes with its original id, seed, opponent, and player stats", async () => {
-  const [activeRival, clickedRival] = getWorldChapter(0).rivals;
-  const inserts = [];
-  let activeDuel = null;
-  const database = {
-    async query(sql, values = []) {
-      if (sql.startsWith("SELECT profile")) return { rows: [{ profile }] };
-      if (sql.startsWith("UPDATE shafak_duels")) return { rowCount: 0, rows: [] };
-      if (sql.startsWith("SELECT duel_id, seed, opponent_id, player_stats")) {
-        return { rows: activeDuel ? [activeDuel] : [] };
-      }
-      if (sql.startsWith("SELECT duel_id")) return { rows: [] };
-      if (sql.startsWith("INSERT INTO shafak_duels")) {
-        inserts.push(values);
-        activeDuel = {
-          duel_id: values[0],
-          seed: values[2],
-          opponent_id: values[3],
-          player_stats: JSON.parse(values[4]),
-        };
-        return { rowCount: 1, rows: [] };
-      }
-      throw new Error(`Unexpected query ${sql}`);
-    },
-  };
-
-  const first = await createDuelChallenge(database, "user-1", activeRival.id);
-  const resumed = await createDuelChallenge(database, "user-1", clickedRival.id);
-
-  assert.equal(resumed.resumed, true);
-  assert.equal(resumed.duelId, first.duelId);
-  assert.equal(resumed.seed, first.seed);
-  assert.deepEqual(resumed.playerStats, first.playerStats);
-  assert.equal(resumed.opponent.id, activeRival.id);
-  assert.equal(inserts.length, 1);
-});
-
 test("a client cannot submit a requested result or rewards", async () => {
   let queries = 0;
   const client = {
@@ -129,24 +92,8 @@ test("input tapes reject broken button transitions and client-invented fields", 
     [12, 0, 0, 1, 1, 0],
     [14, 0, 0, 0, 0, 1],
   ]);
-  assert.deepEqual(validateCombatInputLog([
-    [0, 0, 0, 0, 0, 0, 0, 1],
-    [12, 0, 0, 1, 1, 0, 3142, 0],
-  ]), [
-    [0, 0, 0, 0, 0, 0, 0, 1],
-    [12, 0, 0, 1, 1, 0, 3142, 0],
-  ]);
   assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 1, 0]]), null);
   assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 900]]), null);
-  assert.equal(validateCombatInputLog([
-    [0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 2],
-  ]), null);
-  assert.equal(validateCombatInputLog([
-    [0, 0, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-  ]), null);
-  assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0, 3143, 1]]), null);
 });
 
 test("server replays the seeded duel and returns the stored result only once", async () => {

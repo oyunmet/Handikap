@@ -20,17 +20,15 @@ export function createDuelApi(database: Pool) {
   const router = Router();
   const startLimit = rateLimit({
     windowMs: 60_000,
-    limit: 30,
+    limit: 6,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (_request, response) => response.status(429).json({ error: "rate_limited" }),
   });
   const completeLimit = rateLimit({
     windowMs: 60_000,
-    limit: 30,
+    limit: 6,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (_request, response) => response.status(429).json({ error: "rate_limited" }),
   });
 
   function authenticatedUserId(request: Request, response: Response) {

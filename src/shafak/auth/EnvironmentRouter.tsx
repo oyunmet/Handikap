@@ -1,7 +1,4 @@
 import { lazy, Suspense } from "react";
-import { getAuthExperience } from "./environment";
-
-declare const __VERCEL_ENV__: string;
 
 const ClerkApp = lazy(() => import("./AuthApp"));
 const GuestGame = lazy(() => import("./GuestGame"));
@@ -11,17 +8,11 @@ function StartupFallback() {
 }
 
 export default function EnvironmentRouter() {
-  const experience = getAuthExperience({
-    hasClerkKey: Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY),
-    isDevelopment: import.meta.env.DEV,
-    vercelEnvironment: __VERCEL_ENV__,
-  });
-
-  if (experience === "clerk") {
+  if (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) {
     return <Suspense fallback={<StartupFallback />}><ClerkApp /></Suspense>;
   }
 
-  if (experience === "guest") {
+  if (import.meta.env.DEV) {
     return <Suspense fallback={<StartupFallback />}><GuestGame /></Suspense>;
   }
 

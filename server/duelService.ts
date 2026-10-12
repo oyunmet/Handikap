@@ -55,18 +55,13 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
   const frames: CombatInputFrame[] = [];
   let previousTick = -1;
   let previousButtons = 0;
-  let frameLength: 6 | 8 | null = null;
   for (const entry of value) {
     if (
       !Array.isArray(entry) ||
-      (entry.length !== 6 && entry.length !== 8) ||
+      entry.length !== 6 ||
       entry.some((part) => typeof part !== "number" || !Number.isSafeInteger(part))
     ) return null;
-    if (frameLength !== null && frameLength !== entry.length) return null;
-    frameLength = entry.length;
     const [tick, x, y, buttons, pressed, released] = entry as number[];
-    const yawMilliRadians = entry.length === 8 ? entry[6] : 0;
-    const lockOn = entry.length === 8 ? entry[7] : 1;
     if (
       tick < 0 ||
       tick > 5_400 ||
@@ -80,10 +75,7 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
       pressed < 0 ||
       pressed > 31 ||
       released < 0 ||
-      released > 31 ||
-      yawMilliRadians < -3_142 ||
-      yawMilliRadians > 3_142 ||
-      (lockOn !== 0 && lockOn !== 1)
+      released > 31
     ) return null;
     const expectedButtons = ((previousButtons | pressed) & ~released) & 31;
     if (
@@ -92,11 +84,7 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
       (released & (previousButtons | pressed)) !== released
     ) return null;
     if (tick === 0 && (x !== 0 || y !== 0 || buttons !== 0 || pressed !== 0 || released !== 0)) return null;
-    if (entry.length === 8) {
-      frames.push([tick, x, y, buttons, pressed, released, yawMilliRadians, lockOn]);
-    } else {
-      frames.push([tick, x, y, buttons, pressed, released]);
-    }
+    frames.push([tick, x, y, buttons, pressed, released]);
     previousTick = tick;
     previousButtons = buttons;
   }
@@ -168,56 +156,6 @@ export async function createDuelChallenge(
   const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
   const playerStats = calculatePlayerCombatModifiers(profile);
-  await database.query(
-    `UPDATE shafak_duels
-     SET completed_at = NOW()
-     WHERE user_id = $1 AND completed_at IS NULL AND started_at < NOW() - INTERVAL '30 minutes'`,
-    [userId],
-  );
-  const activeResult = await database.query(
-    `SELECT duel_id, seed, opponent_id, player_stats FROM shafak_duels
-     WHERE user_id = $1 AND completed_at IS NULL
-     LIMIT 1`,
-    [userId],
-  );
-  const activeDuel = activeResult.rows[0];
-  if (activeDuel) {
-    const activeOpponent = resolveOpponent(activeDuel.opponent_id);
-    const storedStats = activeDuel.player_stats;
-    const requiredStats = [
-      "maxHealth",
-      "damageMultiplier",
-      "defenseReduction",
-      "criticalChance",
-      "moveSpeedMultiplier",
-      "attackSpeedMultiplier",
-      "attackRangeBonus",
-    ];
-    if (
-      typeof activeDuel.duel_id !== "string" ||
-      !Number.isSafeInteger(Number(activeDuel.seed)) ||
-      Number(activeDuel.seed) < 1 ||
-      Number(activeDuel.seed) > 0xffff_ffff ||
-      !activeOpponent ||
-      !storedStats ||
-      typeof storedStats !== "object" ||
-      Array.isArray(storedStats) ||
-      requiredStats.some((key) =>
-        typeof (storedStats as Record<string, unknown>)[key] !== "number" ||
-        !Number.isFinite((storedStats as Record<string, number>)[key]),
-      )
-    ) {
-      throw new DuelServiceError(503, "duel_storage_unavailable");
-    }
-    return {
-      duelId: activeDuel.duel_id,
-      seed: Number(activeDuel.seed),
-      playerStats: storedStats,
-      opponent: activeOpponent,
-      resumed: true,
-    };
-  }
-
   if (profile.defeatedOpponents.includes(opponent.id)) throw new DuelServiceError(403, "opponent_already_defeated");
   const priorWin = await database.query(
     `SELECT duel_id FROM shafak_duels
@@ -228,12 +166,26 @@ export async function createDuelChallenge(
   );
   if (priorWin.rows[0]) throw new DuelServiceError(403, "opponent_already_defeated");
 
+  await database.query(
+    `UPDATE shafak_duels
+     SET completed_at = NOW()
+     WHERE user_id = $1 AND completed_at IS NULL AND started_at < NOW() - INTERVAL '30 minutes'`,
+    [userId],
+  );
+  const activeResult = await database.query(
+    `SELECT duel_id FROM shafak_duels
+     WHERE user_id = $1 AND completed_at IS NULL
+     LIMIT 1`,
+    [userId],
+  );
+  if (activeResult.rows[0]) throw new DuelServiceError(409, "duel_already_active");
+
   const duelId = randomUUID();
   const seed = randomInt(1, 0xffff_ffff);
   await database.query(
     `INSERT INTO shafak_duels (duel_id, user_id, seed, opponent_id, started_at, player_stats)
      VALUES ($1, $2, $3, $4, NOW(), $5::jsonb)`,
-    [duelId, userId, seed, opponent.id, JSON.stringify(playerStats)],
+    [duelId, userId, seed, opponentId, JSON.stringify(playerStats)],
   );
   return {
     duelId,
@@ -246,7 +198,6 @@ export async function createDuelChallenge(
       loot: opponent.loot,
       difficulty: opponent.difficulty,
     },
-    resumed: false,
   };
 }
 

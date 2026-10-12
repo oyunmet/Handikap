@@ -2,16 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   INPUT_BUTTON,
-  DUEL_ARENA_CENTER_Z,
-  DUEL_ARENA_RADIUS,
   MAX_DUEL_TICKS,
-  constrainActorToArena,
   createCombatState,
   getBotAttackWindupTicks,
   replayCombat,
   stepCombat,
 } from "./combat-engine.ts";
-import { normalizeYaw, quantizeDuelYaw, yawToward } from "./duel-direction.ts";
 
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
   const seed = 881723;
@@ -185,141 +181,4 @@ test("a block negates bot damage and active dodge frames avoid the hit", () => {
   }), noInput);
   assert.ok(dodged.events.some((event) => event.type === "dodge" && event.target === "player"));
   assert.equal(dodged.state.player.hp, 150);
-});
-
-test("directional inputs replay yaw and lock state deterministically", () => {
-  const seed = 54812;
-  let state = createCombatState(seed, "medium");
-  let buttons = 0;
-  const frames = [[0, 0, 0, 0, 0, 0, Math.round(quantizeDuelYaw(state.player.yaw) * 1_000), 1]];
-
-  for (let tick = 1; tick <= MAX_DUEL_TICKS && !state.ended; tick += 1) {
-    const lockOn = tick < 2_700;
-    const yaw = quantizeDuelYaw(normalizeYaw(
-      (tick < 4_000 ? 0.5 : -1.2) + Math.sin(tick * 0.013) * 0.007,
-    ));
-    const nextButtons = tick % 54 === 2 ? INPUT_BUTTON.attack : 0;
-    const pressed = nextButtons & ~buttons;
-    const released = buttons & ~nextButtons;
-    const x = tick >= 210 && tick < 250 ? 18 : 0;
-    const y = tick >= 210 && tick < 250 ? 20 : 0;
-    const frame = [
-      tick,
-      x,
-      y,
-      nextButtons,
-      pressed,
-      released,
-      Math.round(yaw * 1_000),
-      lockOn ? 1 : 0,
-    ];
-    const previous = frames.at(-1);
-    if (frame.slice(1).some((value, index) => value !== previous[index + 1])) frames.push(frame);
-    state = stepCombat(state, {
-      x,
-      y,
-      buttons: nextButtons,
-      pressed,
-      released,
-      yaw,
-      lockOn,
-      directional: true,
-    }).state;
-    buttons = nextButtons;
-  }
-
-  const replay = replayCombat(seed, "medium", frames);
-  assert.deepEqual(replay.state, state);
-  assert.equal(replay.consumedFrames, frames.length);
-});
-
-test("attacks require a facing cone and deal more damage from a rear angle", () => {
-  const makeAttackState = (botX, botZ, playerYaw) => {
-    const state = createCombatState(9923, "easy");
-    state.tick = 100;
-    state.player = {
-      ...state.player,
-      x: 0,
-      z: 0,
-      yaw: playerYaw,
-      action: "attack",
-      actionUntilTick: 180,
-      attackType: "light",
-      attackStartedTick: 93,
-      attackHit: false,
-    };
-    state.bot = {
-      ...state.bot,
-      x: botX,
-      z: botZ,
-      yaw: Math.PI,
-      action: "idle",
-      staggerUntilTick: 250,
-    };
-    return state;
-  };
-  const input = (yaw) => ({
-    x: 0, y: 0, buttons: 0, pressed: 0, released: 0,
-    yaw, lockOn: false, directional: true,
-  });
-
-  const front = stepCombat(makeAttackState(0, 1.4, 0), input(0));
-  const frontHit = front.events.find((event) => event.type === "hit" && event.target === "bot");
-  assert.equal(frontHit?.directionZone, "front");
-  assert.equal(frontHit?.damageMultiplier, 1);
-
-  const rear = stepCombat(makeAttackState(0, -1.4, Math.PI), input(Math.PI));
-  const rearHit = rear.events.find((event) => event.type === "hit" && event.target === "bot");
-  assert.equal(rearHit?.directionZone, "rear");
-  assert.equal(rearHit?.damageMultiplier, 1.35);
-  assert.ok(rearHit.damage > frontHit.damage);
-
-  const outside = stepCombat(makeAttackState(1.4, 0, 0), input(0));
-  assert.ok(outside.events.some((event) => event.type === "whiff"));
-  assert.equal(outside.state.bot.hp, makeAttackState(1.4, 0, 0).bot.hp);
-});
-
-test("blocks protect the front arc but rear hits bypass a facing shield", () => {
-  const incomingHit = (botZ) => {
-    const state = createCombatState(138, "easy");
-    state.tick = 100;
-    state.player = {
-      ...state.player,
-      x: 0,
-      z: 0,
-      yaw: 0,
-      action: "block",
-      actionUntilTick: 200,
-      blockStartedTick: 0,
-    };
-    const bot = { ...state.bot, x: 0, z: botZ, action: "windup", actionUntilTick: 200 };
-    bot.yaw = yawToward(bot, state.player);
-    bot.attackType = "light";
-    bot.attackStartedTick = 101 - getBotAttackWindupTicks("easy");
-    bot.attackHit = false;
-    bot.staggerUntilTick = 250;
-    state.bot = bot;
-    return stepCombat(state, {
-      x: 0, y: 0, buttons: INPUT_BUTTON.block, pressed: 0, released: 0,
-      yaw: 0, lockOn: false, directional: true,
-    });
-  };
-  const front = incomingHit(1);
-  assert.ok(front.events.some((event) => event.type === "block" && event.damage === 0));
-  assert.equal(front.state.player.hp, 150);
-
-  const rear = incomingHit(-1);
-  const hit = rear.events.find((event) => event.type === "hit" && event.target === "player");
-  assert.equal(hit?.directionZone, "rear");
-  assert.equal(hit?.damageMultiplier, 1.35);
-  assert.ok(rear.state.player.hp < 150);
-});
-
-test("the circular arena constrains movement and removes outward velocity", () => {
-  const actor = { x: 10, z: 8, vx: 4, vz: 4 };
-  constrainActorToArena(actor);
-  const radialX = actor.x;
-  const radialZ = actor.z - DUEL_ARENA_CENTER_Z;
-  assert.ok(Math.hypot(radialX, radialZ) <= DUEL_ARENA_RADIUS + 1e-9);
-  assert.ok(actor.vx * radialX + actor.vz * radialZ <= 1e-8);
 });

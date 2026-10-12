@@ -5,7 +5,6 @@ import {
   BIOME_TRANSITION_METERS,
   getBiomeForDistance,
   getBiomeTransition,
-  getWorldFogDensity,
   nextWeatherMode,
 } from "./world-biomes.ts";
 import { createWorldChunk } from "./world-generation.ts";
@@ -37,21 +36,11 @@ test("biome palettes blend smoothly across the first chunk after each biome gate
   });
 });
 
-test("weather control cycles through clear, ash, embers, and fog without disabling the scene", () => {
-  const cycle = ["clear", "ash", "ember", "fog"];
+test("weather control cycles through clear, ash, rain, and fog without disabling the scene", () => {
+  const cycle = ["clear", "ash", "rain", "fog"];
   for (let index = 0; index < cycle.length; index += 1) {
     assert.equal(nextWeatherMode(cycle[index]), cycle[(index + 1) % cycle.length]);
   }
-});
-
-test("fog settings stay readable for travel and combat in every weather", () => {
-  assert.equal(getWorldFogDensity("clear", "ash-road"), 0.0025);
-  assert.equal(getWorldFogDensity("ash", "ash-road"), 0.0038);
-  assert.equal(getWorldFogDensity("ember", "ash-road"), 0.0042);
-  assert.equal(getWorldFogDensity("fog", "ash-road"), 0.006);
-  assert.equal(getWorldFogDensity("ash", "frozen-pass"), 0.0038 * 1.08);
-  assert.equal(getWorldFogDensity("fog", "red-marsh"), 0.006 * 1.13);
-  assert.equal(getWorldFogDensity("fog", "red-marsh", true), 0.0028);
 });
 
 test("generated scenic batches contain location-specific ice and marsh flora", () => {

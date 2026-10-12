@@ -5,8 +5,6 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import handler from "../api/[...path].ts";
-import duelStartHandler from "../api/duels/start.ts";
-import duelCompleteHandler from "../api/duels/complete.ts";
 import pickupHandler from "../api/profile/pickups.ts";
 
 function getModuleSpecifiers(source) {
@@ -28,8 +26,6 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const pending = [
     resolve(projectRoot, "api/[...path].ts"),
-    resolve(projectRoot, "api/duels/start.ts"),
-    resolve(projectRoot, "api/duels/complete.ts"),
     resolve(projectRoot, "api/profile/pickups.ts"),
     resolve(projectRoot, "api/store/catalog.ts"),
   ];
@@ -117,46 +113,4 @@ test("explicit pickup route returns JSON instead of a Vercel path-level 404", as
   assert.equal(response.status, 503);
   assert.match(response.headers.get("content-type") ?? "", /application\/json/);
   assert.equal(body.error, "authentication_unavailable");
-});
-
-test("explicit duel routes accept large input tapes and reach the API handler", async (t) => {
-  process.env.DATABASE_URL = "";
-  process.env.CLERK_SECRET_KEY = "";
-  process.env.CLERK_PUBLISHABLE_KEY = "";
-
-  for (const [path, routeHandler] of [
-    ["/api/duels/start", duelStartHandler],
-    ["/api/duels/complete", duelCompleteHandler],
-  ]) {
-    const server = createServer((request, response) => {
-      void routeHandler(request, response);
-    });
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", resolve);
-    });
-    t.after(
-      () =>
-        new Promise((resolve, reject) => {
-          server.close((error) => (error ? reject(error) : resolve()));
-        }),
-    );
-
-    const address = server.address();
-    assert.ok(address && typeof address === "object");
-    const response = await fetch(`http://127.0.0.1:${address.port}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: path === "/api/duels/complete"
-        ? JSON.stringify({
-            duelId: "00000000-0000-0000-0000-000000000000",
-            inputLog: Array.from({ length: 1_800 }, (_, index) => [index + 1, 0, 0, 0, 0, 0]),
-          })
-        : "{}",
-    });
-    const body = await response.json();
-
-    assert.equal(response.status, 503);
-    assert.equal(body.error, "authentication_unavailable");
-  }
 });

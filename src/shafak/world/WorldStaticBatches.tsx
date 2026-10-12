@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { WorldMotion } from "./movement";
-import { WORLD_PROP_LANE_SPACING, type WorldObject } from "./world-generation";
+import type { WorldObject } from "./world-generation";
 
 type Transform = {
   position: [number, number, number];
@@ -220,7 +220,7 @@ function buildStaticBatches(objects: WorldObject[], originDistance: number): Sta
   const root = new THREE.Object3D();
   const partTransform = new THREE.Object3D();
   for (const object of objects) {
-    root.position.set(object.lane * WORLD_PROP_LANE_SPACING, 0, -(object.worldX - originDistance));
+    root.position.set(object.lane * 9.3, 0, -(object.worldX - originDistance));
     root.rotation.set(0, (object.flickerSeed % 628) / 100, 0);
     root.scale.setScalar(object.scale);
     root.updateMatrix();

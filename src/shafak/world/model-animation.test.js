@@ -7,7 +7,7 @@ import {
   mapOpponentAnimationState,
   resolveGlbClipName,
 } from "./model-animation.ts";
-import { getOpponentPartColor, OPPONENT_MODEL_CONFIGS } from "./opponent-model-config.ts";
+import { OPPONENT_MODEL_CONFIGS } from "./opponent-model-config.ts";
 
 test("GLB clip names are resolved case-insensitively from one configurable map", () => {
   assert.equal(resolveGlbClipName("idle", ["mixamo.com", "BREATHING IDLE"]), "BREATHING IDLE");
@@ -45,17 +45,6 @@ test("Gölge Şövalyesi maps every model state to its exact GLB clip", () => {
     assert.deepEqual(config.animationClips[state], [clip]);
     assert.equal(resolveGlbClipName(state, Object.values(expected), config.animationClips), clip);
   }
-});
-
-test("shadow knight palette classifies armor, skin, cape, trim, and weapon meshes", () => {
-  const config = OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"];
-  assert.equal(getOpponentPartColor("flowing_crimson_cape", "Cape", config), config.appearance.cape);
-  assert.equal(getOpponentPartColor("gold_chest_rim_-1", "Gold_Accent", config), config.appearance.trim);
-  assert.equal(getOpponentPartColor("cape_gold_trim0", "Gold_Accent", config), config.appearance.trim);
-  assert.equal(getOpponentPartColor("pector_plate_-1", "Steel_Light", config), config.appearance.armorLight);
-  assert.equal(getOpponentPartColor("head", "Skin", config), config.appearance.armorDark);
-  assert.equal(getOpponentPartColor("sword_blade", "Steel_Light", config), config.appearance.weaponColor);
-  assert.equal(getOpponentPartColor("torso", "Steel_Dark", config), config.appearance.armor);
 });
 
 test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {

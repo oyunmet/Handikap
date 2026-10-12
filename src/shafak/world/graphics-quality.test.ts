@@ -9,8 +9,6 @@ import {
   normalizeGraphicsMode,
   resolveRenderQuality,
   stepAutoQuality,
-  getWorldRenderPixelRatio,
-  shouldEnableWorldShadows,
 } from "./graphics-quality.ts";
 
 test("previous balanced settings remain valid as medium quality", () => {
@@ -47,9 +45,6 @@ test("world pixel ratio stays within the mobile rendering budget", () => {
   assert.equal(getPixelRatioCap("high"), 1.5);
   assert.equal(getPixelRatioCap("balanced"), 1.35);
   assert.equal(getPixelRatioCap("low"), 1);
-  assert.equal(getPixelRatioCap("high", true), 1);
-  assert.equal(getPixelRatioCap("balanced", true), 1);
-  assert.equal(getWorldRenderPixelRatio("high", 2, true), 1);
 });
 
 test("shadow maps stay within the quality budget and scale with device DPR", () => {
@@ -58,12 +53,4 @@ test("shadow maps stay within the quality budget and scale with device DPR", () 
   assert.equal(getShadowMapSize("high", 4), 1_024);
   assert.equal(getShadowMapSize("balanced", 4), 1_024);
   assert.equal(getShadowMapSize("low", 4), 512);
-});
-
-test("touch devices skip shadow rendering to avoid continuous mobile GPU load", () => {
-  assert.equal(shouldEnableWorldShadows("high"), true);
-  assert.equal(shouldEnableWorldShadows("balanced"), true);
-  assert.equal(shouldEnableWorldShadows("low"), false);
-  assert.equal(shouldEnableWorldShadows("high", true), false);
-  assert.equal(shouldEnableWorldShadows("balanced", true), false);
 });

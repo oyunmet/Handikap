@@ -8,7 +8,6 @@ export type ApiJsonOptions = {
 export type ApiRetryOptions = {
   maxRetries?: number;
   baseDelayMs?: number;
-  retryOn429?: boolean;
 };
 
 export type ClerkTokenGetter = (
@@ -168,10 +167,7 @@ export async function requestJsonWithRetry<T>(
     try {
       return await requestJson<T>(input, init, { ...options, logFailures: false });
     } catch (error) {
-      const retryable = error instanceof ApiResponseError
-        && error.retryable
-        && !(error.status === 429 && retryOptions.retryOn429 === false);
-      if (!retryable || attempt >= maxRetries) {
+      if (!(error instanceof ApiResponseError) || !error.retryable || attempt >= maxRetries) {
         if (error instanceof ApiResponseError) {
           console.warn("[api] request failed after retries", {
             operation: options.operation,

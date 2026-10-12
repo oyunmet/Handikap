@@ -14,7 +14,6 @@ import { useLocation } from "wouter";
 import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
 import { tr } from "./i18n/tr";
-import { shouldStartInWorld } from "./world/world-version";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
@@ -306,13 +305,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ),
     [getToken, handleApiUnauthorized],
   );
-  const [screen, setScreen] = useState<Screen>(() =>
-    shouldStartInWorld(window.location.search) ? "world" : "opening",
-  );
-  const [hasVisitedWorld, setHasVisitedWorld] = useState(() => shouldStartInWorld(window.location.search));
-  useEffect(() => {
-    if (screen === "world") setHasVisitedWorld(true);
-  }, [screen]);
+  const [screen, setScreen] = useState<Screen>(() => {
+    const query = new URLSearchParams(window.location.search);
+    return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "opening";
+  });
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -906,52 +902,43 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             </footer>
           </motion.section>
         )}
+        {screen === "world" && (
+          <motion.div
+            key="world"
+            className="game-screen-shell"
+            initial={{ opacity: 0, scale: motionReduced ? 1 : .985 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: motionReduced ? 1 : 1.02 }}
+            transition={{ duration: motionReduced ? .12 : .42, ease: "easeOut" }}
+          >
+            <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
+              <WorldScene
+                apiRequest={authApiRequest}
+                quality={activeQuality}
+                visualEffectsEnabled={preferences.visualEffects}
+                motionReduced={motionReduced}
+                performanceMonitorEnabled={preferences.performanceMonitor}
+                soundEnabled={preferences.sound}
+                soundVolume={preferences.soundVolume}
+                musicVolume={preferences.musicVolume}
+                onSoundEnabledChange={(enabled) => setPreference("sound", enabled)}
+                onSoundVolumeChange={(value) => setPreference("soundVolume", value)}
+                onMusicVolumeChange={(value) => setPreference("musicVolume", value)}
+                vibrationEnabled={preferences.vibration}
+                profile={profile}
+                accountDuelEnabled={Boolean(user?.id)}
+                accountProfileReady={profileSyncStatus === "ready"}
+                onBattleProfile={setProfile}
+                onLoadClaimedPickups={loadClaimedPickups}
+                onClaimWorldPickups={claimWorldPickups}
+                onExit={() => setScreen("menu")}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenProfile={() => setProfileOpen(true)}
+              />
+            </Suspense>
+          </motion.div>
+        )}
       </AnimatePresence>
-
-      {hasVisitedWorld && (
-        <motion.div
-          className={`game-screen-shell game-screen-shell--persistent${screen === "world" ? " is-active" : ""}`}
-          initial={false}
-          animate={{ opacity: screen === "world" ? 1 : 0 }}
-          transition={{ duration: motionReduced ? 0.12 : 0.42, ease: "easeOut" }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 10,
-            visibility: screen === "world" ? "visible" : "hidden",
-            pointerEvents: screen === "world" ? "auto" : "none",
-          }}
-          aria-hidden={screen !== "world"}
-        >
-          <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
-            <WorldScene
-              active={screen === "world"}
-              apiRequest={authApiRequest}
-              apiRequestWithRetry={authApiRequestWithRetry}
-              quality={activeQuality}
-              visualEffectsEnabled={preferences.visualEffects}
-              motionReduced={motionReduced}
-              performanceMonitorEnabled={preferences.performanceMonitor}
-              soundEnabled={preferences.sound}
-              soundVolume={preferences.soundVolume}
-              musicVolume={preferences.musicVolume}
-              onSoundEnabledChange={(enabled) => setPreference("sound", enabled)}
-              onSoundVolumeChange={(value) => setPreference("soundVolume", value)}
-              onMusicVolumeChange={(value) => setPreference("musicVolume", value)}
-              vibrationEnabled={preferences.vibration}
-              profile={profile}
-              accountDuelEnabled={Boolean(user?.id)}
-              accountProfileReady={profileSyncStatus === "ready"}
-              onBattleProfile={setProfile}
-              onLoadClaimedPickups={loadClaimedPickups}
-              onClaimWorldPickups={claimWorldPickups}
-              onExit={() => setScreen("menu")}
-              onOpenSettings={() => setSettingsOpen(true)}
-              onOpenProfile={() => setProfileOpen(true)}
-            />
-          </Suspense>
-        </motion.div>
-      )}
 
       <AnimatePresence>
         {profileOpen && (
@@ -964,7 +951,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           >
             <ProfilePanel
               profile={profile}
-              isAuthenticated={Boolean(user?.id)}
               userEmail={user?.primaryEmailAddress?.emailAddress ?? null}
               accountSaveStatus={profileSyncStatus}
               onClose={() => setProfileOpen(false)}

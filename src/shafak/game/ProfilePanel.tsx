@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { getTotalProfileXp, type PlayerProfile } from "./profile";
-import "./game.css";
+import { useState } from "react";
+import type { PlayerProfile } from "./profile";
 
 type ProfilePanelProps = {
   profile: PlayerProfile;
-  isAuthenticated: boolean;
   userEmail: string | null;
   accountSaveStatus: "loading" | "ready" | "local";
   onClose: () => void;
@@ -12,61 +10,35 @@ type ProfilePanelProps = {
   onAccountAction: () => void;
 };
 
-export default function ProfilePanel({
-  profile,
-  isAuthenticated,
-  userEmail,
-  accountSaveStatus,
-  onClose,
-  onRename,
-  onAccountAction,
-}: ProfilePanelProps) {
+export default function ProfilePanel({ profile, userEmail, accountSaveStatus, onClose, onRename, onAccountAction }: ProfilePanelProps) {
   const [name, setName] = useState(profile.name);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const neededXp = 100 + profile.level * 45;
   const winRate = profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0;
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCloseRef.current();
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
   return (
-    <div className="profile-backdrop" role="presentation" onPointerDown={(event) => {
+    <div className="profile-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
       <section className="profile-panel" role="dialog" aria-modal="true" aria-labelledby="profile-title">
         <header className="profile-panel__heading">
           <div>
-            <span className="game-eyebrow">{isAuthenticated ? "OYUNCU HESABI" : "MİSAFİR · BU CİHAZDA"}</span>
+            <span className="game-eyebrow">{userEmail ? "CLERK HESABI" : "MİSAFİR · BU CİHAZDA"}</span>
             <h2 id="profile-title">Savaşçı profili</h2>
           </div>
           <button className="game-close" type="button" onClick={onClose} aria-label="Profili kapat">×</button>
         </header>
         <div className="profile-account">
-          <span className="profile-account__status" aria-hidden="true">{isAuthenticated ? "✓" : "·"}</span>
-          <span className="profile-account__copy">
-            <strong className="profile-account__email">{userEmail ?? (isAuthenticated ? "E-posta bilgisi yok" : "Misafir oturumu")}</strong>
-            <small>
-            {isAuthenticated
+          <span className="profile-account__status" aria-hidden="true">{userEmail ? "✓" : "·"}</span>
+          <span>
+            {userEmail
               ? accountSaveStatus === "ready"
                 ? "İlerleme hesabına kaydedilir."
                 : accountSaveStatus === "loading"
                   ? "Hesap kaydı yükleniyor…"
                   : "Sunucuya ulaşılamadı; çevrimiçi ödüller güvenli biçimde işlenemez."
               : "Misafir ödülleri yalnızca bu cihazda saklanır; sıralamaya veya çevrimiçi savaşa dahil değildir."}
-            </small>
           </span>
-          <button type="button" onClick={onAccountAction}>{isAuthenticated ? "ÇIKIŞ YAP" : "HESAP AÇ / GİRİŞ"}</button>
+          <button type="button" onClick={onAccountAction}>{userEmail ? "ÇIKIŞ" : "HESAP AÇ / GİRİŞ"}</button>
         </div>
         <div className="profile-identity">
           <span className="profile-identity__crest">Ş</span>
@@ -77,19 +49,14 @@ export default function ProfilePanel({
           <strong>SEV. {String(profile.level).padStart(2, "0")}</strong>
         </div>
         <div className="profile-xp">
-          <div><span>Sonraki seviye</span><strong>{profile.xp} / {neededXp} XP</strong></div>
+          <div><span>Tecrübe</span><strong>{profile.xp} / {neededXp} XP</strong></div>
           <span className="profile-xp__track"><i style={{ width: `${Math.min(100, profile.xp / neededXp * 100)}%` }} /></span>
         </div>
         <div className="profile-stats">
-          <div><strong>{getTotalProfileXp(profile).toLocaleString("tr-TR")}</strong><span>Toplam XP</span></div>
           <div><strong>{profile.battles}</strong><span>Düello</span></div>
           <div><strong>{profile.wins}</strong><span>Zafer</span></div>
           <div><strong>%{winRate}</strong><span>Kazanma</span></div>
           <div><strong>{profile.bestStreak}</strong><span>En uzun seri</span></div>
-        </div>
-        <div className="profile-resources" aria-label="Hesap bakiyesi">
-          <div><span>Altın</span><strong>{profile.gold.toLocaleString("tr-TR")}</strong></div>
-          <div><span>Elmas</span><strong>{profile.diamonds.toLocaleString("tr-TR")}</strong></div>
         </div>
         <section className="profile-quest">
           <div><span className="game-eyebrow">GÜNLÜK GÖREV</span><b>Yol kesenleri alt et</b></div>
@@ -106,12 +73,11 @@ export default function ProfilePanel({
           )}
           <div className="profile-materials" aria-label="Toplanan malzemeler">
             <span><i className="profile-materials__crystal" />Kor Kristali <b>{profile.materials.emberCrystals}</b></span>
-            <span><i className="profile-materials__iron">⬟</i>Demir Kırığı <b>{profile.materials.ironShards}</b></span>
             <span><i className="profile-materials__seal">✦</i>Mühür Parçası <b>{profile.materials.sealFragments}</b></span>
           </div>
         </section>
         <footer className="profile-panel__foot">
-          <span>{isAuthenticated ? "Hesap ilerlemesi çevrimiçi olarak saklanır." : "Sıralama ve çevrimiçi savaş özellikleri için hesapla giriş yap."}</span>
+          <span>{userEmail ? "Hesap ilerlemesi PostgreSQL’de saklanır." : "Sıralama ve çevrimiçi savaş özellikleri için hesapla giriş yap."}</span>
           <button type="button" onClick={() => { onRename(name); onClose(); }}>Kaydı tamamla</button>
         </footer>
       </section>

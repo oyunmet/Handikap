@@ -32,7 +32,6 @@ async function createApiHandler(): Promise<ApiHandler> {
   const express = expressModule.default;
   const cors = corsModule.default;
   const app = express();
-  app.set("trust proxy", 1);
   const databaseConnection = databaseModule.createDatabaseConnection(
     process.env.DATABASE_URL,
     { max: 1 },
@@ -84,7 +83,7 @@ async function createApiHandler(): Promise<ApiHandler> {
       publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
     }));
   }
-  app.use(express.json({ limit: "256kb" }));
+  app.use(express.json({ limit: "16kb" }));
 
   if (clerkConfigured && database) {
     app.use(profileApiModule.createProfileApi(database));
