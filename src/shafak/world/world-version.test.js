@@ -2,15 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { shouldStartInWorld, worldVersionFromSearch } from "./world-version.ts";
 
-test("the new world is opt-in and the legacy renderer remains the default", () => {
-  assert.equal(worldVersionFromSearch(""), "legacy");
-  assert.equal(worldVersionFromSearch("?world=v1"), "legacy");
+test("the rebuilt renderer is the only default world version", () => {
+  assert.equal(worldVersionFromSearch(""), "v2");
+  assert.equal(worldVersionFromSearch("?world=v1"), "v2");
   assert.equal(worldVersionFromSearch("?world=v2"), "v2");
 });
 
 test("world selection ignores unrelated query parameters", () => {
   assert.equal(worldVersionFromSearch("?debug=1&world=v2"), "v2");
-  assert.equal(worldVersionFromSearch("?world=V2"), "legacy");
+  assert.equal(worldVersionFromSearch("?world=V2"), "v2");
 });
 
 test("the v2 and existing diagnostic URLs open the world directly", () => {

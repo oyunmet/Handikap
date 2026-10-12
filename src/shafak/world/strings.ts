@@ -30,7 +30,7 @@ const worldText = {
   vibrationOff: "Titreşimi aç",
   close: "Kapat",
   settingsOpen: "Oyun ayarlarını aç",
-  controls: "Sağ/Sol: ilerle · Yukarı/Aşağı: yol derinliği",
+  controls: "WASD · Shift/KOŞ · Space/ZIPLA · Q/Alt/ATIL · E/SALDIR",
 } as const;
 
 export default worldText;

@@ -38,7 +38,7 @@ export default function WorldAtmosphere({ quality, motionReduced, weather, trave
           } as CSSProperties}
         />
       ))}
-      {weather === "rain" && <i className="world-atmosphere__rain" />}
+      {weather === "ember" && <i className="world-atmosphere__embers" />}
     </div>
   );
 }

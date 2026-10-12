@@ -33,16 +33,26 @@ const SKY_FRAGMENT = `
 
   void main() {
     vec3 direction = normalize(vDirection);
-    float height = clamp(direction.y * 1.35 + 0.28, 0.0, 1.0);
-    vec3 sky = mix(uHorizon, uZenith, smoothstep(0.0, 1.0, height));
-    float sunsetBand = exp(-abs(direction.y + 0.035) * 14.0);
-    sky = mix(sky, uSunset, sunsetBand * 0.68);
+    float height = clamp(direction.y * 1.28 + 0.3, 0.0, 1.0);
+    float skyFade = smoothstep(0.0, 1.0, height);
+    vec3 sky = mix(uHorizon, uZenith, skyFade);
+    float sunsetBand = exp(-abs(direction.y + 0.045) * 18.0);
+    sky = mix(sky, uSunset, sunsetBand * 0.62);
 
     vec2 cloudUv = direction.xz / max(0.18, abs(direction.y) + 0.2);
-    float cloudField = sin(cloudUv.x * 3.2 + uTime * 0.018) * 0.58
-      + sin(cloudUv.y * 4.1 - cloudUv.x * 1.35 - uTime * 0.009) * 0.42;
-    float cloudShape = smoothstep(0.58, 0.94, cloudField) * uClouds;
-    sky = mix(sky, mix(uHorizon, uSunset, 0.28), cloudShape * (1.0 - height * 0.5));
+    float cloudField = sin(cloudUv.x * 3.1 + uTime * 0.016) * 0.56
+      + sin(cloudUv.y * 4.0 - cloudUv.x * 1.3 - uTime * 0.008) * 0.44;
+    float cloudShape = smoothstep(0.52, 0.96, cloudField) * uClouds;
+    vec3 cloudTone = mix(uHorizon, uZenith, 0.24);
+    sky = mix(sky, cloudTone, cloudShape * (1.0 - height * 0.42));
+
+    vec3 sunDirection = normalize(vec3(-0.62, 0.075, -0.78));
+    float sunDistance = distance(direction, sunDirection);
+    float sunHalo = exp(-sunDistance * 8.5) * sunsetBand * 0.28;
+    float sunCore = exp(-sunDistance * 86.0) * sunsetBand * 0.3;
+    sky += uSunset * (sunHalo + sunCore);
+    float horizonHaze = exp(-abs(direction.y + 0.16) * 7.0) * 0.08;
+    sky = mix(sky, uHorizon, horizonHaze);
 
     sky += vec3(0.78, 0.8, 1.0) * uLightning;
     gl_FragColor = vec4(max(sky, vec3(0.025)), 1.0);
@@ -91,7 +101,7 @@ const RIDGE_LAYERS = [
 const WEATHER_CLOUDS: Record<WeatherMode, number> = {
   clear: 0.1,
   ash: 0.32,
-  rain: 0.58,
+  ember: 0.24,
   fog: 0.72,
 };
 
@@ -111,6 +121,10 @@ const SKY_COLORS = Object.fromEntries(
   sunset: THREE.Color;
   mountain: THREE.Color;
 }>;
+
+const PARTICLE_COLORS = Object.fromEntries(
+  Object.entries(WORLD_BIOME_PALETTES).map(([key, palette]) => [key, new THREE.Color(palette.particles)]),
+) as Record<keyof typeof WORLD_BIOME_PALETTES, THREE.Color>;
 
 export default function WorldV2Atmosphere({ motionRef, weather, quality, motionReduced }: Props) {
   const skyRef = useRef<THREE.Mesh>(null);
@@ -184,8 +198,9 @@ export default function WorldV2Atmosphere({ motionRef, weather, quality, motionR
 
   useEffect(() => {
     skyMaterial.uniforms.uClouds.value = WEATHER_CLOUDS[weather];
-    particleMaterial.opacity = weather === "ash" ? 0.52 : weather === "fog" ? 0.24 : 0.1;
-    particleMaterial.color.set(weather === "rain" ? "#b9d3df" : "#e3ad79");
+    particleMaterial.opacity = weather === "ash" ? 0.52 : weather === "ember" ? 0.88 : weather === "fog" ? 0.24 : 0.1;
+    particleMaterial.size = weather === "ember" ? 0.072 : 0.052;
+    particleMaterial.color.set(weather === "ember" ? "#f2a15f" : "#d8c0a0");
   }, [particleMaterial, skyMaterial, weather]);
 
   useFrame((frame) => {
@@ -198,10 +213,17 @@ export default function WorldV2Atmosphere({ motionRef, weather, quality, motionR
     (uniforms.uZenith.value as THREE.Color).lerpColors(from.zenith, to.zenith, transition.mix);
     (uniforms.uHorizon.value as THREE.Color).lerpColors(from.horizon, to.horizon, transition.mix);
     (uniforms.uSunset.value as THREE.Color).lerpColors(from.sunset, to.sunset, transition.mix);
+    if (weather !== "ember") {
+      particleMaterial.color.lerpColors(
+        PARTICLE_COLORS[transition.from],
+        PARTICLE_COLORS[transition.to],
+        transition.mix,
+      );
+    }
     uniforms.uTime.value = safeTime * (motionReduced ? 0.15 : 1);
     uniforms.uClouds.value = WEATHER_CLOUDS[weather];
-    uniforms.uLightning.value = weather === "rain"
-      ? Math.pow(Math.max(0, Math.sin(safeTime * 0.37 + 1.4)), 30) * 0.12
+    uniforms.uLightning.value = weather === "ember"
+      ? Math.max(0, Math.sin(safeTime * 1.5)) * 0.025
       : 0;
 
     if (skyRef.current) skyRef.current.position.copy(camera.position);
@@ -223,7 +245,10 @@ export default function WorldV2Atmosphere({ motionRef, weather, quality, motionR
       const seedY = seeds[offset + 1];
       const seedZ = seeds[offset + 2];
       positions[offset] = camera.position.x + (seedX - 0.5) * 38 + Math.sin(safeTime * 0.24 + index) * 0.35;
-      positions[offset + 1] = camera.position.y - 1 + seedY * 15 - ((safeTime * motionAmount * (0.22 + seedZ * 0.18) + seedY * 24) % 15);
+      const particleCycle = (safeTime * motionAmount * (0.22 + seedZ * 0.18) + seedY * 24) % 15;
+      positions[offset + 1] = weather === "ember"
+        ? camera.position.y - 1 + seedY * 15 + particleCycle
+        : camera.position.y - 1 + seedY * 15 - particleCycle;
       positions[offset + 2] = camera.position.z - 3 - seedZ * 88;
     }
     attribute.needsUpdate = true;
@@ -252,7 +277,7 @@ export default function WorldV2Atmosphere({ motionRef, weather, quality, motionR
         geometry={particleGeometry}
         material={particleMaterial}
         frustumCulled={false}
-        visible={weather !== "clear"}
+        visible={weather === "ash" || weather === "ember"}
       />
     </group>
   );

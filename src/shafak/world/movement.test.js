@@ -33,6 +33,18 @@ test("joystick input preserves analog magnitude for walk-to-run speed", () => {
   assert.equal(fast.motion, "running");
 });
 
+test("holding sprint accelerates beyond the normal joystick run speed", () => {
+  let regular = createWorldMotion();
+  let sprinting = createWorldMotion();
+  const regularInput = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
+  const sprintInput = readWorldInput(new Set(["w", "shift"]), { x: 0, y: 0 });
+  for (let index = 0; index < 50; index += 1) {
+    regular = stepWorldMotion(regular, regularInput, 1 / 60);
+    sprinting = stepWorldMotion(sprinting, sprintInput, 1 / 60);
+  }
+  assert.ok(sprinting.speed > regular.speed * 1.8);
+});
+
 test("joystick forward input advances measured distance and the camera", () => {
   const input = readWorldInput(new Set(), { x: 0, y: 0.9 });
   let state = createWorldMotion();

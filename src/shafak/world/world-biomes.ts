@@ -1,7 +1,7 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 
 export type WorldBiome = "ash-road" | "frozen-pass" | "red-marsh";
-export type WeatherMode = "clear" | "ash" | "rain" | "fog";
+export type WeatherMode = "clear" | "ash" | "ember" | "fog";
 
 export type BiomePalette = {
   label: string;
@@ -82,7 +82,7 @@ export const WORLD_BIOME_PALETTES: Record<WorldBiome, BiomePalette> = {
   },
 };
 
-export const WEATHER_MODES: readonly WeatherMode[] = ["clear", "ash", "rain", "fog"];
+export const WEATHER_MODES: readonly WeatherMode[] = ["clear", "ash", "ember", "fog"];
 const BIOME_COUNT = 3;
 export const BIOME_CHAPTER_SPAN = 3;
 export const BIOME_SPAN_METERS = WORLD_GATE_INTERVAL_METERS * BIOME_CHAPTER_SPAN;
@@ -92,7 +92,7 @@ export function getWorldFogDensity(weather: WeatherMode, biome: WorldBiome, comb
   if (combatActive) return 0.0028;
   const baseDensity = weather === "fog"
     ? 0.006
-    : weather === "rain"
+    : weather === "ember"
       ? 0.0042
       : weather === "ash"
         ? 0.0038

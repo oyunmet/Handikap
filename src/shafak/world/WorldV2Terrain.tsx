@@ -17,7 +17,7 @@ export default function WorldV2Terrain({
   quality,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
-  weather: "clear" | "ash" | "rain" | "fog";
+  weather: "clear" | "ash" | "ember" | "fog";
   quality: WorldQuality;
 }) {
   const terrainRef = useRef<THREE.Group>(null);
@@ -32,9 +32,9 @@ export default function WorldV2Terrain({
     return result;
   }, []);
   const material = useMemo(() => new THREE.MeshStandardMaterial({
-    color: "#6c5a50",
+    color: "#61524d",
     vertexColors: true,
-    roughness: 0.98,
+    roughness: 0.94,
     metalness: 0,
     flatShading: true,
     side: THREE.DoubleSide,
@@ -54,8 +54,8 @@ export default function WorldV2Terrain({
       BIOME_GROUND_COLORS[transition.to],
       transition.mix,
     );
-    material.roughness = weather === "rain" ? 0.72 : 0.98;
-    material.metalness = weather === "rain" ? 0.025 : 0;
+    material.roughness = weather === "ember" ? 0.84 : weather === "fog" ? 1 : 0.94;
+    material.metalness = weather === "ember" ? 0.01 : 0;
     material.flatShading = quality !== "high";
     terrainRef.current.position.set(camera.position.x * 0.88, 0, camera.position.z * 0.92 - 24);
     terrainRef.current.visible = true;

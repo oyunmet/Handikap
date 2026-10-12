@@ -55,6 +55,8 @@ export type WorldCollider = {
   halfWidth: number;
   halfDepth: number;
   breakableId?: string;
+  jumpable?: boolean;
+  jumpHeight?: number;
 };
 
 export type WorldCollisionGrid = Map<number, Map<number, WorldCollider[]>>;
@@ -280,6 +282,8 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         halfWidth: obstacle.width / 2,
         halfDepth: obstacle.kind === "barricade" ? 0.3 : 0.5,
         breakableId: obstacle.kind === "barricade" ? obstacle.id : undefined,
+        jumpable: obstacle.kind === "rock",
+        jumpHeight: obstacle.kind === "rock" ? 0.78 : undefined,
       });
     }
 
@@ -337,6 +341,7 @@ export function resolveWorldPathCollision(
   grid: WorldCollisionGrid,
   brokenObstacleIds: ReadonlySet<string>,
   target: { x: number; distance: number } = { x: 0, distance: 0 },
+  jumpHeight = 0,
 ) {
   const startX = Number.isFinite(previousX) ? previousX : 0;
   const startDistance = Number.isFinite(previousDistance) ? Math.max(0, previousDistance) : 0;
@@ -365,6 +370,7 @@ export function resolveWorldPathCollision(
         if (!colliders) continue;
         for (const collider of colliders) {
           if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
+          if (collider.jumpable && jumpHeight > (collider.jumpHeight ?? 0.78)) continue;
           if (collider.shape === "circle") {
             const dx = x - collider.x;
             const dz = distance - collider.distance;

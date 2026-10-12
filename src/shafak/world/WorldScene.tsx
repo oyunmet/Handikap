@@ -54,6 +54,7 @@ import {
   type WorldMotionFrame,
   type WorldMotion,
 } from "./movement";
+import { createTraversalState, stepTraversal, type TraversalState } from "./traversal";
 import { nextGateDistance } from "./world-generation";
 import {
   getWorldChapter,
@@ -94,7 +95,7 @@ import "./world-scene.css";
 const WEATHER_LABELS: Record<WeatherMode, string> = {
   clear: "Açık",
   ash: "Kül",
-  rain: "Yağmur",
+  ember: "Kor",
   fog: "Sis",
 };
 const DUEL_DIRECTION_LABELS = {
@@ -502,6 +503,8 @@ export default function WorldScene({
     onBattleProfile(nextProfile);
   }, [onBattleProfile]);
   const motionRef = useRef(createWorldMotion());
+  const traversalRef = useRef(createTraversalState());
+  const [traversalUi, setTraversalUi] = useState<TraversalState>(() => createTraversalState());
   const renderMotionRef = useRef<WorldMotion | null>(null);
   const previousMotionRef = useRef<WorldMotion | null>(null);
   const stressAutoWalkRef = useRef(false);
@@ -523,7 +526,17 @@ export default function WorldScene({
   const [storeMessage, setStoreMessage] = useState("");
   const [storeError, setStoreError] = useState("");
   const [storeRetryAction, setStoreRetryAction] = useState<{ operation: "purchase" | "equip" | "upgrade"; itemId: string } | null>(null);
-  const [weatherMode, setWeatherMode] = useState<WeatherMode>("ash");
+  const [weatherMode, setWeatherMode] = useState<WeatherMode>(() => {
+    if (typeof window === "undefined") return "ash";
+    try {
+      const stored = window.localStorage.getItem("shafak-weather");
+      return stored === "clear" || stored === "ash" || stored === "ember" || stored === "fog"
+        ? stored
+        : "ash";
+    } catch {
+      return "ash";
+    }
+  });
   const airEnabled = weatherMode !== "clear";
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
@@ -697,11 +710,34 @@ export default function WorldScene({
   const wake = useCallback(() => {
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
-  const worldInput = useWorldInput(wake);
+  const worldInput = useWorldInput(wake, battleActiveRef, storyDialogueRef);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("shafak-weather", weatherMode);
+    } catch (error) {
+      emitWorldDiagnostic(
+        "preferences",
+        `Hava tercihi bu cihazda saklanamadı: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }, [weatherMode]);
+  const pulseTravelAction = useCallback((action: "jump" | "dash" | "sprint") => {
+    worldInput.setAction(action, true);
+    if (action !== "jump") {
+      window.setTimeout(() => worldInput.setAction(action, false), 350);
+    } else {
+      worldInput.setAction(action, false);
+    }
+    wake();
+  }, [wake, worldInput.setAction]);
   const showStoryDialogue = useCallback((dialogue: StoryDialogue) => {
     storyDialogueRef.current = dialogue;
     worldInput.heldKeys.current.clear();
     worldInput.joystick.current = { x: 0, y: 0 };
+    worldInput.actions.current.sprint = false;
+    worldInput.actions.current.jumpHeld = false;
+    worldInput.actions.current.jumpPressed = false;
+    worldInput.actions.current.dashPressed = false;
     motionRef.current = {
       ...motionRef.current,
       velocityX: 0,
@@ -1193,6 +1229,23 @@ export default function WorldScene({
   const beginEncounter = useCallback(async (rival: WorldRival) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
     battleActiveRef.current = true;
+    worldInput.heldKeys.current.clear();
+    worldInput.actions.current.sprint = false;
+    worldInput.actions.current.jumpHeld = false;
+    worldInput.actions.current.jumpPressed = false;
+    worldInput.actions.current.dashPressed = false;
+    traversalRef.current = {
+      ...traversalRef.current,
+      jumpHeight: 0,
+      verticalVelocity: 0,
+      grounded: true,
+      jumpsUsed: 0,
+      coyoteTime: 0.1,
+      jumpBuffer: 0,
+      dashTime: 0,
+      activity: "resting",
+    };
+    setTraversalUi({ ...traversalRef.current });
     settlementStartedRef.current = false;
     pendingVerdictRef.current = null;
     resetDuelInput();
@@ -1456,7 +1509,7 @@ export default function WorldScene({
   useEffect(() => {
     if (!active) return undefined;
     const onActionKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== "Space" && event.key.toLowerCase() !== "e") return;
+      if (event.key.toLowerCase() !== "e") return;
       if (event.target instanceof HTMLElement && event.target.closest("button,input,textarea,select")) return;
       event.preventDefault();
       requestObstacleAttack();
@@ -1728,7 +1781,10 @@ export default function WorldScene({
           continue;
         }
         simulationTimeRef.current += fixedStep;
-        let stepInput = liveInput;
+        let stepInput = {
+          ...liveInput,
+          sprint: liveInput.sprint || worldInput.actions.current.sprint,
+        };
         let trapSlowdownActive = false;
         for (const until of trapCooldownRef.current.values()) {
           if (until >= 0 && until > simulationTimeRef.current) {
@@ -1745,12 +1801,33 @@ export default function WorldScene({
           };
         }
         const simulationStep = fixedStep;
+        const actionInput = worldInput.actions.current;
+        const traversalStep = stepTraversal(
+          traversalRef.current,
+          {
+            sprintHeld: !stressAutoWalkRef.current && (stepInput.sprint || actionInput.sprint),
+            jumpPressed: !stressAutoWalkRef.current && actionInput.jumpPressed,
+            jumpHeld: !stressAutoWalkRef.current && actionInput.jumpHeld,
+            dashPressed: !stressAutoWalkRef.current && actionInput.dashPressed,
+            moving: Math.hypot(stepInput.x, stepInput.y) > 0.08,
+          },
+          simulationStep,
+        );
+        actionInput.jumpPressed = false;
+        actionInput.dashPressed = false;
+        traversalRef.current = traversalStep.state;
+        if (traversalStep.dashActive && Math.hypot(stepInput.x, stepInput.y) < 0.08) {
+          stepInput = { ...stepInput, x: 0, y: 1, analogMagnitude: 1 };
+        }
+        const movementInput = { ...stepInput, sprint: traversalStep.sprintEnabled };
+        const movementMultiplier = playerCombatStats.moveSpeedMultiplier
+          * (traversalStep.dashActive ? 1.55 : 1);
         Object.assign(previousMotion, motionRef.current);
         let nextFrame = stepWorldMotion(
           motionRef.current,
-          stepInput,
+          movementInput,
           simulationStep,
-          playerCombatStats.moveSpeedMultiplier,
+          movementMultiplier,
           frameScratch,
         );
         const worldContent = getCachedWorldContent(nextFrame.distance, contentCacheRef.current);
@@ -1766,6 +1843,7 @@ export default function WorldScene({
               worldContent.collisionGrid,
               brokenRef.current,
               collisionPosition,
+              traversalStep.state.jumpHeight,
             );
         if (
           Math.abs(resolvedPosition.distance - nextFrame.distance) > 0.0001
@@ -1824,6 +1902,7 @@ export default function WorldScene({
         if (!stressAutoWalkRef.current) {
           for (const obstacle of obstacles) {
             if (obstacle.kind !== "spike-trap") continue;
+            if (traversalStep.state.jumpHeight > 0.68) continue;
             const longitudinal = Math.abs(obstacle.distance - nextFrame.distance);
             const lateral = Math.abs(obstacle.x - playerX);
             if (longitudinal > 5 || lateral > obstacle.width / 2 + 1.8) {
@@ -1926,6 +2005,7 @@ export default function WorldScene({
       }
       if (now - lastReactUpdate > 220) {
         lastReactUpdate = now;
+        setTraversalUi({ ...traversalRef.current });
         if (!stressAutoWalkRef.current) {
           setTravel(Math.floor(frameState.distance));
           setRivalRefresh((current) => current + 1);
@@ -2089,6 +2169,7 @@ export default function WorldScene({
           <World3D
             active={active}
             motionRef={motionRef}
+            traversalRef={traversalRef}
             collisionGrid={getCachedWorldContent(motionRef.current.distance, contentCacheRef.current).collisionGrid}
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
@@ -2347,6 +2428,61 @@ export default function WorldScene({
         onPointerUp={worldInput.onJoystickPointerUp}
         onPointerCancel={worldInput.onJoystickPointerCancel}
       ><span className="world-joystick__nub" /></div>
+      <div className="world-traversal-controls" aria-label="Yol hareketleri">
+        <div
+          className="world-stamina"
+          role="meter"
+          aria-label="Dayanıklılık"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(traversalUi.stamina)}
+        >
+          <span><b>DAYANIKLILIK</b><output>{Math.round(traversalUi.stamina)}</output></span>
+          <i><em style={{ width: `${traversalUi.stamina}%` }} /></i>
+        </div>
+        <div className="world-traversal-buttons">
+          <button
+            type="button"
+            className={`world-travel-action is-sprint${worldInput.actions.current.sprint ? " is-active" : ""}`}
+            aria-label="Koşmak için basılı tut; Shift"
+            aria-pressed={worldInput.actions.current.sprint}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              worldInput.setAction("sprint", true);
+              wake();
+            }}
+            onPointerUp={() => worldInput.setAction("sprint", false)}
+            onPointerCancel={() => worldInput.setAction("sprint", false)}
+            onClick={(event) => { if (event.detail === 0) pulseTravelAction("sprint"); }}
+          >KOŞ</button>
+          <button
+            type="button"
+            className={`world-travel-action is-jump${traversalUi.activity === "jumping" ? " is-active" : ""}`}
+            aria-label="Zıpla; Space"
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              worldInput.setAction("jump", true);
+              wake();
+            }}
+            onPointerUp={() => worldInput.setAction("jump", false)}
+            onPointerCancel={() => worldInput.setAction("jump", false)}
+            onClick={(event) => { if (event.detail === 0) pulseTravelAction("jump"); }}
+          >ZIPLA</button>
+          <button
+            type="button"
+            className={`world-travel-action is-dash${traversalUi.activity === "dashing" ? " is-active" : ""}`}
+            aria-label="Atıl; Q veya Alt"
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              worldInput.setAction("dash", true);
+              wake();
+            }}
+            onPointerUp={() => worldInput.setAction("dash", false)}
+            onPointerCancel={() => worldInput.setAction("dash", false)}
+            onClick={(event) => { if (event.detail === 0) pulseTravelAction("dash"); }}
+          >ATIL</button>
+        </div>
+      </div>
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       {encounterVisible && nextOpponent && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
@@ -2493,7 +2629,13 @@ export default function WorldScene({
           </button>
           <div className="world-status" aria-live="polite" aria-atomic="true">
             <span className="world-status__label">{worldText.world}</span>
-            <strong className="world-status__value">{worldText[motion]}</strong>
+            <strong className="world-status__value">
+              {traversalUi.activity === "jumping"
+                ? "ZIPLIYOR"
+                : traversalUi.activity === "dashing"
+                  ? "ATILIYOR"
+                  : worldText[motion]}
+            </strong>
           </div>
         </div>
         <div className="world-actions">

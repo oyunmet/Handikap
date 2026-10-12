@@ -4,19 +4,10 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
-import KnightActor from "./KnightActor";
-import { WORLD_CHUNK_LENGTH_METERS, WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
-import { nextGateDistance } from "./world-generation";
-import { createWorldMotion } from "./movement";
+import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByName, WORLD_BOT_PROFILES } from "./world-bot-profiles";
-import { mapOpponentAnimationState } from "./model-animation";
 import { getDuelCameraFraming } from "./duel-camera";
-import {
-  AshSky,
-  WorldChunks,
-} from "./WorldElements";
-import { createWorldChunk, type WorldChunk } from "./world-generation";
 import {
   getBiomeTransition,
   getWorldFogDensity,
@@ -24,10 +15,10 @@ import {
   type WorldBiome,
   type WeatherMode,
 } from "./world-biomes";
-import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldCollisionGrid, WorldRival } from "./world-content";
-import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
+import type { CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
+import type { TraversalState } from "./traversal";
 import {
   appendWorldDiagnostic,
   emitWorldDiagnostic,
@@ -39,7 +30,6 @@ import WorldPostProcessing from "./WorldPostProcessing";
 import WorldV2Atmosphere from "./WorldV2Atmosphere";
 import WorldV2Terrain from "./WorldV2Terrain";
 import { WorldV2DuelActor, WorldV2Travel } from "./WorldV2Gameplay";
-import { worldVersionFromSearch } from "./world-version";
 import { nextWorldRecoveryStage } from "./world-recovery";
 import {
   getShadowMapSize,
@@ -106,6 +96,7 @@ const WORLD_RESOURCE_POOL = new WorldResourcePool();
 export type World3DProps = {
   active?: boolean;
   motionRef: MutableRefObject<WorldMotion>;
+  traversalRef?: MutableRefObject<TraversalState>;
   collisionGrid: WorldCollisionGrid;
   quality: WorldQuality;
   visualEffectsEnabled: boolean;
@@ -163,8 +154,6 @@ type DebugStats = {
   maxFrameMs: number;
   longFrames: number;
   animation: CharacterAnimationState;
-  footSlip: number;
-  chunks: number;
   cameraX: number;
   cameraY: number;
   cameraZ: number;
@@ -317,23 +306,6 @@ function supportsWebGL() {
   // Do not create and destroy a throwaway WebGL context on iOS. The renderer
   // below is the authoritative capability check and owns the only live context.
   return typeof WebGL2RenderingContext !== "undefined";
-}
-
-function getChunksForDistance(distance: number, cache: Map<number, WorldChunk>) {
-  const current = Math.floor(distance / WORLD_CHUNK_LENGTH_METERS);
-  const visible: WorldChunk[] = [];
-  for (let index = current - 1; index <= current + 4; index += 1) {
-    let chunk = cache.get(index);
-    if (!chunk) {
-      chunk = createWorldChunk(index);
-      cache.set(index, chunk);
-    }
-    visible.push(chunk);
-  }
-  for (const index of cache.keys()) {
-    if (index < current - 2 || index > current + 5) cache.delete(index);
-  }
-  return visible;
 }
 
 const FOG_COLORS = Object.fromEntries(
@@ -675,220 +647,6 @@ function CameraRig({
   return <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 4.15, 10.2]} fov={54} near={0.6} far={WORLD_CAMERA_FAR} />;
 }
 
-function combatAnimation(action: CombatAction, speed: number) {
-  if (action === "windup") return "block" as const;
-  if (action === "attack") return "attack" as const;
-  if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo") return "heavyAttack" as const;
-  if (action === "block" || action === "dodge" || action === "hit" || action === "die") return action;
-  return speed > 0.28 ? "walk" as const : "idle" as const;
-}
-
-function DuelFighter({
-  side,
-  opponentName,
-  motionRef,
-  combatStateRef,
-  combatRender,
-  motionReduced,
-  equipmentVisual,
-  visualEffectsEnabled,
-  finisherSlowMotion,
-}: {
-  side: "player" | "bot";
-  opponentName: string;
-  motionRef: MutableRefObject<WorldMotion>;
-  combatStateRef: MutableRefObject<CombatState | null>;
-  combatRender: CombatState | null;
-  motionReduced: boolean;
-  equipmentVisual: EquipmentVisual;
-  visualEffectsEnabled: boolean;
-  finisherSlowMotion: boolean;
-}) {
-  const actorRoot = useRef<THREE.Group>(null);
-  const actorVisualRoot = useRef<THREE.Group>(null);
-  const deathStartedAtRef = useRef<number | null>(null);
-  const actorMotion = useMemo(() => ({ current: createWorldMotion() }), []);
-  const renderedActor = combatRender?.[side];
-  const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
-  const animation = renderedActor ? combatAnimation(renderedActor.action, speed) : "idle";
-  const modelConfig = side === "bot" ? getOpponentModelConfig(opponentName) : undefined;
-  const modelAnimationState = modelConfig
-    ? combatRender?.ended
-      ? combatRender.verdict === "defeat"
-        ? "victory"
-        : combatRender.verdict === "victory"
-          ? "death"
-          : mapOpponentAnimationState(animation, renderedActor?.action)
-      : mapOpponentAnimationState(animation, renderedActor?.action)
-    : undefined;
-  const defeated = Boolean(
-    renderedActor
-    && (renderedActor.action === "die"
-      || (combatRender?.ended && (
-        (side === "player" && combatRender.verdict === "defeat")
-        || (side === "bot" && combatRender.verdict === "victory")
-      ))),
-  );
-
-  useFrame(() => {
-    const state = combatStateRef.current;
-    const actor = state?.[side];
-    if (!state || !actor) return;
-    actorMotion.current.depth = THREE.MathUtils.clamp(actor.x / 5.2, -1, 1);
-    actorMotion.current.velocityX = actor.vx;
-    actorMotion.current.velocityY = actor.vz;
-    actorMotion.current.distance = motionRef.current.distance - actor.z;
-    actorMotion.current.cameraX = motionRef.current.cameraX;
-    actorMotion.current.stepPhase = state.tick * 0.13;
-    actorMotion.current.hasMoved = Math.hypot(actor.vx, actor.vz) > 0.25;
-    actorRoot.current?.position.set(0, 0, actor.z);
-  });
-
-  useFrame((frame) => {
-    const visualRoot = actorVisualRoot.current;
-    if (!visualRoot) return;
-    const baseScale = side === "bot" ? 1.07 : 1;
-    const staminaRatio = side === "player" && renderedActor
-      ? renderedActor.stamina / Math.max(1, renderedActor.maxStamina)
-      : 1;
-    const exhaustion = visualEffectsEnabled && !motionReduced && !defeated
-      ? THREE.MathUtils.clamp((0.2 - staminaRatio) / 0.2, 0, 1)
-      : 0;
-    visualRoot.position.y = Math.sin(frame.clock.elapsedTime * 4.6) * 0.026 * exhaustion;
-    visualRoot.rotation.x = Math.sin(frame.clock.elapsedTime * 2.4) * 0.018 * exhaustion;
-    if (!visualEffectsEnabled || !defeated) {
-      deathStartedAtRef.current = null;
-      visualRoot.scale.setScalar(baseScale);
-      return;
-    }
-    deathStartedAtRef.current ??= frame.clock.elapsedTime;
-    const progress = THREE.MathUtils.clamp((frame.clock.elapsedTime - deathStartedAtRef.current) / 0.86, 0, 1);
-    visualRoot.scale.setScalar(baseScale * (1 - progress));
-  });
-
-  if (!renderedActor) return null;
-  return (
-    <group ref={actorRoot}>
-      <group ref={actorVisualRoot} scale={side === "bot" ? 1.07 : 1}>
-        <KnightActor
-          motionRef={actorMotion}
-          state={animation}
-          motionReduced={motionReduced}
-          animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
-          facingAngle={renderedActor.yaw}
-          appearance={side === "player" ? equipmentVisual : undefined}
-          castShadow
-          modelConfig={modelConfig}
-          modelAnimationState={modelAnimationState}
-        />
-      </group>
-      {visualEffectsEnabled && <DuelAshDispersal active={defeated} x={renderedActor.x} />}
-      {side === "bot" && (
-        <Html position={[renderedActor.x, 2.55, renderedActor.z]} center distanceFactor={12} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
-          <span className="world-rival-tag is-focused">
-            <b>{opponentName}</b>
-            <span>{getWorldBotProfileByName(opponentName)?.title ?? "SAVAŞÇI"}</span>
-          </span>
-        </Html>
-      )}
-      <group position={[renderedActor.x, 0.055, renderedActor.z]} rotation={[0, renderedActor.yaw, 0]}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.42, 0.47, 32]} />
-          <meshBasicMaterial
-            color={side === "player" ? "#71ded5" : "#ff9778"}
-            transparent
-            opacity={0.5}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0, 0.045, 0.74]} rotation={[Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.14, 0.34, 3]} />
-          <meshBasicMaterial color={side === "player" ? "#a2fff0" : "#ffb094"} transparent opacity={0.82} depthWrite={false} />
-        </mesh>
-        {visualEffectsEnabled && renderedActor.attackType && !renderedActor.attackHit && (
-          <mesh position={[0, 0.07, 0.78]} rotation={[Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.28, 0.92]} />
-            <meshBasicMaterial
-              color={renderedActor.attackType === "skillTwo" ? "#75ecff" : "#ffcf88"}
-              transparent
-              opacity={0.48}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        )}
-      </group>
-    </group>
-  );
-}
-
-function DuelAshDispersal({ active, x }: { active: boolean; x: number }) {
-  const pointsRef = useRef<THREE.Points>(null);
-  const progressRef = useRef(0);
-  const count = 26;
-  const { geometry, seeds } = useMemo(() => {
-    const nextGeometry = new THREE.BufferGeometry();
-    const positions = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
-    positions.setUsage(THREE.DynamicDrawUsage);
-    nextGeometry.setAttribute("position", positions);
-    const nextSeeds = new Float32Array(count * 4);
-    for (let index = 0; index < count; index += 1) {
-      nextSeeds[index * 4] = (index / count) * Math.PI * 2;
-      nextSeeds[index * 4 + 1] = ((index * 17) % 13) / 13;
-      nextSeeds[index * 4 + 2] = ((index * 29) % 11) / 11;
-      nextSeeds[index * 4 + 3] = ((index * 7) % 9) / 9;
-    }
-    return { geometry: nextGeometry, seeds: nextSeeds };
-  }, []);
-  const material = useMemo(() => new THREE.PointsMaterial({
-    color: "#d8c8b1",
-    size: 0.075,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true,
-  }), []);
-
-  useEffect(() => () => {
-    geometry.dispose();
-    material.dispose();
-  }, [geometry, material]);
-
-  useFrame((_, delta) => {
-    const points = pointsRef.current;
-    if (!points) return;
-    if (!active) {
-      progressRef.current = 0;
-      points.visible = false;
-      material.opacity = 0;
-      return;
-    }
-    progressRef.current = Math.min(1, progressRef.current + Math.min(delta, 0.05) / 0.86);
-    const progress = progressRef.current;
-    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
-    for (let index = 0; index < count; index += 1) {
-      const angle = seeds[index * 4];
-      const height = seeds[index * 4 + 1];
-      const drift = seeds[index * 4 + 2];
-      const curve = angle + progress * (0.8 + drift);
-      const spread = 0.1 + progress * (0.32 + drift * 0.2);
-      positions.setXYZ(
-        index,
-        Math.cos(curve) * spread,
-        0.2 + height * 0.58 + progress * (0.75 + drift * 0.9),
-        Math.sin(curve) * spread + (seeds[index * 4 + 3] - 0.5) * progress * 0.2,
-      );
-    }
-    positions.needsUpdate = true;
-    points.visible = progress < 1;
-    material.opacity = (1 - progress) * 0.78;
-  });
-
-  return <points ref={pointsRef} geometry={geometry} material={material} position={[x, 0.025, 0]} frustumCulled={false} />;
-}
-
 function DuelTelegraph({ combatStateRef, motionReduced }: { combatStateRef: MutableRefObject<CombatState | null>; motionReduced: boolean }) {
   const ringRef = useRef<THREE.Group>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
@@ -1119,9 +877,7 @@ function DuelArena({
   visualEffectsEnabled,
   finisherSlowMotion,
   botTelegraphActive,
-  worldV2Enabled,
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive"> & {
-  worldV2Enabled: boolean;
 }) {
   const frameReadyRef = useRef(false);
   const reportDuelFrameReady = useCallback(() => {
@@ -1194,55 +950,10 @@ function DuelArena({
         ))}
       {combatRender && (
         <>
-          {worldV2Enabled ? (
-            <>
-              <WorldV2DuelActor side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} finisherSlowMotion={finisherSlowMotion} />
-              <WorldV2DuelActor side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} finisherSlowMotion={finisherSlowMotion} />
-            </>
-          ) : (
-            <>
-              <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
-              <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
-            </>
-          )}
+          <WorldV2DuelActor side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} finisherSlowMotion={finisherSlowMotion} />
+          <WorldV2DuelActor side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} finisherSlowMotion={finisherSlowMotion} />
         </>
       )}
-    </group>
-  );
-}
-
-function PlayerLight({
-  motionRef,
-  level,
-  relicCount,
-  lightRadius,
-  lightColor,
-  visible,
-}: {
-  motionRef: MutableRefObject<WorldMotion>;
-  level: number;
-  relicCount: number;
-  lightRadius: number;
-  lightColor: string;
-  visible: boolean;
-}) {
-  const glowRef = useRef<THREE.Mesh>(null);
-  const progression = Math.min(0.6, Math.max(0, level - 1) * 0.035 + relicCount * 0.04);
-  useFrame(() => {
-    const motion = motionRef.current;
-    const x = motion.depth * 5.2;
-    if (glowRef.current) glowRef.current.position.x = x;
-  });
-  return (
-    <group visible={visible} name="player-light-effects">
-      <mesh ref={glowRef} position={[0, 0.04, -3.2]} scale={[4.5 + lightRadius * 0.08, 0.045, 9]}>
-        <sphereGeometry args={[1, 12, 7]} />
-        <meshBasicMaterial color={lightColor} transparent opacity={0.09 + progression * 0.025} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
-      <mesh position={[0, 0.14, -1.8]} scale={[4.4, 0.06, 6.6]}>
-        <sphereGeometry args={[1, 10, 6]} />
-        <meshBasicMaterial color={lightColor} transparent opacity={0.06 + progression * 0.018} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
     </group>
   );
 }
@@ -1291,6 +1002,7 @@ function WorldCollisionDebug({
 
 function SceneContents({
   motionRef,
+  traversalRef,
   collisionGrid,
   quality,
   visualEffectsEnabled,
@@ -1332,12 +1044,6 @@ function SceneContents({
   persistedVisualTier: SafeVisualTier;
   blackProbeRecoveryStateRef: MutableRefObject<WorldProbeRecoveryState>;
 }) {
-  const chunkCacheRef = useRef(new Map<number, WorldChunk>());
-  const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
-  const activeChunkRef = useRef(Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS));
-  const footSlipRef = useRef(0);
-  const prefetchCancelRef = useRef<(() => void) | null>(null);
-  const initialPrefetchRef = useRef(false);
   const { gl, scene } = useThree();
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const [shadowQuality] = useState(quality);
@@ -1390,7 +1096,6 @@ function SceneContents({
     );
   }, [combatActive, motionRef, onSelfTestCombo, opponentName]);
 
-  const worldV2Enabled = worldVersionFromSearch(window.location.search) === "v2";
   useEffect(() => {
     if (recoveryStage === 1) {
       scene.traverse((object) => {
@@ -1404,31 +1109,6 @@ function SceneContents({
     zeroDrawCallFramesRef.current = 0;
     zeroDrawRecoverySentRef.current = false;
   }, [recoveryStage, scene]);
-
-  const scheduleChunkPrefetch = (chunkIndex: number) => {
-    prefetchCancelRef.current?.();
-    prefetchCancelRef.current = null;
-    if (chunkCacheRef.current.has(chunkIndex)) return;
-    const run = () => {
-      prefetchCancelRef.current = null;
-      if (!chunkCacheRef.current.has(chunkIndex)) {
-        chunkCacheRef.current.set(chunkIndex, createWorldChunk(chunkIndex));
-      }
-    };
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    if (idleWindow.requestIdleCallback) {
-      const handle = idleWindow.requestIdleCallback(run, { timeout: 600 });
-      prefetchCancelRef.current = () => idleWindow.cancelIdleCallback?.(handle);
-    } else {
-      const handle = window.setTimeout(run, 0);
-      prefetchCancelRef.current = () => window.clearTimeout(handle);
-    }
-  };
-
-  useEffect(() => () => prefetchCancelRef.current?.(), []);
 
   useEffect(() => {
     performanceMetricsRef.current = createFrameMetricsAccumulator();
@@ -1479,22 +1159,6 @@ function SceneContents({
         delta * 1_000,
       );
       if (stats) onPerformanceStats(stats);
-    }
-    const currentChunk = Math.floor(motion.distance / WORLD_CHUNK_LENGTH_METERS);
-    if (!initialPrefetchRef.current) {
-      initialPrefetchRef.current = true;
-      scheduleChunkPrefetch(currentChunk + 5);
-    }
-    if (currentChunk !== activeChunkRef.current) {
-      const previousChunk = activeChunkRef.current;
-      activeChunkRef.current = currentChunk;
-      const nextChunks = getChunksForDistance(motion.distance, chunkCacheRef.current);
-      setChunks(nextChunks);
-      emitWorldDiagnostic(
-        "world-chunk",
-        `Yol parçası değişti ${previousChunk} → ${currentChunk}; görünür=${nextChunks.length}, önbellek=${chunkCacheRef.current.size}.`,
-      );
-      scheduleChunkPrefetch(currentChunk + 5);
     }
     if (debugEnabled) {
       const now = frame.clock.elapsedTime;
@@ -1604,8 +1268,6 @@ function SceneContents({
           maxFrameMs: Math.round(monitor.maxFrameMs),
           longFrames: monitor.longFrames,
           animation: animationState,
-          footSlip: footSlipRef.current,
-          chunks: chunks.length,
           cameraX: frame.camera.position.x,
           cameraY: frame.camera.position.y,
           cameraZ: frame.camera.position.z,
@@ -1701,70 +1363,39 @@ function SceneContents({
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
       />
-      {worldV2Enabled && !combatActive ? (
+      {!combatActive && (
         <WorldV2Atmosphere
           motionRef={motionRef}
           weather={weatherMode}
           quality={quality}
           motionReduced={motionReduced}
         />
-      ) : !worldV2Enabled ? (
-        <AshSky motionRef={motionRef} combatActive={combatActive} />
-      ) : null}
-      {worldV2Enabled && !combatActive && (
+      )}
+      {!combatActive && (
         <WorldV2Terrain
           motionRef={motionRef}
           weather={weatherMode}
           quality={quality}
         />
       )}
-      {worldV2Enabled ? (
-        !combatActive && (
-          <WorldV2Travel
-            motionRef={motionRef}
-            animationState={animationState}
-            motionReduced={motionReduced}
-            quality={quality}
-            rivals={rivals}
-            collectedPickupIds={collectedPickupIds}
-            brokenObstacleIds={brokenObstacleIds}
-            focusedRival={focusedRival}
-            equipmentVisual={equipmentVisual}
-            level={level}
-            relicCount={relicCount}
-            lightRadius={lightRadius}
-          />
-        )
-      ) : (
-        <>
-          <group visible={!combatActive} name="road-world">
-            <WorldChunks
-              chunks={chunks}
-              motionRef={motionRef}
-              motionReduced={motionReduced}
-              quality={quality}
-              weather={weatherMode}
-            />
-          </group>
-          {!combatActive && <WorldRoadEntities
-            motionRef={motionRef}
-            rivals={rivals}
-            collectedPickupIds={collectedPickupIds}
-            brokenObstacleIds={brokenObstacleIds}
-            focusedRivalId={focusedRival?.id ?? null}
-            reducedMotion={motionReduced}
-          />}
-          <PlayerLight
-            motionRef={motionRef}
-            level={level}
-            relicCount={relicCount}
-            lightRadius={lightRadius}
-            lightColor={equipmentVisual.auraColor ?? "#ffb36f"}
-            visible={!combatActive}
-          />
-        </>
+      {!combatActive && (
+        <WorldV2Travel
+          motionRef={motionRef}
+          traversalRef={traversalRef}
+          animationState={animationState}
+          motionReduced={motionReduced}
+          quality={quality}
+          rivals={rivals}
+          collectedPickupIds={collectedPickupIds}
+          brokenObstacleIds={brokenObstacleIds}
+          focusedRival={focusedRival}
+          equipmentVisual={equipmentVisual}
+          level={level}
+          relicCount={relicCount}
+          lightRadius={lightRadius}
+        />
       )}
-      {combatActive ? (
+      {combatActive && (
         <DuelArena
           opponentName={opponentName}
           motionRef={motionRef}
@@ -1776,18 +1407,7 @@ function SceneContents({
           visualEffectsEnabled={visualEffectsEnabled}
           finisherSlowMotion={finisherSlowMotion}
           botTelegraphActive={botTelegraphActive}
-          worldV2Enabled={worldV2Enabled}
         />
-      ) : (
-        !worldV2Enabled && (
-          <KnightActor
-            motionRef={motionRef}
-            state={animationState}
-            motionReduced={motionReduced}
-            footSlipRef={footSlipRef}
-            appearance={equipmentVisual}
-          />
-        )
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
       <WorldBlackFrameProbe recoveryStateRef={blackProbeRecoveryStateRef} />
@@ -1889,8 +1509,6 @@ export default function World3D(props: World3DProps) {
     maxFrameMs: 0,
     longFrames: 0,
     animation: "idle",
-    footSlip: 0,
-    chunks: 0,
     cameraX: 0,
     cameraY: 0,
     cameraZ: 0,
@@ -2350,11 +1968,11 @@ export default function World3D(props: World3DProps) {
           <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
           <span>Render döngüsü: {debugStats.fps > 0 ? "CANLI" : "BAŞLAMADI"} · İlk kare: {firstFrameReported ? "EVET" : "BEKLENİYOR"} · Aktif rakip: {props.combatActive ? props.opponentName : props.focusedRival?.name ?? "yok"} · Model: {props.combatActive && getOpponentModelConfig(props.opponentName)?.modelPath ? "GLB" : "prosedürel"}</span>
           <span>WebGL aygıtı: {rendererName}</span>
-          <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m · Güvenli görsel kip: {debugStats.safeVisualTier}</span>
+          <span>Animasyon: {debugStats.animation} · Güvenli görsel kip: {debugStats.safeVisualTier}</span>
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
-          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {debugStats.weather} · Sis: {debugStats.fogMode} {debugStats.fogNear === null ? "" : `${debugStats.fogNear}/${debugStats.fogFar}`} · {debugStats.fogDensity.toFixed(4)} · {debugStats.fogColor} · Parça: {debugStats.chunks}</span>
+          <span>Dünya: {WORLD_BIOME_PALETTES[debugBiomeTransition.biome].label} · Hava: {debugStats.weather} · Sis: {debugStats.fogMode} {debugStats.fogNear === null ? "" : `${debugStats.fogNear}/${debugStats.fogFar}`} · {debugStats.fogDensity.toFixed(4)} · {debugStats.fogColor}</span>
           <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · FOV/yakın/uzak: {debugStats.cameraFov.toFixed(1)}/{debugStats.cameraNear.toFixed(1)}/{debugStats.cameraFar.toFixed(0)} · finite={debugStats.cameraFinite ? "evet" : "HAYIR"} · BG: {debugStats.background} · pozlama: {debugStats.exposure.toFixed(2)}</span>
           <span>Işık: {debugStats.lights} görünür/{debugStats.shadowLights} gölge · {debugStats.lightTypes || "yok"} · Parçacık sistemi/nesnesi: {debugStats.particleSystems}</span>
           <span>Kanarya: {debugStats.canaryState} · Siyah art arda: {debugStats.canaryConsecutiveBlack}/5 · Sahne luma: {debugStats.pixelLuminance === null ? "bekleniyor" : debugStats.pixelLuminance.toFixed(3)} · Parlak örnek: {debugStats.litPixelSamples}/{debugStats.pixelSampleCount} · Shader: {debugStats.programs}</span>

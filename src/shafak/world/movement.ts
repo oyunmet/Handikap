@@ -40,6 +40,7 @@ export const WORLD_ORIGIN_REBASE_INTERVAL_METERS = 1024;
 
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6.8;
+const SPRINT_SPEED = 9.2;
 const STRIDE_LENGTH = 1.38;
 const ACCELERATION_SECONDS = 0.19;
 const DECELERATION_SECONDS = 0.31;
@@ -100,9 +101,9 @@ export function stepWorldMotion(
   const dt = clamp(finiteOrZero(deltaSeconds), 0, 0.05);
   const magnitude = clamp(Math.hypot(input.x, input.y), 0, 1);
   const analogRun = smoothstep(0.58, 1, clamp(input.analogMagnitude, 0, 1));
-  const runBlend = input.sprint ? 1 : analogRun;
-  const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend)
-    * clamp(finiteOrZero(speedMultiplier) || 1, 0.88, 1.14);
+  const normalSpeed = WALK_SPEED + (RUN_SPEED - WALK_SPEED) * analogRun;
+  const targetSpeed = magnitude * (input.sprint ? SPRINT_SPEED : normalSpeed)
+    * clamp(finiteOrZero(speedMultiplier) || 1, 0.88, 1.8);
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const targetX = input.x * directionScale * targetSpeed;
   const targetY = input.y * directionScale * targetSpeed;

@@ -1,0 +1,114 @@
+# GÖREV: handikap oyununun 3D dünyasını SIFIRDAN yeniden yaz (eskisini tamamen sil)
+
+## 0) BAĞLAM
+Bu repo, mobil tarayıcıda (iPhone Safari/Chrome, dikey ekran) çalışan, Vercel'de yayınlanan 3D bir oyun (handikap.vercel.app). Arayüz TÜRKÇE. Mevcut durumda şu sorunlar var:
+
+1. **Siyah ekran sorunu:** 3D sahne aralıklı olarak tamamen siyaha dönüyor, sadece HTML HUD görünüyor (ekran görüntülerinde bir kare sahne var, bir sonraki kare simsiyah). Defalarca yama yapıldı, düzelmedi. Bu yüzden mevcut 3D sahne/render kodunu yamalamak yerine **tamamen silip temiz mimariyle yeniden kuracağız**.
+2. **Savaşta karakter ters dönüyor:** Saldırırken karakterin yüzü/gövdesi düşmana değil kameraya dönük kalıyor.
+3. Dünya sönük, sade ve kısıtlı: efekt yok denecek kadar az, hareket seçenekleri yetersiz (zıplama, koşma, hızlanma yok).
+4. Düşman isim etiketleri (ör. "Gölge Şövalyesi / GÖLGE SAVAŞÇISI") ve bazı küçük etiketler bozuk, çok küçük veya ekran kenarından taşıyor.
+
+## 1) ÇALIŞMA KURALLARI (ÇOK ÖNEMLİ)
+- Önce repoyu incele: framework (Vite/Next/CRA), 3D kütüphanesi (three.js / @react-three/fiber / başka), dosya yapısı, build komutu, `package.json`, `vercel.json`. **Mevcut stack'i değiştirme.** Three.js zaten varsa onu kullan, yoksa `three` ekle.
+- Eski 3D dünya / sahne / render döngüsü / eski kamera / eski oyuncu-düşman 3D kodlarını **tamamen sil** (ölü kod, kullanılmayan dosya, eski canvas bırakma). Sadece HUD, state (altın, elmas, kaynaklar, seviye), envanter (HEYBE), ayarlar, mağaza gibi **3D'den bağımsız** parçaları koru ve yeni sisteme bağla.
+- Bütün UI metinleri **Türkçe** kalsın. Mevcut HUD tasarımını ve yazı stilini (koyu zemin, altın/bronz çerçeve, serif başlık) bozma.
+- **Git push yapma.** Sadece kodu düzenle; ben kendim `git push` yapacağım ve Vercel otomatik deploy edecek. Bu yüzden:
+  - `npm run build` (veya projenin build komutu) **hatasız** tamamlanmalı, TypeScript/ESLint hataları olmamalı.
+  - Sadece Vercel'de çalışan, statik/SSR uyumlu kod yaz. Node'a özel API, yerel dosya yolu, `window`'a SSR sırasında erişim gibi hatalar olmasın.
+  - Harici sunucu/gizli anahtar gerektiren yeni bir şey ekleme. Mümkünse tüm 3D modeller **kodla üretilsin (procedural, voxel/low-poly)**; büyük harici model/texture dosyası kullanma (toplam ek asset < 2 MB).
+- İş bitince: yaptığın değişikliklerin özetini, silinen/eklenen dosyaların listesini ve nasıl test edileceğini yaz.
+
+## 2) SİYAH EKRAN SORUNUNU KÖKTEN ÇÖZ (öncelik 1)
+Muhtemel nedenleri tek tek kontrol et ve yeni mimaride hepsini önle:
+- **Tek bir** WebGLRenderer / tek bir `<canvas>` olsun. Re-render, hot reload veya component remount'ta ikinci renderer oluşmasın. `useEffect` cleanup'ında `renderer.dispose()`, `forceContextLoss()`, geometri/materyal/texture dispose ve `cancelAnimationFrame` yapılsın. React StrictMode çift mount'una dayanıklı olsun.
+- **WebGL context lost/restored:** canvas üzerinde `webglcontextlost` (preventDefault ile) ve `webglcontextrestored` olaylarını dinle; restore olunca sahneyi/materyalleri yeniden kur, render döngüsünü devam ettir. Context kaybolursa kullanıcıya "Dünya yeniden yükleniyor…" göstergesi çıksın, siyah ekran kalmasın.
+- **Mobil bellek/performans:** `renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))`, `powerPreference: 'high-performance'`, `antialias` mobilde kapalı veya düşük, gölge haritası 1024 (mobilde), shadow map sadece oyuncu çevresinde. Çok büyük texture, çok sayıda ışık (max 2-3 dinamik ışık), çok sayıda ayrı mesh yerine **InstancedMesh** kullan.
+- **Render döngüsü:** tek `requestAnimationFrame` döngüsü, `THREE.Clock` ile delta time, `delta` üst sınırı (örn. 0.05 sn). Sekme gizlenip geri gelince (`visibilitychange`) döngüyü ve zamanlayıcıyı güvenle yeniden başlat; iOS Safari'de adres çubuğu açılıp kapanınca oluşan `resize` olaylarında canvas boyutunu `visualViewport` / `ResizeObserver` ile düzgün güncelle (boyut 0 olursa render etme, siyah kalmasın).
+- **Z-index / DOM:** HUD, canvasın üstünde `pointer-events` doğru ayarlanmış katmanda olsun. Canvasın arka planı şeffaf/boş kalmasın; `scene.background` ve `scene.fog` her zaman tanımlı olsun (en kötü ihtimalle koyu kırmızı-kahve gökyüzü rengi gözüksün, tam siyah değil).
+- **Hata yakalama:** 3D bileşeni bir Error Boundary içinde olsun. Shader/materyal hatası olursa konsola yaz, oyun çökmesin; basit bir "güvenli mod" (efektsiz, düz materyal) ile otomatik tekrar denesin.
+- **Her şeyi her karede yeniden oluşturma:** Sahne bir kez kurulsun; durum değişimlerinde (hava, ilerleme %, altın sayısı) sahneyi yeniden kurma, sadece ilgili nesneleri güncelle. React state değişimi 3D sahneyi unmount etmesin (3D katmanı HUD state'inden izole et, gerekiyorsa `useRef` / küçük bir store kullan).
+- Ayarlara bir "Grafik Kalitesi: Düşük / Orta / Yüksek" seçeneği ekle. İlk açılışta cihaza göre otomatik seç (FPS < 40 ise otomatik düşür).
+- Geliştirici için `?debug=1` ile FPS, draw call, renderer bilgisi ve context durumu gösteren küçük bir overlay ekle.
+
+## 3) YENİ 3D DÜNYA: "KÜL YOLU"
+Mevcut atmosferi koru ve çok daha güzelleştir: kül/volkanik, harap bir krallık yolu; bordo-kahve-mor gün batımı tonları.
+
+**Yol ve ortam**
+- Uzun bir ana yol (ilerleme çubuğunda KÜL YOLU %0–100, "KAPI · X m" mesafesi gerçek mesafeye bağlı). Yol sonunda büyük bir kale **kapısı** (hedef).
+- Yol kenarlarında: yıkık sütunlar, taş kemerler, kırık heykeller, mezar taşları, ölü ağaçlar, kayalar, piramit/dağ siluetleri, uzaktaki kale surları (kuleler, mazgallar), sancaklar/bayraklar, meşaleler, kırık arabalar.
+- Zemin: çatlaklı taş yol + kenarlarda kül tepeleri. Hafif yükselti/alçalma (kolay bir yükseklik fonksiyonu), yol kıvrımlı olabilir.
+- **Chunk/segment sistemi:** Yol segmentler halinde üretilsin, oyuncu ilerledikçe öndekiler oluşsun, arkadakiler havuza (object pool) dönsün. Böylece performans iyi kalsın.
+- Gün batımı gökyüzü: gradyan sky dome, büyük soluk güneş, yıldız/kıvılcım parçacıkları, uzak dağ katmanları (parallax).
+
+**Işık ve atmosfer**
+- Sıcak yönlü ışık (güneş) + hafif hemisphere ışığı, meşalelerde titreyen PointLight (max 2 aktif, diğerleri sahte parıltı/sprite).
+- Mesafe sisi (`FogExp2`) ile derinlik hissi; sis rengi gökyüzüyle uyumlu.
+- Hafif bloom/vignette benzeri efekt: mobilde pahalıysa post-processing yerine CSS vignette + sahte glow sprite kullan. Yüksek kalitede isteğe bağlı bloom.
+
+**Hava sistemi (HUD'daki "HAVA: KÜL" anahtarı çalışsın)**
+- Hava modları: KÜL (varsayılan, düşen kül parçacıkları), KIVILCIM/KOR (yükselen kıvılcımlar), SİS (yoğun sis, düşük görüş), AÇIK (az sis). Geçişler yumuşak (lerp). Anahtar çevrilince mod değişsin ve kaydedilsin.
+
+**Efektler (hepsi GPU dostu: Points/InstancedMesh/sprite)**
+- Düşen kül, uçuşan kıvılcım ve toz parçacıkları (oyuncunun çevresinde dönen havuz).
+- Koşarken ayak tozu, zıplama/iniş toz halkası, hızlanma/dash'te hız çizgileri ve hafif kamera FOV genişlemesi.
+- Toplanabilir objeler (altın, elmas, kaynak kristalleri) dönen ve süzülen, yerde parlayan halkalı; toplayınca patlama parçacığı + HUD sayacında kısa animasyon + (ayarlardan kapatılabilir) ses.
+- Kamera sarsıntısı (hasar alınca / ağır vuruşta), vuruş kıvılcımı, hasar sayıları (yüzen metin).
+
+## 4) OYUNCU HAREKETİ (mobil + klavye)
+Mevcut sanal joystick (sol altta) ve ekran düzenini koru; şunları ekle/iyileştir:
+- **Yürüme / koşma:** Joystick'in itme miktarına göre yürü→koş geçişi. Hızlanma ve yavaşlama (ivme + sürtünme), ani durma yok.
+- **Sprint (hızlanma):** Yeni bir "KOŞ" butonu (sağ altta, HEYBE/AYARLAR'ın üstünde değil, başparmakla rahat erişilir bir yerde). Basılı tutunca hız artsın, **dayanıklılık (stamina) çubuğu** azalsın, bitince otomatik yavaşlasın, dinlenince dolsun. Stamina çubuğu HUD'a, mevcut stile uygun şekilde eklensin.
+- **Zıplama:** "ZIPLA" butonu. Yerçekimi, değişken zıplama yüksekliği (kısa/uzun basış), **coyote time (~0.1 sn)** ve **jump buffer (~0.12 sn)**, **çift zıplama**. İniş animasyonu ve toz efekti.
+- **Dash/atılma:** "ATIL" butonu veya çift dokunuş. Kısa süreli hızlı atılma, cooldown, iz efekti.
+- **Klavye (masaüstü testi için):** WASD/ok tuşları hareket, Shift koş, Space zıpla, Alt/Q dash, F veya sol tık saldır.
+- Mevcut ipucu metni ("SAĞ/SOL: İLERLE · YUKARI/AŞAĞI: YOL DERİNLİĞİ") yeni kontrol şemasına göre güncellensin. Yol modeli: oyuncu yol boyunca ilerler, sağ/sol ve derinlik hareketi serbest ama yol sınırlarıyla kısıtlı (kenarlardan düşmesin, görünmez sınır + kenar kayalar).
+- Kamera: oyuncunun arkasında, hafif yukarıdan takip eden yumuşak (damped) kamera; engellerin arkasına geçince duvarların içinden görünmemesi için basit kamera çarpışması; koşarken FOV artışı; savaşta kilitlenme kamerası (bkz. bölüm 6).
+- Ekran yönü değişince/kaydırınca sayfa kaymasın: `touch-action: none`, `overscroll-behavior: none`, canvas ve joystick üzerinde çift dokunuş zoom kapalı, `viewport-fit=cover`, safe-area padding.
+- Durum metni (sol altta "YOL ÜZERİNDE – YÜRÜYOR / DİNLENİYOR") yeni durumlarla genişlesin: YÜRÜYOR, KOŞUYOR, ZIPLIYOR, ATILIYOR, SAVAŞIYOR, DİNLENİYOR.
+
+## 5) ENGELLER VE ÇARPIŞMA
+- Basit ama sağlam çarpışma: AABB/silindir collider'lar (statik engeller için grid/spatial hash ile hızlı sorgu). Oyuncu engellerin içinden geçmesin, yüzeylerde kaymasın (slide), takılıp kalmasın.
+- Engel türleri: **BARİKAT** (mevcut "BARİKAT · 3 DARBE" mekaniği korunsun: yaklaşınca SALDIR butonu çıkar, 3 darbede kırılır, kırılma efekti ve odun/taş parçacıkları), taş bloklar, alçak duvarlar (üstünden zıplanır), çukurlar/dikenler (hasar verir, zıplayarak aşılır), sallanan balta/tuzak (zamanlamayla geçilir), hareketli platform/köprü (opsiyonel).
+- Zıplanabilir engeller için yükseklik kontrolü; sahnedeki küçük objeler (kristal, altın) çarpışmayı etkilemesin, sadece toplanabilir olsun.
+
+## 6) SAVAŞ MEYDANI VE "KARAKTER TERS DÖNÜYOR" HATASI (öncelik 1)
+**Sorun:** Saldırırken karakterin yönü (yaw) düşmana çevrilmiyor; model kameraya doğru/yanlış yöne bakıyor. Kök nedeni bul ve düzelt. Beklenen davranış:
+
+- Savaş başlayınca (düşman "meydan okuma/aggro" menziline girince veya SALDIR'a basılınca) en yakın/hedeflenen düşman **kilitlenir (lock-on)**.
+- Oyuncu modeli, hedefe doğru **her karede yumuşakça döner**: `targetYaw = Math.atan2(enemy.x - player.x, enemy.z - player.z)`; yaw için açı farkını `[-π, π]` aralığına normalle (`wrapAngle`) ve `lerp/slerp` ile (örn. 12–18 rad/sn hızla) dön. Modelin "ileri" ekseninin (+Z / -Z) hangisi olduğunu **kodda tek bir sabitle** (`MODEL_FORWARD_OFFSET`) yönet ki ters bakma bir daha olmasın. Karakter modelini Group içinde doğru yönde kur (yüz ve kılıç +Z veya seçtiğin eksende).
+- Saldırı animasyonu **hedefe dönük** başlasın: saldırı başında anlık yön hizalaması (snap) + kılıç savurma arkı hedefe doğru olsun. Kılıç hitbox'ı oyuncunun baktığı yönde (ön koni/ark) hesaplansın; hasar sadece ön konide ve menzildeki düşmana işlesin.
+- Düşman da oyuncuya doğru dönsün ve saldırırken oyuncuya baksın (aynı wrapAngle + lerp mantığı).
+- Kilitlenme sırasında kamera: oyuncunun omuz arkasından, **oyuncu ile düşmanı birlikte kadrajda tutan** yumuşak kamera (ikisinin orta noktasına bakış, mesafeye göre geri çekilme). Oyuncu kameraya yüzü dönük DEĞİL, sırtı kameraya, yüzü düşmana dönük olmalı (ekran görüntülerindeki gibi arkadan görünüm, ama saldırıda düşmana dönük).
+- Hedefte halka/işaret (ekran görüntülerindeki turuncu halka), düşmanın üstünde isim plakası.
+- Savaş sırasında oyuncunun hareketi: hedef etrafında dönme (strafe) ve geri çekilme mümkün, model hedefe bakmaya devam ederken ayaklar hareket yönüne göre animasyonlansın.
+- Kombo: 3 vuruşluk kombo (hafif-hafif-ağır), her vuruşta kısa ileri atılma (lunge), vuruş duraklaması (hit-stop ~60 ms), düşmanda geri savrulma (knockback), kıvılcım/kan yerine kül-kor parçacığı, kamera sarsıntısı.
+- Ek savaş mekanikleri: **kaçınma/yuvarlanma** (i-frame ~0.25 sn), **blok** (opsiyonel buton), düşman saldırısından önce kırmızı uyarı halkası (telegraph), oyuncu ve düşman can çubukları, hasar sayıları, ölüm animasyonu ve ganimet (altın/elmas/kaynak düşer).
+- Düşman yapay zekası (state machine): BEKLE → FARK_ETTİ → YAKLAŞ → SALDIR → GERİ_ÇEKİL → ÖL. Gölge Şövalyesi'ne ek olarak en az 2 düşman tipi (örn. hızlı Gölge Savaşçısı, ağır Kül Muhafızı) ve bir **mini boss** (kapı önünde).
+- Savaş meydanı: kapı yakınında dairesel arena (yerde ışıklı daire, çevresinde alçak taş duvar/sütunlar), arena içine girince hafif kamera uzaklaşması ve müzik/atmosfer değişimi, arena bitince kapı açılsın.
+
+## 7) HUD VE ARAYÜZ
+- Mevcut HUD (profil/Seviye, altın, elmas, kaynak sayıları, HAVA anahtarı, KÜL YOLU ilerleme çubuğu, joystick, HEYBE, AYARLAR, çıkış butonu, SALDIR paneli) aynen korunsun, 3D'den gelen verilerle gerçek zamanlı güncellensin.
+- Eklenecekler: STAMINA çubuğu, KOŞ / ZIPLA / ATIL butonları, savaşta düşman can çubuğu, küçük bir mini harita veya yol ilerleme göstergesi (opsiyonel).
+- **Dünyadaki etiketler (düşman/NPC isim plakaları):** Üç boyutlu nesnelere bağlı DOM etiketleri yerine mümkünse `Sprite`/`CSS2DRenderer` ile düzgün ölçekli, okunur, ekran kenarına kıstırılmış (clamp) etiketler kullan. Çok uzakta küçülüp bozulmasın (minimum ve maksimum boyut), kamera arkasındayken gizlensin, ekran dışına taşmasın. Çözünürlük: yazılar bulanık olmasın (devicePixelRatio'ya uygun).
+- Tüm butonlar min. 44×44 px, başparmakla rahat; iPhone çentik ve alt çubuk (safe-area) uyumlu.
+
+## 8) PERFORMANS HEDEFLERİ
+- Orta seviye telefonda hedef 50–60 FPS. Draw call < 150 (mobil), toplam üçgen < 150k.
+- Geometri ve materyal paylaşımı, InstancedMesh, object pooling, frustum culling, uzak nesneler için basit LOD/gizleme.
+- Garbage üretme: render döngüsünde `new Vector3()` yok, ortak geçici vektörler kullan.
+- İlk yükleme hızlı: sahneyi aşamalı kur ve "Dünya hazırlanıyor…" ekranı göster (tema uyumlu, siyah boşluk yerine).
+
+## 9) KABUL KRİTERLERİ (hepsini test edip raporla)
+1. Sayfa açılışında ve 5+ dakika oynarken, sekme değiştirip geri dönünce, ekran kilitleyip açınca, adres çubuğu açılıp kapanınca **ekran siyaha dönmüyor**; context lost olsa bile otomatik toparlıyor.
+2. Yol boyunca %0'dan kapıya kadar yürünebiliyor; ilerleme % ve "KAPI · X m" doğru.
+3. Yürü, koş (stamina), zıpla, çift zıpla, dash çalışıyor; engellerin içinden geçilmiyor, takılma yok.
+4. Savaşta karakter **her zaman düşmana dönük**, saldırı hedefe doğru, kamera iki tarafı kadrajda tutuyor; ters bakma yok.
+5. Barikat 3 darbede kırılıyor, düşmanlar yapay zekayla savaşıyor, ganimet HUD sayaçlarını artırıyor.
+6. Hava anahtarı modlar arasında geçiş yapıyor; efektler (kül, kıvılcım, toz, vuruş) görünüyor ve FPS'i çökertmiyor.
+7. Düşman/obje etiketleri okunaklı, kenara taşmıyor.
+8. `npm run build` hatasız; Vercel'de statik build çalışır durumda; konsolda kırmızı hata yok.
+9. Eski 3D kodundan hiçbir kullanılmayan dosya/import/bağımlılık kalmadı.
+
+## 10) TESLİM
+- `git push` YAPMA. Sadece dosyaları düzenle ve build'i doğrula.
+- Sonunda: (a) neyi sildin, neyi ekledin, (b) siyah ekranın kök nedeni neydi ve nasıl çözüldü, (c) karakterin ters dönme hatasının nedeni ve çözümü, (d) kontrol şeması ve ayar seçenekleri, (e) bilinen sınırlamalar listesini kısa ve net yaz.

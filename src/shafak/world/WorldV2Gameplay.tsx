@@ -1,6 +1,6 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { EquipmentVisual } from "../game/store-types";
@@ -17,15 +17,20 @@ import {
 } from "./world-content";
 import { getWorldBotProfileByName } from "./world-bot-profiles";
 import type { World3DProps } from "./World3D";
+import type { TraversalState } from "./traversal";
+import { dampCharacterYaw, getCharacterRootYawForModel } from "./character-facing";
 
 type MotionRef = MutableRefObject<WorldMotion>;
+type TraversalRef = MutableRefObject<TraversalState>;
 type ClampSize = { width: number; height: number };
+const LABEL_PROJECTION = new THREE.Vector3();
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));
+const WARRIOR_MODEL_FORWARD_OFFSET = 0;
 
 function clampRivalLabel(object: THREE.Object3D, camera: THREE.Camera, size: ClampSize): [number, number] {
-  const projected = object.getWorldPosition(new THREE.Vector3()).project(camera);
+  const projected = object.getWorldPosition(LABEL_PROJECTION).project(camera);
   const margin = Math.min(72, Math.max(32, size.width * 0.08));
   return [
     clamp((projected.x * 0.5 + 0.5) * size.width, margin, Math.max(margin, size.width - margin)),
@@ -168,6 +173,7 @@ function V2Warrior({
 
 function V2Player({
   motionRef,
+  traversalRef,
   animationState,
   motionReduced,
   equipmentVisual,
@@ -176,6 +182,7 @@ function V2Player({
   lightRadius,
 }: {
   motionRef: MotionRef;
+  traversalRef?: TraversalRef;
   animationState: World3DProps["animationState"];
   motionReduced: boolean;
   equipmentVisual: EquipmentVisual;
@@ -195,7 +202,7 @@ function V2Player({
       Number.isFinite(motion.velocityX) ? motion.velocityX : 0,
       Number.isFinite(motion.velocityY) ? motion.velocityY : 0,
     );
-    rootRef.current.position.set(x, 0, z);
+    rootRef.current.position.set(x, traversalRef?.current.jumpHeight ?? 0, z);
     rootRef.current.rotation.y = motion.facing < 0 ? Math.PI : 0;
     if (dustRef.current) {
       const running = !motionReduced && speed > 3.3;
@@ -462,19 +469,19 @@ function V2Gate({ motionRef }: { motionRef: MotionRef }) {
     <group ref={rootRef} name="world-v2-gate">
       <mesh position={[-4.6, 2.45, 0]} castShadow>
         <cylinderGeometry args={[0.19, 0.32, 4.9, 8]} />
-        <meshStandardMaterial color="#9a8064" metalness={0.47} roughness={0.52} />
+        <meshStandardMaterial color="#87745c" metalness={0.43} roughness={0.61} />
       </mesh>
       <mesh position={[4.6, 2.45, 0]} castShadow>
         <cylinderGeometry args={[0.19, 0.32, 4.9, 8]} />
-        <meshStandardMaterial color="#9a8064" metalness={0.47} roughness={0.52} />
+        <meshStandardMaterial color="#87745c" metalness={0.43} roughness={0.61} />
       </mesh>
       <mesh position={[0, 4.75, 0]}>
         <boxGeometry args={[9.4, 0.42, 0.4]} />
-        <meshStandardMaterial color="#ad8b62" metalness={0.4} roughness={0.46} />
+        <meshStandardMaterial color="#9c805b" metalness={0.38} roughness={0.58} />
       </mesh>
       <mesh ref={ringRef} position={[0, 2.5, 0.22]}>
         <torusGeometry args={[1.62, 0.075, 10, 56]} />
-        <meshStandardMaterial color="#85efe5" emissive="#39d8ce" emissiveIntensity={0.8} toneMapped={false} />
+        <meshStandardMaterial color="#e4c48b" emissive="#b46d3d" emissiveIntensity={0.42} />
       </mesh>
       <Html position={[0, 5.3, 0]} center distanceFactor={20} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
         <span className="world-v2-gate-label">YENİ UFUK</span>
@@ -483,10 +490,145 @@ function V2Gate({ motionRef }: { motionRef: MotionRef }) {
   );
 }
 
+type RoadInstance = {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+};
+
+function makeRoadInstances(count: number, seed: number, kind: "rubble" | "cliff" | "ruin"): RoadInstance[] {
+  let value = seed >>> 0;
+  const random = () => {
+    value = (Math.imul(value, 1_664_525) + 1_013_904_223) >>> 0;
+    return value / 0xffff_ffff;
+  };
+  return Array.from({ length: count }, (_, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    if (kind === "cliff") {
+      return {
+        position: [side * (7.6 + random() * 2.2), 1.24, 104 - index * (count > 16 ? 8.8 : 12.6)] as [number, number, number],
+        rotation: [0.035, random() * Math.PI, side * 0.055] as [number, number, number],
+        scale: [1.8 + random() * 0.7, 2.8 + random() * 1.2, 1.7 + random() * 0.8] as [number, number, number],
+      };
+    }
+    if (kind === "ruin") {
+      const height = 1.2 + random() * 1.5;
+      const toppled = random() > 0.78;
+      return {
+        position: [
+          side * (5.15 + random() * 2.4),
+          toppled ? 0.28 : height * 0.5,
+          96 - index * (190 / Math.max(1, count - 1)),
+        ] as [number, number, number],
+        rotation: [toppled ? 0 : (random() - 0.5) * 0.12, random() * Math.PI, toppled ? (side * 0.9) : (random() - 0.5) * 0.12] as [number, number, number],
+        scale: toppled
+          ? [1.4 + random() * 0.7, 0.38 + random() * 0.12, 0.48 + random() * 0.18] as [number, number, number]
+          : [0.5 + random() * 0.22, height, 0.5 + random() * 0.18] as [number, number, number],
+      };
+    }
+    return {
+      position: [((index * 37) % 8) - 4, 0.06, 98 - index * 11] as [number, number, number],
+      rotation: [0, (index % 3) * 0.42, (random() - 0.5) * 0.18] as [number, number, number],
+      scale: [0.42 + random() * 0.3, 0.075 + random() * 0.04, 0.28 + random() * 0.2] as [number, number, number],
+    };
+  });
+}
+
+function applyRoadInstances(mesh: THREE.InstancedMesh | null, transforms: RoadInstance[]) {
+  if (!mesh) return;
+  const object = new THREE.Object3D();
+  transforms.forEach((transform, index) => {
+    object.position.set(...transform.position);
+    object.rotation.set(...transform.rotation);
+    object.scale.set(...transform.scale);
+    object.updateMatrix();
+    mesh.setMatrixAt(index, object.matrix);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function createRoadSurfaceGeometry() {
+  const columns = 10;
+  const rows = 100;
+  const width = 8.6;
+  const length = 220;
+  const positions = new Float32Array((columns + 1) * (rows + 1) * 3);
+  const colors = new Float32Array((columns + 1) * (rows + 1) * 3);
+  const indices: number[] = [];
+  const base = new THREE.Color("#493e40");
+  const warmWear = new THREE.Color("#715747");
+  for (let row = 0; row <= rows; row += 1) {
+    for (let column = 0; column <= columns; column += 1) {
+      const index = row * (columns + 1) + column;
+      const offset = index * 3;
+      const x = (column / columns - 0.5) * width;
+      const z = (row / rows - 0.5) * length;
+      positions[offset] = x;
+      positions[offset + 1] = 0;
+      positions[offset + 2] = z;
+      const broadWear = Math.max(0, 1 - Math.abs(x) / (width * 0.54));
+      const noise = ((row * 17 + column * 31 + row * column * 7) % 23) / 100;
+      const color = base.clone().lerp(warmWear, broadWear * 0.2).multiplyScalar(0.88 + noise);
+      colors[offset] = color.r;
+      colors[offset + 1] = color.g;
+      colors[offset + 2] = color.b;
+      if (row < rows && column < columns) {
+        const nextRow = index + columns + 1;
+        indices.push(index, nextRow, index + 1, index + 1, nextRow, nextRow + 1);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function V2Road({ motionRef, quality }: { motionRef: MotionRef; quality: World3DProps["quality"] }) {
   const rootRef = useRef<THREE.Group>(null);
   const stoneCount = quality === "high" ? 18 : quality === "balanced" ? 12 : 7;
   const cliffCount = quality === "high" ? 24 : quality === "balanced" ? 16 : 10;
+  const ruinCount = quality === "high" ? 18 : quality === "balanced" ? 12 : 7;
+  const rubbleRef = useRef<THREE.InstancedMesh>(null);
+  const cliffRef = useRef<THREE.InstancedMesh>(null);
+  const ruinRef = useRef<THREE.InstancedMesh>(null);
+  const roadGeometry = useMemo(() => createRoadSurfaceGeometry(), []);
+  const rubbleGeometry = useMemo(() => new THREE.DodecahedronGeometry(0.7, 0), []);
+  const cliffGeometry = useMemo(() => new THREE.ConeGeometry(1, 1, 6), []);
+  const ruinGeometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
+  const roadMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#ded0bb",
+    vertexColors: true,
+    roughness: 0.96,
+    metalness: 0,
+    flatShading: true,
+  }), []);
+  const rubbleMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#82705d",
+    roughness: 0.98,
+    flatShading: true,
+  }), []);
+  const cliffMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#544b49",
+    roughness: 1,
+    flatShading: true,
+  }), []);
+  const ruinMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#71605a",
+    roughness: 0.97,
+    metalness: 0,
+    flatShading: true,
+  }), []);
+  const rubbleInstances = useMemo(() => makeRoadInstances(stoneCount, 183, "rubble"), [stoneCount]);
+  const cliffInstances = useMemo(() => makeRoadInstances(cliffCount, 91, "cliff"), [cliffCount]);
+  const ruinInstances = useMemo(() => makeRoadInstances(ruinCount, 247, "ruin"), [ruinCount]);
+  useEffect(() => {
+    applyRoadInstances(rubbleRef.current, rubbleInstances);
+    applyRoadInstances(cliffRef.current, cliffInstances);
+    applyRoadInstances(ruinRef.current, ruinInstances);
+  }, [cliffInstances, rubbleInstances, ruinInstances]);
   useFrame(() => {
     const motion = motionRef.current;
     if (!rootRef.current) return;
@@ -500,47 +642,35 @@ function V2Road({ motionRef, quality }: { motionRef: MotionRef; quality: World3D
     <group ref={rootRef} name="world-v2-road">
       <mesh position={[0, -0.12, 0]} receiveShadow>
         <boxGeometry args={[13.2, 0.2, 220]} />
-        <meshStandardMaterial color="#43393b" roughness={0.96} />
+        <meshStandardMaterial color="#302d32" roughness={0.99} />
       </mesh>
-      <mesh position={[0, -0.015, 0]}>
-        <planeGeometry args={[8.6, 220]} />
-        <meshStandardMaterial color="#6b5348" roughness={0.92} metalness={0.02} />
+      <mesh geometry={roadGeometry} material={roadMaterial} position={[0, -0.012, 0]} receiveShadow={false} />
+      <instancedMesh ref={rubbleRef} args={[rubbleGeometry, rubbleMaterial, stoneCount]} frustumCulled={false} />
+      <instancedMesh ref={cliffRef} args={[cliffGeometry, cliffMaterial, cliffCount]} frustumCulled={false} castShadow={quality === "high"} receiveShadow={false} />
+      <instancedMesh ref={ruinRef} args={[ruinGeometry, ruinMaterial, ruinCount]} frustumCulled={false} castShadow={quality === "high"} receiveShadow={false} />
+      <mesh position={[0, 0.008, 0]}>
+        <boxGeometry args={[8.52, 0.025, 220]} />
+        <meshStandardMaterial color="#493e40" roughness={0.97} transparent opacity={0.25} />
       </mesh>
       {[-4.38, 4.38].map((x) => (
-        <mesh key={x} position={[x, 0.012, 0]}>
-          <boxGeometry args={[0.08, 0.025, 220]} />
-          <meshBasicMaterial color="#d5a36a" />
+        <mesh key={x} position={[x, 0.014, 0]}>
+          <boxGeometry args={[0.045, 0.018, 220]} />
+          <meshBasicMaterial color="#c09366" transparent opacity={0.46} />
         </mesh>
       ))}
       {[-2.4, 2.4].map((x) => (
-        <mesh key={x} position={[x, 0.012, 0]}>
+        <mesh key={x} position={[x, 0.014, 0]}>
           <boxGeometry args={[0.026, 0.018, 220]} />
-          <meshBasicMaterial color="#c39b73" transparent opacity={0.22} />
+          <meshBasicMaterial color="#d5b58a" transparent opacity={0.095} />
         </mesh>
       ))}
-      {Array.from({ length: stoneCount }, (_, index) => (
-        <mesh key={index} position={[((index * 37) % 8) - 4, 0.03, 98 - index * 11]} rotation={[0, (index % 3) * 0.42, 0]}>
-          <boxGeometry args={[0.3 + (index % 4) * 0.13, 0.035, 0.14]} />
-          <meshStandardMaterial color={index % 2 ? "#987c65" : "#857260"} roughness={0.98} />
-        </mesh>
-      ))}
-      {Array.from({ length: cliffCount }, (_, index) => {
-        const z = 104 - index * (quality === "high" ? 9 : 13);
-        return (
-          <group key={index} position={[index % 2 ? -7.7 : 7.7, 0, z]}>
-            <mesh position={[0, 1.3, 0]} rotation={[0.04, 0, index % 2 ? -0.06 : 0.06]}>
-              <coneGeometry args={[1.4 + (index % 3) * 0.2, 3.2 + (index % 4) * 0.35, 6]} />
-              <meshStandardMaterial color={index % 2 ? "#665249" : "#716050"} roughness={1} flatShading />
-            </mesh>
-          </group>
-        );
-      })}
     </group>
   );
 }
 
 export function WorldV2Travel({
   motionRef,
+  traversalRef,
   animationState,
   motionReduced,
   quality,
@@ -554,6 +684,7 @@ export function WorldV2Travel({
   lightRadius,
 }: Pick<World3DProps,
   | "motionRef"
+  | "traversalRef"
   | "animationState"
   | "motionReduced"
   | "quality"
@@ -633,6 +764,7 @@ export function WorldV2Travel({
       ))}
       <V2Player
         motionRef={motionRef}
+        traversalRef={traversalRef}
         animationState={animationState}
         motionReduced={motionReduced}
         equipmentVisual={equipmentVisual}
@@ -670,7 +802,7 @@ export function WorldV2DuelActor({
     hasMoved: false,
   });
   const renderedActor = combatRender?.[side];
-  useFrame(() => {
+  useFrame((_, delta) => {
     const actor = combatStateRef.current?.[side];
     if (!rootRef.current || !actor) return;
     actorMotionRef.current.depth = THREE.MathUtils.clamp(actor.x / 5.2, -1, 1);
@@ -681,7 +813,8 @@ export function WorldV2DuelActor({
     actorMotionRef.current.stepPhase = (combatStateRef.current?.tick ?? 0) * 0.13;
     actorMotionRef.current.hasMoved = Math.hypot(actor.vx, actor.vz) > 0.25;
     rootRef.current.position.set(actor.x, 0, actor.z);
-    rootRef.current.rotation.y = actor.yaw;
+    const targetYaw = getCharacterRootYawForModel(actor.yaw, WARRIOR_MODEL_FORWARD_OFFSET);
+    rootRef.current.rotation.y = dampCharacterYaw(rootRef.current.rotation.y, targetYaw, 18, Math.min(delta, 0.05));
   });
   if (!renderedActor) return null;
   const action = String(renderedActor.action);
