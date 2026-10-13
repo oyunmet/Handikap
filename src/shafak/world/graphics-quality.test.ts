@@ -62,6 +62,7 @@ test("shadow maps stay within the quality budget and scale with device DPR", () 
 
 test("world shadows are disabled on touch renderers regardless of selected quality", () => {
   assert.equal(shouldEnableWorldShadows("high"), true);
+  assert.equal(shouldEnableWorldShadows("balanced", true), false);
   assert.equal(shouldEnableWorldShadows("high", true), false);
   assert.equal(shouldEnableWorldShadows("low"), false);
 });

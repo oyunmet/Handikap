@@ -216,9 +216,19 @@ function CanvasContextGuard({
   onLost: () => void;
 }) {
   const { gl } = useThree();
+  const contextCheckElapsedRef = useRef(0);
+  useFrame((_, delta) => {
+    contextCheckElapsedRef.current += delta;
+    if (contextCheckElapsedRef.current < 1) return;
+    contextCheckElapsedRef.current = 0;
+    if (gl.getContext().isContextLost()) onLost();
+  }, -1);
   useEffect(() => {
     const canvas = gl.domElement;
-    const handleLost = () => onLost();
+    const handleLost = (event: Event) => {
+      event.preventDefault();
+      onLost();
+    };
     canvas.addEventListener("webglcontextlost", handleLost);
     return () => {
       canvas.removeEventListener("webglcontextlost", handleLost);
@@ -300,18 +310,20 @@ function ProceduralEnvironment() {
 function RendererEffects({
   quality,
   visualEffectsEnabled,
+  touchRenderer,
 }: {
   quality: WorldQuality;
   visualEffectsEnabled: boolean;
+  touchRenderer: boolean;
 }) {
   const { gl } = useThree();
   useEffect(() => {
     gl.toneMapping = visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
     gl.toneMappingExposure = visualEffectsEnabled ? 1.12 : 1;
-    gl.shadowMap.enabled = quality !== "low";
+    gl.shadowMap.enabled = shouldEnableWorldShadows(quality, touchRenderer);
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
-    gl.shadowMap.needsUpdate = true;
-  }, [gl, quality, visualEffectsEnabled]);
+    gl.shadowMap.needsUpdate = gl.shadowMap.enabled;
+  }, [gl, quality, touchRenderer, visualEffectsEnabled]);
   return null;
 }
 
@@ -1208,9 +1220,13 @@ function SceneContents({
     <>
       <ProceduralEnvironment />
       <SceneFog motionRef={motionRef} weatherMode={weatherMode} combatActive={combatActive} />
-      <RendererEffects quality={quality} visualEffectsEnabled={visualEffectsEnabled} />
+      <RendererEffects
+        quality={quality}
+        visualEffectsEnabled={visualEffectsEnabled}
+        touchRenderer={touchRenderer}
+      />
       <color attach="background" args={[combatActive ? "#46353e" : "#252330"]} />
-      <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.62]} />
+      <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.82]} />
       {combatActive && <ambientLight color="#ffdbb3" intensity={1.25} />}
       <directionalLight
         position={[-8, 14, 8]}

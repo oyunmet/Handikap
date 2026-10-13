@@ -930,8 +930,30 @@ function FinalGate({
       </mesh>
       <mesh position={[0, 5.1, 0.06]} visible={!gateOpen}>
         <boxGeometry args={[9.2, 8.2, 0.7]} />
-        <meshStandardMaterial color="#1b1a22" emissive="#713f37" emissiveIntensity={0.14} roughness={0.86} />
+        <meshBasicMaterial
+          color="#8a5351"
+          transparent
+          opacity={0.2}
+          depthWrite={false}
+          toneMapped={false}
+        />
       </mesh>
+      {!gateOpen && (
+        <group position={[0, 5.1, 0.52]}>
+          {[-3.6, -1.8, 0, 1.8, 3.6].map((x) => (
+            <mesh key={`gate-bar-v-${x}`} position={[x, 0, 0]}>
+              <boxGeometry args={[0.13, 7.4, 0.12]} />
+              <meshBasicMaterial color="#f0a06c" transparent opacity={0.72} depthWrite={false} toneMapped={false} />
+            </mesh>
+          ))}
+          {[-2.4, 0, 2.4].map((y) => (
+            <mesh key={`gate-bar-h-${y}`} position={[0, y, 0]}>
+              <boxGeometry args={[8.9, 0.12, 0.12]} />
+              <meshBasicMaterial color="#f0a06c" transparent opacity={0.72} depthWrite={false} toneMapped={false} />
+            </mesh>
+          ))}
+        </group>
+      )}
       <mesh ref={flareRef} position={[0, 5.1, 0.48]}>
         <planeGeometry args={[8.4, 7.3]} />
         <meshBasicMaterial color="#f29a62" transparent opacity={0.15} depthWrite={false} />
