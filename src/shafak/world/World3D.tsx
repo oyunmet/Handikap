@@ -32,7 +32,7 @@ import {
   getWorldRenderPixelRatio,
   shouldEnableWorldShadows,
 } from "./graphics-quality";
-import { getTravelCameraSettings } from "./camera-settings";
+import { getTravelCameraSettings, WORLD_CAMERA_FAR, WORLD_CAMERA_NEAR } from "./camera-settings";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -448,8 +448,8 @@ function CameraRig({
       makeDefault
       position={[0, 4.15, touchRenderer ? 6.5 : 10.2]}
       fov={54}
-      near={0.6}
-      far={190}
+      near={WORLD_CAMERA_NEAR}
+      far={WORLD_CAMERA_FAR}
     />
   );
 }
@@ -1418,7 +1418,12 @@ export default function World3D(props: World3DProps) {
           <Canvas
             dpr={[minDpr, maxDpr]}
             shadows={shouldEnableWorldShadows(props.quality, touchRenderer)}
-            camera={{ position: [0, 4.15, 10.2], fov: 54, near: 0.6, far: 190 }}
+            camera={{
+              position: [0, 4.15, 10.2],
+              fov: 54,
+              near: WORLD_CAMERA_NEAR,
+              far: WORLD_CAMERA_FAR,
+            }}
             gl={{
               alpha: false,
               antialias: false,

@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getTravelCameraSettings } from "./camera-settings.ts";
+import {
+  getTravelCameraSettings,
+  WORLD_CAMERA_FAR,
+  WORLD_SKY_RADIUS,
+} from "./camera-settings.ts";
+
+test("world camera clipping range contains the sky and the procedural star field", () => {
+  const farthestStarDistance = Math.hypot(230 + 40 + 10.2, 0.96 * 165 - 4.15);
+
+  assert.ok(WORLD_CAMERA_FAR > WORLD_SKY_RADIUS);
+  assert.ok(WORLD_CAMERA_FAR > farthestStarDistance);
+});
 
 test("mobile travel camera keeps the same framing while stopped and running", () => {
   assert.deepEqual(

@@ -7,6 +7,10 @@ export type TravelCameraSettings = {
   runShake: number;
 };
 
+export const WORLD_CAMERA_NEAR = 0.6;
+export const WORLD_SKY_RADIUS = 260;
+export const WORLD_CAMERA_FAR = WORLD_SKY_RADIUS + 80;
+
 export function getTravelCameraSettings(speed: number, touchRenderer: boolean): TravelCameraSettings {
   const safeSpeed = Number.isFinite(speed) ? Math.min(7, Math.max(0, speed)) : 0;
   if (touchRenderer) {

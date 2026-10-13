@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
-import { getTravelCameraSettings } from "./camera-settings";
+import { getTravelCameraSettings, WORLD_SKY_RADIUS } from "./camera-settings";
 import { nextGateDistanceForCamera } from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
@@ -572,7 +572,7 @@ function CrystalProp({ object }: { object: WorldObject }) {
 }
 
 function createSkyGeometry() {
-  const geometry = new THREE.SphereGeometry(260, 32, 16);
+  const geometry = new THREE.SphereGeometry(WORLD_SKY_RADIUS, 32, 16);
   const positions = geometry.getAttribute("position");
   const colors = new Float32Array(positions.count * 3);
   const horizon = new THREE.Color("#a05d4d");
@@ -596,7 +596,12 @@ function createSkyGeometry() {
 }
 
 const SKY_GEOMETRY = createSkyGeometry();
-const SKY_MATERIAL = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, toneMapped: false });
+const SKY_MATERIAL = new THREE.MeshBasicMaterial({
+  vertexColors: true,
+  side: THREE.BackSide,
+  toneMapped: false,
+  fog: false,
+});
 
 function createStarGeometry() {
   const random = seededRandom(0x87a4c2);
