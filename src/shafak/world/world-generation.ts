@@ -158,6 +158,12 @@ export function nextGateDistance(distance: number) {
   return (Math.floor(safeDistance / WORLD_GATE_INTERVAL_METERS) + 1) * WORLD_GATE_INTERVAL_METERS;
 }
 
+export function nextGateDistanceForCamera(cameraX: number, distanceBehind: number) {
+  const safeCameraX = Number.isFinite(cameraX) ? Math.max(0, cameraX) : 0;
+  const safeDistanceBehind = Number.isFinite(distanceBehind) ? Math.max(0, distanceBehind) : 0;
+  return nextGateDistance(Math.max(0, safeCameraX - safeDistanceBehind));
+}
+
 function parallaxFor(kind: WorldObjectKind) {
   if (kind === "tower" || kind === "ruin" || kind === "arch") return 0.42;
   if (kind === "tree") return 0.58;

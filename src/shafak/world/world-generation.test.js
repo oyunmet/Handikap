@@ -4,6 +4,7 @@ import {
   createWorldChunk,
   getVisibleWorldChunks,
   nextGateDistance,
+  nextGateDistanceForCamera,
 } from "./world-generation.ts";
 
 test("world chunks are deterministic for a seed and vary between seeds", () => {
@@ -63,4 +64,11 @@ test("the next gate remains ahead and advances by chapter interval", () => {
   assert.equal(nextGateDistance(0), 144);
   assert.equal(nextGateDistance(143.9), 144);
   assert.equal(nextGateDistance(144), 288);
+});
+
+test("the rendered gate stays until the trailing camera has cleared it", () => {
+  assert.equal(nextGateDistanceForCamera(292, 6.5), 288);
+  assert.equal(nextGateDistanceForCamera(294.5, 6.5), 432);
+  assert.equal(nextGateDistanceForCamera(298.1, 10.2), 288);
+  assert.equal(nextGateDistanceForCamera(298.2, 10.2), 432);
 });

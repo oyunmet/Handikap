@@ -4,7 +4,8 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
-import { nextGateDistance } from "./world-generation";
+import { getTravelCameraSettings } from "./camera-settings";
+import { nextGateDistanceForCamera } from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import type { WorldQuality } from "./World3D";
@@ -815,6 +816,7 @@ export function WorldChunks({
   quality,
   weather,
   unlockedThroughChapter,
+  touchRenderer,
 }: {
   chunks: WorldChunk[];
   motionRef: MotionRef;
@@ -822,6 +824,7 @@ export function WorldChunks({
   quality: WorldQuality;
   weather: WeatherMode;
   unlockedThroughChapter: number;
+  touchRenderer: boolean;
 }) {
   const objects = useMemo(() => chunks.flatMap((chunk) => chunk.objects), [chunks]);
   const staticLodChunk = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS);
@@ -853,7 +856,11 @@ export function WorldChunks({
           motionReduced={motionReduced}
         />
       ))}
-      <FinalGate motionRef={motionRef} unlockedThroughChapter={unlockedThroughChapter} />
+      <FinalGate
+        motionRef={motionRef}
+        unlockedThroughChapter={unlockedThroughChapter}
+        touchRenderer={touchRenderer}
+      />
       <group position={[0, 1.4, -12]} visible={weather !== "clear"}>
         <Sparkles
           count={quality === "high" ? 48 : quality === "balanced" ? 30 : 12}
@@ -872,22 +879,30 @@ export function WorldChunks({
 function FinalGate({
   motionRef,
   unlockedThroughChapter,
+  touchRenderer,
 }: {
   motionRef: MotionRef;
   unlockedThroughChapter: number;
+  touchRenderer: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const flareRef = useRef<THREE.Mesh>(null);
-  const gateDistanceAtRender = nextGateDistance(motionRef.current.distance);
+  const getCurrentGateDistance = () => {
+    const motion = motionRef.current;
+    const speed = Math.hypot(motion.velocityX, motion.velocityY);
+    const cameraDistanceBehind = getTravelCameraSettings(speed, touchRenderer).distanceBehind;
+    return nextGateDistanceForCamera(motion.cameraX, cameraDistanceBehind);
+  };
+  const gateDistanceAtRender = getCurrentGateDistance();
   const gateChapterAtRender = Math.max(0, Math.floor(gateDistanceAtRender / WORLD_GATE_INTERVAL_METERS) - 1);
   const gateOpen = gateChapterAtRender < unlockedThroughChapter;
   useFrame((frame) => {
     if (!groupRef.current) return;
-    const distance = motionRef.current.distance;
-    const gateDistance = nextGateDistance(distance);
+    const motion = motionRef.current;
+    const gateDistance = getCurrentGateDistance();
     const gateChapterId = Math.max(0, Math.floor(gateDistance / WORLD_GATE_INTERVAL_METERS) - 1);
     const gateIsOpen = gateChapterId < unlockedThroughChapter;
-    groupRef.current.position.z = -(gateDistance - distance);
+    groupRef.current.position.z = motion.cameraX - gateDistance;
     if (flareRef.current) {
       const material = flareRef.current.material as THREE.MeshBasicMaterial;
       material.color.set(gateIsOpen ? "#79e2b7" : "#f29a62");
@@ -897,7 +912,10 @@ function FinalGate({
     }
   });
   return (
-      <group ref={groupRef} position={[0, 0, -WORLD_GATE_INTERVAL_METERS]}>
+      <group
+        ref={groupRef}
+        position={[0, 0, motionRef.current.cameraX - gateDistanceAtRender]}
+      >
       <mesh position={[-6.2, 5.2, 0]}>
         <boxGeometry args={[2.3, 10.4, 2.2]} />
         <meshStandardMaterial color="#55464a" roughness={0.94} flatShading />

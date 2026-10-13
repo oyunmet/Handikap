@@ -1260,6 +1260,7 @@ function SceneContents({
             quality={quality}
             weather={weatherMode}
             unlockedThroughChapter={unlockedThroughChapter}
+            touchRenderer={touchRenderer}
           />
         </group>
       )}
