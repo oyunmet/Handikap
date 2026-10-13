@@ -1,7 +1,7 @@
 import {
   WORLD_METERS_TO_PIXELS,
 } from "./movement";
-import { calculateWorldLightRadius } from "./world-lighting-model";
+import { calculateWorldLightRadius, WORLD_LIGHTING_DARKNESS_ALPHA } from "./world-lighting-model";
 import {
   fillWorldObjects,
   getVisibleWorldChunks,
@@ -354,7 +354,7 @@ function drawLighting(
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
   context.globalCompositeOperation = "source-over";
-  context.fillStyle = "rgba(3,5,12,.8)";
+  context.fillStyle = `rgba(3,5,12,${WORLD_LIGHTING_DARKNESS_ALPHA})`;
   context.fillRect(0, 0, width, height);
   context.globalCompositeOperation = "destination-out";
   paintMask(context, playerX, footY - height * .09, radius * .62, .92);

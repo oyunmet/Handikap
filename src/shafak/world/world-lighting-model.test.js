@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateWorldLightRadius } from "./world-lighting-model.ts";
+import {
+  calculateWorldLightRadius,
+  WORLD_LIGHTING_DARKNESS_ALPHA,
+} from "./world-lighting-model.ts";
+
+test("global lighting cannot black out the world", () => {
+  assert.ok(WORLD_LIGHTING_DARKNESS_ALPHA > 0);
+  assert.ok(WORLD_LIGHTING_DARKNESS_ALPHA <= 0.15);
+});
 
 test("character levels and collected relics increase the light radius", () => {
   const base = calculateWorldLightRadius(400, 1, 0);

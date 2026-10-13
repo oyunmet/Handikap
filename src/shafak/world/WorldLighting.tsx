@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { WORLD_METERS_TO_PIXELS, type WorldMotion } from "./movement";
-import { calculateWorldLightRadius } from "./world-lighting-model";
+import { calculateWorldLightRadius, WORLD_LIGHTING_DARKNESS_ALPHA } from "./world-lighting-model";
 import {
   fillWorldObjects,
   getVisibleWorldChunks,
@@ -89,7 +89,7 @@ export default function WorldLighting({
       context.setTransform(resolution, 0, 0, resolution, 0, 0);
       context.clearRect(0, 0, width, height);
       context.globalCompositeOperation = "source-over";
-      context.fillStyle = "rgba(3,5,12,.82)";
+      context.fillStyle = `rgba(3,5,12,${WORLD_LIGHTING_DARKNESS_ALPHA})`;
       context.fillRect(0, 0, width, height);
 
       context.globalCompositeOperation = "destination-out";
