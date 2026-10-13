@@ -68,27 +68,12 @@
   display: grid; width: min(100% - 32px, 420px); justify-items: center; gap: 18px;
   padding: 22px; line-height: 1.7;
 }
-.world-three-fallback__content button,
-.world-three-recovery button {
+.world-three-fallback__content button {
   min-height: 48px; padding: 10px 16px; border: 1px solid rgba(235,198,126,.58);
   border-radius: 4px; background: rgba(105,72,41,.8); color: #fff0d0; cursor: pointer;
   font-size: 10px; font-weight: 800; letter-spacing: .13em;
 }
-.world-three-fallback__content button:hover,
-.world-three-recovery button:hover { background: rgba(145,98,52,.9); }
-.world-three-recovery {
-  position: absolute; z-index: 8; inset: 0; display: grid; place-items: center;
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  background: rgba(8,10,15,.84); color: #f3dfbd; pointer-events: auto;
-}
-.world-three-recovery > div {
-  display: grid; width: min(100%, 420px); justify-items: center; gap: 14px;
-  padding: 26px; border: 1px solid rgba(226,190,125,.42); border-radius: 5px;
-  background: linear-gradient(145deg, #29252a, #12151c); text-align: center;
-}
-.world-three-recovery strong { font: 600 22px var(--font-display, Georgia, serif); }
-.world-three-recovery span { color: rgba(235,222,198,.75); font-size: 12px; line-height: 1.7; }
+.world-three-fallback__content button:hover { background: rgba(145,98,52,.9); }
 .world-debug {
   position: absolute; z-index: 9; top: 143px; right: 12px; display: grid; gap: 4px;
   max-width: min(300px, calc(100vw - 24px)); padding: 8px 10px;

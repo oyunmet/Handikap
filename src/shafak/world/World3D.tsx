@@ -212,26 +212,18 @@ class WorldCanvasErrorBoundary extends Component<
 
 function CanvasContextGuard({
   onLost,
-  onRestored,
 }: {
   onLost: () => void;
-  onRestored: () => void;
 }) {
   const { gl } = useThree();
   useEffect(() => {
     const canvas = gl.domElement;
-    const handleLost = (event: Event) => {
-      event.preventDefault();
-      onLost();
-    };
-    const handleRestored = () => onRestored();
+    const handleLost = () => onLost();
     canvas.addEventListener("webglcontextlost", handleLost);
-    canvas.addEventListener("webglcontextrestored", handleRestored);
     return () => {
       canvas.removeEventListener("webglcontextlost", handleLost);
-      canvas.removeEventListener("webglcontextrestored", handleRestored);
     };
-  }, [gl, onLost, onRestored]);
+  }, [gl, onLost]);
   return null;
 }
 
@@ -1311,7 +1303,6 @@ function isDebugEnabled() {
 export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
-  const [contextLost, setContextLost] = useState(false);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const autoRecoveryAttemptsRef = useRef(0);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
@@ -1344,7 +1335,6 @@ export default function World3D(props: World3DProps) {
   const minDpr = Math.min(1, maxDpr);
   const retryWebGL = useCallback(() => {
     autoRecoveryAttemptsRef.current = 0;
-    setContextLost(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
@@ -1352,7 +1342,6 @@ export default function World3D(props: World3DProps) {
     if (autoRecoveryAttemptsRef.current >= 1) return;
     autoRecoveryAttemptsRef.current += 1;
     window.setTimeout(() => {
-      setContextLost(false);
       setWebglAvailable(null);
       setCanvasAttempt((attempt) => attempt + 1);
     }, 500);
@@ -1373,11 +1362,11 @@ export default function World3D(props: World3DProps) {
       onRetry={retryWebGL}
     />
   );
-  const markContextLost = useCallback(() => setContextLost(true), []);
-  const rebuildRestoredContext = useCallback(() => {
-    setContextLost(false);
-    setWebglAvailable(null);
-    setCanvasAttempt((attempt) => attempt + 1);
+  const markContextLost = useCallback(() => {
+    // Mobile Safari can keep the game loop alive after the GPU context is lost.
+    // Unmount the unusable WebGL canvas immediately so the playable 2D world
+    // replaces the otherwise-black frame without waiting for a manual retry.
+    setWebglAvailable(false);
   }, []);
 
   useEffect(() => {
@@ -1428,7 +1417,7 @@ export default function World3D(props: World3DProps) {
             }}
             fallback={fallback}
           >
-            <CanvasContextGuard onLost={markContextLost} onRestored={rebuildRestoredContext} />
+            <CanvasContextGuard onLost={markContextLost} />
             <SceneContents
               {...props}
               touchRenderer={touchRenderer}
@@ -1440,15 +1429,6 @@ export default function World3D(props: World3DProps) {
         </WorldCanvasErrorBoundary>
       ) : (
         fallback
-      )}
-      {contextLost && (
-        <div className="world-three-recovery" role="alert">
-          <div>
-            <strong>3D sahne durakladı</strong>
-            <span>Grafik bağlamı kesildi. Sahneyi yeniden yükleyip devam edebilirsin.</span>
-            <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
-          </div>
-        </div>
       )}
       {debugEnabled && (
         <aside className="world-debug" aria-label="3D dünya hata ayıklama bilgileri">
