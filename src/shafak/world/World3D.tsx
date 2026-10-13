@@ -10,7 +10,6 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import { WORLD_CHUNK_LENGTH_METERS, type WorldMotion } from "./movement";
-import World2DFallback from "./World2DFallback";
 import { nextGateDistance } from "./world-generation";
 import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
@@ -1056,12 +1055,14 @@ function SceneContents({
   onDebugStats,
   performanceMonitorEnabled,
   onPerformanceStats,
+  onBlackFrame,
   debugEnabled,
   touchRenderer,
 }: World3DProps & {
   touchRenderer: boolean;
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
+  onBlackFrame: () => void;
   debugEnabled: boolean;
 }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
@@ -1245,7 +1246,9 @@ function SceneContents({
         shadow-bias={-0.0002}
         shadow-normalBias={0.025}
       />
-      {visualEffectsEnabled && quality !== "low" && !touchRenderer && <WorldPostProcessing quality={quality} />}
+      {visualEffectsEnabled && quality !== "low" && !touchRenderer && (
+        <WorldPostProcessing quality={quality} onBlackFrame={onBlackFrame} />
+      )}
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -1393,24 +1396,16 @@ export default function World3D(props: World3DProps) {
     }, 500);
   }, []);
   const fallback = (
-    <World2DFallback
-      motionRef={props.motionRef}
-      combatStateRef={props.combatStateRef}
-      rivals={props.rivals}
-      pickups={props.pickups}
-      obstacles={props.obstacles}
-      collectedPickupIds={props.collectedPickupIds}
-      brokenObstacleIds={props.brokenObstacleIds}
-      defeatedOpponentIds={props.defeatedOpponentIds}
-      combatActive={props.combatActive}
-      opponentName={props.opponentName}
-      playerName={props.playerName}
-      onRetry={retryWebGL}
-    />
+    <div className="world-three-fallback" role="alert">
+      <div className="world-three-fallback__content">
+        <p>3D dünya şu anda çizilemedi. Sahneyi yeniden oluşturmayı deneyin.</p>
+        <button type="button" onClick={retryWebGL}>3D DÜNYAYI YENİDEN OLUŞTUR</button>
+      </div>
+    </div>
   );
   const markContextLost = useCallback(() => {
-    // Recreate the 3D renderer before falling back; repeated failures lower
-    // render cost, and the 2D scene remains the emergency path.
+    // Recreate the 3D renderer before showing a retry prompt; repeated
+    // failures lower render cost without switching to a 2D scene.
     recoverBlackCanvas();
   }, [recoverBlackCanvas]);
 
@@ -1477,6 +1472,7 @@ export default function World3D(props: World3DProps) {
               debugEnabled={debugEnabled}
               onDebugStats={setDebugStats}
               onPerformanceStats={setPerformanceStats}
+              onBlackFrame={recoverBlackCanvas}
             />
           </Canvas>
         </WorldCanvasErrorBoundary>

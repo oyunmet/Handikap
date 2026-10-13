@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
@@ -6,6 +6,13 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import * as THREE from "three";
+import { analyzeWorldProbePixels, isLikelyBlackWorldFrame } from "./world-screen-probe";
+
+const OUTPUT_PROBE_WIDTH = 8;
+const OUTPUT_PROBE_HEIGHT = 4;
+const OUTPUT_PROBE_INTERVAL_MS = 1_200;
+const OUTPUT_PROBE_WARMUP_MS = 2_500;
+const OUTPUT_BLACK_SAMPLES_TO_RECOVER = 3;
 
 const VignetteGrainShader = {
   uniforms: {
@@ -45,8 +52,20 @@ type Pipeline = {
   bloomPass: UnrealBloomPass;
 };
 
-function ComposerOutput({ pipeline }: { pipeline: Pipeline }) {
-  const { size } = useThree();
+function ComposerOutput({
+  pipeline,
+  onBlackFrame,
+}: {
+  pipeline: Pipeline;
+  onBlackFrame: () => void;
+}) {
+  const { size, gl } = useThree();
+  const startedAtRef = useRef(0);
+  const lastProbeAtRef = useRef(0);
+  const blackSamplesRef = useRef(0);
+  const recoveryRequestedRef = useRef(false);
+  const probeDisabledRef = useRef(false);
+  const pixels = useMemo(() => new Uint8Array(OUTPUT_PROBE_WIDTH * OUTPUT_PROBE_HEIGHT * 4), []);
 
   useEffect(() => {
     pipeline.composer.setSize(size.width, size.height);
@@ -55,12 +74,57 @@ function ComposerOutput({ pipeline }: { pipeline: Pipeline }) {
   useFrame((state, delta) => {
     pipeline.filmPass.uniforms.uTime.value = state.clock.elapsedTime;
     pipeline.composer.render(Math.min(delta, 0.05));
+    const now = performance.now();
+    if (!startedAtRef.current) startedAtRef.current = now;
+    if (
+      probeDisabledRef.current
+      || recoveryRequestedRef.current
+      || document.visibilityState === "hidden"
+      || delta > 0.25
+      || now - startedAtRef.current < OUTPUT_PROBE_WARMUP_MS
+      || now - lastProbeAtRef.current < OUTPUT_PROBE_INTERVAL_MS
+    ) return;
+    lastProbeAtRef.current = now;
+
+    try {
+      const context = gl.getContext();
+      if (gl.domElement.width < OUTPUT_PROBE_WIDTH || gl.domElement.height < OUTPUT_PROBE_HEIGHT) {
+        return;
+      }
+      const centerX = Math.floor(gl.domElement.width / 2);
+      const centerY = Math.floor(gl.domElement.height / 2);
+      context.readPixels(
+        Math.max(0, centerX - Math.floor(OUTPUT_PROBE_WIDTH / 2)),
+        Math.max(0, centerY - Math.floor(OUTPUT_PROBE_HEIGHT / 2)),
+        OUTPUT_PROBE_WIDTH,
+        OUTPUT_PROBE_HEIGHT,
+        context.RGBA,
+        context.UNSIGNED_BYTE,
+        pixels,
+      );
+
+      const isBlack = isLikelyBlackWorldFrame(analyzeWorldProbePixels(pixels));
+      blackSamplesRef.current = isBlack ? blackSamplesRef.current + 1 : 0;
+      if (blackSamplesRef.current >= OUTPUT_BLACK_SAMPLES_TO_RECOVER) {
+        recoveryRequestedRef.current = true;
+        onBlackFrame();
+      }
+    } catch (error) {
+      probeDisabledRef.current = true;
+      console.warn("[world] Final 3D output sampling failed; post-processing will continue.", error);
+    }
   }, 1);
 
   return null;
 }
 
-export default function WorldPostProcessing({ quality }: { quality: "high" | "balanced" | "low" }) {
+export default function WorldPostProcessing({
+  quality,
+  onBlackFrame,
+}: {
+  quality: "high" | "balanced" | "low";
+  onBlackFrame: () => void;
+}) {
   const { gl, scene, camera } = useThree();
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
 
@@ -94,5 +158,5 @@ export default function WorldPostProcessing({ quality }: { quality: "high" | "ba
     };
   }, [camera, gl, quality, scene]);
 
-  return pipeline ? <ComposerOutput pipeline={pipeline} /> : null;
+  return pipeline ? <ComposerOutput pipeline={pipeline} onBlackFrame={onBlackFrame} /> : null;
 }
