@@ -6,7 +6,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import * as THREE from "three";
-import { analyzeWorldProbePixels, isLikelyBlackWorldFrame } from "./world-screen-probe";
+import { analyzeWorldProbePixels, shouldRecoverWorldFrame } from "./world-screen-probe";
 
 const OUTPUT_PROBE_WIDTH = 8;
 const OUTPUT_PROBE_HEIGHT = 4;
@@ -103,8 +103,11 @@ function ComposerOutput({
         pixels,
       );
 
-      const isBlack = isLikelyBlackWorldFrame(analyzeWorldProbePixels(pixels));
-      blackSamplesRef.current = isBlack ? blackSamplesRef.current + 1 : 0;
+      const needsRecovery = shouldRecoverWorldFrame(
+        analyzeWorldProbePixels(pixels),
+        gl.info.render.calls,
+      );
+      blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
       if (blackSamplesRef.current >= OUTPUT_BLACK_SAMPLES_TO_RECOVER) {
         recoveryRequestedRef.current = true;
         onBlackFrame();

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { analyzeWorldProbePixels, isLikelyBlackWorldFrame } from "./world-screen-probe";
+import { analyzeWorldProbePixels, shouldRecoverWorldFrame } from "./world-screen-probe";
 
 const PROBE_WIDTH = 8;
 const PROBE_HEIGHT = 4;
@@ -60,6 +60,7 @@ export default function WorldBlackFrameProbe({
     const previousAutoClear = gl.autoClear;
     const previousClearColor = new THREE.Color();
     const previousClearAlpha = gl.getClearAlpha();
+    const worldDrawCalls = gl.info.render.calls;
     gl.getViewport(previousViewport);
     gl.getScissor(previousScissor);
     gl.getClearColor(previousClearColor);
@@ -73,8 +74,8 @@ export default function WorldBlackFrameProbe({
       gl.render(scene, camera);
       gl.readRenderTargetPixels(target, 0, 0, PROBE_WIDTH, PROBE_HEIGHT, pixels);
 
-      const isBlack = isLikelyBlackWorldFrame(analyzeWorldProbePixels(pixels));
-      blackSamplesRef.current = isBlack ? blackSamplesRef.current + 1 : 0;
+      const needsRecovery = shouldRecoverWorldFrame(analyzeWorldProbePixels(pixels), worldDrawCalls);
+      blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
       if (blackSamplesRef.current >= BLACK_SAMPLES_TO_RECOVER) {
         recoveryRequestedRef.current = true;
         onBlackFrame();

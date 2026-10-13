@@ -68,12 +68,14 @@
 .world-debug {
   position: absolute; z-index: 9; top: 143px; right: 12px; display: grid; gap: 4px;
   max-width: min(300px, calc(100vw - 24px)); padding: 8px 10px;
+  max-height: min(62vh, 520px); overflow: auto;
   border: 1px solid rgba(235,198,126,.4); border-radius: 4px;
   background: rgba(8,10,16,.84); color: #eaddc6;
   font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
   box-shadow: 0 8px 28px rgba(0,0,0,.28); pointer-events: auto;
 }
 .world-debug b { color: #f1cd82; letter-spacing: .12em; }
+.world-debug span { overflow-wrap: anywhere; }
 .world-performance {
   position: absolute;
   z-index: 9;

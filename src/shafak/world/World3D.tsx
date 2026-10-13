@@ -156,11 +156,19 @@ function DuelModelShaderWarmup() {
   );
 }
 
-class WarmupErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class WarmupErrorBoundary extends Component<
+  { children: ReactNode; onError?: (error: Error) => void },
+  { failed: boolean }
+> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[shafak-world] Duel model asset failed to load.", error);
+    this.props.onError?.(error);
   }
 
   render() {
@@ -185,10 +193,95 @@ type DebugStats = {
   animation: CharacterAnimationState;
   footSlip: number;
   chunks: number;
+  cameraX: number;
+  cameraY: number;
+  cameraZ: number;
+  cameraNear: number;
+  cameraFar: number;
+  fogColor: string;
+  fogDensity: string;
+  background: string;
+  lights: number;
+  lightIntensity: number;
+  sceneChildren: number;
+  visibleMeshes: number;
+  totalMeshes: number;
+  coordinatesFinite: boolean;
+  contextLost: boolean;
+  shaderErrors: number;
+  assetError: string;
+  runtimeError: string;
+  safeRecoveryMode: boolean;
 };
 
+type RenderOverrides = {
+  disableFog: boolean;
+  boostAmbientLight: boolean;
+  disableFrustumCulling: boolean;
+};
+
+type RuntimeDiagnostics = {
+  shaderErrors: number;
+  lastAssetError: string;
+  lastRuntimeError: string;
+  contextLost: boolean;
+};
+
+function isEffectivelyVisible(object: THREE.Object3D) {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (!current.visible) return false;
+    current = current.parent;
+  }
+  return true;
+}
+
+function getSceneDiagnostics(scene: THREE.Scene, camera: THREE.Camera) {
+  const perspectiveCamera = camera as THREE.PerspectiveCamera;
+  let lights = 0;
+  let lightIntensity = 0;
+  let totalMeshes = 0;
+  let visibleMeshes = 0;
+  scene.traverse((object) => {
+    if (object instanceof THREE.Light && isEffectivelyVisible(object)) {
+      lights += 1;
+      lightIntensity += object.intensity;
+    }
+    if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Line) {
+      totalMeshes += 1;
+      if (isEffectivelyVisible(object)) visibleMeshes += 1;
+    }
+  });
+
+  const background = scene.background instanceof THREE.Color
+    ? `#${scene.background.getHexString()}`
+    : scene.background?.constructor.name ?? "yok";
+  const fog = scene.fog;
+  const fogDensity = !fog
+    ? "kapalı"
+    : fog instanceof THREE.FogExp2
+      ? fog.density.toFixed(4)
+      : `${fog.near.toFixed(1)}–${fog.far.toFixed(1)}`;
+
+  return {
+    cameraX: camera.position.x,
+    cameraY: camera.position.y,
+    cameraZ: camera.position.z,
+    cameraNear: perspectiveCamera.near,
+    cameraFar: perspectiveCamera.far,
+    fogColor: fog ? `#${fog.color.getHexString()}` : "kapalı",
+    fogDensity,
+    background,
+    lights,
+    lightIntensity,
+    sceneChildren: scene.children.length,
+    visibleMeshes,
+    totalMeshes,
+  };
+}
+
 class WorldCanvasErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode; onRetry: () => void; onError: () => void },
+  { children: ReactNode; fallback: ReactNode; onRetry: () => void; onError: (error: Error) => void },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -199,7 +292,7 @@ class WorldCanvasErrorBoundary extends Component<
 
   componentDidCatch(error: Error, _info: ErrorInfo) {
     console.error("[shafak-world] 3D canvas failed to start.", error);
-    this.props.onError();
+    this.props.onError(error);
   }
 
   render() {
@@ -268,18 +361,28 @@ const FOG_COLORS = Object.fromEntries(
   Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [biome, new THREE.Color(palette.fog)]),
 ) as Record<keyof typeof WORLD_BIOME_PALETTES, THREE.Color>;
 
-function SceneFog({ motionRef, weatherMode, combatActive }: { motionRef: MutableRefObject<WorldMotion>; weatherMode: WeatherMode; combatActive: boolean }) {
+function SceneFog({
+  motionRef,
+  weatherMode,
+  combatActive,
+  disabled,
+}: {
+  motionRef: MutableRefObject<WorldMotion>;
+  weatherMode: WeatherMode;
+  combatActive: boolean;
+  disabled: boolean;
+}) {
   const { scene } = useThree();
   const fogRef = useRef<THREE.FogExp2 | null>(null);
   useEffect(() => {
     const fog = new THREE.FogExp2("#69505a", 0.0085);
-    fogRef.current = fog;
-    scene.fog = combatActive ? null : fog;
+    fogRef.current = disabled ? null : fog;
+    scene.fog = combatActive || disabled ? null : fog;
     return () => {
       fogRef.current = null;
       scene.fog = null;
     };
-  }, [combatActive, scene]);
+  }, [combatActive, disabled, scene]);
   useFrame(() => {
     const fog = fogRef.current;
     if (!fog || combatActive) return;
@@ -1058,12 +1161,18 @@ function SceneContents({
   onBlackFrame,
   debugEnabled,
   touchRenderer,
+  renderOverrides,
+  forceSafeRendering,
+  runtimeDiagnostics,
 }: World3DProps & {
   touchRenderer: boolean;
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   onBlackFrame: () => void;
   debugEnabled: boolean;
+  renderOverrides: RenderOverrides;
+  forceSafeRendering: boolean;
+  runtimeDiagnostics: MutableRefObject<RuntimeDiagnostics>;
 }) {
   const chunkCacheRef = useRef(new Map<number, WorldChunk>());
   const [chunks, setChunks] = useState<WorldChunk[]>(() => getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
@@ -1072,7 +1181,7 @@ function SceneContents({
   const prefetchCancelRef = useRef<(() => void) | null>(null);
   const chunkUpdateTimeoutRef = useRef<number | null>(null);
   const initialPrefetchRef = useRef(false);
-  const { gl } = useThree();
+  const { gl, camera, scene } = useThree();
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
   const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
@@ -1118,8 +1227,23 @@ function SceneContents({
     useLoader.preload(GLTFLoader, DUEL_MODEL_PATH, configureDuelModelLoader);
   }, []);
 
-  const { camera, scene } = useThree();
   const hasCombatRender = combatRender !== null;
+
+  useEffect(() => {
+    if (!forceSafeRendering && !renderOverrides.disableFrustumCulling) return undefined;
+    const previousCulling = new Map<THREE.Object3D, boolean>();
+    scene.traverse((object) => {
+      const candidate = object as THREE.Object3D & { frustumCulled?: boolean };
+      if (typeof candidate.frustumCulled !== "boolean") return;
+      previousCulling.set(object, candidate.frustumCulled);
+      candidate.frustumCulled = false;
+    });
+    return () => {
+      previousCulling.forEach((frustumCulled, object) => {
+        (object as THREE.Object3D & { frustumCulled?: boolean }).frustumCulled = frustumCulled;
+      });
+    };
+  }, [forceSafeRendering, renderOverrides.disableFrustumCulling, scene]);
 
   useEffect(() => {
     if (!combatActive || !hasCombatRender) return undefined;
@@ -1188,6 +1312,7 @@ function SceneContents({
       const elapsed = now - monitor.startedAt;
       if (elapsed >= 1) {
         const browserPerformance = performance as Performance & { memory?: { usedJSHeapSize: number } };
+        const sceneDiagnostics = getSceneDiagnostics(scene, camera);
         onDebugStats({
           x: motion.depth * 5.2,
           y: 0,
@@ -1207,6 +1332,21 @@ function SceneContents({
           animation: animationState,
           footSlip: footSlipRef.current,
           chunks: chunks.length,
+          ...sceneDiagnostics,
+          coordinatesFinite: [
+            motion.distance,
+            motion.cameraX,
+            camera.position.x,
+            camera.position.y,
+            camera.position.z,
+            camera.near,
+            camera.far,
+          ].every(Number.isFinite),
+          contextLost: runtimeDiagnostics.current.contextLost || gl.getContext().isContextLost(),
+          shaderErrors: runtimeDiagnostics.current.shaderErrors,
+          assetError: runtimeDiagnostics.current.lastAssetError,
+          runtimeError: runtimeDiagnostics.current.lastRuntimeError,
+          safeRecoveryMode: forceSafeRendering,
         });
         monitor.startedAt = now;
         monitor.frames = 0;
@@ -1221,14 +1361,22 @@ function SceneContents({
   return (
     <>
       <ProceduralEnvironment />
-      <SceneFog motionRef={motionRef} weatherMode={weatherMode} combatActive={combatActive} />
+      <SceneFog
+        motionRef={motionRef}
+        weatherMode={weatherMode}
+        combatActive={combatActive}
+        disabled={forceSafeRendering || renderOverrides.disableFog}
+      />
       <RendererEffects
         quality={quality}
         visualEffectsEnabled={visualEffectsEnabled}
         touchRenderer={touchRenderer}
       />
       <color attach="background" args={[combatActive ? "#46353e" : "#252330"]} />
-      <hemisphereLight args={["#c6b6b9", "#1a1b2b", 0.82]} />
+      <hemisphereLight args={["#c6b6b9", "#1a1b2b", forceSafeRendering ? 1.5 : 0.82]} />
+      {(forceSafeRendering || renderOverrides.boostAmbientLight) && (
+        <ambientLight color="#ffe2c3" intensity={forceSafeRendering ? 2.1 : 2.4} />
+      )}
       {combatActive && <ambientLight color="#ffdbb3" intensity={1.25} />}
       <directionalLight
         position={[-8, 14, 8]}
@@ -1276,7 +1424,9 @@ function SceneContents({
           />
         </group>
       )}
-      <WarmupErrorBoundary>
+      <WarmupErrorBoundary onError={(error) => {
+        runtimeDiagnostics.current.lastAssetError = error.message.slice(0, 180);
+      }}>
         <Suspense fallback={null}><DuelModelShaderWarmup /></Suspense>
       </WarmupErrorBoundary>
       {!combatActive && <WorldRoadEntities
@@ -1324,6 +1474,17 @@ export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
+  const [renderOverrides, setRenderOverrides] = useState<RenderOverrides>({
+    disableFog: false,
+    boostAmbientLight: false,
+    disableFrustumCulling: false,
+  });
+  const runtimeDiagnosticsRef = useRef<RuntimeDiagnostics>({
+    shaderErrors: 0,
+    lastAssetError: "",
+    lastRuntimeError: "",
+    contextLost: false,
+  });
   const autoRecoveryAttemptsRef = useRef(0);
   const rendererRecoveryTimesRef = useRef<number[]>([]);
   const rendererRecoveryInFlightRef = useRef(false);
@@ -1351,6 +1512,25 @@ export default function World3D(props: World3DProps) {
     animation: "idle",
     footSlip: 0,
     chunks: 0,
+    cameraX: 0,
+    cameraY: 0,
+    cameraZ: 0,
+    cameraNear: WORLD_CAMERA_NEAR,
+    cameraFar: WORLD_CAMERA_FAR,
+    fogColor: "ölçülüyor",
+    fogDensity: "ölçülüyor",
+    background: "ölçülüyor",
+    lights: 0,
+    lightIntensity: 0,
+    sceneChildren: 0,
+    visibleMeshes: 0,
+    totalMeshes: 0,
+    coordinatesFinite: true,
+    contextLost: false,
+    shaderErrors: 0,
+    assetError: "",
+    runtimeError: "",
+    safeRecoveryMode: false,
   });
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
@@ -1364,7 +1544,9 @@ export default function World3D(props: World3DProps) {
 
     const now = Date.now();
     const recentRecoveries = rendererRecoveryTimesRef.current.filter((at) => now - at < 60_000);
-    if (recentRecoveries.length >= 2) {
+    if (recentRecoveries.length >= 1) {
+      runtimeDiagnosticsRef.current.lastRuntimeError =
+        "Güvenli 3D çizim denemesi de başarısız oldu; siyah ekran yerine yeniden deneme uyarısı gösteriliyor.";
       setWebglAvailable(false);
       window.setTimeout(() => { rendererRecoveryInFlightRef.current = false; }, 1_000);
       return;
@@ -1372,7 +1554,10 @@ export default function World3D(props: World3DProps) {
 
     recentRecoveries.push(now);
     rendererRecoveryTimesRef.current = recentRecoveries;
-    if (recentRecoveries.length >= 2) setSafeRecoveryMode(true);
+    runtimeDiagnosticsRef.current.contextLost = false;
+    runtimeDiagnosticsRef.current.lastRuntimeError =
+      "Siyah kare algılandı; 3D sahne fog kapalı, güçlü ortam ışığı ve culling olmadan yeniden kuruluyor.";
+    setSafeRecoveryMode(true);
     setWebglAvailable(null);
     window.setTimeout(() => {
       setCanvasAttempt((attempt) => attempt + 1);
@@ -1384,12 +1569,15 @@ export default function World3D(props: World3DProps) {
     rendererRecoveryTimesRef.current = [];
     rendererRecoveryInFlightRef.current = false;
     setSafeRecoveryMode(false);
+    runtimeDiagnosticsRef.current.contextLost = false;
+    runtimeDiagnosticsRef.current.lastRuntimeError = "";
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
   const retryCanvasAfterError = useCallback(() => {
     if (autoRecoveryAttemptsRef.current >= 1) return;
     autoRecoveryAttemptsRef.current += 1;
+    setSafeRecoveryMode(true);
     window.setTimeout(() => {
       setWebglAvailable(null);
       setCanvasAttempt((attempt) => attempt + 1);
@@ -1398,14 +1586,14 @@ export default function World3D(props: World3DProps) {
   const fallback = (
     <div className="world-three-fallback" role="alert">
       <div className="world-three-fallback__content">
-        <p>3D dünya şu anda çizilemedi. Sahneyi yeniden oluşturmayı deneyin.</p>
+        <p>{runtimeDiagnosticsRef.current.lastRuntimeError || "3D dünya şu anda çizilemedi. Sahneyi yeniden oluşturmayı deneyin."}</p>
         <button type="button" onClick={retryWebGL}>3D DÜNYAYI YENİDEN OLUŞTUR</button>
       </div>
     </div>
   );
   const markContextLost = useCallback(() => {
-    // Recreate the 3D renderer before showing a retry prompt; repeated
-    // failures lower render cost without switching to a 2D scene.
+    runtimeDiagnosticsRef.current.contextLost = true;
+    runtimeDiagnosticsRef.current.lastRuntimeError = "WebGL bağlamı kaybedildi; güvenli 3D ayarlarıyla sahne yeniden kuruluyor.";
     recoverBlackCanvas();
   }, [recoverBlackCanvas]);
 
@@ -1414,6 +1602,26 @@ export default function World3D(props: World3DProps) {
     window.addEventListener("popstate", syncDebug);
     return () => window.removeEventListener("popstate", syncDebug);
   }, []);
+
+  useEffect(() => {
+    if (!debugEnabled) return undefined;
+    const recordRuntimeError = (message: string) => {
+      runtimeDiagnosticsRef.current.lastRuntimeError = message.slice(0, 180);
+    };
+    const handleError = (event: ErrorEvent) => {
+      recordRuntimeError(event.message || "window.onerror: bilinmeyen hata");
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);
+      recordRuntimeError(`unhandledrejection: ${reason}`);
+    };
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+  }, [debugEnabled]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGL()));
@@ -1437,7 +1645,10 @@ export default function World3D(props: World3DProps) {
           key={canvasAttempt}
           fallback={fallback}
           onRetry={retryWebGL}
-          onError={retryCanvasAfterError}
+          onError={(error) => {
+            runtimeDiagnosticsRef.current.lastRuntimeError = `3D sahne hatası: ${error.message}`.slice(0, 180);
+            retryCanvasAfterError();
+          }}
         >
           <Canvas
             dpr={[minDpr, maxDpr]}
@@ -1459,6 +1670,21 @@ export default function World3D(props: World3DProps) {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.info.autoReset = false;
               scene.background = new THREE.Color("#252330");
+              runtimeDiagnosticsRef.current.contextLost = false;
+              renderer.debug.checkShaderErrors = debugEnabled;
+              renderer.debug.onShaderError = debugEnabled
+                ? (context, program, vertexShader, fragmentShader) => {
+                  runtimeDiagnosticsRef.current.shaderErrors += 1;
+                  const details = [
+                    context.getProgramInfoLog(program),
+                    context.getShaderInfoLog(vertexShader),
+                    context.getShaderInfoLog(fragmentShader),
+                  ].filter(Boolean).join(" | ");
+                  runtimeDiagnosticsRef.current.lastRuntimeError =
+                    `Shader derleme hatası: ${details || "ayrıntı yok"}`.slice(0, 180);
+                  console.error("[shafak-world] WebGL shader compile/link failure.", details);
+                }
+                : null;
             }}
             fallback={fallback}
           >
@@ -1470,6 +1696,9 @@ export default function World3D(props: World3DProps) {
               visualEffectsEnabled={rendererVisualEffectsEnabled}
               touchRenderer={touchRenderer}
               debugEnabled={debugEnabled}
+              renderOverrides={renderOverrides}
+              forceSafeRendering={safeRecoveryMode}
+              runtimeDiagnostics={runtimeDiagnosticsRef}
               onDebugStats={setDebugStats}
               onPerformanceStats={setPerformanceStats}
               onBlackFrame={recoverBlackCanvas}
@@ -1484,16 +1713,31 @@ export default function World3D(props: World3DProps) {
           <b>3D DEBUG · KÜL YOLU</b>
           <span>Konum: x {debugStats.x.toFixed(2)} · y {debugStats.y.toFixed(2)} · z {debugStats.z.toFixed(2)}</span>
           <span>Mesafe: {debugStats.distance.toFixed(1)} m · Hız: {debugStats.speed.toFixed(2)} m/sn</span>
+          <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · near/far {debugStats.cameraNear}/{debugStats.cameraFar}</span>
+          <span>Fog: {debugStats.fogColor} · yoğunluk {debugStats.fogDensity} · arka plan {debugStats.background}</span>
+          <span>Işık: {debugStats.lights} kaynak / güç {debugStats.lightIntensity.toFixed(2)} · çocuk {debugStats.sceneChildren}</span>
+          <span>Mesh: {debugStats.visibleMeshes}/{debugStats.totalMeshes} görünür · koordinatlar {debugStats.coordinatesFinite ? "sonlu" : "GEÇERSİZ"}</span>
           <span>FPS: {debugStats.fps || "ölçülüyor"} · Draw: {debugStats.drawCalls} · Üçgen: {debugStats.triangles.toLocaleString("tr-TR")}</span>
           <span>Geometri/Doku: {debugStats.geometries}/{debugStats.textures} · JS heap: {debugStats.heapMb === null ? "n/a" : `${debugStats.heapMb} MB`}</span>
           <span>En uzun kare: {debugStats.maxFrameMs} ms · &gt;100 ms kare: {debugStats.longFrames}</span>
           <span>Animasyon: {debugStats.animation} · Ayak kayması: {debugStats.footSlip.toFixed(3)} m</span>
+          <span>Bağlam: {debugStats.contextLost ? "KAYIP" : "açık"} · shader hata: {debugStats.shaderErrors} · güvenli 3D: {debugStats.safeRecoveryMode ? "AÇIK" : "kapalı"}</span>
+          <span>Asset: {debugStats.assetError || "hata yok"} · JS: {debugStats.runtimeError || "hata yok"}</span>
           {props.combatRender && (
             <span>Can: {Math.ceil(props.combatRender.player.hp)}/{props.combatRender.player.maxHp} · Dayanıklılık: {Math.ceil(props.combatRender.player.stamina)}/{props.combatRender.player.maxStamina}</span>
           )}
           <span>Dünya: Kül Yolu · Yüklü parça: {debugStats.chunks}</span>
           <span>Rakip: {props.debugCounters.rivalCount} · Eşya: {props.debugCounters.pickupCount} · Toplanan: {props.debugCounters.collectedCount}</span>
           <div className="world-debug__actions">
+            <button type="button" onClick={() => setRenderOverrides((current) => ({ ...current, disableFog: !current.disableFog }))}>
+              Fog kapat {renderOverrides.disableFog ? "AÇIK" : "KAPALI"}
+            </button>
+            <button type="button" onClick={() => setRenderOverrides((current) => ({ ...current, boostAmbientLight: !current.boostAmbientLight }))}>
+              Ek ışık {renderOverrides.boostAmbientLight ? "AÇIK" : "KAPALI"}
+            </button>
+            <button type="button" onClick={() => setRenderOverrides((current) => ({ ...current, disableFrustumCulling: !current.disableFrustumCulling }))}>
+              Culling kapat {renderOverrides.disableFrustumCulling ? "AÇIK" : "KAPALI"}
+            </button>
             <button type="button" onClick={props.onDebugNearestRival}>En yakın rakip</button>
             <button type="button" onClick={props.onDebugNearestPickup}>En yakın eşya</button>
             <button type="button" onClick={props.onDebugSkipDistance}>+25 m</button>

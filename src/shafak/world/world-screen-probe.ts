@@ -32,3 +32,7 @@ export function isLikelyBlackWorldFrame(metrics: WorldProbeMetrics) {
     && metrics.averageLuminance < 0.07
     && metrics.uniqueColors <= 8;
 }
+
+export function shouldRecoverWorldFrame(metrics: WorldProbeMetrics, drawCalls: number) {
+  return !Number.isFinite(drawCalls) || drawCalls <= 0 || isLikelyBlackWorldFrame(metrics);
+}

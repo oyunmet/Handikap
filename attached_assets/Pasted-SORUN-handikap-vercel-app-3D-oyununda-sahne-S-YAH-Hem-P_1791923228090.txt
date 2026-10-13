@@ -1,0 +1,19 @@
+SORUN: handikap.vercel.app 3D oyununda sahne SİYAH. Hem PC'de hem mobilde oluyor, yani cihaz/bellek sorunu DEĞİL, kod sorunu. HUD/DOM çalışıyor, oyun mantığı ilerliyor (Kül Yolu yüzdesi, mesafe, NPC kartları, tuzak bildirimi). Sadece 3D canvas siyah.
+
+KRİTİK GÖZLEM (ekran görüntülerinden): Sahne YALNIZCA kapıya yakınken (kapıya ≤ ~20 m, yani Kül Yolu %87+) görünüyor. 144 m (%0), 111 m (%23), 95 m (%34), 73 m (%49), 61 m (%58), 39 m (%73) konumlarında tamamen siyah. %98'de zemin/gökyüzü düzlemi çapraz üçgen biçiminde yarım çizilmiş, %97'de sağ üst köşede siyah üçgen var. Hava: "Kül" aktif.
+=> Sahne oyuncunun yol üzerindeki konumuna bağlı olarak kayboluyor. Hipotezler (hepsini kanıtla veya ele):
+1. Fog/ash efekti: fog rengi siyah veya yoğunluğu/near-far değeri öyle ki uzakta her şey siyaha boğuluyor. Scene.fog, scene.background, renderer.setClearColor, Hava:Kül parametreleri.
+2. Dünya/chunk streaming: zemin, gökyüzü, dekor yalnızca kapı çevresinde oluşturuluyor veya oyuncu uzaklaşınca/başlangıçta yüklenmiyor, yanlış visible=false, yanlış mesafe eşiği, async yükleme hatası.
+3. Zemin/gökyüzü karakteri takip etmiyor veya kamera far/near'i düşük; büyük düzlemlerde yanlış boundingSphere nedeniyle frustum culling (frustumCulled=false dene, computeBoundingSphere).
+4. Kamera ve dünya koordinatları uyumsuz (kamera pozisyonu/lookAt, yol ekseni, NaN/Infinity). Her karede Number.isFinite kontrolü.
+5. Işıklar/gölge: ışık oyuncuyu takip etmiyor, shadow camera sınırları kapıya göre sabit, ambient light yok → sahne siyah.
+6. Material: karanlık ortamda MeshStandardMaterial'in ışıksız kalması, emissive/ambient eksik.
+
+YAPILACAKLAR (sırayla, tahmin etme):
+A) ?debug=1 ile ekranda DEBUG PANELİ ekle: oyuncu z/x konumu, kamera pozisyonu/near/far, scene.fog (renk, near, far / density), scene.background, aktif ışık sayısı ve yoğunlukları, renderer.info.render.calls/triangles, scene.children sayısı, görünür mesh sayısı, yüklenmeyen asset ve shader hataları (renderer.debug.checkShaderErrors=true), webglcontextlost olayları, window.onerror.
+B) Oyuncuyu 144 m konumuna (başlangıç) koyup panelde renderer.info.render.calls ve triangles'ı oku. calls>0 ise sorun fog/ışık/kamera; calls=0 ise sorun culling/streaming/visible. Sonra 3 test: fog'u kapat, ambient light ekle (yoğun), tüm mesh'lerde frustumCulled=false yap. Hangisi sahneyi getiriyorsa kök neden odur.
+C) Kök nedeni kalıcı düzelt: yüzeysel yama yok. Fog rengi sahne atmosferiyle uyumlu ve near/far makul olsun (Kül hava efekti sahneyi siyaha boğmasın), zemin/gökyüzü kubbesi kamera/oyuncuyu takip etsin, chunk'lar oyuncu konumuna göre doğru yüklensin, ışıklar oyuncuyu takip etsin, near/far oranı sağlıklı olsun (ör. near 0.3, far 1000).
+D) Güvenlik ağı: canvas çizim yapmıyorsa (calls===0) veya ortalama piksel parlaklığı ~0 ise otomatik fallback (fog kapat, ambient light aç) ve ekranda uyarı. Sessiz siyah ekran yasak.
+E) Production build ile test et (npm run build + preview), sadece dev'de değil. Context lost/restored handler'ı da ekle ama bunu ana neden sayma.
+
+KABUL: Başlangıçtan (%0) kapıya (%100) kadar yürürken, NPC konuşmalarında ve Savaş/Yeniden Düello sonrasında hiçbir karede siyah ekran veya yarım düzlem olmamalı; 10 kez yenilemede 10/10. Vercel production URL'inde de geçmeli. KÖK NEDEN RAPORU (hangi dosya, hangi satır, kanıt), değişen dosya listesi ve GEÇTİ/KALDI tablosu ver. KALDI varsa bitmiş sayma.
