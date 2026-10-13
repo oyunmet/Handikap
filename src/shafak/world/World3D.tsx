@@ -22,7 +22,6 @@ import {
 } from "./WorldElements";
 import { createWorldChunk, type WorldChunk } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
-import { isIOSDevice } from "./renderer-settings";
 import WorldRoadEntities from "./WorldRoadEntities";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
@@ -1320,8 +1319,6 @@ function isDebugEnabled() {
 export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
-  const stableIOSMode = typeof navigator !== "undefined"
-    && isIOSDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const autoRecoveryAttemptsRef = useRef(0);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
@@ -1379,7 +1376,6 @@ export default function World3D(props: World3DProps) {
       opponentName={props.opponentName}
       playerName={props.playerName}
       onRetry={retryWebGL}
-      stableIOSMode={stableIOSMode}
     />
   );
   const markContextLost = useCallback(() => {
@@ -1396,13 +1392,9 @@ export default function World3D(props: World3DProps) {
   }, []);
 
   useEffect(() => {
-    if (stableIOSMode) {
-      setWebglAvailable(false);
-      return undefined;
-    }
     const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGL()));
     return () => window.cancelAnimationFrame(frame);
-  }, [canvasAttempt, stableIOSMode]);
+  }, [canvasAttempt]);
 
   useEffect(() => {
     if (!webglAvailable) return undefined;
@@ -1413,12 +1405,10 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt, webglAvailable]);
 
   return (
-    <div className="world-three-layer" aria-label="Kül Yolu oyun dünyası">
-      {stableIOSMode || webglAvailable === false ? (
-        fallback
-      ) : webglAvailable === null ? (
+    <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
+      {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
-      ) : (
+      ) : webglAvailable ? (
         <WorldCanvasErrorBoundary
           key={canvasAttempt}
           fallback={fallback}
@@ -1458,6 +1448,8 @@ export default function World3D(props: World3DProps) {
             />
           </Canvas>
         </WorldCanvasErrorBoundary>
+      ) : (
+        fallback
       )}
       {debugEnabled && (
         <aside className="world-debug" aria-label="3D dünya hata ayıklama bilgileri">
