@@ -25,6 +25,21 @@ test("does not mistake the dark world background for a black frame", () => {
   assert.equal(isLikelyBlackWorldFrame(metrics), false);
 });
 
+test("recovers from a uniform near-black frame that is darker than the world sky", () => {
+  const pixels = new Uint8Array(8 * 4 * 4);
+  for (let index = 0; index < pixels.length; index += 4) {
+    pixels[index] = 16;
+    pixels[index + 1] = 12;
+    pixels[index + 2] = 10;
+    pixels[index + 3] = 255;
+  }
+
+  const metrics = analyzeWorldProbePixels(pixels);
+  assert.ok(metrics.averageLuminance > 0.018);
+  assert.ok(metrics.averageLuminance < 0.07);
+  assert.equal(isLikelyBlackWorldFrame(metrics), true);
+});
+
 test("rejects malformed pixel buffers", () => {
   const metrics = analyzeWorldProbePixels(new Uint8Array([0, 0, 0]));
   assert.deepEqual(metrics, { averageLuminance: 0, uniqueColors: 0 });

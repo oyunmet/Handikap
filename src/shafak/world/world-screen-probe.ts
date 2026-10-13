@@ -29,6 +29,6 @@ export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
 export function isLikelyBlackWorldFrame(metrics: WorldProbeMetrics) {
   return metrics.uniqueColors > 0
     && Number.isFinite(metrics.averageLuminance)
-    && metrics.averageLuminance < 0.018
+    && metrics.averageLuminance < 0.07
     && metrics.uniqueColors <= 8;
 }
