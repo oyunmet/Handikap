@@ -1064,6 +1064,7 @@ function SceneContents({
   const activeChunkRef = useRef(Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS));
   const footSlipRef = useRef(0);
   const prefetchCancelRef = useRef<(() => void) | null>(null);
+  const chunkUpdateTimeoutRef = useRef<number | null>(null);
   const initialPrefetchRef = useRef(false);
   const { gl } = useThree();
   const shadowMapSize = getShadowMapSize(quality, gl.getPixelRatio());
@@ -1093,7 +1094,12 @@ function SceneContents({
     }
   };
 
-  useEffect(() => () => prefetchCancelRef.current?.(), []);
+  useEffect(() => () => {
+    prefetchCancelRef.current?.();
+    if (chunkUpdateTimeoutRef.current !== null) {
+      window.clearTimeout(chunkUpdateTimeoutRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     performanceMetricsRef.current = createFrameMetricsAccumulator();
@@ -1156,7 +1162,13 @@ function SceneContents({
     }
     if (currentChunk !== activeChunkRef.current) {
       activeChunkRef.current = currentChunk;
-      setChunks(getChunksForDistance(motion.distance, chunkCacheRef.current));
+      if (chunkUpdateTimeoutRef.current !== null) {
+        window.clearTimeout(chunkUpdateTimeoutRef.current);
+      }
+      chunkUpdateTimeoutRef.current = window.setTimeout(() => {
+        chunkUpdateTimeoutRef.current = null;
+        setChunks(getChunksForDistance(motionRef.current.distance, chunkCacheRef.current));
+      }, 0);
       scheduleChunkPrefetch(currentChunk + 5);
     }
     if (debugEnabled) {
