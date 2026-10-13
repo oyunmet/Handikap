@@ -389,6 +389,11 @@
 .world-scene[data-air="false"] .world-rays,
 .world-scene[data-air="false"] .world-plane--haze { display: none; }
 .world-scene[data-reduced="true"] .world-three-layer { --motion-reduced: 1; }
+@media (pointer: coarse) {
+  /* Keep animated full-screen DOM compositing layers off Safari's WebGL canvas. */
+  .world-atmosphere,
+  .world-speed-lines { display: none; }
+}
 .world-vignette {
   position: absolute; z-index: 6; inset: 0;
   pointer-events: none;

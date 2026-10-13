@@ -22,8 +22,8 @@ import {
 } from "./WorldElements";
 import { createWorldChunk, type WorldChunk } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
-import { isIOSDevice } from "./renderer-settings";
 import WorldRoadEntities from "./WorldRoadEntities";
+import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
@@ -1320,10 +1320,11 @@ function isDebugEnabled() {
 export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
-  const stableIOSMode = typeof navigator !== "undefined"
-    && isIOSDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const autoRecoveryAttemptsRef = useRef(0);
+  const rendererRecoveryTimesRef = useRef<number[]>([]);
+  const rendererRecoveryInFlightRef = useRef(false);
+  const [safeRecoveryMode, setSafeRecoveryMode] = useState(false);
   const [performanceStats, setPerformanceStats] = useState<FrameMetricsSnapshot>({
     averageFps: 0,
     minimumFps: 0,
@@ -1350,10 +1351,36 @@ export default function World3D(props: World3DProps) {
   });
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-  const maxDpr = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
+  const rendererQuality = safeRecoveryMode ? "low" : props.quality;
+  const rendererVisualEffectsEnabled = props.visualEffectsEnabled && !safeRecoveryMode;
+  const maxDpr = getWorldRenderPixelRatio(rendererQuality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
+  const recoverBlackCanvas = useCallback(() => {
+    if (rendererRecoveryInFlightRef.current) return;
+    rendererRecoveryInFlightRef.current = true;
+
+    const now = Date.now();
+    const recentRecoveries = rendererRecoveryTimesRef.current.filter((at) => now - at < 60_000);
+    if (recentRecoveries.length >= 2) {
+      setWebglAvailable(false);
+      window.setTimeout(() => { rendererRecoveryInFlightRef.current = false; }, 1_000);
+      return;
+    }
+
+    recentRecoveries.push(now);
+    rendererRecoveryTimesRef.current = recentRecoveries;
+    if (recentRecoveries.length >= 2) setSafeRecoveryMode(true);
+    setWebglAvailable(null);
+    window.setTimeout(() => {
+      setCanvasAttempt((attempt) => attempt + 1);
+      rendererRecoveryInFlightRef.current = false;
+    }, 120);
+  }, []);
   const retryWebGL = useCallback(() => {
     autoRecoveryAttemptsRef.current = 0;
+    rendererRecoveryTimesRef.current = [];
+    rendererRecoveryInFlightRef.current = false;
+    setSafeRecoveryMode(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
@@ -1379,15 +1406,13 @@ export default function World3D(props: World3DProps) {
       opponentName={props.opponentName}
       playerName={props.playerName}
       onRetry={retryWebGL}
-      stableIOSMode={stableIOSMode}
     />
   );
   const markContextLost = useCallback(() => {
-    // Mobile Safari can keep the game loop alive after the GPU context is lost.
-    // Unmount the unusable WebGL canvas immediately so the playable 2D world
-    // replaces the otherwise-black frame without waiting for a manual retry.
-    setWebglAvailable(false);
-  }, []);
+    // Recreate the 3D renderer before falling back; repeated failures lower
+    // render cost, and the 2D scene remains the emergency path.
+    recoverBlackCanvas();
+  }, [recoverBlackCanvas]);
 
   useEffect(() => {
     const syncDebug = () => setDebugEnabled(isDebugEnabled());
@@ -1396,13 +1421,9 @@ export default function World3D(props: World3DProps) {
   }, []);
 
   useEffect(() => {
-    if (stableIOSMode) {
-      setWebglAvailable(false);
-      return undefined;
-    }
     const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGL()));
     return () => window.cancelAnimationFrame(frame);
-  }, [canvasAttempt, stableIOSMode]);
+  }, [canvasAttempt]);
 
   useEffect(() => {
     if (!webglAvailable) return undefined;
@@ -1413,12 +1434,10 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt, webglAvailable]);
 
   return (
-    <div className="world-three-layer" aria-label="Kül Yolu oyun dünyası">
-      {stableIOSMode || webglAvailable === false ? (
-        fallback
-      ) : webglAvailable === null ? (
+    <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
+      {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
-      ) : (
+      ) : webglAvailable ? (
         <WorldCanvasErrorBoundary
           key={canvasAttempt}
           fallback={fallback}
@@ -1427,7 +1446,7 @@ export default function World3D(props: World3DProps) {
         >
           <Canvas
             dpr={[minDpr, maxDpr]}
-            shadows={shouldEnableWorldShadows(props.quality, touchRenderer)}
+            shadows={shouldEnableWorldShadows(rendererQuality, touchRenderer)}
             camera={{
               position: [0, 4.15, 10.2],
               fov: 54,
@@ -1438,8 +1457,8 @@ export default function World3D(props: World3DProps) {
               alpha: false,
               antialias: false,
               powerPreference: "high-performance",
-              toneMapping: props.visualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
-              toneMappingExposure: props.visualEffectsEnabled ? 1.12 : 1,
+              toneMapping: rendererVisualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
+              toneMappingExposure: rendererVisualEffectsEnabled ? 1.12 : 1,
             }}
             onCreated={({ gl: renderer, scene }) => {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1449,8 +1468,11 @@ export default function World3D(props: World3DProps) {
             fallback={fallback}
           >
             <CanvasContextGuard onLost={markContextLost} />
+            <WorldBlackFrameProbe onBlackFrame={recoverBlackCanvas} />
             <SceneContents
               {...props}
+              quality={rendererQuality}
+              visualEffectsEnabled={rendererVisualEffectsEnabled}
               touchRenderer={touchRenderer}
               debugEnabled={debugEnabled}
               onDebugStats={setDebugStats}
@@ -1458,6 +1480,8 @@ export default function World3D(props: World3DProps) {
             />
           </Canvas>
         </WorldCanvasErrorBoundary>
+      ) : (
+        fallback
       )}
       {debugEnabled && (
         <aside className="world-debug" aria-label="3D dünya hata ayıklama bilgileri">

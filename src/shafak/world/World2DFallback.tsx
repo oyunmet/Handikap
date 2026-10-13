@@ -16,7 +16,6 @@ type World2DFallbackProps = {
   opponentName: string;
   playerName: string;
   onRetry: () => void;
-  stableIOSMode?: boolean;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -361,12 +360,8 @@ export default function World2DFallback(props: World2DFallbackProps) {
     <div className="world-2d-fallback" aria-label="Yedek 2D dünya görünümü">
       <canvas ref={canvasRef} aria-hidden="true" />
       <div className="world-2d-fallback__notice" role="status">
-        <span>
-          {props.stableIOSMode
-            ? "iPhone/iPad için kararlı dünya görünümü açık"
-            : "3D görüntü açılamadı · yedek dünya görünümü açık"}
-        </span>
-        {!props.stableIOSMode && <button type="button" onClick={props.onRetry}>3D'yi dene</button>}
+        <span>3D görüntü açılamadı · yedek dünya görünümü açık</span>
+        <button type="button" onClick={props.onRetry}>3D'yi dene</button>
       </div>
     </div>
   );
