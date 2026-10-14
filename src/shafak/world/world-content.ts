@@ -1,6 +1,5 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import { WORLD_SEED } from "./world-generation.ts";
-import { createWorldChunk } from "./world-generation.ts";
 import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
@@ -317,49 +316,6 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
           ? "crouch"
           : obstacle.kind === "rock" || obstacle.kind === "treasure-chest" ? "jump" : undefined,
       });
-    }
-
-    for (let index = chapter.chapterId * 3; index < chapter.chapterId * 3 + 3; index += 1) {
-      const chunk = createWorldChunk(index);
-      for (const object of chunk.objects) {
-        const centerX = object.lane * 9.3;
-        const scale = object.scale;
-        const yaw = (object.flickerSeed % 628) / 100;
-        const addOffsetCircle = (offsetX: number, radius: number, suffix: string) => {
-          add({
-            id: `${object.id}:${suffix}`,
-            x: centerX + Math.cos(yaw) * offsetX * scale,
-            distance: object.worldX + Math.sin(yaw) * offsetX * scale,
-            shape: "circle",
-            radius: radius * scale,
-            halfWidth: radius * scale,
-            halfDepth: radius * scale,
-          });
-        };
-
-        if (object.kind === "tower") addOffsetCircle(0, 1.2, "tower");
-        else if (object.kind === "ruin") {
-          addOffsetCircle(-0.82, 0.42, "pillar-a");
-          addOffsetCircle(0.82, 0.44, "pillar-b");
-        } else if (object.kind === "arch") {
-          addOffsetCircle(-1.45, 0.48, "arch-a");
-          addOffsetCircle(1.45, 0.48, "arch-b");
-        } else if (object.kind === "rock" || object.kind === "ice-crystal") {
-          addOffsetCircle(0, object.kind === "rock" ? 1.18 : 0.58, object.kind);
-        } else if (object.kind === "tree" || object.kind === "mangrove") {
-          addOffsetCircle(0, object.kind === "tree" ? 0.34 : 0.46, object.kind);
-        } else if (object.kind === "cart") {
-          add({
-            id: `${object.id}:cart`,
-            x: centerX,
-            distance: object.worldX,
-            shape: "box",
-            radius: 0,
-            halfWidth: 0.95 * scale,
-            halfDepth: 0.55 * scale,
-          });
-        }
-      }
     }
   }
   return grid;

@@ -5,6 +5,8 @@ description: How to distinguish successful 3D asset loading from screenshot-base
 
 Treat a WebGL-unavailable message in Replit's screenshot preview as a limit of that browser, not proof that an asset failed to load. A GLB request completing and interactive controls working verifies loading and app flow, but does not confirm the model's rendered pixels. This game must remain 3D; do not replace the world with a 2D fallback when renderer creation fails.
 
+As of 2026-10-14, the user reports the production black-screen issue is resolved; do not treat earlier reports as an active issue unless it recurs.
+
 Do not create and destroy a throwaway WebGL context to preflight support on mobile Safari. Check for the WebGL API and let the actual renderer creation be authoritative; on touch devices, keep the renderer at DPR 1, disable shadows and post-processing, and avoid retaining already-passed opponents in the scene.
 
 **Why:** The preview can show the game UI while refusing to create a WebGL scene, and a mobile production report exposed that a renderer failure must not make the game unplayable. A runtime context loss can leave a black canvas while the game loop and HTML continue, so an overlay alone is not recovery. A separate production screenshot showed that a near-black world can also be caused by a full-screen lighting tint while gameplay still renders normally. Mobile Safari also has a limited graphics-memory/performance budget, so stacked render targets, high-DPR output, shadow maps, and off-camera actors add avoidable GPU work.

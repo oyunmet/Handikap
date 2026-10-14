@@ -156,6 +156,20 @@ test("spatial collision grid blocks props, permits lateral sliding, and enforces
   }
 });
 
+test("only visible gameplay obstacles add collision shapes; roadside scenery stays decorative", () => {
+  const chapter = getWorldChapter(0);
+  const grid = buildWorldCollisionGrid([chapter]);
+  const colliderIds = [...grid.values()]
+    .flatMap((row) => [...row.values()].flat())
+    .map((collider) => collider.id);
+  const expectedIds = chapter.obstacles
+    .filter((obstacle) => obstacle.kind !== "spike-trap")
+    .map((obstacle) => obstacle.id);
+
+  assert.deepEqual(new Set(colliderIds), new Set(expectedIds));
+  assert.equal(colliderIds.length, expectedIds.length);
+});
+
 test("crouching clears a low bar while standing remains blocked", () => {
   const collider = {
     id: "low-bar",
