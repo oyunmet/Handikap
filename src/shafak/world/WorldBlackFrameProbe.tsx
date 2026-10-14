@@ -11,8 +11,10 @@ const BLACK_SAMPLES_TO_RECOVER = 3;
 
 export default function WorldBlackFrameProbe({
   onBlackFrame,
+  manualRender,
 }: {
   onBlackFrame: () => void;
+  manualRender: boolean;
 }) {
   const { gl, scene, camera } = useThree();
   const startedAtRef = useRef(0);
@@ -21,7 +23,7 @@ export default function WorldBlackFrameProbe({
   const recoveryRequestedRef = useRef(false);
   const probeDisabledRef = useRef(false);
   const pixels = useMemo(() => new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4), []);
-  const target = useMemo(() => new THREE.WebGLRenderTarget(PROBE_WIDTH, PROBE_HEIGHT, {
+  const target = useMemo(() => manualRender ? null : new THREE.WebGLRenderTarget(PROBE_WIDTH, PROBE_HEIGHT, {
     depthBuffer: true,
     stencilBuffer: false,
     type: THREE.UnsignedByteType,
@@ -29,9 +31,10 @@ export default function WorldBlackFrameProbe({
     minFilter: THREE.NearestFilter,
     magFilter: THREE.NearestFilter,
     generateMipmaps: false,
-  }), []);
+  }), [manualRender]);
 
   useEffect(() => {
+    if (!target) return undefined;
     target.texture.colorSpace = THREE.SRGBColorSpace;
     target.texture.generateMipmaps = false;
     return () => target.dispose();
@@ -52,27 +55,59 @@ export default function WorldBlackFrameProbe({
 
     if (gl.getContext().isContextLost()) return;
 
-    const previousTarget = gl.getRenderTarget();
-    const previousViewport = new THREE.Vector4();
-    const previousScissor = new THREE.Vector4();
-    const previousScissorTest = gl.getScissorTest();
-    const previousShadowAutoUpdate = gl.shadowMap.autoUpdate;
-    const previousAutoClear = gl.autoClear;
-    const previousClearColor = new THREE.Color();
-    const previousClearAlpha = gl.getClearAlpha();
-    const worldDrawCalls = gl.info.render.calls;
-    gl.getViewport(previousViewport);
-    gl.getScissor(previousScissor);
-    gl.getClearColor(previousClearColor);
-
     try {
-      gl.shadowMap.autoUpdate = false;
-      gl.autoClear = true;
-      gl.setRenderTarget(target);
-      gl.setScissorTest(false);
-      gl.clear(true, true, true);
-      gl.render(scene, camera);
-      gl.readRenderTargetPixels(target, 0, 0, PROBE_WIDTH, PROBE_HEIGHT, pixels);
+      let worldDrawCalls: number;
+      if (manualRender) {
+        // On touch devices there is no post-processing pass. Render the
+        // regular scene here (R3F's positive-priority callback disables its
+        // automatic render) and inspect the exact pixels sent to the canvas.
+        gl.render(scene, camera);
+        worldDrawCalls = gl.info.render.calls;
+        const context = gl.getContext();
+        const canvas = gl.domElement;
+        if (canvas.width < PROBE_WIDTH || canvas.height < PROBE_HEIGHT) return;
+        context.readPixels(
+          Math.floor(canvas.width / 2 - PROBE_WIDTH / 2),
+          Math.floor(canvas.height / 2 - PROBE_HEIGHT / 2),
+          PROBE_WIDTH,
+          PROBE_HEIGHT,
+          context.RGBA,
+          context.UNSIGNED_BYTE,
+          pixels,
+        );
+      } else {
+        if (!target) return;
+        const previousTarget = gl.getRenderTarget();
+        const previousViewport = new THREE.Vector4();
+        const previousScissor = new THREE.Vector4();
+        const previousScissorTest = gl.getScissorTest();
+        const previousShadowAutoUpdate = gl.shadowMap.autoUpdate;
+        const previousAutoClear = gl.autoClear;
+        const previousClearColor = new THREE.Color();
+        const previousClearAlpha = gl.getClearAlpha();
+        worldDrawCalls = gl.info.render.calls;
+        gl.getViewport(previousViewport);
+        gl.getScissor(previousScissor);
+        gl.getClearColor(previousClearColor);
+
+        try {
+          gl.shadowMap.autoUpdate = false;
+          gl.autoClear = true;
+          gl.setRenderTarget(target);
+          gl.setScissorTest(false);
+          gl.clear(true, true, true);
+          gl.render(scene, camera);
+          gl.readRenderTargetPixels(target, 0, 0, PROBE_WIDTH, PROBE_HEIGHT, pixels);
+        } finally {
+          gl.setRenderTarget(previousTarget);
+          gl.setViewport(previousViewport);
+          gl.setScissor(previousScissor);
+          gl.setScissorTest(previousScissorTest);
+          gl.setClearColor(previousClearColor, previousClearAlpha);
+          gl.shadowMap.autoUpdate = previousShadowAutoUpdate;
+          gl.autoClear = previousAutoClear;
+        }
+      }
 
       const needsRecovery = shouldRecoverWorldFrame(analyzeWorldProbePixels(pixels), worldDrawCalls);
       blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
@@ -83,16 +118,8 @@ export default function WorldBlackFrameProbe({
     } catch (error) {
       probeDisabledRef.current = true;
       console.warn("[world] Black-frame sampling failed; WebGL rendering will continue without the probe.", error);
-    } finally {
-      gl.setRenderTarget(previousTarget);
-      gl.setViewport(previousViewport);
-      gl.setScissor(previousScissor);
-      gl.setScissorTest(previousScissorTest);
-      gl.setClearColor(previousClearColor, previousClearAlpha);
-      gl.shadowMap.autoUpdate = previousShadowAutoUpdate;
-      gl.autoClear = previousAutoClear;
     }
-  }, -2);
+  }, manualRender ? 1 : -2);
 
   return null;
 }
