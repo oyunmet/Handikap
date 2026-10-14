@@ -52,7 +52,11 @@ test("linear render-target colors are converted before black-frame thresholds", 
   const linearPixels = new Uint8Array(16 * 4);
   for (let index = 0; index < 16; index += 1) {
     const offset = index * 4;
-    const color = index < 12 ? [37, 35, 48] : [64, 56, 59];
+    const color = [
+      24 + (index % 4) * 16,
+      24 + Math.floor(index / 4) * 16,
+      32 + ((index * 7) % 4) * 16,
+    ];
     srgbPixels.set([...color, 255], offset);
     for (let channel = 0; channel < 3; channel += 1) {
       const srgb = color[channel] / 255;
@@ -67,6 +71,7 @@ test("linear render-target colors are converted before black-frame thresholds", 
   const screenMetrics = analyzeWorldProbePixels(srgbPixels);
   const targetMetrics = analyzeWorldProbePixels(linearPixels, "linear");
   assert.ok(Math.abs(targetMetrics.averageLuminance - screenMetrics.averageLuminance) < 0.005);
+  assert.equal(shouldRecoverWorldFrame(targetMetrics, 440), false);
   assert.equal(isLikelyBlackWorldFrame(targetMetrics), false);
 });
 

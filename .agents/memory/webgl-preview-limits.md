@@ -34,3 +34,9 @@ In manual React Three Fiber rendering, read the draw-call counter after the expl
 **Why:** The production blank-screen retry was triggered by a zero draw-call snapshot captured before manual rendering, causing every touch-device frame to look empty and the safe retry to fail in the same way.
 
 **How to apply:** Keep a regression test that manual mode uses the post-render count and automatic mode uses the completed prior-frame count. Keep visual pixel checks too; a positive draw-call count does not by itself prove that visible world pixels reached the frame.
+
+Three.js pixel readback from a regular `WebGLRenderTarget` uses the linear working color space, while the default framebuffer uses the renderer's sRGB output space. Convert one path before applying shared luminance thresholds.
+
+**Why:** Treating linear target bytes as sRGB made the watchdog classify a valid dark world as black; the safe retry rendered the same scene probe and therefore repeated the false alarm.
+
+**How to apply:** When comparing target readback to on-screen pixels, normalize target samples to sRGB (or use explicitly calibrated linear thresholds) and retain a regression test with equivalent colors in both spaces.
