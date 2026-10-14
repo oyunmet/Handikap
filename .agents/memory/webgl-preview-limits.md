@@ -11,11 +11,11 @@ Do not create and destroy a throwaway WebGL context to preflight support on mobi
 
 **How to apply:** On renderer creation failure, context loss, or persistent black output, recreate the 3D renderer and then retry the 3D scene with conservative graphics settings. If it still cannot start, show a 3D retry message rather than a 2D world. When gameplay UI remains visible behind a black-looking world, inspect full-screen lighting/compositing and final post-processing output before treating it as GPU loss. Keep the darkness setting shared and conservative across render paths. Report asset loading, interaction, and visual rendering as separate checks. Do not claim the 3D model is visually verified unless the capture actually shows it. For touch renderers, apply the conservative graphics budget before scene rendering.
 
-The black-frame watchdog must catch uniformly near-black output (around 5% luminance) while keeping the normal dark sky/clear color above its threshold. A cutoff that only catches near-zero pixels can miss a visibly black game screen.
+The black-frame watchdog must catch uniformly near-black output (around 5% luminance) and mostly near-black frames even when a few lit props add color variation, while keeping the normal dark sky/clear color above its threshold.
 
-**Why:** User screenshots showed a nearly uniform dark frame around RGB (16, 12, 10), which is visibly black but brighter than the previous watchdog cutoff.
+**Why:** User screenshots showed a nearly uniform dark frame around RGB (16, 12, 10), sometimes with a visible gate or other sparse detail. A unique-color limit can miss that mostly black image.
 
-**How to apply:** Keep regression tests for both a uniform near-black frame and the intended dark world background whenever the watchdog threshold changes.
+**How to apply:** Keep regression tests for uniform near-black frames, mostly dark frames with sparse details, and the intended dark world background whenever the watchdog threshold changes.
 
 The user requires the gameplay world to stay 3D on both mobile and PC and explicitly rejects any 2D world. Black output is reported on PC as well, so do not assume Safari is the sole cause; the touch-only compositing safeguard is supplemental.
 
