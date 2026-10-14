@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi.ts";
-import { normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame, type CombatLoadout } from "../src/shafak/game/combat-engine.ts";
+import { MAX_INPUT_BUTTONS, normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame, type CombatLoadout } from "../src/shafak/game/combat-engine.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, isCombatItemId, normalizeCombatQuickSlots } from "../src/shafak/game/combat-items.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
@@ -72,13 +72,13 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
       y < -100 ||
       y > 100 ||
       buttons < 0 ||
-      buttons > 1_023 ||
+      buttons > MAX_INPUT_BUTTONS ||
       pressed < 0 ||
-      pressed > 1_023 ||
+      pressed > MAX_INPUT_BUTTONS ||
       released < 0 ||
-      released > 1_023
+      released > MAX_INPUT_BUTTONS
     ) return null;
-    const expectedButtons = ((previousButtons | pressed) & ~released) & 1_023;
+    const expectedButtons = ((previousButtons | pressed) & ~released) & MAX_INPUT_BUTTONS;
     if (
       buttons !== expectedButtons ||
       (pressed & previousButtons) !== 0 ||

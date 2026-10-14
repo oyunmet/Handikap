@@ -1354,3 +1354,45 @@
 @media (prefers-reduced-motion: reduce) {
   .world-scene[data-weapon-swap="true"] .world-three-layer { animation: none; }
 }
+.duel-combat-fx.is-burn > i { border-color: rgba(255,159,83,.95); box-shadow: 0 0 22px #ff7435,inset 0 0 13px #ffcf76; }
+.duel-combat-fx.is-coverBlock > i { border-color: rgba(208,190,155,.95); box-shadow: 0 0 20px #c69b61,inset 0 0 12px #f8dfac; }
+.duel-combat-fx.is-backflip > i { border-color: rgba(164,225,236,.86); box-shadow: 0 0 18px #76cfe3,inset 0 0 10px #e4ffff; }
+.duel-combat-fx.is-projectile > i { width: 44px; height: 44px; border-color: rgba(242,215,159,.75); box-shadow: 0 0 15px #d6a854,inset 0 0 8px #fff0bd; }
+.duel-stance-controls {
+  position: absolute;
+  z-index: 12;
+  top: max(164px,calc(env(safe-area-inset-top) + 154px));
+  left: max(12px,env(safe-area-inset-left));
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+.duel-controls .duel-control.is-stance {
+  width: 48px;
+  height: 48px;
+  min-width: 44px;
+  min-height: 44px;
+  border-color: rgba(222,197,152,.66);
+  background: radial-gradient(circle at 35% 25%,#63513b,#322b2c 72%,#19191d);
+  font-size: 6px;
+  letter-spacing: 0;
+}
+.duel-controls .duel-control.is-stance .duel-control__icon { width: 14px; height: 14px; }
+.duel-controls .duel-control.is-stance.is-active { border-color: #ffe19a; background: radial-gradient(circle at 35% 25%,#b18442,#59442a 72%,#25201d); box-shadow: 0 0 16px rgba(255,206,113,.42); }
+.duel-controls .duel-control.is-jump { border-color: rgba(230,193,125,.72); background: radial-gradient(circle at 35% 25%,#83623c,#40302a 72%,#1d191b); }
+.duel-aim-status {
+  position: absolute;
+  z-index: 11;
+  top: max(168px,calc(env(safe-area-inset-top) + 158px));
+  left: 50%;
+  padding: 5px 9px;
+  border: 1px solid rgba(240,209,148,.48);
+  border-radius: 3px;
+  background: rgba(21,18,17,.78);
+  color: #ffe8b4;
+  font: 900 7px var(--font-body,sans-serif);
+  letter-spacing: .12em;
+  text-shadow: 0 1px 5px #000;
+  transform: translateX(-50%);
+  pointer-events: none;
+}

@@ -8,7 +8,7 @@ export const DUEL_DEATH_PARTICLE_COUNT = 26;
 export const MAX_ACTIVE_DUEL_PARTICLES =
   MAX_ACTIVE_DUEL_VFX * MAX_DUEL_VFX_EVENT_PARTICLES + DUEL_DEATH_PARTICLE_COUNT;
 
-export type DuelVfxKind = "fireball" | "lightning" | "shield" | "afterimage" | "shockwave" | "none";
+export type DuelVfxKind = "fireball" | "lightning" | "shield" | "afterimage" | "shockwave" | "weaponTrail" | "arrow" | "coverBlock" | "plunge" | "none";
 
 export function getDuelVfxKind(event: Pick<CombatEvent, "type" | "attack">): DuelVfxKind {
   if (event.type === "skill") {
@@ -16,7 +16,11 @@ export function getDuelVfxKind(event: Pick<CombatEvent, "type" | "attack">): Due
     if (event.attack === "skillTwo") return "lightning";
   }
   if (event.type === "block" || event.type === "parry") return "shield";
-  if (event.type === "dodge") return "afterimage";
+  if (event.type === "coverBlock") return "coverBlock";
+  if (event.type === "projectile") return "arrow";
+  if (event.type === "weaponTrail") return "weaponTrail";
+  if (event.type === "dodge" || event.type === "backflip") return "afterimage";
+  if (event.type === "hit" && event.plunge) return "plunge";
   if (event.type === "hit") return "shockwave";
   return "none";
 }

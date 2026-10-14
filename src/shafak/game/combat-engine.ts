@@ -1,10 +1,15 @@
 import type { PlayerCombatModifiers } from "./store-types.ts";
 import type { CombatItemCounts, CombatItemId, CombatQuickSlots } from "./combat-items.ts";
+import { getStoreItem } from "./store-catalog.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
 export const COMBAT_ARENA_CENTER_Z = -0.6;
-export const COMBAT_ARENA_RADIUS = 3.62;
+export const COMBAT_ARENA_RADIUS = 6.25;
+export const DUEL_COVERS = [
+  { x: -2.55, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.78, halfDepth: 0.42 },
+  { x: 2.55, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.78, halfDepth: 0.42 },
+] as const;
 export const COMBO_CHAIN_WINDOW_TICKS = 78;
 export const INPUT_BUTTON = {
   attack: 1,
@@ -17,8 +22,11 @@ export const INPUT_BUTTON = {
   quickSlotThree: 128,
   quickSlotFour: 256,
   weaponSwitch: 512,
+  aim: 1_024,
+  crouch: 2_048,
+  jump: 4_096,
 } as const;
-export const MAX_INPUT_BUTTONS = 1_023;
+export const MAX_INPUT_BUTTONS = 8_191;
 
 export type CombatDifficulty = "easy" | "medium" | "hard";
 export type CombatSide = "player" | "bot";
@@ -33,8 +41,11 @@ export type CombatAction =
   | "hit"
   | "skillOne"
   | "skillTwo"
+  | "jump"
+  | "plunge"
   | "die";
 export type CombatAttack = "light" | "heavy" | "skillOne" | "skillTwo";
+type CombatWeaponStyle = NonNullable<ReturnType<typeof getStoreItem>>["visual"]["weaponStyle"];
 
 export type CombatActor = {
   x: number;
@@ -66,6 +77,16 @@ export type CombatActor = {
   quickSlotCooldownUntilTick: number[];
   poisonUntilTick: number;
   poisonNextTick: number;
+  burnUntilTick: number;
+  burnNextTick: number;
+  isAiming: boolean;
+  isCrouching: boolean;
+  jumpStartedTick: number;
+  jumpUntilTick: number;
+  lastDodgeTick: number;
+  attackWeaponId: string | null;
+  attackIsRanged: boolean;
+  attackWasPlunge: boolean;
 };
 
 export type CombatLoadout = {
@@ -114,7 +135,7 @@ export type CombatInputFrame = readonly [
 
 export type CombatEvent = {
   id: number;
-  type: "hit" | "block" | "parry" | "dodge" | "skill" | "knockout" | "item" | "poison" | "weaponSwitch";
+  type: "hit" | "block" | "parry" | "dodge" | "backflip" | "skill" | "knockout" | "item" | "poison" | "burn" | "weaponSwitch" | "weaponTrail" | "projectile" | "coverBlock";
   target: CombatSide;
   attack?: CombatAttack;
   damage?: number;
@@ -122,6 +143,12 @@ export type CombatEvent = {
   combo?: number;
   itemId?: CombatItemId;
   weaponId?: string;
+  from?: CombatSide;
+  originX?: number;
+  originZ?: number;
+  destinationX?: number;
+  destinationZ?: number;
+  plunge?: boolean;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -187,6 +214,16 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
     quickSlotCooldownUntilTick: [0, 0, 0, 0],
     poisonUntilTick: 0,
     poisonNextTick: 0,
+    burnUntilTick: 0,
+    burnNextTick: 0,
+    isAiming: false,
+    isCrouching: false,
+    jumpStartedTick: -10_000,
+    jumpUntilTick: 0,
+    lastDodgeTick: -10_000,
+    attackWeaponId: null,
+    attackIsRanged: false,
+    attackWasPlunge: false,
   };
 }
 
@@ -309,6 +346,16 @@ function stepPoison(actor: CombatActor, side: CombatSide, tick: number, events: 
   events.push({ id: tick * 100 + 90, type: "poison", target: side, damage });
 }
 
+function stepBurn(actor: CombatActor, side: CombatSide, tick: number, events: CombatEvent[]) {
+  if (tick > actor.burnUntilTick || tick < actor.burnNextTick || actor.hp <= 0) return;
+  actor.burnNextTick = tick + 30;
+  const damage = Math.min(2, actor.hp);
+  actor.hp = Math.max(0, actor.hp - damage);
+  actor.lastDamage = damage;
+  if (actor.hp === 0) setAction(actor, "die", tick, 90);
+  events.push({ id: tick * 100 + 92, type: "burn", target: side, damage });
+}
+
 export function getBotAttackWindupTicks(difficulty: CombatDifficulty) {
   return difficulty === "easy" ? 42 : difficulty === "medium" ? 36 : 30;
 }
@@ -324,6 +371,67 @@ function random(state: CombatState) {
 function setAction(actor: CombatActor, action: CombatAction, tick: number, duration: number) {
   actor.action = action;
   actor.actionUntilTick = tick + duration;
+}
+
+function getWeaponStyle(weaponId: string | null): CombatWeaponStyle {
+  return getStoreItem(weaponId)?.visual.weaponStyle ?? "sword";
+}
+
+function getAttackWeaponStyle(state: CombatState, actor: CombatActor): CombatWeaponStyle {
+  const weaponId = actor === state.player
+    ? actor.attackWeaponId ?? state.weaponIds[state.activeWeaponSlot]
+    : null;
+  return getWeaponStyle(weaponId);
+}
+
+function segmentCrossesCover(from: CombatActor, to: CombatActor) {
+  for (const cover of DUEL_COVERS) {
+    const minX = cover.x - cover.halfWidth;
+    const maxX = cover.x + cover.halfWidth;
+    const minZ = cover.z - cover.halfDepth;
+    const maxZ = cover.z + cover.halfDepth;
+    let tMin = 0;
+    let tMax = 1;
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    for (const [origin, delta, minimum, maximum] of [
+      [from.x, dx, minX, maxX],
+      [from.z, dz, minZ, maxZ],
+    ] as const) {
+      if (Math.abs(delta) < 1e-8) {
+        if (origin < minimum || origin > maximum) {
+          tMin = 2;
+          break;
+        }
+        continue;
+      }
+      const first = (minimum - origin) / delta;
+      const second = (maximum - origin) / delta;
+      tMin = Math.max(tMin, Math.min(first, second));
+      tMax = Math.min(tMax, Math.max(first, second));
+    }
+    if (tMin <= tMax && tMax >= 0 && tMin <= 1) return true;
+  }
+  return false;
+}
+
+function resolveActorCoverCollision(actor: CombatActor) {
+  const radius = 0.34;
+  for (const cover of DUEL_COVERS) {
+    const minX = cover.x - cover.halfWidth - radius;
+    const maxX = cover.x + cover.halfWidth + radius;
+    const minZ = cover.z - cover.halfDepth - radius;
+    const maxZ = cover.z + cover.halfDepth + radius;
+    if (actor.x <= minX || actor.x >= maxX || actor.z <= minZ || actor.z >= maxZ) continue;
+    const distances = [
+      { amount: actor.x - minX, apply: () => { actor.x = minX; actor.vx = Math.min(0, actor.vx); } },
+      { amount: maxX - actor.x, apply: () => { actor.x = maxX; actor.vx = Math.max(0, actor.vx); } },
+      { amount: actor.z - minZ, apply: () => { actor.z = minZ; actor.vz = Math.min(0, actor.vz); } },
+      { amount: maxZ - actor.z, apply: () => { actor.z = maxZ; actor.vz = Math.max(0, actor.vz); } },
+    ];
+    distances.sort((left, right) => left.amount - right.amount);
+    distances[0].apply();
+  }
 }
 
 function distanceBetween(left: CombatActor, right: CombatActor) {
@@ -355,7 +463,18 @@ function startAttack(
   comboStep = 0,
 ) {
   if (tick < actor.staggerUntilTick || tick < actor.attackCooldownUntilTick || actor.stamina <= 0) return false;
-  const cost = attack === "light" ? 9 : attack === "heavy" ? 23 : attack === "skillOne" ? 24 : 30;
+  const target = side === "player" ? state.bot : state.player;
+  const weaponId = side === "player" ? state.weaponIds[state.activeWeaponSlot] : null;
+  const weaponStyle = getWeaponStyle(weaponId);
+  const gap = distanceBetween(actor, target);
+  const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
+  const rangedShot = weaponStyle === "bow" && !bowAtCloseRange && (attack === "light" || attack === "heavy");
+  if (rangedShot && !actor.isAiming) return false;
+  const closeBowAttack = bowAtCloseRange && (attack === "light" || attack === "heavy");
+  const cost = attack === "light"
+    ? closeBowAttack ? 8 : weaponStyle === "daggers" ? 7 : 9
+    : attack === "heavy" ? weaponStyle === "axe" ? 27 : 23
+      : attack === "skillOne" ? 24 : 30;
   if (actor.stamina < cost) return false;
   actor.stamina = Math.max(0, actor.stamina - cost);
   actor.attackType = attack;
@@ -363,16 +482,37 @@ function startAttack(
   actor.attackStartedTick = tick;
   actor.attackHit = false;
   actor.chargeStartedTick = -1;
-  const speed = side === "player" ? state.playerStats.attackSpeedMultiplier : 1;
+  actor.attackWeaponId = weaponId;
+  actor.attackIsRanged = rangedShot;
+  actor.attackWasPlunge = actor.jumpUntilTick > tick;
+  const weaponSpeed = weaponStyle === "daggers" ? 1.28
+    : weaponStyle === "axe" || weaponStyle === "mace" ? 0.76
+      : weaponStyle === "greatsword" ? 0.82
+        : weaponStyle === "bow" ? 0.88
+          : weaponStyle === "spear" ? 0.94
+            : 1;
+  const speed = side === "player" ? state.playerStats.attackSpeedMultiplier * weaponSpeed : 1;
   const botRecovery = state.difficulty === "easy" ? 156 : state.difficulty === "medium" ? 108 : 78;
   actor.attackCooldownUntilTick = tick + Math.max(8, Math.round(
     side === "bot" ? botRecovery : (attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed,
   ));
-  const duration = Math.max(8, Math.round((attack === "light" ? 25 : attack === "heavy" ? 42 : attack === "skillOne" ? 36 : 48) / speed));
+  const duration = Math.max(8, Math.round((rangedShot
+    ? 33
+    : attack === "light" ? 25 : attack === "heavy" ? 42 : attack === "skillOne" ? 36 : 48) / speed));
   if (side === "bot") {
     setAction(actor, "windup", tick, getBotAttackWindupTicks(state.difficulty) + duration);
   } else {
-    setAction(actor, attack === "light" ? "attack" : attack === "heavy" ? "heavyAttack" : attack, tick, duration);
+    setAction(actor, actor.attackWasPlunge ? "plunge" : attack === "light" ? "attack" : attack === "heavy" ? "heavyAttack" : attack, tick, duration);
+  }
+  if (side === "player" && !rangedShot) {
+    events.push({
+      id: tick * 100 + 38,
+      type: "weaponTrail",
+      target: side,
+      attack,
+      weaponId: closeBowAttack ? "weapon_hunting_knife" : weaponId ?? undefined,
+      plunge: actor.attackWasPlunge,
+    });
   }
   if (attack === "skillOne" || attack === "skillTwo") {
     events.push({ id: tick * 4 + (side === "player" ? 1 : 2), type: "skill", target: side, attack });
@@ -438,11 +578,48 @@ function applyDamage(
 ) {
   const gap = distanceBetween(attacker, target);
   const playerAttacking = attacker === state.player;
+  const weaponStyle = getAttackWeaponStyle(state, attacker);
+  const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
+  const rangedShot = playerAttacking && attacker.attackIsRanged;
+  const closeBowAttack = bowAtCloseRange && !rangedShot;
   const baseDamage = (attack === "light" ? 6 : attack === "heavy" ? 10 : attack === "skillOne" ? 11 : 15)
     * (playerAttacking ? 1 : state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72);
-  const reach = (attack === "light" ? 2.35 : attack === "heavy" ? 2.8 : attack === "skillOne" ? 4.8 : 3.7)
+  const styleReach = weaponStyle === "daggers" ? 1.95
+    : weaponStyle === "axe" || weaponStyle === "mace" ? 2.42
+      : weaponStyle === "greatsword" ? 3.12
+        : weaponStyle === "spear" ? 4.35
+          : weaponStyle === "bow" ? closeBowAttack ? 1.85 : 9.25
+            : attack === "light" ? 2.35 : 2.8;
+  const reach = rangedShot
+    ? 9.25
+    : attack === "skillOne" ? 4.8
+      : attack === "skillTwo" ? 3.7
+        : styleReach + (attack === "heavy" && weaponStyle !== "spear" ? 0.38 : 0)
     + (playerAttacking ? state.playerStats.attackRangeBonus : 0);
   if (gap > reach || target.hp <= 0) return;
+
+  if (rangedShot) {
+    events.push({
+      id: tick * 100 + 36,
+      type: "projectile",
+      target: targetSide,
+      from: playerAttacking ? "player" : "bot",
+      attack,
+      weaponId: attacker.attackWeaponId ?? undefined,
+      originX: attacker.x,
+      originZ: attacker.z,
+      destinationX: target.x,
+      destinationZ: target.z,
+    });
+    if (segmentCrossesCover(attacker, target)) {
+      attacker.attackHit = true;
+      attacker.attackType = null;
+      events.push({ id: tick * 100 + 37, type: "coverBlock", target: targetSide, from: playerAttacking ? "player" : "bot", attack });
+      state.lastImpactTick = tick;
+      state.lastImpactStrength = 0.35;
+      return;
+    }
+  }
 
   if (tick < target.invulnerableUntilTick) {
     if (attacker === state.player) {
@@ -487,10 +664,20 @@ function applyDamage(
   }
   const damageMultiplier = playerAttacking ? state.playerStats.damageMultiplier : 1;
   const defenseMultiplier = targetSide === "player" ? 1 - state.playerStats.defenseReduction : 1;
-  const damage = Math.max(1, Math.round(baseDamage * damageMultiplier * multiplier * (critical ? 1.5 : 1) * defenseMultiplier));
+  const weaponDamage = weaponStyle === "daggers" ? 0.9
+    : weaponStyle === "axe" || weaponStyle === "mace" ? 1.24
+      : weaponStyle === "greatsword" ? 1.16
+        : weaponStyle === "spear" ? 0.94
+          : rangedShot ? 0.96
+            : closeBowAttack ? 0.84 : 1;
+  const damage = Math.max(1, Math.round(baseDamage * weaponDamage * damageMultiplier * multiplier * (critical ? 1.5 : 1) * defenseMultiplier));
   target.hp = Math.max(0, target.hp - damage);
   target.lastDamage = damage;
-  target.staggerUntilTick = tick + (attack === "heavy" ? 21 : 13);
+  target.staggerUntilTick = tick + (attack === "heavy" ? 21 : attack === "skillTwo" ? 24 : 13);
+  if (attack === "skillOne") {
+    target.burnUntilTick = Math.max(target.burnUntilTick, tick + 150);
+    target.burnNextTick = Math.max(target.burnNextTick, tick + 30);
+  }
   if (targetSide === "player") {
     target.comboChainStep = 0;
     target.comboChainUntilTick = 0;
@@ -506,6 +693,8 @@ function applyDamage(
     damage,
     critical,
     combo: targetSide === "bot" ? attacker.combo : undefined,
+    weaponId: closeBowAttack ? "weapon_hunting_knife" : attacker.attackWeaponId ?? undefined,
+    plunge: attacker.attackWasPlunge,
   });
   state.lastImpactTick = tick;
   state.lastImpactStrength = attack === "heavy" || critical ? 1 : 0.7;
@@ -566,6 +755,8 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const botInput = chooseBotIntent(next, tick, events);
   const buttons = input.buttons & MAX_INPUT_BUTTONS;
   const playerBlockHeld = Boolean(buttons & INPUT_BUTTON.block);
+  player.isAiming = Boolean(buttons & INPUT_BUTTON.aim);
+  player.isCrouching = Boolean(buttons & INPUT_BUTTON.crouch);
 
   if (
     (input.pressed & INPUT_BUTTON.weaponSwitch) &&
@@ -624,13 +815,23 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     const away = distanceBetween(player, bot) < 0.001
       ? { x: -1, y: 0 }
       : normalized(player.x - bot.x, player.z - bot.z);
-    const impulse = Math.hypot(direction.x, direction.y) > 0.1 ? direction : away;
-    player.stamina = Math.max(0, player.stamina - 20);
-    player.vx = impulse.x * 8.2;
-    player.vz = impulse.y * 8.2;
+    const backflip = tick - player.lastDodgeTick <= 18;
+    const impulse = backflip ? away : Math.hypot(direction.x, direction.y) > 0.1 ? direction : away;
+    const dashSpeed = backflip ? 10.2 : 8.2;
+    player.lastDodgeTick = tick;
+    player.stamina = Math.max(0, player.stamina - (backflip ? 24 : 20));
+    player.vx = impulse.x * dashSpeed;
+    player.vz = impulse.y * dashSpeed;
     player.invulnerableUntilTick = tick + 16;
-    setAction(player, "dodge", tick, 18);
-    events.push({ id: tick * 4 + 1, type: "dodge", target: "player" });
+    setAction(player, "dodge", tick, backflip ? 24 : 18);
+    events.push({ id: tick * 4 + 1, type: backflip ? "backflip" : "dodge", target: "player" });
+  }
+
+  if ((input.pressed & INPUT_BUTTON.jump) && tick >= player.jumpUntilTick && player.stamina >= 12 && tick >= player.staggerUntilTick) {
+    player.stamina = Math.max(0, player.stamina - 12);
+    player.jumpStartedTick = tick;
+    player.jumpUntilTick = tick + 42;
+    setAction(player, "jump", tick, 42);
   }
 
   if ((input.pressed & INPUT_BUTTON.skillOne) && tick >= player.skillOneCooldownUntilTick && player.stamina >= 24) {
@@ -640,9 +841,12 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     if (startAttack(next, player, "skillTwo", tick, events, "player")) player.skillTwoCooldownUntilTick = tick + 360;
   }
 
-  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier);
+  const stanceSpeed = player.isCrouching ? 0.48 : player.isAiming ? 0.68 : 1;
+  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier * stanceSpeed);
   moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
   resolveCombatActorOverlap(player, bot);
+  resolveActorCoverCollision(player);
+  resolveActorCoverCollision(bot);
   constrainActorToArena(player);
   constrainActorToArena(bot);
   player.stamina = Math.min(player.maxStamina, player.stamina + 0.17);
@@ -686,6 +890,8 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
 
   stepPoison(player, "player", tick, events);
   stepPoison(bot, "bot", tick, events);
+  stepBurn(player, "player", tick, events);
+  stepBurn(bot, "bot", tick, events);
 
   for (const actor of [player, bot]) {
     if (actor.hp <= 0) {

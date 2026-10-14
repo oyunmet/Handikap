@@ -15,6 +15,7 @@ import type { WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import WorldLandscape from "./WorldLandscape";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
+import { DUEL_COVERS } from "../game/combat-engine";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
 import type { WorldInteractableRegistry } from "./world-interactables";
@@ -283,7 +284,7 @@ function CameraRig({
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 8.2 : 8.7,
+        touchRenderer ? 10.1 : 10.8,
         touchRenderer ? 0.55 : 0.8,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
@@ -318,7 +319,7 @@ function CameraRig({
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
-      ? (touchRenderer ? 56 : 48) - combatImpact * 1.1 - skillZoom - finisherZoom
+      ? (touchRenderer ? 60 : 52) - combatImpact * 1.1 - skillZoom - finisherZoom
       : focusedRival ? (cinematicIntro ? 51 : 48) : travelCamera.fieldOfView;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
@@ -342,7 +343,8 @@ function CameraRig({
 function combatAnimation(action: CombatAction, speed: number) {
   if (action === "windup") return "block" as const;
   if (action === "attack") return "attack" as const;
-  if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo") return "heavyAttack" as const;
+  if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo" || action === "plunge") return "heavyAttack" as const;
+  if (action === "jump") return "dodge" as const;
   if (action === "block" || action === "dodge" || action === "hit" || action === "die") return action;
   return speed > 0.28 ? "walk" as const : "idle" as const;
 }
@@ -378,7 +380,11 @@ function DuelFighter({
     ? getDuelFacingAngle(renderedActor, opposingActor)
     : side === "bot" ? Math.PI : 0;
   const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
-  const animation = renderedActor ? combatAnimation(renderedActor.action, speed) : "idle";
+  const animation = renderedActor
+    ? renderedActor.isCrouching || renderedActor.isAiming
+      ? "block"
+      : combatAnimation(renderedActor.action, speed)
+    : "idle";
   const modelConfig = side === "bot" ? getOpponentModelConfig(opponentName) : undefined;
   const modelAnimationState = modelConfig
     ? combatRender?.ended
@@ -397,7 +403,7 @@ function DuelFighter({
         || (side === "bot" && combatRender.verdict === "victory")
       ))),
   );
-  const isAttackBeat = Boolean(renderedActor && ["attack", "heavyAttack", "skillOne", "skillTwo", "parry"].includes(renderedActor.action));
+  const isAttackBeat = Boolean(renderedActor && ["attack", "heavyAttack", "skillOne", "skillTwo", "plunge", "parry"].includes(renderedActor.action));
   const combatGlow = side === "player" ? "#ffad58" : "#6de0e5";
 
   useFrame(() => {
@@ -418,22 +424,33 @@ function DuelFighter({
     const visualRoot = actorVisualRoot.current;
     if (!visualRoot) return;
     const baseScale = side === "bot" ? 1.07 : 1;
+    const liveActor = combatStateRef.current?.[side] ?? renderedActor;
+    const combatTick = combatStateRef.current?.tick ?? combatRender?.tick ?? 0;
+    const jumpDuration = liveActor ? liveActor.jumpUntilTick - liveActor.jumpStartedTick : 0;
+    const jumpProgress = liveActor && jumpDuration > 0
+      ? THREE.MathUtils.clamp((combatTick - liveActor.jumpStartedTick) / jumpDuration, 0, 1)
+      : 1;
+    const jumpHeight = liveActor && liveActor.jumpUntilTick > combatTick
+      ? Math.sin(jumpProgress * Math.PI) * 1.12
+      : 0;
     const staminaRatio = side === "player" && renderedActor
       ? renderedActor.stamina / Math.max(1, renderedActor.maxStamina)
       : 1;
     const exhaustion = visualEffectsEnabled && !motionReduced && !defeated
       ? THREE.MathUtils.clamp((0.2 - staminaRatio) / 0.2, 0, 1)
       : 0;
-    visualRoot.position.y = Math.sin(frame.clock.elapsedTime * 4.6) * 0.026 * exhaustion;
-    visualRoot.rotation.x = Math.sin(frame.clock.elapsedTime * 2.4) * 0.018 * exhaustion;
+    visualRoot.position.y = jumpHeight
+      + (liveActor?.isCrouching ? -0.27 : 0)
+      + Math.sin(frame.clock.elapsedTime * 4.6) * 0.026 * exhaustion;
+    visualRoot.rotation.x = liveActor?.isAiming ? 0.08 : liveActor?.isCrouching ? 0.16 : Math.sin(frame.clock.elapsedTime * 2.4) * 0.018 * exhaustion;
     if (!visualEffectsEnabled || !defeated) {
       deathStartedAtRef.current = null;
-      visualRoot.scale.setScalar(baseScale);
+      visualRoot.scale.set(baseScale, baseScale * (liveActor?.isCrouching ? 0.82 : 1), baseScale);
       return;
     }
     deathStartedAtRef.current ??= frame.clock.elapsedTime;
     const progress = THREE.MathUtils.clamp((frame.clock.elapsedTime - deathStartedAtRef.current) / 0.86, 0, 1);
-    visualRoot.scale.setScalar(baseScale * (1 - progress));
+    visualRoot.scale.set(baseScale * (1 - progress), baseScale * (liveActor?.isCrouching ? 0.82 : 1) * (1 - progress), baseScale * (1 - progress));
   });
 
   if (!renderedActor) return null;
@@ -592,6 +609,9 @@ function DuelCombatVisual({
   const afterimageMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
   const shockwaveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const weaponTrailRef = useRef<THREE.Mesh>(null);
+  const weaponTrailMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const arrowRef = useRef<THREE.Group>(null);
   const lightningPositions = useMemo(
     () => new Float32Array(LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT * 2 * 3),
     [],
@@ -626,6 +646,22 @@ function DuelCombatVisual({
       fireballRef.current.visible = age < 1;
     }
 
+    if (kind === "weaponTrail" && weaponTrailRef.current && weaponTrailMaterialRef.current) {
+      weaponTrailRef.current.position.set(actor.x, event.plunge ? 1.38 : 1.12, actor.z - 0.22);
+      weaponTrailRef.current.rotation.set(0, Math.atan2(opponent.x - actor.x, opponent.z - actor.z), -0.16);
+      weaponTrailRef.current.scale.setScalar(0.72 + fade * 0.36);
+      weaponTrailMaterialRef.current.opacity = fade * (event.plunge ? 0.9 : 0.76);
+    }
+
+    if (kind === "arrow" && arrowRef.current) {
+      start.set(event.originX ?? opponent.x, 1.25, event.originZ ?? opponent.z);
+      end.set(event.destinationX ?? actor.x, 1.13, event.destinationZ ?? actor.z);
+      arrowRef.current.position.lerpVectors(start, end, Math.min(1, age * 1.45));
+      arrowRef.current.lookAt(end);
+      arrowRef.current.visible = age < 0.76;
+      arrowRef.current.scale.setScalar(0.82 + (1 - age) * 0.18);
+    }
+
     if (kind === "lightning" && lightningMaterialRef.current) {
       let vertex = 0;
       for (let bolt = 0; bolt < LIGHTNING_BOLT_COUNT; bolt += 1) {
@@ -656,11 +692,15 @@ function DuelCombatVisual({
       lightningMaterialRef.current.opacity = fade * (motionReduced ? 0.8 : 0.72 + Math.sin(frame.clock.elapsedTime * 58) * 0.2);
     }
 
-    if ((kind === "shield") && shieldRef.current && shieldMaterialRef.current) {
+    if ((kind === "shield" || kind === "coverBlock") && shieldRef.current && shieldMaterialRef.current) {
       const defender = state[event.target];
-      shieldRef.current.position.set(defender.x, 1.02, defender.z - 0.1);
+      shieldRef.current.position.set(
+        kind === "coverBlock" ? (defender.x + opponent.x) * 0.5 : defender.x,
+        1.02,
+        kind === "coverBlock" ? (defender.z + opponent.z) * 0.5 : defender.z - 0.1,
+      );
       shieldRef.current.scale.set(0.7 + age * 0.34, 1.02 + age * 0.22, 0.54 + age * 0.22);
-      shieldMaterialRef.current.opacity = fade * (event.type === "parry" ? 0.34 : 0.2);
+      shieldMaterialRef.current.opacity = fade * (event.type === "parry" ? 0.34 : kind === "coverBlock" ? 0.48 : 0.2);
     }
 
     if (kind === "afterimage" && afterimageRef.current && afterimageMaterialRef.current) {
@@ -676,9 +716,15 @@ function DuelCombatVisual({
     }
 
     if (kind === "shockwave" && shockwaveRef.current && shockwaveMaterialRef.current) {
-      shockwaveRef.current.position.set(opponent.x, 0.065, opponent.z - 0.1);
+      shockwaveRef.current.position.set(actor.x, 0.065, actor.z - 0.1);
       shockwaveRef.current.scale.setScalar(0.5 + age * 2.1);
       shockwaveMaterialRef.current.opacity = fade * 0.85;
+    }
+
+    if (kind === "plunge" && shockwaveRef.current && shockwaveMaterialRef.current) {
+      shockwaveRef.current.position.set(actor.x, 0.065, actor.z - 0.1);
+      shockwaveRef.current.scale.setScalar(0.5 + age * 2.1);
+      shockwaveMaterialRef.current.opacity = fade * 0.95;
     }
   });
 
@@ -707,6 +753,31 @@ function DuelCombatVisual({
             blending={THREE.AdditiveBlending}
           />
         </lineSegments>
+      )}
+      {(kind === "weaponTrail" || kind === "plunge") && (
+        <mesh ref={weaponTrailRef} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.56, 0.055, 5, 18, Math.PI * 1.2]} />
+          <meshBasicMaterial
+            ref={weaponTrailMaterialRef}
+            color={kind === "plunge" ? "#ffd479" : "#fff0bd"}
+            transparent
+            opacity={0.8}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+      {kind === "arrow" && (
+        <group ref={arrowRef}>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.026, 0.026, 0.74, 5]} />
+            <meshBasicMaterial color="#dfc38c" toneMapped={false} />
+          </mesh>
+          <mesh position={[0, 0, -0.43]} rotation={[-Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.07, 0.18, 5]} />
+            <meshBasicMaterial color="#fff0be" toneMapped={false} />
+          </mesh>
+        </group>
       )}
       {kind === "shield" && (
         <mesh ref={shieldRef}>
@@ -757,6 +828,67 @@ function DuelCombatVisual({
   );
 }
 
+function DuelAshField() {
+  const particleCount = 22;
+  const geometry = useMemo(() => {
+    const nextGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    nextGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    return nextGeometry;
+  }, []);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  useFrame((frame) => {
+    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+    const time = frame.clock.elapsedTime;
+    for (let index = 0; index < particleCount; index += 1) {
+      const phase = (time * 0.18 + index * 0.137) % 1;
+      positions.setXYZ(
+        index,
+        Math.sin(time * 0.32 + index * 2.1) * 5.6,
+        0.25 + phase * 2.8,
+        Math.cos(time * 0.21 + index * 1.7) * 5.5,
+      );
+    }
+    positions.needsUpdate = true;
+  });
+
+  return (
+    <points geometry={geometry} frustumCulled={false}>
+      <pointsMaterial color="#f5a765" size={0.065} transparent opacity={0.62} depthWrite={false} sizeAttenuation />
+    </points>
+  );
+}
+
+function DuelTargetMarker({ combatStateRef }: { combatStateRef: MutableRefObject<CombatState | null> }) {
+  const markerRef = useRef<THREE.Group>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+
+  useFrame((frame) => {
+    const state = combatStateRef.current;
+    const marker = markerRef.current;
+    if (!state || !marker) return;
+    marker.visible = state.player.isAiming && state.bot.hp > 0;
+    marker.position.set(state.bot.x, 2.45 + Math.sin(frame.clock.elapsedTime * 3.5) * 0.08, state.bot.z);
+    marker.rotation.y = Math.atan2(state.player.x - state.bot.x, state.player.z - state.bot.z);
+    if (ringRef.current) ringRef.current.scale.setScalar(0.94 + Math.sin(frame.clock.elapsedTime * 7) * 0.06);
+  });
+
+  return (
+    <group ref={markerRef} visible={false}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.39, 0.035, 5, 18]} />
+        <meshBasicMaterial color="#ffe29b" transparent opacity={0.9} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, -0.29, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.14, 0.3, 5]} />
+        <meshBasicMaterial color="#ffe29b" toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 function DuelArena({
   opponentName,
   motionRef,
@@ -775,11 +907,12 @@ function DuelArena({
         <circleGeometry args={[42, 96]} />
         <meshBasicMaterial color="#302830" side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
+      {visualEffectsEnabled && <DuelAshField />}
       <pointLight position={[0, 5.2, 2.2]} color="#ffe0b0" intensity={82} distance={24} decay={2} />
       <pointLight position={[0, 4.1, -3.8]} color="#a5daf0" intensity={42} distance={22} decay={2} />
       <pointLight position={[-3.2, 2.8, -0.4]} color="#ff795c" intensity={16} distance={10} decay={2} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[4.28, 96]} />
+        <circleGeometry args={[7.12, 96]} />
         <meshStandardMaterial
           color="#493a44"
           emissive="#30242f"
@@ -789,19 +922,24 @@ function DuelArena({
         />
       </mesh>
       <mesh position={[0, 0.026, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[4.22, 4.3, 96]} />
+        <ringGeometry args={[7.03, 7.14, 96]} />
         <meshBasicMaterial color="#855248" transparent opacity={0.3} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[4.05, 4.18, 96]} />
+        <ringGeometry args={[6.7, 6.88, 96]} />
         <meshBasicMaterial color="#f2a05b" transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh position={[0, 0.045, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[3.78, 3.86, 72]} />
+        <ringGeometry args={[6.3, 6.38, 72]} />
         <meshBasicMaterial color="#e45c48" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      {[-4.25, 4.25].map((x) => (
-        <group key={x} position={[x, 0, -0.55]}>
+      {[
+        [-5.72, -0.55],
+        [5.72, -0.55],
+        [-3.8, -5.05],
+        [3.8, 3.95],
+      ].map(([x, z]) => (
+        <group key={`${x}-${z}`} position={[x, 0, z]}>
           <mesh position={[0, 0.66, 0]}>
             <cylinderGeometry args={[0.085, 0.13, 1.3, 7]} />
             <meshStandardMaterial color="#4b3030" roughness={0.78} />
@@ -809,6 +947,22 @@ function DuelArena({
           <mesh position={[0, 1.43, 0]}>
             <dodecahedronGeometry args={[0.19, 0]} />
             <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} depthWrite={false} />
+          </mesh>
+        </group>
+      ))}
+      {DUEL_COVERS.map((cover, index) => (
+        <group key={index} position={[cover.x, 0, cover.z]}>
+          <mesh position={[0, 0.53, 0]} castShadow receiveShadow>
+            <boxGeometry args={[cover.halfWidth * 2, 1.06, cover.halfDepth * 2]} />
+            <meshStandardMaterial color="#554b50" roughness={0.96} />
+          </mesh>
+          <mesh position={[0, 1.1, 0]} castShadow>
+            <boxGeometry args={[cover.halfWidth * 2 + 0.12, 0.16, cover.halfDepth * 2 + 0.1]} />
+            <meshStandardMaterial color="#81706a" roughness={0.88} />
+          </mesh>
+          <mesh position={[0, 1.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.48, 0.58, 16]} />
+            <meshBasicMaterial color="#c49a63" transparent opacity={0.3} depthWrite={false} side={THREE.DoubleSide} />
           </mesh>
         </group>
       ))}
@@ -827,6 +981,7 @@ function DuelArena({
         ))}
       {combatRender && (
         <>
+          <DuelTargetMarker combatStateRef={combatStateRef} />
           <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
           <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
         </>

@@ -16,7 +16,12 @@ test("each combat event selects its matching readable arena effect", () => {
   assert.equal(getDuelVfxKind({ type: "block" }), "shield");
   assert.equal(getDuelVfxKind({ type: "parry" }), "shield");
   assert.equal(getDuelVfxKind({ type: "dodge" }), "afterimage");
+  assert.equal(getDuelVfxKind({ type: "backflip" }), "afterimage");
   assert.equal(getDuelVfxKind({ type: "hit" }), "shockwave");
+  assert.equal(getDuelVfxKind({ type: "hit", plunge: true }), "plunge");
+  assert.equal(getDuelVfxKind({ type: "weaponTrail" }), "weaponTrail");
+  assert.equal(getDuelVfxKind({ type: "projectile" }), "arrow");
+  assert.equal(getDuelVfxKind({ type: "coverBlock" }), "coverBlock");
   assert.equal(getDuelVfxKind({ type: "knockout" }), "none");
 });
 

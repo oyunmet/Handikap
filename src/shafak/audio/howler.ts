@@ -70,7 +70,7 @@ export function playUiChime() {
 }
 
 type GameCue = "victory" | "defeat";
-type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph";
+type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph" | "block" | "fire" | "lightning" | "impact" | "death" | "potion" | "arrow";
 type FootstepOptions = { running: boolean; surface: "stone" | "dirt"; enabled: boolean };
 
 const cueNotes: Record<GameCue, number[]> = {
@@ -116,6 +116,13 @@ const worldCueNotes: Record<WorldCue, number[]> = {
   attack: [150, 98],
   battle: [196, 294, 392],
   telegraph: [740, 510],
+  block: [520, 780],
+  fire: [180, 330, 110],
+  lightning: [980, 640, 420],
+  impact: [112, 78],
+  death: [294, 220, 146],
+  potion: [420, 630, 840],
+  arrow: [760, 520],
 };
 
 export function playWorldCue(cue: WorldCue) {
@@ -126,18 +133,25 @@ export function playWorldCue(cue: WorldCue) {
     if (!context || !bus) return;
     resumeGameAudio(context);
     const notes = worldCueNotes[cue];
-    const spacing = cue === "attack" ? 0.035 : cue === "telegraph" ? 0.04 : 0.055;
-    const duration = cue === "attack" ? 0.11 : cue === "telegraph" ? 0.13 : 0.16;
+    const spacing = cue === "attack" || cue === "impact" || cue === "arrow" ? 0.035 : cue === "telegraph" ? 0.04 : 0.055;
+    const duration = cue === "attack" || cue === "impact" || cue === "arrow" ? 0.11 : cue === "telegraph" ? 0.13 : 0.16;
     notes.forEach((frequency, index) => {
       const start = context.currentTime + index * spacing;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = cue === "attack" || cue === "telegraph" ? "triangle" : "sine";
+      oscillator.type = cue === "lightning" ? "square" : cue === "attack" || cue === "telegraph" || cue === "impact" || cue === "arrow" ? "triangle" : "sine";
       oscillator.frequency.setValueAtTime(frequency, start);
       if (cue === "attack") oscillator.frequency.exponentialRampToValueAtTime(Math.max(42, frequency * 0.48), start + duration);
       if (cue === "telegraph") oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.72, start + duration);
+      if (cue === "fire") oscillator.frequency.exponentialRampToValueAtTime(Math.max(44, frequency * 0.35), start + duration);
+      if (cue === "impact") oscillator.frequency.exponentialRampToValueAtTime(Math.max(38, frequency * 0.55), start + duration);
+      if (cue === "arrow") oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.65, start + duration);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(cue === "attack" ? 0.05 : cue === "telegraph" ? 0.027 : 0.035, start + 0.012);
+      const peak = cue === "attack" || cue === "impact" ? 0.05
+        : cue === "telegraph" || cue === "lightning" ? 0.027
+          : cue === "arrow" || cue === "block" || cue === "potion" ? 0.03
+            : 0.035;
+      gain.gain.exponentialRampToValueAtTime(peak, start + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
       oscillator.connect(gain).connect(bus);
       oscillator.start(start);

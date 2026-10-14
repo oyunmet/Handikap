@@ -16,6 +16,9 @@ test("guest gameplay and server purchases share the same populated catalog", () 
       assert.ok(item.stats && item.visual);
     }
   }
+  assert.ok(GAME_CATALOG.some((item) => item.id === "weapon_hunting_knife" && item.price.gold > 0 && item.upgradeable));
+  assert.ok(GAME_CATALOG.some((item) => item.id === "weapon_short_bow" && item.visual.weaponStyle === "bow"));
+  assert.ok(GAME_CATALOG.some((item) => item.id === "weapon_road_spear" && item.visual.weaponStyle === "spear"));
 });
 
 test("the Vercel catalog handler returns the shared catalog as public JSON", async () => {

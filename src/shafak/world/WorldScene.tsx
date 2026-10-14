@@ -762,7 +762,12 @@ export default function WorldScene({
   }, [playerCombatStats, profile, storeItems]);
   const equipmentBonuses = useMemo(() => getEquipmentBonuses(profile, storeItems), [profile, storeItems]);
   const equipmentVisual = useMemo(() => getEquipmentVisual(profile, storeItems), [profile, storeItems]);
-  const battleWeaponId = combatRender?.weaponIds[combatRender.activeWeaponSlot] ?? profile.equipment.weaponId;
+  const selectedBattleWeaponId = combatRender?.weaponIds[combatRender.activeWeaponSlot] ?? profile.equipment.weaponId;
+  const combatDistance = combatRender
+    ? Math.hypot(combatRender.player.x - combatRender.bot.x, combatRender.player.z - combatRender.bot.z)
+    : Number.POSITIVE_INFINITY;
+  const bowCloseRange = selectedBattleWeaponId === "weapon_short_bow" && combatDistance <= 1.85;
+  const battleWeaponId = bowCloseRange ? "weapon_hunting_knife" : selectedBattleWeaponId;
   const battleEquipmentVisual = useMemo(() => {
     if (battleWeaponId === profile.equipment.weaponId) return equipmentVisual;
     const battleProfile = { ...profile, equipment: { ...profile.equipment, weaponId: battleWeaponId } };
@@ -1552,6 +1557,9 @@ export default function WorldScene({
       l: INPUT_BUTTON.dodge,
       " ": INPUT_BUTTON.skillOne,
       q: INPUT_BUTTON.skillTwo,
+      f: INPUT_BUTTON.aim,
+      c: INPUT_BUTTON.crouch,
+      x: INPUT_BUTTON.jump,
       "1": INPUT_BUTTON.quickSlotOne,
       "2": INPUT_BUTTON.quickSlotTwo,
       "3": INPUT_BUTTON.quickSlotThree,
@@ -1579,7 +1587,7 @@ export default function WorldScene({
         event.preventDefault();
         if (!event.repeat) {
           pressDuelButton(button);
-          if (["1", "2", "3", "4", "v"].includes(normalized)) releaseDuelButton(button);
+          if (["1", "2", "3", "4", "v", "x"].includes(normalized)) releaseDuelButton(button);
         }
       }
     };
@@ -1593,7 +1601,16 @@ export default function WorldScene({
       if (button) releaseDuelButton(button);
     };
     const onBlur = () => {
-      for (const button of [INPUT_BUTTON.attack, INPUT_BUTTON.block, INPUT_BUTTON.dodge, INPUT_BUTTON.skillOne, INPUT_BUTTON.skillTwo]) {
+      for (const button of [
+        INPUT_BUTTON.attack,
+        INPUT_BUTTON.block,
+        INPUT_BUTTON.dodge,
+        INPUT_BUTTON.skillOne,
+        INPUT_BUTTON.skillTwo,
+        INPUT_BUTTON.aim,
+        INPUT_BUTTON.crouch,
+        INPUT_BUTTON.jump,
+      ]) {
         releaseDuelButton(button);
       }
       duelKeyboardKeysRef.current.clear();
@@ -1746,7 +1763,7 @@ export default function WorldScene({
               const impactEvents = stepped.events.filter((event) => event.type === "hit" || event.type === "parry");
               if (visualEffectsEnabled && impactEvents.length) {
                 const damage = impactEvents.reduce((sum, event) => sum + (event.type === "hit" ? event.damage ?? 0 : 0), 0);
-                hitStopUntilRef.current = window.performance.now() + Math.min(90, Math.max(50, 50 + damage * 0.65));
+                hitStopUntilRef.current = window.performance.now() + Math.min(80, Math.max(50, 50 + damage * 0.65));
               } else if (!visualEffectsEnabled) {
                 hitStopUntilRef.current = window.performance.now();
               }
@@ -1775,8 +1792,18 @@ export default function WorldScene({
                   if (flashSequenceRef.current === sequence) setCombatFlash(null);
                 }, 145);
               }
+              const hasEvent = (type: CombatEvent["type"]) => stepped.events.some((event) => event.type === type);
+              const lightningHit = stepped.events.some((event) => event.type === "skill" && event.attack === "skillTwo");
+              const fireHit = stepped.events.some((event) => event.type === "skill" && event.attack === "skillOne");
+              if (hasEvent("knockout")) playWorldCue("death");
+              else if (hasEvent("parry") || hasEvent("block") || hasEvent("coverBlock")) playWorldCue("block");
+              else if (lightningHit) playWorldCue("lightning");
+              else if (fireHit || hasEvent("burn")) playWorldCue("fire");
+              else if (hasEvent("projectile")) playWorldCue("arrow");
+              else if (hasEvent("item")) playWorldCue("potion");
+              else if (hasEvent("hit")) playWorldCue("impact");
+              else if (hasEvent("weaponTrail")) playWorldCue("attack");
               if (stepped.events.some((event) => event.type === "hit" || event.type === "parry" || event.type === "block")) {
-                playWorldCue("attack");
                 if (vibrationOn && "vibrate" in navigator) {
                   try { navigator.vibrate(stepped.events.some((event) => event.critical) ? [24, 25, 28] : 18); } catch { /* Haptics are optional. */ }
                 }
@@ -2320,7 +2347,10 @@ export default function WorldScene({
                 )}
                 {event.type === "block" && <strong>0 HASAR · BLOK</strong>}
                 {event.type === "parry" && <strong>SAVUŞTURMA · 0</strong>}
+                {event.type === "coverBlock" && <strong>SİPER OKU DURDURDU</strong>}
                 {event.type === "dodge" && <strong>KAÇIŞ · 0 HASAR</strong>}
+                {event.type === "backflip" && <strong>GERİ TAKLA · KAÇIŞ</strong>}
+                {event.type === "burn" && <strong>KOR · −{event.damage ?? 0}</strong>}
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
                 {event.type === "item" && <strong>{getCombatItem(event.itemId)?.name ?? "SAVAŞ EŞYASI"}</strong>}
                 {event.type === "poison" && <strong>ZEHİR · −{event.damage ?? 0}</strong>}
@@ -2330,6 +2360,15 @@ export default function WorldScene({
           </div>}
           {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
           {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
+          {combatRender.weaponIds[combatRender.activeWeaponSlot] === "weapon_short_bow" && (
+            <div className="duel-aim-status" role="status" aria-live="polite">
+              {bowCloseRange
+                ? "YAKIN DÖVÜŞ · AV BIÇAĞI"
+                : combatRender.player.isAiming
+                  ? "HEDEF OKU HAZIR · ATEŞ ET"
+                  : "NİŞAN AL · EĞİLEREK SİPER KULLAN"}
+            </div>
+          )}
           <DuelControls
             stamina={combatRender.player.stamina}
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
@@ -2361,6 +2400,9 @@ export default function WorldScene({
             weaponSwapCooldownSeconds={Math.max(0, combatRender.weaponSwapCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             canSwitchWeapon={Boolean(combatRender.weaponIds[1])}
             activeWeaponName={STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "Silah"}
+            aiming={combatRender.player.isAiming}
+            crouching={combatRender.player.isCrouching}
+            bowCloseRange={bowCloseRange}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onMove={moveDuelPlayer}

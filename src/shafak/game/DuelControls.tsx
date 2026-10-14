@@ -21,6 +21,9 @@ type DuelControlsProps = {
   weaponSwapCooldownSeconds: number;
   canSwitchWeapon: boolean;
   activeWeaponName: string;
+  aiming: boolean;
+  crouching: boolean;
+  bowCloseRange: boolean;
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   onMove: (x: number, y: number) => void;
@@ -109,6 +112,8 @@ function HeldButton({
 function ControlIcon({ className }: { className: string }) {
   const path = className.includes("attack")
     ? "M5 19 19 5M12 5h7v7M4 20l5-1-4-4-1 5Z"
+    : className.includes("jump")
+      ? "M12 20V5m-6 6 6-6 6 6M5 20h14"
     : className.includes("block")
       ? "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z"
       : className.includes("dodge")
@@ -138,6 +143,9 @@ export default function DuelControls({
   weaponSwapCooldownSeconds,
   canSwitchWeapon,
   activeWeaponName,
+  aiming,
+  crouching,
+  bowCloseRange,
 }: DuelControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickPointer = useRef<number | null>(null);
@@ -204,9 +212,36 @@ export default function DuelControls({
       >
         <span aria-hidden="true" />
       </div>
-      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L ATILMA · 1–4 EŞYA · V SİLAH</div>
+      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L ATILMA · F NİŞAN · C EĞİL · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
+      <div className="duel-stance-controls" aria-label="Nişan ve siper duruşu">
+        <HeldButton
+          button={INPUT_BUTTON.aim}
+          label={bowCloseRange ? "HEDEF" : "NİŞAN"}
+          className={`is-stance is-aim${aiming ? " is-active" : ""}`}
+          onPress={onPress}
+          onRelease={onRelease}
+          disabledReason={bowCloseRange ? "Rakip çok yakın; saldırı Av Bıçağıyla yapılır." : ""}
+          onBlocked={showBlockedHint}
+        />
+        <HeldButton
+          button={INPUT_BUTTON.crouch}
+          label="EĞİL"
+          className={`is-stance is-crouch${crouching ? " is-active" : ""}`}
+          onPress={onPress}
+          onRelease={onRelease}
+        />
+        <button
+          className="duel-control is-stance is-jump"
+          type="button"
+          aria-label="Zıpla ve havada saldırıyla yere vur"
+          onClick={() => tapAction(INPUT_BUTTON.jump, stamina < 12 ? "Zıplamak için 12 dayanıklılık gerekli." : "")}
+        >
+          <ControlIcon className="is-jump" />
+          <span>ZIPLA</span>
+        </button>
+      </div>
       <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
         {quickItems.map((item, index) => {
           const cooldown = item.cooldownSeconds;
