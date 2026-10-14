@@ -79,6 +79,11 @@ import useWorldInput from "./useWorldInput";
 import EquipmentPreview3D from "./EquipmentPreview3D";
 import WorldAtmosphere from "./WorldAtmosphere";
 import { getBiomeForDistance, nextWeatherMode, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
+import {
+  readBrokenObstacleIds,
+  saveBrokenObstacleIds,
+  WorldInteractableRegistry,
+} from "./world-interactables";
 
 const World3D = lazy(() => import("./World3D"));
 import "./world-scene.css";
@@ -473,6 +478,34 @@ export default function WorldScene({
   const previousMotionRef = useRef<WorldMotion | null>(null);
   if (!renderMotionRef.current) renderMotionRef.current = { ...motionRef.current };
   if (!previousMotionRef.current) previousMotionRef.current = { ...motionRef.current };
+  const interactableRegistryRef = useRef<WorldInteractableRegistry<WorldObstacle | WorldRival> | null>(null);
+  interactableRegistryRef.current ??= new WorldInteractableRegistry<WorldObstacle | WorldRival>();
+  const [nearbyInteractables, setNearbyInteractables] = useState<{
+    chest: WorldObstacle | null;
+    barricade: WorldObstacle | null;
+    rivalId: string | null;
+  }>({ chest: null, barricade: null, rivalId: null });
+  useEffect(() => {
+    const refreshNearbyInteractables = () => {
+      const position = motionRef.current;
+      const playerX = position.depth * 5.2;
+      const registry = interactableRegistryRef.current;
+      if (!registry) return;
+      const chest = registry.findNearest("chest", playerX, position.distance)?.source as WorldObstacle | undefined;
+      const barricade = registry.findNearest("barricade", playerX, position.distance)?.source as WorldObstacle | undefined;
+      const rivalId = registry.findNearest("rival", playerX, position.distance)?.id ?? null;
+      setNearbyInteractables((current) => (
+        current.chest?.id === chest?.id
+        && current.barricade?.id === barricade?.id
+        && current.rivalId === rivalId
+          ? current
+          : { chest: chest ?? null, barricade: barricade ?? null, rivalId }
+      ));
+    };
+    refreshNearbyInteractables();
+    const interval = window.setInterval(refreshNearbyInteractables, 125);
+    return () => window.clearInterval(interval);
+  }, []);
   useEffect(() => {
     const userChanged = progressUserIdRef.current !== userId;
     const accountPositionJustLoaded = Boolean(
@@ -584,7 +617,7 @@ export default function WorldScene({
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const [collectedPickupIds, setCollectedPickupIds] = useState<Set<string>>(() => new Set());
-  const [brokenObstacleIds, setBrokenObstacleIds] = useState<Set<string>>(() => new Set());
+  const [brokenObstacleIds, setBrokenObstacleIds] = useState<Set<string>>(() => readBrokenObstacleIds(userId));
   const [sessionRewards, setSessionRewards] = useState({ gold: 0, diamonds: 0, materials: { emberCrystals: 0, sealFragments: 0, ironShards: 0 } });
   const [pickupFlights, setPickupFlights] = useState<PickupFlight[]>([]);
   const [pickupNotice, setPickupNotice] = useState("");
@@ -606,7 +639,7 @@ export default function WorldScene({
   const collectedRef = useRef(new Set<string>());
   const pendingPickupIdsRef = useRef(new Set<string>());
   const deferredPickupIdsRef = useRef(new Set<string>());
-  const brokenRef = useRef(new Set<string>());
+  const brokenRef = useRef(new Set(brokenObstacleIds));
   const obstacleDamageRef = useRef(new Map<string, number>());
   const chestSlamRef = useRef<{ obstacleId: string; elapsed: number } | null>(null);
   const loadedClaimChaptersRef = useRef(new Set<number>());
@@ -639,6 +672,12 @@ export default function WorldScene({
   const attackAnimationTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    const savedBrokenIds = readBrokenObstacleIds(userId);
+    brokenRef.current = savedBrokenIds;
+    setBrokenObstacleIds(savedBrokenIds);
+  }, [userId]);
+
+  useEffect(() => {
     if (visualEffectsEnabled) return;
     setCombatEvents([]);
     setCombatFlash(null);
@@ -666,30 +705,26 @@ export default function WorldScene({
     nextOpponent && profile.defeatedOpponents.includes(nextOpponent.id),
   );
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
-  const encounterVisible = Boolean(nextOpponent && encounterDistance <= 25);
+  const encounterVisible = Boolean(
+    nextOpponent
+    && encounterDistance <= 25
+    && nearbyInteractables.rivalId === nextOpponent.id,
+  );
   const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
   const allPickups = activeContent.pickups;
   const visiblePickupCount = allPickups.filter((pickup) =>
     !collectedPickupIds.has(pickup.id) &&
     (!pickup.sourceObstacleId || brokenObstacleIds.has(pickup.sourceObstacleId)),
   ).length;
-  const nearestBreakable = activeContent.obstacles
-    .filter((obstacle) =>
-      obstacle.kind === "barricade" &&
-      !brokenObstacleIds.has(obstacle.id) &&
-      Math.abs(obstacle.distance - travel) <= 4.2 &&
-      Math.abs(obstacle.x - motionRef.current.depth * 5.2) <= obstacle.width / 2 + 1.4,
-    )
-    .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
-  const nearestTreasureChest = activeContent.obstacles
-    .filter((obstacle) =>
-      obstacle.kind === "treasure-chest" &&
-      !brokenObstacleIds.has(obstacle.id) &&
-      !chestSlamActive &&
-      Math.abs(obstacle.distance - travel) <= 3.2 &&
-      Math.abs(obstacle.x - motionRef.current.depth * 5.2) <= obstacle.width / 2 + 1.3,
-    )
-    .sort((left, right) => Math.abs(left.distance - travel) - Math.abs(right.distance - travel))[0];
+  const nearestBreakable = nearbyInteractables.barricade
+    && !brokenObstacleIds.has(nearbyInteractables.barricade.id)
+    ? nearbyInteractables.barricade
+    : undefined;
+  const nearestTreasureChest = !chestSlamActive
+    && nearbyInteractables.chest
+    && !brokenObstacleIds.has(nearbyInteractables.chest.id)
+    ? nearbyInteractables.chest
+    : undefined;
   const displayedGold = profile.gold + sessionRewards.gold;
   const displayedDiamonds = profile.diamonds + sessionRewards.diamonds;
   const displayedCrystals = profile.materials.emberCrystals + sessionRewards.materials.emberCrystals;
@@ -1318,16 +1353,26 @@ export default function WorldScene({
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
   const requestTreasureSlam = useCallback(() => {
-    if (battleActiveRef.current || storyDialogueRef.current || chestSlamRef.current || !nearestTreasureChest) return;
-    chestSlamRef.current = { obstacleId: nearestTreasureChest.id, elapsed: 0 };
+    if (battleActiveRef.current || storyDialogueRef.current || chestSlamRef.current) return;
+    const position = motionRef.current;
+    const liveChest = interactableRegistryRef.current?.findNearest(
+      "chest",
+      position.depth * 5.2,
+      position.distance,
+    );
+    if (!liveChest || brokenRef.current.has(liveChest.id)) return;
+    chestSlamRef.current = { obstacleId: liveChest.id, elapsed: 0 };
     setChestSlamActive(true);
     setPickupNotice("Zıpla ve yere sert inerek hazine sandığını kır!");
     if (audioOn) startAudio();
-  }, [audioOn, nearestTreasureChest, startAudio]);
+  }, [audioOn, startAudio]);
   const requestWorldInteraction = useCallback(() => {
-    if (nearestTreasureChest) requestTreasureSlam();
+    const position = motionRef.current;
+    if (interactableRegistryRef.current?.findNearest("chest", position.depth * 5.2, position.distance)) {
+      requestTreasureSlam();
+    }
     else requestObstacleAttack();
-  }, [nearestTreasureChest, requestObstacleAttack, requestTreasureSlam]);
+  }, [requestObstacleAttack, requestTreasureSlam]);
 
   useEffect(() => () => {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(0);
@@ -1682,6 +1727,7 @@ export default function WorldScene({
           if (chest && !brokenRef.current.has(chest.id)) {
             brokenRef.current.add(chest.id);
             setBrokenObstacleIds(new Set(brokenRef.current));
+            saveBrokenObstacleIds(brokenRef.current, userId);
             const reward = worldContent.pickups.find((pickup) => pickup.id === chest.dropPickupId);
             setPickupNotice(`Sandık kırıldı! ${reward?.amount ?? 75} altın çıktı.`);
             playWorldCue("attack");
@@ -1716,6 +1762,7 @@ export default function WorldScene({
             if (remaining === 0) {
               brokenRef.current.add(target.id);
               setBrokenObstacleIds(new Set(brokenRef.current));
+              saveBrokenObstacleIds(brokenRef.current, userId);
               setPickupNotice("Barikat kırıldı. İçindeki altınları topla.");
             } else {
               setPickupNotice(`Barikata vurdun · ${remaining} darbe kaldı.`);
@@ -1995,6 +2042,7 @@ export default function WorldScene({
             rivals={battleSession ? [] : nearbyRivals}
             pickups={allPickups}
             obstacles={activeContent.obstacles}
+            interactableRegistry={interactableRegistryRef.current!}
             collectedPickupIds={collectedPickupIds}
             brokenObstacleIds={brokenObstacleIds}
             defeatedOpponentIds={profile.defeatedOpponents}

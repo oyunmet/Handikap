@@ -166,3 +166,35 @@ bilerek düşürerek yapılan kabul testi henüz yapılmadı.
   kaybını zorlayarak sınamayı içermiyor. Aşama 1'de listelenen 50+ FPS, sıfır
   100 ms üzeri kare ve 5 dakikalık sabit bellek kabulü hâlâ açık; FPS, üçgen,
   draw call ve bellek değerleri gerçek cihazda ölçülmüş gibi raporlanmamalı.
+
+## Ek kapsam — 14 Ekim 2026
+
+İstenen yeni işler dört aşamalı. Bu bölüm eski tamamlanmış aşamaları değiştirmez;
+ekli geliştirme listesindeki devam noktasını tutar.
+
+### Aşama 1 — hata düzeltmeleri
+
+**Durum:** İlk etkileşim düzeltmesi tamamlandı; performans kabulü ve bu aşamanın
+kalan maddeleri devam ediyor.
+
+- Sandık, barikat ve yol rakipleri için ortak etkileşim kaydı eklendi. İpucu,
+  kayıtlı 3D nesnesi sahneye bağlı ve görünür, etkin ve yakınsa gösteriliyor;
+  yakınlık 125 ms'de bir yenileniyor. Eylem anında konum ve nesne tekrar
+  doğrulanıyor.
+- Sahne parçası kaldırılınca etkileşim kaydı kaldırılıyor; açılan sandık ve
+  kırılan barikat kimlikleri oyuncu bazında yerel kayda yazılıyor ve yeniden
+  yüklemede etkinleşmiyor.
+- Ayarlardan açılan performans paneline son karenin draw-call değeri eklendi.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (148 test) ve
+  `npm run build` geçti. Büyük `WorldScene` paketi için 500 kB uyarısı sürüyor.
+- Gerçek iPhone Safari ölçümü, Chrome Performance profili ve WebGL'li cihazda
+  görsel kabul testi bu ortamda yapılmadı; 30+ FPS hedefi kanıtlanmış sayılmaz.
+
+### Devam noktası
+
+- Önce Aşama 1'in kayıt, ön yükleme ve kalan performans maddelerini denetle;
+  gerçek cihaz kabul testi dışındaki kod çalışmaları tamamlanınca Aşama 2'ye geç.
+- Ardından düello envanteri/efektleri/hareket/AI, ekipman ve mağaza sistemi,
+  son olarak Kül Yolu'nun dünya görselleri ve etkileşimlerini sırayla uygula.
+- Dış Vercel dağıtımına push/deploy yapma; kaynak değişiklikleri burada kayıtlı
+  bırakılır ve yayınlamayı kullanıcı yapar.

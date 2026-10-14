@@ -17,6 +17,7 @@ import WorldLandscape from "./WorldLandscape";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
+import type { WorldInteractableRegistry } from "./world-interactables";
 import {
   getWorldRenderPixelRatio,
   shouldEnableWorldShadows,
@@ -57,6 +58,7 @@ type World3DProps = {
   rivals: WorldRival[];
   pickups: WorldPickup[];
   obstacles: WorldObstacle[];
+  interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
   collectedPickupIds: ReadonlySet<string>;
   brokenObstacleIds: ReadonlySet<string>;
   defeatedOpponentIds: readonly string[];
@@ -925,6 +927,7 @@ function SceneContents({
   rivals,
   collectedPickupIds,
   brokenObstacleIds,
+  interactableRegistry,
   focusedRival,
   slowMotion,
   combatActive,
@@ -956,7 +959,7 @@ function SceneContents({
   useEffect(() => {
     performanceMetricsRef.current = createFrameMetricsAccumulator();
     if (!performanceMonitorEnabled) {
-      onPerformanceStats({ averageFps: 0, minimumFps: 0, averageFrameMs: 0, longFrames: 0 });
+      onPerformanceStats({ averageFps: 0, minimumFps: 0, averageFrameMs: 0, longFrames: 0, drawCalls: 0 });
     }
   }, [onPerformanceStats, performanceMonitorEnabled]);
 
@@ -1015,6 +1018,7 @@ function SceneContents({
         performanceMetricsRef.current,
         frame.clock.elapsedTime * 1_000,
         delta * 1_000,
+        gl.info.render.calls,
       );
       if (stats) onPerformanceStats(stats);
     }
@@ -1117,6 +1121,7 @@ function SceneContents({
         brokenObstacleIds={brokenObstacleIds}
         focusedRivalId={focusedRival?.id ?? null}
         reducedMotion={motionReduced}
+        interactableRegistry={interactableRegistry}
       />}
       {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
       {combatActive ? (
@@ -1163,6 +1168,7 @@ export default function World3D(props: World3DProps) {
     minimumFps: 0,
     averageFrameMs: 0,
     longFrames: 0,
+    drawCalls: 0,
   });
   const [debugStats, setDebugStats] = useState<DebugStats>({
     x: 0,
@@ -1314,6 +1320,7 @@ export default function World3D(props: World3DProps) {
           <span>Ort. FPS <strong>{performanceStats.averageFps ? performanceStats.averageFps.toFixed(0) : "ölçülüyor"}</strong></span>
           <span>En düşük FPS <strong>{performanceStats.minimumFps ? performanceStats.minimumFps.toFixed(0) : "ölçülüyor"}</strong></span>
           <span>Ort. kare <strong>{performanceStats.averageFrameMs ? `${performanceStats.averageFrameMs.toFixed(1)} ms` : "ölçülüyor"}</strong></span>
+          <span>Son kare draw call <strong>{performanceStats.drawCalls}</strong></span>
           <span>Uzun kare (&gt;50 ms) <strong>{performanceStats.longFrames}</strong></span>
         </aside>
       )}

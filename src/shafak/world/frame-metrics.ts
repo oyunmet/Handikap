@@ -3,6 +3,7 @@ export type FrameMetricsSnapshot = {
   minimumFps: number;
   averageFrameMs: number;
   longFrames: number;
+  drawCalls: number;
 };
 
 export type FrameMetricsAccumulator = {
@@ -31,6 +32,7 @@ export function recordFrameMetric(
   accumulator: FrameMetricsAccumulator,
   nowMs: number,
   frameMs: number,
+  drawCalls = 0,
 ): FrameMetricsSnapshot | null {
   if (!Number.isFinite(nowMs) || !Number.isFinite(frameMs) || frameMs < 0) return null;
   if (accumulator.startedAt === null) {
@@ -56,6 +58,7 @@ export function recordFrameMetric(
     minimumFps: Number.isFinite(accumulator.minimumFps) ? accumulator.minimumFps : 0,
     averageFrameMs: accumulator.totalFrames > 0 ? accumulator.totalFrameMs / accumulator.totalFrames : 0,
     longFrames: accumulator.longFrames,
+    drawCalls: Number.isFinite(drawCalls) ? Math.max(0, Math.floor(drawCalls)) : 0,
   };
   accumulator.sampleStartedAt = nowMs;
   accumulator.sampleFrames = 0;

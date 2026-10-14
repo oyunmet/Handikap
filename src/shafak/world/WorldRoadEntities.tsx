@@ -1,10 +1,11 @@
 import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import KnightActor from "./KnightActor";
 import { createWorldMotion, type WorldMotion } from "./movement";
+import type { WorldInteractableRegistry } from "./world-interactables";
 import {
   getWorldContentAround,
   PICKUP_MAGNET_RADIUS_METERS,
@@ -104,10 +105,39 @@ function Collectible({
   );
 }
 
-function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; motionRef: MotionRef; broken: boolean }) {
+function Obstacle({
+  obstacle,
+  motionRef,
+  broken,
+  interactableRegistry,
+}: {
+  obstacle: WorldObstacle;
+  motionRef: MotionRef;
+  broken: boolean;
+  interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
+}) {
   const rootRef = useRef<THREE.Group>(null);
   const warningRef = useRef<THREE.Mesh>(null);
   const chestLidRef = useRef<THREE.Group>(null);
+  useEffect(() => {
+    if (obstacle.kind !== "treasure-chest" && obstacle.kind !== "barricade") return undefined;
+    const mesh = rootRef.current;
+    if (!mesh) return undefined;
+    return interactableRegistry.register({
+      id: obstacle.id,
+      kind: obstacle.kind === "treasure-chest" ? "chest" : "barricade",
+      x: obstacle.x,
+      distance: obstacle.distance,
+      radius: obstacle.kind === "treasure-chest" ? 3.2 : 4.2,
+      lateralRadius: obstacle.width / 2 + 1.3,
+      state: broken
+        ? obstacle.kind === "treasure-chest" ? "opened" : "destroyed"
+        : "active",
+      mesh,
+      source: obstacle,
+    });
+  }, [broken, interactableRegistry, obstacle]);
+
   const obstacleLabel = obstacle.kind === "spike-trap"
     ? "TUZAK · ZIPLA"
     : obstacle.kind === "low-bar"
@@ -286,16 +316,33 @@ function BotActor({
   rival,
   motionRef,
   focused,
+  interactableRegistry,
 }: {
   rival: WorldRival;
   motionRef: MotionRef;
   focused: boolean;
+  interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const poseRef = useRef(createWorldMotion());
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
   const profile = getWorldBotProfileByName(rival.name);
   const tintAppliedRef = useRef(false);
+  useEffect(() => {
+    const mesh = rootRef.current;
+    if (!mesh) return undefined;
+    return interactableRegistry.register({
+      id: rival.id,
+      kind: "rival",
+      x: rival.x,
+      distance: rival.distance,
+      radius: 25,
+      lateralRadius: 8,
+      state: "active",
+      mesh,
+      source: rival,
+    });
+  }, [interactableRegistry, rival]);
 
   useFrame(() => {
     const root = rootRef.current;
@@ -374,6 +421,7 @@ export default function WorldRoadEntities({
   brokenObstacleIds = EMPTY_BROKEN,
   focusedRivalId,
   reducedMotion,
+  interactableRegistry,
 }: {
   motionRef: MotionRef;
   rivals: WorldRival[];
@@ -381,6 +429,7 @@ export default function WorldRoadEntities({
   brokenObstacleIds?: ReadonlySet<string>;
   focusedRivalId: string | null;
   reducedMotion: boolean;
+  interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const initialChapter = Math.max(0, Math.floor(motionRef.current.distance / 144));
   const [chapter, setChapter] = useState(initialChapter);
@@ -426,6 +475,7 @@ export default function WorldRoadEntities({
           obstacle={obstacle}
           motionRef={motionRef}
           broken={brokenObstacleIds.has(obstacle.id)}
+          interactableRegistry={interactableRegistry}
         />
       ))}
       {activeRivals.map((rival) => (
@@ -434,6 +484,7 @@ export default function WorldRoadEntities({
           rival={rival}
           motionRef={motionRef}
           focused={rival.id === focusedRivalId}
+          interactableRegistry={interactableRegistry}
         />
       ))}
     </>

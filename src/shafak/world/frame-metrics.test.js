@@ -14,12 +14,23 @@ test("frame monitor reports average FPS, average frame time, minimum FPS, and lo
   assert.ok(Math.abs(snapshot.minimumFps - 60) < 0.1);
   assert.ok(Math.abs(snapshot.averageFrameMs - 1_000 / 60) < 0.1);
   assert.equal(snapshot.longFrames, 0);
+  assert.equal(snapshot.drawCalls, 0);
 
   for (let frame = 1; frame <= 11; frame += 1) {
     snapshot = recordFrameMetric(metrics, 1_000 + frame * 100, 100) ?? snapshot;
   }
   assert.ok(snapshot.minimumFps < 11);
   assert.equal(snapshot.longFrames, 11);
+});
+
+test("frame monitor snapshots the completed frame draw-call count", () => {
+  const metrics = createFrameMetricsAccumulator();
+  let snapshot = null;
+  for (let frame = 1; frame <= 60; frame += 1) {
+    snapshot = recordFrameMetric(metrics, frame * (1_000 / 60), 1_000 / 60, 47) ?? snapshot;
+  }
+
+  assert.equal(snapshot?.drawCalls, 47);
 });
 
 test("frame monitor ignores invalid samples and counts frames over 50 ms", () => {
