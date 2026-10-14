@@ -3,12 +3,16 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   analyzeWorldProbePixels,
+  getWorldProbeSamplePoints,
   getWorldProbeTargetSize,
   getWorldDrawCallsForFrame,
+  shouldRecoverCanvasFrame,
   shouldRecoverWorldFrame,
 } from "./world-screen-probe";
 
 const PROBE_MAX_DIMENSION = 48;
+const CANVAS_PROBE_COLUMNS = 4;
+const CANVAS_PROBE_ROWS = 4;
 const PROBE_INTERVAL_MS = 1_200;
 const PROBE_WARMUP_MS = 2_500;
 const BLACK_SAMPLES_TO_RECOVER = 2;
@@ -27,6 +31,10 @@ export default function WorldBlackFrameProbe({
   const recoveryRequestedRef = useRef(false);
   const probeDisabledRef = useRef(false);
   const pixels = useMemo(() => new Uint8Array(PROBE_MAX_DIMENSION * PROBE_MAX_DIMENSION * 4), []);
+  const canvasPixels = useMemo(
+    () => new Uint8Array(CANVAS_PROBE_COLUMNS * CANVAS_PROBE_ROWS * 4),
+    [],
+  );
   const target = useMemo(() => new THREE.WebGLRenderTarget(PROBE_MAX_DIMENSION, PROBE_MAX_DIMENSION, {
     depthBuffer: true,
     stencilBuffer: false,
@@ -38,7 +46,8 @@ export default function WorldBlackFrameProbe({
   }), []);
 
   useEffect(() => {
-    target.texture.colorSpace = THREE.SRGBColorSpace;
+    // WebGLRenderTarget readback is in Three's linear working color space.
+    target.texture.colorSpace = THREE.LinearSRGBColorSpace;
     target.texture.generateMipmaps = false;
     return () => target.dispose();
   }, [target]);
@@ -78,6 +87,35 @@ export default function WorldBlackFrameProbe({
     if (gl.getContext().isContextLost()) return;
 
     try {
+      let canvasNeedsRecovery = false;
+      if (manualRender) {
+        // Check the same on-screen frame that was just rendered, but sample
+        // across the viewport so a naturally dark center cannot cause recovery.
+        const context = gl.getContext();
+        const points = getWorldProbeSamplePoints(
+          gl.domElement.width,
+          gl.domElement.height,
+          CANVAS_PROBE_COLUMNS,
+          CANVAS_PROBE_ROWS,
+        );
+        if (points.length !== canvasPixels.length / 4) return;
+        points.forEach(({ x, y }, index) => {
+          context.readPixels(
+            x,
+            y,
+            1,
+            1,
+            context.RGBA,
+            context.UNSIGNED_BYTE,
+            canvasPixels.subarray(index * 4, index * 4 + 4),
+          );
+        });
+        canvasNeedsRecovery = shouldRecoverCanvasFrame(
+          analyzeWorldProbePixels(canvasPixels),
+          worldDrawCalls,
+        );
+      }
+
       const size = getWorldProbeTargetSize(
         gl.domElement.width,
         gl.domElement.height,
@@ -128,10 +166,14 @@ export default function WorldBlackFrameProbe({
         gl.autoClear = previousAutoClear;
       }
 
-      const needsRecovery = shouldRecoverWorldFrame(
-        analyzeWorldProbePixels(pixels.subarray(0, size.width * size.height * 4)),
+      const sceneNeedsRecovery = shouldRecoverWorldFrame(
+        analyzeWorldProbePixels(
+          pixels.subarray(0, size.width * size.height * 4),
+          "linear",
+        ),
         worldDrawCalls,
       );
+      const needsRecovery = canvasNeedsRecovery || sceneNeedsRecovery;
       blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
       if (blackSamplesRef.current >= BLACK_SAMPLES_TO_RECOVER) {
         recoveryRequestedRef.current = true;

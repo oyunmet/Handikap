@@ -47,6 +47,29 @@ test("detects a genuinely black WebGL frame", () => {
   assert.equal(isLikelyBlackWorldFrame(metrics), true);
 });
 
+test("linear render-target colors are converted before black-frame thresholds", () => {
+  const srgbPixels = new Uint8Array(16 * 4);
+  const linearPixels = new Uint8Array(16 * 4);
+  for (let index = 0; index < 16; index += 1) {
+    const offset = index * 4;
+    const color = index < 12 ? [37, 35, 48] : [64, 56, 59];
+    srgbPixels.set([...color, 255], offset);
+    for (let channel = 0; channel < 3; channel += 1) {
+      const srgb = color[channel] / 255;
+      const linear = srgb <= 0.04045
+        ? srgb / 12.92
+        : ((srgb + 0.055) / 1.055) ** 2.4;
+      linearPixels[offset + channel] = Math.round(linear * 255);
+    }
+    linearPixels[offset + 3] = 255;
+  }
+
+  const screenMetrics = analyzeWorldProbePixels(srgbPixels);
+  const targetMetrics = analyzeWorldProbePixels(linearPixels, "linear");
+  assert.ok(Math.abs(targetMetrics.averageLuminance - screenMetrics.averageLuminance) < 0.005);
+  assert.equal(isLikelyBlackWorldFrame(targetMetrics), false);
+});
+
 test("does not mistake a varied dark world scene for an empty frame", () => {
   const pixels = new Uint8Array(8 * 4 * 4);
   for (let index = 0; index < pixels.length; index += 4) {

@@ -59,7 +59,10 @@ export function getWorldDrawCallsForFrame(
   return manualRender ? callsAfterRender : callsBeforeRender;
 }
 
-export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
+export function analyzeWorldProbePixels(
+  pixels: Uint8Array,
+  colorSpace: "srgb" | "linear" = "srgb",
+): WorldProbeMetrics {
   if (pixels.length < 4 || pixels.length % 4 !== 0) {
     return { averageLuminance: 0, uniqueColors: 0, darkPixelRatio: 0, dominantColorRatio: 0 };
   }
@@ -70,9 +73,9 @@ export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
   let dominantColorCount = 0;
   let sampleCount = 0;
   for (let index = 0; index < pixels.length; index += 4) {
-    const red = pixels[index];
-    const green = pixels[index + 1];
-    const blue = pixels[index + 2];
+    const red = colorSpace === "linear" ? linearByteToSrgbByte(pixels[index]) : pixels[index];
+    const green = colorSpace === "linear" ? linearByteToSrgbByte(pixels[index + 1]) : pixels[index + 1];
+    const blue = colorSpace === "linear" ? linearByteToSrgbByte(pixels[index + 2]) : pixels[index + 2];
     const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
     luminanceSum += luminance;
     if (luminance < 0.07) darkPixelCount += 1;
@@ -89,6 +92,14 @@ export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
     darkPixelRatio: darkPixelCount / sampleCount,
     dominantColorRatio: dominantColorCount / sampleCount,
   };
+}
+
+function linearByteToSrgbByte(value: number) {
+  const linear = value / 255;
+  const srgb = linear <= 0.0031308
+    ? linear * 12.92
+    : 1.055 * (linear ** (1 / 2.4)) - 0.055;
+  return Math.max(0, Math.min(255, Math.round(srgb * 255)));
 }
 
 export function isLikelyBlackWorldFrame(metrics: WorldProbeMetrics) {
