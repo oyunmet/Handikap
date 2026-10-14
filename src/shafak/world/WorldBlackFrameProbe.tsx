@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import * as THREE from "three";
 import {
   analyzeWorldProbePixels,
   getWorldProbeSamplePoints,
-  getWorldProbeTargetSize,
   getWorldDrawCallsForFrame,
   shouldRecoverCanvasFrame,
-  shouldRecoverWorldFrame,
 } from "./world-screen-probe";
 
-const PROBE_MAX_DIMENSION = 48;
 const CANVAS_PROBE_COLUMNS = 4;
 const CANVAS_PROBE_ROWS = 4;
 const PROBE_INTERVAL_MS = 1_200;
@@ -30,27 +26,10 @@ export default function WorldBlackFrameProbe({
   const blackSamplesRef = useRef(0);
   const recoveryRequestedRef = useRef(false);
   const probeDisabledRef = useRef(false);
-  const pixels = useMemo(() => new Uint8Array(PROBE_MAX_DIMENSION * PROBE_MAX_DIMENSION * 4), []);
   const canvasPixels = useMemo(
     () => new Uint8Array(CANVAS_PROBE_COLUMNS * CANVAS_PROBE_ROWS * 4),
     [],
   );
-  const target = useMemo(() => new THREE.WebGLRenderTarget(PROBE_MAX_DIMENSION, PROBE_MAX_DIMENSION, {
-    depthBuffer: true,
-    stencilBuffer: false,
-    type: THREE.UnsignedByteType,
-    format: THREE.RGBAFormat,
-    minFilter: THREE.NearestFilter,
-    magFilter: THREE.NearestFilter,
-    generateMipmaps: false,
-  }), []);
-
-  useEffect(() => {
-    // WebGLRenderTarget readback is in Three's linear working color space.
-    target.texture.colorSpace = THREE.LinearSRGBColorSpace;
-    target.texture.generateMipmaps = false;
-    return () => target.dispose();
-  }, [target]);
 
   useFrame((_, delta) => {
     // A positive-priority R3F frame callback takes over automatic rendering,
@@ -87,93 +66,34 @@ export default function WorldBlackFrameProbe({
     if (gl.getContext().isContextLost()) return;
 
     try {
-      let canvasNeedsRecovery = false;
-      if (manualRender) {
-        // Check the same on-screen frame that was just rendered, but sample
-        // across the viewport so a naturally dark center cannot cause recovery.
-        const context = gl.getContext();
-        const points = getWorldProbeSamplePoints(
-          gl.domElement.width,
-          gl.domElement.height,
-          CANVAS_PROBE_COLUMNS,
-          CANVAS_PROBE_ROWS,
-        );
-        if (points.length !== canvasPixels.length / 4) return;
-        points.forEach(({ x, y }, index) => {
-          context.readPixels(
-            x,
-            y,
-            1,
-            1,
-            context.RGBA,
-            context.UNSIGNED_BYTE,
-            canvasPixels.subarray(index * 4, index * 4 + 4),
-          );
-        });
-        canvasNeedsRecovery = shouldRecoverCanvasFrame(
-          analyzeWorldProbePixels(canvasPixels),
-          worldDrawCalls,
-        );
-      }
-
-      const size = getWorldProbeTargetSize(
+      // Inspect only pixels already presented by the real renderer. A second
+      // render into an offscreen target mutates WebGL's viewport and render
+      // state, and can itself produce the intermittent blank frame this probe
+      // is meant to catch.
+      const context = gl.getContext();
+      const points = getWorldProbeSamplePoints(
         gl.domElement.width,
         gl.domElement.height,
-        PROBE_MAX_DIMENSION,
+        CANVAS_PROBE_COLUMNS,
+        CANVAS_PROBE_ROWS,
       );
-      if (!size.width || !size.height) return;
-      if (target.width !== size.width || target.height !== size.height) {
-        target.setSize(size.width, size.height);
-      }
-
-      // Keep the whole viewport at its real aspect ratio. A tiny 8x4 target
-      // aliases sky and road into a few colors and can mistake a healthy scene
-      // for an empty canvas.
-      const previousTarget = gl.getRenderTarget();
-      const previousViewport = new THREE.Vector4();
-      const previousScissor = new THREE.Vector4();
-      const previousScissorTest = gl.getScissorTest();
-      const previousShadowAutoUpdate = gl.shadowMap.autoUpdate;
-      const previousAutoClear = gl.autoClear;
-      const previousClearColor = new THREE.Color();
-      const previousClearAlpha = gl.getClearAlpha();
-      gl.getViewport(previousViewport);
-      gl.getScissor(previousScissor);
-      gl.getClearColor(previousClearColor);
-
-      try {
-        gl.shadowMap.autoUpdate = false;
-        gl.autoClear = true;
-        gl.setRenderTarget(target);
-        gl.setScissorTest(false);
-        gl.clear(true, true, true);
-        gl.render(scene, camera);
-        gl.readRenderTargetPixels(
-          target,
-          0,
-          0,
-          size.width,
-          size.height,
-          pixels.subarray(0, size.width * size.height * 4),
+      if (points.length !== canvasPixels.length / 4) return;
+      points.forEach(({ x, y }, index) => {
+        context.readPixels(
+          x,
+          y,
+          1,
+          1,
+          context.RGBA,
+          context.UNSIGNED_BYTE,
+          canvasPixels.subarray(index * 4, index * 4 + 4),
         );
-      } finally {
-        gl.setRenderTarget(previousTarget);
-        gl.setViewport(previousViewport);
-        gl.setScissor(previousScissor);
-        gl.setScissorTest(previousScissorTest);
-        gl.setClearColor(previousClearColor, previousClearAlpha);
-        gl.shadowMap.autoUpdate = previousShadowAutoUpdate;
-        gl.autoClear = previousAutoClear;
-      }
+      });
 
-      const sceneNeedsRecovery = shouldRecoverWorldFrame(
-        analyzeWorldProbePixels(
-          pixels.subarray(0, size.width * size.height * 4),
-          "linear",
-        ),
+      const needsRecovery = shouldRecoverCanvasFrame(
+        analyzeWorldProbePixels(canvasPixels),
         worldDrawCalls,
       );
-      const needsRecovery = canvasNeedsRecovery || sceneNeedsRecovery;
       blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
       if (blackSamplesRef.current >= BLACK_SAMPLES_TO_RECOVER) {
         recoveryRequestedRef.current = true;

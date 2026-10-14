@@ -17,11 +17,11 @@ The black-frame watchdog must catch uniformly near-black output (around 5% lumin
 
 **How to apply:** Keep regression tests for uniform near-black frames, mostly dark frames with sparse details, and the intended dark world background whenever the watchdog threshold changes.
 
-Do not classify the scene from an 8×4 offscreen render target or a small center-only canvas crop. Such samples can alias the dark sky and road into a few colors or hit an empty patch of a healthy scene. Match the offscreen probe to the canvas aspect ratio at a useful resolution, and distribute final-output samples across the viewport.
+Never render the scene a second time into an offscreen target for black-frame detection. Sample the real presented framebuffer at points distributed across the viewport instead.
 
-**Why:** Production screenshots showed healthy draw calls and visible UI while automatic recovery still reported black output; tiny or center-only samples can mistake a dark local region for a failed full frame.
+**Why:** The offscreen probe altered WebGL render state while rendering a second copy of the scene, so the recovery mechanism could itself interrupt or blank a healthy world. The user reported intermittent black output despite the scene otherwise rendering.
 
-**How to apply:** Test dark centers surrounded by visible content and a genuinely black full frame separately. Keep renderer recovery enabled for actual full-frame failures.
+**How to apply:** Read pixels from the frame already rendered to the canvas; do not call `gl.render` for diagnostic sampling. Keep renderer recovery enabled for actual full-frame failures.
 
 The user requires the gameplay world to stay 3D on both mobile and PC and explicitly rejects any 2D world. Black output is reported on PC as well, so do not assume Safari is the sole cause; the touch-only compositing safeguard is supplemental.
 
