@@ -7,7 +7,7 @@ const PROBE_WIDTH = 8;
 const PROBE_HEIGHT = 4;
 const PROBE_INTERVAL_MS = 1_200;
 const PROBE_WARMUP_MS = 2_500;
-const BLACK_SAMPLES_TO_RECOVER = 3;
+const BLACK_SAMPLES_TO_RECOVER = 2;
 
 export default function WorldBlackFrameProbe({
   onBlackFrame,
@@ -23,7 +23,8 @@ export default function WorldBlackFrameProbe({
   const recoveryRequestedRef = useRef(false);
   const probeDisabledRef = useRef(false);
   const pixels = useMemo(() => new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4), []);
-  const target = useMemo(() => manualRender ? null : new THREE.WebGLRenderTarget(PROBE_WIDTH, PROBE_HEIGHT, {
+  const canvasPixels = useMemo(() => new Uint8Array(PROBE_WIDTH * PROBE_HEIGHT * 4), []);
+  const target = useMemo(() => new THREE.WebGLRenderTarget(PROBE_WIDTH, PROBE_HEIGHT, {
     depthBuffer: true,
     stencilBuffer: false,
     type: THREE.UnsignedByteType,
@@ -31,16 +32,28 @@ export default function WorldBlackFrameProbe({
     minFilter: THREE.NearestFilter,
     magFilter: THREE.NearestFilter,
     generateMipmaps: false,
-  }), [manualRender]);
+  }), []);
 
   useEffect(() => {
-    if (!target) return undefined;
     target.texture.colorSpace = THREE.SRGBColorSpace;
     target.texture.generateMipmaps = false;
     return () => target.dispose();
   }, [target]);
 
   useFrame((_, delta) => {
+    // A positive-priority R3F frame callback takes over automatic rendering,
+    // so this path must render on every frame, not only on sampling frames.
+    if (manualRender) {
+      try {
+        gl.render(scene, camera);
+      } catch (error) {
+        probeDisabledRef.current = true;
+        console.warn("[world] Canvas rendering failed; rebuilding the 3D renderer.", error);
+        onBlackFrame();
+        return;
+      }
+    }
+
     const now = performance.now();
     if (!startedAtRef.current) startedAtRef.current = now;
     if (
@@ -56,13 +69,11 @@ export default function WorldBlackFrameProbe({
     if (gl.getContext().isContextLost()) return;
 
     try {
-      let worldDrawCalls: number;
+      const worldDrawCalls = gl.info.render.calls;
+      let canvasNeedsRecovery = false;
       if (manualRender) {
-        // On touch devices there is no post-processing pass. Render the
-        // regular scene here (R3F's positive-priority callback disables its
-        // automatic render) and inspect the exact pixels sent to the canvas.
-        gl.render(scene, camera);
-        worldDrawCalls = gl.info.render.calls;
+        // On touch devices there is no post-processing pass. Inspect the
+        // exact pixels just rendered to the canvas.
         const context = gl.getContext();
         const canvas = gl.domElement;
         if (canvas.width < PROBE_WIDTH || canvas.height < PROBE_HEIGHT) return;
@@ -73,43 +84,45 @@ export default function WorldBlackFrameProbe({
           PROBE_HEIGHT,
           context.RGBA,
           context.UNSIGNED_BYTE,
-          pixels,
+          canvasPixels,
         );
-      } else {
-        if (!target) return;
-        const previousTarget = gl.getRenderTarget();
-        const previousViewport = new THREE.Vector4();
-        const previousScissor = new THREE.Vector4();
-        const previousScissorTest = gl.getScissorTest();
-        const previousShadowAutoUpdate = gl.shadowMap.autoUpdate;
-        const previousAutoClear = gl.autoClear;
-        const previousClearColor = new THREE.Color();
-        const previousClearAlpha = gl.getClearAlpha();
-        worldDrawCalls = gl.info.render.calls;
-        gl.getViewport(previousViewport);
-        gl.getScissor(previousScissor);
-        gl.getClearColor(previousClearColor);
-
-        try {
-          gl.shadowMap.autoUpdate = false;
-          gl.autoClear = true;
-          gl.setRenderTarget(target);
-          gl.setScissorTest(false);
-          gl.clear(true, true, true);
-          gl.render(scene, camera);
-          gl.readRenderTargetPixels(target, 0, 0, PROBE_WIDTH, PROBE_HEIGHT, pixels);
-        } finally {
-          gl.setRenderTarget(previousTarget);
-          gl.setViewport(previousViewport);
-          gl.setScissor(previousScissor);
-          gl.setScissorTest(previousScissorTest);
-          gl.setClearColor(previousClearColor, previousClearAlpha);
-          gl.shadowMap.autoUpdate = previousShadowAutoUpdate;
-          gl.autoClear = previousAutoClear;
-        }
+        canvasNeedsRecovery = shouldRecoverWorldFrame(analyzeWorldProbePixels(canvasPixels), worldDrawCalls);
       }
 
-      const needsRecovery = shouldRecoverWorldFrame(analyzeWorldProbePixels(pixels), worldDrawCalls);
+      // Also sample a reduced copy of the full scene. This catches a mostly
+      // black frame when the center pixels happen to contain a lit character.
+      const previousTarget = gl.getRenderTarget();
+      const previousViewport = new THREE.Vector4();
+      const previousScissor = new THREE.Vector4();
+      const previousScissorTest = gl.getScissorTest();
+      const previousShadowAutoUpdate = gl.shadowMap.autoUpdate;
+      const previousAutoClear = gl.autoClear;
+      const previousClearColor = new THREE.Color();
+      const previousClearAlpha = gl.getClearAlpha();
+      gl.getViewport(previousViewport);
+      gl.getScissor(previousScissor);
+      gl.getClearColor(previousClearColor);
+
+      try {
+        gl.shadowMap.autoUpdate = false;
+        gl.autoClear = true;
+        gl.setRenderTarget(target);
+        gl.setScissorTest(false);
+        gl.clear(true, true, true);
+        gl.render(scene, camera);
+        gl.readRenderTargetPixels(target, 0, 0, PROBE_WIDTH, PROBE_HEIGHT, pixels);
+      } finally {
+        gl.setRenderTarget(previousTarget);
+        gl.setViewport(previousViewport);
+        gl.setScissor(previousScissor);
+        gl.setScissorTest(previousScissorTest);
+        gl.setClearColor(previousClearColor, previousClearAlpha);
+        gl.shadowMap.autoUpdate = previousShadowAutoUpdate;
+        gl.autoClear = previousAutoClear;
+      }
+
+      const sceneNeedsRecovery = shouldRecoverWorldFrame(analyzeWorldProbePixels(pixels), worldDrawCalls);
+      const needsRecovery = canvasNeedsRecovery || sceneNeedsRecovery;
       blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
       if (blackSamplesRef.current >= BLACK_SAMPLES_TO_RECOVER) {
         recoveryRequestedRef.current = true;

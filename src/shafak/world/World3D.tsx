@@ -444,6 +444,7 @@ function CameraRig({
   motionReduced,
   touchRenderer,
   focusedRival,
+  safeRecoveryMode,
   slowMotion,
   combatActive,
   combatStateRef,
@@ -456,6 +457,7 @@ function CameraRig({
   motionReduced: boolean;
   touchRenderer: boolean;
   focusedRival: WorldRival | null;
+  safeRecoveryMode: boolean;
   slowMotion: boolean;
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
@@ -533,8 +535,19 @@ function CameraRig({
       desiredRef.set((playerX + rivalX) * 0.5 + 3.2 + orbit, 3.55 + Math.abs(orbit) * 0.12, -gap * 0.5 + 6.1 + orbitDepth);
       targetRef.set((playerX + rivalX) * 0.5 + orbit * 0.22, 1.15, -gap * 0.5);
     } else {
-      desiredRef.set(lateral * 0.56, travelCamera.height, travelCamera.distanceBehind);
-      targetRef.set(lateral * 0.42, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
+      if (safeRecoveryMode) {
+        // If the regular view is obscured by a near-field mesh, recover to a
+        // higher, closer 3D view instead of rebuilding into the same occlusion.
+        desiredRef.set(
+          lateral * 0.48,
+          Math.max(6.2, travelCamera.height + 1.8),
+          Math.max(4.5, travelCamera.distanceBehind - 2),
+        );
+        targetRef.set(lateral * 0.36, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
+      } else {
+        desiredRef.set(lateral * 0.56, travelCamera.height, travelCamera.distanceBehind);
+        targetRef.set(lateral * 0.42, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
+      }
     }
     camera.position.lerp(desiredRef, response);
     const runShake = motionReduced ? 0 : travelCamera.runShake;
@@ -546,7 +559,7 @@ function CameraRig({
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
       ? (touchRenderer ? 56 : 48) - combatImpact * 1.1 - skillZoom - finisherZoom
-      : focusedRival ? (cinematicIntro ? 51 : 48) : travelCamera.fieldOfView;
+      : safeRecoveryMode ? 60 : focusedRival ? (cinematicIntro ? 51 : 48) : travelCamera.fieldOfView;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
       camera.fov = nextFov;
@@ -1413,6 +1426,7 @@ function SceneContents({
         motionReduced={motionReduced}
         touchRenderer={touchRenderer}
         focusedRival={focusedRival}
+        safeRecoveryMode={forceSafeRendering}
         slowMotion={slowMotion}
         combatActive={combatActive}
         combatStateRef={combatStateRef}
@@ -1705,7 +1719,10 @@ export default function World3D(props: World3DProps) {
             fallback={fallback}
           >
             <CanvasContextGuard onLost={markContextLost} />
-            <WorldBlackFrameProbe onBlackFrame={recoverBlackCanvas} />
+            <WorldBlackFrameProbe
+              onBlackFrame={recoverBlackCanvas}
+              manualRender={touchRenderer || rendererQuality === "low" || !rendererVisualEffectsEnabled}
+            />
             <SceneContents
               {...props}
               quality={rendererQuality}
