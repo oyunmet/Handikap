@@ -575,10 +575,10 @@ function createSkyGeometry() {
   const geometry = new THREE.SphereGeometry(WORLD_SKY_RADIUS, 32, 16);
   const positions = geometry.getAttribute("position");
   const colors = new Float32Array(positions.count * 3);
-  const horizon = new THREE.Color("#b37661");
-  const middle = new THREE.Color("#5b4c5d");
-  const zenith = new THREE.Color("#2a394f");
-  const dusk = new THREE.Color("#78505c");
+  const horizon = new THREE.Color("#a05d4d");
+  const middle = new THREE.Color("#3a3047");
+  const zenith = new THREE.Color("#11192e");
+  const dusk = new THREE.Color("#6a4654");
   const color = new THREE.Color();
   for (let index = 0; index < positions.count; index += 1) {
     const height = THREE.MathUtils.clamp(positions.getY(index) / 260, -1, 1);
@@ -891,7 +891,6 @@ function FinalGate({
   touchRenderer: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const flareRef = useRef<THREE.Mesh>(null);
   const getCurrentGateDistance = () => {
     const motion = motionRef.current;
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
@@ -901,20 +900,11 @@ function FinalGate({
   const gateDistanceAtRender = getCurrentGateDistance();
   const gateChapterAtRender = Math.max(0, Math.floor(gateDistanceAtRender / WORLD_GATE_INTERVAL_METERS) - 1);
   const gateOpen = gateChapterAtRender < unlockedThroughChapter;
-  useFrame((frame) => {
+  useFrame(() => {
     if (!groupRef.current) return;
     const motion = motionRef.current;
     const gateDistance = getCurrentGateDistance();
-    const gateChapterId = Math.max(0, Math.floor(gateDistance / WORLD_GATE_INTERVAL_METERS) - 1);
-    const gateIsOpen = gateChapterId < unlockedThroughChapter;
     groupRef.current.position.z = motion.cameraX - gateDistance;
-    if (flareRef.current) {
-      const material = flareRef.current.material as THREE.MeshBasicMaterial;
-      material.color.set(gateIsOpen ? "#79e2b7" : "#f29a62");
-      material.opacity = gateIsOpen
-        ? 0.24 + (Math.sin(frame.clock.elapsedTime * 1.4) + 1) * 0.07
-        : 0.12 + (Math.sin(frame.clock.elapsedTime * 1.4) + 1) * 0.045;
-    }
   });
   return (
       <group
@@ -933,16 +923,7 @@ function FinalGate({
         <boxGeometry args={[14.7, 2.3, 2.8]} />
         <meshStandardMaterial color="#705957" roughness={0.9} flatShading />
       </mesh>
-      <mesh position={[0, 5.1, 0.06]} visible={!gateOpen}>
-        <boxGeometry args={[9.2, 8.2, 0.7]} />
-        <meshBasicMaterial
-          color="#8a5351"
-          transparent
-          opacity={0.2}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
+      {/* Leave the gate opening unobstructed; full-size transparent portal planes can cover the mobile camera view. */}
       {!gateOpen && (
         <group position={[0, 5.1, 0.52]}>
           {[-3.6, -1.8, 0, 1.8, 3.6].map((x) => (
@@ -959,10 +940,6 @@ function FinalGate({
           ))}
         </group>
       )}
-      <mesh ref={flareRef} position={[0, 5.1, 0.48]}>
-        <planeGeometry args={[8.4, 7.3]} />
-        <meshBasicMaterial color="#f29a62" transparent opacity={0.15} depthWrite={false} />
-      </mesh>
       {[-6.2, 6.2].map((x) => (
         <group key={x} position={[x, 8.5, -0.7]}>
           <mesh>
