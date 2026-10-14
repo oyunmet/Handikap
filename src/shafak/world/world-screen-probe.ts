@@ -59,11 +59,16 @@ export function isLikelyBlackWorldFrame(metrics: WorldProbeMetrics) {
     || (metrics.averageLuminance < 0.12 && metrics.darkPixelRatio >= 0.75);
 }
 
+export function shouldRecoverCanvasFrame(metrics: WorldProbeMetrics, drawCalls: number) {
+  return !Number.isFinite(drawCalls) || drawCalls <= 0 || isLikelyBlackWorldFrame(metrics);
+}
+
 export function shouldRecoverWorldFrame(metrics: WorldProbeMetrics, drawCalls: number) {
-  if (!Number.isFinite(drawCalls) || drawCalls <= 0 || isLikelyBlackWorldFrame(metrics)) return true;
+  if (shouldRecoverCanvasFrame(metrics, drawCalls)) return true;
 
   // The world always contains a sky, road, and scenery. A nearly uniform
-  // frame with only a handful of lit pixels is therefore an empty 3D view,
-  // even when the clear color itself is brighter than the black-frame limit.
+  // full-scene sample with only a handful of lit pixels is therefore an empty
+  // 3D view, even when the clear color itself is brighter than the black-frame
+  // limit. Do not apply this test to a small center crop of the canvas.
   return metrics.uniqueColors <= 8 && metrics.dominantColorRatio >= 0.75;
 }

@@ -6,7 +6,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import * as THREE from "three";
-import { analyzeWorldProbePixels, shouldRecoverWorldFrame } from "./world-screen-probe";
+import { analyzeWorldProbePixels, shouldRecoverCanvasFrame } from "./world-screen-probe";
 
 const OUTPUT_PROBE_WIDTH = 8;
 const OUTPUT_PROBE_HEIGHT = 4;
@@ -103,7 +103,7 @@ function ComposerOutput({
         pixels,
       );
 
-      const needsRecovery = shouldRecoverWorldFrame(
+      const needsRecovery = shouldRecoverCanvasFrame(
         analyzeWorldProbePixels(pixels),
         gl.info.render.calls,
       );

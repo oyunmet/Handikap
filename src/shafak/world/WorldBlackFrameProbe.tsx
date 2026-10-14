@@ -4,6 +4,7 @@ import * as THREE from "three";
 import {
   analyzeWorldProbePixels,
   getWorldDrawCallsForFrame,
+  shouldRecoverCanvasFrame,
   shouldRecoverWorldFrame,
 } from "./world-screen-probe";
 
@@ -95,7 +96,7 @@ export default function WorldBlackFrameProbe({
           context.UNSIGNED_BYTE,
           canvasPixels,
         );
-        canvasNeedsRecovery = shouldRecoverWorldFrame(analyzeWorldProbePixels(canvasPixels), worldDrawCalls);
+        canvasNeedsRecovery = shouldRecoverCanvasFrame(analyzeWorldProbePixels(canvasPixels), worldDrawCalls);
       }
 
       // Also sample a reduced copy of the full scene. This catches a mostly

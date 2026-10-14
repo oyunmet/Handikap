@@ -4,6 +4,7 @@ import {
   analyzeWorldProbePixels,
   getWorldDrawCallsForFrame,
   isLikelyBlackWorldFrame,
+  shouldRecoverCanvasFrame,
   shouldRecoverWorldFrame,
 } from "./world-screen-probe.ts";
 
@@ -59,6 +60,12 @@ test("recovers a clear-color-only scene with a few visible details", () => {
   const metrics = analyzeWorldProbePixels(pixels);
   assert.ok(metrics.averageLuminance > 0.07);
   assert.ok(metrics.dominantColorRatio >= 0.75);
+  assert.equal(shouldRecoverWorldFrame(metrics, 440), true);
+});
+
+test("does not treat a small clear-color canvas crop as an empty whole scene", () => {
+  const metrics = { averageLuminance: 0.14, uniqueColors: 1, darkPixelRatio: 0, dominantColorRatio: 1 };
+  assert.equal(shouldRecoverCanvasFrame(metrics, 440), false);
   assert.equal(shouldRecoverWorldFrame(metrics, 440), true);
 });
 

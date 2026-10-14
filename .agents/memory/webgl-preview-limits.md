@@ -23,8 +23,8 @@ The user requires the gameplay world to stay 3D on both mobile and PC and explic
 
 **How to apply:** Diagnose the shared WebGL, lighting, and post-processing path across desktop and mobile. Rebuild the 3D renderer/scene after persistent black frames; preserve the world’s 3D presentation and never use a 2D fallback.
 
-A nearly uniform clear-color frame can still be an empty 3D view when draw calls are present; draw-call counts only show that commands were submitted, not that visible world pixels reached the frame.
+In manual React Three Fiber rendering, read the draw-call counter after the explicit `gl.render(scene, camera)` call. The regular scene frame resets renderer stats before the positive-priority manual render; sampling beforehand reports zero even when the scene is rendering correctly.
 
-**Why:** Production screenshots showed a clear background, hundreds of draw calls, and a failed safe-render retry, while the prior watchdog only classified near-black pixels.
+**Why:** The production blank-screen retry was triggered by a zero draw-call snapshot captured before manual rendering, causing every touch-device frame to look empty and the safe retry to fail in the same way.
 
-**How to apply:** Include near-uniform output with sparse lit details in black-world detection, and keep tests for varied dark scenery so valid night scenes do not trigger recovery.
+**How to apply:** Keep a regression test that manual mode uses the post-render count and automatic mode uses the completed prior-frame count. Keep visual pixel checks too; a positive draw-call count does not by itself prove that visible world pixels reached the frame.
