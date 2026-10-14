@@ -196,8 +196,13 @@ type DebugStats = {
   cameraX: number;
   cameraY: number;
   cameraZ: number;
+  cameraDirectionX: number;
+  cameraDirectionY: number;
+  cameraDirectionZ: number;
   cameraNear: number;
   cameraFar: number;
+  motionCameraX: number;
+  originDistance: number;
   fogColor: string;
   fogDensity: string;
   background: string;
@@ -238,6 +243,7 @@ function isEffectivelyVisible(object: THREE.Object3D) {
 
 function getSceneDiagnostics(scene: THREE.Scene, camera: THREE.Camera) {
   const perspectiveCamera = camera as THREE.PerspectiveCamera;
+  const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
   let lights = 0;
   let lightIntensity = 0;
   let totalMeshes = 0;
@@ -267,6 +273,9 @@ function getSceneDiagnostics(scene: THREE.Scene, camera: THREE.Camera) {
     cameraX: camera.position.x,
     cameraY: camera.position.y,
     cameraZ: camera.position.z,
+    cameraDirectionX: cameraDirection.x,
+    cameraDirectionY: cameraDirection.y,
+    cameraDirectionZ: cameraDirection.z,
     cameraNear: perspectiveCamera.near,
     cameraFar: perspectiveCamera.far,
     fogColor: fog ? `#${fog.color.getHexString()}` : "kapalı",
@@ -1333,6 +1342,8 @@ function SceneContents({
           footSlip: footSlipRef.current,
           chunks: chunks.length,
           ...sceneDiagnostics,
+          motionCameraX: motion.cameraX,
+          originDistance: motion.originDistance,
           coordinatesFinite: [
             motion.distance,
             motion.cameraX,
@@ -1515,8 +1526,13 @@ export default function World3D(props: World3DProps) {
     cameraX: 0,
     cameraY: 0,
     cameraZ: 0,
+    cameraDirectionX: 0,
+    cameraDirectionY: 0,
+    cameraDirectionZ: -1,
     cameraNear: WORLD_CAMERA_NEAR,
     cameraFar: WORLD_CAMERA_FAR,
+    motionCameraX: 0,
+    originDistance: 0,
     fogColor: "ölçülüyor",
     fogDensity: "ölçülüyor",
     background: "ölçülüyor",
@@ -1713,7 +1729,8 @@ export default function World3D(props: World3DProps) {
           <b>3D DEBUG · KÜL YOLU</b>
           <span>Konum: x {debugStats.x.toFixed(2)} · y {debugStats.y.toFixed(2)} · z {debugStats.z.toFixed(2)}</span>
           <span>Mesafe: {debugStats.distance.toFixed(1)} m · Hız: {debugStats.speed.toFixed(2)} m/sn</span>
-          <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · near/far {debugStats.cameraNear}/{debugStats.cameraFar}</span>
+          <span>Kamera: {debugStats.cameraX.toFixed(1)}, {debugStats.cameraY.toFixed(1)}, {debugStats.cameraZ.toFixed(1)} · yön {debugStats.cameraDirectionX.toFixed(2)}, {debugStats.cameraDirectionY.toFixed(2)}, {debugStats.cameraDirectionZ.toFixed(2)} · near/far {debugStats.cameraNear}/{debugStats.cameraFar}</span>
+          <span>Dünya koordinatı: kamera {debugStats.motionCameraX.toFixed(1)} m · origin {debugStats.originDistance.toFixed(1)} m</span>
           <span>Fog: {debugStats.fogColor} · yoğunluk {debugStats.fogDensity} · arka plan {debugStats.background}</span>
           <span>Işık: {debugStats.lights} kaynak / güç {debugStats.lightIntensity.toFixed(2)} · çocuk {debugStats.sceneChildren}</span>
           <span>Mesh: {debugStats.visibleMeshes}/{debugStats.totalMeshes} görünür · koordinatlar {debugStats.coordinatesFinite ? "sonlu" : "GEÇERSİZ"}</span>
