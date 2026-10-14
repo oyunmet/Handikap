@@ -10,6 +10,10 @@ import type { WorldChunk, WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import type { WorldQuality } from "./World3D";
 import WorldStaticBatches from "./WorldStaticBatches";
+import {
+  fillWorldRoadTileZPositions,
+  WORLD_ROAD_TILE_COUNT,
+} from "./world-road-layout";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
@@ -80,7 +84,7 @@ function createRoadTextures() {
     const texture = new THREE.DataTexture(data, ROAD_TEXTURE_SIZE, ROAD_TEXTURE_SIZE, THREE.RGBAFormat);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 24);
+    texture.repeat.set(1, 4);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.generateMipmaps = true;
@@ -97,18 +101,26 @@ function createRoadTextures() {
   };
 }
 const ROAD_TEXTURES = createRoadTextures();
-const ROAD_TERRAIN_GEOMETRY = new THREE.PlaneGeometry(100, WORLD_GATE_INTERVAL_METERS * 6);
-const ROAD_TERRAIN_MATERIAL = new THREE.MeshStandardMaterial({ color: "#5a504b", roughness: 1, metalness: 0 });
-const ROAD_SURFACE_GEOMETRY = new THREE.PlaneGeometry(13.6, WORLD_GATE_INTERVAL_METERS * 6);
+const ROAD_TERRAIN_GEOMETRY = new THREE.PlaneGeometry(100, WORLD_GATE_INTERVAL_METERS);
+const ROAD_TERRAIN_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#5a504b",
+  emissive: "#211a19",
+  emissiveIntensity: 0.24,
+  roughness: 1,
+  metalness: 0,
+});
+const ROAD_SURFACE_GEOMETRY = new THREE.PlaneGeometry(13.6, WORLD_GATE_INTERVAL_METERS);
 const ROAD_SURFACE_MATERIAL = new THREE.MeshStandardMaterial({
   color: "#40383b",
+  emissive: "#211718",
+  emissiveIntensity: 0.2,
   map: ROAD_TEXTURES.color,
   normalMap: ROAD_TEXTURES.normal,
   roughnessMap: ROAD_TEXTURES.roughness,
   roughness: 0.96,
   metalness: 0.03,
 });
-const ROAD_RAIL_GEOMETRY = new THREE.BoxGeometry(0.26, 0.08, WORLD_GATE_INTERVAL_METERS * 6);
+const ROAD_RAIL_GEOMETRY = new THREE.BoxGeometry(0.26, 0.08, WORLD_GATE_INTERVAL_METERS);
 const ROAD_RAIL_MATERIAL = new THREE.MeshStandardMaterial({ color: "#897164", roughness: 0.9 });
 const ROAD_PALETTE_COLORS = Object.fromEntries(
   Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [
@@ -219,12 +231,51 @@ function RoadSegment({
 }
 
 function RoadSurface({ motionRef, quality, weather }: { motionRef: MotionRef; quality: WorldQuality; weather: WeatherMode }) {
-  const rootRef = useRef<THREE.Group>(null);
+  const terrainRef = useRef<THREE.InstancedMesh>(null);
+  const surfaceRef = useRef<THREE.InstancedMesh>(null);
+  const leftRailRef = useRef<THREE.InstancedMesh>(null);
+  const rightRailRef = useRef<THREE.InstancedMesh>(null);
+  const tileZPositions = useMemo(() => Array<number>(WORLD_ROAD_TILE_COUNT).fill(0), []);
+  const transform = useMemo(() => new THREE.Object3D(), []);
+  useLayoutEffect(() => {
+    terrainRef.current?.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    surfaceRef.current?.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    leftRailRef.current?.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    rightRailRef.current?.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  }, []);
   useFrame(() => {
-    if (!rootRef.current) return;
+    const terrain = terrainRef.current;
+    const surface = surfaceRef.current;
+    const leftRail = leftRailRef.current;
+    const rightRail = rightRailRef.current;
+    if (!terrain || !surface || !leftRail || !rightRail) return;
     const distance = motionRef.current.distance;
-    const chunkStart = Math.floor(distance / WORLD_GATE_INTERVAL_METERS) * WORLD_GATE_INTERVAL_METERS;
-    rootRef.current.position.z = motionRef.current.cameraX - (chunkStart + WORLD_GATE_INTERVAL_METERS * 2);
+    fillWorldRoadTileZPositions(motionRef.current.cameraX, distance, tileZPositions);
+    for (let index = 0; index < WORLD_ROAD_TILE_COUNT; index += 1) {
+      const z = tileZPositions[index];
+      transform.position.set(0, -0.2, z);
+      transform.rotation.set(-Math.PI / 2, 0, 0);
+      transform.scale.set(1, 1, 1);
+      transform.updateMatrix();
+      terrain.setMatrixAt(index, transform.matrix);
+
+      transform.position.y = -0.045;
+      transform.updateMatrix();
+      surface.setMatrixAt(index, transform.matrix);
+
+      transform.position.set(-6.75, 0.02, z);
+      transform.rotation.set(0, 0, 0);
+      transform.updateMatrix();
+      leftRail.setMatrixAt(index, transform.matrix);
+
+      transform.position.x = 6.75;
+      transform.updateMatrix();
+      rightRail.setMatrixAt(index, transform.matrix);
+    }
+    terrain.instanceMatrix.needsUpdate = true;
+    surface.instanceMatrix.needsUpdate = true;
+    leftRail.instanceMatrix.needsUpdate = true;
+    rightRail.instanceMatrix.needsUpdate = true;
     const transition = getBiomeTransition(distance);
     const from = ROAD_PALETTE_COLORS[transition.from];
     const to = ROAD_PALETTE_COLORS[transition.to];
@@ -234,27 +285,35 @@ function RoadSurface({ motionRef, quality, weather }: { motionRef: MotionRef; qu
     ROAD_SURFACE_MATERIAL.metalness = weather === "rain" ? 0.24 : 0.03;
   });
   return (
-    <group ref={rootRef}>
-      <mesh
-        geometry={ROAD_TERRAIN_GEOMETRY}
-        material={ROAD_TERRAIN_MATERIAL}
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.2, 0]}
+    <>
+      <instancedMesh
+        ref={terrainRef}
+        args={[ROAD_TERRAIN_GEOMETRY, ROAD_TERRAIN_MATERIAL, WORLD_ROAD_TILE_COUNT]}
+        frustumCulled={false}
         receiveShadow={quality !== "low"}
         dispose={null}
       />
-      <mesh
-        geometry={ROAD_SURFACE_GEOMETRY}
-        material={ROAD_SURFACE_MATERIAL}
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.045, 0]}
+      <instancedMesh
+        ref={surfaceRef}
+        args={[ROAD_SURFACE_GEOMETRY, ROAD_SURFACE_MATERIAL, WORLD_ROAD_TILE_COUNT]}
+        frustumCulled={false}
         receiveShadow={quality !== "low"}
         dispose={null}
       />
-      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[-6.75, 0.02, 0]} dispose={null} />
-      <mesh geometry={ROAD_RAIL_GEOMETRY} material={ROAD_RAIL_MATERIAL} position={[6.75, 0.02, 0]} dispose={null} />
+      <instancedMesh
+        ref={leftRailRef}
+        args={[ROAD_RAIL_GEOMETRY, ROAD_RAIL_MATERIAL, WORLD_ROAD_TILE_COUNT]}
+        frustumCulled={false}
+        dispose={null}
+      />
+      <instancedMesh
+        ref={rightRailRef}
+        args={[ROAD_RAIL_GEOMETRY, ROAD_RAIL_MATERIAL, WORLD_ROAD_TILE_COUNT]}
+        frustumCulled={false}
+        dispose={null}
+      />
       <HorizonFogBank motionRef={motionRef} weather={weather} />
-    </group>
+    </>
   );
 }
 
