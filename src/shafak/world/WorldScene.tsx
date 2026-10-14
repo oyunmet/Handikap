@@ -2327,7 +2327,7 @@ export default function WorldScene({
                 key={event.id}
                 className={`duel-combat-fx is-${event.type === "skill" ? event.attack : event.type}${event.target === "player" ? " targets-player" : " targets-bot"}${event.critical ? " is-critical" : ""}`}
                 style={{
-                  "--fx-side": event.target === "player" ? "36%" : "64%",
+                  "--fx-side": event.target === "player" ? "64%" : "36%",
                   "--fx-color": event.target === "bot" ? equipmentVisual.trailColor ?? "#ffca88" : "#ff7158",
                   "--fx-glow": event.target === "bot" ? equipmentVisual.trailColor ?? "#ff7847" : "#ff553e",
                 } as CSSProperties}

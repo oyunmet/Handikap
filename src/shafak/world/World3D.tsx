@@ -284,8 +284,8 @@ function CameraRig({
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 10.1 : 10.8,
-        touchRenderer ? 1.65 : 0.8,
+        touchRenderer ? 3.1 : 3.7,
+        touchRenderer ? 7.2 : 6.8,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -416,7 +416,7 @@ function DuelFighter({
     actorMotion.current.cameraX = motionRef.current.cameraX;
     actorMotion.current.stepPhase = state.tick * 0.13;
     actorMotion.current.hasMoved = Math.hypot(actor.vx, actor.vz) > 0.25;
-    actorRoot.current?.position.set(0, 0, actor.z);
+    actorRoot.current?.position.set(actor.x, 0, actor.z);
   });
 
   useFrame((frame) => {
