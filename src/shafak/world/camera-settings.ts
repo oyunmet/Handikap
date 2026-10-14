@@ -15,10 +15,10 @@ export function getTravelCameraSettings(speed: number, touchRenderer: boolean): 
   const safeSpeed = Number.isFinite(speed) ? Math.min(7, Math.max(0, speed)) : 0;
   if (touchRenderer) {
     // Keep the mobile camera ahead of the central spike trap when the player
-    // reaches it, and avoid speed-dependent framing that moves the camera
-    // back into the trap's geometry while running.
+    // reaches it. The raised view also clears the camera from chests, traps,
+    // and other road objects after the player passes them.
     return {
-      height: 4.15,
+      height: 5.75,
       distanceBehind: 6.5,
       targetHeight: 1.25,
       targetDistanceAhead: 11.5,
@@ -28,7 +28,7 @@ export function getTravelCameraSettings(speed: number, touchRenderer: boolean): 
   }
 
   return {
-    height: 4.15 + safeSpeed * 0.045,
+    height: 5.75 + safeSpeed * 0.045,
     distanceBehind: 10.2 + safeSpeed * 0.18,
     targetHeight: 1.25,
     targetDistanceAhead: 11.5,

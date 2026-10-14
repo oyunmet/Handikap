@@ -940,7 +940,7 @@ export function WorldChunks({
   );
 }
 
-function FinalGate({
+export function FinalGate({
   motionRef,
   unlockedThroughChapter,
   touchRenderer,

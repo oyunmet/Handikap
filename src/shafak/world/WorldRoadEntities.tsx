@@ -119,8 +119,12 @@ function Obstacle({ obstacle, motionRef, broken }: { obstacle: WorldObstacle; mo
           : "KAYA · ZIPLA";
   useFrame((frame) => {
     if (!rootRef.current) return;
+    const gap = obstacle.distance - motionRef.current.distance;
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
-    rootRef.current.visible = (obstacle.kind === "treasure-chest" || !broken) && Math.abs(obstacle.distance - motionRef.current.distance) <= 112;
+    // Keep roadside gameplay objects in front of the player. A passed obstacle
+    // must leave the camera corridor instead of enclosing the trailing camera.
+    rootRef.current.visible = Math.abs(gap) <= 112
+      && (gap >= -1.5 || (obstacle.kind === "treasure-chest" && broken));
     if (chestLidRef.current) {
       const target = broken ? -1.18 : 0;
       chestLidRef.current.rotation.x = THREE.MathUtils.damp(chestLidRef.current.rotation.x, target, 8, 0.05);
