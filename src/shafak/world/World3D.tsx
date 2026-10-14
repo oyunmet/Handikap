@@ -1586,7 +1586,7 @@ export default function World3D(props: World3DProps) {
     rendererRecoveryTimesRef.current = recentRecoveries;
     runtimeDiagnosticsRef.current.contextLost = false;
     runtimeDiagnosticsRef.current.lastRuntimeError =
-      "Siyah kare algılandı; 3D sahne fog kapalı, güçlü ortam ışığı ve culling olmadan yeniden kuruluyor.";
+      "3D sahne boş veya siyah algılandı; sis kapalı, güçlü ortam ışığı ve culling olmadan yeniden kuruluyor.";
     setSafeRecoveryMode(true);
     setWebglAvailable(null);
     window.setTimeout(() => {

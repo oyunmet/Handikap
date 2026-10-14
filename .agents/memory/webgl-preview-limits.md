@@ -22,3 +22,9 @@ The user requires the gameplay world to stay 3D on both mobile and PC and explic
 **Why:** the user said the black screen remained even at the requested older commit, reported it on PC too, and said never to switch to 2D.
 
 **How to apply:** Diagnose the shared WebGL, lighting, and post-processing path across desktop and mobile. Rebuild the 3D renderer/scene after persistent black frames; preserve the world’s 3D presentation and never use a 2D fallback.
+
+A nearly uniform clear-color frame can still be an empty 3D view when draw calls are present; draw-call counts only show that commands were submitted, not that visible world pixels reached the frame.
+
+**Why:** Production screenshots showed a clear background, hundreds of draw calls, and a failed safe-render retry, while the prior watchdog only classified near-black pixels.
+
+**How to apply:** Include near-uniform output with sparse lit details in black-world detection, and keep tests for varied dark scenery so valid night scenes do not trigger recovery.

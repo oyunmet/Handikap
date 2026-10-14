@@ -2,16 +2,18 @@ export type WorldProbeMetrics = {
   averageLuminance: number;
   uniqueColors: number;
   darkPixelRatio: number;
+  dominantColorRatio: number;
 };
 
 export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
   if (pixels.length < 4 || pixels.length % 4 !== 0) {
-    return { averageLuminance: 0, uniqueColors: 0, darkPixelRatio: 0 };
+    return { averageLuminance: 0, uniqueColors: 0, darkPixelRatio: 0, dominantColorRatio: 0 };
   }
 
-  const colors = new Set<number>();
+  const colors = new Map<number, number>();
   let luminanceSum = 0;
   let darkPixelCount = 0;
+  let dominantColorCount = 0;
   let sampleCount = 0;
   for (let index = 0; index < pixels.length; index += 4) {
     const red = pixels[index];
@@ -20,7 +22,10 @@ export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
     const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
     luminanceSum += luminance;
     if (luminance < 0.07) darkPixelCount += 1;
-    colors.add(((red >> 4) << 8) | ((green >> 4) << 4) | (blue >> 4));
+    const color = ((red >> 4) << 8) | ((green >> 4) << 4) | (blue >> 4);
+    const colorCount = (colors.get(color) ?? 0) + 1;
+    colors.set(color, colorCount);
+    dominantColorCount = Math.max(dominantColorCount, colorCount);
     sampleCount += 1;
   }
 
@@ -28,6 +33,7 @@ export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
     averageLuminance: luminanceSum / sampleCount,
     uniqueColors: colors.size,
     darkPixelRatio: darkPixelCount / sampleCount,
+    dominantColorRatio: dominantColorCount / sampleCount,
   };
 }
 
@@ -46,5 +52,10 @@ export function isLikelyBlackWorldFrame(metrics: WorldProbeMetrics) {
 }
 
 export function shouldRecoverWorldFrame(metrics: WorldProbeMetrics, drawCalls: number) {
-  return !Number.isFinite(drawCalls) || drawCalls <= 0 || isLikelyBlackWorldFrame(metrics);
+  if (!Number.isFinite(drawCalls) || drawCalls <= 0 || isLikelyBlackWorldFrame(metrics)) return true;
+
+  // The world always contains a sky, road, and scenery. A nearly uniform
+  // frame with only a handful of lit pixels is therefore an empty 3D view,
+  // even when the clear color itself is brighter than the black-frame limit.
+  return metrics.uniqueColors <= 8 && metrics.dominantColorRatio >= 0.75;
 }
