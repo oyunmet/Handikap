@@ -6,7 +6,7 @@ import catalogHandler from "../../../api/store/catalog.ts";
 
 test("guest gameplay and server purchases share the same populated catalog", () => {
   assert.strictEqual(SERVER_CATALOG, GAME_CATALOG);
-  const minimums = { weapons: 5, armor: 4, capes: 4, effects: 3, dyes: 4 };
+  const minimums = { weapons: 8, armor: 4, capes: 4, effects: 3, dyes: 4 };
   for (const [category, minimum] of Object.entries(minimums)) {
     const items = GAME_CATALOG.filter((item) => item.category === category);
     assert.ok(items.length >= minimum, `${category} has ${items.length} items`);

@@ -167,7 +167,7 @@ test("the account combat loadout saves assigned slots and only accepts owned wea
 });
 
 test("server catalog contains the staged equipment categories with in-game-only prices", () => {
-  assert.equal(STORE_CATALOG.filter((item) => item.category === "weapons").length, 5);
+  assert.equal(STORE_CATALOG.filter((item) => item.category === "weapons").length, 8);
   assert.equal(STORE_CATALOG.filter((item) => item.category === "armor").length, 4);
   assert.equal(STORE_CATALOG.filter((item) => item.category === "capes").length, 4);
   assert.equal(STORE_CATALOG.filter((item) => item.category === "effects").length, 5);

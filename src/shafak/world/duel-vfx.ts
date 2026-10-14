@@ -10,7 +10,7 @@ export const MAX_ACTIVE_DUEL_PARTICLES =
 
 export type DuelVfxKind = "fireball" | "lightning" | "shield" | "afterimage" | "shockwave" | "weaponTrail" | "arrow" | "coverBlock" | "plunge" | "none";
 
-export function getDuelVfxKind(event: Pick<CombatEvent, "type" | "attack">): DuelVfxKind {
+export function getDuelVfxKind(event: Pick<CombatEvent, "type" | "attack" | "plunge">): DuelVfxKind {
   if (event.type === "skill") {
     if (event.attack === "skillOne") return "fireball";
     if (event.attack === "skillTwo") return "lightning";

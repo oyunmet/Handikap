@@ -7,6 +7,7 @@ import {
   DuelServiceError,
   validateCombatInputLog,
 } from "./duelService.ts";
+import { INPUT_BUTTON, MAX_INPUT_BUTTONS } from "../src/shafak/game/combat-engine.ts";
 import { createDefaultPlayerProfile } from "./profileApi.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 
@@ -144,7 +145,27 @@ test("input tapes reject broken button transitions and client-invented fields", 
     [1, 0, 0, 0, 128, 128],
     [2, 0, 0, 0, 512, 512],
   ]);
-  assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 1024, 1024]]), null);
+  const newActionBits = [
+    [1, INPUT_BUTTON.aim],
+    [2, INPUT_BUTTON.crouch],
+    [3, INPUT_BUTTON.jump],
+  ];
+  const validNewActions = [
+    [0, 0, 0, 0, 0, 0],
+    ...newActionBits.map(([tick, button]) => [tick, 0, 0, 0, button, button]),
+  ];
+  assert.deepEqual(validateCombatInputLog(validNewActions), validNewActions);
+  assert.deepEqual(validateCombatInputLog([
+    [0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, MAX_INPUT_BUTTONS, MAX_INPUT_BUTTONS],
+  ]), [
+    [0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, MAX_INPUT_BUTTONS, MAX_INPUT_BUTTONS],
+  ]);
+  assert.equal(
+    validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, MAX_INPUT_BUTTONS + 1, MAX_INPUT_BUTTONS + 1]]),
+    null,
+  );
 });
 
 test("server replays the seeded duel and returns the stored result only once", async () => {

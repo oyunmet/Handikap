@@ -11,6 +11,7 @@ export const DUEL_COVERS = [
   { x: 2.55, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.78, halfDepth: 0.42 },
 ] as const;
 export const COMBO_CHAIN_WINDOW_TICKS = 78;
+export const PERFECT_BLOCK_WINDOW_TICKS = 12;
 export const INPUT_BUTTON = {
   attack: 1,
   block: 2,
@@ -632,7 +633,7 @@ function applyDamage(
 
   const blocking = target.action === "block" && tick < target.actionUntilTick && target.stamina > 0;
   if (blocking) {
-    const parry = tick - target.blockStartedTick <= 10;
+    const parry = tick - target.blockStartedTick <= PERFECT_BLOCK_WINDOW_TICKS;
     target.stamina = Math.max(0, target.stamina - (parry ? 5 : 12));
     attacker.attackHit = true;
     attacker.attackType = null;

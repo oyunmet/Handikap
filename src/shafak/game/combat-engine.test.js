@@ -6,11 +6,38 @@ import {
   COMBAT_ARENA_RADIUS,
   COMBO_CHAIN_WINDOW_TICKS,
   MAX_DUEL_TICKS,
+  PERFECT_BLOCK_WINDOW_TICKS,
   createCombatState,
   getBotAttackWindupTicks,
   replayCombat,
   stepCombat,
 } from "./combat-engine.ts";
+
+const noInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
+
+function tapCombatButton(state, button, heldButtons = 0) {
+  const pressed = stepCombat(state, {
+    ...noInput,
+    buttons: heldButtons | button,
+    pressed: button,
+  });
+  const released = stepCombat(pressed.state, {
+    ...noInput,
+    buttons: heldButtons,
+    released: button,
+  });
+  return { state: released.state, events: [...pressed.events, ...released.events] };
+}
+
+function advanceCombat(state, ticks, buttons = 0) {
+  const events = [];
+  for (let index = 0; index < ticks && !state.ended; index += 1) {
+    const result = stepCombat(state, { ...noInput, buttons });
+    state = result.state;
+    events.push(...result.events);
+  }
+  return { state, events };
+}
 
 test("duel fighters begin facing each other along the arena depth", () => {
   const state = createCombatState(21, "easy");
@@ -155,6 +182,99 @@ test("an expired quick-combo window restarts at the first light hit", () => {
   assert.equal(released.player.attackType, "light");
   assert.equal(released.player.attackComboStep, 1);
   assert.equal(released.player.comboChainStep, 1);
+});
+
+test("a short bow requires aim, uses a knife at close range, and can fire through clear lanes", () => {
+  const unAimed = createCombatState(2903, "easy");
+  unAimed.weaponIds[0] = "weapon_short_bow";
+  unAimed.bot.staggerUntilTick = 1_000;
+  const denied = tapCombatButton(unAimed, INPUT_BUTTON.attack);
+  assert.equal(denied.state.player.attackType, null);
+
+  const aimed = createCombatState(2904, "easy");
+  aimed.weaponIds[0] = "weapon_short_bow";
+  aimed.bot.staggerUntilTick = 1_000;
+  const shot = tapCombatButton(aimed, INPUT_BUTTON.attack, INPUT_BUTTON.aim);
+  assert.equal(shot.state.player.attackIsRanged, true);
+  const resolved = advanceCombat(shot.state, 12, INPUT_BUTTON.aim);
+  assert.ok(resolved.events.some((event) => event.type === "projectile" && event.weaponId === "weapon_short_bow"));
+  assert.ok(resolved.events.some((event) => event.type === "hit" && event.target === "bot"));
+
+  const close = createCombatState(2905, "easy");
+  close.weaponIds[0] = "weapon_short_bow";
+  close.bot.x = close.player.x;
+  close.bot.z = close.player.z - 1.5;
+  close.bot.staggerUntilTick = 1_000;
+  const knifeAttack = tapCombatButton(close, INPUT_BUTTON.attack);
+  assert.equal(knifeAttack.state.player.attackIsRanged, false);
+  assert.ok(knifeAttack.events.some((event) => event.type === "weaponTrail" && event.weaponId === "weapon_hunting_knife"));
+  const knifeHit = advanceCombat(knifeAttack.state, 12);
+  assert.ok(knifeHit.events.some((event) => event.type === "hit" && event.weaponId === "weapon_hunting_knife"));
+});
+
+test("ranged shots are stopped by arena cover rather than damaging the rival", () => {
+  const state = createCombatState(2906, "easy");
+  state.weaponIds[0] = "weapon_short_bow";
+  state.player.x = -4;
+  state.player.z = COMBAT_ARENA_CENTER_Z;
+  state.bot.x = 4;
+  state.bot.z = COMBAT_ARENA_CENTER_Z;
+  state.bot.staggerUntilTick = 1_000;
+  const attack = tapCombatButton(state, INPUT_BUTTON.attack, INPUT_BUTTON.aim);
+  const resolved = advanceCombat(attack.state, 12, INPUT_BUTTON.aim);
+
+  assert.ok(resolved.events.some((event) => event.type === "projectile"));
+  assert.ok(resolved.events.some((event) => event.type === "coverBlock"));
+  assert.equal(resolved.events.some((event) => event.type === "hit" && event.target === "bot"), false);
+  assert.equal(resolved.state.bot.hp, state.bot.hp);
+});
+
+test("a jump followed by an attack produces a plunge hit and impact event", () => {
+  const state = createCombatState(2907, "easy");
+  state.bot.x = state.player.x;
+  state.bot.z = state.player.z - 1.5;
+  state.bot.staggerUntilTick = 1_000;
+
+  const jump = tapCombatButton(state, INPUT_BUTTON.jump);
+  assert.ok(jump.state.player.jumpUntilTick > jump.state.tick);
+  const attack = tapCombatButton(jump.state, INPUT_BUTTON.attack);
+  assert.equal(attack.state.player.attackWasPlunge, true);
+  const resolved = advanceCombat(attack.state, 12);
+  assert.ok(resolved.events.some((event) => event.type === "hit" && event.target === "bot" && event.plunge));
+});
+
+test("the perfect-block window lasts 0.2 seconds, then becomes a normal block", () => {
+  const resolveAtOffset = (offset) => {
+    const state = createCombatState(2908 + offset, "easy");
+    state.tick = 98;
+    state.player.x = 0;
+    state.player.z = 0;
+    state.bot.x = 0;
+    state.bot.z = -1.8;
+    state.bot.action = "block";
+    state.bot.actionUntilTick = 500;
+    state.bot.blockStartedTick = 108 - offset;
+
+    let current = stepCombat(state, {
+      ...noInput,
+      buttons: INPUT_BUTTON.attack,
+      pressed: INPUT_BUTTON.attack,
+    }).state;
+    const events = [];
+    const released = stepCombat(current, {
+      ...noInput,
+      released: INPUT_BUTTON.attack,
+    });
+    current = released.state;
+    events.push(...released.events);
+    const remaining = advanceCombat(current, 8);
+    events.push(...remaining.events);
+    return events;
+  };
+
+  assert.equal(PERFECT_BLOCK_WINDOW_TICKS, 12);
+  assert.ok(resolveAtOffset(PERFECT_BLOCK_WINDOW_TICKS).some((event) => event.type === "parry"));
+  assert.ok(resolveAtOffset(PERFECT_BLOCK_WINDOW_TICKS + 1).some((event) => event.type === "block"));
 });
 
 test("combat movement can advance toward the opponent along the arena depth axis", () => {
