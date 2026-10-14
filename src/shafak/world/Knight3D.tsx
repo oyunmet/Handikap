@@ -286,7 +286,7 @@ export default function Knight3D({
     const idleWeightShift = !moving && !motionReduced ? Math.sin(time * 0.72) * 0.028 : 0;
     root.position.x += (lateralPosition + idleWeightShift - root.position.x) * (1 - Math.exp(-dt * 8));
     const bob = moving && !motionReduced ? Math.abs(Math.sin(phase * 2)) * (running ? 0.055 : 0.032) : 0;
-    const deathDrop = state === "die" ? actionProgress * 0.62 : 0;
+    const deathDrop = state === "die" ? actionProgress * 0.08 : 0;
     root.position.y += (motion.jumpHeight + bob - deathDrop - root.position.y) * (1 - Math.exp(-dt * 14));
     const crouchScale = motion.crouching ? 0.72 : 1;
     root.scale.y += (crouchScale - root.scale.y) * (1 - Math.exp(-dt * 12));
@@ -550,7 +550,7 @@ export default function Knight3D({
               <dodecahedronGeometry args={[0.11, 0]} />
               <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.76} metalness={0.16} flatShading />
             </mesh>
-            <group position={[0.025, -0.4, -0.06]} rotation={[0, 0, -0.2]}>
+            <group position={[0.13, -0.4, -0.12]} rotation={[0, 0, -0.2]}>
               {(appearance?.weaponStyle ?? "sword") === "daggers" ? (
                 [-1, 1].map((side) => (
                   <group key={side} position={[side * 0.055, 0.27, 0]} rotation={[0, 0, side * 0.14]}>
@@ -559,7 +559,7 @@ export default function Knight3D({
                       <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.74} />
                     </mesh>
                     <mesh position={[0, 0.28, 0]}>
-                      <boxGeometry args={[0.062, 0.43, 0.032]} />
+                      <boxGeometry args={[0.078, 0.47, 0.032]} />
                       <meshStandardMaterial color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel} roughness={0.29} metalness={0.84} />
                     </mesh>
                     <mesh position={[0, 0.51, 0]} rotation={[0, 0, Math.PI]}>
@@ -656,7 +656,7 @@ export default function Knight3D({
                     <meshStandardMaterial color={appearance?.trim ?? KNIGHT_CONFIG.colors.gold} roughness={0.32} metalness={0.76} />
                   </mesh>
                   <mesh position={[0, 0.47, 0]}>
-                    <boxGeometry args={[0.105, 0.62, 0.045]} />
+                    <boxGeometry args={[0.13, 0.68, 0.05]} />
                     <meshStandardMaterial
                       color={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel}
                       emissive={appearance?.weaponColor ?? KNIGHT_CONFIG.colors.steel}
@@ -666,7 +666,7 @@ export default function Knight3D({
                     />
                   </mesh>
                   <mesh position={[0, 0.47, -0.026]}>
-                    <boxGeometry args={[0.012, 0.32, 0.008]} />
+                    <boxGeometry args={[0.02, 0.38, 0.01]} />
                     <meshStandardMaterial
                       color={appearance?.auraColor ?? "#f5c175"}
                       emissive={appearance?.auraColor ?? "#f5c175"}

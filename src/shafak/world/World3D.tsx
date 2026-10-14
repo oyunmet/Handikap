@@ -285,7 +285,7 @@ function CameraRig({
         combat.bot,
         -(motion.distance - motion.originDistance),
         touchRenderer ? 10.1 : 10.8,
-        touchRenderer ? 0.55 : 0.8,
+        touchRenderer ? 1.65 : 0.8,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -372,7 +372,6 @@ function DuelFighter({
 }) {
   const actorRoot = useRef<THREE.Group>(null);
   const actorVisualRoot = useRef<THREE.Group>(null);
-  const deathStartedAtRef = useRef<number | null>(null);
   const actorMotion = useMemo(() => ({ current: createWorldMotion() }), []);
   const renderedActor = combatRender?.[side];
   const opposingActor = combatRender?.[side === "player" ? "bot" : "player"];
@@ -433,6 +432,10 @@ function DuelFighter({
     const jumpHeight = liveActor && liveActor.jumpUntilTick > combatTick
       ? Math.sin(jumpProgress * Math.PI) * 1.12
       : 0;
+    const hitProgress = liveActor?.action === "hit"
+      ? THREE.MathUtils.clamp(1 - (liveActor.actionUntilTick - combatTick) / 17, 0, 1)
+      : 0;
+    const hitStagger = Math.sin(hitProgress * Math.PI);
     const staminaRatio = side === "player" && renderedActor
       ? renderedActor.stamina / Math.max(1, renderedActor.maxStamina)
       : 1;
@@ -441,16 +444,17 @@ function DuelFighter({
       : 0;
     visualRoot.position.y = jumpHeight
       + (liveActor?.isCrouching ? -0.27 : 0)
+      - hitStagger * 0.14
       + Math.sin(frame.clock.elapsedTime * 4.6) * 0.026 * exhaustion;
     visualRoot.rotation.x = liveActor?.isAiming ? 0.08 : liveActor?.isCrouching ? 0.16 : Math.sin(frame.clock.elapsedTime * 2.4) * 0.018 * exhaustion;
+    visualRoot.rotation.z = hitStagger * 0.36;
     if (!visualEffectsEnabled || !defeated) {
-      deathStartedAtRef.current = null;
       visualRoot.scale.set(baseScale, baseScale * (liveActor?.isCrouching ? 0.82 : 1), baseScale);
       return;
     }
-    deathStartedAtRef.current ??= frame.clock.elapsedTime;
-    const progress = THREE.MathUtils.clamp((frame.clock.elapsedTime - deathStartedAtRef.current) / 0.86, 0, 1);
-    visualRoot.scale.set(baseScale * (1 - progress), baseScale * (liveActor?.isCrouching ? 0.82 : 1) * (1 - progress), baseScale * (1 - progress));
+    // Keep the defeated fighter visible while the procedural/GLB death pose
+    // settles on the arena floor; the ash particles remain a secondary effect.
+    visualRoot.scale.set(baseScale, baseScale, baseScale);
   });
 
   if (!renderedActor) return null;

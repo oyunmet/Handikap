@@ -60,10 +60,14 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
     if (
       !Array.isArray(entry) ||
       entry.length !== 6 ||
-      entry.some((part) => typeof part !== "number" || !Number.isSafeInteger(part))
+      entry.some((part) => typeof part !== "number" || !Number.isFinite(part))
     ) return null;
     const [tick, x, y, buttons, pressed, released] = entry as number[];
     if (
+      !Number.isSafeInteger(tick) ||
+      !Number.isSafeInteger(buttons) ||
+      !Number.isSafeInteger(pressed) ||
+      !Number.isSafeInteger(released) ||
       tick < 0 ||
       tick > 5_400 ||
       tick <= previousTick ||

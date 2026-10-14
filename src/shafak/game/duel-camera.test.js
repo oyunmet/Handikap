@@ -47,3 +47,16 @@ test("the camera stays almost directly behind the player for a straight face-off
   assert.ok(Math.abs(pose.position.x - player.x) < 1);
   assert.ok(pose.target.z < player.z && pose.target.z > opponent.z);
 });
+
+test("a wider mobile shoulder view remains behind the player and exposes the rival", () => {
+  const player = { x: 0, z: 0.75 };
+  const opponent = { x: 0, z: -1.95 };
+  const shoulderOffset = 1.65;
+  const pose = getDuelCameraPose(player, opponent, 0, 10.1, shoulderOffset);
+  const dx = opponent.x - player.x;
+  const dz = opponent.z - player.z;
+  const cameraHeadingDot = (pose.position.x - player.x) * dx + (pose.position.z - player.z) * dz;
+  assert.ok(cameraHeadingDot < 0, "camera must stay on the player's rear side");
+  assert.equal(pose.position.x, shoulderOffset);
+  assert.ok(pose.target.z < player.z && pose.target.z > opponent.z);
+});

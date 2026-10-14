@@ -222,3 +222,22 @@ yapılmadı.
   görsellerini ve etkileşimlerini sırayla uygula.
 - Dış Vercel dağıtımına push/deploy yapma; kaynak değişiklikleri burada kayıtlı
   bırakılır ve yayınlamayı kullanıcı yapar.
+
+### Düello doğrulaması ve sunumu — 14 Ekim 2026
+
+- Mobil joystick'in yüzde ölçekli eksenleri ondalıklı değer olarak sunucuya
+  gönderilebiliyor; düello kaydı bu eksenleri sınırlandırıp aynen tekrar oynatıyor.
+  Tick ve düğme bitleri tam sayı olarak kalıyor.
+- Mobil düello kamerası oyuncunun arka-sağ omuzundan daha geniş açıyla bakıyor;
+  oyuncu ve rakibi aynı karede tutarken oyuncuyu rakibe dönük bırakıyor.
+- Elde taşınan prosedürel silah biraz dışarı/öne alınıp okunaklılığı artırıldı.
+  Rakip isabet alınca kısa gövde sarsılması yapıyor; yenilen model animasyonla
+  yere düşüp görünür kalıyor, küle dönüşme parçacıkları ek efekt olarak sürüyor.
+- Yerel doğrulama: `npm test` (163 test), `npm run typecheck`,
+  `npm run build` ve `git diff --check` geçti. Dövüş kamerası ve ondalıklı
+  joystick alanları için regresyon testleri eklendi.
+- Replit önizlemesi açılıyor; bu çalışma alanında Clerk ve veritabanı
+  yapılandırılmadığından hesaba bağlı gerçek düello API'si devre dışı. Gerçek
+  iPhone Safari/WebGL dövüş sahnesi ve Vercel'de sonuç kaydı doğrulanmadı.
+- Kullanıcı Vercel'e push/deploy yapacağından bu kaynaklar yayınlanmak üzere
+  bırakıldı; bu oturumda push veya deploy yapılmadı.

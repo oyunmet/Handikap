@@ -1493,8 +1493,8 @@ export default function WorldScene({
     input.released |= button;
   };
   const moveDuelPlayer = (x: number, y: number) => {
-    combatInputRef.current.x = Math.round(Math.max(-1, Math.min(1, x)) * 100);
-    combatInputRef.current.y = Math.round(Math.max(-1, Math.min(1, y)) * 100);
+    combatInputRef.current.x = Math.max(-1, Math.min(1, x)) * 100;
+    combatInputRef.current.y = Math.max(-1, Math.min(1, y)) * 100;
   };
 
   const debugStartBattle = () => {

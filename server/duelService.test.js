@@ -168,6 +168,27 @@ test("input tapes reject broken button transitions and client-invented fields", 
   );
 });
 
+test("input tapes preserve bounded fractional joystick axes while keeping ticks and buttons integral", () => {
+  const analogInput = [
+    [0, 0, 0, 0, 0, 0],
+    [1, 37.5, -82.25, 0, 0, 0],
+    [2, 37.5, -82.25, 1, 1, 0],
+  ];
+  assert.deepEqual(validateCombatInputLog(analogInput), analogInput);
+  assert.equal(
+    validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 100.01, 0, 0, 0, 0]]),
+    null,
+  );
+  assert.equal(
+    validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0.5, 0, 0]]),
+    null,
+  );
+  assert.equal(
+    validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, Number.NaN, 0, 0, 0, 0]]),
+    null,
+  );
+});
+
 test("server replays the seeded duel and returns the stored result only once", async () => {
   const startedAt = new Date("2026-10-08T11:58:00.000Z");
   const duel = {
