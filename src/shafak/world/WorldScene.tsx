@@ -84,6 +84,7 @@ import {
   saveBrokenObstacleIds,
   WorldInteractableRegistry,
 } from "./world-interactables";
+import { createLatestAsyncSaveQueue } from "./latest-async-save-queue.ts";
 
 const World3D = lazy(() => import("./World3D"));
 import "./world-scene.css";
@@ -450,22 +451,32 @@ export default function WorldScene({
   const worldProgressRef = useRef(worldProgress);
   const progressUserIdRef = useRef(userId);
   const accountPositionLoadedUserRef = useRef(accountProfileReady && userId ? userId : null);
-  const cloudSaveInFlightRef = useRef(false);
-  const lastCloudSaveAtRef = useRef(0);
+  const cloudSaveContextRef = useRef({
+    userId,
+    accountProfileReady,
+    save: onSaveWorldPosition,
+  });
+  cloudSaveContextRef.current = {
+    userId,
+    accountProfileReady,
+    save: onSaveWorldPosition,
+  };
+  const cloudSaveQueueRef = useRef<ReturnType<typeof createLatestAsyncSaveQueue<{
+    userId: string;
+    position: { distance: number; depth: number };
+  }>> | null>(null);
+  cloudSaveQueueRef.current ??= createLatestAsyncSaveQueue(async ({ userId: owner, position }) => {
+    const context = cloudSaveContextRef.current;
+    if (!context.accountProfileReady || context.userId !== owner) return;
+    await context.save(position);
+  });
   const saveCloudProgress = useCallback((progress: WorldProgress, force = false) => {
     if (!userId || !accountProfileReady || progressUserIdRef.current !== userId) return;
-    const now = Date.now();
-    if (cloudSaveInFlightRef.current || (!force && now - lastCloudSaveAtRef.current < 10_000)) return;
-    cloudSaveInFlightRef.current = true;
-    lastCloudSaveAtRef.current = now;
-    void onSaveWorldPosition({ distance: progress.distance, depth: progress.depth })
-      .catch(() => {
-        // Local progress remains available if account synchronization is temporarily unavailable.
-      })
-      .finally(() => {
-        cloudSaveInFlightRef.current = false;
-      });
-  }, [accountProfileReady, onSaveWorldPosition, userId]);
+    cloudSaveQueueRef.current?.enqueue({
+      userId,
+      position: { distance: progress.distance, depth: progress.depth },
+    }, { immediate: force });
+  }, [accountProfileReady, userId]);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
@@ -587,7 +598,7 @@ export default function WorldScene({
       distance: motionRef.current.distance,
       depth: motionRef.current.depth,
     });
-    const syncInterval = window.setInterval(syncAccountPosition, 10_000);
+    const syncInterval = window.setInterval(syncAccountPosition, 3_000);
     window.addEventListener("pagehide", persistProgress);
     document.addEventListener("visibilitychange", persistWhenHidden);
     return () => {
@@ -1986,6 +1997,7 @@ export default function WorldScene({
     worldProgressRef.current = nextProgress;
     setWorldProgress(nextProgress);
     saveWorldProgress(nextProgress, progressUserIdRef.current);
+    saveCloudProgress(nextProgress, true);
   };
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
   const sceneBiome = getBiomeForDistance(travel);
@@ -2113,6 +2125,11 @@ export default function WorldScene({
             <div className="duel-hud__center">
               <span>VS</span>
               <strong>{combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
+              {combatRender.player.comboChainStep > 0 && combatRender.tick <= combatRender.player.comboChainUntilTick && (
+                <small className="duel-combo-chain" role="status">
+                  KOMBO {combatRender.player.comboChainStep}/3 · SONRA {combatRender.player.comboChainStep === 1 ? "HAFİF" : "AĞIR"}
+                </small>
+              )}
               {combatRender.player.chargeStartedTick >= 0 && (
                 <small className="duel-charge">AĞIR SALDIRI {Math.min(100, Math.round((combatRender.tick - combatRender.player.chargeStartedTick) / 30 * 100))}%</small>
               )}

@@ -4,6 +4,7 @@ import {
   INPUT_BUTTON,
   COMBAT_ARENA_CENTER_Z,
   COMBAT_ARENA_RADIUS,
+  COMBO_CHAIN_WINDOW_TICKS,
   MAX_DUEL_TICKS,
   createCombatState,
   getBotAttackWindupTicks,
@@ -65,6 +66,95 @@ test("combatants cannot occupy the same space during a duel", () => {
   initial.bot.z = 0;
   const state = stepCombat(initial, { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 }).state;
   assert.ok(Math.hypot(state.player.x - state.bot.x, state.player.z - state.bot.z) >= 1.08 - 1e-9);
+});
+
+test("quick attacks form a light-light-heavy combo with rising finisher damage", () => {
+  const noInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
+  let state = createCombatState(2901, "easy");
+  state.playerStats.criticalChance = 0;
+  state.bot.x = state.player.x;
+  state.bot.z = state.player.z - 1.8;
+  state.bot.hp = 1_000;
+  state.bot.maxHp = 1_000;
+  state.bot.staggerUntilTick = 1_000;
+
+  const tapAttack = (current) => {
+    const pressed = stepCombat(current, {
+      ...noInput,
+      buttons: INPUT_BUTTON.attack,
+      pressed: INPUT_BUTTON.attack,
+    }).state;
+    return stepCombat(pressed, {
+      ...noInput,
+      released: INPUT_BUTTON.attack,
+    }).state;
+  };
+  const advanceToPlayerHit = (current) => {
+    const events = [];
+    const endTick = current.tick + 30;
+    while (!current.player.attackHit && current.tick < endTick) {
+      const result = stepCombat(current, noInput);
+      current = result.state;
+      events.push(...result.events);
+    }
+    current.bot.staggerUntilTick = 1_000;
+    current.bot.actionUntilTick = 1_000;
+    return { state: current, events };
+  };
+  const waitForNextAttack = (current) => {
+    while (current.tick + 2 < current.player.attackCooldownUntilTick) {
+      current = stepCombat(current, noInput).state;
+    }
+    return current;
+  };
+
+  let result = advanceToPlayerHit(tapAttack(state));
+  state = result.state;
+  const firstDamage = result.events.find((event) => event.type === "hit" && event.target === "bot")?.damage;
+  assert.equal(state.player.comboChainStep, 1);
+  assert.equal(state.player.attackComboStep, 1);
+
+  result = advanceToPlayerHit(tapAttack(waitForNextAttack(state)));
+  state = result.state;
+  const secondDamage = result.events.find((event) => event.type === "hit" && event.target === "bot")?.damage;
+  assert.equal(state.player.comboChainStep, 2);
+  assert.equal(state.player.attackComboStep, 2);
+
+  state = tapAttack(waitForNextAttack(state));
+  assert.equal(state.player.attackType, "heavy");
+  assert.equal(state.player.attackComboStep, 3);
+  assert.equal(state.player.comboChainStep, 0);
+  result = advanceToPlayerHit(state);
+  const finisherDamage = result.events.find((event) => event.type === "hit" && event.target === "bot")?.damage;
+  assert.ok(firstDamage && secondDamage && finisherDamage);
+  assert.ok(secondDamage > firstDamage);
+  assert.ok(finisherDamage > secondDamage);
+});
+
+test("an expired quick-combo window restarts at the first light hit", () => {
+  const initial = createCombatState(2902, "easy");
+  initial.tick = COMBO_CHAIN_WINDOW_TICKS + 1;
+  initial.player.comboChainStep = 2;
+  initial.player.comboChainUntilTick = COMBO_CHAIN_WINDOW_TICKS;
+  initial.player.attackCooldownUntilTick = initial.tick;
+  initial.bot.staggerUntilTick = initial.tick + 100;
+
+  const pressed = stepCombat(initial, {
+    x: 0, y: 0,
+    buttons: INPUT_BUTTON.attack,
+    pressed: INPUT_BUTTON.attack,
+    released: 0,
+  }).state;
+  const released = stepCombat(pressed, {
+    x: 0, y: 0,
+    buttons: 0,
+    pressed: 0,
+    released: INPUT_BUTTON.attack,
+  }).state;
+
+  assert.equal(released.player.attackType, "light");
+  assert.equal(released.player.attackComboStep, 1);
+  assert.equal(released.player.comboChainStep, 1);
 });
 
 test("combat movement can advance toward the opponent along the arena depth axis", () => {

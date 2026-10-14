@@ -4,6 +4,7 @@ export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
 export const COMBAT_ARENA_CENTER_Z = -0.6;
 export const COMBAT_ARENA_RADIUS = 3.62;
+export const COMBO_CHAIN_WINDOW_TICKS = 78;
 export const INPUT_BUTTON = {
   attack: 1,
   block: 2,
@@ -52,6 +53,9 @@ export type CombatActor = {
   skillTwoCooldownUntilTick: number;
   combo: number;
   comboUntilTick: number;
+  comboChainStep: number;
+  comboChainUntilTick: number;
+  attackComboStep: number;
   lastDamage: number;
 };
 
@@ -152,6 +156,9 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
     skillTwoCooldownUntilTick: 0,
     combo: 0,
     comboUntilTick: 0,
+    comboChainStep: 0,
+    comboChainUntilTick: 0,
+    attackComboStep: 0,
     lastDamage: 0,
   };
 }
@@ -221,12 +228,14 @@ function startAttack(
   tick: number,
   events: CombatEvent[],
   side: CombatSide,
+  comboStep = 0,
 ) {
   if (tick < actor.staggerUntilTick || tick < actor.attackCooldownUntilTick || actor.stamina <= 0) return false;
   const cost = attack === "light" ? 9 : attack === "heavy" ? 23 : attack === "skillOne" ? 24 : 30;
   if (actor.stamina < cost) return false;
   actor.stamina = Math.max(0, actor.stamina - cost);
   actor.attackType = attack;
+  actor.attackComboStep = comboStep;
   actor.attackStartedTick = tick;
   actor.attackHit = false;
   actor.chargeStartedTick = -1;
@@ -312,6 +321,10 @@ function applyDamage(
   if (gap > reach || target.hp <= 0) return;
 
   if (tick < target.invulnerableUntilTick) {
+    if (attacker === state.player) {
+      attacker.comboChainStep = 0;
+      attacker.comboChainUntilTick = 0;
+    }
     events.push({ id: tick * 4 + 2, type: "dodge", target: targetSide, attack });
     return;
   }
@@ -322,6 +335,10 @@ function applyDamage(
     target.stamina = Math.max(0, target.stamina - (parry ? 5 : 12));
     attacker.attackHit = true;
     attacker.attackType = null;
+    if (attacker === state.player) {
+      attacker.comboChainStep = 0;
+      attacker.comboChainUntilTick = 0;
+    }
     if (parry) {
       attacker.staggerUntilTick = tick + 39;
       setAction(attacker, "hit", tick, 18);
@@ -337,10 +354,12 @@ function applyDamage(
 
   const critical = random(state) < (playerAttacking ? state.playerStats.criticalChance : 0.12);
   let multiplier = 1;
+  if (playerAttacking && attacker.attackComboStep === 2) multiplier *= 1.1;
+  if (playerAttacking && attacker.attackComboStep === 3) multiplier *= 1.25;
   if (attack === "light" && targetSide === "bot") {
     attacker.combo = tick <= attacker.comboUntilTick ? Math.min(3, attacker.combo + 1) : 1;
     attacker.comboUntilTick = tick + 75;
-    multiplier = attacker.combo === 2 ? 1.08 : attacker.combo >= 3 ? 1.2 : 1;
+    multiplier *= attacker.combo === 2 ? 1.08 : attacker.combo >= 3 ? 1.2 : 1;
   }
   const damageMultiplier = playerAttacking ? state.playerStats.damageMultiplier : 1;
   const defenseMultiplier = targetSide === "player" ? 1 - state.playerStats.defenseReduction : 1;
@@ -348,6 +367,10 @@ function applyDamage(
   target.hp = Math.max(0, target.hp - damage);
   target.lastDamage = damage;
   target.staggerUntilTick = tick + (attack === "heavy" ? 21 : 13);
+  if (targetSide === "player") {
+    target.comboChainStep = 0;
+    target.comboChainUntilTick = 0;
+  }
   setAction(target, target.hp === 0 ? "die" : "hit", tick, target.hp === 0 ? 90 : 17);
   attacker.attackHit = true;
   attacker.attackType = null;
@@ -419,7 +442,19 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   }
   if (input.released & INPUT_BUTTON.attack) {
     const charge = player.chargeStartedTick < 0 ? 0 : tick - player.chargeStartedTick;
-    startAttack(next, player, charge >= 30 ? "heavy" : "light", tick, events, "player");
+    const chargedHeavy = charge >= 30;
+    const chainStep = tick <= player.comboChainUntilTick ? player.comboChainStep + 1 : 1;
+    const attack = chargedHeavy || chainStep === 3 ? "heavy" : "light";
+    const attackComboStep = chargedHeavy ? 0 : chainStep;
+    if (startAttack(next, player, attack, tick, events, "player", attackComboStep)) {
+      if (chargedHeavy || chainStep === 3) {
+        player.comboChainStep = 0;
+        player.comboChainUntilTick = 0;
+      } else {
+        player.comboChainStep = chainStep;
+        player.comboChainUntilTick = tick + COMBO_CHAIN_WINDOW_TICKS;
+      }
+    }
   }
 
   if (playerBlockHeld && tick >= player.staggerUntilTick && player.action !== "attack" && player.action !== "heavyAttack") {
@@ -491,6 +526,10 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     if (attacker.attackType && tick > attacker.attackStartedTick + windup + 9) {
       attacker.attackHit = true;
       attacker.attackType = null;
+      if (attacker === player && attacker.attackComboStep > 0) {
+        attacker.comboChainStep = 0;
+        attacker.comboChainUntilTick = 0;
+      }
     }
   }
 

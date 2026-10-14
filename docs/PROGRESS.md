@@ -174,8 +174,8 @@ ekli geliştirme listesindeki devam noktasını tutar.
 
 ### Aşama 1 — hata düzeltmeleri
 
-**Durum:** İlk etkileşim düzeltmesi tamamlandı; performans kabulü ve bu aşamanın
-kalan maddeleri devam ediyor.
+**Durum:** Kod düzeltmeleri tamamlandı. Gerçek iPhone Safari kabul ölçümü hâlâ
+yapılmadı.
 
 - Sandık, barikat ve yol rakipleri için ortak etkileşim kaydı eklendi. İpucu,
   kayıtlı 3D nesnesi sahneye bağlı ve görünür, etkin ve yakınsa gösteriliyor;
@@ -185,16 +185,40 @@ kalan maddeleri devam ediyor.
   kırılan barikat kimlikleri oyuncu bazında yerel kayda yazılıyor ve yeniden
   yüklemede etkinleşmiyor.
 - Ayarlardan açılan performans paneline son karenin draw-call değeri eklendi.
-- Yerel doğrulama: `npm run typecheck`, `npm test` (148 test) ve
+- Hesap dünyası ilerlemesi, istek sürerken gelen son konumu kaybetmeyen bir
+  asenkron kuyrukla 3 saniyede bir eşitleniyor. Aynı anda ikinci istek açılmıyor;
+  yeni konumlar birleştiriliyor, kapı geçişi/sekmeden ayrılma/sahne kapanışında
+  öncelikli kayıt deneniyor. Ağ hatasında son konum sonraki güncellemeye kadar
+  kuyrukta kalıyor; yerel kayıt ağdan bağımsız devam ediyor.
+- Düello/ödül/mağaza gibi hesap değişiklikleri mevcut sunucu işlemlerinde oyun
+  döngüsünden ayrı olarak gönderiliyor; yol konumu için ayrıca düzenli
+  eşitleme var.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (153 test) ve
   `npm run build` geçti. Büyük `WorldScene` paketi için 500 kB uyarısı sürüyor.
 - Gerçek iPhone Safari ölçümü, Chrome Performance profili ve WebGL'li cihazda
-  görsel kabul testi bu ortamda yapılmadı; 30+ FPS hedefi kanıtlanmış sayılmaz.
+  görsel kabul testi bu ortamda yapılmadı; 30+ FPS/50+ FPS cihaz hedefleri
+  kanıtlanmış sayılmaz. Sekme kapanırken tarayıcının ağ isteğini durdurması da
+  mümkündür; yerel ilerleme yedeği korunur.
+
+### Aşama 2 — savaş sistemi genişletme
+
+**Durum:** İlk savaş dilimi tamamlandı; diğer Aşama 2 özellikleri sırada.
+
+- Düello saldırılarına zamanlı hafif-hafif-ağır zinciri eklendi. Hızlı basışlar
+  arasında 78 oyun karesi (1,3 saniye) süre var; ikinci hafif vuruş %10, ağır
+  bitirici %25 ek hasar verir. Kaçırma, blok/parry veya hasar alma zinciri keser.
+- Düello HUD'ında zincirin sonraki vuruşu Türkçe gösteriliyor; zincir ve hasar
+  simülasyon içinde hesaplandığından sunucu tekrar oynatımı deterministik kalır.
+- Yerel doğrulama: savaş simülasyonu testleri zincir sırasını, hasar artışını ve
+  süre aşımında sıfırlanmayı doğruluyor.
 
 ### Devam noktası
 
-- Önce Aşama 1'in kayıt, ön yükleme ve kalan performans maddelerini denetle;
-  gerçek cihaz kabul testi dışındaki kod çalışmaları tamamlanınca Aşama 2'ye geç.
-- Ardından düello envanteri/efektleri/hareket/AI, ekipman ve mağaza sistemi,
-  son olarak Kül Yolu'nun dünya görselleri ve etkileşimlerini sırayla uygula.
+- Aşama 1 kod çalışmaları tamamlandı; gerçek cihaz kabul ölçümü bekliyor.
+- Aşama 2'de sonraki kod adımı dört hızlı eşya yuvası ve tüketilebilirleri
+  Heybe/hesap kaydına bağlamak; ardından efektler, akrobatik hareketler ve rakip
+  AI'sini sırayla genişletmek.
+- Sonra Aşama 3'te ekipman ve mağaza sistemini, Aşama 4'te Kül Yolu
+  görsellerini ve etkileşimlerini sırayla uygula.
 - Dış Vercel dağıtımına push/deploy yapma; kaynak değişiklikleri burada kayıtlı
   bırakılır ve yayınlamayı kullanıcı yapar.
