@@ -5,6 +5,52 @@ export type WorldProbeMetrics = {
   dominantColorRatio: number;
 };
 
+export type WorldProbePoint = { x: number; y: number };
+
+export function getWorldProbeTargetSize(width: number, height: number, maxDimension = 48) {
+  if (
+    !Number.isFinite(width)
+    || !Number.isFinite(height)
+    || width <= 0
+    || height <= 0
+    || !Number.isFinite(maxDimension)
+    || maxDimension <= 0
+  ) return { width: 0, height: 0 };
+
+  const scale = maxDimension / Math.max(width, height);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+export function getWorldProbeSamplePoints(
+  width: number,
+  height: number,
+  columns = 4,
+  rows = 4,
+): WorldProbePoint[] {
+  if (
+    !Number.isInteger(width)
+    || !Number.isInteger(height)
+    || !Number.isInteger(columns)
+    || !Number.isInteger(rows)
+    || width <= 0
+    || height <= 0
+    || columns <= 0
+    || rows <= 0
+  ) return [];
+
+  return Array.from({ length: columns * rows }, (_, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    return {
+      x: Math.min(width - 1, Math.floor(((column + 0.5) * width) / columns)),
+      y: Math.min(height - 1, Math.floor(((row + 0.5) * height) / rows)),
+    };
+  });
+}
+
 export function getWorldDrawCallsForFrame(
   manualRender: boolean,
   callsBeforeRender: number,

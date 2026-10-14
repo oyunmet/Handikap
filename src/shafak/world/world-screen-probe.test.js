@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   analyzeWorldProbePixels,
+  getWorldProbeSamplePoints,
+  getWorldProbeTargetSize,
   getWorldDrawCallsForFrame,
   isLikelyBlackWorldFrame,
   shouldRecoverCanvasFrame,
@@ -14,6 +16,26 @@ test("manual rendering checks draw calls after submitting the scene", () => {
 
 test("automatic rendering keeps the completed previous-frame draw count", () => {
   assert.equal(getWorldDrawCallsForFrame(false, 440, 0), 440);
+});
+
+test("scene probe size preserves the canvas aspect ratio at a useful resolution", () => {
+  const portrait = getWorldProbeTargetSize(390, 844);
+  const landscape = getWorldProbeTargetSize(1024, 442);
+  assert.equal(portrait.width, 22);
+  assert.equal(portrait.height, 48);
+  assert.ok(Math.abs((portrait.width / portrait.height) / (390 / 844) - 1) < 0.02);
+  assert.ok(Math.abs((landscape.width / landscape.height) / (1024 / 442) - 1) < 0.02);
+  assert.deepEqual(getWorldProbeTargetSize(0, 100), { width: 0, height: 0 });
+});
+
+test("final-output samples cover the full viewport instead of one dark center crop", () => {
+  const points = getWorldProbeSamplePoints(400, 800, 4, 4);
+  assert.equal(points.length, 16);
+  assert.equal(Math.min(...points.map(({ x }) => x)), 50);
+  assert.equal(Math.max(...points.map(({ x }) => x)), 350);
+  assert.equal(Math.min(...points.map(({ y }) => y)), 100);
+  assert.equal(Math.max(...points.map(({ y }) => y)), 700);
+  assert.deepEqual(getWorldProbeSamplePoints(0, 800), []);
 });
 
 test("detects a genuinely black WebGL frame", () => {
@@ -67,6 +89,20 @@ test("does not treat a small clear-color canvas crop as an empty whole scene", (
   const metrics = { averageLuminance: 0.14, uniqueColors: 1, darkPixelRatio: 0, dominantColorRatio: 1 };
   assert.equal(shouldRecoverCanvasFrame(metrics, 440), false);
   assert.equal(shouldRecoverWorldFrame(metrics, 440), true);
+});
+
+test("a dark center surrounded by a visible scene does not trigger recovery", () => {
+  const pixels = new Uint8Array(4 * 4 * 4);
+  for (let index = 0; index < 16; index += 1) {
+    const pixel = index * 4;
+    const darkCenter = [5, 6, 9, 10].includes(index);
+    pixels[pixel] = darkCenter ? 16 : 128;
+    pixels[pixel + 1] = darkCenter ? 12 : 112;
+    pixels[pixel + 2] = darkCenter ? 10 : 96;
+    pixels[pixel + 3] = 255;
+  }
+
+  assert.equal(shouldRecoverCanvasFrame(analyzeWorldProbePixels(pixels), 440), false);
 });
 
 test("recovers from a uniform near-black frame that is darker than the world sky", () => {

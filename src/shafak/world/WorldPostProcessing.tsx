@@ -6,10 +6,14 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import * as THREE from "three";
-import { analyzeWorldProbePixels, shouldRecoverCanvasFrame } from "./world-screen-probe";
+import {
+  analyzeWorldProbePixels,
+  getWorldProbeSamplePoints,
+  shouldRecoverCanvasFrame,
+} from "./world-screen-probe";
 
-const OUTPUT_PROBE_WIDTH = 8;
-const OUTPUT_PROBE_HEIGHT = 4;
+const OUTPUT_PROBE_COLUMNS = 4;
+const OUTPUT_PROBE_ROWS = 4;
 const OUTPUT_PROBE_INTERVAL_MS = 1_200;
 const OUTPUT_PROBE_WARMUP_MS = 2_500;
 const OUTPUT_BLACK_SAMPLES_TO_RECOVER = 3;
@@ -65,7 +69,7 @@ function ComposerOutput({
   const blackSamplesRef = useRef(0);
   const recoveryRequestedRef = useRef(false);
   const probeDisabledRef = useRef(false);
-  const pixels = useMemo(() => new Uint8Array(OUTPUT_PROBE_WIDTH * OUTPUT_PROBE_HEIGHT * 4), []);
+  const pixels = useMemo(() => new Uint8Array(OUTPUT_PROBE_COLUMNS * OUTPUT_PROBE_ROWS * 4), []);
 
   useEffect(() => {
     pipeline.composer.setSize(size.width, size.height);
@@ -88,20 +92,24 @@ function ComposerOutput({
 
     try {
       const context = gl.getContext();
-      if (gl.domElement.width < OUTPUT_PROBE_WIDTH || gl.domElement.height < OUTPUT_PROBE_HEIGHT) {
-        return;
-      }
-      const centerX = Math.floor(gl.domElement.width / 2);
-      const centerY = Math.floor(gl.domElement.height / 2);
-      context.readPixels(
-        Math.max(0, centerX - Math.floor(OUTPUT_PROBE_WIDTH / 2)),
-        Math.max(0, centerY - Math.floor(OUTPUT_PROBE_HEIGHT / 2)),
-        OUTPUT_PROBE_WIDTH,
-        OUTPUT_PROBE_HEIGHT,
-        context.RGBA,
-        context.UNSIGNED_BYTE,
-        pixels,
+      const points = getWorldProbeSamplePoints(
+        gl.domElement.width,
+        gl.domElement.height,
+        OUTPUT_PROBE_COLUMNS,
+        OUTPUT_PROBE_ROWS,
       );
+      if (points.length !== pixels.length / 4) return;
+      points.forEach(({ x, y }, index) => {
+        context.readPixels(
+          x,
+          y,
+          1,
+          1,
+          context.RGBA,
+          context.UNSIGNED_BYTE,
+          pixels.subarray(index * 4, index * 4 + 4),
+        );
+      });
 
       const needsRecovery = shouldRecoverCanvasFrame(
         analyzeWorldProbePixels(pixels),
