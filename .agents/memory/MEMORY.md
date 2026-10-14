@@ -1,6 +1,6 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Normalize private URLs and keep npm/pnpm root dependencies aligned; Vercel may require both.
 - [Vercel native TypeScript imports](vercel-native-typescript-imports.md) — In this Node 24 project, local ESM imports in API graphs must name `.ts` explicitly; `tsx` can hide missing extensions.
-- [Game identity and hosting](handikap-original-identity.md) — Şafak Savaşçıları is active; production uses external Vercel, separate from Replit deployment status.
+- [Game identity and hosting](handikap-original-identity.md) — Production uses external Vercel; the user handles Git pushes and deployments.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
 - [World darkness and WebGL](webgl-preview-limits.md) — A black-looking world may be a full-screen lighting overlay with WebGL healthy; keep the playable 2D fallback too.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.

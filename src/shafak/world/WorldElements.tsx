@@ -575,10 +575,10 @@ function createSkyGeometry() {
   const geometry = new THREE.SphereGeometry(WORLD_SKY_RADIUS, 32, 16);
   const positions = geometry.getAttribute("position");
   const colors = new Float32Array(positions.count * 3);
-  const horizon = new THREE.Color("#a05d4d");
-  const middle = new THREE.Color("#3a3047");
-  const zenith = new THREE.Color("#11192e");
-  const dusk = new THREE.Color("#6a4654");
+  const horizon = new THREE.Color("#b37661");
+  const middle = new THREE.Color("#5b4c5d");
+  const zenith = new THREE.Color("#2a394f");
+  const dusk = new THREE.Color("#78505c");
   const color = new THREE.Color();
   for (let index = 0; index < positions.count; index += 1) {
     const height = THREE.MathUtils.clamp(positions.getY(index) / 260, -1, 1);

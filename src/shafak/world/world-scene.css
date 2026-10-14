@@ -385,7 +385,8 @@
 @media (pointer: coarse) {
   /* Keep animated full-screen DOM compositing layers off Safari's WebGL canvas. */
   .world-atmosphere,
-  .world-speed-lines { display: none; }
+  .world-speed-lines,
+  .world-vignette { display: none; }
 }
 .world-vignette {
   position: absolute; z-index: 6; inset: 0;

@@ -15,4 +15,6 @@ The user wants explicitly scoped phases completed in order without interim appro
 
 **Why:** The user shared a production error screenshot from Vercel while working in a Replit workspace; Replit publishing cannot update or expose logs for that Vercel site.
 
-**How to apply:** Use Vercel's logs and deployment flow to verify or publish live-site changes. Do not claim that a Replit workflow restart updated `handikap.vercel.app`.
+**Why:** The user asked to handle Git pushes and Vercel deployments themselves.
+
+**How to apply:** Make and verify source changes in the workspace, then report that they are ready. Do not push or deploy to Vercel. Do not claim that a Replit workflow restart updated `handikap.vercel.app`.

@@ -1384,10 +1384,23 @@ function SceneContents({
         touchRenderer={touchRenderer}
       />
       <color attach="background" args={[combatActive ? "#46353e" : "#252330"]} />
-      <hemisphereLight args={["#c6b6b9", "#1a1b2b", forceSafeRendering ? 1.5 : 0.82]} />
-      {(forceSafeRendering || renderOverrides.boostAmbientLight) && (
-        <ambientLight color="#ffe2c3" intensity={forceSafeRendering ? 2.1 : 2.4} />
-      )}
+      <hemisphereLight
+        args={[
+          "#d8c6c6",
+          "#292331",
+          forceSafeRendering ? 1.5 : touchRenderer ? 1.15 : 0.82,
+        ]}
+      />
+      <ambientLight
+        color="#ffe2c3"
+        intensity={
+          forceSafeRendering
+            ? 2.1
+            : renderOverrides.boostAmbientLight
+              ? 2.4
+              : touchRenderer ? 0.9 : 0.3
+        }
+      />
       {combatActive && <ambientLight color="#ffdbb3" intensity={1.25} />}
       <directionalLight
         position={[-8, 14, 8]}
