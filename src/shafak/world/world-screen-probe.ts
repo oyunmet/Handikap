@@ -5,6 +5,14 @@ export type WorldProbeMetrics = {
   dominantColorRatio: number;
 };
 
+export function getWorldDrawCallsForFrame(
+  manualRender: boolean,
+  callsBeforeRender: number,
+  callsAfterRender: number,
+) {
+  return manualRender ? callsAfterRender : callsBeforeRender;
+}
+
 export function analyzeWorldProbePixels(pixels: Uint8Array): WorldProbeMetrics {
   if (pixels.length < 4 || pixels.length % 4 !== 0) {
     return { averageLuminance: 0, uniqueColors: 0, darkPixelRatio: 0, dominantColorRatio: 0 };

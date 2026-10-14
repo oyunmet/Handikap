@@ -2,9 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   analyzeWorldProbePixels,
+  getWorldDrawCallsForFrame,
   isLikelyBlackWorldFrame,
   shouldRecoverWorldFrame,
 } from "./world-screen-probe.ts";
+
+test("manual rendering checks draw calls after submitting the scene", () => {
+  assert.equal(getWorldDrawCallsForFrame(true, 0, 440), 440);
+});
+
+test("automatic rendering keeps the completed previous-frame draw count", () => {
+  assert.equal(getWorldDrawCallsForFrame(false, 440, 0), 440);
+});
 
 test("detects a genuinely black WebGL frame", () => {
   const pixels = new Uint8Array(8 * 4 * 4);

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { analyzeWorldProbePixels, shouldRecoverWorldFrame } from "./world-screen-probe";
+import {
+  analyzeWorldProbePixels,
+  getWorldDrawCallsForFrame,
+  shouldRecoverWorldFrame,
+} from "./world-screen-probe";
 
 const PROBE_WIDTH = 8;
 const PROBE_HEIGHT = 4;
@@ -43,9 +47,15 @@ export default function WorldBlackFrameProbe({
   useFrame((_, delta) => {
     // A positive-priority R3F frame callback takes over automatic rendering,
     // so this path must render on every frame, not only on sampling frames.
+    let worldDrawCalls = gl.info.render.calls;
     if (manualRender) {
       try {
         gl.render(scene, camera);
+        worldDrawCalls = getWorldDrawCallsForFrame(
+          true,
+          worldDrawCalls,
+          gl.info.render.calls,
+        );
       } catch (error) {
         probeDisabledRef.current = true;
         console.warn("[world] Canvas rendering failed; rebuilding the 3D renderer.", error);
@@ -69,7 +79,6 @@ export default function WorldBlackFrameProbe({
     if (gl.getContext().isContextLost()) return;
 
     try {
-      const worldDrawCalls = gl.info.render.calls;
       let canvasNeedsRecovery = false;
       if (manualRender) {
         // On touch devices there is no post-processing pass. Inspect the
