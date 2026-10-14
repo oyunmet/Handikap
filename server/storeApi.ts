@@ -2,6 +2,7 @@ import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool, PoolClient } from "pg";
+import { isCombatItemId } from "../src/shafak/game/combat-items.ts";
 import {
   createDefaultPlayerProfile,
   validatePlayerProfile,
@@ -60,6 +61,25 @@ function validateEquipBody(value: unknown): string | null {
     !/^[a-z0-9_-]{1,60}$/.test(value.itemId)
   ) return null;
   return value.itemId;
+}
+
+function validateCombatLoadoutBody(value: unknown): {
+  quickSlots: (string | null)[];
+  secondaryWeaponId: string | null;
+} | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).length !== 2 ||
+    !Array.isArray(value.quickSlots) ||
+    value.quickSlots.length !== 4 ||
+    value.quickSlots.some((itemId) => itemId !== null && !isCombatItemId(itemId)) ||
+    (value.secondaryWeaponId !== null &&
+      (typeof value.secondaryWeaponId !== "string" || !/^[a-z0-9_-]{1,60}$/.test(value.secondaryWeaponId)))
+  ) return null;
+  const quickSlots = value.quickSlots as (string | null)[];
+  const assigned = quickSlots.filter((itemId): itemId is string => itemId !== null);
+  if (new Set(assigned).size !== assigned.length) return null;
+  return { quickSlots, secondaryWeaponId: value.secondaryWeaponId as string | null };
 }
 
 function equipmentKey(slot: EquipmentSlot): keyof EquipmentLoadout {
@@ -181,6 +201,7 @@ export function createStoreApi(
   const catalogLimit = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
   const purchaseLimit = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: true, legacyHeaders: false });
   const equipLimit = rateLimit({ windowMs: 60_000, limit: 36, standardHeaders: true, legacyHeaders: false });
+  const loadoutLimit = rateLimit({ windowMs: 60_000, limit: 24, standardHeaders: true, legacyHeaders: false });
   const upgradeLimit = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: true, legacyHeaders: false });
 
   function authenticatedUserId(request: Request, response: Response): string | null {
@@ -269,6 +290,41 @@ export function createStoreApi(
       };
       await updateProfile(client, userId, nextProfile);
       return { profile: publicProfile(nextProfile), itemId: storeItem.id, equipped: true };
+    });
+  });
+
+  router.post("/api/store/combat-loadout", loadoutLimit, async (request, response) => {
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+    response.setHeader("Cache-Control", "no-store");
+    const body = validateCombatLoadoutBody(request.body);
+    if (!body) {
+      response.status(400).json({ error: "invalid_combat_loadout" });
+      return;
+    }
+    await runAccountOperation(database, userId, response, async (client) => {
+      const profile = await loadProfileForUpdate(client, userId);
+      for (const itemId of body.quickSlots) {
+        if (itemId && profile.inventory.combatItemCounts[itemId as keyof typeof profile.inventory.combatItemCounts] <= 0) {
+          throw new StoreServiceError(409, "combat_item_unavailable");
+        }
+      }
+      if (body.secondaryWeaponId) {
+        const weapon = getStoreItem(body.secondaryWeaponId);
+        if (!weapon || weapon.slot !== "weapon" || !profile.inventory.ownedItemIds.includes(weapon.id)) {
+          throw new StoreServiceError(403, "secondary_weapon_not_owned");
+        }
+      }
+      const nextProfile: PlayerProfile = {
+        ...profile,
+        inventory: {
+          ...profile.inventory,
+          quickSlots: body.quickSlots as PlayerProfile["inventory"]["quickSlots"],
+          secondaryWeaponId: body.secondaryWeaponId,
+        },
+      };
+      await updateProfile(client, userId, nextProfile);
+      return { profile: publicProfile(nextProfile) };
     });
   });
 

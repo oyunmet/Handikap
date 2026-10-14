@@ -1,3 +1,5 @@
+import type { CombatItemCounts, CombatQuickSlots } from "./combat-items.ts";
+
 export type StoreCategory = "weapons" | "armor" | "capes" | "effects" | "dyes";
 export type StoreTab = StoreCategory | "inventory";
 export type EquipmentSlot = "weapon" | "armor" | "cape" | "effect" | "dye";
@@ -56,6 +58,9 @@ export type PlayerInventory = {
   ownedItemIds: string[];
   upgrades: Record<string, number>;
   newItemIds: string[];
+  combatItemCounts: CombatItemCounts;
+  quickSlots: CombatQuickSlots;
+  secondaryWeaponId: string | null;
 };
 
 export type PlayerCombatModifiers = {

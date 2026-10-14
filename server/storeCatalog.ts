@@ -13,7 +13,7 @@ import {
 
 export { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS, STORE_CATALOG };
 
-export function calculatePlayerCombatModifiers(profile: PlayerProfileRecord): PlayerCombatModifiers {
+export function calculatePlayerCombatModifiers(profile: PlayerProfileRecord, weaponOverride?: string): PlayerCombatModifiers {
   const bonuses: EquipmentStatBonuses = {
     health: 0,
     damage: 0,
@@ -25,7 +25,7 @@ export function calculatePlayerCombatModifiers(profile: PlayerProfileRecord): Pl
     attackRange: 0,
   };
   const equipped = [
-    profile.equipment.weaponId,
+    weaponOverride ?? profile.equipment.weaponId,
     profile.equipment.armorId,
     profile.equipment.capeId,
     profile.equipment.effectId,

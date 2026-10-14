@@ -7,6 +7,7 @@ import {
   DuelServiceError,
   validateCombatInputLog,
 } from "./duelService.ts";
+import { createDefaultPlayerProfile } from "./profileApi.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 
 const now = new Date("2026-10-08T12:01:00.000Z");
@@ -52,7 +53,9 @@ test("server challenges use a generated rival id and return server-owned combat 
   assert.equal(challenge.playerStats.maxHealth, 150);
   assert.equal(inserts.length, 1);
   assert.equal(inserts[0][3], rival.id);
-  assert.deepEqual(JSON.parse(inserts[0][4]), challenge.playerStats);
+  const savedCombatConfig = JSON.parse(inserts[0][4]);
+  assert.deepEqual(savedCombatConfig.playerStats, challenge.playerStats);
+  assert.deepEqual(savedCombatConfig.combatLoadout, challenge.combatLoadout);
   assert.equal(reads, 0);
 
   const legacyChallenge = await createDuelChallenge(
@@ -132,6 +135,16 @@ test("input tapes reject broken button transitions and client-invented fields", 
   ]);
   assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 1, 0]]), null);
   assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 900]]), null);
+  assert.deepEqual(validateCombatInputLog([
+    [0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 128, 128],
+    [2, 0, 0, 0, 512, 512],
+  ]), [
+    [0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 128, 128],
+    [2, 0, 0, 0, 512, 512],
+  ]);
+  assert.equal(validateCombatInputLog([[0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 1024, 1024]]), null);
 });
 
 test("server replays the seeded duel and returns the stored result only once", async () => {
@@ -145,7 +158,16 @@ test("server replays the seeded duel and returns the stored result only once", a
     completed_at: null,
     completion: null,
   };
-  let storedProfile = { ...profile, defeatedOpponents: [] };
+  const defaultInventory = createDefaultPlayerProfile().inventory;
+  let storedProfile = {
+    ...profile,
+    defeatedOpponents: [],
+    inventory: {
+      ...defaultInventory,
+      ownedItemIds: [...defaultInventory.ownedItemIds, "weapon_iron_axe"],
+      secondaryWeaponId: "weapon_iron_axe",
+    },
+  };
   let profileWrites = 0;
   let completionWrites = 0;
   const client = {
@@ -167,7 +189,14 @@ test("server replays the seeded duel and returns the stored result only once", a
       throw new Error(`Unexpected query ${sql}`);
     },
   };
-  const request = { duelId: duel.duel_id, inputLog: [[0, 0, 0, 0, 0, 0]] };
+  const request = {
+    duelId: duel.duel_id,
+    inputLog: [
+      [0, 0, 0, 0, 0, 0],
+      [1, 0, 0, 0, 128, 128],
+      [2, 0, 0, 0, 512, 512],
+    ],
+  };
   const first = await completeDuel(client, "user-1", request, now);
   const second = await completeDuel(client, "user-1", request, now);
   assert.equal(first.summary.verdict, "draw");
@@ -175,6 +204,7 @@ test("server replays the seeded duel and returns the stored result only once", a
   assert.equal(profileWrites, 1);
   assert.equal(completionWrites, 1);
   assert.equal(storedProfile.battles, profile.battles + 1);
+  assert.equal(storedProfile.inventory.combatItemCounts.throwing_knife, defaultInventory.combatItemCounts.throwing_knife - 1);
 });
 
 test("the retained server reward calculation preserves the third-win daily quest", () => {

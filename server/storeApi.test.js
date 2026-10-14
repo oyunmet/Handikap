@@ -137,6 +137,35 @@ test("the account equip route refuses items the profile does not own", async (t)
   assert.equal(pool.profile.equipment.weaponId, "weapon_ash_sword");
 });
 
+test("the account combat loadout saves assigned slots and only accepts owned weapons and available items", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.inventory.ownedItemIds.push("weapon_iron_axe");
+  profile.inventory.combatItemCounts.venom_vial = 0;
+  const { pool, send } = await openStoreApi(t, profile);
+  const response = await send("combat-loadout", {
+    quickSlots: ["health_potion", null, "throwing_knife", null],
+    secondaryWeaponId: "weapon_iron_axe",
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(pool.profile.inventory.quickSlots, ["health_potion", null, "throwing_knife", null]);
+  assert.equal(pool.profile.inventory.secondaryWeaponId, "weapon_iron_axe");
+
+  const unavailable = await send("combat-loadout", {
+    quickSlots: ["venom_vial", null, null, null],
+    secondaryWeaponId: null,
+  });
+  assert.equal(unavailable.status, 409);
+  assert.deepEqual(await unavailable.json(), { error: "combat_item_unavailable" });
+  assert.deepEqual(pool.profile.inventory.quickSlots, ["health_potion", null, "throwing_knife", null]);
+
+  const malformed = await send("combat-loadout", {
+    quickSlots: ["health_potion", "health_potion", null, null],
+    secondaryWeaponId: null,
+  });
+  assert.equal(malformed.status, 400);
+});
+
 test("server catalog contains the staged equipment categories with in-game-only prices", () => {
   assert.equal(STORE_CATALOG.filter((item) => item.category === "weapons").length, 5);
   assert.equal(STORE_CATALOG.filter((item) => item.category === "armor").length, 4);

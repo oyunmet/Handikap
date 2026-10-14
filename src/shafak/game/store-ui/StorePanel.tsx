@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PlayerProfile } from "../profile";
+import { COMBAT_ITEMS, type CombatItemId } from "../combat-items.ts";
 import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentStatBonuses, type StoreItem, type StoreTab } from "../store-types";
 import { getItemBonuses } from "../store-utils";
 import "./store-panel.css";
@@ -21,6 +22,9 @@ type StorePanelProps = {
   onPurchase(itemId: string): void;
   onEquip(itemId: string): void;
   onUpgrade(itemId: string): void;
+  onAssignQuickSlot(itemId: CombatItemId, slotIndex: number): void;
+  onSetSecondaryWeapon(itemId: string | null): void;
+  loadoutBusy: boolean;
   renderPreview(item: StoreItem): ReactNode;
 };
 
@@ -85,16 +89,21 @@ export default function StorePanel({
   onPurchase,
   onEquip,
   onUpgrade,
+  onAssignQuickSlot,
+  onSetSecondaryWeapon,
+  loadoutBusy,
   renderPreview,
 }: StorePanelProps) {
   const [activeTab, setActiveTab] = useState<StoreTab>("weapons");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<StoreItem | null>(null);
   const [celebrating, setCelebrating] = useState(false);
+  const [quickSlotChoice, setQuickSlotChoice] = useState<Record<string, number>>({});
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const ownedIds = profile.inventory.ownedItemIds;
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
+  const ownedCombatItems = COMBAT_ITEMS.filter((item) => profile.inventory.combatItemCounts[item.id] > 0);
   const visibleItems = useMemo(() => {
     if (activeTab === "inventory") return items.filter((item) => ownedSet.has(item.id));
     if (activeTab === "effects") return items.filter((item) => item.category === "effects");
@@ -115,6 +124,7 @@ export default function StorePanel({
   const isEquipped = selected
     ? profile.equipment[equippedIdBySlot[selected.slot]] === selected.id
     : false;
+  const isSecondaryWeapon = selected?.slot === "weapon" && profile.inventory.secondaryWeaponId === selected.id;
   const upgradeLevel = selected ? profile.inventory.upgrades[selected.id] ?? 0 : 0;
   const isBusy = selected ? busyItemId === selected.id : false;
   const upgradeCost = selected?.upgradeable && upgradeLevel < MAX_UPGRADE_LEVEL
@@ -252,6 +262,63 @@ export default function StorePanel({
               <span className="safak-store__count">{loading ? "…" : `${visibleItems.length} eşya`}</span>
             </div>
 
+            {activeTab === "inventory" && (
+              <section className="safak-store__combat-inventory" aria-labelledby="store-combat-items-title">
+                <div className="safak-store__combat-heading">
+                  <div>
+                    <span className="safak-store__section-kicker">DÜELLO HAZIRLIĞI</span>
+                    <h4 id="store-combat-items-title">Savaş çantası</h4>
+                  </div>
+                  <span>{ownedCombatItems.length} tür</span>
+                </div>
+                <div className="safak-store__quick-slot-list" aria-label="Atanmış hızlı yuvalar">
+                  {profile.inventory.quickSlots.map((itemId, index) => (
+                    <div key={index}>
+                      <small>{index + 1}</small>
+                      <span>{itemId ? COMBAT_ITEMS.find((item) => item.id === itemId)?.name : "Boş"}</span>
+                    </div>
+                  ))}
+                </div>
+                {ownedCombatItems.length ? (
+                  <div className="safak-store__combat-items">
+                    {ownedCombatItems.map((item) => {
+                      const assignedSlot = profile.inventory.quickSlots.findIndex((slotId) => slotId === item.id);
+                      const selectedSlot = quickSlotChoice[item.id] ?? (assignedSlot >= 0 ? assignedSlot + 1 : 1);
+                      return (
+                        <article className="safak-store__combat-item" key={item.id}>
+                          <span className="safak-store__combat-icon" aria-hidden="true">{item.icon}</span>
+                          <div>
+                            <b>{item.name}</b>
+                            <p>{item.description}</p>
+                            <small>{profile.inventory.combatItemCounts[item.id]} ADET{assignedSlot >= 0 ? ` · ${assignedSlot + 1}. YUVADA` : ""}</small>
+                          </div>
+                          <label>
+                            <span className="sr-only">{item.name} için hızlı yuva seç</span>
+                            <select
+                              aria-label={`${item.name} için hızlı yuva seç`}
+                              value={selectedSlot}
+                              onChange={(event) => setQuickSlotChoice((current) => ({ ...current, [item.id]: Number(event.currentTarget.value) }))}
+                            >
+                              {[1, 2, 3, 4].map((slot) => <option value={slot} key={slot}>{slot}. yuva</option>)}
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            disabled={!canManageProfile || loadoutBusy}
+                            onClick={() => onAssignQuickSlot(item.id, selectedSlot - 1)}
+                          >
+                            HIZLI SLOTA ATA
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="safak-store__combat-empty">Savaş eşyası kalmadı. Kullanılan eşyalar adetleri sıfırlanınca buradan kalkar.</p>
+                )}
+              </section>
+            )}
+
             {loading ? (
               <div className="safak-store__skeletons" aria-label="Eşyalar yükleniyor" aria-busy="true">
                 {[0, 1, 2, 3].map((index) => <div className="safak-store__skeleton" key={index} />)}
@@ -385,6 +452,16 @@ export default function StorePanel({
                     </button>
                   ) : (
                     <>
+                      {selected.slot === "weapon" && (
+                        <button
+                          className="safak-store__secondary"
+                          type="button"
+                          onClick={() => onSetSecondaryWeapon(isSecondaryWeapon ? null : selected.id)}
+                          disabled={!canManageProfile || loadoutBusy}
+                        >
+                          {isSecondaryWeapon ? "İKİNCİ SİLAH YUVASINDAN ÇIKAR" : "İKİNCİ SİLAH OLARAK ATA"}
+                        </button>
+                      )}
                       <button
                         className="safak-store__primary"
                         type="button"

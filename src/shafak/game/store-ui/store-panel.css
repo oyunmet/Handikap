@@ -717,3 +717,30 @@
   .safak-store__primary,
   .safak-store__secondary { transition: none; }
 }
+
+.safak-store__combat-inventory { display: grid; gap: 10px; margin: 0 0 18px; padding: 12px; border: 1px solid rgba(218,184,125,.2); background: linear-gradient(145deg,rgba(59,43,34,.38),rgba(18,18,22,.46)); }
+.safak-store__combat-heading { display: flex; align-items: end; justify-content: space-between; gap: 10px; }
+.safak-store__combat-heading h4 { margin: 2px 0 0; color: #f2dfbd; font: 700 16px var(--font-display,Georgia,serif); }
+.safak-store__combat-heading > span { color: rgba(229,208,174,.58); font-size: 9px; }
+.safak-store__quick-slot-list { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; }
+.safak-store__quick-slot-list > div { display: grid; min-width: 0; min-height: 42px; align-content: center; gap: 3px; padding: 5px; border: 1px solid rgba(229,208,174,.12); background: rgba(0,0,0,.18); }
+.safak-store__quick-slot-list small { color: #d7b672; font-size: 8px; font-weight: 800; }
+.safak-store__quick-slot-list span { overflow: hidden; color: rgba(239,224,197,.8); font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.safak-store__combat-items { display: grid; gap: 6px; }
+.safak-store__combat-item { display: grid; grid-template-columns: 30px minmax(0,1fr); align-items: center; gap: 6px 8px; padding: 8px; border: 1px solid rgba(229,208,174,.12); background: rgba(255,255,255,.025); }
+.safak-store__combat-icon { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid rgba(229,194,131,.28); background: rgba(126,82,42,.17); color: #eaca8b; font-size: 17px; }
+.safak-store__combat-item > div { min-width: 0; }
+.safak-store__combat-item > div > b { color: #f3e3c6; font-size: 10px; }
+.safak-store__combat-item p { margin: 3px 0; color: rgba(226,214,192,.62); font-size: 8px; line-height: 1.4; }
+.safak-store__combat-item > div > small { color: #e6c77f; font-size: 7px; font-weight: 800; letter-spacing: .07em; }
+.safak-store__combat-item label { grid-column: 2; }
+.safak-store__combat-item select { width: 100%; min-height: 40px; padding: 5px 8px; border: 1px solid rgba(229,208,174,.24); border-radius: 2px; background: #211c1c; color: #f3e3c6; font: 800 9px var(--font-body,sans-serif); }
+.safak-store__combat-item > button { grid-column: 2; min-height: 44px; padding: 6px 9px; border: 1px solid rgba(226,190,121,.44); background: linear-gradient(140deg,rgba(100,70,38,.82),rgba(42,33,28,.94)); color: #f4dfa9; font: 900 8px var(--font-body,sans-serif); letter-spacing: .08em; }
+.safak-store__combat-item > button:disabled { opacity: .45; }
+.safak-store__combat-empty { margin: 0; color: rgba(226,214,192,.62); font-size: 9px; line-height: 1.5; }
+.safak-store__actions .safak-store__secondary { flex: 1 1 100%; min-height: 44px; }
+@media (max-width: 480px) {
+  .safak-store__combat-inventory { padding: 9px; }
+  .safak-store__quick-slot-list { gap: 3px; }
+  .safak-store__quick-slot-list > div { padding: 4px; }
+}

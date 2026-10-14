@@ -3,7 +3,14 @@ import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
 import { requireAuthenticatedUserId } from "./auth.ts";
 import type { EquipmentLoadout, PlayerInventory } from "../src/shafak/game/store-types.ts";
-import { DEFAULT_EQUIPMENT, STARTER_ITEM_IDS } from "./storeCatalog.ts";
+import {
+  DEFAULT_COMBAT_ITEM_COUNTS,
+  DEFAULT_COMBAT_QUICK_SLOTS,
+  isCombatItemId,
+  normalizeCombatItemCounts,
+  normalizeCombatQuickSlots,
+} from "../src/shafak/game/combat-items.ts";
+import { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS } from "./storeCatalog.ts";
 import { WORLD_GATE_INTERVAL_METERS } from "../src/shafak/world/movement.ts";
 import { WORLD_GATE_STOP_OFFSET_METERS } from "../src/shafak/world/world-progress.ts";
 
@@ -45,6 +52,9 @@ export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord 
       ownedItemIds: [...STARTER_ITEM_IDS],
       upgrades: {},
       newItemIds: [],
+      combatItemCounts: { ...DEFAULT_COMBAT_ITEM_COUNTS },
+      quickSlots: [...DEFAULT_COMBAT_QUICK_SLOTS],
+      secondaryWeaponId: null,
     },
     battles: 0,
     wins: 0,
@@ -137,13 +147,38 @@ function normalizeEquipment(value: unknown): EquipmentLoadout | null {
 
 function normalizeInventory(value: unknown): PlayerInventory | null {
   if (value === undefined) {
-    return { ownedItemIds: [...STARTER_ITEM_IDS], upgrades: {}, newItemIds: [] };
+    return {
+      ownedItemIds: [...STARTER_ITEM_IDS],
+      upgrades: {},
+      newItemIds: [],
+      combatItemCounts: { ...DEFAULT_COMBAT_ITEM_COUNTS },
+      quickSlots: [...DEFAULT_COMBAT_QUICK_SLOTS],
+      secondaryWeaponId: null,
+    };
   }
   if (!isRecord(value)) return null;
   const owned = stringList(value.ownedItemIds, 120);
   const newItems = stringList(value.newItemIds ?? [], 120);
   if (!owned || !newItems || owned.some((id) => !isItemId(id)) || newItems.some((id) => !isItemId(id))) return null;
   const ownedItemIds = [...new Set([...STARTER_ITEM_IDS, ...owned])];
+  if (value.combatItemCounts !== undefined) {
+    if (!isRecord(value.combatItemCounts) || Object.keys(value.combatItemCounts).some((id) => !isCombatItemId(id))) return null;
+    if (Object.values(value.combatItemCounts).some((count) => boundedInteger(count, 0, 999) === null)) return null;
+  }
+  if (
+    value.quickSlots !== undefined &&
+    (!Array.isArray(value.quickSlots) ||
+      value.quickSlots.length !== 4 ||
+      value.quickSlots.some((itemId) => itemId !== null && !isCombatItemId(itemId)))
+  ) return null;
+  if (value.secondaryWeaponId !== undefined && value.secondaryWeaponId !== null && !isItemId(value.secondaryWeaponId)) return null;
+  const combatItemCounts = normalizeCombatItemCounts(value.combatItemCounts);
+  const quickSlots = normalizeCombatQuickSlots(value.quickSlots, combatItemCounts);
+  const secondaryWeaponId = typeof value.secondaryWeaponId === "string" ? value.secondaryWeaponId : null;
+  if (
+    secondaryWeaponId &&
+    (!ownedItemIds.includes(secondaryWeaponId) || getStoreItem(secondaryWeaponId)?.slot !== "weapon")
+  ) return null;
   if (value.upgrades !== undefined && !isRecord(value.upgrades)) return null;
   const rawUpgrades = isRecord(value.upgrades) ? value.upgrades : {};
   if (Object.keys(rawUpgrades).length > 120) return null;
@@ -154,7 +189,14 @@ function normalizeInventory(value: unknown): PlayerInventory | null {
     upgrades[itemId] = parsedLevel;
   }
   if (newItems.some((id) => !ownedItemIds.includes(id))) return null;
-  return { ownedItemIds, upgrades, newItemIds: [...new Set(newItems)] };
+  return {
+    ownedItemIds,
+    upgrades,
+    newItemIds: [...new Set(newItems)],
+    combatItemCounts,
+    quickSlots,
+    secondaryWeaponId,
+  };
 }
 
 export function validateProfileRename(value: unknown): string | null {

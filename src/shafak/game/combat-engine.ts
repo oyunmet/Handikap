@@ -1,4 +1,5 @@
 import type { PlayerCombatModifiers } from "./store-types.ts";
+import type { CombatItemCounts, CombatItemId, CombatQuickSlots } from "./combat-items.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
@@ -11,8 +12,13 @@ export const INPUT_BUTTON = {
   dodge: 4,
   skillOne: 8,
   skillTwo: 16,
+  quickSlotOne: 32,
+  quickSlotTwo: 64,
+  quickSlotThree: 128,
+  quickSlotFour: 256,
+  weaponSwitch: 512,
 } as const;
-export const MAX_INPUT_BUTTONS = 31;
+export const MAX_INPUT_BUTTONS = 1_023;
 
 export type CombatDifficulty = "easy" | "medium" | "hard";
 export type CombatSide = "player" | "bot";
@@ -57,6 +63,16 @@ export type CombatActor = {
   comboChainUntilTick: number;
   attackComboStep: number;
   lastDamage: number;
+  quickSlotCooldownUntilTick: number[];
+  poisonUntilTick: number;
+  poisonNextTick: number;
+};
+
+export type CombatLoadout = {
+  quickSlots: CombatQuickSlots;
+  itemCounts: CombatItemCounts;
+  weaponIds: [string, string | null];
+  weaponStats: [PlayerCombatModifiers, PlayerCombatModifiers];
 };
 
 export type CombatState = {
@@ -65,6 +81,12 @@ export type CombatState = {
   rngState: number;
   difficulty: CombatDifficulty;
   playerStats: PlayerCombatModifiers;
+  weaponStats: [PlayerCombatModifiers, PlayerCombatModifiers];
+  weaponIds: [string, string | null];
+  activeWeaponSlot: 0 | 1;
+  quickSlotItemIds: CombatQuickSlots;
+  combatItemCounts: CombatItemCounts;
+  weaponSwapCooldownUntilTick: number;
   player: CombatActor;
   bot: CombatActor;
   ended: boolean;
@@ -92,12 +114,14 @@ export type CombatInputFrame = readonly [
 
 export type CombatEvent = {
   id: number;
-  type: "hit" | "block" | "parry" | "dodge" | "skill" | "knockout";
+  type: "hit" | "block" | "parry" | "dodge" | "skill" | "knockout" | "item" | "poison" | "weaponSwitch";
   target: CombatSide;
   attack?: CombatAttack;
   damage?: number;
   critical?: boolean;
   combo?: number;
+  itemId?: CombatItemId;
+  weaponId?: string;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -160,6 +184,9 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
     comboChainUntilTick: 0,
     attackComboStep: 0,
     lastDamage: 0,
+    quickSlotCooldownUntilTick: [0, 0, 0, 0],
+    poisonUntilTick: 0,
+    poisonNextTick: 0,
   };
 }
 
@@ -167,6 +194,7 @@ export function createCombatState(
   seed: number,
   difficulty: CombatDifficulty = "easy",
   playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
+  loadout?: CombatLoadout,
 ): CombatState {
   const cleanSeed = (Number.isSafeInteger(seed) ? seed : 1) >>> 0 || 1;
   const normalizedStats = normalizePlayerCombatModifiers(playerStats);
@@ -176,6 +204,19 @@ export function createCombatState(
     rngState: cleanSeed,
     difficulty,
     playerStats: normalizedStats,
+    weaponStats: loadout?.weaponStats ?? [normalizedStats, normalizedStats],
+    weaponIds: loadout?.weaponIds ?? ["weapon_ash_sword", null],
+    activeWeaponSlot: 0,
+    quickSlotItemIds: loadout?.quickSlots ?? [null, null, null, null],
+    combatItemCounts: loadout?.itemCounts ?? {
+      health_potion: 0,
+      stamina_potion: 0,
+      venom_vial: 0,
+      throwing_knife: 0,
+      explosive_flask: 0,
+      smoke_bomb: 0,
+    },
+    weaponSwapCooldownUntilTick: 0,
     player: makeActor(0, COMBAT_ARENA_CENTER_Z + 1.35, normalizedStats.maxHealth),
     bot: makeActor(0, COMBAT_ARENA_CENTER_Z - 1.35, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130),
     ended: false,
@@ -183,6 +224,89 @@ export function createCombatState(
     lastImpactTick: -10_000,
     lastImpactStrength: 0,
   };
+}
+
+const QUICK_SLOT_BUTTONS = [
+  INPUT_BUTTON.quickSlotOne,
+  INPUT_BUTTON.quickSlotTwo,
+  INPUT_BUTTON.quickSlotThree,
+  INPUT_BUTTON.quickSlotFour,
+] as const;
+
+function useCombatItem(state: CombatState, slotIndex: number, tick: number, events: CombatEvent[]) {
+  const itemId = state.quickSlotItemIds[slotIndex];
+  if (!itemId || state.combatItemCounts[itemId] <= 0) return;
+  const player = state.player;
+  if (tick < player.quickSlotCooldownUntilTick[slotIndex]) return;
+
+  const target = state.bot;
+  const gap = distanceBetween(player, target);
+  let used = false;
+  let eventTarget: CombatSide = "player";
+  let damage = 0;
+
+  if (itemId === "health_potion") {
+    if (player.hp >= player.maxHp) return;
+    player.hp = Math.min(player.maxHp, player.hp + 44);
+    used = true;
+  } else if (itemId === "stamina_potion") {
+    if (player.stamina >= player.maxStamina) return;
+    player.stamina = Math.min(player.maxStamina, player.stamina + 45);
+    used = true;
+  } else if (itemId === "smoke_bomb") {
+    player.invulnerableUntilTick = Math.max(player.invulnerableUntilTick, tick + 55);
+    used = true;
+  } else {
+    const maximumRange = itemId === "throwing_knife" ? 6.8 : 5.6;
+    if (gap > maximumRange || target.hp <= 0) return;
+    eventTarget = "bot";
+    used = true;
+    if (itemId === "venom_vial") {
+      target.poisonUntilTick = Math.max(target.poisonUntilTick, tick + 180);
+      target.poisonNextTick = Math.max(target.poisonNextTick, tick + 30);
+    } else {
+      const rawDamage = itemId === "explosive_flask" ? 19 : 13;
+      const blocking = target.action === "block" && tick < target.actionUntilTick && target.stamina > 0;
+      if (tick >= target.invulnerableUntilTick && !blocking) {
+        damage = rawDamage;
+        target.hp = Math.max(0, target.hp - damage);
+        target.lastDamage = damage;
+        target.staggerUntilTick = tick + 15;
+        setAction(target, target.hp === 0 ? "die" : "hit", tick, target.hp === 0 ? 90 : 17);
+      } else if (blocking) {
+        target.stamina = Math.max(0, target.stamina - 8);
+      }
+    }
+  }
+
+  if (!used) return;
+  state.combatItemCounts[itemId] -= 1;
+  if (state.combatItemCounts[itemId] <= 0) state.quickSlotItemIds[slotIndex] = null;
+  player.quickSlotCooldownUntilTick[slotIndex] = tick + (
+    itemId === "health_potion" ? 720
+      : itemId === "stamina_potion" ? 600
+        : itemId === "venom_vial" ? 1_080
+          : itemId === "throwing_knife" ? 480
+            : itemId === "explosive_flask" ? 840
+              : 960
+  );
+  events.push({
+    id: tick * 100 + 40 + slotIndex,
+    type: "item",
+    target: eventTarget,
+    itemId,
+    damage,
+  });
+}
+
+function stepPoison(actor: CombatActor, side: CombatSide, tick: number, events: CombatEvent[]) {
+  if (tick > actor.poisonUntilTick || tick < actor.poisonNextTick || actor.hp <= 0) return;
+  actor.poisonNextTick = tick + 30;
+  const damage = Math.min(2, actor.hp);
+  actor.hp = Math.max(0, actor.hp - damage);
+  actor.lastDamage = damage;
+  if (actor.hp === 0) setAction(actor, "die", tick, 90);
+  events.push({ id: tick * 100 + 90, type: "poison", target: side, damage });
 }
 
 export function getBotAttackWindupTicks(difficulty: CombatDifficulty) {
@@ -424,8 +548,15 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const next: CombatState = {
     ...state,
     tick: state.tick + 1,
-    player: { ...state.player },
+    player: {
+      ...state.player,
+      quickSlotCooldownUntilTick: [...state.player.quickSlotCooldownUntilTick],
+    },
     bot: { ...state.bot },
+    weaponStats: [...state.weaponStats],
+    weaponIds: [...state.weaponIds],
+    quickSlotItemIds: [...state.quickSlotItemIds],
+    combatItemCounts: { ...state.combatItemCounts },
     lastImpactStrength: state.tick - state.lastImpactTick > 9 ? 0 : state.lastImpactStrength,
   };
   const tick = next.tick;
@@ -435,6 +566,26 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const botInput = chooseBotIntent(next, tick, events);
   const buttons = input.buttons & MAX_INPUT_BUTTONS;
   const playerBlockHeld = Boolean(buttons & INPUT_BUTTON.block);
+
+  if (
+    (input.pressed & INPUT_BUTTON.weaponSwitch) &&
+    next.weaponIds[1] &&
+    tick >= next.weaponSwapCooldownUntilTick
+  ) {
+    next.activeWeaponSlot = next.activeWeaponSlot === 0 ? 1 : 0;
+    next.playerStats = normalizePlayerCombatModifiers(next.weaponStats[next.activeWeaponSlot]);
+    next.weaponSwapCooldownUntilTick = tick + 30;
+    events.push({
+      id: tick * 100 + 39,
+      type: "weaponSwitch",
+      target: "player",
+      weaponId: next.weaponIds[next.activeWeaponSlot] ?? undefined,
+    });
+  }
+
+  for (let slotIndex = 0; slotIndex < QUICK_SLOT_BUTTONS.length; slotIndex += 1) {
+    if (input.pressed & QUICK_SLOT_BUTTONS[slotIndex]) useCombatItem(next, slotIndex, tick, events);
+  }
 
   if (input.pressed & INPUT_BUTTON.attack) player.chargeStartedTick = tick;
   if (buttons & INPUT_BUTTON.attack && player.chargeStartedTick >= 0 && tick - player.chargeStartedTick >= 30) {
@@ -533,6 +684,9 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     }
   }
 
+  stepPoison(player, "player", tick, events);
+  stepPoison(bot, "bot", tick, events);
+
   for (const actor of [player, bot]) {
     if (actor.hp <= 0) {
       actor.action = "die";
@@ -564,8 +718,9 @@ export function replayCombat(
   difficulty: CombatDifficulty,
   inputLog: readonly CombatInputFrame[],
   playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
+  loadout?: CombatLoadout,
 ) {
-  let state = createCombatState(seed, difficulty, playerStats);
+  let state = createCombatState(seed, difficulty, playerStats, loadout);
   let frameIndex = 0;
   let held: CombatInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
   if (inputLog[0]?.[0] === 0) {

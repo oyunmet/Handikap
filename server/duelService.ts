@@ -1,7 +1,8 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi.ts";
-import { normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame } from "../src/shafak/game/combat-engine.ts";
+import { normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame, type CombatLoadout } from "../src/shafak/game/combat-engine.ts";
+import { DEFAULT_COMBAT_ITEM_COUNTS, isCombatItemId, normalizeCombatQuickSlots } from "../src/shafak/game/combat-items.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
 
@@ -71,13 +72,13 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
       y < -100 ||
       y > 100 ||
       buttons < 0 ||
-      buttons > 31 ||
+      buttons > 1_023 ||
       pressed < 0 ||
-      pressed > 31 ||
+      pressed > 1_023 ||
       released < 0 ||
-      released > 31
+      released > 1_023
     ) return null;
-    const expectedButtons = ((previousButtons | pressed) & ~released) & 31;
+    const expectedButtons = ((previousButtons | pressed) & ~released) & 1_023;
     if (
       buttons !== expectedButtons ||
       (pressed & previousButtons) !== 0 ||
@@ -93,6 +94,58 @@ export function validateCombatInputLog(value: unknown): CombatInputFrame[] | nul
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function buildCombatLoadout(profile: PlayerProfileRecord): CombatLoadout {
+  const primaryStats = calculatePlayerCombatModifiers(profile);
+  const secondaryId = profile.inventory.secondaryWeaponId;
+  const secondaryStats = secondaryId
+    ? calculatePlayerCombatModifiers(profile, secondaryId)
+    : primaryStats;
+  return {
+    quickSlots: [...profile.inventory.quickSlots],
+    itemCounts: { ...profile.inventory.combatItemCounts },
+    weaponIds: [profile.equipment.weaponId, secondaryId],
+    weaponStats: [primaryStats, secondaryStats],
+  };
+}
+
+function readDuelCombatConfig(value: unknown, profile: PlayerProfileRecord) {
+  const stored = isRecord(value) && isRecord(value.playerStats) ? value : null;
+  const playerStats = normalizePlayerCombatModifiers(stored?.playerStats ?? value);
+  const fallback = buildCombatLoadout(profile);
+  const rawLoadout = stored?.combatLoadout;
+  if (
+    !isRecord(rawLoadout) ||
+    !Array.isArray(rawLoadout.quickSlots) ||
+    rawLoadout.quickSlots.length !== 4 ||
+    !isRecord(rawLoadout.itemCounts) ||
+    !Array.isArray(rawLoadout.weaponIds) ||
+    rawLoadout.weaponIds.length !== 2 ||
+    !Array.isArray(rawLoadout.weaponStats) ||
+    rawLoadout.weaponStats.length !== 2
+  ) return { playerStats, combatLoadout: fallback };
+
+  const itemCounts = { ...fallback.itemCounts };
+  for (const itemId of Object.keys(itemCounts) as (keyof typeof itemCounts)[]) {
+    const count = rawLoadout.itemCounts[itemId];
+    if (typeof count === "number" && Number.isSafeInteger(count) && count >= 0 && count <= 999) {
+      itemCounts[itemId] = count;
+    }
+  }
+  const quickSlots = normalizeCombatQuickSlots(
+    rawLoadout.quickSlots.map((itemId) => isCombatItemId(itemId) ? itemId : null),
+    itemCounts,
+  );
+  const weaponIds: CombatLoadout["weaponIds"] = [
+    typeof rawLoadout.weaponIds[0] === "string" ? rawLoadout.weaponIds[0] : fallback.weaponIds[0],
+    typeof rawLoadout.weaponIds[1] === "string" ? rawLoadout.weaponIds[1] : null,
+  ];
+  const weaponStats: CombatLoadout["weaponStats"] = [
+    normalizePlayerCombatModifiers(rawLoadout.weaponStats[0]),
+    normalizePlayerCombatModifiers(rawLoadout.weaponStats[1]),
+  ];
+  return { playerStats, combatLoadout: { quickSlots, itemCounts, weaponIds, weaponStats } };
 }
 
 export function applyServerAward(
@@ -156,6 +209,7 @@ export async function createDuelChallenge(
   const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
   const playerStats = calculatePlayerCombatModifiers(profile);
+  const combatLoadout = buildCombatLoadout(profile);
   if (profile.defeatedOpponents.includes(opponent.id)) throw new DuelServiceError(403, "opponent_already_defeated");
   const priorWin = await database.query(
     `SELECT duel_id FROM shafak_duels
@@ -189,10 +243,12 @@ export async function createDuelChallenge(
       activeSeed <= 0xffff_ffff &&
       isRecord(activeDuel.player_stats)
     ) {
+      const saved = readDuelCombatConfig(activeDuel.player_stats, profile);
       return {
         duelId: activeDuel.duel_id,
         seed: activeSeed,
-        playerStats: normalizePlayerCombatModifiers(activeDuel.player_stats),
+        playerStats: saved.playerStats,
+        combatLoadout: saved.combatLoadout,
         opponent: {
           id: opponent.id,
           name: opponent.name,
@@ -210,12 +266,13 @@ export async function createDuelChallenge(
   await database.query(
     `INSERT INTO shafak_duels (duel_id, user_id, seed, opponent_id, started_at, player_stats)
      VALUES ($1, $2, $3, $4, NOW(), $5::jsonb)`,
-    [duelId, userId, seed, opponentId, JSON.stringify(playerStats)],
+    [duelId, userId, seed, opponentId, JSON.stringify({ playerStats, combatLoadout })],
   );
   return {
     duelId,
     seed,
     playerStats,
+    combatLoadout,
     opponent: {
       id: opponent.id,
       name: opponent.name,
@@ -264,14 +321,31 @@ export async function completeDuel(
   const opponent = resolveOpponent(duel.opponent_id);
   if (!opponent) throw new DuelServiceError(409, "duel_opponent_invalid");
 
+  const profileResult = await client.query(
+    "SELECT profile FROM shafak_player_profiles WHERE user_id = $1 FOR UPDATE",
+    [userId],
+  );
+  const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
+  if (!profile) throw new DuelServiceError(409, "profile_not_ready");
+
   let verdict: DuelVerdict;
   let simulatedTicks = 0;
+  let consumedInventory: {
+    combatItemCounts: PlayerProfileRecord["inventory"]["combatItemCounts"];
+    quickSlots: PlayerProfileRecord["inventory"]["quickSlots"];
+  } | null = null;
   if (surrendered) {
     if (elapsedMs < 5_000) throw new DuelServiceError(422, "duel_finished_too_quickly");
     verdict = "defeat";
   } else {
-    const playerStats = normalizePlayerCombatModifiers(duel.player_stats);
-    const replay = replayCombat(Number(duel.seed), opponent.difficulty, inputLog!, playerStats);
+    const saved = readDuelCombatConfig(duel.player_stats, profile);
+    const replay = replayCombat(
+      Number(duel.seed),
+      opponent.difficulty,
+      inputLog!,
+      saved.playerStats,
+      saved.combatLoadout,
+    );
     simulatedTicks = replay.state.tick;
     if (!replay.state.ended || !replay.state.verdict || replay.consumedFrames !== inputLog!.length) {
       throw new DuelServiceError(422, "duel_not_finished");
@@ -280,18 +354,26 @@ export async function completeDuel(
       throw new DuelServiceError(422, "duel_finished_too_quickly");
     }
     verdict = replay.state.verdict;
+    const combatItemCounts = { ...profile.inventory.combatItemCounts };
+    for (const itemId of Object.keys(DEFAULT_COMBAT_ITEM_COUNTS) as (keyof typeof DEFAULT_COMBAT_ITEM_COUNTS)[]) {
+      combatItemCounts[itemId] = Math.min(
+        combatItemCounts[itemId],
+        replay.state.combatItemCounts[itemId] ?? combatItemCounts[itemId],
+      );
+    }
+    consumedInventory = {
+      combatItemCounts,
+      quickSlots: replay.state.quickSlotItemIds,
+    };
   }
 
-  const profileResult = await client.query(
-    "SELECT profile FROM shafak_player_profiles WHERE user_id = $1 FOR UPDATE",
-    [userId],
-  );
-  const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
-  if (!profile) throw new DuelServiceError(409, "profile_not_ready");
   const outcome = { verdict, opponentId: opponent.id, loot: opponent.loot };
+  const profileAfterCombat = consumedInventory
+    ? { ...profile, inventory: { ...profile.inventory, ...consumedInventory } }
+    : profile;
   const awarded = surrendered
-    ? { profile, rewards: { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 } }
-    : applyServerAward(profile, outcome, now);
+    ? { profile: profileAfterCombat, rewards: { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 } }
+    : applyServerAward(profileAfterCombat, outcome, now);
   if (!surrendered) {
     await client.query(
       "UPDATE shafak_player_profiles SET profile = $2::jsonb, updated_at = NOW() WHERE user_id = $1",

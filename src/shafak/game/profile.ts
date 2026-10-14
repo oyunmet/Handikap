@@ -1,4 +1,5 @@
 import type { EquipmentLoadout, PlayerInventory } from "./store-types.ts";
+import { DEFAULT_COMBAT_ITEM_COUNTS, DEFAULT_COMBAT_QUICK_SLOTS, normalizeCombatItemCounts, normalizeCombatQuickSlots } from "./combat-items.ts";
 
 export type PlayerProfile = {
   name: string;
@@ -52,6 +53,9 @@ export const defaultProfile: PlayerProfile = {
     ownedItemIds: ["weapon_ash_sword", "armor_ash_guard", "cape_worn", "effect_none", "dye_none"],
     upgrades: {},
     newItemIds: [],
+    combatItemCounts: { ...DEFAULT_COMBAT_ITEM_COUNTS },
+    quickSlots: [...DEFAULT_COMBAT_QUICK_SLOTS],
+    secondaryWeaponId: null,
   },
   battles: 0,
   wins: 0,
@@ -211,7 +215,17 @@ function normalizeInventory(value: unknown): PlayerInventory {
   const newItemIds = Array.isArray(saved.newItemIds)
     ? [...new Set(saved.newItemIds.filter((id): id is string => typeof id === "string" && ownedItemIds.includes(id)))].slice(0, 120)
     : [];
-  return { ownedItemIds, upgrades, newItemIds };
+  const combatItemCounts = normalizeCombatItemCounts(saved.combatItemCounts);
+  const quickSlots = normalizeCombatQuickSlots(saved.quickSlots, combatItemCounts);
+  const secondaryWeapon = typeof saved.secondaryWeaponId === "string"
+    ? saved.secondaryWeaponId
+    : null;
+  const secondaryWeaponId = secondaryWeapon
+    && ownedItemIds.includes(secondaryWeapon)
+    && /^weapon_[a-z0-9_-]+$/.test(secondaryWeapon)
+    ? secondaryWeapon
+    : null;
+  return { ownedItemIds, upgrades, newItemIds, combatItemCounts, quickSlots, secondaryWeaponId };
 }
 
 function safeItemId(value: unknown, fallback: string) {

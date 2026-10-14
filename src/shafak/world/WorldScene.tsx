@@ -7,6 +7,7 @@ import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
 import { STORE_CATALOG } from "../game/store-catalog";
+import { getCombatItem, type CombatItemId, type CombatQuickSlots } from "../game/combat-items.ts";
 import {
   getUpgradeCost,
   MAX_UPGRADE_LEVEL,
@@ -27,6 +28,7 @@ import {
   type CombatEvent,
   type CombatInput,
   type CombatInputFrame,
+  type CombatLoadout,
   type CombatState,
 } from "../game/combat-engine";
 import type { PlayerCombatModifiers } from "../game/store-types";
@@ -615,6 +617,7 @@ export default function WorldScene({
   const storeItems = STORE_CATALOG as StoreItem[];
   const storeCatalogLoading = false;
   const [storeBusyItemId, setStoreBusyItemId] = useState<string | null>(null);
+  const [combatLoadoutBusy, setCombatLoadoutBusy] = useState(false);
   const [storeTrialItemId, setStoreTrialItemId] = useState<string | null>(null);
   const [storeCelebrationSignal, setStoreCelebrationSignal] = useState(0);
   const [storeMessage, setStoreMessage] = useState("");
@@ -742,8 +745,29 @@ export default function WorldScene({
   const displayedSeals = profile.materials.sealFragments + sessionRewards.materials.sealFragments;
   const displayedIronShards = profile.materials.ironShards + sessionRewards.materials.ironShards;
   const playerCombatStats = useMemo(() => getPlayerCombatModifiers(profile, storeItems), [profile, storeItems]);
+  const combatLoadout = useMemo<CombatLoadout>(() => {
+    const secondaryWeaponId = profile.inventory.secondaryWeaponId;
+    const secondaryProfile = secondaryWeaponId
+      ? { ...profile, equipment: { ...profile.equipment, weaponId: secondaryWeaponId } }
+      : profile;
+    return {
+      quickSlots: [...profile.inventory.quickSlots],
+      itemCounts: { ...profile.inventory.combatItemCounts },
+      weaponIds: [profile.equipment.weaponId, secondaryWeaponId],
+      weaponStats: [
+        playerCombatStats,
+        secondaryWeaponId ? getPlayerCombatModifiers(secondaryProfile, storeItems) : playerCombatStats,
+      ],
+    };
+  }, [playerCombatStats, profile, storeItems]);
   const equipmentBonuses = useMemo(() => getEquipmentBonuses(profile, storeItems), [profile, storeItems]);
   const equipmentVisual = useMemo(() => getEquipmentVisual(profile, storeItems), [profile, storeItems]);
+  const battleWeaponId = combatRender?.weaponIds[combatRender.activeWeaponSlot] ?? profile.equipment.weaponId;
+  const battleEquipmentVisual = useMemo(() => {
+    if (battleWeaponId === profile.equipment.weaponId) return equipmentVisual;
+    const battleProfile = { ...profile, equipment: { ...profile.equipment, weaponId: battleWeaponId } };
+    return getEquipmentVisual(battleProfile, storeItems);
+  }, [battleWeaponId, equipmentVisual, profile, storeItems]);
   const worldEquipmentVisual = useMemo(() => {
     if (panel !== "store" || !storeTrialItemId) return equipmentVisual;
     const trialItem = storeItems.find((item) => item.id === storeTrialItemId);
@@ -931,6 +955,79 @@ export default function WorldScene({
       setStoreBusyItemId(null);
     }
   }, [accountDuelEnabled, accountProfileReady, commitBattleProfile, storeItems]);
+
+  const saveCombatLoadout = useCallback(async (
+    quickSlots: CombatQuickSlots,
+    secondaryWeaponId: string | null,
+  ) => {
+    if (storeMutationRef.current) return;
+    const currentProfile = profileRef.current;
+    if (quickSlots.some((itemId) => itemId !== null && currentProfile.inventory.combatItemCounts[itemId] <= 0)) {
+      setStoreError("Bu savaş eşyasından heybenizde kalmadı.");
+      return;
+    }
+    const assignedItems = quickSlots.filter((itemId): itemId is CombatItemId => itemId !== null);
+    if (new Set(assignedItems).size !== assignedItems.length) {
+      setStoreError("Aynı savaş eşyasını birden fazla hızlı yuvaya atayamazsın.");
+      return;
+    }
+    if (secondaryWeaponId) {
+      const weapon = storeItems.find((item) => item.id === secondaryWeaponId);
+      if (!weapon || weapon.slot !== "weapon" || !currentProfile.inventory.ownedItemIds.includes(secondaryWeaponId)) {
+        setStoreError("İkinci yuvaya yalnızca heybenizdeki bir silahı atayabilirsin.");
+        return;
+      }
+    }
+    storeMutationRef.current = true;
+    setCombatLoadoutBusy(true);
+    setStoreError("");
+    setStoreMessage("");
+    try {
+      if (!accountDuelEnabled) {
+        commitBattleProfile(normalizePlayerProfile({
+          ...currentProfile,
+          inventory: { ...currentProfile.inventory, quickSlots, secondaryWeaponId },
+        }));
+      } else {
+        if (!accountProfileReady) throw new StoreActionError("Hesap profili hazır değil.");
+        const result = await apiRequest<{ profile?: unknown }>("/api/store/combat-loadout", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quickSlots, secondaryWeaponId }),
+        }, {
+          operation: "combat loadout update",
+          fallbackMessage: "Savaş çantası şu an kaydedilemedi; tekrar dene.",
+          messageForCode: (code) => code === "combat_item_unavailable"
+            ? "Bu savaş eşyasından heybenizde kalmadı."
+            : code === "secondary_weapon_not_owned"
+              ? "İkinci yuvaya yalnızca heybenizdeki bir silahı atayabilirsin."
+              : "Savaş çantası şu an kaydedilemedi; tekrar dene.",
+        });
+        if (!result.profile) throw new StoreActionError("Sunucudan güncel profil alınamadı.");
+        commitBattleProfile(normalizePlayerProfile(result.profile));
+      }
+      setStoreMessage("Düello çantan kaydedildi.");
+    } catch (error) {
+      setStoreError(error instanceof Error ? error.message : "Savaş çantası kaydedilemedi.");
+    } finally {
+      storeMutationRef.current = false;
+      setCombatLoadoutBusy(false);
+    }
+  }, [accountDuelEnabled, accountProfileReady, apiRequest, commitBattleProfile, storeItems]);
+
+  const assignCombatQuickSlot = useCallback((itemId: CombatItemId, slotIndex: number) => {
+    const quickSlots = [...profileRef.current.inventory.quickSlots] as CombatQuickSlots;
+    for (let index = 0; index < quickSlots.length; index += 1) {
+      if (quickSlots[index] === itemId) quickSlots[index] = null;
+    }
+    quickSlots[slotIndex] = itemId;
+    void saveCombatLoadout(quickSlots, profileRef.current.inventory.secondaryWeaponId);
+  }, [saveCombatLoadout]);
+
+  const setSecondaryWeapon = useCallback((itemId: string | null) => {
+    void saveCombatLoadout(profileRef.current.inventory.quickSlots, itemId);
+  }, [saveCombatLoadout]);
   useEffect(() => {
     if (!pickupNotice) return undefined;
     const timer = window.setTimeout(() => setPickupNotice(""), 2400);
@@ -1183,7 +1280,26 @@ export default function WorldScene({
       return;
     }
 
-    const awarded = awardBattle(profile, localSummary);
+    const finalCombat = combatStateRef.current;
+    const profileAfterCombat = finalCombat
+      ? normalizePlayerProfile({
+          ...profile,
+          inventory: {
+            ...profile.inventory,
+            combatItemCounts: Object.fromEntries(
+              Object.keys(profile.inventory.combatItemCounts).map((itemId) => [
+                itemId,
+                Math.min(
+                  profile.inventory.combatItemCounts[itemId as CombatItemId],
+                  finalCombat.combatItemCounts[itemId as CombatItemId] ?? profile.inventory.combatItemCounts[itemId as CombatItemId],
+                ),
+              ]),
+            ),
+            quickSlots: finalCombat.quickSlotItemIds,
+          },
+        })
+      : profile;
+    const awarded = awardBattle(profileAfterCombat, localSummary);
     commitBattleProfile(awarded.profile);
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
   }, [commitBattleProfile, profile]);
@@ -1238,12 +1354,14 @@ export default function WorldScene({
       let difficulty = rival.difficulty;
       let duelId: string | null = null;
       let playerStats: PlayerCombatModifiers = playerCombatStats;
+      let duelLoadout = combatLoadout;
       if (accountDuelEnabled && !practice) {
         if (!accountProfileReady) throw new Error("Hesap profili sunucuya bağlı değil; düello ödülü güvenle doğrulanamaz.");
         const challenge = await apiRequest<{
           duelId?: unknown;
           seed?: unknown;
           playerStats?: unknown;
+          combatLoadout?: unknown;
           opponent?: { id?: unknown; difficulty?: unknown };
           error?: string;
         }>("/api/duels/start", {
@@ -1271,9 +1389,32 @@ export default function WorldScene({
           !challenge.playerStats ||
           typeof challenge.playerStats !== "object" ||
           Array.isArray(challenge.playerStats) ||
+          !challenge.combatLoadout ||
+          typeof challenge.combatLoadout !== "object" ||
+          Array.isArray(challenge.combatLoadout) ||
           challenge.opponent?.id !== rival.id ||
           !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty))
         ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
+        const serverLoadout = challenge.combatLoadout as Partial<CombatLoadout>;
+        if (
+          !Array.isArray(serverLoadout.quickSlots) ||
+          serverLoadout.quickSlots.length !== 4 ||
+          !serverLoadout.itemCounts ||
+          typeof serverLoadout.itemCounts !== "object" ||
+          !Array.isArray(serverLoadout.weaponIds) ||
+          serverLoadout.weaponIds.length !== 2 ||
+          !Array.isArray(serverLoadout.weaponStats) ||
+          serverLoadout.weaponStats.length !== 2
+        ) throw new Error("Sunucudan gelen savaş çantası geçersiz.");
+        duelLoadout = {
+          quickSlots: serverLoadout.quickSlots as CombatLoadout["quickSlots"],
+          itemCounts: serverLoadout.itemCounts as CombatLoadout["itemCounts"],
+          weaponIds: serverLoadout.weaponIds as CombatLoadout["weaponIds"],
+          weaponStats: [
+            normalizePlayerCombatModifiers(serverLoadout.weaponStats[0]),
+            normalizePlayerCombatModifiers(serverLoadout.weaponStats[1]),
+          ],
+        };
         const stats = challenge.playerStats as Partial<PlayerCombatModifiers>;
         if (
           !Number.isFinite(stats.maxHealth) ||
@@ -1295,7 +1436,7 @@ export default function WorldScene({
       }
 
       activeDuelRef.current = { rival, duelId, seed, practice, rematch, oneHit: debugOneHitEnabled };
-      const initialCombat = createCombatState(seed, difficulty, playerStats);
+      const initialCombat = createCombatState(seed, difficulty, playerStats, duelLoadout);
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
 
@@ -1411,6 +1552,11 @@ export default function WorldScene({
       l: INPUT_BUTTON.dodge,
       " ": INPUT_BUTTON.skillOne,
       q: INPUT_BUTTON.skillTwo,
+      "1": INPUT_BUTTON.quickSlotOne,
+      "2": INPUT_BUTTON.quickSlotTwo,
+      "3": INPUT_BUTTON.quickSlotThree,
+      "4": INPUT_BUTTON.quickSlotFour,
+      v: INPUT_BUTTON.weaponSwitch,
     };
     const syncKeyboardMovement = () => {
       const keys = duelKeyboardKeysRef.current;
@@ -1431,7 +1577,10 @@ export default function WorldScene({
       const button = buttonForKey[normalized];
       if (button) {
         event.preventDefault();
-        if (!event.repeat) pressDuelButton(button);
+        if (!event.repeat) {
+          pressDuelButton(button);
+          if (["1", "2", "3", "4", "v"].includes(normalized)) releaseDuelButton(button);
+        }
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -2007,6 +2156,7 @@ export default function WorldScene({
       ref={sceneRef}
       className="world-scene"
       data-battle={battleSession?.phase ?? "none"}
+      data-weapon-swap={combatRender && combatRender.weaponSwapCooldownUntilTick > combatRender.tick ? "true" : "false"}
       data-danger={combatRender && combatRender.player.hp / combatRender.player.maxHp <= 0.3 ? "true" : "false"}
       data-quality={quality}
       data-reduced={motionReduced}
@@ -2048,7 +2198,7 @@ export default function WorldScene({
             weatherMode={weatherMode}
             level={profile.level}
             relicCount={profile.items.length}
-            equipmentVisual={worldEquipmentVisual}
+            equipmentVisual={panel === "store" ? worldEquipmentVisual : battleEquipmentVisual}
             lightRadius={equipmentBonuses.lightRadius}
             animationState={chestSlamActive ? "heavyAttack" : attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
             rivals={battleSession ? [] : nearbyRivals}
@@ -2172,6 +2322,9 @@ export default function WorldScene({
                 {event.type === "parry" && <strong>SAVUŞTURMA · 0</strong>}
                 {event.type === "dodge" && <strong>KAÇIŞ · 0 HASAR</strong>}
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
+                {event.type === "item" && <strong>{getCombatItem(event.itemId)?.name ?? "SAVAŞ EŞYASI"}</strong>}
+                {event.type === "poison" && <strong>ZEHİR · −{event.damage ?? 0}</strong>}
+                {event.type === "weaponSwitch" && <strong>{STORE_CATALOG.find((item) => item.id === event.weaponId)?.name ?? "SİLAH DEĞİŞTİ"}</strong>}
               </div>
             ))}
           </div>}
@@ -2182,6 +2335,32 @@ export default function WorldScene({
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
+            quickItems={combatRender.quickSlotItemIds.map((itemId, index) => {
+              const item = getCombatItem(itemId);
+              const duelDistance = Math.hypot(
+                combatRender.player.x - combatRender.bot.x,
+                combatRender.player.z - combatRender.bot.z,
+              );
+              const itemOutOfRange = item
+                && (item.effect === "damage" || item.effect === "poison")
+                && duelDistance > (item.id === "throwing_knife" ? 6.8 : 5.6);
+              return {
+                id: itemId,
+                name: item?.name ?? "Boş",
+                shortName: item?.shortName ?? "BOŞ",
+                icon: item?.icon ?? "＋",
+                count: itemId ? combatRender.combatItemCounts[itemId] : 0,
+                cooldownSeconds: Math.max(0, combatRender.player.quickSlotCooldownUntilTick[index] - combatRender.tick) / COMBAT_HZ,
+                disabledReason: item?.effect === "health" && combatRender.player.hp >= combatRender.player.maxHp
+                  ? "Canın dolu."
+                  : item?.effect === "stamina" && combatRender.player.stamina >= combatRender.player.maxStamina
+                    ? "Dayanıklılığın dolu."
+                    : itemOutOfRange ? "Rakip bu eşyanın menzilinde değil." : "",
+              };
+            })}
+            weaponSwapCooldownSeconds={Math.max(0, combatRender.weaponSwapCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
+            canSwitchWeapon={Boolean(combatRender.weaponIds[1])}
+            activeWeaponName={STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "Silah"}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onMove={moveDuelPlayer}
@@ -2503,6 +2682,9 @@ export default function WorldScene({
           onPurchase={(itemId) => void runStoreMutation("purchase", itemId)}
           onEquip={(itemId) => void runStoreMutation("equip", itemId)}
           onUpgrade={(itemId) => void runStoreMutation("upgrade", itemId)}
+          onAssignQuickSlot={assignCombatQuickSlot}
+          onSetSecondaryWeapon={setSecondaryWeapon}
+          loadoutBusy={combatLoadoutBusy}
           onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId) : undefined}
           renderPreview={(item) => {
             const key = slotEquipmentKey(item.slot);
