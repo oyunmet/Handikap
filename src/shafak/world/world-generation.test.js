@@ -19,7 +19,15 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
       chunk.objects.every((object) => object.kind !== "crystal" && object.kind !== "ice-crystal"),
       "decorative gems must not resemble collectible road rewards",
     );
+    assert.ok(chunk.objects.every((object) => Math.abs(object.lane * 9.3) >= 6.8));
   }
+  const treeVariants = new Set(
+    Array.from({ length: 120 }, (_, index) => createWorldChunk(index).objects)
+      .flat()
+      .map((object) => object.kind)
+      .filter((kind) => ["tree", "pine-tree", "skeletal-tree"].includes(kind)),
+  );
+  assert.deepEqual(treeVariants, new Set(["tree", "pine-tree", "skeletal-tree"]));
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
 });
 

@@ -19,6 +19,17 @@ export function createWorldRouteChoice(playerId: string, chapterId: number, side
   return { chapterId, side, difficulty: getDoorDifficulty(playerId, chapterId, side) };
 }
 
+export function getWorldRouteSideFromInput(
+  playerId: string,
+  chapterId: number,
+  depth: number,
+  deadZone = 0.3,
+): WorldRouteSide {
+  if (Number.isFinite(depth) && depth <= -deadZone) return "left";
+  if (Number.isFinite(depth) && depth >= deadZone) return "right";
+  return (stableHash(`${playerId}:${chapterId}:route`) & 1) === 0 ? "left" : "right";
+}
+
 export function getWorldRoutePlayerId(userId?: string) {
   if (userId) return `account:${userId}`;
   const key = "shafak-route-player-id-v1";

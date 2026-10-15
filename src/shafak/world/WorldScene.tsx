@@ -89,7 +89,12 @@ import {
   type WorldProgressPosition,
   type WorldProgress,
 } from "./world-progress.ts";
-import { createWorldRouteChoice, getWorldRoutePlayerId, type WorldRouteChoice, type WorldRouteSide } from "./route-difficulty.ts";
+import {
+  createWorldRouteChoice,
+  getWorldRoutePlayerId,
+  getWorldRouteSideFromInput,
+  type WorldRouteChoice,
+} from "./route-difficulty.ts";
 import {
   DAILY_DEFEAT_LIMIT,
   canStartDailyDuel,
@@ -744,10 +749,6 @@ export default function WorldScene({
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const currentChapterId = Math.max(0, Math.floor(travel / WORLD_GATE_INTERVAL_METERS));
-  const [gateRouteSide, setGateRouteSide] = useState<WorldRouteSide | null>(null);
-  useEffect(() => {
-    setGateRouteSide(null);
-  }, [currentChapterId]);
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const [collectedPickupIds, setCollectedPickupIds] = useState<Set<string>>(() => new Set());
@@ -2221,6 +2222,41 @@ export default function WorldScene({
           nextFrame.speed = Math.abs(nextFrame.velocityX);
         }
 
+        const routeChapterId = Math.max(
+          0,
+          Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS),
+        );
+        const routeGateDistance = nextGateDistance(motionRef.current.distance);
+        const routeGateReady = worldProgressRef.current.unlockedThroughChapter <= routeChapterId
+          && routeGateDistance - motionRef.current.distance <= WORLD_GATE_INTERACTION_RANGE_METERS
+          && isWorldChapterCleared(routeChapterId, profileRef.current.defeatedOpponents);
+        if (routeGateReady && Math.abs(nextFrame.depth) >= 0.3) {
+          const routeSide = getWorldRouteSideFromInput(
+            getWorldRoutePlayerId(progressUserIdRef.current),
+            routeChapterId + 1,
+            nextFrame.depth,
+          );
+          const routeChoice = createWorldRouteChoice(
+            getWorldRoutePlayerId(progressUserIdRef.current),
+            routeChapterId + 1,
+            routeSide,
+          );
+          const unlockedProgress = unlockWorldGate({
+            ...worldProgressRef.current,
+            distance: motionRef.current.distance,
+            depth: motionRef.current.depth,
+          }, routeChapterId, true, routeChoice);
+          const routeDepth = routeSide === "left" ? -0.42 : 0.42;
+          const nextProgress = { ...unlockedProgress, depth: routeDepth };
+          worldProgressRef.current = nextProgress;
+          nextFrame.depth = routeDepth;
+          nextFrame.velocityX = 0;
+          motionRef.current.depth = routeDepth;
+          setWorldProgress(nextProgress);
+          saveWorldProgress(nextProgress, progressUserIdRef.current);
+          saveCloudProgress(nextProgress, true);
+        }
+
         const gateLimitedDistance = limitWorldDistanceAtGate(
           motionRef.current.distance,
           nextFrame.distance,
@@ -2500,33 +2536,24 @@ export default function WorldScene({
   const gateLocked = worldProgress.unlockedThroughChapter <= currentChapterId;
   const gatePromptVisible = gateLocked
     && gateDistance - travel <= WORLD_GATE_INTERACTION_RANGE_METERS;
-  const openWorldGate = () => {
-    wake();
-    if (!roomCleared || !gateRouteSide) return;
-    const routeChoice = createWorldRouteChoice(
-      getWorldRoutePlayerId(userId),
-      currentChapterId + 1,
-      gateRouteSide,
-    );
-    const unlockedProgress = unlockWorldGate({
-      ...worldProgressRef.current,
-      distance: motionRef.current.distance,
-      depth: motionRef.current.depth,
-    }, currentChapterId, true, routeChoice);
-    const routeDepth = gateRouteSide === "left" ? -0.42 : 0.42;
-    const nextProgress = { ...unlockedProgress, depth: routeDepth };
-    motionRef.current = {
-      ...motionRef.current,
-      depth: routeDepth,
-      velocityX: 0,
-      velocityY: 0,
-    };
-    worldProgressRef.current = nextProgress;
-    setWorldProgress(nextProgress);
-    saveWorldProgress(nextProgress, progressUserIdRef.current);
-    saveCloudProgress(nextProgress, true);
-  };
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
+  const mapRouteSide = worldProgress.routeChoice?.chapterId === currentChapterId
+    ? worldProgress.routeChoice.side
+    : null;
+  const mapProgress = chapterProgress / 100;
+  const mapBranchProgress = Math.max(0, Math.min(1, (mapProgress - 0.62) / 0.38));
+  const mapPlayer = mapProgress <= 0.62
+    ? { x: 24, y: 42 - (mapProgress / 0.62) * 18 }
+    : {
+        x: 24 + (mapRouteSide === "left" ? -1 : mapRouteSide === "right" ? 1 : 0)
+          * mapBranchProgress * 11,
+        y: 24 - mapBranchProgress * 14,
+      };
+  const mapRoutePath = mapRouteSide === "left"
+    ? "M24 43V24L13 9"
+    : mapRouteSide === "right"
+      ? "M24 43V24L35 9"
+      : "M24 43V9";
   const sceneBiome = getBiomeForDistance(travel);
   const scenePalette = WORLD_BIOME_PALETTES[sceneBiome];
   const showGatePrompt = gatePromptVisible
@@ -2903,10 +2930,16 @@ export default function WorldScene({
                   strokeDashoffset: `${119.38 * (1 - chapterProgress / 100)}`,
                 }}
               />
-              <path className="world-progress__map-route" d="M24 8v8m0 0-7 7m7-7 7 7m-14 0v7m14-7v7m-14 0 7 8 7-8" />
-              <circle className="world-progress__map-node" cx="24" cy="16" r="2" />
-              <circle className="world-progress__map-node" cx="17" cy="23" r="1.7" />
-              <circle className="world-progress__map-node" cx="31" cy="23" r="1.7" />
+              <path className="world-progress__map-route" d="M24 43V24L13 9M24 24L35 9" />
+              <path className="world-progress__map-active" d={mapRoutePath} />
+              <circle className="world-progress__map-node" cx="13" cy="9" r="1.7" />
+              <circle className="world-progress__map-node" cx="35" cy="9" r="1.7" />
+              <circle
+                className="world-progress__map-player"
+                cx={mapPlayer.x}
+                cy={mapPlayer.y}
+                r="2.4"
+              />
             </svg>
             <b>{Math.round(chapterProgress)}%</b>
           </div>
@@ -2957,37 +2990,9 @@ export default function WorldScene({
           <strong>{roomCleared ? "Yol temizlendi" : "Kapı kilitli"}</strong>
           <span className="world-gate-prompt__progress">
             {roomCleared
-              ? "Bu odadaki tüm rakipleri yendin. Önündeki iki yoldan birini seç."
+              ? "Joystick ile sola ya da sağa yönel; yol çatallanırken rotan otomatik açılacak."
               : `Rakipleri yen: ${defeatedChapterRivals}/${chapterRivals.length}`}
           </span>
-          {roomCleared && (
-            <>
-              <div className="world-gate-prompt__routes" role="group" aria-label="Gizli zorlukta iki rota">
-                <button
-                  type="button"
-                  className={gateRouteSide === "left" ? "is-selected" : ""}
-                  aria-pressed={gateRouteSide === "left"}
-                  onClick={() => setGateRouteSide("left")}
-                >
-                  KUZEY KAPISI
-                  <span>Sol yol · bilinmeyen geçit</span>
-                </button>
-                <button
-                  type="button"
-                  className={gateRouteSide === "right" ? "is-selected" : ""}
-                  aria-pressed={gateRouteSide === "right"}
-                  onClick={() => setGateRouteSide("right")}
-                >
-                  KÜL GEÇİDİ
-                  <span>Sağ yol · bilinmeyen geçit</span>
-                </button>
-              </div>
-              <span className="world-gate-prompt__hint">Yolun gerçek zorluğu seçtikten sonra ortaya çıkar.</span>
-            </>
-          )}
-          <button type="button" onClick={openWorldGate} disabled={!roomCleared || !gateRouteSide}>
-            {!roomCleared ? "KİLİTLİ" : gateRouteSide ? "SEÇİLEN YOLA GİR" : "ÖNCE BİR YOL SEÇ"}
-          </button>
         </section>
       )}
       <div

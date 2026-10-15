@@ -523,6 +523,47 @@ function WorldProp({
           </mesh>
         </group>
       )}
+      {object.kind === "pine-tree" && (
+        <group>
+          <mesh position={[0, 1.35, 0]}>
+            <cylinderGeometry args={[0.16, 0.3, 2.7, 6]} />
+            <meshStandardMaterial color="#332b29" roughness={1} flatShading />
+          </mesh>
+          {[1.65, 2.35, 3.02].map((height, index) => (
+            <mesh key={height} position={[0, height, 0]} rotation={[0, index % 2 ? 0.12 : 0, 0]}>
+              <coneGeometry args={[1.08 - index * 0.2, 1.55 - index * 0.16, 6]} />
+              <meshStandardMaterial
+                color={index === 1 ? "#39413a" : "#2c3432"}
+                roughness={1}
+                flatShading
+              />
+            </mesh>
+          ))}
+        </group>
+      )}
+      {object.kind === "skeletal-tree" && (
+        <group>
+          <mesh position={[0, 1.5, 0]} rotation={[0.02, 0, -0.05]}>
+            <cylinderGeometry args={[0.16, 0.32, 3, 6]} />
+            <meshStandardMaterial color="#3a302d" roughness={1} flatShading />
+          </mesh>
+          {[
+            { x: -0.48, y: 2.15, z: 0, length: 1.6, angle: -0.64 },
+            { x: 0.5, y: 2.45, z: 0, length: 1.8, angle: 0.7 },
+            { x: -0.2, y: 2.9, z: 0, length: 1.45, angle: -0.28 },
+            { x: 0.27, y: 3.25, z: 0, length: 1.35, angle: 0.42 },
+          ].map((branch) => (
+            <mesh
+              key={`${branch.x}:${branch.y}`}
+              position={[branch.x, branch.y, branch.z]}
+              rotation={[0, 0, branch.angle]}
+            >
+              <cylinderGeometry args={[0.065, 0.12, branch.length, 5]} />
+              <meshStandardMaterial color="#3a302d" roughness={1} flatShading />
+            </mesh>
+          ))}
+        </group>
+      )}
       {object.kind === "flag" && (
         <group ref={swayRef}>
           <mesh position={[0, 1.2, 0]}>
@@ -966,6 +1007,27 @@ export function FinalGate({
         <meshStandardMaterial color="#705957" roughness={0.9} flatShading />
       </mesh>
       {/* Leave the gate opening unobstructed; full-size transparent portal planes can cover the mobile camera view. */}
+      <group position={[0, 0.055, 0]}>
+        <mesh position={[0, 0, 11.5]}>
+          <boxGeometry args={[0.1, 0.025, 5]} />
+          <meshBasicMaterial color="#dfc58f" transparent opacity={0.42} depthWrite={false} />
+        </mesh>
+        {[-1, 1].map((side) => (
+          <group key={side}>
+            <mesh
+              position={[side * 1.2, 0, 4.5]}
+              rotation={[0, -side * Math.atan2(2.4, 9), 0]}
+            >
+              <boxGeometry args={[0.1, 0.025, 9.4]} />
+              <meshBasicMaterial color="#dfc58f" transparent opacity={0.48} depthWrite={false} />
+            </mesh>
+            <mesh position={[side * 2.35, 0.1, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[0.27, 0.62, 3]} />
+              <meshBasicMaterial color="#edc47a" transparent opacity={0.62} depthWrite={false} />
+            </mesh>
+          </group>
+        ))}
+      </group>
       {!gateOpen && (
         <group position={[0, 5.1, 0.52]}>
           {[-3.6, -1.8, 0, 1.8, 3.6].map((x) => (

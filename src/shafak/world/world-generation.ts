@@ -14,6 +14,8 @@ export type WorldObjectKind =
   | "ruin"
   | "arch"
   | "tree"
+  | "pine-tree"
+  | "skeletal-tree"
   | "flag"
   | "rock"
   | "torch"
@@ -44,6 +46,10 @@ export type WorldChunk = {
 
 export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const random = seededRandom((seed ^ Math.imul(index, 0x9e3779b1)) >>> 0);
+  const treeKind = (): WorldObjectKind => {
+    const variants = ["tree", "pine-tree", "skeletal-tree"] as const;
+    return variants[Math.floor(random() * variants.length)];
+  };
   const start = index * WORLD_CHUNK_LENGTH_METERS;
   const biome = getBiomeForDistance(start + WORLD_CHUNK_LENGTH_METERS / 2);
   const kinds: WorldObjectKind[] = biome === "frozen-pass"
@@ -51,7 +57,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       random() > 0.5 ? "tower" : "ruin",
       random() > 0.55 ? "rock" : "cart",
       "flag",
-      random() > 0.5 ? "ruin" : "tree",
+      random() > 0.5 ? "ruin" : treeKind(),
       random() > 0.5 ? "ruin" : "arch",
       random() > 0.5 ? "torch" : "firepit",
       "rock",
@@ -62,29 +68,29 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         random() > 0.5 ? "ruin" : "tower",
         "mangrove",
         "flag",
-        random() > 0.5 ? "reed" : "tree",
+        random() > 0.5 ? "reed" : treeKind(),
         random() > 0.5 ? "arch" : "ruin",
         random() > 0.5 ? "firepit" : "torch",
-        "reed",
+        random() > 0.5 ? "reed" : treeKind(),
         random() > 0.5 ? "bones" : "cart",
       ]
       : [
         random() > 0.5 ? "tower" : "ruin",
-        random() > 0.46 ? "tree" : "rock",
+        random() > 0.46 ? treeKind() : "rock",
         "flag",
-        random() > 0.5 ? "rock" : "tree",
+        random() > 0.5 ? "rock" : treeKind(),
         random() > 0.5 ? "ruin" : "tower",
        (["torch", "firepit", "cart"] as const)[Math.floor(random() * 3)],
-        random() > 0.5 ? "rock" : "tree",
+        random() > 0.5 ? "rock" : treeKind(),
         (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
       ];
 
   const objects = kinds.map((kind, objectIndex): WorldObject => {
     const worldX = start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4);
     const lane = (random() * 1.55) - 0.78;
-    const roadsideLane = kind === "tower" || kind === "ruin" || kind === "arch"
-      ? (lane < 0 ? -1 : 1) * Math.max(Math.abs(lane), 0.72)
-      : lane;
+    // Scenery stays outside the road corridor; these objects are decorative,
+    // so they can never look like an invisible obstacle to the player.
+    const roadsideLane = (lane < 0 ? -1 : 1) * Math.max(Math.abs(lane), 0.76);
 
     return {
       id: `${index}:${objectIndex}`,

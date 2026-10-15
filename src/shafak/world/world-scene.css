@@ -446,7 +446,9 @@
 .world-progress__map-track { stroke: rgba(234,218,188,.16); }
 .world-progress__map-fill { stroke: #edc47a; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(235,165,87,.7)); }
 .world-progress__map-route { fill: none; stroke: rgba(210,184,135,.38); stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); transform-origin: 24px 24px; }
+.world-progress__map-active { fill: none; stroke: #f2d397; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgba(235,165,87,.75)); transform: rotate(90deg); transform-origin: 24px 24px; }
 .world-progress__map-node { fill: #e3c285; transform: rotate(90deg); transform-origin: 24px 24px; }
+.world-progress__map-player { fill: #fff4d6; stroke: #9e6d35; stroke-width: 1.1; filter: drop-shadow(0 0 2px #f2d397); transform: rotate(90deg); transform-origin: 24px 24px; }
 .world-progress__map > b { position: relative; color: #f3e5cb; font-size: 9px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px #000; }
 .world-progress__details { min-width: 0; flex: 1; }
 .world-progress__heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -705,7 +707,7 @@
   background: linear-gradient(145deg, rgba(32,28,28,.98), rgba(13,14,19,.97));
   box-shadow: 0 8px 24px rgba(0,0,0,.52), inset 0 1px rgba(255,255,255,.05);
   color: #f2e2c3; text-align: center; overflow-wrap: anywhere; animation: npc-dialogue-appear .24s ease-out both;
-  pointer-events: auto;
+  pointer-events: none;
 }
 .world-npc-dialogue::after {
   position: absolute; bottom: -6px; left: calc(50% - 5px); width: 10px; height: 10px;
@@ -722,6 +724,7 @@
   color: #fff0cf; font-size: 10px; font-weight: 900; line-height: 1.25; letter-spacing: .07em; text-shadow: 0 1px 3px #311a15;
   pointer-events: auto; cursor: pointer; touch-action: manipulation;
 }
+.world-npc-dialogue__fight { pointer-events: auto; }
 .world-npc-dialogue__status {
   display: block; margin-top: 7px; padding: 5px 8px; border: 1px solid rgba(225,201,160,.22);
   border-radius: 3px; background: rgba(255,255,255,.045); color: rgba(238,224,201,.72);

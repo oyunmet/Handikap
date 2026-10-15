@@ -219,6 +219,34 @@ function drawWorldObject(
     context.ellipse(13, -53, 14, 12, .25, 0, Math.PI * 2);
     context.ellipse(1, -61, 13, 11, 0, 0, Math.PI * 2);
     context.fill();
+  } else if (object.kind === "pine-tree") {
+    context.fillStyle = "#302824";
+    context.fillRect(-4, -36, 8, 36);
+    context.fillStyle = "#202a2c";
+    for (let layer = 0; layer < 3; layer += 1) {
+      const top = -68 + layer * 13;
+      context.beginPath();
+      context.moveTo(0, top);
+      context.lineTo(-20 + layer * 4, top + 27);
+      context.lineTo(20 - layer * 4, top + 27);
+      context.closePath();
+      context.fill();
+    }
+  } else if (object.kind === "skeletal-tree") {
+    context.strokeStyle = "#292322";
+    context.lineWidth = 7;
+    context.beginPath();
+    context.moveTo(0, 0);
+    context.lineTo(2, -62);
+    context.moveTo(1, -24);
+    context.lineTo(-19, -43);
+    context.lineTo(-24, -55);
+    context.moveTo(2, -34);
+    context.lineTo(21, -52);
+    context.lineTo(25, -63);
+    context.moveTo(0, -48);
+    context.lineTo(-12, -65);
+    context.stroke();
   } else if (object.kind === "reed") {
     context.strokeStyle = "#71815a";
     context.lineWidth = 3;
