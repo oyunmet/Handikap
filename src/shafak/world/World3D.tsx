@@ -8,7 +8,7 @@ import KnightActor from "./KnightActor";
 import type { WorldMotion } from "./movement";
 import { createWorldMotion } from "./movement";
 import { getOpponentModelConfig } from "./opponent-model-config";
-import { getWorldBotProfileByName } from "./world-bot-profiles";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import { mapOpponentAnimationState } from "./model-animation";
 import { FinalGate } from "./WorldElements";
 import type { WeatherMode } from "./world-biomes";
@@ -396,6 +396,9 @@ function DuelFighter({
       : combatAnimation(renderedActor.action, speed)
     : "idle";
   const modelConfig = side === "bot" ? getOpponentModelConfig(opponentName) : undefined;
+  const opponentProfile = side === "bot" && combatRender
+    ? getWorldBotProfileByArchetype(combatRender.botArchetype)
+    : undefined;
   const modelAnimationState = modelConfig
     ? combatRender?.ended
       ? combatRender.verdict === "defeat"
@@ -414,8 +417,9 @@ function DuelFighter({
       ))),
   );
   const isAttackBeat = Boolean(renderedActor && ["attack", "heavyAttack", "skillOne", "skillTwo", "plunge", "parry"].includes(renderedActor.action));
+  const boss = side === "bot" && combatRender?.botArchetype === "chapter-boss";
   const enraged = side === "bot" && Boolean(renderedActor && isCombatBotEnraged(renderedActor));
-  const combatGlow = side === "player" ? "#ffad58" : "#6de0e5";
+  const combatGlow = side === "player" ? "#ffad58" : boss ? "#e8b052" : "#6de0e5";
 
   useFrame(() => {
     const state = combatStateRef.current;
@@ -434,7 +438,7 @@ function DuelFighter({
   useFrame((frame) => {
     const visualRoot = actorVisualRoot.current;
     if (!visualRoot) return;
-    const baseScale = side === "bot" ? 1.07 : 1;
+    const baseScale = side === "bot" ? (boss ? 1.22 : 1.07) : 1;
     const liveActor = combatStateRef.current?.[side] ?? renderedActor;
     const combatTick = combatStateRef.current?.tick ?? combatRender?.tick ?? 0;
     const jumpHeight = liveActor ? getDuelJumpHeight(liveActor, combatTick) : 0;
@@ -469,26 +473,26 @@ function DuelFighter({
       {visualEffectsEnabled && (
         <>
           <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.48, isAttackBeat ? 0.76 : 0.66, 32]} />
-            <meshBasicMaterial color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow} transparent opacity={enraged ? 0.5 : isAttackBeat ? 0.64 : 0.24} side={THREE.DoubleSide} depthWrite={false} />
+            <ringGeometry args={[boss ? 0.58 : 0.48, boss ? (isAttackBeat ? 0.96 : 0.84) : isAttackBeat ? 0.76 : 0.66, 32]} />
+            <meshBasicMaterial color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow} transparent opacity={enraged ? 0.5 : isAttackBeat ? 0.64 : boss ? 0.42 : 0.24} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
           <pointLight
             position={[0, 1.55, 0.25]}
             color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow}
-            intensity={enraged ? 6.2 : isAttackBeat ? 12 : 3.2}
-            distance={isAttackBeat ? 5.5 : 3.8}
+            intensity={enraged ? 6.2 : isAttackBeat ? 12 : boss ? 5.2 : 3.2}
+            distance={isAttackBeat ? 5.5 : boss ? 4.8 : 3.8}
             decay={2}
           />
         </>
       )}
-      <group ref={actorVisualRoot} scale={side === "bot" ? 1.07 : 1}>
+      <group ref={actorVisualRoot} scale={side === "bot" ? (boss ? 1.22 : 1.07) : 1}>
         <KnightActor
           motionRef={actorMotion}
           state={animation}
           motionReduced={motionReduced}
           animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
           facingAngle={facingAngle}
-          appearance={side === "player" ? equipmentVisual : undefined}
+          appearance={side === "player" ? equipmentVisual : opponentProfile?.appearance}
           castShadow
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}

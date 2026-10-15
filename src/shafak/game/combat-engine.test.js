@@ -4,11 +4,13 @@ import {
   INPUT_BUTTON,
   COMBAT_ARENA_CENTER_Z,
   COMBAT_ARENA_RADIUS,
+  COMBAT_BOT_ARCHETYPES,
   COMBO_CHAIN_WINDOW_TICKS,
   MAX_DUEL_TICKS,
   PERFECT_BLOCK_WINDOW_TICKS,
   createCombatState,
   getBotAttackWindupTicks,
+  isCombatBotArchetype,
   isCombatBotEnraged,
   replayCombat,
   stepCombat,
@@ -91,6 +93,36 @@ test("opponent archetypes change combat behavior and the rage phase shortens att
   assert.equal(shadow.botArchetype, "shadow-knight");
 });
 
+test("all ten opponent archetypes produce valid deterministic combat states and the boss has extra health", () => {
+  assert.equal(COMBAT_BOT_ARCHETYPES.length, 10);
+  for (const archetype of COMBAT_BOT_ARCHETYPES) {
+    assert.equal(isCombatBotArchetype(archetype), true);
+    const first = createCombatState(9012, "hard", undefined, undefined, archetype);
+    const second = createCombatState(9012, "hard", undefined, undefined, archetype);
+    assert.deepEqual(first, second);
+    assert.equal(first.botArchetype, archetype);
+  }
+  assert.equal(isCombatBotArchetype("unknown-bot"), false);
+  const boss = createCombatState(9012, "hard", undefined, undefined, "chapter-boss");
+  const standard = createCombatState(9012, "hard", undefined, undefined, "gate-warden");
+  assert.ok(boss.bot.maxHp >= standard.bot.maxHp * 1.6);
+});
+
+test("venom and ember opponents apply their status effects on a successful hit", () => {
+  const runUntilStatus = (archetype, statusField) => {
+    let state = createCombatState(771, "hard", undefined, undefined, archetype);
+    state.bot.x = state.player.x;
+    state.bot.z = state.player.z - 1.4;
+    for (let index = 0; index < 240 && !state.ended; index += 1) {
+      state = stepCombat(state, noInput).state;
+      if (state.player[statusField] > state.tick) return true;
+    }
+    return false;
+  };
+  assert.equal(runUntilStatus("venom-assassin", "poisonUntilTick"), true);
+  assert.equal(runUntilStatus("ember-alchemist", "burnUntilTick"), true);
+});
+
 test("the ash archer can telegraph and fire a ranged arrow from outside melee distance", () => {
   let state = createCombatState(30303, "easy", undefined, undefined, "ash-archer");
   state.bot.z = state.player.z - 6;
@@ -106,8 +138,8 @@ test("the ash archer can telegraph and fire a ranged arrow from outside melee di
 });
 
 test("seeded bots choose the same actions and damage on each replay", () => {
-  const run = () => {
-    let state = createCombatState(12345, "hard");
+  const run = (archetype) => {
+    let state = createCombatState(12345, "hard", undefined, undefined, archetype);
     const history = [];
     for (let index = 0; index < 900 && !state.ended; index += 1) {
       const result = stepCombat(state, { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 });
@@ -116,7 +148,9 @@ test("seeded bots choose the same actions and damage on each replay", () => {
     }
     return { state, history };
   };
-  assert.deepEqual(run(), run());
+  for (const archetype of COMBAT_BOT_ARCHETYPES) {
+    assert.deepEqual(run(archetype), run(archetype), `${archetype} must replay deterministically`);
+  }
 });
 
 test("combatants cannot occupy the same space during a duel", () => {

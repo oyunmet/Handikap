@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createDefaultPlayerProfile, validatePlayerProfile, validateProfileRename } from "./profileApi.ts";
+import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 
 const validProfile = {
   name: "Yolcu",
@@ -46,6 +47,30 @@ test("profile API rejects impossible progression and malformed collections", () 
   assert.equal(validatePlayerProfile({ ...validProfile, dailyWins: 3 }), null);
   assert.equal(validatePlayerProfile({ ...validProfile, items: Array(31).fill("item") }), null);
   assert.equal(validatePlayerProfile({ ...validProfile, dailyKey: "not-a-date" }), null);
+});
+
+test("account progression requires the chapter boss before passing the gate", () => {
+  const rivals = getWorldChapter(0).rivals;
+  const baseWorldProgress = { distance: 141.3, depth: 0 };
+  const beforeBoss = validatePlayerProfile({
+    ...validProfile,
+    defeatedOpponents: rivals.slice(0, 4).map((rival) => rival.id),
+    worldProgress: baseWorldProgress,
+  });
+  const afterBoss = validatePlayerProfile({
+    ...validProfile,
+    defeatedOpponents: rivals.map((rival) => rival.id),
+    worldProgress: baseWorldProgress,
+  });
+  assert.equal(beforeBoss, null);
+  assert.equal(afterBoss?.worldProgress?.distance, baseWorldProgress.distance);
+
+  const existingPlayer = validatePlayerProfile({
+    ...validProfile,
+    defeatedOpponents: rivals.slice(0, 4).map((rival) => rival.id),
+    worldProgress: { distance: 150, depth: 0 },
+  });
+  assert.equal(existingPlayer?.worldProgress?.distance, 150);
 });
 
 test("profile API rejects unsafe or oversized values", () => {

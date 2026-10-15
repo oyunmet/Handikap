@@ -99,12 +99,16 @@ function stringList(value: unknown, maximumItems: number): string[] | null {
   return [...new Set(value as string[])];
 }
 
-function maximumUnlockedDistance(defeatedOpponents: readonly string[]) {
+function maximumUnlockedDistance(defeatedOpponents: readonly string[], previouslyReachedDistance = 0) {
   const defeated = new Set(defeatedOpponents);
   let unlockedThroughChapter = 0;
   while (
-    [0, 1, 2, 3].every((rivalIndex) =>
-      defeated.has(`ash-road:${unlockedThroughChapter}:rival:${rivalIndex}`),
+    previouslyReachedDistance >= (unlockedThroughChapter + 1) * WORLD_GATE_INTERVAL_METERS
+    || (
+      [0, 1, 2, 3].every((rivalIndex) =>
+        defeated.has(`ash-road:${unlockedThroughChapter}:rival:${rivalIndex}`),
+      )
+      && defeated.has(`ash-road:${unlockedThroughChapter}:rival:4`)
     )
   ) {
     unlockedThroughChapter += 1;
@@ -129,7 +133,7 @@ function validateWorldPosition(
     typeof distance !== "number" ||
     !Number.isFinite(distance) ||
     distance < 0 ||
-    distance > maximumUnlockedDistance(defeatedOpponents) ||
+    distance > maximumUnlockedDistance(defeatedOpponents, previous?.distance ?? 0) ||
     typeof depth !== "number" ||
     !Number.isFinite(depth) ||
     depth < -1 ||
@@ -269,7 +273,12 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
   const defeatedOpponents = stringList(value.defeatedOpponents, 30);
   const hasWorldProgress = value.worldProgress !== undefined && value.worldProgress !== null;
   const worldProgress = hasWorldProgress && defeatedOpponents
-    ? validateWorldPosition(value.worldProgress, defeatedOpponents, userId)
+    ? validateWorldPosition(
+        value.worldProgress,
+        defeatedOpponents,
+        userId,
+        value.worldProgress as PlayerProfileRecord["worldProgress"],
+      )
     : null;
   const dailyBattles = boundedInteger(value.dailyBattles, 0, 100_000);
   const dailyWins = boundedInteger(value.dailyWins, 0, 100_000);

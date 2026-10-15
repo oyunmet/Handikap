@@ -1,7 +1,8 @@
 import type { EquipmentVisual } from "../game/store-types.ts";
+import type { CombatBotArchetype } from "../game/combat-engine.ts";
 
-export type WorldBotArchetype = "gate-warden" | "iron-oath" | "ash-archer" | "shadow-knight";
-export type WorldBotWeapon = "sword" | "axe" | "spear" | "mace" | "bow" | "greatsword";
+export type WorldBotArchetype = CombatBotArchetype;
+export type WorldBotWeapon = "sword" | "daggers" | "axe" | "spear" | "mace" | "bow" | "greatsword";
 
 export type WorldBotProfile = {
   name: string;
@@ -30,7 +31,23 @@ const WORLD_RIVAL_NAMES = [
   "Kızıl Mızrak", "Donmuş Yemin", "Kül Pençesi", "Solgun Kılıç",
 ] as const;
 
-const RIVAL_TITLES = ["NÖBETÇİ", "YEMİNLİ SAVAŞÇI", "KÜL GEZGİNİ", "GÖLGE SAVAŞÇISI"] as const;
+const RIVAL_TITLES = [
+  "NÖBETÇİ",
+  "YEMİNLİ SAVAŞÇI",
+  "KÜL GEZGİNİ",
+  "GÖLGE SAVAŞÇISI",
+  "FIRTINA MIZRAKÇISI",
+  "YARIK BERSERKERİ",
+  "KÜL SİMYACISI",
+  "ZEHİR SUİKASTÇİSİ",
+  "AYAZ AVCISI",
+] as const;
+
+const CHAPTER_BOSS_NAMES = [
+  "Kül Tahtı", "Kızıl Hükümdar", "Karanlık Mareşal", "Yarık Efendisi",
+  "Demir Taç", "Ateş Muhafızı", "Gece İmparatoru", "Kırık Kral",
+  "Ayaz Hanı", "Sis Komutanı", "Son Yemin", "Şafak Celladı",
+] as const;
 
 const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
   {
@@ -113,6 +130,106 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
     },
     taunt: "Gölgem seni buldu; şafak seni kurtaramaz.",
   },
+  {
+    name: "Fırtına Mızrakçısı",
+    archetype: "storm-lancer",
+    weapon: "spear",
+    difficulty: "medium",
+    armorTint: "#4c8495",
+    size: 1.03,
+    appearance: {
+      armor: "#314d5c",
+      armorLight: "#5e9dae",
+      armorDark: "#20303c",
+      trim: "#b8e4df",
+      cape: "#355866",
+      armorStyle: "watch",
+      weaponStyle: "spear",
+      weaponColor: "#9fe3e5",
+      auraColor: "#57c6d0",
+    },
+    taunt: "Mızrağımın menzili, kaçış yolundan uzun.",
+  },
+  {
+    name: "Yarık Berserkeri",
+    archetype: "rift-berserker",
+    weapon: "axe",
+    difficulty: "hard",
+    armorTint: "#a64a43",
+    size: 1.08,
+    appearance: {
+      armor: "#573538",
+      armorLight: "#a34a3e",
+      armorDark: "#30252b",
+      trim: "#e0a05a",
+      cape: "#6d2c32",
+      armorStyle: "ash",
+      weaponStyle: "axe",
+      weaponColor: "#e87e4e",
+      auraColor: "#ec5a3f",
+    },
+    taunt: "Bir darbe yeter; gerisi taşların işi.",
+  },
+  {
+    name: "Kül Simyacısı",
+    archetype: "ember-alchemist",
+    weapon: "mace",
+    difficulty: "medium",
+    armorTint: "#bd7140",
+    size: 1,
+    appearance: {
+      armor: "#554033",
+      armorLight: "#bd7445",
+      armorDark: "#342b28",
+      trim: "#ffd184",
+      cape: "#7c3d2d",
+      armorStyle: "ash",
+      weaponStyle: "mace",
+      weaponColor: "#ffb35c",
+      auraColor: "#ff793d",
+    },
+    taunt: "Külün altında hâlâ yanan bir şey var.",
+  },
+  {
+    name: "Zehir Suikastçısı",
+    archetype: "venom-assassin",
+    weapon: "daggers",
+    difficulty: "hard",
+    armorTint: "#5e9664",
+    size: 0.94,
+    appearance: {
+      armor: "#2f4539",
+      armorLight: "#648c60",
+      armorDark: "#202b29",
+      trim: "#b4d77b",
+      cape: "#324b3b",
+      armorStyle: "shadow",
+      weaponStyle: "daggers",
+      weaponColor: "#a7e077",
+      auraColor: "#79c66b",
+    },
+    taunt: "Bir çizik bile seni bu yoldan alıkoyar.",
+  },
+  {
+    name: "Ayaz Avcısı",
+    archetype: "frost-hunter",
+    weapon: "bow",
+    difficulty: "hard",
+    armorTint: "#6d9fb3",
+    size: 0.98,
+    appearance: {
+      armor: "#354958",
+      armorLight: "#75a9bd",
+      armorDark: "#25313c",
+      trim: "#d0f1f4",
+      cape: "#46687c",
+      armorStyle: "watch",
+      weaponStyle: "bow",
+      weaponColor: "#b9edf2",
+      auraColor: "#83dbe6",
+    },
+    taunt: "Ayazın sessizliği oku benden önce ulaştırır.",
+  },
 ];
 
 export const WORLD_BOT_PROFILES: readonly WorldBotProfile[] = WORLD_ARCHETYPE_PROFILES.map((profile, index) => ({
@@ -120,14 +237,44 @@ export const WORLD_BOT_PROFILES: readonly WorldBotProfile[] = WORLD_ARCHETYPE_PR
   title: RIVAL_TITLES[index],
 }));
 
+const CHAPTER_BOSS_PROFILE: Omit<WorldBotProfile, "title"> = {
+  name: "Kül Tahtı",
+  archetype: "chapter-boss",
+  weapon: "greatsword",
+  difficulty: "hard",
+  armorTint: "#8e383b",
+  size: 1.2,
+  appearance: {
+    armor: "#382a32",
+    armorLight: "#8e383b",
+    armorDark: "#211d27",
+    trim: "#f0bd69",
+    cape: "#612d35",
+    armorStyle: "royal",
+    weaponStyle: "greatsword",
+    weaponColor: "#ffcf78",
+    auraColor: "#f15a4f",
+  },
+  taunt: "Bu yolun son hükmünü ben veririm.",
+};
+
 export function getWorldBotProfile(index: number) {
   return WORLD_BOT_PROFILES[((Math.floor(index) % WORLD_BOT_PROFILES.length) + WORLD_BOT_PROFILES.length) % WORLD_BOT_PROFILES.length];
 }
 
 export function getWorldRivalProfile(chapterId: number, rivalIndex: number) {
-  const archetypeIndex = ((Math.floor(rivalIndex) % WORLD_ARCHETYPE_PROFILES.length) + WORLD_ARCHETYPE_PROFILES.length)
-    % WORLD_ARCHETYPE_PROFILES.length;
-  const nameIndex = ((Math.floor(chapterId) * WORLD_ARCHETYPE_PROFILES.length + archetypeIndex) % WORLD_RIVAL_NAMES.length
+  const safeChapterId = Math.max(0, Math.floor(chapterId));
+  const safeRivalIndex = Math.floor(rivalIndex);
+  if (safeRivalIndex === 4) {
+    return {
+      ...CHAPTER_BOSS_PROFILE,
+      name: CHAPTER_BOSS_NAMES[safeChapterId % CHAPTER_BOSS_NAMES.length],
+      title: "BÖLÜM BOSSU",
+    };
+  }
+  const archetypeIndex = ((safeChapterId * 4 + safeRivalIndex) % WORLD_ARCHETYPE_PROFILES.length
+    + WORLD_ARCHETYPE_PROFILES.length) % WORLD_ARCHETYPE_PROFILES.length;
+  const nameIndex = ((safeChapterId * 4 + safeRivalIndex) % WORLD_RIVAL_NAMES.length
     + WORLD_RIVAL_NAMES.length) % WORLD_RIVAL_NAMES.length;
   return {
     ...WORLD_ARCHETYPE_PROFILES[archetypeIndex],
@@ -136,13 +283,15 @@ export function getWorldRivalProfile(chapterId: number, rivalIndex: number) {
   };
 }
 
+export function getWorldBotProfileByArchetype(archetype: WorldBotArchetype) {
+  if (archetype === "chapter-boss") return CHAPTER_BOSS_PROFILE;
+  return WORLD_ARCHETYPE_PROFILES.find((profile) => profile.archetype === archetype) ?? WORLD_ARCHETYPE_PROFILES[0];
+}
+
 export function getWorldBotProfileByName(name: string) {
+  const bossIndex = CHAPTER_BOSS_NAMES.indexOf(name as (typeof CHAPTER_BOSS_NAMES)[number]);
+  if (bossIndex >= 0) return { ...CHAPTER_BOSS_PROFILE, name: CHAPTER_BOSS_NAMES[bossIndex] };
   const nameIndex = WORLD_RIVAL_NAMES.indexOf(name as (typeof WORLD_RIVAL_NAMES)[number]);
   if (nameIndex < 0) return undefined;
-  const archetypeIndex = nameIndex % WORLD_ARCHETYPE_PROFILES.length;
-  return {
-    ...WORLD_ARCHETYPE_PROFILES[archetypeIndex],
-    name: WORLD_RIVAL_NAMES[nameIndex],
-    title: RIVAL_TITLES[archetypeIndex],
-  };
+  return getWorldRivalProfile(Math.floor(nameIndex / 4), nameIndex % 4);
 }

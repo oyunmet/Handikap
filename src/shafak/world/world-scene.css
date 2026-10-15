@@ -793,6 +793,8 @@
 .world-rival-tag span { color: rgba(239,221,194,.74); font-size: 7px; letter-spacing: .12em; }
 .world-rival-tag.is-focused { border-color: #ff886d; box-shadow: 0 0 15px rgba(255,101,74,.62); }
 .world-rival-tag.is-challenging { border-color: #ffb66b; box-shadow: 0 0 13px rgba(255,125,71,.52); }
+.world-rival-tag.is-boss { border-color: #f4c06a; background: rgba(43,20,24,.92); box-shadow: 0 0 18px rgba(236,89,66,.72); }
+.world-rival-tag.is-boss b { color: #ffd17d; }
 .world-scene[data-reduced="true"] .world-rival-tag.is-challenging { box-shadow: 0 0 7px rgba(255,125,71,.36); }
 .world-pickup-tag,
 .world-obstacle-tag {

@@ -23,6 +23,7 @@ import {
   MAX_INPUT_BUTTONS,
   createCombatState,
   getBotAttackWindupTicks,
+  isCombatBotArchetype,
   isCombatBotEnraged,
   normalizePlayerCombatModifiers,
   stepCombat,
@@ -1457,7 +1458,7 @@ export default function WorldScene({
           seed?: unknown;
           playerStats?: unknown;
           combatLoadout?: unknown;
-          opponent?: { id?: unknown; difficulty?: unknown; archetype?: unknown };
+          opponent?: { id?: unknown; difficulty?: unknown; archetype?: unknown; isBoss?: unknown };
           error?: string;
         }>("/api/duels/start", {
           method: "POST",
@@ -1489,7 +1490,8 @@ export default function WorldScene({
           Array.isArray(challenge.combatLoadout) ||
           challenge.opponent?.id !== rival.id ||
           !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty)) ||
-          !["gate-warden", "iron-oath", "ash-archer", "shadow-knight"].includes(String(challenge.opponent.archetype))
+          !isCombatBotArchetype(challenge.opponent.archetype) ||
+          challenge.opponent.isBoss !== rival.isBoss
         ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
         const serverLoadout = challenge.combatLoadout as Partial<CombatLoadout>;
         if (
@@ -2364,7 +2366,11 @@ export default function WorldScene({
             finisherSlowMotion={Boolean(visualEffectsEnabled && battleSession?.phase === "settling")}
             botTelegraphActive={Boolean(
               combatRender?.bot.attackType
-              && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty),
+              && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(
+                combatRender.difficulty,
+                combatRender.botArchetype,
+                isCombatBotEnraged(combatRender.bot),
+              ),
             )}
             opponentName={battleSession?.rival.name ?? ""}
             debugCounters={{
@@ -2419,7 +2425,7 @@ export default function WorldScene({
             <DuelHealthBar label={profile.name} hp={combatRender.player.hp} maxHp={combatRender.player.maxHp} side="player" visualEffectsEnabled={visualEffectsEnabled} />
             <div className="duel-hud__center">
               <span>VS</span>
-              <strong>{combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
+              <strong>{battleSession.rival.isBoss ? "BÖLÜM BOSSU" : combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
               {isCombatBotEnraged(combatRender.bot) && (
                 <small className="duel-rage-label" role="status">ÖFKE FAZI</small>
               )}

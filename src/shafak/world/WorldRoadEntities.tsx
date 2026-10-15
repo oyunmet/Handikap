@@ -14,7 +14,7 @@ import {
   type WorldPickup,
   type WorldRival,
 } from "./world-content";
-import { getWorldBotProfileByName } from "./world-bot-profiles";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -307,6 +307,82 @@ function BotSignature({ rival }: { rival: WorldRival }) {
           </mesh>
         </>
       )}
+      {rival.archetype === "storm-lancer" && (
+        <>
+          <mesh position={[0.5, 1.05, 0.2]} rotation={[0, 0, -0.12]}>
+            <cylinderGeometry args={[0.035, 0.045, 1.45, 6]} />
+            <meshStandardMaterial color="#b7dfe0" metalness={0.7} roughness={0.3} />
+          </mesh>
+          <mesh position={[0.5, 1.84, 0.2]} rotation={[0, 0, -0.12]}>
+            <coneGeometry args={[0.11, 0.32, 5]} />
+            <meshStandardMaterial color="#73dce0" emissive="#318d9c" emissiveIntensity={0.4} />
+          </mesh>
+        </>
+      )}
+      {rival.archetype === "rift-berserker" && (
+        <>
+          {[-0.22, 0.22].map((side) => (
+            <mesh key={side} position={[side, 1.95, 0.03]} rotation={[0, 0, side * 1.9]}>
+              <coneGeometry args={[0.11, 0.4, 5]} />
+              <meshStandardMaterial color="#d86a48" emissive="#87372f" emissiveIntensity={0.3} />
+            </mesh>
+          ))}
+          <mesh position={[0, 1.38, 0.235]} scale={[0.3, 0.24, 0.08]}>
+            <dodecahedronGeometry args={[1, 0]} />
+            <meshStandardMaterial color="#b64a3e" metalness={0.52} roughness={0.4} />
+          </mesh>
+        </>
+      )}
+      {rival.archetype === "ember-alchemist" && (
+        <>
+          <mesh position={[0.35, 1.2, -0.2]} rotation={[0.12, 0, -0.08]}>
+            <cylinderGeometry args={[0.14, 0.11, 0.48, 7]} />
+            <meshStandardMaterial color="#81452d" emissive="#ed6334" emissiveIntensity={0.28} roughness={0.46} />
+          </mesh>
+          <mesh position={[0.35, 1.46, -0.2]}>
+            <sphereGeometry args={[0.11, 8, 6]} />
+            <meshBasicMaterial color="#ffb557" />
+          </mesh>
+        </>
+      )}
+      {rival.archetype === "venom-assassin" && (
+        <>
+          {[-0.36, 0.36].map((side) => (
+            <mesh key={side} position={[side, 1.16, 0.25]} rotation={[0, 0, side * 0.26]}>
+              <boxGeometry args={[0.065, 0.52, 0.055]} />
+              <meshStandardMaterial color="#a7e077" emissive="#5b9a55" emissiveIntensity={0.45} metalness={0.7} />
+            </mesh>
+          ))}
+          <mesh position={[0, 1.74, 0.22]}>
+            <sphereGeometry args={[0.095, 8, 6]} />
+            <meshBasicMaterial color="#b6ed79" />
+          </mesh>
+        </>
+      )}
+      {rival.archetype === "frost-hunter" && (
+        <>
+          <mesh position={[0, 1.91, 0.02]} rotation={[0, 0, Math.PI]}>
+            <coneGeometry args={[0.22, 0.42, 5]} />
+            <meshStandardMaterial color="#9ed4e1" emissive="#4b8fa5" emissiveIntensity={0.32} />
+          </mesh>
+          <mesh position={[0.2, 1.18, -0.2]} rotation={[0.2, 0, -0.18]}>
+            <torusGeometry args={[0.36, 0.025, 6, 12, Math.PI]} />
+            <meshStandardMaterial color="#d8f3f5" emissive="#74b8c8" emissiveIntensity={0.24} />
+          </mesh>
+        </>
+      )}
+      {rival.archetype === "chapter-boss" && (
+        <>
+          <mesh position={[0, 2.08, 0.04]}>
+            <coneGeometry args={[0.32, 0.52, 6]} />
+            <meshStandardMaterial color="#f0bd69" emissive="#9c4a39" emissiveIntensity={0.42} metalness={0.65} />
+          </mesh>
+          <mesh position={[0, 1.4, 0.24]} scale={[0.42, 0.32, 0.08]}>
+            <octahedronGeometry args={[1, 0]} />
+            <meshStandardMaterial color="#d44e4d" emissive="#f15a4f" emissiveIntensity={0.8} metalness={0.45} />
+          </mesh>
+        </>
+      )}
     </group>
   );
 }
@@ -330,7 +406,7 @@ function BotActor({
   const actorPivotRef = useRef<THREE.Group>(null);
   const poseRef = useRef(createWorldMotion());
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
-  const profile = getWorldBotProfileByName(rival.name);
+  const profile = getWorldBotProfileByArchetype(rival.archetype);
   const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
@@ -451,7 +527,7 @@ function BotActor({
         />
       </mesh>
       <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-        <span className={`world-rival-tag${focused ? " is-focused" : ""}`} data-weapon={rival.weapon}>
+        <span className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`} data-weapon={rival.weapon}>
           <b>{rival.name}</b><span>{rival.title}</span>
         </span>
       </Html>

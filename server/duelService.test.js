@@ -30,7 +30,7 @@ const profile = {
 };
 
 test("server challenges use a generated rival id and return server-owned combat settings", async () => {
-  const rival = getWorldChapter(0).rivals[0];
+  const rival = getWorldChapter(0).rivals[4];
   const inserts = [];
   let reads = 0;
   const database = {
@@ -51,6 +51,7 @@ test("server challenges use a generated rival id and return server-owned combat 
   assert.equal(challenge.opponent.id, rival.id);
   assert.equal(challenge.opponent.difficulty, rival.difficulty);
   assert.equal(challenge.opponent.archetype, rival.archetype);
+  assert.equal(challenge.opponent.isBoss, true);
   assert.ok(Number.isSafeInteger(challenge.seed));
   assert.equal(challenge.playerStats.maxHealth, 150);
   assert.equal(inserts.length, 1);

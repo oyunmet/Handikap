@@ -11,28 +11,32 @@ import {
 } from "./world-content.ts";
 import { WORLD_BOT_PROFILES } from "./world-bot-profiles.ts";
 
-test("seeded chapter content is stable and contains four escalating rivals", () => {
+test("seeded chapter content is stable and contains four rivals plus a gate boss", () => {
   const first = getWorldChapter(0);
   assert.deepEqual(getWorldChapter(0), first);
   assert.notDeepEqual(getWorldChapter(1), first);
   assert.equal(first.pickups.length, 14);
-  assert.equal(first.rivals.length, 4);
-  assert.deepEqual(first.rivals.map((rival) => rival.name), [
+  assert.equal(first.rivals.length, 5);
+  assert.deepEqual(first.rivals.slice(0, 4).map((rival) => rival.name), [
     "Kapı Muhafızı",
     "Demir Yemin",
     "Kül Okçusu",
     "Gölge Şövalyesi",
   ]);
-  assert.deepEqual(first.rivals.map((rival) => rival.archetype), WORLD_BOT_PROFILES.map((profile) => profile.archetype));
-  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["greatsword", "mace", "bow", "spear"]);
-  assert.deepEqual(WORLD_BOT_PROFILES.map((profile) => profile.appearance.weaponStyle), [
+  assert.deepEqual(first.rivals.slice(0, 4).map((rival) => rival.archetype), WORLD_BOT_PROFILES.slice(0, 4).map((profile) => profile.archetype));
+  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["greatsword", "mace", "bow", "spear", "greatsword"]);
+  assert.deepEqual(WORLD_BOT_PROFILES.slice(0, 4).map((profile) => profile.appearance.weaponStyle), [
     "greatsword",
     "mace",
     "bow",
     "daggers",
   ]);
-  assert.equal(new Set(first.rivals.map((rival) => rival.armorTint)).size, 4);
-  assert.equal(new Set(first.rivals.map((rival) => rival.name)).size, 4);
+  assert.equal(new Set(first.rivals.map((rival) => rival.armorTint)).size, 5);
+  assert.equal(new Set(first.rivals.map((rival) => rival.name)).size, 5);
+  assert.equal(first.rivals[4].isBoss, true);
+  assert.equal(first.rivals[4].archetype, "chapter-boss");
+  assert.ok(first.rivals[4].distance < 140);
+  assert.ok(first.rivals.slice(0, 4).every((rival) => rival.isBoss === false));
   assert.ok(first.rivals[0].distance >= 51 && first.rivals[0].distance <= 53);
   assert.ok(first.rivals.every((rival) => rival.id.includes(":rival:")));
   assert.ok(first.rivals.every((rival, index) => index === 0 || rival.level > first.rivals[index - 1].level));
@@ -56,10 +60,21 @@ test("road rewards stay within reach and each chapter includes visible hazards",
   assert.equal(chestReward.sourceObstacleId, treasureObstacle.id);
 });
 
-test("rival identities are stable and distinct across at least 48 encounters", () => {
+test("all five new rival types and chapter bosses appear in stable chapter content", () => {
+  const chapters = Array.from({ length: 3 }, (_, chapterId) => getWorldChapter(chapterId));
+  const standardArchetypes = chapters.flatMap((chapter) => chapter.rivals.filter((rival) => !rival.isBoss).map((rival) => rival.archetype));
+  assert.equal(new Set(standardArchetypes).size, 9);
+  assert.deepEqual(
+    chapters.map((chapter) => chapter.rivals.at(-1)?.title),
+    ["BÖLÜM BOSSU", "BÖLÜM BOSSU", "BÖLÜM BOSSU"],
+  );
+  assert.equal(WORLD_BOT_PROFILES.length, 9);
+});
+
+test("rival identities are stable and distinct across 60 encounters", () => {
   const encounters = Array.from({ length: 12 }, (_, chapterId) => getWorldChapter(chapterId).rivals).flat();
-  assert.equal(new Set(encounters.map((rival) => rival.name)).size, 48);
-  assert.equal(new Set(encounters.map((rival) => rival.id)).size, 48);
+  assert.equal(new Set(encounters.map((rival) => rival.name)).size, 60);
+  assert.equal(new Set(encounters.map((rival) => rival.id)).size, 60);
   for (const rival of encounters) {
     const chapter = getWorldChapter(rival.chapterId);
     assert.equal(chapter.rivals.find((candidate) => candidate.id === rival.id)?.title, rival.title);

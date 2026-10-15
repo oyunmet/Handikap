@@ -33,6 +33,7 @@ export type WorldRival = {
   name: string;
   title: string;
   level: number;
+  isBoss: boolean;
   winRate: number;
   loot: number;
   taunt: string;
@@ -199,21 +200,24 @@ function createObstacles(chapterId: number): WorldObstacle[] {
 
 function createRivals(chapterId: number, random: () => number): WorldRival[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
-  return Array.from({ length: 4 }, (_, index) => {
+  const rivalDistances = [52, 84, 109, 134, 139];
+  return Array.from({ length: 5 }, (_, index) => {
     const profile = getWorldRivalProfile(chapterId, index);
+    const isBoss = index === 4;
     return {
       id: `ash-road:${chapterId}:rival:${index}`,
       name: profile.name,
       title: profile.title,
       archetype: profile.archetype,
-      level: Math.min(1000, 2 + chapterId * 2 + index * 2),
-      winRate: 42 + index * 9 + Math.min(24, chapterId * 2),
-      loot: 48 + index * 24 + chapterId * 6,
+      level: Math.min(1000, 2 + chapterId * 2 + index * 2 + (isBoss ? 8 : 0)),
+      isBoss,
+      winRate: isBoss ? 94 + Math.min(4, chapterId) : 42 + index * 9 + Math.min(24, chapterId * 2),
+      loot: isBoss ? 180 + chapterId * 10 : 48 + index * 24 + chapterId * 6,
       taunt: profile.taunt,
       difficulty: profile.difficulty,
       chapterId,
-      x: index % 2 === 0 ? -3.6 : 3.4,
-      distance: chapterStart + [52, 84, 109, 134][index] + (random() - 0.5) * 2,
+      x: isBoss ? 0 : index % 2 === 0 ? -3.6 : 3.4,
+      distance: chapterStart + rivalDistances[index] + (isBoss ? 0 : (random() - 0.5) * 2),
       armorTint: profile.armorTint,
       size: profile.size + Math.min(0.12, chapterId * 0.005),
       weapon: profile.weapon,

@@ -30,8 +30,24 @@ export const INPUT_BUTTON = {
 export const MAX_INPUT_BUTTONS = 8_191;
 
 export type CombatDifficulty = "easy" | "medium" | "hard";
-export type CombatBotArchetype = "gate-warden" | "iron-oath" | "ash-archer" | "shadow-knight";
+export const COMBAT_BOT_ARCHETYPES = [
+  "gate-warden",
+  "iron-oath",
+  "ash-archer",
+  "shadow-knight",
+  "storm-lancer",
+  "rift-berserker",
+  "ember-alchemist",
+  "venom-assassin",
+  "frost-hunter",
+  "chapter-boss",
+] as const;
+export type CombatBotArchetype = typeof COMBAT_BOT_ARCHETYPES[number];
 export type CombatSide = "player" | "bot";
+
+export function isCombatBotArchetype(value: unknown): value is CombatBotArchetype {
+  return typeof value === "string" && COMBAT_BOT_ARCHETYPES.some((archetype) => archetype === value);
+}
 export type CombatAction =
   | "idle"
   | "walk"
@@ -243,6 +259,8 @@ export function createCombatState(
 ): CombatState {
   const cleanSeed = (Number.isSafeInteger(seed) ? seed : 1) >>> 0 || 1;
   const normalizedStats = normalizePlayerCombatModifiers(playerStats);
+  const botBaseHealth = difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130;
+  const botHealth = Math.round(botBaseHealth * (botArchetype === "chapter-boss" ? 1.7 : 1));
   return {
     tick: 0,
     seed: cleanSeed,
@@ -264,7 +282,7 @@ export function createCombatState(
     },
     weaponSwapCooldownUntilTick: 0,
     player: makeActor(0, COMBAT_ARENA_CENTER_Z + 1.35, normalizedStats.maxHealth),
-    bot: makeActor(0, COMBAT_ARENA_CENTER_Z - 1.35, difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130),
+    bot: makeActor(0, COMBAT_ARENA_CENTER_Z - 1.35, botHealth),
     ended: false,
     verdict: null,
     lastImpactTick: -10_000,
@@ -376,8 +394,10 @@ export function getBotAttackWindupTicks(
 ) {
   const baseline = difficulty === "easy" ? 42 : difficulty === "medium" ? 36 : 30;
   const archetypeDelay = archetype === "gate-warden" ? 5
-    : archetype === "ash-archer" ? -3
-      : archetype === "shadow-knight" ? -6 : 0;
+    : archetype === "rift-berserker" || archetype === "chapter-boss" ? 8
+      : archetype === "ash-archer" ? -3
+        : archetype === "storm-lancer" || archetype === "frost-hunter" ? 2
+          : archetype === "venom-assassin" || archetype === "shadow-knight" ? -6 : 0;
   return Math.max(18, baseline + archetypeDelay - (enraged ? 6 : 0));
 }
 
@@ -401,7 +421,11 @@ function getWeaponStyle(weaponId: string | null): CombatWeaponStyle {
 function getBotWeaponStyle(archetype: CombatBotArchetype): CombatWeaponStyle {
   return archetype === "gate-warden" ? "greatsword"
     : archetype === "iron-oath" ? "mace"
-      : archetype === "ash-archer" ? "bow" : "daggers";
+      : archetype === "ash-archer" || archetype === "frost-hunter" ? "bow"
+        : archetype === "storm-lancer" ? "spear"
+          : archetype === "rift-berserker" ? "axe"
+            : archetype === "ember-alchemist" ? "mace"
+              : archetype === "chapter-boss" ? "greatsword" : "daggers";
 }
 
 function getAttackWeaponStyle(state: CombatState, actor: CombatActor): CombatWeaponStyle {
@@ -523,8 +547,11 @@ function startAttack(
   const botEnraged = side === "bot" && isCombatBotEnraged(actor);
   const botRecoveryBase = state.difficulty === "easy" ? 156 : state.difficulty === "medium" ? 108 : 78;
   const botStyleRecovery = state.botArchetype === "iron-oath" ? 1.12
-    : state.botArchetype === "shadow-knight" ? 0.78
-      : state.botArchetype === "ash-archer" ? 0.92 : 1.06;
+    : state.botArchetype === "shadow-knight" || state.botArchetype === "venom-assassin" ? 0.74
+      : state.botArchetype === "ash-archer" || state.botArchetype === "ember-alchemist" ? 0.92
+        : state.botArchetype === "storm-lancer" ? 0.86
+          : state.botArchetype === "rift-berserker" || state.botArchetype === "chapter-boss" ? 1.18
+            : state.botArchetype === "frost-hunter" ? 1.08 : 1.06;
   const botRecovery = Math.max(38, Math.round(
     botRecoveryBase * botStyleRecovery * (botEnraged ? 0.78 : 1),
   ));
@@ -561,36 +588,55 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
   const gap = distanceBetween(bot, player);
   const difficulty = state.difficulty;
   const enraged = isCombatBotEnraged(bot);
-  const archer = state.botArchetype === "ash-archer";
+  const archer = state.botArchetype === "ash-archer" || state.botArchetype === "frost-hunter";
   const ironOath = state.botArchetype === "iron-oath";
-  const shadowKnight = state.botArchetype === "shadow-knight";
+  const shadowKnight = state.botArchetype === "shadow-knight" || state.botArchetype === "venom-assassin";
+  const stormLancer = state.botArchetype === "storm-lancer";
+  const berserker = state.botArchetype === "rift-berserker";
+  const boss = state.botArchetype === "chapter-boss";
   const baseAttackChance = difficulty === "easy" ? 0.4 : difficulty === "medium" ? 0.66 : 0.88;
   const attackChance = clamp(
     baseAttackChance
-      + (archer ? 0.06 : shadowKnight ? 0.12 : ironOath ? -0.08 : 0)
+      + (archer ? 0.06
+        : shadowKnight ? 0.14
+          : stormLancer ? 0.04
+            : berserker ? 0.12
+              : state.botArchetype === "ember-alchemist" ? 0.02
+                : boss ? 0.1
+                  : ironOath ? -0.08 : 0)
       + (enraged ? 0.16 : 0),
     0.2,
     0.98,
   );
   const baseReactionThreshold = difficulty === "easy" ? 0.68 : difficulty === "medium" ? 0.48 : 0.3;
   const reactionThreshold = clamp(
-    baseReactionThreshold - (ironOath ? 0.16 : shadowKnight ? 0.08 : 0) + (enraged ? 0.06 : 0),
+    baseReactionThreshold - (ironOath ? 0.16 : shadowKnight ? 0.1 : boss ? 0.04 : 0) + (enraged ? 0.06 : 0),
     0.12,
     0.82,
   );
-  const retreat = difficulty === "easy" ? 0 : difficulty === "medium" ? 0.16 : 0.28;
-  const attackRange = archer ? 9.25 : 2.15;
-  const decisionRange = archer ? 9.25 : 3.1;
+  const retreat = berserker ? 0
+    : difficulty === "easy" ? 0
+      : difficulty === "medium" ? 0.16 : 0.28;
+  const attackRange = archer ? 9.25 : stormLancer ? 4.35 : boss ? 3.5 : 2.15;
+  const decisionRange = archer ? 9.25 : stormLancer ? 4.45 : boss ? 3.7 : 3.1;
   let move = normalized(player.x - bot.x, player.z - bot.z);
   let buttons = 0;
 
   if (archer && gap > 1.85 && gap <= attackRange) {
     bot.isAiming = true;
     buttons |= INPUT_BUTTON.aim;
-    if (gap < 4.2) move = { x: -move.x, y: -move.y };
-    else if (gap <= 7.3) move = { x: move.y * 0.28, y: -move.x * 0.28 };
+    const desiredRange = state.botArchetype === "frost-hunter" ? 8.1 : 6.4;
+    if (gap < desiredRange - 2.1) move = { x: -move.x, y: -move.y };
+    else if (gap <= desiredRange + 1.1) move = { x: move.y * 0.28, y: -move.x * 0.28 };
   } else {
     bot.isAiming = false;
+  }
+
+  if (stormLancer) {
+    if (gap < 2.7) move = { x: -move.x, y: -move.y };
+    else if (gap <= 3.65) move = { x: move.y * 0.22, y: -move.x * 0.22 };
+  } else if (state.botArchetype === "ember-alchemist" && gap < 1.65) {
+    move = { x: -move.x, y: -move.y };
   }
 
   if (tick < bot.staggerUntilTick || bot.hp <= 0) return { x: 0, y: 0, buttons };
@@ -602,7 +648,8 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
     if (playerThreat && roll > reactionThreshold && bot.stamina >= 18) {
       const dodge = shadowKnight
         ? roll > (difficulty === "easy" ? 0.7 : 0.58)
-        : roll > 0.78 && difficulty !== "easy";
+        : boss ? roll > 0.9 && difficulty !== "easy"
+          : roll > 0.78 && difficulty !== "easy";
       if (dodge) {
         bot.stamina -= 18;
         bot.invulnerableUntilTick = tick + 15;
@@ -610,8 +657,9 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
           ? { x: player.x - bot.x, y: player.z - bot.z }
           : { x: -move.x, y: -move.y };
         const normalizedDodge = normalized(dodgeDirection.x, dodgeDirection.y);
-        bot.vx = normalizedDodge.x * (shadowKnight ? 8.6 : 7.5);
-        bot.vz = normalizedDodge.y * (shadowKnight ? 8.6 : 7.5);
+        const dodgeSpeed = state.botArchetype === "venom-assassin" ? 9.2 : shadowKnight ? 8.6 : 7.5;
+        bot.vx = normalizedDodge.x * dodgeSpeed;
+        bot.vz = normalizedDodge.y * dodgeSpeed;
         bot.staggerUntilTick = tick + 18;
         setAction(bot, "dodge", tick, 18);
         events.push({ id: tick * 4 + 3, type: "dodge", target: "bot" });
@@ -622,7 +670,11 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
       }
     } else if (gap <= attackRange && roll < attackChance) {
       const heavyChance = state.botArchetype === "gate-warden" ? 0.58
-        : ironOath ? 0.42 : shadowKnight ? 0.12 : 0.26;
+        : ironOath ? 0.42
+          : state.botArchetype === "rift-berserker" ? 0.76
+            : boss ? 0.68
+              : stormLancer ? 0.34
+                : shadowKnight ? 0.1 : archer ? 0.24 : 0.2;
       const heavy = (enraged && shadowKnight || difficulty !== "easy")
         && random(state) > 1 - heavyChance
         && bot.stamina >= 25;
@@ -631,6 +683,8 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
   }
 
   if (archer && gap < 3.1) {
+    move = { x: -move.x, y: -move.y };
+  } else if (stormLancer && gap < 2.7) {
     move = { x: -move.x, y: -move.y };
   } else if (shadowKnight && gap > 2.25 && gap <= 3.2) {
     move = { x: move.x * 0.52, y: move.y * 0.52 };
@@ -657,8 +711,12 @@ function applyDamage(
   const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
   const rangedShot = attacker.attackIsRanged;
   const closeBowAttack = bowAtCloseRange && !rangedShot;
+  const botDamageScale = state.botArchetype === "rift-berserker" ? 1.18
+    : state.botArchetype === "chapter-boss" ? 1.32
+      : state.botArchetype === "iron-oath" || state.botArchetype === "venom-assassin" ? 0.9
+        : state.botArchetype === "storm-lancer" ? 1.05 : 1;
   const baseDamage = (attack === "light" ? 6 : attack === "heavy" ? 10 : attack === "skillOne" ? 11 : 15)
-    * (playerAttacking ? 1 : state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72);
+    * (playerAttacking ? 1 : (state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72) * botDamageScale);
   const styleReach = weaponStyle === "daggers" ? 1.95
     : weaponStyle === "axe" || weaponStyle === "mace" ? 2.42
       : weaponStyle === "greatsword" ? 3.12
@@ -752,6 +810,17 @@ function applyDamage(
   if (attack === "skillOne") {
     target.burnUntilTick = Math.max(target.burnUntilTick, tick + 150);
     target.burnNextTick = Math.max(target.burnNextTick, tick + 30);
+  }
+  if (!playerAttacking && targetSide === "player") {
+    if (state.botArchetype === "venom-assassin") {
+      target.poisonUntilTick = Math.max(target.poisonUntilTick, tick + 210);
+      target.poisonNextTick = Math.max(target.poisonNextTick, tick + 30);
+    } else if (state.botArchetype === "ember-alchemist" || state.botArchetype === "chapter-boss" && isCombatBotEnraged(state.bot)) {
+      target.burnUntilTick = Math.max(target.burnUntilTick, tick + 150);
+      target.burnNextTick = Math.max(target.burnNextTick, tick + 30);
+    } else if (state.botArchetype === "frost-hunter") {
+      target.stamina = Math.max(0, target.stamina - (attack === "heavy" ? 12 : 7));
+    }
   }
   if (targetSide === "player") {
     target.comboChainStep = 0;

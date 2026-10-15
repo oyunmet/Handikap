@@ -18,6 +18,7 @@ type ServerOpponent = {
   loot: number;
   difficulty: CombatDifficulty;
   archetype: CombatBotArchetype;
+  isBoss: boolean;
 };
 
 const MAX_DUEL_AGE_MS = 30 * 60 * 1000;
@@ -37,7 +38,7 @@ export const DUEL_ENGINE_ENABLED = true;
 
 function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | null): ServerOpponent | null {
   if (typeof opponentId !== "string") return null;
-  const match = /^ash-road:(\d{1,7}):(rival|bot):([0-3])$/.exec(opponentId);
+  const match = /^ash-road:(\d{1,7}):(rival|bot):([0-4])$/.exec(opponentId);
   if (!match) return null;
   const chapterId = Number(match[1]);
   const rivalIndex = Number(match[3]);
@@ -45,7 +46,7 @@ function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | n
   const difficulty = routeChoice?.chapterId === chapterId ? routeChoice.difficulty : undefined;
   const rival = getWorldChapter(chapterId, difficulty).rivals[rivalIndex];
   if (!rival || (match[2] === "rival" && rival.id !== opponentId)) return null;
-  const maximumLootByRival = [48, 72, 96, 120][rivalIndex];
+  const maximumLootByRival = [48, 72, 96, 120, 200][rivalIndex];
   return {
     id: rival.id,
     name: rival.name,
@@ -53,6 +54,7 @@ function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | n
     loot: Math.min(rival.loot, maximumLootByRival),
     difficulty: rival.difficulty,
     archetype: rival.archetype,
+    isBoss: rival.isBoss,
   };
 }
 
@@ -265,6 +267,7 @@ export async function createDuelChallenge(
           loot: opponent.loot,
           difficulty: opponent.difficulty,
           archetype: opponent.archetype,
+          isBoss: opponent.isBoss,
         },
       };
     }
@@ -306,6 +309,7 @@ export async function createDuelChallenge(
       loot: opponent.loot,
       difficulty: opponent.difficulty,
       archetype: opponent.archetype,
+      isBoss: opponent.isBoss,
     },
   };
 }

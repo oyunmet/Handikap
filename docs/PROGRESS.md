@@ -202,9 +202,9 @@ yapılmadı.
 
 ### Aşama 2 — savaş sistemi genişletme
 
-**Durum:** Aşama 2.3 tamamlandı; Aşama 2.4'ün ilk rakip davranışı dilimi
-eklendi. Yeni rakip modelleri, elit/boss içerikleri ve bölüm zorluğu ayarı
-henüz sırada.
+**Durum:** Aşama 2.3 tamamlandı. Aşama 2.4'te ilk rakip davranışları, beş yeni
+rakip türü ve bölüm bossları eklendi; zorluk eğrisi ile karakter yüz ifadeleri
+sonraki dilim olarak kaldı.
 
 - Düello saldırılarına zamanlı hafif-hafif-ağır zinciri eklendi. Hızlı basışlar
   arasında 78 oyun karesi (1,3 saniye) süre var; ikinci hafif vuruş %10, ağır
@@ -223,7 +223,7 @@ henüz sırada.
   süreleri kullanılıyor.
 - Bu hareketlerin sunucu tekrar oynatımındaki deterministik akışı test ediliyor.
 
-#### Aşama 2.4 — Rakip davranışları: ilk dilim
+#### Aşama 2.4 — Rakip davranışları, yeni türler ve bosslar
 
 - Dört mevcut arketip farklı taktiklerle savaşıyor: ağır baskı, blok ağırlıklı
   savunma, menzilli okçuluk ve hızlı gölge saldırıları. Okçu, oyuncuya uzaktan
@@ -234,14 +234,26 @@ henüz sırada.
 - Arketip sunucudaki düello kaydına göre seçilip aynı seed'li tekrar oynatımda
   yeniden kullanılıyor; istemcinin farklı rakip davranışı seçmesine izin
   verilmiyor.
-- Yerel doğrulama: `npm run typecheck`, `npm test` (174 test) ve
-  `npm run build` ile doğrulanacak.
+- Beş yeni taktik türü eklendi: fırtına mızrakçısı, yarık berserkeri, kül
+  simyacısı, zehir suikastçısı ve ayaz avcısı. Bölümler arasında dokuz normal
+  arketip döngüye giriyor; zehir, yanma ve dayanıklılık etkileri dövüşte
+  simüle ediliyor.
+- Her bölümde dört normal karşılaşma ve geçitten önce beşinci karşılaşma olarak
+  boss bulunuyor. İlk bölümün mevcut dört rakibi korunuyor; sonraki bölümlerde
+  normal türler dokuz arketip arasından döngüye giriyor. Boss kendi görünümüne, daha yüksek can/hasara ve
+  sunucuda doğrulanan ödül sınırına sahip; beşinci rakip yenilmeden yeni kapı
+  açılmıyor.
+- Boss kimliği `0–4` aralığında sunucuda doğrulanıyor ve arketip sunucu
+  tekrarında aynen kullanılıyor. Daha önce geçilmiş kapılar eski kayıtların
+  ilerleme mesafesiyle korunuyor.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (178 test) ve
+  `npm run build` geçti; büyük `WorldScene` paketi için 500 kB uyarısı sürüyor.
 
 ### Devam noktası
 
 - Aşama 1 kod çalışmaları tamamlandı; gerçek cihaz kabul ölçümü bekliyor.
-- Aşama 2.4'te beş yeni rakip türü, elit/boss karşılaşmaları, bölüm ilerlemesine
-  göre zorluk ve göz/karakter öfke görselleri henüz tamamlanmadı.
+- Aşama 2.4'te bölüm ilerlemesine göre zorluk eğrisi ve öfke anında karakter
+  yüz/göz görselleri sırada.
 - Sonra Aşama 3'te ekipman ve mağaza sistemini, Aşama 4'te Kül Yolu
   görsellerini ve etkileşimlerini sırayla uygula.
 - Dış Vercel dağıtımına push/deploy yapma; kaynak değişiklikleri burada kayıtlı
