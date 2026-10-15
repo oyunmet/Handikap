@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getRivalDialoguePrompt,
   readBrokenObstacleIds,
   saveBrokenObstacleIds,
   WorldInteractableRegistry,
@@ -49,6 +50,30 @@ test("nearest interaction respects state and both world-space range limits", () 
 
   assert.equal(registry.findNearest("chest", 0, 10)?.id, "near");
   assert.equal(registry.findNearest("breakable", 0, 10), undefined);
+});
+
+test("NPC dialogue and challenge prompts stay attached to the registered nearby rival", () => {
+  const rivals = [
+    { id: "next-in-route", distance: 104 },
+    { id: "registered-nearby", distance: 106 },
+  ];
+
+  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 100), {
+    rivalId: "registered-nearby",
+    canChallenge: true,
+  });
+  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 95), {
+    rivalId: "registered-nearby",
+    canChallenge: false,
+  });
+  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 93), {
+    rivalId: null,
+    canChallenge: false,
+  });
+  assert.deepEqual(getRivalDialoguePrompt(rivals, null, 100), {
+    rivalId: null,
+    canChallenge: false,
+  });
 });
 
 test("unmount cleanup cannot remove a newer mesh registered for the same id", () => {

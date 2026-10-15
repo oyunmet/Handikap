@@ -31,6 +31,8 @@ import {
 } from "./frame-metrics";
 import { hasWebGLApi } from "./webgl-support";
 import {
+  DUEL_ARENA_AMBIENT_PARTICLE_COUNT,
+  DUEL_HIT_SPARK_COUNT,
   getDuelVfxKind,
   LIGHTNING_BOLT_COUNT,
   LIGHTNING_SEGMENT_COUNT,
@@ -645,6 +647,8 @@ function DuelCombatVisual({
   const impactFlashMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const weaponTrailRef = useRef<THREE.Mesh>(null);
   const weaponTrailMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const impactSparksRef = useRef<THREE.Points>(null);
+  const impactSparksMaterialRef = useRef<THREE.PointsMaterial>(null);
   const arrowRef = useRef<THREE.Group>(null);
   const lightningPositions = useMemo(
     () => new Float32Array(LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT * 2 * 3),
@@ -655,13 +659,24 @@ function DuelCombatVisual({
   const end = useMemo(() => new THREE.Vector3(), []);
   const first = useMemo(() => new THREE.Vector3(), []);
   const second = useMemo(() => new THREE.Vector3(), []);
+  const sparkPositions = useMemo(() => new Float32Array(DUEL_HIT_SPARK_COUNT * 3), []);
+  const sparkGeometry = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const position = new THREE.BufferAttribute(sparkPositions, 3);
+    position.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("position", position);
+    return geometry;
+  }, [sparkPositions]);
 
   useEffect(() => {
     const attribute = new THREE.BufferAttribute(lightningPositions, 3);
     attribute.setUsage(THREE.DynamicDrawUsage);
     lightningGeometry.setAttribute("position", attribute);
-    return () => lightningGeometry.dispose();
-  }, [lightningGeometry, lightningPositions]);
+    return () => {
+      lightningGeometry.dispose();
+      sparkGeometry.dispose();
+    };
+  }, [lightningGeometry, lightningPositions, sparkGeometry]);
 
   useFrame((frame) => {
     const state = combatStateRef.current;
@@ -758,7 +773,7 @@ function DuelCombatVisual({
     }
 
     if (kind === "shockwave" && shockwaveRef.current && shockwaveMaterialRef.current) {
-      shockwaveRef.current.position.set(actor.x, 0.065, actor.z - 0.1);
+      shockwaveRef.current.position.set(event.destinationX ?? actor.x, 0.065, event.destinationZ ?? actor.z);
       shockwaveRef.current.scale.setScalar(0.5 + age * 2.1);
       shockwaveMaterialRef.current.opacity = fade * 0.85;
     }
@@ -773,15 +788,35 @@ function DuelCombatVisual({
       const length = Math.hypot(dx, dz) || 1;
       const pulse = Math.max(0, 1 - age * 3.4);
       impactFlashRef.current.position.set(
-        targetX + (dx / length) * 0.24,
+        targetX - (dx / length) * 0.2,
         1.08,
-        targetZ + (dz / length) * 0.24,
+        targetZ - (dz / length) * 0.2,
       );
       impactFlashRef.current.rotation.y = Math.atan2(dx, dz);
       impactFlashRef.current.scale.setScalar((0.32 + pulse * 0.72) * (event.critical ? 1.2 : 1));
       impactFlashRef.current.visible = age < 0.3;
       impactFlashMaterialRef.current.color.set(event.critical ? "#fff0a4" : event.attack === "heavy" ? "#ffad65" : "#ff806d");
       impactFlashMaterialRef.current.opacity = pulse * (event.critical ? 0.95 : 0.78);
+    }
+
+    if (kind === "shockwave" && impactSparksRef.current && impactSparksMaterialRef.current) {
+      const targetX = event.destinationX ?? actor.x;
+      const targetZ = event.destinationZ ?? actor.z;
+      const scatter = Math.min(1, age * 2.6);
+      for (let index = 0; index < DUEL_HIT_SPARK_COUNT; index += 1) {
+        const angle = index * 2.399963 + event.id * 0.013;
+        const radius = (0.12 + (index % 3) * 0.08) * scatter;
+        sparkPositions[index * 3] = targetX + Math.cos(angle) * radius;
+        sparkPositions[index * 3 + 1] = 1.08 + ((index % 3) - 1) * 0.11 + scatter * (0.08 + (index % 2) * 0.16);
+        sparkPositions[index * 3 + 2] = targetZ + Math.sin(angle) * radius;
+      }
+      const position = sparkGeometry.getAttribute("position") as THREE.BufferAttribute;
+      position.needsUpdate = true;
+      impactSparksRef.current.visible = age < 0.42;
+      impactSparksMaterialRef.current.opacity = Math.max(0, 1 - age * 2.4);
+      impactSparksMaterialRef.current.color.set(
+        event.critical ? "#fff0a4" : event.attack === "heavy" ? "#ffad65" : "#ffe4a2",
+      );
     }
 
     if ((kind === "plunge" || kind === "plungeLanding") && shockwaveRef.current && shockwaveMaterialRef.current) {
@@ -903,12 +938,42 @@ function DuelCombatVisual({
           />
         </mesh>
       )}
+      {kind === "shockwave" && (
+        <>
+          <points ref={impactSparksRef} geometry={sparkGeometry} frustumCulled={false}>
+            <pointsMaterial
+              ref={impactSparksMaterialRef}
+              color="#ffe4a2"
+              size={0.085}
+              sizeAttenuation
+              transparent
+              opacity={0.9}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </points>
+          {Boolean(event.damage && event.damage > 0) && (
+            <Html
+              position={[event.destinationX ?? 0, 1.62, event.destinationZ ?? 0]}
+              center
+              distanceFactor={9}
+              zIndexRange={[85, 0]}
+              style={{ pointerEvents: "none" }}
+            >
+              <span className={`duel-impact-number${event.critical ? " is-critical" : ""}`} aria-hidden="true">
+                {event.critical && <i>KRİTİK</i>}
+                <b>{Math.ceil(event.damage ?? 0)}</b>
+              </span>
+            </Html>
+          )}
+        </>
+      )}
     </>
   );
 }
 
 function DuelAshField() {
-  const particleCount = 22;
+  const particleCount = DUEL_ARENA_AMBIENT_PARTICLE_COUNT;
   const geometry = useMemo(() => {
     const nextGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);

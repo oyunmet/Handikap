@@ -18,6 +18,24 @@ export type WorldInteractable<T> = {
   source: T;
 };
 
+export function getRivalDialoguePrompt(
+  rivals: ReadonlyArray<Pick<WorldInteractable<unknown>, "id" | "distance">>,
+  nearestRivalId: string | null,
+  playerDistance: number,
+) {
+  const rival = nearestRivalId
+    ? rivals.find((candidate) => candidate.id === nearestRivalId)
+    : undefined;
+  const gap = rival && Number.isFinite(playerDistance)
+    ? Math.abs(rival.distance - playerDistance)
+    : Number.POSITIVE_INFINITY;
+  const talking = Boolean(rival && gap <= 12);
+  return {
+    rivalId: talking ? rival!.id : null,
+    canChallenge: talking && gap <= 8,
+  };
+}
+
 const BROKEN_OBSTACLES_KEY = "shafak-broken-obstacles-v1";
 const brokenObstaclesStorageKey = (userId?: string) => `${BROKEN_OBSTACLES_KEY}:${userId || "guest"}`;
 

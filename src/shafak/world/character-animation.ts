@@ -170,12 +170,28 @@ export function getProceduralAttackPose(
   };
 }
 
+export function getProceduralAttackDuration(
+  state: Extract<CharacterAnimationState, "attack" | "heavyAttack" | "plunge">,
+  weaponStyle: CharacterWeaponStyle = "sword",
+) {
+  const tempo = weaponStyle === "daggers" ? 1.14
+    : weaponStyle === "axe" || weaponStyle === "mace" ? 0.88
+      : weaponStyle === "greatsword" ? 0.8
+        : weaponStyle === "spear" ? 1.04
+          : 1;
+  const duration = state === "plunge" ? 0.62 : state === "heavyAttack" ? 0.52 : 0.36;
+  return duration / tempo;
+}
+
 export function getSpeakingGesturePose(time: number) {
   const beat = Math.sin((Number.isFinite(time) ? time : 0) * 5.2);
   return {
     leftShoulderX: 0.68 + Math.max(0, beat) * 0.14,
     leftShoulderZ: 0.25 + beat * 0.055,
     leftElbowX: 0.34 + Math.max(0, beat) * 0.14,
+    rightShoulderX: 0.28 + Math.max(0, beat) * 0.2,
+    rightShoulderZ: -0.1 - beat * 0.04,
+    rightElbowX: 0.16 + Math.max(0, beat) * 0.12,
     bodyTwist: beat * 0.018,
   };
 }

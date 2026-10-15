@@ -659,7 +659,7 @@ function BotActor({
         />
       </group>
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= 12 && (
-        <Html portal={dialoguePortal} position={[rival.x, 3.5, 0]} center distanceFactor={13} zIndexRange={[90, 0]} style={{ pointerEvents: "auto" }}>
+        <Html portal={dialoguePortal} position={[rival.x, 3.15, 0]} center distanceFactor={13} zIndexRange={[90, 0]} style={{ pointerEvents: "auto" }}>
           <div className="world-npc-dialogue" role="group" aria-label={`${dialogueSpeaker} ile karşılaşma`}>
             <span>{dialogueSpeaker} konuşuyor</span>
             <p>“{dialogueLine}”</p>

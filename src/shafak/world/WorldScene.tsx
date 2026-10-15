@@ -111,6 +111,7 @@ import {
   type WeatherMode,
 } from "./world-biomes";
 import {
+  getRivalDialoguePrompt,
   readBrokenObstacleIds,
   saveBrokenObstacleIds,
   WorldInteractableRegistry,
@@ -844,15 +845,18 @@ export default function WorldScene({
     nextOpponent && profile.defeatedOpponents.includes(nextOpponent.id),
   );
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
+  const dialoguePrompt = getRivalDialoguePrompt(
+    allRivals,
+    nearbyInteractables.rivalId,
+    travel,
+  );
   const encounterVisible = Boolean(
     nextOpponent
     && encounterDistance <= 25
     && nearbyInteractables.rivalId === nextOpponent.id,
   );
-  const talkingRivalId = encounterVisible && encounterDistance <= 12
-    ? nextOpponent?.id ?? null
-    : null;
-  const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
+  const talkingRivalId = dialoguePrompt.rivalId;
+  const canChallenge = dialoguePrompt.canChallenge;
   const allPickups = activeContent.pickups;
   const visiblePickupCount = allPickups.filter((pickup) =>
     !collectedPickupIds.has(pickup.id) &&
@@ -2596,7 +2600,9 @@ export default function WorldScene({
             talkingRivalId={talkingRivalId}
             canChallenge={canChallenge}
             dailyAccessAllowed={dailyAccess.allowed}
-            challengeLabel={nextOpponentDefeated ? "YENİDEN DÜELLO" : "SAVAŞ"}
+            challengeLabel={talkingRivalId && profile.defeatedOpponents.includes(talkingRivalId)
+              ? "YENİDEN DÜELLO"
+              : "SAVAŞ"}
             onChallenge={beginEncounter}
             slowMotion={Boolean(battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
@@ -2714,7 +2720,6 @@ export default function WorldScene({
               >
                 <i />
                 <span className="duel-fx-particles" />
-                {Boolean(event.damage) && <b>{event.critical ? "!" : ""}{Math.ceil(event.damage ?? 0)}</b>}
                 {event.type === "hit" && (
                   <small>{event.target === "player"
                     ? `${battleSession.rival.name} → ${profile.name}`

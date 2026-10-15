@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import {
+  getProceduralAttackDuration,
   getProceduralAttackPose,
   getSpeakingGesturePose,
   type CharacterAnimationState,
@@ -295,17 +296,13 @@ export default function Knight3D({
       actionElapsed.current += dt;
     }
     const weaponStyle = appearance?.weaponStyle ?? "sword";
-    const attackTempo = weaponStyle === "daggers" ? 1.14
-      : weaponStyle === "axe" ? 0.88
-        : weaponStyle === "greatsword" ? 0.8
-          : weaponStyle === "spear" ? 1.04
-            : 1;
     const actionDuration = state === "die"
       ? 1.3
       : state === "jump" ? 0.7
         : state === "backflip" ? 0.48
-          : state === "plunge" ? 0.62
-            : (state === "heavyAttack" ? 0.52 : 0.36) / attackTempo;
+          : state === "attack" || state === "heavyAttack" || state === "plunge"
+            ? getProceduralAttackDuration(state, weaponStyle)
+            : 0.36;
     const actionProgress = clamp(actionElapsed.current / actionDuration, 0, 1);
     const combatPose = state === "attack" || state === "heavyAttack" || state === "plunge"
       ? getProceduralAttackPose(
@@ -497,10 +494,10 @@ export default function Knight3D({
         leftArmRef.current.rotation.z = gesture.leftShoulderZ;
       }
       if (leftElbowRef.current) leftElbowRef.current.rotation.x = gesture.leftElbowX;
-      if (rightElbowRef.current) rightElbowRef.current.rotation.x = 0.12 + Math.max(0, Math.sin(time * 5.2)) * 0.08;
+      if (rightElbowRef.current) rightElbowRef.current.rotation.x = gesture.rightElbowX;
       if (rightArmRef.current) {
-        rightArmRef.current.rotation.x = -0.08 + Math.sin(time * 5.2) * 0.06;
-        rightArmRef.current.rotation.z = 0.08;
+        rightArmRef.current.rotation.x = gesture.rightShoulderX;
+        rightArmRef.current.rotation.z = gesture.rightShoulderZ;
       }
     }
 

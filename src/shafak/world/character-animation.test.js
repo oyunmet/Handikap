@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getProceduralAttackPose,
+  getProceduralAttackDuration,
   getSpeakingGesturePose,
   getSpriteSheetFrame,
   resolveCharacterAnimationState,
@@ -59,10 +60,21 @@ test("procedural weapon poses retract, then drive the hand and blade toward the 
   assert.ok(spearImpact.wristX < -0.8);
 });
 
-test("speaking gesture reaches forward instead of pulling the hand behind the body", () => {
+test("weapon strikes are still extended at their deterministic combat impact ticks", () => {
+  const lightImpact = getProceduralAttackPose((8 / 60) / getProceduralAttackDuration("attack"), "sword");
+  const heavyImpact = getProceduralAttackPose((15 / 60) / getProceduralAttackDuration("heavyAttack"), "sword", true);
+  assert.ok(lightImpact.strike > 0.9);
+  assert.ok(heavyImpact.strike > 0.95);
+  assert.ok(lightImpact.rightShoulderX > 0.9);
+  assert.ok(heavyImpact.rightShoulderX > 1);
+});
+
+test("speaking gesture moves both articulated arms forward instead of keeping the weapon hand behind", () => {
   const pose = getSpeakingGesturePose(0.4);
   assert.ok(pose.leftShoulderX > 0.6);
   assert.ok(pose.leftElbowX > 0.3);
+  assert.ok(pose.rightShoulderX > 0.25);
+  assert.ok(pose.rightElbowX > 0.15);
 });
 
 test("sprite-sheet frame selection loops movement clips and holds a completed action", () => {
