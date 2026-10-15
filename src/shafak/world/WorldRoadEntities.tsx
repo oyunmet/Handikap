@@ -30,6 +30,33 @@ const PICKUP_STYLE = {
   "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.23 },
 } as const;
 
+function calculateNpcDialoguePosition(
+  object: THREE.Object3D,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): number[] {
+  const projected = new THREE.Vector3()
+    .setFromMatrixPosition(object.matrixWorld)
+    .project(camera);
+  const projectedX = projected.x * (size.width / 2) + size.width / 2;
+  const projectedY = -projected.y * (size.height / 2) + size.height / 2;
+  const mobile = size.width <= 760;
+  const bubbleWidth = mobile
+    ? Math.min(230, size.width * 0.62)
+    : Math.min(270, size.width * 0.66);
+  const halfHeight = size.height < 520 ? 48 : mobile ? 70 : 82;
+  const safeTop = Math.max(size.height < 520 ? 190 : 226, size.height * 0.38);
+  const safeBottom = size.height < 520 ? 104 : 145;
+  const minX = bubbleWidth / 2 + 12;
+  const maxX = Math.max(minX, size.width - bubbleWidth / 2 - 12);
+  const maxY = Math.max(safeTop, size.height - safeBottom - halfHeight);
+
+  return [
+    Math.max(minX, Math.min(maxX, projectedX)),
+    Math.max(safeTop, Math.min(maxY, projectedY)),
+  ];
+}
+
 function Collectible({
   pickup,
   motionRef,
@@ -659,7 +686,15 @@ function BotActor({
         />
       </group>
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= 12 && (
-        <Html portal={dialoguePortal} position={[rival.x, 3.15, 0]} center distanceFactor={13} zIndexRange={[90, 0]} style={{ pointerEvents: "auto" }}>
+        <Html
+          portal={dialoguePortal}
+          position={[rival.x, 3.15, 0]}
+          center
+          distanceFactor={13}
+          zIndexRange={[90, 0]}
+          calculatePosition={calculateNpcDialoguePosition}
+          style={{ pointerEvents: "auto" }}
+        >
           <div className="world-npc-dialogue" role="group" aria-label={`${dialogueSpeaker} ile karşılaşma`}>
             <span>{dialogueSpeaker} konuşuyor</span>
             <p>“{dialogueLine}”</p>

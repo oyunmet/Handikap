@@ -2542,6 +2542,7 @@ export default function WorldScene({
       className="world-scene"
       data-battle={battleSession?.phase ?? "none"}
       data-story-open={storyDialogue ? "true" : "false"}
+      data-npc-dialogue-open={talkingRivalId ? "true" : "false"}
       data-weapon-swap={combatRender && combatRender.weaponSwapCooldownUntilTick > combatRender.tick ? "true" : "false"}
       data-danger={combatRender && combatRender.player.hp / combatRender.player.maxHp <= 0.3 ? "true" : "false"}
       data-quality={quality}
@@ -2932,15 +2933,18 @@ export default function WorldScene({
           )}
           {dailyLives.dailyLosses >= DAILY_DEFEAT_LIMIT && dailyLives.dailyAdDuelsRemaining === 0 && !dailyLives.dailyAdRewardUsed && (
             <>
-              <button
-                className="world-daily-ad"
-                type="button"
-                onClick={() => void claimDailyExtraDuel()}
-                disabled={dailyAdBusy || !dailyAdUnit}
-              >
-                {dailyAdBusy ? "REKLAM HAZIRLANIYOR…" : "ÖDÜLLÜ REKLAM · +1 DÜELLO"}
-              </button>
-              {!dailyAdUnit && <span className="world-daily-lives__message">Reklam sağlayıcısı henüz yapılandırılmadı.</span>}
+              {dailyAdUnit ? (
+                <button
+                  className="world-daily-ad"
+                  type="button"
+                  onClick={() => void claimDailyExtraDuel()}
+                  disabled={dailyAdBusy}
+                >
+                  {dailyAdBusy ? "REKLAM HAZIRLANIYOR…" : "ÖDÜLLÜ REKLAM · +1 DÜELLO"}
+                </button>
+              ) : (
+                <span className="world-daily-lives__message">Ek düello hakkı şu an kullanılamıyor.</span>
+              )}
             </>
           )}
           {dailyLives.dailyLosses >= DAILY_DEFEAT_LIMIT && dailyLives.dailyAdRewardUsed && dailyLives.dailyAdDuelsRemaining === 0 && (

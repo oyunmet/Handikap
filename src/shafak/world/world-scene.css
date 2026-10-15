@@ -730,6 +730,11 @@
 .world-npc-dialogue__fight:disabled span { color: rgba(235,224,209,.48); }
 .world-npc-dialogue__fight:not(:disabled):active { transform: translateY(1px); }
 @keyframes npc-dialogue-appear { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.world-scene[data-npc-dialogue-open="true"] .world-gate-prompt,
+.world-scene[data-npc-dialogue-open="true"] .world-encounter,
+.world-scene[data-npc-dialogue-open="true"] .world-pickup-notice {
+  display: none !important;
+}
 .world-encounter__rival {
   display: grid; width: clamp(64px, 12vw, 112px); height: clamp(96px, 24vh, 204px);
   flex: 0 0 auto; place-items: end center; overflow: hidden;
@@ -1088,7 +1093,13 @@
   .world-daily-lives__count { font-size: 8px; }
   .world-daily-lives__message { grid-column: 1 / -1; flex: none; font-size: 8px; }
   .world-daily-ad { grid-column: 1 / -1; width: 100%; min-height: 36px; flex: none; font-size: 8px; }
-  .world-gate-prompt { top: 41%; width: min(290px, calc(100% - 26px)); }
+   .world-gate-prompt {
+     top: clamp(250px, 43dvh, 360px);
+     width: min(290px, calc(100% - 26px));
+     max-height: max(128px, min(330px, calc(100dvh - 350px)));
+     overflow-y: auto;
+     overscroll-behavior: contain;
+   }
   .world-gate-prompt strong { font-size: 16px; }
   .world-debug { top: 120px; right: 8px; gap: 3px; padding: 6px 7px; font-size: 8px; }
   .world-debug__actions button { min-height: 28px; }
@@ -1109,7 +1120,7 @@
   .world-joystick__nub { width: 48px; height: 48px; }
   .world-movement-actions { display: flex; }
   .world-mobile-hint { display: none !important; }
-  .world-encounter { top: 43%; width: min(390px, calc(100% - 22px)); }
+   .world-encounter { top: clamp(250px, 43dvh, 360px); width: min(390px, calc(100% - 22px)); }
   .world-encounter__rival { width: 66px; height: 126px; }
   .world-encounter__card { margin-bottom: 7px; padding: 9px 10px; }
   .world-encounter__card > span:not(.world-encounter__eyebrow) { font-size: 7px; }
@@ -1121,6 +1132,21 @@
   .world-battle-entry { gap: 12px; padding: 16px; }
   .world-battle-entry__versus { gap: 8px; padding: 18px 10px; }
   .world-battle-entry__versus small { font-size: 6px; }
+}
+@media (max-width: 760px) and (max-height: 680px) {
+  .world-progress {
+    top: calc(max(8px, env(safe-area-inset-top)) + 96px);
+    padding: 6px 9px;
+  }
+  .world-progress__map { width: 36px; height: 36px; flex-basis: 36px; }
+  .world-daily-lives { min-height: 22px; gap: 4px 6px; margin-top: 5px; padding-top: 5px; }
+  .world-gate-prompt {
+    top: max(240px, 42dvh);
+    max-height: max(110px, calc(100dvh - 350px));
+  }
+  .world-encounter { top: max(240px, 42dvh); }
+  .world-npc-dialogue { width: min(214px, 58vw); padding: 6px 8px 7px; }
+  .world-npc-dialogue__fight { min-height: 42px; margin-top: 5px; }
 }
 @media (max-width: 390px) {
   .world-weather {

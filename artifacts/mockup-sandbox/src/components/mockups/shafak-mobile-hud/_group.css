@@ -1,0 +1,190 @@
+:root {
+  --ws-line: rgba(226, 190, 125, .28);
+  --ws-glass: rgba(19, 19, 23, .84);
+  --font-display: Georgia, "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; min-width: 0; min-height: 100%; margin: 0; }
+body { overflow: hidden; background: #080b10; font-family: Inter, sans-serif; }
+button { font: inherit; }
+
+.shafak-preview {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f4ead7;
+  background:
+    radial-gradient(ellipse at 55% 42%, rgba(122, 71, 48, .18), transparent 43%),
+    linear-gradient(180deg, #101722 0%, #202831 37%, #302b2a 58%, #11131a 100%);
+}
+.shafak-preview__sky {
+  position: absolute; inset: 0 0 35%;
+  background: radial-gradient(ellipse at 49% 75%, rgba(241, 183, 106, .28), transparent 25%), linear-gradient(180deg, rgba(12, 18, 26, .1), rgba(7, 10, 15, .48));
+}
+.shafak-preview__ridge {
+  position: absolute; inset: 30% -15% auto; height: 27%;
+  background: linear-gradient(180deg, rgba(43, 45, 47, .88), rgba(18, 22, 27, .9));
+  clip-path: polygon(0 70%, 12% 34%, 21% 57%, 33% 18%, 43% 47%, 57% 8%, 68% 48%, 77% 26%, 88% 62%, 100% 33%, 100% 100%, 0 100%);
+}
+.shafak-preview__road {
+  position: absolute; inset: 45% -20% -13%;
+  background:
+    radial-gradient(ellipse at 50% 4%, rgba(93, 66, 49, .2), transparent 34%),
+    linear-gradient(180deg, rgba(36, 35, 35, .12), rgba(10, 12, 16, .92));
+}
+
+.world-topbar {
+  position: absolute; z-index: 5; top: max(14px, env(safe-area-inset-top));
+  right: 14px; left: 14px; display: grid; grid-template-columns: 1fr; gap: 7px;
+}
+.world-profile {
+  display: flex; width: fit-content; max-width: 100%; align-items: center; gap: 8px;
+  padding: 7px 10px 7px 7px; border: 1px solid var(--ws-line); border-radius: 5px;
+  background: linear-gradient(115deg, rgba(22,22,26,.86), rgba(24,21,22,.55));
+  color: inherit; text-align: left;
+}
+.world-profile__crest {
+  display: grid; width: 36px; height: 39px; flex: 0 0 auto; place-items: center;
+  clip-path: polygon(50% 0, 94% 13%, 88% 71%, 50% 100%, 12% 71%, 6% 13%);
+  background: linear-gradient(140deg, #7c5738, #211d1d 52%, #15151a);
+  color: #f1d79d; font: 600 15px var(--font-display);
+}
+.world-profile__identity { display: grid; gap: 3px; }
+.world-profile__name { color: #f2e2c3; font: 600 12px var(--font-display); letter-spacing: .055em; }
+.world-profile__demo { color: rgba(225,197,149,.58); font-size: 7px; letter-spacing: .12em; }
+.world-profile__level { display: grid; gap: 3px; margin-left: 2px; padding-left: 8px; border-left: 1px solid rgba(233,202,149,.19); color: #d9ba7d; font-size: 8px; letter-spacing: .12em; }
+.world-profile__level b { color: #f2e5ce; font: 600 15px var(--font-display); }
+.world-resource-hud { display: flex; gap: 5px; }
+.world-currency {
+  display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 0 10px;
+  border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-glass);
+  color: #e8c37d; font-size: 10px; font-weight: 800;
+}
+.world-currency__coin { width: 13px; height: 13px; border: 2px solid #ebc978; border-radius: 50%; }
+.world-currency--diamond { color: #b8e8df; }
+.world-currency__diamond { width: 10px; height: 10px; transform: rotate(45deg); border: 1.5px solid #a6eee2; }
+
+.world-progress {
+  position: absolute; z-index: 7; top: calc(max(14px, env(safe-area-inset-top)) + 112px); left: 14px;
+  width: min(360px, calc(100vw - 28px)); padding: 8px 11px;
+  border: 1px solid rgba(226,190,125,.28); border-radius: 8px;
+  background: linear-gradient(145deg, rgba(19,19,23,.88), rgba(13,14,18,.78));
+  box-shadow: inset 0 1px rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.3);
+  color: rgba(235,218,188,.75); backdrop-filter: blur(16px) saturate(1.12);
+}
+.world-progress__body { display: flex; align-items: center; gap: 9px; }
+.world-progress__map { position: relative; display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; color: #f2d397; }
+.world-progress__map svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.world-progress__map-track, .world-progress__map-fill { fill: none; stroke-width: 2.7; }
+.world-progress__map-track { stroke: rgba(234,218,188,.16); }
+.world-progress__map-fill { stroke: #edc47a; stroke-dasharray: 80 120; stroke-linecap: round; }
+.world-progress__map-route { fill: none; stroke: rgba(210,184,135,.38); stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); transform-origin: 24px 24px; }
+.world-progress__map-node { fill: #e3c285; }
+.world-progress__map > b { position: relative; color: #f3e5cb; font-size: 9px; }
+.world-progress__details { min-width: 0; flex: 1; }
+.world-progress__heading span { color: #e3c285; font-size: 7px; font-weight: 800; letter-spacing: .16em; }
+.world-progress__track { height: 3px; margin: 6px 0 4px; overflow: hidden; border-radius: 4px; background: rgba(234,218,188,.16); }
+.world-progress__track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9f523b, #edc47a); }
+.world-progress__distance { display: block; color: rgba(229,211,179,.47); font-size: 6px; letter-spacing: .12em; text-align: right; }
+.world-daily-lives {
+  display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 6px 8px;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(226,190,125,.14);
+  color: rgba(235,218,188,.72); font-size: 8px;
+}
+.world-daily-lives__label { color: #c9a364; font-size: 7px; font-weight: 800; letter-spacing: .1em; }
+.world-daily-lives__hearts { display: flex; gap: 2px; color: #e95d54; font-size: 13px; }
+.world-daily-lives__hearts i { font-style: normal; }
+.world-daily-lives__hearts i.is-lost { color: rgba(204,188,165,.26); }
+.world-daily-lives__count { color: rgba(238,224,198,.72); white-space: nowrap; }
+.world-daily-lives__message { grid-column: 1 / -1; color: #e2c17e; font-size: 8px; line-height: 1.45; }
+.world-daily-ad {
+  grid-column: 1 / -1; min-height: 36px; padding: 5px 7px; border: 1px solid rgba(226,213,190,.18);
+  border-radius: 3px; background: rgba(126,123,122,.16); color: rgba(235,225,210,.45);
+  font-size: 8px; font-weight: 800;
+}
+
+.world-gate-prompt {
+  position: absolute; z-index: 8; top: 41%; left: 50%; display: grid; width: min(290px, calc(100% - 26px));
+  justify-items: center; gap: 7px; padding: 14px 16px; border: 1px solid rgba(235,198,126,.54);
+  border-radius: 5px; background: linear-gradient(145deg, rgba(29,24,26,.93), rgba(12,14,19,.91));
+  box-shadow: 0 10px 36px rgba(0,0,0,.48), inset 0 1px rgba(255,255,255,.06);
+  text-align: center; transform: translateX(-50%);
+}
+.world-gate-prompt__eyebrow { color: #e3c285; font-size: 8px; font-weight: 800; letter-spacing: .17em; }
+.world-gate-prompt strong { color: #f4e8d2; font: 600 16px var(--font-display); text-transform: uppercase; }
+.world-gate-prompt__progress { color: rgba(238,224,198,.76); font-size: 10px; }
+.world-gate-prompt button { min-height: 40px; margin-top: 3px; padding: 0 18px; border: 1px solid rgba(226,213,190,.2); border-radius: 3px; background: rgba(126,123,122,.18); color: rgba(235,225,210,.58); font-size: 9px; font-weight: 900; letter-spacing: .14em; }
+
+.shafak-preview__rival { position: absolute; top: 44%; right: 4%; width: 74px; height: 140px; filter: drop-shadow(0 10px 17px #050609); }
+.shafak-preview__rival-helm { position: absolute; top: 4px; left: 22px; width: 34px; height: 36px; border: 2px solid #c59b5b; border-radius: 45% 45% 35% 35%; background: linear-gradient(145deg, #6b7279, #1d2329); }
+.shafak-preview__rival-body { position: absolute; top: 36px; left: 12px; width: 54px; height: 92px; border: 2px solid rgba(222,180,105,.6); border-radius: 19px 19px 5px 5px; background: linear-gradient(115deg, #333b42, #15191e 58%, #744333); clip-path: polygon(20% 0,80% 0,100% 45%,82% 100%,15% 100%,0 40%); }
+.shafak-preview__rival-blade { position: absolute; top: 59px; right: -4px; width: 7px; height: 76px; transform: rotate(-24deg); border-radius: 8px; background: linear-gradient(90deg,#e1d6b9,#777d84 50%,#302e31); }
+
+.world-npc-dialogue-layer { position: absolute; z-index: 12; inset: 0; pointer-events: none; }
+.world-npc-dialogue {
+  position: absolute; width: min(230px, 62vw); padding: 7px 9px 8px;
+  border: 1px solid rgba(231,198,139,.72); border-radius: 5px;
+  background: linear-gradient(145deg, rgba(32,28,28,.96), rgba(13,14,19,.95));
+  box-shadow: 0 8px 24px rgba(0,0,0,.52), inset 0 1px rgba(255,255,255,.05);
+  color: #f2e2c3; text-align: center; pointer-events: auto;
+}
+.world-npc-dialogue > span { display: block; margin-bottom: 4px; color: #d9b46e; font-size: 8px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.world-npc-dialogue p { margin: 0; color: #f0e1c5; font: 500 10px/1.45 var(--font-display); }
+.world-npc-dialogue__fight {
+  display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 7px; padding: 8px 12px; border: 1px solid rgba(255,218,146,.78); border-radius: 4px;
+  background: linear-gradient(135deg, #9f482c, #613221 72%, #39251e); color: #fff0cf;
+  font-size: 9px; font-weight: 900; letter-spacing: .1em;
+}
+.world-npc-dialogue__fight span { color: #ffe4a0; font-size: 14px; }
+.is-current .world-npc-dialogue { top: 43%; left: calc(100% - 10px); transform: translate(-50%,-50%); }
+.is-current .world-npc-dialogue::after {
+  position: absolute; bottom: -6px; left: calc(50% - 5px); width: 10px; height: 10px;
+  border-right: 1px solid rgba(231,198,139,.62); border-bottom: 1px solid rgba(231,198,139,.62);
+  background: #171519; content: ""; transform: rotate(45deg);
+}
+.is-refined .world-gate-prompt { display: none; }
+.is-refined .world-npc-dialogue { top: clamp(250px, 38dvh, 370px); left: 50%; transform: translate(-50%,-50%); }
+
+.world-joystick { position: absolute; z-index: 3; bottom: 102px; left: 18px; display: grid; width: 124px; height: 124px; place-items: center; border: 1px solid rgba(242,225,192,.2); border-radius: 50%; background: rgba(19,20,23,.18); }
+.world-joystick__nub { width: 48px; height: 48px; border: 1px solid rgba(242,225,192,.25); border-radius: 50%; background: rgba(235,221,198,.13); }
+.world-movement-actions { position: absolute; z-index: 4; right: 17px; bottom: 114px; display: flex; gap: 8px; }
+.world-movement-action { display: grid; width: 48px; height: 56px; place-content: center; gap: 2px; border: 1px solid rgba(222,191,135,.35); border-radius: 50%; background: rgba(19,17,18,.76); color: #e9d5ae; }
+.world-movement-action span { font-size: 18px; text-align: center; }
+.world-movement-action small { font-size: 7px; letter-spacing: .08em; }
+.world-controls { position: absolute; z-index: 10; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); left: 14px; display: flex; justify-content: space-between; gap: 8px; }
+.world-navigation, .world-actions { display: flex; align-items: center; gap: 6px; }
+.world-exit, .world-status, .world-action { display: grid; min-height: 56px; place-items: center; border: 1px solid var(--ws-line); border-radius: 4px; background: rgba(20,20,24,.9); color: #ead7b2; }
+.world-exit { width: 41px; font-size: 24px; }
+.world-status { gap: 2px; padding: 8px 9px; }
+.world-status__label { color: #b99b6a; font-size: 7px; letter-spacing: .1em; }
+.world-status__value { font-size: 9px; }
+.world-action { min-width: 54px; padding: 6px 8px; gap: 3px; font-size: 17px; }
+.world-action small { font-size: 7px; letter-spacing: .06em; }
+
+.is-refined .world-progress { padding: 7px 10px 6px; border-color: rgba(226,190,125,.36); }
+.is-refined .world-daily-lives { grid-template-columns: minmax(0,1fr) auto auto; gap: 4px 7px; margin-top: 6px; padding-top: 6px; }
+.is-refined .world-daily-lives__message { color: rgba(226,193,126,.82); font-size: 7px; }
+.is-refined .world-daily-ad { display: none; }
+.is-refined .world-npc-dialogue { width: min(230px, calc(100vw - 32px)); }
+.is-refined .world-npc-dialogue__fight { min-height: 44px; }
+
+@media (max-width: 390px) {
+  .world-progress { left: 12px; width: calc(100vw - 24px); }
+  .world-npc-dialogue { width: min(214px, 58vw); }
+  .world-controls { right: 12px; left: 12px; }
+}
+@media (max-height: 680px) {
+  .world-progress { top: calc(max(8px, env(safe-area-inset-top)) + 96px); padding: 6px 9px; }
+  .world-progress__map { width: 36px; height: 36px; flex-basis: 36px; }
+  .world-daily-lives { gap: 4px 6px; margin-top: 5px; padding-top: 5px; }
+  .world-npc-dialogue { width: min(214px, 58vw); padding: 6px 8px 7px; }
+  .world-npc-dialogue__fight { min-height: 42px; margin-top: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
