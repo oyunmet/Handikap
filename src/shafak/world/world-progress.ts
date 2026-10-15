@@ -148,11 +148,14 @@ export function unlockWorldGate(
   progress: WorldProgress,
   chapterId: number,
   roomCleared: boolean,
+  routeChoice?: WorldRouteChoice,
 ): WorldProgress {
   if (!roomCleared || chapterId !== progress.unlockedThroughChapter) return progress;
+  if (routeChoice && routeChoice.chapterId !== chapterId + 1) return progress;
   return {
     ...progress,
     unlockedThroughChapter: chapterId + 1,
+    routeChoice: routeChoice ?? progress.routeChoice,
   };
 }
 

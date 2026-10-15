@@ -534,6 +534,12 @@ export default function WorldScene({
         const result = await apiRequest<{ profile?: unknown }>("/api/profile/daily-ad-reward", {
           method: "POST",
           credentials: "include",
+        }, {
+          operation: "daily rewarded duel",
+          fallbackMessage: "Ek düello hakkı şu an kaydedilemedi. Biraz sonra tekrar dene.",
+          messageForCode: (code) => code === "daily_ad_reward_used"
+            ? "Bugünkü reklam ödülünü zaten kullandın."
+            : "Ek düello hakkı şu an kaydedilemedi. Biraz sonra tekrar dene.",
         });
         if (!result.profile) throw new Error("Ad reward profile was not returned.");
         commitBattleProfile(normalizePlayerProfile(result.profile));
@@ -692,6 +698,10 @@ export default function WorldScene({
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const currentChapterId = Math.max(0, Math.floor(travel / WORLD_GATE_INTERVAL_METERS));
+  const [gateRouteSide, setGateRouteSide] = useState<WorldRouteSide | null>(null);
+  useEffect(() => {
+    setGateRouteSide(null);
+  }, [currentChapterId]);
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const [collectedPickupIds, setCollectedPickupIds] = useState<Set<string>>(() => new Set());
@@ -1395,6 +1405,7 @@ export default function WorldScene({
     if (battleActiveRef.current || storyDialogueRef.current) return;
     const dailyAccess = canStartDailyDuel(profileRef.current);
     if (!dailyAccess.allowed) {
+      setDailyAdMessage("Bugünkü üç yenilgi hakkın doldu. Yeni haklar İstanbul saatiyle 00.00’da yenilenir.");
       setDailyClockTick(Date.now());
       return;
     }
@@ -2246,12 +2257,25 @@ export default function WorldScene({
     && gateDistance - travel <= WORLD_GATE_INTERACTION_RANGE_METERS;
   const openWorldGate = () => {
     wake();
-    if (!roomCleared) return;
-    const nextProgress = unlockWorldGate({
+    if (!roomCleared || !gateRouteSide) return;
+    const routeChoice = createWorldRouteChoice(
+      getWorldRoutePlayerId(userId),
+      currentChapterId + 1,
+      gateRouteSide,
+    );
+    const unlockedProgress = unlockWorldGate({
       ...worldProgressRef.current,
       distance: motionRef.current.distance,
       depth: motionRef.current.depth,
-    }, currentChapterId, true);
+    }, currentChapterId, true, routeChoice);
+    const routeDepth = gateRouteSide === "left" ? -0.42 : 0.42;
+    const nextProgress = { ...unlockedProgress, depth: routeDepth };
+    motionRef.current = {
+      ...motionRef.current,
+      depth: routeDepth,
+      velocityX: 0,
+      velocityY: 0,
+    };
     worldProgressRef.current = nextProgress;
     setWorldProgress(nextProgress);
     saveWorldProgress(nextProgress, progressUserIdRef.current);
@@ -2574,18 +2598,75 @@ export default function WorldScene({
       {pickupNotice && <div className="world-pickup-notice" role="status" aria-live="polite">{pickupNotice}</div>}
       <div
         className="world-progress"
-        role="progressbar"
-        aria-label="Kül Yolu bölüm sonu kapısına ilerleme"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(chapterProgress)}
+        role="group"
+        aria-label="Kül Yolu ilerleme haritası"
       >
-        <div className="world-progress__heading">
-          <span>KÜL YOLU</span>
-          <b>{Math.round(chapterProgress)}%</b>
+        <div className="world-progress__body">
+          <div
+            className="world-progress__map"
+            role="progressbar"
+            aria-label={`Kül Yolu, kapıya yüzde ${Math.round(chapterProgress)} ilerleme`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(chapterProgress)}
+          >
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+              <circle className="world-progress__map-track" cx="24" cy="24" r="19" />
+              <circle
+                className="world-progress__map-fill"
+                cx="24"
+                cy="24"
+                r="19"
+                style={{
+                  strokeDasharray: "119.38",
+                  strokeDashoffset: `${119.38 * (1 - chapterProgress / 100)}`,
+                }}
+              />
+              <path className="world-progress__map-route" d="M24 8v8m0 0-7 7m7-7 7 7m-14 0v7m14-7v7m-14 0 7 8 7-8" />
+              <circle className="world-progress__map-node" cx="24" cy="16" r="2" />
+              <circle className="world-progress__map-node" cx="17" cy="23" r="1.7" />
+              <circle className="world-progress__map-node" cx="31" cy="23" r="1.7" />
+            </svg>
+            <b>{Math.round(chapterProgress)}%</b>
+          </div>
+          <div className="world-progress__details">
+            <div className="world-progress__heading">
+              <span>KÜL YOLU · BÖLÜM {currentChapterId + 1}</span>
+              <b>{Math.round(chapterProgress)}%</b>
+            </div>
+            <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
+            <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
+          </div>
         </div>
-        <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
-        <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
+        <div className="world-daily-lives" id="world-daily-status">
+          <span className="world-daily-lives__label">GÜNLÜK DÜELLO HAKKI</span>
+          <span className="world-daily-lives__hearts" aria-label={`${Math.max(0, DAILY_DEFEAT_LIMIT - dailyLives.dailyLosses)} / ${DAILY_DEFEAT_LIMIT} hak kaldı`}>
+            {Array.from({ length: DAILY_DEFEAT_LIMIT }, (_, index) => (
+              <i className={index < dailyLives.dailyLosses ? "is-lost" : ""} key={index} aria-hidden="true">♥</i>
+            ))}
+          </span>
+          <span className="world-daily-lives__count">{Math.max(0, DAILY_DEFEAT_LIMIT - dailyLives.dailyLosses)} / {DAILY_DEFEAT_LIMIT} hak</span>
+          {dailyLives.dailyLosses >= DAILY_DEFEAT_LIMIT && dailyLives.dailyAdDuelsRemaining > 0 && (
+            <span className="world-daily-lives__message">Ödüllü reklamdan ek düello hakkın hazır.</span>
+          )}
+          {dailyLives.dailyLosses >= DAILY_DEFEAT_LIMIT && dailyLives.dailyAdDuelsRemaining === 0 && !dailyLives.dailyAdRewardUsed && (
+            <>
+              <button
+                className="world-daily-ad"
+                type="button"
+                onClick={() => void claimDailyExtraDuel()}
+                disabled={dailyAdBusy || !dailyAdUnit}
+              >
+                {dailyAdBusy ? "REKLAM HAZIRLANIYOR…" : "ÖDÜLLÜ REKLAM · +1 DÜELLO"}
+              </button>
+              {!dailyAdUnit && <span className="world-daily-lives__message">Reklam sağlayıcısı henüz yapılandırılmadı.</span>}
+            </>
+          )}
+          {dailyLives.dailyLosses >= DAILY_DEFEAT_LIMIT && dailyLives.dailyAdRewardUsed && dailyLives.dailyAdDuelsRemaining === 0 && (
+            <span className="world-daily-lives__message">Bugünkü ek hak kullanıldı. Yenileme: İstanbul saatiyle 00.00.</span>
+          )}
+          {dailyAdMessage && <span className="world-daily-lives__message" role="status" aria-live="polite">{dailyAdMessage}</span>}
+        </div>
       </div>
       {gatePromptVisible && (
         <section className="world-gate-prompt" aria-label="Bölüm geçidi">
@@ -2593,11 +2674,36 @@ export default function WorldScene({
           <strong>{roomCleared ? "Yol temizlendi" : "Kapı kilitli"}</strong>
           <span className="world-gate-prompt__progress">
             {roomCleared
-              ? "Bu odadaki tüm rakipleri yendin."
+              ? "Bu odadaki tüm rakipleri yendin. Önündeki iki yoldan birini seç."
               : `Rakipleri yen: ${defeatedChapterRivals}/${chapterRivals.length}`}
           </span>
-          <button type="button" onClick={openWorldGate} disabled={!roomCleared}>
-            {roomCleared ? "KAPIYI AÇ" : "KİLİTLİ"}
+          {roomCleared && (
+            <>
+              <div className="world-gate-prompt__routes" role="group" aria-label="Gizli zorlukta iki rota">
+                <button
+                  type="button"
+                  className={gateRouteSide === "left" ? "is-selected" : ""}
+                  aria-pressed={gateRouteSide === "left"}
+                  onClick={() => setGateRouteSide("left")}
+                >
+                  KUZEY KAPISI
+                  <span>Sol yol · bilinmeyen geçit</span>
+                </button>
+                <button
+                  type="button"
+                  className={gateRouteSide === "right" ? "is-selected" : ""}
+                  aria-pressed={gateRouteSide === "right"}
+                  onClick={() => setGateRouteSide("right")}
+                >
+                  KÜL GEÇİDİ
+                  <span>Sağ yol · bilinmeyen geçit</span>
+                </button>
+              </div>
+              <span className="world-gate-prompt__hint">Yolun gerçek zorluğu seçtikten sonra ortaya çıkar.</span>
+            </>
+          )}
+          <button type="button" onClick={openWorldGate} disabled={!roomCleared || !gateRouteSide}>
+            {!roomCleared ? "KİLİTLİ" : gateRouteSide ? "SEÇİLEN YOLA GİR" : "ÖNCE BİR YOL SEÇ"}
           </button>
         </section>
       )}
@@ -2644,34 +2750,25 @@ export default function WorldScene({
       {encounterVisible && nextOpponent && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
+          {encounterDistance <= 12 && (
+            <div className="world-encounter__speech" role="status" aria-live="polite">
+              <span>{nextOpponent.name} konuşuyor</span>
+              <p>“{getNpcStoryDialogue(nextOpponent.name, currentChapterId)?.lines[0] ?? nextOpponent.taunt}”</p>
+            </div>
+          )}
           <div className="world-encounter__card">
             <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
             <span>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</span>
-            <em>“{nextOpponent.taunt}”</em>
-            <button
-              type="button"
-              className="world-encounter__talk"
-              onClick={() => {
-                wake();
-                const dialogue = getNpcStoryDialogue(nextOpponent.name, currentChapterId) ?? {
-                  id: `story-npc-${nextOpponent.id}`,
-                  kind: "npc" as const,
-                  title: nextOpponentDefeated ? "YENİDEN KARŞILAŞMA" : "YOLCULARIN SÖZÜ",
-                  speaker: nextOpponent.name.toLocaleUpperCase("tr-TR"),
-                  lines: [nextOpponent.taunt],
-                  hint: nextOpponentDefeated
-                    ? "Kılıcını yeniden kuşanabilir ya da yoluna devam edebilirsin."
-                    : "Karşılaşma sana kalmış; istersen konuşup yoluna devam et.",
-                };
-                showStoryDialogue(dialogue);
-              }}
-            >
-              KONUŞ
-            </button>
             {canChallenge && (
-              <button type="button" className="world-encounter__fight" onClick={() => beginEncounter(nextOpponent)}>
-                <span aria-hidden="true">⚔</span> {nextOpponentDefeated ? "YENİDEN DÜELLO" : "SAVAŞ"}
+              <button
+                type="button"
+                className="world-encounter__fight"
+                onClick={() => beginEncounter(nextOpponent)}
+                disabled={!dailyAccess.allowed}
+                aria-describedby={!dailyAccess.allowed ? "world-daily-status" : undefined}
+              >
+                <span aria-hidden="true">⚔</span> {dailyAccess.allowed ? nextOpponentDefeated ? "YENİDEN DÜELLO" : "SAVAŞ" : "GÜNLÜK HAK DOLDU"}
               </button>
             )}
           </div>

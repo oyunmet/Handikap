@@ -14,6 +14,7 @@ type Knight3DProps = {
   motionReduced: boolean;
   animationTimeScale?: number;
   facingAngle?: number;
+  talking?: boolean;
   footSlipRef?: MutableRefObject<number>;
   castShadow?: boolean;
   appearance?: EquipmentVisual;
@@ -191,6 +192,7 @@ export default function Knight3D({
   motionReduced,
   animationTimeScale = 1,
   facingAngle,
+  talking = false,
   footSlipRef,
   castShadow = true,
   appearance,
@@ -198,6 +200,7 @@ export default function Knight3D({
   const rootRef = useRef<THREE.Group>(null);
   const torsoRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
+  const mouthRef = useRef<THREE.Mesh>(null);
   const leftArmRef = useRef<THREE.Group>(null);
   const rightArmRef = useRef<THREE.Group>(null);
   const leftElbowRef = useRef<THREE.Group>(null);
@@ -425,6 +428,26 @@ export default function Knight3D({
       if (leftArmRef.current) leftArmRef.current.rotation.x = actionProgress * 0.45;
       if (rightArmRef.current) rightArmRef.current.rotation.x = actionProgress * 0.6;
     }
+    if (mouthRef.current) {
+      mouthRef.current.scale.y = talking ? 0.62 + Math.abs(Math.sin(time * 10.5)) * 0.92 : 1;
+    }
+    if (talking) {
+      const gesture = Math.sin(time * 5.6);
+      torso.rotation.z = gesture * 0.018;
+      if (headRef.current) {
+        headRef.current.rotation.x = 0.035 + Math.sin(time * 4.2) * 0.035;
+        headRef.current.rotation.y = Math.sin(time * 3.1) * 0.035;
+      }
+      if (leftArmRef.current) {
+        leftArmRef.current.rotation.x = -0.88 + gesture * 0.09;
+        leftArmRef.current.rotation.z = 0.36 + gesture * 0.055;
+      }
+      if (leftElbowRef.current) leftElbowRef.current.rotation.x = -0.68 + Math.max(0, gesture) * 0.18;
+      if (rightArmRef.current) {
+        rightArmRef.current.rotation.x = -0.08 + gesture * 0.06;
+        rightArmRef.current.rotation.z = 0.08;
+      }
+    }
 
     const shadow = root.children[0];
     if (shadow && shadow instanceof THREE.Mesh) {
@@ -505,7 +528,7 @@ export default function Knight3D({
               emissiveIntensity={appearance?.armorStyle === "shadow" ? 0.8 : 0.52}
             />
           </mesh>
-          <mesh position={[0, -0.09, -0.17]}>
+          <mesh ref={mouthRef} position={[0, -0.09, -0.17]}>
             <boxGeometry args={[0.24, 0.07, 0.08]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} metalness={0.72} roughness={0.42} />
           </mesh>

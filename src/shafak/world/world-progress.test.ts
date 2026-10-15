@@ -11,11 +11,13 @@ import {
   unlockWorldGate,
   type WorldProgress,
 } from "./world-progress.ts";
+import { createWorldRouteChoice } from "./route-difficulty.ts";
 
 const initialProgress: WorldProgress = {
   distance: 0,
   depth: 0,
   unlockedThroughChapter: 0,
+  routeChoice: null,
 };
 
 test("normalizes saved position and keeps already-passed gates open", () => {
@@ -25,7 +27,7 @@ test("normalizes saved position and keeps already-passed gates open", () => {
       depth: 4,
       unlockedThroughChapter: -3,
     }),
-    { distance: 150, depth: 1, unlockedThroughChapter: 1 },
+    { distance: 150, depth: 1, unlockedThroughChapter: 1, routeChoice: null },
   );
 });
 
@@ -35,6 +37,16 @@ test("requires the whole current room to be cleared before unlocking its gate", 
   assert.deepEqual(unlockWorldGate(initialProgress, 0, true), {
     ...initialProgress,
     unlockedThroughChapter: 1,
+  });
+});
+
+test("a cleared gate saves the selected hidden route for the next chapter", () => {
+  const routeChoice = createWorldRouteChoice("guest:player-1", 1, "right");
+  assert.equal(unlockWorldGate(initialProgress, 0, true, { ...routeChoice, chapterId: 2 }), initialProgress);
+  assert.deepEqual(unlockWorldGate(initialProgress, 0, true, routeChoice), {
+    ...initialProgress,
+    unlockedThroughChapter: 1,
+    routeChoice,
   });
 });
 
@@ -60,6 +72,7 @@ test("uses past duel wins to restore a returning player's world position", () =>
       distance: rival.distance + 2,
       depth: 0,
       unlockedThroughChapter: 1,
+      routeChoice: null,
     },
   );
 });
@@ -76,7 +89,7 @@ test("saves progress separately for each player", () => {
   });
 
   try {
-    const saved = { distance: 74.5, depth: -0.35, unlockedThroughChapter: 0 };
+    const saved = { distance: 74.5, depth: -0.35, unlockedThroughChapter: 0, routeChoice: null };
     saveWorldProgress(saved, "player-one");
     assert.deepEqual(readWorldProgress("player-one"), saved);
     assert.deepEqual(readWorldProgress("player-two"), initialProgress);

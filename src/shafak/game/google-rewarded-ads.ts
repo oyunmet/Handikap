@@ -100,7 +100,7 @@ function loadPublisherTag() {
   if (window.googletag?.apiReady) return Promise.resolve(window.googletag);
   if (window.__shafakGptReady) return window.__shafakGptReady;
 
-  window.googletag ??= { cmd: [] } as GooglePublisherTag;
+  window.googletag ??= { cmd: [] } as unknown as GooglePublisherTag;
   window.__shafakGptReady = new Promise((resolve, reject) => {
     const selector = 'script[data-shafak-gpt="true"]';
     let script = document.querySelector<HTMLScriptElement>(selector);

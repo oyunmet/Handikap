@@ -26,6 +26,7 @@ type KnightActorProps = {
   motionReduced: boolean;
   animationTimeScale?: number;
   facingAngle?: number;
+  talking?: boolean;
   footSlipRef?: MutableRefObject<number>;
   castShadow?: boolean;
   appearance?: EquipmentVisual;
@@ -156,6 +157,7 @@ function OptionalGlbKnight({
   motionReduced,
   animationTimeScale = 1,
   facingAngle,
+  talking = false,
   footSlipRef,
   appearance,
   modelConfig,
@@ -315,6 +317,7 @@ function OptionalGlbKnight({
             motionReduced={motionReduced}
             animationTimeScale={animationTimeScale}
             facingAngle={facingAngle}
+            talking={talking}
             footSlipRef={footSlipRef}
             castShadow={castShadow}
             appearance={appearance ?? modelConfig?.appearance}

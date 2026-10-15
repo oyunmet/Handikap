@@ -324,6 +324,7 @@ function BotActor({
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
+  const actorPivotRef = useRef<THREE.Group>(null);
   const poseRef = useRef(createWorldMotion());
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
   const profile = getWorldBotProfileByName(rival.name);
@@ -344,15 +345,33 @@ function BotActor({
     });
   }, [interactableRegistry, rival]);
 
-  useFrame(() => {
+  useFrame((_state, delta) => {
     const root = rootRef.current;
     if (!root) return;
     const motion = motionRef.current;
-    root.position.set(0, 0, -(rival.distance - motion.cameraX));
-    root.scale.setScalar(rival.size);
     const gap = rival.distance - motion.distance;
+    const talking = focused && Math.abs(gap) <= 12;
+    const approach = talking
+      ? Math.sign(gap) * Math.min(0.75, Math.max(0, (12 - Math.abs(gap)) * 0.1))
+      : 0;
+    const actorZ = -(rival.distance - motion.cameraX) + approach;
+    const playerX = motion.depth * 5.2;
+    const playerZ = -(motion.distance - motion.cameraX);
+    root.position.set(0, 0, actorZ);
+    root.scale.setScalar(rival.size);
     root.visible = gap >= -12 && gap <= 105;
     root.rotation.y = 0;
+    if (actorPivotRef.current) {
+      const targetYaw = focused
+        ? Math.atan2(rival.x - playerX, actorZ - playerZ)
+        : 0;
+      actorPivotRef.current.rotation.y = THREE.MathUtils.damp(
+        actorPivotRef.current.rotation.y,
+        targetYaw,
+        7,
+        Math.min(delta, 0.05),
+      );
+    }
 
     if (!tintAppliedRef.current) {
       root.traverse((object) => {
@@ -380,10 +399,11 @@ function BotActor({
 
   return (
     <group ref={rootRef}>
-      <group position={[rival.x, 0, 0]}>
+      <group ref={actorPivotRef} position={[rival.x, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
           state="idle"
+          talking={focused && Math.abs(rival.distance - motionRef.current.distance) <= 12}
           motionReduced
           animationTimeScale={0}
           castShadow={focused}

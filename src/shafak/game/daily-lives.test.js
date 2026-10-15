@@ -39,7 +39,8 @@ test("the rewarded duel is consumed when it starts, and reset clears the lockout
     dailyAdDuelsRemaining: 1,
   };
   const consumed = consumeDailyAdDuel(state, new Date("2026-10-15T12:00:00+03:00"));
+  assert.ok(consumed);
   assert.equal(consumed?.dailyAdDuelsRemaining, 0);
-  assert.equal(canStartDailyDuel(consumed!, new Date("2026-10-15T12:00:00+03:00")).allowed, false);
+  assert.equal(canStartDailyDuel(consumed, new Date("2026-10-15T12:00:00+03:00")).allowed, false);
   assert.equal(canStartDailyDuel(state, new Date("2026-10-16T00:00:00+03:00")).allowed, true);
 });
