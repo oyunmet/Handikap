@@ -161,6 +161,41 @@ test("rocks and intact barricades stop forward travel unless the player dodges o
   );
 });
 
+test("hidden chests do not collide before appearing or after leaving the visible road", () => {
+  const chapter = getWorldChapter(0);
+  const chest = chapter.obstacles.find((obstacle) => obstacle.kind === "treasure-chest");
+  assert.ok(chest);
+  const grid = buildWorldCollisionGrid([chapter]);
+  const hiddenStart = chest.distance - HIDDEN_CHEST_REVEAL_METERS - 1;
+  const hiddenEnd = hiddenStart + 0.5;
+
+  assert.equal(isWorldObstacleRevealed(chest, chest.distance - hiddenEnd), false);
+  assert.equal(
+    resolveWorldPathCollision(chest.x, hiddenStart, chest.x, hiddenEnd, grid, new Set()).distance,
+    hiddenEnd,
+  );
+  assert.equal(
+    resolveWorldObstacleCollision(hiddenStart, chest.x, hiddenEnd, chest.x, [chest], new Set()),
+    hiddenEnd,
+  );
+
+  const visibleStart = chest.distance - HIDDEN_CHEST_REVEAL_METERS;
+  const nearChest = chest.distance - 0.5;
+  assert.equal(isWorldObstacleRevealed(chest, HIDDEN_CHEST_REVEAL_METERS), true);
+  assert.ok(
+    resolveWorldPathCollision(chest.x, visibleStart, chest.x, nearChest, grid, new Set()).distance < nearChest,
+  );
+  assert.ok(
+    resolveWorldObstacleCollision(visibleStart, chest.x, nearChest, chest.x, [chest], new Set()) < nearChest,
+  );
+
+  const behindStart = chest.distance + 2;
+  const behindEnd = chest.distance + 1.6;
+  assert.ok(Math.abs(
+    resolveWorldPathCollision(chest.x, behindStart, chest.x, behindEnd, grid, new Set()).distance - behindEnd,
+  ) < 1e-9);
+});
+
 test("spatial collision grid blocks props, permits lateral sliding, and enforces the road edge", () => {
   const chapter = getWorldChapter(0);
   const grid = buildWorldCollisionGrid([chapter]);

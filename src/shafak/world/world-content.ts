@@ -67,6 +67,7 @@ export type WorldCollider = {
   radius: number;
   halfWidth: number;
   halfDepth: number;
+  hidden?: boolean;
   breakableId?: string;
   requiredAction?: "crouch" | "jump";
 };
@@ -366,10 +367,12 @@ export function resolveWorldObstacleCollision(
 ) {
   let resolvedDistance = nextDistance;
   for (const obstacle of obstacles) {
+    const gap = obstacle.distance - nextDistance;
     if (
       obstacle.kind === "spike-trap"
       || obstacle.kind === "falling-rock-trap"
       || brokenObstacleIds.has(obstacle.id)
+      || (obstacle.hidden && gap > HIDDEN_CHEST_REVEAL_METERS)
     ) continue;
     const halfWidth = obstacle.width / 2 + 0.45;
     if (Math.abs(nextX - obstacle.x) >= halfWidth) continue;
@@ -413,6 +416,7 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         radius: obstacle.width * 0.58,
         halfWidth: obstacle.width / 2,
         halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
+        hidden: obstacle.hidden,
         breakableId: ["barrel", "vase", "barricade", "treasure-chest"].includes(obstacle.kind)
           ? obstacle.id
           : undefined,
@@ -463,6 +467,8 @@ export function resolveWorldPathCollision(
         const colliders = row.get(cellDistance);
         if (!colliders) continue;
         for (const collider of colliders) {
+          const gap = collider.distance - distance;
+          if ((collider.hidden && gap > HIDDEN_CHEST_REVEAL_METERS) || gap < -1.5) continue;
           if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
           if (collider.requiredAction === "crouch" && clearance.crouching) continue;
           if (collider.requiredAction === "jump" && (clearance.jumpHeight ?? 0) >= WORLD_JUMP_CLEARANCE_METERS) continue;
