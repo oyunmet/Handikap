@@ -1,0 +1,31 @@
+PROGRESS.md'yi oku, sadece bu adımı yap, bitince dur:
+
+Oyunun açılışına kısa bir sinematik intro ekle. Harici asset kullanma, mevcut 3D sahneyi, CSS ve WebAudio kullan.
+
+Akış (toplam ~20-24 sn):
+
+0. YAPIM JENERİĞİ (ilk 4 sn, siyah ekran):
+   - Ortada küçük, harf aralığı geniş, açık renkli yazı: "A" (fade-in), hemen ardından büyük altın serif harflerle "MET PRODUCTION" belirir (1 sn fade-in), üzerinden soldan sağa bir altın parıltı çizgisi geçer.
+   - Altında küçük harflerle: "A GAME BY MUHAMMED EMİN TÜRKOĞLU"
+   - Yazılar 2 sn ekranda kalır, 1 sn'de fade-out olur.
+   - Sırasında WebAudio ile kısa, derin bir vurgu sesi (düşük frekanslı hit + hafif yankı).
+
+1. Siyah ekran, yavaşça beliren ince kül parçacıkları (max 60 adet).
+2. Kamera, uzakta kale/dağ silüetlerinin önünden yavaşça ileri kayar (mevcut Kül Yolu sahnesi, sis ve ay görünür).
+3. Metin satırları sırayla fade-in/fade-out (her satır ~2.5 sn, serif altın renkli, mevcut tipografi):
+   "Gökyüzü küle döndü."
+   "Krallığın son kapısı yüzyıllardır kapalı."
+   "Yolları gölgeler tutuyor. Kimse geçmeyecek."
+   "Sen bir Yolcu'sun. Elinde bir kılıç, sırtında kızıl bir pelerin."
+   "Kül Yolu seni çağırıyor."
+4. Son satırda kamera karakterin arkasına geçer, büyük altın "KÜL YOLU" başlığı belirir, altında yanıp sönen "Başlamak için dokun".
+5. Dokununca intro biter, oyun normal başlar.
+
+Kurallar:
+- Sağ üstte her zaman "Geç" butonu olsun, dokununca doğrudan oyuna geçsin (jenerik dahil).
+- Intro sadece ilk açılışta gösterilsin (localStorage "introSeen"). Ayarlara "İntro'yu tekrar izle" ekle.
+- Düşük sesli rüzgar ve derin davul/drone sesini WebAudio ile üret. Ses ayarına saygı göster. iOS'ta ses ilk dokunuştan sonra başlayabilir, jenerik sessiz başlarsa sorun değil.
+- Ana menü/yükleme ekranının alt köşesinde küçük ve silik: "© MET Production · Muhammed Emin Türkoğlu".
+- Intro bitince parçacık, ses ve kamera nesnelerini dispose et.
+- Mobilde 30 FPS altına düşmesin. Mevcut oyun mantığını bozma.
+- Bitince en fazla 5 satır özet ver ve PROGRESS.md'yi güncelle.

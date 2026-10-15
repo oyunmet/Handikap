@@ -13,6 +13,8 @@ import {
 import { useLocation } from "wouter";
 import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
+import IntroCinematic from "./intro/IntroCinematic";
+import { hasSeenIntro, markIntroSeen } from "./intro/timeline";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
@@ -30,7 +32,7 @@ import {
 
 const WorldScene = lazy(() => import("./world/WorldScene"));
 
-type Screen = "opening" | "loading" | "menu" | "world";
+type Screen = "intro" | "opening" | "loading" | "menu" | "world";
 type Preferences = {
   sound: boolean;
   soundVolume: number;
@@ -315,7 +317,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   );
   const [screen, setScreen] = useState<Screen>(() => {
     const query = new URLSearchParams(window.location.search);
-    return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "opening";
+    if (query.get("debug") === "1" && query.get("scene") === "world") return "world";
+    return hasSeenIntro() ? "opening" : "intro";
   });
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
@@ -552,6 +555,16 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen("loading");
   };
 
+  const finishIntro = () => {
+    markIntroSeen();
+    begin();
+  };
+
+  const replayIntro = () => {
+    setSettingsOpen(false);
+    setScreen("intro");
+  };
+
   const enterWorld = () => {
     playFeedback();
     primeGameAudio();
@@ -725,6 +738,18 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       )}
 
       <AnimatePresence mode="wait">
+        {screen === "intro" && (
+          <motion.section
+            key="intro"
+            className="intro-screen"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: motionReduced ? 0.12 : 0.65 }}
+          >
+            <IntroCinematic reducedMotion={motionReduced} onComplete={finishIntro} />
+          </motion.section>
+        )}
         {screen === "opening" && (
           <motion.section
             key="opening"
@@ -1136,6 +1161,19 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   checked={preferences.reduceMotion || Boolean(systemReducedMotion)}
                   onChange={() => togglePreference("reduceMotion")}
                 />
+                <div className="setting-row">
+                  <span className="setting-row__copy">
+                    <strong>Açılış sinematiği</strong>
+                    <small>Kül Yolu’na ilk adımını yeniden izle.</small>
+                  </span>
+                  <button
+                    className="setting-action--intro"
+                    type="button"
+                    onClick={replayIntro}
+                  >
+                    İntro’yu tekrar izle
+                  </button>
+                </div>
                 <SettingToggle
                   label="FPS ve kare süresi"
                   description="Ortalama/en düşük FPS ve 50 ms üzeri kare sayısını gösterir."

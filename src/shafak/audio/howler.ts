@@ -65,6 +65,77 @@ export function primeGameAudio() {
   if (context) resumeGameAudio(context);
 }
 
+export function createIntroImpact() {
+  if (!soundEnabled || typeof window === "undefined" || !window.AudioContext) return () => undefined;
+
+  let oscillator: OscillatorNode | null = null;
+  let nodes: AudioNode[] = [];
+  let cleanupTimer = 0;
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    if (cleanupTimer) window.clearTimeout(cleanupTimer);
+    try {
+      oscillator?.stop();
+    } catch {
+      // The one-shot may already have reached its scheduled stop time.
+    }
+    nodes.forEach((node) => {
+      try {
+        node.disconnect();
+      } catch {
+        // Disconnect is best-effort for browser-specific AudioNode implementations.
+      }
+    });
+    nodes = [];
+    oscillator = null;
+  };
+
+  try {
+    const context = getGameAudioContext();
+    const bus = gameAudioGain;
+    if (!context || !bus) return () => undefined;
+    resumeGameAudio(context);
+
+    const now = context.currentTime;
+    oscillator = context.createOscillator();
+    const dryGain = context.createGain();
+    const convolver = context.createConvolver();
+    const wetGain = context.createGain();
+    const impulseLength = Math.floor(context.sampleRate * 0.38);
+    const impulse = context.createBuffer(2, impulseLength, context.sampleRate);
+    for (let channel = 0; channel < 2; channel += 1) {
+      const samples = impulse.getChannelData(channel);
+      for (let index = 0; index < impulseLength; index += 1) {
+        const decay = 1 - index / impulseLength;
+        samples[index] = (Math.random() * 2 - 1) * decay * decay * 0.22;
+      }
+    }
+    convolver.buffer = impulse;
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(48, now);
+    oscillator.frequency.exponentialRampToValueAtTime(31, now + 0.62);
+    dryGain.gain.setValueAtTime(0.0001, now);
+    dryGain.gain.exponentialRampToValueAtTime(0.12, now + 0.035);
+    dryGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
+    wetGain.gain.setValueAtTime(0.0001, now);
+    wetGain.gain.exponentialRampToValueAtTime(0.028, now + 0.05);
+    wetGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    oscillator.connect(dryGain).connect(bus);
+    oscillator.connect(convolver);
+    convolver.connect(wetGain).connect(bus);
+    nodes = [oscillator, dryGain, convolver, wetGain];
+    oscillator.start(now);
+    oscillator.stop(now + 0.82);
+    cleanupTimer = window.setTimeout(cleanup, 1_400);
+    return cleanup;
+  } catch {
+    cleanup();
+    return () => undefined;
+  }
+}
+
 export function playUiChime() {
   if (soundEnabled) uiChime.play();
 }
