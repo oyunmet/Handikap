@@ -1760,7 +1760,8 @@ export default function WorldScene({
             combatStateRef.current = stepped.state;
             if (!botWasWindingUp && stepped.state.bot.action === "windup") playWorldCue("telegraph");
             if (stepped.events.length) {
-              const impactEvents = stepped.events.filter((event) => event.type === "hit" || event.type === "parry");
+              const impactEvents = stepped.events.filter((event) =>
+                event.type === "hit" || event.type === "parry" || event.type === "plungeLand");
               if (visualEffectsEnabled && impactEvents.length) {
                 const damage = impactEvents.reduce((sum, event) => sum + (event.type === "hit" ? event.damage ?? 0 : 0), 0);
                 hitStopUntilRef.current = window.performance.now() + Math.min(80, Math.max(50, 50 + damage * 0.65));
@@ -1801,7 +1802,7 @@ export default function WorldScene({
               else if (fireHit || hasEvent("burn")) playWorldCue("fire");
               else if (hasEvent("projectile")) playWorldCue("arrow");
               else if (hasEvent("item")) playWorldCue("potion");
-              else if (hasEvent("hit")) playWorldCue("impact");
+              else if (hasEvent("hit") || hasEvent("plungeLand")) playWorldCue("impact");
               else if (hasEvent("weaponTrail")) playWorldCue("attack");
               if (stepped.events.some((event) => event.type === "hit" || event.type === "parry" || event.type === "block")) {
                 if (vibrationOn && "vibrate" in navigator) {
@@ -2349,7 +2350,8 @@ export default function WorldScene({
                 {event.type === "parry" && <strong>SAVUŞTURMA · 0</strong>}
                 {event.type === "coverBlock" && <strong>SİPER OKU DURDURDU</strong>}
                 {event.type === "dodge" && <strong>KAÇIŞ · 0 HASAR</strong>}
-                {event.type === "backflip" && <strong>GERİ TAKLA · KAÇIŞ</strong>}
+                {event.type === "backflip" && <strong>{event.edgeRebound ? "KENARDAN SEKME · GERİ TAKLA" : "GERİ TAKLA · KAÇIŞ"}</strong>}
+                {event.type === "plungeLand" && <strong>YERE VURUŞ · ŞOK DALGASI</strong>}
                 {event.type === "burn" && <strong>KOR · −{event.damage ?? 0}</strong>}
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
                 {event.type === "item" && <strong>{getCombatItem(event.itemId)?.name ?? "SAVAŞ EŞYASI"}</strong>}

@@ -13,6 +13,8 @@ export function mapOpponentAnimationState(
 ): OpponentModelAnimationState {
   if (action === "skillOne") return "castFire";
   if (action === "skillTwo") return "castLightning";
+  if (state === "backflip" || state === "jump") return "dodge";
+  if (state === "plunge") return "attack";
   if (state === "walk") return "walk";
   if (state === "run") return "run";
   if (state === "heavyAttack") return "attack";

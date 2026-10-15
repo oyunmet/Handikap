@@ -13,6 +13,7 @@ import {
 test("each combat event selects its matching readable arena effect", () => {
   assert.equal(getDuelVfxKind({ type: "skill", attack: "skillOne" }), "fireball");
   assert.equal(getDuelVfxKind({ type: "skill", attack: "skillTwo" }), "lightning");
+  assert.equal(getDuelVfxKind({ type: "plungeLand" }), "plungeLanding");
   assert.equal(getDuelVfxKind({ type: "block" }), "shield");
   assert.equal(getDuelVfxKind({ type: "parry" }), "shield");
   assert.equal(getDuelVfxKind({ type: "dodge" }), "afterimage");

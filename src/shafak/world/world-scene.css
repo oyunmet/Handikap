@@ -1357,6 +1357,7 @@
 .duel-combat-fx.is-burn > i { border-color: rgba(255,159,83,.95); box-shadow: 0 0 22px #ff7435,inset 0 0 13px #ffcf76; }
 .duel-combat-fx.is-coverBlock > i { border-color: rgba(208,190,155,.95); box-shadow: 0 0 20px #c69b61,inset 0 0 12px #f8dfac; }
 .duel-combat-fx.is-backflip > i { border-color: rgba(164,225,236,.86); box-shadow: 0 0 18px #76cfe3,inset 0 0 10px #e4ffff; }
+.duel-combat-fx.is-plungeLand > i { width: 96px; height: 96px; border-color: rgba(255,210,127,.95); box-shadow: 0 0 28px #ff9f58,inset 0 0 16px #ffe0a0; }
 .duel-combat-fx.is-projectile > i { width: 44px; height: 44px; border-color: rgba(242,215,159,.75); box-shadow: 0 0 15px #d6a854,inset 0 0 8px #fff0bd; }
 .duel-stance-controls {
   position: absolute;

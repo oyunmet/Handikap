@@ -285,7 +285,7 @@ function CameraRig({
         combat.bot,
         -(motion.distance - motion.originDistance),
         touchRenderer ? 3.1 : 3.7,
-        touchRenderer ? 7.2 : 6.8,
+        touchRenderer ? 7.2 : 8.2,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -319,7 +319,12 @@ function CameraRig({
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
-      ? (touchRenderer ? 60 : 52) - combatImpact * 1.1 - skillZoom - finisherZoom
+      ? (touchRenderer ? 60 : 52)
+        - combatImpact * 1.1
+        - skillZoom
+        - finisherZoom
+        - (combat.player.action === "attack" ? 1.1 : combat.player.action === "heavyAttack" || combat.player.action === "plunge" ? 2 : 0)
+        + (combat.player.action === "dodge" || combat.player.action === "backflip" ? 3.2 : 0)
       : focusedRival ? (cinematicIntro ? 51 : 48) : travelCamera.fieldOfView;
     const nextFov = THREE.MathUtils.damp(camera.fov, desiredFov, 3, scaledDelta);
     if (Math.abs(nextFov - camera.fov) > 0.015) {
@@ -343,8 +348,8 @@ function CameraRig({
 function combatAnimation(action: CombatAction, speed: number) {
   if (action === "windup") return "block" as const;
   if (action === "attack") return "attack" as const;
-  if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo" || action === "plunge") return "heavyAttack" as const;
-  if (action === "jump") return "dodge" as const;
+  if (action === "heavyAttack" || action === "skillOne" || action === "skillTwo") return "heavyAttack" as const;
+  if (action === "jump" || action === "plunge" || action === "backflip") return action;
   if (action === "block" || action === "dodge" || action === "hit" || action === "die") return action;
   return speed > 0.28 ? "walk" as const : "idle" as const;
 }
@@ -725,10 +730,12 @@ function DuelCombatVisual({
       shockwaveMaterialRef.current.opacity = fade * 0.85;
     }
 
-    if (kind === "plunge" && shockwaveRef.current && shockwaveMaterialRef.current) {
-      shockwaveRef.current.position.set(actor.x, 0.065, actor.z - 0.1);
-      shockwaveRef.current.scale.setScalar(0.5 + age * 2.1);
-      shockwaveMaterialRef.current.opacity = fade * 0.95;
+    if ((kind === "plunge" || kind === "plungeLanding") && shockwaveRef.current && shockwaveMaterialRef.current) {
+      const impactX = kind === "plungeLanding" ? event.originX ?? actor.x : actor.x;
+      const impactZ = kind === "plungeLanding" ? event.originZ ?? actor.z : actor.z;
+      shockwaveRef.current.position.set(impactX, 0.065, impactZ - 0.1);
+      shockwaveRef.current.scale.setScalar(kind === "plungeLanding" ? 0.7 + age * 2.5 : 0.5 + age * 2.1);
+      shockwaveMaterialRef.current.opacity = fade * (kind === "plungeLanding" ? 1 : 0.95);
     }
   });
 
@@ -815,12 +822,12 @@ function DuelCombatVisual({
           </mesh>
         </group>
       )}
-      {kind === "shockwave" && (
+      {(kind === "shockwave" || kind === "plungeLanding") && (
         <mesh ref={shockwaveRef} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.24, 0.42, 28]} />
           <meshBasicMaterial
             ref={shockwaveMaterialRef}
-            color={event.critical ? "#ffe9a8" : "#ff9d62"}
+            color={kind === "plungeLanding" ? "#ffd27f" : event.critical ? "#ffe9a8" : "#ff9d62"}
             transparent
             opacity={0.8}
             depthWrite={false}

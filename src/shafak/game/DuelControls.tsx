@@ -212,7 +212,7 @@ export default function DuelControls({
       >
         <span aria-hidden="true" />
       </div>
-      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L ATILMA · F NİŞAN · C EĞİL · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
+      <div className="duel-control-hint">WASD HAREKET · RAKİBE DÖNÜK YANA KAY · J SALDIRI · K KALKAN · L ATILMA · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
       <div className="duel-stance-controls" aria-label="Nişan ve siper duruşu">

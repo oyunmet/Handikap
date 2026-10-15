@@ -278,7 +278,10 @@ export default function Knight3D({
             : 1;
     const actionDuration = state === "die"
       ? 1.3
-      : (state === "heavyAttack" ? 0.9 : 0.55) / attackTempo;
+      : state === "jump" ? 0.7
+        : state === "backflip" ? 0.48
+          : state === "plunge" ? 0.62
+            : (state === "heavyAttack" ? 0.9 : 0.55) / attackTempo;
     const actionProgress = clamp(actionElapsed.current / actionDuration, 0, 1);
     const idle = state === "idle" || state === "walk" || state === "run";
     const actionSwing = Math.sin(actionProgress * Math.PI);
@@ -297,6 +300,8 @@ export default function Knight3D({
     if (facingAngle === undefined && motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
     if (facingAngle === undefined && (!moving || state === "die")) targetYaw = 0;
     root.rotation.y = THREE.MathUtils.damp(root.rotation.y, targetYaw, 7, dt);
+    const backflipRotation = state === "backflip" ? actionProgress * Math.PI * 2 : 0;
+    root.rotation.x = THREE.MathUtils.damp(root.rotation.x, backflipRotation, 14, dt);
     const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;
     root.rotation.z = THREE.MathUtils.damp(root.rotation.z, fall, 5, dt);
 
@@ -306,7 +311,9 @@ export default function Knight3D({
     torso.rotation.y = strideTwist;
     torso.rotation.x = moving ? (running ? -0.045 : -0.018) : 0;
     if (state === "hit") torso.rotation.x = -0.18 * actionSwing;
-    if (state === "dodge") torso.rotation.z = Math.sin(actionProgress * Math.PI * 2) * 0.24;
+    if (state === "jump") torso.rotation.x = -0.12;
+    if (state === "plunge") torso.rotation.x = -0.32 * actionSwing;
+    if (state === "dodge" || state === "backflip") torso.rotation.z = Math.sin(actionProgress * Math.PI * 2) * 0.24;
     if (state === "die") torso.rotation.x = actionProgress * 0.25;
     if (headRef.current) {
       headRef.current.rotation.x = -torso.rotation.x * 0.45;
@@ -354,9 +361,13 @@ export default function Knight3D({
       }
       const targetY = -0.84 + lift;
       const solve = solveTwoBoneLeg(targetY, strideZ, KNIGHT_CONFIG.proportions.thigh, KNIGHT_CONFIG.proportions.shin);
-      const actionLeg = state === "dodge" ? Math.sin(actionProgress * Math.PI) * 0.32 : 0;
+      const actionLeg = state === "dodge" || state === "backflip"
+        ? Math.sin(actionProgress * Math.PI) * 0.32
+        : state === "jump" ? Math.sin(actionProgress * Math.PI) * 0.5
+          : state === "plunge" ? 0.18 : 0;
       hip.rotation.x = solve.hip * (moving && idle ? 1 : 0.12) * reducedScale - actionLeg;
-      knee.rotation.x = (moving && idle ? solve.knee : 0.08) * reducedScale + (state === "dodge" ? 0.55 : 0);
+      knee.rotation.x = (moving && idle ? solve.knee : 0.08) * reducedScale
+        + (state === "dodge" || state === "backflip" ? 0.55 : state === "jump" ? 0.72 : 0);
       ankle.rotation.x = solve.ankle * (moving && idle ? 1 : 0.15) * reducedScale;
     };
     solveFoot(phase, 1, 0, leftHipRef.current, leftKneeRef.current, leftAnkleRef.current);
@@ -372,8 +383,8 @@ export default function Knight3D({
       rightArmRef.current.rotation.x = -walkArm * 0.76;
       rightArmRef.current.rotation.z = 0.08;
     }
-    if ((state === "attack" || state === "heavyAttack") && rightArmRef.current) {
-      const attackPower = state === "heavyAttack" ? 1.7 : 1.25;
+    if ((state === "attack" || state === "heavyAttack" || state === "plunge") && rightArmRef.current) {
+      const attackPower = state === "heavyAttack" || state === "plunge" ? 1.7 : 1.25;
       if (weaponStyle === "daggers") {
         const alternatingThrust = Math.sin(actionProgress * Math.PI * 2) * 0.22;
         rightArmRef.current.rotation.x = -0.9 - actionSwing * 0.6 + alternatingThrust;
@@ -383,21 +394,24 @@ export default function Knight3D({
           leftArmRef.current.rotation.z = 0.12 + actionSwing * 0.38;
         }
       } else if (weaponStyle === "axe") {
-        rightArmRef.current.rotation.x = -1.15 + actionSwing * (state === "heavyAttack" ? 2.05 : 1.55);
+          rightArmRef.current.rotation.x = -1.15 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 2.05 : 1.55);
         rightArmRef.current.rotation.z = 0.12 - actionSwing * 0.38;
       } else if (weaponStyle === "greatsword") {
-        rightArmRef.current.rotation.x = -0.38 - actionSwing * (state === "heavyAttack" ? 1.4 : 1.08);
-        rightArmRef.current.rotation.z = -0.68 + actionSwing * (state === "heavyAttack" ? 1.2 : 0.86);
+        rightArmRef.current.rotation.x = -0.38 - actionSwing * (state === "heavyAttack" || state === "plunge" ? 1.4 : 1.08);
+        rightArmRef.current.rotation.z = -0.68 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 1.2 : 0.86);
       } else if (weaponStyle === "spear") {
-        rightArmRef.current.rotation.x = -0.98 + actionSwing * (state === "heavyAttack" ? 0.5 : 0.32);
+        rightArmRef.current.rotation.x = -0.98 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 0.5 : 0.32);
         rightArmRef.current.rotation.z = -0.04 + actionSwing * 0.08;
       } else {
         rightArmRef.current.rotation.x = -0.6 - actionSwing * attackPower;
-        rightArmRef.current.rotation.z = -0.3 + actionSwing * (state === "heavyAttack" ? 0.8 : 0.6);
+        rightArmRef.current.rotation.z = -0.3 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 0.8 : 0.6);
       }
     } else if (state === "block") {
       if (leftArmRef.current) leftArmRef.current.rotation.x = -1.0;
       if (rightArmRef.current) rightArmRef.current.rotation.x = -0.8;
+    } else if (state === "jump") {
+      if (leftArmRef.current) leftArmRef.current.rotation.x = -1.05;
+      if (rightArmRef.current) rightArmRef.current.rotation.x = -1.12;
     } else if (state === "hit" && rightArmRef.current) {
       rightArmRef.current.rotation.x = 0.8 * actionSwing;
     }

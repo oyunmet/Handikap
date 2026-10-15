@@ -39,6 +39,7 @@ export type CombatAction =
   | "windup"
   | "block"
   | "dodge"
+  | "backflip"
   | "hit"
   | "skillOne"
   | "skillTwo"
@@ -136,7 +137,7 @@ export type CombatInputFrame = readonly [
 
 export type CombatEvent = {
   id: number;
-  type: "hit" | "block" | "parry" | "dodge" | "backflip" | "skill" | "knockout" | "item" | "poison" | "burn" | "weaponSwitch" | "weaponTrail" | "projectile" | "coverBlock";
+  type: "hit" | "block" | "parry" | "dodge" | "backflip" | "plungeLand" | "skill" | "knockout" | "item" | "poison" | "burn" | "weaponSwitch" | "weaponTrail" | "projectile" | "coverBlock";
   target: CombatSide;
   attack?: CombatAttack;
   damage?: number;
@@ -150,6 +151,7 @@ export type CombatEvent = {
   destinationX?: number;
   destinationZ?: number;
   plunge?: boolean;
+  edgeRebound?: boolean;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -753,6 +755,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const events: CombatEvent[] = [];
   const player = next.player;
   const bot = next.bot;
+  let playerDashImpulse: { x: number; z: number; speed: number } | null = null;
   const botInput = chooseBotIntent(next, tick, events);
   const buttons = input.buttons & MAX_INPUT_BUTTONS;
   const playerBlockHeld = Boolean(buttons & INPUT_BUTTON.block);
@@ -817,15 +820,26 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
       ? { x: -1, y: 0 }
       : normalized(player.x - bot.x, player.z - bot.z);
     const backflip = tick - player.lastDodgeTick <= 18;
-    const impulse = backflip ? away : Math.hypot(direction.x, direction.y) > 0.1 ? direction : away;
+    const edgeDx = player.x;
+    const edgeDz = player.z - COMBAT_ARENA_CENTER_Z;
+    const edgeDistance = Math.hypot(edgeDx, edgeDz);
+    const edgeRebound = backflip && COMBAT_ARENA_RADIUS - edgeDistance <= 1.1;
+    const inward = normalized(-edgeDx, -edgeDz);
+    const impulse = edgeRebound
+      ? inward
+      : backflip ? away : Math.hypot(direction.x, direction.y) > 0.1 ? direction : away;
     const dashSpeed = backflip ? 10.2 : 8.2;
     player.lastDodgeTick = tick;
     player.stamina = Math.max(0, player.stamina - (backflip ? 24 : 20));
-    player.vx = impulse.x * dashSpeed;
-    player.vz = impulse.y * dashSpeed;
+    playerDashImpulse = { x: impulse.x, z: impulse.y, speed: dashSpeed };
     player.invulnerableUntilTick = tick + 16;
-    setAction(player, "dodge", tick, backflip ? 24 : 18);
-    events.push({ id: tick * 4 + 1, type: backflip ? "backflip" : "dodge", target: "player" });
+    setAction(player, backflip ? "backflip" : "dodge", tick, backflip ? 24 : 18);
+    events.push({
+      id: tick * 4 + 1,
+      type: backflip ? "backflip" : "dodge",
+      target: "player",
+      edgeRebound,
+    });
   }
 
   if ((input.pressed & INPUT_BUTTON.jump) && tick >= player.jumpUntilTick && player.stamina >= 12 && tick >= player.staggerUntilTick) {
@@ -844,6 +858,12 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
 
   const stanceSpeed = player.isCrouching ? 0.48 : player.isAiming ? 0.68 : 1;
   moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier * stanceSpeed);
+  if (playerDashImpulse) {
+    player.vx = playerDashImpulse.x * playerDashImpulse.speed;
+    player.vz = playerDashImpulse.z * playerDashImpulse.speed;
+    player.x += player.vx / COMBAT_HZ;
+    player.z += player.vz / COMBAT_HZ;
+  }
   moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
   resolveCombatActorOverlap(player, bot);
   resolveActorCoverCollision(player);
@@ -886,6 +906,20 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
         attacker.comboChainStep = 0;
         attacker.comboChainUntilTick = 0;
       }
+    }
+  }
+
+  for (const [actor, side] of [[player, "player"], [bot, "bot"]] as const) {
+    if (actor.jumpUntilTick === tick && actor.attackWasPlunge) {
+      events.push({
+        id: tick * 100 + (side === "player" ? 45 : 46),
+        type: "plungeLand",
+        target: side,
+        originX: actor.x,
+        originZ: actor.z,
+      });
+      next.lastImpactTick = tick;
+      next.lastImpactStrength = Math.max(next.lastImpactStrength, 0.82);
     }
   }
 

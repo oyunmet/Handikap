@@ -241,6 +241,45 @@ test("a jump followed by an attack produces a plunge hit and impact event", () =
   assert.equal(attack.state.player.attackWasPlunge, true);
   const resolved = advanceCombat(attack.state, 12);
   assert.ok(resolved.events.some((event) => event.type === "hit" && event.target === "bot" && event.plunge));
+
+  const untilLanding = resolved.state.player.jumpUntilTick - resolved.state.tick;
+  const landing = advanceCombat(resolved.state, untilLanding);
+  const landingEvent = landing.events.find((event) => event.type === "plungeLand");
+  assert.ok(landingEvent);
+  assert.equal(landingEvent.target, "player");
+  assert.ok(Number.isFinite(landingEvent.originX));
+  assert.ok(Number.isFinite(landingEvent.originZ));
+});
+
+test("a quick second dash rebounds inward at the arena edge and grants 0.25 seconds of invulnerability", () => {
+  const initial = createCombatState(2908, "easy");
+  initial.tick = 100;
+  initial.player.x = COMBAT_ARENA_RADIUS - 0.25;
+  initial.player.z = COMBAT_ARENA_CENTER_Z;
+  initial.player.lastDodgeTick = 100;
+  initial.player.vx = 0;
+  initial.player.vz = 0;
+  initial.bot.x = -2;
+  initial.bot.z = COMBAT_ARENA_CENTER_Z;
+  initial.bot.staggerUntilTick = 1_000;
+
+  const result = stepCombat(initial, {
+    x: 1,
+    y: 0,
+    buttons: INPUT_BUTTON.dodge,
+    pressed: INPUT_BUTTON.dodge,
+    released: 0,
+  });
+  const event = result.events.find((candidate) => candidate.type === "backflip");
+
+  assert.ok(event?.edgeRebound);
+  assert.equal(result.state.player.action, "backflip");
+  assert.equal(result.state.player.invulnerableUntilTick, result.state.tick + 16);
+  assert.ok(result.state.player.vx < 0, "the rebound pushes the player back into the arena");
+  assert.ok(Math.hypot(
+    result.state.player.x,
+    result.state.player.z - COMBAT_ARENA_CENTER_Z,
+  ) < COMBAT_ARENA_RADIUS - 0.25);
 });
 
 test("the perfect-block window lasts 0.2 seconds, then becomes a normal block", () => {

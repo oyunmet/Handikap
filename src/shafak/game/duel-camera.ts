@@ -14,7 +14,7 @@ export function getDuelCameraPose(
   opponent: DuelPoint,
   worldOffsetZ: number,
   cameraBack = 3.4,
-  shoulderOffset = 6.8,
+  shoulderOffset = 8.2,
 ): DuelCameraPose {
   const dx = opponent.x - player.x;
   const dz = opponent.z - player.z;

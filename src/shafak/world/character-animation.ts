@@ -6,11 +6,14 @@ export type CharacterAnimationState =
   | "heavyAttack"
   | "block"
   | "dodge"
+  | "backflip"
+  | "jump"
+  | "plunge"
   | "hit"
   | "die";
 
 export type CharacterLocomotion = "idle" | "walking" | "running" | "stopped";
-export type CharacterAction = Extract<CharacterAnimationState, "attack" | "heavyAttack" | "block" | "dodge" | "hit" | "die">;
+export type CharacterAction = Extract<CharacterAnimationState, "attack" | "heavyAttack" | "block" | "dodge" | "backflip" | "jump" | "plunge" | "hit" | "die">;
 export type CharacterAnimationBackend = "procedural" | "sprite-sheet" | "skeletal";
 
 export type SpriteSheetClip = {

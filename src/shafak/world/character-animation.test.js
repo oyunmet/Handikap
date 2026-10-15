@@ -21,8 +21,11 @@ const manifest = {
     attack: clip(16, 5, false),
     block: clip(21, 4, false),
     dodge: clip(25, 5, false),
-    hit: clip(30, 3, false),
-    die: clip(33, 6, false),
+    backflip: clip(30, 5, false),
+    jump: clip(35, 5, false),
+    plunge: clip(40, 5, false),
+    hit: clip(45, 3, false),
+    die: clip(48, 6, false),
   },
 };
 
@@ -32,6 +35,8 @@ test("character state mapping covers locomotion and reserved combat actions", ()
   assert.equal(resolveCharacterAnimationState("walking"), "walk");
   assert.equal(resolveCharacterAnimationState("running"), "run");
   assert.equal(resolveCharacterAnimationState("running", "block"), "block");
+  assert.equal(resolveCharacterAnimationState("idle", "jump"), "jump");
+  assert.equal(resolveCharacterAnimationState("idle", "backflip"), "backflip");
   assert.equal(resolveCharacterAnimationState("idle", "die"), "die");
 });
 
