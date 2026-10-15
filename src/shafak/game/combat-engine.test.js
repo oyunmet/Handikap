@@ -282,6 +282,33 @@ test("a quick second dash rebounds inward at the arena edge and grants 0.25 seco
   ) < COMBAT_ARENA_RADIUS - 0.25);
 });
 
+test("a quick double retreat becomes a backflip, while a forward double dash stays a dodge", () => {
+  const makeState = () => {
+    const state = createCombatState(2909, "easy");
+    state.bot.x = state.player.x;
+    state.bot.z = state.player.z - 2;
+    state.bot.staggerUntilTick = 1_000;
+    return state;
+  };
+  const dash = (state, y) => stepCombat(state, {
+    x: 0,
+    y,
+    buttons: INPUT_BUTTON.dodge,
+    pressed: INPUT_BUTTON.dodge,
+    released: 0,
+  });
+
+  const retreatFirst = dash(makeState(), 1);
+  const retreatSecond = dash(retreatFirst.state, 1);
+  assert.ok(retreatSecond.events.some((event) => event.type === "backflip"));
+
+  const forwardFirst = dash(makeState(), -1);
+  const forwardSecond = dash(forwardFirst.state, -1);
+  assert.ok(forwardSecond.events.some((event) => event.type === "dodge"));
+  assert.equal(forwardSecond.events.some((event) => event.type === "backflip"), false);
+  assert.equal(forwardSecond.state.player.action, "dodge");
+});
+
 test("the perfect-block window lasts 0.2 seconds, then becomes a normal block", () => {
   const resolveAtOffset = (offset) => {
     const state = createCombatState(2908 + offset, "easy");

@@ -316,7 +316,19 @@ export default function Knight3D({
     if (state === "hit") torso.rotation.x = -0.18 * actionSwing;
     if (state === "jump") torso.rotation.x = -0.12;
     if (state === "plunge") torso.rotation.x = -0.32 * actionSwing;
-    if (state === "dodge" || state === "backflip") torso.rotation.z = Math.sin(actionProgress * Math.PI * 2) * 0.24;
+    if (state === "dodge") {
+      const facing = facingAngle ?? root.rotation.y;
+      const forwardX = Math.sin(facing);
+      const forwardZ = Math.cos(facing);
+      const sideX = Math.cos(facing);
+      const sideZ = -Math.sin(facing);
+      const forwardMotion = motion.velocityX * forwardX + motion.velocityY * forwardZ;
+      const sideMotion = motion.velocityX * sideX + motion.velocityY * sideZ;
+      const rollWeight = Math.sin(actionProgress * Math.PI);
+      torso.rotation.x = -Math.sign(forwardMotion || -1) * rollWeight * 0.34;
+      torso.rotation.z = -Math.sign(sideMotion) * rollWeight * 0.72;
+    }
+    if (state === "backflip") torso.rotation.z = Math.sin(actionProgress * Math.PI * 2) * 0.24;
     if (state === "die") torso.rotation.x = actionProgress * 0.25;
     if (headRef.current) {
       headRef.current.rotation.x = -torso.rotation.x * 0.45;
@@ -528,9 +540,9 @@ export default function Knight3D({
               emissiveIntensity={appearance?.armorStyle === "shadow" ? 0.8 : 0.52}
             />
           </mesh>
-          <mesh ref={mouthRef} position={[0, -0.09, -0.17]}>
-            <boxGeometry args={[0.24, 0.07, 0.08]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} metalness={0.72} roughness={0.42} />
+          <mesh ref={mouthRef} position={[0, -0.09, -0.215]}>
+            <boxGeometry args={[0.16, 0.035, 0.016]} />
+            <meshBasicMaterial color="#100f12" />
           </mesh>
           {[-1, 1].map((side) => (
             <mesh key={side} position={[side * 0.12, 0.31, 0.02]} rotation={[0, 0, -side * 0.28]}>

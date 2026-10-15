@@ -663,21 +663,21 @@
   transform: translateX(-50%); pointer-events: none;
   animation: encounter-arrive .5s cubic-bezier(.2,.72,.24,1) both;
 }
-.world-encounter__speech {
-  position: absolute; z-index: 2; top: -66px; left: 48%; width: min(310px, calc(100% - 18px));
-  padding: 9px 12px 10px; border: 1px solid rgba(231,198,139,.62); border-radius: 5px;
+.world-npc-dialogue {
+  position: relative; width: min(270px, 66vw); padding: 9px 12px 10px;
+  border: 1px solid rgba(231,198,139,.72); border-radius: 5px;
   background: linear-gradient(145deg, rgba(32,28,28,.96), rgba(13,14,19,.95));
-  box-shadow: 0 8px 24px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.05);
-  color: #f2e2c3; transform: translateX(-50%); animation: npc-speech-appear .22s ease-out both;
+  box-shadow: 0 8px 24px rgba(0,0,0,.52), inset 0 1px rgba(255,255,255,.05);
+  color: #f2e2c3; text-align: center; animation: npc-dialogue-appear .24s ease-out both;
 }
-.world-encounter__speech::after {
-  position: absolute; bottom: -6px; left: 48%; width: 10px; height: 10px;
+.world-npc-dialogue::after {
+  position: absolute; bottom: -6px; left: calc(50% - 5px); width: 10px; height: 10px;
   border-right: 1px solid rgba(231,198,139,.62); border-bottom: 1px solid rgba(231,198,139,.62);
   background: #171519; content: ""; transform: rotate(45deg);
 }
-.world-encounter__speech > span { display: block; margin-bottom: 3px; color: #d9b46e; font-size: 7px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-.world-encounter__speech p { margin: 0; color: #f0e1c5; font: 500 10px/1.45 var(--font-display, Georgia, serif); }
-@keyframes npc-speech-appear { from { opacity: 0; transform: translate(-50%, 5px) scale(.98); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+.world-npc-dialogue > span { display: block; margin-bottom: 4px; color: #d9b46e; font-size: 8px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.world-npc-dialogue p { margin: 0; color: #f0e1c5; font: 500 11px/1.45 var(--font-display, Georgia, serif); }
+@keyframes npc-dialogue-appear { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .world-encounter__rival {
   display: grid; width: clamp(64px, 12vw, 112px); height: clamp(96px, 24vh, 204px);
   flex: 0 0 auto; place-items: end center; overflow: hidden;
@@ -1013,7 +1013,8 @@
   .world-encounter__card { margin-bottom: 7px; padding: 9px 10px; }
   .world-encounter__card > span:not(.world-encounter__eyebrow) { font-size: 7px; }
   .world-encounter__card em { font-size: 7px; }
-  .world-encounter__speech { top: -62px; width: min(310px, calc(100% - 8px)); }
+  .world-npc-dialogue { width: min(230px, 62vw); padding: 7px 9px 8px; }
+  .world-npc-dialogue p { font-size: 10px; }
   .world-breakable-action { bottom: max(112px, calc(env(safe-area-inset-bottom) + 98px)); }
   .world-battle-entry { gap: 12px; padding: 16px; }
   .world-battle-entry__versus { gap: 8px; padding: 18px 10px; }

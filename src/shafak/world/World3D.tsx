@@ -37,7 +37,7 @@ import {
   MAX_ACTIVE_DUEL_VFX,
   type DuelVfxKind,
 } from "./duel-vfx";
-import { getDuelCameraPose, getDuelFacingAngle } from "../game/duel-camera";
+import { getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight } from "../game/duel-camera";
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
@@ -65,6 +65,7 @@ type World3DProps = {
   defeatedOpponentIds: readonly string[];
   playerName: string;
   focusedRival: WorldRival | null;
+  talkingRivalId: string | null;
   slowMotion: boolean;
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
@@ -280,12 +281,17 @@ function CameraRig({
       ? Math.sin(THREE.MathUtils.clamp(skillAge / 0.46, 0, 1) * Math.PI) * (skillPulseRef.current.attack === "skillTwo" ? 3.1 : 2.4)
       : 0;
     if (combat) {
+      const jumpLift = Math.max(
+        getDuelJumpHeight(combat.player, combat.tick),
+        getDuelJumpHeight(combat.bot, combat.tick),
+      );
       const pose = getDuelCameraPose(
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
         touchRenderer ? 3.1 : 3.7,
         touchRenderer ? 7.2 : 8.2,
+        jumpLift,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -430,13 +436,7 @@ function DuelFighter({
     const baseScale = side === "bot" ? 1.07 : 1;
     const liveActor = combatStateRef.current?.[side] ?? renderedActor;
     const combatTick = combatStateRef.current?.tick ?? combatRender?.tick ?? 0;
-    const jumpDuration = liveActor ? liveActor.jumpUntilTick - liveActor.jumpStartedTick : 0;
-    const jumpProgress = liveActor && jumpDuration > 0
-      ? THREE.MathUtils.clamp((combatTick - liveActor.jumpStartedTick) / jumpDuration, 0, 1)
-      : 1;
-    const jumpHeight = liveActor && liveActor.jumpUntilTick > combatTick
-      ? Math.sin(jumpProgress * Math.PI) * 1.12
-      : 0;
+    const jumpHeight = liveActor ? getDuelJumpHeight(liveActor, combatTick) : 0;
     const hitProgress = liveActor?.action === "hit"
       ? THREE.MathUtils.clamp(1 - (liveActor.actionUntilTick - combatTick) / 17, 0, 1)
       : 0;
@@ -1095,6 +1095,7 @@ function SceneContents({
   brokenObstacleIds,
   interactableRegistry,
   focusedRival,
+  talkingRivalId,
   slowMotion,
   combatActive,
   combatStateRef,
@@ -1286,6 +1287,7 @@ function SceneContents({
         collectedPickupIds={collectedPickupIds}
         brokenObstacleIds={brokenObstacleIds}
         focusedRivalId={focusedRival?.id ?? null}
+        talkingRivalId={talkingRivalId}
         reducedMotion={motionReduced}
         interactableRegistry={interactableRegistry}
       />}

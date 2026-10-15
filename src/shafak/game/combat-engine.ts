@@ -86,6 +86,7 @@ export type CombatActor = {
   jumpStartedTick: number;
   jumpUntilTick: number;
   lastDodgeTick: number;
+  lastDodgeWasRetreat: boolean;
   attackWeaponId: string | null;
   attackIsRanged: boolean;
   attackWasPlunge: boolean;
@@ -224,6 +225,7 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
     jumpStartedTick: -10_000,
     jumpUntilTick: 0,
     lastDodgeTick: -10_000,
+    lastDodgeWasRetreat: false,
     attackWeaponId: null,
     attackIsRanged: false,
     attackWasPlunge: false,
@@ -819,17 +821,21 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     const away = distanceBetween(player, bot) < 0.001
       ? { x: -1, y: 0 }
       : normalized(player.x - bot.x, player.z - bot.z);
-    const backflip = tick - player.lastDodgeTick <= 18;
+    const rapidRepeat = tick - player.lastDodgeTick <= 18;
+    const directionLength = Math.hypot(direction.x, direction.y);
+    const retreatIntent = directionLength < 0.1 || direction.x * away.x + direction.y * away.y >= 0.35;
     const edgeDx = player.x;
     const edgeDz = player.z - COMBAT_ARENA_CENTER_Z;
     const edgeDistance = Math.hypot(edgeDx, edgeDz);
-    const edgeRebound = backflip && COMBAT_ARENA_RADIUS - edgeDistance <= 1.1;
+    const edgeRebound = rapidRepeat && COMBAT_ARENA_RADIUS - edgeDistance <= 1.1;
+    const backflip = edgeRebound || (rapidRepeat && player.lastDodgeWasRetreat && retreatIntent);
     const inward = normalized(-edgeDx, -edgeDz);
     const impulse = edgeRebound
       ? inward
       : backflip ? away : Math.hypot(direction.x, direction.y) > 0.1 ? direction : away;
     const dashSpeed = backflip ? 10.2 : 8.2;
     player.lastDodgeTick = tick;
+    player.lastDodgeWasRetreat = retreatIntent;
     player.stamina = Math.max(0, player.stamina - (backflip ? 24 : 20));
     playerDashImpulse = { x: impulse.x, z: impulse.y, speed: dashSpeed };
     player.invulnerableUntilTick = tick + 16;

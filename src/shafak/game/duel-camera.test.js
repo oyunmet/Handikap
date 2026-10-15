@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDuelCameraPose, getDuelFacingAngle } from "./duel-camera.ts";
+import { DUEL_JUMP_HEIGHT, getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight } from "./duel-camera.ts";
 import { getKnightActorRootYaw } from "../world/knight-config.ts";
 
 test("duel camera stays behind the player and places both fighters side by side", () => {
@@ -77,4 +77,19 @@ test("the mobile camera keeps the side-on composition with moved fighters", () =
   assert.ok(cameraHeadingDot < 0, "camera must stay on the player's rear side");
   assert.ok(pose.position.x > 6, "camera should stand far enough to the side to reveal both fighters");
   assert.ok(pose.target.z < player.z && pose.target.z > opponent.z);
+});
+
+test("the duel camera follows the jump arc and returns to its grounded framing", () => {
+  const airborne = { jumpStartedTick: 20, jumpUntilTick: 62 };
+  assert.equal(getDuelJumpHeight(airborne, 19), 0);
+  assert.equal(getDuelJumpHeight(airborne, 20), 0);
+  assert.equal(getDuelJumpHeight(airborne, 41), DUEL_JUMP_HEIGHT);
+  assert.equal(getDuelJumpHeight(airborne, 62), 0);
+
+  const player = { x: 0, z: 0.75 };
+  const opponent = { x: 0, z: -1.95 };
+  const grounded = getDuelCameraPose(player, opponent, 0, 3.1, 7.2);
+  const lifted = getDuelCameraPose(player, opponent, 0, 3.1, 7.2, DUEL_JUMP_HEIGHT);
+  assert.ok(lifted.position.y > grounded.position.y);
+  assert.ok(lifted.target.y > grounded.target.y);
 });

@@ -6,6 +6,7 @@ import type { MutableRefObject } from "react";
 import KnightActor from "./KnightActor";
 import { createWorldMotion, type WorldMotion } from "./movement";
 import type { WorldInteractableRegistry } from "./world-interactables";
+import { getNpcStoryDialogue } from "./story-dialogue";
 import {
   getWorldContentAround,
   PICKUP_MAGNET_RADIUS_METERS,
@@ -316,11 +317,13 @@ function BotActor({
   rival,
   motionRef,
   focused,
+  talking,
   interactableRegistry,
 }: {
   rival: WorldRival;
   motionRef: MotionRef;
   focused: boolean;
+  talking: boolean;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
@@ -328,7 +331,12 @@ function BotActor({
   const poseRef = useRef(createWorldMotion());
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
   const profile = getWorldBotProfileByName(rival.name);
+  const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
+  const dialogueSpeaker = dialogue?.speaker ?? rival.name;
+  const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
   const tintAppliedRef = useRef(false);
+  const approachDistanceRef = useRef(0);
+  const approachSideRef = useRef(0);
   useEffect(() => {
     const mesh = rootRef.current;
     if (!mesh) return undefined;
@@ -350,10 +358,19 @@ function BotActor({
     if (!root) return;
     const motion = motionRef.current;
     const gap = rival.distance - motion.distance;
-    const talking = focused && Math.abs(gap) <= 12;
-    const approach = talking
-      ? Math.sign(gap) * Math.min(0.75, Math.max(0, (12 - Math.abs(gap)) * 0.1))
-      : 0;
+    const speaking = talking && Math.abs(gap) <= 12;
+    if (speaking && approachSideRef.current === 0) {
+      approachSideRef.current = Math.sign(gap) || 1;
+    } else if (!speaking) {
+      approachSideRef.current = 0;
+    }
+    approachDistanceRef.current = THREE.MathUtils.damp(
+      approachDistanceRef.current,
+      speaking ? 1.1 : 0,
+      2.8,
+      Math.min(delta, 0.05),
+    );
+    const approach = approachSideRef.current * approachDistanceRef.current;
     const actorZ = -(rival.distance - motion.cameraX) + approach;
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
@@ -362,7 +379,7 @@ function BotActor({
     root.visible = gap >= -12 && gap <= 105;
     root.rotation.y = 0;
     if (actorPivotRef.current) {
-      const targetYaw = focused
+      const targetYaw = focused || talking
         ? Math.atan2(rival.x - playerX, actorZ - playerZ)
         : 0;
       actorPivotRef.current.rotation.y = THREE.MathUtils.damp(
@@ -403,24 +420,32 @@ function BotActor({
         <KnightActor
           motionRef={poseRef}
           state="idle"
-          talking={focused && Math.abs(rival.distance - motionRef.current.distance) <= 12}
+          talking={talking && Math.abs(rival.distance - motionRef.current.distance) <= 12}
           motionReduced
           animationTimeScale={0}
-          castShadow={focused}
+          castShadow={focused || talking}
           appearance={profile?.appearance}
         />
       </group>
+      {talking && Math.abs(rival.distance - motionRef.current.distance) <= 12 && (
+        <Html position={[rival.x, 3.5, 0]} center distanceFactor={13} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
+          <div className="world-npc-dialogue" role="status" aria-live="polite">
+            <span>{dialogueSpeaker} konuşuyor</span>
+            <p>“{dialogueLine}”</p>
+          </div>
+        </Html>
+      )}
       <BotSignature rival={rival} />
       <mesh position={[rival.x - 0.38, 1.52, 0.02]} rotation={[0, 0, rival.weapon === "axe" ? -0.16 : 0.08]}>
         <dodecahedronGeometry args={[rival.weapon === "mace" ? 0.34 : 0.27, 0]} />
         <meshStandardMaterial color={rival.armorTint} roughness={0.38} metalness={0.62} flatShading />
       </mesh>
       <mesh position={[rival.x, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={focused ? [1.45, 1.62, 32] : [1.05, 1.18, 24]} />
+        <ringGeometry args={focused || talking ? [1.45, 1.62, 32] : [1.05, 1.18, 24]} />
         <meshBasicMaterial
-          color={focused ? "#ff704f" : rival.armorTint}
+          color={focused || talking ? "#ff704f" : rival.armorTint}
           transparent
-          opacity={focused ? 0.6 : 0.24}
+          opacity={focused || talking ? 0.6 : 0.24}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -440,6 +465,7 @@ export default function WorldRoadEntities({
   collectedPickupIds,
   brokenObstacleIds = EMPTY_BROKEN,
   focusedRivalId,
+  talkingRivalId,
   reducedMotion,
   interactableRegistry,
 }: {
@@ -448,6 +474,7 @@ export default function WorldRoadEntities({
   collectedPickupIds: ReadonlySet<string>;
   brokenObstacleIds?: ReadonlySet<string>;
   focusedRivalId: string | null;
+  talkingRivalId: string | null;
   reducedMotion: boolean;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
@@ -504,6 +531,7 @@ export default function WorldRoadEntities({
           rival={rival}
           motionRef={motionRef}
           focused={rival.id === focusedRivalId}
+          talking={rival.id === talkingRivalId}
           interactableRegistry={interactableRegistry}
         />
       ))}

@@ -37,7 +37,6 @@ import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import StoryDialogueOverlay from "./StoryDialogueOverlay";
 import {
   getChapterStoryDialogue,
-  getNpcStoryDialogue,
   getOpeningStoryDialogue,
   type StoryDialogue,
 } from "./story-dialogue";
@@ -798,6 +797,9 @@ export default function WorldScene({
     && encounterDistance <= 25
     && nearbyInteractables.rivalId === nextOpponent.id,
   );
+  const talkingRivalId = encounterVisible && encounterDistance <= 12
+    ? nextOpponent?.id ?? null
+    : null;
   const canChallenge = Boolean(nextOpponent && encounterDistance <= 8);
   const allPickups = activeContent.pickups;
   const visiblePickupCount = allPickups.filter((pickup) =>
@@ -2347,6 +2349,7 @@ export default function WorldScene({
             defeatedOpponentIds={profile.defeatedOpponents}
             playerName={profile.name}
             focusedRival={battleSession?.rival ?? null}
+            talkingRivalId={talkingRivalId}
             slowMotion={Boolean(battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
             combatStateRef={combatStateRef}
@@ -2529,9 +2532,10 @@ export default function WorldScene({
                 <h2 id="duel-tutorial-title">Kontroller</h2>
                 <p>Oyun bu kısa rehber boyunca duraklar.</p>
                 <div className="duel-tutorial__rows">
-                  <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>Sağdaki büyük düğme · basılı tut: ağır vuruş</i><strong>↘</strong></div>
+                  <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
                   <div><span aria-hidden="true">⬟</span><b>KALKAN</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
-                  <div><span aria-hidden="true">↝</span><b>ATILMA</b><i>Kısa süre hasar almazsın · dayanıklılık harcar</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">↝</span><b>ATILMA</b><i>Kısa süre hasar almazsın · geri çift basış takla, kenarda sekme</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                 </div>
@@ -2750,12 +2754,6 @@ export default function WorldScene({
       {encounterVisible && nextOpponent && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
-          {encounterDistance <= 12 && (
-            <div className="world-encounter__speech" role="status" aria-live="polite">
-              <span>{nextOpponent.name} konuşuyor</span>
-              <p>“{getNpcStoryDialogue(nextOpponent.name, currentChapterId)?.lines[0] ?? nextOpponent.taunt}”</p>
-            </div>
-          )}
           <div className="world-encounter__card">
             <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
