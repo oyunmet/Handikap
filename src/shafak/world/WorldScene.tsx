@@ -22,16 +22,19 @@ import {
   INPUT_BUTTON,
   MAX_INPUT_BUTTONS,
   createCombatState,
+  createCombatOpponentTuning,
   getBotAttackWindupTicks,
   isCombatBotArchetype,
   isCombatBotEnraged,
   normalizePlayerCombatModifiers,
   stepCombat,
   type CombatBotArchetype,
+  type CombatDifficulty,
   type CombatEvent,
   type CombatInput,
   type CombatInputFrame,
   type CombatLoadout,
+  type CombatOpponentTuning,
   type CombatState,
 } from "../game/combat-engine";
 import type { PlayerCombatModifiers } from "../game/store-types";
@@ -114,6 +117,7 @@ type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequest;
   userId?: string;
   quality: "high" | "balanced" | "low";
+  combatDifficulty: CombatDifficulty;
   visualEffectsEnabled: boolean;
   motionReduced: boolean;
   performanceMonitorEnabled: boolean;
@@ -251,16 +255,24 @@ type WorldContentSnapshot = {
 
 const worldContentSnapshots = new WeakMap<Map<number, WorldChapterContent>, Map<number, WorldContentSnapshot>>();
 
-function getCachedWorldContent(distance: number, cache: Map<number, WorldChapterContent>, routeChoice?: WorldRouteChoice | null) {
+function getCachedWorldContent(
+  distance: number,
+  cache: Map<number, WorldChapterContent>,
+  routeChoice?: WorldRouteChoice | null,
+  playerLevel = 1,
+  combatDifficulty: CombatDifficulty = "easy",
+) {
   const current = Math.max(0, Math.floor(distance / WORLD_GATE_INTERVAL_METERS));
   const activeRoute = routeChoice?.chapterId === current ? routeChoice.difficulty : undefined;
   const routeVariant = activeRoute === "easy" ? 1 : activeRoute === "hard" ? 2 : 0;
+  const safePlayerLevel = Math.max(1, Math.min(1_000, Math.floor(playerLevel)));
+  const combatDifficultyIndex = combatDifficulty === "easy" ? 0 : combatDifficulty === "medium" ? 1 : 2;
   let snapshots = worldContentSnapshots.get(cache);
   if (!snapshots) {
     snapshots = new Map();
     worldContentSnapshots.set(cache, snapshots);
   }
-  const snapshotKey = current * 3 + routeVariant;
+  const snapshotKey = (current * 9 + routeVariant * 3 + combatDifficultyIndex) * 1_001 + safePlayerLevel;
   let snapshot = snapshots.get(snapshotKey);
   if (snapshot) return snapshot;
 
@@ -270,10 +282,10 @@ function getCachedWorldContent(distance: number, cache: Map<number, WorldChapter
   for (let chapterId = first; chapterId <= last; chapterId += 1) {
     const chapterRoute = routeChoice?.chapterId === chapterId ? routeChoice.difficulty : undefined;
     const chapterVariant = chapterRoute === "easy" ? 1 : chapterRoute === "hard" ? 2 : 0;
-    const cacheKey = chapterId * 3 + chapterVariant;
+      const cacheKey = chapterId * 9 * 1_001 + chapterVariant * 3 * 1_001 + safePlayerLevel * 3 + combatDifficultyIndex;
     let content = cache.get(cacheKey);
     if (!content) {
-      content = getWorldChapter(chapterId, chapterRoute);
+        content = getWorldChapter(chapterId, chapterRoute, safePlayerLevel, combatDifficulty);
       cache.set(cacheKey, content);
     }
     chapters.push(content);
@@ -431,6 +443,7 @@ export default function WorldScene({
   apiRequest,
   userId,
   quality,
+  combatDifficulty,
   visualEffectsEnabled,
   motionReduced,
   performanceMonitorEnabled,
@@ -782,7 +795,13 @@ export default function WorldScene({
     musicVolume,
     currentChapterId,
   );
-  const activeContent = getCachedWorldContent(travel, contentCacheRef.current, worldProgress.routeChoice);
+  const activeContent = getCachedWorldContent(
+    travel,
+    contentCacheRef.current,
+    worldProgress.routeChoice,
+    profile.level,
+    combatDifficulty,
+  );
   const allRivals = activeContent.rivals;
   const nearbyRivals = allRivals.filter((rival) => Math.abs(rival.distance - travel) <= 105);
   const rivals = allRivals.filter((rival) =>
@@ -1296,6 +1315,8 @@ export default function WorldScene({
       verdict,
       opponentId: context.rival.id,
       loot: context.rival.loot,
+      maxCombo: combatStateRef.current?.maxCombo ?? 0,
+      highestDamage: combatStateRef.current?.highestDamage ?? 0,
     };
     pendingVerdictRef.current = localSummary;
     updateBattleSession({ phase: "settling", summary: localSummary, message: "" });
@@ -1447,8 +1468,13 @@ export default function WorldScene({
 
     try {
       let seed: number;
-      let difficulty = rival.difficulty;
+      let difficulty: CombatDifficulty = combatDifficulty;
       let botArchetype: CombatBotArchetype = rival.archetype;
+      let opponentTuning: CombatOpponentTuning = createCombatOpponentTuning(
+        rival.level,
+        rival.progressPercent,
+        rival.isElite,
+      );
       let duelId: string | null = null;
       let playerStats: PlayerCombatModifiers = playerCombatStats;
       let duelLoadout = combatLoadout;
@@ -1459,13 +1485,22 @@ export default function WorldScene({
           seed?: unknown;
           playerStats?: unknown;
           combatLoadout?: unknown;
-          opponent?: { id?: unknown; difficulty?: unknown; archetype?: unknown; isBoss?: unknown };
+          opponent?: {
+            id?: unknown;
+            level?: unknown;
+            loot?: unknown;
+            difficulty?: unknown;
+            archetype?: unknown;
+            isBoss?: unknown;
+            isElite?: unknown;
+            tuning?: unknown;
+          };
           error?: string;
         }>("/api/duels/start", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ opponentId: rival.id }),
+          body: JSON.stringify({ opponentId: rival.id, combatDifficulty }),
         }, {
           operation: "duel start",
           fallbackMessage: "Hesap düellosu şu an başlatılamıyor. Lütfen daha sonra tekrar dene.",
@@ -1492,8 +1527,29 @@ export default function WorldScene({
           challenge.opponent?.id !== rival.id ||
           !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty)) ||
           !isCombatBotArchetype(challenge.opponent.archetype) ||
-          challenge.opponent.isBoss !== rival.isBoss
+          challenge.opponent.isBoss !== rival.isBoss ||
+          challenge.opponent.isElite !== rival.isElite ||
+          !Number.isSafeInteger(challenge.opponent.level) ||
+          typeof challenge.opponent.loot !== "number" ||
+          !Number.isFinite(challenge.opponent.loot) ||
+          !challenge.opponent.tuning ||
+          typeof challenge.opponent.tuning !== "object" ||
+          Array.isArray(challenge.opponent.tuning)
         ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
+        const serverTuning = challenge.opponent.tuning as Partial<CombatOpponentTuning>;
+        if (
+          !Number.isSafeInteger(serverTuning.rivalLevel) ||
+          !Number.isFinite(serverTuning.progressPercent) ||
+          typeof serverTuning.isElite !== "boolean" ||
+          !Number.isFinite(serverTuning.statMultiplier) ||
+          serverTuning.rivalLevel !== challenge.opponent.level ||
+          serverTuning.isElite !== challenge.opponent.isElite
+        ) throw new Error("Sunucudan gelen rakip ölçeği geçersiz.");
+        opponentTuning = createCombatOpponentTuning(
+          serverTuning.rivalLevel!,
+          serverTuning.progressPercent!,
+          serverTuning.isElite,
+        );
         const serverLoadout = challenge.combatLoadout as Partial<CombatLoadout>;
         if (
           !Array.isArray(serverLoadout.quickSlots) ||
@@ -1529,14 +1585,24 @@ export default function WorldScene({
         seed = challenge.seed;
         difficulty = challenge.opponent.difficulty as typeof difficulty;
         botArchetype = challenge.opponent.archetype as CombatBotArchetype;
+        updateBattleSession({
+          rival: {
+            ...rival,
+            level: challenge.opponent.level as number,
+            loot: challenge.opponent.loot as number,
+            difficulty,
+            isElite: challenge.opponent.isElite as boolean,
+          },
+        });
       } else {
         const seedBuffer = new Uint32Array(1);
         window.crypto.getRandomValues(seedBuffer);
         seed = seedBuffer[0] || 1;
       }
 
-      activeDuelRef.current = { rival, duelId, seed, practice, rematch, oneHit: debugOneHitEnabled };
-      const initialCombat = createCombatState(seed, difficulty, playerStats, duelLoadout, botArchetype);
+      const battleRival = battleSessionRef.current?.rival ?? rival;
+      activeDuelRef.current = { rival: battleRival, duelId, seed, practice, rematch, oneHit: debugOneHitEnabled };
+      const initialCombat = createCombatState(seed, difficulty, playerStats, duelLoadout, botArchetype, opponentTuning);
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
 
@@ -1570,7 +1636,7 @@ export default function WorldScene({
         message: error instanceof Error ? error.message : "Düello başlatılamadı.",
       });
     }
-  }, [accountDuelEnabled, accountProfileReady, debugOneHitEnabled, motionReduced, playerCombatStats, profile.defeatedOpponents]);
+  }, [accountDuelEnabled, accountProfileReady, combatDifficulty, debugOneHitEnabled, motionReduced, playerCombatStats, profile.defeatedOpponents]);
 
   const pressDuelButton = (button: number) => {
     const input = combatInputRef.current;
@@ -1967,6 +2033,8 @@ export default function WorldScene({
           nextFrame.distance,
           contentCacheRef.current,
           worldProgressRef.current.routeChoice,
+          profileRef.current.level,
+          combatDifficulty,
         );
         const obstacles = worldContent.obstacles;
         const playerX = nextFrame.depth * 5.2;
@@ -2193,7 +2261,7 @@ export default function WorldScene({
       window.cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [audioOn, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, combatDifficulty, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -2257,7 +2325,7 @@ export default function WorldScene({
   const activeRoute = worldProgress.routeChoice?.chapterId === currentChapterId
     ? worldProgress.routeChoice.difficulty
     : undefined;
-  const chapterRivals = getWorldChapter(currentChapterId, activeRoute).rivals;
+  const chapterRivals = getWorldChapter(currentChapterId, activeRoute, profile.level, combatDifficulty).rivals;
   const defeatedChapterRivals = chapterRivals.filter((rival) =>
     profile.defeatedOpponents.includes(rival.id),
   ).length;
@@ -2338,6 +2406,8 @@ export default function WorldScene({
               motionRef.current.distance,
               contentCacheRef.current,
               worldProgress.routeChoice,
+              profile.level,
+              combatDifficulty,
             ).collisionGrid}
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
@@ -2424,13 +2494,20 @@ export default function WorldScene({
       </div>
       {battleSession?.phase === "fight" && combatRender && (
         <>
-          <section className="duel-hud" aria-label="Düello durumu">
+          <section
+            className="duel-hud"
+            aria-label="Düello durumu"
+            data-boss={battleSession.rival.isBoss}
+            data-elite={battleSession.rival.isElite && !battleSession.rival.isBoss}
+          >
             <DuelHealthBar label={profile.name} hp={combatRender.player.hp} maxHp={combatRender.player.maxHp} side="player" visualEffectsEnabled={visualEffectsEnabled} />
             <div className="duel-hud__center">
               <span>VS</span>
-              <strong>{battleSession.rival.isBoss ? "BÖLÜM BOSSU" : combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
+              <strong>{battleSession.rival.isBoss ? "BÖLÜM BOSSU" : battleSession.rival.isElite ? "ELİT RAKİP" : combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
               {isCombatBotEnraged(combatRender.bot) && (
-                <small className="duel-rage-label" role="status">ÖFKE FAZI</small>
+                <small className="duel-rage-label" role="status">
+                  {battleSession.rival.isBoss ? "ÖFKE FAZI · FAZ II" : "ÖFKE FAZI"}
+                </small>
               )}
               {combatRender.player.comboChainStep > 0 && combatRender.tick <= combatRender.player.comboChainUntilTick && (
                 <small className="duel-combo-chain" role="status">

@@ -1,15 +1,16 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi.ts";
-import { MAX_INPUT_BUTTONS, normalizePlayerCombatModifiers, replayCombat, type CombatBotArchetype, type CombatDifficulty, type CombatInputFrame, type CombatLoadout } from "../src/shafak/game/combat-engine.ts";
+import { createCombatOpponentTuning, MAX_INPUT_BUTTONS, normalizePlayerCombatModifiers, replayCombat, type CombatBotArchetype, type CombatDifficulty, type CombatInputFrame, type CombatLoadout, type CombatOpponentTuning } from "../src/shafak/game/combat-engine.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, isCombatItemId, normalizeCombatQuickSlots } from "../src/shafak/game/combat-items.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
 import { canStartDailyDuel, consumeDailyAdDuel, getIstanbulDayKey, normalizeDailyLifeState, DAILY_DEFEAT_LIMIT } from "../src/shafak/game/daily-lives.ts";
 import type { WorldRouteChoice } from "../src/shafak/world/route-difficulty.ts";
+import { rollCombatLoot } from "../src/shafak/game/combat-loot.ts";
 
 export type DuelVerdict = "victory" | "defeat" | "draw";
-export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number };
+export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number; item?: string | null };
 type BattleRewards = { gold: number; diamonds: number; xp: number; item: string | null; lostStake: number };
 type ServerOpponent = {
   id: string;
@@ -19,6 +20,16 @@ type ServerOpponent = {
   difficulty: CombatDifficulty;
   archetype: CombatBotArchetype;
   isBoss: boolean;
+  isElite: boolean;
+  tuning: CombatOpponentTuning;
+};
+
+type DuelEncounterSnapshot = {
+  difficulty: CombatDifficulty;
+  level: number;
+  loot: number;
+  isElite: boolean;
+  tuning: CombatOpponentTuning;
 };
 
 const MAX_DUEL_AGE_MS = 30 * 60 * 1000;
@@ -36,7 +47,16 @@ export class DuelServiceError extends Error {
 
 export const DUEL_ENGINE_ENABLED = true;
 
-function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | null): ServerOpponent | null {
+function isCombatDifficulty(value: unknown): value is CombatDifficulty {
+  return value === "easy" || value === "medium" || value === "hard";
+}
+
+function resolveOpponent(
+  opponentId: unknown,
+  routeChoice?: WorldRouteChoice | null,
+  playerLevel = 1,
+  selectedDifficulty?: CombatDifficulty,
+): ServerOpponent | null {
   if (typeof opponentId !== "string") return null;
   const match = /^ash-road:(\d{1,7}):(rival|bot):([0-4])$/.exec(opponentId);
   if (!match) return null;
@@ -44,9 +64,9 @@ function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | n
   const rivalIndex = Number(match[3]);
   if (!Number.isSafeInteger(chapterId) || chapterId > 1_000_000) return null;
   const difficulty = routeChoice?.chapterId === chapterId ? routeChoice.difficulty : undefined;
-  const rival = getWorldChapter(chapterId, difficulty).rivals[rivalIndex];
+  const rival = getWorldChapter(chapterId, difficulty, playerLevel, selectedDifficulty).rivals[rivalIndex];
   if (!rival || (match[2] === "rival" && rival.id !== opponentId)) return null;
-  const maximumLootByRival = [48, 72, 96, 120, 200][rivalIndex];
+  const maximumLootByRival = Math.min(5_000, [48, 72, 96, 120, 200][rivalIndex] + chapterId * 8);
   return {
     id: rival.id,
     name: rival.name,
@@ -55,6 +75,8 @@ function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | n
     difficulty: rival.difficulty,
     archetype: rival.archetype,
     isBoss: rival.isBoss,
+    isElite: rival.isElite,
+    tuning: createCombatOpponentTuning(rival.level, rival.progressPercent, rival.isElite),
   };
 }
 
@@ -126,6 +148,32 @@ function readDuelCombatConfig(value: unknown, profile: PlayerProfileRecord) {
   const playerStats = normalizePlayerCombatModifiers(stored?.playerStats ?? value);
   const fallback = buildCombatLoadout(profile);
   const rawLoadout = stored?.combatLoadout;
+  const rawEncounter = stored?.encounter;
+  const encounter: DuelEncounterSnapshot | null = isRecord(rawEncounter)
+    && isCombatDifficulty(rawEncounter.difficulty)
+    && typeof rawEncounter.level === "number"
+    && Number.isSafeInteger(rawEncounter.level)
+    && rawEncounter.level >= 1
+    && rawEncounter.level <= 1_000
+    && typeof rawEncounter.loot === "number"
+    && Number.isSafeInteger(rawEncounter.loot)
+    && rawEncounter.loot >= 0
+    && rawEncounter.loot <= 5_000
+    && typeof rawEncounter.isElite === "boolean"
+    && isRecord(rawEncounter.tuning)
+    && typeof rawEncounter.tuning.progressPercent === "number"
+    ? {
+        difficulty: rawEncounter.difficulty,
+        level: rawEncounter.level,
+        loot: rawEncounter.loot,
+        isElite: rawEncounter.isElite,
+        tuning: createCombatOpponentTuning(
+          rawEncounter.level,
+          rawEncounter.tuning.progressPercent,
+          rawEncounter.isElite,
+        ),
+      }
+    : null;
   if (
     !isRecord(rawLoadout) ||
     !Array.isArray(rawLoadout.quickSlots) ||
@@ -135,7 +183,7 @@ function readDuelCombatConfig(value: unknown, profile: PlayerProfileRecord) {
     rawLoadout.weaponIds.length !== 2 ||
     !Array.isArray(rawLoadout.weaponStats) ||
     rawLoadout.weaponStats.length !== 2
-  ) return { playerStats, combatLoadout: fallback };
+  ) return { playerStats, combatLoadout: fallback, encounter };
 
   const itemCounts = { ...fallback.itemCounts };
   for (const itemId of Object.keys(itemCounts) as (keyof typeof itemCounts)[]) {
@@ -156,7 +204,28 @@ function readDuelCombatConfig(value: unknown, profile: PlayerProfileRecord) {
     normalizePlayerCombatModifiers(rawLoadout.weaponStats[0]),
     normalizePlayerCombatModifiers(rawLoadout.weaponStats[1]),
   ];
-  return { playerStats, combatLoadout: { quickSlots, itemCounts, weaponIds, weaponStats } };
+  return { playerStats, combatLoadout: { quickSlots, itemCounts, weaponIds, weaponStats }, encounter };
+}
+
+function snapshotEncounter(opponent: ServerOpponent): DuelEncounterSnapshot {
+  return {
+    difficulty: opponent.difficulty,
+    level: opponent.level,
+    loot: opponent.loot,
+    isElite: opponent.isElite,
+    tuning: opponent.tuning,
+  };
+}
+
+function withEncounter(opponent: ServerOpponent, encounter: DuelEncounterSnapshot): ServerOpponent {
+  return {
+    ...opponent,
+    difficulty: encounter.difficulty,
+    level: encounter.level,
+    loot: encounter.loot,
+    isElite: encounter.isElite,
+    tuning: encounter.tuning,
+  };
 }
 
 export function applyServerAward(
@@ -173,7 +242,9 @@ export function applyServerAward(
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
   const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
-  const item = outcome.verdict === "victory" ? "Kül Mührü" : null;
+  const item = outcome.verdict === "victory"
+    ? outcome.item === undefined ? "Kül Mührü" : outcome.item
+    : null;
   let level = base.level;
   let totalXp = base.xp + xp;
   while (totalXp >= 100 + level * 45) {
@@ -208,8 +279,12 @@ export async function createDuelChallenge(
   database: { query: Function },
   userId: string,
   opponentId: unknown,
+  selectedDifficulty?: unknown,
 ) {
   if (typeof opponentId !== "string") throw new DuelServiceError(400, "unknown_opponent");
+  if (selectedDifficulty !== undefined && !isCombatDifficulty(selectedDifficulty)) {
+    throw new DuelServiceError(400, "invalid_difficulty");
+  }
 
   const profileResult = await database.query(
     "SELECT profile FROM shafak_player_profiles WHERE user_id = $1 FOR UPDATE",
@@ -217,7 +292,12 @@ export async function createDuelChallenge(
   );
   const profile = validatePlayerProfile(profileResult.rows[0]?.profile, userId);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
-  const opponent = resolveOpponent(opponentId, profile.worldProgress?.routeChoice);
+  const opponent = resolveOpponent(
+    opponentId,
+    profile.worldProgress?.routeChoice,
+    profile.level,
+    selectedDifficulty as CombatDifficulty | undefined,
+  );
   if (!opponent) throw new DuelServiceError(400, "unknown_opponent");
   const playerStats = calculatePlayerCombatModifiers(profile);
   const combatLoadout = buildCombatLoadout(profile);
@@ -255,6 +335,7 @@ export async function createDuelChallenge(
       isRecord(activeDuel.player_stats)
     ) {
       const saved = readDuelCombatConfig(activeDuel.player_stats, profile);
+      const activeOpponent = withEncounter(opponent, saved.encounter ?? snapshotEncounter(opponent));
       return {
         duelId: activeDuel.duel_id,
         seed: activeSeed,
@@ -263,11 +344,13 @@ export async function createDuelChallenge(
         opponent: {
           id: opponent.id,
           name: opponent.name,
-          level: opponent.level,
-          loot: opponent.loot,
-          difficulty: opponent.difficulty,
-          archetype: opponent.archetype,
-          isBoss: opponent.isBoss,
+          level: activeOpponent.level,
+          loot: activeOpponent.loot,
+          difficulty: activeOpponent.difficulty,
+          archetype: activeOpponent.archetype,
+          isBoss: activeOpponent.isBoss,
+          isElite: activeOpponent.isElite,
+          tuning: activeOpponent.tuning,
         },
       };
     }
@@ -295,7 +378,7 @@ export async function createDuelChallenge(
   await database.query(
     `INSERT INTO shafak_duels (duel_id, user_id, seed, opponent_id, started_at, player_stats)
      VALUES ($1, $2, $3, $4, NOW(), $5::jsonb)`,
-    [duelId, userId, seed, opponentId, JSON.stringify({ playerStats, combatLoadout })],
+    [duelId, userId, seed, opponentId, JSON.stringify({ playerStats, combatLoadout, encounter: snapshotEncounter(opponent) })],
   );
   return {
     duelId,
@@ -310,6 +393,8 @@ export async function createDuelChallenge(
       difficulty: opponent.difficulty,
       archetype: opponent.archetype,
       isBoss: opponent.isBoss,
+      isElite: opponent.isElite,
+      tuning: opponent.tuning,
     },
   };
 }
@@ -355,27 +440,34 @@ export async function completeDuel(
   );
   const profile = validatePlayerProfile(profileResult.rows[0]?.profile, userId);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
-  const opponent = resolveOpponent(duel.opponent_id, profile.worldProgress?.routeChoice);
+  const opponent = resolveOpponent(duel.opponent_id, profile.worldProgress?.routeChoice, profile.level);
   if (!opponent) throw new DuelServiceError(409, "duel_opponent_invalid");
 
   let verdict: DuelVerdict;
   let simulatedTicks = 0;
+  let maxCombo = 0;
+  let highestDamage = 0;
+  let encounter = snapshotEncounter(opponent);
   let consumedInventory: {
     combatItemCounts: PlayerProfileRecord["inventory"]["combatItemCounts"];
     quickSlots: PlayerProfileRecord["inventory"]["quickSlots"];
   } | null = null;
+  let droppedItem: string | null = null;
   if (surrendered) {
     if (elapsedMs < 5_000) throw new DuelServiceError(422, "duel_finished_too_quickly");
     verdict = "defeat";
   } else {
     const saved = readDuelCombatConfig(duel.player_stats, profile);
+    encounter = saved.encounter ?? encounter;
+    const resolvedOpponent = withEncounter(opponent, encounter);
     const replay = replayCombat(
       Number(duel.seed),
-      opponent.difficulty,
+      resolvedOpponent.difficulty,
       inputLog!,
       saved.playerStats,
       saved.combatLoadout,
       opponent.archetype,
+      resolvedOpponent.tuning,
     );
     simulatedTicks = replay.state.tick;
     if (!replay.state.ended || !replay.state.verdict || replay.consumedFrames !== inputLog!.length) {
@@ -385,6 +477,17 @@ export async function completeDuel(
       throw new DuelServiceError(422, "duel_finished_too_quickly");
     }
     verdict = replay.state.verdict;
+    maxCombo = replay.state.maxCombo;
+    highestDamage = replay.state.highestDamage;
+    droppedItem = verdict === "victory"
+      ? rollCombatLoot(
+          opponent.archetype,
+          resolvedOpponent.level,
+          Number(duel.seed),
+          resolvedOpponent.difficulty,
+          resolvedOpponent.isElite,
+        )
+      : null;
     const combatItemCounts = { ...profile.inventory.combatItemCounts };
     for (const itemId of Object.keys(DEFAULT_COMBAT_ITEM_COUNTS) as (keyof typeof DEFAULT_COMBAT_ITEM_COUNTS)[]) {
       combatItemCounts[itemId] = Math.min(
@@ -398,7 +501,12 @@ export async function completeDuel(
     };
   }
 
-  const outcome = { verdict, opponentId: opponent.id, loot: opponent.loot };
+  const outcome = {
+    verdict,
+    opponentId: opponent.id,
+    loot: encounter.loot,
+    item: droppedItem,
+  };
   const profileAfterCombat = consumedInventory
     ? { ...profile, inventory: { ...profile.inventory, ...consumedInventory } }
     : profile;
@@ -421,7 +529,7 @@ export async function completeDuel(
     );
   }
   const completion = {
-    summary: outcome,
+    summary: { ...outcome, maxCombo, highestDamage },
     rewards: awarded.rewards,
     profile: awarded.profile,
   };

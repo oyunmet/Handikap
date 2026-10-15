@@ -8,6 +8,7 @@ import {
   COMBO_CHAIN_WINDOW_TICKS,
   MAX_DUEL_TICKS,
   PERFECT_BLOCK_WINDOW_TICKS,
+  createCombatOpponentTuning,
   createCombatState,
   getBotAttackWindupTicks,
   isCombatBotArchetype,
@@ -106,6 +107,41 @@ test("all ten opponent archetypes produce valid deterministic combat states and 
   const boss = createCombatState(9012, "hard", undefined, undefined, "chapter-boss");
   const standard = createCombatState(9012, "hard", undefined, undefined, "gate-warden");
   assert.ok(boss.bot.maxHp >= standard.bot.maxHp * 1.6);
+});
+
+test("opponent progression scales health and armor within a bounded, repeatable tuning profile", () => {
+  const earlyTuning = createCombatOpponentTuning(2, 40);
+  const lateTuning = createCombatOpponentTuning(60, 100, true);
+  const early = createCombatState(441, "easy", undefined, undefined, "gate-warden", earlyTuning);
+  const late = createCombatState(441, "easy", undefined, undefined, "gate-warden", lateTuning);
+  assert.equal(early.opponentTuning.statMultiplier, earlyTuning.statMultiplier);
+  assert.equal(late.opponentTuning.statMultiplier, 2.8);
+  assert.ok(late.bot.maxHp > early.bot.maxHp);
+  assert.ok(createCombatOpponentTuning(60, 100, true).statMultiplier > createCombatOpponentTuning(60, 100).statMultiplier);
+
+  let earlyReplay = early;
+  let lateReplay = late;
+  for (let tick = 0; tick < 360; tick += 1) {
+    earlyReplay = stepCombat(earlyReplay, noInput).state;
+    lateReplay = stepCombat(lateReplay, noInput).state;
+  }
+  assert.ok(lateReplay.player.hp < earlyReplay.player.hp);
+});
+
+test("the chapter boss gains a second-phase fire attack after entering the rage phase", () => {
+  let state = createCombatState(80017, "hard", undefined, undefined, "chapter-boss");
+  state.bot.hp = Math.floor(state.bot.maxHp * 0.5);
+  state.player.hp = 3_000;
+  state.player.maxHp = 3_000;
+  let phaseAttackSeen = false;
+  for (let index = 0; index < 1_200 && !state.ended && !phaseAttackSeen; index += 1) {
+    const stepped = stepCombat(state, noInput);
+    state = stepped.state;
+    phaseAttackSeen = stepped.events.some((event) =>
+      event.type === "skill" && event.target === "bot" && event.attack === "skillOne",
+    );
+  }
+  assert.equal(phaseAttackSeen, true);
 });
 
 test("venom and ember opponents apply their status effects on a successful hit", () => {

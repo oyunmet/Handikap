@@ -126,6 +126,9 @@
 .duel-result__rewards strong { overflow: hidden; color: #edcf91; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .duel-result__item, .duel-result__stake { margin: 9px 0; color: #d8c7a9; font-size: 9px; }
 .duel-result__item span { color: #f2d18a; }
+.duel-result__combat-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin: 10px 0 2px; }
+.duel-result__combat-stats span { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid rgba(208,177,122,.2); border-radius: 7px; background: rgba(20,17,17,.55); color: rgba(232,217,189,.54); font-size: 7px; letter-spacing: .08em; }
+.duel-result__combat-stats b { color: #edcf91; font-size: 11px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .duel-result__actions { display: flex; flex-direction: column; gap: 3px; margin-top: 15px; }
 .duel-result__actions button { width: 100%; }
 .game-gold-button, .game-quiet-button { color: inherit; font: inherit; cursor: pointer; }

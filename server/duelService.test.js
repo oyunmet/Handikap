@@ -8,6 +8,7 @@ import {
   validateCombatInputLog,
 } from "./duelService.ts";
 import { INPUT_BUTTON, MAX_INPUT_BUTTONS } from "../src/shafak/game/combat-engine.ts";
+import { createCombatOpponentTuning } from "../src/shafak/game/combat-engine.ts";
 import { createDefaultPlayerProfile } from "./profileApi.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 
@@ -68,6 +69,38 @@ test("server challenges use a generated rival id and return server-owned combat 
   );
   assert.equal(legacyChallenge.opponent.id, rival.id);
   assert.ok(!JSON.stringify(legacyChallenge).toLowerCase().includes("bot"));
+});
+
+test("challenge difficulty and level-based tuning are saved with the server replay snapshot", async () => {
+  const rival = getWorldChapter(0).rivals[0];
+  let savedConfig;
+  const database = {
+    async query(sql, values = []) {
+      if (sql.startsWith("SELECT profile")) return { rows: [{ profile }] };
+      if (sql.startsWith("UPDATE shafak_duels")) return { rowCount: 0, rows: [] };
+      if (sql.startsWith("SELECT duel_id")) return { rows: [] };
+      if (sql.startsWith("INSERT INTO shafak_duels")) {
+        savedConfig = JSON.parse(values[4]);
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`Unexpected query ${sql}`);
+    },
+  };
+
+  const challenge = await createDuelChallenge(database, "user-1", rival.id, "hard");
+  assert.equal(challenge.opponent.difficulty, "hard");
+  assert.equal(challenge.opponent.isElite, rival.isElite);
+  assert.deepEqual(
+    challenge.opponent.tuning,
+    createCombatOpponentTuning(
+      challenge.opponent.level,
+      challenge.opponent.tuning.progressPercent,
+      challenge.opponent.isElite,
+    ),
+  );
+  assert.equal(savedConfig.encounter.difficulty, "hard");
+  assert.equal(savedConfig.encounter.level, challenge.opponent.level);
+  assert.deepEqual(savedConfig.encounter.tuning, challenge.opponent.tuning);
 });
 
 test("retrying a duel start reuses the active challenge for the same opponent", async () => {

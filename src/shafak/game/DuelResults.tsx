@@ -67,6 +67,10 @@ export default function DuelResults({
           <div><span>DENEYİM</span><strong>+{rewards.xp} XP</strong></div>
           <div><span>GANİMET</span><strong>{rewards.item ?? (drew ? "Aktarılmadı" : "Yok")}</strong></div>
         </div>
+        <div className="duel-result__combat-stats" aria-label="Düello istatistikleri">
+          <span>EN UZUN KOMBO <b>{summary.maxCombo ?? 0} VURUŞ</b></span>
+          <span>EN YÜKSEK HASAR <b>{summary.highestDamage ?? 0}</b></span>
+        </div>
         {rewards.item && <p className="duel-result__item"><span>✦</span> {rewards.item} heybene eklendi</p>}
         {rewards.lostStake > 0 && <p className="duel-result__stake">{rewards.lostStake} altın düello payı olarak el değiştirdi.</p>}
 

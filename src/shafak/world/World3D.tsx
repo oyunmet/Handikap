@@ -419,8 +419,9 @@ function DuelFighter({
   );
   const isAttackBeat = Boolean(renderedActor && ["attack", "heavyAttack", "skillOne", "skillTwo", "plunge", "parry"].includes(renderedActor.action));
   const boss = side === "bot" && combatRender?.botArchetype === "chapter-boss";
+  const elite = side === "bot" && Boolean(combatRender?.opponentTuning.isElite);
   const enraged = side === "bot" && Boolean(renderedActor && isCombatBotEnraged(renderedActor));
-  const combatGlow = side === "player" ? "#ffad58" : boss ? "#e8b052" : "#6de0e5";
+  const combatGlow = side === "player" ? "#ffad58" : elite || boss ? "#e8b052" : "#6de0e5";
 
   useFrame(() => {
     const state = combatStateRef.current;
@@ -498,6 +499,18 @@ function DuelFighter({
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}
         />
+        {enraged && (
+          <group position={[0, 1.76, 0]} rotation={[0, facingAngle - Math.PI, 0]}>
+            <mesh position={[-0.075, 0.035, -0.2]}>
+              <boxGeometry args={[0.055, 0.026, 0.018]} />
+              <meshBasicMaterial color="#ff3848" toneMapped={false} />
+            </mesh>
+            <mesh position={[0.075, 0.035, -0.2]}>
+              <boxGeometry args={[0.055, 0.026, 0.018]} />
+              <meshBasicMaterial color="#ff3848" toneMapped={false} />
+            </mesh>
+          </group>
+        )}
       </group>
       {visualEffectsEnabled && <DuelAshDispersal active={defeated} x={renderedActor.x} />}
     </group>

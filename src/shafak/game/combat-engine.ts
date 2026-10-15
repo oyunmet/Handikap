@@ -116,12 +116,22 @@ export type CombatLoadout = {
   weaponStats: [PlayerCombatModifiers, PlayerCombatModifiers];
 };
 
+export type CombatOpponentTuning = {
+  rivalLevel: number;
+  progressPercent: number;
+  isElite: boolean;
+  statMultiplier: number;
+};
+
 export type CombatState = {
   tick: number;
   seed: number;
   rngState: number;
   difficulty: CombatDifficulty;
   botArchetype: CombatBotArchetype;
+  opponentTuning: CombatOpponentTuning;
+  highestDamage: number;
+  maxCombo: number;
   playerStats: PlayerCombatModifiers;
   weaponStats: [PlayerCombatModifiers, PlayerCombatModifiers];
   weaponIds: [string, string | null];
@@ -197,6 +207,24 @@ export function normalizePlayerCombatModifiers(value: unknown): PlayerCombatModi
   };
 }
 
+export function createCombatOpponentTuning(
+  rivalLevel: number,
+  progressPercent: number,
+  isElite = false,
+): CombatOpponentTuning {
+  const safeLevel = clamp(Math.floor(finiteOr(rivalLevel, 1)), 1, 1_000);
+  const safeProgress = clamp(finiteOr(progressPercent, 0), 0, 100);
+  const levelSteps = Math.min(10, Math.max(0, safeLevel - 1) / 10);
+  const levelFactor = 1 + 0.12 * levelSteps;
+  const progressFactor = 1 + 0.05 * (safeProgress / 10);
+  return {
+    rivalLevel: safeLevel,
+    progressPercent: safeProgress,
+    isElite,
+    statMultiplier: clamp(levelFactor * progressFactor * (isElite ? 1.12 : 1), 1, 2.8),
+  };
+}
+
 function finiteOr(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -256,17 +284,26 @@ export function createCombatState(
   playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
   loadout?: CombatLoadout,
   botArchetype: CombatBotArchetype = "gate-warden",
+  opponentTuning: CombatOpponentTuning = createCombatOpponentTuning(1, 0),
 ): CombatState {
   const cleanSeed = (Number.isSafeInteger(seed) ? seed : 1) >>> 0 || 1;
   const normalizedStats = normalizePlayerCombatModifiers(playerStats);
+  const tuning = createCombatOpponentTuning(
+    opponentTuning.rivalLevel,
+    opponentTuning.progressPercent,
+    opponentTuning.isElite,
+  );
   const botBaseHealth = difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130;
-  const botHealth = Math.round(botBaseHealth * (botArchetype === "chapter-boss" ? 1.7 : 1));
+  const botHealth = Math.round(botBaseHealth * tuning.statMultiplier * (botArchetype === "chapter-boss" ? 1.7 : 1));
   return {
     tick: 0,
     seed: cleanSeed,
     rngState: cleanSeed,
     difficulty,
     botArchetype,
+    opponentTuning: tuning,
+    highestDamage: 0,
+    maxCombo: 0,
     playerStats: normalizedStats,
     weaponStats: loadout?.weaponStats ?? [normalizedStats, normalizedStats],
     weaponIds: loadout?.weaponIds ?? ["weapon_ash_sword", null],
@@ -553,7 +590,8 @@ function startAttack(
           : state.botArchetype === "rift-berserker" || state.botArchetype === "chapter-boss" ? 1.18
             : state.botArchetype === "frost-hunter" ? 1.08 : 1.06;
   const botRecovery = Math.max(38, Math.round(
-    botRecoveryBase * botStyleRecovery * (botEnraged ? 0.78 : 1),
+    botRecoveryBase * botStyleRecovery * (botEnraged ? 0.78 : 1)
+      / (1 + Math.min(0.8, Math.max(0, state.opponentTuning.statMultiplier - 1) * 0.45)),
   ));
   actor.attackCooldownUntilTick = tick + Math.max(8, Math.round(
     side === "bot" ? botRecovery : (attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed,
@@ -604,7 +642,8 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
               : state.botArchetype === "ember-alchemist" ? 0.02
                 : boss ? 0.1
                   : ironOath ? -0.08 : 0)
-      + (enraged ? 0.16 : 0),
+      + (enraged ? 0.16 : 0)
+      + Math.min(0.12, Math.max(0, state.opponentTuning.statMultiplier - 1) * 0.12),
     0.2,
     0.98,
   );
@@ -669,6 +708,10 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
         setAction(bot, "block", tick, 30);
       }
     } else if (gap <= attackRange && roll < attackChance) {
+      const bossPhaseAttack = boss && enraged && bot.stamina >= 24 && random(state) < 0.3;
+      if (bossPhaseAttack && startAttack(state, bot, "skillOne", tick, events, "bot")) {
+        return { x: move.x, y: move.y, buttons };
+      }
       const heavyChance = state.botArchetype === "gate-warden" ? 0.58
         : ironOath ? 0.42
           : state.botArchetype === "rift-berserker" ? 0.76
@@ -795,8 +838,12 @@ function applyDamage(
     attacker.comboUntilTick = tick + 75;
     multiplier *= attacker.combo === 2 ? 1.08 : attacker.combo >= 3 ? 1.2 : 1;
   }
-  const damageMultiplier = playerAttacking ? state.playerStats.damageMultiplier : 1;
-  const defenseMultiplier = targetSide === "player" ? 1 - state.playerStats.defenseReduction : 1;
+  const damageMultiplier = playerAttacking
+    ? state.playerStats.damageMultiplier
+    : state.opponentTuning.statMultiplier;
+  const defenseMultiplier = targetSide === "player"
+    ? 1 - state.playerStats.defenseReduction
+    : 1 - Math.min(0.24, Math.max(0, state.opponentTuning.statMultiplier - 1) * 0.12);
   const weaponDamage = weaponStyle === "daggers" ? 0.9
     : weaponStyle === "axe" || weaponStyle === "mace" ? 1.24
       : weaponStyle === "greatsword" ? 1.16
@@ -805,6 +852,10 @@ function applyDamage(
             : closeBowAttack ? 0.84 : 1;
   const damage = Math.max(1, Math.round(baseDamage * weaponDamage * damageMultiplier * multiplier * (critical ? 1.5 : 1) * defenseMultiplier));
   target.hp = Math.max(0, target.hp - damage);
+  if (playerAttacking) {
+    state.highestDamage = Math.max(state.highestDamage, damage);
+    state.maxCombo = Math.max(state.maxCombo, attacker.combo);
+  }
   target.lastDamage = damage;
   target.staggerUntilTick = tick + (attack === "heavy" ? 21 : attack === "skillTwo" ? 24 : 13);
   if (attack === "skillOne") {
@@ -1010,7 +1061,15 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     player.x += player.vx / COMBAT_HZ;
     player.z += player.vz / COMBAT_HZ;
   }
-  moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block), isCombatBotEnraged(bot) ? 1.16 : 1);
+  const botProgressionSpeed = 1 + Math.min(0.3, Math.max(0, next.opponentTuning.statMultiplier - 1) * 0.18);
+  moveActor(
+    bot,
+    botInput.x,
+    botInput.y,
+    tick,
+    Boolean(botInput.buttons & INPUT_BUTTON.block),
+    (isCombatBotEnraged(bot) ? 1.16 : 1) * botProgressionSpeed,
+  );
   resolveCombatActorOverlap(player, bot);
   resolveActorCoverCollision(player);
   resolveActorCoverCollision(bot);
@@ -1107,8 +1166,9 @@ export function replayCombat(
   playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
   loadout?: CombatLoadout,
   botArchetype: CombatBotArchetype = "gate-warden",
+  opponentTuning: CombatOpponentTuning = createCombatOpponentTuning(1, 0),
 ) {
-  let state = createCombatState(seed, difficulty, playerStats, loadout, botArchetype);
+  let state = createCombatState(seed, difficulty, playerStats, loadout, botArchetype, opponentTuning);
   let frameIndex = 0;
   let held: CombatInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
   if (inputLog[0]?.[0] === 0) {

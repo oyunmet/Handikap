@@ -17,6 +17,7 @@ import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
 import {
   getAutoQualityAction,
@@ -36,6 +37,7 @@ type Preferences = {
   musicVolume: number;
   vibration: boolean;
   quality: GraphicsMode;
+  combatDifficulty: CombatDifficulty;
   visualEffects: boolean;
   reduceMotion: boolean;
   performanceMonitor: boolean;
@@ -48,6 +50,7 @@ const initialPreferences: Preferences = {
   musicVolume: DEFAULT_MUSIC_VOLUME,
   vibration: true,
   quality: "medium",
+  combatDifficulty: "easy",
   visualEffects: true,
   reduceMotion: false,
   performanceMonitor: false,
@@ -103,6 +106,10 @@ function readPreferences(): Preferences {
       vibration:
         typeof saved.vibration === "boolean" ? saved.vibration : initialPreferences.vibration,
       quality: normalizeGraphicsMode(saved.quality),
+      combatDifficulty:
+        saved.combatDifficulty === "easy" || saved.combatDifficulty === "medium" || saved.combatDifficulty === "hard"
+          ? saved.combatDifficulty
+          : initialPreferences.combatDifficulty,
       visualEffects:
         typeof saved.visualEffects === "boolean"
           ? saved.visualEffects
@@ -933,6 +940,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 apiRequest={authApiRequest}
                 userId={user?.id}
                 quality={activeQuality}
+                combatDifficulty={preferences.combatDifficulty}
                 visualEffectsEnabled={preferences.visualEffects}
                 motionReduced={motionReduced}
                 performanceMonitorEnabled={preferences.performanceMonitor}
@@ -1091,6 +1099,29 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     >
                       {tr.automatic}
                     </button>
+                  </div>
+                </div>
+                <div className="setting-row setting-row--quality">
+                  <span className="setting-row__copy">
+                    <strong>Zorluk</strong>
+                    <small>Rakiplerin savaş gücünü seç</small>
+                  </span>
+                  <div className="quality-switch" role="group" aria-label="Düello zorluğu">
+                    {([
+                      ["easy", "Kolay"],
+                      ["medium", "Normal"],
+                      ["hard", "Zor"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        className={preferences.combatDifficulty === value ? "is-selected" : ""}
+                        key={value}
+                        type="button"
+                        aria-pressed={preferences.combatDifficulty === value}
+                        onClick={() => setPreference("combatDifficulty", value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <SettingToggle

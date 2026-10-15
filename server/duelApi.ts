@@ -41,8 +41,11 @@ export function createDuelApi(database: Pool) {
     response.setHeader("Cache-Control", "no-store");
     if (
       !isRecord(request.body) ||
-      Object.keys(request.body).join(",") !== "opponentId" ||
-      typeof request.body.opponentId !== "string"
+      !Object.hasOwn(request.body, "opponentId") ||
+      typeof request.body.opponentId !== "string" ||
+      Object.keys(request.body).some((key) => key !== "opponentId" && key !== "combatDifficulty") ||
+      ("combatDifficulty" in request.body
+        && !["easy", "medium", "hard"].includes(String(request.body.combatDifficulty)))
     ) {
       response.status(400).json({ error: "invalid_challenge" });
       return;
@@ -53,7 +56,12 @@ export function createDuelApi(database: Pool) {
       client = await database.connect();
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [userId]);
-      const challenge = await createDuelChallenge(client, userId, request.body.opponentId);
+      const challenge = await createDuelChallenge(
+        client,
+        userId,
+        request.body.opponentId,
+        request.body.combatDifficulty,
+      );
       await client.query("COMMIT");
       response.status(201).json(challenge);
     } catch (error) {

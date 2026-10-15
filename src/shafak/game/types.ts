@@ -12,6 +12,8 @@ export type DuelSummary = {
   verdict: "victory" | "defeat" | "draw";
   opponentId: string;
   loot: number;
+  maxCombo?: number;
+  highestDamage?: number;
 };
 
 export type BattleRewards = {

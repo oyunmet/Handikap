@@ -2,6 +2,7 @@ import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import { WORLD_SEED } from "./world-generation.ts";
 import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles.ts";
 import type { WorldRouteDifficulty } from "./route-difficulty.ts";
+import type { CombatDifficulty } from "../game/combat-engine.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -34,11 +35,13 @@ export type WorldRival = {
   title: string;
   level: number;
   isBoss: boolean;
+  isElite: boolean;
   winRate: number;
   loot: number;
   taunt: string;
   difficulty: "easy" | "medium" | "hard";
   chapterId: number;
+  progressPercent: number;
   x: number;
   distance: number;
   armorTint: string;
@@ -198,26 +201,31 @@ function createObstacles(chapterId: number): WorldObstacle[] {
   ];
 }
 
-function createRivals(chapterId: number, random: () => number): WorldRival[] {
+function createRivals(chapterId: number, random: () => number, playerLevel: number): WorldRival[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
+  const safePlayerLevel = Math.max(1, Math.min(1_000, Math.floor(Number.isFinite(playerLevel) ? playerLevel : 1)));
   const rivalDistances = [52, 84, 109, 134, 139];
   return Array.from({ length: 5 }, (_, index) => {
     const profile = getWorldRivalProfile(chapterId, index);
     const isBoss = index === 4;
+    const distance = chapterStart + rivalDistances[index] + (isBoss ? 0 : (random() - 0.5) * 2);
+    const regionalLevel = 2 + chapterId * 2 + index * 2 + (isBoss ? 8 : 0);
     return {
       id: `ash-road:${chapterId}:rival:${index}`,
       name: profile.name,
       title: profile.title,
       archetype: profile.archetype,
-      level: Math.min(1000, 2 + chapterId * 2 + index * 2 + (isBoss ? 8 : 0)),
+      level: Math.min(1_000, Math.max(regionalLevel, Math.floor(safePlayerLevel * 0.65) + index + Math.floor(chapterId * 0.2))),
       isBoss,
+      isElite: index === 3,
       winRate: isBoss ? 94 + Math.min(4, chapterId) : 42 + index * 9 + Math.min(24, chapterId * 2),
       loot: isBoss ? 180 + chapterId * 10 : 48 + index * 24 + chapterId * 6,
       taunt: profile.taunt,
       difficulty: profile.difficulty,
       chapterId,
+      progressPercent: Math.max(0, Math.min(100, (distance - chapterStart) / WORLD_GATE_INTERVAL_METERS * 100)),
       x: isBoss ? 0 : index % 2 === 0 ? -3.6 : 3.4,
-      distance: chapterStart + rivalDistances[index] + (isBoss ? 0 : (random() - 0.5) * 2),
+      distance,
       armorTint: profile.armorTint,
       size: profile.size + Math.min(0.12, chapterId * 0.005),
       weapon: profile.weapon,
@@ -229,10 +237,15 @@ export function isValidChapterId(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= MAX_CHAPTER_ID;
 }
 
-export function getWorldChapter(chapterId: number, routeDifficulty?: WorldRouteDifficulty): WorldChapterContent {
+export function getWorldChapter(
+  chapterId: number,
+  routeDifficulty?: WorldRouteDifficulty,
+  playerLevel = 1,
+  combatDifficulty?: CombatDifficulty,
+): WorldChapterContent {
   if (!isValidChapterId(chapterId)) throw new RangeError("chapterId is outside the supported range.");
   const random = chapterRandom(chapterId);
-  const rivals = createRivals(chapterId, random);
+  const rivals = createRivals(chapterId, random, playerLevel);
   const routedRivals = routeDifficulty
     ? rivals.map((rival) => {
         const easy = routeDifficulty === "easy";
@@ -241,15 +254,18 @@ export function getWorldChapter(chapterId: number, routeDifficulty?: WorldRouteD
           level: Math.max(1, Math.floor(rival.level * (easy ? 0.72 : 1.48))),
           winRate: Math.max(20, Math.min(98, rival.winRate + (easy ? -17 : 16))),
           loot: Math.floor(rival.loot * (easy ? 0.82 : 1.32)),
-          difficulty: routeDifficulty,
+          difficulty: combatDifficulty ?? routeDifficulty,
         };
       })
     : rivals;
+  const selectedRivals = combatDifficulty && !routeDifficulty
+    ? routedRivals.map((rival) => ({ ...rival, difficulty: combatDifficulty }))
+    : routedRivals;
   return {
     chapterId,
     pickups: createPickups(chapterId, random),
     obstacles: createObstacles(chapterId),
-    rivals: routedRivals,
+    rivals: selectedRivals,
   };
 }
 

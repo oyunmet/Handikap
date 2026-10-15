@@ -35,12 +35,25 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
   assert.equal(new Set(first.rivals.map((rival) => rival.name)).size, 5);
   assert.equal(first.rivals[4].isBoss, true);
   assert.equal(first.rivals[4].archetype, "chapter-boss");
+  assert.equal(first.rivals[3].isElite, true);
+  assert.equal(first.rivals[4].isElite, false);
   assert.ok(first.rivals[4].distance < 140);
   assert.ok(first.rivals.slice(0, 4).every((rival) => rival.isBoss === false));
   assert.ok(first.rivals[0].distance >= 51 && first.rivals[0].distance <= 53);
   assert.ok(first.rivals.every((rival) => rival.id.includes(":rival:")));
   assert.ok(first.rivals.every((rival, index) => index === 0 || rival.level > first.rivals[index - 1].level));
   assert.ok(getWorldChapter(2).pickups.some((pickup) => pickup.kind === "seal-fragment"));
+});
+
+test("rival levels scale with player level and chapter progress while difficulty remains selectable", () => {
+  const starter = getWorldChapter(0);
+  const advanced = getWorldChapter(0, undefined, 30, "hard");
+  assert.ok(advanced.rivals[0].level > starter.rivals[0].level);
+  assert.ok(advanced.rivals.every((rival) => rival.difficulty === "hard"));
+  assert.ok(advanced.rivals.every((rival) => rival.progressPercent >= 0 && rival.progressPercent <= 100));
+  assert.ok(advanced.rivals.every((rival, index) =>
+    index === 0 || rival.progressPercent > advanced.rivals[index - 1].progressPercent,
+  ));
 });
 
 test("road rewards stay within reach and each chapter includes visible hazards", () => {
