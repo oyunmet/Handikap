@@ -259,8 +259,8 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
   const roadMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     map: texture,
     color: "#eee2d7",
-    roughness: weather === "rain" ? 0.42 : 0.94,
-    metalness: weather === "rain" ? 0.1 : 0.02,
+    roughness: weather === "storm" ? 0.28 : weather === "rain" ? 0.42 : 0.94,
+    metalness: weather === "storm" ? 0.18 : weather === "rain" ? 0.1 : 0.02,
     emissive: "#201819",
     emissiveIntensity: 0.16,
   }), [texture, weather]);
@@ -303,9 +303,9 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
     groundMaterial.color.set(from.ground).lerp(new THREE.Color(to.ground), transition.mix);
     roadMaterial.color.set(from.road).lerp(new THREE.Color(to.road), transition.mix);
     texture.offset.y = ((motionRef.current.cameraX / 46) % 1 + 1) % 1;
-    if (weather === "rain") {
-      roadMaterial.roughness = 0.42;
-      roadMaterial.metalness = 0.1;
+    if (weather === "rain" || weather === "storm") {
+      roadMaterial.roughness = weather === "storm" ? 0.28 : 0.42;
+      roadMaterial.metalness = weather === "storm" ? 0.18 : 0.1;
     } else {
       roadMaterial.roughness = 0.94;
       roadMaterial.metalness = 0.02;
@@ -565,11 +565,13 @@ function WeatherParticles({
   useFrame((frame) => {
     if (!pointsRef.current || !count) return;
     const time = motionReduced ? 0 : frame.clock.elapsedTime;
+    const wetWeather = weather === "rain" || weather === "storm";
+    const rainIntensity = weather === "storm" ? 17 : 13;
     for (let index = 0; index < count; index += 1) {
       const [x, y, z] = seeds[index];
-      const fall = (time * (weather === "rain" ? 13 : 1.2) + z * 28) % 28;
-      positions[index * 3] = (x - 0.5) * 30 + (weather === "rain" ? -fall * 0.08 : Math.sin(time + y * 8) * 0.45);
-      positions[index * 3 + 1] = 1 + y * 12 - fall * (weather === "rain" ? 0.42 : 0.12);
+      const fall = (time * (wetWeather ? rainIntensity : 1.2) + z * 28) % 28;
+      positions[index * 3] = (x - 0.5) * 30 + (wetWeather ? -fall * (weather === "storm" ? 0.13 : 0.08) : Math.sin(time + y * 8) * 0.45);
+      positions[index * 3 + 1] = 1 + y * 12 - fall * (wetWeather ? weather === "storm" ? 0.52 : 0.42 : 0.12);
       positions[index * 3 + 2] = 8 - z * 42 - fall * 0.4;
     }
     const attribute = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -582,11 +584,11 @@ function WeatherParticles({
         <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
       </bufferGeometry>
       <pointsMaterial
-        color={weather === "rain" ? "#b4d9f0" : weather === "fog" ? "#d4c9c0" : "#ffca8a"}
-        size={weather === "rain" ? 0.09 : 0.1}
+        color={weather === "storm" ? "#c6dcf5" : weather === "rain" ? "#b4d9f0" : weather === "fog" ? "#d4c9c0" : "#ffca8a"}
+        size={weather === "storm" ? 0.11 : weather === "rain" ? 0.09 : 0.1}
         sizeAttenuation
         transparent
-        opacity={weather === "fog" ? 0.34 : 0.66}
+        opacity={weather === "fog" ? 0.34 : weather === "storm" ? 0.76 : 0.66}
         depthWrite={false}
       />
     </points>

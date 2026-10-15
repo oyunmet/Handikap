@@ -48,7 +48,7 @@ test("nearest interaction respects state and both world-space range limits", () 
   registry.register(entry("near", { distance: 11 }));
 
   assert.equal(registry.findNearest("chest", 0, 10)?.id, "near");
-  assert.equal(registry.findNearest("barricade", 0, 10), undefined);
+  assert.equal(registry.findNearest("breakable", 0, 10), undefined);
 });
 
 test("unmount cleanup cannot remove a newer mesh registered for the same id", () => {
@@ -73,10 +73,17 @@ test("broken world obstacles persist separately by player and only accept stable
   });
 
   try {
-    const opened = new Set(["ash-road:4:obstacle:treasure-chest", "invalid-id"]);
+    const opened = new Set([
+      "ash-road:4:obstacle:treasure-chest",
+      "ash-road:4:obstacle:barrel",
+      "invalid-id",
+    ]);
     saveBrokenObstacleIds(opened, "player-one");
 
-    assert.deepEqual([...readBrokenObstacleIds("player-one")], ["ash-road:4:obstacle:treasure-chest"]);
+    assert.deepEqual(
+      [...readBrokenObstacleIds("player-one")],
+      ["ash-road:4:obstacle:treasure-chest", "ash-road:4:obstacle:barrel"],
+    );
     assert.deepEqual([...readBrokenObstacleIds("player-two")], []);
   } finally {
     if (originalStorage === undefined) delete globalThis.localStorage;

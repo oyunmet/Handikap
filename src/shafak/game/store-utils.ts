@@ -8,6 +8,7 @@ import type {
   StoreItem,
 } from "./store-types";
 import { EQUIPMENT_LOADOUT_KEYS, getEquipmentLoadoutKey } from "./store-types.ts";
+import { getPlayerCombatModifiersFromBonuses } from "./store-balance.ts";
 import { EQUIPMENT_SETS } from "./store-catalog.ts";
 
 const BASE_STATS: EquipmentStatBonuses = {
@@ -25,15 +26,7 @@ const clamp = (value: number, low: number, high: number) => Math.max(low, Math.m
 
 export function getPlayerCombatModifiers(profile: PlayerProfile, catalog: readonly StoreItem[]): PlayerCombatModifiers {
   const totals = getEquipmentBonuses(profile, catalog);
-  return {
-    maxHealth: clamp(150 + totals.health, 130, 175),
-    damageMultiplier: clamp(1 + totals.damage, 0.82, 1.35),
-    defenseReduction: clamp(totals.defense, 0, 0.24),
-    criticalChance: clamp(0.12 + totals.critChance, 0.08, 0.28),
-    moveSpeedMultiplier: clamp(1 + totals.moveSpeed, 0.88, 1.14),
-    attackSpeedMultiplier: clamp(1 + totals.attackSpeed, 0.8, 1.22),
-    attackRangeBonus: clamp(totals.attackRange, -0.3, 0.8),
-  };
+  return getPlayerCombatModifiersFromBonuses(totals);
 }
 
 export function getEquipmentVisual(profile: PlayerProfile, catalog: readonly StoreItem[]): EquipmentVisual {

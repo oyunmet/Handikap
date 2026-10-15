@@ -1,7 +1,7 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 
 export type WorldBiome = "ash-road" | "frozen-pass" | "red-marsh";
-export type WeatherMode = "clear" | "ash" | "rain" | "fog";
+export type WeatherMode = "clear" | "ash" | "rain" | "storm" | "fog";
 
 export type BiomePalette = {
   label: string;
@@ -82,11 +82,25 @@ export const WORLD_BIOME_PALETTES: Record<WorldBiome, BiomePalette> = {
   },
 };
 
-export const WEATHER_MODES: readonly WeatherMode[] = ["clear", "ash", "rain", "fog"];
+export const WEATHER_MODES: readonly WeatherMode[] = ["clear", "ash", "rain", "storm", "fog"];
 const BIOME_COUNT = 3;
 export const BIOME_CHAPTER_SPAN = 3;
 export const BIOME_SPAN_METERS = WORLD_GATE_INTERVAL_METERS * BIOME_CHAPTER_SPAN;
 export const BIOME_TRANSITION_METERS = 48;
+export const WORLD_DAY_CYCLE_METERS = 2_400;
+
+export function getWorldDaylight(distance: number) {
+  const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;
+  const cycleDistance = safeDistance % WORLD_DAY_CYCLE_METERS;
+  const cycleAngle = (cycleDistance / WORLD_DAY_CYCLE_METERS) * Math.PI * 2;
+  return 0.18 + 0.82 * ((1 + Math.cos(cycleAngle)) / 2);
+}
+
+export function getWeatherHandlingMultiplier(weather: WeatherMode) {
+  if (weather === "storm") return 0.76;
+  if (weather === "rain") return 0.9;
+  return 1;
+}
 
 export function getBiomeForDistance(distance: number): WorldBiome {
   const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : 0;

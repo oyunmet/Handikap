@@ -1,4 +1,4 @@
-export type InteractableKind = "chest" | "barricade" | "rival";
+export type InteractableKind = "chest" | "breakable" | "rival";
 export type InteractableState = "active" | "opened" | "destroyed";
 
 export type InteractableMesh = {
@@ -27,7 +27,7 @@ export function readBrokenObstacleIds(userId?: string) {
     if (!Array.isArray(saved)) return new Set<string>();
     return new Set(
       saved
-        .filter((id): id is string => typeof id === "string" && /^ash-road:\d{1,8}:obstacle:(?:barricade|treasure-chest)$/.test(id))
+        .filter((id): id is string => typeof id === "string" && /^ash-road:\d{1,8}:obstacle:(?:barrel|vase|barricade|treasure-chest)$/.test(id))
         .slice(-5_000),
     );
   } catch {

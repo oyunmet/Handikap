@@ -231,6 +231,7 @@ async function runAccountOperation<T>(
 export function createStoreApi(
   database: Pool,
   resolveUserId: (request: Request) => string | null = (request) => getAuth(request).userId,
+  now: () => Date = () => new Date(),
 ) {
   const router = Router();
   const catalogLimit = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
@@ -272,7 +273,7 @@ export function createStoreApi(
       const replay = await checkIdempotency(client, userId, "purchase", storeItem.id, body.idempotencyKey);
       if (replay) return { ...replay, profile, replayed: true };
       if (storeItem.dropOnly) throw new StoreServiceError(403, "item_drop_only");
-      if (storeItem.category === "specials" && !isDailySpecialAvailable(storeItem.id)) {
+      if (storeItem.category === "specials" && !isDailySpecialAvailable(storeItem.id, now())) {
         throw new StoreServiceError(409, "special_offer_expired");
       }
       if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");

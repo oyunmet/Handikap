@@ -91,6 +91,15 @@ test("W/S and up/down advance along the road while A/D changes lanes", () => {
   assert.ok(depthState.depth > 0.25);
 });
 
+test("weather handling slows steering response without changing the normal default", () => {
+  const right = readWorldInput(new Set(), { x: 1, y: 0 });
+  const normal = stepWorldMotion(createWorldMotion(), right, 1 / 60);
+  const stormy = stepWorldMotion(createWorldMotion(), right, 1 / 60, 1, undefined, 0.76);
+
+  assert.ok(Math.abs(stormy.velocityX) < Math.abs(normal.velocityX));
+  assert.equal(stepWorldMotion(createWorldMotion(), right, 1 / 60, 1, undefined, 1).velocityX, normal.velocityX);
+});
+
 test("releasing input decelerates rather than stopping immediately", () => {
   const moving = stepWorldMotion(
     createWorldMotion(),

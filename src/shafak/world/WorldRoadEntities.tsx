@@ -15,6 +15,7 @@ import {
   type WorldRival,
 } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
+import type { WeatherMode } from "./world-biomes";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -33,11 +34,13 @@ function Collectible({
   motionRef,
   unlocked,
   reducedMotion,
+  maxVisibleDistance,
 }: {
   pickup: WorldPickup;
   motionRef: MotionRef;
   unlocked: boolean;
   reducedMotion: boolean;
+  maxVisibleDistance: number;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
@@ -62,7 +65,7 @@ function Collectible({
     root.position.x = THREE.MathUtils.lerp(pickup.x, playerX, pull);
     root.position.z = THREE.MathUtils.lerp(itemZ, playerZ, pull);
     root.position.y = 0.48 + (reducedMotion ? 0 : Math.sin(frame.clock.elapsedTime * 2.1 + pickup.distance) * 0.11);
-    root.visible = unlocked && Math.abs(relativeDistance) <= 112;
+    root.visible = unlocked && Math.abs(relativeDistance) <= maxVisibleDistance;
     if (!reducedMotion) {
       spin.rotation.y = frame.clock.elapsedTime * (pickup.kind === "seal-fragment" ? 0.82 : 1.25);
       spin.rotation.z = Math.sin(frame.clock.elapsedTime * 1.4 + pickup.x) * 0.12;
@@ -110,29 +113,35 @@ function Obstacle({
   obstacle,
   motionRef,
   broken,
+  maxVisibleDistance,
   interactableRegistry,
 }: {
   obstacle: WorldObstacle;
   motionRef: MotionRef;
   broken: boolean;
+  maxVisibleDistance: number;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const warningRef = useRef<THREE.Mesh>(null);
   const chestLidRef = useRef<THREE.Group>(null);
   useEffect(() => {
-    if (obstacle.kind !== "treasure-chest" && obstacle.kind !== "barricade") return undefined;
+    const isChest = obstacle.kind === "treasure-chest";
+    const isBreakable = obstacle.kind === "barrel"
+      || obstacle.kind === "vase"
+      || obstacle.kind === "barricade";
+    if (!isChest && !isBreakable) return undefined;
     const mesh = rootRef.current;
     if (!mesh) return undefined;
     return interactableRegistry.register({
       id: obstacle.id,
-      kind: obstacle.kind === "treasure-chest" ? "chest" : "barricade",
+      kind: isChest ? "chest" : "breakable",
       x: obstacle.x,
       distance: obstacle.distance,
-      radius: obstacle.kind === "treasure-chest" ? 3.2 : 4.2,
+      radius: isChest ? 3.2 : 4.2,
       lateralRadius: obstacle.width / 2 + 1.3,
       state: broken
-        ? obstacle.kind === "treasure-chest" ? "opened" : "destroyed"
+        ? isChest ? "opened" : "destroyed"
         : "active",
       mesh,
       source: obstacle,
@@ -143,8 +152,12 @@ function Obstacle({
     ? "TUZAK · ZIPLA"
     : obstacle.kind === "low-bar"
       ? "ALÇAK ENGEL · EĞİL"
+        : obstacle.kind === "barrel"
+          ? broken ? "VARİL KIRILDI · ALTIN" : "VARİL · KIR"
+          : obstacle.kind === "vase"
+            ? broken ? "VAZO KIRILDI · ALTIN" : "VAZO · KIR"
       : obstacle.kind === "barricade"
-        ? "BARİKAT · SALDIR"
+        ? broken ? "BARİKAT KIRILDI" : "BARİKAT · SALDIR"
         : obstacle.kind === "treasure-chest"
           ? broken ? "SANDIK AÇILDI · ALTIN" : "HAZİNE · ZIPLA VE KIR"
           : "KAYA · ZIPLA";
@@ -154,8 +167,8 @@ function Obstacle({
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
     // Keep roadside gameplay objects in front of the player. A passed obstacle
     // must leave the camera corridor instead of enclosing the trailing camera.
-    rootRef.current.visible = Math.abs(gap) <= 112
-      && (gap >= -1.5 || (obstacle.kind === "treasure-chest" && broken));
+    rootRef.current.visible = Math.abs(gap) <= maxVisibleDistance
+      && (gap >= -1.5 || (broken && obstacle.health > 0));
     if (chestLidRef.current) {
       const target = broken ? -1.18 : 0;
       chestLidRef.current.rotation.x = THREE.MathUtils.damp(chestLidRef.current.rotation.x, target, 8, 0.05);
@@ -231,6 +244,97 @@ function Obstacle({
             <meshBasicMaterial color="#ff795b" transparent opacity={0.46} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
         </group>
+      ) : obstacle.kind === "barrel" ? (
+        broken ? (
+          <group>
+            {[-0.34, 0.02, 0.31].map((x, index) => (
+              <mesh key={x} position={[x, 0.18 + (index % 2) * 0.08, 0.04]} rotation={[0.12, 0, (index - 1) * 0.48]}>
+                <boxGeometry args={[0.3, 0.12, 0.55]} />
+                <meshStandardMaterial color={index % 2 ? "#8b5933" : "#69432f"} roughness={0.9} />
+              </mesh>
+            ))}
+            <Sparkles count={5} position={[0, 0.5, 0]} scale={1.1} size={2.4} speed={0.2} color="#f5c56d" />
+          </group>
+        ) : (
+          <group>
+            <mesh position={[0, 0.52, 0]}>
+              <cylinderGeometry args={[0.43, 0.43, 0.98, 10]} />
+              <meshStandardMaterial color="#78492d" roughness={0.84} flatShading />
+            </mesh>
+            {[0.22, 0.8].map((y) => (
+              <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.43, 0.055, 5, 10]} />
+                <meshStandardMaterial color="#a6a7a2" metalness={0.62} roughness={0.36} />
+              </mesh>
+            ))}
+            {[-0.18, 0.18].map((x) => (
+              <mesh key={x} position={[x, 0.52, 0.22]}>
+                <boxGeometry args={[0.07, 0.78, 0.035]} />
+                <meshStandardMaterial color="#a67849" roughness={0.75} />
+              </mesh>
+            ))}
+          </group>
+        )
+      ) : obstacle.kind === "vase" ? (
+        broken ? (
+          <group>
+            {[-0.28, 0.08, 0.31].map((x, index) => (
+              <mesh key={x} position={[x, 0.12 + (index % 2) * 0.1, 0.05]} rotation={[0.12, 0, (index - 1) * 0.56]}>
+                <coneGeometry args={[0.19, 0.23, 4]} />
+                <meshStandardMaterial color={index % 2 ? "#bd8362" : "#8b594b"} roughness={0.78} flatShading />
+              </mesh>
+            ))}
+            <Sparkles count={5} position={[0, 0.45, 0]} scale={0.9} size={2.2} speed={0.2} color="#f5c56d" />
+          </group>
+        ) : (
+          <group>
+            <mesh position={[0, 0.45, 0]}>
+              <cylinderGeometry args={[0.25, 0.4, 0.78, 9]} />
+              <meshStandardMaterial color="#a96b58" roughness={0.78} flatShading />
+            </mesh>
+            <mesh position={[0, 0.86, 0]}>
+              <cylinderGeometry args={[0.16, 0.22, 0.18, 9]} />
+              <meshStandardMaterial color="#805246" roughness={0.82} flatShading />
+            </mesh>
+            <mesh position={[0, 0.96, 0]}>
+              <torusGeometry args={[0.17, 0.045, 5, 9]} />
+              <meshStandardMaterial color="#c58b69" roughness={0.65} />
+            </mesh>
+            <mesh position={[0, 0.46, 0.39]}>
+              <torusGeometry args={[0.23, 0.035, 5, 9]} />
+              <meshStandardMaterial color="#e0af79" roughness={0.62} />
+            </mesh>
+          </group>
+        )
+      ) : obstacle.kind === "barricade" ? (
+        broken ? (
+          <group>
+            {[-0.7, 0.04, 0.72].map((x, index) => (
+              <mesh key={x} position={[x, 0.18, 0.06]} rotation={[0.08, 0, (index - 1) * 0.32]}>
+                <boxGeometry args={[0.9, 0.13, 0.38]} />
+                <meshStandardMaterial color={index % 2 ? "#8b6545" : "#6f4a36"} roughness={0.91} />
+              </mesh>
+            ))}
+            <Sparkles count={6} position={[0, 0.55, 0]} scale={[2.1, 0.8, 0.7]} size={2.1} speed={0.18} color="#dda66a" />
+          </group>
+        ) : (
+          <group>
+            <mesh position={[0, 0.62, 0]}>
+              <boxGeometry args={[obstacle.width, 1.12, 0.48]} />
+              <meshStandardMaterial color="#745340" roughness={0.86} />
+            </mesh>
+            {[-0.8, 0, 0.8].map((x) => (
+              <mesh key={x} position={[x, 0.62, 0.27]}>
+                <boxGeometry args={[0.08, 0.72, 0.035]} />
+                <meshStandardMaterial color="#bc8a53" roughness={0.75} />
+              </mesh>
+            ))}
+            <mesh position={[0, 1.25, 0]} rotation={[0, 0, -0.06]}>
+              <boxGeometry args={[2.75, 0.13, 0.56]} />
+              <meshStandardMaterial color="#3b2927" roughness={0.9} />
+            </mesh>
+          </group>
+        )
       ) : (
         <group>
           <mesh position={[0, 0.62, 0]}>
@@ -546,6 +650,7 @@ export default function WorldRoadEntities({
   focusedRivalId,
   talkingRivalId,
   reducedMotion,
+  weather,
   interactableRegistry,
 }: {
   motionRef: MotionRef;
@@ -556,6 +661,7 @@ export default function WorldRoadEntities({
   focusedRivalId: string | null;
   talkingRivalId: string | null;
   reducedMotion: boolean;
+  weather: WeatherMode;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const initialChapter = Math.max(0, Math.floor(motionRef.current.distance / 144));
@@ -565,6 +671,7 @@ export default function WorldRoadEntities({
     if (next !== chapter) setChapter(next);
   });
   const chapters = useMemo(() => getWorldContentAround(chapter, 0), [chapter]);
+  const maxVisibleDistance = weather === "fog" ? 48 : weather === "storm" ? 80 : 112;
   const unlockedPickupIds = useMemo(() => {
     const unlocked = new Set<string>();
     for (const content of chapters) {
@@ -582,7 +689,7 @@ export default function WorldRoadEntities({
   const visibleObstacles = useMemo(() => chapters.flatMap((content) => content.obstacles), [chapters]);
   const activeRivals = rivals.filter((rival) => {
     const gap = rival.distance - motionRef.current.distance;
-    return gap >= -12 && gap <= 105;
+    return gap >= -12 && gap <= maxVisibleDistance;
   });
 
   return (
@@ -594,6 +701,7 @@ export default function WorldRoadEntities({
           motionRef={motionRef}
           unlocked
           reducedMotion={reducedMotion}
+          maxVisibleDistance={maxVisibleDistance}
         />
       ))}
       {visibleObstacles.map((obstacle) => (
@@ -602,6 +710,7 @@ export default function WorldRoadEntities({
           obstacle={obstacle}
           motionRef={motionRef}
           broken={brokenObstacleIds.has(obstacle.id)}
+          maxVisibleDistance={maxVisibleDistance}
           interactableRegistry={interactableRegistry}
         />
       ))}

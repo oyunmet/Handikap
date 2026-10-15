@@ -1,4 +1,5 @@
 import type { EquipmentSlot, StoreItem } from "./store-types.ts";
+import { STORE_BALANCE_CONFIG } from "./store-balance.ts";
 
 const item = (
   id: string,
@@ -22,7 +23,10 @@ const item = (
   description,
   summary,
   price,
-  sellValue: { gold: Math.floor(price.gold * 0.4), diamonds: Math.floor(price.diamonds * 0.4) },
+  sellValue: {
+    gold: Math.floor(price.gold * STORE_BALANCE_CONFIG.sellReturnRate),
+    diamonds: Math.floor(price.diamonds * STORE_BALANCE_CONFIG.sellReturnRate),
+  },
   stats,
   upgradeable,
   visual,
@@ -81,8 +85,8 @@ const supplyItem = (
 export const EQUIPMENT_SETS = {
   "ash-guardian": {
     name: "Kül Muhafızı",
-    twoPiece: { defense: 0.04, damage: 0.035 },
-    fourPiece: { health: 8, lightRadius: 1.25 },
+    twoPiece: STORE_BALANCE_CONFIG.equipmentSets["ash-guardian"].twoPiece,
+    fourPiece: STORE_BALANCE_CONFIG.equipmentSets["ash-guardian"].fourPiece,
     pieceSlots: ["weapon", "helmet", "armor", "cape", "ring"],
   },
 } as const;

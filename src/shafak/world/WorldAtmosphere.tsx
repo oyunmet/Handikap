@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { WeatherMode } from "./world-biomes";
+import { getWorldDaylight } from "./world-biomes";
 
 type Props = {
   quality: "high" | "balanced" | "low";
@@ -11,6 +12,7 @@ type Props = {
 export default function WorldAtmosphere({ quality, motionReduced, weather, travel }: Props) {
   const count = quality === "high" ? 24 : quality === "balanced" ? 15 : 5;
   const ashCount = weather === "ash" ? count : weather === "fog" ? Math.ceil(count / 3) : 0;
+  const daylight = getWorldDaylight(travel);
   return (
     <div
       className="world-atmosphere"
@@ -19,10 +21,12 @@ export default function WorldAtmosphere({ quality, motionReduced, weather, trave
       data-reduced={motionReduced}
       style={{
         "--air-parallax": `${-travel * .018}px`,
+        "--night-opacity": `${((1 - daylight) * 0.23).toFixed(3)}`,
         "--world-wind-duration": weather === "clear" ? "24s" : weather === "fog" ? "32s" : "10s",
       } as CSSProperties}
       aria-hidden="true"
     >
+      <i className="world-atmosphere__night" />
       {Array.from({ length: ashCount }, (_, index) => (
         <i
           className={`world-atmosphere__mote${index % 4 === 0 ? " is-warm" : ""}`}
@@ -38,7 +42,8 @@ export default function WorldAtmosphere({ quality, motionReduced, weather, trave
           } as CSSProperties}
         />
       ))}
-      {weather === "rain" && <i className="world-atmosphere__rain" />}
+      {(weather === "rain" || weather === "storm") && <i className="world-atmosphere__rain" />}
+      {weather === "storm" && <i className="world-atmosphere__lightning" />}
     </div>
   );
 }

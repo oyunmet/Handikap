@@ -16,7 +16,14 @@ export type WorldPickup = {
   sourceObstacleId?: string;
 };
 
-export type WorldObstacleKind = "rock" | "spike-trap" | "low-bar" | "barricade" | "treasure-chest";
+export type WorldObstacleKind =
+  | "rock"
+  | "spike-trap"
+  | "low-bar"
+  | "barrel"
+  | "vase"
+  | "barricade"
+  | "treasure-chest";
 
 export type WorldObstacle = {
   id: string;
@@ -74,7 +81,7 @@ export type WorldChapterContent = {
 export const PICKUP_MAGNET_RADIUS_METERS = 5.2;
 export const PICKUP_RADIUS_METERS = 1.5;
 export const WORLD_JUMP_CLEARANCE_METERS = 0.78;
-export const MAX_PICKUPS_PER_CLAIM = 14;
+export const MAX_PICKUPS_PER_CLAIM = 16;
 export const MAX_CHAPTER_ID = 1_000_000;
 
 const PICKUP_DISTANCES = [10, 19, 28, 34, 62, 69, 92, 99, 105, 123, 129, 138] as const;
@@ -145,7 +152,27 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
     sourceObstacleId: `ash-road:${chapterId}:obstacle:treasure-chest`,
   };
 
-  return [...regular, treasureCache, drop];
+  const barrelDrop: WorldPickup = {
+    id: `ash-road:${chapterId}:pickup:barrel-drop`,
+    chapterId,
+    kind: "gold-small",
+    amount: 16 + Math.floor(random() * 9),
+    x: 3.2,
+    distance: chapterStart + 24,
+    sourceObstacleId: `ash-road:${chapterId}:obstacle:barrel`,
+  };
+
+  const vaseDrop: WorldPickup = {
+    id: `ash-road:${chapterId}:pickup:vase-drop`,
+    chapterId,
+    kind: "gold-small",
+    amount: 14 + Math.floor(random() * 11),
+    x: -3.2,
+    distance: chapterStart + 101,
+    sourceObstacleId: `ash-road:${chapterId}:obstacle:vase`,
+  };
+
+  return [...regular, treasureCache, drop, barrelDrop, vaseDrop];
 }
 
 function createObstacles(chapterId: number): WorldObstacle[] {
@@ -177,6 +204,26 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       distance: chapterStart + 88,
       width: 5.2,
       health: 0,
+    },
+    {
+      id: `ash-road:${chapterId}:obstacle:barrel`,
+      chapterId,
+      kind: "barrel",
+      x: 3.2,
+      distance: chapterStart + 24,
+      width: 1.15,
+      health: 1,
+      dropPickupId: `ash-road:${chapterId}:pickup:barrel-drop`,
+    },
+    {
+      id: `ash-road:${chapterId}:obstacle:vase`,
+      chapterId,
+      kind: "vase",
+      x: -3.2,
+      distance: chapterStart + 101,
+      width: 0.95,
+      health: 1,
+      dropPickupId: `ash-road:${chapterId}:pickup:vase-drop`,
     },
     {
       id: `ash-road:${chapterId}:obstacle:barricade`,
@@ -345,7 +392,9 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         radius: obstacle.width * 0.58,
         halfWidth: obstacle.width / 2,
         halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
-        breakableId: obstacle.kind === "barricade" || obstacle.kind === "treasure-chest" ? obstacle.id : undefined,
+        breakableId: ["barrel", "vase", "barricade", "treasure-chest"].includes(obstacle.kind)
+          ? obstacle.id
+          : undefined,
         requiredAction: obstacle.kind === "low-bar"
           ? "crouch"
           : obstacle.kind === "rock" || obstacle.kind === "treasure-chest" ? "jump" : undefined,

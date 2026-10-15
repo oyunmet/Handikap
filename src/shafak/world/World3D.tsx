@@ -1307,6 +1307,7 @@ function SceneContents({
         rivals={rivals}
         collectedPickupIds={collectedPickupIds}
         brokenObstacleIds={brokenObstacleIds}
+        weather={weatherMode}
         focusedRivalId={focusedRival?.id ?? null}
         talkingRivalId={talkingRivalId}
         reducedMotion={motionReduced}

@@ -153,56 +153,13 @@ export type UpgradeCost = {
   sealFragments: number;
 };
 
-export const MAX_UPGRADE_LEVEL = 10;
-
-export function getUpgradeCost(slot: EquipmentSlot, currentLevel: number): UpgradeCost {
-  const level = Math.max(0, Math.min(MAX_UPGRADE_LEVEL - 1, Math.floor(currentLevel)));
-  return {
-    gold: 100 + level * 85 + (slot === "weapon" || slot === "offhand" ? 0 : 25),
-    ironShards: slot === "weapon" || slot === "offhand" ? 1 + Math.floor(level / 2) : 1,
-    emberCrystals: 1 + Math.floor(level / 2),
-    sealFragments: level >= 2 ? 1 + Math.floor((level - 2) / 2) : 0,
-  };
-}
-
-export function getUpgradeBonuses(slot: EquipmentSlot): Partial<EquipmentStatBonuses> {
-  if (slot === "weapon") return { damage: 0.018, attackSpeed: 0.006, attackRange: 0.015 };
-  if (slot === "offhand" || slot === "armor" || slot === "helmet" || slot === "gloves" || slot === "boots") {
-    return { health: 1, defense: 0.008 };
-  }
-  return { health: 1, critChance: 0.002, moveSpeed: 0.002 };
-}
-
-export function getUpgradeSuccessChance(currentLevel: number) {
-  if (currentLevel < 6) return 100;
-  return [85, 70, 60, 50][Math.min(3, currentLevel - 6)];
-}
-
-export function rollUpgradeSuccess(idempotencyKey: string, currentLevel: number) {
-  const chance = getUpgradeSuccessChance(currentLevel);
-  if (chance >= 100) return true;
-  let hash = 2_166_136_261;
-  for (let index = 0; index < idempotencyKey.length; index += 1) {
-    hash ^= idempotencyKey.charCodeAt(index);
-    hash = Math.imul(hash, 16_777_619);
-  }
-  return (hash >>> 0) % 100 < chance;
-}
-
-export function getItemSellValue(item: StoreItem) {
-  if (item.sellValue) return item.sellValue;
-  return {
-    gold: Math.floor(item.price.gold * 0.4),
-    diamonds: Math.floor(item.price.diamonds * 0.4),
-  };
-}
-
-export function getSalvageYield(item: StoreItem, upgradeLevel = 0) {
-  const rarityValue = { common: 1, rare: 2, epic: 3, legendary: 4 }[item.rarity];
-  const level = Math.max(0, Math.min(MAX_UPGRADE_LEVEL, Math.floor(upgradeLevel)));
-  return {
-    ironShards: 1 + Math.floor(level / 3) + Number(rarityValue >= 3),
-    emberCrystals: Math.max(0, Math.floor((rarityValue - 1) / 2) + Math.floor(level / 4)),
-    sealFragments: level >= 7 || rarityValue === 4 ? 1 : 0,
-  };
-}
+export {
+  getItemSellValue,
+  getPlayerCombatModifiersFromBonuses,
+  getSalvageYield,
+  getUpgradeBonuses,
+  getUpgradeCost,
+  getUpgradeSuccessChance,
+  MAX_UPGRADE_LEVEL,
+  rollUpgradeSuccess,
+} from "./store-balance.ts";

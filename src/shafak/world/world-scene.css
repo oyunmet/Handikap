@@ -106,6 +106,11 @@
 }
 .world-motion-filters { position: absolute; width: 0; height: 0; overflow: hidden; }
 .world-atmosphere { position: absolute; z-index: 3; inset: 0; overflow: hidden; pointer-events: none; }
+.world-atmosphere__night {
+  position: absolute; inset: 0; opacity: var(--night-opacity, 0);
+  background: linear-gradient(180deg, rgba(13,22,46,.36), rgba(21,29,51,.18) 62%, rgba(12,18,33,.3));
+  mix-blend-mode: multiply; transition: opacity 1.2s linear;
+}
 .world-atmosphere::before {
   position: absolute; inset: 25% -20% 26%; content: "";
   background: radial-gradient(ellipse at 35% 52%, rgba(192,150,127,.12), transparent 42%),
@@ -134,15 +139,31 @@
   box-shadow: 0 0 8px rgba(234,144,76,.4);
 }
 .world-atmosphere[data-weather="rain"]::before { opacity: .2; }
+.world-atmosphere[data-weather="storm"]::before {
+  inset: 7% -25% 14%;
+  background: radial-gradient(ellipse at 30% 62%, rgba(130,161,190,.22), transparent 48%),
+    linear-gradient(180deg, transparent 34%, rgba(104,129,156,.22) 78%, transparent);
+  filter: blur(30px);
+}
 .world-atmosphere__rain {
   position: absolute; inset: -30% -20%; opacity: .23;
   background: repeating-linear-gradient(106deg, transparent 0 19px, rgba(184,220,238,.52) 20px 21px, transparent 22px 31px);
   animation: world-rain-fall .72s linear infinite;
   transform: skewX(-8deg);
 }
+.world-atmosphere[data-weather="storm"] .world-atmosphere__rain {
+  opacity: .34; animation-duration: .52s;
+  background: repeating-linear-gradient(106deg, transparent 0 15px, rgba(196,222,244,.66) 16px 18px, transparent 19px 26px);
+}
+.world-atmosphere__lightning {
+  position: absolute; inset: 0; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(ellipse at 66% 12%, rgba(218,235,255,.82), rgba(142,180,224,.2) 34%, transparent 72%);
+  animation: world-lightning-flash 16s linear infinite;
+}
 .world-atmosphere[data-reduced="true"]::before,
 .world-atmosphere[data-reduced="true"] .world-atmosphere__mote,
-.world-atmosphere[data-reduced="true"] .world-atmosphere__rain { animation: none; }
+.world-atmosphere[data-reduced="true"] .world-atmosphere__rain,
+.world-atmosphere[data-reduced="true"] .world-atmosphere__lightning { animation: none; }
 .world-scene[data-quality="low"] .world-atmosphere__mote:nth-child(n+4) { display: none; }
 .world-scene[data-quality="low"] .world-atmosphere__rain { opacity: .13; }
 .world-scene[data-postfx="false"] .world-vignette { display: none; }
@@ -174,6 +195,11 @@
 .world-scene[data-biome="frozen-pass"] .world-stage__sky-tile { filter: hue-rotate(148deg) saturate(.75) brightness(.78); }
 .world-scene[data-biome="red-marsh"] .world-stage__sky-tile { filter: hue-rotate(-18deg) sepia(.24) saturate(1.02) brightness(.72); }
 .world-scene[data-weather="rain"] .world-stage__sky-tile { filter: saturate(.63) brightness(.65); }
+.world-scene[data-weather="storm"] .world-stage__sky-tile { filter: hue-rotate(8deg) saturate(.52) brightness(.42); }
+.world-scene[data-weather="storm"] .world-stage__sky::after {
+  background: linear-gradient(180deg,rgba(8,14,27,.64),rgba(18,28,44,.16) 44%,rgba(11,15,23,.78)),
+    radial-gradient(ellipse at 72% 26%,rgba(144,181,224,.12),transparent 38%);
+}
 .world-scene[data-weather="fog"] .world-stage__sky::after { background: linear-gradient(180deg,rgba(25,31,40,.3),rgba(96,112,119,.2) 54%,rgba(15,15,20,.62)); }
 .world-stage__horizon {
   position: absolute; z-index: 1; inset: 0;
@@ -227,6 +253,8 @@
 .world-scene[data-biome="red-marsh"] .world-plane--haze { filter: hue-rotate(-14deg) sepia(.2) saturate(1.1) blur(24px); }
 .world-scene[data-biome="red-marsh"] .world-plane--road { filter: hue-rotate(-12deg) sepia(.18) saturate(1.08) brightness(.82); }
 .world-scene[data-weather="rain"] .world-plane--road { filter: saturate(.78) brightness(.66); }
+.world-scene[data-weather="storm"] .world-plane--road { filter: saturate(.58) brightness(.48); }
+.world-scene[data-weather="storm"] .world-plane--haze { opacity: .72; }
 .world-scene[data-weather="fog"] .world-plane--haze { opacity: .88; }
 .world-plane--foreground {
   z-index: 2; inset: 71% 0 -18%;
@@ -551,9 +579,10 @@
   background: #e8c37d; transition: transform .2s ease;
 }
 .world-weather__switch.is-clear span { transform: translateX(0); background: #e8d294; }
-.world-weather__switch.is-ash span { transform: translateX(8px); background: #dda773; }
-.world-weather__switch.is-rain span { transform: translateX(16px); background: #a6dff4; }
-.world-weather__switch.is-fog span { transform: translateX(22px); background: #ccd5d8; }
+.world-weather__switch.is-ash span { transform: translateX(6px); background: #dda773; }
+.world-weather__switch.is-rain span { transform: translateX(12px); background: #a6dff4; }
+.world-weather__switch.is-storm span { transform: translateX(18px); background: #bacdf0; }
+.world-weather__switch.is-fog span { transform: translateX(23px); background: #ccd5d8; }
 .world-controls {
   position: absolute; z-index: 5; right: clamp(14px, 3vw, 42px); bottom: max(20px, env(safe-area-inset-bottom));
   left: clamp(14px, 3vw, 42px); display: flex; align-items: flex-end; justify-content: space-between; gap: 14px;
@@ -962,6 +991,11 @@
 @keyframes world-ray-drift { from { transform: translate3d(-.4%,0,0); opacity: .2; } to { transform: translate3d(.5%,-.5%,0); opacity: .38; } }
 @keyframes world-mist-drift { from { opacity: .32; } to { opacity: .78; } }
 @keyframes world-rain-fall { from { transform: translate3d(0, -6%, 0) skewX(-8deg); } to { transform: translate3d(-5%, 7%, 0) skewX(-8deg); } }
+@keyframes world-lightning-flash {
+  0%, 84%, 84.6%, 85.2%, 86%, 100% { opacity: 0; }
+  84.2%, 84.45% { opacity: .58; }
+  84.8%, 85% { opacity: .28; }
+}
 @keyframes world-ash-drift {
   0% { opacity: 0; transform: translate3d(0, 18px, 0) scale(.62); }
   20% { opacity: .52; }

@@ -39,6 +39,21 @@ test("special offers rotate once per Istanbul day and are identical for all play
   assert.equal(isDailySpecialAvailable("special_ash_reaver", new Date("2026-10-14T12:00:00.000Z")), firstDay.includes("special_ash_reaver"));
 });
 
+test("special offers switch at Istanbul midnight rather than UTC midnight", () => {
+  const beforeMidnight = new Date("2026-10-14T20:59:59.999Z");
+  const atMidnight = new Date("2026-10-14T21:00:00.000Z");
+  const earlierThatDay = new Date("2026-10-14T00:00:00.000Z");
+  const previousDayOffers = getDailySpecials(beforeMidnight).map((item) => item.id);
+  const currentDayOffers = getDailySpecials(atMidnight).map((item) => item.id);
+
+  assert.deepEqual(getDailySpecials(earlierThatDay).map((item) => item.id), previousDayOffers);
+  assert.equal(previousDayOffers.length, 2);
+  assert.equal(new Set(previousDayOffers).size, previousDayOffers.length);
+  assert.equal(currentDayOffers.length, 2);
+  assert.equal(new Set(currentDayOffers).size, currentDayOffers.length);
+  assert.notDeepEqual(currentDayOffers, previousDayOffers);
+});
+
 test("the Vercel catalog handler returns the shared catalog as public JSON", async () => {
   const headers = {};
   let status = 0;

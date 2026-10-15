@@ -3,6 +3,7 @@ import type {
   EquipmentStatBonuses,
   PlayerCombatModifiers,
 } from "../src/shafak/game/store-types.ts";
+import { getPlayerCombatModifiersFromBonuses } from "../src/shafak/game/store-balance.ts";
 import { getUpgradeBonuses, MAX_UPGRADE_LEVEL } from "../src/shafak/game/store-types.ts";
 import {
   DEFAULT_EQUIPMENT,
@@ -51,15 +52,7 @@ export function calculatePlayerCombatModifiers(profile: PlayerProfileRecord, wea
       }
     }
   }
-  return {
-    maxHealth: Math.max(130, Math.min(175, 150 + bonuses.health)),
-    damageMultiplier: Math.max(0.82, Math.min(1.35, 1 + bonuses.damage)),
-    defenseReduction: Math.max(0, Math.min(0.24, bonuses.defense)),
-    criticalChance: Math.max(0.08, Math.min(0.28, 0.12 + bonuses.critChance)),
-    moveSpeedMultiplier: Math.max(0.88, Math.min(1.14, 1 + bonuses.moveSpeed)),
-    attackSpeedMultiplier: Math.max(0.8, Math.min(1.22, 1 + bonuses.attackSpeed)),
-    attackRangeBonus: Math.max(-0.3, Math.min(0.8, bonuses.attackRange)),
-  };
+  return getPlayerCombatModifiersFromBonuses(bonuses);
 }
 
 function addBonuses(target: EquipmentStatBonuses, source: Partial<EquipmentStatBonuses>) {

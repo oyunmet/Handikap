@@ -108,6 +108,7 @@ export function stepWorldMotion(
   deltaSeconds: number,
   speedMultiplier = 1,
   target?: WorldMotionFrame,
+  handlingMultiplier = 1,
 ): WorldMotionFrame {
   const dt = clamp(finiteOrZero(deltaSeconds), 0, 0.05);
   const magnitude = clamp(Math.hypot(input.x, input.y), 0, 1);
@@ -129,7 +130,8 @@ export function stepWorldMotion(
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const targetX = input.x * directionScale * targetSpeed;
   const targetY = input.y * directionScale * targetSpeed;
-  const timeConstant = targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS;
+  const handling = clamp(finiteOrZero(handlingMultiplier) || 1, 0.6, 1);
+  const timeConstant = (targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS) / handling;
   const response = 1 - Math.exp(-dt / timeConstant);
   const velocityX = state.velocityX + (targetX - state.velocityX) * response;
   let velocityY = state.velocityY + (targetY - state.velocityY) * response;

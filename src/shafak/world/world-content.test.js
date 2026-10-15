@@ -15,7 +15,7 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
   const first = getWorldChapter(0);
   assert.deepEqual(getWorldChapter(0), first);
   assert.notDeepEqual(getWorldChapter(1), first);
-  assert.equal(first.pickups.length, 14);
+  assert.equal(first.pickups.length, 16);
   assert.equal(first.rivals.length, 5);
   assert.deepEqual(first.rivals.slice(0, 4).map((rival) => rival.name), [
     "Kapı Muhafızı",
@@ -62,7 +62,7 @@ test("road rewards stay within reach and each chapter includes visible hazards",
   assert.ok(cachePickup);
   assert.equal(cachePickup.x, 0);
   assert.ok(chapter.pickups.every((pickup) => Math.abs(pickup.x) <= 3.2));
-  for (const kind of ["rock", "spike-trap", "low-bar", "barricade", "treasure-chest"]) {
+  for (const kind of ["rock", "spike-trap", "low-bar", "barrel", "vase", "barricade", "treasure-chest"]) {
     assert.ok(chapter.obstacles.some((obstacle) => obstacle.kind === kind), `missing ${kind}`);
   }
   const treasureObstacle = chapter.obstacles.find((obstacle) => obstacle.kind === "treasure-chest");
@@ -71,6 +71,16 @@ test("road rewards stay within reach and each chapter includes visible hazards",
   assert.ok(chestReward);
   assert.equal(treasureObstacle.dropPickupId, chestReward.id);
   assert.equal(chestReward.sourceObstacleId, treasureObstacle.id);
+  for (const kind of ["barrel", "vase"]) {
+    const obstacle = chapter.obstacles.find((candidate) => candidate.kind === kind);
+    const drop = chapter.pickups.find((pickup) => pickup.id === obstacle?.dropPickupId);
+    assert.ok(obstacle?.health === 1);
+    assert.ok(drop);
+    assert.equal(drop.kind, "gold-small");
+    assert.equal(drop.sourceObstacleId, obstacle.id);
+    assert.equal(drop.x, obstacle.x);
+    assert.equal(drop.distance, obstacle.distance);
+  }
 });
 
 test("all five new rival types and chapter bosses appear in stable chapter content", () => {
@@ -103,6 +113,8 @@ test("server-side pickup validation accepts only unique IDs from the requested c
   assert.equal(validatePickupIds(0, ["ash-road:1:pickup:0"]), null);
   assert.equal(validatePickupIds(0, ["x".repeat(91)]), null);
   assert.equal(validatePickupIds(0, Array(15).fill(chapter.pickups[0].id)), null);
+  assert.equal(validatePickupIds(0, chapter.pickups.map((pickup) => pickup.id))?.length, 16);
+  assert.equal(validatePickupIds(0, Array.from({ length: 17 }, (_, index) => `unknown-${index}`)), null);
 });
 
 test("reward totals are derived from seeded pickup kinds and amounts", () => {

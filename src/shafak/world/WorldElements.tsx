@@ -281,8 +281,9 @@ function RoadSurface({ motionRef, quality, weather }: { motionRef: MotionRef; qu
     const to = ROAD_PALETTE_COLORS[transition.to];
     ROAD_TERRAIN_MATERIAL.color.lerpColors(from.ground, to.ground, transition.mix);
     ROAD_SURFACE_MATERIAL.color.lerpColors(from.road, to.road, transition.mix);
-    ROAD_SURFACE_MATERIAL.roughness = weather === "rain" ? 0.32 : 0.96;
-    ROAD_SURFACE_MATERIAL.metalness = weather === "rain" ? 0.24 : 0.03;
+    const wetRoad = weather === "rain" || weather === "storm";
+    ROAD_SURFACE_MATERIAL.roughness = wetRoad ? weather === "storm" ? 0.24 : 0.32 : 0.96;
+    ROAD_SURFACE_MATERIAL.metalness = wetRoad ? weather === "storm" ? 0.3 : 0.24 : 0.03;
   });
   return (
     <>
@@ -324,7 +325,7 @@ function HorizonFogBank({ motionRef, weather }: { motionRef: MotionRef; weather:
     const to = ROAD_PALETTE_COLORS[transition.to].fog;
     HORIZON_FOG_MATERIAL.uniforms.uColor.value.lerpColors(from, to, transition.mix);
     HORIZON_FOG_MATERIAL.uniforms.uOpacity.value =
-      weather === "fog" ? 0.56 : weather === "rain" ? 0.28 : weather === "ash" ? 0.2 : 0.08;
+      weather === "fog" ? 0.7 : weather === "storm" ? 0.38 : weather === "rain" ? 0.28 : weather === "ash" ? 0.2 : 0.08;
   });
   return (
     <mesh
@@ -931,7 +932,7 @@ export function WorldChunks({
           scale={[18, 5, 34]}
           size={quality === "high" ? 2.3 : quality === "balanced" ? 1.8 : 1.4}
           speed={motionReduced ? 0 : 0.42}
-          color={weather === "rain" ? "#a5dcf5" : weather === "fog" ? "#c7d4d9" : weather === "ash" ? "#e5a566" : "#e5a566"}
+          color={weather === "storm" ? "#c3dafa" : weather === "rain" ? "#a5dcf5" : weather === "fog" ? "#c7d4d9" : weather === "ash" ? "#e5a566" : "#e5a566"}
           opacity={0.48}
           noise={0.8}
         />

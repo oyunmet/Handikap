@@ -3,7 +3,7 @@ import express from "express";
 import test from "node:test";
 import { createDefaultPlayerProfile } from "./profileApi.ts";
 import { calculateAccountCombatStats, createStoreApi, validateStoreOperationBody } from "./storeApi.ts";
-import { STORE_CATALOG } from "./storeCatalog.ts";
+import { getDailySpecials, STORE_CATALOG } from "./storeCatalog.ts";
 import {
   getItemSellValue,
   getSalvageYield,
@@ -67,11 +67,11 @@ function createMemoryPool(initialProfile = createDefaultPlayerProfile()) {
   };
 }
 
-async function openStoreApi(t, profile) {
+async function openStoreApi(t, profile, now = () => new Date()) {
   const app = express();
   const pool = createMemoryPool(profile);
   app.use(express.json());
-  app.use(createStoreApi(pool, () => "store-test-player"));
+  app.use(createStoreApi(pool, () => "store-test-player", now));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve, reject) => {
     server.once("listening", resolve);
@@ -134,6 +134,35 @@ test("the account purchase route replays idempotently and blocks buying an owned
   assert.equal(secondPurchase.status, 409);
   assert.deepEqual(await secondPurchase.json(), { error: "item_already_owned" });
   assert.equal(pool.profile.gold, 320);
+});
+
+test("daily special purchases accept today's offer and reject expired offers without charging", async (t) => {
+  const now = () => new Date("2026-10-15T12:00:00.000Z");
+  const profile = createDefaultPlayerProfile();
+  profile.diamonds = 100;
+  const { pool, send } = await openStoreApi(t, profile, now);
+  const activeIds = new Set(getDailySpecials(now()).map((item) => item.id));
+  const activeOffer = STORE_CATALOG.find((item) => item.category === "specials" && activeIds.has(item.id));
+  const expiredOffer = STORE_CATALOG.find((item) => item.category === "specials" && !activeIds.has(item.id));
+  assert.ok(activeOffer);
+  assert.ok(expiredOffer);
+
+  const expired = await send("purchase", {
+    itemId: expiredOffer.id,
+    idempotencyKey: "5fa44586-f83f-4eb2-841d-04d405045587",
+  });
+  assert.equal(expired.status, 409);
+  assert.deepEqual(await expired.json(), { error: "special_offer_expired" });
+  assert.equal(pool.profile.diamonds, 100);
+  assert.equal(pool.profile.inventory.ownedItemIds.includes(expiredOffer.id), false);
+
+  const current = await send("purchase", {
+    itemId: activeOffer.id,
+    idempotencyKey: "9bda9295-c7a1-4c36-a4d3-f03b77f68646",
+  });
+  assert.equal(current.status, 200);
+  assert.equal(pool.profile.diamonds, 100 - activeOffer.price.diamonds);
+  assert.equal(pool.profile.inventory.ownedItemIds.includes(activeOffer.id), true);
 });
 
 test("the account equip route refuses items the profile does not own", async (t) => {
