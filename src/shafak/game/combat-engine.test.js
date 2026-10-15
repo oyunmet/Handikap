@@ -9,6 +9,7 @@ import {
   PERFECT_BLOCK_WINDOW_TICKS,
   createCombatState,
   getBotAttackWindupTicks,
+  isCombatBotEnraged,
   replayCombat,
   stepCombat,
 } from "./combat-engine.ts";
@@ -48,7 +49,7 @@ test("duel fighters begin facing each other along the arena depth", () => {
 
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
   const seed = 881723;
-  let state = createCombatState(seed, "medium");
+  let state = createCombatState(seed, "medium", undefined, undefined, "ash-archer");
   const frames = [[0, 0, 0, 0, 0, 0]];
   const events = [];
   let previousButtons = 0;
@@ -65,10 +66,43 @@ test("a recorded sparse input tape replays to the same seeded combat state", () 
     events.push(...result.events);
   }
 
-  const replay = replayCombat(seed, "medium", frames);
+  const replay = replayCombat(seed, "medium", frames, undefined, undefined, "ash-archer");
   assert.deepEqual(replay.state, state);
   assert.ok(events.some((event) => ["hit", "block", "parry", "dodge"].includes(event.type)));
   assert.equal(replay.consumedFrames, frames.length);
+});
+
+test("opponent archetypes change combat behavior and the rage phase shortens attack telegraphs", () => {
+  const gate = createCombatState(1024, "medium", undefined, undefined, "gate-warden");
+  const archer = createCombatState(1024, "medium", undefined, undefined, "ash-archer");
+  const shadow = createCombatState(1024, "medium", undefined, undefined, "shadow-knight");
+  assert.equal(gate.botArchetype, "gate-warden");
+  assert.ok(getBotAttackWindupTicks("medium", "gate-warden") > getBotAttackWindupTicks("medium", "ash-archer"));
+  assert.ok(getBotAttackWindupTicks("medium", "shadow-knight") < getBotAttackWindupTicks("medium", "gate-warden"));
+  assert.equal(isCombatBotEnraged(gate.bot), false);
+  gate.bot.hp = gate.bot.maxHp * 0.5;
+  assert.equal(isCombatBotEnraged(gate.bot), true);
+  assert.ok(
+    getBotAttackWindupTicks("medium", "gate-warden", true)
+      < getBotAttackWindupTicks("medium", "gate-warden"),
+  );
+  assert.equal(isCombatBotEnraged({ hp: 0, maxHp: 130 }), false);
+  assert.equal(archer.botArchetype, "ash-archer");
+  assert.equal(shadow.botArchetype, "shadow-knight");
+});
+
+test("the ash archer can telegraph and fire a ranged arrow from outside melee distance", () => {
+  let state = createCombatState(30303, "easy", undefined, undefined, "ash-archer");
+  state.bot.z = state.player.z - 6;
+  const events = [];
+  for (let index = 0; index < 360; index += 1) {
+    const result = stepCombat(state, noInput);
+    state = result.state;
+    events.push(...result.events);
+    if (events.some((event) => event.type === "projectile" && event.from === "bot")) break;
+  }
+  assert.ok(events.some((event) => event.type === "projectile" && event.from === "bot"));
+  assert.ok(events.some((event) => event.type === "hit" && event.target === "player"));
 });
 
 test("seeded bots choose the same actions and damage on each replay", () => {

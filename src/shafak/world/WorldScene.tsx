@@ -23,8 +23,10 @@ import {
   MAX_INPUT_BUTTONS,
   createCombatState,
   getBotAttackWindupTicks,
+  isCombatBotEnraged,
   normalizePlayerCombatModifiers,
   stepCombat,
+  type CombatBotArchetype,
   type CombatEvent,
   type CombatInput,
   type CombatInputFrame,
@@ -1444,6 +1446,7 @@ export default function WorldScene({
     try {
       let seed: number;
       let difficulty = rival.difficulty;
+      let botArchetype: CombatBotArchetype = rival.archetype;
       let duelId: string | null = null;
       let playerStats: PlayerCombatModifiers = playerCombatStats;
       let duelLoadout = combatLoadout;
@@ -1454,7 +1457,7 @@ export default function WorldScene({
           seed?: unknown;
           playerStats?: unknown;
           combatLoadout?: unknown;
-          opponent?: { id?: unknown; difficulty?: unknown };
+          opponent?: { id?: unknown; difficulty?: unknown; archetype?: unknown };
           error?: string;
         }>("/api/duels/start", {
           method: "POST",
@@ -1485,7 +1488,8 @@ export default function WorldScene({
           typeof challenge.combatLoadout !== "object" ||
           Array.isArray(challenge.combatLoadout) ||
           challenge.opponent?.id !== rival.id ||
-          !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty))
+          !["easy", "medium", "hard"].includes(String(challenge.opponent.difficulty)) ||
+          !["gate-warden", "iron-oath", "ash-archer", "shadow-knight"].includes(String(challenge.opponent.archetype))
         ) throw new Error("Sunucudan gelen düello kimliği geçersiz.");
         const serverLoadout = challenge.combatLoadout as Partial<CombatLoadout>;
         if (
@@ -1521,6 +1525,7 @@ export default function WorldScene({
         duelId = challenge.duelId;
         seed = challenge.seed;
         difficulty = challenge.opponent.difficulty as typeof difficulty;
+        botArchetype = challenge.opponent.archetype as CombatBotArchetype;
       } else {
         const seedBuffer = new Uint32Array(1);
         window.crypto.getRandomValues(seedBuffer);
@@ -1528,7 +1533,7 @@ export default function WorldScene({
       }
 
       activeDuelRef.current = { rival, duelId, seed, practice, rematch, oneHit: debugOneHitEnabled };
-      const initialCombat = createCombatState(seed, difficulty, playerStats, duelLoadout);
+      const initialCombat = createCombatState(seed, difficulty, playerStats, duelLoadout, botArchetype);
       combatStateRef.current = initialCombat;
       setCombatRender(initialCombat);
 
@@ -2415,6 +2420,9 @@ export default function WorldScene({
             <div className="duel-hud__center">
               <span>VS</span>
               <strong>{combatRender.player.combo > 1 ? `${combatRender.player.combo} VURUŞ` : "DÜELLO"}</strong>
+              {isCombatBotEnraged(combatRender.bot) && (
+                <small className="duel-rage-label" role="status">ÖFKE FAZI</small>
+              )}
               {combatRender.player.comboChainStep > 0 && combatRender.tick <= combatRender.player.comboChainUntilTick && (
                 <small className="duel-combo-chain" role="status">
                   KOMBO {combatRender.player.comboChainStep}/3 · SONRA {combatRender.player.comboChainStep === 1 ? "HAFİF" : "AĞIR"}
@@ -2427,7 +2435,11 @@ export default function WorldScene({
             <DuelHealthBar label={battleSession.rival.name} hp={combatRender.bot.hp} maxHp={combatRender.bot.maxHp} side="bot" visualEffectsEnabled={visualEffectsEnabled} />
           </section>
           {combatRender.bot.attackType
-            && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(combatRender.difficulty)
+            && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(
+              combatRender.difficulty,
+              combatRender.botArchetype,
+              isCombatBotEnraged(combatRender.bot),
+            )
             && (
               <>
                 <div className="duel-attack-warning" role="status" aria-live="assertive">RAKİP SALDIRIYOR · BLOKLA YA DA KAÇ</div>

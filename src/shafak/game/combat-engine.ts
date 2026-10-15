@@ -30,6 +30,7 @@ export const INPUT_BUTTON = {
 export const MAX_INPUT_BUTTONS = 8_191;
 
 export type CombatDifficulty = "easy" | "medium" | "hard";
+export type CombatBotArchetype = "gate-warden" | "iron-oath" | "ash-archer" | "shadow-knight";
 export type CombatSide = "player" | "bot";
 export type CombatAction =
   | "idle"
@@ -104,6 +105,7 @@ export type CombatState = {
   seed: number;
   rngState: number;
   difficulty: CombatDifficulty;
+  botArchetype: CombatBotArchetype;
   playerStats: PlayerCombatModifiers;
   weaponStats: [PlayerCombatModifiers, PlayerCombatModifiers];
   weaponIds: [string, string | null];
@@ -237,6 +239,7 @@ export function createCombatState(
   difficulty: CombatDifficulty = "easy",
   playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
   loadout?: CombatLoadout,
+  botArchetype: CombatBotArchetype = "gate-warden",
 ): CombatState {
   const cleanSeed = (Number.isSafeInteger(seed) ? seed : 1) >>> 0 || 1;
   const normalizedStats = normalizePlayerCombatModifiers(playerStats);
@@ -245,6 +248,7 @@ export function createCombatState(
     seed: cleanSeed,
     rngState: cleanSeed,
     difficulty,
+    botArchetype,
     playerStats: normalizedStats,
     weaponStats: loadout?.weaponStats ?? [normalizedStats, normalizedStats],
     weaponIds: loadout?.weaponIds ?? ["weapon_ash_sword", null],
@@ -361,8 +365,20 @@ function stepBurn(actor: CombatActor, side: CombatSide, tick: number, events: Co
   events.push({ id: tick * 100 + 92, type: "burn", target: side, damage });
 }
 
-export function getBotAttackWindupTicks(difficulty: CombatDifficulty) {
-  return difficulty === "easy" ? 42 : difficulty === "medium" ? 36 : 30;
+export function isCombatBotEnraged(bot: Pick<CombatActor, "hp" | "maxHp">) {
+  return bot.hp > 0 && bot.hp <= bot.maxHp * 0.5;
+}
+
+export function getBotAttackWindupTicks(
+  difficulty: CombatDifficulty,
+  archetype: CombatBotArchetype = "gate-warden",
+  enraged = false,
+) {
+  const baseline = difficulty === "easy" ? 42 : difficulty === "medium" ? 36 : 30;
+  const archetypeDelay = archetype === "gate-warden" ? 5
+    : archetype === "ash-archer" ? -3
+      : archetype === "shadow-knight" ? -6 : 0;
+  return Math.max(18, baseline + archetypeDelay - (enraged ? 6 : 0));
 }
 
 function random(state: CombatState) {
@@ -382,11 +398,16 @@ function getWeaponStyle(weaponId: string | null): CombatWeaponStyle {
   return getStoreItem(weaponId)?.visual.weaponStyle ?? "sword";
 }
 
+function getBotWeaponStyle(archetype: CombatBotArchetype): CombatWeaponStyle {
+  return archetype === "gate-warden" ? "greatsword"
+    : archetype === "iron-oath" ? "mace"
+      : archetype === "ash-archer" ? "bow" : "daggers";
+}
+
 function getAttackWeaponStyle(state: CombatState, actor: CombatActor): CombatWeaponStyle {
-  const weaponId = actor === state.player
-    ? actor.attackWeaponId ?? state.weaponIds[state.activeWeaponSlot]
-    : null;
-  return getWeaponStyle(weaponId);
+  return actor === state.player
+    ? getWeaponStyle(actor.attackWeaponId ?? state.weaponIds[state.activeWeaponSlot])
+    : getBotWeaponStyle(state.botArchetype);
 }
 
 function segmentCrossesCover(from: CombatActor, to: CombatActor) {
@@ -470,11 +491,13 @@ function startAttack(
   if (tick < actor.staggerUntilTick || tick < actor.attackCooldownUntilTick || actor.stamina <= 0) return false;
   const target = side === "player" ? state.bot : state.player;
   const weaponId = side === "player" ? state.weaponIds[state.activeWeaponSlot] : null;
-  const weaponStyle = getWeaponStyle(weaponId);
+  const weaponStyle = side === "player" ? getWeaponStyle(weaponId) : getBotWeaponStyle(state.botArchetype);
   const gap = distanceBetween(actor, target);
   const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
-  const rangedShot = weaponStyle === "bow" && !bowAtCloseRange && (attack === "light" || attack === "heavy");
-  if (rangedShot && !actor.isAiming) return false;
+  const rangedShot = weaponStyle === "bow"
+    && !bowAtCloseRange
+    && (attack === "light" || attack === "heavy");
+  if (rangedShot && side === "player" && !actor.isAiming) return false;
   const closeBowAttack = bowAtCloseRange && (attack === "light" || attack === "heavy");
   const cost = attack === "light"
     ? closeBowAttack ? 8 : weaponStyle === "daggers" ? 7 : 9
@@ -497,7 +520,14 @@ function startAttack(
           : weaponStyle === "spear" ? 0.94
             : 1;
   const speed = side === "player" ? state.playerStats.attackSpeedMultiplier * weaponSpeed : 1;
-  const botRecovery = state.difficulty === "easy" ? 156 : state.difficulty === "medium" ? 108 : 78;
+  const botEnraged = side === "bot" && isCombatBotEnraged(actor);
+  const botRecoveryBase = state.difficulty === "easy" ? 156 : state.difficulty === "medium" ? 108 : 78;
+  const botStyleRecovery = state.botArchetype === "iron-oath" ? 1.12
+    : state.botArchetype === "shadow-knight" ? 0.78
+      : state.botArchetype === "ash-archer" ? 0.92 : 1.06;
+  const botRecovery = Math.max(38, Math.round(
+    botRecoveryBase * botStyleRecovery * (botEnraged ? 0.78 : 1),
+  ));
   actor.attackCooldownUntilTick = tick + Math.max(8, Math.round(
     side === "bot" ? botRecovery : (attack === "light" ? 27 : attack === "heavy" ? 48 : attack === "skillOne" ? 54 : 72) / speed,
   ));
@@ -505,7 +535,7 @@ function startAttack(
     ? 33
     : attack === "light" ? 25 : attack === "heavy" ? 42 : attack === "skillOne" ? 36 : 48) / speed));
   if (side === "bot") {
-    setAction(actor, "windup", tick, getBotAttackWindupTicks(state.difficulty) + duration);
+    setAction(actor, "windup", tick, getBotAttackWindupTicks(state.difficulty, state.botArchetype, botEnraged) + duration);
   } else {
     setAction(actor, actor.attackWasPlunge ? "plunge" : attack === "light" ? "attack" : attack === "heavy" ? "heavyAttack" : attack, tick, duration);
   }
@@ -530,26 +560,58 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
   const player = state.player;
   const gap = distanceBetween(bot, player);
   const difficulty = state.difficulty;
-  const attackChance = difficulty === "easy" ? 0.4 : difficulty === "medium" ? 0.66 : 0.88;
-  const reactionThreshold = difficulty === "easy" ? 0.68 : difficulty === "medium" ? 0.48 : 0.3;
+  const enraged = isCombatBotEnraged(bot);
+  const archer = state.botArchetype === "ash-archer";
+  const ironOath = state.botArchetype === "iron-oath";
+  const shadowKnight = state.botArchetype === "shadow-knight";
+  const baseAttackChance = difficulty === "easy" ? 0.4 : difficulty === "medium" ? 0.66 : 0.88;
+  const attackChance = clamp(
+    baseAttackChance
+      + (archer ? 0.06 : shadowKnight ? 0.12 : ironOath ? -0.08 : 0)
+      + (enraged ? 0.16 : 0),
+    0.2,
+    0.98,
+  );
+  const baseReactionThreshold = difficulty === "easy" ? 0.68 : difficulty === "medium" ? 0.48 : 0.3;
+  const reactionThreshold = clamp(
+    baseReactionThreshold - (ironOath ? 0.16 : shadowKnight ? 0.08 : 0) + (enraged ? 0.06 : 0),
+    0.12,
+    0.82,
+  );
   const retreat = difficulty === "easy" ? 0 : difficulty === "medium" ? 0.16 : 0.28;
-  const attackRange = 2.15;
+  const attackRange = archer ? 9.25 : 2.15;
+  const decisionRange = archer ? 9.25 : 3.1;
   let move = normalized(player.x - bot.x, player.z - bot.z);
   let buttons = 0;
 
+  if (archer && gap > 1.85 && gap <= attackRange) {
+    bot.isAiming = true;
+    buttons |= INPUT_BUTTON.aim;
+    if (gap < 4.2) move = { x: -move.x, y: -move.y };
+    else if (gap <= 7.3) move = { x: move.y * 0.28, y: -move.x * 0.28 };
+  } else {
+    bot.isAiming = false;
+  }
+
   if (tick < bot.staggerUntilTick || bot.hp <= 0) return { x: 0, y: 0, buttons };
 
-  if (tick >= bot.actionUntilTick && tick >= bot.attackCooldownUntilTick && gap <= 3.1) {
+  if (tick >= bot.actionUntilTick && tick >= bot.attackCooldownUntilTick && gap <= decisionRange) {
     const roll = random(state);
     const playerThreat = player.attackType !== null && !player.attackHit
       && tick - player.attackStartedTick >= (player.attackType === "heavy" ? 14 : 8);
     if (playerThreat && roll > reactionThreshold && bot.stamina >= 18) {
-      const dodge = roll > 0.78 && difficulty !== "easy";
+      const dodge = shadowKnight
+        ? roll > (difficulty === "easy" ? 0.7 : 0.58)
+        : roll > 0.78 && difficulty !== "easy";
       if (dodge) {
         bot.stamina -= 18;
         bot.invulnerableUntilTick = tick + 15;
-        bot.vx = -move.x * 7.5;
-        bot.vz = -move.y * 7.5;
+        const dodgeDirection = shadowKnight && enraged
+          ? { x: player.x - bot.x, y: player.z - bot.z }
+          : { x: -move.x, y: -move.y };
+        const normalizedDodge = normalized(dodgeDirection.x, dodgeDirection.y);
+        bot.vx = normalizedDodge.x * (shadowKnight ? 8.6 : 7.5);
+        bot.vz = normalizedDodge.y * (shadowKnight ? 8.6 : 7.5);
         bot.staggerUntilTick = tick + 18;
         setAction(bot, "dodge", tick, 18);
         events.push({ id: tick * 4 + 3, type: "dodge", target: "bot" });
@@ -559,14 +621,22 @@ function chooseBotIntent(state: CombatState, tick: number, events: CombatEvent[]
         setAction(bot, "block", tick, 30);
       }
     } else if (gap <= attackRange && roll < attackChance) {
-      const heavy = difficulty !== "easy" && random(state) > 0.72 && bot.stamina >= 25;
+      const heavyChance = state.botArchetype === "gate-warden" ? 0.58
+        : ironOath ? 0.42 : shadowKnight ? 0.12 : 0.26;
+      const heavy = (enraged && shadowKnight || difficulty !== "easy")
+        && random(state) > 1 - heavyChance
+        && bot.stamina >= 25;
       startAttack(state, bot, heavy ? "heavy" : "light", tick, events, "bot");
     }
   }
 
-  if (gap < 1.25 && random(state) < retreat) {
+  if (archer && gap < 3.1) {
     move = { x: -move.x, y: -move.y };
-  } else if (gap <= attackRange * 0.88) {
+  } else if (shadowKnight && gap > 2.25 && gap <= 3.2) {
+    move = { x: move.x * 0.52, y: move.y * 0.52 };
+  } else if (gap < 1.25 && random(state) < retreat) {
+    move = { x: -move.x, y: -move.y };
+  } else if (!archer && gap <= attackRange * 0.88) {
     move = { x: 0, y: 0 };
   }
   return { x: move.x, y: move.y, buttons };
@@ -585,7 +655,7 @@ function applyDamage(
   const playerAttacking = attacker === state.player;
   const weaponStyle = getAttackWeaponStyle(state, attacker);
   const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
-  const rangedShot = playerAttacking && attacker.attackIsRanged;
+  const rangedShot = attacker.attackIsRanged;
   const closeBowAttack = bowAtCloseRange && !rangedShot;
   const baseDamage = (attack === "light" ? 6 : attack === "heavy" ? 10 : attack === "skillOne" ? 11 : 15)
     * (playerAttacking ? 1 : state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72);
@@ -763,6 +833,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const playerBlockHeld = Boolean(buttons & INPUT_BUTTON.block);
   player.isAiming = Boolean(buttons & INPUT_BUTTON.aim);
   player.isCrouching = Boolean(buttons & INPUT_BUTTON.crouch);
+  bot.isAiming = Boolean(botInput.buttons & INPUT_BUTTON.aim);
 
   if (
     (input.pressed & INPUT_BUTTON.weaponSwitch) &&
@@ -870,7 +941,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     player.x += player.vx / COMBAT_HZ;
     player.z += player.vz / COMBAT_HZ;
   }
-  moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block));
+  moveActor(bot, botInput.x, botInput.y, tick, Boolean(botInput.buttons & INPUT_BUTTON.block), isCombatBotEnraged(bot) ? 1.16 : 1);
   resolveCombatActorOverlap(player, bot);
   resolveActorCoverCollision(player);
   resolveActorCoverCollision(bot);
@@ -887,7 +958,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     const attack = attacker.attackType;
     const baseWindup = attack === "light" ? 8 : attack === "heavy" ? 15 : attack === "skillOne" ? 12 : 18;
     const windup = attacker === bot
-      ? getBotAttackWindupTicks(next.difficulty)
+      ? getBotAttackWindupTicks(next.difficulty, next.botArchetype, isCombatBotEnraged(attacker))
       : Math.max(4, Math.round(baseWindup / next.playerStats.attackSpeedMultiplier));
     if (tick >= attacker.attackStartedTick + windup) {
       if (attacker === bot && attacker.action === "windup") {
@@ -966,8 +1037,9 @@ export function replayCombat(
   inputLog: readonly CombatInputFrame[],
   playerStats: PlayerCombatModifiers = DEFAULT_PLAYER_COMBAT_MODIFIERS,
   loadout?: CombatLoadout,
+  botArchetype: CombatBotArchetype = "gate-warden",
 ) {
-  let state = createCombatState(seed, difficulty, playerStats, loadout);
+  let state = createCombatState(seed, difficulty, playerStats, loadout, botArchetype);
   let frameIndex = 0;
   let held: CombatInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
   if (inputLog[0]?.[0] === 0) {

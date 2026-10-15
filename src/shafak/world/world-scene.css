@@ -1098,6 +1098,7 @@
 .duel-hud__center > span { font: 700 18px var(--font-display, Georgia, serif); }
 .duel-hud__center > strong { font-size: 7px; letter-spacing: .18em; }
 .duel-combo-chain { color: #f7cf82; font-size: 6px; font-weight: 800; letter-spacing: .08em; }
+.duel-rage-label { color: #ff8379; font-size: 7px; font-weight: 900; letter-spacing: .16em; text-shadow: 0 0 10px rgba(255,55,65,.72); }
 .duel-stamina { width: 76px; height: 4px; overflow: hidden; border-radius: 3px; background: rgba(15,15,18,.8); }
 .duel-stamina i { display: block; height: 100%; background: linear-gradient(90deg,#65c4be,#b3e2b2); transition: width .1s linear; }
 .duel-charge { color: #ffd187; font-size: 7px; font-weight: 800; letter-spacing: .08em; }
@@ -1227,6 +1228,7 @@
   .duel-hud__center > span { font-size: 15px; }
   .duel-hud__center > strong { font-size: 6px; }
   .duel-combo-chain { font-size: 5px; }
+  .duel-rage-label { font-size: 5px; }
   .duel-stamina { width: 43px; }
   .duel-charge { max-width: 58px; font-size: 5px; }
   .duel-stick { bottom: max(25px,env(safe-area-inset-bottom)); left: max(14px,env(safe-area-inset-left)); width: 104px; height: 104px; }

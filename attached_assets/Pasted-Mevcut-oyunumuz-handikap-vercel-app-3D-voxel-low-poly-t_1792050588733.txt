@@ -1,0 +1,134 @@
+Mevcut oyunumuz (handikap.vercel.app, 3D voxel/low-poly tarzı, Türkçe arayüzlü, Kül Yolu + Düello + Heybe + Mağaza sistemi olan RPG) için aşağıdaki geliştirmeleri YAPMANI istiyorum. Mevcut stil, UI tasarımı, renk paleti (koyu kahve/altın/kırmızı) ve Türkçe metinler KORUNSUN. Mevcut çalışan hiçbir özelliği bozma. İşleri aşağıdaki sırayla yap ve her aşama sonunda kısaca ne yaptığını özetle.
+
+=====================================
+AŞAMA 1: HATA DÜZELTMELERİ (ÖNCELİK)
+=====================================
+
+1.1 PERFORMANS / DONMA SORUNU
+Mobilde (iPhone Safari, 5G/LTE) arada hafif donmalar oluyor. Şunları incele ve düzelt:
+- Render loop: requestAnimationFrame içinde her karede yeni nesne/geometri/materyal/vektör oluşturuluyorsa kaldır. THREE.Vector3, Color vb. nesneleri önceden oluşturup yeniden kullan (object pooling).
+- Kullanılmayan mesh, geometri, materyal, texture'ları sahneden çıkarırken dispose() et (geometry.dispose, material.dispose, texture.dispose). Özellikle düello başlayıp bitince ve sahne geçişlerinde bellek sızıntısı olmasın.
+- Aynı türden tekrar eden nesneleri (ağaç, kaya, kristal, meşale, altın) InstancedMesh ile çiz.
+- Gölge kalitesini mobilde düşür (shadow map 1024 veya kapalı), pixelRatio'yu Math.min(devicePixelRatio, 1.5) ile sınırla.
+- Sahnedeki ışık sayısını azalt (mobilde max 2-3 dinamik ışık). Point light yerine mümkünse emissive materyal kullan.
+- Kamera uzağındaki nesneleri frustum culling + mesafeye göre gizle (Kül Yolu'nda oyuncunun 40-60 birim ilerisi ve gerisi yüklü kalsın, kalan chunk'ları kaldır/geri dönüştür).
+- Parçacık efektlerinde üst sınır koy (aynı anda max ~150 parçacık, mobilde), parçacıkları pool'la.
+- React/UI tarafında: HUD'daki sayaç/ilerleme çubuğu gibi sık güncellenen değerler tüm bileşeni re-render etmesin. Oyun döngüsü state'ini React state'inden ayır (ref veya ayrı store kullan), HUD'ı throttle ile (10-15 Hz) güncelle.
+- Ağ/DB kayıtları (altın, seviye, envanter) oyun döngüsünü bloke etmesin: debounce ile (örn. 2-3 saniyede bir ve önemli olaylarda) asenkron kaydet.
+- Ses dosyaları ve büyük texture'ları ön yükle (preload), oyun sırasında ilk kez yüklenip donma yaratmasın. Düello geçiş ekranında (VS ekranı) düello sahnesini ve assetlerini önceden hazırla.
+- Chrome DevTools Performance mantığıyla darboğazı bul; bulduğun sorunları ve yaptığın düzeltmeleri raporla. Sağ üstte geliştirici için açılıp kapanabilen basit bir FPS/draw call göstergesi ekle (ayarlardan "Performans bilgisi" anahtarı).
+- Ayarlara "Grafik kalitesi: Düşük / Orta / Yüksek" seçeneği ekle, cihaza göre otomatik başlangıç değeri seç. FPS 30'un altına düşerse otomatik olarak kaliteyi bir kademe düşür.
+
+1.2 "SANDIĞI AÇ" DİYOR AMA SANDIK YOK HATASI
+Etkileşim ipucu (prompt) ile gerçek dünya nesnesi arasındaki tutarsızlığı çöz:
+- Etkileşim sistemi tek kaynaktan çalışsın: her etkileşilebilir nesne (sandık, NPC, kapı, barikat) bir "Interactable" kaydına sahip olsun (id, tür, pozisyon, yarıçap, durum: aktif/açıldı/yok edildi, mesh referansı).
+- "Sandığı aç" butonu/ipucu SADECE ilgili mesh sahnede mevcutsa, görünürse (visible, sahnede parent'ı var), henüz açılmamışsa ve oyuncu yarıçap içindeyse gösterilsin. Her karede değil, mesafe kontrolünü 5-10 Hz'de yap.
+- Sandık mesh'i dispose edildiğinde, chunk geri dönüştürüldüğünde veya açıldığında Interactable kaydı da AYNI ANDA silinsin/pasif olsun. Hayalet kayıt kalmasın.
+- Chunk/streaming sistemi nesneleri kaldırırken ve geri yüklerken etkileşim kayıtlarını senkron tutsun. Açılmış sandıklar tekrar spawn olmasın (açılan nesne id'leri kaydedilsin).
+- Sandık spawn olurken mesh gerçekten oluşturulup sahneye eklendikten SONRA ipucu kaydı oluşturulsun (async yükleme varsa await et).
+- Sandık varsa render'ı net görünsün: açılış animasyonu (kapak kalkar), altın/eşya düşme efekti ve parıltı ekle. Sandığın üzerinde hafif parlayan bir ikon/halka olsun ki oyuncu nerede olduğunu bilsin.
+- Aynı şeyi diğer etkileşimler için de kontrol et (NPC "Konuş", barikat "Saldır", kapı vb.) ve aynı doğrulamayı uygula.
+- Konsola geliştirici modunda "ghost interactable" uyarısı yazdır.
+
+=====================================
+AŞAMA 2: SAVAŞ SİSTEMİ GENİŞLETME
+=====================================
+
+Düello ekranı şu an: Yolcu vs rakip, can çubuğu, dayanıklılık, Saldırı / Kalkan / Atılma / Kor / Yıldırım butonları, joystick. Bunu şu şekilde zenginleştir:
+
+2.1 SAVAŞ ENVANTERİ (hızlı slot sistemi)
+- Savaş ekranının altına/yanına 4 adet "hızlı slot" ekle (tüketilebilirler): Can İksiri, Dayanıklılık İksiri, Zehir Şişesi, Fırlatma Bıçağı, Patlayıcı Şişe, Sis Bombası vb.
+- Slotlara oyuncu Heybe'den istediği eşyayı atayabilsin (Heybe ekranında "Hızlı slota ata").
+- Her tüketilebilirin kullanım efekti, bekleme süresi ve adedi olsun. Kullanınca adet düşsün, envanterden kaybolsun.
+- Savaş içinde silah değiştirme butonu ekle (iki silah slotu arasında geçiş, kısa bir animasyonla, 0.5 sn bekleme).
+
+2.2 EFEKTLER (görsel ve işitsel)
+Hepsi hafif ve mobil dostu olsun (parçacık havuzu, düşük poligon):
+- Vuruş efekti: darbe anında kıvılcım parçacıkları, kısa ekran sarsıntısı (kamera shake, hasara göre şiddet), hit-stop (50-80 ms duraklama), hasar sayıları (yukarı süzülen, kritik vuruşta büyük ve sarı).
+- Silah izi (weapon trail): kılıç/bıçak savurunca arkasında yay şeklinde iz.
+- Kalkan: başarılı blokta mavi dalga/halka efekti ve "tın" sesi. Mükemmel blok (son 0.2 sn içinde) rakibi sersemletsin (parry).
+- Kor (ateş): yanma durumu, zamanla hasar, turuncu parçacıklar. Yıldırım: zincirleme şimşek çizgisi, kısa sersemletme. Zehir: yeşil damlalar ve ekran kenarında yeşil titreme.
+- Kritik vuruş, kan yerine voxel kırıntıları (parçalanan küpçükler) kullan.
+- Ölümde slow-motion (0.4x hız, 1 sn), rakip voxellere ayrılarak dağılsın.
+- Ses efektleri: kılıç, blok, iksir, yıldırım, ateş, darbe, ölüm. Ayarlardan ses aç/kapa. (Telifsiz veya WebAudio ile üretilmiş basit sesler kullan.)
+- Düello arenasına ortam efektleri: uçuşan kül/kıvılcım parçacıkları, arena kenarında meşaleler, dinamik ışık titreşimi.
+
+2.3 OYUNCU AKROBATİK HAREKETLER
+- Atılma (dash/roll): yönüne göre yuvarlanma animasyonu, kısa dokunulmazlık (i-frame ~0.25 sn), dayanıklılık harcar.
+- Yana kayma (strafe) ve rakibe kilitli (lock-on) hareket: oyuncu rakibe dönük kalırken etrafında dönebilsin.
+- Zıplayarak saldırı (jump attack) ve havada yere vuruş (plunge): zıplamadan sonra Saldırı basılırsa havadan darbe, yere inince küçük şok dalgası.
+- Duvar/arena kenarından sekme (back-flip): geri kaçış hareketi, hızlı çift dokunuşla.
+- Kombo sistemi: art arda zamanlı Saldırı basışları ile 3'lü kombo (hafif-hafif-ağır), her biri farklı animasyon ve artan hasar. Zamanlamayı kaçırırsan kombo sıfırlansın.
+- Silah türüne göre farklı hareket seti (kılıç: geniş savurma, hançer: hızlı çift darbe, balta: yavaş ağır vuruş, mızrak: menzilli saplama).
+- Animasyonlar için skeletal animasyon yoksa prosedürel animasyon kullan: gövde eğilmesi (lean), kol/bacak parçalarının sinüs tabanlı sallanması, zıplama sırasında squash & stretch, dash'te hareket bulanıklığı (afterimage/ghost trail).
+- Kamera dinamikleri: saldırıda hafif zoom, dash'te FOV artışı, ağır vuruşta sarsıntı, ölümde yavaş yaklaşma. Düello kamerası iki savaşçıyı çerçevelesin ve oyuncu hareket ettikçe yumuşak (lerp) takip etsin.
+- Kontrol düzeni mobil için: sağ tarafta Saldırı büyük buton; Atılma, Kalkan, Kor, Yıldırım küçük butonlar (mevcut yerleşim korunsun); zıplama için yeni bir "Zıpla" butonu ekle veya yukarı kaydırma jesti kullan.
+
+2.4 RAKİP YAPAY ZEKÂSI VE ZORLUK ARTIŞI
+- Rakipler tek tip olmasın: her rakibin saldırı desenleri olsun (hızlı vuruş, ağır vuruş, atılma, menzilli saldırı, kalkanla savunma, öfke fazı). Saldırmadan önce kısa bir "telegraph" (uyarı) animasyonu yapsın ki oyuncu kaçınabilsin/blok yapabilsin.
+- Rakip yarı canın altına inince "Öfke Fazı": hızlanır, yeni saldırı eklenir, gözleri parlar.
+- Zorluk ölçekleme: Kül Yolu'nda ilerledikçe (yüzde/mesafe) ve oyuncu seviyesine göre rakiplerin canı, hasarı, hızı, saldırı sıklığı ve zırhı artsın. Formül örneği: stat = temel * (1 + 0.12 * rakipSeviyesi) * (1 + 0.05 * ilerlemeYuzdesi/10). Rakip seviyesi oyuncu seviyesine ve bölgeye bağlı olsun.
+- Elit rakipler ve her bölge sonunda patron (boss) savaşı: iki fazlı, özel saldırılı, daha iyi ganimet. Boss'un üstünde ekran üstünde büyük can çubuğu.
+- Rakip çeşitleri: Duman Avcısı, Gece Nöbetçisi, Kızıl Pelerin gibi mevcutlara ek olarak en az 5 yeni tür (örn. Kemik Okçusu - menzilli, Kül Dev - yavaş ağır, Gölge Suikastçı - hızlı ve kaçamak, Alev Büyücüsü - büyü yağdırır, Demir Muhafız - kalkanlı). Her tür için farklı voxel modeli (renk/boyut/aksesuar farkı yeterli) ve farklı ganimet tablosu.
+- Dengeli ve adil olsun: ilk seviyelerde öğretici ve kolay, sonra kademeli zorlaşsın. "Zorluk" ayarı ekle (Kolay / Normal / Zor).
+- Savaş sonunda sonuç ekranı: kazanılan altın, deneyim, düşen eşyalar, kombo/en yüksek hasar istatistiği.
+
+=====================================
+AŞAMA 3: EKİPMAN VE SİLAH SİSTEMİ
+=====================================
+
+3.1 EKİPMAN SLOTLARI
+Heybe/Karakter ekranında şu slotlar olsun: Silah (ana el), Yan silah/Kalkan (ikinci el), Miğfer, Zırh (gövde), Eldiven, Çizme, Pelerin, Yüzük/Tılsım (2 adet).
+Eşyayı kuşanınca karakterin voxel modelinde GÖRSEL olarak değişsin (miğfer rengi/boynuzu, pelerin rengi, zırh parçaları, silah modeli). Modeller voxel/low-poly prosedürel olarak üretilsin (harici model dosyası gerektirme).
+
+3.2 EŞYA ÖZELLİKLERİ
+Her eşyanın: ad, tür, nadirlik (Sıradan / Nadir / Destansı / Efsanevi, renk kodlu çerçeve), seviye gereksinimi, statları (hasar, zırh, can, dayanıklılık, kritik şansı, kritik hasarı, hız, kaçınma), ve opsiyonel özel efekti olsun (yanma şansı, kan çalma, zehir, yıldırım çarpması, hasar yansıtma).
+Set sistemi: aynı setten 2/4 parça takınca bonus (örn. "Kül Muhafızı Seti").
+Eşya yükseltme: altın + malzeme (demir, kor taşı, kristal) ile +1 … +10 geliştirme, başarısızlık riski yüksek seviyelerde. Kristal ve mücevher (üst barda görünen 24/4/1 kaynakları) malzeme olarak kullanılsın.
+
+3.3 SİLAH ÇEŞİTLERİ (en az bunlar)
+- Kılıçlar: Demir Kılıç, Çelik Uzun Kılıç, Alev Kılıcı, Gölge Kılıcı
+- Bıçaklar/Hançerler: Av Bıçağı, Zehirli Hançer, Gece Bıçağı (arkadan kritik bonusu), çift bıçak
+- Baltalar ve gürzler: yavaş, yüksek hasar, zırh delme
+- Mızraklar: uzun menzil
+- Yaylar/Fırlatma silahları: Fırlatma bıçağı, kısa yay (mesafeden hasar)
+- Büyü asaları: Kor Asası, Yıldırım Asası (Kor ve Yıldırım yeteneklerini güçlendirir)
+- Kalkanlar: Tahta, Demir, Kule kalkanı (blok gücü ve dayanıklılık farkı)
+Her silahın saldırı hızı, menzil, hasar, dayanıklılık maliyeti ve kendine özgü animasyonu ve efekti olsun. Silah modelleri voxel olarak elde görünsün ve savurunca iz bıraksın.
+Mızrak ve baltanın, kılıç ve hançerden farklı hissettirmesi için hareket setleri ayrı olsun (bkz. 2.3).
+
+3.4 MAĞAZA GENİŞLETME
+Mevcut basit mağazayı yenile:
+- Kategori sekmeleri: Silahlar, Zırhlar, Aksesuarlar, İksirler, Malzemeler, Özel (günlük değişen teklifler).
+- Her eşya için detay kartı: 3D/voxel önizleme (döndürülebilir), statlar, nadirlik, fiyat, "Satın al", "Kuşan", mevcut eşyayla stat karşılaştırması (yeşil artı / kırmızı eksi oklar).
+- Altın yetmezse buton pasif ve nedeni gösterilsin. Satın alma onay animasyonu ve sesi.
+- Eşya satma (Heybe'den): fiyatın %40'ı ile satabilme.
+- Demirci bölümü: eşya yükseltme ve parçalama (malzeme geri kazanımı).
+- Mağaza stoğu oyuncu seviyesiyle açılsın (üst seviye eşyalar kilitli ve kilit ikonlu görünsün).
+- Ganimet: rakipler ve sandıklar nadirlik ağırlıklı rastgele eşya düşürsün (rakip seviyesi ve boss'a göre nadir eşya şansı artsın).
+
+3.5 VERİ VE KAYIT
+- Tüm eşyalar tek bir item veri dosyasında (items.ts/json) tanımlı olsun, kolay genişletilebilsin.
+- Envanter, kuşanılan ekipman, hızlı slotlar, yükseltme seviyeleri mevcut kayıt sistemine eklensin. Eski kayıtlar bozulmasın (migration: yeni alanlar yoksa varsayılan ver).
+- Dengeleme tabloları ayrı bir config dosyasında olsun (hasar, zırh formülü, ölçekleme katsayıları).
+
+=====================================
+AŞAMA 4: DÜNYA 3D HİSSİ (KÜL YOLU)
+=====================================
+- Derinlik hissi: uzakta sis (fog), katmanlı arka plan (parallax dağ/kale siluetleri), ışık huzmeleri, yere düşen gölgeler.
+- Oyuncu hareket ederken kamera hafif sallanma ve eğilme (bob/lean), koşarken FOV artışı, zıplarken kamera tepkisi.
+- Zıplama/eğilme/koşma animasyonları daha belirgin olsun (squash-stretch, toz parçacığı, ayak izi).
+- Yolda çevresel etkileşimler: kırılabilir fıçılar/vazolar (altın düşürür), tuzaklar (dikenli zemin, düşen taş), üzerinden atlanabilir engeller, gizli sandıklar.
+- Hava durumu (Kül, Yağmur, Fırtına, Sis) gerçekten görsel ve oynanışa etkili olsun (fırtınada yıldırım ışığı, sis'te görüş kısa).
+- Gece/gündüz geçişi yumuşak olsun.
+
+=====================================
+GENEL KURALLAR
+=====================================
+- Önce mevcut kodu oku ve mimariyi anla; var olan dosya yapısına ve isimlendirmeye uy.
+- Büyük değişiklikleri küçük, test edilebilir adımlara böl. Her aşamadan sonra oyunun derlendiğini ve mobilde çalıştığını doğrula.
+- Tüm yeni arayüz metinleri Türkçe olsun, mevcut tipografi ve renkler korunsun.
+- Mobil öncelikli: dokunmatik hedefler en az 44px, butonlar birbirine karışmasın, güvenli alan (safe area) kullanılsın.
+- Harici büyük asset ekleme; mümkün olduğunca prosedürel/voxel ve WebAudio kullan. Bundle boyutunu kontrol et.
+- Her aşamada FPS'i ölç; yeni özellik FPS'i mobilde 30'un altına düşürüyorsa optimize et veya kalite ayarına bağla.
+- Sonunda: yapılan değişikliklerin listesi, dengeleme değerleri, bilinen sınırlamalar ve ileride eklenebilecek fikirler için kısa bir rapor ver.

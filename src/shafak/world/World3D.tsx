@@ -15,7 +15,7 @@ import type { WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import WorldLandscape from "./WorldLandscape";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
-import { DUEL_COVERS } from "../game/combat-engine";
+import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import type { EquipmentVisual } from "../game/store-types";
 import type { WorldInteractableRegistry } from "./world-interactables";
@@ -414,6 +414,7 @@ function DuelFighter({
       ))),
   );
   const isAttackBeat = Boolean(renderedActor && ["attack", "heavyAttack", "skillOne", "skillTwo", "plunge", "parry"].includes(renderedActor.action));
+  const enraged = side === "bot" && Boolean(renderedActor && isCombatBotEnraged(renderedActor));
   const combatGlow = side === "player" ? "#ffad58" : "#6de0e5";
 
   useFrame(() => {
@@ -469,12 +470,12 @@ function DuelFighter({
         <>
           <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.48, isAttackBeat ? 0.76 : 0.66, 32]} />
-            <meshBasicMaterial color={isAttackBeat ? "#fff0ad" : combatGlow} transparent opacity={isAttackBeat ? 0.64 : 0.24} side={THREE.DoubleSide} depthWrite={false} />
+            <meshBasicMaterial color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow} transparent opacity={enraged ? 0.5 : isAttackBeat ? 0.64 : 0.24} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
           <pointLight
             position={[0, 1.55, 0.25]}
-            color={isAttackBeat ? "#fff0ad" : combatGlow}
-            intensity={isAttackBeat ? 12 : 3.2}
+            color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow}
+            intensity={enraged ? 6.2 : isAttackBeat ? 12 : 3.2}
             distance={isAttackBeat ? 5.5 : 3.8}
             decay={2}
           />

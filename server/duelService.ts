@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { validatePlayerProfile, type PlayerProfileRecord } from "./profileApi.ts";
-import { MAX_INPUT_BUTTONS, normalizePlayerCombatModifiers, replayCombat, type CombatDifficulty, type CombatInputFrame, type CombatLoadout } from "../src/shafak/game/combat-engine.ts";
+import { MAX_INPUT_BUTTONS, normalizePlayerCombatModifiers, replayCombat, type CombatBotArchetype, type CombatDifficulty, type CombatInputFrame, type CombatLoadout } from "../src/shafak/game/combat-engine.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, isCombatItemId, normalizeCombatQuickSlots } from "../src/shafak/game/combat-items.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
@@ -17,6 +17,7 @@ type ServerOpponent = {
   level: number;
   loot: number;
   difficulty: CombatDifficulty;
+  archetype: CombatBotArchetype;
 };
 
 const MAX_DUEL_AGE_MS = 30 * 60 * 1000;
@@ -51,6 +52,7 @@ function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | n
     level: rival.level,
     loot: Math.min(rival.loot, maximumLootByRival),
     difficulty: rival.difficulty,
+    archetype: rival.archetype,
   };
 }
 
@@ -262,6 +264,7 @@ export async function createDuelChallenge(
           level: opponent.level,
           loot: opponent.loot,
           difficulty: opponent.difficulty,
+          archetype: opponent.archetype,
         },
       };
     }
@@ -302,6 +305,7 @@ export async function createDuelChallenge(
       level: opponent.level,
       loot: opponent.loot,
       difficulty: opponent.difficulty,
+      archetype: opponent.archetype,
     },
   };
 }
@@ -367,6 +371,7 @@ export async function completeDuel(
       inputLog!,
       saved.playerStats,
       saved.combatLoadout,
+      opponent.archetype,
     );
     simulatedTicks = replay.state.tick;
     if (!replay.state.ended || !replay.state.verdict || replay.consumedFrames !== inputLog!.length) {

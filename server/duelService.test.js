@@ -50,6 +50,7 @@ test("server challenges use a generated rival id and return server-owned combat 
   const challenge = await createDuelChallenge(database, "user-1", rival.id);
   assert.equal(challenge.opponent.id, rival.id);
   assert.equal(challenge.opponent.difficulty, rival.difficulty);
+  assert.equal(challenge.opponent.archetype, rival.archetype);
   assert.ok(Number.isSafeInteger(challenge.seed));
   assert.equal(challenge.playerStats.maxHealth, 150);
   assert.equal(inserts.length, 1);

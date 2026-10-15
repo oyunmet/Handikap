@@ -202,7 +202,9 @@ yapılmadı.
 
 ### Aşama 2 — savaş sistemi genişletme
 
-**Durum:** İlk savaş dilimi tamamlandı; diğer Aşama 2 özellikleri sırada.
+**Durum:** Aşama 2.3 tamamlandı; Aşama 2.4'ün ilk rakip davranışı dilimi
+eklendi. Yeni rakip modelleri, elit/boss içerikleri ve bölüm zorluğu ayarı
+henüz sırada.
 
 - Düello saldırılarına zamanlı hafif-hafif-ağır zinciri eklendi. Hızlı basışlar
   arasında 78 oyun karesi (1,3 saniye) süre var; ikinci hafif vuruş %10, ağır
@@ -212,12 +214,34 @@ yapılmadı.
 - Yerel doğrulama: savaş simülasyonu testleri zincir sırasını, hasar artışını ve
   süre aşımında sıfırlanmayı doğruluyor.
 
+#### Aşama 2.3 — Akrobatik dövüş hareketleri
+
+- Kaçınma hamlesi kısa süreli dokunulmazlık sağlıyor; art arda geri kaçış
+  taklaya dönüşüyor. Zıplama sonrasında saldırı, yere iniş vuruşuna dönüşüyor.
+- Dövüşçüler rakibe dönük kalırken oyuncu yanlara kayabiliyor; mobil dövüş
+  kontrollerinde zıplama düğmesi mevcut. Silah türüne göre hareket ve saldırı
+  süreleri kullanılıyor.
+- Bu hareketlerin sunucu tekrar oynatımındaki deterministik akışı test ediliyor.
+
+#### Aşama 2.4 — Rakip davranışları: ilk dilim
+
+- Dört mevcut arketip farklı taktiklerle savaşıyor: ağır baskı, blok ağırlıklı
+  savunma, menzilli okçuluk ve hızlı gölge saldırıları. Okçu, oyuncuya uzaktan
+  telegraph gösterip ok gönderebiliyor; yakınında geri çekiliyor.
+- Rakip canı yarının altına indiğinde öfke fazı başlıyor: saldırı araları ve
+  telegraph kısalıyor, saldırganlık/hareket hızı artıyor. HUD etiketi ve kırmızı
+  arena ışığı fazı görünür kılıyor.
+- Arketip sunucudaki düello kaydına göre seçilip aynı seed'li tekrar oynatımda
+  yeniden kullanılıyor; istemcinin farklı rakip davranışı seçmesine izin
+  verilmiyor.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (174 test) ve
+  `npm run build` ile doğrulanacak.
+
 ### Devam noktası
 
 - Aşama 1 kod çalışmaları tamamlandı; gerçek cihaz kabul ölçümü bekliyor.
-- Aşama 2'de sonraki kod adımı dört hızlı eşya yuvası ve tüketilebilirleri
-  Heybe/hesap kaydına bağlamak; ardından efektler, akrobatik hareketler ve rakip
-  AI'sini sırayla genişletmek.
+- Aşama 2.4'te beş yeni rakip türü, elit/boss karşılaşmaları, bölüm ilerlemesine
+  göre zorluk ve göz/karakter öfke görselleri henüz tamamlanmadı.
 - Sonra Aşama 3'te ekipman ve mağaza sistemini, Aşama 4'te Kül Yolu
   görsellerini ve etkileşimlerini sırayla uygula.
 - Dış Vercel dağıtımına push/deploy yapma; kaynak değişiklikleri burada kayıtlı

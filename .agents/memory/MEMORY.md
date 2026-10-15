@@ -6,3 +6,4 @@
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep world rivals anchored, combatants unobscured, and rewards and hazards easy to spot and reach.
+- [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.
