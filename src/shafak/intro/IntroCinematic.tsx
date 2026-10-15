@@ -242,7 +242,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
         onClick={complete}
         aria-label="Sinematiği geç ve oyuna devam et"
       >
-        Geç <span aria-hidden="true">↗</span>
+        İNTROYU ATLA <span aria-hidden="true">→</span>
       </button>
 
       <div className="intro-narrative" aria-live="polite" aria-atomic="true">

@@ -15,7 +15,7 @@ import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
 import IntroCinematic from "./intro/IntroCinematic";
 import MetEmblem from "./intro/MetEmblem";
-import { hasSeenIntro, markIntroSeen } from "./intro/timeline";
+import { getInitialScreen } from "./intro/timeline";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
@@ -325,11 +325,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ),
     [getToken, handleApiUnauthorized],
   );
-  const [screen, setScreen] = useState<Screen>(() => {
-    const query = new URLSearchParams(window.location.search);
-    if (query.get("debug") === "1" && query.get("scene") === "world") return "world";
-    return hasSeenIntro() ? "opening" : "intro";
-  });
+  const [screen, setScreen] = useState<Screen>(() => getInitialScreen());
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -566,7 +562,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const finishIntro = () => {
-    markIntroSeen();
     begin();
   };
 

@@ -1046,17 +1046,31 @@
   .world-joystick { display: none !important; }
 }
 @media (max-width: 760px) {
-  .world-topbar { flex-wrap: wrap; gap: 7px; }
+  .world-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .world-profile { width: fit-content; max-width: 100%; }
   .world-profile { gap: 8px; padding: 7px 10px 7px 7px; }
   .world-profile__crest { width: 36px; height: 39px; }
   .world-profile__level { margin-left: 2px; padding-left: 8px; }
   .world-profile__demo { font-size: 7px; }
   .world-currency { min-height: 36px; padding: 0 10px; }
-  .world-material-hud { gap: 6px; padding: 3px 5px; font-size: 8px; }
-  .world-resource-hud { flex: 1 0 100%; max-width: 100%; gap: 5px; }
-  .world-weather { gap: 5px; padding: 6px 7px; font-size: 7px; }
+  .world-material-hud { min-width: 0; justify-content: space-around; gap: 4px; padding: 3px 5px; font-size: 8px; }
+  .world-resource-hud {
+    display: grid;
+    flex: none;
+    grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    gap: 5px;
+  }
+  .world-weather { min-width: 0; gap: 5px; padding: 6px 7px; font-size: 7px; }
+  .world-weather > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .world-progress {
-    top: max(136px, calc(env(safe-area-inset-top) + 122px));
+    top: calc(max(14px, env(safe-area-inset-top)) + 112px);
     left: max(14px, env(safe-area-inset-left));
     width: min(360px, calc(100vw - 28px));
     padding: 8px 11px;
@@ -1109,6 +1123,15 @@
   .world-battle-entry__versus small { font-size: 6px; }
 }
 @media (max-width: 390px) {
+  .world-weather {
+    width: 44px;
+    min-height: 36px;
+    justify-content: center;
+    gap: 0;
+    padding: 4px 0;
+  }
+  .world-weather > span { display: none; }
+  .world-weather__switch { width: 44px; }
   .world-profile__identity { max-width: 88px; }
   .world-profile__name { overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
   .world-profile__level { font-size: 8px; }

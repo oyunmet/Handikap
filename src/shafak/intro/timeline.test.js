@@ -1,23 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  getInitialScreen,
   getIntroEventTimes,
-  hasSeenIntro,
   INTRO_EVENT_MS,
-  INTRO_STORAGE_KEY,
-  markIntroSeen,
 } from "./timeline.ts";
+
+test("ordinary visits always start with the intro while the explicit world debug route remains available", () => {
+  assert.equal(getInitialScreen(""), "intro");
+  assert.equal(getInitialScreen("?introSeen=true"), "intro");
+  assert.equal(getInitialScreen("?debug=1&scene=world"), "world");
+  assert.equal(getInitialScreen("?debug=1"), "intro");
+});
 
 test("the production card follows the final line before the title and start prompt", () => {
   const events = getIntroEventTimes();
-  assert.equal(events.worldReveal, 4_000);
+  assert.equal(events.creditsFade - events.production, 3_600);
+  assert.equal(events.worldReveal, 5_200);
   assert.equal(events.lineTwo - events.lineOne, 2_500);
   assert.equal(events.lineFive - events.lineFour, 2_500);
   assert.equal(events.productionCard, events.lineFive + 2_500);
-  assert.ok(events.productionCard < events.productionCardFade);
+  assert.equal(events.productionCardFade - events.productionCard, 4_200);
   assert.ok(events.productionCardFade < events.title);
   assert.ok(events.title < events.prompt);
-  assert.equal(events.prompt, 23_500);
+  assert.equal(events.prompt, 25_400);
 });
 
 test("reduced-motion timing keeps the story in order and shortens transitions", () => {
@@ -25,16 +31,6 @@ test("reduced-motion timing keeps the story in order and shortens transitions", 
   assert.ok(events.prompt < getIntroEventTimes().prompt);
   assert.ok(events.lineOne < events.lineTwo && events.lineTwo < events.lineThree);
   assert.equal(events.lineTwo - events.lineOne, 1_450);
-});
-
-test("intro completion persists and reads the requested local storage key", () => {
-  const values = new Map();
-  const storage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-  };
-  assert.equal(hasSeenIntro(storage), false);
-  markIntroSeen(storage);
-  assert.equal(values.get(INTRO_STORAGE_KEY), "true");
-  assert.equal(hasSeenIntro(storage), true);
+  assert.equal(events.creditsFade - events.production, 2_088);
+  assert.equal(events.productionCardFade - events.productionCard, 2_436);
 });
