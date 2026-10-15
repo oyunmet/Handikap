@@ -45,7 +45,17 @@ function calculateNpcDialoguePosition(
     ? Math.min(230, size.width * 0.62)
     : Math.min(270, size.width * 0.66);
   const halfHeight = size.height < 520 ? 48 : mobile ? 70 : 82;
-  const safeTop = Math.max(size.height < 520 ? 190 : 226, size.height * 0.38);
+  const compactMobile = mobile && size.height <= 680;
+  const hudBottom = mobile
+    ? (compactMobile ? 104 : 126) + (
+      compactMobile
+        ? Math.max(90, Math.min(150, size.height - 500))
+        : Math.min(190, Math.max(130, size.height - 660))
+    )
+    : 0;
+  const safeTop = mobile
+    ? Math.max(hudBottom + halfHeight + 16, size.height * 0.38)
+    : Math.max(226, size.height * 0.38);
   const safeBottom = size.height < 520 ? 104 : 145;
   const minX = bubbleWidth / 2 + 12;
   const maxX = Math.max(minX, size.width - bubbleWidth / 2 - 12);
