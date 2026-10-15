@@ -186,9 +186,12 @@ export type CombatEvent = {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 export const DEFAULT_PLAYER_COMBAT_MODIFIERS: PlayerCombatModifiers = {
   maxHealth: 150,
+  maxStamina: 100,
   damageMultiplier: 1,
   defenseReduction: 0,
   criticalChance: 0.12,
+  criticalDamageMultiplier: 1.5,
+  dodgeWindowMultiplier: 1,
   moveSpeedMultiplier: 1,
   attackSpeedMultiplier: 1,
   attackRangeBonus: 0,
@@ -198,9 +201,12 @@ export function normalizePlayerCombatModifiers(value: unknown): PlayerCombatModi
   const source = value && typeof value === "object" ? value as Partial<PlayerCombatModifiers> : {};
   return {
     maxHealth: clamp(finiteOr(source.maxHealth, 150), 130, 175),
+    maxStamina: clamp(finiteOr(source.maxStamina, 100), 80, 130),
     damageMultiplier: clamp(finiteOr(source.damageMultiplier, 1), 0.82, 1.35),
     defenseReduction: clamp(finiteOr(source.defenseReduction, 0), 0, 0.24),
     criticalChance: clamp(finiteOr(source.criticalChance, 0.12), 0.08, 0.28),
+    criticalDamageMultiplier: clamp(finiteOr(source.criticalDamageMultiplier, 1.5), 1.5, 2),
+    dodgeWindowMultiplier: clamp(finiteOr(source.dodgeWindowMultiplier, 1), 1, 1.25),
     moveSpeedMultiplier: clamp(finiteOr(source.moveSpeedMultiplier, 1), 0.88, 1.14),
     attackSpeedMultiplier: clamp(finiteOr(source.attackSpeedMultiplier, 1), 0.8, 1.22),
     attackRangeBonus: clamp(finiteOr(source.attackRangeBonus, 0), -0.3, 0.8),
@@ -318,7 +324,11 @@ export function createCombatState(
       smoke_bomb: 0,
     },
     weaponSwapCooldownUntilTick: 0,
-    player: makeActor(0, COMBAT_ARENA_CENTER_Z + 1.35, normalizedStats.maxHealth),
+    player: {
+      ...makeActor(0, COMBAT_ARENA_CENTER_Z + 1.35, normalizedStats.maxHealth),
+      stamina: normalizedStats.maxStamina,
+      maxStamina: normalizedStats.maxStamina,
+    },
     bot: makeActor(0, COMBAT_ARENA_CENTER_Z - 1.35, botHealth),
     ended: false,
     verdict: null,
@@ -612,6 +622,10 @@ function startAttack(
       attack,
       weaponId: closeBowAttack ? "weapon_hunting_knife" : weaponId ?? undefined,
       plunge: actor.attackWasPlunge,
+      originX: actor.x,
+      originZ: actor.z,
+      destinationX: (side === "player" ? state.bot : state.player).x,
+      destinationZ: (side === "player" ? state.bot : state.player).z,
     });
   }
   if (attack === "skillOne" || attack === "skillTwo") {
@@ -850,7 +864,8 @@ function applyDamage(
         : weaponStyle === "spear" ? 0.94
           : rangedShot ? 0.96
             : closeBowAttack ? 0.84 : 1;
-  const damage = Math.max(1, Math.round(baseDamage * weaponDamage * damageMultiplier * multiplier * (critical ? 1.5 : 1) * defenseMultiplier));
+  const criticalDamage = playerAttacking ? state.playerStats.criticalDamageMultiplier : 1.5;
+  const damage = Math.max(1, Math.round(baseDamage * weaponDamage * damageMultiplier * multiplier * (critical ? criticalDamage : 1) * defenseMultiplier));
   target.hp = Math.max(0, target.hp - damage);
   if (playerAttacking) {
     state.highestDamage = Math.max(state.highestDamage, damage);
@@ -889,6 +904,11 @@ function applyDamage(
     critical,
     combo: targetSide === "bot" ? attacker.combo : undefined,
     weaponId: closeBowAttack ? "weapon_hunting_knife" : attacker.attackWeaponId ?? undefined,
+    from: playerAttacking ? "player" : "bot",
+    originX: attacker.x,
+    originZ: attacker.z,
+    destinationX: target.x,
+    destinationZ: target.z,
     plunge: attacker.attackWasPlunge,
   });
   state.lastImpactTick = tick;
@@ -1029,7 +1049,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     player.lastDodgeWasRetreat = retreatIntent;
     player.stamina = Math.max(0, player.stamina - (backflip ? 24 : 20));
     playerDashImpulse = { x: impulse.x, z: impulse.y, speed: dashSpeed };
-    player.invulnerableUntilTick = tick + 16;
+    player.invulnerableUntilTick = tick + Math.round(16 * next.playerStats.dodgeWindowMultiplier);
     setAction(player, backflip ? "backflip" : "dodge", tick, backflip ? 24 : 18);
     events.push({
       id: tick * 4 + 1,

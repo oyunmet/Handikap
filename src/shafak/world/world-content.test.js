@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   getWorldChapter,
   buildWorldCollisionGrid,
+  HIDDEN_CHEST_REVEAL_METERS,
+  isWorldObstacleRevealed,
   pickupRewardTotals,
   resolveWorldObstacleCollision,
   resolveWorldPathCollision,
@@ -62,12 +64,15 @@ test("road rewards stay within reach and each chapter includes visible hazards",
   assert.ok(cachePickup);
   assert.equal(cachePickup.x, 0);
   assert.ok(chapter.pickups.every((pickup) => Math.abs(pickup.x) <= 3.2));
-  for (const kind of ["rock", "spike-trap", "low-bar", "barrel", "vase", "barricade", "treasure-chest"]) {
+  for (const kind of ["rock", "falling-rock-trap", "spike-trap", "low-bar", "barrel", "vase", "barricade", "treasure-chest"]) {
     assert.ok(chapter.obstacles.some((obstacle) => obstacle.kind === kind), `missing ${kind}`);
   }
   const treasureObstacle = chapter.obstacles.find((obstacle) => obstacle.kind === "treasure-chest");
   const chestReward = chapter.pickups.find((pickup) => pickup.kind === "treasure-cache");
   assert.ok(treasureObstacle);
+  assert.equal(treasureObstacle.hidden, true);
+  assert.equal(isWorldObstacleRevealed(treasureObstacle, HIDDEN_CHEST_REVEAL_METERS + 1), false);
+  assert.equal(isWorldObstacleRevealed(treasureObstacle, HIDDEN_CHEST_REVEAL_METERS), true);
   assert.ok(chestReward);
   assert.equal(treasureObstacle.dropPickupId, chestReward.id);
   assert.equal(chestReward.sourceObstacleId, treasureObstacle.id);
@@ -207,6 +212,12 @@ test("only visible gameplay obstacles add collision shapes; roadside scenery sta
     .map((obstacle) => obstacle.id);
 
   assert.deepEqual(new Set(colliderIds), new Set(expectedIds));
+  const fallingRock = chapter.obstacles.find((obstacle) => obstacle.kind === "falling-rock-trap");
+  const fallingRockCollider = [...grid.values()]
+    .flatMap((row) => [...row.values()].flat())
+    .find((collider) => collider.id === fallingRock?.id);
+  assert.ok(fallingRockCollider);
+  assert.equal(fallingRockCollider.requiredAction, "jump");
   assert.equal(colliderIds.length, expectedIds.length);
 });
 

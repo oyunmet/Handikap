@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import type { CharacterAnimationState } from "./character-animation";
+import {
+  getProceduralAttackPose,
+  getSpeakingGesturePose,
+  type CharacterAnimationState,
+} from "./character-animation";
 import { solveTwoBoneLeg } from "./leg-ik";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
@@ -221,6 +225,7 @@ export default function Knight3D({
   const rightArmRef = useRef<THREE.Group>(null);
   const leftElbowRef = useRef<THREE.Group>(null);
   const rightElbowRef = useRef<THREE.Group>(null);
+  const rightWristRef = useRef<THREE.Group>(null);
   const leftHipRef = useRef<THREE.Group>(null);
   const rightHipRef = useRef<THREE.Group>(null);
   const leftKneeRef = useRef<THREE.Group>(null);
@@ -300,8 +305,15 @@ export default function Knight3D({
       : state === "jump" ? 0.7
         : state === "backflip" ? 0.48
           : state === "plunge" ? 0.62
-            : (state === "heavyAttack" ? 0.9 : 0.55) / attackTempo;
+            : (state === "heavyAttack" ? 0.52 : 0.36) / attackTempo;
     const actionProgress = clamp(actionElapsed.current / actionDuration, 0, 1);
+    const combatPose = state === "attack" || state === "heavyAttack" || state === "plunge"
+      ? getProceduralAttackPose(
+          actionProgress,
+          weaponStyle,
+          state === "heavyAttack" || state === "plunge",
+        )
+      : null;
     const idle = state === "idle" || state === "walk" || state === "run";
     const actionSwing = Math.sin(actionProgress * Math.PI);
     const lateralPosition = motion.depth * 5.2;
@@ -329,6 +341,10 @@ export default function Knight3D({
     torso.position.y = idleBreath;
     torso.rotation.y = strideTwist;
     torso.rotation.x = moving ? (running ? -0.045 : -0.018) : 0;
+    if (combatPose) {
+      torso.rotation.x = combatPose.bodyLean;
+      torso.rotation.y = strideTwist + combatPose.bodyTwist;
+    }
     if (state === "hit") torso.rotation.x = -0.18 * actionSwing;
     if (state === "jump") torso.rotation.x = -0.12;
     if (state === "plunge") torso.rotation.x = -0.32 * actionSwing;
@@ -414,50 +430,52 @@ export default function Knight3D({
       rightArmRef.current.rotation.x = -walkArm * 0.76;
       rightArmRef.current.rotation.z = 0.08;
     }
-    if ((state === "attack" || state === "heavyAttack" || state === "plunge") && rightArmRef.current) {
-      const attackPower = state === "heavyAttack" || state === "plunge" ? 1.7 : 1.25;
-      if (weaponStyle === "daggers") {
-        const alternatingThrust = Math.sin(actionProgress * Math.PI * 2) * 0.22;
-        rightArmRef.current.rotation.x = -0.9 - actionSwing * 0.6 + alternatingThrust;
-        rightArmRef.current.rotation.z = -0.12 - actionSwing * 0.42;
-        if (leftArmRef.current) {
-          leftArmRef.current.rotation.x = -0.82 - actionSwing * 0.52 - alternatingThrust;
-          leftArmRef.current.rotation.z = 0.12 + actionSwing * 0.38;
-        }
-      } else if (weaponStyle === "axe") {
-          rightArmRef.current.rotation.x = -1.15 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 2.05 : 1.55);
-        rightArmRef.current.rotation.z = 0.12 - actionSwing * 0.38;
-      } else if (weaponStyle === "greatsword") {
-        rightArmRef.current.rotation.x = -0.38 - actionSwing * (state === "heavyAttack" || state === "plunge" ? 1.4 : 1.08);
-        rightArmRef.current.rotation.z = -0.68 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 1.2 : 0.86);
-      } else if (weaponStyle === "spear") {
-        rightArmRef.current.rotation.x = -0.98 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 0.5 : 0.32);
-        rightArmRef.current.rotation.z = -0.04 + actionSwing * 0.08;
-      } else {
-        rightArmRef.current.rotation.x = -0.6 - actionSwing * attackPower;
-        rightArmRef.current.rotation.z = -0.3 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 0.8 : 0.6);
+    if (combatPose) {
+      if (rightArmRef.current) {
+        rightArmRef.current.rotation.x = combatPose.rightShoulderX;
+        rightArmRef.current.rotation.z = combatPose.rightShoulderZ;
+      }
+      if (leftArmRef.current) {
+        leftArmRef.current.rotation.x = combatPose.leftShoulderX;
+        leftArmRef.current.rotation.z = combatPose.leftShoulderZ;
+      }
+      if (rightWristRef.current) {
+        rightWristRef.current.rotation.set(combatPose.wristX, 0, combatPose.wristZ);
       }
     } else if (state === "block") {
-      if (leftArmRef.current) leftArmRef.current.rotation.x = -1.0;
-      if (rightArmRef.current) rightArmRef.current.rotation.x = -0.8;
+      if (leftArmRef.current) leftArmRef.current.rotation.x = 0.58;
+      if (rightArmRef.current) rightArmRef.current.rotation.x = 0.62;
     } else if (state === "jump") {
       if (leftArmRef.current) leftArmRef.current.rotation.x = -1.05;
       if (rightArmRef.current) rightArmRef.current.rotation.x = -1.12;
     } else if (state === "hit" && rightArmRef.current) {
       rightArmRef.current.rotation.x = 0.8 * actionSwing;
     }
-    if (leftElbowRef.current) leftElbowRef.current.rotation.x = moving ? Math.max(0, -walkArm) * 0.28 : 0.04;
-    if (rightElbowRef.current) rightElbowRef.current.rotation.x = moving ? Math.max(0, walkArm) * 0.28 : 0.04;
-    if (state === "attack" || state === "heavyAttack" || state === "plunge") {
-      const elbowBend = 0.08 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 0.35 : 0.24);
-      if (rightElbowRef.current) rightElbowRef.current.rotation.x = elbowBend;
-      if (weaponStyle === "daggers" && leftElbowRef.current) {
-        leftElbowRef.current.rotation.x = elbowBend;
-      }
+    if (leftElbowRef.current) {
+      leftElbowRef.current.rotation.x = combatPose?.leftElbowX ?? (moving ? Math.max(0, -walkArm) * 0.28 : 0.04);
     }
+    if (rightElbowRef.current) {
+      rightElbowRef.current.rotation.x = combatPose?.rightElbowX ?? (moving ? Math.max(0, walkArm) * 0.28 : 0.04);
+    }
+    if (rightWristRef.current && !combatPose) rightWristRef.current.rotation.set(0, 0, -0.2);
     if (state === "block") {
-      if (leftElbowRef.current) leftElbowRef.current.rotation.x = -0.65;
-      if (rightElbowRef.current) rightElbowRef.current.rotation.x = -0.58;
+      if (leftElbowRef.current) leftElbowRef.current.rotation.x = 0.35;
+      if (rightElbowRef.current) rightElbowRef.current.rotation.x = 0.32;
+    }
+    if (combatPose) {
+      const drive = combatPose.strike;
+      if (leftHipRef.current) {
+        leftHipRef.current.rotation.x += -0.08 + drive * 0.12;
+        leftHipRef.current.rotation.y = -0.08 + combatPose.bodyTwist * 0.42;
+      }
+      if (rightHipRef.current) {
+        rightHipRef.current.rotation.x += 0.1 - drive * 0.16;
+        rightHipRef.current.rotation.y = 0.08 - combatPose.bodyTwist * 0.42;
+      }
+      if (leftKneeRef.current) leftKneeRef.current.rotation.x += 0.18 + drive * 0.14;
+      if (rightKneeRef.current) rightKneeRef.current.rotation.x += 0.12 + drive * 0.22;
+      if (leftAnkleRef.current) leftAnkleRef.current.rotation.x -= 0.08 + drive * 0.06;
+      if (rightAnkleRef.current) rightAnkleRef.current.rotation.x -= 0.06 + drive * 0.08;
     }
     if (state === "die") {
       if (leftArmRef.current) leftArmRef.current.rotation.x = actionProgress * 0.45;
@@ -467,20 +485,21 @@ export default function Knight3D({
       mouthRef.current.scale.y = talking ? 0.62 + Math.abs(Math.sin(time * 10.5)) * 0.92 : 1;
     }
     if (talking) {
-      const gesture = Math.sin(time * 5.6);
-      torso.rotation.z = gesture * 0.018;
+      const gesture = getSpeakingGesturePose(time);
+      torso.rotation.y = strideTwist + gesture.bodyTwist;
+      torso.rotation.z = Math.sin(time * 5.6) * 0.018;
       if (headRef.current) {
         headRef.current.rotation.x = 0.035 + Math.sin(time * 4.2) * 0.035;
         headRef.current.rotation.y = Math.sin(time * 3.1) * 0.035;
       }
       if (leftArmRef.current) {
-        leftArmRef.current.rotation.x = -0.88 + gesture * 0.09;
-        leftArmRef.current.rotation.z = 0.36 + gesture * 0.055;
+        leftArmRef.current.rotation.x = gesture.leftShoulderX;
+        leftArmRef.current.rotation.z = gesture.leftShoulderZ;
       }
-      if (leftElbowRef.current) leftElbowRef.current.rotation.x = -0.68 + Math.max(0, gesture) * 0.18;
-      if (rightElbowRef.current) rightElbowRef.current.rotation.x = 0.12 + Math.max(0, gesture) * 0.08;
+      if (leftElbowRef.current) leftElbowRef.current.rotation.x = gesture.leftElbowX;
+      if (rightElbowRef.current) rightElbowRef.current.rotation.x = 0.12 + Math.max(0, Math.sin(time * 5.2)) * 0.08;
       if (rightArmRef.current) {
-        rightArmRef.current.rotation.x = -0.08 + gesture * 0.06;
+        rightArmRef.current.rotation.x = -0.08 + Math.sin(time * 5.2) * 0.06;
         rightArmRef.current.rotation.z = 0.08;
       }
     }
@@ -650,7 +669,7 @@ export default function Knight3D({
               <dodecahedronGeometry args={[0.11, 0]} />
               <meshStandardMaterial color={KNIGHT_CONFIG.colors.leather} roughness={0.76} metalness={0.16} flatShading />
             </mesh>
-            <group position={[0.13, -0.4, -0.12]} rotation={[0, 0, -0.2]}>
+            <group ref={rightWristRef} position={[0.13, -0.4, -0.12]} rotation={[0, 0, -0.2]}>
               {(appearance?.weaponStyle ?? "sword") === "daggers" ? (
                 [-1, 1].map((side) => (
                   <group key={side} position={[side * 0.055, 0.27, 0]} rotation={[0, 0, side * 0.14]}>

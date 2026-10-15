@@ -13,11 +13,27 @@ import {
   getBotAttackWindupTicks,
   isCombatBotArchetype,
   isCombatBotEnraged,
+  normalizePlayerCombatModifiers,
   replayCombat,
   stepCombat,
 } from "./combat-engine.ts";
 
 const noInput = { x: 0, y: 0, buttons: 0, pressed: 0, released: 0 };
+
+test("legacy combat snapshots receive safe defaults for the added equipment stats", () => {
+  const normalized = normalizePlayerCombatModifiers({
+    maxHealth: 150,
+    damageMultiplier: 1,
+    defenseReduction: 0,
+    criticalChance: 0.12,
+    moveSpeedMultiplier: 1,
+    attackSpeedMultiplier: 1,
+    attackRangeBonus: 0,
+  });
+  assert.equal(normalized.maxStamina, 100);
+  assert.equal(normalized.criticalDamageMultiplier, 1.5);
+  assert.equal(normalized.dodgeWindowMultiplier, 1);
+});
 
 function tapCombatButton(state, button, heldButtons = 0) {
   const pressed = stepCombat(state, {

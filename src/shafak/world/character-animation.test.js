@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getSpriteSheetFrame, resolveCharacterAnimationState } from "./character-animation.ts";
+import {
+  getProceduralAttackPose,
+  getSpeakingGesturePose,
+  getSpriteSheetFrame,
+  resolveCharacterAnimationState,
+} from "./character-animation.ts";
 
 const clip = (startFrame, frames, loop = true) => ({
   startFrame,
@@ -38,6 +43,26 @@ test("character state mapping covers locomotion and reserved combat actions", ()
   assert.equal(resolveCharacterAnimationState("idle", "jump"), "jump");
   assert.equal(resolveCharacterAnimationState("idle", "backflip"), "backflip");
   assert.equal(resolveCharacterAnimationState("idle", "die"), "die");
+});
+
+test("procedural weapon poses retract, then drive the hand and blade toward the opponent", () => {
+  const windup = getProceduralAttackPose(0.05, "sword");
+  const impact = getProceduralAttackPose(0.42, "sword");
+  const daggerImpact = getProceduralAttackPose(0.42, "daggers");
+  const spearImpact = getProceduralAttackPose(0.42, "spear", true);
+
+  assert.ok(windup.rightShoulderX < 0);
+  assert.ok(impact.rightShoulderX > 0.9);
+  assert.ok(impact.rightElbowX < windup.rightElbowX);
+  assert.ok(daggerImpact.leftShoulderX > 0.8);
+  assert.ok(spearImpact.strike > 0.8);
+  assert.ok(spearImpact.wristX < -0.8);
+});
+
+test("speaking gesture reaches forward instead of pulling the hand behind the body", () => {
+  const pose = getSpeakingGesturePose(0.4);
+  assert.ok(pose.leftShoulderX > 0.6);
+  assert.ok(pose.leftElbowX > 0.3);
 });
 
 test("sprite-sheet frame selection loops movement clips and holds a completed action", () => {

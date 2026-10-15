@@ -60,6 +60,9 @@ const statLabels: Record<keyof EquipmentStatBonuses, string> = {
   damage: "Hasar",
   defense: "Savunma",
   critChance: "Kritik şansı",
+  critDamage: "Kritik hasarı",
+  dodge: "Kaçınma",
+  stamina: "Dayanıklılık",
   moveSpeed: "Hareket hızı",
   lightRadius: "Işık alanı",
   attackSpeed: "Saldırı hızı",
@@ -76,7 +79,7 @@ const rarityLabels = {
 const numberFormat = new Intl.NumberFormat("tr-TR");
 
 function formatStat(value: number, key: keyof EquipmentStatBonuses) {
-  const percentStats: (keyof EquipmentStatBonuses)[] = ["damage", "defense", "critChance", "moveSpeed", "attackSpeed"];
+  const percentStats: (keyof EquipmentStatBonuses)[] = ["damage", "defense", "critChance", "critDamage", "dodge", "moveSpeed", "attackSpeed"];
   const formatted = numberFormat.format(Math.abs(percentStats.includes(key) ? value * 100 : value));
   const suffix = percentStats.includes(key) ? "%" : key === "attackRange" || key === "lightRadius" ? " m" : "";
   return value > 0 ? `+${formatted}${suffix}` : value < 0 ? `−${formatted}${suffix}` : "0";

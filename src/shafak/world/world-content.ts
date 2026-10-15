@@ -18,6 +18,7 @@ export type WorldPickup = {
 
 export type WorldObstacleKind =
   | "rock"
+  | "falling-rock-trap"
   | "spike-trap"
   | "low-bar"
   | "barrel"
@@ -33,6 +34,7 @@ export type WorldObstacle = {
   distance: number;
   width: number;
   health: number;
+  hidden?: boolean;
   dropPickupId?: string;
 };
 
@@ -81,6 +83,7 @@ export type WorldChapterContent = {
 export const PICKUP_MAGNET_RADIUS_METERS = 5.2;
 export const PICKUP_RADIUS_METERS = 1.5;
 export const WORLD_JUMP_CLEARANCE_METERS = 0.78;
+export const HIDDEN_CHEST_REVEAL_METERS = 16;
 export const MAX_PICKUPS_PER_CLAIM = 16;
 export const MAX_CHAPTER_ID = 1_000_000;
 
@@ -188,6 +191,15 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       health: 0,
     },
     {
+      id: `ash-road:${chapterId}:obstacle:falling-rock`,
+      chapterId,
+      kind: "falling-rock-trap",
+      x: -3.2,
+      distance: chapterStart + 128,
+      width: 2.4,
+      health: 0,
+    },
+    {
       id: `ash-road:${chapterId}:obstacle:spikes`,
       chapterId,
       kind: "spike-trap",
@@ -243,6 +255,7 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       distance: chapterStart + 58,
       width: 2.1,
       health: 1,
+      hidden: true,
       dropPickupId: `ash-road:${chapterId}:pickup:treasure-cache`,
     },
   ];
@@ -282,6 +295,10 @@ function createRivals(chapterId: number, random: () => number, playerLevel: numb
 
 export function isValidChapterId(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= MAX_CHAPTER_ID;
+}
+
+export function isWorldObstacleRevealed(obstacle: WorldObstacle, gap: number) {
+  return !obstacle.hidden || gap <= HIDDEN_CHEST_REVEAL_METERS;
 }
 
 export function getWorldChapter(
@@ -349,7 +366,11 @@ export function resolveWorldObstacleCollision(
 ) {
   let resolvedDistance = nextDistance;
   for (const obstacle of obstacles) {
-    if (obstacle.kind === "spike-trap" || brokenObstacleIds.has(obstacle.id)) continue;
+    if (
+      obstacle.kind === "spike-trap"
+      || obstacle.kind === "falling-rock-trap"
+      || brokenObstacleIds.has(obstacle.id)
+    ) continue;
     const halfWidth = obstacle.width / 2 + 0.45;
     if (Math.abs(nextX - obstacle.x) >= halfWidth) continue;
     const stopDistance = obstacle.distance - 1.25;
@@ -397,7 +418,9 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
           : undefined,
         requiredAction: obstacle.kind === "low-bar"
           ? "crouch"
-          : obstacle.kind === "rock" || obstacle.kind === "treasure-chest" ? "jump" : undefined,
+          : obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap" || obstacle.kind === "treasure-chest"
+            ? "jump"
+            : undefined,
       });
     }
   }

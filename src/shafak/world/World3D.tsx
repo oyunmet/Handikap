@@ -67,6 +67,10 @@ type World3DProps = {
   playerName: string;
   focusedRival: WorldRival | null;
   talkingRivalId: string | null;
+  canChallenge: boolean;
+  dailyAccessAllowed: boolean;
+  challengeLabel: string;
+  onChallenge: (rival: WorldRival) => void;
   slowMotion: boolean;
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
@@ -637,6 +641,8 @@ function DuelCombatVisual({
   const afterimageMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
   const shockwaveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const impactFlashRef = useRef<THREE.Mesh>(null);
+  const impactFlashMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const weaponTrailRef = useRef<THREE.Mesh>(null);
   const weaponTrailMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const arrowRef = useRef<THREE.Group>(null);
@@ -675,9 +681,17 @@ function DuelCombatVisual({
     }
 
     if (kind === "weaponTrail" && weaponTrailRef.current && weaponTrailMaterialRef.current) {
-      weaponTrailRef.current.position.set(actor.x, event.plunge ? 1.38 : 1.12, actor.z - 0.22);
-      weaponTrailRef.current.rotation.set(0, Math.atan2(opponent.x - actor.x, opponent.z - actor.z), -0.16);
-      weaponTrailRef.current.scale.setScalar(0.72 + fade * 0.36);
+      const fromX = event.originX ?? actor.x;
+      const fromZ = event.originZ ?? actor.z;
+      const toX = event.destinationX ?? opponent.x;
+      const toZ = event.destinationZ ?? opponent.z;
+      weaponTrailRef.current.position.set(
+        THREE.MathUtils.lerp(fromX, toX, 0.62),
+        event.plunge ? 1.38 : 1.12,
+        THREE.MathUtils.lerp(fromZ, toZ, 0.62),
+      );
+      weaponTrailRef.current.rotation.set(0, Math.atan2(toX - fromX, toZ - fromZ), -0.16);
+      weaponTrailRef.current.scale.setScalar(0.68 + fade * 0.42);
       weaponTrailMaterialRef.current.opacity = fade * (event.plunge ? 0.9 : 0.76);
     }
 
@@ -749,6 +763,27 @@ function DuelCombatVisual({
       shockwaveMaterialRef.current.opacity = fade * 0.85;
     }
 
+    if (kind === "shockwave" && impactFlashRef.current && impactFlashMaterialRef.current) {
+      const targetX = event.destinationX ?? actor.x;
+      const targetZ = event.destinationZ ?? actor.z;
+      const sourceX = event.originX ?? opponent.x;
+      const sourceZ = event.originZ ?? opponent.z;
+      const dx = targetX - sourceX;
+      const dz = targetZ - sourceZ;
+      const length = Math.hypot(dx, dz) || 1;
+      const pulse = Math.max(0, 1 - age * 3.4);
+      impactFlashRef.current.position.set(
+        targetX + (dx / length) * 0.24,
+        1.08,
+        targetZ + (dz / length) * 0.24,
+      );
+      impactFlashRef.current.rotation.y = Math.atan2(dx, dz);
+      impactFlashRef.current.scale.setScalar((0.32 + pulse * 0.72) * (event.critical ? 1.2 : 1));
+      impactFlashRef.current.visible = age < 0.3;
+      impactFlashMaterialRef.current.color.set(event.critical ? "#fff0a4" : event.attack === "heavy" ? "#ffad65" : "#ff806d");
+      impactFlashMaterialRef.current.opacity = pulse * (event.critical ? 0.95 : 0.78);
+    }
+
     if ((kind === "plunge" || kind === "plungeLanding") && shockwaveRef.current && shockwaveMaterialRef.current) {
       const impactX = kind === "plungeLanding" ? event.originX ?? actor.x : actor.x;
       const impactZ = kind === "plungeLanding" ? event.originZ ?? actor.z : actor.z;
@@ -794,6 +829,20 @@ function DuelCombatVisual({
             opacity={0.8}
             depthWrite={false}
             side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+      {kind === "shockwave" && (
+        <mesh ref={impactFlashRef}>
+          <octahedronGeometry args={[0.22, 0]} />
+          <meshBasicMaterial
+            ref={impactFlashMaterialRef}
+            color="#ff806d"
+            transparent
+            opacity={0.8}
+            toneMapped={false}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
           />
         </mesh>
       )}
@@ -1116,6 +1165,10 @@ function SceneContents({
   interactableRegistry,
   focusedRival,
   talkingRivalId,
+  canChallenge,
+  dailyAccessAllowed,
+  challengeLabel,
+  onChallenge,
   slowMotion,
   combatActive,
   combatStateRef,
@@ -1310,6 +1363,10 @@ function SceneContents({
         weather={weatherMode}
         focusedRivalId={focusedRival?.id ?? null}
         talkingRivalId={talkingRivalId}
+        canChallenge={canChallenge}
+        dailyAccessAllowed={dailyAccessAllowed}
+        challengeLabel={challengeLabel}
+        onChallenge={onChallenge}
         reducedMotion={motionReduced}
         interactableRegistry={interactableRegistry}
       />}

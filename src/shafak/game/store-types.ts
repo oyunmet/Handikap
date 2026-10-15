@@ -14,6 +14,9 @@ export type EquipmentStatBonuses = {
   damage: number;
   defense: number;
   critChance: number;
+  critDamage: number;
+  dodge: number;
+  stamina: number;
   moveSpeed: number;
   lightRadius: number;
   attackSpeed: number;
@@ -138,9 +141,12 @@ export type PlayerInventory = {
 
 export type PlayerCombatModifiers = {
   maxHealth: number;
+  maxStamina: number;
   damageMultiplier: number;
   defenseReduction: number;
   criticalChance: number;
+  criticalDamageMultiplier: number;
+  dodgeWindowMultiplier: number;
   moveSpeedMultiplier: number;
   attackSpeedMultiplier: number;
   attackRangeBonus: number;

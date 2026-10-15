@@ -2292,7 +2292,8 @@ export default function WorldScene({
         }
 
         for (const obstacle of obstacles) {
-          if (obstacle.kind !== "spike-trap") continue;
+          const fallingRock = obstacle.kind === "falling-rock-trap";
+          if (!fallingRock && obstacle.kind !== "spike-trap") continue;
           const longitudinal = Math.abs(obstacle.distance - nextFrame.distance);
           const lateral = Math.abs(obstacle.x - playerX);
           if (longitudinal > 5 || lateral > obstacle.width / 2 + 1.8) {
@@ -2301,13 +2302,13 @@ export default function WorldScene({
           }
           const cooldown = trapCooldownRef.current.get(obstacle.id);
           if (
-            longitudinal <= 1.25 &&
+            longitudinal <= (fallingRock ? 1.5 : 1.25) &&
             lateral <= obstacle.width / 2 &&
             cooldown === undefined &&
             nextFrame.jumpHeight < WORLD_JUMP_CLEARANCE_METERS
           ) {
-            trapCooldownRef.current.set(obstacle.id, simulationTimeRef.current + 1.1);
-            setPickupNotice("Dikenli tuzak! 1 saniye yavaşladın.");
+            trapCooldownRef.current.set(obstacle.id, simulationTimeRef.current + (fallingRock ? 1.25 : 1.1));
+            setPickupNotice(fallingRock ? "Düşen kaya çarptı! Yere çarpmadan önce zıpla." : "Dikenli tuzak! 1 saniye yavaşladın.");
             if (vibrationOn && "vibrate" in navigator) {
               try { navigator.vibrate([35, 35, 25]); } catch { /* Haptics are optional. */ }
             }
@@ -2593,6 +2594,10 @@ export default function WorldScene({
             playerName={profile.name}
             focusedRival={battleSession?.rival ?? null}
             talkingRivalId={talkingRivalId}
+            canChallenge={canChallenge}
+            dailyAccessAllowed={dailyAccess.allowed}
+            challengeLabel={nextOpponentDefeated ? "YENİDEN DÜELLO" : "SAVAŞ"}
+            onChallenge={beginEncounter}
             slowMotion={Boolean(battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
             combatStateRef={combatStateRef}
@@ -3020,7 +3025,7 @@ export default function WorldScene({
             <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
             <span>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</span>
-            {canChallenge && (
+            {canChallenge && talkingRivalId !== nextOpponent.id && (
               <button
                 type="button"
                 className="world-encounter__fight"

@@ -22,6 +22,6 @@ export function getDuelVfxKind(event: Pick<CombatEvent, "type" | "attack" | "plu
   if (event.type === "weaponTrail") return "weaponTrail";
   if (event.type === "dodge" || event.type === "backflip") return "afterimage";
   if (event.type === "hit" && event.plunge) return "plunge";
-  if (event.type === "hit") return "shockwave";
+  if (event.type === "hit" || event.type === "knockout") return "shockwave";
   return "none";
 }

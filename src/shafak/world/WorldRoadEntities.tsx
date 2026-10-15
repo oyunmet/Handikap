@@ -9,6 +9,7 @@ import type { WorldInteractableRegistry } from "./world-interactables";
 import { getNpcStoryDialogue } from "./story-dialogue";
 import {
   getWorldContentAround,
+  isWorldObstacleRevealed,
   PICKUP_MAGNET_RADIUS_METERS,
   type WorldObstacle,
   type WorldPickup,
@@ -124,6 +125,8 @@ function Obstacle({
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const warningRef = useRef<THREE.Mesh>(null);
+  const fallingRockRef = useRef<THREE.Group>(null);
+  const fallStartedAtRef = useRef<number | null>(null);
   const chestLidRef = useRef<THREE.Group>(null);
   useEffect(() => {
     const isChest = obstacle.kind === "treasure-chest";
@@ -150,6 +153,8 @@ function Obstacle({
 
   const obstacleLabel = obstacle.kind === "spike-trap"
     ? "TUZAK · ZIPLA"
+    : obstacle.kind === "falling-rock-trap"
+      ? "DÜŞEN KAYA · ZIPLA"
     : obstacle.kind === "low-bar"
       ? "ALÇAK ENGEL · EĞİL"
         : obstacle.kind === "barrel"
@@ -159,7 +164,7 @@ function Obstacle({
       : obstacle.kind === "barricade"
         ? broken ? "BARİKAT KIRILDI" : "BARİKAT · SALDIR"
         : obstacle.kind === "treasure-chest"
-          ? broken ? "SANDIK AÇILDI · ALTIN" : "HAZİNE · ZIPLA VE KIR"
+          ? broken ? "SANDIK AÇILDI · ALTIN" : "GİZLİ SANDIK · ZIPLA VE KIR"
           : "KAYA · ZIPLA";
   useFrame((frame) => {
     if (!rootRef.current) return;
@@ -167,8 +172,22 @@ function Obstacle({
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
     // Keep roadside gameplay objects in front of the player. A passed obstacle
     // must leave the camera corridor instead of enclosing the trailing camera.
-    rootRef.current.visible = Math.abs(gap) <= maxVisibleDistance
+    rootRef.current.visible = isWorldObstacleRevealed(obstacle, gap)
+      && Math.abs(gap) <= maxVisibleDistance
       && (gap >= -1.5 || (broken && obstacle.health > 0));
+    if (fallingRockRef.current) {
+      if (gap <= 7.2 && fallStartedAtRef.current === null) {
+        fallStartedAtRef.current = frame.clock.elapsedTime;
+      }
+      const elapsed = fallStartedAtRef.current === null
+        ? 0
+        : Math.max(0, frame.clock.elapsedTime - fallStartedAtRef.current);
+      const progress = THREE.MathUtils.clamp(elapsed / 0.48, 0, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      fallingRockRef.current.position.y = 5.2 - eased * 4.25;
+      fallingRockRef.current.rotation.x = 0.16 + eased * 0.82;
+      fallingRockRef.current.rotation.z = -0.1 - eased * 0.36;
+    }
     if (chestLidRef.current) {
       const target = broken ? -1.18 : 0;
       chestLidRef.current.rotation.x = THREE.MathUtils.damp(chestLidRef.current.rotation.x, target, 8, 0.05);
@@ -190,8 +209,30 @@ function Obstacle({
           <dodecahedronGeometry args={[0.92, 0]} />
           <meshStandardMaterial color="#625b5a" roughness={0.94} flatShading />
         </mesh>
+      ) : obstacle.kind === "falling-rock-trap" ? (
+        <group>
+          <group ref={fallingRockRef} position={[0, 5.2, 0]}>
+            <mesh castShadow>
+              <dodecahedronGeometry args={[1.02, 0]} />
+              <meshStandardMaterial color="#5d5655" roughness={0.96} flatShading />
+            </mesh>
+            <mesh position={[0.31, 0.16, -0.58]} rotation={[0.4, 0.3, 0.7]} scale={[0.45, 0.13, 0.08]}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial color="#393536" roughness={1} flatShading />
+            </mesh>
+          </group>
+          <mesh ref={warningRef} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.75, 1.94, 28]} />
+            <meshBasicMaterial color="#ff795b" transparent opacity={0.52} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+          <Sparkles count={6} position={[0, 1.05, 0]} scale={[2.8, 0.5, 1.3]} size={2.4} speed={0.22} color="#d8bc9b" />
+        </group>
       ) : obstacle.kind === "treasure-chest" ? (
         <group>
+          <mesh position={[0, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.28, 1.39, 28]} />
+            <meshBasicMaterial color="#f2ca76" transparent opacity={0.43} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
           <mesh position={[0, 0.38, 0]}>
             <boxGeometry args={[1.78, 0.72, 1.08]} />
             <meshStandardMaterial color="#714326" roughness={0.65} metalness={0.22} />
@@ -499,6 +540,10 @@ function BotActor({
   dialoguePortal,
   focused,
   talking,
+  canChallenge,
+  dailyAccessAllowed,
+  challengeLabel,
+  onChallenge,
   interactableRegistry,
 }: {
   rival: WorldRival;
@@ -506,6 +551,10 @@ function BotActor({
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   focused: boolean;
   talking: boolean;
+  canChallenge: boolean;
+  dailyAccessAllowed: boolean;
+  challengeLabel: string;
+  onChallenge: (rival: WorldRival) => void;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
@@ -610,10 +659,22 @@ function BotActor({
         />
       </group>
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= 12 && (
-        <Html portal={dialoguePortal} position={[rival.x, 3.5, 0]} center distanceFactor={13} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
-          <div className="world-npc-dialogue" role="status" aria-live="polite">
+        <Html portal={dialoguePortal} position={[rival.x, 3.5, 0]} center distanceFactor={13} zIndexRange={[90, 0]} style={{ pointerEvents: "auto" }}>
+          <div className="world-npc-dialogue" role="group" aria-label={`${dialogueSpeaker} ile karşılaşma`}>
             <span>{dialogueSpeaker} konuşuyor</span>
             <p>“{dialogueLine}”</p>
+            <button
+              className="world-npc-dialogue__fight"
+              type="button"
+              disabled={!canChallenge || !dailyAccessAllowed}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (canChallenge && dailyAccessAllowed) onChallenge(rival);
+              }}
+            >
+              <span aria-hidden="true">⚔</span> {!dailyAccessAllowed ? "GÜNLÜK HAK DOLDU" : canChallenge ? challengeLabel : "YAKLAŞ · SAVAŞ"}
+            </button>
           </div>
         </Html>
       )}
@@ -649,6 +710,10 @@ export default function WorldRoadEntities({
   brokenObstacleIds = EMPTY_BROKEN,
   focusedRivalId,
   talkingRivalId,
+  canChallenge,
+  dailyAccessAllowed,
+  challengeLabel,
+  onChallenge,
   reducedMotion,
   weather,
   interactableRegistry,
@@ -660,6 +725,10 @@ export default function WorldRoadEntities({
   brokenObstacleIds?: ReadonlySet<string>;
   focusedRivalId: string | null;
   talkingRivalId: string | null;
+  canChallenge: boolean;
+  dailyAccessAllowed: boolean;
+  challengeLabel: string;
+  onChallenge: (rival: WorldRival) => void;
   reducedMotion: boolean;
   weather: WeatherMode;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
@@ -722,6 +791,10 @@ export default function WorldRoadEntities({
           dialoguePortal={dialoguePortal}
           focused={rival.id === focusedRivalId}
           talking={rival.id === talkingRivalId}
+          canChallenge={canChallenge && rival.id === talkingRivalId}
+          dailyAccessAllowed={dailyAccessAllowed}
+          challengeLabel={challengeLabel}
+          onChallenge={onChallenge}
           interactableRegistry={interactableRegistry}
         />
       ))}
