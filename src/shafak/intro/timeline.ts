@@ -1,21 +1,23 @@
 export const INTRO_EVENT_MS = {
-  letter: 320,
-  production: 1_000,
-  byline: 1_760,
-  shimmer: 2_260,
-  impact: 2_620,
-  creditsFade: 4_600,
-  worldReveal: 5_200,
-  lineOne: 6_600,
-  lineTwo: 9_100,
-  lineThree: 11_600,
-  lineFour: 14_100,
-  lineFive: 16_600,
-  productionCard: 19_100,
-  productionCardFade: 23_300,
-  title: 24_000,
-  prompt: 25_400,
+  letter: 260,
+  production: 740,
+  byline: 1_220,
+  shimmer: 1_650,
+  impact: 1_900,
+  creditsFade: 3_500,
+  worldReveal: 3_800,
+  lineOne: 4_300,
+  lineTwo: 8_500,
+  lineThree: 12_700,
+  productionCard: 17_400,
+  productionCardFade: 19_500,
+  title: 20_100,
+  prompt: 21_400,
 } as const;
+
+type IntroEventTimes = {
+  -readonly [Event in keyof typeof INTRO_EVENT_MS]: number;
+};
 
 export function getInitialScreen(search = typeof window === "undefined" ? "" : window.location.search) {
   const query = new URLSearchParams(search);
@@ -24,10 +26,21 @@ export function getInitialScreen(search = typeof window === "undefined" ? "" : w
 
 export function getIntroEventTimes(reducedMotion = false) {
   const scale = reducedMotion ? 0.58 : 1;
-  return Object.fromEntries(
+  const events = Object.fromEntries(
     Object.entries(INTRO_EVENT_MS).map(([event, milliseconds]) => [
       event,
       Math.round(milliseconds * scale),
     ]),
-  ) as { [Event in keyof typeof INTRO_EVENT_MS]: number };
+  ) as IntroEventTimes;
+
+  if (reducedMotion) {
+    events.lineTwo = events.lineOne + 4_200;
+    events.lineThree = events.lineTwo + 4_200;
+    events.productionCard = events.lineThree + 4_700;
+    events.productionCardFade = events.productionCard + 1_800;
+    events.title = events.productionCardFade + 600;
+    events.prompt = events.title + 800;
+  }
+
+  return events;
 }

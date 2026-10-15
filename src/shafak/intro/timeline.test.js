@@ -13,24 +13,25 @@ test("ordinary visits always start with the intro while the explicit world debug
   assert.equal(getInitialScreen("?debug=1"), "intro");
 });
 
-test("the production card follows the final line before the title and start prompt", () => {
+test("each readable story line stays visible before the production card, title, and start prompt", () => {
   const events = getIntroEventTimes();
-  assert.equal(events.creditsFade - events.production, 3_600);
-  assert.equal(events.worldReveal, 5_200);
-  assert.equal(events.lineTwo - events.lineOne, 2_500);
-  assert.equal(events.lineFive - events.lineFour, 2_500);
-  assert.equal(events.productionCard, events.lineFive + 2_500);
-  assert.equal(events.productionCardFade - events.productionCard, 4_200);
+  assert.equal(events.creditsFade - events.production, 2_760);
+  assert.equal(events.worldReveal, 3_800);
+  assert.equal(events.lineTwo - events.lineOne, 4_200);
+  assert.equal(events.lineThree - events.lineTwo, 4_200);
+  assert.equal(events.productionCard, events.lineThree + 4_700);
+  assert.equal(events.productionCardFade - events.productionCard, 2_100);
   assert.ok(events.productionCardFade < events.title);
   assert.ok(events.title < events.prompt);
-  assert.equal(events.prompt, 25_400);
+  assert.equal(events.prompt, 21_400);
 });
 
-test("reduced-motion timing keeps the story in order and shortens transitions", () => {
+test("reduced-motion timing shortens animation while preserving readable story dwell time", () => {
   const events = getIntroEventTimes(true);
   assert.ok(events.prompt < getIntroEventTimes().prompt);
   assert.ok(events.lineOne < events.lineTwo && events.lineTwo < events.lineThree);
-  assert.equal(events.lineTwo - events.lineOne, 1_450);
-  assert.equal(events.creditsFade - events.production, 2_088);
-  assert.equal(events.productionCardFade - events.productionCard, 2_436);
+  assert.equal(events.lineTwo - events.lineOne, 4_200);
+  assert.equal(events.lineThree - events.lineTwo, 4_200);
+  assert.equal(events.creditsFade - events.production, 1_601);
+  assert.equal(events.productionCardFade - events.productionCard, 1_800);
 });

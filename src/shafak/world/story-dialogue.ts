@@ -11,10 +11,10 @@ const CHAPTER_STORIES = [
   {
     title: "KÜL YOLU",
     lines: [
-      "Kadim kapılar karanlıkla mühürlendi; her biri cesaretini sınayacak.",
-      "Şafak Savaşçıları yoldaşlarıyla omuz omuza verip, umudu yeniden doğuracak.",
+      "Yıllardır kül altında kalan bu yolun sonunda Şafak Kapısı var.",
+      "Şafak Savaşçıları'na katıl; nöbetçileri yen ve açılan iki geçitten birini seç.",
     ],
-    hint: "Yolda parlayan ganimetleri topla; mavi çubuk dayanıklılığını gösterir.",
+    hint: "Yol üstündeki ödülleri topla; kırmızı saldırı uyarısında blokla ya da yana kaç.",
   },
   {
     title: "DONMUŞ GEÇİT",

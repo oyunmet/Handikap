@@ -5,7 +5,10 @@ import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import KnightActor from "./KnightActor";
 import { createWorldMotion, type WorldMotion } from "./movement";
-import type { WorldInteractableRegistry } from "./world-interactables";
+import {
+  RIVAL_DIALOGUE_RANGE_METERS,
+  type WorldInteractableRegistry,
+} from "./world-interactables";
 import { getNpcStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import {
@@ -596,8 +599,6 @@ function BotActor({
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
   const tintAppliedRef = useRef(false);
-  const approachDistanceRef = useRef(0);
-  const approachSideRef = useRef(0);
   useEffect(() => {
     const mesh = rootRef.current;
     if (!mesh) return undefined;
@@ -606,8 +607,8 @@ function BotActor({
       kind: "rival",
       x: rival.x,
       distance: rival.distance,
-      radius: 25,
-      lateralRadius: 8,
+      radius: RIVAL_DIALOGUE_RANGE_METERS + 0.8,
+      lateralRadius: 3.4,
       state: "active",
       mesh,
       source: rival,
@@ -619,20 +620,8 @@ function BotActor({
     if (!root) return;
     const motion = motionRef.current;
     const gap = rival.distance - motion.distance;
-    const speaking = talking && Math.abs(gap) <= 12;
-    if (speaking && approachSideRef.current === 0) {
-      approachSideRef.current = Math.sign(gap) || 1;
-    } else if (!speaking) {
-      approachSideRef.current = 0;
-    }
-    approachDistanceRef.current = THREE.MathUtils.damp(
-      approachDistanceRef.current,
-      speaking ? 1.1 : 0,
-      2.8,
-      Math.min(delta, 0.05),
-    );
-    const approach = approachSideRef.current * approachDistanceRef.current;
-    const actorZ = -(rival.distance - motion.cameraX) + approach;
+    const speaking = talking && Math.abs(gap) <= RIVAL_DIALOGUE_RANGE_METERS;
+    const actorZ = -(rival.distance - motion.cameraX);
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
     root.position.set(0, 0, actorZ);
@@ -688,10 +677,10 @@ function BotActor({
           appearance={profile?.appearance}
         />
       </group>
-      {talking && Math.abs(rival.distance - motionRef.current.distance) <= 12 && (
+      {talking && Math.abs(rival.distance - motionRef.current.distance) <= RIVAL_DIALOGUE_RANGE_METERS && (
         <Html
           portal={dialoguePortal}
-          position={[rival.x, 3.15, 0]}
+          position={[rival.x, 2.95, 0]}
           center
           zIndexRange={[90, 0]}
           calculatePosition={calculateNpcDialogueElementPosition}

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Sparkles } from "@react-three/drei";
+import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
@@ -126,27 +126,27 @@ const ROAD_SURFACE_MATERIAL = new THREE.MeshStandardMaterial({
 });
 const ROAD_RAIL_GEOMETRY = new THREE.BoxGeometry(0.26, 0.08, WORLD_GATE_INTERVAL_METERS);
 const ROAD_RAIL_MATERIAL = new THREE.MeshStandardMaterial({ color: "#897164", roughness: 0.9 });
-const WORLD_FORK_WIDTH = 3.8;
+const WORLD_FORK_WIDTH = 4.1;
 const FORK_ROAD_MATERIAL = new THREE.MeshStandardMaterial({
-  color: "#514548",
-  emissive: "#171113",
-  emissiveIntensity: 0.2,
+  color: "#635358",
+  emissive: "#2b2023",
+  emissiveIntensity: 0.38,
   roughness: 0.98,
   metalness: 0,
   side: THREE.DoubleSide,
 });
 const FORK_EDGE_MATERIAL = new THREE.MeshBasicMaterial({
-  color: "#d0ae77",
+  color: "#e0bd83",
   transparent: true,
-  opacity: 0.58,
+  opacity: 0.78,
   depthWrite: false,
   toneMapped: false,
   side: THREE.DoubleSide,
 });
 const FORK_MEDIAN_MATERIAL = new THREE.MeshStandardMaterial({
-  color: "#69584e",
-  emissive: "#211918",
-  emissiveIntensity: 0.18,
+  color: "#74645b",
+  emissive: "#302421",
+  emissiveIntensity: 0.28,
   roughness: 1,
   side: THREE.DoubleSide,
 });
@@ -228,8 +228,8 @@ function createWorldForkMedian() {
 const WORLD_FORKS = (["left", "right"] as const).map((side) => ({
   side,
   road: createWorldForkRibbon(side, WORLD_FORK_WIDTH),
-  innerEdge: createWorldForkRibbon(side, 0.1, -WORLD_FORK_WIDTH / 2 + 0.12),
-  outerEdge: createWorldForkRibbon(side, 0.1, WORLD_FORK_WIDTH / 2 - 0.12),
+  innerEdge: createWorldForkRibbon(side, 0.22, -WORLD_FORK_WIDTH / 2 + 0.18),
+  outerEdge: createWorldForkRibbon(side, 0.22, WORLD_FORK_WIDTH / 2 - 0.18),
 }));
 const WORLD_FORK_MEDIAN = createWorldForkMedian();
 const ROAD_PALETTE_COLORS = Object.fromEntries(
@@ -443,11 +443,11 @@ function WorldRouteFork({ gateDistance, motionRef }: { gateDistance: number; mot
       {WORLD_FORKS.map((fork) => (
         <group key={fork.side}>
           <mesh geometry={fork.road} material={FORK_ROAD_MATERIAL} />
-          <mesh geometry={fork.innerEdge} material={FORK_EDGE_MATERIAL} position={[0, 0.022, 0]} />
-          <mesh geometry={fork.outerEdge} material={FORK_EDGE_MATERIAL} position={[0, 0.022, 0]} />
+          <mesh geometry={fork.innerEdge} material={FORK_EDGE_MATERIAL} position={[0, 0.045, 0]} />
+          <mesh geometry={fork.outerEdge} material={FORK_EDGE_MATERIAL} position={[0, 0.045, 0]} />
         </group>
       ))}
-      <mesh geometry={WORLD_FORK_MEDIAN} material={FORK_MEDIAN_MATERIAL} position={[0, 0.01, 0]} />
+      <mesh geometry={WORLD_FORK_MEDIAN} material={FORK_MEDIAN_MATERIAL} position={[0, 0.035, 0]} />
     </group>
   );
 }
@@ -1128,74 +1128,131 @@ export function FinalGate({
     groupRef.current.position.z = motion.cameraX - gateDistance;
   });
   return (
-      <group
-        ref={groupRef}
-        position={[0, 0, motionRef.current.cameraX - gateDistanceAtRender]}
+    <group
+      ref={groupRef}
+      position={[0, 0, motionRef.current.cameraX - gateDistanceAtRender]}
+    >
+      {([-1, 1] as const).map((side) => (
+        <RouteGatePortal
+          key={side}
+          centerX={side * 3.35}
+          label={side === -1 ? "SOL GEÇİT" : "SAĞ GEÇİT"}
+          locked={!gateOpen}
+        />
+      ))}
+      <mesh position={[0, 3.45, 0.12]}>
+        <boxGeometry args={[0.78, 6.9, 1.45]} />
+        <meshStandardMaterial color="#353034" roughness={0.93} flatShading />
+      </mesh>
+      <mesh position={[0, 7.15, 0.16]}>
+        <boxGeometry args={[1.25, 0.24, 1.65]} />
+        <meshStandardMaterial color="#937455" metalness={0.32} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 7.62, 0.18]}>
+        <octahedronGeometry args={[0.38, 0]} />
+        <meshStandardMaterial
+          color="#f0c982"
+          emissive="#9e5e32"
+          emissiveIntensity={0.42}
+          metalness={0.55}
+          roughness={0.35}
+          flatShading
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function RouteGatePortal({
+  centerX,
+  label,
+  locked,
+}: {
+  centerX: number;
+  label: string;
+  locked: boolean;
+}) {
+  return (
+    <group position={[centerX, 0, 0]}>
+      {([-2.2, 2.2] as const).map((x) => (
+        <group key={x} position={[x, 0, 0]}>
+          <mesh position={[0, 0.34, 0]}>
+            <boxGeometry args={[0.94, 0.68, 1.8]} />
+            <meshStandardMaterial color="#827064" roughness={0.95} flatShading />
+          </mesh>
+          <mesh position={[0, 3.65, 0]}>
+            <boxGeometry args={[0.72, 6.65, 1.42]} />
+            <meshStandardMaterial color="#51464a" roughness={0.93} flatShading />
+          </mesh>
+          <mesh position={[0, 6.95, 0.04]}>
+            <boxGeometry args={[1.06, 0.42, 1.62]} />
+            <meshStandardMaterial color="#756057" roughness={0.91} flatShading />
+          </mesh>
+          <mesh position={[0, 5.35, 0.77]}>
+            <boxGeometry args={[0.16, 2.8, 0.06]} />
+            <meshStandardMaterial
+              color="#c7a16b"
+              emissive="#6c4028"
+              emissiveIntensity={0.28}
+              metalness={0.52}
+              roughness={0.48}
+            />
+          </mesh>
+          <mesh position={[0, 7.43, 0]}>
+            <coneGeometry args={[0.48, 0.72, 4]} />
+            <meshStandardMaterial color="#b18b60" roughness={0.65} flatShading />
+          </mesh>
+          <mesh position={[0, 7.94, 0.08]}>
+            <octahedronGeometry args={[0.24, 0]} />
+            <meshStandardMaterial
+              color="#f5cf89"
+              emissive="#c8793d"
+              emissiveIntensity={0.6}
+              metalness={0.45}
+              roughness={0.34}
+              flatShading
+            />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 7.26, 0]}>
+        <boxGeometry args={[5.35, 0.82, 1.78]} />
+        <meshStandardMaterial color="#625052" roughness={0.92} flatShading />
+      </mesh>
+      <mesh position={[0, 6.73, 0.04]}>
+        <boxGeometry args={[5.6, 0.14, 1.86]} />
+        <meshStandardMaterial color="#c19a66" metalness={0.28} roughness={0.58} />
+      </mesh>
+      <mesh position={[0, 6.92, 0.94]}>
+        <boxGeometry args={[3.46, 0.48, 0.12]} />
+        <meshStandardMaterial color="#30272a" roughness={0.82} />
+      </mesh>
+      <Html
+        position={[0, 6.92, 1.02]}
+        center
+        transform
+        distanceFactor={8}
+        zIndexRange={[40, 0]}
+        style={{ pointerEvents: "none" }}
       >
-      <mesh position={[-6.2, 5.2, 0]}>
-        <boxGeometry args={[2.3, 10.4, 2.2]} />
-        <meshStandardMaterial color="#55464a" roughness={0.94} flatShading />
-      </mesh>
-      <mesh position={[6.2, 5.2, 0]}>
-        <boxGeometry args={[2.3, 10.4, 2.2]} />
-        <meshStandardMaterial color="#5a4b4d" roughness={0.94} flatShading />
-      </mesh>
-      <mesh position={[0, 10.3, 0]}>
-        <boxGeometry args={[14.7, 2.3, 2.8]} />
-        <meshStandardMaterial color="#705957" roughness={0.9} flatShading />
-      </mesh>
-      {/* Leave the gate opening unobstructed; full-size transparent portal planes can cover the mobile camera view. */}
-      <group position={[0, 0.055, 0]}>
-        <mesh position={[0, 0, 11.5]}>
-          <boxGeometry args={[0.1, 0.025, 5]} />
-          <meshBasicMaterial color="#dfc58f" transparent opacity={0.42} depthWrite={false} />
-        </mesh>
-        {[-1, 1].map((side) => (
-          <group key={side}>
-            <mesh
-              position={[side * 1.2, 0, 4.5]}
-              rotation={[0, -side * Math.atan2(2.4, 9), 0]}
-            >
-              <boxGeometry args={[0.1, 0.025, 9.4]} />
-              <meshBasicMaterial color="#dfc58f" transparent opacity={0.48} depthWrite={false} />
-            </mesh>
-            <mesh position={[side * 2.35, 0.1, 0.7]} rotation={[-Math.PI / 2, 0, 0]}>
-              <coneGeometry args={[0.27, 0.62, 3]} />
-              <meshBasicMaterial color="#edc47a" transparent opacity={0.62} depthWrite={false} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-      {!gateOpen && (
-        <group position={[0, 5.1, 0.52]}>
-          {[-3.6, -1.8, 0, 1.8, 3.6].map((x) => (
+        <div className="world-route-gate-sign">{label}</div>
+      </Html>
+      {locked && (
+        <group position={[0, 3.1, 0.82]}>
+          {[-1.42, -0.71, 0, 0.71, 1.42].map((x) => (
             <mesh key={`gate-bar-v-${x}`} position={[x, 0, 0]}>
-              <boxGeometry args={[0.13, 7.4, 0.12]} />
-              <meshBasicMaterial color="#f0a06c" transparent opacity={0.72} depthWrite={false} toneMapped={false} />
+              <boxGeometry args={[0.1, 4.65, 0.11]} />
+              <meshBasicMaterial color="#e7aa71" transparent opacity={0.8} depthWrite={false} toneMapped={false} />
             </mesh>
           ))}
-          {[-2.4, 0, 2.4].map((y) => (
+          {[-1.45, 0, 1.45].map((y) => (
             <mesh key={`gate-bar-h-${y}`} position={[0, y, 0]}>
-              <boxGeometry args={[8.9, 0.12, 0.12]} />
-              <meshBasicMaterial color="#f0a06c" transparent opacity={0.72} depthWrite={false} toneMapped={false} />
+              <boxGeometry args={[3.18, 0.11, 0.11]} />
+              <meshBasicMaterial color="#e7aa71" transparent opacity={0.8} depthWrite={false} toneMapped={false} />
             </mesh>
           ))}
         </group>
       )}
-      {[-6.2, 6.2].map((x) => (
-        <group key={x} position={[x, 8.5, -0.7]}>
-          <mesh>
-            <coneGeometry args={[0.34, 1.4, 5]} />
-            <meshStandardMaterial color="#c19964" metalness={0.45} roughness={0.4} flatShading />
-          </mesh>
-        </group>
-      ))}
-      {Array.from({ length: 7 }, (_, index) => (
-        <mesh key={index} position={[-5.1 + index * 1.7, 11.58, 0]}>
-          <boxGeometry args={[0.55, 0.62, 2.5]} />
-          <meshStandardMaterial color="#75605b" roughness={0.93} />
-        </mesh>
-      ))}
     </group>
   );
 }

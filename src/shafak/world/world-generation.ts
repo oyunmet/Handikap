@@ -61,7 +61,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       random() > 0.5 ? "ruin" : "arch",
       random() > 0.5 ? "torch" : "firepit",
       "rock",
-      random() > 0.5 ? "cart" : "bones",
+      random() > 0.5 ? "cart" : "tree",
     ]
     : biome === "red-marsh"
       ? [
@@ -72,7 +72,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         random() > 0.5 ? "arch" : "ruin",
         random() > 0.5 ? "firepit" : "torch",
         random() > 0.5 ? "reed" : treeKind(),
-        random() > 0.5 ? "bones" : "cart",
+        random() > 0.5 ? "mangrove" : "cart",
       ]
       : [
         random() > 0.5 ? "tower" : "ruin",
@@ -82,15 +82,18 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         random() > 0.5 ? "ruin" : "tower",
        (["torch", "firepit", "cart"] as const)[Math.floor(random() * 3)],
         random() > 0.5 ? "rock" : treeKind(),
-        (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
+        (["cart", "ruin", "arch"] as const)[Math.floor(random() * 3)],
       ];
 
   const objects = kinds.map((kind, objectIndex): WorldObject => {
-    const worldX = start + 2 + random() * (WORLD_CHUNK_LENGTH_METERS - 4);
-    const lane = (random() * 1.55) - 0.78;
-    // Scenery stays outside the road corridor; these objects are decorative,
-    // so they can never look like an invisible obstacle to the player.
-    const roadsideLane = (lane < 0 ? -1 : 1) * Math.max(Math.abs(lane), 0.76);
+    const worldX = start + 3.8 + objectIndex * 5.65 + random() * 0.8;
+    const side = (index + objectIndex) % 2 === 0 ? -1 : 1;
+    // Alternate deliberate roadside landmarks so the route feels framed rather
+    // than filled with props scattered over a random grid.
+    const roadsideLane = side * (0.84 + random() * 0.09);
+    const landmarkScale = objectIndex === 0 || objectIndex === 4
+      ? 0.94 + random() * 0.24
+      : 0.7 + random() * 0.3;
 
     return {
       id: `${index}:${objectIndex}`,
@@ -98,7 +101,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       lane: roadsideLane,
       kind,
       biome,
-      scale: 0.72 + random() * 0.62,
+      scale: landmarkScale,
       parallax: parallaxFor(kind),
       flickerSeed: Math.floor(random() * 10000),
     };

@@ -13,11 +13,9 @@ import { getIntroEventTimes } from "./timeline";
 import "./intro.css";
 
 const STORY_LINES = [
-  "Karanlık çökerken bile, şafak için savaşanlar vardır.",
-  "Kadim kapılar kapalı; gölgeler her yolu kuşatmış.",
-  "Cesaret, en karanlık gecede bile yol açar.",
-  "Yoldaşlarınla omuz omuza ver, kılıcını kuşan.",
-  "Şafak Savaşçıları’nın destanı şimdi seninle başlıyor.",
+  "Kül ülkesinde şafak yıllardır doğmadı. Son ışık, kuzey kapısının ardında kaldı.",
+  "Kapıyı koruyanları yen; her zafer seni karanlığın kaynağına biraz daha yaklaştırsın.",
+  "Yol iki geçide ayrılıyor. Seçimin, önündeki sınavın zorluğunu belirleyecek.",
 ];
 
 type IntroCinematicProps = {
@@ -154,8 +152,6 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
     schedule(times.lineOne, () => setActiveLine(0));
     schedule(times.lineTwo, () => setActiveLine(1));
     schedule(times.lineThree, () => setActiveLine(2));
-    schedule(times.lineFour, () => setActiveLine(3));
-    schedule(times.lineFive, () => setActiveLine(4));
     schedule(times.productionCard, () => setShowProductionCard(true));
     schedule(times.productionCardFade, () => setProductionCardFading(true));
     schedule(times.title, () => {
@@ -266,7 +262,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
                 <span>ŞAFAK</span>
                 <span>SAVAŞÇILARI</span>
               </h1>
-              <p className="intro-narrative__tagline">Her yemin bir şafak doğurur.</p>
+              <p className="intro-narrative__tagline">Karanlığı aş. Geçitleri aç. Şafağı geri getir.</p>
             </div>
           </div>
         )}

@@ -1,6 +1,9 @@
 export type InteractableKind = "chest" | "breakable" | "rival";
 export type InteractableState = "active" | "opened" | "destroyed";
 
+export const RIVAL_DIALOGUE_RANGE_METERS = 4.8;
+export const RIVAL_CHALLENGE_RANGE_METERS = 3.4;
+
 export type InteractableMesh = {
   visible: boolean;
   parent: InteractableMesh | null;
@@ -29,10 +32,10 @@ export function getRivalDialoguePrompt(
   const gap = rival && Number.isFinite(playerDistance)
     ? Math.abs(rival.distance - playerDistance)
     : Number.POSITIVE_INFINITY;
-  const talking = Boolean(rival && gap <= 12);
+  const talking = Boolean(rival && gap <= RIVAL_DIALOGUE_RANGE_METERS);
   return {
     rivalId: talking ? rival!.id : null,
-    canChallenge: talking && gap <= 8,
+    canChallenge: talking && gap <= RIVAL_CHALLENGE_RANGE_METERS,
   };
 }
 

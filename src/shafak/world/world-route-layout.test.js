@@ -24,8 +24,8 @@ test("left and right road branches split before the gate and merge after it", ()
 
   const gateIndex = left.findIndex(([, z]) => z === 0);
   assert.ok(gateIndex > 0);
-  assert.ok(left[gateIndex][0] < -2);
-  assert.ok(right[gateIndex][0] > 2);
+  assert.ok(left[gateIndex][0] <= -4.5, "left road must reach its own gate entrance");
+  assert.ok(right[gateIndex][0] >= 4.5, "right road must reach its own gate entrance");
 });
 
 test("visible fork gates align to chapter boundaries and ignore invalid chunks", () => {

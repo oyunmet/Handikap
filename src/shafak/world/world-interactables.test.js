@@ -53,20 +53,17 @@ test("nearest interaction respects state and both world-space range limits", () 
 });
 
 test("NPC dialogue and challenge prompts stay attached to the registered nearby rival", () => {
-  const rivals = [
-    { id: "next-in-route", distance: 104 },
-    { id: "registered-nearby", distance: 106 },
-  ];
+  const rivals = [{ id: "registered-nearby", distance: 104.8 }];
 
-  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 100), {
+  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 101.4), {
     rivalId: "registered-nearby",
     canChallenge: true,
   });
-  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 95), {
+  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 100.2), {
     rivalId: "registered-nearby",
     canChallenge: false,
   });
-  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 93), {
+  assert.deepEqual(getRivalDialoguePrompt(rivals, "registered-nearby", 99.9), {
     rivalId: null,
     canChallenge: false,
   });

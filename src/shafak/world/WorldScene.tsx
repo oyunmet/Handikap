@@ -94,6 +94,7 @@ import {
   getWorldRoutePlayerId,
   getWorldRouteSideFromInput,
   type WorldRouteChoice,
+  type WorldRouteSide,
 } from "./route-difficulty.ts";
 import {
   DAILY_DEFEAT_LIMIT,
@@ -553,6 +554,29 @@ export default function WorldScene({
       position: { distance: progress.distance, depth: progress.depth, routeChoice: progress.routeChoice },
     }, { immediate: force });
   }, [accountProfileReady, userId]);
+  const chooseGateRoute = useCallback((side: WorldRouteSide) => {
+    const position = motionRef.current;
+    const chapterId = Math.max(0, Math.floor(position.distance / WORLD_GATE_INTERVAL_METERS));
+    if (
+      nextGateDistance(position.distance) - position.distance > WORLD_GATE_INTERACTION_RANGE_METERS
+      || !isWorldChapterCleared(chapterId, profileRef.current.defeatedOpponents)
+    ) return;
+
+    const playerId = getWorldRoutePlayerId(progressUserIdRef.current);
+    const routeChoice = createWorldRouteChoice(playerId, chapterId + 1, side);
+    const unlockedProgress = unlockWorldGate({
+      ...worldProgressRef.current,
+      distance: position.distance,
+      depth: position.depth,
+    }, chapterId, true, routeChoice);
+    const nextProgress = { ...unlockedProgress, depth: side === "left" ? -0.42 : 0.42 };
+    worldProgressRef.current = nextProgress;
+    position.depth = nextProgress.depth;
+    position.velocityX = 0;
+    setWorldProgress(nextProgress);
+    saveWorldProgress(nextProgress, progressUserIdRef.current);
+    saveCloudProgress(nextProgress, true);
+  }, [saveCloudProgress]);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
@@ -2990,9 +3014,19 @@ export default function WorldScene({
           <strong>{roomCleared ? "Yol temizlendi" : "Kapı kilitli"}</strong>
           <span className="world-gate-prompt__progress">
             {roomCleared
-              ? "Joystick ile sola ya da sağa yönel; yol çatallanırken rotan otomatik açılacak."
+              ? "İki geçitten birini seç. Seçimin bir sonraki sınavın zorluğunu belirler."
               : `Rakipleri yen: ${defeatedChapterRivals}/${chapterRivals.length}`}
           </span>
+          {roomCleared && (
+            <div className="world-gate-prompt__routes" role="group" aria-label="Bir sonraki yol">
+              <button type="button" onClick={() => chooseGateRoute("left")} aria-label="Sol geçidi seç">
+                SOL GEÇİT <span>←</span>
+              </button>
+              <button type="button" onClick={() => chooseGateRoute("right")} aria-label="Sağ geçidi seç">
+                SAĞ GEÇİT <span>→</span>
+              </button>
+            </div>
+          )}
         </section>
       )}
       <div

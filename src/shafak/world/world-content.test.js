@@ -101,6 +101,15 @@ test("road rewards stay within reach and each chapter includes visible hazards",
   }
 });
 
+test("world rivals are not mistaken for walls: the center lane stays open beside their encounter markers", () => {
+  const chapter = getWorldChapter(0);
+  const grid = buildWorldCollisionGrid([chapter]);
+  const broken = new Set();
+
+  assert.ok(Math.abs(resolveWorldPathCollision(0, 86, 0, 90, grid, broken).distance - 90) < 1e-8);
+  assert.ok(Math.abs(resolveWorldPathCollision(0, 114, 0, 118, grid, broken).distance - 118) < 1e-8);
+});
+
 test("all five new rival types and chapter bosses appear in stable chapter content", () => {
   const chapters = Array.from({ length: 3 }, (_, chapterId) => getWorldChapter(chapterId));
   const standardArchetypes = chapters.flatMap((chapter) => chapter.rivals.filter((rival) => !rival.isBoss).map((rival) => rival.archetype));

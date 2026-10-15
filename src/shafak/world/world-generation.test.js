@@ -16,8 +16,10 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   for (let index = 0; index < 120; index += 1) {
     const chunk = createWorldChunk(index);
     assert.ok(
-      chunk.objects.every((object) => object.kind !== "crystal" && object.kind !== "ice-crystal"),
-      "decorative gems must not resemble collectible road rewards",
+      chunk.objects.every((object) =>
+        object.kind !== "crystal" && object.kind !== "ice-crystal" && object.kind !== "bones",
+      ),
+      "roadside scenery must not contain invisible props or resemble collectible road rewards",
     );
     assert.ok(chunk.objects.every((object) => Math.abs(object.lane * 9.3) >= 6.8));
   }

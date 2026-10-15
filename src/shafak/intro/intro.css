@@ -360,7 +360,7 @@
   font: 500 clamp(17px, 2.7vw, 27px)/1.55 var(--font-display, Georgia, serif);
   letter-spacing: .015em;
   text-shadow: 0 3px 22px rgba(4, 3, 4, .92), 0 1px 2px #120d0c;
-  animation: intro-caption-cycle 2.5s ease both;
+  animation: intro-caption-cycle 4.2s ease both;
 }
 
 .intro-narrative__brand {
