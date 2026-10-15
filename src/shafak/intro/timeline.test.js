@@ -8,12 +8,16 @@ import {
   markIntroSeen,
 } from "./timeline.ts";
 
-test("the first-launch cinematic runs for about twenty seconds before its prompt", () => {
+test("the production card follows the final line before the title and start prompt", () => {
   const events = getIntroEventTimes();
   assert.equal(events.worldReveal, 4_000);
   assert.equal(events.lineTwo - events.lineOne, 2_500);
   assert.equal(events.lineFive - events.lineFour, 2_500);
-  assert.equal(events.prompt, 19_900);
+  assert.equal(events.productionCard, events.lineFive + 2_500);
+  assert.ok(events.productionCard < events.productionCardFade);
+  assert.ok(events.productionCardFade < events.title);
+  assert.ok(events.title < events.prompt);
+  assert.equal(events.prompt, 23_500);
 });
 
 test("reduced-motion timing keeps the story in order and shortens transitions", () => {

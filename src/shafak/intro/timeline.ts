@@ -13,8 +13,10 @@ export const INTRO_EVENT_MS = {
   lineThree: 11_000,
   lineFour: 13_500,
   lineFive: 16_000,
-  title: 18_500,
-  prompt: 19_900,
+  productionCard: 18_500,
+  productionCardFade: 21_400,
+  title: 22_100,
+  prompt: 23_500,
 } as const;
 
 export type IntroStorage = Pick<Storage, "getItem" | "setItem">;

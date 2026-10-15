@@ -120,6 +120,8 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
   const [creditsFading, setCreditsFading] = useState(false);
   const [worldRevealed, setWorldRevealed] = useState(false);
   const [activeLine, setActiveLine] = useState<number | null>(null);
+  const [showProductionCard, setShowProductionCard] = useState(false);
+  const [productionCardFading, setProductionCardFading] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const audioStopRef = useRef<(() => void) | null>(null);
@@ -154,8 +156,11 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
     schedule(times.lineThree, () => setActiveLine(2));
     schedule(times.lineFour, () => setActiveLine(3));
     schedule(times.lineFive, () => setActiveLine(4));
+    schedule(times.productionCard, () => setShowProductionCard(true));
+    schedule(times.productionCardFade, () => setProductionCardFading(true));
     schedule(times.title, () => {
       setActiveLine(null);
+      setShowProductionCard(false);
       setShowTitle(true);
     });
     schedule(times.prompt, () => setShowPrompt(true));
@@ -205,6 +210,31 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
           A GAME BY MUHAMMED EMİN TÜRKOĞLU
         </p>
       </div>
+
+      {showProductionCard && (
+        <div
+          className={`intro-production-card${productionCardFading ? " is-fading" : ""}`}
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div className="intro-production-card__lockup">
+            <div className="intro-production-card__seal">
+              <span className="intro-production-card__orbit" aria-hidden="true" />
+              <MetEmblem size={86} />
+            </div>
+            <div className="intro-production-card__wordmark">
+              <span className="intro-production-card__met">MET</span>
+              <span className="intro-production-card__production">Production</span>
+            </div>
+            <span className="intro-production-card__divider" aria-hidden="true">
+              <span />
+            </span>
+            <p className="intro-production-card__byline">
+              Muhammed Emin Türkoğlu yapımıdır.
+            </p>
+          </div>
+        </div>
+      )}
 
       <button
         className="intro-skip"

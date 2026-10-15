@@ -56,3 +56,17 @@ mtime_ms = 1791520675601
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:44f84657-dc2f-4e71-8f78-73ccb8e5eb55/867b075e-ad0e-4773-b13d-4c2bc8add943/aebc5e7a-478e-45f6-a870-d9ffa8aed538"
 storage_version_token = "1791520888034742"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "fxGhHu4Gz86IFKGwjNuPK"
+uri = "file://.local/preview-deliverables/intro-production-card.png"
+type = "image"
+title = "MET Production — yapım kartı önizlemesi"
+description = "Kül Yolu introsunda son anlatı satırının ardından açılan animasyonlu MET Production kartı."
+logical_id = "01540b45-f878-43e4-b281-d59bb791053b"
+content_hash = "sha256:e23f165e8615268297cb4aa4fbf73f25c8db7480d7ef8d082852cc99642df17a"
+size = 152453
+mtime_ms = 1792079097504
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:112b246b-0704-43a9-8cdd-49c4cb3bf052/01540b45-f878-43e4-b281-d59bb791053b/d74d8292-9c1c-446e-8369-db4cdc140eb8"
+storage_version_token = "1792079099375100"
+content_type = "image/png"
