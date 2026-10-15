@@ -1,16 +1,16 @@
 import type { CombatBotArchetype, CombatDifficulty } from "./combat-engine.ts";
 
 const LOOT_TABLES: Record<CombatBotArchetype, readonly string[]> = {
-  "gate-warden": ["Nöbetçi Tokası", "Kırık Demir Mühür", "Muhafızın Eski Madalyası"],
-  "iron-oath": ["Demir Yemin Halkası", "Ağır Zırh Perçini", "Çelik Ant Parçası"],
-  "ash-archer": ["Kül Okçusu Tüyü", "İşlenmiş Ok Ucu", "Kızıl Yay İpi"],
-  "shadow-knight": ["Gölge Şövalyesi Astarı", "Gece Mührü", "Mor Çelik Kırığı"],
-  "storm-lancer": ["Fırtına Mızrak Ucu", "Yıldırım Camı", "Mızrakçı Tokası"],
-  "rift-berserker": ["Yarık Dişi", "Berserker Sargısı", "Kızıl Balta Pulu"],
-  "ember-alchemist": ["Kor Şişesi", "Simyacı Mührü", "Alev Külü"],
-  "venom-assassin": ["Zehir Kesesi", "Sessiz Bıçak Kını", "Yeşil Cam Damlacığı"],
-  "frost-hunter": ["Ayaz Pençesi", "Donmuş Ok Başı", "Buzlu Pelerin Tokası"],
-  "chapter-boss": ["Bölüm Tacı", "Kül Tahtı Mührü", "Hükümdarın Kırık Zırhı"],
+  "gate-warden": ["loot_gate_sword", "loot_gate_armor"],
+  "iron-oath": ["loot_iron_mace", "loot_iron_plate"],
+  "ash-archer": ["loot_ash_bow", "loot_ash_cape"],
+  "shadow-knight": ["loot_shadow_blade", "loot_shadow_veil"],
+  "storm-lancer": ["loot_storm_spear", "loot_storm_trail"],
+  "rift-berserker": ["loot_rift_axe", "loot_rift_armor"],
+  "ember-alchemist": ["loot_ember_mace", "loot_ember_cape"],
+  "venom-assassin": ["loot_venom_dagger", "loot_venom_dye"],
+  "frost-hunter": ["loot_frost_bow", "loot_frost_armor"],
+  "chapter-boss": ["loot_boss_greatsword", "loot_boss_armor", "loot_boss_cape", "loot_boss_emblem"],
 };
 
 function seededRandom(seed: number) {

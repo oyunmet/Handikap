@@ -44,7 +44,15 @@ export type StoreItem = {
   stats: Partial<EquipmentStatBonuses>;
   upgradeable: boolean;
   visual: EquipmentVisual;
+  requiredLevel?: number;
+  setId?: string;
+  dropOnly?: boolean;
 };
+
+export function isStoreItemUnlocked(item: Pick<StoreItem, "requiredLevel">, playerLevel: number) {
+  const requiredLevel = item.requiredLevel ?? 1;
+  return Number.isFinite(playerLevel) && Math.floor(playerLevel) >= requiredLevel;
+}
 
 export type EquipmentLoadout = {
   weaponId: string;
@@ -80,7 +88,7 @@ export type UpgradeCost = {
   sealFragments: number;
 };
 
-export const MAX_UPGRADE_LEVEL = 5;
+export const MAX_UPGRADE_LEVEL = 10;
 
 export function getUpgradeCost(slot: EquipmentSlot, currentLevel: number): UpgradeCost {
   const level = Math.max(0, Math.min(MAX_UPGRADE_LEVEL - 1, Math.floor(currentLevel)));

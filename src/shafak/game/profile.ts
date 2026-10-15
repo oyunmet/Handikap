@@ -1,4 +1,5 @@
-import type { EquipmentLoadout, PlayerInventory } from "./store-types.ts";
+import { MAX_UPGRADE_LEVEL, type EquipmentLoadout, type PlayerInventory } from "./store-types.ts";
+import { grantLootItem } from "./store-rewards.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, DEFAULT_COMBAT_QUICK_SLOTS, normalizeCombatItemCounts, normalizeCombatQuickSlots } from "./combat-items.ts";
 import { getIstanbulDayKey, normalizeDailyLifeState } from "./daily-lives.ts";
 import type { WorldRouteChoice } from "../world/route-difficulty.ts";
@@ -35,6 +36,7 @@ export type BattleOutcome = {
   verdict: "victory" | "defeat" | "draw";
   opponentId: string;
   loot: number;
+  item?: string | null;
 };
 
 const STORAGE_KEY = "shafak-local-profile-v1";
@@ -171,7 +173,10 @@ export function saveProfile(profile: PlayerProfile, userId?: string) {
   }
 }
 
-export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, userId?: string): { profile: PlayerProfile; rewards: { gold: number; diamonds: number; xp: number; item: string | null; lostStake: number } } {
+export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, userId?: string): {
+  profile: PlayerProfile;
+  rewards: { gold: number; diamonds: number; xp: number; item: string | null; itemId: string | null; salvaged: boolean; lostStake: number };
+} {
   const currentDay = todayKey();
   const base = { ...profile, ...normalizeDailyLifeState(profile) };
   const lostStake = outcome.verdict === "defeat" ? Math.min(20, Math.floor(base.gold * 0.03)) : 0;
@@ -179,7 +184,11 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
   const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
-  const item = outcome.verdict === "victory" ? "Kül Mührü" : null;
+  const droppedItem = outcome.verdict === "victory"
+    ? outcome.item === undefined ? "Kül Mührü" : outcome.item
+    : null;
+  const lootGrant = droppedItem ? grantLootItem(base, droppedItem) : null;
+  const grantProfile = lootGrant?.profile ?? base;
   let level = base.level;
   let totalXp = base.xp + xp;
   while (totalXp >= 100 + level * 45) {
@@ -189,7 +198,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
   const wins = base.wins + Number(outcome.verdict === "victory");
   const winStreak = outcome.verdict === "victory" ? base.winStreak + 1 : 0;
   const next: PlayerProfile = {
-    ...base,
+    ...grantProfile,
     level,
     xp: totalXp,
     gold: Math.max(0, base.gold - lostStake + gold),
@@ -198,7 +207,6 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
     wins,
     winStreak,
     bestStreak: Math.max(base.bestStreak, winStreak),
-    items: item && !base.items.includes(item) ? [...base.items, item].slice(-30) : base.items,
     defeatedOpponents: outcome.verdict === "victory" && !base.defeatedOpponents.includes(outcome.opponentId)
       ? [...base.defeatedOpponents, outcome.opponentId].slice(-30)
       : base.defeatedOpponents,
@@ -208,7 +216,18 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
     dailyKey: currentDay,
   };
   saveProfile(next, userId);
-  return { profile: next, rewards: { gold, diamonds, xp, item, lostStake } };
+  return {
+    profile: next,
+    rewards: {
+      gold,
+      diamonds,
+      xp,
+      item: lootGrant?.displayName ?? null,
+      itemId: lootGrant?.itemId ?? null,
+      salvaged: lootGrant?.salvaged ?? false,
+      lostStake,
+    },
+  };
 }
 
 function normalizeEquipment(value: unknown): EquipmentLoadout {
@@ -233,7 +252,7 @@ function normalizeInventory(value: unknown): PlayerInventory {
   const upgrades: Record<string, number> = {};
   if (saved.upgrades && typeof saved.upgrades === "object") {
     for (const [itemId, level] of Object.entries(saved.upgrades).slice(0, 120)) {
-      if (ownedItemIds.includes(itemId) && typeof level === "number" && Number.isInteger(level) && level >= 0 && level <= 5) {
+      if (ownedItemIds.includes(itemId) && typeof level === "number" && Number.isInteger(level) && level >= 0 && level <= MAX_UPGRADE_LEVEL) {
         upgrades[itemId] = level;
       }
     }

@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
 import { requireAuthenticatedUserId } from "./auth.ts";
-import type { EquipmentLoadout, PlayerInventory } from "../src/shafak/game/store-types.ts";
+import { MAX_UPGRADE_LEVEL, type EquipmentLoadout, type PlayerInventory } from "../src/shafak/game/store-types.ts";
 import {
   DEFAULT_COMBAT_ITEM_COUNTS,
   DEFAULT_COMBAT_QUICK_SLOTS,
@@ -224,7 +224,7 @@ function normalizeInventory(value: unknown): PlayerInventory | null {
   if (Object.keys(rawUpgrades).length > 120) return null;
   const upgrades: Record<string, number> = {};
   for (const [itemId, level] of Object.entries(rawUpgrades)) {
-    const parsedLevel = boundedInteger(level, 0, 5);
+    const parsedLevel = boundedInteger(level, 0, MAX_UPGRADE_LEVEL);
     if (!isItemId(itemId) || parsedLevel === null || !ownedItemIds.includes(itemId)) return null;
     upgrades[itemId] = parsedLevel;
   }

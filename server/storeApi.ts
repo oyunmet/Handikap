@@ -13,7 +13,7 @@ import {
   STORE_CATALOG,
 } from "./storeCatalog.ts";
 import type { PlayerProfile } from "../src/shafak/game/profile.ts";
-import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentLoadout, type EquipmentSlot, type StoreItem } from "../src/shafak/game/store-types.ts";
+import { getUpgradeCost, isStoreItemUnlocked, MAX_UPGRADE_LEVEL, type EquipmentLoadout, type EquipmentSlot, type StoreItem } from "../src/shafak/game/store-types.ts";
 import { sendAuthenticationRequired } from "./auth.ts";
 
 type StoreOperation = "purchase" | "upgrade";
@@ -236,6 +236,8 @@ export function createStoreApi(
       const profile = await loadProfileForUpdate(client, userId);
       const replay = await checkIdempotency(client, userId, "purchase", storeItem.id, body.idempotencyKey);
       if (replay) return { ...replay, profile, replayed: true };
+      if (storeItem.dropOnly) throw new StoreServiceError(403, "item_drop_only");
+      if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");
       if (profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(409, "item_already_owned");
       if (profile.gold < storeItem.price.gold || profile.diamonds < storeItem.price.diamonds) {
         throw new StoreServiceError(409, "insufficient_funds");
@@ -278,6 +280,7 @@ export function createStoreApi(
     }
     await runAccountOperation(database, userId, response, async (client) => {
       const profile = await loadProfileForUpdate(client, userId);
+      if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");
       if (!profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(403, "item_not_owned");
       const key = equipmentKey(storeItem.slot);
       const nextProfile: PlayerProfile = {
@@ -350,6 +353,7 @@ export function createStoreApi(
       const profile = await loadProfileForUpdate(client, userId);
       const replay = await checkIdempotency(client, userId, "upgrade", storeItem.id, body.idempotencyKey);
       if (replay) return { ...replay, profile, replayed: true };
+      if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");
       if (!profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(403, "item_not_owned");
       const currentLevel = profile.inventory.upgrades[storeItem.id] ?? 0;
       if (currentLevel >= MAX_UPGRADE_LEVEL) throw new StoreServiceError(409, "upgrade_max_level");

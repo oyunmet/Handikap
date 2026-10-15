@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { COMBAT_BOT_ARCHETYPES } from "./combat-engine.ts";
 import { rollCombatLoot } from "./combat-loot.ts";
+import { getStoreItem } from "./store-catalog.ts";
 
 test("loot rolls are stable per encounter and bosses always drop their own trophy table", () => {
   const bossDrop = rollCombatLoot("chapter-boss", 18, 77_321, "hard");
@@ -20,4 +21,9 @@ test("all rival archetypes have a distinct non-empty loot table", () => {
   });
   assert.ok(drops.every(Boolean));
   assert.equal(new Set(drops).size, COMBAT_BOT_ARCHETYPES.length);
+  for (const itemId of drops) {
+    const item = getStoreItem(itemId);
+    assert.ok(item);
+    assert.equal(item.dropOnly, true);
+  }
 });

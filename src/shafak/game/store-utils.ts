@@ -6,6 +6,7 @@ import type {
   PlayerCombatModifiers,
   StoreItem,
 } from "./store-types";
+import { EQUIPMENT_SETS } from "./store-catalog.ts";
 
 const BASE_STATS: EquipmentStatBonuses = {
   health: 0,
@@ -21,13 +22,7 @@ const BASE_STATS: EquipmentStatBonuses = {
 const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
 
 export function getPlayerCombatModifiers(profile: PlayerProfile, catalog: readonly StoreItem[]): PlayerCombatModifiers {
-  const totals = { ...BASE_STATS };
-  const equippedIds = Object.values(profile.equipment);
-  for (const itemId of equippedIds) {
-    const item = catalog.find((entry) => entry.id === itemId);
-    if (!item || !profile.inventory.ownedItemIds.includes(item.id)) continue;
-    addBonuses(totals, getItemBonuses(item, profile));
-  }
+  const totals = getEquipmentBonuses(profile, catalog);
   return {
     maxHealth: clamp(150 + totals.health, 130, 175),
     damageMultiplier: clamp(1 + totals.damage, 0.82, 1.35),
@@ -65,10 +60,25 @@ export function getEquipmentVisual(profile: PlayerProfile, catalog: readonly Sto
 
 export function getEquipmentBonuses(profile: PlayerProfile, catalog: readonly StoreItem[]) {
   const totals = { ...BASE_STATS };
-  for (const itemId of Object.values(profile.equipment)) {
+  const setCounts = new Map<string, number>();
+  const equipped = [
+    ["weapon", profile.equipment.weaponId],
+    ["armor", profile.equipment.armorId],
+    ["cape", profile.equipment.capeId],
+    ["effect", profile.equipment.effectId],
+    ["dye", profile.equipment.dyeId],
+  ] as const;
+  for (const [slot, itemId] of equipped) {
     const item = catalog.find((entry) => entry.id === itemId);
-    if (!item || !profile.inventory.ownedItemIds.includes(item.id)) continue;
+    if (!item || item.slot !== slot || !profile.inventory.ownedItemIds.includes(item.id)) continue;
     addBonuses(totals, getItemBonuses(item, profile));
+    if (item.setId) setCounts.set(item.setId, (setCounts.get(item.setId) ?? 0) + 1);
+  }
+  for (const [setId, count] of setCounts) {
+    const set = EQUIPMENT_SETS[setId as keyof typeof EQUIPMENT_SETS];
+    if (!set) continue;
+    if (count >= 2) addBonuses(totals, set.twoPiece);
+    if (count >= 4) addBonuses(totals, set.fourPiece);
   }
   return totals;
 }
@@ -89,9 +99,9 @@ export function getItemBonuses(item: StoreItem, profile: PlayerProfile): Equipme
   return bonuses;
 }
 
-function addBonuses(target: EquipmentStatBonuses, source: EquipmentStatBonuses) {
+function addBonuses(target: EquipmentStatBonuses, source: Partial<EquipmentStatBonuses>) {
   for (const key of Object.keys(target) as (keyof EquipmentStatBonuses)[]) {
-    target[key] += source[key];
+    target[key] += source[key] ?? 0;
   }
 }
 

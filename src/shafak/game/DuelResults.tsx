@@ -71,7 +71,7 @@ export default function DuelResults({
           <span>EN UZUN KOMBO <b>{summary.maxCombo ?? 0} VURUŞ</b></span>
           <span>EN YÜKSEK HASAR <b>{summary.highestDamage ?? 0}</b></span>
         </div>
-        {rewards.item && <p className="duel-result__item"><span>✦</span> {rewards.item} heybene eklendi</p>}
+        {rewards.item && <p className="duel-result__item"><span>✦</span> {rewards.salvaged ? rewards.item : `${rewards.item} heybene eklendi`}</p>}
         {rewards.lostStake > 0 && <p className="duel-result__stake">{rewards.lostStake} altın düello payı olarak el değiştirdi.</p>}
 
         <div className="duel-result__actions">

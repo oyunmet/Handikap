@@ -21,5 +21,7 @@ export type BattleRewards = {
   diamonds: number;
   xp: number;
   item: string | null;
+  itemId?: string | null;
+  salvaged?: boolean;
   lostStake: number;
 };

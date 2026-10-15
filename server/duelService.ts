@@ -8,10 +8,19 @@ import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
 import { canStartDailyDuel, consumeDailyAdDuel, getIstanbulDayKey, normalizeDailyLifeState, DAILY_DEFEAT_LIMIT } from "../src/shafak/game/daily-lives.ts";
 import type { WorldRouteChoice } from "../src/shafak/world/route-difficulty.ts";
 import { rollCombatLoot } from "../src/shafak/game/combat-loot.ts";
+import { grantLootItem } from "../src/shafak/game/store-rewards.ts";
 
 export type DuelVerdict = "victory" | "defeat" | "draw";
 export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number; item?: string | null };
-type BattleRewards = { gold: number; diamonds: number; xp: number; item: string | null; lostStake: number };
+type BattleRewards = {
+  gold: number;
+  diamonds: number;
+  xp: number;
+  item: string | null;
+  itemId?: string | null;
+  salvaged?: boolean;
+  lostStake: number;
+};
 type ServerOpponent = {
   id: string;
   name: string;
@@ -242,9 +251,11 @@ export function applyServerAward(
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
   const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
-  const item = outcome.verdict === "victory"
+  const droppedItem = outcome.verdict === "victory"
     ? outcome.item === undefined ? "Kül Mührü" : outcome.item
     : null;
+  const lootGrant = droppedItem ? grantLootItem(base, droppedItem) : null;
+  const rewardBase = lootGrant?.profile ?? base;
   let level = base.level;
   let totalXp = base.xp + xp;
   while (totalXp >= 100 + level * 45) {
@@ -254,7 +265,7 @@ export function applyServerAward(
   const wins = base.wins + Number(outcome.verdict === "victory");
   const winStreak = outcome.verdict === "victory" ? base.winStreak + 1 : 0;
   const next: PlayerProfileRecord = {
-    ...base,
+    ...rewardBase,
     level,
     xp: totalXp,
     gold: Math.max(0, base.gold - lostStake + gold),
@@ -263,7 +274,6 @@ export function applyServerAward(
     wins,
     winStreak,
     bestStreak: Math.max(base.bestStreak, winStreak),
-    items: item && !base.items.includes(item) ? [...base.items, item].slice(-30) : base.items,
     defeatedOpponents: outcome.verdict === "victory" && !base.defeatedOpponents.includes(outcome.opponentId)
       ? [...base.defeatedOpponents, outcome.opponentId].slice(-30)
       : base.defeatedOpponents,
@@ -272,7 +282,18 @@ export function applyServerAward(
     dailyLosses: base.dailyLosses + Number(outcome.verdict === "defeat"),
     dailyKey: daily.dailyKey,
   };
-  return { profile: next, rewards: { gold, diamonds, xp, item, lostStake } };
+  return {
+    profile: next,
+    rewards: {
+      gold,
+      diamonds,
+      xp,
+      item: lootGrant?.displayName ?? null,
+      itemId: lootGrant?.itemId ?? null,
+      salvaged: lootGrant?.salvaged ?? false,
+      lostStake,
+    },
+  };
 }
 
 export async function createDuelChallenge(

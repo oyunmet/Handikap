@@ -10,6 +10,7 @@ import { STORE_CATALOG } from "../game/store-catalog";
 import { getCombatItem, type CombatItemId, type CombatQuickSlots } from "../game/combat-items.ts";
 import {
   getUpgradeCost,
+  isStoreItemUnlocked,
   MAX_UPGRADE_LEVEL,
   type EquipmentSlot,
   type EquipmentVisual,
@@ -38,6 +39,7 @@ import {
   type CombatState,
 } from "../game/combat-engine";
 import type { PlayerCombatModifiers } from "../game/store-types";
+import { rollCombatLoot } from "../game/combat-loot.ts";
 import { resolveCharacterAnimationState } from "./character-animation";
 import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import StoryDialogueOverlay from "./StoryDialogueOverlay";
@@ -332,6 +334,8 @@ function storeErrorText(code: string) {
   const messages: Record<string, string> = {
     insufficient_funds: "Altın veya elmas bakiyen bu eşya için yeterli değil.",
     insufficient_upgrade_materials: "Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.",
+    item_drop_only: "Bu eşya yalnızca rakip ganimeti olarak bulunur.",
+    item_level_locked: "Bu eşya için gereken seviyeye henüz ulaşmadın.",
     item_already_owned: "Bu eşya zaten heybenizde.",
     item_not_owned: "Bu eşyayı önce satın alıp heybenize eklemelisiniz.",
     item_not_found: "Bu eşya katalogda bulunamadı; kataloğu yenileyip tekrar deneyin.",
@@ -944,6 +948,8 @@ export default function WorldScene({
         const currentProfile = profileRef.current;
         let nextProfile = currentProfile;
         if (operation === "purchase") {
+          if (item.dropOnly) throw new StoreActionError("Bu eşya yalnızca rakip ganimeti olarak bulunur.");
+          if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşya için seviye ${item.requiredLevel} gerekiyor.`);
           if (currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya zaten heybenizde.");
           if (currentProfile.gold < item.price.gold || currentProfile.diamonds < item.price.diamonds) {
             throw new StoreActionError("Altın veya elmas bakiyen bu eşya için yeterli değil.");
@@ -959,6 +965,7 @@ export default function WorldScene({
             },
           };
         } else if (operation === "equip") {
+          if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
           if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
           const key = slotEquipmentKey(item.slot);
           nextProfile = {
@@ -970,6 +977,7 @@ export default function WorldScene({
             },
           };
         } else {
+          if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı geliştirmek için seviye ${item.requiredLevel} gerekiyor.`);
           if (!item.upgradeable || (item.slot !== "weapon" && item.slot !== "armor")) throw new StoreActionError("Bu eşya geliştirilemiyor.");
           if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
           const currentLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
@@ -1405,7 +1413,16 @@ export default function WorldScene({
           },
         })
       : profile;
-    const awarded = awardBattle(profileAfterCombat, localSummary);
+    const droppedItem = verdict === "victory"
+      ? rollCombatLoot(
+          context.rival.archetype,
+          context.rival.level,
+          context.seed,
+          context.rival.difficulty,
+          context.rival.isElite,
+        )
+      : null;
+    const awarded = awardBattle(profileAfterCombat, { ...localSummary, item: droppedItem });
     commitBattleProfile(awarded.profile);
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
   }, [commitBattleProfile, profile]);

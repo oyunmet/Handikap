@@ -26,6 +26,33 @@ const item = (
   visual,
 });
 
+const lootItem = (
+  id: string,
+  name: string,
+  category: StoreItem["category"],
+  slot: EquipmentSlot,
+  rarity: StoreItem["rarity"],
+  description: string,
+  summary: string,
+  requiredLevel: number,
+  stats: StoreItem["stats"],
+  visual: StoreItem["visual"],
+  setId?: string,
+): StoreItem => ({
+  ...item(id, name, category, slot, rarity, description, summary, { gold: 0, diamonds: 0 }, stats, slot === "weapon" || slot === "armor", visual),
+  requiredLevel,
+  dropOnly: true,
+  ...(setId ? { setId } : {}),
+});
+
+export const EQUIPMENT_SETS = {
+  "ash-guardian": {
+    name: "Kül Muhafızı",
+    twoPiece: { defense: 0.04, damage: 0.035 },
+    fourPiece: { health: 8, lightRadius: 1.25 },
+  },
+} as const;
+
 export const STORE_CATALOG: readonly StoreItem[] = [
   item("weapon_ash_sword", "Kül Kılıcı", "weapons", "weapon", "common", "Yolcuların kullandığı dengeli, güvenilir kılıç.", "Dengeli · başlangıç silahı", { gold: 0, diamonds: 0 }, {}, true, { weaponStyle: "sword", weaponColor: "#d6dce0" }),
   item("weapon_hunting_knife", "Av Bıçağı", "weapons", "weapon", "common", "Yakın mesafede hızlı ve çevik karşı vuruşlar için hafif bir bıçak.", "Hızlı · yakın menzil · hasar −%8", { gold: 180, diamonds: 0 }, { damage: -0.08, critChance: 0.025, attackSpeed: 0.2, attackRange: -0.28 }, true, { weaponStyle: "daggers", weaponColor: "#c6d4d1", trailColor: "#c9ecdf" }),
@@ -52,6 +79,28 @@ export const STORE_CATALOG: readonly StoreItem[] = [
   item("dye_crimson", "Kızıl Boya", "dyes", "dye", "rare", "Zırh ve pelerine koyu kızıl bir renk uygular.", "Zırh/pelerin rengi: kızıl", { gold: 0, diamonds: 2 }, {}, false, { dyeColor: "#a93b42" }),
   item("dye_glacier", "Buz Mavisi Boya", "dyes", "dye", "rare", "Zırh ve pelerine soğuk buz mavisi bir renk uygular.", "Zırh/pelerin rengi: buz mavisi", { gold: 0, diamonds: 2 }, {}, false, { dyeColor: "#4f9eb7" }),
   item("dye_royal_gold", "Kraliyet Altını", "dyes", "dye", "epic", "Zırh ve pelerini yaldızlı altın tonuna boyar.", "Zırh/pelerin rengi: altın", { gold: 0, diamonds: 4 }, {}, false, { dyeColor: "#c99743" }),
+  lootItem("loot_gate_sword", "Nöbetçi Kılıcı", "weapons", "weapon", "rare", "Kapı nöbetçilerinin dengeli, sağlam kılıcı.", "Hasar +%7 · Kül Muhafızı seti", 2, { damage: 0.07 }, { weaponStyle: "sword", weaponColor: "#b7b2a3" }, "ash-guardian"),
+  lootItem("loot_gate_armor", "Nöbetçi Zırhı", "armor", "armor", "rare", "Kül Yolu kapılarında nöbet tutanların katmanlı zırhı.", "Can +6 · savunma +%6", 2, { health: 6, defense: 0.06 }, { armor: "#343a3e", armorLight: "#85816f", armorDark: "#191e24", trim: "#c0a46b", armorStyle: "watch" }),
+  lootItem("loot_iron_mace", "Demir Ant Gürzü", "weapons", "weapon", "rare", "Demir yemini taşıyan muhafızların ağır gürzü.", "Hasar +%10 · saldırı hızı −%4", 4, { damage: 0.1, attackSpeed: -0.04 }, { weaponStyle: "mace", weaponColor: "#89919a" }),
+  lootItem("loot_iron_plate", "Ant Zırhı", "armor", "armor", "epic", "Demir antla güçlendirilmiş, ağır plaka zırh.", "Can +10 · savunma +%11 · Kül Muhafızı seti", 4, { health: 10, defense: 0.11 }, { armor: "#393b3b", armorLight: "#aaa38f", armorDark: "#1d2226", trim: "#d3b56f", armorStyle: "royal" }, "ash-guardian"),
+  lootItem("loot_ash_bow", "Küllü Yay", "weapons", "weapon", "rare", "Kül Avcılarının uzak menzilden ateş eden yayı.", "Kritik +%4 · menzil +0,35 m", 3, { critChance: 0.04, attackRange: 0.35 }, { weaponStyle: "bow", weaponColor: "#b17e50", trailColor: "#e3b06b" }),
+  lootItem("loot_ash_cape", "Avcı Pelerini", "capes", "cape", "rare", "Hafif kumaşı kül fırtınasında yön bulmaya yardım eder.", "Işık +1,2 m · hız +%2 · Kül Muhafızı seti", 3, { lightRadius: 1.2, moveSpeed: 0.02 }, { cape: "#8f493c", capeLength: 0.9, trim: "#d49a63" }, "ash-guardian"),
+  lootItem("loot_shadow_blade", "Gece Dişleri", "weapons", "weapon", "epic", "Gölge şövalyelerinin seri karşı vuruşlarına uygun çift hançer.", "Hasar +%7 · kritik +%7 · hız +%5", 6, { damage: 0.07, critChance: 0.07, attackSpeed: 0.05 }, { weaponStyle: "daggers", weaponColor: "#9f8bcc", trailColor: "#a989df" }),
+  lootItem("loot_shadow_veil", "Gölge Örtüsü", "capes", "cape", "epic", "Karanlıkta silueti yutan, hafif bir pelerin.", "Işık +1 m · hız +%4", 6, { lightRadius: 1, moveSpeed: 0.04 }, { cape: "#353142", capeLength: 1.2, trim: "#a18dc3", armorStyle: "shadow" }),
+  lootItem("loot_storm_spear", "Yıldırım Mızrağı", "weapons", "weapon", "epic", "Fırtına mızrakçılarının uzun erişimli silahı.", "Hasar +%6 · menzil +0,55 m", 7, { damage: 0.06, attackRange: 0.55 }, { weaponStyle: "spear", weaponColor: "#7bc6d1", trailColor: "#a1e9ef" }),
+  lootItem("loot_storm_trail", "Fırtına İzi", "effects", "effect", "rare", "Her vuruşta mavi bir kıvılcım izi bırakır.", "Kritik +%2 · mavi aura", 7, { critChance: 0.02, lightRadius: 0.6 }, { trailColor: "#73d9f0", dustColor: "#7ebfce", auraColor: "#78d7eb" }),
+  lootItem("loot_rift_axe", "Yarık Baltası", "weapons", "weapon", "epic", "Yarık enerjisiyle ağırlaşmış, kuvvetli bir savaş baltası.", "Hasar +%14 · saldırı hızı −%10", 8, { damage: 0.14, attackSpeed: -0.1 }, { weaponStyle: "axe", weaponColor: "#cf755b", trailColor: "#f18265" }),
+  lootItem("loot_rift_armor", "Berserker Plakası", "armor", "armor", "epic", "Yarık savaşçılarının darbeye dayanıklı koyu zırhı.", "Can +12 · savunma +%8", 8, { health: 12, defense: 0.08 }, { armor: "#492d31", armorLight: "#9a5951", armorDark: "#241d24", trim: "#e18d69", armorStyle: "shadow" }),
+  lootItem("loot_ember_mace", "Kor Döküm Asası", "weapons", "weapon", "rare", "Alev simyacılarının yakın dövüşte kullandığı kor döküm asa.", "Hasar +%8 · kor rengi iz", 5, { damage: 0.08, attackRange: 0.12 }, { weaponStyle: "mace", weaponColor: "#e18d52", trailColor: "#ff9050" }),
+  lootItem("loot_ember_cape", "Kor Simyacısı Pelerini", "capes", "cape", "epic", "Sıcak korlarla işlenmiş, ışığı genişleten pelerin.", "Can +4 · ışık +2 m", 5, { health: 4, lightRadius: 2 }, { cape: "#a34930", capeLength: 0.98, trim: "#f2b15f" }),
+  lootItem("loot_venom_dagger", "Sessiz Zehir", "weapons", "weapon", "epic", "Zehirli suikastçıların hızlı ve keskin hançeri.", "Kritik +%8 · saldırı hızı +%8", 8, { critChance: 0.08, attackSpeed: 0.08 }, { weaponStyle: "daggers", weaponColor: "#75ba82", trailColor: "#8ce889", auraColor: "#68ad67" }),
+  lootItem("loot_venom_dye", "Zümrüt Zehir Boyası", "dyes", "dye", "epic", "Zırh ve pelerine suikastçıların yeşil tonunu verir.", "Zırh/pelerin rengi: zehir yeşili", 8, {}, { dyeColor: "#51875c" }),
+  lootItem("loot_frost_bow", "Ayaz Yayı", "weapons", "weapon", "rare", "Donmuş kirişleri uzak mesafeden sessizce fırlatır.", "Kritik +%6 · menzil +0,2 m", 6, { critChance: 0.06, attackRange: 0.2 }, { weaponStyle: "bow", weaponColor: "#9adbe7", trailColor: "#a6eaff" }),
+  lootItem("loot_frost_armor", "Ayaz Avcısı Zırhı", "armor", "armor", "epic", "Buz avcılarının soğuğa dayanıklı, hafif plaka zırhı.", "Can +10 · savunma +%7", 6, { health: 10, defense: 0.07 }, { armor: "#3f6573", armorLight: "#9bc8cf", armorDark: "#203541", trim: "#d5f0ed", armorStyle: "watch" }),
+  lootItem("loot_boss_greatsword", "Kül Tahtı Yıkan", "weapons", "weapon", "legendary", "Bölüm hükümdarının ağır, efsanevi büyük kılıcı.", "Hasar +%18 · menzil +0,2 m", 10, { damage: 0.18, attackSpeed: -0.1, attackRange: 0.2 }, { weaponStyle: "greatsword", weaponColor: "#f0ca78", trailColor: "#ffd778" }),
+  lootItem("loot_boss_armor", "Hükümdar Zırhı", "armor", "armor", "legendary", "Kül Tahtı hükümdarının yüksek savunmalı zırhı.", "Can +16 · savunma +%16", 10, { health: 16, defense: 0.16 }, { armor: "#60482e", armorLight: "#d4aa58", armorDark: "#2c2525", trim: "#ffe09a", armorStyle: "royal" }),
+  lootItem("loot_boss_cape", "Kül Tahtı Pelerini", "capes", "cape", "legendary", "Bölüm sonu hükümdarının uzun, altın işlemeli pelerini.", "Can +4 · ışık +3 m", 10, { health: 4, lightRadius: 3 }, { cape: "#6f2937", capeLength: 1.3, trim: "#ffd986" }),
+  lootItem("loot_boss_emblem", "Kül Muhafızı Mührü", "effects", "effect", "legendary", "Kül Muhafızı setinin tamamlayıcı mührü; zırhı koruyucu bir aura ile sarar.", "Işık +1,25 m · Kül Muhafızı seti", 10, { lightRadius: 1.25 }, { auraColor: "#f1c777", trailColor: "#eac879", dustColor: "#d3aa63" }, "ash-guardian"),
 ] as const;
 
 export const DEFAULT_EQUIPMENT = {

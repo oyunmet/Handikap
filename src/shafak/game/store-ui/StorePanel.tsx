@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PlayerProfile } from "../profile";
 import { COMBAT_ITEMS, type CombatItemId } from "../combat-items.ts";
-import { getUpgradeCost, MAX_UPGRADE_LEVEL, type EquipmentStatBonuses, type StoreItem, type StoreTab } from "../store-types";
+import { getUpgradeCost, isStoreItemUnlocked, MAX_UPGRADE_LEVEL, type EquipmentStatBonuses, type StoreItem, type StoreTab } from "../store-types";
+import { EQUIPMENT_SETS } from "../store-catalog.ts";
 import { getItemBonuses } from "../store-utils";
 import "./store-panel.css";
 
@@ -121,6 +122,11 @@ export default function StorePanel({
     ? profile.gold >= selected.price.gold && profile.diamonds >= selected.price.diamonds
     : false;
   const selectedOwned = selected ? ownedSet.has(selected.id) : false;
+  const selectedLevelLocked = selected ? !isStoreItemUnlocked(selected, profile.level) : false;
+  const selectedSet = selected?.setId ? EQUIPMENT_SETS[selected.setId as keyof typeof EQUIPMENT_SETS] : null;
+  const equippedSetCount = selectedSet && selected?.setId
+    ? Object.values(profile.equipment).filter((id) => ownedSet.has(id) && items.find((entry) => entry.id === id)?.setId === selected.setId).length
+    : 0;
   const isEquipped = selected
     ? profile.equipment[equippedIdBySlot[selected.slot]] === selected.id
     : false;
@@ -158,7 +164,7 @@ export default function StorePanel({
   }, [confirming, onClose]);
 
   const handlePurchase = () => {
-    if (!selected || !canManageProfile || !affordable || busyItemId) return;
+    if (!selected || selected.dropOnly || selectedLevelLocked || !canManageProfile || !affordable || busyItemId) return;
     setConfirming(selected);
   };
 
@@ -329,13 +335,14 @@ export default function StorePanel({
                   const owned = ownedSet.has(item.id);
                   const equipped = profile.equipment[equippedIdBySlot[item.slot]] === item.id;
                   const isNew = profile.inventory.newItemIds.includes(item.id);
+                  const levelLocked = !isStoreItemUnlocked(item, profile.level);
                   return (
                     <button
                       className={`safak-store__item${selected?.id === item.id ? " is-selected" : ""}${equipped ? " is-equipped" : ""}`}
                       key={item.id}
                       type="button"
                       aria-pressed={selected?.id === item.id}
-                      aria-label={`${item.name}, ${rarityLabels[item.rarity]}${equipped ? ", kuşanıldı" : owned ? ", heybenizde" : ", kilitli"}${isNew ? ", yeni" : ""}`}
+                      aria-label={`${item.name}, ${rarityLabels[item.rarity]}${levelLocked ? `, seviye ${item.requiredLevel} gerekli` : equipped ? ", kuşanıldı" : owned ? ", heybenizde" : item.dropOnly ? ", rakip ganimeti" : ", kilitli"}${isNew ? ", yeni" : ""}`}
                       onClick={() => setSelectedId(item.id)}
                     >
                       <span className="safak-store__item-topline">
@@ -345,12 +352,14 @@ export default function StorePanel({
                       <span className="safak-store__item-name">{item.name}</span>
                       <span className="safak-store__item-summary">{item.summary}</span>
                       <span className="safak-store__item-price">
-                        {item.price.gold > 0 && <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(item.price.gold)}</span>}
-                        {item.price.diamonds > 0 && <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(item.price.diamonds)}</span>}
-                        {item.price.gold === 0 && item.price.diamonds === 0 && <span>BAŞLANGIÇ EŞYASI</span>}
+                        {item.dropOnly && <span>RAKİPTEN DÜŞER</span>}
+                        {!item.dropOnly && levelLocked && <span>SEVİYE {item.requiredLevel}</span>}
+                        {!item.dropOnly && !levelLocked && item.price.gold > 0 && <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(item.price.gold)}</span>}
+                        {!item.dropOnly && !levelLocked && item.price.diamonds > 0 && <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(item.price.diamonds)}</span>}
+                        {!item.dropOnly && !levelLocked && item.price.gold === 0 && item.price.diamonds === 0 && <span>BAŞLANGIÇ EŞYASI</span>}
                       </span>
                       <span className={`safak-store__item-status${equipped ? " status-equipped" : owned ? " status-owned" : " status-locked"}`}>
-                        {equipped ? "KUŞANILDI" : owned ? "HEYBEDE" : "KİLİTLİ"}
+                        {levelLocked ? `SEVİYE ${item.requiredLevel}` : equipped ? "KUŞANILDI" : owned ? "HEYBEDE" : item.dropOnly ? "GANİMET" : "KİLİTLİ"}
                       </span>
                     </button>
                   );
@@ -392,6 +401,13 @@ export default function StorePanel({
                   </div>
                   <p className="safak-store__description">{selected.description}</p>
                   <p className="safak-store__summary">{selected.summary}</p>
+                  {selected.requiredLevel && <p className="safak-store__summary">Gerekli seviye: {selected.requiredLevel}</p>}
+                  {selectedSet && (
+                    <p className="safak-store__summary">
+                      {selectedSet.name} seti · {equippedSetCount}/4 parça
+                      {equippedSetCount >= 4 ? " · 2 ve 4 parça bonusları etkin" : equippedSetCount >= 2 ? " · 2 parça bonusu etkin" : " · 2 parçada savunma/hasar, 4 parçada can/ışık bonusu"}
+                    </p>
+                  )}
                 </div>
 
                 <section className="safak-store__stats" aria-labelledby="store-stats-title">
@@ -436,6 +452,11 @@ export default function StorePanel({
                     Bakiye yetmiyor. Altın ve elmas yol ganimetleri ile savaş zaferlerinden; günlük üçüncü zafer ek ödül getirir.
                   </p>
                 )}
+                {selectedLevelLocked && (
+                  <p className="safak-store__funds-warning" role="status">
+                    Bu eşyayı kullanmak için seviye {selected.requiredLevel} gerekiyor.
+                  </p>
+                )}
                 {!canManageProfile && (
                   <p className="safak-store__funds-warning" role="status">Hesap hazır olduğunda bu eşyayla işlem yapabilirsin.</p>
                 )}
@@ -446,9 +467,9 @@ export default function StorePanel({
                       className="safak-store__primary"
                       type="button"
                       onClick={handlePurchase}
-                      disabled={!canManageProfile || !affordable || loading || !!busyItemId}
+                      disabled={!canManageProfile || !affordable || selected.dropOnly || selectedLevelLocked || loading || !!busyItemId}
                     >
-                      {isBusy ? "İŞLENİYOR…" : "SATIN AL"}
+                      {isBusy ? "İŞLENİYOR…" : selected.dropOnly ? "RAKİPTEN DÜŞER" : selectedLevelLocked ? `SEVİYE ${selected.requiredLevel}` : "SATIN AL"}
                     </button>
                   ) : (
                     <>
@@ -466,7 +487,7 @@ export default function StorePanel({
                         className="safak-store__primary"
                         type="button"
                         onClick={() => onEquip(selected.id)}
-                        disabled={!canManageProfile || isEquipped || loading || !!busyItemId}
+                        disabled={!canManageProfile || isEquipped || selectedLevelLocked || loading || !!busyItemId}
                       >
                         {isBusy ? "İŞLENİYOR…" : isEquipped ? "KUŞANILDI" : "KUŞAN"}
                       </button>
@@ -475,7 +496,7 @@ export default function StorePanel({
                           className="safak-store__secondary"
                           type="button"
                           onClick={() => onUpgrade(selected.id)}
-                          disabled={!canManageProfile || upgradeLevel >= MAX_UPGRADE_LEVEL || !canAffordUpgrade || loading || !!busyItemId}
+                          disabled={!canManageProfile || selectedLevelLocked || upgradeLevel >= MAX_UPGRADE_LEVEL || !canAffordUpgrade || loading || !!busyItemId}
                         >
                           {upgradeLevel >= MAX_UPGRADE_LEVEL ? "EN YÜKSEK SEVİYE" : "GELİŞTİR"}
                         </button>
