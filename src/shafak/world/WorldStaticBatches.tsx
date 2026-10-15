@@ -178,24 +178,6 @@ function getParts(object: WorldObject): PartSpec[] {
       add("dodecahedron", [0.31, 0], { color: "#c0b197", roughness: 0.9, flatShading: true }, [0.76, 0.26, -0.08], [1, 0.82, 0.76]);
       box({ color: "#66594b", roughness: 0.97 }, [0.76, 0.17, -0.34], [0.36, 0.06, 0.08]);
       break;
-    case "ice-crystal":
-      add("octahedron", [0.62, 0], {
-        color: "#a5d9e8",
-        emissive: "#58b8da",
-        emissiveIntensity: 0.46,
-        metalness: 0.16,
-        roughness: 0.25,
-        flatShading: true,
-      }, [0, 0.92, 0], [0.7, 1.7, 0.7], [0.05, 0.1, 0.08]);
-      add("octahedron", [0.4, 0], {
-        color: "#d0f2f2",
-        emissive: "#83d8ee",
-        emissiveIntensity: 0.32,
-        metalness: 0.2,
-        roughness: 0.22,
-        flatShading: true,
-      }, [0.42, 0.56, 0.16], [0.56, 1.25, 0.56], [0.12, 0, -0.18]);
-      break;
     case "reed":
       for (let index = 0; index < 5; index += 1) {
         const x = (index - 2) * 0.19;

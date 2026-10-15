@@ -34,7 +34,6 @@ export type WorldObstacle = {
   distance: number;
   width: number;
   health: number;
-  hidden?: boolean;
   dropPickupId?: string;
 };
 
@@ -67,7 +66,6 @@ export type WorldCollider = {
   radius: number;
   halfWidth: number;
   halfDepth: number;
-  hidden?: boolean;
   breakableId?: string;
   requiredAction?: "crouch" | "jump";
 };
@@ -82,9 +80,8 @@ export type WorldChapterContent = {
 };
 
 export const PICKUP_MAGNET_RADIUS_METERS = 5.2;
-export const PICKUP_RADIUS_METERS = 1.5;
+export const PICKUP_RADIUS_METERS = 2;
 export const WORLD_JUMP_CLEARANCE_METERS = 0.78;
-export const HIDDEN_CHEST_REVEAL_METERS = 16;
 export const MAX_PICKUPS_PER_CLAIM = 16;
 export const MAX_CHAPTER_ID = 1_000_000;
 
@@ -105,7 +102,56 @@ function chapterRandom(chapterId: number) {
   return seededRandom((WORLD_SEED ^ Math.imul(chapterId + 1, 0x45d9f3b)) >>> 0);
 }
 
-function createPickups(chapterId: number, random: () => number): WorldPickup[] {
+export function isWorldPickupPositionClear(
+  x: number,
+  distance: number,
+  obstacles: readonly WorldObstacle[],
+) {
+  return obstacles.every((obstacle) => {
+    const dx = Math.abs(x - obstacle.x);
+    const dz = Math.abs(distance - obstacle.distance);
+    if (obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap") {
+      return Math.hypot(dx, dz) > obstacle.width * 0.58 + PICKUP_RADIUS_METERS + 0.42;
+    }
+
+    const halfWidth = obstacle.kind === "spike-trap"
+      ? obstacle.width / 2
+      : obstacle.width / 2 + 0.42;
+    const halfDepth = obstacle.kind === "spike-trap"
+      ? 1.25
+      : obstacle.kind === "barricade"
+        ? 0.3 + 0.42
+        : obstacle.kind === "low-bar"
+          ? 0.38 + 0.42
+          : 0.5 + 0.42;
+    return dx > halfWidth + PICKUP_RADIUS_METERS || dz > halfDepth + PICKUP_RADIUS_METERS;
+  });
+}
+
+function choosePickupLane(
+  preferredIndex: number,
+  distance: number,
+  obstacles: readonly WorldObstacle[],
+) {
+  for (let offset = 0; offset < PICKUP_LANES.length; offset += 1) {
+    const lane = PICKUP_LANES[(preferredIndex + offset) % PICKUP_LANES.length];
+    if (isWorldPickupPositionClear(lane, distance, obstacles)) return lane;
+  }
+  return PICKUP_LANES
+    .map((lane) => ({
+      lane,
+      clearance: Math.min(
+        ...obstacles.map((obstacle) => Math.hypot(lane - obstacle.x, distance - obstacle.distance)),
+      ),
+    }))
+    .sort((left, right) => right.clearance - left.clearance)[0]?.lane ?? 0;
+}
+
+function createPickups(
+  chapterId: number,
+  random: () => number,
+  obstacles: readonly WorldObstacle[],
+): WorldPickup[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
   const regular = PICKUP_DISTANCES.map((offset, index): WorldPickup => {
     let kind: PickupKind;
@@ -115,23 +161,27 @@ function createPickups(chapterId: number, random: () => number): WorldPickup[] {
     else if (index === 6 && chapterId % 3 === 0) kind = "iron-shard";
     else kind = "ember-crystal";
 
+    const amount = kind === "gold-small"
+      ? 6 + Math.floor(random() * 7)
+      : kind === "gold-large"
+        ? 22 + Math.floor(random() * 15)
+        : kind === "diamond-small"
+          ? 1
+          : kind === "iron-shard"
+            ? 1 + Math.floor(random() * 2)
+            : kind === "seal-fragment"
+              ? 1
+              : 1 + Math.floor(random() * 2);
+    const preferredLane = Math.floor(random() * PICKUP_LANES.length);
+    const distance = chapterStart + offset + (random() - 0.5) * 2;
+
     return {
       id: `ash-road:${chapterId}:pickup:${index}`,
       chapterId,
       kind,
-      amount: kind === "gold-small"
-        ? 6 + Math.floor(random() * 7)
-        : kind === "gold-large"
-          ? 22 + Math.floor(random() * 15)
-          : kind === "diamond-small"
-            ? 1
-            : kind === "iron-shard"
-              ? 1 + Math.floor(random() * 2)
-          : kind === "seal-fragment"
-            ? 1
-            : 1 + Math.floor(random() * 2),
-      x: PICKUP_LANES[Math.floor(random() * PICKUP_LANES.length)],
-      distance: chapterStart + offset + (random() - 0.5) * 2,
+      amount,
+      x: choosePickupLane(preferredLane, distance, obstacles),
+      distance,
     };
   });
 
@@ -256,7 +306,6 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       distance: chapterStart + 58,
       width: 2.1,
       health: 1,
-      hidden: true,
       dropPickupId: `ash-road:${chapterId}:pickup:treasure-cache`,
     },
   ];
@@ -298,10 +347,6 @@ export function isValidChapterId(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= MAX_CHAPTER_ID;
 }
 
-export function isWorldObstacleRevealed(obstacle: WorldObstacle, gap: number) {
-  return !obstacle.hidden || gap <= HIDDEN_CHEST_REVEAL_METERS;
-}
-
 export function getWorldChapter(
   chapterId: number,
   routeDifficulty?: WorldRouteDifficulty,
@@ -326,10 +371,11 @@ export function getWorldChapter(
   const selectedRivals = combatDifficulty && !routeDifficulty
     ? routedRivals.map((rival) => ({ ...rival, difficulty: combatDifficulty }))
     : routedRivals;
+  const obstacles = createObstacles(chapterId);
   return {
     chapterId,
-    pickups: createPickups(chapterId, random),
-    obstacles: createObstacles(chapterId),
+    pickups: createPickups(chapterId, random, obstacles),
+    obstacles,
     rivals: selectedRivals,
   };
 }
@@ -367,12 +413,10 @@ export function resolveWorldObstacleCollision(
 ) {
   let resolvedDistance = nextDistance;
   for (const obstacle of obstacles) {
-    const gap = obstacle.distance - nextDistance;
     if (
       obstacle.kind === "spike-trap"
       || obstacle.kind === "falling-rock-trap"
       || brokenObstacleIds.has(obstacle.id)
-      || (obstacle.hidden && gap > HIDDEN_CHEST_REVEAL_METERS)
     ) continue;
     const halfWidth = obstacle.width / 2 + 0.45;
     if (Math.abs(nextX - obstacle.x) >= halfWidth) continue;
@@ -416,7 +460,6 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         radius: obstacle.width * 0.58,
         halfWidth: obstacle.width / 2,
         halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
-        hidden: obstacle.hidden,
         breakableId: ["barrel", "vase", "barricade", "treasure-chest"].includes(obstacle.kind)
           ? obstacle.id
           : undefined,
@@ -468,7 +511,7 @@ export function resolveWorldPathCollision(
         if (!colliders) continue;
         for (const collider of colliders) {
           const gap = collider.distance - distance;
-          if ((collider.hidden && gap > HIDDEN_CHEST_REVEAL_METERS) || gap < -1.5) continue;
+          if (gap < -1.5) continue;
           if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
           if (collider.requiredAction === "crouch" && clearance.crouching) continue;
           if (collider.requiredAction === "jump" && (clearance.jumpHeight ?? 0) >= WORLD_JUMP_CLEARANCE_METERS) continue;

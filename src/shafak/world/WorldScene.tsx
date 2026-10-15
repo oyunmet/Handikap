@@ -2321,26 +2321,24 @@ export default function WorldScene({
           }
         }
 
-        if (loadedClaimChaptersRef.current.has(Math.floor(nextFrame.distance / WORLD_GATE_INTERVAL_METERS))) {
-          for (const pickup of worldContent.pickups) {
-            if (
-              (pickup.sourceObstacleId && !brokenRef.current.has(pickup.sourceObstacleId)) ||
-              collectedRef.current.has(pickup.id) ||
-              pendingPickupIdsRef.current.has(pickup.id)
-            ) continue;
-            const distance = Math.hypot(pickup.x - playerX, pickup.distance - nextFrame.distance);
-            if (deferredPickupIdsRef.current.has(pickup.id)) {
-              if (distance <= PICKUP_RADIUS_METERS + 1) continue;
-              deferredPickupIdsRef.current.delete(pickup.id);
-            }
-            if (distance > PICKUP_RADIUS_METERS) continue;
-            const chapterQueue = newlyCollected.get(pickup.chapterId) ?? [];
-            chapterQueue.push(pickup.id);
-            newlyCollected.set(pickup.chapterId, chapterQueue);
-            pendingPickupIdsRef.current.add(pickup.id);
-            collectedRef.current.add(pickup.id);
-            hasCollectedThisFrame = true;
+        for (const pickup of worldContent.pickups) {
+          if (
+            (pickup.sourceObstacleId && !brokenRef.current.has(pickup.sourceObstacleId)) ||
+            collectedRef.current.has(pickup.id) ||
+            pendingPickupIdsRef.current.has(pickup.id)
+          ) continue;
+          const distance = Math.hypot(pickup.x - playerX, pickup.distance - nextFrame.distance);
+          if (deferredPickupIdsRef.current.has(pickup.id)) {
+            if (distance <= PICKUP_RADIUS_METERS + 1) continue;
+            deferredPickupIdsRef.current.delete(pickup.id);
           }
+          if (distance > PICKUP_RADIUS_METERS) continue;
+          const chapterQueue = newlyCollected.get(pickup.chapterId) ?? [];
+          chapterQueue.push(pickup.id);
+          newlyCollected.set(pickup.chapterId, chapterQueue);
+          pendingPickupIdsRef.current.add(pickup.id);
+          collectedRef.current.add(pickup.id);
+          hasCollectedThisFrame = true;
         }
 
         frameState = nextFrame;

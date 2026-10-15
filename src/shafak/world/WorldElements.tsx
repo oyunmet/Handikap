@@ -563,9 +563,6 @@ function WorldProp({
           )}
         </group>
       )}
-      {object.kind === "crystal" && (
-        <CrystalProp object={object} />
-      )}
       {object.kind === "cart" && (
         <group position={[0, 0.48, 0]} rotation={[0, 0, -0.12]}>
           <mesh position={[0, 0.22, 0]}>
@@ -612,21 +609,6 @@ function WorldProp({
           </mesh>
         </group>
       )}
-    </group>
-  );
-}
-
-function CrystalProp({ object }: { object: WorldObject }) {
-  return (
-    <group>
-      <mesh position={[0, 0.9, 0]} rotation={[0.12, 0.3, 0.12]}>
-        <octahedronGeometry args={[0.68, 0]} />
-        <meshStandardMaterial color="#f0aa70" emissive="#df7949" emissiveIntensity={1.05} metalness={0.26} roughness={0.28} flatShading />
-      </mesh>
-      <mesh position={[0.42, 0.53, 0.08]} rotation={[0.18, 0.2, -0.2]} scale={[0.66, 0.78, 0.66]}>
-        <octahedronGeometry args={[0.46, 0]} />
-        <meshStandardMaterial color="#b27654" emissive="#a64e34" emissiveIntensity={0.56} metalness={0.22} roughness={0.35} flatShading />
-      </mesh>
     </group>
   );
 }
@@ -894,12 +876,12 @@ export function WorldChunks({
   const objects = useMemo(() => chunks.flatMap((chunk) => chunk.objects), [chunks]);
   const staticLodChunk = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS);
   const animatedObjects = useMemo(
-    () => objects.filter((object) => object.kind === "flag" || object.kind === "torch" || object.kind === "firepit" || object.kind === "crystal"),
+    () => objects.filter((object) => object.kind === "flag" || object.kind === "torch" || object.kind === "firepit"),
     [objects],
   );
   const staticObjects = useMemo(
     () => objects.filter((object) =>
-      object.kind !== "flag" && object.kind !== "torch" && object.kind !== "firepit" && object.kind !== "crystal" &&
+      object.kind !== "flag" && object.kind !== "torch" && object.kind !== "firepit" &&
       Math.abs(object.worldX - motionRef.current.distance) <= 190,
     ),
     [objects, staticLodChunk, motionRef.current.originDistance],

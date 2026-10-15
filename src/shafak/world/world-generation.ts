@@ -17,11 +17,9 @@ export type WorldObjectKind =
   | "flag"
   | "rock"
   | "torch"
-  | "crystal"
   | "firepit"
   | "cart"
   | "bones"
-  | "ice-crystal"
   | "reed"
   | "mangrove";
 
@@ -51,12 +49,12 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const kinds: WorldObjectKind[] = biome === "frozen-pass"
     ? [
       random() > 0.5 ? "tower" : "ruin",
-      random() > 0.55 ? "ice-crystal" : "rock",
+      random() > 0.55 ? "rock" : "cart",
       "flag",
-      random() > 0.5 ? "ice-crystal" : "tree",
+      random() > 0.5 ? "ruin" : "tree",
       random() > 0.5 ? "ruin" : "arch",
-      random() > 0.5 ? "crystal" : "torch",
-      "ice-crystal",
+      random() > 0.5 ? "torch" : "firepit",
+      "rock",
       random() > 0.5 ? "cart" : "bones",
     ]
     : biome === "red-marsh"
@@ -76,7 +74,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         "flag",
         random() > 0.5 ? "rock" : "tree",
         random() > 0.5 ? "ruin" : "tower",
-        (["torch", "crystal", "firepit"] as const)[Math.floor(random() * 3)],
+       (["torch", "firepit", "cart"] as const)[Math.floor(random() * 3)],
         random() > 0.5 ? "rock" : "tree",
         (["cart", "bones", "arch"] as const)[Math.floor(random() * 3)],
       ];
@@ -168,8 +166,7 @@ function parallaxFor(kind: WorldObjectKind) {
   if (kind === "tower" || kind === "ruin" || kind === "arch") return 0.42;
   if (kind === "tree") return 0.58;
   if (kind === "flag") return 0.82;
-  if (kind === "torch" || kind === "crystal" || kind === "firepit") return 0.9;
-  if (kind === "ice-crystal") return 0.74;
+  if (kind === "torch" || kind === "firepit") return 0.9;
   if (kind === "mangrove") return 0.58;
   if (kind === "reed") return 0.84;
   return 1;

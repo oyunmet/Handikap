@@ -219,29 +219,6 @@ function drawWorldObject(
     context.ellipse(13, -53, 14, 12, .25, 0, Math.PI * 2);
     context.ellipse(1, -61, 13, 11, 0, 0, Math.PI * 2);
     context.fill();
-  } else if (object.kind === "ice-crystal") {
-    const glow = context.createRadialGradient(0, -30, 2, 0, -30, 34);
-    glow.addColorStop(0, "rgba(151,231,255,.45)");
-    glow.addColorStop(1, "rgba(87,177,220,0)");
-    context.fillStyle = glow;
-    context.beginPath();
-    context.arc(0, -30, 34, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = "#9bcbd9";
-    context.beginPath();
-    context.moveTo(-3, -67);
-    context.lineTo(11, -42);
-    context.lineTo(5, -8);
-    context.lineTo(-11, -39);
-    context.closePath();
-    context.fill();
-    context.fillStyle = "rgba(228,251,255,.72)";
-    context.beginPath();
-    context.moveTo(-3, -67);
-    context.lineTo(-1, -37);
-    context.lineTo(-11, -39);
-    context.closePath();
-    context.fill();
   } else if (object.kind === "reed") {
     context.strokeStyle = "#71815a";
     context.lineWidth = 3;
@@ -311,25 +288,6 @@ function drawWorldObject(
     context.stroke();
   } else if (object.kind === "torch") {
     drawTorch(context, sway, 1);
-  } else if (object.kind === "crystal") {
-    const glow = context.createRadialGradient(0, -28, 1, 0, -28, 34);
-    glow.addColorStop(0, "rgba(255,196,123,.34)");
-    glow.addColorStop(1, "rgba(255,154,81,0)");
-    context.fillStyle = glow;
-    context.beginPath();
-    context.arc(0, -28, 34, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = "#a66b61";
-    context.beginPath();
-    context.moveTo(0, -53);
-    context.lineTo(12, -31);
-    context.lineTo(3, -8);
-    context.lineTo(-9, -30);
-    context.closePath();
-    context.fill();
-    context.strokeStyle = "rgba(253,215,159,.55)";
-    context.lineWidth = 1.5;
-    context.stroke();
   } else {
     context.fillStyle = "#29201e";
     context.beginPath();

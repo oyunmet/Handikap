@@ -9,7 +9,6 @@ import type { WorldInteractableRegistry } from "./world-interactables";
 import { getNpcStoryDialogue } from "./story-dialogue";
 import {
   getWorldContentAround,
-  isWorldObstacleRevealed,
   PICKUP_MAGNET_RADIUS_METERS,
   type WorldObstacle,
   type WorldPickup,
@@ -21,13 +20,13 @@ import type { WeatherMode } from "./world-biomes";
 type MotionRef = MutableRefObject<WorldMotion>;
 
 const PICKUP_STYLE = {
-  "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.16 },
-  "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.25 },
-  "treasure-cache": { color: "#f1ca70", glow: "#e39532", size: 0.38 },
-  "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.2 },
-  "iron-shard": { color: "#d1d8df", glow: "#7d9ba4", size: 0.19 },
-  "ember-crystal": { color: "#69e7de", glow: "#35c5d1", size: 0.21 },
-  "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.23 },
+  "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.25 },
+  "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.34 },
+  "treasure-cache": { color: "#f1ca70", glow: "#e39532", size: 0.46 },
+  "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.31 },
+  "iron-shard": { color: "#d1d8df", glow: "#7d9ba4", size: 0.27 },
+  "ember-crystal": { color: "#ff9a56", glow: "#de542d", size: 0.29 },
+  "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.3 },
 } as const;
 
 function calculateNpcDialoguePosition(
@@ -41,11 +40,11 @@ function calculateNpcDialoguePosition(
   const projectedX = projected.x * (size.width / 2) + size.width / 2;
   const projectedY = -projected.y * (size.height / 2) + size.height / 2;
   const mobile = size.width <= 760;
-  const bubbleWidth = mobile
-    ? Math.min(230, size.width * 0.62)
-    : Math.min(270, size.width * 0.66);
-  const halfHeight = size.height < 520 ? 48 : mobile ? 70 : 82;
   const compactMobile = mobile && size.height <= 680;
+  const bubbleWidth = mobile
+    ? Math.min(compactMobile ? 214 : 230, size.width - 24)
+    : Math.min(270, size.width - 48);
+  const halfHeight = size.height < 520 ? 52 : mobile ? 66 : 76;
   const hudBottom = mobile
     ? (compactMobile ? 104 : 126) + (
       compactMobile
@@ -116,24 +115,36 @@ function Collectible({
   return (
     <group ref={rootRef} position={[pickup.x, 0.48, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>
-        <ringGeometry args={[0.18, 0.33, 20]} />
-        <meshBasicMaterial color={style.glow} transparent opacity={0.34} side={THREE.DoubleSide} depthWrite={false} />
+        <ringGeometry args={[style.size * 0.78, style.size * 1.16, 24]} />
+        <meshBasicMaterial color={style.glow} transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <group ref={spinRef}>
         {geometry === "coin" ? (
-          <mesh rotation={[Math.PI / 2, 0, 0]} scale={style.size}>
-            <cylinderGeometry args={[0.7, 0.7, 0.16, 12]} />
-            <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.58} metalness={0.84} roughness={0.24} />
-          </mesh>
+          <group rotation={[Math.PI / 2, 0, 0]}>
+            <mesh scale={style.size}>
+              <cylinderGeometry args={[0.78, 0.78, 0.2, 16]} />
+              <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.72} metalness={0.86} roughness={0.22} />
+            </mesh>
+            <mesh position={[0, 0.11, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={style.size * 0.58}>
+              <torusGeometry args={[0.64, 0.055, 5, 14]} />
+              <meshStandardMaterial color="#fff0bb" emissive="#d98d22" emissiveIntensity={0.32} metalness={0.9} roughness={0.2} />
+            </mesh>
+          </group>
         ) : geometry === "large-coin" ? (
-          <mesh rotation={[Math.PI / 2, 0, 0]} scale={style.size * 1.28}>
-            <cylinderGeometry args={[0.74, 0.74, 0.2, 12]} />
-            <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.78} metalness={0.86} roughness={0.2} />
-          </mesh>
+          <group rotation={[Math.PI / 2, 0, 0]}>
+            <mesh scale={style.size * 1.18}>
+              <cylinderGeometry args={[0.82, 0.82, 0.22, 16]} />
+              <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.9} metalness={0.86} roughness={0.2} />
+            </mesh>
+            <mesh position={[0, 0.13, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={style.size * 0.68}>
+              <torusGeometry args={[0.64, 0.055, 5, 14]} />
+              <meshStandardMaterial color="#fff1bd" emissive="#e19d36" emissiveIntensity={0.42} metalness={0.9} roughness={0.18} />
+            </mesh>
+          </group>
         ) : (
           <mesh scale={style.size}>
-            <octahedronGeometry args={[0.9, 0]} />
-            <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.95} metalness={0.5} roughness={0.24} flatShading />
+            <octahedronGeometry args={[1, 0]} />
+            <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={1.2} metalness={0.56} roughness={0.2} flatShading />
           </mesh>
         )}
         <Sparkles count={pickup.kind === "seal-fragment" || pickup.kind === "diamond-small" ? 5 : 3} scale={0.85} size={2.3} speed={reducedMotion ? 0 : 0.3} color={style.color} />
@@ -201,16 +212,15 @@ function Obstacle({
       : obstacle.kind === "barricade"
         ? broken ? "BARİKAT KIRILDI" : "BARİKAT · SALDIR"
         : obstacle.kind === "treasure-chest"
-          ? broken ? "SANDIK AÇILDI · ALTIN" : "GİZLİ SANDIK · ZIPLA VE KIR"
-          : "KAYA · ZIPLA";
+          ? broken ? "SANDIK AÇILDI · ALTIN" : "SANDIK · ZIPLA VE KIR"
+          : "KAYA · ETRAFINDAN DOLAŞ";
   useFrame((frame) => {
     if (!rootRef.current) return;
     const gap = obstacle.distance - motionRef.current.distance;
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
     // Keep roadside gameplay objects in front of the player. A passed obstacle
     // must leave the camera corridor instead of enclosing the trailing camera.
-    rootRef.current.visible = isWorldObstacleRevealed(obstacle, gap)
-      && Math.abs(gap) <= maxVisibleDistance
+    rootRef.current.visible = Math.abs(gap) <= maxVisibleDistance
       && (gap >= -1.5 || (broken && obstacle.health > 0));
     if (fallingRockRef.current) {
       if (gap <= 7.2 && fallStartedAtRef.current === null) {
@@ -241,10 +251,16 @@ function Obstacle({
       <Html position={[0, 2.12, 0]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
         <span className={`world-obstacle-tag is-${obstacle.kind}`}>{obstacleLabel}</span>
       </Html>
+      {!["falling-rock-trap", "spike-trap", "treasure-chest"].includes(obstacle.kind) && (
+        <mesh position={[0, 0.028, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[obstacle.width * 0.55, obstacle.width * 0.63, 28]} />
+          <meshBasicMaterial color={obstacle.kind === "rock" ? "#ffc077" : "#ff9569"} transparent opacity={0.43} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      )}
       {obstacle.kind === "rock" ? (
         <mesh position={[0, 0.72, 0]} rotation={[0.1, 0.7, 0.2]}>
           <dodecahedronGeometry args={[0.92, 0]} />
-          <meshStandardMaterial color="#625b5a" roughness={0.94} flatShading />
+          <meshStandardMaterial color="#84776e" emissive="#4b3022" emissiveIntensity={0.24} roughness={0.9} flatShading />
         </mesh>
       ) : obstacle.kind === "falling-rock-trap" ? (
         <group>
@@ -700,7 +716,6 @@ function BotActor({
           portal={dialoguePortal}
           position={[rival.x, 3.15, 0]}
           center
-          distanceFactor={13}
           zIndexRange={[90, 0]}
           calculatePosition={calculateNpcDialoguePosition}
           style={{ pointerEvents: "auto" }}
@@ -708,18 +723,23 @@ function BotActor({
           <div className="world-npc-dialogue" role="group" aria-label={`${dialogueSpeaker} ile karşılaşma`}>
             <span>{dialogueSpeaker} konuşuyor</span>
             <p>“{dialogueLine}”</p>
-            <button
-              className="world-npc-dialogue__fight"
-              type="button"
-              disabled={!canChallenge || !dailyAccessAllowed}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (canChallenge && dailyAccessAllowed) onChallenge(rival);
-              }}
-            >
-              <span aria-hidden="true">⚔</span> {!dailyAccessAllowed ? "GÜNLÜK HAK DOLDU" : canChallenge ? challengeLabel : "YAKLAŞ · SAVAŞ"}
-            </button>
+            {canChallenge && dailyAccessAllowed ? (
+              <button
+                className="world-npc-dialogue__fight"
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onChallenge(rival);
+                }}
+              >
+                <span aria-hidden="true">⚔</span> {challengeLabel}
+              </button>
+            ) : (
+              <span className="world-npc-dialogue__status" role="status">
+                {dailyAccessAllowed ? "Düello için biraz daha yaklaş" : "Günlük düello hakkı doldu"}
+              </span>
+            )}
           </div>
         </Html>
       )}

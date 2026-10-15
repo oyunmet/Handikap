@@ -465,27 +465,16 @@ function ScenicProp({
           </mesh>
         </group>
       )}
-      {(object.kind === "rock" || object.kind === "ice-crystal" || object.kind === "crystal") && (
+      {object.kind === "rock" && (
         <group>
           <mesh position={[0, 0.58, 0]} rotation={[0.12, 0.34, 0.14]}>
-            {object.kind === "ice-crystal"
-              ? <octahedronGeometry args={[0.88, 0]} />
-              : <dodecahedronGeometry args={[0.82, 0]} />}
-            <meshStandardMaterial
-              color={object.kind === "ice-crystal" ? "#9ed8e8" : object.kind === "crystal" ? "#d58866" : "#655858"}
-              emissive={object.kind === "ice-crystal" ? "#3caaba" : object.kind === "crystal" ? "#bd593b" : "#000000"}
-              emissiveIntensity={object.kind === "rock" ? 0 : 0.52}
-              metalness={object.kind === "rock" ? 0.04 : 0.34}
-              roughness={0.48}
-              flatShading
-            />
+            <dodecahedronGeometry args={[0.82, 0]} />
+            <meshStandardMaterial color="#655858" roughness={0.88} flatShading />
           </mesh>
-          {object.kind === "rock" && (
-            <mesh position={[0.62, 0.34, -0.12]} rotation={[0.2, 0.1, 0.16]} scale={0.62}>
-              <dodecahedronGeometry args={[0.72, 0]} />
-              <meshStandardMaterial color="#51494b" roughness={0.98} flatShading />
-            </mesh>
-          )}
+          <mesh position={[0.62, 0.34, -0.12]} rotation={[0.2, 0.1, 0.16]} scale={0.62}>
+            <dodecahedronGeometry args={[0.72, 0]} />
+            <meshStandardMaterial color="#51494b" roughness={0.98} flatShading />
+          </mesh>
         </group>
       )}
       {object.kind === "flag" && (

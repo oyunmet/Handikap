@@ -3,8 +3,7 @@ import test from "node:test";
 import {
   getWorldChapter,
   buildWorldCollisionGrid,
-  HIDDEN_CHEST_REVEAL_METERS,
-  isWorldObstacleRevealed,
+  isWorldPickupPositionClear,
   pickupRewardTotals,
   resolveWorldObstacleCollision,
   resolveWorldPathCollision,
@@ -70,9 +69,8 @@ test("road rewards stay within reach and each chapter includes visible hazards",
   const treasureObstacle = chapter.obstacles.find((obstacle) => obstacle.kind === "treasure-chest");
   const chestReward = chapter.pickups.find((pickup) => pickup.kind === "treasure-cache");
   assert.ok(treasureObstacle);
-  assert.equal(treasureObstacle.hidden, true);
-  assert.equal(isWorldObstacleRevealed(treasureObstacle, HIDDEN_CHEST_REVEAL_METERS + 1), false);
-  assert.equal(isWorldObstacleRevealed(treasureObstacle, HIDDEN_CHEST_REVEAL_METERS), true);
+  assert.equal("hidden" in treasureObstacle, false);
+  assert.equal(chapter.obstacles.every((obstacle) => !("hidden" in obstacle)), true);
   assert.ok(chestReward);
   assert.equal(treasureObstacle.dropPickupId, chestReward.id);
   assert.equal(chestReward.sourceObstacleId, treasureObstacle.id);
@@ -85,6 +83,21 @@ test("road rewards stay within reach and each chapter includes visible hazards",
     assert.equal(drop.sourceObstacleId, obstacle.id);
     assert.equal(drop.x, obstacle.x);
     assert.equal(drop.distance, obstacle.distance);
+  }
+  assert.ok(
+    chapter.pickups
+      .filter((pickup) => !pickup.sourceObstacleId)
+      .every((pickup) => isWorldPickupPositionClear(pickup.x, pickup.distance, chapter.obstacles)),
+    "regular rewards must not overlap blocking objects or hazards",
+  );
+  for (let chapterId = 1; chapterId <= 30; chapterId += 1) {
+    const generated = getWorldChapter(chapterId);
+    assert.ok(
+      generated.pickups
+        .filter((pickup) => !pickup.sourceObstacleId)
+        .every((pickup) => isWorldPickupPositionClear(pickup.x, pickup.distance, generated.obstacles)),
+      `chapter ${chapterId} puts a regular reward inside a blocking object's reach`,
+    );
   }
 });
 
@@ -161,32 +174,18 @@ test("rocks and intact barricades stop forward travel unless the player dodges o
   );
 });
 
-test("hidden chests do not collide before appearing or after leaving the visible road", () => {
+test("the chest is always visible and its collision matches its visible location", () => {
   const chapter = getWorldChapter(0);
   const chest = chapter.obstacles.find((obstacle) => obstacle.kind === "treasure-chest");
   assert.ok(chest);
   const grid = buildWorldCollisionGrid([chapter]);
-  const hiddenStart = chest.distance - HIDDEN_CHEST_REVEAL_METERS - 1;
-  const hiddenEnd = hiddenStart + 0.5;
-
-  assert.equal(isWorldObstacleRevealed(chest, chest.distance - hiddenEnd), false);
-  assert.equal(
-    resolveWorldPathCollision(chest.x, hiddenStart, chest.x, hiddenEnd, grid, new Set()).distance,
-    hiddenEnd,
-  );
-  assert.equal(
-    resolveWorldObstacleCollision(hiddenStart, chest.x, hiddenEnd, chest.x, [chest], new Set()),
-    hiddenEnd,
-  );
-
-  const visibleStart = chest.distance - HIDDEN_CHEST_REVEAL_METERS;
+  const visibleFromDistance = chest.distance - 100;
   const nearChest = chest.distance - 0.5;
-  assert.equal(isWorldObstacleRevealed(chest, HIDDEN_CHEST_REVEAL_METERS), true);
   assert.ok(
-    resolveWorldPathCollision(chest.x, visibleStart, chest.x, nearChest, grid, new Set()).distance < nearChest,
+    resolveWorldPathCollision(chest.x, visibleFromDistance, chest.x, nearChest, grid, new Set()).distance < nearChest,
   );
   assert.ok(
-    resolveWorldObstacleCollision(visibleStart, chest.x, nearChest, chest.x, [chest], new Set()) < nearChest,
+    resolveWorldObstacleCollision(visibleFromDistance, chest.x, nearChest, chest.x, [chest], new Set()) < nearChest,
   );
 
   const behindStart = chest.distance + 2;

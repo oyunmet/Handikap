@@ -64,12 +64,13 @@ test("daylight transitions smoothly between daytime and night across the world c
   assert.equal(getWorldDaylight(Number.NaN), 1);
 });
 
-test("generated scenic batches contain location-specific ice and marsh flora", () => {
+test("generated scenic batches contain road props and marsh flora, not fake gems", () => {
   const frozenPass = createWorldChunk(9);
   const redMarsh = createWorldChunk(18);
   assert.equal(frozenPass.biome, "frozen-pass");
   assert.equal(redMarsh.biome, "red-marsh");
-  assert.ok(frozenPass.objects.some((object) => object.kind === "ice-crystal"));
+  assert.ok(frozenPass.objects.some((object) => ["rock", "cart", "flag"].includes(object.kind)));
+  assert.ok(frozenPass.objects.every((object) => object.kind !== "ice-crystal" && object.kind !== "crystal"));
   assert.ok(redMarsh.objects.some((object) => object.kind === "mangrove"));
   assert.ok(redMarsh.objects.some((object) => object.kind === "reed"));
 });

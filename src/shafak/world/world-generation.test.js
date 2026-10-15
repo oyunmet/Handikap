@@ -12,7 +12,14 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   assert.deepEqual(createWorldChunk(4, 1234), first);
   assert.notDeepEqual(createWorldChunk(4, 4321), first);
   assert.equal(first.objects.length, 8);
-  assert.ok(first.objects.some((object) => ["torch", "crystal", "firepit"].includes(object.kind)));
+  assert.ok(first.objects.some((object) => ["torch", "firepit"].includes(object.kind)));
+  for (let index = 0; index < 120; index += 1) {
+    const chunk = createWorldChunk(index);
+    assert.ok(
+      chunk.objects.every((object) => object.kind !== "crystal" && object.kind !== "ice-crystal"),
+      "decorative gems must not resemble collectible road rewards",
+    );
+  }
   assert.ok(first.objects.every((object) => object.worldX >= first.start && object.worldX < first.end));
 });
 

@@ -194,20 +194,6 @@ function drawProp(
     context.ellipse(-7, -49, 13, 11, -.25, 0, Math.PI * 2);
     context.ellipse(10, -55, 14, 12, .2, 0, Math.PI * 2);
     context.fill();
-  } else if (object.kind === "ice-crystal") {
-    const glow = context.createRadialGradient(0, -29, 1, 0, -29, 31);
-    glow.addColorStop(0, "rgba(148,226,255,.4)");
-    glow.addColorStop(1, "rgba(87,177,220,0)");
-    context.fillStyle = glow;
-    context.fillRect(-32, -61, 64, 64);
-    context.fillStyle = "#9bcbd9";
-    context.beginPath();
-    context.moveTo(-2, -64);
-    context.lineTo(11, -38);
-    context.lineTo(4, -8);
-    context.lineTo(-11, -39);
-    context.closePath();
-    context.fill();
   } else if (object.kind === "reed") {
     context.strokeStyle = "#71815a";
     context.lineWidth = 3;
@@ -260,7 +246,7 @@ function drawProp(
     context.lineTo(28, 0);
     context.closePath();
     context.fill();
-  } else if (object.kind === "torch" || object.kind === "crystal" || object.kind === "firepit") {
+  } else if (object.kind === "torch" || object.kind === "firepit") {
     drawFireProp(context, object.kind, sway, quality);
   }
   context.restore();
@@ -272,17 +258,6 @@ function drawFireProp(
   sway: number,
   quality: RendererFrame["quality"],
 ) {
-  if (kind === "crystal") {
-    context.fillStyle = "rgba(228,137,95,.3)";
-    context.beginPath();
-    context.moveTo(0, -48);
-    context.lineTo(12, -29);
-    context.lineTo(4, -8);
-    context.lineTo(-10, -27);
-    context.closePath();
-    context.fill();
-    return;
-  }
   if (kind === "firepit") {
     context.fillStyle = "#2b211f";
     context.beginPath();
@@ -365,7 +340,7 @@ function drawLighting(
   const lightObjects = lightingSources;
   lightObjects.length = 0;
   for (const object of visibleObjects) {
-    if (object.kind !== "torch" && object.kind !== "crystal" && object.kind !== "firepit") continue;
+    if (object.kind !== "torch" && object.kind !== "firepit") continue;
     lightObjects.push(object);
   }
   for (const object of lightObjects) {

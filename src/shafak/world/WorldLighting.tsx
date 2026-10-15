@@ -144,11 +144,11 @@ export default function WorldLighting({
 }
 
 function isLightSource(object: WorldObject) {
-  return object.kind === "torch" || object.kind === "crystal" || object.kind === "firepit";
+  return object.kind === "torch" || object.kind === "firepit";
 }
 
 function lightRadiusFor(object: WorldObject) {
-  const sizeMultiplier = object.kind === "crystal" ? 1.16 : object.kind === "firepit" ? 1.08 : 1;
+  const sizeMultiplier = object.kind === "firepit" ? 1.08 : 1;
   return (62 + object.scale * 24) * sizeMultiplier;
 }
 
