@@ -2531,11 +2531,17 @@ export default function WorldScene({
   const chapterProgress = Math.max(0, Math.min(100, ((travel % WORLD_GATE_INTERVAL_METERS) / WORLD_GATE_INTERVAL_METERS) * 100));
   const sceneBiome = getBiomeForDistance(travel);
   const scenePalette = WORLD_BIOME_PALETTES[sceneBiome];
+  const showGatePrompt = gatePromptVisible
+    && !storyDialogue
+    && !battleSession
+    && !encounterVisible
+    && !talkingRivalId;
   return (
     <main
       ref={sceneRef}
       className="world-scene"
       data-battle={battleSession?.phase ?? "none"}
+      data-story-open={storyDialogue ? "true" : "false"}
       data-weapon-swap={combatRender && combatRender.weaponSwapCooldownUntilTick > combatRender.tick ? "true" : "false"}
       data-danger={combatRender && combatRender.player.hp / combatRender.player.maxHp <= 0.3 ? "true" : "false"}
       data-quality={quality}
@@ -2908,7 +2914,6 @@ export default function WorldScene({
           <div className="world-progress__details">
             <div className="world-progress__heading">
               <span>KÜL YOLU · BÖLÜM {currentChapterId + 1}</span>
-              <b>{Math.round(chapterProgress)}%</b>
             </div>
             <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
             <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
@@ -2944,7 +2949,7 @@ export default function WorldScene({
           {dailyAdMessage && <span className="world-daily-lives__message" role="status" aria-live="polite">{dailyAdMessage}</span>}
         </div>
       </div>
-      {gatePromptVisible && (
+      {showGatePrompt && (
         <section className="world-gate-prompt" aria-label="Bölüm geçidi">
           <span className="world-gate-prompt__eyebrow">BÖLÜM {currentChapterId + 1} · GEÇİT</span>
           <strong>{roomCleared ? "Yol temizlendi" : "Kapı kilitli"}</strong>
@@ -3023,7 +3028,7 @@ export default function WorldScene({
         </div>
       )}
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
-      {encounterVisible && nextOpponent && (
+      {encounterVisible && nextOpponent && !storyDialogue && !talkingRivalId && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
           <div className="world-encounter__card">

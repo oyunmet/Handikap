@@ -24,8 +24,11 @@
   position: relative;
   isolation: isolate;
   width: 100%;
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
   overflow: hidden;
   color: #f4ead7;
   background: #10121a;
@@ -425,10 +428,11 @@
 }
 .world-progress {
   position: absolute; z-index: 7; top: 77px; left: clamp(14px, 3vw, 42px);
-  width: min(260px, 45vw); padding: 7px 9px 6px;
-  border: 1px solid rgba(226,190,125,.25); border-radius: 3px;
-  background: rgba(15,16,20,.68); box-shadow: inset 0 1px rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.22);
-  backdrop-filter: blur(12px) saturate(1.12);
+  width: min(300px, 45vw); padding: 9px 11px 8px;
+  border: 1px solid rgba(226,190,125,.28); border-radius: 8px;
+  background: linear-gradient(145deg, rgba(19,19,23,.88), rgba(13,14,18,.78));
+  box-shadow: inset 0 1px rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.3);
+  backdrop-filter: blur(16px) saturate(1.12);
   color: rgba(235,218,188,.75);
 }
 .world-progress__body { display: flex; align-items: center; gap: 9px; }
@@ -782,6 +786,21 @@
 .world-story-dialogue__footer .game-gold-button { min-width: 144px; min-height: 48px; }
 .world-story-dialogue button:focus-visible { outline: 2px solid #f0c979; outline-offset: 3px; }
 .world-story-dialogue__skip:hover { color: #fff2d5; border-color: #d8b474; }
+.world-scene[data-story-open="true"] .world-topbar,
+.world-scene[data-story-open="true"] .world-progress,
+.world-scene[data-story-open="true"] .world-gate-prompt,
+.world-scene[data-story-open="true"] .world-joystick,
+.world-scene[data-story-open="true"] .world-movement-actions,
+.world-scene[data-story-open="true"] .world-mobile-hint,
+.world-scene[data-story-open="true"] .world-encounter,
+.world-scene[data-story-open="true"] .world-breakable-action,
+.world-scene[data-story-open="true"] .world-controls,
+.world-scene[data-story-open="true"] .world-pickup-notice,
+.world-scene[data-story-open="true"] .world-pickup-flights,
+.world-scene[data-story-open="true"] .world-step-bursts,
+.world-scene[data-story-open="true"] .world-npc-dialogue-layer {
+  display: none !important;
+}
 .world-resource-hud {
   display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end;
   gap: 6px; max-width: min(620px, 64vw);
@@ -1036,7 +1055,25 @@
   .world-material-hud { gap: 6px; padding: 3px 5px; font-size: 8px; }
   .world-resource-hud { flex: 1 0 100%; max-width: 100%; gap: 5px; }
   .world-weather { gap: 5px; padding: 6px 7px; font-size: 7px; }
-  .world-progress { top: max(156px, calc(env(safe-area-inset-top) + 148px)); width: min(230px, 55vw); }
+  .world-progress {
+    top: max(136px, calc(env(safe-area-inset-top) + 122px));
+    left: max(14px, env(safe-area-inset-left));
+    width: min(360px, calc(100vw - 28px));
+    padding: 8px 11px;
+  }
+  .world-progress__map { width: 44px; height: 44px; flex-basis: 44px; }
+  .world-daily-lives {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .world-daily-lives__label { font-size: 7px; letter-spacing: .1em; }
+  .world-daily-lives__hearts { font-size: 13px; }
+  .world-daily-lives__count { font-size: 8px; }
+  .world-daily-lives__message { grid-column: 1 / -1; flex: none; font-size: 8px; }
+  .world-daily-ad { grid-column: 1 / -1; width: 100%; min-height: 36px; flex: none; font-size: 8px; }
   .world-gate-prompt { top: 41%; width: min(290px, calc(100% - 26px)); }
   .world-gate-prompt strong { font-size: 16px; }
   .world-debug { top: 120px; right: 8px; gap: 3px; padding: 6px 7px; font-size: 8px; }
@@ -1057,12 +1094,7 @@
   .world-joystick { display: block; width: 124px; height: 124px; }
   .world-joystick__nub { width: 48px; height: 48px; }
   .world-movement-actions { display: flex; }
-  .world-mobile-hint {
-    display: block; position: absolute; z-index: 7; top: max(286px, calc(env(safe-area-inset-top) + 278px)); left: max(14px, env(safe-area-inset-left)); bottom: auto;
-    max-width: min(194px, 48vw); padding: 5px 7px; border: 1px solid rgba(226,190,125,.17);
-    border-radius: 3px; background: rgba(15,16,20,.56); color: rgba(234,219,191,.62);
-    font-size: 7px; letter-spacing: .05em; line-height: 1.45; text-transform: uppercase;
-  }
+  .world-mobile-hint { display: none !important; }
   .world-encounter { top: 43%; width: min(390px, calc(100% - 22px)); }
   .world-encounter__rival { width: 66px; height: 126px; }
   .world-encounter__card { margin-bottom: 7px; padding: 9px 10px; }
