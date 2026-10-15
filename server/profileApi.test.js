@@ -27,8 +27,14 @@ test("profile API accepts and normalizes a valid account profile", () => {
   assert.equal(profile?.materials.ironShards, 0);
   assert.deepEqual(profile?.equipment, {
     weaponId: "weapon_ash_sword",
+    offhandId: null,
+    helmetId: null,
     armorId: "armor_ash_guard",
+    glovesId: null,
+    bootsId: null,
     capeId: "cape_worn",
+    ringOneId: null,
+    ringTwoId: null,
     effectId: "effect_none",
     dyeId: "dye_none",
   });

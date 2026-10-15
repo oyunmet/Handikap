@@ -1,11 +1,13 @@
 import type { PlayerProfile } from "./profile";
 import { getUpgradeBonuses, MAX_UPGRADE_LEVEL } from "./store-types";
 import type {
+  EquipmentLoadoutKey,
   EquipmentStatBonuses,
   EquipmentVisual,
   PlayerCombatModifiers,
   StoreItem,
 } from "./store-types";
+import { EQUIPMENT_LOADOUT_KEYS, getEquipmentLoadoutKey } from "./store-types.ts";
 import { EQUIPMENT_SETS } from "./store-catalog.ts";
 
 const BASE_STATS: EquipmentStatBonuses = {
@@ -41,12 +43,24 @@ export function getEquipmentVisual(profile: PlayerProfile, catalog: readonly Sto
   const cape = find(profile.equipment.capeId)?.visual ?? {};
   const effect = find(profile.equipment.effectId)?.visual ?? {};
   const dye = find(profile.equipment.dyeId)?.visual;
+  const offhand = profile.equipment.offhandId ? find(profile.equipment.offhandId)?.visual ?? {} : {};
+  const helmet = profile.equipment.helmetId ? find(profile.equipment.helmetId)?.visual ?? {} : {};
+  const gloves = profile.equipment.glovesId ? find(profile.equipment.glovesId)?.visual ?? {} : {};
+  const boots = profile.equipment.bootsId ? find(profile.equipment.bootsId)?.visual ?? {} : {};
+  const ring = profile.equipment.ringOneId
+    ? find(profile.equipment.ringOneId)?.visual ?? {}
+    : profile.equipment.ringTwoId ? find(profile.equipment.ringTwoId)?.visual ?? {} : {};
   const dyedColor = dye?.dyeColor;
   const visual: EquipmentVisual = {
     ...armor,
     ...cape,
     ...weapon,
     ...effect,
+    ...offhand,
+    ...helmet,
+    ...gloves,
+    ...boots,
+    ...ring,
   };
   if (dyedColor) {
     visual.dyeColor = dyedColor;
@@ -61,16 +75,14 @@ export function getEquipmentVisual(profile: PlayerProfile, catalog: readonly Sto
 export function getEquipmentBonuses(profile: PlayerProfile, catalog: readonly StoreItem[]) {
   const totals = { ...BASE_STATS };
   const setCounts = new Map<string, number>();
-  const equipped = [
-    ["weapon", profile.equipment.weaponId],
-    ["armor", profile.equipment.armorId],
-    ["cape", profile.equipment.capeId],
-    ["effect", profile.equipment.effectId],
-    ["dye", profile.equipment.dyeId],
-  ] as const;
-  for (const [slot, itemId] of equipped) {
+  const counted = new Set<string>();
+  for (const key of EQUIPMENT_LOADOUT_KEYS) {
+    const itemId = profile.equipment[key];
+    if (!itemId || counted.has(itemId)) continue;
     const item = catalog.find((entry) => entry.id === itemId);
-    if (!item || item.slot !== slot || !profile.inventory.ownedItemIds.includes(item.id)) continue;
+    const itemSlot = item?.slot;
+    if (!item || !itemSlot || !slotAcceptsLoadoutKey(itemSlot, key) || !profile.inventory.ownedItemIds.includes(item.id)) continue;
+    counted.add(itemId);
     addBonuses(totals, getItemBonuses(item, profile));
     if (item.setId) setCounts.set(item.setId, (setCounts.get(item.setId) ?? 0) + 1);
   }
@@ -83,6 +95,10 @@ export function getEquipmentBonuses(profile: PlayerProfile, catalog: readonly St
   return totals;
 }
 
+function slotAcceptsLoadoutKey(slot: NonNullable<StoreItem["slot"]>, key: EquipmentLoadoutKey) {
+  return getEquipmentLoadoutKey(slot, key === "ringTwoId" ? "ringTwoId" : "ringOneId") === key;
+}
+
 export function getItemBonuses(item: StoreItem, profile: PlayerProfile): EquipmentStatBonuses {
   const bonuses = { ...BASE_STATS };
   for (const key of Object.keys(bonuses) as (keyof EquipmentStatBonuses)[]) {
@@ -90,7 +106,7 @@ export function getItemBonuses(item: StoreItem, profile: PlayerProfile): Equipme
     if (Number.isFinite(value)) bonuses[key] = value;
   }
   const level = Math.max(0, Math.min(MAX_UPGRADE_LEVEL, profile.inventory.upgrades[item.id] ?? 0));
-  if (level > 0 && item.upgradeable) {
+  if (level > 0 && item.upgradeable && item.slot) {
     const upgrade = getUpgradeBonuses(item.slot);
     for (const [key, value] of Object.entries(upgrade) as [keyof EquipmentStatBonuses, number][]) {
       bonuses[key] += value * level;

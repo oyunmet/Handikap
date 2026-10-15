@@ -73,7 +73,7 @@ ALTER TABLE public.shafak_duels
 CREATE TABLE IF NOT EXISTS public.shafak_store_transactions (
   user_id TEXT NOT NULL,
   idempotency_key UUID NOT NULL,
-  operation_type TEXT NOT NULL CHECK (operation_type IN ('purchase', 'upgrade')),
+  operation_type TEXT NOT NULL CHECK (operation_type IN ('purchase', 'upgrade', 'sell', 'salvage')),
   item_id TEXT NOT NULL,
   response JSONB NOT NULL CHECK (jsonb_typeof(response) = 'object'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -82,3 +82,9 @@ CREATE TABLE IF NOT EXISTS public.shafak_store_transactions (
 
 CREATE INDEX IF NOT EXISTS shafak_store_transactions_created_idx
   ON public.shafak_store_transactions (created_at);
+
+ALTER TABLE public.shafak_store_transactions
+  DROP CONSTRAINT IF EXISTS shafak_store_transactions_operation_type_check;
+ALTER TABLE public.shafak_store_transactions
+  ADD CONSTRAINT shafak_store_transactions_operation_type_check
+  CHECK (operation_type IN ('purchase', 'upgrade', 'sell', 'salvage'));

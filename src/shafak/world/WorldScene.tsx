@@ -6,12 +6,18 @@ import DuelControls from "../game/DuelControls";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
-import { STORE_CATALOG } from "../game/store-catalog";
+import { isDailySpecialAvailable, STARTER_ITEM_IDS, STORE_CATALOG } from "../game/store-catalog";
 import { getCombatItem, type CombatItemId, type CombatQuickSlots } from "../game/combat-items.ts";
 import {
+  getEquipmentLoadoutKey,
+  getItemSellValue,
+  getSalvageYield,
   getUpgradeCost,
+  getUpgradeSuccessChance,
   isStoreItemUnlocked,
   MAX_UPGRADE_LEVEL,
+  rollUpgradeSuccess,
+  type EquipmentLoadoutKey,
   type EquipmentSlot,
   type EquipmentVisual,
   type StoreItem,
@@ -309,12 +315,8 @@ function getCachedWorldContent(
   return snapshot;
 }
 
-function slotEquipmentKey(slot: EquipmentSlot) {
-  if (slot === "weapon") return "weaponId" as const;
-  if (slot === "armor") return "armorId" as const;
-  if (slot === "cape") return "capeId" as const;
-  if (slot === "effect") return "effectId" as const;
-  return "dyeId" as const;
+function slotEquipmentKey(slot: EquipmentSlot, ringKey?: EquipmentLoadoutKey) {
+  return getEquipmentLoadoutKey(slot, ringKey === "ringTwoId" ? "ringTwoId" : "ringOneId");
 }
 
 function createIdempotencyKey() {
@@ -339,6 +341,15 @@ function storeErrorText(code: string) {
     item_already_owned: "Bu eşya zaten heybenizde.",
     item_not_owned: "Bu eşyayı önce satın alıp heybenize eklemelisiniz.",
     item_not_found: "Bu eşya katalogda bulunamadı; kataloğu yenileyip tekrar deneyin.",
+    item_not_equippable: "Bu eşya kuşanılamaz.",
+    item_not_equipment: "Yalnızca ekipman satılabilir veya parçalanabilir.",
+    item_equipped: "Önce kuşanılmış eşyayı çıkar.",
+    item_has_no_sale_value: "Bu eşyanın satış değeri yok.",
+    starter_item_cannot_be_removed: "Başlangıç eşyaları satılamaz veya parçalanamaz.",
+    special_offer_expired: "Bu özel teklif yenilendi; güncel teklifleri açıp tekrar dene.",
+    inventory_full: "Heybe dolu; önce eşya sat veya parçala.",
+    stack_limit: "Bu eşyanın heybe sınırına ulaştın.",
+    invalid_equipment_slot: "Eşya seçilen ekipman yuvasına takılamaz.",
     item_not_upgradeable: "Bu eşya geliştirilemiyor.",
     upgrade_max_level: "Bu eşya en yüksek seviyede.",
     profile_not_ready: "Hesap profili henüz hazır değil.",
@@ -381,8 +392,9 @@ function isStoreCatalogItem(value: unknown): value is StoreItem {
   return typeof item.id === "string" &&
     /^[a-z0-9_-]{1,60}$/.test(item.id) &&
     typeof item.name === "string" &&
-    ["weapons", "armor", "capes", "effects", "dyes"].includes(String(item.category)) &&
-    ["weapon", "armor", "cape", "effect", "dye"].includes(String(item.slot)) &&
+    ["weapons", "armor", "accessories", "consumables", "materials", "specials"].includes(String(item.category)) &&
+    (item.slot === null || ["weapon", "offhand", "helmet", "armor", "gloves", "boots", "cape", "ring", "effect", "dye"].includes(String(item.slot))) &&
+    ["equipment", "consumable", "material"].includes(String(item.kind)) &&
     Boolean(item.price && Number.isSafeInteger(item.price.gold) && item.price.gold >= 0 &&
       Number.isSafeInteger(item.price.diamonds) && item.price.diamonds >= 0) &&
     typeof item.description === "string" &&
@@ -712,7 +724,11 @@ export default function WorldScene({
   const [storeCelebrationSignal, setStoreCelebrationSignal] = useState(0);
   const [storeMessage, setStoreMessage] = useState("");
   const [storeError, setStoreError] = useState("");
-  const [storeRetryAction, setStoreRetryAction] = useState<{ operation: "purchase" | "equip" | "upgrade"; itemId: string } | null>(null);
+  const [storeRetryAction, setStoreRetryAction] = useState<{
+    operation: "purchase" | "equip" | "upgrade" | "sell" | "salvage";
+    itemId: string;
+    equipmentKey?: EquipmentLoadoutKey;
+  } | null>(null);
   const [weatherMode, setWeatherMode] = useState<WeatherMode>("ash");
   const airEnabled = weatherMode !== "clear";
   const [audioOn, setAudioOn] = useState(soundEnabled);
@@ -879,7 +895,7 @@ export default function WorldScene({
   const worldEquipmentVisual = useMemo(() => {
     if (panel !== "store" || !storeTrialItemId) return equipmentVisual;
     const trialItem = storeItems.find((item) => item.id === storeTrialItemId);
-    if (!trialItem) return equipmentVisual;
+    if (!trialItem?.slot || trialItem.kind !== "equipment") return equipmentVisual;
     const key = slotEquipmentKey(trialItem.slot);
     const trialProfile = {
       ...profile,
@@ -927,7 +943,11 @@ export default function WorldScene({
     setVibrationOn(vibrationEnabled);
   }, [vibrationEnabled]);
   const storeMutationKeysRef = useRef(new Map<string, string>());
-  const runStoreMutation = useCallback(async (operation: "purchase" | "equip" | "upgrade", itemId: string) => {
+  const runStoreMutation = useCallback(async (
+    operation: "purchase" | "equip" | "upgrade" | "sell" | "salvage",
+    itemId: string,
+    selectedEquipmentKey?: EquipmentLoadoutKey,
+  ) => {
     if (storeMutationRef.current) return;
     const item = storeItems.find((entry) => entry.id === itemId);
     if (!item) {
@@ -937,6 +957,12 @@ export default function WorldScene({
     if (accountDuelEnabled && !accountProfileReady) {
       setStoreError("Hesap profili hazır değil; güvenli yerel alışverişe devam edilemiyor.");
       return;
+    }
+    const mutationKey = `${operation}:${itemId}:${selectedEquipmentKey ?? ""}`;
+    let idempotencyKey = storeMutationKeysRef.current.get(mutationKey);
+    if (operation !== "equip" && !idempotencyKey) {
+      idempotencyKey = createIdempotencyKey();
+      storeMutationKeysRef.current.set(mutationKey, idempotencyKey);
     }
     storeMutationRef.current = true;
     setStoreBusyItemId(itemId);
@@ -949,8 +975,11 @@ export default function WorldScene({
         let nextProfile = currentProfile;
         if (operation === "purchase") {
           if (item.dropOnly) throw new StoreActionError("Bu eşya yalnızca rakip ganimeti olarak bulunur.");
+          if (item.category === "specials" && !isDailySpecialAvailable(item.id)) {
+            throw new StoreActionError("Bu özel teklif yenilendi; güncel teklifleri açıp tekrar dene.");
+          }
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşya için seviye ${item.requiredLevel} gerekiyor.`);
-          if (currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya zaten heybenizde.");
+          if (item.kind === "equipment" && currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya zaten heybenizde.");
           if (currentProfile.gold < item.price.gold || currentProfile.diamonds < item.price.diamonds) {
             throw new StoreActionError("Altın veya elmas bakiyen bu eşya için yeterli değil.");
           }
@@ -958,27 +987,101 @@ export default function WorldScene({
             ...currentProfile,
             gold: currentProfile.gold - item.price.gold,
             diamonds: currentProfile.diamonds - item.price.diamonds,
-            inventory: {
-              ...currentProfile.inventory,
-              ownedItemIds: [...currentProfile.inventory.ownedItemIds, item.id],
-              newItemIds: [...new Set([...currentProfile.inventory.newItemIds, item.id])],
-            },
           };
+          if (item.kind === "equipment") {
+            if (currentProfile.inventory.ownedItemIds.length >= 120) throw new StoreActionError("Heybe dolu; yeni eşya alamazsın.");
+            nextProfile = {
+              ...nextProfile,
+              inventory: {
+                ...currentProfile.inventory,
+                ownedItemIds: [...currentProfile.inventory.ownedItemIds, item.id],
+                newItemIds: [...new Set([...currentProfile.inventory.newItemIds, item.id])],
+              },
+            };
+          } else if (item.reward?.type === "combat-item") {
+            const count = currentProfile.inventory.combatItemCounts[item.reward.itemId];
+            if (count + item.reward.amount > 999) throw new StoreActionError("Bu eşyanın heybe sınırına ulaştın.");
+            nextProfile = {
+              ...nextProfile,
+              inventory: {
+                ...currentProfile.inventory,
+                combatItemCounts: {
+                  ...currentProfile.inventory.combatItemCounts,
+                  [item.reward.itemId]: count + item.reward.amount,
+                },
+              },
+            };
+          } else if (item.reward?.type === "material") {
+            const count = currentProfile.materials[item.reward.material];
+            if (count + item.reward.amount > 1_000_000_000) throw new StoreActionError("Bu malzemenin heybe sınırına ulaştın.");
+            nextProfile = {
+              ...nextProfile,
+              materials: {
+                ...currentProfile.materials,
+                [item.reward.material]: count + item.reward.amount,
+              },
+            };
+          } else {
+            throw new StoreActionError("Bu mağaza eşyasının ödül bilgisi eksik.");
+          }
         } else if (operation === "equip") {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
           if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
-          const key = slotEquipmentKey(item.slot);
+          if (item.kind !== "equipment" || !item.slot) throw new StoreActionError("Bu eşya kuşanılamaz.");
+          const key = selectedEquipmentKey ?? slotEquipmentKey(item.slot);
+          if (key !== slotEquipmentKey(item.slot, key)) throw new StoreActionError("Bu eşya seçilen yuvaya takılamaz.");
           nextProfile = {
             ...currentProfile,
-            equipment: { ...currentProfile.equipment, [key]: item.id },
+            equipment: {
+              ...currentProfile.equipment,
+              ...(item.slot === "ring" && key === "ringOneId" && currentProfile.equipment.ringTwoId === item.id ? { ringTwoId: null } : {}),
+              ...(item.slot === "ring" && key === "ringTwoId" && currentProfile.equipment.ringOneId === item.id ? { ringOneId: null } : {}),
+              [key]: item.id,
+            },
             inventory: {
               ...currentProfile.inventory,
               newItemIds: currentProfile.inventory.newItemIds.filter((id) => id !== item.id),
             },
           };
+        } else if (operation === "sell" || operation === "salvage") {
+          if (item.kind !== "equipment" || !item.slot) throw new StoreActionError("Yalnızca ekipman satılabilir veya parçalanabilir.");
+          if (STARTER_ITEM_IDS.includes(item.id as (typeof STARTER_ITEM_IDS)[number])) throw new StoreActionError("Başlangıç eşyaları satılamaz veya parçalanamaz.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya heybenizde değil.");
+          if (Object.values(currentProfile.equipment).includes(item.id) || currentProfile.inventory.secondaryWeaponId === item.id) {
+            throw new StoreActionError("Önce kuşanılmış eşyayı çıkar.");
+          }
+          const upgradeLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
+          const withoutItem: PlayerProfile = {
+            ...currentProfile,
+            inventory: {
+              ...currentProfile.inventory,
+              ownedItemIds: currentProfile.inventory.ownedItemIds.filter((id) => id !== item.id),
+              newItemIds: currentProfile.inventory.newItemIds.filter((id) => id !== item.id),
+              upgrades: Object.fromEntries(Object.entries(currentProfile.inventory.upgrades).filter(([id]) => id !== item.id)),
+            },
+          };
+          if (operation === "sell") {
+            const payout = getItemSellValue(item);
+            if (payout.gold <= 0 && payout.diamonds <= 0) throw new StoreActionError("Bu eşyanın satış değeri yok.");
+            nextProfile = {
+              ...withoutItem,
+              gold: Math.min(1_000_000_000, withoutItem.gold + payout.gold),
+              diamonds: Math.min(1_000_000_000, withoutItem.diamonds + payout.diamonds),
+            };
+          } else {
+            const recovered = getSalvageYield(item, upgradeLevel);
+            nextProfile = {
+              ...withoutItem,
+              materials: {
+                ironShards: Math.min(1_000_000_000, withoutItem.materials.ironShards + recovered.ironShards),
+                emberCrystals: Math.min(1_000_000_000, withoutItem.materials.emberCrystals + recovered.emberCrystals),
+                sealFragments: Math.min(1_000_000_000, withoutItem.materials.sealFragments + recovered.sealFragments),
+              },
+            };
+          }
         } else {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı geliştirmek için seviye ${item.requiredLevel} gerekiyor.`);
-          if (!item.upgradeable || (item.slot !== "weapon" && item.slot !== "armor")) throw new StoreActionError("Bu eşya geliştirilemiyor.");
+          if (!item.upgradeable || item.kind !== "equipment" || !item.slot) throw new StoreActionError("Bu eşya geliştirilemiyor.");
           if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
           const currentLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
           if (currentLevel >= MAX_UPGRADE_LEVEL) throw new StoreActionError("Bu eşya en yüksek seviyede.");
@@ -989,6 +1092,7 @@ export default function WorldScene({
             currentProfile.materials.emberCrystals < cost.emberCrystals ||
             currentProfile.materials.sealFragments < cost.sealFragments
           ) throw new StoreActionError("Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.");
+          const upgradeSucceeded = rollUpgradeSuccess(idempotencyKey!, currentLevel);
           nextProfile = {
             ...currentProfile,
             gold: currentProfile.gold - cost.gold,
@@ -1000,32 +1104,40 @@ export default function WorldScene({
             },
             inventory: {
               ...currentProfile.inventory,
-              upgrades: { ...currentProfile.inventory.upgrades, [item.id]: currentLevel + 1 },
+              upgrades: upgradeSucceeded
+                ? { ...currentProfile.inventory.upgrades, [item.id]: currentLevel + 1 }
+                : currentProfile.inventory.upgrades,
             },
           };
         }
         commitBattleProfile(normalizePlayerProfile(nextProfile));
+        storeMutationKeysRef.current.delete(mutationKey);
         if (operation === "purchase" || operation === "upgrade") {
           setStoreCelebrationSignal((signal) => signal + 1);
           playWorldCue("seal");
         }
-        setStoreMessage(operation === "purchase"
-          ? `${item.name} heybenize eklendi.`
-          : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
+        if (operation === "upgrade") {
+          const previousLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
+          const upgraded = (nextProfile.inventory.upgrades[item.id] ?? 0) > previousLevel;
+          setStoreMessage(upgraded ? `${item.name} +${previousLevel + 1} oldu.` : `${item.name} geliştirmesi başarısız oldu; kaynaklar kullanıldı.`);
+        } else if (operation === "sell") {
+          const payout = getItemSellValue(item);
+          setStoreMessage(`${item.name} satıldı${payout.gold ? ` · ${payout.gold} altın` : ""}${payout.diamonds ? ` · ${payout.diamonds} elmas` : ""}.`);
+        } else if (operation === "salvage") {
+          setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
+        } else {
+          setStoreMessage(operation === "purchase"
+            ? `${item.name} ${item.kind === "equipment" ? "heybenize eklendi." : "satın alındı ve stoğunuza eklendi."}`
+            : `${item.name} kuşanıldı.`);
+        }
         return;
       }
 
       if (!accountProfileReady) throw new StoreActionError("Hesap profili henüz hazır değil.");
-      const mutationKey = `${operation}:${itemId}`;
-      let idempotencyKey = storeMutationKeysRef.current.get(mutationKey);
-      if (operation !== "equip" && !idempotencyKey) {
-        idempotencyKey = createIdempotencyKey();
-        storeMutationKeysRef.current.set(mutationKey, idempotencyKey);
-      }
       const body = operation === "equip"
-        ? { itemId }
+        ? { itemId, ...(selectedEquipmentKey ? { equipmentKey: selectedEquipmentKey } : {}) }
         : { itemId, idempotencyKey };
-      const result = await apiRequest<{ profile?: unknown }>(`/api/store/${operation}`, {
+      const result = await apiRequest<{ profile?: unknown; upgradeSucceeded?: boolean }>(`/api/store/${operation}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1042,25 +1154,36 @@ export default function WorldScene({
         setStoreCelebrationSignal((signal) => signal + 1);
         playWorldCue("seal");
       }
-      setStoreMessage(operation === "purchase"
-        ? `${item.name} satın alındı.`
-        : operation === "equip" ? `${item.name} kuşanıldı.` : `${item.name} geliştirildi.`);
+      if (operation === "upgrade") {
+        setStoreMessage(result.upgradeSucceeded === false
+          ? `${item.name} geliştirmesi başarısız oldu; kaynaklar kullanıldı.`
+          : `${item.name} +${(profileRef.current.inventory.upgrades[item.id] ?? 0)} oldu.`);
+      } else if (operation === "sell") {
+        const payout = getItemSellValue(item);
+        setStoreMessage(`${item.name} satıldı${payout.gold ? ` · ${payout.gold} altın` : ""}${payout.diamonds ? ` · ${payout.diamonds} elmas` : ""}.`);
+      } else if (operation === "salvage") {
+        setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
+      } else {
+        setStoreMessage(operation === "purchase"
+          ? `${item.name} satın alındı.`
+          : `${item.name} kuşanıldı.`);
+      }
     } catch (error) {
       if (error instanceof ApiResponseError) {
         setStoreError(error.retryable ? "Mağaza şu an yüklenemedi, tekrar dene." : error.message);
-        if (error.retryable) setStoreRetryAction({ operation, itemId });
-        else storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
+        if (error.retryable) setStoreRetryAction({ operation, itemId, equipmentKey: selectedEquipmentKey });
+        else storeMutationKeysRef.current.delete(mutationKey);
       } else if (error instanceof StoreActionError) {
         setStoreError(error.message);
-        storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
+        storeMutationKeysRef.current.delete(mutationKey);
       } else {
         console.warn("[store] operation failed", {
           operation,
           errorName: error instanceof Error ? error.name : "unknown",
         });
         setStoreError("Mağaza şu an yüklenemedi, tekrar dene.");
-        if (accountDuelEnabled) setStoreRetryAction({ operation, itemId });
-        else storeMutationKeysRef.current.delete(`${operation}:${itemId}`);
+        if (accountDuelEnabled) setStoreRetryAction({ operation, itemId, equipmentKey: selectedEquipmentKey });
+        else storeMutationKeysRef.current.delete(mutationKey);
       }
     } finally {
       storeMutationRef.current = false;
@@ -3019,13 +3142,16 @@ export default function WorldScene({
           onClose={closeStorePanel}
           onTry={setStoreTrialItemId}
           onPurchase={(itemId) => void runStoreMutation("purchase", itemId)}
-          onEquip={(itemId) => void runStoreMutation("equip", itemId)}
+          onEquip={(itemId, equipmentKey) => void runStoreMutation("equip", itemId, equipmentKey)}
           onUpgrade={(itemId) => void runStoreMutation("upgrade", itemId)}
+          onSell={(itemId) => void runStoreMutation("sell", itemId)}
+          onSalvage={(itemId) => void runStoreMutation("salvage", itemId)}
           onAssignQuickSlot={assignCombatQuickSlot}
           onSetSecondaryWeapon={setSecondaryWeapon}
           loadoutBusy={combatLoadoutBusy}
-          onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId) : undefined}
+          onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId, storeRetryAction.equipmentKey) : undefined}
           renderPreview={(item) => {
+            if (item.kind !== "equipment" || !item.slot) return <span>{item.icon ?? "◇"}</span>;
             const key = slotEquipmentKey(item.slot);
             const previewProfile = {
               ...profile,

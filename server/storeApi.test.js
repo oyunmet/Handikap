@@ -4,7 +4,14 @@ import test from "node:test";
 import { createDefaultPlayerProfile } from "./profileApi.ts";
 import { calculateAccountCombatStats, createStoreApi, validateStoreOperationBody } from "./storeApi.ts";
 import { STORE_CATALOG } from "./storeCatalog.ts";
-import { getUpgradeCost, MAX_UPGRADE_LEVEL } from "../src/shafak/game/store-types.ts";
+import {
+  getItemSellValue,
+  getSalvageYield,
+  getUpgradeCost,
+  getUpgradeSuccessChance,
+  MAX_UPGRADE_LEVEL,
+  rollUpgradeSuccess,
+} from "../src/shafak/game/store-types.ts";
 
 const key = "d85e8c16-e9a2-4a74-96c0-2a25270050e8";
 
@@ -137,6 +144,102 @@ test("the account equip route refuses items the profile does not own", async (t)
   assert.equal(pool.profile.equipment.weaponId, "weapon_ash_sword");
 });
 
+test("the account equip route supports an explicit second ring slot", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.inventory.ownedItemIds.push("ring_storm");
+  const { pool, send } = await openStoreApi(t, profile);
+  const response = await send("equip", { itemId: "ring_storm", equipmentKey: "ringTwoId" });
+  assert.equal(response.status, 200);
+  assert.equal(pool.profile.equipment.ringTwoId, "ring_storm");
+  assert.equal(pool.profile.equipment.ringOneId, null);
+});
+
+test("repeat purchases add consumable and material stock without creating equipment entries", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.gold = 1000;
+  profile.inventory.combatItemCounts.health_potion = 0;
+  profile.materials.ironShards = 0;
+  const { pool, send } = await openStoreApi(t, profile);
+  const firstKey = "c8dd7e88-7929-4e36-94ca-02f0a76a7028";
+  const secondKey = "7454d20b-593a-44b5-9602-0be1d346c80d";
+  const firstPotion = await send("purchase", { itemId: "supply_health_potion", idempotencyKey: firstKey });
+  const secondPotion = await send("purchase", { itemId: "supply_health_potion", idempotencyKey: secondKey });
+  assert.equal(firstPotion.status, 200);
+  assert.equal(secondPotion.status, 200);
+  assert.equal(pool.profile.inventory.combatItemCounts.health_potion, 2);
+  assert.equal(pool.profile.inventory.ownedItemIds.includes("supply_health_potion"), false);
+  const material = await send("purchase", { itemId: "material_iron_shard", idempotencyKey: "e74b6113-2fb0-4954-ae8b-1303d883f3e3" });
+  assert.equal(material.status, 200);
+  assert.equal(pool.profile.materials.ironShards, 1);
+});
+
+test("selling returns forty percent, removes the item once, and rejects equipped gear", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.gold = 0;
+  profile.inventory.ownedItemIds.push("weapon_iron_sword");
+  const { pool, send } = await openStoreApi(t, profile);
+  const expectedValue = getItemSellValue(STORE_CATALOG.find((item) => item.id === "weapon_iron_sword"));
+  const saleKey = "173b0583-66df-4b46-90b1-81339261df6b";
+  const first = await send("sell", { itemId: "weapon_iron_sword", idempotencyKey: saleKey });
+  assert.equal(first.status, 200);
+  assert.equal(pool.profile.gold, expectedValue.gold);
+  assert.equal(pool.profile.inventory.ownedItemIds.includes("weapon_iron_sword"), false);
+  const replay = await send("sell", { itemId: "weapon_iron_sword", idempotencyKey: saleKey });
+  assert.equal(replay.status, 200);
+  assert.equal(pool.profile.gold, expectedValue.gold);
+
+  const equippedProfile = createDefaultPlayerProfile();
+  equippedProfile.inventory.ownedItemIds.push("weapon_iron_sword");
+  equippedProfile.equipment.weaponId = "weapon_iron_sword";
+  const equippedStore = await openStoreApi(t, equippedProfile);
+  const blocked = await equippedStore.send("sell", {
+    itemId: "weapon_iron_sword",
+    idempotencyKey: "7ce5888d-8468-40bd-a950-63d861e2cfbb",
+  });
+  assert.equal(blocked.status, 409);
+  assert.deepEqual(await blocked.json(), { error: "item_equipped" });
+});
+
+test("salvaging removes loose gear and returns upgrade-aware materials", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.inventory.ownedItemIds.push("weapon_iron_sword");
+  profile.inventory.upgrades.weapon_iron_sword = 4;
+  const { pool, send } = await openStoreApi(t, profile);
+  const expectedYield = getSalvageYield(STORE_CATALOG.find((item) => item.id === "weapon_iron_sword"), 4);
+  const response = await send("salvage", {
+    itemId: "weapon_iron_sword",
+    idempotencyKey: "fbe26539-df39-4df5-9eb4-14c27e83469b",
+  });
+  assert.equal(response.status, 200);
+  assert.equal(pool.profile.inventory.ownedItemIds.includes("weapon_iron_sword"), false);
+  assert.equal(pool.profile.inventory.upgrades.weapon_iron_sword, undefined);
+  assert.equal(pool.profile.materials.ironShards, expectedYield.ironShards);
+  assert.equal(pool.profile.materials.emberCrystals, expectedYield.emberCrystals);
+});
+
+test("upgrade risk is deterministic, costs are spent on failure, and replays do not charge twice", async (t) => {
+  assert.equal(getUpgradeSuccessChance(0), 100);
+  assert.equal(getUpgradeSuccessChance(6), 85);
+  const profile = createDefaultPlayerProfile();
+  profile.gold = 1_000_000;
+  profile.materials = { ironShards: 100, emberCrystals: 100, sealFragments: 100 };
+  profile.inventory.upgrades.weapon_ash_sword = 6;
+  const { pool, send } = await openStoreApi(t, profile);
+  const upgradeKey = "2e630bf0-d06d-49c6-a8d3-939cc724ffdc";
+  const expectedSuccess = rollUpgradeSuccess(upgradeKey, 6);
+  const beforeGold = pool.profile.gold;
+  const cost = getUpgradeCost("weapon", 6);
+  const response = await send("upgrade", { itemId: "weapon_ash_sword", idempotencyKey: upgradeKey });
+  const result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.upgradeSucceeded, expectedSuccess);
+  assert.equal(pool.profile.gold, beforeGold - cost.gold);
+  assert.equal(pool.profile.inventory.upgrades.weapon_ash_sword, expectedSuccess ? 7 : 6);
+  const replay = await send("upgrade", { itemId: "weapon_ash_sword", idempotencyKey: upgradeKey });
+  assert.equal((await replay.json()).replayed, true);
+  assert.equal(pool.profile.gold, beforeGold - cost.gold);
+});
+
 test("the account combat loadout saves assigned slots and only accepts owned weapons and available items", async (t) => {
   const profile = createDefaultPlayerProfile();
   profile.inventory.ownedItemIds.push("weapon_iron_axe");
@@ -167,11 +270,12 @@ test("the account combat loadout saves assigned slots and only accepts owned wea
 });
 
 test("server catalog contains the staged equipment categories with in-game-only prices", () => {
-  assert.equal(STORE_CATALOG.filter((item) => item.category === "weapons").length, 8);
-  assert.equal(STORE_CATALOG.filter((item) => item.category === "armor").length, 4);
-  assert.equal(STORE_CATALOG.filter((item) => item.category === "capes").length, 4);
-  assert.equal(STORE_CATALOG.filter((item) => item.category === "effects").length, 5);
-  assert.equal(STORE_CATALOG.filter((item) => item.category === "dyes").length, 4);
+  assert.ok(STORE_CATALOG.filter((item) => item.category === "weapons").length >= 8);
+  assert.ok(STORE_CATALOG.filter((item) => item.category === "armor").length >= 8);
+  assert.ok(STORE_CATALOG.filter((item) => item.category === "accessories").length >= 10);
+  assert.ok(STORE_CATALOG.filter((item) => item.category === "consumables").length >= 6);
+  assert.ok(STORE_CATALOG.filter((item) => item.category === "materials").length >= 3);
+  assert.ok(STORE_CATALOG.filter((item) => item.category === "specials").length >= 4);
   assert.ok(STORE_CATALOG.every((item) => Object.keys(item.price).sort().join(",") === "diamonds,gold"));
 });
 

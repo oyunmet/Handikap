@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PlayerProfile } from "../profile";
 import { COMBAT_ITEMS, type CombatItemId } from "../combat-items.ts";
-import { getUpgradeCost, isStoreItemUnlocked, MAX_UPGRADE_LEVEL, type EquipmentStatBonuses, type StoreItem, type StoreTab } from "../store-types";
-import { EQUIPMENT_SETS } from "../store-catalog.ts";
+import {
+  EQUIPMENT_LOADOUT_KEYS,
+  EQUIPMENT_SLOT_LABELS,
+  getEquipmentLoadoutKey,
+  getItemSellValue,
+  getSalvageYield,
+  getUpgradeCost,
+  getUpgradeSuccessChance,
+  isStoreItemUnlocked,
+  MAX_UPGRADE_LEVEL,
+  type EquipmentLoadoutKey,
+  type EquipmentStatBonuses,
+  type StoreItem,
+  type StoreTab,
+} from "../store-types.ts";
+import { EQUIPMENT_SETS, getDailySpecials } from "../store-catalog.ts";
 import { getItemBonuses } from "../store-utils";
 import "./store-panel.css";
 
@@ -21,8 +35,10 @@ type StorePanelProps = {
   onClose(): void;
   onTry(itemId: string | null): void;
   onPurchase(itemId: string): void;
-  onEquip(itemId: string): void;
+  onEquip(itemId: string, equipmentKey?: EquipmentLoadoutKey): void;
   onUpgrade(itemId: string): void;
+  onSell(itemId: string): void;
+  onSalvage(itemId: string): void;
   onAssignQuickSlot(itemId: CombatItemId, slotIndex: number): void;
   onSetSecondaryWeapon(itemId: string | null): void;
   loadoutBusy: boolean;
@@ -31,20 +47,13 @@ type StorePanelProps = {
 
 const tabs: { id: StoreTab; label: string }[] = [
   { id: "weapons", label: "SİLAHLAR" },
-  { id: "armor", label: "ZIRH/KOSTÜM" },
-  { id: "capes", label: "PELERİN" },
-  { id: "effects", label: "EFEKTLER" },
-  { id: "dyes", label: "BOYALAR" },
+  { id: "armor", label: "ZIRHLAR" },
+  { id: "accessories", label: "AKSESUARLAR" },
+  { id: "consumables", label: "İKSİRLER" },
+  { id: "materials", label: "MALZEMELER" },
+  { id: "specials", label: "ÖZEL" },
   { id: "inventory", label: "ENVANTER" },
 ];
-
-const equippedIdBySlot = {
-  weapon: "weaponId",
-  armor: "armorId",
-  cape: "capeId",
-  effect: "effectId",
-  dye: "dyeId",
-} as const;
 
 const statLabels: Record<keyof EquipmentStatBonuses, string> = {
   health: "Can",
@@ -90,6 +99,8 @@ export default function StorePanel({
   onPurchase,
   onEquip,
   onUpgrade,
+  onSell,
+  onSalvage,
   onAssignQuickSlot,
   onSetSecondaryWeapon,
   loadoutBusy,
@@ -97,43 +108,76 @@ export default function StorePanel({
 }: StorePanelProps) {
   const [activeTab, setActiveTab] = useState<StoreTab>("weapons");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<StoreItem | null>(null);
+  const [confirming, setConfirming] = useState<{ item: StoreItem; operation: "purchase" | "sell" | "salvage" } | null>(null);
+  const [ringTarget, setRingTarget] = useState<"ringOneId" | "ringTwoId">("ringOneId");
+  const [dailyOfferRevision, setDailyOfferRevision] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const [quickSlotChoice, setQuickSlotChoice] = useState<Record<string, number>>({});
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let previous = getDailySpecials().map((item) => item.id).join("|");
+    const timer = window.setInterval(() => {
+      const current = getDailySpecials().map((item) => item.id).join("|");
+      if (current !== previous) {
+        previous = current;
+        setDailyOfferRevision((revision) => revision + 1);
+      }
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const ownedIds = profile.inventory.ownedItemIds;
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
   const ownedCombatItems = COMBAT_ITEMS.filter((item) => profile.inventory.combatItemCounts[item.id] > 0);
   const visibleItems = useMemo(() => {
-    if (activeTab === "inventory") return items.filter((item) => ownedSet.has(item.id));
-    if (activeTab === "effects") return items.filter((item) => item.category === "effects");
+    if (activeTab === "inventory") {
+      return items.filter((item) => item.kind === "equipment"
+        ? ownedSet.has(item.id)
+        : item.reward?.type === "combat-item"
+          ? profile.inventory.combatItemCounts[item.reward.itemId] > 0
+          : item.reward?.type === "material" && profile.materials[item.reward.material] > 0);
+    }
+    if (activeTab === "specials") {
+      const dailyIds = new Set(getDailySpecials().map((item) => item.id));
+      return items.filter((item) => dailyIds.has(item.id));
+    }
     return items.filter((item) => item.category === activeTab);
-  }, [activeTab, items, ownedSet]);
+  }, [activeTab, dailyOfferRevision, items, ownedSet, profile.inventory.combatItemCounts, profile.materials]);
   const selected = visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
 
   const canManageProfile = isGuest || accountReady;
-  const currentItem = selected
-    ? items.find((item) => item.id === profile.equipment[equippedIdBySlot[selected.slot]])
+  const selectedEquipmentKey = selected?.slot
+    ? getEquipmentLoadoutKey(selected.slot, ringTarget)
+    : null;
+  const currentItem = selectedEquipmentKey
+    ? items.find((item) => item.id === profile.equipment[selectedEquipmentKey])
     : undefined;
   const selectedBonuses = selected ? getItemBonuses(selected, profile) : undefined;
   const currentBonuses = currentItem ? getItemBonuses(currentItem, profile) : undefined;
   const affordable = selected
     ? profile.gold >= selected.price.gold && profile.diamonds >= selected.price.diamonds
     : false;
-  const selectedOwned = selected ? ownedSet.has(selected.id) : false;
+  const selectedAmount = selected?.reward?.type === "combat-item"
+    ? profile.inventory.combatItemCounts[selected.reward.itemId]
+    : selected?.reward?.type === "material"
+      ? profile.materials[selected.reward.material]
+      : 0;
+  const selectedOwned = selected
+    ? selected.kind === "equipment" ? ownedSet.has(selected.id) : selectedAmount > 0
+    : false;
   const selectedLevelLocked = selected ? !isStoreItemUnlocked(selected, profile.level) : false;
   const selectedSet = selected?.setId ? EQUIPMENT_SETS[selected.setId as keyof typeof EQUIPMENT_SETS] : null;
   const equippedSetCount = selectedSet && selected?.setId
-    ? Object.values(profile.equipment).filter((id) => ownedSet.has(id) && items.find((entry) => entry.id === id)?.setId === selected.setId).length
+    ? Object.values(profile.equipment).filter((id): id is string => id !== null && ownedSet.has(id) && items.find((entry) => entry.id === id)?.setId === selected.setId).length
     : 0;
-  const isEquipped = selected
-    ? profile.equipment[equippedIdBySlot[selected.slot]] === selected.id
+  const isEquipped = selectedEquipmentKey
+    ? profile.equipment[selectedEquipmentKey] === selected?.id
     : false;
   const isSecondaryWeapon = selected?.slot === "weapon" && profile.inventory.secondaryWeaponId === selected.id;
   const upgradeLevel = selected ? profile.inventory.upgrades[selected.id] ?? 0 : 0;
   const isBusy = selected ? busyItemId === selected.id : false;
-  const upgradeCost = selected?.upgradeable && upgradeLevel < MAX_UPGRADE_LEVEL
+  const upgradeCost = selected?.upgradeable && selected.slot && upgradeLevel < MAX_UPGRADE_LEVEL
     ? getUpgradeCost(selected.slot, upgradeLevel)
     : null;
   const canAffordUpgrade = upgradeCost !== null &&
@@ -165,16 +209,19 @@ export default function StorePanel({
 
   const handlePurchase = () => {
     if (!selected || selected.dropOnly || selectedLevelLocked || !canManageProfile || !affordable || busyItemId) return;
-    setConfirming(selected);
+    setConfirming({ item: selected, operation: "purchase" });
   };
 
-  const confirmPurchase = () => {
+  const confirmAction = () => {
     if (!confirming || !canManageProfile || busyItemId) return;
-    if (profile.gold < confirming.price.gold || profile.diamonds < confirming.price.diamonds) {
+    const { item, operation } = confirming;
+    if (operation === "purchase" && (profile.gold < item.price.gold || profile.diamonds < item.price.diamonds)) {
       setConfirming(null);
       return;
     }
-    onPurchase(confirming.id);
+    if (operation === "purchase") onPurchase(item.id);
+    if (operation === "sell") onSell(item.id);
+    if (operation === "salvage") onSalvage(item.id);
     setConfirming(null);
   };
 
@@ -262,13 +309,37 @@ export default function StorePanel({
           >
             <div className="safak-store__catalog-heading">
               <div>
-                <span className="safak-store__section-kicker">{activeTab === "inventory" ? "YOL ARKADAŞLARIN" : "USTANIN TEZGAHI"}</span>
+                <span className="safak-store__section-kicker">
+                  {activeTab === "inventory" ? "YOL ARKADAŞLARIN" : activeTab === "specials" ? "İSTANBUL SAATİYLE HER GÜN YENİLENİR" : "USTANIN TEZGAHI"}
+                </span>
                 <h3>{tabs.find((tab) => tab.id === activeTab)?.label}</h3>
               </div>
               <span className="safak-store__count">{loading ? "…" : `${visibleItems.length} eşya`}</span>
             </div>
 
             {activeTab === "inventory" && (
+              <>
+              <section className="safak-store__equipment-loadout" aria-labelledby="store-equipment-title">
+                <div className="safak-store__combat-heading">
+                  <div>
+                    <span className="safak-store__section-kicker">KARAKTER DONANIMI</span>
+                    <h4 id="store-equipment-title">Kuşanılan yuvalar</h4>
+                  </div>
+                  <span>{EQUIPMENT_LOADOUT_KEYS.filter((key) => profile.equipment[key]).length} dolu</span>
+                </div>
+                <div className="safak-store__equipment-slots">
+                  {EQUIPMENT_LOADOUT_KEYS.map((key) => {
+                    const equippedId = profile.equipment[key];
+                    const equippedItem = equippedId ? items.find((entry) => entry.id === equippedId) : null;
+                    return (
+                      <div className="safak-store__equipment-slot" key={key}>
+                        <small>{EQUIPMENT_SLOT_LABELS[key]}</small>
+                        <b>{equippedItem?.name ?? "Boş"}</b>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
               <section className="safak-store__combat-inventory" aria-labelledby="store-combat-items-title">
                 <div className="safak-store__combat-heading">
                   <div>
@@ -323,6 +394,7 @@ export default function StorePanel({
                   <p className="safak-store__combat-empty">Savaş eşyası kalmadı. Kullanılan eşyalar adetleri sıfırlanınca buradan kalkar.</p>
                 )}
               </section>
+              </>
             )}
 
             {loading ? (
@@ -332,8 +404,16 @@ export default function StorePanel({
             ) : visibleItems.length ? (
               <div className="safak-store__items">
                 {visibleItems.map((item) => {
-                  const owned = ownedSet.has(item.id);
-                  const equipped = profile.equipment[equippedIdBySlot[item.slot]] === item.id;
+                  const owned = item.kind === "equipment"
+                    ? ownedSet.has(item.id)
+                    : item.reward?.type === "combat-item"
+                      ? profile.inventory.combatItemCounts[item.reward.itemId] > 0
+                      : item.reward?.type === "material" && profile.materials[item.reward.material] > 0;
+                  const resourceCount = item.reward?.type === "combat-item"
+                    ? profile.inventory.combatItemCounts[item.reward.itemId]
+                    : item.reward?.type === "material" ? profile.materials[item.reward.material] : 0;
+                  const equipmentKey = item.slot ? getEquipmentLoadoutKey(item.slot, ringTarget) : null;
+                  const equipped = equipmentKey ? profile.equipment[equipmentKey] === item.id : false;
                   const isNew = profile.inventory.newItemIds.includes(item.id);
                   const levelLocked = !isStoreItemUnlocked(item, profile.level);
                   return (
@@ -359,7 +439,7 @@ export default function StorePanel({
                         {!item.dropOnly && !levelLocked && item.price.gold === 0 && item.price.diamonds === 0 && <span>BAŞLANGIÇ EŞYASI</span>}
                       </span>
                       <span className={`safak-store__item-status${equipped ? " status-equipped" : owned ? " status-owned" : " status-locked"}`}>
-                        {levelLocked ? `SEVİYE ${item.requiredLevel}` : equipped ? "KUŞANILDI" : owned ? "HEYBEDE" : item.dropOnly ? "GANİMET" : "KİLİTLİ"}
+                        {levelLocked ? `SEVİYE ${item.requiredLevel}` : equipped ? "KUŞANILDI" : item.kind !== "equipment" && owned ? `${resourceCount} ADET` : owned ? "HEYBEDE" : item.dropOnly ? "GANİMET" : "KİLİTLİ"}
                       </span>
                     </button>
                   );
@@ -379,13 +459,18 @@ export default function StorePanel({
               <>
                 <div className="safak-store__preview">
                   <span className="safak-store__preview-label">DONANIM GÖRÜNÜMÜ</span>
-                  <div className="safak-store__preview-art">{renderPreview(selected)}</div>
+                  <div className="safak-store__preview-art">
+                    {selected.kind === "equipment"
+                      ? renderPreview(selected)
+                      : <span className="safak-store__resource-preview" aria-hidden="true">{selected.icon ?? "◇"}</span>}
+                  </div>
                   <span className="safak-store__preview-caption">{selected.name}</span>
                   <button
                     type="button"
                     className={`safak-store__try${trialItemId === selected.id ? " is-active" : ""}`}
                     aria-pressed={trialItemId === selected.id}
                     onClick={() => onTry(trialItemId === selected.id ? null : selected.id)}
+                    hidden={selected.kind !== "equipment"}
                   >
                     {trialItemId === selected.id ? "DENEMEYİ BIRAK" : "DENE · DÜNYADA GÖR"}
                   </button>
@@ -408,9 +493,25 @@ export default function StorePanel({
                       {equippedSetCount >= 4 ? " · 2 ve 4 parça bonusları etkin" : equippedSetCount >= 2 ? " · 2 parça bonusu etkin" : " · 2 parçada savunma/hasar, 4 parçada can/ışık bonusu"}
                     </p>
                   )}
+                  {selected.slot === "ring" && (
+                    <div className="safak-store__ring-target" aria-label="Yüzüğün takılacağı yuvayı seç">
+                      <span>Takılacak yuva</span>
+                      {(["ringOneId", "ringTwoId"] as const).map((key, index) => (
+                        <button
+                          key={key}
+                          type="button"
+                          className={ringTarget === key ? "is-selected" : ""}
+                          aria-pressed={ringTarget === key}
+                          onClick={() => setRingTarget(key)}
+                        >
+                          {index + 1}. Yüzük · {profile.equipment[key] ? items.find((entry) => entry.id === profile.equipment[key])?.name ?? "Dolu" : "Boş"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <section className="safak-store__stats" aria-labelledby="store-stats-title">
+                {selected.kind === "equipment" && <section className="safak-store__stats" aria-labelledby="store-stats-title">
                   <div className="safak-store__subheading">
                     <h4 id="store-stats-title">Savaş nitelikleri</h4>
                     <span>{currentItem ? `Karşılaştırma: ${currentItem.name}` : "Mevcut kuşanılan eşya yok"}</span>
@@ -432,15 +533,18 @@ export default function StorePanel({
                       </div>
                     );
                   })}
-                </section>
+                </section>}
 
                 <div className="safak-store__upgrade-line">
                   <span>{selected.upgradeable ? "Sonraki geliştirme" : "Geliştirilebilir"}</span>
                   <b>{selected.upgradeable && upgradeCost
-                    ? `${upgradeLevel}/${MAX_UPGRADE_LEVEL} · ${upgradeCost.gold} altın · ${upgradeCost.ironShards} demir · ${upgradeCost.emberCrystals} kor${upgradeCost.sealFragments ? ` · ${upgradeCost.sealFragments} ✦` : ""}`
+                    ? `${upgradeLevel}/${MAX_UPGRADE_LEVEL} · başarı %${numberFormat.format(getUpgradeSuccessChance(upgradeLevel))} · ${upgradeCost.gold} altın · ${upgradeCost.ironShards} demir · ${upgradeCost.emberCrystals} kor${upgradeCost.sealFragments ? ` · ${upgradeCost.sealFragments} ✦` : ""}`
                     : selected.upgradeable ? `En yüksek seviye · ${MAX_UPGRADE_LEVEL}/${MAX_UPGRADE_LEVEL}` : "Hayır"}</b>
                 </div>
 
+                {selected.kind !== "equipment" && (
+                  <div className="safak-store__resource-count">Heybende: <b>{numberFormat.format(selectedAmount)} adet</b></div>
+                )}
                 <div className="safak-store__price" aria-label={`Fiyat: ${numberFormat.format(selected.price.gold)} altın ve ${numberFormat.format(selected.price.diamonds)} elmas`}>
                   <span>Bedel</span>
                   <b><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(selected.price.gold)} altın</b>
@@ -462,12 +566,12 @@ export default function StorePanel({
                 )}
 
                 <div className="safak-store__actions">
-                  {!selectedOwned ? (
+                  {selected.kind !== "equipment" || !selectedOwned ? (
                     <button
                       className="safak-store__primary"
                       type="button"
                       onClick={handlePurchase}
-                      disabled={!canManageProfile || !affordable || selected.dropOnly || selectedLevelLocked || loading || !!busyItemId}
+                        disabled={!canManageProfile || !affordable || selected.dropOnly || selectedLevelLocked || loading || !!busyItemId}
                     >
                       {isBusy ? "İŞLENİYOR…" : selected.dropOnly ? "RAKİPTEN DÜŞER" : selectedLevelLocked ? `SEVİYE ${selected.requiredLevel}` : "SATIN AL"}
                     </button>
@@ -486,7 +590,7 @@ export default function StorePanel({
                       <button
                         className="safak-store__primary"
                         type="button"
-                        onClick={() => onEquip(selected.id)}
+                        onClick={() => onEquip(selected.id, selectedEquipmentKey ?? undefined)}
                         disabled={!canManageProfile || isEquipped || selectedLevelLocked || loading || !!busyItemId}
                       >
                         {isBusy ? "İŞLENİYOR…" : isEquipped ? "KUŞANILDI" : "KUŞAN"}
@@ -501,6 +605,22 @@ export default function StorePanel({
                           {upgradeLevel >= MAX_UPGRADE_LEVEL ? "EN YÜKSEK SEVİYE" : "GELİŞTİR"}
                         </button>
                       )}
+                      <button
+                        className="safak-store__secondary"
+                        type="button"
+                        onClick={() => setConfirming({ item: selected, operation: "sell" })}
+                        disabled={!canManageProfile || !getItemSellValue(selected).gold && !getItemSellValue(selected).diamonds || isEquipped || isSecondaryWeapon || loading || !!busyItemId}
+                      >
+                        SAT · {getItemSellValue(selected).gold} ALTIN{getItemSellValue(selected).diamonds ? ` · ${getItemSellValue(selected).diamonds} ELMAS` : ""}
+                      </button>
+                      <button
+                        className="safak-store__secondary"
+                        type="button"
+                        onClick={() => setConfirming({ item: selected, operation: "salvage" })}
+                        disabled={!canManageProfile || isEquipped || isSecondaryWeapon || loading || !!busyItemId}
+                      >
+                        PARÇALA · +{getSalvageYield(selected, upgradeLevel).ironShards} DEMİR
+                      </button>
                     </>
                   )}
                 </div>
@@ -540,16 +660,37 @@ export default function StorePanel({
           if (event.target === event.currentTarget) setConfirming(null);
         }}>
           <section className="safak-store-confirm" role="alertdialog" aria-modal="true" aria-labelledby="store-confirm-title" aria-describedby="store-confirm-copy">
-            <span className="safak-store__eyebrow">ALIŞVERİŞİ ONAYLA</span>
-            <h3 id="store-confirm-title">{confirming.name}</h3>
-            <p id="store-confirm-copy">Bu eşya heybeni kalıcı olarak dolduracak. Ödemeyi onaylıyor musun?</p>
+            <span className="safak-store__eyebrow">
+              {confirming.operation === "purchase" ? "ALIŞVERİŞİ ONAYLA" : confirming.operation === "sell" ? "SATIŞI ONAYLA" : "PARÇALAMAYI ONAYLA"}
+            </span>
+            <h3 id="store-confirm-title">{confirming.item.name}</h3>
+            <p id="store-confirm-copy">
+              {confirming.operation === "purchase"
+                ? confirming.item.kind === "equipment" ? "Bu ekipman heybenize eklenecek. Ödemeyi onaylıyor musunuz?" : "Bu malzeme savaş çantanıza eklenecek. Ödemeyi onaylıyor musunuz?"
+                : confirming.operation === "sell"
+                  ? "Bu eşya heybeden kalıcı olarak silinecek ve satış bedeli verilecek. Devam edilsin mi?"
+                  : "Bu eşya kalıcı olarak parçalanacak; geliştirme malzemeleri geri alınacak. Devam edilsin mi?"}
+            </p>
             <div className="safak-store-confirm__price">
-              <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(confirming.price.gold)} altın</span>
-              <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(confirming.price.diamonds)} elmas</span>
+              {confirming.operation === "purchase" ? (
+                <>
+                  <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(confirming.item.price.gold)} altın</span>
+                  <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(confirming.item.price.diamonds)} elmas</span>
+                </>
+              ) : confirming.operation === "sell" ? (
+                <>
+                  <span><i className="safak-store__coin" aria-hidden="true" />+{numberFormat.format(getItemSellValue(confirming.item).gold)} altın</span>
+                  <span><i className="safak-store__diamond" aria-hidden="true" />+{numberFormat.format(getItemSellValue(confirming.item).diamonds)} elmas</span>
+                </>
+              ) : (
+                <span>Geri alınır: {getSalvageYield(confirming.item, profile.inventory.upgrades[confirming.item.id] ?? 0).ironShards} demir · {getSalvageYield(confirming.item, profile.inventory.upgrades[confirming.item.id] ?? 0).emberCrystals} kor · {getSalvageYield(confirming.item, profile.inventory.upgrades[confirming.item.id] ?? 0).sealFragments} mühür</span>
+              )}
             </div>
             <div className="safak-store-confirm__actions">
               <button type="button" className="safak-store__secondary" autoFocus onClick={() => setConfirming(null)}>VAZGEÇ</button>
-              <button type="button" className="safak-store__primary" onClick={confirmPurchase} disabled={!canManageProfile || !!busyItemId}>ALIŞVERİŞİ ONAYLA</button>
+              <button type="button" className="safak-store__primary" onClick={confirmAction} disabled={!canManageProfile || !!busyItemId}>
+                {confirming.operation === "purchase" ? "ALIŞVERİŞİ ONAYLA" : confirming.operation === "sell" ? "SAT" : "PARÇALA"}
+              </button>
             </div>
           </section>
         </div>

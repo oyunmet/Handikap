@@ -10,18 +10,33 @@ import {
 import {
   calculatePlayerCombatModifiers,
   getStoreItem,
+  isDailySpecialAvailable,
+  STARTER_ITEM_IDS,
   STORE_CATALOG,
 } from "./storeCatalog.ts";
 import type { PlayerProfile } from "../src/shafak/game/profile.ts";
-import { getUpgradeCost, isStoreItemUnlocked, MAX_UPGRADE_LEVEL, type EquipmentLoadout, type EquipmentSlot, type StoreItem } from "../src/shafak/game/store-types.ts";
+import {
+  getEquipmentLoadoutKey,
+  getItemSellValue,
+  getSalvageYield,
+  getUpgradeCost,
+  isStoreItemUnlocked,
+  MAX_UPGRADE_LEVEL,
+  rollUpgradeSuccess,
+  type EquipmentLoadout,
+  type EquipmentLoadoutKey,
+  type EquipmentSlot,
+  type StoreItem,
+} from "../src/shafak/game/store-types.ts";
 import { sendAuthenticationRequired } from "./auth.ts";
 
-type StoreOperation = "purchase" | "upgrade";
+type StoreOperation = "purchase" | "upgrade" | "sell" | "salvage";
 type StoredOperationResponse = {
   profile: unknown;
   itemId: string;
   operation: StoreOperation;
   cost: Record<string, number>;
+  upgradeSucceeded?: boolean;
 };
 
 export class StoreServiceError extends Error {
@@ -52,15 +67,23 @@ function validateOperationBody(value: unknown): { itemId: string; idempotencyKey
   return { itemId: value.itemId, idempotencyKey: value.idempotencyKey };
 }
 
-function validateEquipBody(value: unknown): string | null {
+function validateEquipBody(value: unknown): { itemId: string; equipmentKey?: EquipmentLoadoutKey } | null {
   if (
     !isRecord(value) ||
-    Object.keys(value).length !== 1 ||
+    Object.keys(value).some((key) => !["itemId", "equipmentKey"].includes(key)) ||
+    (Object.keys(value).length !== 1 && Object.keys(value).length !== 2) ||
     !Object.hasOwn(value, "itemId") ||
     typeof value.itemId !== "string" ||
-    !/^[a-z0-9_-]{1,60}$/.test(value.itemId)
+    !/^[a-z0-9_-]{1,60}$/.test(value.itemId) ||
+    (value.equipmentKey !== undefined && ![
+      "weaponId", "offhandId", "helmetId", "armorId", "glovesId", "bootsId", "capeId",
+      "ringOneId", "ringTwoId", "effectId", "dyeId",
+    ].includes(String(value.equipmentKey)))
   ) return null;
-  return value.itemId;
+  return {
+    itemId: value.itemId,
+    ...(typeof value.equipmentKey === "string" ? { equipmentKey: value.equipmentKey as EquipmentLoadoutKey } : {}),
+  };
 }
 
 function validateCombatLoadoutBody(value: unknown): {
@@ -82,12 +105,24 @@ function validateCombatLoadoutBody(value: unknown): {
   return { quickSlots, secondaryWeaponId: value.secondaryWeaponId as string | null };
 }
 
-function equipmentKey(slot: EquipmentSlot): keyof EquipmentLoadout {
-  if (slot === "weapon") return "weaponId";
-  if (slot === "armor") return "armorId";
-  if (slot === "cape") return "capeId";
-  if (slot === "effect") return "effectId";
-  return "dyeId";
+function equipmentKey(slot: EquipmentSlot, ringKey?: EquipmentLoadoutKey): keyof EquipmentLoadout {
+  return getEquipmentLoadoutKey(slot, ringKey === "ringTwoId" ? "ringTwoId" : "ringOneId");
+}
+
+function removeOwnedItem(profile: PlayerProfile, itemId: string): PlayerProfile {
+  const equipmentContainsItem = Object.values(profile.equipment).includes(itemId);
+  if (equipmentContainsItem || profile.inventory.secondaryWeaponId === itemId) {
+    throw new StoreServiceError(409, "item_equipped");
+  }
+  return {
+    ...profile,
+    inventory: {
+      ...profile.inventory,
+      ownedItemIds: profile.inventory.ownedItemIds.filter((id) => id !== itemId),
+      newItemIds: profile.inventory.newItemIds.filter((id) => id !== itemId),
+      upgrades: Object.fromEntries(Object.entries(profile.inventory.upgrades).filter(([id]) => id !== itemId)),
+    },
+  };
 }
 
 function publicProfile(profile: PlayerProfile) {
@@ -237,21 +272,57 @@ export function createStoreApi(
       const replay = await checkIdempotency(client, userId, "purchase", storeItem.id, body.idempotencyKey);
       if (replay) return { ...replay, profile, replayed: true };
       if (storeItem.dropOnly) throw new StoreServiceError(403, "item_drop_only");
+      if (storeItem.category === "specials" && !isDailySpecialAvailable(storeItem.id)) {
+        throw new StoreServiceError(409, "special_offer_expired");
+      }
       if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");
-      if (profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(409, "item_already_owned");
+      if (storeItem.kind === "equipment" && profile.inventory.ownedItemIds.includes(storeItem.id)) {
+        throw new StoreServiceError(409, "item_already_owned");
+      }
       if (profile.gold < storeItem.price.gold || profile.diamonds < storeItem.price.diamonds) {
         throw new StoreServiceError(409, "insufficient_funds");
       }
-      const nextProfile: PlayerProfile = {
+      let nextProfile: PlayerProfile = {
         ...profile,
         gold: profile.gold - storeItem.price.gold,
         diamonds: profile.diamonds - storeItem.price.diamonds,
-        inventory: {
-          ...profile.inventory,
-          ownedItemIds: [...profile.inventory.ownedItemIds, storeItem.id],
-          newItemIds: [...profile.inventory.newItemIds, storeItem.id],
-        },
       };
+      if (storeItem.kind === "equipment") {
+        if (profile.inventory.ownedItemIds.length >= 120) throw new StoreServiceError(409, "inventory_full");
+        nextProfile = {
+          ...nextProfile,
+          inventory: {
+            ...profile.inventory,
+            ownedItemIds: [...profile.inventory.ownedItemIds, storeItem.id],
+            newItemIds: [...profile.inventory.newItemIds, storeItem.id],
+          },
+        };
+      } else if (storeItem.reward?.type === "combat-item") {
+        const current = profile.inventory.combatItemCounts[storeItem.reward.itemId];
+        if (current + storeItem.reward.amount > 999) throw new StoreServiceError(409, "stack_limit");
+        nextProfile = {
+          ...nextProfile,
+          inventory: {
+            ...profile.inventory,
+            combatItemCounts: {
+              ...profile.inventory.combatItemCounts,
+              [storeItem.reward.itemId]: current + storeItem.reward.amount,
+            },
+          },
+        };
+      } else if (storeItem.reward?.type === "material") {
+        const current = profile.materials[storeItem.reward.material];
+        if (current + storeItem.reward.amount > 1_000_000_000) throw new StoreServiceError(409, "stack_limit");
+        nextProfile = {
+          ...nextProfile,
+          materials: {
+            ...profile.materials,
+            [storeItem.reward.material]: current + storeItem.reward.amount,
+          },
+        };
+      } else {
+        throw new StoreServiceError(400, "store_item_has_no_reward");
+      }
       await updateProfile(client, userId, nextProfile);
       const result: StoredOperationResponse = {
         profile: publicProfile(nextProfile),
@@ -268,12 +339,12 @@ export function createStoreApi(
     const userId = authenticatedUserId(request, response);
     if (!userId) return;
     response.setHeader("Cache-Control", "no-store");
-    const itemId = validateEquipBody(request.body);
-    if (!itemId) {
+    const body = validateEquipBody(request.body);
+    if (!body) {
       response.status(400).json({ error: "invalid_equipment" });
       return;
     }
-    const storeItem = getStoreItem(itemId);
+    const storeItem = getStoreItem(body.itemId);
     if (!storeItem) {
       response.status(404).json({ error: "item_not_found" });
       return;
@@ -282,10 +353,18 @@ export function createStoreApi(
       const profile = await loadProfileForUpdate(client, userId);
       if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");
       if (!profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(403, "item_not_owned");
-      const key = equipmentKey(storeItem.slot);
+      if (storeItem.kind !== "equipment" || !storeItem.slot) throw new StoreServiceError(400, "item_not_equippable");
+      const expectedKey = equipmentKey(storeItem.slot, storeItem.slot === "ring" ? body.equipmentKey : undefined);
+      if (body.equipmentKey && body.equipmentKey !== expectedKey) throw new StoreServiceError(400, "invalid_equipment_slot");
+      const key = expectedKey;
       const nextProfile: PlayerProfile = {
         ...profile,
-        equipment: { ...profile.equipment, [key]: storeItem.id },
+        equipment: {
+          ...profile.equipment,
+          ...(storeItem.slot === "ring" && key === "ringOneId" && profile.equipment.ringTwoId === storeItem.id ? { ringTwoId: null } : {}),
+          ...(storeItem.slot === "ring" && key === "ringTwoId" && profile.equipment.ringOneId === storeItem.id ? { ringOneId: null } : {}),
+          [key]: storeItem.id,
+        },
         inventory: {
           ...profile.inventory,
           newItemIds: profile.inventory.newItemIds.filter((id) => id !== storeItem.id),
@@ -345,10 +424,11 @@ export function createStoreApi(
       response.status(404).json({ error: "item_not_found" });
       return;
     }
-    if (!storeItem.upgradeable || !["weapon", "armor"].includes(storeItem.slot)) {
+    if (!storeItem.upgradeable || storeItem.kind !== "equipment" || !storeItem.slot) {
       response.status(400).json({ error: "item_not_upgradeable" });
       return;
     }
+    const upgradeSlot = storeItem.slot;
     await runAccountOperation(database, userId, response, async (client) => {
       const profile = await loadProfileForUpdate(client, userId);
       const replay = await checkIdempotency(client, userId, "upgrade", storeItem.id, body.idempotencyKey);
@@ -357,13 +437,14 @@ export function createStoreApi(
       if (!profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(403, "item_not_owned");
       const currentLevel = profile.inventory.upgrades[storeItem.id] ?? 0;
       if (currentLevel >= MAX_UPGRADE_LEVEL) throw new StoreServiceError(409, "upgrade_max_level");
-      const cost = getUpgradeCost(storeItem.slot, currentLevel);
+      const cost = getUpgradeCost(upgradeSlot, currentLevel);
       if (
         profile.gold < cost.gold ||
         profile.materials.ironShards < cost.ironShards ||
         profile.materials.emberCrystals < cost.emberCrystals ||
         profile.materials.sealFragments < cost.sealFragments
       ) throw new StoreServiceError(409, "insufficient_upgrade_materials");
+      const upgradeSucceeded = rollUpgradeSuccess(body.idempotencyKey, currentLevel);
       const nextProfile: PlayerProfile = {
         ...profile,
         gold: profile.gold - cost.gold,
@@ -375,7 +456,9 @@ export function createStoreApi(
         },
         inventory: {
           ...profile.inventory,
-          upgrades: { ...profile.inventory.upgrades, [storeItem.id]: currentLevel + 1 },
+          upgrades: upgradeSucceeded
+            ? { ...profile.inventory.upgrades, [storeItem.id]: currentLevel + 1 }
+            : profile.inventory.upgrades,
         },
       };
       await updateProfile(client, userId, nextProfile);
@@ -384,11 +467,83 @@ export function createStoreApi(
         itemId: storeItem.id,
         operation: "upgrade",
         cost,
+        upgradeSucceeded,
       };
       await saveOperation(client, userId, body.idempotencyKey, "upgrade", storeItem.id, result);
       return result;
     });
   });
+
+  for (const operation of ["sell", "salvage"] as const) {
+    router.post(`/api/store/${operation}`, upgradeLimit, async (request, response) => {
+      const userId = authenticatedUserId(request, response);
+      if (!userId) return;
+      response.setHeader("Cache-Control", "no-store");
+      const body = validateOperationBody(request.body);
+      if (!body) {
+        response.status(400).json({ error: `invalid_${operation}` });
+        return;
+      }
+      const storeItem = getStoreItem(body.itemId);
+      if (!storeItem) {
+        response.status(404).json({ error: "item_not_found" });
+        return;
+      }
+      if (storeItem.kind !== "equipment" || !storeItem.slot) {
+        response.status(400).json({ error: "item_not_equipment" });
+        return;
+      }
+      await runAccountOperation(database, userId, response, async (client) => {
+        let profile = await loadProfileForUpdate(client, userId);
+        const replay = await checkIdempotency(client, userId, operation, storeItem.id, body.idempotencyKey);
+        if (replay) return { ...replay, profile, replayed: true };
+        if (STARTER_ITEM_IDS.includes(storeItem.id as (typeof STARTER_ITEM_IDS)[number])) {
+          throw new StoreServiceError(409, "starter_item_cannot_be_removed");
+        }
+        if (!profile.inventory.ownedItemIds.includes(storeItem.id)) {
+          throw new StoreServiceError(403, "item_not_owned");
+        }
+        const salvageUpgradeLevel = profile.inventory.upgrades[storeItem.id] ?? 0;
+        profile = removeOwnedItem(profile, storeItem.id);
+        let result: StoredOperationResponse;
+        if (operation === "sell") {
+          const payout = getItemSellValue(storeItem);
+          if (payout.gold <= 0 && payout.diamonds <= 0) throw new StoreServiceError(409, "item_has_no_sale_value");
+          const nextProfile = {
+            ...profile,
+            gold: Math.min(1_000_000_000, profile.gold + payout.gold),
+            diamonds: Math.min(1_000_000_000, profile.diamonds + payout.diamonds),
+          };
+          await updateProfile(client, userId, nextProfile);
+          result = {
+            profile: publicProfile(nextProfile),
+            itemId: storeItem.id,
+            operation,
+            cost: {},
+          };
+        } else {
+          const yieldAmount = getSalvageYield(storeItem, salvageUpgradeLevel);
+          const nextProfile = {
+            ...profile,
+            materials: {
+              ironShards: Math.min(1_000_000_000, profile.materials.ironShards + yieldAmount.ironShards),
+              emberCrystals: Math.min(1_000_000_000, profile.materials.emberCrystals + yieldAmount.emberCrystals),
+              sealFragments: Math.min(1_000_000_000, profile.materials.sealFragments + yieldAmount.sealFragments),
+            },
+          };
+          await updateProfile(client, userId, nextProfile);
+          result = {
+            profile: publicProfile(nextProfile),
+            itemId: storeItem.id,
+            operation,
+            cost: {},
+          };
+        }
+        await saveOperation(client, userId, body.idempotencyKey, operation, storeItem.id, result);
+        return result;
+      });
+    });
+  }
 
   return router;
 }
@@ -399,7 +554,7 @@ export function calculateAccountCombatStats(profileValue: unknown) {
 }
 
 export function storeItemSlot(item: StoreItem) {
-  return equipmentKey(item.slot);
+  return item.slot ? equipmentKey(item.slot) : null;
 }
 
 export function validateStoreOperationBody(value: unknown) {

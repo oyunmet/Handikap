@@ -744,3 +744,72 @@
   .safak-store__quick-slot-list { gap: 3px; }
   .safak-store__quick-slot-list > div { padding: 4px; }
 }
+
+.safak-store__equipment-loadout {
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(221, 187, 122, .2);
+  background: rgba(8, 9, 12, .32);
+}
+.safak-store__equipment-slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 9px;
+}
+.safak-store__equipment-slot {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(221, 187, 122, .11);
+  background: rgba(15, 16, 19, .48);
+}
+.safak-store__equipment-slot small { color: #8e8373; font-size: 8px; }
+.safak-store__equipment-slot b {
+  overflow: hidden;
+  color: #ddcda9;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.safak-store__ring-target {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 10px;
+  color: #a99c88;
+  font-size: 9px;
+}
+.safak-store__ring-target button {
+  min-height: 36px;
+  padding: 5px 8px;
+  border: 1px solid rgba(221, 187, 122, .22);
+  background: rgba(15, 16, 19, .58);
+  color: #c8baa0;
+  cursor: pointer;
+  font-size: 8px;
+}
+.safak-store__ring-target button.is-selected { border-color: #d5b371; color: #f0d391; }
+.safak-store__resource-count {
+  padding: 10px 1px;
+  border-top: 1px solid rgba(221, 187, 122, .13);
+  color: #a89c89;
+  font-size: 9px;
+}
+.safak-store__resource-count b { color: #e7d7b5; }
+.safak-store__resource-preview {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border: 1px solid rgba(221, 187, 122, .38);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(216, 178, 107, .2), transparent 68%);
+  color: #f0d391;
+  font: 700 36px/1 var(--font-display, Georgia, serif);
+  text-shadow: 0 0 24px rgba(231, 190, 111, .48);
+}
+.safak-store__actions { flex-wrap: wrap; }
+.safak-store__actions > button { flex: 1 1 42%; }

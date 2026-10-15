@@ -174,12 +174,20 @@ function isItemId(value: unknown): value is string {
 function normalizeEquipment(value: unknown): EquipmentLoadout | null {
   if (value === undefined) return { ...DEFAULT_EQUIPMENT };
   if (!isRecord(value)) return null;
-  const fields = ["weaponId", "armorId", "capeId", "effectId", "dyeId"] as const;
-  if (fields.some((field) => value[field] !== undefined && !isItemId(value[field]))) return null;
+  const stringFields = ["weaponId", "armorId", "capeId", "effectId", "dyeId"] as const;
+  const optionalFields = ["offhandId", "helmetId", "glovesId", "bootsId", "ringOneId", "ringTwoId"] as const;
+  if (stringFields.some((field) => value[field] !== undefined && !isItemId(value[field]))) return null;
+  if (optionalFields.some((field) => value[field] !== undefined && value[field] !== null && !isItemId(value[field]))) return null;
   return {
     weaponId: isItemId(value.weaponId) ? value.weaponId : DEFAULT_EQUIPMENT.weaponId,
+    offhandId: isItemId(value.offhandId) ? value.offhandId : null,
+    helmetId: isItemId(value.helmetId) ? value.helmetId : null,
     armorId: isItemId(value.armorId) ? value.armorId : DEFAULT_EQUIPMENT.armorId,
+    glovesId: isItemId(value.glovesId) ? value.glovesId : null,
+    bootsId: isItemId(value.bootsId) ? value.bootsId : null,
     capeId: isItemId(value.capeId) ? value.capeId : DEFAULT_EQUIPMENT.capeId,
+    ringOneId: isItemId(value.ringOneId) ? value.ringOneId : null,
+    ringTwoId: isItemId(value.ringTwoId) ? value.ringTwoId : null,
     effectId: isItemId(value.effectId) ? value.effectId : DEFAULT_EQUIPMENT.effectId,
     dyeId: isItemId(value.dyeId) ? value.dyeId : DEFAULT_EQUIPMENT.dyeId,
   };

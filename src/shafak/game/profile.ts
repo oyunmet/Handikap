@@ -51,8 +51,14 @@ export const defaultProfile: PlayerProfile = {
   materials: { emberCrystals: 0, sealFragments: 0, ironShards: 0 },
   equipment: {
     weaponId: "weapon_ash_sword",
+    offhandId: null,
+    helmetId: null,
     armorId: "armor_ash_guard",
+    glovesId: null,
+    bootsId: null,
     capeId: "cape_worn",
+    ringOneId: null,
+    ringTwoId: null,
     effectId: "effect_none",
     dyeId: "dye_none",
   },
@@ -234,8 +240,14 @@ function normalizeEquipment(value: unknown): EquipmentLoadout {
   const saved = value && typeof value === "object" ? value as Partial<EquipmentLoadout> : {};
   return {
     weaponId: safeItemId(saved.weaponId, defaultProfile.equipment.weaponId),
+    offhandId: typeof saved.offhandId === "string" ? safeItemId(saved.offhandId, "") || null : null,
+    helmetId: typeof saved.helmetId === "string" ? safeItemId(saved.helmetId, "") || null : null,
     armorId: safeItemId(saved.armorId, defaultProfile.equipment.armorId),
+    glovesId: typeof saved.glovesId === "string" ? safeItemId(saved.glovesId, "") || null : null,
+    bootsId: typeof saved.bootsId === "string" ? safeItemId(saved.bootsId, "") || null : null,
     capeId: safeItemId(saved.capeId, defaultProfile.equipment.capeId),
+    ringOneId: typeof saved.ringOneId === "string" ? safeItemId(saved.ringOneId, "") || null : null,
+    ringTwoId: typeof saved.ringTwoId === "string" ? safeItemId(saved.ringTwoId, "") || null : null,
     effectId: safeItemId(saved.effectId, defaultProfile.equipment.effectId),
     dyeId: safeItemId(saved.dyeId, defaultProfile.equipment.dyeId),
   };
