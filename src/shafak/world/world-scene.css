@@ -790,6 +790,10 @@
   padding: 8px; border: 1px solid rgba(230,210,175,.24); border-radius: 3px;
   background: rgba(255,255,255,.04); color: #d9c8a9; cursor: pointer; font-size: 9px; letter-spacing: .12em;
 }
+.world-story-dialogue__brand-lockup { display: flex; align-items: center; gap: 14px; margin: 0 48px 20px 0; }
+.world-story-dialogue__brand-lockup img { display: block; width: clamp(48px, 14vw, 64px); height: auto; flex: 0 0 auto; filter: drop-shadow(0 0 18px rgba(218,174,99,.32)); }
+.world-story-dialogue__brand-lockup > div { min-width: 0; }
+.world-story-dialogue__brand-lockup h2 { margin: 7px 0 0; color: #f2e1c0; font: 700 clamp(17px, 4.8vw, 25px)/1.16 var(--font-display, Georgia, serif); letter-spacing: .08em; }
 .world-story-dialogue__eyebrow { display: block; padding-right: 58px; color: #c9a364; font-size: 9px; font-weight: 800; letter-spacing: .16em; line-height: 1.6; }
 .world-story-dialogue__card h2 { margin: 13px 0 20px; color: #f2e1c0; font: 600 clamp(22px, 6vw, 32px) var(--font-display, Georgia, serif); letter-spacing: .05em; }
 .world-story-dialogue__card > p { color: #e6dac5; font-size: 14px; line-height: 1.8; }

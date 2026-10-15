@@ -11,6 +11,8 @@ test("opening and each chapter gate provide concise Turkish story dialogue and a
   const firstGate = getChapterStoryDialogue(1);
   const secondGate = getChapterStoryDialogue(2);
   assert.equal(opening.kind, "opening");
+  assert.equal(opening.title, "ŞAFAK SAVAŞÇILARI");
+  assert.match(opening.lines[1], /Şafak Savaşçıları/);
   assert.equal(firstGate.title, "DONMUŞ GEÇİT");
   assert.equal(secondGate.title, "KIZIL BATAKLIK");
   for (const dialogue of [opening, firstGate, secondGate]) {

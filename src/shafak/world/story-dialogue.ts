@@ -11,8 +11,8 @@ const CHAPTER_STORIES = [
   {
     title: "KÜL YOLU",
     lines: [
-      "Şafak sökmeden üç kapıyı aşmalısın. Külün altında eski bir iz, her adımda yeniden beliriyor.",
-      "Kuzey kapısı açılırsa, buzun içinde hâlâ yanabilen bir şey bulacaksın.",
+      "Kadim kapılar karanlıkla mühürlendi; her biri cesaretini sınayacak.",
+      "Şafak Savaşçıları yoldaşlarıyla omuz omuza verip, umudu yeniden doğuracak.",
     ],
     hint: "Yolda parlayan ganimetleri topla; mavi çubuk dayanıklılığını gösterir.",
   },
@@ -59,7 +59,7 @@ export function getOpeningStoryDialogue(): StoryDialogue {
   return {
     id: "story-opening",
     kind: "opening",
-    title: opening.title,
+    title: "ŞAFAK SAVAŞÇILARI",
     speaker: "YOL KILAVUZU",
     lines: [...opening.lines],
     hint: opening.hint,

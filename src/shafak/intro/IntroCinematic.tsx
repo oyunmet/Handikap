@@ -13,11 +13,11 @@ import { getIntroEventTimes } from "./timeline";
 import "./intro.css";
 
 const STORY_LINES = [
-  "Gökyüzü küle döndü.",
-  "Krallığın son kapısı yüzyıllardır kapalı.",
-  "Yolları gölgeler tutuyor. Kimse geçmeyecek.",
-  "Sen bir Yolcu’sun. Elinde bir kılıç, sırtında kızıl bir pelerin.",
-  "Kül Yolu seni çağırıyor.",
+  "Karanlık çökerken bile, şafak için savaşanlar vardır.",
+  "Kadim kapılar kapalı; gölgeler her yolu kuşatmış.",
+  "Cesaret, en karanlık gecede bile yol açar.",
+  "Yoldaşlarınla omuz omuza ver, kılıcını kuşan.",
+  "Şafak Savaşçıları’nın destanı şimdi seninle başlıyor.",
 ];
 
 type IntroCinematicProps = {
@@ -186,7 +186,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
   return (
     <section
       className={`intro-cinematic${reducedMotion ? " intro-cinematic--reduced" : ""}`}
-      aria-label="Kül Yolu açılış sinematiği"
+      aria-label="Şafak Savaşçıları açılış sinematiği"
     >
       <div className={`intro-world${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
         <IntroWorld reducedMotion={reducedMotion} startedAt={startedAt} quality={quality} />
@@ -251,7 +251,25 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
             {STORY_LINES[activeLine]}
           </p>
         )}
-        {showTitle && <h1 className="intro-narrative__title">KÜL YOLU</h1>}
+        {showTitle && (
+          <div className="intro-narrative__brand">
+            <img
+              className="intro-narrative__logo"
+              src={`${import.meta.env.BASE_URL}logo.svg`}
+              alt=""
+              aria-hidden="true"
+              width="88"
+              height="88"
+            />
+            <div className="intro-narrative__wordmark">
+              <h1 className="intro-narrative__title">
+                <span>ŞAFAK</span>
+                <span>SAVAŞÇILARI</span>
+              </h1>
+              <p className="intro-narrative__tagline">Her yemin bir şafak doğurur.</p>
+            </div>
+          </div>
+        )}
         {showPrompt && (
           <button className="intro-start" type="button" onClick={complete}>
             Başlamak için dokun <span aria-hidden="true">↓</span>

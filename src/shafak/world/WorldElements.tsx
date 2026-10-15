@@ -14,6 +14,10 @@ import {
   fillWorldRoadTileZPositions,
   WORLD_ROAD_TILE_COUNT,
 } from "./world-road-layout";
+import {
+  getWorldForkCenterline,
+  getWorldForkGateDistances,
+} from "./world-route-layout";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
@@ -122,6 +126,112 @@ const ROAD_SURFACE_MATERIAL = new THREE.MeshStandardMaterial({
 });
 const ROAD_RAIL_GEOMETRY = new THREE.BoxGeometry(0.26, 0.08, WORLD_GATE_INTERVAL_METERS);
 const ROAD_RAIL_MATERIAL = new THREE.MeshStandardMaterial({ color: "#897164", roughness: 0.9 });
+const WORLD_FORK_WIDTH = 3.8;
+const FORK_ROAD_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#514548",
+  emissive: "#171113",
+  emissiveIntensity: 0.2,
+  roughness: 0.98,
+  metalness: 0,
+  side: THREE.DoubleSide,
+});
+const FORK_EDGE_MATERIAL = new THREE.MeshBasicMaterial({
+  color: "#d0ae77",
+  transparent: true,
+  opacity: 0.58,
+  depthWrite: false,
+  toneMapped: false,
+  side: THREE.DoubleSide,
+});
+const FORK_MEDIAN_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#69584e",
+  emissive: "#211918",
+  emissiveIntensity: 0.18,
+  roughness: 1,
+  side: THREE.DoubleSide,
+});
+function createWorldForkRibbon(
+  side: "left" | "right",
+  width: number,
+  offset = 0,
+) {
+  const centerline = getWorldForkCenterline(side, 10);
+  const positions = new Float32Array(centerline.length * 2 * 3);
+  const indices: number[] = [];
+
+  centerline.forEach(([x, z], index) => {
+    const previous = centerline[Math.max(0, index - 1)];
+    const next = centerline[Math.min(centerline.length - 1, index + 1)];
+    const tangentX = next[0] - previous[0];
+    const tangentZ = next[1] - previous[1];
+    const tangentLength = Math.hypot(tangentX, tangentZ) || 1;
+    const normalX = -tangentZ / tangentLength;
+    const normalZ = tangentX / tangentLength;
+    const centerX = x + normalX * offset;
+    const centerZ = z + normalZ * offset;
+    const halfWidth = width / 2;
+    const vertex = index * 6;
+
+    positions[vertex] = centerX - normalX * halfWidth;
+    positions[vertex + 1] = 0;
+    positions[vertex + 2] = centerZ - normalZ * halfWidth;
+    positions[vertex + 3] = centerX + normalX * halfWidth;
+    positions[vertex + 4] = 0;
+    positions[vertex + 5] = centerZ + normalZ * halfWidth;
+
+    if (index < centerline.length - 1) {
+      const left = index * 2;
+      const right = left + 1;
+      const nextLeft = left + 2;
+      const nextRight = left + 3;
+      indices.push(left, nextLeft, right, right, nextLeft, nextRight);
+    }
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function createWorldForkMedian() {
+  const centerline = getWorldForkCenterline("right", 10);
+  const positions = new Float32Array(centerline.length * 2 * 3);
+  const indices: number[] = [];
+
+  centerline.forEach(([x, z], index) => {
+    const halfWidth = Math.max(0, x - WORLD_FORK_WIDTH / 2 + 0.2);
+    const vertex = index * 6;
+    positions[vertex] = -halfWidth;
+    positions[vertex + 1] = 0;
+    positions[vertex + 2] = z;
+    positions[vertex + 3] = halfWidth;
+    positions[vertex + 4] = 0;
+    positions[vertex + 5] = z;
+    if (index < centerline.length - 1) {
+      const left = index * 2;
+      const right = left + 1;
+      const nextLeft = left + 2;
+      const nextRight = left + 3;
+      indices.push(left, nextLeft, right, right, nextLeft, nextRight);
+    }
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+const WORLD_FORKS = (["left", "right"] as const).map((side) => ({
+  side,
+  road: createWorldForkRibbon(side, WORLD_FORK_WIDTH),
+  innerEdge: createWorldForkRibbon(side, 0.1, -WORLD_FORK_WIDTH / 2 + 0.12),
+  outerEdge: createWorldForkRibbon(side, 0.1, WORLD_FORK_WIDTH / 2 - 0.12),
+}));
+const WORLD_FORK_MEDIAN = createWorldForkMedian();
 const ROAD_PALETTE_COLORS = Object.fromEntries(
   Object.entries(WORLD_BIOME_PALETTES).map(([biome, palette]) => [
     biome,
@@ -315,6 +425,30 @@ function RoadSurface({ motionRef, quality, weather }: { motionRef: MotionRef; qu
       />
       <HorizonFogBank motionRef={motionRef} weather={weather} />
     </>
+  );
+}
+
+function WorldRouteFork({ gateDistance, motionRef }: { gateDistance: number; motionRef: MotionRef }) {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    const motion = motionRef.current;
+    group.position.set(0, -0.02, motion.cameraX - gateDistance);
+    group.visible = Math.abs(gateDistance - motion.distance) <= 68;
+  });
+
+  return (
+    <group ref={groupRef}>
+      {WORLD_FORKS.map((fork) => (
+        <group key={fork.side}>
+          <mesh geometry={fork.road} material={FORK_ROAD_MATERIAL} />
+          <mesh geometry={fork.innerEdge} material={FORK_EDGE_MATERIAL} position={[0, 0.022, 0]} />
+          <mesh geometry={fork.outerEdge} material={FORK_EDGE_MATERIAL} position={[0, 0.022, 0]} />
+        </group>
+      ))}
+      <mesh geometry={WORLD_FORK_MEDIAN} material={FORK_MEDIAN_MATERIAL} position={[0, 0.01, 0]} />
+    </group>
   );
 }
 
@@ -915,6 +1049,7 @@ export function WorldChunks({
   touchRenderer: boolean;
 }) {
   const objects = useMemo(() => chunks.flatMap((chunk) => chunk.objects), [chunks]);
+  const forkGateDistances = getWorldForkGateDistances(chunks.map((chunk) => chunk.index));
   const staticLodChunk = Math.floor(motionRef.current.distance / WORLD_GATE_INTERVAL_METERS);
   const animatedObjects = useMemo(
     () => objects.filter((object) => object.kind === "flag" || object.kind === "torch" || object.kind === "firepit"),
@@ -931,6 +1066,9 @@ export function WorldChunks({
     <>
       <RoadSurface motionRef={motionRef} quality={quality} weather={weather} />
       {chunks.map((chunk) => <RoadSegment key={`road-${chunk.index}`} chunk={chunk} quality={quality} />)}
+      {forkGateDistances.map((gateDistance) => (
+        <WorldRouteFork key={`route-fork-${gateDistance}`} gateDistance={gateDistance} motionRef={motionRef} />
+      ))}
       <WorldStaticBatches
         objects={staticObjects}
         motionRef={motionRef}

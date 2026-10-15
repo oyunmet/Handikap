@@ -83,8 +83,26 @@ export default function StoryDialogueOverlay({
     >
       <div className="world-story-dialogue__card">
         <button ref={skipRef} className="world-story-dialogue__skip" type="button" onClick={onClose}>ATLA</button>
-        <span className="world-story-dialogue__eyebrow">ŞAFAK SAVAŞÇILARI · {dialogue.speaker}</span>
-        <h2 id="world-story-title">{dialogue.title}</h2>
+        {dialogue.kind === "opening" ? (
+          <div className="world-story-dialogue__brand-lockup">
+            <img
+              src={`${import.meta.env.BASE_URL}logo.svg`}
+              alt=""
+              aria-hidden="true"
+              width="64"
+              height="64"
+            />
+            <div>
+              <span className="world-story-dialogue__eyebrow">{dialogue.speaker}</span>
+              <h2 id="world-story-title">{dialogue.title}</h2>
+            </div>
+          </div>
+        ) : (
+          <>
+            <span className="world-story-dialogue__eyebrow">ŞAFAK SAVAŞÇILARI · {dialogue.speaker}</span>
+            <h2 id="world-story-title">{dialogue.title}</h2>
+          </>
+        )}
         <p id="world-story-line" aria-live="off">{line.slice(0, visibleCharacters)}{lineIsComplete ? "" : "▌"}</p>
         <p id="world-story-hint" className="world-story-dialogue__hint">{dialogue.hint}</p>
         <div className="world-story-dialogue__footer">
