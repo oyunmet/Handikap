@@ -392,12 +392,14 @@ const EMPTY_BROKEN = new Set<string>();
 function BotActor({
   rival,
   motionRef,
+  dialoguePortal,
   focused,
   talking,
   interactableRegistry,
 }: {
   rival: WorldRival;
   motionRef: MotionRef;
+  dialoguePortal: MutableRefObject<HTMLDivElement>;
   focused: boolean;
   talking: boolean;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
@@ -504,7 +506,7 @@ function BotActor({
         />
       </group>
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= 12 && (
-        <Html position={[rival.x, 3.5, 0]} center distanceFactor={13} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
+        <Html portal={dialoguePortal} position={[rival.x, 3.5, 0]} center distanceFactor={13} zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
           <div className="world-npc-dialogue" role="status" aria-live="polite">
             <span>{dialogueSpeaker} konuşuyor</span>
             <p>“{dialogueLine}”</p>
@@ -537,6 +539,7 @@ function BotActor({
 
 export default function WorldRoadEntities({
   motionRef,
+  dialoguePortal,
   rivals,
   collectedPickupIds,
   brokenObstacleIds = EMPTY_BROKEN,
@@ -546,6 +549,7 @@ export default function WorldRoadEntities({
   interactableRegistry,
 }: {
   motionRef: MotionRef;
+  dialoguePortal: MutableRefObject<HTMLDivElement>;
   rivals: WorldRival[];
   collectedPickupIds: ReadonlySet<string>;
   brokenObstacleIds?: ReadonlySet<string>;
@@ -606,6 +610,7 @@ export default function WorldRoadEntities({
           key={rival.id}
           rival={rival}
           motionRef={motionRef}
+          dialoguePortal={dialoguePortal}
           focused={rival.id === focusedRivalId}
           talking={rival.id === talkingRivalId}
           interactableRegistry={interactableRegistry}

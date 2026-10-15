@@ -186,6 +186,22 @@ function Cape({ motionRef, motionReduced, appearance }: Pick<Knight3DProps, "mot
   return <mesh ref={meshRef} geometry={geometry} position={[0, 1.72, 0.12]} material={material} frustumCulled={false} />;
 }
 
+function ShoulderPad({ side }: { side: -1 | 1 }) {
+  const localX = -side * 0.11;
+  return (
+    <>
+      <mesh position={[localX, 0.06, 0]}>
+        <sphereGeometry args={[0.225, 8, 6]} />
+        <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.78} flatShading />
+      </mesh>
+      <mesh position={[localX, 0.07, -0.038]} scale={[0.8, 0.18, 0.3]}>
+        <boxGeometry args={[0.4, 0.1, 0.08]} />
+        <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.34} metalness={0.7} />
+      </mesh>
+    </>
+  );
+}
+
 export default function Knight3D({
   motionRef,
   state,
@@ -432,6 +448,13 @@ export default function Knight3D({
     }
     if (leftElbowRef.current) leftElbowRef.current.rotation.x = moving ? Math.max(0, -walkArm) * 0.28 : 0.04;
     if (rightElbowRef.current) rightElbowRef.current.rotation.x = moving ? Math.max(0, walkArm) * 0.28 : 0.04;
+    if (state === "attack" || state === "heavyAttack" || state === "plunge") {
+      const elbowBend = 0.08 + actionSwing * (state === "heavyAttack" || state === "plunge" ? 0.35 : 0.24);
+      if (rightElbowRef.current) rightElbowRef.current.rotation.x = elbowBend;
+      if (weaponStyle === "daggers" && leftElbowRef.current) {
+        leftElbowRef.current.rotation.x = elbowBend;
+      }
+    }
     if (state === "block") {
       if (leftElbowRef.current) leftElbowRef.current.rotation.x = -0.65;
       if (rightElbowRef.current) rightElbowRef.current.rotation.x = -0.58;
@@ -455,6 +478,7 @@ export default function Knight3D({
         leftArmRef.current.rotation.z = 0.36 + gesture * 0.055;
       }
       if (leftElbowRef.current) leftElbowRef.current.rotation.x = -0.68 + Math.max(0, gesture) * 0.18;
+      if (rightElbowRef.current) rightElbowRef.current.rotation.x = 0.12 + Math.max(0, gesture) * 0.08;
       if (rightArmRef.current) {
         rightArmRef.current.rotation.x = -0.08 + gesture * 0.06;
         rightArmRef.current.rotation.z = 0.08;
@@ -507,18 +531,6 @@ export default function Knight3D({
           <boxGeometry args={[0.52, 0.16, 0.34]} />
           <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.62} metalness={0.52} />
         </mesh>
-        {[-1, 1].map((side) => (
-          <group key={side}>
-            <mesh position={[side * 0.35, 1.54, 0]}>
-              <sphereGeometry args={[0.225, 8, 6]} />
-              <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.78} flatShading />
-            </mesh>
-            <mesh position={[side * 0.35, 1.55, -0.038]} scale={[0.8, 0.18, 0.3]}>
-              <boxGeometry args={[0.4, 0.1, 0.08]} />
-              <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.34} metalness={0.7} />
-            </mesh>
-          </group>
-        ))}
         <group ref={headRef} position={[0, 1.76, 0]}>
           <mesh position={[0, 0.08, 0]} scale={[0.21, 0.25, 0.19]}>
             <sphereGeometry args={[1, 8, 6]} />
@@ -553,15 +565,16 @@ export default function Knight3D({
         </group>
 
         <group ref={leftArmRef} position={[-0.46, 1.48, 0]}>
+          <ShoulderPad side={-1} />
           <mesh position={[0, -KNIGHT_CONFIG.proportions.upperArm / 2, 0]}>
             <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 7]} />
             <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
           </mesh>
-          <mesh position={[0, -0.42, -0.01]}>
-            <sphereGeometry args={[0.115, 7, 5]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.72} />
-          </mesh>
           <group ref={leftElbowRef} position={[0, -0.43, 0]}>
+            <mesh position={[0, 0, -0.01]}>
+              <sphereGeometry args={[0.13, 7, 5]} />
+              <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.72} />
+            </mesh>
             <mesh position={[0, -KNIGHT_CONFIG.proportions.forearm / 2, 0]}>
               <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 7]} />
               <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
@@ -578,15 +591,16 @@ export default function Knight3D({
         </group>
 
         <group ref={rightArmRef} position={[0.46, 1.48, 0]}>
+          <ShoulderPad side={1} />
           <mesh position={[0, -KNIGHT_CONFIG.proportions.upperArm / 2, 0]}>
             <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 7]} />
             <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
           </mesh>
-          <mesh position={[0, -0.42, -0.01]}>
-            <sphereGeometry args={[0.115, 7, 5]} />
-            <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.72} />
-          </mesh>
           <group ref={rightElbowRef} position={[0, -0.43, 0]}>
+            <mesh position={[0, 0, -0.01]}>
+              <sphereGeometry args={[0.13, 7, 5]} />
+              <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.72} />
+            </mesh>
             <mesh position={[0, -KNIGHT_CONFIG.proportions.forearm / 2, 0]}>
               <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 7]} />
               <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />

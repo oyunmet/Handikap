@@ -453,6 +453,7 @@ export default function WorldScene({
   onSaveWorldPosition,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
+  const npcDialoguePortalRef = useRef<HTMLDivElement>(null!);
   const profileRef = useRef(profile);
   const [dailyClockTick, setDailyClockTick] = useState(() => Date.now());
   const [dailyAdBusy, setDailyAdBusy] = useState(false);
@@ -2331,6 +2332,7 @@ export default function WorldScene({
         >
           <World3D
             motionRef={motionRef}
+            dialoguePortal={npcDialoguePortalRef}
             unlockedThroughChapter={worldProgress.unlockedThroughChapter}
             collisionGrid={getCachedWorldContent(
               motionRef.current.distance,
@@ -2386,6 +2388,7 @@ export default function WorldScene({
             onToggleDebugOneHit={() => setDebugOneHitEnabled((value) => !value)}
           />
         </Suspense>
+        <div className="world-npc-dialogue-layer" ref={npcDialoguePortalRef} />
         <div className="world-step-bursts" aria-hidden="true">
           {stepBursts.map((burst) => {
             const particleCount = burst.running ? 7 : 4;

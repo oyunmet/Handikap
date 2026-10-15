@@ -44,6 +44,7 @@ type CombatVisualEvent = CombatEvent & { expiresAt: number };
 
 type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
+  dialoguePortal: MutableRefObject<HTMLDivElement>;
   unlockedThroughChapter: number;
   collisionGrid: WorldCollisionGrid;
   quality: WorldQuality;
@@ -1084,6 +1085,7 @@ function WorldCollisionDebug({
 
 function SceneContents({
   motionRef,
+  dialoguePortal,
   unlockedThroughChapter,
   collisionGrid,
   quality,
@@ -1288,6 +1290,7 @@ function SceneContents({
       )}
       {!combatActive && <WorldRoadEntities
         motionRef={motionRef}
+        dialoguePortal={dialoguePortal}
         rivals={rivals}
         collectedPickupIds={collectedPickupIds}
         brokenObstacleIds={brokenObstacleIds}
