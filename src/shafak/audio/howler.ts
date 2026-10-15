@@ -65,6 +65,78 @@ export function primeGameAudio() {
   if (context) resumeGameAudio(context);
 }
 
+export function createIntroAmbience() {
+  if (!soundEnabled || typeof window === "undefined" || !window.AudioContext) {
+    return () => undefined;
+  }
+
+  const sources: (AudioBufferSourceNode | OscillatorNode)[] = [];
+  const nodes: AudioNode[] = [];
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    sources.forEach((source) => {
+      try {
+        source.stop();
+      } catch {
+        // A source may already have been stopped by the browser.
+      }
+    });
+    nodes.forEach((node) => {
+      try {
+        node.disconnect();
+      } catch {
+        // Disconnect is best-effort for browser-specific AudioNode implementations.
+      }
+    });
+    sources.length = 0;
+    nodes.length = 0;
+  };
+
+  try {
+    const context = getGameAudioContext();
+    const bus = gameAudioGain;
+    if (!context || !bus) return cleanup;
+    resumeGameAudio(context);
+
+    const now = context.currentTime;
+    const windBuffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+    const windSamples = windBuffer.getChannelData(0);
+    for (let index = 0; index < windSamples.length; index += 1) {
+      windSamples[index] = (Math.random() * 2 - 1) * 0.18;
+    }
+
+    const wind = context.createBufferSource();
+    const windFilter = context.createBiquadFilter();
+    const windGain = context.createGain();
+    wind.buffer = windBuffer;
+    wind.loop = true;
+    windFilter.type = "lowpass";
+    windFilter.frequency.value = 620;
+    windGain.gain.setValueAtTime(0.0001, now);
+    windGain.gain.exponentialRampToValueAtTime(0.016, now + 1.4);
+    wind.connect(windFilter).connect(windGain).connect(bus);
+    wind.start(now);
+
+    const drone = context.createOscillator();
+    const droneGain = context.createGain();
+    drone.type = "sine";
+    drone.frequency.value = 47;
+    droneGain.gain.setValueAtTime(0.0001, now);
+    droneGain.gain.exponentialRampToValueAtTime(0.028, now + 1.8);
+    drone.connect(droneGain).connect(bus);
+    drone.start(now);
+
+    sources.push(wind, drone);
+    nodes.push(wind, windFilter, windGain, drone, droneGain);
+    return cleanup;
+  } catch {
+    cleanup();
+    return () => undefined;
+  }
+}
+
 export function createIntroImpact() {
   if (!soundEnabled || typeof window === "undefined" || !window.AudioContext) return () => undefined;
 

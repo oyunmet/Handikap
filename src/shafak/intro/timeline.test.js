@@ -10,10 +10,10 @@ import {
 
 test("the first-launch cinematic runs for about twenty seconds before its prompt", () => {
   const events = getIntroEventTimes();
-  assert.equal(events.worldReveal, 6_100);
+  assert.equal(events.worldReveal, 4_000);
   assert.equal(events.lineTwo - events.lineOne, 2_500);
   assert.equal(events.lineFive - events.lineFour, 2_500);
-  assert.equal(events.prompt, 22_000);
+  assert.equal(events.prompt, 19_900);
 });
 
 test("reduced-motion timing keeps the story in order and shortens transitions", () => {

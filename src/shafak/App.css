@@ -346,7 +346,7 @@
 .opening-bottom-mark {
   position: absolute;
   right: 24px;
-  bottom: 24px;
+  bottom: 56px;
   left: 24px;
   display: flex;
   align-items: center;
@@ -367,6 +367,34 @@
 
 .opening-bottom-mark span:last-child {
   transform: rotate(180deg);
+}
+
+.production-credit {
+  position: absolute;
+  z-index: 3;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: max(14px, env(safe-area-inset-left));
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  align-items: center;
+  gap: 8px;
+  color: rgba(229, 211, 177, .48);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: .045em;
+  line-height: 1.35;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
+  pointer-events: none;
+}
+
+.production-credit span {
+  max-width: calc(100vw - 58px);
+}
+
+.production-credit .met-emblem {
+  opacity: .74;
 }
 
 .screen--loading {
@@ -688,6 +716,7 @@
 
 .menu-footer {
   display: flex;
+  margin-bottom: 42px;
   align-items: center;
   justify-content: center;
   gap: 14px;

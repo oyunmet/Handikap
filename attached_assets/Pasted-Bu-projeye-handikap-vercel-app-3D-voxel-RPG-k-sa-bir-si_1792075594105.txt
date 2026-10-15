@@ -1,0 +1,33 @@
+Bu projeye (handikap.vercel.app, 3D voxel RPG) kısa bir sinematik intro ekle. ÖNCE mevcut kodu tara ve daha önce eklenmiş olanları YENİDEN YAZMADAN kullan: ayarlar ekranı, WebAudio/ses sistemi ve ses aç/kapa ayarı, parçacık havuzu, grafik kalitesi ayarı, dispose yardımcıları, kamera yapısı, kayıt (localStorage) sistemi. Yoksa en basit haliyle ekle. Mevcut oyun mantığını, stili ve Türkçe metinleri bozma. Harici asset kullanma (CSS, SVG, WebAudio, mevcut 3D sahne). Kaynağım kısıtlı: gereksiz test, ekran görüntüsü ve uzun açıklama yapma, tek seferde doğru yaz.
+
+AKIŞ (~20-24 sn):
+
+0. YAPIM JENERİĞİ (ilk 4 sn, siyah ekran)
+- Ortada MET emblemi (aşağıda tarif edildi) fade-in ve hafif ölçek büyümesiyle belirir.
+- Altında büyük altın serif "MET PRODUCTION", üzerinden soldan sağa altın parıltı çizgisi geçer.
+- En altta küçük, geniş harf aralıklı: "A GAME BY MUHAMMED EMİN TÜRKOĞLU".
+- 2 sn ekranda kalır, 1 sn fade-out. Mevcut ses sistemiyle kısa, derin bir vurgu sesi (düşük frekans hit + hafif yankı) çalsın.
+
+1. Siyah ekranda yavaşça beliren ince kül parçacıkları (max 60, mevcut parçacık havuzunu kullan).
+2. Kamera uzaktaki kale/dağ silüetleri önünden yavaşça ilerler (mevcut Kül Yolu sahnesi, sis ve ay).
+3. Metinler sırayla fade-in/out (her biri ~2.5 sn, serif altın, mevcut tipografi):
+   "Gökyüzü küle döndü."
+   "Krallığın son kapısı yüzyıllardır kapalı."
+   "Yolları gölgeler tutuyor. Kimse geçmeyecek."
+   "Sen bir Yolcu'sun. Elinde bir kılıç, sırtında kızıl bir pelerin."
+   "Kül Yolu seni çağırıyor."
+4. Son satırda kamera karakterin arkasına geçer, büyük altın "KÜL YOLU" başlığı belirir, altında yanıp sönen "Başlamak için dokun".
+5. Dokununca intro biter, oyun normal başlar.
+
+KURALLAR
+- Sağ üstte her zaman "Geç" butonu (jenerik dahil, dokununca direkt oyuna).
+- Sadece ilk açılışta gösterilsin (localStorage "introSeen"). Ayarlara "İntro'yu tekrar izle" ekle.
+- Düşük sesli rüzgar ve derin davul/drone sesini WebAudio ile üret, ses ayarına saygı göster. iOS'ta ses ilk dokunuştan sonra başlayabilir, jenerik sessiz başlarsa sorun değil.
+- Ana menü/yükleme ekranının alt köşesinde küçük ve silik: [küçük emblem 24px] "© MET Production · Muhammed Emin Türkoğlu".
+- Intro bitince parçacık, ses ve kamera nesnelerini dispose et. Mobilde 30 FPS altına düşmesin; kalite ayarı düşükse parçacık sayısını azalt.
+
+EMBLEM (EN SON YAP)
+- Tek, yeniden kullanılabilir, boyut parametreli SVG/CSS bileşeni. Koyu kahve zemin, altın çerçeveli kalkan (veya elmas) içinde serif "M", ince altın kenar ve hafif iç parıltı. Sadece CSS animasyonu, ek animasyon döngüsü yok.
+- Limit yetmezse emblem olmadan bitir ve bunu belirt.
+
+Bitince en fazla 5 satır özet ver: ne eklendi, hangi dosyalar, nasıl test ederim.

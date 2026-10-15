@@ -14,6 +14,7 @@ import { useLocation } from "wouter";
 import { playUiChime, primeGameAudio, setSoundEnabled, setSoundVolume } from "./audio/howler";
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from "./audio/audio-settings";
 import IntroCinematic from "./intro/IntroCinematic";
+import MetEmblem from "./intro/MetEmblem";
 import { hasSeenIntro, markIntroSeen } from "./intro/timeline";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
@@ -204,6 +205,15 @@ function Crest({ small = false }: { small?: boolean }) {
         </linearGradient>
       </defs>
     </svg>
+  );
+}
+
+function ProductionCredit() {
+  return (
+    <div className="production-credit">
+      <MetEmblem size={24} />
+      <span>© MET Production · Muhammed Emin Türkoğlu</span>
+    </div>
   );
 }
 
@@ -747,7 +757,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             exit={{ opacity: 0 }}
             transition={{ duration: motionReduced ? 0.12 : 0.65 }}
           >
-            <IntroCinematic reducedMotion={motionReduced} onComplete={finishIntro} />
+            <IntroCinematic
+              reducedMotion={motionReduced}
+              quality={activeQuality}
+              onComplete={finishIntro}
+            />
           </motion.section>
         )}
         {screen === "opening" && (
@@ -792,6 +806,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <span>ŞAFAK SAVAŞÇILARI</span>
               <span />
             </div>
+            <ProductionCredit />
           </motion.section>
         )}
 
@@ -830,6 +845,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <span>{Math.round(progress)}%</span>
               </div>
             </div>
+            <ProductionCredit />
           </motion.section>
         )}
 
@@ -949,6 +965,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <span>{tr.tagline}</span>
               <span className="footer-sigil" aria-hidden="true">✦</span>
             </footer>
+            <ProductionCredit />
           </motion.section>
         )}
         {screen === "world" && (

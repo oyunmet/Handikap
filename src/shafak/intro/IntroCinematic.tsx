@@ -1,11 +1,14 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import * as THREE from "three";
 import KnightActor from "../world/KnightActor";
 import WorldLandscape from "../world/WorldLandscape";
+import type { RenderQuality } from "../world/graphics-quality";
+import EmberLayer from "../scene/EmberLayer";
 import { createWorldMotion } from "../world/movement";
-import { createIntroImpact, primeGameAudio } from "../audio/howler";
+import { createIntroAmbience, createIntroImpact, primeGameAudio } from "../audio/howler";
+import MetEmblem from "./MetEmblem";
 import { getIntroEventTimes } from "./timeline";
 import "./intro.css";
 
@@ -19,6 +22,7 @@ const STORY_LINES = [
 
 type IntroCinematicProps = {
   reducedMotion: boolean;
+  quality: RenderQuality;
   onComplete: () => void;
 };
 
@@ -27,18 +31,33 @@ function smoothstep(value: number) {
   return t * t * (3 - 2 * t);
 }
 
+class IntroCanvasBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
 function CameraDrift({ reducedMotion, startedAt }: { reducedMotion: boolean; startedAt: number }) {
   const { camera } = useThree();
   const startPosition = useMemo(() => new THREE.Vector3(13, 13, 31), []);
-  const endPosition = useMemo(() => new THREE.Vector3(0, 4.15, 8.5), []);
+  const endPosition = useMemo(() => new THREE.Vector3(0.55, 2.8, 6.8), []);
   const startTarget = useMemo(() => new THREE.Vector3(0, 1, -84), []);
-  const endTarget = useMemo(() => new THREE.Vector3(0, 1.1, -34), []);
+  const endTarget = useMemo(() => new THREE.Vector3(0, 1.45, 0), []);
   const position = useMemo(() => new THREE.Vector3(), []);
   const target = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
     const elapsed = (performance.now() - startedAt) / 1_000;
-    const progress = reducedMotion ? 1 : smoothstep((elapsed - 6.1) / 5.5);
+    const progress = reducedMotion ? 1 : smoothstep((elapsed - 4.1) / 13.4);
     position.lerpVectors(startPosition, endPosition, progress);
     target.lerpVectors(startTarget, endTarget, progress);
     camera.position.copy(position);
@@ -48,42 +67,53 @@ function CameraDrift({ reducedMotion, startedAt }: { reducedMotion: boolean; sta
   return null;
 }
 
-function IntroWorld({ reducedMotion, startedAt }: { reducedMotion: boolean; startedAt: number }) {
+function IntroWorld({
+  reducedMotion,
+  startedAt,
+  quality,
+}: {
+  reducedMotion: boolean;
+  startedAt: number;
+  quality: RenderQuality;
+}) {
   const motionRef = useRef(createWorldMotion());
+  const fallback = <div className="intro-world__fallback" aria-hidden="true" />;
   return (
-    <Canvas
-      className="intro-world__canvas"
-      dpr={[1, 1.2]}
-      camera={{ position: [13, 13, 31], fov: 54, near: 0.1, far: 850 }}
-      gl={{
-        alpha: false,
-        antialias: false,
-        powerPreference: "low-power",
-        toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.08,
-      }}
-      fallback={<div className="intro-world__fallback" aria-hidden="true" />}
-      aria-hidden="true"
-    >
-      <CameraDrift reducedMotion={reducedMotion} startedAt={startedAt} />
-      <WorldLandscape
-        motionRef={motionRef}
-        quality="low"
-        weather="fog"
-        motionReduced={reducedMotion}
-      />
-      <KnightActor
-        motionRef={motionRef}
-        state="idle"
-        motionReduced={reducedMotion}
-        castShadow={false}
-      />
-    </Canvas>
+    <IntroCanvasBoundary fallback={fallback}>
+      <Canvas
+        className="intro-world__canvas"
+        dpr={quality === "high" ? [1, 1.25] : quality === "balanced" ? [1, 1.1] : 1}
+        camera={{ position: [13, 13, 31], fov: 54, near: 0.1, far: 850 }}
+        gl={{
+          alpha: false,
+          antialias: false,
+          powerPreference: "low-power",
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.08,
+        }}
+        fallback={fallback}
+        aria-hidden="true"
+      >
+        <CameraDrift reducedMotion={reducedMotion} startedAt={startedAt} />
+        <WorldLandscape
+          motionRef={motionRef}
+          quality="low"
+          weather="fog"
+          motionReduced={reducedMotion}
+        />
+        <KnightActor
+          motionRef={motionRef}
+          state="idle"
+          motionReduced={reducedMotion}
+          castShadow={false}
+        />
+      </Canvas>
+    </IntroCanvasBoundary>
   );
 }
 
-export default function IntroCinematic({ reducedMotion, onComplete }: IntroCinematicProps) {
-  const [creditLetter, setCreditLetter] = useState(false);
+export default function IntroCinematic({ reducedMotion, quality, onComplete }: IntroCinematicProps) {
+  const [showEmblem, setShowEmblem] = useState(false);
   const [showProduction, setShowProduction] = useState(false);
   const [showByline, setShowByline] = useState(false);
   const [shimmer, setShimmer] = useState(false);
@@ -105,7 +135,7 @@ export default function IntroCinematic({ reducedMotion, onComplete }: IntroCinem
       timers.push(window.setTimeout(action, delay));
     };
 
-    schedule(times.letter, () => setCreditLetter(true));
+    schedule(times.letter, () => setShowEmblem(true));
     schedule(times.production, () => setShowProduction(true));
     schedule(times.byline, () => setShowByline(true));
     schedule(times.shimmer, () => setShimmer(true));
@@ -114,7 +144,11 @@ export default function IntroCinematic({ reducedMotion, onComplete }: IntroCinem
       audioStopRef.current = createIntroImpact();
     });
     schedule(times.creditsFade, () => setCreditsFading(true));
-    schedule(times.worldReveal, () => setWorldRevealed(true));
+    schedule(times.worldReveal, () => {
+      setWorldRevealed(true);
+      audioStopRef.current?.();
+      audioStopRef.current = createIntroAmbience();
+    });
     schedule(times.lineOne, () => setActiveLine(0));
     schedule(times.lineTwo, () => setActiveLine(1));
     schedule(times.lineThree, () => setActiveLine(2));
@@ -137,28 +171,12 @@ export default function IntroCinematic({ reducedMotion, onComplete }: IntroCinem
   }, [reducedMotion]);
 
   const complete = () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
     audioStopRef.current?.();
     audioStopRef.current = null;
     onCompleteRef.current();
   };
-
-  const embers = useMemo(
-    () => Array.from({ length: 36 }, (_, index) => {
-      const x = (index * 47 + 13) % 100;
-      const y = (index * 71 + 21) % 100;
-      const delay = (index % 11) * -0.63;
-      const duration = 5.2 + (index % 7) * 0.7;
-      const style = {
-        "--ember-x": `${x}%`,
-        "--ember-y": `${y}%`,
-        "--ember-delay": `${delay}s`,
-        "--ember-duration": `${duration}s`,
-        "--ember-size": `${index % 5 === 0 ? 3 : 2}px`,
-      } as CSSProperties;
-      return <i className="intro-ember" key={index} style={style} aria-hidden="true" />;
-    }),
-    [],
-  );
 
   return (
     <section
@@ -166,16 +184,20 @@ export default function IntroCinematic({ reducedMotion, onComplete }: IntroCinem
       aria-label="Kül Yolu açılış sinematiği"
     >
       <div className={`intro-world${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
-        <IntroWorld reducedMotion={reducedMotion} startedAt={startedAt} />
+        <IntroWorld reducedMotion={reducedMotion} startedAt={startedAt} quality={quality} />
       </div>
       <div className={`intro-atmosphere${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
         <div className="intro-atmosphere__moon-haze" />
         <div className="intro-atmosphere__vignette" />
-        {!reducedMotion && <div className="intro-embers">{embers}</div>}
+        <div className="intro-embers">
+          <EmberLayer quality={quality} motionReduced={reducedMotion} />
+        </div>
       </div>
 
       <div className={`intro-credits${creditsFading ? " is-fading" : ""}`} aria-hidden="true">
-        <span className={`intro-credits__letter${creditLetter ? " is-visible" : ""}`}>A</span>
+        <div className={`intro-credits__emblem${showEmblem ? " is-visible" : ""}`}>
+          <MetEmblem size={76} />
+        </div>
         <p className={`intro-credits__production${showProduction ? " is-visible" : ""} ${shimmer ? "is-shimmering" : ""}`}>
           MET PRODUCTION
         </p>
