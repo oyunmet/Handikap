@@ -73,8 +73,18 @@ import {
   saveWorldProgress,
   unlockWorldGate,
   WORLD_GATE_INTERACTION_RANGE_METERS,
+  type WorldProgressPosition,
   type WorldProgress,
 } from "./world-progress.ts";
+import { createWorldRouteChoice, getWorldRoutePlayerId, type WorldRouteChoice, type WorldRouteSide } from "./route-difficulty.ts";
+import {
+  DAILY_DEFEAT_LIMIT,
+  canStartDailyDuel,
+  consumeDailyAdDuel,
+  grantDailyAdDuel,
+  normalizeDailyLifeState,
+} from "../game/daily-lives.ts";
+import { requestGoogleRewardedAd, getConfiguredRewardedAdUnit } from "../game/google-rewarded-ads.ts";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
@@ -125,7 +135,7 @@ type WorldSceneProps = {
     awardedPickupIds: string[];
     persistent: boolean;
   }>;
-  onSaveWorldPosition: (position: { distance: number; depth: number }) => Promise<void>;
+  onSaveWorldPosition: (position: WorldProgressPosition) => Promise<void>;
 };
 type Panel = "store" | "settings" | null;
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
@@ -237,29 +247,32 @@ type WorldContentSnapshot = {
   collisionGrid: WorldCollisionGrid;
 };
 
-const worldContentSnapshots = new WeakMap<
-  Map<number, WorldChapterContent>,
-  Map<number, WorldContentSnapshot>
->();
+const worldContentSnapshots = new WeakMap<Map<number, WorldChapterContent>, Map<number, WorldContentSnapshot>>();
 
-function getCachedWorldContent(distance: number, cache: Map<number, WorldChapterContent>) {
+function getCachedWorldContent(distance: number, cache: Map<number, WorldChapterContent>, routeChoice?: WorldRouteChoice | null) {
   const current = Math.max(0, Math.floor(distance / WORLD_GATE_INTERVAL_METERS));
+  const activeRoute = routeChoice?.chapterId === current ? routeChoice.difficulty : undefined;
+  const routeVariant = activeRoute === "easy" ? 1 : activeRoute === "hard" ? 2 : 0;
   let snapshots = worldContentSnapshots.get(cache);
   if (!snapshots) {
     snapshots = new Map();
     worldContentSnapshots.set(cache, snapshots);
   }
-  let snapshot = snapshots.get(current);
+  const snapshotKey = current * 3 + routeVariant;
+  let snapshot = snapshots.get(snapshotKey);
   if (snapshot) return snapshot;
 
   const first = Math.max(0, current - 1);
   const last = Math.min(1_000_000, current + 2);
   const chapters: WorldChapterContent[] = [];
   for (let chapterId = first; chapterId <= last; chapterId += 1) {
-    let content = cache.get(chapterId);
+    const chapterRoute = routeChoice?.chapterId === chapterId ? routeChoice.difficulty : undefined;
+    const chapterVariant = chapterRoute === "easy" ? 1 : chapterRoute === "hard" ? 2 : 0;
+    const cacheKey = chapterId * 3 + chapterVariant;
+    let content = cache.get(cacheKey);
     if (!content) {
-      content = getWorldChapter(chapterId);
-      cache.set(chapterId, content);
+      content = getWorldChapter(chapterId, chapterRoute);
+      cache.set(cacheKey, content);
     }
     chapters.push(content);
   }
@@ -270,7 +283,7 @@ function getCachedWorldContent(distance: number, cache: Map<number, WorldChapter
     obstacles: chapters.flatMap((chapter) => chapter.obstacles),
     collisionGrid: buildWorldCollisionGrid(chapters),
   };
-  snapshots.set(current, snapshot);
+  snapshots.set(snapshotKey, snapshot);
   for (const chapterId of cache.keys()) {
     if (chapterId < current - 2 || chapterId > current + 3) cache.delete(chapterId);
   }
@@ -439,12 +452,28 @@ export default function WorldScene({
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const profileRef = useRef(profile);
+  const [dailyClockTick, setDailyClockTick] = useState(() => Date.now());
+  const [dailyAdBusy, setDailyAdBusy] = useState(false);
+  const [dailyAdMessage, setDailyAdMessage] = useState("");
+  useEffect(() => {
+    const timer = window.setInterval(() => setDailyClockTick(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const dailyLives = normalizeDailyLifeState(profile, new Date(dailyClockTick));
+  const dailyAccess = canStartDailyDuel(dailyLives, new Date(dailyClockTick));
+  const dailyAdUnit = getConfiguredRewardedAdUnit();
   const [worldProgress, setWorldProgress] = useState<WorldProgress>(() => {
     const localProgress = readWorldProgress(userId);
     const savedPosition = userId && accountProfileReady ? profile.worldProgress : null;
     return inferWorldProgressFromDefeatedOpponents(
       savedPosition
-        ? { ...localProgress, distance: savedPosition.distance, depth: savedPosition.depth, unlockedThroughChapter: 0 }
+        ? {
+            ...localProgress,
+            distance: savedPosition.distance,
+            depth: savedPosition.depth,
+            routeChoice: savedPosition.routeChoice ?? localProgress.routeChoice,
+            unlockedThroughChapter: 0,
+          }
         : localProgress,
       profile.defeatedOpponents,
     );
@@ -465,7 +494,7 @@ export default function WorldScene({
   };
   const cloudSaveQueueRef = useRef<ReturnType<typeof createLatestAsyncSaveQueue<{
     userId: string;
-    position: { distance: number; depth: number };
+    position: WorldProgressPosition;
   }>> | null>(null);
   cloudSaveQueueRef.current ??= createLatestAsyncSaveQueue(async ({ userId: owner, position }) => {
     const context = cloudSaveContextRef.current;
@@ -476,7 +505,7 @@ export default function WorldScene({
     if (!userId || !accountProfileReady || progressUserIdRef.current !== userId) return;
     cloudSaveQueueRef.current?.enqueue({
       userId,
-      position: { distance: progress.distance, depth: progress.depth },
+      position: { distance: progress.distance, depth: progress.depth, routeChoice: progress.routeChoice },
     }, { immediate: force });
   }, [accountProfileReady, userId]);
   useEffect(() => {
@@ -486,6 +515,41 @@ export default function WorldScene({
     profileRef.current = nextProfile;
     onBattleProfile(nextProfile);
   }, [onBattleProfile]);
+  const claimDailyExtraDuel = useCallback(async () => {
+    const currentDaily = normalizeDailyLifeState(profileRef.current);
+    if (dailyAdBusy || currentDaily.dailyLosses < DAILY_DEFEAT_LIMIT || currentDaily.dailyAdRewardUsed) return;
+    if (!dailyAdUnit) {
+      setDailyAdMessage("Ödüllü reklam henüz bu oyun için ayarlanmadı. Haklar İstanbul saatiyle 00.00’da yenilenir.");
+      return;
+    }
+    setDailyAdBusy(true);
+    setDailyAdMessage("");
+    try {
+      const rewarded = await requestGoogleRewardedAd(dailyAdUnit);
+      if (!rewarded) {
+        setDailyAdMessage("Reklam tamamlanmadı veya şu an gösterilemiyor; düello hakkı verilmedi.");
+        return;
+      }
+      if (userId) {
+        const result = await apiRequest<{ profile?: unknown }>("/api/profile/daily-ad-reward", {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!result.profile) throw new Error("Ad reward profile was not returned.");
+        commitBattleProfile(normalizePlayerProfile(result.profile));
+      } else {
+        const reward = grantDailyAdDuel(profileRef.current);
+        if (!reward) throw new Error("Daily rewarded duel is no longer available.");
+        commitBattleProfile(normalizePlayerProfile({ ...profileRef.current, ...reward }));
+      }
+      setDailyAdMessage("Bir ek düello hakkı açıldı.");
+    } catch {
+      setDailyAdMessage("Ödül kaydedilemedi. Reklamı tekrar izletmeden önce profilini yenile.");
+    } finally {
+      setDailyAdBusy(false);
+      setDailyClockTick(Date.now());
+    }
+  }, [apiRequest, commitBattleProfile, dailyAdBusy, dailyAdUnit, userId]);
   const motionRef = useRef(createWorldMotion(worldProgress.distance, worldProgress.depth));
   const renderMotionRef = useRef<WorldMotion | null>(null);
   const previousMotionRef = useRef<WorldMotion | null>(null);
@@ -705,7 +769,7 @@ export default function WorldScene({
     musicVolume,
     currentChapterId,
   );
-  const activeContent = getCachedWorldContent(travel, contentCacheRef.current);
+  const activeContent = getCachedWorldContent(travel, contentCacheRef.current, worldProgress.routeChoice);
   const allRivals = activeContent.rivals;
   const nearbyRivals = allRivals.filter((rival) => Math.abs(rival.distance - travel) <= 105);
   const rivals = allRivals.filter((rival) =>
@@ -1329,6 +1393,16 @@ export default function WorldScene({
 
   const beginEncounter = useCallback(async (rival: WorldRival) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
+    const dailyAccess = canStartDailyDuel(profileRef.current);
+    if (!dailyAccess.allowed) {
+      setDailyClockTick(Date.now());
+      return;
+    }
+    if (!userId && dailyAccess.usesAdDuel) {
+      const consumed = consumeDailyAdDuel(profileRef.current);
+      if (!consumed) return;
+      commitBattleProfile({ ...profileRef.current, ...consumed });
+    }
     battleActiveRef.current = true;
     settlementStartedRef.current = false;
     pendingVerdictRef.current = null;
@@ -1868,7 +1942,11 @@ export default function WorldScene({
             chestImpactId = activeSlam.obstacleId;
           }
         }
-        const worldContent = getCachedWorldContent(nextFrame.distance, contentCacheRef.current);
+        const worldContent = getCachedWorldContent(
+          nextFrame.distance,
+          contentCacheRef.current,
+          worldProgressRef.current.routeChoice,
+        );
         const obstacles = worldContent.obstacles;
         const playerX = nextFrame.depth * 5.2;
         const resolvedPosition = resolveWorldPathCollision(
@@ -2155,7 +2233,10 @@ export default function WorldScene({
   };
   const debugSkipDistance = () => teleportToDistance(travel + 25);
   const gateDistance = nextGateDistance(travel);
-  const chapterRivals = getWorldChapter(currentChapterId).rivals;
+  const activeRoute = worldProgress.routeChoice?.chapterId === currentChapterId
+    ? worldProgress.routeChoice.difficulty
+    : undefined;
+  const chapterRivals = getWorldChapter(currentChapterId, activeRoute).rivals;
   const defeatedChapterRivals = chapterRivals.filter((rival) =>
     profile.defeatedOpponents.includes(rival.id),
   ).length;
@@ -2218,7 +2299,11 @@ export default function WorldScene({
           <World3D
             motionRef={motionRef}
             unlockedThroughChapter={worldProgress.unlockedThroughChapter}
-            collisionGrid={getCachedWorldContent(motionRef.current.distance, contentCacheRef.current).collisionGrid}
+            collisionGrid={getCachedWorldContent(
+              motionRef.current.distance,
+              contentCacheRef.current,
+              worldProgress.routeChoice,
+            ).collisionGrid}
             quality={quality}
             visualEffectsEnabled={visualEffectsEnabled}
             motionReduced={motionReduced}

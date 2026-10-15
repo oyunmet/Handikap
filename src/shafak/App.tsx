@@ -17,6 +17,7 @@ import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import type { WorldProgressPosition } from "./world/world-progress";
 import {
   getAutoQualityAction,
   normalizeGraphicsMode,
@@ -624,7 +625,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     }
   }, [authApiRequestWithRetry, profileSyncStatus, user?.id]);
 
-  const saveWorldPosition = useCallback(async (position: { distance: number; depth: number }) => {
+  const saveWorldPosition = useCallback(async (position: WorldProgressPosition) => {
     if (!user?.id || profileSyncStatus !== "ready") return;
     await authApiRequestWithRetry<{ worldProgress?: unknown }>("/api/profile/world-progress", {
       method: "PATCH",

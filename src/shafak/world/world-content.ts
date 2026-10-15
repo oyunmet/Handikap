@@ -1,6 +1,7 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import { WORLD_SEED } from "./world-generation.ts";
 import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles.ts";
+import type { WorldRouteDifficulty } from "./route-difficulty.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -224,14 +225,27 @@ export function isValidChapterId(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= MAX_CHAPTER_ID;
 }
 
-export function getWorldChapter(chapterId: number): WorldChapterContent {
+export function getWorldChapter(chapterId: number, routeDifficulty?: WorldRouteDifficulty): WorldChapterContent {
   if (!isValidChapterId(chapterId)) throw new RangeError("chapterId is outside the supported range.");
   const random = chapterRandom(chapterId);
+  const rivals = createRivals(chapterId, random);
+  const routedRivals = routeDifficulty
+    ? rivals.map((rival) => {
+        const easy = routeDifficulty === "easy";
+        return {
+          ...rival,
+          level: Math.max(1, Math.floor(rival.level * (easy ? 0.72 : 1.48))),
+          winRate: Math.max(20, Math.min(98, rival.winRate + (easy ? -17 : 16))),
+          loot: Math.floor(rival.loot * (easy ? 0.82 : 1.32)),
+          difficulty: routeDifficulty,
+        };
+      })
+    : rivals;
   return {
     chapterId,
     pickups: createPickups(chapterId, random),
     obstacles: createObstacles(chapterId),
-    rivals: createRivals(chapterId, random),
+    rivals: routedRivals,
   };
 }
 

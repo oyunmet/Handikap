@@ -1,5 +1,7 @@
 import type { EquipmentLoadout, PlayerInventory } from "./store-types.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, DEFAULT_COMBAT_QUICK_SLOTS, normalizeCombatItemCounts, normalizeCombatQuickSlots } from "./combat-items.ts";
+import { getIstanbulDayKey, normalizeDailyLifeState } from "./daily-lives.ts";
+import type { WorldRouteChoice } from "../world/route-difficulty.ts";
 
 export type PlayerProfile = {
   name: string;
@@ -20,9 +22,12 @@ export type PlayerProfile = {
   bestStreak: number;
   items: string[];
   defeatedOpponents: string[];
-  worldProgress: { distance: number; depth: number } | null;
+  worldProgress: { distance: number; depth: number; routeChoice?: WorldRouteChoice | null } | null;
   dailyBattles: number;
   dailyWins: number;
+  dailyLosses: number;
+  dailyAdRewardUsed: boolean;
+  dailyAdDuelsRemaining: number;
   dailyKey: string;
 };
 
@@ -66,11 +71,14 @@ export const defaultProfile: PlayerProfile = {
   worldProgress: null,
   dailyBattles: 0,
   dailyWins: 0,
-  dailyKey: new Date().toISOString().slice(0, 10),
+  dailyLosses: 0,
+  dailyAdRewardUsed: false,
+  dailyAdDuelsRemaining: 0,
+  dailyKey: getIstanbulDayKey(),
 };
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return getIstanbulDayKey();
 }
 
 export function normalizePlayerProfile(value: unknown): PlayerProfile {
@@ -83,6 +91,19 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
     ? saved.worldProgress as Partial<NonNullable<PlayerProfile["worldProgress"]>>
     : null;
   const today = todayKey();
+  const daily = normalizeDailyLifeState(saved, new Date());
+  const routeValue = savedWorldProgress?.routeChoice;
+  const routeChoice = routeValue && typeof routeValue === "object"
+    && Number.isSafeInteger(routeValue.chapterId)
+    && routeValue.chapterId >= 1
+    && (routeValue.side === "left" || routeValue.side === "right")
+    && (routeValue.difficulty === "easy" || routeValue.difficulty === "hard")
+    ? {
+        chapterId: routeValue.chapterId,
+        side: routeValue.side,
+        difficulty: routeValue.difficulty,
+      } satisfies WorldRouteChoice
+    : null;
   return {
     name: typeof saved.name === "string" && saved.name.trim() ? saved.name.trim().slice(0, 20) : defaultProfile.name,
     level: finiteNumber(saved.level, defaultProfile.level),
@@ -113,10 +134,14 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
       ? {
           distance: savedWorldProgress.distance,
           depth: Math.max(-1, Math.min(1, savedWorldProgress.depth)),
+          routeChoice,
         }
       : null,
-    dailyBattles: saved.dailyKey === today ? finiteNumber(saved.dailyBattles, 0) : 0,
-    dailyWins: saved.dailyKey === today ? finiteNumber(saved.dailyWins, 0) : 0,
+    dailyBattles: daily.dailyBattles,
+    dailyWins: daily.dailyWins,
+    dailyLosses: daily.dailyLosses,
+    dailyAdRewardUsed: daily.dailyAdRewardUsed,
+    dailyAdDuelsRemaining: daily.dailyAdDuelsRemaining,
     dailyKey: today,
   };
 }
@@ -148,7 +173,7 @@ export function saveProfile(profile: PlayerProfile, userId?: string) {
 
 export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, userId?: string): { profile: PlayerProfile; rewards: { gold: number; diamonds: number; xp: number; item: string | null; lostStake: number } } {
   const currentDay = todayKey();
-  const base = profile.dailyKey === currentDay ? profile : { ...profile, dailyBattles: 0, dailyWins: 0, dailyKey: currentDay };
+  const base = { ...profile, ...normalizeDailyLifeState(profile) };
   const lostStake = outcome.verdict === "defeat" ? Math.min(20, Math.floor(base.gold * 0.03)) : 0;
   const questBonus = outcome.verdict === "victory" && base.dailyWins === 2 ? 100 : 0;
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
@@ -179,6 +204,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
       : base.defeatedOpponents,
     dailyBattles: base.dailyBattles + 1,
     dailyWins: base.dailyWins + Number(outcome.verdict === "victory"),
+    dailyLosses: base.dailyLosses + Number(outcome.verdict === "defeat"),
     dailyKey: currentDay,
   };
   saveProfile(next, userId);

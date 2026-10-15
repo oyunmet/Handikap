@@ -1,11 +1,15 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import { getWorldChapter } from "./world-content.ts";
+import type { WorldRouteChoice } from "./route-difficulty.ts";
 
 export type WorldProgress = {
   distance: number;
   depth: number;
   unlockedThroughChapter: number;
+  routeChoice: WorldRouteChoice | null;
 };
+
+export type WorldProgressPosition = Pick<WorldProgress, "distance" | "depth" | "routeChoice">;
 
 export const WORLD_GATE_STOP_OFFSET_METERS = 2.8;
 export const WORLD_GATE_INTERACTION_RANGE_METERS = 12;
@@ -15,6 +19,7 @@ const emptyWorldProgress = (): WorldProgress => ({
   distance: 0,
   depth: 0,
   unlockedThroughChapter: 0,
+  routeChoice: null,
 });
 
 function storageKeyFor(userId?: string) {
@@ -36,6 +41,18 @@ export function normalizeWorldProgress(value: unknown): WorldProgress {
     && Number.isSafeInteger(saved.unlockedThroughChapter)
     ? Math.max(0, saved.unlockedThroughChapter)
     : 0;
+  const routeValue = saved.routeChoice;
+  const routeChoice = routeValue && typeof routeValue === "object"
+    && Number.isSafeInteger(routeValue.chapterId)
+    && routeValue.chapterId >= 1
+    && (routeValue.side === "left" || routeValue.side === "right")
+    && (routeValue.difficulty === "easy" || routeValue.difficulty === "hard")
+    ? {
+        chapterId: routeValue.chapterId,
+        side: routeValue.side,
+        difficulty: routeValue.difficulty,
+      } satisfies WorldRouteChoice
+    : null;
 
   // A saved location beyond a chapter boundary proves that its gate was passed.
   const passedChapters = Math.floor(distance / WORLD_GATE_INTERVAL_METERS);
@@ -43,6 +60,7 @@ export function normalizeWorldProgress(value: unknown): WorldProgress {
     distance,
     depth,
     unlockedThroughChapter: Math.max(savedUnlock, passedChapters),
+    routeChoice,
   };
 }
 

@@ -13,6 +13,8 @@ import {
 import { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS } from "./storeCatalog.ts";
 import { WORLD_GATE_INTERVAL_METERS } from "../src/shafak/world/movement.ts";
 import { WORLD_GATE_STOP_OFFSET_METERS } from "../src/shafak/world/world-progress.ts";
+import { DAILY_DEFEAT_LIMIT, getIstanbulDayKey, grantDailyAdDuel, normalizeDailyLifeState } from "../src/shafak/game/daily-lives.ts";
+import { getDoorDifficulty, type WorldRouteChoice, type WorldRouteSide } from "../src/shafak/world/route-difficulty.ts";
 
 export type PlayerProfileRecord = {
   name: string;
@@ -33,9 +35,12 @@ export type PlayerProfileRecord = {
   bestStreak: number;
   items: string[];
   defeatedOpponents: string[];
-  worldProgress: { distance: number; depth: number } | null;
+  worldProgress: { distance: number; depth: number; routeChoice?: WorldRouteChoice | null } | null;
   dailyBattles: number;
   dailyWins: number;
+  dailyLosses: number;
+  dailyAdRewardUsed: boolean;
+  dailyAdDuelsRemaining: number;
   dailyKey: string;
 };
 
@@ -65,7 +70,10 @@ export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord 
     worldProgress: null,
     dailyBattles: 0,
     dailyWins: 0,
-    dailyKey: new Date().toISOString().slice(0, 10),
+    dailyLosses: 0,
+    dailyAdRewardUsed: false,
+    dailyAdDuelsRemaining: 0,
+    dailyKey: getIstanbulDayKey(),
   };
 }
 
@@ -107,8 +115,13 @@ function maximumUnlockedDistance(defeatedOpponents: readonly string[]) {
   );
 }
 
-function validateWorldPosition(value: unknown, defeatedOpponents: readonly string[]) {
-  if (!isRecord(value) || Object.keys(value).some((key) => key !== "distance" && key !== "depth")) {
+function validateWorldPosition(
+  value: unknown,
+  defeatedOpponents: readonly string[],
+  userId?: string,
+  previous: PlayerProfileRecord["worldProgress"] = null,
+) {
+  if (!isRecord(value) || Object.keys(value).some((key) => !["distance", "depth", "routeChoice"].includes(key))) {
     return null;
   }
   const { distance, depth } = value;
@@ -124,7 +137,30 @@ function validateWorldPosition(value: unknown, defeatedOpponents: readonly strin
   ) {
     return null;
   }
-  return { distance, depth };
+  const activeChapter = Math.floor(distance / WORLD_GATE_INTERVAL_METERS);
+  let routeChoice = previous?.routeChoice ?? null;
+  if (Object.hasOwn(value, "routeChoice")) {
+    if (value.routeChoice === null) routeChoice = null;
+    else {
+      const requested = value.routeChoice;
+      if (
+        !isRecord(requested)
+        || !Number.isSafeInteger(requested.chapterId)
+        || Number(requested.chapterId) < 1
+        || Number(requested.chapterId) > 1_000_000
+        || (requested.side !== "left" && requested.side !== "right")
+      ) return null;
+      const chapterId = Number(requested.chapterId);
+      if (chapterId < activeChapter || chapterId > activeChapter + 1) return null;
+      const side = requested.side as WorldRouteSide;
+      const expectedDifficulty = userId ? getDoorDifficulty(`account:${userId}`, chapterId, side) : null;
+      const difficulty = expectedDifficulty ?? requested.difficulty;
+      if (difficulty !== "easy" && difficulty !== "hard") return null;
+      if (requested.difficulty !== undefined && requested.difficulty !== difficulty) return null;
+      routeChoice = { chapterId, side, difficulty };
+    }
+  }
+  return routeChoice ? { distance, depth, routeChoice } : { distance, depth };
 }
 
 function isItemId(value: unknown): value is string {
@@ -205,7 +241,7 @@ export function validateProfileRename(value: unknown): string | null {
   return name.length > 0 && name.length <= 20 ? name : null;
 }
 
-export function validatePlayerProfile(value: unknown): PlayerProfileRecord | null {
+export function validatePlayerProfile(value: unknown, userId?: string): PlayerProfileRecord | null {
   if (!isRecord(value)) return null;
 
   const name = typeof value.name === "string" ? value.name.trim().replace(/\s+/g, " ") : "";
@@ -233,10 +269,15 @@ export function validatePlayerProfile(value: unknown): PlayerProfileRecord | nul
   const defeatedOpponents = stringList(value.defeatedOpponents, 30);
   const hasWorldProgress = value.worldProgress !== undefined && value.worldProgress !== null;
   const worldProgress = hasWorldProgress && defeatedOpponents
-    ? validateWorldPosition(value.worldProgress, defeatedOpponents)
+    ? validateWorldPosition(value.worldProgress, defeatedOpponents, userId)
     : null;
   const dailyBattles = boundedInteger(value.dailyBattles, 0, 100_000);
   const dailyWins = boundedInteger(value.dailyWins, 0, 100_000);
+  const dailyLosses = value.dailyLosses === undefined ? 0 : boundedInteger(value.dailyLosses, 0, 100_000);
+  const dailyAdRewardUsed = value.dailyAdRewardUsed === undefined ? false : value.dailyAdRewardUsed === true;
+  const dailyAdDuelsRemaining = value.dailyAdDuelsRemaining === undefined
+    ? 0
+    : boundedInteger(value.dailyAdDuelsRemaining, 0, 1);
   const dailyKey = typeof value.dailyKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.dailyKey)
     ? value.dailyKey
     : null;
@@ -266,6 +307,10 @@ export function validatePlayerProfile(value: unknown): PlayerProfileRecord | nul
     dailyBattles === null ||
     dailyWins === null ||
     dailyWins > dailyBattles ||
+    dailyLosses === null ||
+    dailyLosses > dailyBattles ||
+    dailyAdDuelsRemaining === null ||
+    (dailyAdDuelsRemaining > 0 && !dailyAdRewardUsed) ||
     dailyKey === null
   ) {
     return null;
@@ -289,6 +334,9 @@ export function validatePlayerProfile(value: unknown): PlayerProfileRecord | nul
     worldProgress,
     dailyBattles,
     dailyWins,
+    dailyLosses,
+    dailyAdRewardUsed,
+    dailyAdDuelsRemaining,
     dailyKey,
   };
 }
@@ -328,7 +376,7 @@ export function createProfileApi(database: Pool) {
           [userId],
         );
       }
-      const profile = validatePlayerProfile(result.rows[0]?.profile);
+      const profile = validatePlayerProfile(result.rows[0]?.profile, userId);
       if (!profile) {
         response.status(503).json({ error: "profile_storage_invalid" });
         return;
@@ -358,7 +406,7 @@ export function createProfileApi(database: Pool) {
          RETURNING profile`,
         [userId, name],
       );
-      const profile = validatePlayerProfile(result.rows[0]?.profile);
+      const profile = validatePlayerProfile(result.rows[0]?.profile, userId);
       if (!profile) {
         response.status(404).json({ error: "profile_not_found" });
         return;
@@ -384,7 +432,12 @@ export function createProfileApi(database: Pool) {
         response.status(404).json({ error: "profile_not_found" });
         return;
       }
-      const worldProgress = validateWorldPosition(request.body, currentProfile.defeatedOpponents);
+      const worldProgress = validateWorldPosition(
+        request.body,
+        currentProfile.defeatedOpponents,
+        userId,
+        currentProfile.worldProgress,
+      );
       if (!worldProgress) {
         response.status(400).json({ error: "invalid_world_progress" });
         return;
@@ -401,6 +454,53 @@ export function createProfileApi(database: Pool) {
         return;
       }
       response.json({ worldProgress: updated.rows[0].worldProgress });
+    } catch {
+      response.status(503).json({ error: "profile_storage_unavailable" });
+    }
+  });
+
+  router.post("/api/profile/daily-ad-reward", profileLimit, async (request, response) => {
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+    response.setHeader("Cache-Control", "no-store");
+
+    try {
+      const currentResult = await database.query<{ profile: unknown }>(
+        "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
+        [userId],
+      );
+      const rawProfile = currentResult.rows[0]?.profile;
+      const profile = validatePlayerProfile(rawProfile, userId);
+      if (!profile) {
+        response.status(404).json({ error: "profile_not_found" });
+        return;
+      }
+      const daily = normalizeDailyLifeState(profile);
+      const rewarded = grantDailyAdDuel(daily);
+      if (!rewarded) {
+        response.status(409).json({
+          error: daily.dailyLosses < DAILY_DEFEAT_LIMIT ? "daily_lives_remaining" : "daily_ad_reward_used",
+        });
+        return;
+      }
+      const nextProfile = { ...profile, ...rewarded };
+      const updated = await database.query<{ profile: unknown }>(
+        `UPDATE shafak_player_profiles
+         SET profile = $3::jsonb, updated_at = NOW()
+         WHERE user_id = $1 AND profile = $2::jsonb
+         RETURNING profile`,
+        [userId, JSON.stringify(rawProfile), JSON.stringify(nextProfile)],
+      );
+      if (!updated.rows[0]) {
+        response.status(409).json({ error: "daily_ad_reward_raced" });
+        return;
+      }
+      const savedProfile = validatePlayerProfile(updated.rows[0].profile, userId);
+      if (!savedProfile) {
+        response.status(503).json({ error: "profile_storage_invalid" });
+        return;
+      }
+      response.json({ profile: savedProfile });
     } catch {
       response.status(503).json({ error: "profile_storage_unavailable" });
     }

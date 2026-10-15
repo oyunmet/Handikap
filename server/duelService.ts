@@ -5,6 +5,8 @@ import { MAX_INPUT_BUTTONS, normalizePlayerCombatModifiers, replayCombat, type C
 import { DEFAULT_COMBAT_ITEM_COUNTS, isCombatItemId, normalizeCombatQuickSlots } from "../src/shafak/game/combat-items.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
+import { canStartDailyDuel, consumeDailyAdDuel, getIstanbulDayKey, normalizeDailyLifeState, DAILY_DEFEAT_LIMIT } from "../src/shafak/game/daily-lives.ts";
+import type { WorldRouteChoice } from "../src/shafak/world/route-difficulty.ts";
 
 export type DuelVerdict = "victory" | "defeat" | "draw";
 export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number };
@@ -32,14 +34,15 @@ export class DuelServiceError extends Error {
 
 export const DUEL_ENGINE_ENABLED = true;
 
-function resolveOpponent(opponentId: unknown): ServerOpponent | null {
+function resolveOpponent(opponentId: unknown, routeChoice?: WorldRouteChoice | null): ServerOpponent | null {
   if (typeof opponentId !== "string") return null;
   const match = /^ash-road:(\d{1,7}):(rival|bot):([0-3])$/.exec(opponentId);
   if (!match) return null;
   const chapterId = Number(match[1]);
   const rivalIndex = Number(match[3]);
   if (!Number.isSafeInteger(chapterId) || chapterId > 1_000_000) return null;
-  const rival = getWorldChapter(chapterId).rivals[rivalIndex];
+  const difficulty = routeChoice?.chapterId === chapterId ? routeChoice.difficulty : undefined;
+  const rival = getWorldChapter(chapterId, difficulty).rivals[rivalIndex];
   if (!rival || (match[2] === "rival" && rival.id !== opponentId)) return null;
   const maximumLootByRival = [48, 72, 96, 120][rivalIndex];
   return {
@@ -159,10 +162,8 @@ export function applyServerAward(
 ): { profile: PlayerProfileRecord; rewards: BattleRewards } {
   const normalizedProfile = validatePlayerProfile(profile);
   if (!normalizedProfile) throw new DuelServiceError(409, "profile_not_ready");
-  const today = now.toISOString().slice(0, 10);
-  const base = normalizedProfile.dailyKey === today
-    ? normalizedProfile
-    : { ...normalizedProfile, dailyBattles: 0, dailyWins: 0, dailyKey: today };
+  const daily = normalizeDailyLifeState(normalizedProfile, now);
+  const base = { ...normalizedProfile, ...daily };
   const lostStake = outcome.verdict === "defeat" ? Math.min(20, Math.floor(base.gold * 0.03)) : 0;
   const questBonus = outcome.verdict === "victory" && base.dailyWins === 2 ? 100 : 0;
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
@@ -193,7 +194,8 @@ export function applyServerAward(
       : base.defeatedOpponents,
     dailyBattles: base.dailyBattles + 1,
     dailyWins: base.dailyWins + Number(outcome.verdict === "victory"),
-    dailyKey: today,
+    dailyLosses: base.dailyLosses + Number(outcome.verdict === "defeat"),
+    dailyKey: daily.dailyKey,
   };
   return { profile: next, rewards: { gold, diamonds, xp, item, lostStake } };
 }
@@ -203,15 +205,16 @@ export async function createDuelChallenge(
   userId: string,
   opponentId: unknown,
 ) {
-  const opponent = resolveOpponent(opponentId);
-  if (!opponent) throw new DuelServiceError(400, "unknown_opponent");
+  if (typeof opponentId !== "string") throw new DuelServiceError(400, "unknown_opponent");
 
   const profileResult = await database.query(
     "SELECT profile FROM shafak_player_profiles WHERE user_id = $1 FOR UPDATE",
     [userId],
   );
-  const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
+  const profile = validatePlayerProfile(profileResult.rows[0]?.profile, userId);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
+  const opponent = resolveOpponent(opponentId, profile.worldProgress?.routeChoice);
+  if (!opponent) throw new DuelServiceError(400, "unknown_opponent");
   const playerStats = calculatePlayerCombatModifiers(profile);
   const combatLoadout = buildCombatLoadout(profile);
   if (profile.defeatedOpponents.includes(opponent.id)) throw new DuelServiceError(403, "opponent_already_defeated");
@@ -263,6 +266,22 @@ export async function createDuelChallenge(
       };
     }
     throw new DuelServiceError(409, "duel_already_active");
+  }
+
+  const dailyAccess = canStartDailyDuel(profile);
+  if (!dailyAccess.allowed) throw new DuelServiceError(403, "daily_duels_exhausted");
+  if (dailyAccess.usesAdDuel) {
+    const consumedDaily = consumeDailyAdDuel(dailyAccess.daily);
+    if (!consumedDaily) throw new DuelServiceError(403, "daily_duels_exhausted");
+    await database.query(
+      `UPDATE shafak_player_profiles
+       SET profile = jsonb_set(
+         jsonb_set(profile, '{dailyAdDuelsRemaining}', to_jsonb($2::integer), true),
+         '{dailyKey}', to_jsonb($3::text), true
+       ), updated_at = NOW()
+       WHERE user_id = $1`,
+      [userId, consumedDaily.dailyAdDuelsRemaining, consumedDaily.dailyKey],
+    );
   }
 
   const duelId = randomUUID();
@@ -322,15 +341,14 @@ export async function completeDuel(
   if (!Number.isFinite(startedAt) || elapsedMs < 0) throw new DuelServiceError(409, "invalid_duel_clock");
   if (elapsedMs > MAX_DUEL_AGE_MS) throw new DuelServiceError(410, "duel_expired");
 
-  const opponent = resolveOpponent(duel.opponent_id);
-  if (!opponent) throw new DuelServiceError(409, "duel_opponent_invalid");
-
   const profileResult = await client.query(
     "SELECT profile FROM shafak_player_profiles WHERE user_id = $1 FOR UPDATE",
     [userId],
   );
-  const profile = validatePlayerProfile(profileResult.rows[0]?.profile);
+  const profile = validatePlayerProfile(profileResult.rows[0]?.profile, userId);
   if (!profile) throw new DuelServiceError(409, "profile_not_ready");
+  const opponent = resolveOpponent(duel.opponent_id, profile.worldProgress?.routeChoice);
+  if (!opponent) throw new DuelServiceError(409, "duel_opponent_invalid");
 
   let verdict: DuelVerdict;
   let simulatedTicks = 0;
@@ -375,8 +393,17 @@ export async function completeDuel(
   const profileAfterCombat = consumedInventory
     ? { ...profile, inventory: { ...profile.inventory, ...consumedInventory } }
     : profile;
+  const normalizedDaily = normalizeDailyLifeState(profileAfterCombat, now);
   const awarded = surrendered
-    ? { profile: profileAfterCombat, rewards: { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 } }
+    ? {
+        profile: {
+          ...profileAfterCombat,
+          ...normalizedDaily,
+          dailyBattles: normalizedDaily.dailyBattles + 1,
+          dailyLosses: normalizedDaily.dailyLosses + 1,
+        },
+        rewards: { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 },
+      }
     : applyServerAward(profileAfterCombat, outcome, now);
   if (!surrendered) {
     await client.query(
