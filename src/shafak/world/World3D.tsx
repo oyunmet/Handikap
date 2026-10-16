@@ -309,8 +309,8 @@ function CameraRig({
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 3.1 : 3.7,
-        touchRenderer ? 7.2 : 8.2,
+        touchRenderer ? 8.4 : 9,
+        touchRenderer ? 1.2 : 1.5,
         jumpLift,
         duelCameraHeadingRef.current ?? Math.PI,
       );

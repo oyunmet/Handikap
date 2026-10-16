@@ -38,8 +38,8 @@ export function getDuelCameraPose(
   player: DuelPoint,
   opponent: DuelPoint,
   worldOffsetZ: number,
-  cameraBack = 3.4,
-  shoulderOffset = 8.2,
+  cameraBack = 8.4,
+  shoulderOffset = 1.2,
   jumpLift = 0,
   cameraHeading = Math.PI,
 ): DuelCameraPose {
