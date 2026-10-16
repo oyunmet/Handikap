@@ -982,7 +982,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   ) {
     next.activeWeaponSlot = next.activeWeaponSlot === 0 ? 1 : 0;
     next.playerStats = normalizePlayerCombatModifiers(next.weaponStats[next.activeWeaponSlot]);
-    next.weaponSwapCooldownUntilTick = tick + 30;
+    next.weaponSwapCooldownUntilTick = tick + Math.round(COMBAT_HZ * 1.5);
     events.push({
       id: tick * 100 + 39,
       type: "weaponSwitch",

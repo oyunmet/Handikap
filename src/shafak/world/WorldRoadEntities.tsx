@@ -13,7 +13,6 @@ import { getNpcStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import {
   getWorldContentAround,
-  PICKUP_MAGNET_RADIUS_METERS,
   type WorldObstacle,
   type WorldPickup,
   type WorldRival,
@@ -32,6 +31,16 @@ const PICKUP_STYLE = {
   "ember-crystal": { color: "#ff9a56", glow: "#de542d", size: 0.29 },
   "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.3 },
 } as const;
+
+const COIN_STACK_OFFSETS: readonly [number, number, number][] = [
+  [-0.13, -0.1, 0],
+  [0.13, -0.1, 0],
+  [0, -0.1, -0.13],
+  [0, -0.1, 0.13],
+  [0, -0.1, 0],
+  [-0.035, -0.025, 0],
+  [0.04, 0.035, 0.025],
+];
 
 function pickupLabel(pickup: WorldPickup) {
   if (pickup.kind === "gold-small" || pickup.kind === "gold-large" || pickup.kind === "treasure-cache") {
@@ -84,33 +93,23 @@ function Collectible({
     if (!root || !spin) return;
     const motion = motionRef.current;
     const relativeDistance = pickup.distance - motion.distance;
-    const playerX = motion.depth * 5.2;
-    const playerZ = -(motion.distance - motion.cameraX);
     const itemZ = -(pickup.distance - motion.cameraX);
-    const pickupDistance = Math.hypot(pickup.x - playerX, relativeDistance);
-    const pull = THREE.MathUtils.clamp((PICKUP_MAGNET_RADIUS_METERS - pickupDistance) / (PICKUP_MAGNET_RADIUS_METERS - 1.1), 0, 0.88);
-    root.position.x = THREE.MathUtils.lerp(pickup.x, playerX, pull);
-    root.position.z = THREE.MathUtils.lerp(itemZ, playerZ, pull);
-    root.position.y = 0.48 + (reducedMotion ? 0 : Math.sin(frame.clock.elapsedTime * 2.1 + pickup.distance) * 0.11);
+    root.position.x = pickup.x;
+    root.position.z = itemZ;
+    root.position.y = 0.16 + (reducedMotion ? 0 : Math.sin(frame.clock.elapsedTime * 2.1 + pickup.distance) * 0.025);
     root.visible = unlocked && Math.abs(relativeDistance) <= maxVisibleDistance;
     if (!reducedMotion) {
       spin.rotation.y = frame.clock.elapsedTime * (pickup.kind === "seal-fragment" ? 0.82 : 1.25);
       spin.rotation.z = Math.sin(frame.clock.elapsedTime * 1.4 + pickup.x) * 0.12;
     }
-    const near = pickupDistance <= PICKUP_MAGNET_RADIUS_METERS;
-    root.scale.setScalar(near ? 1.12 : 1);
   });
 
   if (!unlocked) return null;
   return (
-    <group ref={rootRef} position={[pickup.x, 0.48, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>
-        <ringGeometry args={[style.size * 0.78, style.size * 1.3, 24]} />
-        <meshBasicMaterial color={style.glow} transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh position={[0, 0.66, 0]}>
-        <cylinderGeometry args={[0.035, style.size * 0.48, 1.32, 8, 1, true]} />
-        <meshBasicMaterial color={style.glow} transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
+    <group ref={rootRef} position={[pickup.x, 0.16, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.14, 0]}>
+        <ringGeometry args={[style.size * 0.72, style.size * 1.02, 20]} />
+        <meshBasicMaterial color={style.glow} transparent opacity={0.34} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <group ref={spinRef}>
         {geometry === "coin" ? (
@@ -125,15 +124,24 @@ function Collectible({
             </mesh>
           </group>
         ) : geometry === "large-coin" ? (
-          <group rotation={[Math.PI / 2, 0, 0]}>
-            <mesh scale={style.size * 1.18}>
-              <cylinderGeometry args={[0.82, 0.82, 0.22, 16]} />
-              <meshStandardMaterial color={style.color} emissive={style.glow} emissiveIntensity={0.9} metalness={0.86} roughness={0.2} />
-            </mesh>
-            <mesh position={[0, 0.13, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={style.size * 0.68}>
-              <torusGeometry args={[0.64, 0.055, 5, 14]} />
-              <meshStandardMaterial color="#fff1bd" emissive="#e19d36" emissiveIntensity={0.42} metalness={0.9} roughness={0.18} />
-            </mesh>
+          <group>
+            {COIN_STACK_OFFSETS.map(([x, y, z], index) => (
+              <mesh
+                key={index}
+                position={[x, y, z]}
+                rotation={[0, index * 0.31, (index % 3 - 1) * 0.035]}
+              >
+                <cylinderGeometry args={[style.size * 0.43, style.size * 0.43, style.size * 0.14, 10]} />
+                <meshStandardMaterial
+                  color={index % 2 ? style.color : "#d89a3c"}
+                  emissive={style.glow}
+                  emissiveIntensity={0.36}
+                  metalness={0.78}
+                  roughness={0.28}
+                  flatShading
+                />
+              </mesh>
+            ))}
           </group>
         ) : (
           <mesh scale={style.size}>

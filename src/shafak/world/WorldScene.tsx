@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
+import WorldWeaponPicker from "./WorldWeaponPicker";
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
@@ -167,6 +169,14 @@ type WorldSceneProps = {
   onSaveWorldPosition: (position: WorldProgressPosition) => Promise<void>;
 };
 type Panel = "store" | "settings" | null;
+
+function readDuelWeaponSelectionPreference() {
+  try {
+    return window.localStorage.getItem("safak-duel-weapon-selection-v1") === "1";
+  } catch {
+    return false;
+  }
+}
 type StepBurst = { id: number; x: number; running: boolean; expires: number };
 type PickupFlight = { id: number; kind: WorldPickup["kind"]; amount: number };
 type BattlePhase = "sweep" | "vs" | "countdown" | "fight" | "settling" | "settlement-error" | "result" | "error";
@@ -756,6 +766,18 @@ export default function WorldScene({
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(null);
+  const [activeWorldWeaponSlot, setActiveWorldWeaponSlot] = useState<0 | 1>(0);
+  const activeWorldWeaponSlotRef = useRef(activeWorldWeaponSlot);
+  activeWorldWeaponSlotRef.current = activeWorldWeaponSlot;
+  const [weaponPickerSlot, setWeaponPickerSlot] = useState<0 | 1>(0);
+  const [weaponPickerOpen, setWeaponPickerOpen] = useState(false);
+  const weaponPressTimerRef = useRef<number | null>(null);
+  const weaponLongPressRef = useRef(false);
+  const [duelWeaponSelectionBefore, setDuelWeaponSelectionBefore] = useState(readDuelWeaponSelectionPreference);
+  const duelWeaponSelectionBeforeRef = useRef(duelWeaponSelectionBefore);
+  duelWeaponSelectionBeforeRef.current = duelWeaponSelectionBefore;
+  const [pendingWeaponRival, setPendingWeaponRival] = useState<WorldRival | null>(null);
+  const skipWeaponSelectionRef = useRef(false);
   const storeItems = STORE_CATALOG as StoreItem[];
   const storeCatalogLoading = false;
   const [storeBusyItemId, setStoreBusyItemId] = useState<string | null>(null);
@@ -910,18 +932,31 @@ export default function WorldScene({
     const secondaryProfile = secondaryWeaponId
       ? { ...profile, equipment: { ...profile.equipment, weaponId: secondaryWeaponId } }
       : profile;
+    const secondaryWeaponStats = secondaryWeaponId
+      ? getPlayerCombatModifiers(secondaryProfile, storeItems)
+      : playerCombatStats;
+    const startWithSecondary = activeWorldWeaponSlot === 1 && Boolean(secondaryWeaponId);
     return {
       quickSlots: [...profile.inventory.quickSlots],
       itemCounts: { ...profile.inventory.combatItemCounts },
-      weaponIds: [profile.equipment.weaponId, secondaryWeaponId],
-      weaponStats: [
-        playerCombatStats,
-        secondaryWeaponId ? getPlayerCombatModifiers(secondaryProfile, storeItems) : playerCombatStats,
-      ],
+      weaponIds: startWithSecondary
+        ? [secondaryWeaponId, profile.equipment.weaponId]
+        : [profile.equipment.weaponId, secondaryWeaponId],
+      weaponStats: startWithSecondary
+        ? [secondaryWeaponStats, playerCombatStats]
+        : [playerCombatStats, secondaryWeaponStats],
     };
-  }, [playerCombatStats, profile, storeItems]);
+  }, [activeWorldWeaponSlot, playerCombatStats, profile, storeItems]);
   const equipmentBonuses = useMemo(() => getEquipmentBonuses(profile, storeItems), [profile, storeItems]);
   const equipmentVisual = useMemo(() => getEquipmentVisual(profile, storeItems), [profile, storeItems]);
+  const activeTravelWeaponId = activeWorldWeaponSlot === 1 && profile.inventory.secondaryWeaponId
+    ? profile.inventory.secondaryWeaponId
+    : profile.equipment.weaponId;
+  const travelEquipmentVisual = useMemo(() => {
+    if (activeTravelWeaponId === profile.equipment.weaponId) return equipmentVisual;
+    const travelProfile = { ...profile, equipment: { ...profile.equipment, weaponId: activeTravelWeaponId } };
+    return getEquipmentVisual(travelProfile, storeItems);
+  }, [activeTravelWeaponId, equipmentVisual, profile, storeItems]);
   const selectedBattleWeaponId = combatRender?.weaponIds[combatRender.activeWeaponSlot] ?? profile.equipment.weaponId;
   const combatDistance = combatRender
     ? Math.hypot(combatRender.player.x - combatRender.bot.x, combatRender.player.z - combatRender.bot.z)
@@ -1638,6 +1673,12 @@ export default function WorldScene({
 
   const beginEncounter = useCallback(async (rival: WorldRival) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
+    if (duelWeaponSelectionBeforeRef.current && !skipWeaponSelectionRef.current) {
+      setWeaponPickerSlot(activeWorldWeaponSlotRef.current);
+      setPendingWeaponRival(rival);
+      return;
+    }
+    skipWeaponSelectionRef.current = false;
     const dailyAccess = canStartDailyDuel(profileRef.current);
     if (!dailyAccess.allowed) {
       setDailyAdMessage("Bugünkü üç yenilgi hakkın doldu. Yeni haklar İstanbul saatiyle 00.00’da yenilenir.");
@@ -2040,8 +2081,10 @@ export default function WorldScene({
       const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
       previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
-      const liveInput = readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
-      const worldPausedForStory = Boolean(storyDialogueRef.current);
+      const liveInput = weaponPickerOpen || pendingWeaponRival
+        ? stoppedInput
+        : readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
+      const worldPausedForStory = Boolean(storyDialogueRef.current) || weaponPickerOpen || Boolean(pendingWeaponRival);
       let frameState: WorldMotionFrame = stepWorldMotion(
         motionRef.current,
         battleActiveRef.current || worldPausedForStory ? stoppedInput : liveInput,
@@ -2054,7 +2097,7 @@ export default function WorldScene({
       newlyCollected.clear();
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
-        if (storyDialogueRef.current && !battleActiveRef.current) {
+        if (worldPausedForStory && !battleActiveRef.current) {
           const pausedFrame = stepWorldMotion(
             motionRef.current,
             stoppedInput,
@@ -2518,7 +2561,7 @@ export default function WorldScene({
       window.cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [audioOn, combatDifficulty, motionReduced, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
+  }, [audioOn, combatDifficulty, motionReduced, pendingWeaponRival, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, weaponPickerOpen, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -2535,6 +2578,17 @@ export default function WorldScene({
     };
   }, [panel]);
 
+  useEffect(() => {
+    if (!weaponPickerOpen && !pendingWeaponRival) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setWeaponPickerOpen(false);
+      setPendingWeaponRival(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [pendingWeaponRival, weaponPickerOpen]);
+
   const openPanel = (next: Exclude<Panel, null>) => {
     wake();
     panelTriggerRef.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
@@ -2545,6 +2599,74 @@ export default function WorldScene({
   const closeStorePanel = () => {
     setStoreTrialItemId(null);
     setPanel(null);
+  };
+  const openWeaponPicker = () => {
+    setWeaponPickerSlot(activeWorldWeaponSlotRef.current);
+    setWeaponPickerOpen(true);
+  };
+  const clearWeaponPressTimer = () => {
+    if (weaponPressTimerRef.current !== null) {
+      window.clearTimeout(weaponPressTimerRef.current);
+      weaponPressTimerRef.current = null;
+    }
+  };
+  const onWeaponPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    weaponLongPressRef.current = false;
+    clearWeaponPressTimer();
+    weaponPressTimerRef.current = window.setTimeout(() => {
+      weaponLongPressRef.current = true;
+      setWeaponPickerSlot(activeWorldWeaponSlotRef.current);
+      setWeaponPickerOpen(true);
+      weaponPressTimerRef.current = null;
+    }, 480);
+  };
+  const onWeaponPointerUp = () => {
+    clearWeaponPressTimer();
+    if (weaponLongPressRef.current) {
+      weaponLongPressRef.current = false;
+      return;
+    }
+    const next = activeWorldWeaponSlotRef.current === 0 ? 1 : 0;
+    if (next === 1 && !profileRef.current.inventory.secondaryWeaponId) {
+      openWeaponPicker();
+      return;
+    }
+    activeWorldWeaponSlotRef.current = next;
+    setActiveWorldWeaponSlot(next);
+  };
+  const onWeaponPointerCancel = () => {
+    clearWeaponPressTimer();
+    weaponLongPressRef.current = false;
+  };
+  const onWeaponKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    if (event.key === " ") openWeaponPicker();
+    else onWeaponPointerUp();
+  };
+  const closeWeaponPicker = () => {
+    setWeaponPickerOpen(false);
+    setPendingWeaponRival(null);
+  };
+  const selectPickerWeapon = (weapon: StoreItem, slot: 0 | 1) => {
+    activeWorldWeaponSlotRef.current = slot;
+    setActiveWorldWeaponSlot(slot);
+    if (slot === 0) {
+      void runStoreMutation("equip", weapon.id, "weaponId");
+    } else {
+      void saveCombatLoadout(profileRef.current.inventory.quickSlots, weapon.id);
+    }
+    if (!pendingWeaponRival) setWeaponPickerOpen(false);
+  };
+  const confirmPendingWeaponSelection = () => {
+    if (!pendingWeaponRival || storeBusyItemId || combatLoadoutBusy) return;
+    const rival = pendingWeaponRival;
+    setPendingWeaponRival(null);
+    skipWeaponSelectionRef.current = true;
+    void beginEncounter(rival);
   };
   const teleportToDistance = (distance: number, x = motionRef.current.depth * 5.2) => {
     const nextDistance = Math.max(0, distance);
@@ -2671,7 +2793,9 @@ export default function WorldScene({
             weatherMode={weatherMode}
             level={profile.level}
             relicCount={profile.items.length}
-            equipmentVisual={panel === "store" ? worldEquipmentVisual : battleEquipmentVisual}
+            equipmentVisual={panel === "store"
+              ? worldEquipmentVisual
+              : battleSession ? battleEquipmentVisual : travelEquipmentVisual}
             lightRadius={equipmentBonuses.lightRadius}
             animationState={chestSlamActive ? "heavyAttack" : attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
             rivals={battleSession ? [] : nearbyRivals}
@@ -3096,6 +3220,18 @@ export default function WorldScene({
             title="Koş"
             onClick={() => worldInput.toggleAction("shift")}
           ><span aria-hidden="true">»</span><small>KOŞ</small></button>
+          <button
+            type="button"
+            className={`world-movement-action is-weapon${activeWorldWeaponSlot === 1 ? " is-toggled" : ""}`}
+            aria-label={`Silah değiştir. Şu an ${storeItems.find((item) => item.id === activeTravelWeaponId)?.name ?? "varsayılan silah"} etkin. Kısa dokun: yuva değiştir. Basılı tut: silah listesi.`}
+            title="Kısa dokun: silah değiştir · Basılı tut: silah seç"
+            onPointerDown={onWeaponPointerDown}
+            onPointerUp={onWeaponPointerUp}
+            onPointerCancel={onWeaponPointerCancel}
+            onLostPointerCapture={onWeaponPointerCancel}
+            onContextMenu={(event) => event.preventDefault()}
+            onKeyDown={onWeaponKeyDown}
+          ><span aria-hidden="true">⚔</span><small>SİLAH</small><i>YUVA {activeWorldWeaponSlot + 1}</i></button>
         </div>
       )}
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
@@ -3318,9 +3454,42 @@ export default function WorldScene({
               <span><strong>{worldText.vibration}</strong><small>{worldText.vibrationDescription}</small></span>
               <button type="button" role="switch" aria-checked={vibrationOn} aria-label={vibrationOn ? worldText.vibrationOn : worldText.vibrationOff} onClick={() => setVibrationOn((current) => !current)}>{vibrationOn ? worldText.vibrationOn : worldText.vibrationOff}</button>
             </div>
+            <div className="world-setting">
+              <span><strong>Düello öncesi silah seç</strong><small>VS ekranından önce kısa seçim panelini aç.</small></span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={duelWeaponSelectionBefore}
+                onClick={() => {
+                  const next = !duelWeaponSelectionBefore;
+                  duelWeaponSelectionBeforeRef.current = next;
+                  setDuelWeaponSelectionBefore(next);
+                  try { window.localStorage.setItem("safak-duel-weapon-selection-v1", next ? "1" : "0"); } catch { /* The setting remains active for this session. */ }
+                }}
+              >{duelWeaponSelectionBefore ? "AÇIK" : "KAPALI"}</button>
+            </div>
             <p className="world-inventory__note">{worldText.settingsNote}</p>
           </section>
         </div>
+      )}
+      {(weaponPickerOpen || pendingWeaponRival) && (
+        <WorldWeaponPicker
+          items={storeItems}
+          ownedItemIds={profile.inventory.ownedItemIds}
+          activeSlot={weaponPickerSlot}
+          primaryWeaponId={profile.equipment.weaponId}
+          secondaryWeaponId={profile.inventory.secondaryWeaponId}
+          confirmLabel={pendingWeaponRival ? "SİLAHINI SEÇ VE DÜELLOYA GEÇ" : undefined}
+          confirmDisabled={Boolean(storeBusyItemId || combatLoadoutBusy)}
+          onSlotChange={(slot) => {
+            setWeaponPickerSlot(slot);
+            activeWorldWeaponSlotRef.current = slot;
+            setActiveWorldWeaponSlot(slot);
+          }}
+          onSelect={selectPickerWeapon}
+          onConfirm={confirmPendingWeaponSelection}
+          onClose={closeWeaponPicker}
+        />
       )}
       {storyDialogue && (
         <StoryDialogueOverlay

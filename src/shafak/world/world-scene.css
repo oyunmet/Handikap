@@ -694,6 +694,36 @@
 .world-movement-action.is-toggled { border-color: rgba(242,201,105,.9); background: rgba(111,75,42,.92); box-shadow: 0 0 14px rgba(238,178,79,.28), inset 0 0 12px rgba(248,203,111,.12); }
 .world-movement-action span { color: #e2c17e; font-size: 19px; line-height: 1; }
 .world-movement-action small { color: rgba(240,225,198,.76); font-size: 6px; font-weight: 800; letter-spacing: .08em; }
+.world-movement-action.is-weapon { border-color: rgba(218,178,104,.56); background: linear-gradient(155deg,rgba(63,48,39,.95),rgba(20,19,23,.96)); }
+.world-movement-action.is-weapon > span { font-size: 17px; }
+.world-movement-action.is-weapon i { color: #d7b779; font-size: 6px; font-style: normal; font-weight: 800; letter-spacing: .08em; }
+.world-weapon-picker-backdrop { position: fixed; z-index: 75; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 12px 12px max(12px,env(safe-area-inset-bottom)); background: rgba(8,7,10,.72); backdrop-filter: blur(8px); }
+.world-weapon-picker { display: flex; width: min(100%,520px); max-height: min(76vh,680px); flex-direction: column; overflow: hidden; border: 1px solid rgba(227,191,124,.38); border-radius: 12px 12px 5px 5px; background: linear-gradient(165deg,rgba(39,31,30,.99),rgba(15,16,20,.99) 76%); box-shadow: 0 -18px 65px rgba(0,0,0,.52); color: #eadcc4; }
+.world-weapon-picker__header { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px 12px; border-bottom: 1px solid rgba(232,206,162,.14); }
+.world-weapon-picker__eyebrow { color: #c99e5c; font-size: 8px; font-weight: 800; letter-spacing: .17em; }
+.world-weapon-picker__header h2 { margin: 4px 0 0; color: #f0e1c2; font: 600 21px var(--font-display,Georgia,serif); }
+.world-weapon-picker__close { width: 40px; height: 40px; border: 1px solid rgba(233,216,183,.22); border-radius: 5px; background: rgba(255,255,255,.04); color: #e9d9bd; font-size: 25px; cursor: pointer; }
+.world-weapon-picker__slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; }
+.world-weapon-picker__slot { display: grid; min-height: 49px; gap: 3px; justify-items: start; padding: 8px 10px; border: 1px solid rgba(226,210,179,.15); border-radius: 5px; background: rgba(255,255,255,.035); color: #cbbda7; text-align: left; cursor: pointer; }
+.world-weapon-picker__slot small { color: #a88d61; font-size: 7px; font-weight: 800; letter-spacing: .14em; }
+.world-weapon-picker__slot strong { overflow: hidden; max-width: 100%; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.world-weapon-picker__slot.is-active { border-color: rgba(231,192,112,.72); background: linear-gradient(120deg,rgba(120,83,42,.4),rgba(255,255,255,.03)); color: #f5d99e; }
+.world-weapon-picker__list { display: grid; gap: 7px; overflow: auto; padding: 0 12px 12px; overscroll-behavior: contain; }
+.world-weapon-card { display: grid; grid-template-columns: 36px minmax(0,1fr) auto; min-height: 66px; align-items: center; gap: 9px; padding: 8px 9px; border: 1px solid rgba(227,218,195,.14); border-left: 2px solid #93836d; border-radius: 5px; background: rgba(255,255,255,.035); color: #e9decc; text-align: left; cursor: pointer; }
+.world-weapon-card.rarity-rare { border-left-color: #78b9cd; }
+.world-weapon-card.rarity-epic { border-left-color: #b38ae3; }
+.world-weapon-card.rarity-legendary { border-left-color: #e1ad59; }
+.world-weapon-card.is-equipped { border-color: rgba(230,195,126,.55); background: rgba(127,89,45,.18); }
+.world-weapon-card__icon { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(224,193,130,.19); border-radius: 50%; color: #e6c47f; font-size: 17px; }
+.world-weapon-card__details { display: grid; min-width: 0; gap: 3px; }
+.world-weapon-card__details > strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.world-weapon-card__details > small { color: #b8a88e; font-size: 7px; letter-spacing: .08em; text-transform: uppercase; }
+.world-weapon-card__stats { display: flex; flex-wrap: wrap; gap: 5px 9px; color: #d7c9b0; }
+.world-weapon-card__stats i { font-size: 7px; font-style: normal; }
+.world-weapon-card__action { color: #dfbb74; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.world-weapon-picker__empty { margin: 6px 14px 16px; color: #c7b79d; font-size: 11px; }
+.world-weapon-picker__confirm { min-height: 48px; margin: 0 12px 12px; border: 1px solid rgba(244,207,132,.66); border-radius: 4px; background: linear-gradient(110deg,#895d34,#bd8847); color: #fff0d3; font-size: 10px; font-weight: 900; letter-spacing: .15em; cursor: pointer; }
+.world-weapon-picker__confirm:disabled { opacity: .5; cursor: wait; }
 .world-mobile-hint { display: none; }
 .world-encounter {
   position: absolute; z-index: 4; top: 34%; left: 50%;
@@ -1600,7 +1630,7 @@
 .duel-combat-fx.is-poison > i { border-color: rgba(141,238,114,.92); box-shadow: 0 0 22px #67d95b,inset 0 0 13px #bbff98; }
 .duel-combat-fx.is-weaponSwitch > i { width: 82px; height: 82px; border-color: #e9d08f; box-shadow: 0 0 26px #f5b552,inset 0 0 15px #fff0bb; }
 @keyframes duel-weapon-switch { 0% { filter: brightness(1); transform: scale(1) rotate(0); } 45% { filter: brightness(1.7); transform: scale(1.05) rotate(-4deg); } 100% { filter: brightness(1); transform: scale(1) rotate(0); } }
-.world-scene[data-weapon-swap="true"] .world-three-layer { animation: duel-weapon-switch .38s ease-out; }
+.world-scene[data-weapon-swap="true"] .world-three-layer { animation: duel-weapon-switch .4s ease-out; }
 @media (max-width: 760px) {
   .duel-quickbar { top: max(112px,calc(env(safe-area-inset-top) + 104px)); width: min(222px,calc(100vw - 26px)); gap: 5px; }
   .duel-quickslot { min-height: 48px; }

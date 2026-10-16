@@ -1,0 +1,135 @@
+Bu projede (handikap.vercel.app, 3D voxel/low-poly RPG, Türkçe arayüz, Kül Yolu + Düello + Heybe + Mağaza) aşağıdaki sorunları düzelt ve 3D dünyayı baştan, çok daha kaliteli kur. Mevcut UI, renk paleti (koyu kahve/altın/kızıl), Türkçe metinler ve çalışan oyun mantığı (kayıt, altın, seviye, düello, mağaza) KORUNSUN.
+
+ÇALIŞMA KURALLARI (limit kısıtlı, kesinlikle uy)
+- Önce PROGRESS.md varsa oku, yoksa oluştur. Her bölüm (A-E) bitince PROGRESS.md'yi güncelle: yapılanlar, kalanlar, bilinen sorunlar.
+- Bölümleri SIRAYLA yap. Limit/zaman bitmek üzereyse yarım iş bırakma: o bölümü stabil halde kapat, PROGRESS.md'ye "kaldığım yer" yaz ve dur.
+- Gereksiz ekran görüntüsü, uzun açıklama, tekrar tekrar test yapma. Her bölüm sonunda en fazla 5 satır özet yaz.
+- Harici model/texture dosyası EKLEME. Her şey prosedürel olsun (Three.js geometri birleştirme, vertex color, canvas ile üretilen küçük texture).
+- Mobil (iPhone Safari) 30 FPS altına düşmesin. Draw call hedefi: Kül Yolu'nda <120, üçgen sayısı <250k.
+
+======================================================
+BÖLÜM A: ÖNCE TEŞHİS (kısa tut)
+======================================================
+Kodda şunları bul ve PROGRESS.md'ye 1'er satır yaz, sonra düzelt:
+1. Yolun ortasında/oyuncunun önünde duran iri altın renkli kaya + üstünde koni şeklindeki nesnenin ne olduğunu bul (muhtemelen altın/ganimet/ödül işareti). Biçimsiz, devasa ve yarım görünüyor. Kaldır veya Bölüm D'deki yeni modelle değiştir.
+2. Yol kenarındaki gri düz bloklar/sütunlar, çıplak üçgen dağlar, boş uzayda duran çerçeveler ve "yarım kalmış" tüm nesneleri listele (kapı çerçevesi, ızgara/kafes parçaları, tek başına duran kolonlar, yön işaretleri).
+3. Kenar nesnelerinin oyuncu ilerlerken "hareket etmesi/beliriş yapması" sebebini bul: chunk geri dönüşümü, nesnelerin her karede pozisyon güncellenmesi, rastgele (Math.random) konumun her yeniden spawn'da değişmesi, tek tek mesh'lerin görünür alana girince oluşturulması olabilir.
+
+======================================================
+BÖLÜM B: SİLAH SEÇİMİ (OYUN İÇİNDE)
+======================================================
+Sorun: Oyun sırasında (hem Kül Yolu'nda hem düelloda) silah seçilemiyor.
+
+B1. Kül Yolu ekranı:
+- Sağ alttaki butonların (EĞİL / ZIPLA / KOŞ) yanına veya üstüne "SİLAH" butonu ekle (44px+ dokunma alanı, mevcut buton stiliyle aynı). Dokununca alttan açılan kompakt bir panel çıksın: Heybe'deki kuşanılabilir silahlar kartlar halinde (ad, nadirlik rengi, hasar, hız ikonları). Birine dokununca anında kuşanılsın, elde görünen voxel silah modeli değişsin, panel kapansın.
+- Ayrıca 2 adet "hızlı silah slotu" olsun (slot 1/slot 2). SİLAH butonuna kısa dokunma = iki slot arasında geçiş, uzun basma = tüm liste paneli.
+- Oyun durmasın ama panel açıkken karakter hareketi kilitlensin; panel dışına dokununca kapansın.
+
+B2. Düello ekranı:
+- Düello butonlarına (KALKAN, ATILMA, SALDIRI, KOR, YILDIRIM) karışmadan, sol üstte can çubuğunun altına ya da sağ ortaya küçük bir "silah değiştir" butonu ekle. Dokununca 0.4 sn'lik silah çekme animasyonu ile slot 1 <-> slot 2 değişsin (savaşın ortasında spam edilmesin: 1.5 sn bekleme, dayanıklılık bedeli yok).
+- Düello başlamadan önce VS ekranından hemen önce mini bir "Silahını seç" ekranı göstermek istersem diye bir ayar ekle (varsayılan kapalı).
+- Silah değişince statlar (hasar, hız, menzil) düelloya anında yansısın. Silah yoksa yumruk/varsayılan silahla devam etsin, hata vermesin.
+
+B3. Silah verisi tek yerde olsun (weapons/items veri dosyası). Eğer mevcut item sistemi yoksa en az 6 silah tanımla: Demir Kılıç, Av Bıçağı, Çelik Balta, Mızrak, Kor Asası, Kule Kalkanı. Her biri için voxel model, hasar, saldırı hızı, menzil, nadirlik. Mevcut mağaza/heybe ile bağla; eski kayıtlar bozulmasın (yeni alan yoksa varsayılan ver).
+
+======================================================
+BÖLÜM C: OYUNCU EĞRİ/YAMUK DURUYOR HATASI (DÜELLO)
+======================================================
+Sorun: Savaş anında oyuncu bazen çapraz/yamuk (eğik) duruyor.
+
+Muhtemel sebepler ve zorunlu düzeltmeler:
+1. Karakterin ana kökü (root) için SADECE Y ekseni (yaw) dönüşü uygula. root.rotation.x ve root.rotation.z her karede 0'a sabitlensin (veya quaternion'u setFromAxisAngle(Y) ile kur). lookAt() ile rakibe dönerken kullanıyorsan sadece yatay düzlemde yaw hesapla: Math.atan2(dx, dz), y farkını yok say.
+2. Yatış/eğilme (lean), atılma/yuvarlanma, vuruş sarsıntısı, squash-stretch gibi efektler root'a DEĞİL ayrı bir alt pivot'a (visualPivot) uygulansın. Bu efektler bitince değerler lerp ile 0'a dönsün; animasyon bitişinde/iptalinde (kalkan, sersemleme, ölüm dahil) pivot rotasyonu ve scale zorla sıfırlansın (reset).
+3. Düello başlarken ve her animasyon durumu değişiminde karakterin rotation.x/z = 0, scale = 1, pozisyon y = zemin olacak şekilde "upright reset" çağır.
+4. Knockback/geri tepme fizik kodunda rotasyon torku yoksa temizle; sadece pozisyon etkilensin.
+5. Kamera ve lock-on: kamera roll (z) değeri hiçbir zaman 0'dan sapmasın; dash FOV efekti dışında kamera eğimi olmasın. Kamera hedefi iki savaşçının orta noktası olsun, yumuşak lerp ile takip etsin, titreme (jitter) olmasın.
+6. Rakipte de aynı kuralı uygula (sadece yaw).
+7. Hata ayıklama için geliştirici modunda (ayarlarda "Performans bilgisi" açıkken) rotation.x/z 0.05 radyandan büyükse konsola uyarı yazdır.
+
+======================================================
+BÖLÜM D: YENİ 3D DÜNYA (KÜL YOLU) - ANA İŞ
+======================================================
+Hedef: Şu an düz üçgen/kare bloklardan oluşan yarım kalmış görünüm yerine, karanlık fantezi (Dark Souls / Diablo havası) atmosferli, katmanlı, detaylı, tutarlı bir voxel-low-poly dünya. Her nesne "tamamlanmış" görünsün; yarım, yüzen, biçimsiz veya yanlış ölçekli hiçbir nesne kalmasın.
+
+D1. GENEL GÖRSEL KURALLAR
+- Tek bir renk paleti kullan (15-20 renk): kül gri-mor, koyu kahve, paslı bakır, solgun taş mavisi, kızıl vurgu, altın vurgu. Tüm nesneler bu paletten renk alsın.
+- Malzemeler: flatShading + vertex color ile üstten alta hafif renk geçişi (üstte açık, altta koyu), böylece düz renkli bloklar yerine hacimli görünsün. Ambient occlusion benzeri sahte gölge için nesne diplerine koyu vertex rengi ver.
+- Her büyük nesneye küçük detay parçalar ekle (çatlak çizgiler, sarmaşık, mahzen, kemer, kemik, tutam ot, taş yığınları). Düz küp tek başına bırakılmasın.
+- Voxel çözünürlüğü tutarlı olsun: aynı sahnede çok farklı "piksel boyutu" olmasın. Ölçek referansı: karakter ~1.8 birim, kapı ~5, sütun ~6-8, duvar ~4.
+- Işık: 1 yönlü ay/güneş ışığı (gölge: mobilde kapalı veya 1024 harita, sadece oyuncu ve yakın nesneler), 1 hemisphere ambient, en fazla 2 dinamik nokta ışığı (meşale için yalnızca oyuncuya en yakın 2 meşale gerçek ışık verir; diğerleri emissive + sahte parıltı sprite'ı).
+- Sis: FogExp2, uzaktaki nesneler sise karışsın, bölge/hava durumuna göre renk değişsin (mevcut Hava: Kül ayarıyla bağlı). Sis sayesinde chunk'ların beliriş noktası görünmez olsun.
+- Gökyüzü: düz renk yerine gradyan gökyüzü (canvas texture veya shader), büyük ay (halo + hafif parıltı), ince bulut katmanları, ufukta yıldızlar. Uzakta 3 katmanlı parallax dağ/kale silüeti (her katman farklı renk ve sis yoğunluğunda; en uzak katman en açık/sisli). Dağlar düz koni DEĞİL: birleştirilmiş, tepesi kırık, kaya yarıklı, kar/kül tozlu çok yüzlü kütleler olsun (gürültü ile kaydırılmış köşeler).
+
+D2. YOL (ZEMİN)
+- Düz karanlık zemin yerine: taş döşeme dokusu (canvas ile prosedürel, 256x256, tekrarlı; kenarlarda yosun/kül lekesi, ortada hafif aşınmış iz), yol kenarında kaldırım taşları, çatlaklar, ara sıra kırık taş parçaları, kül birikintileri, küçük su birikintisi (hafif yansıma hissi veren koyu parlak plane).
+- Yol kenarı ile yan duvar/uçurum arasında geçiş bölgesi (kuru ot, çalı, taş yığını) olsun; yol bir anda bitmesin.
+- Yolun iki yanında kaçamak engel: görünmez duvar yerine görsel olarak mantıklı sınır (alçak duvar, kaya sırası, çit, sarmaşıklı kemer).
+- Bölüm ilerledikçe (bölüm 1-5+) zemin dokusu, sis rengi ve prop yoğunluğu değişsin (temel tema aynı kalsın ama varyasyon olsun).
+
+D3. YAN DUVARLAR VE MİMARİ (düz gri bloklar yerine)
+- Yan duvarlar: tek tip gri slab yerine modüler "harabe duvar" parçaları: taş tuğla sıraları (blok blok, kırık üst kenar), payanda sütunlar, kemer parçaları, yıkık pencere boşlukları, üzerinde yosun/kül, ara ara devrilmiş sütun parçası, yarı çökmüş kemer. En az 8 farklı modüler parça varyantı üret, chunk başına rastgele (deterministik seed ile) seç.
+- Kale kapısı (bölüm sonu): büyük, tamamlanmış bir kule-kapı kompleksi: iki yanda yüksek kuleler, mazgallar, üzerinde bayraklar, ortada demir parmaklıklı büyük kapı (şu anki "çerçeve + çubuk" yerine kalın demir kafes, kemerli, perçinli), yanlarda meşaleler ve gargoyle başları. Kapı uzaktan silüet olarak okunsun.
+- Yol boyunca düzenli aralıklarla (her 40-60 m) "dönüm noktası" yapılar: yıkık gözetleme kulesi, köprü kemeri, harap tapınak girişi, dev heykel (kılıç tutan şövalye heykeli, yarı yıkık).
+
+D4. PROP (SÜS NESNE) KÜTÜPHANESİ
+Aşağıdakileri prosedürel, her biri tamamlanmış ve detaylı olacak şekilde üret, InstancedMesh veya chunk başına birleştirilmiş (mergeGeometries) tek mesh olarak çiz:
+- Meşale direği (taş kaide + demir tutaç + alev: emissive turuncu koniler + yukarı süzülen 6-8 kıvılcım parçacığı, hafif sallanan ışık sprite'ı; gerçek ışık sadece yakın 2 meşalede)
+- Ölü ağaçlar (çatallı gövde, kıvrık dallar, birkaç asılı dal/yaprak parçası), kuru çalılar, ot tutamları
+- Kayalar (3 boyut, birleşik çokgen, üstte yosun/kül, tabanda gölge leke)
+- Kemik yığınları, kafatasları, kırık kılıç/kalkan saplanmış yerler (savaş alanı havası)
+- Devrilmiş araba/yük arabası, kırık varil, çuval yığını, sandık yığını
+- Mezar taşları ve haçlar, bayrak direkleri (kırık, yırtık bayrak, hafif sallanma)
+- Dikenli tel/çit parçaları, yıkık çit, kazık sırası
+- Sarmaşıklı kemerler, asılı zincirler (hafif sallanan)
+- Küçük ateş yeri/kamp izi, yanık kütük
+- Kül parçacığı yağışı (kamerayla birlikte hareket eden küçük hacim; max 150 parçacık, düşük kalitede 60), ara ara uçuşan ateş böceği benzeri ışık noktaları
+- Uzakta ara ara kuş/karga siluetleri (basit, hafif; her biri 4-6 üçgen)
+Hepsi tutarlı ölçekte olsun. Hiçbir prop yarım, yüzen, zemine gömülü ya da yola engel olacak şekilde yerleştirilmesin.
+
+D5. ALTIN/GANİMET/SANDIK NESNELERİ (yolun ortasındaki biçimsiz altın nesnenin yerine)
+- Altın: küçük altın para yığını (5-8 yassı silindir, üst üste, parlayan emissive kenar) veya tek madeni para (döner, ışık huzmesi). Boyutu karakterin ayağı kadar olsun (kameraya dev görünmesin). Toplanınca kıvılcım + "+altın" yazısı çıksın.
+- Kristal/mücevher: küçük, düzgün çok yüzlü, içten parlayan, yavaş dönen ve hafif süzülen; boyutu ~0.4 birim.
+- Sandık: ahşap gövde, demir bantlar, kilit, kavisli kapak; açılış animasyonu (kapak kalkar, içeriden ışık huzmesi, altın saçılır). Üzerinde ince parlayan halka. (Mevcut "sandık yok ama ipucu var" hatası düzeltilmişse bozma: interactable kaydı mesh ile senkron kalsın.)
+- Yönlendirme okları/koni gibi geçici işaretçiler büyük ve biçimsiz görünmesin; kaldır veya küçük, yarı saydam, zemine yakın bir ışık halkasına çevir.
+
+D6. NPC VE RAKİP MODELLERİ
+- Şu anki düz, tek renk bloklu karakterler yerine her biri en az 12-16 parçadan oluşan voxel-low-poly modeller: kafa (miğfer/kukuletalı), boyun, gövde (göğüs zırhı), omuz zırhı, kol/ön kol, el/eldiven, kemer, bacak/diz, çizme, pelerin (çok parçalı, hafifçe dalgalanan), silah ve aksesuar.
+- Her rakip türünün belirgin silüeti ve rengi olsun (Duman Avcısı: kukuletalı, hafif; Gece Nöbetçisi: ağır mor zırh, boynuzlu miğfer; Kızıl Pelerin: kızıl pelerin, altın süs; Mor Hançer; Kül Gezgini NPC: gezgin kıyafeti, sırt çantası). Boss'lar daha büyük ve kendine özgü detaylı olsun (örn. bölüm bossu: yüksek miğfer, devasa omuzluk, ışıldayan göz/kor).
+- Oyuncu modeli: simsiyah bloğu bırak. Kuşanılan zırh/pelerin/miğfere göre renk ve parça detayı olsun (metalik koyu gri zırh, kızıl pelerin, altın boynuzlu miğfer, deri kemer, omuz plakaları, çizme). Rim light (kenar parlaması) ile siluet net okunsun, karakter zeminle karışmasın. Işık altında tamamen siyah görünmemeli (emissive'i çok düşük artırma veya hemisphere ışığı ile çöz).
+- Rakip ve NPC isim etiketleri aynı kalsın, ama karakterin başının biraz üstünde ve yakın mesafede küçülsün.
+- Yürüme/bekleme animasyonu: nefes alma (gövde y salınımı), pelerin dalgası, kol-bacak sallanması (sinüs). Hepsi sadece görsel pivotlarda olsun (Bölüm C kuralıyla uyumlu).
+
+D7. KENAR NESNELERİNİN "HAREKET ETMESİ/BELİRMESİ" SORUNU
+- Dünya statik olsun: tüm prop ve mimari dünya koordinatında SABİT kalsın. Oyuncu ilerlerken sadece kamera/oyuncu hareket etsin; nesnelerin kendi pozisyonları değişmesin (bilinçli animasyonlar hariç: meşale alevi, bayrak sallanması, zincir sallanması, kuş uçuşu).
+- Chunk sistemi: yol, 40-60 birimlik chunk'lara bölünsün. Oyuncunun önünde en az 3, arkasında 1 chunk hazır bulunsun. Yeni chunk oyuncudan fog uzak mesafesinin (far) ötesinde oluşturulsun, sis içinde tamamen görünmezken eklenmeli. Yeni chunk oluşturma işlemi tek karede ağır iş yapmasın: nesne üretimini kareler arasına dağıt (her kare en fazla 1 chunk veya N nesne) ve havuzdan (pooling) tekrar kullan.
+- Props konumları chunk indeksine bağlı SEED ile (deterministik RNG, örn. mulberry32) üretilsin. Aynı chunk her yeniden oluştuğunda aynı yerleşimi versin; Math.random kullanma.
+- Geri dönülen alanda nesneler aynı yerde olsun.
+- Beliriş (pop-in) kalan olursa: yeni chunk nesnelerini ilk 0.5 sn içinde scale 0.9→1 + opacity fade ile getir; ama asıl çözüm sis ve doğru mesafe olsun.
+- Dispose/geri dönüşüm: chunk dışında kalan geometri/materyal tekrar kullanılsın, gereksizse dispose edilsin. Bellek sızıntısı olmasın.
+
+D8. PERFORMANS BÜTÇESİ (D bölümünün şartı)
+- Tekrarlı nesneler InstancedMesh; chunk içi statik geometri mergeGeometries ile tek mesh, tek materyal (vertex color) kullan.
+- Draw call ve üçgen hedeflerini ayarlara eklenen "Performans bilgisi" kutusunda göster (zaten varsa kullan).
+- Grafik kalitesi ayarına bağla: Düşük = prop yoğunluğu %50, parçacık 60, gölge kapalı, uzak dağ katmanı 1; Orta = %75, 100, gölge basit; Yüksek = %100, 150, gölge 1024. 30 FPS altına düşünce otomatik bir kademe düşür.
+- Texture'ları canvas ile 256x256'dan büyük üretme, mipmap + anisotropy 2 yeterli.
+- pixelRatio max 1.5.
+
+======================================================
+BÖLÜM E: DÜELLO ARENASI (KISA)
+======================================================
+- Arena zemini düz daire olmasın: taş döşemeli daire, kenarda kırık sütunlar, meşaleler, zeminde kül/kan lekesi benzeri dekal, çevrede amfi tiyatro/harabe duvar silüeti, gökyüzü ve sis düello bölgesine uyumlu.
+- Kamera iki savaşçıyı kadrajlasın; zemin ve arka plan oyuncu karakterini yutmasın (karakterin arkasında hafif ışık huzmesi/rim light).
+- Arena ışığı: yukarıdan hafif spot, kenarlarda meşale titremesi.
+
+======================================================
+KABUL KRİTERLERİ (bitince kendin kontrol et ve belirt)
+======================================================
+[ ] Oyun içinde (Kül Yolu ve düello) SİLAH butonu ile silah seçilip değiştirilebiliyor, elde görünen model değişiyor.
+[ ] Düelloda karakter hiçbir durumda (dash, blok, vuruş, ölüm, kilitlenme) yamuk/çapraz kalmıyor.
+[ ] Yolun ortasındaki biçimsiz altın/koni nesne yok; altın/kristal küçük ve düzgün.
+[ ] Yan duvarlar, dağlar, sütunlar, kapı tamamlanmış ve detaylı görünüyor; yarım/yüzen nesne yok.
+[ ] Oyuncu ilerlerken kenar nesneleri kayıp oynamıyor/beliriş yapmıyor; sis içinde yeni parçalar doğuyor.
+[ ] Karakter modelleri detaylı, siyah blok değil; siluetleri net.
+[ ] Mobilde 30+ FPS, kalite ayarı çalışıyor.
+[ ] Mevcut kayıtlar, mağaza, heybe, düello, altın ve seviye sistemi bozulmadı.
+[ ] PROGRESS.md güncellendi.
