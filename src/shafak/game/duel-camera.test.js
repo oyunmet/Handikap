@@ -3,35 +3,38 @@ import test from "node:test";
 import { DUEL_JUMP_HEIGHT, getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight, getUprightDuelRotation } from "./duel-camera.ts";
 import { getKnightActorRootYaw } from "../world/knight-config.ts";
 
-test("duel camera stays behind the player and places both fighters side by side", () => {
-  for (const [player, opponent] of [
-    [{ x: 0, z: 0.75 }, { x: 0, z: -1.95 }],
-    [{ x: 0.8, z: 1.2 }, { x: -1.6, z: -1.1 }],
-  ]) {
-    const pose = getDuelCameraPose(player, opponent, -120);
-    const dx = opponent.x - player.x;
-    const dz = opponent.z - player.z;
-    const length = Math.hypot(dx, dz);
-    const cameraFromPlayerX = pose.position.x - player.x;
-    const cameraFromPlayerZ = pose.position.z - (-120 + player.z);
-    const cameraHeadingDot = (cameraFromPlayerX * dx + cameraFromPlayerZ * dz) / length;
-    assert.ok(cameraHeadingDot < 0, "camera must be on the player's rear side");
+test("duel camera keeps a stable world heading as fighters move and cross", () => {
+  const spawnPlayer = { x: 0, z: 0.75 };
+  const spawnOpponent = { x: 0, z: -1.95 };
+  const cameraHeading = getDuelFacingAngle(spawnPlayer, spawnOpponent);
+  const spawnPose = getDuelCameraPose(spawnPlayer, spawnOpponent, -120, 3.1, 7.2, 0, cameraHeading);
+  const movedPose = getDuelCameraPose(
+    { x: 3.1, z: -2.4 },
+    { x: -2.8, z: 1.9 },
+    -120,
+    3.1,
+    7.2,
+    0,
+    cameraHeading,
+  );
+  const headingFromTarget = (pose) => Math.atan2(
+    pose.position.x - pose.target.x,
+    pose.position.z - pose.target.z,
+  );
+  assert.ok(Math.abs(headingFromTarget(spawnPose) - headingFromTarget(movedPose)) < 1e-9);
+  assert.ok(Number.isFinite(movedPose.position.x) && Number.isFinite(movedPose.position.z));
+  assert.ok(Math.abs(movedPose.target.x - 0.15) < 1e-9);
+  assert.ok(Math.abs(movedPose.target.z - (-120 - 0.25)) < 1e-9);
 
-    const viewX = pose.target.x - pose.position.x;
-    const viewZ = pose.target.z - pose.position.z;
-    const viewLength = Math.hypot(viewX, viewZ);
-    const screenRightX = viewZ / viewLength;
-    const screenRightZ = -viewX / viewLength;
-    const screenSeparation = screenRightX * dx + screenRightZ * dz;
-    assert.ok(screenSeparation < -length * 0.85, "the player must project to the right of the rival");
-
-    const rootYaw = getKnightActorRootYaw(getDuelFacingAngle(player, opponent));
-    const playerForwardX = -Math.sin(rootYaw);
-    const playerForwardZ = -Math.cos(rootYaw);
-    assert.ok(playerForwardX * dx + playerForwardZ * dz > 0);
-    assert.ok(pose.target.x > Math.min(player.x, opponent.x) - 1e-9);
-    assert.ok(pose.target.x < Math.max(player.x, opponent.x) + 1e-9);
-  }
+  const dx = spawnOpponent.x - spawnPlayer.x;
+  const dz = spawnOpponent.z - spawnPlayer.z;
+  const viewX = spawnPose.target.x - spawnPose.position.x;
+  const viewZ = spawnPose.target.z - spawnPose.position.z;
+  const viewLength = Math.hypot(viewX, viewZ);
+  const screenRightX = viewZ / viewLength;
+  const screenRightZ = -viewX / viewLength;
+  const screenSeparation = screenRightX * dx + screenRightZ * dz;
+  assert.ok(screenSeparation < -Math.hypot(dx, dz) * 0.85);
 });
 
 test("procedural duel fighters turn their armored fronts toward one another", () => {

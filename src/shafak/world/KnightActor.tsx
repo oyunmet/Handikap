@@ -286,10 +286,14 @@ function OptionalGlbKnight({
         root.scale.set(1, 1, 1);
       }
       if (facingAngle === undefined) {
-        root.rotation.y = Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
-        if (motion.velocityY < -0.25) {
-          root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
-        }
+        const targetYaw = motion.velocityY < -0.25
+          ? Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY))
+          : Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
+        const turn = Math.atan2(
+          Math.sin(targetYaw - root.rotation.y),
+          Math.cos(targetYaw - root.rotation.y),
+        );
+        root.rotation.y += turn * (1 - Math.exp(-dt * 12));
       } else {
         const targetYaw = facingAngle - modelFacing;
         const turn = Math.atan2(
@@ -344,17 +348,21 @@ function OptionalGlbKnight({
       }
 
       const breathing = Math.sin(time * 1.35) * 0.012;
-      const stepBob = Math.abs(Math.sin(phase * 2)) * 0.025 * moveWeight;
+      const stepPulse = Math.sin(phase * 2);
+      const stepBob = Math.abs(stepPulse) * 0.052 * moveWeight;
+      const stepStretch = stepPulse * 0.018 * moveWeight * reducedMotionScale;
       const targetTiltX = actionLean
         - THREE.MathUtils.clamp(motion.velocityY / 7, -1, 1) * 0.035 * moveWeight;
       const targetTiltZ = actionRoll
         + THREE.MathUtils.clamp(motion.velocityX / 7, -1, 1) * 0.045 * moveWeight
         + Math.sin(phase) * 0.025 * moveWeight;
+      pose.position.x = Math.sin(phase) * 0.028 * moveWeight * reducedMotionScale;
       pose.position.y = (breathing + stepBob) * reducedMotionScale;
       pose.rotation.x = targetTiltX * reducedMotionScale;
       pose.rotation.y = Math.sin(time * 0.8) * 0.018 * reducedMotionScale
         + Math.sin(phase) * 0.025 * moveWeight * reducedMotionScale;
       pose.rotation.z = targetTiltZ * reducedMotionScale;
+      pose.scale.set(1 - stepStretch * 0.35, 1 + stepStretch, 1 - stepStretch * 0.35);
     }
     if (selectedAction) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);
@@ -376,6 +384,15 @@ function OptionalGlbKnight({
 
   return (
     <group ref={rootRef}>
+      {playerCharacter && facingAngle === undefined && (
+        <pointLight
+          position={[0, 1.15, 0.18]}
+          color="#ddb371"
+          intensity={1.5}
+          distance={3.8}
+          decay={2}
+        />
+      )}
       <mesh
         geometry={GLB_CONTACT_SHADOW_GEOMETRY}
         material={GLB_CONTACT_SHADOW_MATERIAL}

@@ -249,6 +249,7 @@ function CameraRig({
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const targetRef = useMemo(() => new THREE.Vector3(), []);
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
+  const duelCameraHeadingRef = useRef<number | null>(null);
   const cinematicStartRef = useRef<number | null>(null);
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
     id: -1,
@@ -264,6 +265,17 @@ function CameraRig({
     const travelCamera = getTravelCameraSettings(speed, touchRenderer);
     const lateral = motion.depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
+    if (combat) {
+      if (duelCameraHeadingRef.current === null) {
+        const dx = combat.bot.x - combat.player.x;
+        const dz = combat.bot.z - combat.player.z;
+        duelCameraHeadingRef.current = Math.hypot(dx, dz) > 1e-4
+          ? Math.atan2(dx, dz)
+          : Math.PI;
+      }
+    } else {
+      duelCameraHeadingRef.current = null;
+    }
     if (cinematicIntro) cinematicStartRef.current ??= _.clock.elapsedTime;
     else cinematicStartRef.current = null;
     const scaledDelta = Math.min(delta, 0.05) * ((slowMotion && !combat) || finisherSlowMotion ? 0.24 : 1);
@@ -298,6 +310,7 @@ function CameraRig({
         touchRenderer ? 3.1 : 3.7,
         touchRenderer ? 7.2 : 8.2,
         jumpLift,
+        duelCameraHeadingRef.current ?? Math.PI,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);

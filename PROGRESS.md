@@ -16,23 +16,34 @@
 - Silah kartları nadirlik, hasar, hız ve menzili gösteriyor; yuva 1 ana teçhizata, yuva 2 kayıtlı ikinci silaha bağlandı. Seçim eldeki prosedürel modeli ve düellonun ilk silahını değiştiriyor.
 - Düello içi mevcut değiştirici korundu; bekleme süresi 1,5 saniyeye, görsel geçiş 0,4 saniyeye ayarlandı. Düello öncesi seçim ayarı eklendi; varsayılanı kapalı.
 - Var olan profil eşyası ve mağaza kataloğu kullanıldı; eski profillerde boş ikinci silah varsayılanı korunuyor.
-- **Bölüm B durumu:** Uygulandı; son genel tip/test doğrulaması bekliyor.
+- **Bölüm B durumu:** Uygulandı; 1,5 saniyelik bekleme süresi testi güncel davranışla hizalandı.
 
 ## Bölüm C — Düelloda dik duruş
 
-- Bekliyor.
+- Mevcut `KnightActor` ve `Knight3D` düello kökleri X/Z eğimini sıfırda tutuyor; güncel kaynakta bu kural doğrulandı.
+- Kamera yönü dövüş başında bir kez alınıyor; kamera dövüşçülerin orta noktasını takip ediyor. Dövüşçüler yer değiştirince kamera artık aralarındaki çizgiye göre dönmüyor.
+- Dövüşçülerin hareket edip birbirini geçmesini kapsayan kamera regresyon testi eklendi.
+- **Bölüm C durumu:** Kamera ve dik duruş düzeltmeleri uygulandı; iPhone üzerinde görsel kabul testi bekliyor.
 
 ## Bölüm D — Kül Yolu 3D dünya
 
-- Bekliyor.
+- Oyuncunun yön değişimi yumuşatıldı; mevcut tek-parça modelde adım bob'u, yana ağırlık kayması ve hafif squash/stretch belirginleştirildi. Dünya sahnesinde oyuncuya düşük seviyeli sıcak dolgu ışığı eklendi.
+- Kaynak `FrogWarrior` GLB'si tek mesh ve iskeletsiz; gerçek eklem/ayak animasyonu bu varlıkla üretilemiyor. Görünüşü korumak için model değiştirilmedi. Gerçek bacak yürüyüşü için rig'li model veya yeniden rig işlemi gerekiyor.
+- Yerel mobil ekran görüntüsünde WebGL bağlamı oluşturulamadığından dünya ışığı ve animasyon değişiklikleri görsel olarak doğrulanamadı.
+- **Bölüm D durumu:** Görünürlük ve hareket hissi iyileştirildi; gerçek eklem animasyonu ve cihaz üstü kabul testi açık.
 
 ## Bölüm E — Düello arenası
 
-- Bekliyor.
+- Dövüş kamerasının 360 derece dönme/ters tarafa geçme nedeni, yön bazının her karede dövüşçüler arasındaki hareketli hattan hesaplanmasıydı. Başlangıç yönünü kilitleyip kamera mesafesini aradaki mesafeye göre ölçekleyecek şekilde düzeltildi.
+- Mevcut simülasyon rakipleri arena sınırında tutuyor; mobil basma/bırakma saldırı akışı ve saldırı efektleri için otomatik testler mevcut. Başlangıçtaki 2,7 m mesafede kısa saldırı simülasyonu `weaponTrail` ve `hit` üretti; rakip canı 130'dan 124'e düştü.
+- Kamera regresyon testi, rakiplerin hareket edip birbirini geçtiği durumu da kapsıyor.
+- Yerel tarayıcı WebGL bağlamı açamadı; Vercel'de/iPhone Safari'de gerçek düello ve vuruş hissi doğrulanamadı. Bu çalışma alanından yayın yapılmadı.
+- **Bölüm E durumu:** Kamera ve kod düzeyindeki savaş akışı düzeltildi; cihaz üstünde arena/etki kabul testi açık.
 
 ## Kaldığım yer / bilinenler
 
-- A ve B uygulandı; genel typecheck/test/build son aşamada bir kez çalıştırılacak.
+- A, B ve C tamamlandı; D/E'de ekran görüntülerindeki kamera ve görünürlük sorunlarına yönelik kod düzeltmeleri yapıldı.
+- Son doğrulama: 219 test geçti; typecheck ve production build başarılı. Build, mevcut 977 KB katalog parçası için boyut uyarısı veriyor.
 - iPhone Safari FPS ve canlı Vercel görünümü bu çalışma alanından doğrulanamaz; kullanıcı Vercel'e kendisi yayınlar.
 
 ## Kod denetimi — 16 Ekim 2026
@@ -41,6 +52,6 @@
 - **B1 — TAMAM:** Kül Yolu'nda SİLAH düğmesi ve sahip olunan silahları gösteren seçim paneli var.
 - **B2 — TAMAM:** Düello kontrollerinde ikinci silah atanmışsa çalışan silah değiştirme düğmesi var.
 - **B3 — TAMAM:** `store-catalog.ts` içinde 6'dan fazla silahın istatistik ve görsel verisi tanımlı.
-- **C — YOK:** Düello karakterinde yalnızca Y ekseninde dönüş ve `rotation.x/z = 0` kuralı yok; X/Z dönüşleri uygulanıyor.
-- **D — YARIM:** Seed'li chunk üretimi, prosedürel dağ/çevre öğeleri, kapı ve karakter modeli mevcut; istenen yan duvarlar, kapı, prop ve karakterlerin kapsamlı yenilemesinin tamamı koddan doğrulanamıyor.
-- **E — YARIM:** Düello arenası mevcut (zemin halkaları, ışıklar, meşaleler ve siperler); tam arena yenilemesini doğrulayan yeterli işaret yok.
+- **C — TAMAM:** Düello karakterlerinin kökü dik tutuluyor; kamera yönü dövüş sırasında değişen rakip konumlarından etkilenmiyor.
+- **D — YARIM:** Dünya, kamera ve karakter animasyonu iyileştirildi. Oyuncu GLB'si tek parça/iskeletsiz olduğundan gerçek bacak eklemi hareketi mümkün değil; mobil görsel test de yapılamadı.
+- **E — YARIM:** Kamera artık rakiplerin hattına göre dönmüyor; arena sınırı, saldırı akışı ve efektler testli. Vercel/iPhone üzerinde canlı kabul testi yapılamadı.

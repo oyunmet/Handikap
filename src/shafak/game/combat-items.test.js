@@ -63,7 +63,7 @@ test("using the last projectile removes it from the quick slot and damages a rea
   assert.ok(result.events.some((event) => event.type === "item" && event.itemId === "throwing_knife"));
 });
 
-test("a weapon switch changes combat modifiers and cannot be repeated inside half a second", () => {
+test("a weapon switch changes combat modifiers and cannot be repeated inside 1.5 seconds", () => {
   const state = createCombatState(9083, "easy", undefined, createLoadout(null));
   const switched = stepCombat(state, tap(INPUT_BUTTON.weaponSwitch));
   assert.equal(switched.state.activeWeaponSlot, 1);
@@ -72,5 +72,5 @@ test("a weapon switch changes combat modifiers and cannot be repeated inside hal
 
   const blocked = stepCombat(switched.state, tap(INPUT_BUTTON.weaponSwitch));
   assert.equal(blocked.state.activeWeaponSlot, 1);
-  assert.equal(blocked.state.weaponSwapCooldownUntilTick, switched.state.tick + 30);
+  assert.equal(blocked.state.weaponSwapCooldownUntilTick, switched.state.tick + 90);
 });

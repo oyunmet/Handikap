@@ -41,25 +41,34 @@ export function getDuelCameraPose(
   cameraBack = 3.4,
   shoulderOffset = 8.2,
   jumpLift = 0,
+  cameraHeading = Math.PI,
 ): DuelCameraPose {
   const dx = opponent.x - player.x;
   const dz = opponent.z - player.z;
   const distance = Math.hypot(dx, dz);
-  const forwardX = distance > 1e-4 ? dx / distance : 0;
-  const forwardZ = distance > 1e-4 ? dz / distance : 1;
+  const heading = Number.isFinite(cameraHeading) ? cameraHeading : Math.PI;
+  const forwardX = Math.sin(heading);
+  const forwardZ = Math.cos(heading);
   const sideX = -forwardZ;
   const sideZ = forwardX;
+  const centerX = (player.x + opponent.x) * 0.5;
+  const centerZ = (player.z + opponent.z) * 0.5;
+  const baseOffsetX = -forwardX * cameraBack + sideX * shoulderOffset;
+  const baseOffsetZ = -forwardZ * cameraBack + sideZ * shoulderOffset;
+  const baseOffsetLength = Math.max(1e-4, Math.hypot(baseOffsetX, baseOffsetZ));
+  const extraFramingDistance = Math.min(8, Math.max(0, distance - 2.7)) * 0.38;
+  const offsetScale = (baseOffsetLength + extraFramingDistance) / baseOffsetLength;
 
   return {
     position: {
-      x: player.x - forwardX * cameraBack + sideX * shoulderOffset,
-      y: 3.2 + jumpLift * 0.16,
-      z: worldOffsetZ + player.z - forwardZ * cameraBack + sideZ * shoulderOffset,
+      x: centerX + baseOffsetX * offsetScale,
+      y: 3.2 + jumpLift * 0.16 + extraFramingDistance * 0.08,
+      z: worldOffsetZ + centerZ + baseOffsetZ * offsetScale,
     },
     target: {
-      x: (player.x + opponent.x) * 0.5,
+      x: centerX,
       y: 1.05 + jumpLift * 0.35,
-      z: worldOffsetZ + (player.z + opponent.z) * 0.5,
+      z: worldOffsetZ + centerZ,
     },
   };
 }

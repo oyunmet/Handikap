@@ -940,7 +940,7 @@ export default function WorldScene({
       quickSlots: [...profile.inventory.quickSlots],
       itemCounts: { ...profile.inventory.combatItemCounts },
       weaponIds: startWithSecondary
-        ? [secondaryWeaponId, profile.equipment.weaponId]
+        ? [secondaryWeaponId ?? profile.equipment.weaponId, profile.equipment.weaponId]
         : [profile.equipment.weaponId, secondaryWeaponId],
       weaponStats: startWithSecondary
         ? [secondaryWeaponStats, playerCombatStats]
