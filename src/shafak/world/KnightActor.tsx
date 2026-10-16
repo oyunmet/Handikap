@@ -166,6 +166,16 @@ function prepareModel(
 
 const animatePlayerRig: typeof posePlayerRig = posePlayerRig;
 
+function getFallbackAppearance(
+  appearance: EquipmentVisual | undefined,
+  modelConfig: OpponentModelConfig | undefined,
+) {
+  const base = appearance ?? modelConfig?.appearance;
+  return base && modelConfig?.weapon
+    ? { ...base, weaponStyle: modelConfig.weapon }
+    : base;
+}
+
 function OptionalGlbKnight({
   motionRef,
   state,
@@ -262,9 +272,9 @@ function OptionalGlbKnight({
       playOnce ? 1 : Infinity,
     );
     if (previous && previous !== selectedAction) {
-      selectedAction.crossFadeFrom(previous, 0.18, true).play();
+      selectedAction.crossFadeFrom(previous, 0.2, true).play();
     } else {
-      selectedAction.fadeIn(0.18).play();
+      selectedAction.fadeIn(0.2).play();
     }
     currentAction.current = selectedAction;
   }, [clipState, modelConfig, selectedAction]);
@@ -289,7 +299,7 @@ function OptionalGlbKnight({
       idleAction.enabled = true;
       idleAction.clampWhenFinished = false;
       idleAction.setLoop(THREE.LoopRepeat, Infinity);
-      idleAction.crossFadeFrom(selectedAction, 0.18, true).play();
+      idleAction.crossFadeFrom(selectedAction, 0.2, true).play();
       currentAction.current = idleAction;
     };
     mixer.addEventListener("finished", handleFinished);
@@ -465,7 +475,7 @@ function OptionalGlbKnight({
             talking={talking}
             footSlipRef={footSlipRef}
             castShadow={castShadow}
-            appearance={appearance ?? modelConfig?.appearance}
+            appearance={getFallbackAppearance(appearance, modelConfig)}
           />
         </group>
       )}
@@ -484,7 +494,7 @@ function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
     playerCharacter: _playerCharacter,
     ...knightProps
   } = props;
-  const appearance = knightProps.appearance ?? modelConfig?.appearance;
+  const appearance = getFallbackAppearance(knightProps.appearance, modelConfig);
   return (
     <>
       <group scale={modelConfig?.scale ?? 1}>
@@ -525,7 +535,10 @@ export default function KnightActor(props: KnightActorProps) {
   } = props;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
-      <Knight3D {...knightProps} appearance={knightProps.appearance ?? modelConfig?.appearance} />
+      <Knight3D
+        {...knightProps}
+        appearance={getFallbackAppearance(knightProps.appearance, modelConfig)}
+      />
     </group>
   );
 

@@ -18,6 +18,7 @@ export type OpponentModelConfig = {
   scale: number;
   modelFacing: number;
   rootBoneName: string;
+  weapon: NonNullable<EquipmentVisual["weaponStyle"]>;
   appearance: EquipmentVisual;
   materialNameAliases: {
     cape: readonly string[];
@@ -26,13 +27,14 @@ export type OpponentModelConfig = {
   animationClips: Partial<Record<OpponentModelAnimationState, readonly string[]>>;
 };
 
-export const OPPONENT_MODEL_CONFIGS = {
+const BASE_OPPONENT_MODEL_CONFIGS = {
   "Gölge Şövalyesi": {
     modelPath: "/models/gece-nobetcisi.glb",
     // Native bounds are Y=0..1.8, feet at ground, and forward is +Z.
     scale: 1,
     modelFacing: 0,
     rootBoneName: "Rig_Hips",
+    weapon: "daggers",
     appearance: {
       armor: "#302d3e",
       armorLight: "#68617e",
@@ -62,6 +64,20 @@ export const OPPONENT_MODEL_CONFIGS = {
       victory: ["Victory"],
     },
   },
+} satisfies Record<string, OpponentModelConfig>;
+
+const NIGHT_WATCHER_MODEL: OpponentModelConfig = {
+  ...BASE_OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"],
+  weapon: "sword",
+  appearance: {
+    ...BASE_OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"].appearance,
+    weaponStyle: "sword",
+  },
+};
+
+export const OPPONENT_MODEL_CONFIGS = {
+  ...BASE_OPPONENT_MODEL_CONFIGS,
+  "Gece Nöbetçisi": NIGHT_WATCHER_MODEL,
 } satisfies Record<string, OpponentModelConfig>;
 
 export function getOpponentModelConfig(name: string | undefined) {

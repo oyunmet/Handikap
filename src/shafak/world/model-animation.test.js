@@ -7,7 +7,7 @@ import {
   mapOpponentAnimationState,
   resolveGlbClipName,
 } from "./model-animation.ts";
-import { OPPONENT_MODEL_CONFIGS } from "./opponent-model-config.ts";
+import { getOpponentModelConfig, OPPONENT_MODEL_CONFIGS } from "./opponent-model-config.ts";
 
 test("GLB clip names are resolved case-insensitively from one configurable map", () => {
   assert.equal(resolveGlbClipName("idle", ["mixamo.com", "BREATHING IDLE"]), "BREATHING IDLE");
@@ -47,6 +47,16 @@ test("Gölge Şövalyesi maps every model state to its exact GLB clip", () => {
   }
 });
 
+test("Gece Nöbetçisi resolves to the GLB's sword config while keeping other names intact", () => {
+  const config = getOpponentModelConfig("Gece Nöbetçisi");
+  assert.ok(config);
+  assert.equal(config.modelPath, "/models/gece-nobetcisi.glb");
+  assert.equal(config.weapon, "sword");
+  assert.equal(config.appearance.weaponStyle, "sword");
+  assert.equal(getOpponentModelConfig("Gölge Şövalyesi")?.weapon, "daggers");
+  assert.equal(getOpponentModelConfig("Demir Taç"), undefined);
+});
+
 test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {
   const buffer = fs.readFileSync(new URL("../../../public/models/gece-nobetcisi.glb", import.meta.url));
   assert.equal(buffer.toString("ascii", 0, 4), "glTF");
@@ -77,6 +87,14 @@ test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and cl
   assert.ok(Math.abs(maximumY - 1.8) < 0.001);
   assert.equal(model.animations.filter((clip) => clip.channels.some((channel) =>
     channel.target.node === rootIndex && channel.target.path === "translation")).length, 10);
+  assert.ok(model.nodes.some((node) => node.name === "sword_blade"));
+  const triangleCount = model.meshes.reduce((total, mesh) => total + mesh.primitives.reduce((meshTotal, primitive) => {
+    const accessor = primitive.indices === undefined
+      ? model.accessors[primitive.attributes.POSITION]
+      : model.accessors[primitive.indices];
+    return meshTotal + Math.floor(accessor.count / 3);
+  }, 0), 0);
+  assert.ok(triangleCount < 50_000, `the configured model has ${triangleCount} triangles`);
 });
 
 test("opponent root translation is stripped without removing bone rotation tracks", () => {
