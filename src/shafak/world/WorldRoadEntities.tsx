@@ -1,6 +1,6 @@
 import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import KnightActor from "./KnightActor";
@@ -11,12 +11,7 @@ import {
 } from "./world-interactables";
 import { getNpcStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
-import {
-  getWorldContentAround,
-  type WorldObstacle,
-  type WorldPickup,
-  type WorldRival,
-} from "./world-content";
+import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import type { WeatherMode } from "./world-biomes";
 
@@ -783,6 +778,8 @@ export default function WorldRoadEntities({
   motionRef,
   dialoguePortal,
   rivals,
+  pickups,
+  obstacles,
   collectedPickupIds,
   brokenObstacleIds = EMPTY_BROKEN,
   focusedRivalId,
@@ -798,6 +795,8 @@ export default function WorldRoadEntities({
   motionRef: MotionRef;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   rivals: WorldRival[];
+  pickups: WorldPickup[];
+  obstacles: WorldObstacle[];
   collectedPickupIds: ReadonlySet<string>;
   brokenObstacleIds?: ReadonlySet<string>;
   focusedRivalId: string | null;
@@ -810,29 +809,21 @@ export default function WorldRoadEntities({
   weather: WeatherMode;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
-  const initialChapter = Math.max(0, Math.floor(motionRef.current.distance / 144));
-  const [chapter, setChapter] = useState(initialChapter);
-  useFrame(() => {
-    const next = Math.max(0, Math.floor(motionRef.current.distance / 144));
-    if (next !== chapter) setChapter(next);
-  });
-  const chapters = useMemo(() => getWorldContentAround(chapter, 0), [chapter]);
   const maxVisibleDistance = weather === "fog" ? 48 : weather === "storm" ? 80 : 112;
   const unlockedPickupIds = useMemo(() => {
     const unlocked = new Set<string>();
-    for (const content of chapters) {
-      for (const obstacle of content.obstacles) {
-        if (obstacle.dropPickupId && brokenObstacleIds.has(obstacle.id)) unlocked.add(obstacle.dropPickupId);
+    for (const obstacle of obstacles) {
+      if (obstacle.dropPickupId && brokenObstacleIds.has(obstacle.id)) {
+        unlocked.add(obstacle.dropPickupId);
       }
     }
     return unlocked;
-  }, [brokenObstacleIds, chapters]);
+  }, [brokenObstacleIds, obstacles]);
   const visiblePickups = useMemo(
-    () => chapters.flatMap((content) => content.pickups)
-      .filter((pickup) => !pickup.sourceObstacleId || unlockedPickupIds.has(pickup.id)),
-    [chapters, unlockedPickupIds],
+    () => pickups.filter((pickup) => !pickup.sourceObstacleId || unlockedPickupIds.has(pickup.id)),
+    [pickups, unlockedPickupIds],
   );
-  const visibleObstacles = useMemo(() => chapters.flatMap((content) => content.obstacles), [chapters]);
+  const visibleObstacles = obstacles;
   const activeRivals = rivals.filter((rival) => {
     const gap = rival.distance - motionRef.current.distance;
     return gap >= -12 && gap <= maxVisibleDistance;

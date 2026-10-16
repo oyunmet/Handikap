@@ -40,6 +40,8 @@ import {
   type DuelVfxKind,
 } from "./duel-vfx";
 import { getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight } from "../game/duel-camera";
+import { getDuelArenaTheme } from "../game/duel-arena-theme";
+import type { DuelArenaTheme } from "../game/duel-arena-theme";
 
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
@@ -1079,7 +1081,7 @@ type DuelArenaInstance = {
   color: string;
 };
 
-function DuelArenaStonework() {
+function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
   const pavingRef = useRef<THREE.InstancedMesh>(null);
   const stainRef = useRef<THREE.InstancedMesh>(null);
   const wallRef = useRef<THREE.InstancedMesh>(null);
@@ -1109,7 +1111,7 @@ function DuelArenaStonework() {
     };
 
     const paving: DuelArenaInstance[] = [];
-    const stoneColors = ["#65565a", "#5b4d52", "#716164", "#594c50", "#66585a"];
+    const stoneColors = theme.stone;
     for (let row = -7; row <= 7; row += 1) {
       for (let column = -7; column <= 7; column += 1) {
         const x = column * 0.96 + (Math.abs(row) % 2) * 0.46;
@@ -1127,12 +1129,12 @@ function DuelArenaStonework() {
     }
 
     const stains: DuelArenaInstance[] = [
-      { position: [-2.45, 0.12, -1.38], scale: [0.92, 0.42, 1], rotation: [-Math.PI / 2, -0.4, 0], color: "#543b40" },
-      { position: [1.95, 0.12, -2.55], scale: [0.66, 0.34, 1], rotation: [-Math.PI / 2, 0.7, 0], color: "#49373c" },
-      { position: [3.35, 0.12, 0.72], scale: [0.74, 0.28, 1], rotation: [-Math.PI / 2, -0.6, 0], color: "#5c4140" },
-      { position: [-3.7, 0.12, 1.55], scale: [0.68, 0.3, 1], rotation: [-Math.PI / 2, 0.5, 0], color: "#4b3b40" },
-      { position: [0.15, 0.12, 3.1], scale: [0.55, 0.26, 1], rotation: [-Math.PI / 2, 0.1, 0], color: "#604342" },
-      { position: [-0.65, 0.12, -4.1], scale: [0.48, 0.22, 1], rotation: [-Math.PI / 2, -0.2, 0], color: "#4c3b3e" },
+      { position: [-2.45, 0.12, -1.38], scale: [0.92, 0.42, 1], rotation: [-Math.PI / 2, -0.4, 0], color: theme.stain },
+      { position: [1.95, 0.12, -2.55], scale: [0.66, 0.34, 1], rotation: [-Math.PI / 2, 0.7, 0], color: theme.stain },
+      { position: [3.35, 0.12, 0.72], scale: [0.74, 0.28, 1], rotation: [-Math.PI / 2, -0.6, 0], color: theme.stain },
+      { position: [-3.7, 0.12, 1.55], scale: [0.68, 0.3, 1], rotation: [-Math.PI / 2, 0.5, 0], color: theme.stain },
+      { position: [0.15, 0.12, 3.1], scale: [0.55, 0.26, 1], rotation: [-Math.PI / 2, 0.1, 0], color: theme.stain },
+      { position: [-0.65, 0.12, -4.1], scale: [0.48, 0.22, 1], rotation: [-Math.PI / 2, -0.2, 0], color: theme.stain },
     ];
 
     const wallHeights = [2.5, 3.6, 1.8, 4.3, 2.7, 1.5, 3.9, 2.2, 4.5, 1.9, 3.2];
@@ -1143,7 +1145,7 @@ function DuelArenaStonework() {
         position: [Math.sin(angle) * radius, height / 2, -Math.cos(angle) * radius - 0.6] as [number, number, number],
         scale: [2.5 + (index % 3) * 0.24, height, 0.78 + (index % 2) * 0.12] as [number, number, number],
         rotation: [0, -angle, 0] as [number, number, number],
-        color: index % 3 === 0 ? "#55484b" : index % 3 === 1 ? "#665458" : "#4d4246",
+        color: theme.wall[index % theme.wall.length],
       };
     });
 
@@ -1156,7 +1158,7 @@ function DuelArenaStonework() {
         position: [Math.sin(angle) * radius, height / 2, -Math.cos(angle) * radius - 0.6] as [number, number, number],
         scale: [0.82 + (index % 2) * 0.1, height, 0.82 + (index % 3) * 0.05] as [number, number, number],
         rotation: [0, -angle, 0] as [number, number, number],
-        color: index % 3 === 0 ? "#615155" : index % 3 === 1 ? "#514549" : "#70595a",
+        color: theme.column[index % theme.column.length],
       };
     });
 
@@ -1168,7 +1170,7 @@ function DuelArenaStonework() {
         position: [Math.sin(angle) * radius, height + 0.06, -Math.cos(angle) * radius - 0.6] as [number, number, number],
         scale: [0.78, 0.16, 0.72],
         rotation: [0, -angle + (index % 2) * 0.12, 0] as [number, number, number],
-        color: "#7a6661",
+        color: theme.accent,
       };
     });
 
@@ -1190,10 +1192,10 @@ function DuelArenaStonework() {
     apply(wallRef.current, wall);
     apply(columnRef.current, columns);
     apply(capstoneRef.current, capstone);
-    apply(torchShaftRef.current, torches(0.53, "#69524a"));
-    apply(torchBowlRef.current, torches(1.12, "#80614e"));
-    apply(torchFlameRef.current, torches(1.52, "#f29a53"));
-  }, []);
+    apply(torchShaftRef.current, torches(0.53, theme.column[1]));
+    apply(torchBowlRef.current, torches(1.12, theme.accent));
+    apply(torchFlameRef.current, torches(1.52, theme.flame));
+  }, [theme]);
 
   return (
     <>
@@ -1227,43 +1229,65 @@ function DuelArenaStonework() {
       </instancedMesh>
       <instancedMesh ref={torchFlameRef} args={[undefined, undefined, 4]}>
         <coneGeometry args={[0.2, 0.58, 5]} />
-        <meshBasicMaterial color="#f3a05d" toneMapped={false} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </instancedMesh>
 
-      <mesh position={[0, 0.18, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[7.48, 8.04, 64, 1, 0.08, Math.PI - 0.16]} />
-        <meshStandardMaterial color="#5b4b4d" roughness={0.98} side={THREE.DoubleSide} />
+      <mesh position={[0, 0.065, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[7.16, 7.3, 96]} />
+        <meshStandardMaterial color={theme.stone[1]} roughness={0.96} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.46, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[8.15, 8.73, 64, 1, 0.08, Math.PI - 0.16]} />
-        <meshStandardMaterial color="#685457" roughness={0.96} side={THREE.DoubleSide} />
+      <mesh position={[0, 0.065, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[8.04, 8.18, 96]} />
+        <meshStandardMaterial color={theme.stone[2]} roughness={0.96} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.74, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[8.84, 9.42, 64, 1, 0.08, Math.PI - 0.16]} />
-        <meshStandardMaterial color="#52464b" roughness={0.98} side={THREE.DoubleSide} />
+      <mesh position={[0, 0.065, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[8.88, 9.02, 96]} />
+        <meshStandardMaterial color={theme.stone[3]} roughness={0.98} side={THREE.DoubleSide} />
       </mesh>
 
+      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[2.45, 2.52, 72]} />
+        <meshBasicMaterial color={theme.accent} transparent opacity={0.46} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.42, 1.47, 64]} />
+        <meshBasicMaterial color={theme.accent} transparent opacity={0.34} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      {Array.from({ length: 8 }, (_, index) => {
+        const angle = (index / 8) * Math.PI * 2;
+        const radius = 4.7;
+        return (
+          <mesh
+            key={index}
+            position={[Math.sin(angle) * radius, 0.105, -0.6 + Math.cos(angle) * radius]}
+            rotation={[0, angle, 0]}
+          >
+            <boxGeometry args={[0.07, 0.018, 0.52]} />
+            <meshBasicMaterial color={theme.accent} transparent opacity={0.52} depthWrite={false} toneMapped={false} />
+          </mesh>
+        );
+      })}
+
       {[-5.72, 5.72].map((x) => (
-        <pointLight key={x} position={[x, 1.55, -0.55]} color="#ffb56d" intensity={8} distance={13} decay={2} />
+        <pointLight key={x} position={[x, 1.55, -0.55]} color={theme.flame} intensity={8} distance={13} decay={2} />
       ))}
     </>
   );
 }
 
-function DuelArenaAtmosphere() {
+function DuelArenaAtmosphere({ theme }: { theme: DuelArenaTheme }) {
   const { scene } = useThree();
 
   useEffect(() => {
     const previousBackground = scene.background;
     const previousFog = scene.fog;
-    const dusk = new THREE.Color("#483a40");
-    scene.background = dusk;
-    scene.fog = new THREE.Fog("#483a40", 26, 72);
+    scene.background = new THREE.Color(theme.background);
+    scene.fog = new THREE.Fog(theme.fog, 26, 72);
     return () => {
       scene.background = previousBackground;
       scene.fog = previousFog;
     };
-  }, [scene]);
+  }, [scene, theme]);
 
   return null;
 }
@@ -1281,40 +1305,41 @@ function DuelArena({
   botTelegraphActive,
   performanceMonitorEnabled,
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive" | "performanceMonitorEnabled">) {
+  const theme = getDuelArenaTheme(motionRef.current.distance);
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
       <mesh position={[0, -0.11, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[42, 96]} />
-        <meshBasicMaterial color="#342c32" side={THREE.DoubleSide} toneMapped={false} />
+        <meshBasicMaterial color={theme.background} side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
-      <DuelArenaAtmosphere />
-      <DuelArenaStonework />
+      <DuelArenaAtmosphere theme={theme} />
+      <DuelArenaStonework theme={theme} />
       {visualEffectsEnabled && <DuelAshField />}
-      <pointLight position={[0, 5.2, 2.2]} color="#ffe0b0" intensity={82} distance={24} decay={2} />
-      <pointLight position={[0, 4.1, -3.8]} color="#e9b681" intensity={30} distance={22} decay={2} />
-      <pointLight position={[-3.2, 2.8, -0.4]} color="#ff795c" intensity={16} distance={10} decay={2} />
-      <directionalLight position={[0, 8, -10]} color="#f7b879" intensity={0.95} />
+      <pointLight position={[0, 5.2, 2.2]} color={theme.accent} intensity={70} distance={24} decay={2} />
+      <pointLight position={[0, 4.1, -3.8]} color={theme.flame} intensity={32} distance={22} decay={2} />
+      <pointLight position={[-3.2, 2.8, -0.4]} color={theme.accent} intensity={14} distance={10} decay={2} />
+      <directionalLight position={[0, 8, -10]} color={theme.accent} intensity={0.85} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[7.12, 96]} />
         <meshStandardMaterial
-          color="#514248"
-          emissive="#2c2228"
+          color={theme.floor}
+          emissive={theme.floorEmissive}
           emissiveIntensity={0.18}
           roughness={0.94}
           metalness={0.04}
         />
       </mesh>
-      <mesh position={[0, 0.026, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[7.03, 7.14, 96]} />
-        <meshBasicMaterial color="#9b6b54" transparent opacity={0.23} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={theme.accent} transparent opacity={0.36} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[6.7, 6.88, 96]} />
-        <meshBasicMaterial color="#c38c5d" transparent opacity={0.28} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color={theme.accent} transparent opacity={0.3} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <mesh position={[0, 0.045, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[6.3, 6.38, 72]} />
-        <meshBasicMaterial color="#9a574d" transparent opacity={0.14} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color={theme.accent} transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       {DUEL_COVERS.map((cover, index) => (
         <group key={index} position={[cover.x, 0, cover.z]}>
@@ -1448,6 +1473,8 @@ function SceneContents({
   lightRadius,
   animationState,
   rivals,
+  pickups,
+  obstacles,
   collectedPickupIds,
   brokenObstacleIds,
   interactableRegistry,
@@ -1645,6 +1672,8 @@ function SceneContents({
         motionRef={motionRef}
         dialoguePortal={dialoguePortal}
         rivals={rivals}
+        pickups={pickups}
+        obstacles={obstacles}
         collectedPickupIds={collectedPickupIds}
         brokenObstacleIds={brokenObstacleIds}
         weather={weatherMode}

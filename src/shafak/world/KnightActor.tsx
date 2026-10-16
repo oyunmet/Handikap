@@ -27,6 +27,7 @@ import {
   shouldRenderPlayerModel,
 } from "./player-model";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
+import { createDuelWeapon, disposeDuelWeapon } from "./duel-weapon";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -191,6 +192,22 @@ function OptionalGlbKnight({
     () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow, playerCharacter),
     [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter],
   );
+  const equippedHand = playerCharacter ? playerRig?.bones.Rig_RightHand : undefined;
+  useEffect(() => {
+    if (!equippedHand) return undefined;
+    const weapon = createDuelWeapon(appearance);
+    equippedHand.add(weapon);
+    return () => {
+      equippedHand.remove(weapon);
+      disposeDuelWeapon(weapon);
+    };
+  }, [
+    appearance?.auraColor,
+    appearance?.trim,
+    appearance?.weaponColor,
+    appearance?.weaponStyle,
+    equippedHand,
+  ]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
     const rootBoneName = modelConfig?.rootBoneName;
