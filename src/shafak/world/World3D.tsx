@@ -517,6 +517,7 @@ function DuelFighter({
           debugUpright={performanceMonitorEnabled}
           appearance={side === "player" ? equipmentVisual : opponentProfile?.appearance}
           castShadow
+          playerCharacter={side === "player"}
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}
         />
@@ -1665,6 +1666,7 @@ function SceneContents({
           motionReduced={motionReduced}
           footSlipRef={footSlipRef}
           appearance={equipmentVisual}
+          playerCharacter
         />
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}

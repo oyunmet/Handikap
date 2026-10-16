@@ -20,6 +20,12 @@ import type { OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
 import { getUprightDuelRotation } from "../game/duel-camera";
+import {
+  PLAYER_CHARACTER_MODEL_FACING,
+  PLAYER_CHARACTER_MODEL_PATH,
+  PLAYER_CHARACTER_MODEL_SCALE,
+  shouldRenderStaticPlayerModel,
+} from "./player-model";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -34,6 +40,7 @@ type KnightActorProps = {
   appearance?: EquipmentVisual;
   modelConfig?: OpponentModelConfig;
   modelAnimationState?: ModelAnimationState;
+  playerCharacter?: boolean;
 };
 
 const warnedModelPaths = new Set<string>();
@@ -165,8 +172,10 @@ function OptionalGlbKnight({
   appearance,
   modelConfig,
   castShadow = true,
+  playerCharacter = false,
 }: KnightActorProps) {
-  const modelPath = modelConfig?.modelPath ?? KNIGHT_CONFIG.modelPath;
+  const modelPath = modelConfig?.modelPath
+    ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_PATH : KNIGHT_CONFIG.modelPath);
   const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
     loader.setMeshoptDecoder(MeshoptDecoder);
   }) as GLTF;
@@ -200,6 +209,14 @@ function OptionalGlbKnight({
     modelConfig?.animationClips,
   );
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
+  const staticPlayerModel = shouldRenderStaticPlayerModel(playerCharacter, animationClips.length);
+  const modelFacing = modelConfig?.modelFacing
+    ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_FACING : KNIGHT_CONFIG.modelFacing);
+  const modelScale = modelConfig?.scale
+    ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_SCALE : KNIGHT_CONFIG.modelScale);
+  const staticPoseRef = useRef<THREE.Group>(null);
+  const previousStaticState = useRef(state);
+  const staticActionElapsed = useRef(0);
 
   useEffect(() => {
     const previous = currentAction.current;
@@ -256,9 +273,10 @@ function OptionalGlbKnight({
     return () => mixer.removeEventListener("finished", handleFinished);
   }, [actions, animationClips, clipState, mixer, modelConfig, selectedAction]);
 
-  useFrame((_, delta) => {
+  useFrame((frame, delta) => {
     const root = rootRef.current;
     const motion = motionRef.current;
+    const dt = Math.min(delta, 0.05);
     if (root) {
       root.position.x = motion.depth * 5.2;
       root.position.y = motion.jumpHeight;
@@ -273,7 +291,6 @@ function OptionalGlbKnight({
           root.rotation.y = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
         }
       } else {
-        const modelFacing = modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing;
         const targetYaw = facingAngle - modelFacing;
         const turn = Math.atan2(
           Math.sin(targetYaw - root.rotation.y),
@@ -295,6 +312,50 @@ function OptionalGlbKnight({
         warnedTiltRef.current = tilted;
       }
     }
+    if (staticPlayerModel && staticPoseRef.current) {
+      const pose = staticPoseRef.current;
+      const time = frame.clock.elapsedTime;
+      const speed = Math.hypot(motion.velocityX, motion.velocityY);
+      const moveWeight = THREE.MathUtils.clamp(speed / 3.8, 0, 1);
+      const reducedMotionScale = motionReduced ? 0.32 : 1;
+      if (previousStaticState.current !== state) {
+        previousStaticState.current = state;
+        staticActionElapsed.current = 0;
+      } else {
+        staticActionElapsed.current += dt * animationTimeScale;
+      }
+      const phase = motion.stepPhase;
+      const actionProgress = THREE.MathUtils.clamp(staticActionElapsed.current / 0.42, 0, 1);
+      const actionAccent = Math.sin(actionProgress * Math.PI);
+      let actionLean = 0;
+      let actionRoll = 0;
+      if (state === "attack" || state === "heavyAttack" || state === "plunge") {
+        actionLean = -actionAccent * (state === "plunge" ? 0.18 : 0.1);
+        actionRoll = Math.sin(actionProgress * Math.PI * 2) * 0.055;
+      } else if (state === "hit") {
+        actionLean = actionAccent * 0.095;
+        actionRoll = actionAccent * 0.1;
+      } else if (state === "dodge" || state === "backflip") {
+        actionRoll = Math.sin(actionProgress * Math.PI) * 0.16;
+      } else if (state === "die") {
+        actionLean = actionProgress * 0.14;
+      } else if (state === "block") {
+        actionLean = -0.035;
+      }
+
+      const breathing = Math.sin(time * 1.35) * 0.012;
+      const stepBob = Math.abs(Math.sin(phase * 2)) * 0.025 * moveWeight;
+      const targetTiltX = actionLean
+        - THREE.MathUtils.clamp(motion.velocityY / 7, -1, 1) * 0.035 * moveWeight;
+      const targetTiltZ = actionRoll
+        + THREE.MathUtils.clamp(motion.velocityX / 7, -1, 1) * 0.045 * moveWeight
+        + Math.sin(phase) * 0.025 * moveWeight;
+      pose.position.y = (breathing + stepBob) * reducedMotionScale;
+      pose.rotation.x = targetTiltX * reducedMotionScale;
+      pose.rotation.y = Math.sin(time * 0.8) * 0.018 * reducedMotionScale
+        + Math.sin(phase) * 0.025 * moveWeight * reducedMotionScale;
+      pose.rotation.z = targetTiltZ * reducedMotionScale;
+    }
     if (selectedAction) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);
       selectedAction.timeScale = clipState === "run" || state === "run"
@@ -303,7 +364,7 @@ function OptionalGlbKnight({
           ? THREE.MathUtils.clamp(speed / 2.2, 0.72, 1.2)
           : 1;
     }
-    mixer.update(Math.min(delta, 0.05) * (motionReduced ? 0.35 : 1) * animationTimeScale);
+    mixer.update(dt * (motionReduced ? 0.35 : 1) * animationTimeScale);
     if (footSlipRef) footSlipRef.current = 0;
   });
 
@@ -323,15 +384,26 @@ function OptionalGlbKnight({
         scale={[0.78, 0.52, 1]}
         dispose={null}
       />
-      {selectedAction ? (
-        <primitive
-          object={model}
-          rotation={[0, modelConfig?.modelFacing ?? KNIGHT_CONFIG.modelFacing, 0]}
-          scale={modelConfig?.scale ?? KNIGHT_CONFIG.modelScale}
-          dispose={null}
-        />
+      {selectedAction || staticPlayerModel ? (
+        staticPlayerModel ? (
+          <group ref={staticPoseRef}>
+            <primitive
+              object={model}
+              rotation={[0, modelFacing, 0]}
+              scale={modelScale}
+              dispose={null}
+            />
+          </group>
+        ) : (
+          <primitive
+            object={model}
+            rotation={[0, modelFacing, 0]}
+            scale={modelScale}
+            dispose={null}
+          />
+        )
       ) : (
-        <group scale={modelConfig?.scale ?? KNIGHT_CONFIG.modelScale}>
+        <group scale={modelScale}>
           <Knight3D
             motionRef={motionRef}
             state={state}
@@ -354,7 +426,12 @@ type BoundaryState = { failed: boolean };
 
 function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
   const { progress } = useProgress();
-  const { modelConfig, modelAnimationState: _modelAnimationState, ...knightProps } = props;
+  const {
+    modelConfig,
+    modelAnimationState: _modelAnimationState,
+    playerCharacter: _playerCharacter,
+    ...knightProps
+  } = props;
   const appearance = knightProps.appearance ?? modelConfig?.appearance;
   return (
     <>
@@ -388,16 +465,21 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 export default function KnightActor(props: KnightActorProps) {
-  const { modelConfig, modelAnimationState: _modelAnimationState, ...knightProps } = props;
+  const {
+    modelConfig,
+    modelAnimationState: _modelAnimationState,
+    playerCharacter: _playerCharacter,
+    ...knightProps
+  } = props;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
       <Knight3D {...knightProps} appearance={knightProps.appearance ?? modelConfig?.appearance} />
     </group>
   );
 
-  // The hero and regular rivals intentionally use the sword-equipped procedural
-  // rig. Only opponents with an explicit GLB config should start a model request.
-  if (!modelConfig?.modelPath) return proceduralFallback;
+  // Ambient rivals keep the procedural rig; only configured opponents and the
+  // explicitly marked player load a GLB model.
+  if (!modelConfig?.modelPath && !props.playerCharacter) return proceduralFallback;
   return (
     <ModelErrorBoundary fallback={proceduralFallback}>
       <Suspense fallback={<ModelLoadingFallback props={props} />}>
