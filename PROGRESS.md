@@ -28,9 +28,11 @@
 ## Bölüm D — Kül Yolu 3D dünya
 
 - Oyuncunun yön değişimi yumuşatıldı; mevcut tek-parça modelde adım bob'u, yana ağırlık kayması ve hafif squash/stretch belirginleştirildi. Dünya sahnesinde oyuncuya düşük seviyeli sıcak dolgu ışığı eklendi.
-- Kaynak `FrogWarrior` GLB'si tek mesh ve iskeletsiz; gerçek eklem/ayak animasyonu bu varlıkla üretilemiyor. Görünüşü korumak için model değiştirilmedi. Gerçek bacak yürüyüşü için rig'li model veya yeniden rig işlemi gerekiyor.
-- Yerel mobil ekran görüntüsünde WebGL bağlamı oluşturulamadığından dünya ışığı ve animasyon değişiklikleri görsel olarak doğrulanamadı.
-- **Bölüm D durumu:** Görünürlük ve hareket hissi iyileştirildi; gerçek eklem animasyonu ve cihaz üstü kabul testi açık.
+- Kaynak `FrogWarrior` GLB'si tek mesh ve iskeletsiz kaldı; görünüşü/kaplaması değiştirilmeden yükleme sırasında 18 kemikli procedural skin rig oluşturuluyor. Ağırlıklar kaynak mesh'in bütün 27.035 verteksinden belirleniyor; rig gövde, kollar, eller, bacaklar, ayaklar ve başı içeriyor.
+- Oyuncu GLB'si artık rig'li modele animasyon fazından sürülen yürüme/koşma, saldırı/ağır saldırı, blok, kaçınma, darbe ve ölüm pozlarını uyguluyor; reduced-motion ayarı eklem hareketini azaltıyor.
+- Kaynak GLB'nin vertex ağırlıkları ve eklem dağılımı, normalize edilmiş ağırlıklar, değişmeyen bağlama pozu ve hareket eden eklemler otomatik testlerle doğrulanıyor.
+- Yerel mobil önizlemede WebGL bağlamı oluşturulamadı; bu nedenle rig'in gerçek görsel deformasyonu iPhone üzerinde hâlâ kabul testi bekliyor.
+- **Bölüm D durumu:** Kod tarafındaki gerçek eklem animasyonu tamamlandı; cihaz üstü görsel kabul testi açık.
 
 ## Bölüm E — Düello arenası
 
@@ -38,13 +40,13 @@
 - Mevcut simülasyon rakipleri arena sınırında tutuyor; mobil basma/bırakma saldırı akışı ve saldırı efektleri için otomatik testler mevcut. Başlangıçtaki 2,7 m mesafede kısa saldırı simülasyonu `weaponTrail` ve `hit` üretti; rakip canı 130'dan 124'e düştü.
 - Kamera regresyon testi, rakiplerin hareket edip birbirini geçtiği durumu da kapsıyor.
 - Yerel tarayıcı WebGL bağlamı açamadı; Vercel'de/iPhone Safari'de gerçek düello ve vuruş hissi doğrulanamadı. Bu çalışma alanından yayın yapılmadı.
-- **Bölüm E durumu:** Kamera ve kod düzeyindeki savaş akışı düzeltildi; cihaz üstünde arena/etki kabul testi açık.
+- **Bölüm E durumu:** Kamera ve kod düzeyindeki savaş akışı tamamlandı; canlı Vercel/iPhone arena ve etki kabul testi açık.
 
 ## Kaldığım yer / bilinenler
 
-- A, B ve C tamamlandı; D/E'de ekran görüntülerindeki kamera ve görünürlük sorunlarına yönelik kod düzeltmeleri yapıldı.
-- Son doğrulama: 219 test geçti; typecheck ve production build başarılı. Build, mevcut 977 KB katalog parçası için boyut uyarısı veriyor.
-- iPhone Safari FPS ve canlı Vercel görünümü bu çalışma alanından doğrulanamaz; kullanıcı Vercel'e kendisi yayınlar.
+- A, B ve C tamamlandı. D'deki tek-parça oyuncu modeli görünüşü korunarak çalışma anında rig'leniyor ve eklem animasyonu alıyor. E'nin kamera/savaş akışı kod düzeyinde tamam; yalnız canlı kabul testi açık.
+- Son doğrulama: 222 test geçti; typecheck ve production build başarılı. Build, yaklaşık 976 KB mağaza kataloğu parçası ve 5,52 MB oyuncu GLB'si için boyut uyarısı veriyor.
+- Yerel önizleme WebGL bağlamı oluşturamadı. iPhone Safari FPS ve canlı Vercel görünümü bu çalışma alanından doğrulanamaz; kullanıcı Vercel'e kendisi yayınlar.
 
 ## Kod denetimi — 16 Ekim 2026
 
@@ -53,5 +55,5 @@
 - **B2 — TAMAM:** Düello kontrollerinde ikinci silah atanmışsa çalışan silah değiştirme düğmesi var.
 - **B3 — TAMAM:** `store-catalog.ts` içinde 6'dan fazla silahın istatistik ve görsel verisi tanımlı.
 - **C — TAMAM:** Düello karakterlerinin kökü dik tutuluyor; kamera yönü dövüş sırasında değişen rakip konumlarından etkilenmiyor.
-- **D — YARIM:** Dünya, kamera ve karakter animasyonu iyileştirildi. Oyuncu GLB'si tek parça/iskeletsiz olduğundan gerçek bacak eklemi hareketi mümkün değil; mobil görsel test de yapılamadı.
-- **E — YARIM:** Kamera artık rakiplerin hattına göre dönmüyor; arena sınırı, saldırı akışı ve efektler testli. Vercel/iPhone üzerinde canlı kabul testi yapılamadı.
+- **D — KOD TAMAM, CİHAZ TESTİ AÇIK:** Oyuncunun kaynak GLB'si runtime skin ağırlıklarıyla rig'leniyor ve eklemleri animasyon alıyor. Yerel WebGL bağlamı başarısız olduğu için görsel deformasyon ve cihaz performansı iPhone'da doğrulanmalı.
+- **E — KOD TAMAM, CANLI KABUL TESTİ AÇIK:** Arena kamerası, sınırları, saldırı akışı ve efektler kod/test düzeyinde tamam. Vercel ve iPhone Safari üzerinde son doğrulama henüz yapılmadı.

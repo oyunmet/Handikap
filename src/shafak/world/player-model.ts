@@ -6,6 +6,6 @@ export const PLAYER_CHARACTER_MODEL_PATH = new URL(
 export const PLAYER_CHARACTER_MODEL_SCALE = 2.72;
 export const PLAYER_CHARACTER_MODEL_FACING = Math.PI;
 
-export function shouldRenderStaticPlayerModel(playerCharacter: boolean, animationCount: number) {
+export function shouldRenderPlayerModel(playerCharacter: boolean, animationCount: number) {
   return playerCharacter && animationCount === 0;
 }

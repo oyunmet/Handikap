@@ -24,8 +24,9 @@ import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_MODEL_SCALE,
-  shouldRenderStaticPlayerModel,
+  shouldRenderPlayerModel,
 } from "./player-model";
+import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -114,6 +115,7 @@ function prepareModel(
   modelPath: string,
   modelConfig?: OpponentModelConfig,
   castShadow = true,
+  playerCharacter = false,
 ) {
   const model = cloneSkinned(source);
   inspectModelBudget(model, modelPath);
@@ -121,7 +123,9 @@ function prepareModel(
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
   });
   const ownedMaterials: THREE.Material[] = [];
-  if (!modelConfig) return { model, ownedMaterials };
+  const playerRig = playerCharacter ? rigPlayerModel(model) : null;
+  const ownedGeometries = playerRig ? [playerRig.ownedGeometry] : [];
+  if (!modelConfig) return { model, ownedMaterials, ownedGeometries, playerRig };
 
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -156,8 +160,10 @@ function prepareModel(
     if (changed) object.material = Array.isArray(object.material) ? materials : materials[0];
   });
 
-  return { model, ownedMaterials };
+  return { model, ownedMaterials, ownedGeometries, playerRig };
 }
+
+const animatePlayerRig: typeof posePlayerRig = posePlayerRig;
 
 function OptionalGlbKnight({
   motionRef,
@@ -181,9 +187,9 @@ function OptionalGlbKnight({
   }) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
-  const { model, ownedMaterials } = useMemo(
-    () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow),
-    [gltf.scene, modelPath, modelConfig, castShadow],
+  const { model, ownedMaterials, ownedGeometries, playerRig } = useMemo(
+    () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow, playerCharacter),
+    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
@@ -209,7 +215,7 @@ function OptionalGlbKnight({
     modelConfig?.animationClips,
   );
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
-  const staticPlayerModel = shouldRenderStaticPlayerModel(playerCharacter, animationClips.length);
+  const staticPlayerModel = shouldRenderPlayerModel(playerCharacter, animationClips.length);
   const modelFacing = modelConfig?.modelFacing
     ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_FACING : KNIGHT_CONFIG.modelFacing);
   const modelScale = modelConfig?.scale
@@ -364,6 +370,17 @@ function OptionalGlbKnight({
       pose.rotation.z = targetTiltZ * reducedMotionScale;
       pose.scale.set(1 - stepStretch * 0.35, 1 + stepStretch, 1 - stepStretch * 0.35);
     }
+    if (playerRig && staticPlayerModel) {
+      animatePlayerRig(
+        playerRig,
+        Math.hypot(motion.velocityX, motion.velocityY),
+        motion.stepPhase,
+        state,
+        THREE.MathUtils.clamp(staticActionElapsed.current / 0.42, 0, 1),
+        motionReduced,
+        frame.clock.elapsedTime,
+      );
+    }
     if (selectedAction) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);
       selectedAction.timeScale = clipState === "run" || state === "run"
@@ -380,7 +397,8 @@ function OptionalGlbKnight({
     mixer.stopAllAction();
     mixer.uncacheRoot(model);
     for (const material of ownedMaterials) material.dispose();
-  }, [mixer, model, ownedMaterials]);
+    for (const geometry of ownedGeometries) geometry.dispose();
+  }, [mixer, model, ownedGeometries, ownedMaterials]);
 
   return (
     <group ref={rootRef}>

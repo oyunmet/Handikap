@@ -5,8 +5,9 @@ import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_MODEL_SCALE,
-  shouldRenderStaticPlayerModel,
+  shouldRenderPlayerModel,
 } from "./player-model.ts";
+import { getPlayerSkinInfluences } from "./player-skeletal-rig.ts";
 
 const assetUrl = new URL(
   "../../../attached_assets/steampunk_toad_warrior_1792140030602.glb",
@@ -22,10 +23,10 @@ function readGlbJson(buffer) {
   return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
 }
 
-test("static player GLB renders without an animation clip, but other models retain clip gating", () => {
-  assert.equal(shouldRenderStaticPlayerModel(true, 0), true);
-  assert.equal(shouldRenderStaticPlayerModel(true, 1), false);
-  assert.equal(shouldRenderStaticPlayerModel(false, 0), false);
+test("the player GLB can use its generated rig when it contains no animation clips", () => {
+  assert.equal(shouldRenderPlayerModel(true, 0), true);
+  assert.equal(shouldRenderPlayerModel(true, 1), false);
+  assert.equal(shouldRenderPlayerModel(false, 0), false);
 });
 
 test("player model path references the supplied source GLB and has an intentional game fit", () => {
@@ -48,4 +49,29 @@ test("player model path references the supplied source GLB and has an intentiona
   assert.ok(Math.abs(bounds.max[1] - 0.7) < 0.001);
   assert.equal(bounds.count, 27_035);
   assert.equal(model.accessors[primitive.indices].count / 3, 39_200);
+
+  const positionView = model.bufferViews[bounds.bufferView];
+  const positionOffset = 20 + glb.readUInt32LE(12) + 8 + positionView.byteOffset + bounds.byteOffset;
+  const positionStride = positionView.byteStride ?? 12;
+  const weightedBones = new Set();
+  for (let vertex = 0; vertex < bounds.count; vertex += 1) {
+    const offset = positionOffset + vertex * positionStride;
+    const x = glb.readFloatLE(offset);
+    const y = glb.readFloatLE(offset + 4);
+    const influences = getPlayerSkinInfluences(x, y, { min: bounds.min, max: bounds.max });
+    const total = influences.reduce((sum, influence) => sum + influence.weight, 0);
+    assert.ok(Number.isFinite(total) && Math.abs(total - 1) < 1e-6);
+    for (const influence of influences) {
+      if (influence.weight > 0.02) weightedBones.add(influence.bone);
+    }
+  }
+  for (const bone of [
+    "Rig_LeftUpperArm", "Rig_LeftForearm", "Rig_LeftHand",
+    "Rig_RightUpperArm", "Rig_RightForearm", "Rig_RightHand",
+    "Rig_LeftThigh", "Rig_LeftShin", "Rig_LeftFoot",
+    "Rig_RightThigh", "Rig_RightShin", "Rig_RightFoot",
+    "Rig_Hips", "Rig_Spine", "Rig_Chest", "Rig_Neck", "Rig_Head",
+  ]) {
+    assert.ok(weightedBones.has(bone), `source player vertices should receive the ${bone} skin influence`);
+  }
 });
