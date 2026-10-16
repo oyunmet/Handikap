@@ -629,11 +629,13 @@ function DuelCombatVisual({
   kind,
   combatStateRef,
   motionReduced,
+  equipmentVisual,
 }: {
   event: CombatVisualEvent;
   kind: DuelVfxKind;
   combatStateRef: MutableRefObject<CombatState | null>;
   motionReduced: boolean;
+  equipmentVisual: EquipmentVisual;
 }) {
   const fireballRef = useRef<THREE.Group>(null);
   const lightningMaterialRef = useRef<THREE.LineBasicMaterial>(null);
@@ -708,6 +710,11 @@ function DuelCombatVisual({
       weaponTrailRef.current.rotation.set(0, Math.atan2(toX - fromX, toZ - fromZ), -0.16);
       weaponTrailRef.current.scale.setScalar(0.68 + fade * 0.42);
       weaponTrailMaterialRef.current.opacity = fade * (event.plunge ? 0.9 : 0.76);
+      weaponTrailMaterialRef.current.color.set(
+        event.target === "bot"
+          ? equipmentVisual.trailColor ?? equipmentVisual.weaponColor ?? "#fff0bd"
+          : event.critical ? "#ff9c78" : "#ff806d",
+      );
     }
 
     if (kind === "arrow" && arrowRef.current) {
@@ -802,13 +809,15 @@ function DuelCombatVisual({
     if (kind === "shockwave" && impactSparksRef.current && impactSparksMaterialRef.current) {
       const targetX = event.destinationX ?? actor.x;
       const targetZ = event.destinationZ ?? actor.z;
-      const scatter = Math.min(1, age * 2.6);
+      const scatter = Math.min(1, age * 3.2);
       for (let index = 0; index < DUEL_HIT_SPARK_COUNT; index += 1) {
         const angle = index * 2.399963 + event.id * 0.013;
-        const radius = (0.16 + (index % 4) * 0.12 + age * 0.14) * scatter;
+        const travel = age * (event.critical ? 2.8 : 2.1);
+        const radius = (0.11 + (index % 4) * 0.055 + travel * (0.32 + (index % 3) * 0.1)) * scatter;
         sparkPositions[index * 3] = targetX + Math.cos(angle) * radius;
+        const launch = 0.95 + (index % 4) * 0.44;
         sparkPositions[index * 3 + 1] = 1.08 + ((index % 3) - 1) * 0.11
-          + scatter * (0.18 + (index % 3) * 0.14);
+          + launch * age - 4.6 * age * age;
         sparkPositions[index * 3 + 2] = targetZ + Math.sin(angle) * radius;
       }
       const position = sparkGeometry.getAttribute("position") as THREE.BufferAttribute;
@@ -1122,6 +1131,7 @@ function DuelArena({
             kind={getDuelVfxKind(event)}
             combatStateRef={combatStateRef}
             motionReduced={motionReduced}
+            equipmentVisual={equipmentVisual}
           />
         ))}
       {combatRender && (

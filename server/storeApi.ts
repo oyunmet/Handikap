@@ -309,8 +309,20 @@ export function createStoreApi(
       };
       if (storeItem.kind === "equipment") {
         if (profile.inventory.ownedItemIds.length >= 120) throw new StoreServiceError(409, "inventory_full");
+        const key = storeItem.slot === "ring"
+          ? !profile.equipment.ringOneId
+            ? "ringOneId"
+            : !profile.equipment.ringTwoId
+              ? "ringTwoId"
+              : "ringOneId"
+          : storeItem.slot ? equipmentKey(storeItem.slot) : null;
+        if (!key) throw new StoreServiceError(400, "item_not_equippable");
         nextProfile = {
           ...nextProfile,
+          equipment: {
+            ...nextProfile.equipment,
+            [key]: storeItem.id,
+          },
           inventory: {
             ...profile.inventory,
             ownedItemIds: [...profile.inventory.ownedItemIds, storeItem.id],
@@ -320,10 +332,16 @@ export function createStoreApi(
       } else if (storeItem.reward?.type === "combat-item") {
         const current = profile.inventory.combatItemCounts[storeItem.reward.itemId];
         if (current + storeItem.reward.amount > 999) throw new StoreServiceError(409, "stack_limit");
+        const quickSlots = [...profile.inventory.quickSlots] as PlayerProfile["inventory"]["quickSlots"];
+        if (!quickSlots.includes(storeItem.reward.itemId)) {
+          const firstOpenSlot = quickSlots.findIndex((itemId) => itemId === null);
+          if (firstOpenSlot >= 0) quickSlots[firstOpenSlot] = storeItem.reward.itemId;
+        }
         nextProfile = {
           ...nextProfile,
           inventory: {
             ...profile.inventory,
+            quickSlots,
             combatItemCounts: {
               ...profile.inventory.combatItemCounts,
               [storeItem.reward.itemId]: current + storeItem.reward.amount,

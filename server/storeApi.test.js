@@ -155,6 +155,54 @@ test("the account purchase route replays idempotently and blocks buying an owned
   assert.equal(pool.profile.gold, 320);
 });
 
+test("buying equipment immediately equips it and activates its combat stats", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.gold = 1_000;
+  const baselineStats = calculateAccountCombatStats(profile);
+  const { pool, send } = await openStoreApi(t, profile);
+  const response = await send("purchase", {
+    itemId: "weapon_iron_sword",
+    idempotencyKey: "9ab02d0e-69c8-4f8b-9909-f22f1f6b9070",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(pool.profile.equipment.weaponId, "weapon_iron_sword");
+  assert.ok(pool.profile.inventory.ownedItemIds.includes("weapon_iron_sword"));
+  assert.ok(calculateAccountCombatStats(pool.profile).damageMultiplier > baselineStats.damageMultiplier);
+});
+
+test("purchased rings fill an empty ring slot before replacing the first ring", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.diamonds = 100;
+  profile.inventory.ownedItemIds.push("ring_ember");
+  profile.equipment.ringOneId = "ring_ember";
+  const { pool, send } = await openStoreApi(t, profile);
+  const response = await send("purchase", {
+    itemId: "special_moon_ring",
+    idempotencyKey: "992a9e11-5c21-4e51-89c9-2b9de7247869",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(pool.profile.equipment.ringTwoId, "special_moon_ring");
+  assert.equal(pool.profile.equipment.ringOneId, "ring_ember");
+});
+
+test("buying a combat item puts it in the first open quick slot", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.gold = 500;
+  profile.inventory.quickSlots = [null, null, null, null];
+  const startingCount = profile.inventory.combatItemCounts.health_potion;
+  const { pool, send } = await openStoreApi(t, profile);
+  const response = await send("purchase", {
+    itemId: "supply_health_potion",
+    idempotencyKey: "a590dc61-9c1f-4d59-9012-75651a97e922",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(pool.profile.inventory.quickSlots[0], "health_potion");
+  assert.equal(pool.profile.inventory.combatItemCounts.health_potion, startingCount + 1);
+});
+
 test("daily special purchases accept today's offer and reject expired offers without charging", async (t) => {
   const now = () => new Date("2026-10-15T12:00:00.000Z");
   const profile = createDefaultPlayerProfile();

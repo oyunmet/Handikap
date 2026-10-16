@@ -17,22 +17,22 @@ test("each readable story line stays visible before the production card, title, 
   const events = getIntroEventTimes();
   assert.equal(events.creditsFade - events.production, 2_760);
   assert.equal(events.worldReveal, 3_800);
-  assert.equal(events.lineTwo - events.lineOne, 5_800);
-  assert.equal(events.lineThree - events.lineTwo, 5_800);
-  assert.equal(events.productionCard, events.lineThree + 6_500);
-  assert.equal(events.productionCardFade - events.productionCard, 2_100);
+  assert.equal(events.lineTwo - events.lineOne, 8_200);
+  assert.equal(events.lineThree - events.lineTwo, 8_200);
+  assert.equal(events.productionCard, events.lineThree + 7_400);
+  assert.equal(events.productionCardFade - events.productionCard, 2_300);
   assert.ok(events.productionCardFade < events.title);
   assert.ok(events.title < events.prompt);
-  assert.equal(events.prompt, 26_200);
+  assert.equal(events.prompt, 32_100);
 });
 
 test("reduced-motion timing shortens animation while preserving readable story dwell time", () => {
   const events = getIntroEventTimes(true);
   assert.ok(events.prompt < getIntroEventTimes().prompt);
   assert.ok(events.lineOne < events.lineTwo && events.lineTwo < events.lineThree);
-  assert.equal(events.lineTwo - events.lineOne, 5_800);
-  assert.equal(events.lineThree - events.lineTwo, 5_800);
+  assert.equal(events.lineTwo - events.lineOne, 8_200);
+  assert.equal(events.lineThree - events.lineTwo, 8_200);
   assert.equal(events.creditsFade - events.production, 1_601);
-  assert.equal(events.productionCard, events.lineThree + 6_500);
+  assert.equal(events.productionCard, events.lineThree + 7_400);
   assert.equal(events.productionCardFade - events.productionCard, 1_800);
 });

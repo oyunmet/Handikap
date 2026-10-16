@@ -403,7 +403,7 @@ export default function Knight3D({
           lift = Math.sin(swing * Math.PI) * (running ? 0.2 : 0.13);
         }
       }
-      const targetY = -0.84 + lift;
+      const targetY = -0.9 + lift;
       const solve = solveTwoBoneLeg(targetY, strideZ, KNIGHT_CONFIG.proportions.thigh, KNIGHT_CONFIG.proportions.shin);
       const actionLeg = state === "dodge" || state === "backflip"
         ? Math.sin(actionProgress * Math.PI) * 0.32
@@ -456,11 +456,11 @@ export default function Knight3D({
     }
     if (leftElbowRef.current) {
       leftElbowRef.current.rotation.x = combatPose?.leftElbowX
-        ?? (moving ? Math.max(0, -walkArm) * 0.34 : 0.04 + idleArmSway * 0.75);
+        ?? (moving ? 0.12 + Math.max(0, -walkArm) * 0.48 : 0.08 + idleArmSway * 0.75);
     }
     if (rightElbowRef.current) {
       rightElbowRef.current.rotation.x = combatPose?.rightElbowX
-        ?? (moving ? Math.max(0, walkArm) * 0.34 : 0.04 - idleArmSway * 0.75);
+        ?? (moving ? 0.12 + Math.max(0, walkArm) * 0.48 : 0.08 - idleArmSway * 0.75);
     }
     if (rightWristRef.current && !combatPose) {
       rightWristRef.current.rotation.set(0, 0, -0.2 + idleArmSway * 0.72);
@@ -825,12 +825,12 @@ export default function Knight3D({
           </group>
         </group>
 
-        <group ref={leftHipRef} position={[-0.17, 0.94, 0]}>
+        <group ref={leftHipRef} position={[-0.17, 1, 0]}>
           <mesh position={[0, -KNIGHT_CONFIG.proportions.thigh / 2, 0]}>
             <cylinderGeometry args={[0.15, 0.13, KNIGHT_CONFIG.proportions.thigh, 7]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.62} metalness={0.48} flatShading />
           </mesh>
-          <mesh position={[0, -0.27, -0.13]}>
+          <mesh position={[0, -KNIGHT_CONFIG.proportions.thigh / 2, -0.13]}>
             <boxGeometry args={[0.25, 0.32, 0.08]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} roughness={0.48} metalness={0.7} />
           </mesh>
@@ -844,7 +844,7 @@ export default function Knight3D({
                 <cylinderGeometry args={[0.105, 0.135, KNIGHT_CONFIG.proportions.shin, 7]} />
                 <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorLight} roughness={0.42} metalness={0.74} flatShading />
               </mesh>
-              <mesh position={[0, -0.35, -0.04]}>
+            <mesh position={[0, -KNIGHT_CONFIG.proportions.shin * 0.65, -0.04]}>
                 <boxGeometry args={[0.2, 0.18, 0.08]} />
                 <meshStandardMaterial color={appearance?.bootColor ?? KNIGHT_CONFIG.colors.gold} metalness={0.64} roughness={0.36} />
               </mesh>
@@ -856,12 +856,12 @@ export default function Knight3D({
           </group>
         </group>
 
-        <group ref={rightHipRef} position={[0.17, 0.94, 0]}>
+        <group ref={rightHipRef} position={[0.17, 1, 0]}>
           <mesh position={[0, -KNIGHT_CONFIG.proportions.thigh / 2, 0]}>
             <cylinderGeometry args={[0.15, 0.13, KNIGHT_CONFIG.proportions.thigh, 7]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.62} metalness={0.48} flatShading />
           </mesh>
-          <mesh position={[0, -0.27, -0.13]}>
+          <mesh position={[0, -KNIGHT_CONFIG.proportions.thigh / 2, -0.13]}>
             <boxGeometry args={[0.25, 0.32, 0.08]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armor} roughness={0.48} metalness={0.7} />
           </mesh>
@@ -875,7 +875,7 @@ export default function Knight3D({
                 <cylinderGeometry args={[0.105, 0.135, KNIGHT_CONFIG.proportions.shin, 7]} />
                 <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorLight} roughness={0.42} metalness={0.74} flatShading />
               </mesh>
-              <mesh position={[0, -0.35, -0.04]}>
+              <mesh position={[0, -KNIGHT_CONFIG.proportions.shin * 0.65, -0.04]}>
                 <boxGeometry args={[0.2, 0.18, 0.08]} />
                 <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} metalness={0.64} roughness={0.36} />
               </mesh>

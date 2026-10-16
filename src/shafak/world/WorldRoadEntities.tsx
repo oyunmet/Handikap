@@ -33,6 +33,16 @@ const PICKUP_STYLE = {
   "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.3 },
 } as const;
 
+function pickupLabel(pickup: WorldPickup) {
+  if (pickup.kind === "gold-small" || pickup.kind === "gold-large" || pickup.kind === "treasure-cache") {
+    return `ALTIN +${pickup.amount}`;
+  }
+  if (pickup.kind === "diamond-small") return `ELMAS +${pickup.amount}`;
+  if (pickup.kind === "iron-shard") return `DEMİR +${pickup.amount}`;
+  if (pickup.kind === "ember-crystal") return `KOR +${pickup.amount}`;
+  return `MÜHÜR +${pickup.amount}`;
+}
+
 function calculateNpcDialogueElementPosition(
   object: THREE.Object3D,
   camera: THREE.Camera,
@@ -133,9 +143,14 @@ function Collectible({
         )}
         <Sparkles count={pickup.kind === "seal-fragment" || pickup.kind === "diamond-small" ? 5 : 3} scale={0.85} size={2.3} speed={reducedMotion ? 0 : 0.3} color={style.color} />
       </group>
-      {pickup.kind === "treasure-cache" && (
-        <Html position={[0, 1.45, 0]} center distanceFactor={12} zIndexRange={[14, 0]} style={{ pointerEvents: "none" }}>
-          <span className="world-pickup-tag">ALTIN · {pickup.amount}</span>
+      {(
+        pickup.kind === "gold-small" ||
+        pickup.kind === "gold-large" ||
+        pickup.kind === "diamond-small" ||
+        pickup.kind === "treasure-cache"
+      ) && (
+        <Html position={[0, 1.45, 0]} center distanceFactor={11} zIndexRange={[14, 0]} style={{ pointerEvents: "none" }}>
+          <span className={`world-pickup-tag is-${pickup.kind}`}>{pickupLabel(pickup)}</span>
         </Html>
       )}
     </group>

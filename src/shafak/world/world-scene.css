@@ -906,6 +906,9 @@
   text-shadow: 0 1px 2px #1b1310;
   box-shadow: 0 0 12px rgba(240, 177, 74, .24);
 }
+.world-pickup-tag.is-diamond-small { border-color: rgba(131,243,235,.9); color: #bafff7; box-shadow: 0 0 14px rgba(48,203,211,.46); }
+.world-pickup-tag.is-gold-small,
+.world-pickup-tag.is-gold-large { border-color: rgba(255,215,109,.92); color: #fff0bc; }
 .world-obstacle-tag { border-color: rgba(245, 133, 95, .78); color: #ffc19e; }
 .world-obstacle-tag.is-spike-trap { background: rgba(78, 24, 22, .9); }
 .world-obstacle-tag.is-low-bar { background: rgba(67, 45, 26, .9); }

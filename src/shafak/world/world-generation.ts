@@ -57,7 +57,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const kinds: WorldObjectKind[] = biome === "frozen-pass"
     ? [
       random() > 0.5 ? "tower" : "ruin",
-      random() > 0.55 ? "rock" : "cart",
+      "pine-tree",
       "flag",
       random() > 0.5 ? "ruin" : treeKind(),
       random() > 0.5 ? "ruin" : "arch",
@@ -83,7 +83,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         "fern",
         random() > 0.5 ? "ruin" : "tower",
        (["torch", "firepit", "cart"] as const)[Math.floor(random() * 3)],
-        random() > 0.5 ? "rock" : treeKind(),
+        "moss-bush",
         (["cart", "ruin", "arch"] as const)[Math.floor(random() * 3)],
       ];
 

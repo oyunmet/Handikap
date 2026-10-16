@@ -1031,8 +1031,20 @@ export default function WorldScene({
           };
           if (item.kind === "equipment") {
             if (currentProfile.inventory.ownedItemIds.length >= 120) throw new StoreActionError("Heybe dolu; yeni eşya alamazsın.");
+            const equipmentKey = item.slot === "ring"
+              ? !currentProfile.equipment.ringOneId
+                ? "ringOneId"
+                : !currentProfile.equipment.ringTwoId
+                  ? "ringTwoId"
+                  : "ringOneId"
+              : item.slot ? slotEquipmentKey(item.slot) : null;
+            if (!equipmentKey) throw new StoreActionError("Bu eşya kuşanılamaz.");
             nextProfile = {
               ...nextProfile,
+              equipment: {
+                ...nextProfile.equipment,
+                [equipmentKey]: item.id,
+              },
               inventory: {
                 ...currentProfile.inventory,
                 ownedItemIds: [...currentProfile.inventory.ownedItemIds, item.id],
@@ -1042,10 +1054,16 @@ export default function WorldScene({
           } else if (item.reward?.type === "combat-item") {
             const count = currentProfile.inventory.combatItemCounts[item.reward.itemId];
             if (count + item.reward.amount > 999) throw new StoreActionError("Bu eşyanın heybe sınırına ulaştın.");
+            const quickSlots = [...currentProfile.inventory.quickSlots] as PlayerProfile["inventory"]["quickSlots"];
+            if (!quickSlots.includes(item.reward.itemId)) {
+              const firstOpenSlot = quickSlots.findIndex((itemId) => itemId === null);
+              if (firstOpenSlot >= 0) quickSlots[firstOpenSlot] = item.reward.itemId;
+            }
             nextProfile = {
               ...nextProfile,
               inventory: {
                 ...currentProfile.inventory,
+                quickSlots,
                 combatItemCounts: {
                   ...currentProfile.inventory.combatItemCounts,
                   [item.reward.itemId]: count + item.reward.amount,
@@ -1167,8 +1185,12 @@ export default function WorldScene({
         } else if (operation === "salvage") {
           setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
         } else {
-          setStoreMessage(operation === "purchase"
-            ? `${item.name} ${item.kind === "equipment" ? "heybenize eklendi." : "satın alındı ve stoğunuza eklendi."}`
+        setStoreMessage(operation === "purchase"
+          ? `${item.name} ${item.kind === "equipment"
+            ? "satın alındı ve kuşanıldı."
+            : item.reward?.type === "combat-item"
+              ? "satın alındı ve savaş çantasına eklendi."
+              : "satın alındı ve stoğunuza eklendi."}`
             : `${item.name} kuşanıldı.`);
         }
         return;
@@ -1206,7 +1228,11 @@ export default function WorldScene({
         setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
       } else {
         setStoreMessage(operation === "purchase"
-          ? `${item.name} satın alındı.`
+          ? `${item.name} ${item.kind === "equipment"
+            ? "satın alındı ve kuşanıldı."
+            : item.reward?.type === "combat-item"
+              ? "satın alındı ve savaş çantasına eklendi."
+              : "satın alındı."}`
           : `${item.name} kuşanıldı.`);
       }
     } catch (error) {
@@ -2310,7 +2336,7 @@ export default function WorldScene({
             setBrokenObstacleIds(new Set(brokenRef.current));
             saveBrokenObstacleIds(brokenRef.current, userId);
             const reward = worldContent.pickups.find((pickup) => pickup.id === chest.dropPickupId);
-            setPickupNotice(`Sandık kırıldı! ${reward?.amount ?? 75} altın çıktı.`);
+            setPickupNotice(`Sandık açıldı! ${reward?.amount ?? 75} altın yere düştü; üzerinden geçerek topla.`);
             playWorldCue("attack");
             if (vibrationOn && "vibrate" in navigator) {
               try { navigator.vibrate([32, 24, 42]); } catch { /* Haptics are optional. */ }
