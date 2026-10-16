@@ -3,7 +3,7 @@ import type { CombatEvent } from "../game/combat-engine";
 export const MAX_ACTIVE_DUEL_VFX = 5;
 export const LIGHTNING_BOLT_COUNT = 3;
 export const LIGHTNING_SEGMENT_COUNT = 6;
-export const DUEL_HIT_SPARK_COUNT = 8;
+export const DUEL_HIT_SPARK_COUNT = 12;
 export const DUEL_ARENA_AMBIENT_PARTICLE_COUNT = 22;
 export const MAX_DUEL_VFX_EVENT_PARTICLES = Math.max(
   LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT,

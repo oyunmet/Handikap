@@ -24,10 +24,10 @@ import type { WeatherMode } from "./world-biomes";
 type MotionRef = MutableRefObject<WorldMotion>;
 
 const PICKUP_STYLE = {
-  "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.25 },
-  "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.34 },
+  "gold-small": { color: "#ffd76d", glow: "#f1a936", size: 0.32 },
+  "gold-large": { color: "#ffe8a2", glow: "#f0aa36", size: 0.42 },
   "treasure-cache": { color: "#f1ca70", glow: "#e39532", size: 0.46 },
-  "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.31 },
+  "diamond-small": { color: "#83f3eb", glow: "#30cbd3", size: 0.4 },
   "iron-shard": { color: "#d1d8df", glow: "#7d9ba4", size: 0.27 },
   "ember-crystal": { color: "#ff9a56", glow: "#de542d", size: 0.29 },
   "seal-fragment": { color: "#d9a9ff", glow: "#9f62e4", size: 0.3 },
@@ -95,8 +95,12 @@ function Collectible({
   return (
     <group ref={rootRef} position={[pickup.x, 0.48, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>
-        <ringGeometry args={[style.size * 0.78, style.size * 1.16, 24]} />
-        <meshBasicMaterial color={style.glow} transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
+        <ringGeometry args={[style.size * 0.78, style.size * 1.3, 24]} />
+        <meshBasicMaterial color={style.glow} transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 0.66, 0]}>
+        <cylinderGeometry args={[0.035, style.size * 0.48, 1.32, 8, 1, true]} />
+        <meshBasicMaterial color={style.glow} transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <group ref={spinRef}>
         {geometry === "coin" ? (
@@ -380,6 +384,25 @@ function Obstacle({
             </mesh>
           </group>
         )
+      ) : obstacle.kind === "low-bar" ? (
+        <group>
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * (obstacle.width / 2 - 0.12), 0.81, 0]}>
+              <boxGeometry args={[0.2, 1.62, 0.48]} />
+              <meshStandardMaterial color="#745340" roughness={0.86} />
+            </mesh>
+          ))}
+          <mesh position={[0, 1.62, 0]}>
+            <boxGeometry args={[obstacle.width, 0.2, 0.48]} />
+            <meshStandardMaterial color="#342927" roughness={0.85} />
+          </mesh>
+          {[-0.58, 0, 0.58].map((x) => (
+            <mesh key={x} position={[x, 1.62, 0.25]}>
+              <boxGeometry args={[0.12, 0.19, 0.025]} />
+              <meshStandardMaterial color="#f1b75e" emissive="#9c572f" emissiveIntensity={0.24} />
+            </mesh>
+          ))}
+        </group>
       ) : obstacle.kind === "barricade" ? (
         broken ? (
           <group>

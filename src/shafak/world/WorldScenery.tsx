@@ -280,6 +280,31 @@ function drawWorldObject(
     context.ellipse(-22, -15, 7, 3, -.4, 0, Math.PI * 2);
     context.ellipse(24, -11, 8, 3, .25, 0, Math.PI * 2);
     context.fill();
+  } else if (object.kind === "fern") {
+    context.strokeStyle = object.biome === "frozen-pass" ? "#899a80" : "#637b48";
+    context.lineWidth = 4;
+    for (let blade = -3; blade <= 3; blade += 1) {
+      context.beginPath();
+      context.moveTo(0, 0);
+      context.quadraticCurveTo(blade * 5 + sway * .08, -16, blade * 9 + sway * .16, -34 - Math.abs(blade % 2) * 8);
+      context.stroke();
+      context.fillStyle = object.biome === "frozen-pass" ? "#a4af8a" : "#718a4c";
+      context.beginPath();
+      context.ellipse(blade * 9 + sway * .16, -31 - Math.abs(blade % 2) * 8, 4, 8, blade * .12, 0, Math.PI * 2);
+      context.fill();
+    }
+  } else if (object.kind === "moss-bush") {
+    context.fillStyle = object.biome === "frozen-pass" ? "#586b60" : "#405c3b";
+    context.beginPath();
+    context.ellipse(-13, -6, 14, 8, -.12, 0, Math.PI * 2);
+    context.ellipse(0, -11, 17, 11, 0, 0, Math.PI * 2);
+    context.ellipse(14, -5, 13, 8, .1, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = object.biome === "frozen-pass" ? "rgba(170,185,142,.6)" : "rgba(139,162,83,.7)";
+    context.beginPath();
+    context.ellipse(-5, -14, 5, 3, -.2, 0, Math.PI * 2);
+    context.ellipse(9, -8, 4, 2.5, .18, 0, Math.PI * 2);
+    context.fill();
   } else if (object.kind === "flag") {
     context.fillStyle = "#282329";
     context.fillRect(-1.5, -67, 3, 67);

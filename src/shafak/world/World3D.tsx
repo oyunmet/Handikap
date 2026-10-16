@@ -805,9 +805,10 @@ function DuelCombatVisual({
       const scatter = Math.min(1, age * 2.6);
       for (let index = 0; index < DUEL_HIT_SPARK_COUNT; index += 1) {
         const angle = index * 2.399963 + event.id * 0.013;
-        const radius = (0.12 + (index % 3) * 0.08) * scatter;
+        const radius = (0.16 + (index % 4) * 0.12 + age * 0.14) * scatter;
         sparkPositions[index * 3] = targetX + Math.cos(angle) * radius;
-        sparkPositions[index * 3 + 1] = 1.08 + ((index % 3) - 1) * 0.11 + scatter * (0.08 + (index % 2) * 0.16);
+        sparkPositions[index * 3 + 1] = 1.08 + ((index % 3) - 1) * 0.11
+          + scatter * (0.18 + (index % 3) * 0.14);
         sparkPositions[index * 3 + 2] = targetZ + Math.sin(angle) * radius;
       }
       const position = sparkGeometry.getAttribute("position") as THREE.BufferAttribute;

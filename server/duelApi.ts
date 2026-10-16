@@ -13,6 +13,12 @@ function sendServiceError(response: Response, error: unknown) {
     response.status(error.status).json({ error: error.code });
     return;
   }
+  const databaseErrorCode = error && typeof error === "object" && "code" in error
+    ? (error as { code?: unknown }).code
+    : undefined;
+  console.error("[duel] persistence failed", {
+    code: typeof databaseErrorCode === "string" ? databaseErrorCode : "unknown",
+  });
   response.status(503).json({ error: "duel_storage_unavailable" });
 }
 

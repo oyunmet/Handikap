@@ -23,7 +23,9 @@ export type WorldObjectKind =
   | "cart"
   | "bones"
   | "reed"
-  | "mangrove";
+  | "mangrove"
+  | "fern"
+  | "moss-bush";
 
 export type WorldObject = {
   id: string;
@@ -60,7 +62,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       random() > 0.5 ? "ruin" : treeKind(),
       random() > 0.5 ? "ruin" : "arch",
       random() > 0.5 ? "torch" : "firepit",
-      "rock",
+      random() > 0.5 ? "moss-bush" : "fern",
       random() > 0.5 ? "cart" : "tree",
     ]
     : biome === "red-marsh"
@@ -72,13 +74,13 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         random() > 0.5 ? "arch" : "ruin",
         random() > 0.5 ? "firepit" : "torch",
         random() > 0.5 ? "reed" : treeKind(),
-        random() > 0.5 ? "mangrove" : "cart",
+        random() > 0.5 ? "mangrove" : "moss-bush",
       ]
       : [
         random() > 0.5 ? "tower" : "ruin",
         random() > 0.46 ? treeKind() : "rock",
         "flag",
-        random() > 0.5 ? "rock" : treeKind(),
+        "fern",
         random() > 0.5 ? "ruin" : "tower",
        (["torch", "firepit", "cart"] as const)[Math.floor(random() * 3)],
         random() > 0.5 ? "rock" : treeKind(),

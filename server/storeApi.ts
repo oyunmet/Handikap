@@ -53,6 +53,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export function classifyStoreStorageError(error: unknown) {
+  if (!error || typeof error !== "object") return "store_storage_unavailable" as const;
+  const databaseError = error as { code?: unknown; constraint?: unknown };
+  if (
+    ["42P01", "42703", "42883"].includes(String(databaseError.code)) ||
+    (databaseError.code === "23514"
+      && databaseError.constraint === "shafak_store_transactions_operation_type_check")
+  ) {
+    return "store_schema_outdated" as const;
+  }
+  return "store_storage_unavailable" as const;
+}
+
 function validateOperationBody(value: unknown): { itemId: string; idempotencyKey: string } | null {
   if (
     !isRecord(value) ||
@@ -221,7 +234,13 @@ async function runAccountOperation<T>(
     if (error instanceof StoreServiceError) {
       response.status(error.status).json({ error: error.code });
     } else {
-      response.status(503).json({ error: "store_storage_unavailable" });
+      const databaseErrorCode = error && typeof error === "object" && "code" in error
+        ? (error as { code?: unknown }).code
+        : undefined;
+      console.error("[store] transaction failed", {
+        code: typeof databaseErrorCode === "string" ? databaseErrorCode : "unknown",
+      });
+      response.status(503).json({ error: classifyStoreStorageError(error) });
     }
   } finally {
     client?.release();

@@ -16,6 +16,10 @@ test("world chunks are deterministic for a seed and vary between seeds", () => {
   for (let index = 0; index < 120; index += 1) {
     const chunk = createWorldChunk(index);
     assert.ok(
+      chunk.objects.some((object) => ["fern", "moss-bush", "mangrove", "reed"].includes(object.kind)),
+      `chapter chunk ${index} should include visible roadside greenery`,
+    );
+    assert.ok(
       chunk.objects.every((object) =>
         object.kind !== "crystal" && object.kind !== "ice-crystal" && object.kind !== "bones",
       ),

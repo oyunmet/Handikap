@@ -465,6 +465,39 @@ function ScenicProp({
           </mesh>
         </group>
       )}
+      {(object.kind === "fern" || object.kind === "moss-bush") && (
+        <group ref={swayRef}>
+          {object.kind === "moss-bush" ? (
+            <>
+              {[-0.32, 0, 0.32].map((x, index) => (
+                <mesh key={x} position={[x, 0.22 + (index === 1 ? 0.08 : 0), index === 1 ? -0.12 : 0.06]} scale={[0.46, 0.34, 0.38]}>
+                  <sphereGeometry args={[0.64, 8, 6]} />
+                  <meshStandardMaterial
+                    color={object.biome === "frozen-pass" ? "#657b75" : "#526f42"}
+                    roughness={0.96}
+                    flatShading
+                  />
+                </mesh>
+              ))}
+            </>
+          ) : (
+            [-0.42, -0.2, 0, 0.2, 0.42].map((x, index) => (
+              <mesh
+                key={x}
+                position={[x, 0.43 + (index % 2) * 0.08, 0]}
+                rotation={[0.08, 0, -x * 0.9]}
+              >
+                <coneGeometry args={[0.13, 0.92, 4]} />
+                <meshStandardMaterial
+                  color={object.biome === "frozen-pass" ? "#70867e" : "#637f48"}
+                  roughness={0.94}
+                  flatShading
+                />
+              </mesh>
+            ))
+          )}
+        </group>
+      )}
       {object.kind === "rock" && (
         <group>
           <mesh position={[0, 0.58, 0]} rotation={[0.12, 0.34, 0.14]}>

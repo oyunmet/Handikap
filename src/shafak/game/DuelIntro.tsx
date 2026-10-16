@@ -15,13 +15,13 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
   const [beat, setBeat] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setBeat((current) => current + 1), 850);
+    const timer = window.setInterval(() => setBeat((current) => current + 1), 1_150);
     return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
     if (beat >= 4) {
-      const timer = window.setTimeout(onComplete, reducedMotion ? 160 : 640);
+      const timer = window.setTimeout(onComplete, reducedMotion ? 300 : 900);
       return () => window.clearTimeout(timer);
     }
     return undefined;

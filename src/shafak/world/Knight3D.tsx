@@ -314,7 +314,7 @@ export default function Knight3D({
     const idle = state === "idle" || state === "walk" || state === "run";
     const actionSwing = Math.sin(actionProgress * Math.PI);
     const lateralPosition = motion.depth * 5.2;
-    const idleWeightShift = !moving && !motionReduced ? Math.sin(time * 0.72) * 0.028 : 0;
+    const idleWeightShift = !moving ? Math.sin(time * 0.72) * 0.028 * reducedScale : 0;
     root.position.x += (lateralPosition + idleWeightShift - root.position.x) * (1 - Math.exp(-dt * 8));
     const bob = moving && !motionReduced ? Math.abs(Math.sin(phase * 2)) * (running ? 0.055 : 0.032) : 0;
     const deathDrop = state === "die" ? actionProgress * 0.08 : 0;
@@ -409,23 +409,29 @@ export default function Knight3D({
         ? Math.sin(actionProgress * Math.PI) * 0.32
         : state === "jump" ? Math.sin(actionProgress * Math.PI) * 0.5
           : state === "plunge" ? 0.18 : 0;
-      hip.rotation.x = solve.hip * (moving && idle ? 1 : 0.12) * reducedScale - actionLeg;
+      const idleLegSway = !moving && idle
+        ? Math.sin(time * 1.35 + plantedSide * 0.9) * 0.075 * reducedScale
+        : 0;
+      hip.rotation.x = solve.hip * (moving && idle ? 1 : 0.12) * reducedScale - actionLeg + idleLegSway;
+      hip.rotation.z = idleLegSway * 0.28;
       knee.rotation.x = (moving && idle ? solve.knee : 0.08) * reducedScale
+        + (!moving && idle ? Math.max(0, idleLegSway) * 0.62 : 0)
         + (state === "dodge" || state === "backflip" ? 0.55 : state === "jump" ? 0.72 : 0);
-      ankle.rotation.x = solve.ankle * (moving && idle ? 1 : 0.15) * reducedScale;
+      ankle.rotation.x = solve.ankle * (moving && idle ? 1 : 0.15) * reducedScale - idleLegSway * 0.3;
     };
     solveFoot(phase, 1, 0, leftHipRef.current, leftKneeRef.current, leftAnkleRef.current);
     solveFoot(phase + Math.PI, -1, 1, rightHipRef.current, rightKneeRef.current, rightAnkleRef.current);
     if (footSlipRef) footSlipRef.current = maximumFootSlip;
 
+    const idleArmSway = !moving && idle ? Math.sin(time * 1.12) * 0.045 * reducedScale : 0;
     const walkArm = Math.sin(phase + Math.PI) * strideAmplitude * reducedScale;
     if (leftArmRef.current) {
-      leftArmRef.current.rotation.x = walkArm * 0.76;
-      leftArmRef.current.rotation.z = -0.06;
+      leftArmRef.current.rotation.x = walkArm * 0.88 + idleArmSway;
+      leftArmRef.current.rotation.z = -0.06 + idleArmSway * 0.22;
     }
     if (rightArmRef.current) {
-      rightArmRef.current.rotation.x = -walkArm * 0.76;
-      rightArmRef.current.rotation.z = 0.08;
+      rightArmRef.current.rotation.x = -walkArm * 0.88 - idleArmSway;
+      rightArmRef.current.rotation.z = 0.08 - idleArmSway * 0.18;
     }
     if (combatPose) {
       if (rightArmRef.current) {
@@ -449,12 +455,16 @@ export default function Knight3D({
       rightArmRef.current.rotation.x = 0.8 * actionSwing;
     }
     if (leftElbowRef.current) {
-      leftElbowRef.current.rotation.x = combatPose?.leftElbowX ?? (moving ? Math.max(0, -walkArm) * 0.28 : 0.04);
+      leftElbowRef.current.rotation.x = combatPose?.leftElbowX
+        ?? (moving ? Math.max(0, -walkArm) * 0.34 : 0.04 + idleArmSway * 0.75);
     }
     if (rightElbowRef.current) {
-      rightElbowRef.current.rotation.x = combatPose?.rightElbowX ?? (moving ? Math.max(0, walkArm) * 0.28 : 0.04);
+      rightElbowRef.current.rotation.x = combatPose?.rightElbowX
+        ?? (moving ? Math.max(0, walkArm) * 0.34 : 0.04 - idleArmSway * 0.75);
     }
-    if (rightWristRef.current && !combatPose) rightWristRef.current.rotation.set(0, 0, -0.2);
+    if (rightWristRef.current && !combatPose) {
+      rightWristRef.current.rotation.set(0, 0, -0.2 + idleArmSway * 0.72);
+    }
     if (state === "block") {
       if (leftElbowRef.current) leftElbowRef.current.rotation.x = 0.35;
       if (rightElbowRef.current) rightElbowRef.current.rotation.x = 0.32;
@@ -815,7 +825,7 @@ export default function Knight3D({
           </group>
         </group>
 
-        <group ref={leftHipRef} position={[-0.17, 0.9, 0]}>
+        <group ref={leftHipRef} position={[-0.17, 0.94, 0]}>
           <mesh position={[0, -KNIGHT_CONFIG.proportions.thigh / 2, 0]}>
             <cylinderGeometry args={[0.15, 0.13, KNIGHT_CONFIG.proportions.thigh, 7]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.62} metalness={0.48} flatShading />
@@ -846,7 +856,7 @@ export default function Knight3D({
           </group>
         </group>
 
-        <group ref={rightHipRef} position={[0.17, 0.9, 0]}>
+        <group ref={rightHipRef} position={[0.17, 0.94, 0]}>
           <mesh position={[0, -KNIGHT_CONFIG.proportions.thigh / 2, 0]}>
             <cylinderGeometry args={[0.15, 0.13, KNIGHT_CONFIG.proportions.thigh, 7]} />
             <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.62} metalness={0.48} flatShading />

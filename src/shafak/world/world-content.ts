@@ -79,8 +79,8 @@ export type WorldChapterContent = {
   rivals: WorldRival[];
 };
 
-export const PICKUP_MAGNET_RADIUS_METERS = 5.2;
-export const PICKUP_RADIUS_METERS = 2;
+export const PICKUP_MAGNET_RADIUS_METERS = 6.2;
+export const PICKUP_RADIUS_METERS = 2.35;
 export const WORLD_JUMP_CLEARANCE_METERS = 0.78;
 export const MAX_PICKUPS_PER_CLAIM = 16;
 export const MAX_CHAPTER_ID = 1_000_000;
@@ -111,7 +111,7 @@ export function isWorldPickupPositionClear(
     const dx = Math.abs(x - obstacle.x);
     const dz = Math.abs(distance - obstacle.distance);
     if (obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap") {
-      return Math.hypot(dx, dz) > obstacle.width * 0.58 + PICKUP_RADIUS_METERS + 0.42;
+      return Math.hypot(dx, dz) > obstacle.width * 0.44 + PICKUP_RADIUS_METERS + 0.42;
     }
 
     const halfWidth = obstacle.kind === "spike-trap"
@@ -119,11 +119,15 @@ export function isWorldPickupPositionClear(
       : obstacle.width / 2 + 0.42;
     const halfDepth = obstacle.kind === "spike-trap"
       ? 1.25
-      : obstacle.kind === "barricade"
-        ? 0.3 + 0.42
-        : obstacle.kind === "low-bar"
-          ? 0.38 + 0.42
-          : 0.5 + 0.42;
+      : obstacle.kind === "barricade" || obstacle.kind === "low-bar"
+        ? 0.24 + 0.42
+        : obstacle.kind === "barrel"
+          ? 0.43 + 0.42
+          : obstacle.kind === "vase"
+            ? 0.42 + 0.42
+            : obstacle.kind === "treasure-chest"
+              ? 0.54 + 0.42
+              : 0.5 + 0.42;
     return dx > halfWidth + PICKUP_RADIUS_METERS || dz > halfDepth + PICKUP_RADIUS_METERS;
   });
 }
@@ -147,19 +151,54 @@ function choosePickupLane(
     .sort((left, right) => right.clearance - left.clearance)[0]?.lane ?? 0;
 }
 
+function findSafePickupPosition(
+  preferredIndex: number,
+  preferredDistance: number,
+  chapterStart: number,
+  obstacles: readonly WorldObstacle[],
+  placedPickups: readonly WorldPickup[],
+) {
+  let firstClear: { x: number; distance: number } | null = null;
+  const maxDistance = chapterStart + WORLD_GATE_INTERVAL_METERS - 1.5;
+
+  for (let step = 0; step <= 16; step += 1) {
+    const distanceOffset = step === 0
+      ? 0
+      : Math.ceil(step / 2) * 1.5 * (step % 2 === 1 ? -1 : 1);
+    const distance = preferredDistance + distanceOffset;
+    if (distance < chapterStart + 1.5 || distance > maxDistance) continue;
+
+    for (let laneOffset = 0; laneOffset < PICKUP_LANES.length; laneOffset += 1) {
+      const x = PICKUP_LANES[(preferredIndex + laneOffset) % PICKUP_LANES.length];
+      if (!isWorldPickupPositionClear(x, distance, obstacles)) continue;
+      const position = { x, distance };
+      if (!firstClear) firstClear = position;
+      if (placedPickups.every((pickup) => Math.hypot(x - pickup.x, distance - pickup.distance) > 3.5)) {
+        return position;
+      }
+    }
+  }
+
+  if (firstClear) return firstClear;
+  return {
+    x: choosePickupLane(preferredIndex, preferredDistance, obstacles),
+    distance: preferredDistance,
+  };
+}
+
 function createPickups(
   chapterId: number,
   random: () => number,
   obstacles: readonly WorldObstacle[],
 ): WorldPickup[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
-  const regular = PICKUP_DISTANCES.map((offset, index): WorldPickup => {
-    let kind: PickupKind;
-    if ([0, 3, 5, 8, 10].includes(index)) kind = index === 3 || index === 10 ? "gold-large" : "gold-small";
-    else if (index === 11 && chapterId % 3 === 2) kind = "seal-fragment";
-    else if (index === 7 && chapterId % 2 === 0) kind = "diamond-small";
-    else if (index === 6 && chapterId % 3 === 0) kind = "iron-shard";
-    else kind = "ember-crystal";
+  const regular: WorldPickup[] = [];
+  PICKUP_DISTANCES.forEach((offset, index) => {
+    const kind: PickupKind = [2, 6, 9, 11].includes(index)
+      ? "diamond-small"
+      : index === 3 || index === 10
+        ? "gold-large"
+        : "gold-small";
 
     const amount = kind === "gold-small"
       ? 6 + Math.floor(random() * 7)
@@ -173,16 +212,22 @@ function createPickups(
               ? 1
               : 1 + Math.floor(random() * 2);
     const preferredLane = Math.floor(random() * PICKUP_LANES.length);
-    const distance = chapterStart + offset + (random() - 0.5) * 2;
+    const preferredDistance = chapterStart + offset + (random() - 0.5) * 2;
+    const position = findSafePickupPosition(
+      preferredLane,
+      preferredDistance,
+      chapterStart,
+      obstacles,
+      regular,
+    );
 
-    return {
+    regular.push({
       id: `ash-road:${chapterId}:pickup:${index}`,
       chapterId,
       kind,
       amount,
-      x: choosePickupLane(preferredLane, distance, obstacles),
-      distance,
-    };
+      ...position,
+    });
   });
 
   const barricadeId = `ash-road:${chapterId}:obstacle:barricade`;
@@ -456,10 +501,18 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         id: obstacle.id,
         x: obstacle.x,
         distance: obstacle.distance,
-        shape: obstacle.kind === "rock" ? "circle" : "box",
-        radius: obstacle.width * 0.58,
+        shape: obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap" ? "circle" : "box",
+        radius: obstacle.width * 0.44,
         halfWidth: obstacle.width / 2,
-        halfDepth: obstacle.kind === "barricade" ? 0.3 : obstacle.kind === "low-bar" ? 0.38 : 0.5,
+        halfDepth: obstacle.kind === "barricade" || obstacle.kind === "low-bar"
+          ? 0.24
+          : obstacle.kind === "barrel"
+            ? 0.43
+            : obstacle.kind === "vase"
+              ? 0.42
+              : obstacle.kind === "treasure-chest"
+                ? 0.54
+                : 0.5,
         breakableId: ["barrel", "vase", "barricade", "treasure-chest"].includes(obstacle.kind)
           ? obstacle.id
           : undefined,

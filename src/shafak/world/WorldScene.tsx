@@ -78,6 +78,7 @@ import {
   type WorldPickup,
   type WorldRival,
 } from "./world-content";
+import { getDuelSettlementErrorMessage } from "./duel-errors";
 import {
   inferWorldProgressFromDefeatedOpponents,
   isWorldChapterCleared,
@@ -368,6 +369,8 @@ function storeErrorText(code: string) {
     upgrade_max_level: "Bu eşya en yüksek seviyede.",
     profile_not_ready: "Hesap profili henüz hazır değil.",
     profile_storage_invalid: "Hesap profili doğrulanamadı.",
+    store_schema_outdated: "Mağaza veritabanı güncel değil. Mağaza migration’larını çalıştırıp tekrar dene.",
+    store_storage_unavailable: "Mağaza sunucusuna şu anda ulaşılamıyor. Bakiye ve eşyalar kaydedilmedi; tekrar dene.",
     authentication_required: "Alışveriş için hesabınızda oturum açın.",
     authentication_unavailable: "Hesap mağazası şu anda kullanılamıyor.",
     idempotency_key_reused: "İşlem anahtarı çakıştı. Güvenli olması için yeni bir deneme oluşturun.",
@@ -1521,6 +1524,7 @@ export default function WorldScene({
         }, {
           operation: "duel settlement",
           fallbackMessage: "Düello sonucu şu an doğrulanamadı. Ödül kaydedilmedi; tekrar dene.",
+          messageForCode: getDuelSettlementErrorMessage,
         });
         if (!result.summary || !result.rewards || !result.profile) {
           throw new Error("Sunucu düello sonucu için eksik yanıt verdi.");

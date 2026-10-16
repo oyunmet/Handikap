@@ -43,7 +43,16 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
   assert.ok(first.rivals[0].distance >= 51 && first.rivals[0].distance <= 53);
   assert.ok(first.rivals.every((rival) => rival.id.includes(":rival:")));
   assert.ok(first.rivals.every((rival, index) => index === 0 || rival.level > first.rivals[index - 1].level));
-  assert.ok(getWorldChapter(2).pickups.some((pickup) => pickup.kind === "seal-fragment"));
+  assert.equal(
+    getWorldChapter(2).pickups.filter((pickup) => pickup.kind === "diamond-small").length,
+    4,
+  );
+  assert.ok(
+    getWorldChapter(2).pickups
+      .filter((pickup) => !pickup.sourceObstacleId && pickup.kind !== "treasure-cache")
+      .every((pickup) => ["gold-small", "gold-large", "diamond-small"].includes(pickup.kind)),
+    "every regular road reward should be a real gold or diamond pickup",
+  );
 });
 
 test("rival levels scale with player level and chapter progress while difficulty remains selectable", () => {
@@ -163,7 +172,7 @@ test("reward totals are derived from seeded pickup kinds and amounts", () => {
     totals.materials.ironShards,
     pickups.filter((pickup) => pickup.kind === "iron-shard").reduce((sum, pickup) => sum + pickup.amount, 0),
   );
-  assert.equal(totals.materials.sealFragments, 1);
+  assert.equal(totals.materials.sealFragments, 0);
 });
 
 test("rocks and intact barricades stop forward travel unless the player dodges or breaks them", () => {

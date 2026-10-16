@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import express from "express";
 import test from "node:test";
 import { createDefaultPlayerProfile } from "./profileApi.ts";
-import { calculateAccountCombatStats, createStoreApi, validateStoreOperationBody } from "./storeApi.ts";
+import {
+  calculateAccountCombatStats,
+  classifyStoreStorageError,
+  createStoreApi,
+  validateStoreOperationBody,
+} from "./storeApi.ts";
 import { getDailySpecials, STORE_CATALOG } from "./storeCatalog.ts";
 import {
   getItemSellValue,
@@ -14,6 +19,20 @@ import {
 } from "../src/shafak/game/store-types.ts";
 
 const key = "d85e8c16-e9a2-4a74-96c0-2a25270050e8";
+
+test("store persistence failures distinguish an outdated schema from a transient outage", () => {
+  assert.equal(classifyStoreStorageError({ code: "42P01" }), "store_schema_outdated");
+  assert.equal(classifyStoreStorageError({ code: "42703" }), "store_schema_outdated");
+  assert.equal(
+    classifyStoreStorageError({
+      code: "23514",
+      constraint: "shafak_store_transactions_operation_type_check",
+    }),
+    "store_schema_outdated",
+  );
+  assert.equal(classifyStoreStorageError({ code: "23514", constraint: "other_check" }), "store_storage_unavailable");
+  assert.equal(classifyStoreStorageError(new Error("network error")), "store_storage_unavailable");
+});
 
 function createMemoryPool(initialProfile = createDefaultPlayerProfile()) {
   let profile = structuredClone(initialProfile);

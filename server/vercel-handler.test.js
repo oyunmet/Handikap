@@ -8,6 +8,12 @@ import handler from "../api/[...path].ts";
 import duelStartHandler from "../api/duels/start.ts";
 import duelCompleteHandler from "../api/duels/complete.ts";
 import pickupHandler from "../api/profile/pickups.ts";
+import storePurchaseHandler from "../api/store/purchase.ts";
+import storeEquipHandler from "../api/store/equip.ts";
+import storeLoadoutHandler from "../api/store/combat-loadout.ts";
+import storeUpgradeHandler from "../api/store/upgrade.ts";
+import storeSellHandler from "../api/store/sell.ts";
+import storeSalvageHandler from "../api/store/salvage.ts";
 
 function getModuleSpecifiers(source) {
   const specifiers = [];
@@ -32,6 +38,12 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
     resolve(projectRoot, "api/duels/complete.ts"),
     resolve(projectRoot, "api/profile/pickups.ts"),
     resolve(projectRoot, "api/store/catalog.ts"),
+    resolve(projectRoot, "api/store/purchase.ts"),
+    resolve(projectRoot, "api/store/equip.ts"),
+    resolve(projectRoot, "api/store/combat-loadout.ts"),
+    resolve(projectRoot, "api/store/upgrade.ts"),
+    resolve(projectRoot, "api/store/sell.ts"),
+    resolve(projectRoot, "api/store/salvage.ts"),
   ];
   const visited = new Set();
 
@@ -123,6 +135,51 @@ test("explicit duel routes reach the API handler instead of returning a Vercel p
   const routes = new Map([
     ["/api/duels/start", duelStartHandler],
     ["/api/duels/complete", duelCompleteHandler],
+  ]);
+  const server = createServer((request, response) => {
+    const route = routes.get(request.url?.split("?")[0] ?? "");
+    if (route) void route(request, response);
+    else {
+      response.statusCode = 404;
+      response.end();
+    }
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  );
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  for (const path of routes.keys()) {
+    const response = await fetch(`http://127.0.0.1:${address.port}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 503, `${path} should reach the API handler`);
+    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+    assert.equal(body.error, "authentication_unavailable");
+  }
+});
+
+test("explicit store routes reach the API handler instead of returning a Vercel path-level 404", async (t) => {
+  const routes = new Map([
+    ["/api/store/purchase", storePurchaseHandler],
+    ["/api/store/equip", storeEquipHandler],
+    ["/api/store/combat-loadout", storeLoadoutHandler],
+    ["/api/store/upgrade", storeUpgradeHandler],
+    ["/api/store/sell", storeSellHandler],
+    ["/api/store/salvage", storeSalvageHandler],
   ]);
   const server = createServer((request, response) => {
     const route = routes.get(request.url?.split("?")[0] ?? "");
