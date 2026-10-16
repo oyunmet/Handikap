@@ -249,7 +249,6 @@ function CameraRig({
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const targetRef = useMemo(() => new THREE.Vector3(), []);
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
-  const impactRef = useRef({ tick: -1, startedAt: 0 });
   const cinematicStartRef = useRef<number | null>(null);
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
     id: -1,
@@ -302,15 +301,6 @@ function CameraRig({
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
-      if (combat.lastImpactTick !== impactRef.current.tick) {
-        impactRef.current = { tick: combat.lastImpactTick, startedAt: _.clock.elapsedTime };
-      }
-      const impactAge = _.clock.elapsedTime - impactRef.current.startedAt;
-      const impact = impactAge < 0.13 ? combat.lastImpactStrength * (1 - impactAge / 0.13) : 0;
-      if (impact > 0 && visualEffectsEnabled && !motionReduced) {
-        camera.position.x += Math.sin(_.clock.elapsedTime * 58) * 0.078 * impact;
-        camera.position.y += Math.cos(_.clock.elapsedTime * 51) * 0.046 * impact;
-      }
     } else if (focusedRival) {
       const playerX = motion.depth * 5.2;
       const gap = focusedRival.distance - motion.distance;
@@ -324,11 +314,15 @@ function CameraRig({
       targetRef.set(lateral * 0.42, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
     }
     camera.position.lerp(desiredRef, response);
-    const runShake = motionReduced ? 0 : travelCamera.runShake;
-    const time = _.clock.elapsedTime;
-    camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
-    camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
+    if (!combat) {
+      const runShake = motionReduced ? 0 : travelCamera.runShake;
+      const time = _.clock.elapsedTime;
+      camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
+      camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
+    }
+    camera.up.set(0, 1, 0);
     camera.lookAt(targetRef);
+    camera.rotation.z = 0;
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
@@ -377,6 +371,7 @@ function DuelFighter({
   equipmentVisual,
   visualEffectsEnabled,
   finisherSlowMotion,
+  performanceMonitorEnabled,
 }: {
   side: "player" | "bot";
   opponentName: string;
@@ -387,9 +382,11 @@ function DuelFighter({
   equipmentVisual: EquipmentVisual;
   visualEffectsEnabled: boolean;
   finisherSlowMotion: boolean;
+  performanceMonitorEnabled: boolean;
 }) {
   const actorRoot = useRef<THREE.Group>(null);
   const actorVisualRoot = useRef<THREE.Group>(null);
+  const previousActionRef = useRef<CombatAction | null>(null);
   const actorMotion = useMemo(() => ({ current: createWorldMotion() }), []);
   const renderedActor = combatRender?.[side];
   const opposingActor = combatRender?.[side === "player" ? "bot" : "player"];
@@ -440,10 +437,14 @@ function DuelFighter({
     actorMotion.current.cameraX = motionRef.current.cameraX;
     actorMotion.current.stepPhase = state.tick * 0.13;
     actorMotion.current.hasMoved = Math.hypot(actor.vx, actor.vz) > 0.25;
-    actorRoot.current?.position.set(actor.x, 0, actor.z);
+    if (actorRoot.current) {
+      actorRoot.current.position.set(actor.x, 0, actor.z);
+      actorRoot.current.rotation.set(0, 0, 0);
+      actorRoot.current.scale.set(1, 1, 1);
+    }
   });
 
-  useFrame((frame) => {
+  useFrame((frame, delta) => {
     const visualRoot = actorVisualRoot.current;
     if (!visualRoot) return;
     const baseScale = side === "bot" ? (boss ? 1.22 : 1.07) : 1;
@@ -460,19 +461,32 @@ function DuelFighter({
     const exhaustion = visualEffectsEnabled && !motionReduced && !defeated
       ? THREE.MathUtils.clamp((0.2 - staminaRatio) / 0.2, 0, 1)
       : 0;
-    visualRoot.position.y = jumpHeight
+    const action = liveActor?.action ?? null;
+    if (previousActionRef.current !== action) {
+      visualRoot.position.y = 0;
+      visualRoot.rotation.set(0, 0, 0);
+      visualRoot.scale.set(baseScale, baseScale, baseScale);
+      previousActionRef.current = action;
+    }
+    const targetVisualY = jumpHeight
       + (liveActor?.isCrouching ? -0.27 : 0)
       - hitStagger * 0.14
       + Math.sin(frame.clock.elapsedTime * 4.6) * 0.026 * exhaustion;
-    visualRoot.rotation.x = liveActor?.isAiming ? 0.08 : liveActor?.isCrouching ? 0.16 : Math.sin(frame.clock.elapsedTime * 2.4) * 0.018 * exhaustion;
-    visualRoot.rotation.z = hitStagger * 0.36;
-    if (!visualEffectsEnabled || !defeated) {
-      visualRoot.scale.set(baseScale, baseScale * (liveActor?.isCrouching ? 0.82 : 1), baseScale);
-      return;
-    }
-    // Keep the defeated fighter visible while the procedural/GLB death pose
-    // settles on the arena floor; the ash particles remain a secondary effect.
-    visualRoot.scale.set(baseScale, baseScale, baseScale);
+    const targetTiltX = defeated
+      ? 0
+      : liveActor?.isAiming ? 0.035 : liveActor?.isCrouching ? 0.045 : 0;
+    const targetTiltZ = defeated ? 0 : hitStagger * 0.14;
+    const targetScaleY = baseScale * (liveActor?.isCrouching && !defeated ? 0.88 : 1);
+    const dt = Math.min(delta, 0.05);
+    visualRoot.position.y = THREE.MathUtils.damp(visualRoot.position.y, targetVisualY, 14, dt);
+    visualRoot.rotation.x = THREE.MathUtils.damp(visualRoot.rotation.x, targetTiltX, 12, dt);
+    visualRoot.rotation.y = 0;
+    visualRoot.rotation.z = THREE.MathUtils.damp(visualRoot.rotation.z, targetTiltZ, 12, dt);
+    visualRoot.scale.set(
+      baseScale,
+      THREE.MathUtils.damp(visualRoot.scale.y, targetScaleY, 12, dt),
+      baseScale,
+    );
   });
 
   if (!renderedActor) return null;
@@ -500,6 +514,7 @@ function DuelFighter({
           motionReduced={motionReduced}
           animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
           facingAngle={facingAngle}
+          debugUpright={performanceMonitorEnabled}
           appearance={side === "player" ? equipmentVisual : opponentProfile?.appearance}
           castShadow
           modelConfig={modelConfig}
@@ -1043,6 +1058,202 @@ function DuelTargetMarker({ combatStateRef }: { combatStateRef: MutableRefObject
   );
 }
 
+type DuelArenaInstance = {
+  position: [number, number, number];
+  scale: [number, number, number];
+  rotation?: [number, number, number];
+  color: string;
+};
+
+function DuelArenaStonework() {
+  const pavingRef = useRef<THREE.InstancedMesh>(null);
+  const stainRef = useRef<THREE.InstancedMesh>(null);
+  const wallRef = useRef<THREE.InstancedMesh>(null);
+  const columnRef = useRef<THREE.InstancedMesh>(null);
+  const capstoneRef = useRef<THREE.InstancedMesh>(null);
+  const torchShaftRef = useRef<THREE.InstancedMesh>(null);
+  const torchBowlRef = useRef<THREE.InstancedMesh>(null);
+  const torchFlameRef = useRef<THREE.InstancedMesh>(null);
+
+  useEffect(() => {
+    const dummy = new THREE.Object3D();
+    const tint = new THREE.Color();
+    const apply = (mesh: THREE.InstancedMesh | null, instances: DuelArenaInstance[]) => {
+      if (!mesh) return;
+      mesh.count = instances.length;
+      instances.forEach((instance, index) => {
+        dummy.position.set(...instance.position);
+        dummy.rotation.set(...(instance.rotation ?? [0, 0, 0]));
+        dummy.scale.set(...instance.scale);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(index, dummy.matrix);
+        mesh.setColorAt(index, tint.set(instance.color));
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    };
+
+    const paving: DuelArenaInstance[] = [];
+    const stoneColors = ["#65565a", "#5b4d52", "#716164", "#594c50", "#66585a"];
+    for (let row = -7; row <= 7; row += 1) {
+      for (let column = -7; column <= 7; column += 1) {
+        const x = column * 0.96 + (Math.abs(row) % 2) * 0.46;
+        const z = row * 0.91;
+        const radius = Math.hypot(x, z);
+        if (radius > 6.4) continue;
+        const variation = (Math.abs(row * 17 + column * 29) % 7) / 6;
+        paving.push({
+          position: [x, 0.055 + variation * 0.008, z - 0.6],
+          scale: [0.89 + variation * 0.08, 0.07 + variation * 0.025, 0.83 + variation * 0.1],
+          rotation: [0, ((row + column) % 2) * 0.018, 0],
+          color: stoneColors[(Math.abs(row * 11 + column * 7)) % stoneColors.length],
+        });
+      }
+    }
+
+    const stains: DuelArenaInstance[] = [
+      { position: [-2.45, 0.12, -1.38], scale: [0.92, 0.42, 1], rotation: [-Math.PI / 2, -0.4, 0], color: "#543b40" },
+      { position: [1.95, 0.12, -2.55], scale: [0.66, 0.34, 1], rotation: [-Math.PI / 2, 0.7, 0], color: "#49373c" },
+      { position: [3.35, 0.12, 0.72], scale: [0.74, 0.28, 1], rotation: [-Math.PI / 2, -0.6, 0], color: "#5c4140" },
+      { position: [-3.7, 0.12, 1.55], scale: [0.68, 0.3, 1], rotation: [-Math.PI / 2, 0.5, 0], color: "#4b3b40" },
+      { position: [0.15, 0.12, 3.1], scale: [0.55, 0.26, 1], rotation: [-Math.PI / 2, 0.1, 0], color: "#604342" },
+      { position: [-0.65, 0.12, -4.1], scale: [0.48, 0.22, 1], rotation: [-Math.PI / 2, -0.2, 0], color: "#4c3b3e" },
+    ];
+
+    const wallHeights = [2.5, 3.6, 1.8, 4.3, 2.7, 1.5, 3.9, 2.2, 4.5, 1.9, 3.2];
+    const wall: DuelArenaInstance[] = wallHeights.map((height, index) => {
+      const angle = -1.27 + (index / (wallHeights.length - 1)) * 2.54;
+      const radius = 13.5 + (index % 3) * 0.22;
+      return {
+        position: [Math.sin(angle) * radius, height / 2, -Math.cos(angle) * radius - 0.6] as [number, number, number],
+        scale: [2.5 + (index % 3) * 0.24, height, 0.78 + (index % 2) * 0.12] as [number, number, number],
+        rotation: [0, -angle, 0] as [number, number, number],
+        color: index % 3 === 0 ? "#55484b" : index % 3 === 1 ? "#665458" : "#4d4246",
+      };
+    });
+
+    const columnHeights = [2.5, 1.45, 3.6, 2.05, 4.2, 1.25, 3.25, 2.55, 4.45, 1.7, 2.85, 3.7, 1.95];
+    const columnAngles = columnHeights.map((_, index) => -2.3 + (index / (columnHeights.length - 1)) * 4.6);
+    const columns = columnHeights.map((height, index) => {
+      const angle = columnAngles[index];
+      const radius = 9.55 + (index % 3) * 0.12;
+      return {
+        position: [Math.sin(angle) * radius, height / 2, -Math.cos(angle) * radius - 0.6] as [number, number, number],
+        scale: [0.82 + (index % 2) * 0.1, height, 0.82 + (index % 3) * 0.05] as [number, number, number],
+        rotation: [0, -angle, 0] as [number, number, number],
+        color: index % 3 === 0 ? "#615155" : index % 3 === 1 ? "#514549" : "#70595a",
+      };
+    });
+
+    const capstone: DuelArenaInstance[] = [1, 3, 5, 7, 9, 11].map((index) => {
+      const angle = columnAngles[index];
+      const height = columnHeights[index];
+      const radius = 9.55 + (index % 3) * 0.12;
+      return {
+        position: [Math.sin(angle) * radius, height + 0.06, -Math.cos(angle) * radius - 0.6] as [number, number, number],
+        scale: [0.78, 0.16, 0.72],
+        rotation: [0, -angle + (index % 2) * 0.12, 0] as [number, number, number],
+        color: "#7a6661",
+      };
+    });
+
+    const torchPositions: [number, number][] = [
+      [-5.72, -0.55],
+      [5.72, -0.55],
+      [-3.8, -5.05],
+      [3.8, 3.95],
+    ];
+    const torches = (height: number, color: string): DuelArenaInstance[] => torchPositions.map(([x, z], index) => ({
+      position: [x, height, z] as [number, number, number],
+      scale: [1, 1, 1],
+      rotation: [0, index * 0.12, 0] as [number, number, number],
+      color,
+    }));
+
+    apply(pavingRef.current, paving);
+    apply(stainRef.current, stains);
+    apply(wallRef.current, wall);
+    apply(columnRef.current, columns);
+    apply(capstoneRef.current, capstone);
+    apply(torchShaftRef.current, torches(0.53, "#69524a"));
+    apply(torchBowlRef.current, torches(1.12, "#80614e"));
+    apply(torchFlameRef.current, torches(1.52, "#f29a53"));
+  }, []);
+
+  return (
+    <>
+      <instancedMesh ref={pavingRef} args={[undefined, undefined, 160]} receiveShadow>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#a99a92" roughness={0.96} metalness={0.015} />
+      </instancedMesh>
+      <instancedMesh ref={stainRef} args={[undefined, undefined, 6]} renderOrder={1}>
+        <circleGeometry args={[1, 10]} />
+        <meshBasicMaterial color="#775351" transparent opacity={0.2} depthWrite={false} />
+      </instancedMesh>
+      <instancedMesh ref={wallRef} args={[undefined, undefined, 11]} castShadow receiveShadow>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#a89a92" roughness={0.97} />
+      </instancedMesh>
+      <instancedMesh ref={columnRef} args={[undefined, undefined, 13]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.25, 0.34, 1, 7, 1]} />
+        <meshStandardMaterial color="#b4a39a" roughness={0.91} />
+      </instancedMesh>
+      <instancedMesh ref={capstoneRef} args={[undefined, undefined, 6]} castShadow receiveShadow>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#ad9b8f" roughness={0.92} />
+      </instancedMesh>
+      <instancedMesh ref={torchShaftRef} args={[undefined, undefined, 4]} castShadow>
+        <cylinderGeometry args={[0.1, 0.15, 1, 6]} />
+        <meshStandardMaterial color="#a9937e" roughness={0.84} />
+      </instancedMesh>
+      <instancedMesh ref={torchBowlRef} args={[undefined, undefined, 4]}>
+        <cylinderGeometry args={[0.25, 0.15, 0.24, 6]} />
+        <meshStandardMaterial color="#b29a7b" roughness={0.78} metalness={0.12} />
+      </instancedMesh>
+      <instancedMesh ref={torchFlameRef} args={[undefined, undefined, 4]}>
+        <coneGeometry args={[0.2, 0.58, 5]} />
+        <meshBasicMaterial color="#f3a05d" toneMapped={false} />
+      </instancedMesh>
+
+      <mesh position={[0, 0.18, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[7.48, 8.04, 64, 1, 0.08, Math.PI - 0.16]} />
+        <meshStandardMaterial color="#5b4b4d" roughness={0.98} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.46, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[8.15, 8.73, 64, 1, 0.08, Math.PI - 0.16]} />
+        <meshStandardMaterial color="#685457" roughness={0.96} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.74, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[8.84, 9.42, 64, 1, 0.08, Math.PI - 0.16]} />
+        <meshStandardMaterial color="#52464b" roughness={0.98} side={THREE.DoubleSide} />
+      </mesh>
+
+      {[-5.72, 5.72].map((x) => (
+        <pointLight key={x} position={[x, 1.55, -0.55]} color="#ffb56d" intensity={8} distance={13} decay={2} />
+      ))}
+    </>
+  );
+}
+
+function DuelArenaAtmosphere() {
+  const { scene } = useThree();
+
+  useEffect(() => {
+    const previousBackground = scene.background;
+    const previousFog = scene.fog;
+    const dusk = new THREE.Color("#483a40");
+    scene.background = dusk;
+    scene.fog = new THREE.Fog("#483a40", 26, 72);
+    return () => {
+      scene.background = previousBackground;
+      scene.fog = previousFog;
+    };
+  }, [scene]);
+
+  return null;
+}
+
 function DuelArena({
   opponentName,
   motionRef,
@@ -1054,56 +1265,43 @@ function DuelArena({
   visualEffectsEnabled,
   finisherSlowMotion,
   botTelegraphActive,
-}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive">) {
+  performanceMonitorEnabled,
+}: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive" | "performanceMonitorEnabled">) {
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
       <mesh position={[0, -0.11, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[42, 96]} />
-        <meshBasicMaterial color="#302830" side={THREE.DoubleSide} toneMapped={false} />
+        <meshBasicMaterial color="#342c32" side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
+      <DuelArenaAtmosphere />
+      <DuelArenaStonework />
       {visualEffectsEnabled && <DuelAshField />}
       <pointLight position={[0, 5.2, 2.2]} color="#ffe0b0" intensity={82} distance={24} decay={2} />
-      <pointLight position={[0, 4.1, -3.8]} color="#a5daf0" intensity={42} distance={22} decay={2} />
+      <pointLight position={[0, 4.1, -3.8]} color="#e9b681" intensity={30} distance={22} decay={2} />
       <pointLight position={[-3.2, 2.8, -0.4]} color="#ff795c" intensity={16} distance={10} decay={2} />
+      <directionalLight position={[0, 8, -10]} color="#f7b879" intensity={0.95} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[7.12, 96]} />
         <meshStandardMaterial
-          color="#493a44"
-          emissive="#30242f"
-          emissiveIntensity={0.28}
+          color="#514248"
+          emissive="#2c2228"
+          emissiveIntensity={0.18}
           roughness={0.94}
           metalness={0.04}
         />
       </mesh>
       <mesh position={[0, 0.026, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[7.03, 7.14, 96]} />
-        <meshBasicMaterial color="#855248" transparent opacity={0.3} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#9b6b54" transparent opacity={0.23} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[0, 0.055, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[6.7, 6.88, 96]} />
-        <meshBasicMaterial color="#f2a05b" transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color="#c38c5d" transparent opacity={0.28} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh position={[0, 0.045, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[6.3, 6.38, 72]} />
-        <meshBasicMaterial color="#e45c48" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color="#9a574d" transparent opacity={0.14} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      {[
-        [-5.72, -0.55],
-        [5.72, -0.55],
-        [-3.8, -5.05],
-        [3.8, 3.95],
-      ].map(([x, z]) => (
-        <group key={`${x}-${z}`} position={[x, 0, z]}>
-          <mesh position={[0, 0.66, 0]}>
-            <cylinderGeometry args={[0.085, 0.13, 1.3, 7]} />
-            <meshStandardMaterial color="#4b3030" roughness={0.78} />
-          </mesh>
-          <mesh position={[0, 1.43, 0]}>
-            <dodecahedronGeometry args={[0.19, 0]} />
-            <meshBasicMaterial color="#ff9d58" transparent opacity={0.85} depthWrite={false} />
-          </mesh>
-        </group>
-      ))}
       {DUEL_COVERS.map((cover, index) => (
         <group key={index} position={[cover.x, 0, cover.z]}>
           <mesh position={[0, 0.53, 0]} castShadow receiveShadow>
@@ -1137,8 +1335,8 @@ function DuelArena({
       {combatRender && (
         <>
           <DuelTargetMarker combatStateRef={combatStateRef} />
-          <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
-          <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} />
+          <DuelFighter side="player" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} performanceMonitorEnabled={performanceMonitorEnabled} />
+          <DuelFighter side="bot" opponentName={opponentName} motionRef={motionRef} combatStateRef={combatStateRef} combatRender={combatRender} motionReduced={motionReduced} equipmentVisual={equipmentVisual} visualEffectsEnabled={visualEffectsEnabled} finisherSlowMotion={finisherSlowMotion} performanceMonitorEnabled={performanceMonitorEnabled} />
         </>
       )}
     </group>
@@ -1423,7 +1621,6 @@ function SceneContents({
       )}
       {combatActive && (
         <group name="duel-world">
-          <color attach="background" args={["#46353e"]} />
           <hemisphereLight args={["#ffe2c3", "#30252f", 2.2]} />
           <ambientLight color="#ffdbb3" intensity={1.4} />
           <directionalLight position={[-8, 14, 8]} color="#ffd09a" intensity={2.4} />
@@ -1459,6 +1656,7 @@ function SceneContents({
           visualEffectsEnabled={visualEffectsEnabled}
           finisherSlowMotion={finisherSlowMotion}
           botTelegraphActive={botTelegraphActive}
+          performanceMonitorEnabled={performanceMonitorEnabled}
         />
       ) : (
         <KnightActor

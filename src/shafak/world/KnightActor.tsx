@@ -19,6 +19,7 @@ import {
 import type { OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
+import { getUprightDuelRotation } from "../game/duel-camera";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -26,6 +27,7 @@ type KnightActorProps = {
   motionReduced: boolean;
   animationTimeScale?: number;
   facingAngle?: number;
+  debugUpright?: boolean;
   talking?: boolean;
   footSlipRef?: MutableRefObject<number>;
   castShadow?: boolean;
@@ -157,6 +159,7 @@ function OptionalGlbKnight({
   motionReduced,
   animationTimeScale = 1,
   facingAngle,
+  debugUpright = false,
   talking = false,
   footSlipRef,
   appearance,
@@ -168,6 +171,7 @@ function OptionalGlbKnight({
     loader.setMeshoptDecoder(MeshoptDecoder);
   }) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
+  const warnedTiltRef = useRef(false);
   const { model, ownedMaterials } = useMemo(
     () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow),
     [gltf.scene, modelPath, modelConfig, castShadow],
@@ -258,7 +262,11 @@ function OptionalGlbKnight({
     if (root) {
       root.position.x = motion.depth * 5.2;
       root.position.y = motion.jumpHeight;
-      root.scale.y = THREE.MathUtils.damp(root.scale.y, motion.crouching ? 0.72 : 1, 12, Math.min(delta, 0.05));
+      if (facingAngle === undefined) {
+        root.scale.y = THREE.MathUtils.damp(root.scale.y, motion.crouching ? 0.72 : 1, 12, Math.min(delta, 0.05));
+      } else {
+        root.scale.set(1, 1, 1);
+      }
       if (facingAngle === undefined) {
         root.rotation.y = Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
         if (motion.velocityY < -0.25) {
@@ -272,6 +280,19 @@ function OptionalGlbKnight({
           Math.cos(targetYaw - root.rotation.y),
         );
         root.rotation.y += turn * (1 - Math.exp(-Math.max(0, Math.min(delta, 0.05)) * 10));
+      }
+      root.rotation.set(...getUprightDuelRotation(root.rotation.y));
+
+      if (debugUpright && facingAngle !== undefined) {
+        const tilted = Math.abs(root.rotation.x) > 0.05 || Math.abs(root.rotation.z) > 0.05;
+        if (tilted && !warnedTiltRef.current) {
+          console.warn("[shafak-duel] GLB character root tilt exceeded 0.05 radians.", {
+            x: root.rotation.x,
+            z: root.rotation.z,
+            state,
+          });
+        }
+        warnedTiltRef.current = tilted;
       }
     }
     if (selectedAction) {

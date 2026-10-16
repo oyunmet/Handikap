@@ -11,6 +11,7 @@ import {
 import { solveTwoBoneLeg } from "./leg-ik";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
+import { getUprightDuelRotation } from "../game/duel-camera";
 import type { EquipmentVisual } from "../game/store-types";
 
 type Knight3DProps = {
@@ -19,6 +20,7 @@ type Knight3DProps = {
   motionReduced: boolean;
   animationTimeScale?: number;
   facingAngle?: number;
+  debugUpright?: boolean;
   talking?: boolean;
   footSlipRef?: MutableRefObject<number>;
   castShadow?: boolean;
@@ -213,6 +215,7 @@ export default function Knight3D({
   motionReduced,
   animationTimeScale = 1,
   facingAngle,
+  debugUpright = false,
   talking = false,
   footSlipRef,
   castShadow = true,
@@ -240,6 +243,7 @@ export default function Knight3D({
     depthWrite: false,
   }), []);
   const previousState = useRef(state);
+  const warnedTiltRef = useRef(false);
   const actionElapsed = useRef(0);
   const footLocks = useMemo(() => [
     { cycle: Number.NaN, distance: 0, depth: 0 },
@@ -320,7 +324,11 @@ export default function Knight3D({
     const deathDrop = state === "die" ? actionProgress * 0.08 : 0;
     root.position.y += (motion.jumpHeight + bob - deathDrop - root.position.y) * (1 - Math.exp(-dt * 14));
     const crouchScale = motion.crouching ? 0.72 : 1;
-    root.scale.y += (crouchScale - root.scale.y) * (1 - Math.exp(-dt * 12));
+    if (facingAngle === undefined) {
+      root.scale.y += (crouchScale - root.scale.y) * (1 - Math.exp(-dt * 12));
+    } else {
+      root.scale.set(1, 1, 1);
+    }
 
     let targetYaw = facingAngle === undefined
       ? Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)))
@@ -328,10 +336,26 @@ export default function Knight3D({
     if (facingAngle === undefined && motion.velocityY < -0.25) targetYaw = Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY));
     if (facingAngle === undefined && (!moving || state === "die")) targetYaw = 0;
     root.rotation.y = THREE.MathUtils.damp(root.rotation.y, targetYaw, 7, dt);
-    const backflipRotation = state === "backflip" ? actionProgress * Math.PI * 2 : 0;
-    root.rotation.x = THREE.MathUtils.damp(root.rotation.x, backflipRotation, 14, dt);
-    const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;
-    root.rotation.z = THREE.MathUtils.damp(root.rotation.z, fall, 5, dt);
+    if (facingAngle === undefined) {
+      const backflipRotation = state === "backflip" ? actionProgress * Math.PI * 2 : 0;
+      root.rotation.x = THREE.MathUtils.damp(root.rotation.x, backflipRotation, 14, dt);
+      const fall = state === "die" ? actionProgress * Math.PI * 0.47 : 0;
+      root.rotation.z = THREE.MathUtils.damp(root.rotation.z, fall, 5, dt);
+    } else {
+      root.rotation.set(...getUprightDuelRotation(root.rotation.y));
+    }
+
+    if (debugUpright && facingAngle !== undefined) {
+      const tilted = Math.abs(root.rotation.x) > 0.05 || Math.abs(root.rotation.z) > 0.05;
+      if (tilted && !warnedTiltRef.current) {
+        console.warn("[shafak-duel] Character root tilt exceeded 0.05 radians.", {
+          x: root.rotation.x,
+          z: root.rotation.z,
+          state,
+        });
+      }
+      warnedTiltRef.current = tilted;
+    }
 
     const idleBreath = motionReduced ? 0 : Math.sin(time * 1.45) * 0.014;
     const strideTwist = moving && !motionReduced ? Math.sin(phase) * 0.065 : idleBreath;

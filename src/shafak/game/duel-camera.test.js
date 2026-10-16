@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DUEL_JUMP_HEIGHT, getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight } from "./duel-camera.ts";
+import { DUEL_JUMP_HEIGHT, getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight, getUprightDuelRotation } from "./duel-camera.ts";
 import { getKnightActorRootYaw } from "../world/knight-config.ts";
 
 test("duel camera stays behind the player and places both fighters side by side", () => {
@@ -45,6 +45,11 @@ test("procedural duel fighters turn their armored fronts toward one another", ()
     const frontZ = -Math.cos(yaw);
     assert.ok(frontX * dx + frontZ * dz > 0, "each armored front must point toward the rival");
   }
+});
+
+test("duel root rotations keep pitch and roll pinned to zero", () => {
+  assert.deepEqual(getUprightDuelRotation(1.2), [0, 1.2, 0]);
+  assert.deepEqual(getUprightDuelRotation(Number.NaN), [0, 0, 0]);
 });
 
 test("the camera shows a side-on face-off while remaining behind the player", () => {

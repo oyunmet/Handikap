@@ -1,4 +1,5 @@
 export type DuelPoint = { x: number; z: number };
+export type UprightDuelRotation = readonly [x: 0, y: number, z: 0];
 
 export type DuelCameraPose = {
   position: { x: number; y: number; z: number };
@@ -27,6 +28,10 @@ export function getDuelJumpHeight(actor: DuelJumpState, tick: number) {
 
 export function getDuelFacingAngle(actor: DuelPoint, opponent: DuelPoint) {
   return Math.atan2(opponent.x - actor.x, opponent.z - actor.z);
+}
+
+export function getUprightDuelRotation(yaw: number): UprightDuelRotation {
+  return [0, Number.isFinite(yaw) ? yaw : 0, 0];
 }
 
 export function getDuelCameraPose(
