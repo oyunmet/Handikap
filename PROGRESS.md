@@ -34,3 +34,13 @@
 
 - A ve B uygulandı; genel typecheck/test/build son aşamada bir kez çalıştırılacak.
 - iPhone Safari FPS ve canlı Vercel görünümü bu çalışma alanından doğrulanamaz; kullanıcı Vercel'e kendisi yayınlar.
+
+## Kod denetimi — 16 Ekim 2026
+
+- **A — TAMAM:** Altın ödül küçük para yığını olarak çiziliyor; yüksek ışık sütunu ve pickup'a bağlı koni yok.
+- **B1 — TAMAM:** Kül Yolu'nda SİLAH düğmesi ve sahip olunan silahları gösteren seçim paneli var.
+- **B2 — TAMAM:** Düello kontrollerinde ikinci silah atanmışsa çalışan silah değiştirme düğmesi var.
+- **B3 — TAMAM:** `store-catalog.ts` içinde 6'dan fazla silahın istatistik ve görsel verisi tanımlı.
+- **C — YOK:** Düello karakterinde yalnızca Y ekseninde dönüş ve `rotation.x/z = 0` kuralı yok; X/Z dönüşleri uygulanıyor.
+- **D — YARIM:** Seed'li chunk üretimi, prosedürel dağ/çevre öğeleri, kapı ve karakter modeli mevcut; istenen yan duvarlar, kapı, prop ve karakterlerin kapsamlı yenilemesinin tamamı koddan doğrulanamıyor.
+- **E — YARIM:** Düello arenası mevcut (zemin halkaları, ışıklar, meşaleler ve siperler); tam arena yenilemesini doğrulayan yeterli işaret yok.
