@@ -2881,6 +2881,7 @@ export default function WorldScene({
                     ? `${battleSession.rival.name} → ${profile.name}`
                     : `${profile.name} → ${battleSession.rival.name}`}</small>
                 )}
+                {event.type === "hit" && <strong>−{event.damage ?? 0} CAN{event.critical ? " · KRİTİK" : ""}</strong>}
                 {(event.type === "block" || event.type === "parry" || (event.type === "dodge" && event.attack)) && (
                   <small>{event.target === "player"
                     ? `${battleSession.rival.name} → ${profile.name}`
@@ -2967,7 +2968,7 @@ export default function WorldScene({
                 <div className="duel-tutorial__rows">
                   <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
                   <div><span aria-hidden="true">⬟</span><b>KALKAN</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
-                  <div><span aria-hidden="true">↝</span><b>ATILMA</b><i>Kısa süre hasar almazsın · geri çift basış takla, kenarda sekme</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">↝</span><b>KAÇ</b><i>Kısa süre hasar almazsın · geri çift basış takla, kenarda sekme</i><strong>↙</strong></div>
                   <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>

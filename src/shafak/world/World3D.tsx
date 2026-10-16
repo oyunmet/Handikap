@@ -268,13 +268,7 @@ function CameraRig({
     const lateral = motion.depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
     if (combat) {
-      if (duelCameraHeadingRef.current === null) {
-        const dx = combat.bot.x - combat.player.x;
-        const dz = combat.bot.z - combat.player.z;
-        duelCameraHeadingRef.current = Math.hypot(dx, dz) > 1e-4
-          ? Math.atan2(dx, dz)
-          : Math.PI;
-      }
+      duelCameraHeadingRef.current = Math.PI;
     } else {
       duelCameraHeadingRef.current = null;
     }
@@ -309,8 +303,8 @@ function CameraRig({
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 8.4 : 9,
-        touchRenderer ? 1.2 : 1.5,
+        touchRenderer ? 8.8 : 9.4,
+        touchRenderer ? 0.35 : 0.6,
         jumpLift,
         duelCameraHeadingRef.current ?? Math.PI,
       );

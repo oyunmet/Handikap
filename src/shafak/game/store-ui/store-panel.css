@@ -542,6 +542,8 @@
 .safak-store__detail-empty > span { color: var(--store-brass); font-size: 30px; }
 .safak-store__detail-empty p { max-width: 190px; margin: 0; font-size: 10px; line-height: 1.6; }
 
+.safak-store__feedback button { flex: 0 0 auto; min-height: 32px; padding: 0 11px; border: 1px solid rgba(255,203,128,.68); border-radius: 3px; background: linear-gradient(140deg,#875132,#4b3029); color: #fff0d6; cursor: pointer; font: 900 8px var(--font-body,sans-serif); letter-spacing: .09em; }
+.safak-store__feedback button:focus-visible { outline: 2px solid #f3d18b; outline-offset: 2px; }
 .safak-store__feedback {
   display: flex;
   align-items: center;
