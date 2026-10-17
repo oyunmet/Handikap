@@ -1,0 +1,32 @@
+Oyun mantığına, ekonomiye, Türkçe metinlere ve kayıt sistemine dokunmadan şunları düzelt. Başlamadan git commit ile yedek al.
+
+1) PERFORMANS (mobil kasıyor)
+- renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)). Kalite "Düşük"te 1.0.
+- Gölge: yalnızca güneş gölge düşürsün, shadow map 1024, shadow camera oyuncunun etrafındaki ~25 m'yi kapsasın ve oyuncuyu takip etsin. Dekor nesneler gölge DÜŞÜRMESİN (sadece oyuncu, düşman, büyük engeller).
+- PointLight sayısı en fazla 2. Meşaleler için ışık yerine emissive materyal ve sprite parlama kullan.
+- Oyuncudan 40 m'den uzak karakterlerin AnimationMixer'ını durdur, 60 m'den uzaktakileri gizle.
+- Ekrandaki etiketler (HTML/CSS2D) kapıya yaklaşınca üst üste yığılıyor: yalnızca 20 m içindeki ve en yakın 6 etiketi göster, diğerlerini gizle.
+- Tekrarlayan dekorları (sütun, ağaç, meşale, kaya) InstancedMesh yap, texture boyutu en fazla 1024. HDRI'yi 1k çözünürlüğe düşür.
+- Basit FPS izleyici ekle: 2 sn boyunca ortalama FPS 40'ın altındaysa kaliteyi otomatik bir kademe düşür (pixelRatio, gölge, parçacık). Konsola FPS yaz ve bana raporla.
+
+2) KOŞU MODU SINIRLARI
+- Oyuncu yol dışına çıkamasın. Yolun yarı genişliğini bul, oyuncunun yan konumunu bu değerin 0.6 m içine clamp et. Yol başı ve yol sonu (kapı önü) için de clamp koy.
+- Yol kenarında görünmez duvar + hafif geri itme olsun. Dekorlar yolun dışında kalsın.
+- Kamera da yolun dışına taşmasın.
+
+3) DÜELLO ARENASI
+- Dairesel arena yarıçapı 9 m. Oyuncu başlangıç (-3, 0), rakip (+3, 0), birbirlerine bakarak başlasın.
+- Oyuncu ve rakip arena merkezinden 8.2 m'den fazla uzaklaşamasın (clamp). Geri savrulma (knockback) ve Kaç hareketi de bu sınıra takılsın.
+- Sınırda zeminde parlayan rün halkası görünsün, yaklaşınca belirginleşsin.
+- Kamera iki karakterin orta noktasını kadraja alsın: arkadan/yandan, mesafe karakterler arası uzaklığa göre 7-11 m, arena dışına çıkmasın. Oyuncu rakibe kilitli (lock-on) dönsün.
+- Joystick kameraya göre hareket ettirsin.
+- Düşman AI'ı oyuncuya doğru yaklaşıp saldırsın, arenada kalsın.
+
+4) DÜELLO BUTONLARI
+- Düzen: solda joystick. Sağ başparmak bölgesinde büyük SALDIRI; çevresinde yay şeklinde KALKAN, KAÇ, KOR, YILDIRIM; ZIPLA sol-üstte kalsın. Butonlar üst üste binmesin, en az 56 px dokunma alanı, ekrandan taşmasın.
+- SALDIRI: seçili silahın (Kül Kılıcı / Gölge Kılıcı) mesh'i elde görünsün, basınca 3 vuruşluk kombo animasyonu oynasın, basılı tutunca ağır vuruş. İki silahın görünümü ve ışık izi farklı olsun. Silah değiştirme kartlarına dokununca ya da yeni bir "SİLAH" butonuna basınca el silahı gerçekten değişsin.
+- KAÇ: joystick yönüne kısa bir takla/atılma (0.25 sn, 3 m), sırasında hasar almasın (iframe), dayanıklılık harcasın, bekleme halkası göstersin. Yön yoksa geriye atılsın. Arena sınırından çıkamasın.
+- KALKAN: basılı tutulduğu sürece aktif, kalkan mesh'i/efekti görünsün.
+
+5) DOĞRULAMA
+- FPS önce/sonra, uygulanan sınırlar ve buton düzeni için kısa rapor ver. Uygulamanın hatasız açıldığını doğrula.

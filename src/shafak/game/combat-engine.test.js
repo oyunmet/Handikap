@@ -6,6 +6,7 @@ import {
   COMBAT_ARENA_RADIUS,
   COMBAT_BOT_ARCHETYPES,
   COMBO_CHAIN_WINDOW_TICKS,
+  DUEL_COVERS,
   MAX_DUEL_TICKS,
   PERFECT_BLOCK_WINDOW_TICKS,
   createCombatOpponentTuning,
@@ -339,10 +340,11 @@ test("a short bow requires aim, uses a knife at close range, and can fire throug
 test("ranged shots are stopped by arena cover rather than damaging the rival", () => {
   const state = createCombatState(2906, "easy");
   state.weaponIds[0] = "weapon_short_bow";
+  const coverZ = DUEL_COVERS[1].z;
   state.player.x = -4;
-  state.player.z = COMBAT_ARENA_CENTER_Z;
+  state.player.z = coverZ;
   state.bot.x = 4;
-  state.bot.z = COMBAT_ARENA_CENTER_Z;
+  state.bot.z = coverZ;
   state.bot.staggerUntilTick = 1_000;
   const attack = tapCombatButton(state, INPUT_BUTTON.attack, INPUT_BUTTON.aim);
   const resolved = advanceCombat(attack.state, 12, INPUT_BUTTON.aim);

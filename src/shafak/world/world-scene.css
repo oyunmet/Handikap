@@ -1623,10 +1623,10 @@
 }
 .duel-controls--field .duel-control__icon { width: 18px; height: 18px; }
 .duel-controls--field .duel-control.is-skill {
-  width: 54px;
-  height: 54px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
   border-radius: 16px;
 }
 .duel-controls--field .duel-control.is-fire {
@@ -1692,10 +1692,10 @@
   gap: 8px;
 }
 .duel-controls--field .duel-control.is-stance {
-  width: 50px;
-  height: 50px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
   border-radius: 15px;
   border-color: rgba(194, 169, 128, .62);
   background: linear-gradient(145deg, #564b3c, #242829 78%);
@@ -1708,16 +1708,16 @@
   top: max(166px, calc(env(safe-area-inset-top) + 156px));
   left: max(14px, env(safe-area-inset-left));
   display: grid;
-  width: 110px;
+  width: 118px;
   max-width: none;
-  grid-template-columns: repeat(2, 52px);
+  grid-template-columns: repeat(2, 56px);
   grid-auto-flow: row;
   gap: 6px;
   transform: none;
 }
 .duel-controls--field .duel-quickslot {
-  min-width: 50px;
-  min-height: 50px;
+  min-width: 56px;
+  min-height: 56px;
   border-color: rgba(192, 171, 136, .58);
   border-radius: 9px;
   background: linear-gradient(145deg, rgba(57,53,45,.94), rgba(19,23,23,.97));
@@ -1778,7 +1778,7 @@
 .duel-controls--field .duel-weapon-select__prompt { margin-left: auto; color: #c4a578; font-size: 6px; }
 .duel-controls--field .duel-weapon-select__slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .duel-controls--field .duel-weapon-select__slot {
-  min-height: 50px;
+  min-height: 56px;
   padding: 6px 7px;
   border-color: rgba(190, 171, 139, .42);
   border-radius: 8px;
@@ -1800,7 +1800,7 @@
   top: max(104px, calc(env(safe-area-inset-top) + 96px));
   right: max(14px, env(safe-area-inset-right));
   min-width: 64px;
-  min-height: 44px;
+  min-height: 56px;
   border-color: rgba(203,177,138,.4);
   border-radius: 6px;
   background: rgba(17,20,21,.78);
@@ -1811,8 +1811,8 @@
   top: max(104px, calc(env(safe-area-inset-top) + 96px));
   right: auto;
   left: max(138px, calc(env(safe-area-inset-left) + 128px));
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   border-color: rgba(191,172,139,.52);
   border-radius: 9px;
   background: rgba(20,24,24,.86);
@@ -1852,7 +1852,7 @@
 }
 @media (max-width: 350px) {
   .duel-controls--field .duel-stick { width: 94px; height: 94px; }
-  .duel-controls--field .duel-control.is-skill { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
+  .duel-controls--field .duel-control.is-skill { width: 56px; height: 56px; min-width: 56px; min-height: 56px; }
   .duel-controls--field .duel-control.is-block,
   .duel-controls--field .duel-control.is-dodge { width: 58px; height: 58px; }
   .duel-controls--field .duel-control.is-dodge { left: 62px; }
@@ -1866,15 +1866,15 @@
   }
   .duel-controls--field .duel-stick-caption { bottom: max(2px, env(safe-area-inset-bottom)); }
   .duel-controls--field .duel-stance-controls { top: max(88px, calc(env(safe-area-inset-top) + 78px)); }
-  .duel-controls--field .duel-quickbar { top: max(143px, calc(env(safe-area-inset-top) + 133px)); }
+  .duel-controls--field .duel-quickbar { top: max(152px, calc(env(safe-area-inset-top) + 142px)); }
   .duel-controls--field .duel-control-cluster {
     right: max(12px, calc(env(safe-area-inset-right) + 8px));
     bottom: max(8px, calc(env(safe-area-inset-bottom) + 5px));
-    height: 156px;
+    height: 164px;
   }
-  .duel-controls--field .duel-control.is-block { top: 82px; }
-  .duel-controls--field .duel-control.is-dodge { top: 48px; }
-  .duel-controls--field .duel-control.is-attack { top: 66px; }
+  .duel-controls--field .duel-control.is-block { top: 92px; }
+  .duel-controls--field .duel-control.is-dodge { top: 66px; }
+  .duel-controls--field .duel-control.is-attack { top: 76px; }
   .duel-controls--field .duel-weapon-select { bottom: max(174px, calc(env(safe-area-inset-bottom) + 164px)); }
   .duel-controls--field .duel-forfeit,
   .duel-controls--field .duel-help-button { top: max(72px, calc(env(safe-area-inset-top) + 64px)); }
@@ -2106,7 +2106,7 @@
     min-height: 56px;
   }
   .duel-controls--field .duel-stance-controls {
-    top: max(220px, calc(env(safe-area-inset-top) + 212px));
+    top: max(282px, calc(env(safe-area-inset-top) + 270px));
     left: max(14px, calc(env(safe-area-inset-left) + 10px));
     gap: 6px;
   }
@@ -2196,9 +2196,10 @@
   }
   .duel-controls--field .duel-quickbar {
     top: max(72px, calc(env(safe-area-inset-top) + 64px));
+    left: max(10px, env(safe-area-inset-left));
   }
   .duel-controls--field .duel-stance-controls {
-    top: max(134px, calc(env(safe-area-inset-top) + 126px));
+    top: max(194px, calc(env(safe-area-inset-top) + 186px));
   }
   .duel-controls--field .duel-control-cluster {
     bottom: max(8px, calc(env(safe-area-inset-bottom) + 5px));

@@ -176,7 +176,7 @@ test("purchased rings fill an empty ring slot before replacing the first ring", 
   profile.diamonds = 100;
   profile.inventory.ownedItemIds.push("ring_ember");
   profile.equipment.ringOneId = "ring_ember";
-  const { pool, send } = await openStoreApi(t, profile);
+  const { pool, send } = await openStoreApi(t, profile, () => new Date("2026-10-17T12:00:00.000Z"));
   const response = await send("purchase", {
     itemId: "special_moon_ring",
     idempotencyKey: "992a9e11-5c21-4e51-89c9-2b9de7247869",

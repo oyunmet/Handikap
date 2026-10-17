@@ -1,4 +1,5 @@
 - [External npm lockfile portability](external-npm-lockfiles.md) — Normalize private URLs and keep npm/pnpm root dependencies aligned; Vercel may require both.
+- [Replit npm lockfile recovery](replit-npm-recovery.md) — Use the existing npm lockfile with `npm ci` if helper resolution fails.
 - [Vercel native TypeScript imports](vercel-native-typescript-imports.md) — In this Node 24 project, local ESM imports in API graphs must name `.ts` explicitly; `tsx` can hide missing extensions.
 - [Game identity and hosting](handikap-original-identity.md) — Production uses external Vercel; the user handles Git pushes and deployments.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.

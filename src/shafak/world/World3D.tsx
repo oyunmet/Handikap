@@ -19,6 +19,7 @@ import { WorldAssetProgress } from "./WorldModel";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
+import { getStoreItem } from "../game/store-catalog.ts";
 import type { EquipmentVisual } from "../game/store-types";
 import type { WorldInteractableRegistry } from "./world-interactables";
 import {
@@ -651,6 +652,20 @@ function DuelFighter({
       : undefined,
     [opponentName, opponentProfile, side],
   );
+  const activeWeaponVisual = side === "player" && combatRender
+    ? getStoreItem(combatRender.weaponIds[combatRender.activeWeaponSlot])?.visual
+    : undefined;
+  const fighterAppearance = useMemo(() => {
+    if (side !== "player") return opponentProfile?.appearance;
+    if (!activeWeaponVisual) return equipmentVisual;
+    return {
+      ...equipmentVisual,
+      weaponStyle: activeWeaponVisual.weaponStyle ?? equipmentVisual.weaponStyle,
+      weaponColor: activeWeaponVisual.weaponColor ?? equipmentVisual.weaponColor,
+      trailColor: activeWeaponVisual.trailColor ?? equipmentVisual.trailColor,
+      auraColor: activeWeaponVisual.auraColor ?? equipmentVisual.auraColor,
+    };
+  }, [activeWeaponVisual, equipmentVisual, opponentProfile?.appearance, side]);
   const modelAnimationState = modelConfig
     ? combatRender?.ended
       ? combatRender.verdict === "defeat"
@@ -770,7 +785,7 @@ function DuelFighter({
           animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
           facingAngle={facingAngle}
           debugUpright={performanceMonitorEnabled}
-          appearance={side === "player" ? equipmentVisual : opponentProfile?.appearance}
+          appearance={fighterAppearance}
           castShadow
           playerCharacter={side === "player"}
           modelConfig={modelConfig}
@@ -907,6 +922,10 @@ function DuelCombatVisual({
   motionReduced: boolean;
   equipmentVisual: EquipmentVisual;
 }) {
+  const eventWeaponVisual = useMemo(
+    () => event.weaponId ? getStoreItem(event.weaponId)?.visual : undefined,
+    [event.weaponId],
+  );
   const fireballRef = useRef<THREE.Group>(null);
   const lightningMaterialRef = useRef<THREE.LineBasicMaterial>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
@@ -982,7 +1001,11 @@ function DuelCombatVisual({
       weaponTrailMaterialRef.current.opacity = fade * (event.plunge ? 0.9 : 0.76);
       weaponTrailMaterialRef.current.color.set(
         event.target === "bot"
-          ? equipmentVisual.trailColor ?? equipmentVisual.weaponColor ?? "#fff0bd"
+          ? eventWeaponVisual?.trailColor
+            ?? eventWeaponVisual?.weaponColor
+            ?? equipmentVisual.trailColor
+            ?? equipmentVisual.weaponColor
+            ?? "#fff0bd"
           : event.critical ? "#ff9c78" : "#ff806d",
       );
     }
