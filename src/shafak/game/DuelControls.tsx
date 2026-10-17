@@ -130,6 +130,25 @@ function ControlIcon({ className }: { className: string }) {
   );
 }
 
+function QuickItemIcon({ id }: { id: string }) {
+  const path = id === "health_potion"
+    ? "M12 21s-7-4.7-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.3-7 11-7 11Z"
+    : id === "stamina_potion"
+      ? "M13 2 5 13h6l-1 9 9-12h-6l1-8Z"
+      : id === "venom_vial"
+        ? "M9 3h6m-5 0v5l-4 4v7a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-7l-4-4V3m-5 11h6"
+        : id === "throwing_knife"
+          ? "m5 19 13-14 1 7-7 1-7 6Zm8-7 5 5"
+          : id === "explosive_flask"
+            ? "M10 3h4m-3 0v5l-4 3v8a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-8l-4-3V3m-5 9h10"
+            : "M5 15a7 7 0 0 1 14 0c0 3-3.1 5-7 5s-7-2-7-5Zm2-6c.7-1.5 1.7-2.4 3-2.8m5 .2c1 .6 1.6 1.4 2 2.6";
+  return (
+    <svg className="duel-quickslot__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  );
+}
+
 export default function DuelControls({
   disabled = false,
   stamina,
@@ -198,9 +217,15 @@ export default function DuelControls({
     joystickRef.current?.style.setProperty("--stick-y", "0px");
     onMove(0, 0);
   };
+  const activeWeapon = weaponNames[activeWeaponSlot] ?? weaponNames[0] ?? "silah";
+  const isDagger = /av bıçağı|bıçak|dagger/i.test(activeWeapon);
+  const attackLabel = isBowActive ? (bowCloseRange ? "YAKIN" : "ATEŞ") : isDagger ? "BIÇAK" : "SALDIRI";
+  const attackDescription = isBowActive
+    ? bowCloseRange ? "Yayla yakın mesafe saldırısı" : "Yay ile ateş et"
+    : `${isDagger ? "Bıçakla saldır" : "Seçili silahla saldır"}: ${activeWeapon}`;
 
   return (
-    <div className={`duel-controls${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
+    <div className={`duel-controls duel-controls--field${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
       <button className="duel-forfeit" type="button" onClick={onSurrender} disabled={disabled}>PES ET</button>
       <div
         ref={joystickRef}
@@ -214,6 +239,7 @@ export default function DuelControls({
       >
         <span aria-hidden="true" />
       </div>
+      <span className="duel-stick-caption" aria-hidden="true">HAREKET</span>
       <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L KAÇ · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
@@ -239,7 +265,12 @@ export default function DuelControls({
         </button>
       </div>
       {weaponNames[1] && <div className="duel-weapon-select" role="group" aria-label="Düello silah seçimi">
-        {weaponNames.map((name, slot) => {
+        <div className="duel-weapon-select__heading">
+          <span>DONANIM</span>
+          <b aria-hidden="true">V</b>
+          <span className="duel-weapon-select__prompt">SİLAH DEĞİŞTİR</span>
+        </div>
+        <div className="duel-weapon-select__slots">{weaponNames.map((name, slot) => {
           if (!name) return null;
           const selected = activeWeaponSlot === slot;
           const ariaDisabled = selected || weaponSwapCooldownSeconds > 0 || disabled;
@@ -267,7 +298,7 @@ export default function DuelControls({
               {!selected && weaponSwapCooldownSeconds > 0 && <i>{weaponSwapCooldownSeconds.toFixed(1)} sn</i>}
             </button>
           );
-        })}
+        })}</div>
       </div>}
       {quickItems.some((item) => item.id) && <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
         {quickItems.map((item, index) => {
@@ -322,7 +353,7 @@ export default function DuelControls({
               }}
             >
               <span className="duel-quickslot__number">{index + 1}</span>
-              <strong aria-hidden="true">{item.id ? item.icon : "＋"}</strong>
+              <strong aria-hidden="true">{item.id ? <QuickItemIcon id={item.id} /> : null}</strong>
               <span className="duel-quickslot__name">{item.shortName}</span>
               <b>{item.count}</b>
               {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
@@ -356,7 +387,7 @@ export default function DuelControls({
         <div className="duel-control-cluster__actions">
           <HeldButton button={INPUT_BUTTON.dodge} label="KAÇ" className="is-dodge" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 20 ? "KAÇ için 20 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
           <HeldButton button={INPUT_BUTTON.block} label="KALKAN" className="is-block" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 1 ? "Kalkan için dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
-          <HeldButton button={INPUT_BUTTON.attack} label="SALDIRI" accessibleLabel={`Seçili silahla saldır: ${weaponNames[activeWeaponSlot] ?? weaponNames[0] ?? "silah"}`} className="is-attack" onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton button={INPUT_BUTTON.attack} label={attackLabel} accessibleLabel={attackDescription} className={`is-attack${isBowActive ? " is-bow" : ""}${isBowActive && bowCloseRange ? " is-close-range" : ""}${isDagger ? " is-dagger" : ""}`} onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
         </div>
       </div>
     </div>

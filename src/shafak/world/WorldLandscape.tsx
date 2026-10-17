@@ -7,11 +7,19 @@ import { WORLD_CHUNK_LENGTH_METERS } from "./movement";
 import { createWorldChunk, type WorldChunk, type WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import {
-  BEVELED_STONE_BLOCK_GEOMETRY,
   STONE_PBR_MATERIAL_PROPS,
 } from "./procedural-materials";
+import {
+  createConnectedRidgeGeometry,
+  createRoadShoulderGeometry,
+  getLandmarkGeometry,
+  getNaturalTreeGeometry,
+  type LandmarkKind,
+  type LandscapeQuality,
+  type TreeSpecies,
+} from "./world-natural-geometry";
 
-type WorldQuality = "high" | "balanced" | "low";
+type WorldQuality = LandscapeQuality;
 
 type Props = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -42,6 +50,19 @@ function makeSkyGeometry() {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   return geometry;
 }
+
+const NATURAL_TREE_MATERIAL = new THREE.MeshStandardMaterial({
+  vertexColors: true,
+  roughness: 0.94,
+  metalness: 0,
+});
+const WEATHERED_LANDMARK_MATERIAL = new THREE.MeshStandardMaterial({
+  ...STONE_PBR_MATERIAL_PROPS,
+  vertexColors: true,
+  color: "#ffffff",
+  roughness: 0.96,
+  metalness: 0,
+});
 
 function paintSky(geometry: THREE.SphereGeometry, distance: number) {
   const transition = getBiomeTransition(distance);
@@ -168,61 +189,52 @@ function RidgeLayer({
   layer,
   seed,
   color,
+  quality,
 }: {
   motionRef: Props["motionRef"];
   layer: number;
   seed: number;
   color: string;
+  quality: WorldQuality;
 }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const geometry = useMemo(() => new THREE.ConeGeometry(1, 1, 6, 1), []);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const geometry = useMemo(() => createConnectedRidgeGeometry(seed, layer, quality), [layer, quality, seed]);
   const material = useMemo(() => new THREE.MeshStandardMaterial({
+    vertexColors: true,
     color,
     roughness: 1,
-    flatShading: true,
+    flatShading: false,
     emissive: color,
     emissiveIntensity: 0.08,
   }), [color]);
-  const peaks = useMemo(() => {
-    const random = seededRandom(seed);
-    return Array.from({ length: 48 }, (_, index) => {
-      const row = Math.floor(index / 16);
-      const column = index % 16;
-      return {
-        x: (column - 7.5) * (row === 0 ? 21 : 17) + (random() - 0.5) * 8,
-        y: 4 + random() * (row === 0 ? 18 : 29),
-        z: -92 - layer * 28 - row * 33 - random() * 20,
-        width: 10 + random() * 18,
-        height: 24 + random() * (row === 0 ? 34 : 56),
-        lean: (random() - 0.5) * 0.3,
-      };
-    });
-  }, [layer, seed]);
-  const transform = useMemo(() => new THREE.Object3D(), []);
-
-  useLayoutEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    for (let index = 0; index < peaks.length; index += 1) {
-      const peak = peaks[index];
-      transform.position.set(peak.x, peak.y, peak.z);
-      transform.rotation.set(0, peak.lean, 0);
-      transform.scale.set(peak.width, peak.height, peak.width * 0.7);
-      transform.updateMatrix();
-      mesh.setMatrixAt(index, transform.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-  }, [peaks, transform]);
+  const targetColor = useMemo(() => new THREE.Color(), []);
+  const lastPalette = useMemo(() => ({ distance: -10, biome: "", mix: -1 }), []);
 
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    mesh.position.z = -((motionRef.current.cameraX * (0.025 + layer * 0.018)) % 150);
+    mesh.position.z = -92 - layer * 28 - ((motionRef.current.cameraX * (0.025 + layer * 0.018)) % 150);
+    const distance = motionRef.current.distance;
+    if (Math.abs(distance - lastPalette.distance) < 0.75) return;
+    const transition = getBiomeTransition(distance);
+    if (transition.biome === lastPalette.biome && Math.abs(transition.mix - lastPalette.mix) < 0.012) {
+      lastPalette.distance = distance;
+      return;
+    }
+    const from = WORLD_BIOME_PALETTES[transition.from];
+    const to = WORLD_BIOME_PALETTES[transition.to];
+    material.color.set(from[`mountain${layer === 0 ? "Far" : layer === 1 ? "Mid" : "Near"}`])
+      .lerp(targetColor.set(to[`mountain${layer === 0 ? "Far" : layer === 1 ? "Mid" : "Near"}`]), transition.mix);
+    material.emissive.copy(material.color).multiplyScalar(0.08);
+    lastPalette.distance = distance;
+    lastPalette.biome = transition.biome;
+    lastPalette.mix = transition.mix;
   });
   return (
-    <instancedMesh
+    <mesh
       ref={meshRef}
-      args={[geometry, material, peaks.length]}
+      geometry={geometry}
+      material={material}
       frustumCulled={false}
       castShadow={false}
       receiveShadow={false}
@@ -230,7 +242,7 @@ function RidgeLayer({
   );
 }
 
-function DistantRidges({ motionRef }: { motionRef: Props["motionRef"] }) {
+function DistantRidges({ motionRef, quality }: { motionRef: Props["motionRef"]; quality: WorldQuality }) {
   const colors = useMemo(() => ({
     far: new THREE.Color("#373746"),
     middle: new THREE.Color("#51414a"),
@@ -238,18 +250,29 @@ function DistantRidges({ motionRef }: { motionRef: Props["motionRef"] }) {
   }), []);
   return (
     <>
-      <RidgeLayer motionRef={motionRef} layer={0} seed={0x45a21} color={colors.far.getStyle()} />
-      <RidgeLayer motionRef={motionRef} layer={1} seed={0x92a51} color={colors.middle.getStyle()} />
-      <RidgeLayer motionRef={motionRef} layer={2} seed={0x175a2} color={colors.near.getStyle()} />
+      <RidgeLayer motionRef={motionRef} layer={0} seed={0x45a21} color={colors.far.getStyle()} quality={quality} />
+      <RidgeLayer motionRef={motionRef} layer={1} seed={0x92a51} color={colors.middle.getStyle()} quality={quality} />
+      <RidgeLayer motionRef={motionRef} layer={2} seed={0x175a2} color={colors.near.getStyle()} quality={quality} />
     </>
   );
 }
 
-function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: WeatherMode }) {
+function Road({
+  motionRef,
+  weather,
+  quality,
+}: {
+  motionRef: Props["motionRef"];
+  weather: WeatherMode;
+  quality: WorldQuality;
+}) {
   const texture = useMemo(createRoadTexture, []);
   const chipsRef = useRef<THREE.InstancedMesh>(null);
   const chipTransform = useMemo(() => new THREE.Object3D(), []);
   const chipGeometry = useMemo(() => new THREE.CircleGeometry(1, 5), []);
+  const shoulderGeometry = useMemo(() => createRoadShoulderGeometry(quality), [quality]);
+  const groundTargetColor = useMemo(() => new THREE.Color(), []);
+  const roadTargetColor = useMemo(() => new THREE.Color(), []);
   const chipMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     color: "#ffffff",
     roughness: 1,
@@ -260,6 +283,11 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
     roughness: 1,
     flatShading: true,
   }), []);
+  const shoulderMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#554447",
+    roughness: 1,
+    vertexColors: true,
+  }), []);
   const roadMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     map: texture,
     color: "#eee2d7",
@@ -269,9 +297,10 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
     emissiveIntensity: 0.16,
   }), [texture, weather]);
   const railMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    color: "#927266",
-    roughness: 0.88,
-    metalness: 0.1,
+    ...STONE_PBR_MATERIAL_PROPS,
+    color: "#846d61",
+    roughness: 0.95,
+    metalness: 0.02,
   }), []);
   const chipPositions = useMemo(() => {
     const random = seededRandom(0x99a731);
@@ -304,8 +333,9 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
     const transition = getBiomeTransition(motionRef.current.distance);
     const from = WORLD_BIOME_PALETTES[transition.from];
     const to = WORLD_BIOME_PALETTES[transition.to];
-    groundMaterial.color.set(from.ground).lerp(new THREE.Color(to.ground), transition.mix);
-    roadMaterial.color.set(from.road).lerp(new THREE.Color(to.road), transition.mix);
+    groundMaterial.color.set(from.ground).lerp(groundTargetColor.set(to.ground), transition.mix);
+    roadMaterial.color.set(from.road).lerp(roadTargetColor.set(to.road), transition.mix);
+    shoulderMaterial.color.copy(groundMaterial.color).multiplyScalar(1.08);
     texture.offset.y = ((motionRef.current.cameraX / 46) % 1 + 1) % 1;
     if (weather === "rain" || weather === "storm") {
       roadMaterial.roughness = weather === "storm" ? 0.28 : 0.42;
@@ -318,6 +348,7 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
 
   return (
     <group>
+      <mesh geometry={shoulderGeometry} material={shoulderMaterial} position={[0, 0, ROAD_CENTER_Z]} />
       <mesh
         position={[0, -0.52, ROAD_CENTER_Z]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -336,12 +367,12 @@ function Road({ motionRef, weather }: { motionRef: Props["motionRef"]; weather: 
       </mesh>
       {[-7.12, 7.12].map((x) => (
         <group key={x}>
-          <mesh position={[x, 0.03, ROAD_CENTER_Z]} receiveShadow castShadow>
-            <boxGeometry args={[0.3, 0.26, ROAD_LENGTH]} />
+          <mesh position={[x * 1.02, -0.015, ROAD_CENTER_Z]} rotation={[Math.PI / 2, 0, 0]} receiveShadow castShadow>
+            <cylinderGeometry args={[0.078, 0.078, ROAD_LENGTH, 10, 1]} />
             <primitive object={railMaterial} attach="material" />
           </mesh>
-          <mesh position={[x * 1.07, -0.05, ROAD_CENTER_Z]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.2, ROAD_LENGTH]} />
+          <mesh position={[x, -0.079, ROAD_CENTER_Z]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.14, ROAD_LENGTH]} />
             <meshBasicMaterial color="#d7a778" transparent opacity={0.42} toneMapped={false} />
           </mesh>
         </group>
@@ -399,9 +430,15 @@ function ScenicProp({
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const swayRef = useRef<THREE.Group>(null);
-  const tint = object.biome === "frozen-pass" ? "#77919e"
-    : object.biome === "red-marsh" ? "#72504d" : "#705d58";
   const seed = object.flickerSeed;
+  const landmarkKind: LandmarkKind | null = object.kind === "tower" || object.kind === "ruin" || object.kind === "arch"
+    ? object.kind
+    : null;
+  const landmarkGeometry = landmarkKind ? getLandmarkGeometry(landmarkKind, object.biome) : null;
+  const treeSpecies: TreeSpecies = object.kind === "pine-tree" ? "pine"
+    : object.kind === "skeletal-tree" ? "skeletal"
+      : object.kind === "mangrove" ? "mangrove" : "ash";
+  const treeGeometry = getNaturalTreeGeometry(treeSpecies, object.biome);
 
   useFrame((frame) => {
     const root = rootRef.current;
@@ -423,47 +460,25 @@ function ScenicProp({
     >
       {(object.kind === "tower" || object.kind === "ruin" || object.kind === "arch") && (
         <group>
-          <mesh position={[-1.35, 1.9, 0]} scale={[0.72, 3.8, 0.82]} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color={tint} roughness={0.96} />
-          </mesh>
-          <mesh position={[1.35, 2.35, 0]} scale={[0.7, 4.7, 0.86]} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#806761" roughness={0.93} />
-          </mesh>
-          <mesh position={[0, 4.45, 0]} scale={[3.5, 0.62, 0.94]} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#76605d" roughness={0.94} />
-          </mesh>
-          <mesh position={[-1.35, 2.52, 0.44]}>
-            <boxGeometry args={[0.18, 0.62, 0.08]} />
-            <meshBasicMaterial color="#f3a36c" toneMapped={false} />
-          </mesh>
-          <mesh position={[1.35, 2.92, 0.46]}>
-            <boxGeometry args={[0.16, 0.56, 0.08]} />
-            <meshBasicMaterial color="#ffd49a" toneMapped={false} />
-          </mesh>
-          {object.kind === "arch" && (
-            <mesh position={[0, 3.9, 0.08]} rotation={[0, 0, Math.PI / 2]}>
-              <torusGeometry args={[1.15, 0.2, 10, 28, Math.PI]} />
-              <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#90776b" roughness={0.92} />
-            </mesh>
+          {landmarkGeometry && (
+            <mesh
+              geometry={landmarkGeometry}
+              material={WEATHERED_LANDMARK_MATERIAL}
+              castShadow
+              receiveShadow
+            />
           )}
         </group>
       )}
-      {(object.kind === "tree" || object.kind === "mangrove") && (
+      {(object.kind === "tree" || object.kind === "pine-tree" || object.kind === "skeletal-tree" || object.kind === "mangrove") && (
         <group ref={swayRef}>
-          <mesh position={[0, 1.55, 0]}>
-            <cylinderGeometry args={[0.12, 0.32, 3.1, 6]} />
-            <meshStandardMaterial color="#392c2b" roughness={1} flatShading />
-          </mesh>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.56, 2.24, 0]} rotation={[0, 0, -side * 0.56]}>
-              <cylinderGeometry args={[0.035, 0.13, 1.8, 5]} />
-              <meshStandardMaterial color="#413130" roughness={1} flatShading />
-            </mesh>
-          ))}
-          <mesh position={[0.04, 3.22, 0]} rotation={[0.04, 0.18, -0.08]}>
-            <coneGeometry args={[1.1, 2.25, 5]} />
-            <meshStandardMaterial color={object.kind === "mangrove" ? "#53614b" : "#303039"} roughness={1} flatShading />
-          </mesh>
+          <mesh
+            geometry={treeGeometry}
+            material={NATURAL_TREE_MATERIAL}
+            castShadow
+            receiveShadow
+            rotation={[0, 0, treeSpecies === "skeletal" ? -0.035 : 0]}
+          />
         </group>
       )}
       {(object.kind === "fern" || object.kind === "moss-bush") && (
@@ -618,6 +633,52 @@ function WeatherParticles({
   );
 }
 
+function AmbientMotes({
+  motionRef,
+  quality,
+  motionReduced,
+}: {
+  motionRef: Props["motionRef"];
+  quality: WorldQuality;
+  motionReduced: boolean;
+}) {
+  const count = quality === "high" ? 28 : quality === "balanced" ? 16 : 8;
+  const pointsRef = useRef<THREE.Points>(null);
+  const positions = useMemo(() => new Float32Array(count * 3), [count]);
+  const seeds = useMemo(() => {
+    const random = seededRandom(0x42cafe);
+    return Array.from({ length: count }, () => [random(), random(), random()]);
+  }, [count]);
+  useFrame((frame) => {
+    const points = pointsRef.current;
+    if (!points) return;
+    const time = motionReduced ? 0 : frame.clock.elapsedTime;
+    for (let index = 0; index < count; index += 1) {
+      const [x, y, z] = seeds[index];
+      positions[index * 3] = (x - 0.5) * 29 + Math.sin(time * 0.18 + z * 12) * 0.7;
+      positions[index * 3 + 1] = 0.8 + y * 8 + Math.sin(time * 0.5 + x * 9) * 0.35;
+      positions[index * 3 + 2] = 8 - z * 42;
+    }
+    const position = points.geometry.getAttribute("position") as THREE.BufferAttribute;
+    position.needsUpdate = true;
+  });
+  return (
+    <points ref={pointsRef} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
+      </bufferGeometry>
+      <pointsMaterial
+        color="#e5bb83"
+        size={0.075}
+        sizeAttenuation
+        transparent
+        opacity={0.42}
+        depthWrite={false}
+      />
+    </points>
+  );
+}
+
 function getChunks(distance: number) {
   const current = Math.floor(Math.max(0, distance) / WORLD_CHUNK_LENGTH_METERS);
   const chunks: WorldChunk[] = [];
@@ -643,8 +704,8 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
   return (
     <group name="rebuilt-road-world">
       <WorldSky motionRef={motionRef} />
-      <DistantRidges motionRef={motionRef} />
-      <Road motionRef={motionRef} weather={weather} />
+      <DistantRidges motionRef={motionRef} quality={quality} />
+      <Road motionRef={motionRef} weather={weather} quality={quality} />
       {objects.map((object) => (
         <ScenicProp
           key={object.id}
@@ -654,6 +715,7 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
         />
       ))}
       <WeatherParticles weather={weather} quality={quality} motionReduced={motionReduced} />
+      <AmbientMotes motionRef={motionRef} quality={quality} motionReduced={motionReduced} />
       <hemisphereLight args={["#f2d6c6", "#322a32", 1.72]} />
       <ambientLight color="#f4d5c0" intensity={0.72} />
       <directionalLight position={[-22, 32, 18]} color="#ffe0b9" intensity={2.45} />
