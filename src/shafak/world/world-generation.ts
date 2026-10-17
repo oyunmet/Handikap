@@ -11,6 +11,7 @@ export const MIN_WORLD_PARALLAX = 0.38;
 
 export type WorldObjectKind =
   | "tower"
+  | "column"
   | "ruin"
   | "arch"
   | "tree"
@@ -56,7 +57,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const biome = getBiomeForDistance(start + WORLD_CHUNK_LENGTH_METERS / 2);
   const kinds: WorldObjectKind[] = biome === "frozen-pass"
     ? [
-      random() > 0.5 ? "tower" : "ruin",
+      random() > 0.5 ? "tower" : "column",
       "pine-tree",
       "flag",
       random() > 0.5 ? "ruin" : treeKind(),
@@ -67,7 +68,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
     ]
     : biome === "red-marsh"
       ? [
-        random() > 0.5 ? "ruin" : "tower",
+        random() > 0.5 ? "column" : "tower",
         "mangrove",
         "flag",
         random() > 0.5 ? "reed" : treeKind(),
@@ -77,7 +78,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
         random() > 0.5 ? "mangrove" : "moss-bush",
       ]
       : [
-        random() > 0.5 ? "tower" : "ruin",
+        random() > 0.5 ? "tower" : "column",
         random() > 0.46 ? treeKind() : "rock",
         "flag",
         "fern",
@@ -92,7 +93,10 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
     const side = (index + objectIndex) % 2 === 0 ? -1 : 1;
     // Alternate deliberate roadside landmarks so the route feels framed rather
     // than filled with props scattered over a random grid.
-    const roadsideLane = side * (0.84 + random() * 0.09);
+    const isLandmark = kind === "tower" || kind === "column" || kind === "ruin" || kind === "arch";
+    const roadsideLane = side * (isLandmark
+      ? 1 + random() * 0.12
+      : 0.84 + random() * 0.14);
     const landmarkScale = objectIndex === 0 || objectIndex === 4
       ? 0.94 + random() * 0.24
       : 0.7 + random() * 0.3;
@@ -174,7 +178,7 @@ export function nextGateDistanceForCamera(cameraX: number, distanceBehind: numbe
 }
 
 function parallaxFor(kind: WorldObjectKind) {
-  if (kind === "tower" || kind === "ruin" || kind === "arch") return 0.42;
+  if (kind === "tower" || kind === "column" || kind === "ruin" || kind === "arch") return 0.42;
   if (kind === "tree") return 0.58;
   if (kind === "flag") return 0.82;
   if (kind === "torch" || kind === "firepit") return 0.9;

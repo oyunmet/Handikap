@@ -3,7 +3,7 @@ import type { WorldBiome } from "./world-biomes.ts";
 
 export type TreeSpecies = "ash" | "pine" | "skeletal" | "mangrove";
 
-export type LandmarkKind = "tower" | "ruin" | "arch";
+export type LandmarkKind = "tower" | "column" | "ruin" | "arch";
 export type LandscapeQuality = "high" | "balanced" | "low";
 
 export const WORLD_ROAD_WIDTH = 9.2;
@@ -148,6 +148,53 @@ function createBrokenTowerGeometry() {
   return geometry;
 }
 
+function createCarvedColumnGeometry() {
+  const profile = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.52, 0),
+    new THREE.Vector2(0.66, 0.07),
+    new THREE.Vector2(0.68, 0.2),
+    new THREE.Vector2(0.54, 0.29),
+    new THREE.Vector2(0.43, 0.43),
+    new THREE.Vector2(0.39, 0.56),
+    new THREE.Vector2(0.42, 0.61),
+    new THREE.Vector2(0.42, 0.67),
+    new THREE.Vector2(0.39, 0.72),
+    new THREE.Vector2(0.38, 1.52),
+    new THREE.Vector2(0.42, 1.57),
+    new THREE.Vector2(0.42, 1.64),
+    new THREE.Vector2(0.38, 1.69),
+    new THREE.Vector2(0.38, 2.47),
+    new THREE.Vector2(0.42, 2.52),
+    new THREE.Vector2(0.42, 2.59),
+    new THREE.Vector2(0.38, 2.64),
+    new THREE.Vector2(0.4, 3.37),
+    new THREE.Vector2(0.48, 3.48),
+    new THREE.Vector2(0.62, 3.57),
+    new THREE.Vector2(0.68, 3.65),
+    new THREE.Vector2(0.68, 3.82),
+    new THREE.Vector2(0.48, 3.91),
+    new THREE.Vector2(0, 3.91),
+  ];
+  const geometry = new THREE.LatheGeometry(profile, 48);
+  const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+  for (let index = 0; index < positions.count; index += 1) {
+    const x = positions.getX(index);
+    const y = positions.getY(index);
+    const z = positions.getZ(index);
+    const angle = Math.atan2(z, x);
+    const shaftBlend = THREE.MathUtils.smoothstep(y, 0.7, 1.05)
+      * (1 - THREE.MathUtils.smoothstep(y, 3.1, 3.45));
+    const fluting = 1 - (0.028 + Math.cos(angle * 12) * 0.026) * shaftBlend;
+    positions.setXYZ(index, x * fluting, y, z * fluting);
+  }
+  positions.needsUpdate = true;
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 function createExtrudedRuin(kind: "ruin" | "arch") {
   const outline = new THREE.Shape();
   const opening = new THREE.Path();
@@ -203,7 +250,11 @@ export function getLandmarkGeometry(kind: LandmarkKind, biome: WorldBiome) {
   const key = `${kind}:${biome}`;
   let geometry = landmarkGeometryCache.get(key);
   if (!geometry) {
-    geometry = kind === "tower" ? createBrokenTowerGeometry() : createExtrudedRuin(kind);
+    geometry = kind === "tower"
+      ? createBrokenTowerGeometry()
+      : kind === "column"
+        ? createCarvedColumnGeometry()
+        : createExtrudedRuin(kind);
     addWeatheredStoneColor(geometry, biome);
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
@@ -221,6 +272,7 @@ export function createRoadShoulderGeometry(quality: LandscapeQuality) {
   const segmentsAcross = quality === "high" ? 10 : quality === "balanced" ? 6 : 3;
   const segmentLength = 440;
   const roadHalfWidth = WORLD_ROAD_WIDTH / 2;
+  const roadsideClearance = 2.5;
   const shoulderWidth = 5.2;
 
   for (const side of [-1, 1]) {
@@ -231,7 +283,7 @@ export function createRoadShoulderGeometry(quality: LandscapeQuality) {
         + Math.sin(z * 0.117 - side) * 0.009;
       for (let across = 0; across <= segmentsAcross; across += 1) {
         const blend = across / segmentsAcross;
-        const x = side * (roadHalfWidth + blend * shoulderWidth);
+        const x = side * (roadHalfWidth + roadsideClearance + blend * shoulderWidth);
         const y = -0.08 - Math.pow(blend, 1.18) * 0.44 + wave * Math.sin(blend * Math.PI * 0.5);
         positions.push(x, y, z);
         const soil = 0.76 + blend * 0.18 + Math.sin(z * 0.19 + across * 3.7) * 0.035;
@@ -309,8 +361,23 @@ function createTreeGeometry(species: TreeSpecies, biome: WorldBiome) {
   append(trunk, barkColor, [0, 1.72, 0], [0, 0, species === "mangrove" ? -0.08 : 0], [1, 1, 1]);
   trunk.dispose();
 
+  if (species !== "skeletal") {
+    const root = new THREE.CylinderGeometry(0.018, 0.2, 0.72, 12, 3);
+    for (let index = 0; index < 5; index += 1) {
+      const angle = (index / 5) * Math.PI * 2;
+      append(
+        root,
+        barkColor.clone().multiplyScalar(0.88),
+        [Math.cos(angle) * 0.17, 0.27, Math.sin(angle) * 0.17],
+        [Math.cos(angle) * 0.52, angle, Math.sin(angle) * 0.52],
+        [species === "mangrove" ? 1.4 : 1, 1, 1],
+      );
+    }
+    root.dispose();
+  }
+
   const branch = new THREE.CylinderGeometry(0.025, 0.105, 1.7, 12, 2);
-  const branchCount = species === "skeletal" ? 6 : species === "mangrove" ? 5 : 4;
+  const branchCount = species === "skeletal" ? 7 : species === "mangrove" ? 6 : 5;
   for (let index = 0; index < branchCount; index += 1) {
     const side = index % 2 === 0 ? -1 : 1;
     const height = 1.35 + (index % 3) * 0.56;
@@ -328,11 +395,25 @@ function createTreeGeometry(species: TreeSpecies, biome: WorldBiome) {
 
   if (species !== "skeletal") {
     const foliage = new THREE.SphereGeometry(1, 18, 12);
+    const foliagePositions = foliage.getAttribute("position") as THREE.BufferAttribute;
+    const phase = species === "pine" ? 2.2 : species === "mangrove" ? 4.6 : 0.8;
+    for (let index = 0; index < foliagePositions.count; index += 1) {
+      const x = foliagePositions.getX(index);
+      const y = foliagePositions.getY(index);
+      const z = foliagePositions.getZ(index);
+      const weather = Math.sin(x * 4.8 + phase) * Math.cos(z * 5.2 - phase)
+        + Math.sin(y * 6.3 - x * 2.1 + phase * 0.4) * 0.42;
+      const radius = 1 + weather * 0.033;
+      foliagePositions.setXYZ(index, x * radius, y * radius, z * radius);
+    }
+    foliagePositions.needsUpdate = true;
+    foliage.computeVertexNormals();
     const clumps = species === "pine"
       ? [
-        [-0.12, 3.05, 0, 0.83, 0.68, 0.78],
-        [0.19, 3.8, -0.04, 0.68, 0.64, 0.68],
-        [-0.08, 4.43, 0.02, 0.48, 0.58, 0.5],
+        [-0.08, 2.84, 0, 0.86, 0.57, 0.8],
+        [0.16, 3.43, -0.04, 0.73, 0.62, 0.71],
+        [-0.11, 4.02, 0.02, 0.61, 0.56, 0.6],
+        [0.04, 4.49, 0, 0.43, 0.51, 0.44],
       ]
       : species === "mangrove"
         ? [
@@ -396,6 +477,21 @@ function createNaturalRockGeometry(variant: number) {
 
   positions.needsUpdate = true;
   geometry.computeVertexNormals();
+  const normals = geometry.getAttribute("normal") as THREE.BufferAttribute;
+  const fallbackNormal = new THREE.Vector3();
+  for (let index = 0; index < normals.count; index += 1) {
+    fallbackNormal.set(normals.getX(index), normals.getY(index), normals.getZ(index));
+    if (fallbackNormal.lengthSq() < 1e-12) {
+      fallbackNormal.set(
+        positions.getX(index),
+        positions.getY(index) / (0.88 * 0.88),
+        positions.getZ(index),
+      );
+    }
+    fallbackNormal.normalize();
+    normals.setXYZ(index, fallbackNormal.x, fallbackNormal.y, fallbackNormal.z);
+  }
+  normals.needsUpdate = true;
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;

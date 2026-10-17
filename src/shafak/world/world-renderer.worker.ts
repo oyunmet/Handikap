@@ -173,6 +173,16 @@ function drawProp(
     context.fillStyle = "rgba(230,157,91,.46)";
     context.fillRect(-9, -32, 4, 8);
     context.fillRect(6, -26, 4, 7);
+  } else if (object.kind === "column") {
+    const stone = object.biome === "frozen-pass" ? "#81949a" : object.biome === "red-marsh" ? "#8a6555" : "#796458";
+    context.fillStyle = stone;
+    context.fillRect(-13, -57, 26, 57);
+    context.fillRect(-19, -8, 38, 8);
+    context.fillRect(-22, -67, 44, 10);
+    context.fillStyle = "rgba(235,211,177,.24)";
+    for (let flute = -2; flute <= 2; flute += 1) context.fillRect(flute * 5 - 1, -53, 2, 42);
+    context.fillStyle = "rgba(38,32,32,.34)";
+    context.fillRect(-14, -35, 3, 23);
   } else if (object.kind === "ruin") {
     context.fillRect(-23, -33, 13, 33);
     context.fillRect(10, -47, 13, 47);

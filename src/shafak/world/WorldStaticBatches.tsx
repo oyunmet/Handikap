@@ -150,6 +150,19 @@ function getParts(object: WorldObject): PartSpec[] {
       box({ color: "#19171a", roughness: 1 }, [0, 0.54, -1.02], [0.48, 1.1, 0.12]);
       box(moss, [-0.7, 0.68, -0.53], [0.34, 0.08, 0.18], [0, vary(12, 0.18), -0.08]);
       break;
+    case "column":
+      cylinder([0.31, 0.38, 3.75, 12], stoneLight, [0, 1.9, 0]);
+      cylinder([0.5, 0.42, 0.22, 12], stoneMid, [0, 0.16, 0]);
+      cylinder([0.44, 0.32, 0.18, 12], stoneLight, [0, 0.35, 0]);
+      cylinder([0.46, 0.58, 0.25, 12], stoneMid, [0, 3.75, 0]);
+      cylinder([0.3, 0.38, 0.16, 12], stoneLight, [0, 3.96, 0]);
+      for (let groove = 0; groove < 8; groove += 1) {
+        const angle = (groove / 8) * Math.PI * 2;
+        const x = Math.cos(angle) * 0.305;
+        const z = Math.sin(angle) * 0.305;
+        box(stoneMid, [x, 2, z], [0.035, 2.92, 0.035], [0, -angle, 0]);
+      }
+      break;
     case "ruin":
       box(darkStone, [-0.82, 1.3, 0], [0.52, 2.6, 0.55]);
       box(stoneLight, [0.82, 1.78, 0], [0.54, 3.55, 0.58]);

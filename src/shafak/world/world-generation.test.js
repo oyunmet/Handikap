@@ -43,7 +43,7 @@ test("large architecture stays outside the player's camera corridor", () => {
   for (let index = 0; index < 100; index += 1) {
     const chunk = createWorldChunk(index);
     for (const object of chunk.objects) {
-      if (!["tower", "ruin", "arch"].includes(object.kind)) continue;
+      if (!["tower", "column", "ruin", "arch"].includes(object.kind)) continue;
       assert.ok(
         Math.abs(object.lane * 9.3) >= 6.696,
         `${object.kind} ${object.id} spawned inside the road camera corridor`,
@@ -54,6 +54,22 @@ test("large architecture stays outside the player's camera corridor", () => {
   const towerAfterDemirYemin = createWorldChunk(1).objects.find((object) => object.kind === "tower");
   assert.ok(towerAfterDemirYemin);
   assert.ok(Math.abs(towerAfterDemirYemin.lane * 9.3) >= 6.696);
+});
+
+test("carved landmarks sit farther out than foliage while roadside props stay off the road", () => {
+  const landmarkKinds = new Set(["tower", "column", "ruin", "arch"]);
+  let columnsSeen = 0;
+  for (let index = 0; index < 120; index += 1) {
+    for (const object of createWorldChunk(index).objects) {
+      const lane = Math.abs(object.lane);
+      assert.ok(lane >= 0.84, `${object.kind} ${object.id} must stay beyond the road shoulder`);
+      if (landmarkKinds.has(object.kind)) {
+        assert.ok(lane >= 1, `${object.kind} ${object.id} should leave room beside the road`);
+      }
+      if (object.kind === "column") columnsSeen += 1;
+    }
+  }
+  assert.ok(columnsSeen > 0, "world chunks should include the new carved column landmark");
 });
 
 test("visible world chunks stay bounded and reuse generated chunks", () => {

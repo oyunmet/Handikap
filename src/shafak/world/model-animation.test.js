@@ -7,7 +7,16 @@ import {
   mapOpponentAnimationState,
   resolveGlbClipName,
 } from "./model-animation.ts";
-import { getOpponentModelConfig, OPPONENT_MODEL_CONFIGS } from "./opponent-model-config.ts";
+import {
+  getAnimatedRivalModelConfig,
+  getOpponentModelConfig,
+  OPPONENT_MODEL_CONFIGS,
+} from "./opponent-model-config.ts";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
+import {
+  PLAYER_CHARACTER_ANIMATION_CLIPS,
+  PLAYER_CHARACTER_ROOT_BONE,
+} from "./player-model.ts";
 
 test("GLB clip names are resolved case-insensitively from one configurable map", () => {
   assert.equal(resolveGlbClipName("idle", ["mixamo.com", "BREATHING IDLE"]), "BREATHING IDLE");
@@ -55,6 +64,66 @@ test("Gece Nöbetçisi resolves to the GLB's sword config while keeping other na
   assert.equal(config.appearance.weaponStyle, "sword");
   assert.equal(getOpponentModelConfig("Gölge Şövalyesi")?.weapon, "daggers");
   assert.equal(getOpponentModelConfig("Demir Taç"), undefined);
+});
+
+test("player animations map to the bundled knight clips and strip duplicate root travel", () => {
+  const buffer = fs.readFileSync(new URL("../../../public/models/gece-nobetcisi.glb", import.meta.url));
+  const jsonLength = buffer.readUInt32LE(12);
+  const model = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
+  const clips = model.animations.map((clip) => clip.name);
+  const expected = {
+    idle: "Idle",
+    walk: "Walk",
+    run: "Run",
+    attack: "Attack1",
+    heavyAttack: "Attack1",
+    block: "Block",
+    dodge: "Dodge",
+    jump: "Dodge",
+    backflip: "Dodge",
+    plunge: "Attack1",
+    hit: "HitReaction",
+    die: "Death",
+  };
+
+  assert.equal(PLAYER_CHARACTER_ROOT_BONE, "Rig_Hips");
+  for (const [state, clip] of Object.entries(expected)) {
+    assert.deepEqual(PLAYER_CHARACTER_ANIMATION_CLIPS[state], [clip]);
+    assert.equal(resolveGlbClipName(state, clips, PLAYER_CHARACTER_ANIMATION_CLIPS), clip);
+  }
+  assert.ok(model.animations.some((clip) => clip.channels.some((channel) =>
+    channel.target.node === model.skins[0].skeleton
+    && channel.target.path === "translation")));
+});
+
+test("all road rivals and chapter bosses can use the animated model with their own palette", () => {
+  const profiles = [
+    ...Array.from({ length: 9 }, (_, index) => getWorldBotProfileByArchetype([
+      "gate-warden",
+      "iron-oath",
+      "ash-archer",
+      "shadow-knight",
+      "storm-lancer",
+      "rift-berserker",
+      "ember-alchemist",
+      "venom-assassin",
+      "frost-hunter",
+    ][index])),
+    getWorldBotProfileByArchetype("chapter-boss"),
+  ];
+  for (const profile of profiles) {
+    const config = getAnimatedRivalModelConfig(profile.name, profile);
+    assert.ok(config);
+    assert.equal(config.modelPath, "/models/gece-nobetcisi.glb");
+    assert.equal(config.weapon, profile.weapon);
+    assert.equal(config.appearance.armor, profile.appearance.armor);
+    assert.equal(config.appearance.cape, profile.appearance.cape);
+    assert.deepEqual(config.animationClips.attack, ["Attack1"]);
+  }
+  assert.equal(
+    getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
+    "#f0bd69",
+  );
 });
 
 test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {

@@ -28,6 +28,22 @@ import {
 type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
 
+const GATE_PILASTER_GEOMETRY = new THREE.LatheGeometry([
+  new THREE.Vector2(0, 0),
+  new THREE.Vector2(0.37, 0),
+  new THREE.Vector2(0.47, 0.055),
+  new THREE.Vector2(0.47, 0.14),
+  new THREE.Vector2(0.39, 0.2),
+  new THREE.Vector2(0.31, 0.27),
+  new THREE.Vector2(0.28, 0.36),
+  new THREE.Vector2(0.29, 0.72),
+  new THREE.Vector2(0.34, 0.78),
+  new THREE.Vector2(0.45, 0.84),
+  new THREE.Vector2(0.48, 0.91),
+  new THREE.Vector2(0.46, 0.97),
+  new THREE.Vector2(0.34, 1),
+  new THREE.Vector2(0, 1),
+], 40);
 const STONE_GEOMETRY = new THREE.DodecahedronGeometry(0.5, 1);
 const STONE_MATERIAL = new THREE.MeshStandardMaterial({
   color: "#665c56",
@@ -1161,9 +1177,14 @@ export function FinalGate({
           locked={!gateOpen}
         />
       ))}
-      <mesh position={[0, 2.62, 0.12]}>
-        <cylinderGeometry args={[0.46, 0.58, 5.24, 28, 4]} />
-        <meshStandardMaterial color="#353034" roughness={0.95} />
+      <mesh
+        geometry={GATE_PILASTER_GEOMETRY}
+        position={[0, 0, 0.12]}
+        scale={[1.18, 5.24, 1.18]}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#353034" roughness={0.95} />
       </mesh>
       <mesh position={[0, 5.33, 0.16]}>
         <cylinderGeometry args={[0.72, 0.6, 0.28, 28, 2]} />
@@ -1197,17 +1218,18 @@ function RouteGatePortal({
     <group position={[centerX, 0, 0]}>
       {([-2.2, 2.2] as const).map((x) => (
         <group key={x} position={[x, 0, 0]}>
-          <mesh position={[0, 1.58, 0]}>
-            <cylinderGeometry args={[0.4, 0.54, 3.16, 24, 4]} />
-            <meshStandardMaterial color="#827064" roughness={0.96} />
-          </mesh>
-          <mesh position={[0, 3.13, 0]}>
-            <cylinderGeometry args={[0.62, 0.46, 0.32, 24, 3]} />
-            <meshStandardMaterial color="#51464a" roughness={0.96} />
+          <mesh
+            geometry={GATE_PILASTER_GEOMETRY}
+            position={[0, 0, 0]}
+            scale={[0.92, 3.28, 0.92]}
+            castShadow
+            receiveShadow
+          >
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#827064" roughness={0.96} />
           </mesh>
           <mesh position={[0, 2.92, 0.03]}>
             <torusGeometry args={[2.2, 0.34, 18, 48, Math.PI]} />
-            <meshStandardMaterial color="#756057" roughness={0.95} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#756057" roughness={0.95} />
           </mesh>
           <mesh position={[0, 4.55, 0.77]}>
             <cylinderGeometry args={[0.045, 0.045, 1.15, 16, 2]} />
@@ -1238,6 +1260,10 @@ function RouteGatePortal({
       <mesh position={[0, 7.26, 0]}>
         <capsuleGeometry args={[0.42, 4.45, 8, 24]} />
         <meshStandardMaterial color="#625052" roughness={0.96} />
+      </mesh>
+      <mesh position={[0, 5.18, 0.18]} castShadow receiveShadow>
+        <boxGeometry args={[0.74, 0.34, 0.86]} />
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#947d69" roughness={0.92} />
       </mesh>
       <mesh position={[0, 6.73, 0.04]}>
         <capsuleGeometry args={[0.09, 5.38, 5, 18]} />

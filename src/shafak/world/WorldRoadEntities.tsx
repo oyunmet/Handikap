@@ -13,6 +13,7 @@ import { getNpcStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
+import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import type { WeatherMode } from "./world-biomes";
 import { raycastWorldGround, WorldAssetFallback, WorldAssetModel } from "./WorldModel";
 
@@ -565,6 +566,7 @@ function BotActor({
   rival,
   motionRef,
   dialoguePortal,
+  reducedMotion,
   focused,
   talking,
   canChallenge,
@@ -576,6 +578,7 @@ function BotActor({
   rival: WorldRival;
   motionRef: MotionRef;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
+  reducedMotion: boolean;
   focused: boolean;
   talking: boolean;
   canChallenge: boolean;
@@ -589,6 +592,10 @@ function BotActor({
   const poseRef = useRef(createWorldMotion());
   const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
   const profile = getWorldBotProfileByArchetype(rival.archetype);
+  const modelConfig = useMemo(
+    () => getAnimatedRivalModelConfig(rival.name, profile),
+    [profile, rival.name],
+  );
   const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
@@ -665,10 +672,11 @@ function BotActor({
           motionRef={poseRef}
           state="idle"
           talking={talking && Math.abs(rival.distance - motionRef.current.distance) <= 12}
-          motionReduced
-          animationTimeScale={0}
+          motionReduced={reducedMotion}
+          animationTimeScale={1}
           castShadow={focused || talking}
           appearance={profile?.appearance}
+          modelConfig={modelConfig}
         />
       </group>
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= RIVAL_DIALOGUE_RANGE_METERS && (
@@ -810,6 +818,7 @@ export default function WorldRoadEntities({
           rival={rival}
           motionRef={motionRef}
           dialoguePortal={dialoguePortal}
+          reducedMotion={reducedMotion}
           focused={rival.id === focusedRivalId}
           talking={rival.id === talkingRivalId}
           canChallenge={canChallenge && rival.id === talkingRivalId}

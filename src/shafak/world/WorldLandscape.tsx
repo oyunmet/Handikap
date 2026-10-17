@@ -626,7 +626,10 @@ function ScenicProp({
   const rootRef = useRef<THREE.Group>(null);
   const swayRef = useRef<THREE.Group>(null);
   const seed = object.flickerSeed;
-  const landmarkKind: LandmarkKind | null = object.kind === "tower" || object.kind === "ruin" || object.kind === "arch"
+  const landmarkKind: LandmarkKind | null = object.kind === "tower"
+    || object.kind === "column"
+    || object.kind === "ruin"
+    || object.kind === "arch"
     ? object.kind
     : null;
   const landmarkGeometry = landmarkKind ? getLandmarkGeometry(landmarkKind, object.biome) : null;
@@ -655,7 +658,7 @@ function ScenicProp({
       rotation={[0, (seed % 63) * 0.1, 0]}
       scale={object.scale}
     >
-      {(object.kind === "tower" || object.kind === "ruin" || object.kind === "arch") && (
+      {(object.kind === "tower" || object.kind === "column" || object.kind === "ruin" || object.kind === "arch") && (
         <group>
           {landmarkGeometry && (
             <mesh

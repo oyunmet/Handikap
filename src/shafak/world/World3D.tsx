@@ -8,7 +8,7 @@ import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import type { WorldMotion } from "./movement";
 import { createWorldMotion } from "./movement";
-import { getOpponentModelConfig } from "./opponent-model-config";
+import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import { mapOpponentAnimationState } from "./model-animation";
 import { FinalGate } from "./WorldElements";
@@ -509,10 +509,15 @@ function DuelFighter({
       ? "block"
       : combatAnimation(renderedActor.action, speed)
     : "idle";
-  const modelConfig = side === "bot" ? getOpponentModelConfig(opponentName) : undefined;
   const opponentProfile = side === "bot" && combatRender
     ? getWorldBotProfileByArchetype(combatRender.botArchetype)
     : undefined;
+  const modelConfig = useMemo(
+    () => side === "bot"
+      ? getAnimatedRivalModelConfig(opponentName, opponentProfile)
+      : undefined,
+    [opponentName, opponentProfile, side],
+  );
   const modelAnimationState = modelConfig
     ? combatRender?.ended
       ? combatRender.verdict === "defeat"

@@ -113,8 +113,8 @@ test("procedural rock fallbacks are rounded, high-detail, finite, and reused by 
   assert.notDeepEqual(Array.from(otherVariant.getAttribute("position").array), Array.from(positions.array));
 });
 
-test("tower, broken ruin and arch have separate weathered profiles for each biome", () => {
-  const kinds = ["tower", "ruin", "arch"] as const;
+test("towers, carved columns, broken ruins and arches have weathered profiles per biome", () => {
+  const kinds = ["tower", "column", "ruin", "arch"] as const;
   const biomes = ["ash-road", "frozen-pass", "red-marsh"] as const;
   const bounds = new Map<string, THREE.Box3>();
 

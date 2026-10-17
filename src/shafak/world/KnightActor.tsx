@@ -22,7 +22,10 @@ import type { EquipmentVisual } from "../game/store-types";
 import { getUprightDuelRotation } from "../game/duel-camera";
 import {
   PLAYER_CHARACTER_MODEL_FACING,
+  PLAYER_CHARACTER_ANIMATION_CLIPS,
+  PLAYER_CHARACTER_MATERIAL_ALIASES,
   PLAYER_CHARACTER_MODEL_PATH,
+  PLAYER_CHARACTER_ROOT_BONE,
   PLAYER_CHARACTER_MODEL_SCALE,
   shouldRenderPlayerModel,
 } from "./player-model";
@@ -118,6 +121,7 @@ function prepareModel(
   modelConfig?: OpponentModelConfig,
   castShadow = true,
   playerCharacter = false,
+  appearance?: EquipmentVisual,
 ) {
   const model = cloneSkinned(source);
   inspectModelBudget(model, modelPath);
@@ -131,7 +135,12 @@ function prepareModel(
   });
   const playerRig = playerCharacter && !alreadyRigged ? rigPlayerModel(model) : null;
   const ownedGeometries = playerRig ? [playerRig.ownedGeometry] : [];
-  if (!modelConfig) return { model, ownedMaterials, ownedGeometries, playerRig };
+  const paletteAppearance = modelConfig?.appearance ?? (playerCharacter ? appearance : undefined);
+  const materialNameAliases = modelConfig?.materialNameAliases
+    ?? (playerCharacter ? PLAYER_CHARACTER_MATERIAL_ALIASES : undefined);
+  if (!paletteAppearance || !materialNameAliases) {
+    return { model, ownedMaterials, ownedGeometries, playerRig };
+  }
 
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -139,14 +148,26 @@ function prepareModel(
     let changed = false;
     const materials = originalMaterials.map((original) => {
       const materialName = normalizeMaterialName(original.name);
-      const isCape = modelConfig.materialNameAliases.cape.some((alias) =>
+      const isCape = materialNameAliases.cape.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const isAccent = modelConfig.materialNameAliases.accent.some((alias) =>
+      const isAccent = materialNameAliases.accent.some((alias) =>
+        materialName.includes(normalizeMaterialName(alias)));
+      const isArmorLight = materialNameAliases.armorLight.some((alias) =>
+        materialName.includes(normalizeMaterialName(alias)));
+      const isArmorDark = materialNameAliases.armorDark.some((alias) =>
+        materialName.includes(normalizeMaterialName(alias)));
+      const isArmor = materialNameAliases.armor.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
       const color = isCape
-        ? modelConfig.appearance.cape
+        ? paletteAppearance.cape
         : isAccent
-          ? modelConfig.appearance.trim
+          ? paletteAppearance.trim
+          : isArmorLight
+            ? paletteAppearance.armorLight
+            : isArmorDark
+              ? paletteAppearance.armorDark
+              : isArmor
+                ? paletteAppearance.armor
           : undefined;
       if (!color) return original;
       const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
@@ -204,9 +225,13 @@ function OptionalGlbKnight({
   }) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
+  const rootBoneName = modelConfig?.rootBoneName
+    ?? (playerCharacter ? PLAYER_CHARACTER_ROOT_BONE : undefined);
+  const animationClipMap = modelConfig?.animationClips
+    ?? (playerCharacter ? PLAYER_CHARACTER_ANIMATION_CLIPS : undefined);
   const { model, ownedMaterials, ownedGeometries, playerRig } = useMemo(
-    () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow, playerCharacter),
-    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter],
+    () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance),
+    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance],
   );
   const equippedHand = playerCharacter
     ? playerRig?.bones.Rig_RightHand
@@ -231,7 +256,6 @@ function OptionalGlbKnight({
   ]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
-    const rootBoneName = modelConfig?.rootBoneName;
     if (!rootBoneName) return gltf.animations;
     return gltf.animations.map((clip) => {
       const inPlaceClip = clip.clone();
@@ -250,7 +274,7 @@ function OptionalGlbKnight({
   const selectedClip = resolveGlbClipName(
     clipState,
     animationClips.map((clip) => clip.name),
-    modelConfig?.animationClips,
+    animationClipMap,
   );
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
   const staticPlayerModel = shouldRenderPlayerModel(playerCharacter, animationClips.length);

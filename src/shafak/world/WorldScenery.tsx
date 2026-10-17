@@ -192,6 +192,16 @@ function drawWorldObject(
     context.fillRect(6, -27, 4, 8);
     context.fillStyle = "#121319";
     context.fillRect(-5, -16, 9, 16);
+  } else if (object.kind === "column") {
+    const stone = object.biome === "frozen-pass" ? "#81949a" : object.biome === "red-marsh" ? "#8a6555" : "#796458";
+    context.fillStyle = stone;
+    context.fillRect(-13, -58, 26, 58);
+    context.fillRect(-19, -9, 38, 9);
+    context.fillRect(-22, -68, 44, 10);
+    context.fillStyle = "rgba(235,211,177,.24)";
+    for (let flute = -2; flute <= 2; flute += 1) context.fillRect(flute * 5 - 1, -54, 2, 42);
+    context.fillStyle = "rgba(38,32,32,.34)";
+    context.fillRect(-14, -36, 3, 23);
   } else if (object.kind === "ruin") {
     context.fillRect(-23, -34, 13, 34);
     context.fillRect(10, -48, 13, 48);

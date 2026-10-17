@@ -1,4 +1,13 @@
 import type { EquipmentVisual } from "../game/store-types";
+import type { WorldBotProfile } from "./world-bot-profiles";
+
+export type ModelMaterialNameAliases = {
+  cape: readonly string[];
+  accent: readonly string[];
+  armor: readonly string[];
+  armorLight: readonly string[];
+  armorDark: readonly string[];
+};
 
 export type OpponentModelAnimationState =
   | "idle"
@@ -20,10 +29,7 @@ export type OpponentModelConfig = {
   rootBoneName: string;
   weapon: NonNullable<EquipmentVisual["weaponStyle"]>;
   appearance: EquipmentVisual;
-  materialNameAliases: {
-    cape: readonly string[];
-    accent: readonly string[];
-  };
+  materialNameAliases: ModelMaterialNameAliases;
   animationClips: Partial<Record<OpponentModelAnimationState, readonly string[]>>;
 };
 
@@ -49,6 +55,9 @@ const BASE_OPPONENT_MODEL_CONFIGS = {
     materialNameAliases: {
       cape: ["cape", "cloak", "mantle", "pelerin"],
       accent: ["trim", "accent", "rune", "highlight", "vurgu", "gold", "metal"],
+      armor: ["leather"],
+      armorLight: ["steel_light"],
+      armorDark: ["steel_dark", "leather_dark"],
     },
     animationClips: {
       idle: ["Idle"],
@@ -82,4 +91,26 @@ export const OPPONENT_MODEL_CONFIGS = {
 
 export function getOpponentModelConfig(name: string | undefined) {
   return name ? OPPONENT_MODEL_CONFIGS[name as keyof typeof OPPONENT_MODEL_CONFIGS] : undefined;
+}
+
+export function getAnimatedRivalModelConfig(
+  name: string | undefined,
+  profile?: Pick<WorldBotProfile, "appearance" | "weapon">,
+) {
+  const namedConfig = name
+    ? OPPONENT_MODEL_CONFIGS[name as keyof typeof OPPONENT_MODEL_CONFIGS]
+    : undefined;
+  if (!namedConfig && !profile) return undefined;
+
+  const baseConfig = namedConfig ?? BASE_OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"];
+  const weapon = profile?.weapon ?? baseConfig.weapon;
+  return {
+    ...baseConfig,
+    weapon,
+    appearance: {
+      ...baseConfig.appearance,
+      ...profile?.appearance,
+      weaponStyle: weapon,
+    },
+  };
 }
