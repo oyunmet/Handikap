@@ -34,11 +34,11 @@ test("automatic quality changes one tier at a time", () => {
   assert.equal(stepAutoQuality("balanced", "up"), "high");
 });
 
-test("automatic quality lowers after three seconds below 45 FPS and recovers gradually", () => {
-  assert.equal(AUTO_QUALITY_DOWN_FPS, 45);
-  assert.equal(AUTO_QUALITY_DOWN_AFTER_MS, 3_000);
-  assert.equal(getAutoQualityAction(44.9, 2_999), null);
-  assert.equal(getAutoQualityAction(44.9, 3_000), "down");
+test("automatic quality lowers after two seconds below 40 FPS and recovers gradually", () => {
+  assert.equal(AUTO_QUALITY_DOWN_FPS, 40);
+  assert.equal(AUTO_QUALITY_DOWN_AFTER_MS, 2_000);
+  assert.equal(getAutoQualityAction(39.9, 1_999), null);
+  assert.equal(getAutoQualityAction(39.9, 2_000), "down");
   assert.equal(getAutoQualityAction(56, 6_000), null);
   assert.equal(getAutoQualityAction(56.1, 6_000), "up");
 });
@@ -60,9 +60,9 @@ test("shadow maps stay within the quality budget and scale with device DPR", () 
   assert.equal(getShadowMapSize("low", 4), 512);
 });
 
-test("world shadows are disabled on touch renderers regardless of selected quality", () => {
+test("world shadows use the sun on balanced/high quality, including touch renderers", () => {
   assert.equal(shouldEnableWorldShadows("high"), true);
-  assert.equal(shouldEnableWorldShadows("balanced", true), false);
-  assert.equal(shouldEnableWorldShadows("high", true), false);
+  assert.equal(shouldEnableWorldShadows("balanced", true), true);
+  assert.equal(shouldEnableWorldShadows("high", true), true);
   assert.equal(shouldEnableWorldShadows("low"), false);
 });

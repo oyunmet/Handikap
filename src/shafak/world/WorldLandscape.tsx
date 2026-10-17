@@ -28,6 +28,7 @@ import {
   WorldAssetInstanceBatch,
   WorldRockFarLod,
 } from "./WorldModel";
+import WorldStaticBatches from "./WorldStaticBatches";
 
 type WorldQuality = LandscapeQuality;
 
@@ -908,6 +909,58 @@ function getChunks(distance: number) {
   return chunks;
 }
 
+function PlayerShadowSun({
+  motionRef,
+  quality,
+  shadowMapSize,
+}: {
+  motionRef: Props["motionRef"];
+  quality: WorldQuality;
+  shadowMapSize: number;
+}) {
+  const lightRef = useRef<THREE.DirectionalLight>(null);
+  const shadowTarget = useMemo(() => {
+    const target = new THREE.Object3D();
+    target.name = "player-following-shadow-target";
+    return target;
+  }, []);
+
+  useFrame(() => {
+    const light = lightRef.current;
+    if (!light) return;
+    const playerX = motionRef.current.depth * 5.2;
+    shadowTarget.position.set(playerX, 0, 0);
+    light.position.set(playerX - 18, 30, 22);
+    light.target = shadowTarget;
+    shadowTarget.updateMatrixWorld();
+    light.updateMatrixWorld();
+  });
+
+  return (
+    <>
+      <primitive object={shadowTarget} />
+      <directionalLight
+        ref={lightRef}
+        position={[-18, 30, 22]}
+        color="#ffd39b"
+        intensity={1.45}
+        castShadow={quality !== "low"}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
+        shadow-camera-left={-12.5}
+        shadow-camera-right={12.5}
+        shadow-camera-top={12.5}
+        shadow-camera-bottom={-12.5}
+        shadow-camera-near={0.5}
+        shadow-camera-far={75}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.025}
+        shadow-radius={3}
+      />
+    </>
+  );
+}
+
 export default function WorldLandscape({ motionRef, quality, weather, motionReduced }: Props) {
   const [chunkState, setChunkState] = useState(() => ({
     index: Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS),
@@ -916,6 +969,8 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
   const objects = useMemo(() => chunkState.chunks.flatMap((chunk) => chunk.objects), [chunkState.chunks]);
   const rockObjects = useMemo(() => objects.filter((object) => object.kind === "rock"), [objects]);
   const scenicObjects = useMemo(() => objects.filter((object) => object.kind !== "rock"), [objects]);
+  const instancedScenery = useMemo(() => scenicObjects.filter((object) => object.kind !== "flag"), [scenicObjects]);
+  const animatedScenery = useMemo(() => scenicObjects.filter((object) => object.kind === "flag"), [scenicObjects]);
   const shadowMapSize = getShadowMapSize(
     quality,
     typeof window === "undefined" ? 1 : window.devicePixelRatio,
@@ -932,7 +987,12 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
       <WorldSky motionRef={motionRef} />
       <DistantRidges motionRef={motionRef} quality={quality} />
       <Road motionRef={motionRef} weather={weather} quality={quality} />
-      {scenicObjects.map((object) => (
+      <WorldStaticBatches
+        objects={instancedScenery}
+        motionRef={motionRef}
+        originDistance={motionRef.current.originDistance}
+      />
+      {animatedScenery.map((object) => (
         <ScenicProp
           key={object.id}
           object={object}
@@ -970,24 +1030,8 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
       <AmbientMotes motionRef={motionRef} quality={quality} motionReduced={motionReduced} />
       <hemisphereLight args={["#fff1d9", "#81796b", 1.35]} />
       <ambientLight color="#ffe8c9" intensity={0.3} />
-      <directionalLight
-        position={[-22, 34, -42]}
-        color="#ffd39b"
-        intensity={1.45}
-        castShadow={quality !== "low"}
-        shadow-mapSize-width={shadowMapSize}
-        shadow-mapSize-height={shadowMapSize}
-        shadow-camera-left={-34}
-        shadow-camera-right={34}
-        shadow-camera-top={38}
-        shadow-camera-bottom={-18}
-        shadow-camera-far={180}
-        shadow-bias={-0.0002}
-        shadow-normalBias={0.025}
-        shadow-radius={4}
-      />
+      <PlayerShadowSun motionRef={motionRef} quality={quality} shadowMapSize={shadowMapSize} />
       <directionalLight position={[14, 18, -26]} color="#b7d9ed" intensity={0.32} />
-      <pointLight position={[0, 5.8, 1.5]} color="#ffc681" intensity={3.1} distance={20} decay={2} />
     </group>
   );
 }

@@ -40,6 +40,10 @@ export type WorldMotionFrame = WorldMotion & {
 
 export const WORLD_METERS_TO_PIXELS = 38;
 export const LANE_METERS_PER_UNIT = 7;
+export const WORLD_ROAD_WIDTH = 9.2;
+export const WORLD_PLAYER_EDGE_MARGIN_METERS = 0.6;
+export const WORLD_PLAYER_LATERAL_LIMIT_METERS = WORLD_ROAD_WIDTH / 2 - WORLD_PLAYER_EDGE_MARGIN_METERS;
+export const WORLD_PLAYER_DEPTH_LIMIT = WORLD_PLAYER_LATERAL_LIMIT_METERS / 5.2;
 export const WORLD_CHUNK_LENGTH_METERS = 48;
 export const WORLD_GATE_INTERVAL_METERS = 144;
 export const WORLD_ORIGIN_REBASE_INTERVAL_METERS = 1024;
@@ -64,7 +68,7 @@ export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
     jumpVelocity: 0,
     jumpHeld: false,
     crouching: false,
-    depth: clamp(finiteOrZero(depth), -1, 1),
+    depth: clamp(finiteOrZero(depth), -WORLD_PLAYER_DEPTH_LIMIT, WORLD_PLAYER_DEPTH_LIMIT),
     distance: initialDistance,
     originDistance: getWorldOriginDistance(initialDistance),
     cameraX: initialDistance,
@@ -133,16 +137,22 @@ export function stepWorldMotion(
   const handling = clamp(finiteOrZero(handlingMultiplier) || 1, 0.6, 1);
   const timeConstant = (targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS) / handling;
   const response = 1 - Math.exp(-dt / timeConstant);
-  const velocityX = state.velocityX + (targetX - state.velocityX) * response;
+  let velocityX = state.velocityX + (targetX - state.velocityX) * response;
   let velocityY = state.velocityY + (targetY - state.velocityY) * response;
   const requestedDistance = state.distance + velocityY * dt;
-  const distance = requestedDistance;
+  const distance = Math.max(0, requestedDistance);
   if (requestedDistance <= 0) velocityY = 0;
   const speed = Math.hypot(velocityX, velocityY);
   const isMoving = speed > 0.12;
   const stopTime = isMoving ? 0 : state.stopTime + dt;
   const originDistance = getWorldOriginDistance(distance);
-  const depth = clamp(state.depth + velocityX * dt / LANE_METERS_PER_UNIT, -1, 1);
+  const requestedDepth = state.depth + velocityX * dt / LANE_METERS_PER_UNIT;
+  const depth = clamp(requestedDepth, -WORLD_PLAYER_DEPTH_LIMIT, WORLD_PLAYER_DEPTH_LIMIT);
+  if (requestedDepth < -WORLD_PLAYER_DEPTH_LIMIT && velocityX < 0) {
+    velocityX = Math.max(0.35, -velocityX * 0.12);
+  } else if (requestedDepth > WORLD_PLAYER_DEPTH_LIMIT && velocityX > 0) {
+    velocityX = Math.min(-0.35, -velocityX * 0.12);
+  }
   const stepPhase = state.stepPhase + speed * dt / STRIDE_LENGTH * Math.PI * 2;
   const stepCount = Math.floor(stepPhase / Math.PI);
   const footsteps = Math.max(0, stepCount - state.stepCount);

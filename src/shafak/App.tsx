@@ -371,12 +371,16 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       }
       frameCount += 1;
       const elapsed = now - sampleStartedAt;
-      if (elapsed >= 1_000) {
+      if (elapsed >= 2_000) {
         const fps = frameCount * 1_000 / elapsed;
         frameCount = 0;
         sampleStartedAt = now;
+        console.info("[shafak-fps] two-second average", {
+          fps: Number(fps.toFixed(1)),
+          selectedQuality: preferences.quality,
+        });
 
-        if (fps < 45) {
+        if (fps < AUTO_QUALITY_DOWN_FPS) {
           slowDuration += elapsed;
           fastDuration = 0;
         } else if (fps > 56) {
@@ -389,10 +393,15 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
 
         const action = getAutoQualityAction(
           fps,
-          fps < 45 ? slowDuration : fastDuration,
+          fps < AUTO_QUALITY_DOWN_FPS ? slowDuration : fastDuration,
         );
         if (action) {
           setAutomaticQuality((current) => stepAutoQuality(current, action));
+          if (action === "down") {
+            console.info("[shafak-fps] automatic quality lowered", {
+              averageFps: Number(fps.toFixed(1)),
+            });
+          }
           slowDuration = 0;
           fastDuration = 0;
         }

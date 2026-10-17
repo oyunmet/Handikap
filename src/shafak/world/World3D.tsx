@@ -45,7 +45,13 @@ import {
   MAX_ACTIVE_DUEL_VFX,
   type DuelVfxKind,
 } from "./duel-vfx";
-import { getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight } from "../game/duel-camera";
+import {
+  DUEL_CAMERA_HEADING,
+  getDuelCameraPose,
+  getDuelFacingAngle,
+  getDuelJumpHeight,
+} from "../game/duel-camera";
+import { WORLD_ROAD_WIDTH } from "./movement";
 
 function createProceduralEnvironmentTexture() {
   const width = 128;
@@ -74,6 +80,54 @@ function createProceduralEnvironmentTexture() {
   texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
   return texture;
+}
+
+function downscaleHdrTexture(texture: THREE.DataTexture, maxDimension = 1_024) {
+  const image = texture.image as { data?: ArrayLike<number>; width?: number; height?: number };
+  const source = image.data;
+  const width = Math.max(1, Math.floor(image.width ?? 1));
+  const height = Math.max(1, Math.floor(image.height ?? 1));
+  if (!source || Math.max(width, height) <= maxDimension) return texture;
+
+  const scale = maxDimension / Math.max(width, height);
+  const targetWidth = Math.max(1, Math.round(width * scale));
+  const targetHeight = Math.max(1, Math.round(height * scale));
+  const channels = Math.max(1, Math.floor(source.length / (width * height)));
+  const TypedArray = source.constructor as { new(length: number): typeof source };
+  const data = new TypedArray(targetWidth * targetHeight * channels);
+  for (let y = 0; y < targetHeight; y += 1) {
+    const sourceY = ((y + 0.5) * height) / targetHeight - 0.5;
+    const y0 = Math.max(0, Math.floor(sourceY));
+    const y1 = Math.min(height - 1, y0 + 1);
+    const fy = Math.max(0, sourceY - y0);
+    for (let x = 0; x < targetWidth; x += 1) {
+      const sourceX = ((x + 0.5) * width) / targetWidth - 0.5;
+      const x0 = Math.max(0, Math.floor(sourceX));
+      const x1 = Math.min(width - 1, x0 + 1);
+      const fx = Math.max(0, sourceX - x0);
+      const destination = (y * targetWidth + x) * channels;
+      const topLeft = (y0 * width + x0) * channels;
+      const topRight = (y0 * width + x1) * channels;
+      const bottomLeft = (y1 * width + x0) * channels;
+      const bottomRight = (y1 * width + x1) * channels;
+      for (let channel = 0; channel < channels; channel += 1) {
+        const top = source[topLeft + channel] * (1 - fx) + source[topRight + channel] * fx;
+        const bottom = source[bottomLeft + channel] * (1 - fx) + source[bottomRight + channel] * fx;
+        data[destination + channel] = top * (1 - fy) + bottom * fy;
+      }
+    }
+  }
+
+  const resized = new THREE.DataTexture(data, targetWidth, targetHeight, texture.format, texture.type);
+  resized.colorSpace = texture.colorSpace;
+  resized.mapping = texture.mapping;
+  resized.wrapS = texture.wrapS;
+  resized.wrapT = texture.wrapT;
+  resized.generateMipmaps = texture.generateMipmaps;
+  resized.minFilter = texture.minFilter;
+  resized.magFilter = texture.magFilter;
+  resized.needsUpdate = true;
+  return resized;
 }
 
 function ProceduralEnvironment() {
@@ -107,13 +161,21 @@ function ProceduralEnvironment() {
           return;
         }
         try {
-          const hdrTarget = pmrem.fromEquirectangular(texture);
+          const sourceTexture = downscaleHdrTexture(texture);
+          if (sourceTexture !== texture) {
+            console.info("[shafak-texture] HDRI capped at 1k", {
+              source: `${texture.image.width}x${texture.image.height}`,
+              output: `${sourceTexture.image.width}x${sourceTexture.image.height}`,
+            });
+            texture.dispose();
+          }
+          const hdrTarget = pmrem.fromEquirectangular(sourceTexture);
           target?.dispose();
           target = hdrTarget;
-          hdriTexture = texture;
+          hdriTexture = sourceTexture;
           scene.environment = hdrTarget.texture;
           scene.environmentIntensity = 0.82;
-          scene.background = texture;
+          scene.background = sourceTexture;
           scene.backgroundIntensity = 0.78;
         } catch (error) {
           texture.dispose();
@@ -404,10 +466,10 @@ function CameraRig({
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 8.8 : 9.4,
-        touchRenderer ? 0.35 : 0.6,
+        touchRenderer ? 7.2 : 7.7,
+        touchRenderer ? 0.32 : 0.45,
         jumpLift,
-        duelCameraHeadingRef.current ?? Math.PI,
+        duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -422,6 +484,10 @@ function CameraRig({
     } else {
       desiredRef.set(lateral * 0.56, travelCamera.height, travelCamera.distanceBehind);
       targetRef.set(lateral * 0.42, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
+    }
+    if (!combat) {
+      const roadHalfWidth = WORLD_ROAD_WIDTH * 0.5;
+      desiredRef.x = THREE.MathUtils.clamp(desiredRef.x, -roadHalfWidth, roadHalfWidth);
     }
     camera.position.lerp(desiredRef, response);
     if (!combat) {
@@ -1500,12 +1566,9 @@ function DuelArena({
       <DuelArenaStonework theme={theme} />
       <DuelArenaBackdrop theme={theme} />
       {visualEffectsEnabled && <DuelAshField />}
-      <pointLight position={[0, 5.2, 2.2]} color={theme.accent} intensity={70} distance={24} decay={2} />
-      <pointLight position={[0, 4.1, -3.8]} color={theme.flame} intensity={32} distance={22} decay={2} />
-      <pointLight position={[-3.2, 2.8, -0.4]} color={theme.accent} intensity={14} distance={10} decay={2} />
       <directionalLight position={[0, 8, -10]} color={theme.accent} intensity={0.85} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[7.12, 96]} />
+        <circleGeometry args={[9, 96]} />
         <meshStandardMaterial
           color={theme.floor}
           emissive={theme.floorEmissive}
@@ -1515,16 +1578,8 @@ function DuelArena({
         />
       </mesh>
       <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[7.03, 7.14, 96]} />
-        <meshBasicMaterial color={theme.accent} transparent opacity={0.36} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[6.7, 6.88, 96]} />
-        <meshBasicMaterial color={theme.accent} transparent opacity={0.3} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh position={[0, 0.105, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[6.3, 6.38, 72]} />
-        <meshBasicMaterial color={theme.accent} transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
+        <ringGeometry args={[8.12, 8.24, 96]} />
+        <meshBasicMaterial color={theme.accent} transparent opacity={0.28} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
       {DUEL_COVERS.map((cover, index) => (
         <group key={index} position={[cover.x, 0, cover.z]}>
@@ -2021,6 +2076,7 @@ export default function World3D(props: World3DProps) {
               toneMappingExposure: 0.65,
             }}
             onCreated={({ gl: renderer, scene }) => {
+              renderer.setPixelRatio(maxDpr);
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.shadowMap.type = THREE.PCFSoftShadowMap;
               renderer.shadowMap.enabled = shouldEnableWorldShadows(rendererQuality, touchRenderer);

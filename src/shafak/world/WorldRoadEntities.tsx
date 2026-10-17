@@ -264,14 +264,14 @@ function Obstacle({
         </mesh>
       )}
       {obstacle.kind === "rock" ? (
-        <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={1.95} />}>
-          <WorldAssetModel src="/assets/rock-wall.glb" height={1.95} />
+            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={1.95} castShadow />}>
+              <WorldAssetModel src="/assets/rock-wall.glb" height={1.95} castShadow />
         </Suspense>
       ) : obstacle.kind === "falling-rock-trap" ? (
         <group>
           <group ref={fallingRockRef} position={[0, 5.2, 0]}>
-            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={2.16} />}>
-              <WorldAssetModel src="/assets/rock-wall.glb" height={2.16} />
+            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={2.16} castShadow />}>
+              <WorldAssetModel src="/assets/rock-wall.glb" height={2.16} castShadow />
             </Suspense>
           </group>
           <mesh ref={warningRef} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -308,7 +308,6 @@ function Obstacle({
                 <icosahedronGeometry args={[0.3, 1]} />
                 <meshStandardMaterial color="#ffe792" emissive="#ffac34" emissiveIntensity={2.1} metalness={0.55} roughness={0.18} />
               </mesh>
-              <pointLight position={[0, 1.1, 0]} color="#ffb84d" intensity={8} distance={4} />
               <Sparkles count={14} position={[0, 1.1, 0]} scale={1.7} size={3.2} speed={0.42} color="#ffdf83" />
             </>
           )}

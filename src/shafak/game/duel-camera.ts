@@ -12,6 +12,9 @@ export type DuelJumpState = {
 };
 
 export const DUEL_JUMP_HEIGHT = 1.12;
+export const DUEL_CAMERA_HEADING = Math.PI;
+export const DUEL_CAMERA_ARENA_RADIUS = 9;
+export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 
 export function getDuelJumpHeight(actor: DuelJumpState, tick: number) {
   const duration = actor.jumpUntilTick - actor.jumpStartedTick;
@@ -38,10 +41,12 @@ export function getDuelCameraPose(
   player: DuelPoint,
   opponent: DuelPoint,
   worldOffsetZ: number,
-  cameraBack = 8.4,
-  shoulderOffset = 1.2,
+  cameraBack = 7.2,
+  shoulderOffset = 0.45,
   jumpLift = 0,
-  cameraHeading = Math.PI,
+  cameraHeading = DUEL_CAMERA_HEADING,
+  arenaRadius = DUEL_CAMERA_ARENA_RADIUS,
+  arenaCenterZ = DUEL_CAMERA_ARENA_CENTER_Z,
 ): DuelCameraPose {
   const dx = opponent.x - player.x;
   const dz = opponent.z - player.z;
@@ -56,14 +61,21 @@ export function getDuelCameraPose(
   const baseOffsetX = -forwardX * cameraBack + sideX * shoulderOffset;
   const baseOffsetZ = -forwardZ * cameraBack + sideZ * shoulderOffset;
   const baseOffsetLength = Math.max(1e-4, Math.hypot(baseOffsetX, baseOffsetZ));
-  const extraFramingDistance = Math.min(8, Math.max(0, distance - 2.7)) * 0.38;
+  const extraFramingDistance = Math.min(8, Math.max(0, distance)) * 0.48;
   const offsetScale = (baseOffsetLength + extraFramingDistance) / baseOffsetLength;
+  const cameraX = centerX + baseOffsetX * offsetScale;
+  const cameraZ = centerZ + baseOffsetZ * offsetScale;
+  const relativeCameraX = cameraX;
+  const relativeCameraZ = cameraZ - arenaCenterZ;
+  const cameraRadius = Math.hypot(relativeCameraX, relativeCameraZ);
+  const maxCameraRadius = Math.max(0, arenaRadius - 0.35);
+  const cameraScale = cameraRadius > maxCameraRadius ? maxCameraRadius / cameraRadius : 1;
 
   return {
     position: {
-      x: centerX + baseOffsetX * offsetScale,
+      x: cameraX * cameraScale,
       y: 3.2 + jumpLift * 0.16 + extraFramingDistance * 0.08,
-      z: worldOffsetZ + centerZ + baseOffsetZ * offsetScale,
+      z: worldOffsetZ + arenaCenterZ + relativeCameraZ * cameraScale,
     },
     target: {
       x: centerX,
@@ -71,4 +83,17 @@ export function getDuelCameraPose(
       z: worldOffsetZ + centerZ,
     },
   };
+}
+
+export function getDuelCameraRelativeInput(x: number, y: number, cameraHeading = DUEL_CAMERA_HEADING) {
+  const heading = Number.isFinite(cameraHeading) ? cameraHeading : DUEL_CAMERA_HEADING;
+  const forwardX = Math.sin(heading);
+  const forwardZ = Math.cos(heading);
+  const sideX = -forwardZ;
+  const sideZ = forwardX;
+  const worldX = sideX * x + forwardX * y;
+  const worldZ = sideZ * x + forwardZ * y;
+  const length = Math.hypot(worldX, worldZ);
+  const scale = length > 1 ? 1 / length : 1;
+  return { x: worldX * scale, z: worldZ * scale };
 }

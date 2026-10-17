@@ -5,7 +5,10 @@ import { getStoreItem } from "./store-catalog.ts";
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
 export const COMBAT_ARENA_CENTER_Z = -0.6;
-export const COMBAT_ARENA_RADIUS = 6.25;
+export const COMBAT_ARENA_RADIUS = 9;
+export const COMBAT_ARENA_ACTOR_LIMIT = 8.2;
+export const COMBAT_DODGE_DURATION_TICKS = Math.round(COMBAT_HZ * 0.25);
+export const COMBAT_DODGE_DISTANCE_METERS = 3;
 export const DUEL_COVERS = [
   { x: -2.55, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.78, halfDepth: 0.42 },
   { x: 2.55, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.78, halfDepth: 0.42 },
@@ -104,6 +107,8 @@ export type CombatActor = {
   jumpUntilTick: number;
   lastDodgeTick: number;
   lastDodgeWasRetreat: boolean;
+  dodgeDirectionX: number;
+  dodgeDirectionZ: number;
   attackWeaponId: string | null;
   attackIsRanged: boolean;
   attackWasPlunge: boolean;
@@ -278,6 +283,8 @@ function makeActor(x: number, z: number, hp: number): CombatActor {
     jumpUntilTick: 0,
     lastDodgeTick: -10_000,
     lastDodgeWasRetreat: false,
+    dodgeDirectionX: 0,
+    dodgeDirectionZ: 0,
     attackWeaponId: null,
     attackIsRanged: false,
     attackWasPlunge: false,
@@ -325,11 +332,11 @@ export function createCombatState(
     },
     weaponSwapCooldownUntilTick: 0,
     player: {
-      ...makeActor(0, COMBAT_ARENA_CENTER_Z + 1.35, normalizedStats.maxHealth),
+      ...makeActor(-3, COMBAT_ARENA_CENTER_Z, normalizedStats.maxHealth),
       stamina: normalizedStats.maxStamina,
       maxStamina: normalizedStats.maxStamina,
     },
-    bot: makeActor(0, COMBAT_ARENA_CENTER_Z - 1.35, botHealth),
+    bot: makeActor(3, COMBAT_ARENA_CENTER_Z, botHealth),
     ended: false,
     verdict: null,
     lastImpactTick: -10_000,
@@ -934,12 +941,12 @@ function constrainActorToArena(actor: CombatActor) {
   const dx = actor.x;
   const dz = actor.z - COMBAT_ARENA_CENTER_Z;
   const distance = Math.hypot(dx, dz);
-  if (distance <= COMBAT_ARENA_RADIUS) return;
+  if (distance <= COMBAT_ARENA_ACTOR_LIMIT) return;
 
   const nx = dx / distance;
   const nz = dz / distance;
-  actor.x = nx * COMBAT_ARENA_RADIUS;
-  actor.z = COMBAT_ARENA_CENTER_Z + nz * COMBAT_ARENA_RADIUS;
+  actor.x = nx * COMBAT_ARENA_ACTOR_LIMIT;
+  actor.z = COMBAT_ARENA_CENTER_Z + nz * COMBAT_ARENA_ACTOR_LIMIT;
   const outwardSpeed = actor.vx * nx + actor.vz * nz;
   if (outwardSpeed > 0) {
     actor.vx -= nx * outwardSpeed;
@@ -1016,7 +1023,14 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     }
   }
 
-  if (playerBlockHeld && tick >= player.staggerUntilTick && player.action !== "attack" && player.action !== "heavyAttack") {
+  if (
+    playerBlockHeld
+    && tick >= player.staggerUntilTick
+    && player.action !== "attack"
+    && player.action !== "heavyAttack"
+    && player.action !== "dodge"
+    && player.action !== "backflip"
+  ) {
     if (!(state.player.action === "block" && state.tick < state.player.actionUntilTick)) player.blockStartedTick = tick;
     player.action = "block";
     player.actionUntilTick = tick + 2;
@@ -1044,13 +1058,15 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     const impulse = edgeRebound
       ? inward
       : backflip ? away : Math.hypot(direction.x, direction.y) > 0.1 ? direction : away;
-    const dashSpeed = backflip ? 10.2 : 8.2;
+    const dashSpeed = COMBAT_DODGE_DISTANCE_METERS * COMBAT_HZ / COMBAT_DODGE_DURATION_TICKS;
     player.lastDodgeTick = tick;
     player.lastDodgeWasRetreat = retreatIntent;
     player.stamina = Math.max(0, player.stamina - (backflip ? 24 : 20));
+    player.dodgeDirectionX = impulse.x;
+    player.dodgeDirectionZ = impulse.y;
     playerDashImpulse = { x: impulse.x, z: impulse.y, speed: dashSpeed };
-    player.invulnerableUntilTick = tick + Math.round(16 * next.playerStats.dodgeWindowMultiplier);
-    setAction(player, backflip ? "backflip" : "dodge", tick, backflip ? 24 : 18);
+    player.invulnerableUntilTick = tick + Math.round(COMBAT_DODGE_DURATION_TICKS * next.playerStats.dodgeWindowMultiplier);
+    setAction(player, backflip ? "backflip" : "dodge", tick, COMBAT_DODGE_DURATION_TICKS);
     events.push({
       id: tick * 4 + 1,
       type: backflip ? "backflip" : "dodge",
@@ -1074,12 +1090,22 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   }
 
   const stanceSpeed = player.isCrouching ? 0.48 : player.isAiming ? 0.68 : 1;
-  moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier * stanceSpeed);
   if (playerDashImpulse) {
     player.vx = playerDashImpulse.x * playerDashImpulse.speed;
     player.vz = playerDashImpulse.z * playerDashImpulse.speed;
     player.x += player.vx / COMBAT_HZ;
     player.z += player.vz / COMBAT_HZ;
+  } else if (
+    (player.action === "dodge" || player.action === "backflip")
+    && tick < player.actionUntilTick
+  ) {
+    const speed = COMBAT_DODGE_DISTANCE_METERS * COMBAT_HZ / COMBAT_DODGE_DURATION_TICKS;
+    player.vx = player.dodgeDirectionX * speed;
+    player.vz = player.dodgeDirectionZ * speed;
+    player.x += player.vx / COMBAT_HZ;
+    player.z += player.vz / COMBAT_HZ;
+  } else {
+    moveActor(player, input.x / 100, input.y / 100, tick, playerBlockHeld, next.playerStats.moveSpeedMultiplier * stanceSpeed);
   }
   const botProgressionSpeed = 1 + Math.min(0.3, Math.max(0, next.opponentTuning.statMultiplier - 1) * 0.18);
   moveActor(
@@ -1167,6 +1193,11 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
       actor.stamina = Math.min(actor.maxStamina, actor.stamina + 0.08);
     }
   }
+
+  // Reapply the arena clamp after hit knockback and attack resolution so no
+  // combat impulse can leave either fighter beyond the visible boundary.
+  constrainActorToArena(player);
+  constrainActorToArena(bot);
 
   if (player.hp <= 0 || bot.hp <= 0) {
     next.ended = true;

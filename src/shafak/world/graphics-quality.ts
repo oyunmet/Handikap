@@ -1,8 +1,8 @@
 export type GraphicsMode = "low" | "medium" | "high" | "auto";
 export type RenderQuality = "low" | "balanced" | "high";
 
-export const AUTO_QUALITY_DOWN_FPS = 45;
-export const AUTO_QUALITY_DOWN_AFTER_MS = 3_000;
+export const AUTO_QUALITY_DOWN_FPS = 40;
+export const AUTO_QUALITY_DOWN_AFTER_MS = 2_000;
 export const AUTO_QUALITY_UP_FPS = 56;
 export const AUTO_QUALITY_UP_AFTER_MS = 6_000;
 
@@ -23,7 +23,7 @@ export function normalizeGraphicsMode(value: unknown): GraphicsMode {
 const SHADOW_BUDGET: Record<RenderQuality, number> = {
   low: 512,
   balanced: 1_024,
-  high: 2_048,
+  high: 1_024,
 };
 
 export function resolveRenderQuality(mode: GraphicsMode, automatic: RenderQuality): RenderQuality {
@@ -62,11 +62,11 @@ export function getWorldRenderPixelRatio(
 }
 
 export function shouldEnableWorldShadows(quality: RenderQuality, touchDevice = false): boolean {
-  return quality !== "low" && !touchDevice;
+  void touchDevice;
+  return quality !== "low";
 }
 
 export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: number): number {
-  const dpr = Number.isFinite(devicePixelRatio) ? Math.max(1, Math.min(4, devicePixelRatio)) : 1;
-  const deviceScaledSize = Math.ceil((dpr * 512) / 256) * 256;
-  return Math.min(1_024, SHADOW_BUDGET[quality], deviceScaledSize);
+  void devicePixelRatio;
+  return SHADOW_BUDGET[quality];
 }

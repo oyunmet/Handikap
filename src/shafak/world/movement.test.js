@@ -6,6 +6,8 @@ import {
   interpolateWorldMotion,
   readWorldInput,
   stepWorldMotion,
+  WORLD_PLAYER_DEPTH_LIMIT,
+  WORLD_PLAYER_LATERAL_LIMIT_METERS,
   WORLD_ORIGIN_REBASE_INTERVAL_METERS,
 } from "./movement.ts";
 
@@ -156,8 +158,22 @@ test("backward movement reverses the travel camera instead of freezing at the or
   let backward = createWorldMotion();
   const input = readWorldInput(new Set(["s"]), { x: 0, y: 0 });
   for (let index = 0; index < 30; index += 1) backward = stepWorldMotion(backward, input, 1 / 60);
-  assert.ok(backward.distance < 0);
-  assert.ok(backward.cameraX < 0);
+  assert.equal(backward.distance, 0);
+  assert.ok(backward.cameraX >= 0);
+});
+
+test("the player stays 0.6 m inside the road edge and gets a small inward push", () => {
+  assert.equal(WORLD_PLAYER_LATERAL_LIMIT_METERS, 4);
+  const atEdge = createWorldMotion(0, WORLD_PLAYER_DEPTH_LIMIT);
+  let state = atEdge;
+  const right = readWorldInput(new Set(), { x: 1, y: 0 });
+  for (let index = 0; index < 300; index += 1) state = stepWorldMotion(state, right, 1 / 60);
+  assert.ok(state.depth <= WORLD_PLAYER_DEPTH_LIMIT);
+  assert.ok(state.depth >= -WORLD_PLAYER_DEPTH_LIMIT);
+  assert.ok(state.velocityX <= 0, "the right road wall should push inward");
+
+  const outsideStart = createWorldMotion(0, 1);
+  assert.equal(outsideStart.depth, WORLD_PLAYER_DEPTH_LIMIT);
 });
 
 test("floating origin keeps render coordinates bounded while preserving absolute distance", () => {

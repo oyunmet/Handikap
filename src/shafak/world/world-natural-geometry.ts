@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import type { WorldBiome } from "./world-biomes.ts";
+import { WORLD_ROAD_WIDTH } from "./movement.ts";
+
+export { WORLD_ROAD_WIDTH } from "./movement.ts";
 
 export type TreeSpecies = "ash" | "pine" | "skeletal" | "mangrove";
 
 export type LandmarkKind = "tower" | "column" | "ruin" | "arch";
 export type LandscapeQuality = "high" | "balanced" | "low";
-
-export const WORLD_ROAD_WIDTH = 9.2;
 
 function seededRandom(initialSeed: number) {
   let seed = initialSeed >>> 0;
