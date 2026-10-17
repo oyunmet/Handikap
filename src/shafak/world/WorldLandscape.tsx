@@ -1,6 +1,6 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldMotion } from "./movement";
 import { WORLD_CHUNK_LENGTH_METERS } from "./movement";
@@ -8,7 +8,9 @@ import { createWorldChunk, type WorldChunk, type WorldObject } from "./world-gen
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import {
   STONE_PBR_MATERIAL_PROPS,
+  STONE_PBR_TEXTURES,
 } from "./procedural-materials";
+import { getShadowMapSize } from "./graphics-quality";
 import {
   createConnectedRidgeGeometry,
   createRoadShoulderGeometry,
@@ -88,77 +90,216 @@ function paintSky(geometry: THREE.SphereGeometry, distance: number) {
 }
 
 function createRoadTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 512;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Yol dokusu için 2D canvas oluşturulamadı.");
-
-  const base = context.createLinearGradient(0, 0, canvas.width, 0);
-  base.addColorStop(0, "#493b3b");
-  base.addColorStop(0.14, "#514340");
-  base.addColorStop(0.5, "#45383a");
-  base.addColorStop(0.86, "#51413d");
-  base.addColorStop(1, "#443638");
-  context.fillStyle = base;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
+  const size = 512;
+  const cellSize = 32;
+  const cellsPerAxis = size / cellSize;
   const random = seededRandom(0x4b11a7);
-  for (let index = 0; index < 1500; index += 1) {
+  const tileDetails = Array.from({ length: cellsPerAxis * cellsPerAxis }, () => ({
+    shade: random(),
+    hasCrack: random() > 0.57,
+    crackStart: 4 + random() * 8,
+    crackEnd: 20 + random() * 10,
+    crackY: 8 + random() * 16,
+    crackSlope: (random() - 0.5) * 0.35,
+  }));
+  const color = new Uint8Array(size * size * 4);
+  const normal = new Uint8Array(size * size * 4);
+  const roughness = new Uint8Array(size * size * 4);
+  const height = new Float32Array(size * size);
+
+  for (let y = 0; y < size; y += 1) {
+    const row = Math.floor(y / cellSize);
+    const offset = row % 2 ? cellSize / 2 : 0;
+    const localY = y % cellSize;
+    for (let x = 0; x < size; x += 1) {
+      const shiftedX = x + offset;
+      const column = Math.floor(shiftedX / cellSize) % cellsPerAxis;
+      const localX = shiftedX % cellSize;
+      const tile = tileDetails[(row % cellsPerAxis) * cellsPerAxis + column];
+      const index = y * size + x;
+      const pixel = index * 4;
+      const mortar = localX < 2 || localX >= cellSize - 2 || localY < 2 || localY >= cellSize - 2;
+      const crackY = tile.crackY + (localX - tile.crackStart) * tile.crackSlope;
+      const cracked = !mortar
+        && tile.hasCrack
+        && localX > tile.crackStart
+        && localX < tile.crackEnd
+        && Math.abs(localY - crackY) < 1;
+      const grain = (random() - 0.5) * 10;
+      const shade = (tile.shade - 0.5) * 18 + grain;
+
+      if (mortar) {
+        color[pixel] = 112 + grain * 0.45;
+        color[pixel + 1] = 103 + grain * 0.42;
+        color[pixel + 2] = 91 + grain * 0.38;
+        height[index] = 0.22 + grain * 0.001;
+        roughness[pixel] = 232;
+      } else if (cracked) {
+        color[pixel] = 92 + grain * 0.35;
+        color[pixel + 1] = 83 + grain * 0.32;
+        color[pixel + 2] = 75 + grain * 0.28;
+        height[index] = 0.3;
+        roughness[pixel] = 246;
+      } else {
+        color[pixel] = 163 + shade;
+        color[pixel + 1] = 151 + shade * 0.9;
+        color[pixel + 2] = 133 + shade * 0.8;
+        height[index] = 0.72 + grain * 0.003;
+        roughness[pixel] = 192 + Math.round(tile.shade * 38);
+      }
+      color[pixel + 3] = 255;
+      roughness[pixel + 1] = roughness[pixel];
+      roughness[pixel + 2] = roughness[pixel];
+      roughness[pixel + 3] = 255;
+    }
+  }
+
+  const wrap = (value: number) => (value + size) % size;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const left = height[y * size + wrap(x - 1)];
+      const right = height[y * size + wrap(x + 1)];
+      const above = height[wrap(y - 1) * size + x];
+      const below = height[wrap(y + 1) * size + x];
+      const nx = -(right - left) * 1.8;
+      const ny = -(below - above) * 1.8;
+      const length = Math.hypot(nx, ny, 1);
+      const pixel = (y * size + x) * 4;
+      normal[pixel] = Math.round((nx / length * 0.5 + 0.5) * 255);
+      normal[pixel + 1] = Math.round((ny / length * 0.5 + 0.5) * 255);
+      normal[pixel + 2] = Math.round((1 / length * 0.5 + 0.5) * 255);
+      normal[pixel + 3] = 255;
+    }
+  }
+
+  const createTexture = (
+    data: Uint8Array,
+    colorSpace: THREE.ColorSpace = THREE.NoColorSpace,
+  ) => {
+    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    texture.colorSpace = colorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(14.2 / 8, ROAD_LENGTH / 8);
+    texture.anisotropy = 4;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  return {
+    color: createTexture(color, THREE.SRGBColorSpace),
+    normal: createTexture(normal),
+    roughness: createTexture(roughness),
+  };
+}
+
+function createCloudTexture(seed: number, warm: boolean) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 768;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Gökyüzü bulutları için 2D canvas oluşturulamadı.");
+  const random = seededRandom(seed);
+  const cloudColor = warm ? "255,226,194" : "246,250,255";
+
+  for (let index = 0; index < 22; index += 1) {
     const x = random() * canvas.width;
-    const y = random() * canvas.height;
-    const size = 0.4 + random() * 2.2;
-    const light = random() > 0.53;
-    context.fillStyle = light
-      ? `rgba(211,174,139,${0.035 + random() * 0.1})`
-      : `rgba(12,11,15,${0.04 + random() * 0.11})`;
-    context.fillRect(x, y, size * (1 + random() * 3), size);
+    const y = 102 + random() * 64;
+    const radius = 24 + random() * 48;
+    for (const wrap of [-canvas.width, 0, canvas.width]) {
+      const gradient = context.createRadialGradient(x + wrap, y, radius * 0.06, x + wrap, y, radius);
+      gradient.addColorStop(0, `rgba(${cloudColor},${0.19 + random() * 0.1})`);
+      gradient.addColorStop(0.52, `rgba(${cloudColor},0.09)`);
+      gradient.addColorStop(1, `rgba(${cloudColor},0)`);
+      context.fillStyle = gradient;
+      context.fillRect(x + wrap - radius, y - radius * 0.45, radius * 2, radius * 0.9);
+    }
   }
-
-  context.lineCap = "round";
-  for (let index = 0; index < 26; index += 1) {
-    const x = 35 + random() * 185;
-    const y = random() * canvas.height;
-    const length = 12 + random() * 54;
-    context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + (random() - 0.5) * 13, y + length * 0.52);
-    context.lineTo(x + (random() - 0.5) * 28, y + length);
-    context.strokeStyle = `rgba(17,15,18,${0.28 + random() * 0.35})`;
-    context.lineWidth = 0.6 + random() * 1.5;
-    context.stroke();
-  }
-
-  for (const x of [19, 237]) {
-    context.fillStyle = "rgba(236,197,137,.66)";
-    context.fillRect(x, 0, 1.3, canvas.height);
-    context.fillStyle = "rgba(30,24,26,.6)";
-    context.fillRect(x + (x < 128 ? 3 : -3), 0, 1, canvas.height);
-  }
-  context.setLineDash([18, 22]);
-  context.strokeStyle = "rgba(234,201,150,.4)";
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(128, 0);
-  context.lineTo(128, canvas.height);
-  context.stroke();
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, ROAD_LENGTH / 46);
-  texture.anisotropy = 4;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   return texture;
+}
+
+function createSunHaloTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Güneş halesi için 2D canvas oluşturulamadı.");
+  const gradient = context.createRadialGradient(64, 64, 2, 64, 64, 64);
+  gradient.addColorStop(0, "rgba(255,250,220,1)");
+  gradient.addColorStop(0.09, "rgba(255,238,184,.98)");
+  gradient.addColorStop(0.2, "rgba(255,198,123,.62)");
+  gradient.addColorStop(0.46, "rgba(255,172,103,.2)");
+  gradient.addColorStop(1, "rgba(255,158,92,0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 128, 128);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function cloneRepeatedTexture(texture: THREE.Texture, repeatX: number, repeatY: number) {
+  const clone = texture.clone();
+  clone.wrapS = THREE.RepeatWrapping;
+  clone.wrapT = THREE.RepeatWrapping;
+  clone.repeat.set(repeatX, repeatY);
+  clone.anisotropy = 4;
+  clone.needsUpdate = true;
+  return clone;
 }
 
 function WorldSky({ motionRef }: { motionRef: Props["motionRef"] }) {
   const geometry = useMemo(makeSkyGeometry, []);
+  const cloudGeometry = useMemo(() => new THREE.SphereGeometry(WORLD_RADIUS - 1, 32, 20), []);
+  const firstCloudTexture = useMemo(() => createCloudTexture(0x1023, true), []);
+  const secondCloudTexture = useMemo(() => createCloudTexture(0x3819, false), []);
+  const sunTexture = useMemo(createSunHaloTexture, []);
+  const skyRef = useRef<THREE.Mesh>(null);
+  const firstCloudRef = useRef<THREE.Mesh>(null);
+  const secondCloudRef = useRef<THREE.Mesh>(null);
+  const sunRef = useRef<THREE.Sprite>(null);
   const lastPaintedBiome = useMemo(() => ({ biome: "", mix: -1 }), []);
-  const moonColor = useMemo(() => new THREE.Color("#ffd7a3"), []);
+  const { scene, camera } = useThree();
+  const sunPosition = useMemo(() => new THREE.Vector3(), []);
+  const sunDirection = useMemo(() => new THREE.Vector3(), []);
+  const sunRight = useMemo(() => new THREE.Vector3(), []);
+  const sunUp = useMemo(() => new THREE.Vector3(), []);
+  useEffect(() => () => {
+    geometry.dispose();
+    cloudGeometry.dispose();
+    firstCloudTexture.dispose();
+    secondCloudTexture.dispose();
+    sunTexture.dispose();
+  }, [cloudGeometry, firstCloudTexture, geometry, secondCloudTexture, sunTexture]);
   useFrame(() => {
+    const hasHdriSky = scene.background instanceof THREE.Texture;
+    if (skyRef.current) skyRef.current.visible = !hasHdriSky;
+    if (firstCloudRef.current) firstCloudRef.current.visible = !hasHdriSky;
+    if (secondCloudRef.current) secondCloudRef.current.visible = !hasHdriSky;
+    if (sunRef.current) {
+      sunRef.current.visible = !hasHdriSky;
+      if (!hasHdriSky) {
+        camera.getWorldPosition(sunPosition);
+        camera.getWorldDirection(sunDirection);
+        sunRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+        sunUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+        sunPosition
+          .addScaledVector(sunDirection, WORLD_RADIUS * 0.88)
+          .addScaledVector(sunRight, -WORLD_RADIUS * 0.25)
+          .addScaledVector(sunUp, WORLD_RADIUS * 0.06);
+        sunRef.current.position.copy(sunPosition);
+      }
+    }
     const transition = getBiomeTransition(motionRef.current.distance);
     if (transition.biome !== lastPaintedBiome.biome || Math.abs(transition.mix - lastPaintedBiome.mix) > 0.012) {
       paintSky(geometry, motionRef.current.distance);
@@ -168,18 +309,40 @@ function WorldSky({ motionRef }: { motionRef: Props["motionRef"] }) {
   });
   return (
     <>
-      <mesh geometry={geometry} frustumCulled={false} renderOrder={-30}>
+      <mesh ref={skyRef} geometry={geometry} frustumCulled={false} renderOrder={-30}>
         <meshBasicMaterial vertexColors side={THREE.BackSide} toneMapped={false} fog={false} />
       </mesh>
-      <mesh position={[37, 47, -168]} renderOrder={-20}>
-        <sphereGeometry args={[4.4, 20, 14]} />
-        <meshBasicMaterial color={moonColor} toneMapped={false} />
+      <mesh ref={firstCloudRef} geometry={cloudGeometry} frustumCulled={false} renderOrder={-29}>
+        <meshBasicMaterial
+          map={firstCloudTexture}
+          transparent
+          opacity={0.62}
+          side={THREE.BackSide}
+          depthWrite={false}
+          toneMapped={false}
+          fog={false}
+        />
       </mesh>
-      <mesh position={[37, 47, -168]} scale={[2.35, 2.35, 0.2]} renderOrder={-21}>
-        <sphereGeometry args={[5.1, 20, 14]} />
-        <meshBasicMaterial color="#ed956e" transparent opacity={0.08} depthWrite={false} toneMapped={false} />
+      <mesh ref={secondCloudRef} geometry={cloudGeometry} scale={[1, 1, 0.995]} frustumCulled={false} renderOrder={-28}>
+        <meshBasicMaterial
+          map={secondCloudTexture}
+          transparent
+          opacity={0.42}
+          side={THREE.BackSide}
+          depthWrite={false}
+          toneMapped={false}
+          fog={false}
+        />
       </mesh>
-      <color attach="background" args={["#443541"]} />
+      <sprite ref={sunRef} scale={[44, 44, 1]} frustumCulled={false} renderOrder={-27}>
+        <spriteMaterial
+          map={sunTexture}
+          transparent
+          depthWrite={false}
+          toneMapped={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </sprite>
     </>
   );
 }
@@ -266,7 +429,12 @@ function Road({
   weather: WeatherMode;
   quality: WorldQuality;
 }) {
-  const texture = useMemo(createRoadTexture, []);
+  const roadTextures = useMemo(createRoadTexture, []);
+  const groundTextures = useMemo(() => ({
+    color: cloneRepeatedTexture(STONE_PBR_TEXTURES.color, 34, 44),
+    normal: cloneRepeatedTexture(STONE_PBR_TEXTURES.normal, 34, 44),
+    roughness: cloneRepeatedTexture(STONE_PBR_TEXTURES.roughness, 34, 44),
+  }), []);
   const chipsRef = useRef<THREE.InstancedMesh>(null);
   const chipTransform = useMemo(() => new THREE.Object3D(), []);
   const chipGeometry = useMemo(() => new THREE.CircleGeometry(1, 5), []);
@@ -276,26 +444,37 @@ function Road({
   const chipMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     color: "#ffffff",
     roughness: 1,
-    flatShading: true,
+    flatShading: false,
   }), []);
   const groundMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    color: "#554447",
-    roughness: 1,
-    flatShading: true,
-  }), []);
+    color: "#ffffff",
+    map: groundTextures.color,
+    normalMap: groundTextures.normal,
+    normalScale: new THREE.Vector2(0.24, 0.24),
+    roughnessMap: groundTextures.roughness,
+    roughness: 0.96,
+    flatShading: false,
+  }), [groundTextures]);
   const shoulderMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    color: "#554447",
-    roughness: 1,
+    color: "#ffffff",
+    map: groundTextures.color,
+    normalMap: groundTextures.normal,
+    normalScale: new THREE.Vector2(0.24, 0.24),
+    roughnessMap: groundTextures.roughness,
+    roughness: 0.98,
     vertexColors: true,
-  }), []);
+    flatShading: false,
+  }), [groundTextures]);
   const roadMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    map: texture,
-    color: "#eee2d7",
-    roughness: weather === "storm" ? 0.28 : weather === "rain" ? 0.42 : 0.94,
-    metalness: weather === "storm" ? 0.18 : weather === "rain" ? 0.1 : 0.02,
-    emissive: "#201819",
-    emissiveIntensity: 0.16,
-  }), [texture, weather]);
+    map: roadTextures.color,
+    normalMap: roadTextures.normal,
+    normalScale: new THREE.Vector2(0.27, 0.27),
+    roughnessMap: roadTextures.roughness,
+    color: "#ffffff",
+    roughness: weather === "storm" ? 0.56 : weather === "rain" ? 0.68 : 0.94,
+    metalness: weather === "storm" ? 0.06 : weather === "rain" ? 0.025 : 0,
+    flatShading: false,
+  }), [roadTextures, weather]);
   const railMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     ...STONE_PBR_MATERIAL_PROPS,
     color: "#846d61",
@@ -312,6 +491,11 @@ function Road({
       color: random() > 0.5 ? "#786361" : "#342b30",
     }));
   }, []);
+
+  useEffect(() => () => {
+    Object.values(roadTextures).forEach((texture) => texture.dispose());
+    Object.values(groundTextures).forEach((texture) => texture.dispose());
+  }, [groundTextures, roadTextures]);
 
   useLayoutEffect(() => {
     const mesh = chipsRef.current;
@@ -336,13 +520,16 @@ function Road({
     groundMaterial.color.set(from.ground).lerp(groundTargetColor.set(to.ground), transition.mix);
     roadMaterial.color.set(from.road).lerp(roadTargetColor.set(to.road), transition.mix);
     shoulderMaterial.color.copy(groundMaterial.color).multiplyScalar(1.08);
-    texture.offset.y = ((motionRef.current.cameraX / 46) % 1 + 1) % 1;
+    const roadOffset = ((motionRef.current.cameraX / 8) % 1 + 1) % 1;
+    roadTextures.color.offset.y = roadOffset;
+    roadTextures.normal.offset.y = roadOffset;
+    roadTextures.roughness.offset.y = roadOffset;
     if (weather === "rain" || weather === "storm") {
-      roadMaterial.roughness = weather === "storm" ? 0.28 : 0.42;
-      roadMaterial.metalness = weather === "storm" ? 0.18 : 0.1;
+      roadMaterial.roughness = weather === "storm" ? 0.56 : 0.68;
+      roadMaterial.metalness = weather === "storm" ? 0.06 : 0.025;
     } else {
       roadMaterial.roughness = 0.94;
-      roadMaterial.metalness = 0.02;
+      roadMaterial.metalness = 0;
     }
   });
 
@@ -622,11 +809,11 @@ function WeatherParticles({
         <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
       </bufferGeometry>
       <pointsMaterial
-        color={weather === "storm" ? "#c6dcf5" : weather === "rain" ? "#b4d9f0" : weather === "fog" ? "#d4c9c0" : "#ffca8a"}
-        size={weather === "storm" ? 0.11 : weather === "rain" ? 0.09 : 0.1}
+        color={weather === "ash" ? "#f2e7d8" : weather === "storm" ? "#c6dcf5" : weather === "rain" ? "#b4d9f0" : weather === "fog" ? "#d4c9c0" : "#ffca8a"}
+        size={weather === "ash" ? 0.058 : weather === "storm" ? 0.11 : weather === "rain" ? 0.09 : 0.1}
         sizeAttenuation
         transparent
-        opacity={weather === "fog" ? 0.34 : weather === "storm" ? 0.76 : 0.66}
+        opacity={weather === "ash" ? 0.5 : weather === "fog" ? 0.34 : weather === "storm" ? 0.76 : 0.66}
         depthWrite={false}
       />
     </points>
@@ -694,6 +881,10 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
     chunks: getChunks(motionRef.current.distance),
   }));
   const objects = useMemo(() => chunkState.chunks.flatMap((chunk) => chunk.objects), [chunkState.chunks]);
+  const shadowMapSize = getShadowMapSize(
+    quality,
+    typeof window === "undefined" ? 1 : window.devicePixelRatio,
+  );
 
   useFrame(() => {
     const index = Math.floor(motionRef.current.distance / WORLD_CHUNK_LENGTH_METERS);
@@ -716,11 +907,26 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
       ))}
       <WeatherParticles weather={weather} quality={quality} motionReduced={motionReduced} />
       <AmbientMotes motionRef={motionRef} quality={quality} motionReduced={motionReduced} />
-      <hemisphereLight args={["#f2d6c6", "#322a32", 1.72]} />
-      <ambientLight color="#f4d5c0" intensity={0.72} />
-      <directionalLight position={[-22, 32, 18]} color="#ffe0b9" intensity={2.45} />
-      <directionalLight position={[14, 18, -26]} color="#a6c4e6" intensity={0.62} />
-      <pointLight position={[0, 5.8, 1.5]} color="#ffb66d" intensity={11} distance={20} decay={2} />
+      <hemisphereLight args={["#fff1d9", "#81796b", 2.05]} />
+      <ambientLight color="#ffe8c9" intensity={0.52} />
+      <directionalLight
+        position={[-22, 34, -42]}
+        color="#ffd39b"
+        intensity={3.1}
+        castShadow={quality !== "low"}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
+        shadow-camera-left={-34}
+        shadow-camera-right={34}
+        shadow-camera-top={38}
+        shadow-camera-bottom={-18}
+        shadow-camera-far={180}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.025}
+        shadow-radius={4}
+      />
+      <directionalLight position={[14, 18, -26]} color="#b7d9ed" intensity={0.48} />
+      <pointLight position={[0, 5.8, 1.5]} color="#ffc681" intensity={8} distance={20} decay={2} />
     </group>
   );
 }

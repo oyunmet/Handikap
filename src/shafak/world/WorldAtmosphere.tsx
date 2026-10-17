@@ -21,7 +21,7 @@ export default function WorldAtmosphere({ quality, motionReduced, weather, trave
       data-reduced={motionReduced}
       style={{
         "--air-parallax": `${-travel * .018}px`,
-        "--night-opacity": `${((1 - daylight) * 0.23).toFixed(3)}`,
+          "--night-opacity": `${((1 - daylight) * 0.045).toFixed(3)}`,
         "--world-wind-duration": weather === "clear" ? "24s" : weather === "fog" ? "32s" : "10s",
       } as CSSProperties}
       aria-hidden="true"

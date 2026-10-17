@@ -3,6 +3,7 @@ import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import type { WorldMotion } from "./movement";
@@ -58,9 +59,9 @@ function createProceduralEnvironmentTexture() {
       const warmLight = Math.exp(-(((u - 0.13) / 0.11) ** 2 + ((v - 0.43) / 0.17) ** 2));
       const coolLight = Math.exp(-(((u - 0.66) / 0.16) ** 2 + ((v - 0.46) / 0.2) ** 2));
       const index = (y * width + x) * 4;
-      data[index] = Math.min(255, Math.round(15 + upperSky * 24 + horizon * 25 + warmLight * 150));
-      data[index + 1] = Math.min(255, Math.round(17 + upperSky * 27 + horizon * 29 + warmLight * 76 + coolLight * 22));
-      data[index + 2] = Math.min(255, Math.round(27 + upperSky * 43 + horizon * 41 + coolLight * 100));
+      data[index] = Math.min(255, Math.round(74 + upperSky * 70 + horizon * 56 + warmLight * 112));
+      data[index + 1] = Math.min(255, Math.round(125 + upperSky * 76 + horizon * 66 + warmLight * 34 + coolLight * 22));
+      data[index + 2] = Math.min(255, Math.round(176 + upperSky * 68 + horizon * 54 + coolLight * 34 - warmLight * 10));
       data[index + 3] = 255;
     }
   }
@@ -78,22 +79,61 @@ function ProceduralEnvironment() {
   const { gl, scene } = useThree();
   useEffect(() => {
     const previousEnvironment = scene.environment;
+    const previousBackground = scene.background;
     const previousIntensity = scene.environmentIntensity;
+    const previousBackgroundIntensity = scene.backgroundIntensity;
+    const previousFog = scene.fog;
     const source = createProceduralEnvironmentTexture();
     const pmrem = new THREE.PMREMGenerator(gl);
     let target: THREE.WebGLRenderTarget | null = null;
+    let hdriTexture: THREE.DataTexture | null = null;
+    let active = true;
     try {
       pmrem.compileEquirectangularShader();
       target = pmrem.fromEquirectangular(source);
       scene.environment = target.texture;
-      scene.environmentIntensity = 0.62;
+      scene.environmentIntensity = 0.82;
     } catch (error) {
       console.warn("[shafak-world] Procedural reflection map could not start.", error);
     }
+
+    scene.fog = new THREE.Fog("#b9c9d1", 150, 360);
+    new RGBELoader().load(
+      new URL("./golden-hour-sky.hdr", import.meta.url).href,
+      (texture) => {
+        if (!active) {
+          texture.dispose();
+          return;
+        }
+        try {
+          const hdrTarget = pmrem.fromEquirectangular(texture);
+          target?.dispose();
+          target = hdrTarget;
+          hdriTexture = texture;
+          scene.environment = hdrTarget.texture;
+          scene.environmentIntensity = 0.82;
+          scene.background = texture;
+          scene.backgroundIntensity = 0.78;
+        } catch (error) {
+          texture.dispose();
+          console.warn("[shafak-world] HDRI could not be prepared; using the procedural sky.", error);
+        }
+      },
+      undefined,
+      (error) => {
+        console.warn("[shafak-world] HDRI could not be loaded; using the procedural sky.", error);
+      },
+    );
+
     return () => {
+      active = false;
       scene.environment = previousEnvironment;
+      scene.background = previousBackground;
       scene.environmentIntensity = previousIntensity;
+      scene.backgroundIntensity = previousBackgroundIntensity;
+      scene.fog = previousFog;
       target?.dispose();
+      hdriTexture?.dispose();
       source.dispose();
       pmrem.dispose();
     };
@@ -1885,13 +1925,16 @@ export default function World3D(props: World3DProps) {
               alpha: false,
               antialias: !touchRenderer,
               powerPreference: "high-performance",
-              toneMapping: rendererVisualEffectsEnabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
-              toneMappingExposure: rendererVisualEffectsEnabled ? 1.12 : 1,
+              toneMapping: THREE.ACESFilmicToneMapping,
+              toneMappingExposure: 1.2,
             }}
             onCreated={({ gl: renderer, scene }) => {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
+              renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+              renderer.shadowMap.enabled = shouldEnableWorldShadows(rendererQuality, touchRenderer);
+              renderer.shadowMap.autoUpdate = renderer.shadowMap.enabled;
               renderer.info.autoReset = false;
-              scene.background = new THREE.Color("#443541");
+              scene.background = new THREE.Color("#91bad4");
               contextCleanupRef.current?.();
               const canvas = renderer.domElement;
               const handleContextLost = (event: Event) => {

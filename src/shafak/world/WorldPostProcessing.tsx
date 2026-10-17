@@ -140,6 +140,10 @@ export default function WorldPostProcessing({
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
 
   useEffect(() => {
+    if (quality === "low") {
+      setPipeline(null);
+      return undefined;
+    }
     let nextPipeline: Pipeline | null = null;
     try {
       const composer = new EffectComposer(gl);
@@ -150,7 +154,7 @@ export default function WorldPostProcessing({
         0.34,
         0.86,
       );
-      bloomPass.enabled = quality !== "low";
+      bloomPass.enabled = true;
       composer.addPass(bloomPass);
       const filmPass = new ShaderPass(VignetteGrainShader);
       composer.addPass(filmPass);
@@ -170,5 +174,7 @@ export default function WorldPostProcessing({
     };
   }, [camera, gl, quality, scene]);
 
-  return pipeline ? <ComposerOutput pipeline={pipeline} onBlackFrame={onBlackFrame} /> : null;
+  return quality !== "low" && pipeline
+    ? <ComposerOutput pipeline={pipeline} onBlackFrame={onBlackFrame} />
+    : null;
 }

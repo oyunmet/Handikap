@@ -141,13 +141,13 @@
 .world-atmosphere__mote {
   position: absolute; top: var(--mote-y); left: var(--mote-x);
   width: var(--mote-size); height: var(--mote-size); border-radius: 50%;
-  background: radial-gradient(circle, rgba(221,212,194,.72), rgba(191,173,158,.14));
-  box-shadow: 0 0 7px rgba(214,198,175,.24);
+  background: radial-gradient(circle, rgba(245,239,226,.76), rgba(218,205,185,.12));
+  box-shadow: 0 0 5px rgba(230,220,198,.18);
   animation: world-ash-drift var(--mote-duration) var(--mote-delay) linear infinite;
 }
 .world-atmosphere__mote.is-warm {
-  background: radial-gradient(circle, rgba(255,202,130,.88), rgba(224,127,71,.18));
-  box-shadow: 0 0 8px rgba(234,144,76,.4);
+  background: radial-gradient(circle, rgba(255,232,190,.84), rgba(235,175,111,.14));
+  box-shadow: 0 0 6px rgba(244,194,133,.24);
 }
 .world-atmosphere[data-weather="rain"]::before { opacity: .2; }
 .world-atmosphere[data-weather="storm"]::before {
