@@ -1,6 +1,6 @@
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { MutableRefObject } from "react";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Html, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -36,7 +36,12 @@ import {
 } from "./player-model";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 import { createDuelWeapon, disposeDuelWeapon } from "./duel-weapon";
-import { fitCharacterModel, loadCharacter } from "./character-model";
+import {
+  fitCharacterModel,
+  getCharacterBounds,
+  getCharacterScreenCoverage,
+  loadCharacter,
+} from "./character-model";
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 
 type KnightActorProps = {
@@ -56,6 +61,7 @@ type KnightActorProps = {
 };
 
 const warnedModelPaths = new Set<string>();
+const loggedCharacterFraming = new Set<string>();
 
 const GLB_CONTACT_SHADOW_GEOMETRY = new THREE.CircleGeometry(1, 28);
 const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
@@ -132,7 +138,7 @@ function prepareModel(
 ) {
   const model = cloneSkinned(source);
   if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
-  fitCharacterModel(model, targetHeight);
+  fitCharacterModel(model, targetHeight, modelPath);
   inspectModelBudget(model, modelPath);
   model.traverse((object) => {
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
@@ -269,6 +275,7 @@ function OptionalGlbKnight({
   castShadow = true,
   playerCharacter = false,
 }: KnightActorProps) {
+  const { camera: activeCamera, size } = useThree();
   const modelPath = modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH;
   const gltf = useLoader(GLTFLoader, modelPath, loadCharacter) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
@@ -348,6 +355,7 @@ function OptionalGlbKnight({
   const staticActionElapsed = useRef(0);
   const previousFallbackState = useRef(state);
   const fallbackActionElapsed = useRef(0);
+  const framingDiagnosticElapsed = useRef(0);
 
   useEffect(() => {
     const previous = currentAction.current;
@@ -535,6 +543,31 @@ function OptionalGlbKnight({
       );
     }
     if (footSlipRef) footSlipRef.current = 0;
+
+    const diagnosticKey = `${modelPath}:${targetHeight}`;
+    if (root && !loggedCharacterFraming.has(diagnosticKey)) {
+      framingDiagnosticElapsed.current += dt;
+      if (framingDiagnosticElapsed.current >= 1) {
+        root.updateMatrixWorld(true);
+        activeCamera.updateMatrixWorld(true);
+        const bounds = getCharacterBounds(model);
+        const characterOrigin = root.getWorldPosition(new THREE.Vector3());
+        const cameraPosition = activeCamera.getWorldPosition(new THREE.Vector3());
+        const cameraRelative = cameraPosition.clone().sub(characterOrigin)
+          .applyQuaternion(root.getWorldQuaternion(new THREE.Quaternion()).invert());
+        const coverage = getCharacterScreenCoverage(model, activeCamera, size.width, size.height);
+        loggedCharacterFraming.add(diagnosticKey);
+        console.info("[shafak-model] Character camera framing", {
+          model: modelPath,
+          characterHeight: Number((bounds.max.y - bounds.min.y).toFixed(3)),
+          cameraDistance: Number(cameraPosition.distanceTo(characterOrigin).toFixed(3)),
+          cameraBehind: Number(Math.abs(cameraRelative.z).toFixed(3)),
+          screenHeightPercent: Number((coverage.height * 100).toFixed(1)),
+          screenAreaPercent: Number((coverage.area * 100).toFixed(1)),
+          cameraInsideModelBounds: bounds.containsPoint(cameraPosition),
+        });
+      }
+    }
   });
 
   useEffect(() => () => {

@@ -93,6 +93,26 @@ export const STONE_PBR_MATERIAL_PROPS: THREE.MeshStandardMaterialParameters = {
   roughnessMap: STONE_PBR_TEXTURES.roughness,
 };
 
+export function applyRockPbrMaterials(root: THREE.Object3D) {
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      material.color.set("#a69f90");
+      material.map = STONE_PBR_TEXTURES.color;
+      material.normalMap = STONE_PBR_TEXTURES.normal;
+      material.normalScale.set(0.2, 0.2);
+      material.roughnessMap = STONE_PBR_TEXTURES.roughness;
+      material.roughness = 0.9;
+      material.metalness = 0;
+      material.emissive.set(0);
+      material.emissiveIntensity = 0;
+      material.needsUpdate = true;
+    }
+  });
+}
+
 export const BEVELED_STONE_BLOCK_GEOMETRY = new RoundedBoxGeometry(1, 1, 1, 3, 0.075);
 
 const STONE_PROP_KINDS = new Set([

@@ -193,7 +193,7 @@ function drawWorldObject(
     context.fillStyle = "#121319";
     context.fillRect(-5, -16, 9, 16);
   } else if (object.kind === "column") {
-    const stone = object.biome === "frozen-pass" ? "#81949a" : object.biome === "red-marsh" ? "#8a6555" : "#796458";
+    const stone = object.biome === "frozen-pass" ? "#929da0" : object.biome === "red-marsh" ? "#91877d" : "#969389";
     context.fillStyle = stone;
     context.fillRect(-13, -58, 26, 58);
     context.fillRect(-19, -9, 38, 9);
@@ -330,8 +330,8 @@ function drawWorldObject(
     context.fillRect(2, -63, 2, 17);
   } else if (object.kind === "rock") {
     const gradient = context.createLinearGradient(-22, -28, 18, 0);
-    gradient.addColorStop(0, "#373238");
-    gradient.addColorStop(1, "#18191e");
+    gradient.addColorStop(0, "#a69f90");
+    gradient.addColorStop(1, "#716f68");
     context.fillStyle = gradient;
     context.beginPath();
     context.moveTo(-28, 0);
@@ -342,7 +342,7 @@ function drawWorldObject(
     context.lineTo(28, 0);
     context.closePath();
     context.fill();
-    context.strokeStyle = "rgba(178,146,111,.2)";
+    context.strokeStyle = "rgba(231,222,202,.5)";
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(-12, -17);

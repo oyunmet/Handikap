@@ -728,7 +728,7 @@ function ScenicProp({
             castShadow
             receiveShadow
           >
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#655858" roughness={0.94} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#a69f90" roughness={0.9} metalness={0} />
           </mesh>
           <mesh
             geometry={getNaturalRockGeometry(seed + 1)}
@@ -738,7 +738,7 @@ function ScenicProp({
             castShadow
             receiveShadow
           >
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#51494b" roughness={0.98} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#938c80" roughness={0.9} metalness={0} />
           </mesh>
         </group>
       )}

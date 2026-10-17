@@ -754,15 +754,15 @@ function WorldProp({
         <group>
           <mesh position={[0, 0.45, 0]} rotation={[0.14, 0.36, 0]}>
             <dodecahedronGeometry args={[0.86, 1]} />
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color={darkStone} roughness={0.98} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#a69f90" roughness={0.9} metalness={0} />
           </mesh>
           <mesh position={[0.76, 0.3, -0.18]} rotation={[0.2, -0.2, 0.18]} scale={[0.7, 0.72, 0.84]}>
             <dodecahedronGeometry args={[0.62, 0]} />
-            <meshStandardMaterial color="#786662" roughness={0.96} flatShading />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#938c80" roughness={0.9} metalness={0} flatShading />
           </mesh>
           <mesh position={[-0.72, 0.25, 0.14]} rotation={[0, 0.44, 0.1]} scale={[0.78, 0.65, 0.8]}>
             <dodecahedronGeometry args={[0.56, 0]} />
-            <meshStandardMaterial color="#473f43" roughness={1} flatShading />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#aaa394" roughness={0.9} metalness={0} flatShading />
           </mesh>
         </group>
       )}

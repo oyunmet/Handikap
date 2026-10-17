@@ -14,10 +14,13 @@ test("world camera clipping range contains the sky and the procedural star field
 });
 
 test("mobile travel camera keeps the same framing while stopped and running", () => {
-  assert.deepEqual(
-    getTravelCameraSettings(0, true),
-    getTravelCameraSettings(7, true),
-  );
+  const stopped = getTravelCameraSettings(0, true);
+  const running = getTravelCameraSettings(7, true);
+  assert.deepEqual(stopped, running);
+  assert.equal(stopped.height, 2.2);
+  assert.equal(stopped.distanceBehind, 4.5);
+  assert.equal(stopped.targetHeight, 1.15);
+  assert.equal(stopped.fieldOfView, 66);
 });
 
 test("mobile travel camera clears the central spike trap around 60% progress", () => {
@@ -27,6 +30,7 @@ test("mobile travel camera clears the central spike trap around 60% progress", (
   const cameraWorldDistance = playerDistance - maximumCameraLag - camera.distanceBehind;
   const spikeTrapBackEdge = 77 + 1.8 / 2;
 
+  assert.equal(camera.distanceBehind, 4.5);
   assert.ok(cameraWorldDistance > spikeTrapBackEdge + 0.9);
 });
 

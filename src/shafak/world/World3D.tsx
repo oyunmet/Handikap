@@ -454,8 +454,8 @@ function CameraRig({
     <PerspectiveCamera
       ref={cameraRef}
       makeDefault
-      position={[0, 5.75, touchRenderer ? 6.5 : 10.2]}
-      fov={54}
+      position={[0, 2.2, 4.5]}
+      fov={66}
       near={WORLD_CAMERA_NEAR}
       far={WORLD_CAMERA_FAR}
     />
@@ -562,7 +562,7 @@ function DuelFighter({
   useFrame((frame, delta) => {
     const visualRoot = actorVisualRoot.current;
     if (!visualRoot) return;
-    const baseScale = side === "bot" ? (boss ? 1.22 : 1.07) : 1;
+    const baseScale = 1;
     const liveActor = combatStateRef.current?.[side] ?? renderedActor;
     const combatTick = combatStateRef.current?.tick ?? combatRender?.tick ?? 0;
     const jumpHeight = liveActor ? getDuelJumpHeight(liveActor, combatTick) : 0;
@@ -622,7 +622,7 @@ function DuelFighter({
           />
         </>
       )}
-      <group ref={actorVisualRoot} scale={side === "bot" ? (boss ? 1.22 : 1.07) : 1}>
+      <group ref={actorVisualRoot} scale={1}>
         <KnightActor
           motionRef={actorMotion}
           state={animation}

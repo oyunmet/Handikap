@@ -83,7 +83,7 @@ function addWeatheredStoneColor(geometry: THREE.BufferGeometry, biome: WorldBiom
   const positions = geometry.getAttribute("position");
   const colors = new Float32Array(positions.count * 3);
   const base = new THREE.Color(
-    biome === "frozen-pass" ? "#879ba0" : biome === "red-marsh" ? "#806157" : "#75625a",
+    biome === "frozen-pass" ? "#929da0" : biome === "red-marsh" ? "#91877d" : "#969389",
   );
   for (let index = 0; index < positions.count; index += 1) {
     const x = positions.getX(index);

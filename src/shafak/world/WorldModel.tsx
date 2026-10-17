@@ -7,6 +7,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { WorldMotion } from "./movement";
 import type { WorldObject } from "./world-generation";
+import { applyRockPbrMaterials } from "./procedural-materials";
 import {
   createRoadShoulderGeometry,
   getNaturalRockGeometry,
@@ -94,8 +95,8 @@ export function getWorldAssetFallbackKind(src: string): WorldAssetFallbackKind {
 }
 
 const FALLBACK_ROCK_MATERIAL = new THREE.MeshStandardMaterial({
-  color: "#776d66",
-  roughness: 0.96,
+  color: "#a69f90",
+  roughness: 0.9,
   metalness: 0,
 });
 const FALLBACK_WOOD_MATERIAL = new THREE.MeshStandardMaterial({
@@ -270,6 +271,7 @@ function LoadedWorldAssetModel({
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
   const normalizedScene = useMemo(() => {
     const model = gltf.scene.clone(true);
+    if (getWorldAssetFallbackKind(src) === "rock") applyRockPbrMaterials(model);
     model.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
@@ -388,6 +390,7 @@ export function WorldAssetInstanceBatch({
 }: AssetBatchProps) {
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
   const { parts, fitTransform } = useMemo(() => {
+    if (getWorldAssetFallbackKind(src) === "rock") applyRockPbrMaterials(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(gltf.scene);
     const size = bounds.getSize(new THREE.Vector3());

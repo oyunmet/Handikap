@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import {
   PLAYER_CHARACTER_MODEL_FACING,
@@ -13,6 +14,8 @@ import {
 import { resolveMappedGlbClipName } from "./model-animation.ts";
 import { PLAYER_CHARACTER_ANIMATION_CLIPS } from "./player-model.ts";
 import { findCharacterPoseBones } from "./character-pose.ts";
+import { fitCharacterModel, getCharacterBounds, getCharacterScreenCoverage } from "./character-model.ts";
+import { getTravelCameraSettings } from "./camera-settings.ts";
 
 const playerModelUrl = new URL(`../../../public${PLAYER_CHARACTER_MODEL_PATH}`, import.meta.url);
 
@@ -66,5 +69,30 @@ test("player model uses the animated Quaternius hero at the configured height an
     resolveMappedGlbClipName("jump", [...playerClips], PLAYER_CHARACTER_ANIMATION_CLIPS),
     null,
     "jump should use the articulated procedural pose because the source model has no jump clip",
+  );
+
+  fitCharacterModel(gltf.scene, PLAYER_CHARACTER_TARGET_HEIGHT);
+  const normalizedBounds = getCharacterBounds(gltf.scene);
+  assert.ok(Math.abs(normalizedBounds.min.y) < 1e-5, "player feet should sit at y=0");
+  assert.ok(
+    Math.abs(normalizedBounds.max.y - PLAYER_CHARACTER_TARGET_HEIGHT) < 1e-5,
+    "the bundled player should normalize to exactly 1.8 m",
+  );
+
+  const cameraSettings = getTravelCameraSettings(0, true);
+  const camera = new THREE.PerspectiveCamera(
+    cameraSettings.fieldOfView,
+    402 / 874,
+    0.6,
+    340,
+  );
+  camera.position.set(0, cameraSettings.height, cameraSettings.distanceBehind);
+  camera.lookAt(0, cameraSettings.targetHeight, -cameraSettings.targetDistanceAhead);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+  const coverage = getCharacterScreenCoverage(gltf.scene, camera, 402, 874);
+  assert.ok(
+    coverage.height <= 0.35,
+    `the bundled player should occupy at most 35% of the screen height, got ${(coverage.height * 100).toFixed(1)}%`,
   );
 });

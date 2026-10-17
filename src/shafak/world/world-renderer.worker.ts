@@ -174,7 +174,7 @@ function drawProp(
     context.fillRect(-9, -32, 4, 8);
     context.fillRect(6, -26, 4, 7);
   } else if (object.kind === "column") {
-    const stone = object.biome === "frozen-pass" ? "#81949a" : object.biome === "red-marsh" ? "#8a6555" : "#796458";
+    const stone = object.biome === "frozen-pass" ? "#929da0" : object.biome === "red-marsh" ? "#91877d" : "#969389";
     context.fillStyle = stone;
     context.fillRect(-13, -57, 26, 57);
     context.fillRect(-19, -8, 38, 8);
@@ -247,6 +247,8 @@ function drawProp(
     context.closePath();
     context.fill();
   } else if (object.kind === "rock") {
+    context.fillStyle = "#a69f90";
+    context.strokeStyle = "rgba(231,222,202,.45)";
     context.beginPath();
     context.moveTo(-27, 0);
     context.lineTo(-20, -18);
@@ -256,6 +258,7 @@ function drawProp(
     context.lineTo(28, 0);
     context.closePath();
     context.fill();
+    context.stroke();
   } else if (object.kind === "torch" || object.kind === "firepit") {
     drawFireProp(context, object.kind, sway, quality);
   }
