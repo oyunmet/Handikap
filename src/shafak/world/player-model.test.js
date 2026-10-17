@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
@@ -14,8 +15,15 @@ import {
 import { resolveMappedGlbClipName } from "./model-animation.ts";
 import { PLAYER_CHARACTER_ANIMATION_CLIPS } from "./player-model.ts";
 import { findCharacterPoseBones } from "./character-pose.ts";
-import { fitCharacterModel, getCharacterBounds, getCharacterScreenCoverage } from "./character-model.ts";
+import {
+  fitCharacterModel,
+  getCharacterBounds,
+  getCharacterScreenCoverage,
+  inspectCharacterSceneGraph,
+  prepareCharacterSkinnedMeshes,
+} from "./character-model.ts";
 import { getTravelCameraSettings } from "./camera-settings.ts";
+import { createDuelWeapon, normalizeDuelWeaponWorldSize } from "./duel-weapon.ts";
 
 const playerModelUrl = new URL(`../../../public${PLAYER_CHARACTER_MODEL_PATH}`, import.meta.url);
 
@@ -71,28 +79,93 @@ test("player model uses the animated Quaternius hero at the configured height an
     "jump should use the articulated procedural pose because the source model has no jump clip",
   );
 
-  fitCharacterModel(gltf.scene, PLAYER_CHARACTER_TARGET_HEIGHT);
-  const normalizedBounds = getCharacterBounds(gltf.scene);
+  const model = cloneSkinned(gltf.scene);
+  fitCharacterModel(model, PLAYER_CHARACTER_TARGET_HEIGHT);
+  model.rotation.y = PLAYER_CHARACTER_MODEL_FACING;
+  const normalizedBounds = getCharacterBounds(model);
   assert.ok(Math.abs(normalizedBounds.min.y) < 1e-5, "player feet should sit at y=0");
   assert.ok(
     Math.abs(normalizedBounds.max.y - PLAYER_CHARACTER_TARGET_HEIGHT) < 1e-5,
     "the bundled player should normalize to exactly 1.8 m",
   );
+  assert.equal(prepareCharacterSkinnedMeshes(model), 7);
+  const skinnedMeshes = [];
+  model.traverse((object) => {
+    if (object instanceof THREE.SkinnedMesh) skinnedMeshes.push(object);
+  });
+  assert.ok(skinnedMeshes.every((mesh) => !mesh.frustumCulled && mesh.boundingSphere?.radius > 0));
+
+  const playerRoot = new THREE.Group();
+  playerRoot.name = "player-actor-root";
+  const contactShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 28),
+    new THREE.MeshBasicMaterial({ color: "#080706" }),
+  );
+  contactShadow.name = "player-contact-shadow";
+  playerRoot.add(contactShadow);
+  playerRoot.add(model);
+  const hand = model.getObjectByName("FistR");
+  assert.ok(hand, "the player GLB should expose a hand bone for equipped weapons");
+  const sword = createDuelWeapon({ weaponStyle: "sword" });
+  hand.add(sword);
+  normalizeDuelWeaponWorldSize(sword, 1);
+  playerRoot.updateMatrixWorld(true);
+
+  const diagnostics = inspectCharacterSceneGraph(playerRoot, model, PLAYER_CHARACTER_MODEL_PATH);
+  const meshRows = diagnostics.filter((row) => row.isMesh);
+  const devParts = meshRows.filter((row) =>
+    Math.max(row.worldSizeM.x, row.worldSizeM.y, row.worldSizeM.z) > 3);
+  assert.equal(meshRows.length, 18);
+  assert.deepEqual(devParts, []);
+  assert.ok(
+    diagnostics.some((row) =>
+      row.name === "equipped-duel-weapon" && row.source === "duel-weapon.ts: createDuelWeapon()"),
+  );
 
   const cameraSettings = getTravelCameraSettings(0, true);
-  const camera = new THREE.PerspectiveCamera(
-    cameraSettings.fieldOfView,
-    402 / 874,
-    0.6,
-    340,
-  );
-  camera.position.set(0, cameraSettings.height, cameraSettings.distanceBehind);
-  camera.lookAt(0, cameraSettings.targetHeight, -cameraSettings.targetDistanceAhead);
-  camera.updateProjectionMatrix();
-  camera.updateMatrixWorld(true);
-  const coverage = getCharacterScreenCoverage(gltf.scene, camera, 402, 874);
-  assert.ok(
-    coverage.height <= 0.35,
-    `the bundled player should occupy at most 35% of the screen height, got ${(coverage.height * 100).toFixed(1)}%`,
-  );
+  const coverageByMode = {};
+  for (const motionMode of ["idle", "run"]) {
+    const animatedModel = cloneSkinned(gltf.scene);
+    fitCharacterModel(animatedModel, PLAYER_CHARACTER_TARGET_HEIGHT);
+    animatedModel.rotation.y = PLAYER_CHARACTER_MODEL_FACING;
+    prepareCharacterSkinnedMeshes(animatedModel);
+    const animatedHand = animatedModel.getObjectByName("FistR");
+    const animatedSword = createDuelWeapon({ weaponStyle: "sword" });
+    animatedHand.add(animatedSword);
+    normalizeDuelWeaponWorldSize(animatedSword, 1);
+    const mixer = new THREE.AnimationMixer(animatedModel);
+    const clip = gltf.animations.find((animation) =>
+      animation.name.toLowerCase() === (motionMode === "idle" ? "idle" : "run"));
+    assert.ok(clip, `the player GLB should contain the ${motionMode} animation`);
+    mixer.clipAction(clip).play();
+    for (let frame = 0; frame < 24; frame += 1) mixer.update(1 / 30);
+    animatedModel.updateMatrixWorld(true);
+
+    const camera = new THREE.PerspectiveCamera(
+      cameraSettings.fieldOfView,
+      402 / 874,
+      0.6,
+      340,
+    );
+    camera.position.set(0, cameraSettings.height, cameraSettings.distanceBehind);
+    camera.lookAt(0, cameraSettings.targetHeight, -cameraSettings.targetDistanceAhead);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    const coverage = getCharacterScreenCoverage(animatedModel, camera, 402, 874);
+    coverageByMode[motionMode] = {
+      screenHeightPercent: Number((coverage.height * 100).toFixed(1)),
+      screenAreaPercent: Number((coverage.area * 100).toFixed(1)),
+    };
+    assert.ok(
+      coverage.height <= 0.35,
+      `${motionMode} player should occupy at most 35% of screen height, got ${coverageByMode[motionMode].screenHeightPercent}%`,
+    );
+  }
+
+  console.info("[shafak-model] Verified player scene", {
+    meshCount: meshRows.length,
+    skinnedMeshCount: skinnedMeshes.length,
+    devParts: devParts.length,
+    screenHeightPercent: coverageByMode,
+  });
 });

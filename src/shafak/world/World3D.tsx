@@ -455,7 +455,7 @@ function CameraRig({
       ref={cameraRef}
       makeDefault
       position={[0, 2.2, 4.5]}
-      fov={66}
+      fov={74}
       near={WORLD_CAMERA_NEAR}
       far={WORLD_CAMERA_FAR}
     />
@@ -2009,7 +2009,7 @@ export default function World3D(props: World3DProps) {
             shadows={shouldEnableWorldShadows(rendererQuality, touchRenderer)}
             camera={{
               position: [0, 5.75, 10.2],
-              fov: 54,
+              fov: 74,
               near: WORLD_CAMERA_NEAR,
               far: WORLD_CAMERA_FAR,
             }}

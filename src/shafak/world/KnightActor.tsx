@@ -30,17 +30,22 @@ import {
   PLAYER_CHARACTER_MATERIAL_ALIASES,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_ROOT_BONE,
-  PLAYER_CHARACTER_MODEL_SCALE,
   PLAYER_CHARACTER_TARGET_HEIGHT,
   shouldRenderPlayerModel,
 } from "./player-model";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
-import { createDuelWeapon, disposeDuelWeapon } from "./duel-weapon";
+import {
+  createDuelWeapon,
+  disposeDuelWeapon,
+  normalizeDuelWeaponWorldSize,
+} from "./duel-weapon";
 import {
   fitCharacterModel,
   getCharacterBounds,
   getCharacterScreenCoverage,
+  inspectCharacterSceneGraph,
   loadCharacter,
+  prepareCharacterSkinnedMeshes,
 } from "./character-model";
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 
@@ -62,6 +67,7 @@ type KnightActorProps = {
 
 const warnedModelPaths = new Set<string>();
 const loggedCharacterFraming = new Set<string>();
+const loggedPlayerSceneGraphs = new Set<string>();
 
 const GLB_CONTACT_SHADOW_GEOMETRY = new THREE.CircleGeometry(1, 28);
 const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
@@ -139,6 +145,7 @@ function prepareModel(
   const model = cloneSkinned(source);
   if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
   fitCharacterModel(model, targetHeight, modelPath);
+  prepareCharacterSkinnedMeshes(model);
   inspectModelBudget(model, modelPath);
   model.traverse((object) => {
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
@@ -312,6 +319,15 @@ function OptionalGlbKnight({
     if (!equippedHand) return undefined;
     const weapon = createDuelWeapon(weaponAppearance);
     equippedHand.add(weapon);
+    const style = weaponAppearance?.weaponStyle ?? "sword";
+    const targetWorldDimension = style === "daggers"
+      ? 0.42
+      : style === "spear" || style === "staff"
+        ? 1.15
+        : style === "axe" || style === "mace" || style === "bow"
+          ? 0.8
+          : 1;
+    normalizeDuelWeaponWorldSize(weapon, targetWorldDimension);
     return () => {
       equippedHand.remove(weapon);
       disposeDuelWeapon(weapon);
@@ -323,6 +339,29 @@ function OptionalGlbKnight({
     weaponAppearance?.weaponColor,
     weaponAppearance?.weaponStyle,
   ]);
+  useEffect(() => {
+    if (!playerCharacter) return undefined;
+    const diagnosticKey = `${modelPath}:${targetHeight}`;
+    if (loggedPlayerSceneGraphs.has(diagnosticKey)) return undefined;
+    const frameId = requestAnimationFrame(() => {
+      const playerRoot = rootRef.current;
+      if (!playerRoot) return;
+      playerRoot.updateMatrixWorld(true);
+      const rows = inspectCharacterSceneGraph(playerRoot, model, modelPath);
+      const meshRows = rows.filter((row) => row.isMesh);
+      const oversizedMeshes = meshRows.filter((row) =>
+        Math.max(row.worldSizeM.x, row.worldSizeM.y, row.worldSizeM.z) > 3);
+      loggedPlayerSceneGraphs.add(diagnosticKey);
+      console.info("[shafak-model] Player group Object3D/Mesh diagnostics", rows);
+      console.info("[shafak-model] DEV PARÇA (>3 m)", oversizedMeshes.length ? oversizedMeshes : "none");
+      console.info("[shafak-model] Player group mesh count", {
+        total: meshRows.length,
+        skinned: meshRows.filter((row) => row.type === "SkinnedMesh").length,
+        modelPath,
+      });
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [model, modelPath, playerCharacter, targetHeight]);
   const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
@@ -348,8 +387,6 @@ function OptionalGlbKnight({
   const staticPlayerModel = shouldRenderPlayerModel(playerCharacter, animationClips.length);
   const modelFacing = modelConfig?.modelFacing
     ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_FACING : KNIGHT_CONFIG.modelFacing);
-  const modelScale = modelConfig?.scale
-    ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_SCALE : KNIGHT_CONFIG.modelScale);
   const staticPoseRef = useRef<THREE.Group>(null);
   const previousStaticState = useRef(state);
   const staticActionElapsed = useRef(0);
@@ -544,7 +581,8 @@ function OptionalGlbKnight({
     }
     if (footSlipRef) footSlipRef.current = 0;
 
-    const diagnosticKey = `${modelPath}:${targetHeight}`;
+    const motionMode = Math.hypot(motion.velocityX, motion.velocityY) > 0.25 ? "run" : "idle";
+    const diagnosticKey = `${modelPath}:${targetHeight}:${motionMode}`;
     if (root && !loggedCharacterFraming.has(diagnosticKey)) {
       framingDiagnosticElapsed.current += dt;
       if (framingDiagnosticElapsed.current >= 1) {
@@ -559,6 +597,7 @@ function OptionalGlbKnight({
         loggedCharacterFraming.add(diagnosticKey);
         console.info("[shafak-model] Character camera framing", {
           model: modelPath,
+          motionMode,
           characterHeight: Number((bounds.max.y - bounds.min.y).toFixed(3)),
           cameraDistance: Number(cameraPosition.distanceTo(characterOrigin).toFixed(3)),
           cameraBehind: Number(Math.abs(cameraRelative.z).toFixed(3)),
@@ -578,7 +617,7 @@ function OptionalGlbKnight({
   }, [mixer, model, ownedGeometries, ownedMaterials]);
 
   return (
-    <group ref={rootRef}>
+    <group ref={rootRef} name={playerCharacter ? "player-actor-root" : "character-actor-root"}>
       {playerCharacter && facingAngle === undefined && (
         <pointLight
           position={[0, 1.15, 0.18]}
@@ -589,6 +628,7 @@ function OptionalGlbKnight({
         />
       )}
       <mesh
+        name="player-contact-shadow"
         geometry={GLB_CONTACT_SHADOW_GEOMETRY}
         material={GLB_CONTACT_SHADOW_MATERIAL}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -600,7 +640,6 @@ function OptionalGlbKnight({
         <primitive
           object={model}
           rotation={[0, modelFacing, 0]}
-          scale={modelScale}
           dispose={null}
         />
       </group>

@@ -35,6 +35,122 @@ export function getCharacterBounds(model: THREE.Object3D) {
   return bounds;
 }
 
+export type CharacterObjectDiagnostic = {
+  name: string;
+  type: string;
+  parent: string;
+  geometry: string;
+  worldSizeM: { x: number; y: number; z: number };
+  materialColors: string[];
+  visible: boolean;
+  visibleInHierarchy: boolean;
+  isMesh: boolean;
+  source: string;
+};
+
+function objectWorldBounds(object: THREE.Object3D) {
+  const bounds = new THREE.Box3();
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    if (child instanceof THREE.SkinnedMesh) {
+      child.skeleton.update();
+      child.computeBoundingBox();
+      if (child.boundingBox) bounds.union(child.boundingBox.clone().applyMatrix4(child.matrixWorld));
+      return;
+    }
+    child.geometry.computeBoundingBox();
+    bounds.union(new THREE.Box3().setFromObject(child, true));
+  });
+  return bounds;
+}
+
+/** Gathers world-space diagnostics for every object in the rendered player tree. */
+export function inspectCharacterSceneGraph(
+  root: THREE.Object3D,
+  model: THREE.Object3D,
+  modelPath: string,
+): CharacterObjectDiagnostic[] {
+  root.updateMatrixWorld(true);
+  const diagnostics: CharacterObjectDiagnostic[] = [];
+
+  root.traverse((object) => {
+    const worldBounds = objectWorldBounds(object);
+    const dimensions = worldBounds.getSize(new THREE.Vector3());
+    const materialColors = object instanceof THREE.Mesh
+      ? (Array.isArray(object.material) ? object.material : [object.material]).map((material) => {
+        const color = (material as THREE.Material & { color?: THREE.Color }).color;
+        return color?.isColor ? `#${color.getHexString()}` : "—";
+      })
+      : [];
+
+    let visibleInHierarchy = true;
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      visibleInHierarchy &&= current.visible;
+      current = current.parent;
+    }
+
+    let source = "KnightActor.tsx: attached player effect";
+    let ancestor: THREE.Object3D | null = object;
+    while (ancestor) {
+      if (ancestor.name === "equipped-duel-weapon") {
+        source = "duel-weapon.ts: createDuelWeapon()";
+        break;
+      }
+      if (ancestor === model) {
+        source = `${modelPath}: prepareModel()`;
+        break;
+      }
+      if (ancestor.name === "player-contact-shadow") {
+        source = "KnightActor.tsx: GLB_CONTACT_SHADOW_GEOMETRY";
+        break;
+      }
+      ancestor = ancestor.parent;
+    }
+
+    diagnostics.push({
+      name: object.name || "(unnamed)",
+      type: object instanceof THREE.SkinnedMesh
+        ? "SkinnedMesh"
+        : object instanceof THREE.Mesh
+          ? "Mesh"
+          : object instanceof THREE.Bone
+            ? "Bone"
+            : object.type,
+      parent: object.parent
+        ? object.parent.name || `(unnamed ${object.parent.type})`
+        : "(none)",
+      geometry: (object as THREE.Mesh).geometry?.type ?? "—",
+      worldSizeM: {
+        x: Number(dimensions.x.toFixed(3)),
+        y: Number(dimensions.y.toFixed(3)),
+        z: Number(dimensions.z.toFixed(3)),
+      },
+      materialColors,
+      visible: object.visible,
+      visibleInHierarchy,
+      isMesh: object instanceof THREE.Mesh,
+      source,
+    });
+  });
+
+  return diagnostics;
+}
+
+/** Prevents animated character meshes from being culled using stale bind-pose bounds. */
+export function prepareCharacterSkinnedMeshes(model: THREE.Object3D) {
+  let count = 0;
+  model.traverse((object) => {
+    if (!(object instanceof THREE.SkinnedMesh)) return;
+    object.frustumCulled = false;
+    object.skeleton.update();
+    object.computeBoundingBox();
+    object.computeBoundingSphere();
+    count += 1;
+  });
+  return count;
+}
+
 /** Fits a loaded model to a world-space height and puts its lowest point on y=0. */
 export function fitCharacterModel(model: THREE.Object3D, targetHeight: number, diagnosticLabel?: string) {
   const heightTarget = Number.isFinite(targetHeight) ? Math.max(0.1, targetHeight) : 1.8;

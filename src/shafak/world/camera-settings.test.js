@@ -20,7 +20,7 @@ test("mobile travel camera keeps the same framing while stopped and running", ()
   assert.equal(stopped.height, 2.2);
   assert.equal(stopped.distanceBehind, 4.5);
   assert.equal(stopped.targetHeight, 1.15);
-  assert.equal(stopped.fieldOfView, 66);
+  assert.equal(stopped.fieldOfView, 74);
 });
 
 test("mobile travel camera clears the central spike trap around 60% progress", () => {

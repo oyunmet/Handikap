@@ -110,6 +110,24 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
   return root;
 }
 
+/** Fits an attached weapon to its final world-space size after character normalization. */
+export function normalizeDuelWeaponWorldSize(root: THREE.Group, targetMaxDimension: number) {
+  root.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(root, true);
+  const size = bounds.getSize(new THREE.Vector3());
+  const currentMaxDimension = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(currentMaxDimension) || currentMaxDimension <= 0.001) {
+    throw new Error("Duel weapon has no measurable world-space size.");
+  }
+
+  const target = Number.isFinite(targetMaxDimension)
+    ? THREE.MathUtils.clamp(targetMaxDimension, 0.1, 1.5)
+    : 1;
+  root.scale.multiplyScalar(target / currentMaxDimension);
+  root.updateWorldMatrix(true, true);
+  return target;
+}
+
 export function disposeDuelWeapon(root: THREE.Group) {
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;

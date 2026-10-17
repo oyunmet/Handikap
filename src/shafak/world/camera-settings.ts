@@ -19,7 +19,7 @@ export function getTravelCameraSettings(speed: number, touchRenderer: boolean): 
       distanceBehind: 4.5,
       targetHeight: 1.15,
       targetDistanceAhead: 11.5,
-      fieldOfView: 66,
+      fieldOfView: 74,
       runShake: 0,
     };
   }
@@ -29,7 +29,7 @@ export function getTravelCameraSettings(speed: number, touchRenderer: boolean): 
     distanceBehind: 4.5 + safeSpeed * 0.04,
     targetHeight: 1.15,
     targetDistanceAhead: 11.5,
-    fieldOfView: 66 + safeSpeed * 0.35,
+    fieldOfView: 74 + safeSpeed * 0.35,
     runShake: Math.min(1, Math.max(0, (safeSpeed - 4.2) / 2.2)),
   };
 }
