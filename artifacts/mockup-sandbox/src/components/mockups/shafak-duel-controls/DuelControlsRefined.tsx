@@ -1,0 +1,424 @@
+import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { INPUT_BUTTON } from "./combat-engine";
+import "./Redesign.css";
+
+type QuickItem = {
+  id: string | null;
+  name: string;
+  shortName: string;
+  icon: string;
+  count: number;
+  cooldownSeconds: number;
+  disabledReason: string;
+};
+
+type DuelControlsProps = {
+  disabled?: boolean;
+  stamina: number;
+  attackCooldownSeconds: number;
+  skillOneSeconds: number;
+  skillTwoSeconds: number;
+  quickItems: QuickItem[];
+  weaponSwapCooldownSeconds: number;
+  weaponNames: readonly [string, string | null];
+  activeWeaponSlot: 0 | 1;
+  aiming: boolean;
+  isBowActive: boolean;
+  bowCloseRange: boolean;
+  onPress: (button: number) => void;
+  onRelease: (button: number) => void;
+  onMove: (x: number, y: number) => void;
+  onSurrender: () => void;
+  onOpenHelp: () => void;
+};
+
+function HeldButton({
+  button,
+  label,
+  className,
+  onPress,
+  onRelease,
+  cooldown = 0,
+  disabledReason = "",
+  onBlocked,
+  accessibleLabel,
+}: {
+  button: number;
+  label: string;
+  className: string;
+  onPress: (button: number) => void;
+  onRelease: (button: number) => void;
+  cooldown?: number;
+  disabledReason?: string;
+  onBlocked?: (reason: string) => void;
+  accessibleLabel?: string;
+}) {
+  const pointerRef = useRef<number | null>(null);
+  const pressedRef = useRef(false);
+  const press = () => {
+    if (pressedRef.current) return;
+    if (cooldown > 0 || disabledReason) {
+      onBlocked?.(disabledReason || `Hazır olması için ${cooldown.toFixed(1)} saniye bekle.`);
+      return;
+    }
+    pressedRef.current = true;
+    onPress(button);
+  };
+  const release = () => {
+    if (!pressedRef.current) return;
+    pressedRef.current = false;
+    onRelease(button);
+  };
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    pointerRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    press();
+  };
+  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (pointerRef.current !== event.pointerId) return;
+    pointerRef.current = null;
+    release();
+  };
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== " " && event.key !== "Enter") return;
+    event.preventDefault();
+    if (!event.repeat) press();
+  };
+  const onKeyUp = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === " " || event.key === "Enter") release();
+  };
+
+  return (
+    <button
+      className={`duel-control ${className}${cooldown > 0 || disabledReason ? " is-unavailable" : ""}`}
+      type="button"
+      aria-label={accessibleLabel ?? label}
+      aria-disabled={cooldown > 0 || !!disabledReason}
+      style={{ "--duel-cooldown": `${Math.min(100, Math.max(0, cooldown / 6 * 100))}%` } as CSSProperties}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={release}
+      onLostPointerCapture={release}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      onBlur={release}
+    >
+      <ControlIcon className={className} />
+      <span>{label}</span>
+      {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
+    </button>
+  );
+}
+
+function ControlIcon({ className }: { className: string }) {
+  const path = className.includes("bow")
+    ? "M5 4c8 3 8 13 0 16M5 4l14 16M9 8l6 2-2 6"
+    : className.includes("attack")
+      ? "M5 19 18 6m-4 0h4v4M4 5l5 5"
+      : className.includes("jump")
+        ? "M12 20V5m-6 6 6-6 6 6M5 20h14"
+        : className.includes("block")
+          ? "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z"
+          : className.includes("dodge")
+            ? "M4 15c3-6 6-6 9-2s5 4 7-2M5 7l-2 2 2 2M19 15l2-2-2-2"
+            : className.includes("fire")
+              ? "M12 3c1 4-3 5-1 8 1-2 3-3 4-5 4 5 4 9 1 12-3 3-9 1-9-4 0-4 3-6 5-11Z"
+              : "M13 2 5 13h6l-1 9 9-12h-6l1-8Z";
+  return (
+    <svg className="duel-control__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  );
+}
+
+function getAttackPresentation({
+  weaponName,
+  isBowActive,
+  bowCloseRange,
+}: {
+  weaponName: string;
+  isBowActive: boolean;
+  bowCloseRange: boolean;
+}) {
+  if (isBowActive && bowCloseRange) {
+    return {
+      label: "YAKIN",
+      action: "Yayla yakın mesafe saldırısı",
+      className: "is-attack is-close-range",
+    };
+  }
+  if (isBowActive) {
+    return {
+      label: "ATEŞ",
+      action: "Yay ile ateş et",
+      className: "is-attack is-bow",
+    };
+  }
+  const isDagger = /av bıçağı|bıçak|dagger/i.test(weaponName);
+  return {
+    label: isDagger ? "BIÇAK" : "SALDIRI",
+    action: isDagger ? "Bıçakla saldır" : "Seçili silahla saldır",
+    className: `is-attack${isDagger ? " is-dagger" : ""}`,
+  };
+}
+
+export default function DuelControlsRefined({
+  disabled = false,
+  stamina,
+  attackCooldownSeconds,
+  skillOneSeconds,
+  skillTwoSeconds,
+  onPress,
+  onRelease,
+  onMove,
+  onSurrender,
+  onOpenHelp,
+  quickItems,
+  weaponSwapCooldownSeconds,
+  weaponNames,
+  activeWeaponSlot,
+  aiming,
+  isBowActive,
+  bowCloseRange,
+}: DuelControlsProps) {
+  const joystickRef = useRef<HTMLDivElement>(null);
+  const joystickPointer = useRef<number | null>(null);
+  const [blockedHint, setBlockedHint] = useState("");
+  const showBlockedHint = (reason: string) => {
+    setBlockedHint(reason);
+    window.setTimeout(() => setBlockedHint(""), 1900);
+  };
+  const tapAction = (button: number, reason = "") => {
+    if (disabled) return;
+    if (reason) {
+      showBlockedHint(reason);
+      return;
+    }
+    onPress(button);
+    onRelease(button);
+  };
+
+  const readJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const element = joystickRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const radius = Math.min(rect.width, rect.height) * 0.37;
+    const dx = (event.clientX - (rect.left + rect.width / 2)) / radius;
+    const dy = ((rect.top + rect.height / 2) - event.clientY) / radius;
+    const length = Math.hypot(dx, dy);
+    const scale = length > 1 ? 1 / length : 1;
+    const x = Math.max(-1, Math.min(1, dx * scale));
+    const y = Math.max(-1, Math.min(1, dy * scale));
+    element.style.setProperty("--stick-x", `${x * radius}px`);
+    element.style.setProperty("--stick-y", `${-y * radius}px`);
+    onMove(x, y);
+  };
+  const onJoystickDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    event.preventDefault();
+    joystickPointer.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    readJoystick(event);
+  };
+  const onJoystickMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointer.current === event.pointerId) readJoystick(event);
+  };
+  const onJoystickRelease = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointer.current !== event.pointerId) return;
+    joystickPointer.current = null;
+    joystickRef.current?.style.setProperty("--stick-x", "0px");
+    joystickRef.current?.style.setProperty("--stick-y", "0px");
+    onMove(0, 0);
+  };
+  const activeWeapon = weaponNames[activeWeaponSlot] ?? weaponNames[0] ?? "silah";
+  const attack = getAttackPresentation({ weaponName: activeWeapon, isBowActive, bowCloseRange });
+
+  return (
+    <div className={`duel-controls duel-controls--refined${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
+      <button className="duel-forfeit" type="button" onClick={onSurrender} disabled={disabled}>PES ET</button>
+      <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
+
+      <div
+        ref={joystickRef}
+        className="duel-stick"
+        role="application"
+        aria-label="Hareket joystick'i"
+        onPointerDown={onJoystickDown}
+        onPointerMove={onJoystickMove}
+        onPointerUp={onJoystickRelease}
+        onPointerCancel={onJoystickRelease}
+      >
+        <span aria-hidden="true" />
+      </div>
+      <span className="duel-stick-caption" aria-hidden="true">HAREKET</span>
+      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K KALKAN · L KAÇ · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
+      {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
+
+      <div className="duel-stance-controls" aria-label="Düello hareketleri">
+        {isBowActive && !bowCloseRange && (
+          <HeldButton
+            button={INPUT_BUTTON.aim}
+            label="NİŞAN"
+            className={`is-stance is-aim${aiming ? " is-active" : ""}`}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+          />
+        )}
+        <button
+          className="duel-control is-stance is-jump"
+          type="button"
+          aria-label="Zıpla ve havada saldırıyla yere vur"
+          onClick={() => tapAction(INPUT_BUTTON.jump, stamina < 12 ? "Zıplamak için 12 dayanıklılık gerekli." : "")}
+        >
+          <ControlIcon className="is-jump" />
+          <span>ZIPLA</span>
+        </button>
+      </div>
+
+      {weaponNames[1] && (
+        <div className="duel-weapon-select" role="group" aria-label="Düello silah seçimi">
+          <div className="duel-weapon-select__heading">
+            <span>DONANIM</span><b aria-hidden="true">V</b>
+            <span className="duel-weapon-select__prompt">SİLAH DEĞİŞTİR</span>
+          </div>
+          <div className="duel-weapon-select__slots">
+            {weaponNames.map((name, slot) => {
+              if (!name) return null;
+              const selected = activeWeaponSlot === slot;
+              const ariaDisabled = selected || weaponSwapCooldownSeconds > 0 || disabled;
+              const slotLabel = slot === 0 ? "ANA SİLAH" : "İKİNCİ SİLAH";
+              return (
+                <button
+                  key={slot}
+                  className={`duel-weapon-select__slot${selected ? " is-active" : ""}`}
+                  type="button"
+                  aria-label={`${slotLabel}: ${name}${selected ? ", etkin" : ""}`}
+                  aria-pressed={selected}
+                  aria-disabled={ariaDisabled}
+                  disabled={disabled || selected}
+                  onClick={() => tapAction(
+                    INPUT_BUTTON.weaponSwitch,
+                    weaponSwapCooldownSeconds > 0
+                      ? `Silah değişimi için ${weaponSwapCooldownSeconds.toFixed(1)} saniye bekle.`
+                      : "",
+                  )}
+                >
+                  <span>{slot === 0 ? "1" : "2"}</span>
+                  <small>{slotLabel}</small>
+                  <strong>{name}</strong>
+                  {selected && <i>ETKİN</i>}
+                  {!selected && weaponSwapCooldownSeconds > 0 && <i>{weaponSwapCooldownSeconds.toFixed(1)} sn</i>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {quickItems.some((item) => item.id) && (
+        <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
+          {quickItems.map((item, index) => {
+            if (!item.id) return null;
+            const cooldown = item.cooldownSeconds;
+            const slotButton = [
+              INPUT_BUTTON.quickSlotOne,
+              INPUT_BUTTON.quickSlotTwo,
+              INPUT_BUTTON.quickSlotThree,
+              INPUT_BUTTON.quickSlotFour,
+            ][index];
+            const unavailable = !item.id || item.count <= 0 || cooldown > 0 || Boolean(item.disabledReason);
+            const blockedReason = !item.id
+              ? "Bu hızlı yuva boş. Eşyayı Heybe'den ata."
+              : item.count <= 0
+                ? "Bu eşyadan heybenizde kalmadı."
+                : cooldown > 0
+                  ? `Hazır olması için ${cooldown.toFixed(1)} saniye bekle.`
+                  : item.disabledReason;
+            return (
+              <button
+                key={index}
+                className={`duel-quickslot${unavailable ? " is-unavailable" : ""}${cooldown > 0 ? " is-cooling" : ""}`}
+                type="button"
+                aria-label={`${index + 1}. yuva: ${item.name}, ${item.count} adet${cooldown > 0 ? `, ${cooldown.toFixed(1)} saniye bekleme` : ""}`}
+                aria-disabled={unavailable || disabled}
+                style={{ "--duel-cooldown": `${Math.min(100, Math.max(0, cooldown / 18 * 100))}%` } as CSSProperties}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  if (unavailable) {
+                    showBlockedHint(blockedReason);
+                    return;
+                  }
+                  tapAction(slotButton);
+                }}
+                onClick={(event) => {
+                  if (event.detail !== 0) return;
+                  if (unavailable) showBlockedHint(blockedReason);
+                  else tapAction(slotButton);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== " " && event.key !== "Enter") return;
+                  event.preventDefault();
+                  if (event.repeat) return;
+                  if (unavailable) {
+                    showBlockedHint(blockedReason);
+                    return;
+                  }
+                  tapAction(slotButton);
+                }}
+              >
+                <span className="duel-quickslot__number">{index + 1}</span>
+                <strong aria-hidden="true">{item.icon}</strong>
+                <span className="duel-quickslot__name">{item.shortName}</span>
+                <b>{item.count}</b>
+                {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="duel-control-cluster">
+        <div className="duel-control-cluster__skills">
+          <HeldButton
+            button={INPUT_BUTTON.skillOne}
+            label="KOR"
+            className="is-skill is-fire"
+            onPress={onPress}
+            onRelease={onRelease}
+            cooldown={skillOneSeconds}
+            disabledReason={stamina < 24 ? "KOR için 24 dayanıklılık gerekli." : ""}
+            onBlocked={showBlockedHint}
+          />
+          <HeldButton
+            button={INPUT_BUTTON.skillTwo}
+            label="YILDIRIM"
+            className="is-skill is-lightning"
+            onPress={onPress}
+            onRelease={onRelease}
+            cooldown={skillTwoSeconds}
+            disabledReason={stamina < 30 ? "YILDIRIM için 30 dayanıklılık gerekli." : ""}
+            onBlocked={showBlockedHint}
+          />
+        </div>
+        <div className="duel-control-cluster__actions">
+          <HeldButton button={INPUT_BUTTON.dodge} label="KAÇ" className="is-dodge" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 20 ? "KAÇ için 20 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton button={INPUT_BUTTON.block} label="KALKAN" className="is-block" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 1 ? "Kalkan için dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton
+            button={INPUT_BUTTON.attack}
+            label={attack.label}
+            accessibleLabel={`${attack.action}: ${activeWeapon}`}
+            className={attack.className}
+            onPress={onPress}
+            onRelease={onRelease}
+            cooldown={attackCooldownSeconds}
+            disabledReason={stamina < 9 ? "Saldırı için 9 dayanıklılık gerekli." : ""}
+            onBlocked={showBlockedHint}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
