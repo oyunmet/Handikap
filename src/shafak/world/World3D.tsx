@@ -15,6 +15,7 @@ import { FinalGate } from "./WorldElements";
 import type { WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import WorldLandscape from "./WorldLandscape";
+import { WorldAssetProgress } from "./WorldModel";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
@@ -1175,6 +1176,20 @@ type DuelArenaInstance = {
   color: string;
 };
 
+const ARENA_COLUMN_PROFILE = [
+  new THREE.Vector2(0.28, -0.5),
+  new THREE.Vector2(0.35, -0.46),
+  new THREE.Vector2(0.36, -0.39),
+  new THREE.Vector2(0.29, -0.31),
+  new THREE.Vector2(0.27, -0.16),
+  new THREE.Vector2(0.29, 0),
+  new THREE.Vector2(0.27, 0.16),
+  new THREE.Vector2(0.3, 0.32),
+  new THREE.Vector2(0.37, 0.4),
+  new THREE.Vector2(0.38, 0.46),
+  new THREE.Vector2(0.32, 0.5),
+];
+
 function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
   const pavingRef = useRef<THREE.InstancedMesh>(null);
   const stainRef = useRef<THREE.InstancedMesh>(null);
@@ -1243,7 +1258,7 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
       };
     });
 
-    const columnHeights = [2.5, 1.45, 3.6, 2.05, 4.2, 1.25, 3.25, 2.55, 4.45, 1.7, 2.85, 3.7, 1.95];
+    const columnHeights = [6, 2.1, 5.6, 2.05, 6.2, 1.25, 4.8, 3.5, 5.9, 1.7, 4.6, 6, 1.95];
     const columnAngles = columnHeights.map((_, index) => -2.3 + (index / (columnHeights.length - 1)) * 4.6);
     const columns = columnHeights.map((height, index) => {
       const angle = columnAngles[index];
@@ -1274,9 +1289,13 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
       [-3.8, -5.05],
       [3.8, 3.95],
     ];
-    const torches = (height: number, color: string): DuelArenaInstance[] => torchPositions.map(([x, z], index) => ({
+    const torches = (
+      height: number,
+      color: string,
+      scale: [number, number, number] = [1, 1, 1],
+    ): DuelArenaInstance[] => torchPositions.map(([x, z], index) => ({
       position: [x, height, z] as [number, number, number],
-      scale: [1, 1, 1],
+      scale,
       rotation: [0, index * 0.12, 0] as [number, number, number],
       color,
     }));
@@ -1288,7 +1307,7 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
     apply(capstoneRef.current, capstone);
     apply(torchShaftRef.current, torches(0.53, theme.column[1]));
     apply(torchBowlRef.current, torches(1.12, theme.accent));
-    apply(torchFlameRef.current, torches(1.52, theme.flame));
+    apply(torchFlameRef.current, torches(1.52, theme.flame, [0.24, 0.4, 0.24]));
   }, [theme]);
 
   return (
@@ -1306,7 +1325,7 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.97} />
       </instancedMesh>
       <instancedMesh ref={columnRef} args={[undefined, undefined, 13]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.25, 0.34, 1, 20, 1]} />
+        <latheGeometry args={[ARENA_COLUMN_PROFILE, 32]} />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.91} />
       </instancedMesh>
       <instancedMesh ref={capstoneRef} args={[undefined, undefined, 6]} castShadow receiveShadow>
@@ -1314,15 +1333,15 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.92} />
       </instancedMesh>
       <instancedMesh ref={torchShaftRef} args={[undefined, undefined, 4]} castShadow>
-        <cylinderGeometry args={[0.1, 0.15, 1, 6]} />
+        <cylinderGeometry args={[0.1, 0.15, 1, 20, 3]} />
         <meshStandardMaterial color="#a9937e" roughness={0.84} />
       </instancedMesh>
       <instancedMesh ref={torchBowlRef} args={[undefined, undefined, 4]}>
-        <cylinderGeometry args={[0.25, 0.15, 0.24, 6]} />
+        <cylinderGeometry args={[0.25, 0.15, 0.24, 24, 4, true]} />
         <meshStandardMaterial color="#b29a7b" roughness={0.78} metalness={0.12} />
       </instancedMesh>
       <instancedMesh ref={torchFlameRef} args={[undefined, undefined, 4]}>
-        <coneGeometry args={[0.2, 0.58, 5]} />
+        <sphereGeometry args={[1, 16, 12]} />
         <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </instancedMesh>
 
@@ -1369,6 +1388,72 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
   );
 }
 
+function DuelArenaBackdrop({ theme }: { theme: DuelArenaTheme }) {
+  const mountainsRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const mountains = useMemo(() => Array.from({ length: 9 }, (_, index) => ({
+    x: (index - 4) * 12.2,
+    y: -3.2 + (index % 3) * 1.2,
+    z: -34 - (index % 2) * 4,
+    sx: 8.5 + (index % 4) * 1.8,
+    sy: 12 + (index % 5) * 2.4,
+    sz: 6.4 + (index % 3) * 1.1,
+    color: theme.wall[index % theme.wall.length],
+  })), [theme.wall]);
+
+  useEffect(() => {
+    const mesh = mountainsRef.current;
+    if (!mesh) return;
+    const tint = new THREE.Color();
+    mountains.forEach((mountain, index) => {
+      dummy.position.set(mountain.x, mountain.y, mountain.z);
+      dummy.scale.set(mountain.sx, mountain.sy, mountain.sz);
+      dummy.rotation.set(0.03 * (index % 3), index * 0.11, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+      mesh.setColorAt(index, tint.set(mountain.color));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [dummy, mountains]);
+
+  return (
+    <>
+      <instancedMesh ref={mountainsRef} args={[undefined, undefined, mountains.length]} frustumCulled={false}>
+        <sphereGeometry args={[1, 28, 18]} />
+        <meshStandardMaterial color="#ffffff" roughness={1} />
+      </instancedMesh>
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * 11.8, 0, -8.5]} rotation={[0, side * -0.16, 0]}>
+          <mesh position={[0, 0.43, 0]}>
+            <cylinderGeometry args={[0.58, 0.78, 0.86, 24, 3]} />
+            <meshStandardMaterial color={theme.column[1]} roughness={0.97} />
+          </mesh>
+          <mesh position={[0, 1.66, 0]} scale={[1, 1.25, 0.7]}>
+            <capsuleGeometry args={[0.36, 0.9, 8, 18]} />
+            <meshStandardMaterial color={theme.column[0]} roughness={0.96} />
+          </mesh>
+          <mesh position={[0, 2.82, 0]}>
+            <sphereGeometry args={[0.32, 18, 12]} />
+            <meshStandardMaterial color={theme.column[1]} roughness={0.92} />
+          </mesh>
+          {[-0.53, 0.53].map((x) => (
+            <mesh key={x} position={[x, 2.06, 0]} scale={[0.92, 0.72, 0.78]}>
+              <sphereGeometry args={[0.34, 16, 12]} />
+              <meshStandardMaterial color={theme.column[0]} roughness={0.94} />
+            </mesh>
+          ))}
+          <mesh position={[side * 0.86, 1.42, 0.12]} rotation={[0, 0, -side * 0.12]} scale={[0.62, 1.12, 0.36]}>
+            <sphereGeometry args={[0.42, 18, 12]} />
+            <meshStandardMaterial color={theme.wall[1]} roughness={0.95} />
+          </mesh>
+        </group>
+      ))}
+    </>
+  );
+}
+
 function DuelArenaAtmosphere({ theme }: { theme: DuelArenaTheme }) {
   const { scene } = useThree();
 
@@ -1408,6 +1493,7 @@ function DuelArena({
       </mesh>
       <DuelArenaAtmosphere theme={theme} />
       <DuelArenaStonework theme={theme} />
+      <DuelArenaBackdrop theme={theme} />
       {visualEffectsEnabled && <DuelAshField />}
       <pointLight position={[0, 5.2, 2.2]} color={theme.accent} intensity={70} distance={24} decay={2} />
       <pointLight position={[0, 4.1, -3.8]} color={theme.flame} intensity={32} distance={22} decay={2} />
@@ -1726,6 +1812,7 @@ function SceneContents({
 
   return (
     <>
+      <WorldAssetProgress />
       <ProceduralEnvironment />
       <CameraRig
         motionRef={motionRef}

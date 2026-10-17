@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -16,10 +16,12 @@ import {
   createRoadShoulderGeometry,
   getLandmarkGeometry,
   getNaturalTreeGeometry,
+  WORLD_ROAD_WIDTH,
   type LandmarkKind,
   type LandscapeQuality,
   type TreeSpecies,
 } from "./world-natural-geometry";
+import { raycastWorldGround, WorldAssetInstanceBatch, WorldRockFarLod } from "./WorldModel";
 
 type WorldQuality = LandscapeQuality;
 
@@ -549,10 +551,10 @@ function Road({
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
-        <planeGeometry args={[14.2, ROAD_LENGTH]} />
+        <planeGeometry args={[WORLD_ROAD_WIDTH, ROAD_LENGTH]} />
         <primitive object={roadMaterial} attach="material" />
       </mesh>
-      {[-7.12, 7.12].map((x) => (
+      {[-WORLD_ROAD_WIDTH / 2, WORLD_ROAD_WIDTH / 2].map((x) => (
         <group key={x}>
           <mesh position={[x * 1.02, -0.015, ROAD_CENTER_Z]} rotation={[Math.PI / 2, 0, 0]} receiveShadow castShadow>
             <cylinderGeometry args={[0.078, 0.078, ROAD_LENGTH, 10, 1]} />
@@ -589,11 +591,11 @@ function RoadLanterns({ motionRef }: { motionRef: Props["motionRef"] }) {
       {lampPositions.map((z) => [-1, 1].map((side) => (
         <group key={`${side}:${z}`} position={[side * 8.1, 0, z]}>
           <mesh position={[0, 1.25, 0]}>
-            <cylinderGeometry args={[0.07, 0.15, 2.5, 6]} />
+            <cylinderGeometry args={[0.07, 0.15, 2.5, 16, 3]} />
             <meshStandardMaterial color="#55413c" roughness={0.9} />
           </mesh>
           <mesh position={[0, 2.58, 0]}>
-            <octahedronGeometry args={[0.22, 0]} />
+            <sphereGeometry args={[0.18, 16, 12]} />
             <meshBasicMaterial color="#ffd09a" toneMapped={false} />
           </mesh>
           <mesh position={[0, 2.55, 0]} scale={[2.3, 2.3, 2.3]}>
@@ -626,6 +628,7 @@ function ScenicProp({
     : object.kind === "skeletal-tree" ? "skeletal"
       : object.kind === "mangrove" ? "mangrove" : "ash";
   const treeGeometry = getNaturalTreeGeometry(treeSpecies, object.biome);
+  const groundY = useMemo(() => raycastWorldGround(object.lane * 9.7, -150), [object.lane]);
 
   useFrame((frame) => {
     const root = rootRef.current;
@@ -641,7 +644,7 @@ function ScenicProp({
   return (
     <group
       ref={rootRef}
-      position={[object.lane * 9.7, 0, 0]}
+      position={[object.lane * 9.7, groundY, 0]}
       rotation={[0, (seed % 63) * 0.1, 0]}
       scale={object.scale}
     >
@@ -674,11 +677,10 @@ function ScenicProp({
             <>
               {[-0.32, 0, 0.32].map((x, index) => (
                 <mesh key={x} position={[x, 0.22 + (index === 1 ? 0.08 : 0), index === 1 ? -0.12 : 0.06]} scale={[0.46, 0.34, 0.38]}>
-                  <sphereGeometry args={[0.64, 8, 6]} />
+                  <sphereGeometry args={[0.64, 16, 12]} />
                   <meshStandardMaterial
                     color={object.biome === "frozen-pass" ? "#657b75" : "#526f42"}
                     roughness={0.96}
-                    flatShading
                   />
                 </mesh>
               ))}
@@ -687,14 +689,14 @@ function ScenicProp({
             [-0.42, -0.2, 0, 0.2, 0.42].map((x, index) => (
               <mesh
                 key={x}
-                position={[x, 0.43 + (index % 2) * 0.08, 0]}
+                  position={[x, 0.37 + (index % 2) * 0.08, 0]}
                 rotation={[0.08, 0, -x * 0.9]}
+                  scale={[0.7, 1.25, 0.68]}
               >
-                <coneGeometry args={[0.13, 0.92, 4]} />
+                  <sphereGeometry args={[0.23, 14, 10]} />
                 <meshStandardMaterial
                   color={object.biome === "frozen-pass" ? "#70867e" : "#637f48"}
                   roughness={0.94}
-                  flatShading
                 />
               </mesh>
             ))
@@ -716,7 +718,7 @@ function ScenicProp({
       {object.kind === "flag" && (
         <group ref={swayRef}>
           <mesh position={[0, 1.5, 0]}>
-            <cylinderGeometry args={[0.045, 0.08, 3, 6]} />
+            <cylinderGeometry args={[0.045, 0.08, 3, 16, 2]} />
             <meshStandardMaterial color="#b18a5a" metalness={0.35} roughness={0.65} />
           </mesh>
           <mesh position={[0.67, 2.64, 0]}>
@@ -724,7 +726,7 @@ function ScenicProp({
             <meshStandardMaterial color={seed % 2 ? "#863a43" : "#35445b"} roughness={0.9} flatShading />
           </mesh>
           <mesh position={[0, 3.17, 0]}>
-            <coneGeometry args={[0.11, 0.24, 5]} />
+            <sphereGeometry args={[0.14, 16, 10]} />
             <meshStandardMaterial color="#e6bf7d" metalness={0.45} roughness={0.42} />
           </mesh>
         </group>
@@ -732,12 +734,16 @@ function ScenicProp({
       {(object.kind === "torch" || object.kind === "firepit") && (
         <group position={[0, object.kind === "torch" ? 1.68 : 0.4, 0]}>
           <mesh position={[0, -0.65, 0]}>
-            <cylinderGeometry args={[0.06, 0.12, object.kind === "torch" ? 1.35 : 0.5, 6]} />
+            <cylinderGeometry args={[0.06, 0.12, object.kind === "torch" ? 1.35 : 0.5, 16, 2]} />
             <meshStandardMaterial color="#58413a" roughness={0.9} />
           </mesh>
-          <mesh position={[0, 0.12, 0]}>
-            <coneGeometry args={[0.16, 0.4, 5]} />
+          <mesh position={[0, 0.12, 0]} scale={[0.72, 1.3, 0.72]}>
+            <sphereGeometry args={[0.2, 16, 12]} />
             <meshBasicMaterial color={object.biome === "frozen-pass" ? "#92edff" : "#ffbd75"} toneMapped={false} />
+          </mesh>
+          <mesh position={[0.03, 0.28, 0]} scale={[0.44, 0.86, 0.48]}>
+            <sphereGeometry args={[0.18, 14, 10]} />
+            <meshBasicMaterial color={object.biome === "frozen-pass" ? "#c9f7ff" : "#ffdf9d"} toneMapped={false} />
           </mesh>
           <pointLight
             color={object.biome === "frozen-pass" ? "#8ce7ff" : "#ff9957"}
@@ -749,7 +755,7 @@ function ScenicProp({
       )}
       {object.kind === "reed" && [-0.36, 0, 0.36].map((x) => (
         <mesh key={x} position={[x, 0.7, 0]} rotation={[0, 0, x * 0.3]}>
-          <cylinderGeometry args={[0.025, 0.055, 1.4, 4]} />
+          <cylinderGeometry args={[0.025, 0.055, 1.4, 12, 2]} />
           <meshStandardMaterial color="#8c8a62" roughness={0.94} />
         </mesh>
       ))}
@@ -881,6 +887,8 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
     chunks: getChunks(motionRef.current.distance),
   }));
   const objects = useMemo(() => chunkState.chunks.flatMap((chunk) => chunk.objects), [chunkState.chunks]);
+  const rockObjects = useMemo(() => objects.filter((object) => object.kind === "rock"), [objects]);
+  const scenicObjects = useMemo(() => objects.filter((object) => object.kind !== "rock"), [objects]);
   const shadowMapSize = getShadowMapSize(
     quality,
     typeof window === "undefined" ? 1 : window.devicePixelRatio,
@@ -897,7 +905,7 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
       <WorldSky motionRef={motionRef} />
       <DistantRidges motionRef={motionRef} quality={quality} />
       <Road motionRef={motionRef} weather={weather} quality={quality} />
-      {objects.map((object) => (
+      {scenicObjects.map((object) => (
         <ScenicProp
           key={object.id}
           object={object}
@@ -905,6 +913,24 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
           motionReduced={motionReduced}
         />
       ))}
+      {rockObjects.length > 0 && (
+        <Suspense fallback={(
+          <group>
+            {rockObjects.map((object) => (
+              <ScenicProp key={object.id} object={object} motionRef={motionRef} motionReduced={motionReduced} />
+            ))}
+          </group>
+        )}>
+          <WorldAssetInstanceBatch
+            src="/assets/rock-wall.glb"
+            targetHeight={2.15}
+            items={rockObjects}
+            motionRef={motionRef}
+            maxDetailedDistance={72}
+          />
+          <WorldRockFarLod items={rockObjects} motionRef={motionRef} />
+        </Suspense>
+      )}
       <WeatherParticles weather={weather} quality={quality} motionReduced={motionReduced} />
       <AmbientMotes motionRef={motionRef} quality={quality} motionReduced={motionReduced} />
       <hemisphereLight args={["#fff1d9", "#81796b", 2.05]} />

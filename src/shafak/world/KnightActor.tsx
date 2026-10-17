@@ -28,6 +28,7 @@ import {
 } from "./player-model";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 import { createDuelWeapon, disposeDuelWeapon } from "./duel-weapon";
+import { configureWorldGLTFLoader } from "./WorldModel";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -124,7 +125,11 @@ function prepareModel(
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
   });
   const ownedMaterials: THREE.Material[] = [];
-  const playerRig = playerCharacter ? rigPlayerModel(model) : null;
+  let alreadyRigged = false;
+  model.traverse((object) => {
+    if ((object as THREE.SkinnedMesh).isSkinnedMesh) alreadyRigged = true;
+  });
+  const playerRig = playerCharacter && !alreadyRigged ? rigPlayerModel(model) : null;
   const ownedGeometries = playerRig ? [playerRig.ownedGeometry] : [];
   if (!modelConfig) return { model, ownedMaterials, ownedGeometries, playerRig };
 
@@ -195,6 +200,7 @@ function OptionalGlbKnight({
     ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_PATH : KNIGHT_CONFIG.modelPath);
   const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
     loader.setMeshoptDecoder(MeshoptDecoder);
+    configureWorldGLTFLoader(loader);
   }) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
@@ -202,7 +208,12 @@ function OptionalGlbKnight({
     () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow, playerCharacter),
     [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter],
   );
-  const equippedHand = playerCharacter ? playerRig?.bones.Rig_RightHand : undefined;
+  const equippedHand = playerCharacter
+    ? playerRig?.bones.Rig_RightHand
+      ?? model.getObjectByName("Rig_RightHand")
+      ?? model.getObjectByName("mixamorigRightHand")
+      ?? model.getObjectByName("RightHand")
+    : undefined;
   useEffect(() => {
     if (!equippedHand) return undefined;
     const weapon = createDuelWeapon(appearance);

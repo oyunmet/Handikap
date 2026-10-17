@@ -1,6 +1,6 @@
 import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import KnightActor from "./KnightActor";
@@ -14,6 +14,7 @@ import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import type { WeatherMode } from "./world-biomes";
+import { raycastWorldGround, WorldAssetModel } from "./WorldModel";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -178,6 +179,7 @@ function Obstacle({
   const fallingRockRef = useRef<THREE.Group>(null);
   const fallStartedAtRef = useRef<number | null>(null);
   const chestLidRef = useRef<THREE.Group>(null);
+  const groundY = useMemo(() => raycastWorldGround(obstacle.x, -150), [obstacle.x]);
   useEffect(() => {
     const isChest = obstacle.kind === "treasure-chest";
     const isBreakable = obstacle.kind === "barrel"
@@ -219,6 +221,7 @@ function Obstacle({
   useFrame((frame) => {
     if (!rootRef.current) return;
     const gap = obstacle.distance - motionRef.current.distance;
+    rootRef.current.position.y = groundY;
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
     // Keep roadside gameplay objects in front of the player. A passed obstacle
     // must leave the camera corridor instead of enclosing the trailing camera.
@@ -249,7 +252,7 @@ function Obstacle({
   });
 
   return (
-    <group ref={rootRef} position={[obstacle.x, 0, 0]}>
+    <group ref={rootRef} position={[obstacle.x, groundY, 0]}>
       <Html position={[0, 2.12, 0]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
         <span className={`world-obstacle-tag is-${obstacle.kind}`}>{obstacleLabel}</span>
       </Html>
@@ -260,21 +263,25 @@ function Obstacle({
         </mesh>
       )}
       {obstacle.kind === "rock" ? (
-        <mesh position={[0, 0.72, 0]} rotation={[0.1, 0.7, 0.2]}>
-          <dodecahedronGeometry args={[0.92, 0]} />
-          <meshStandardMaterial color="#84776e" emissive="#4b3022" emissiveIntensity={0.24} roughness={0.9} flatShading />
-        </mesh>
+        <Suspense fallback={(
+          <mesh position={[0, 0.82, 0]} rotation={[0.1, 0.7, 0.2]}>
+            <icosahedronGeometry args={[0.92, 2]} />
+            <meshStandardMaterial color="#84776e" emissive="#4b3022" emissiveIntensity={0.16} roughness={0.94} />
+          </mesh>
+        )}>
+          <WorldAssetModel src="/assets/rock-wall.glb" height={1.95} />
+        </Suspense>
       ) : obstacle.kind === "falling-rock-trap" ? (
         <group>
           <group ref={fallingRockRef} position={[0, 5.2, 0]}>
-            <mesh castShadow>
-              <dodecahedronGeometry args={[1.02, 0]} />
-              <meshStandardMaterial color="#5d5655" roughness={0.96} flatShading />
-            </mesh>
-            <mesh position={[0.31, 0.16, -0.58]} rotation={[0.4, 0.3, 0.7]} scale={[0.45, 0.13, 0.08]}>
-              <boxGeometry args={[1, 1, 1]} />
-              <meshStandardMaterial color="#393536" roughness={1} flatShading />
-            </mesh>
+            <Suspense fallback={(
+              <mesh position={[0, 1.08, 0]} castShadow>
+                <icosahedronGeometry args={[1.08, 2]} />
+                <meshStandardMaterial color="#5d5655" roughness={0.96} />
+              </mesh>
+            )}>
+              <WorldAssetModel src="/assets/rock-wall.glb" height={2.16} />
+            </Suspense>
           </group>
           <mesh ref={warningRef} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[1.75, 1.94, 28]} />
@@ -288,30 +295,27 @@ function Obstacle({
             <ringGeometry args={[1.28, 1.39, 28]} />
             <meshBasicMaterial color="#f2ca76" transparent opacity={0.43} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
-          <mesh position={[0, 0.38, 0]}>
-            <boxGeometry args={[1.78, 0.72, 1.08]} />
-            <meshStandardMaterial color="#714326" roughness={0.65} metalness={0.22} />
-          </mesh>
-          <mesh position={[0, 0.4, 0.55]}>
-            <boxGeometry args={[1.82, 0.12, 0.08]} />
-            <meshStandardMaterial color="#eab95d" emissive="#bf7925" emissiveIntensity={0.42} metalness={0.76} roughness={0.25} />
-          </mesh>
-          {[-0.69, 0, 0.69].map((x) => (
-            <mesh key={x} position={[x, 0.39, 0.56]}>
-              <boxGeometry args={[0.09, 0.74, 0.08]} />
-              <meshStandardMaterial color="#f3cf76" emissive="#d39735" emissiveIntensity={0.3} metalness={0.8} roughness={0.23} />
-            </mesh>
-          ))}
-          <group ref={chestLidRef} position={[0, 0.72, -0.49]}>
-            <mesh position={[0, 0.04, 0.49]}>
-              <boxGeometry args={[1.86, 0.2, 1.08]} />
-              <meshStandardMaterial color="#92592b" roughness={0.53} metalness={0.24} />
-            </mesh>
-            <mesh position={[0, -0.01, 0.98]}>
-              <boxGeometry args={[0.25, 0.2, 0.09]} />
-              <meshStandardMaterial color="#ffe58a" emissive="#ffc44f" emissiveIntensity={0.7} metalness={0.88} roughness={0.18} />
-            </mesh>
-          </group>
+          {broken ? (
+            <group ref={chestLidRef}>
+              <mesh position={[0, 0.38, 0]} scale={[1.72, 0.64, 1.02]}>
+                <icosahedronGeometry args={[0.52, 2]} />
+                <meshStandardMaterial color="#714326" roughness={0.78} metalness={0.12} />
+              </mesh>
+              <mesh position={[0, 0.61, 0.42]} scale={[0.85, 0.26, 0.13]}>
+                <sphereGeometry args={[0.34, 16, 10]} />
+                <meshStandardMaterial color="#d6a14f" metalness={0.72} roughness={0.34} />
+              </mesh>
+            </group>
+          ) : (
+            <Suspense fallback={(
+              <mesh position={[0, 0.58, 0]} scale={[1.5, 0.8, 1]}>
+                <sphereGeometry args={[0.62, 18, 12]} />
+                <meshStandardMaterial color="#714326" roughness={0.76} />
+              </mesh>
+            )}>
+              <WorldAssetModel src="/assets/treasure-chest.glb" height={1.24} />
+            </Suspense>
+          )}
           {broken && (
             <>
               <mesh position={[0, 0.84, 0]}>
@@ -331,8 +335,8 @@ function Obstacle({
           </mesh>
           {[-1.25, 0, 1.25].map((x) => (
             <mesh key={x} position={[x, 0.55, 0]} rotation={[0, 0, 0.12]}>
-              <coneGeometry args={[0.24, 0.95, 5]} />
-              <meshStandardMaterial color="#c7c0b2" metalness={0.58} roughness={0.32} />
+              <cylinderGeometry args={[0.025, 0.18, 0.95, 18, 8]} />
+              <meshStandardMaterial color="#c7c0b2" metalness={0.58} roughness={0.34} />
             </mesh>
           ))}
           <mesh ref={warningRef} position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -352,66 +356,46 @@ function Obstacle({
             <Sparkles count={5} position={[0, 0.5, 0]} scale={1.1} size={2.4} speed={0.2} color="#f5c56d" />
           </group>
         ) : (
-          <group>
-            <mesh position={[0, 0.52, 0]}>
-              <cylinderGeometry args={[0.43, 0.43, 0.98, 10]} />
-              <meshStandardMaterial color="#78492d" roughness={0.84} flatShading />
+          <Suspense fallback={(
+            <mesh position={[0, 0.55, 0]}>
+              <cylinderGeometry args={[0.41, 0.43, 1.05, 20, 6]} />
+              <meshStandardMaterial color="#78492d" roughness={0.86} />
             </mesh>
-            {[0.22, 0.8].map((y) => (
-              <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.43, 0.055, 5, 10]} />
-                <meshStandardMaterial color="#a6a7a2" metalness={0.62} roughness={0.36} />
-              </mesh>
-            ))}
-            {[-0.18, 0.18].map((x) => (
-              <mesh key={x} position={[x, 0.52, 0.22]}>
-                <boxGeometry args={[0.07, 0.78, 0.035]} />
-                <meshStandardMaterial color="#a67849" roughness={0.75} />
-              </mesh>
-            ))}
-          </group>
+          )}>
+            <WorldAssetModel src="/assets/wooden-barrel.glb" height={1.12} />
+          </Suspense>
         )
       ) : obstacle.kind === "vase" ? (
         broken ? (
           <group>
             {[-0.28, 0.08, 0.31].map((x, index) => (
-              <mesh key={x} position={[x, 0.12 + (index % 2) * 0.1, 0.05]} rotation={[0.12, 0, (index - 1) * 0.56]}>
-                <coneGeometry args={[0.19, 0.23, 4]} />
-                <meshStandardMaterial color={index % 2 ? "#bd8362" : "#8b594b"} roughness={0.78} flatShading />
+              <mesh key={x} position={[x, 0.12 + (index % 2) * 0.1, 0.05]} rotation={[0.12, 0, (index - 1) * 0.56]} scale={[1.25, 0.48, 0.8]}>
+                <icosahedronGeometry args={[0.19, 1]} />
+                <meshStandardMaterial color={index % 2 ? "#bd8362" : "#8b594b"} roughness={0.86} />
               </mesh>
             ))}
             <Sparkles count={5} position={[0, 0.45, 0]} scale={0.9} size={2.2} speed={0.2} color="#f5c56d" />
           </group>
         ) : (
-          <group>
-            <mesh position={[0, 0.45, 0]}>
-              <cylinderGeometry args={[0.25, 0.4, 0.78, 9]} />
-              <meshStandardMaterial color="#a96b58" roughness={0.78} flatShading />
+          <Suspense fallback={(
+            <mesh position={[0, 0.51, 0]}>
+              <cylinderGeometry args={[0.27, 0.4, 0.92, 20, 6]} />
+              <meshStandardMaterial color="#a96b58" roughness={0.82} />
             </mesh>
-            <mesh position={[0, 0.86, 0]}>
-              <cylinderGeometry args={[0.16, 0.22, 0.18, 9]} />
-              <meshStandardMaterial color="#805246" roughness={0.82} flatShading />
-            </mesh>
-            <mesh position={[0, 0.96, 0]}>
-              <torusGeometry args={[0.17, 0.045, 5, 9]} />
-              <meshStandardMaterial color="#c58b69" roughness={0.65} />
-            </mesh>
-            <mesh position={[0, 0.46, 0.39]}>
-              <torusGeometry args={[0.23, 0.035, 5, 9]} />
-              <meshStandardMaterial color="#e0af79" roughness={0.62} />
-            </mesh>
-          </group>
+          )}>
+            <WorldAssetModel src="/assets/ceramic-vase.glb" height={1.04} />
+          </Suspense>
         )
       ) : obstacle.kind === "low-bar" ? (
         <group>
           {[-1, 1].map((side) => (
             <mesh key={side} position={[side * (obstacle.width / 2 - 0.12), 0.81, 0]}>
-              <boxGeometry args={[0.2, 1.62, 0.48]} />
+              <cylinderGeometry args={[0.1, 0.16, 1.62, 18, 3]} />
               <meshStandardMaterial color="#745340" roughness={0.86} />
             </mesh>
           ))}
-          <mesh position={[0, 1.62, 0]}>
-            <boxGeometry args={[obstacle.width, 0.2, 0.48]} />
+          <mesh position={[0, 1.62, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.14, Math.max(0.2, obstacle.width - 0.38), 6, 16]} />
             <meshStandardMaterial color="#342927" roughness={0.85} />
           </mesh>
           {[-0.58, 0, 0.58].map((x) => (
@@ -425,8 +409,8 @@ function Obstacle({
         broken ? (
           <group>
             {[-0.7, 0.04, 0.72].map((x, index) => (
-              <mesh key={x} position={[x, 0.18, 0.06]} rotation={[0.08, 0, (index - 1) * 0.32]}>
-                <boxGeometry args={[0.9, 0.13, 0.38]} />
+              <mesh key={x} position={[x, 0.18, 0.06]} rotation={[0.08, 0, (index - 1) * 0.32]} scale={[0.68, 1, 1]}>
+                <capsuleGeometry args={[0.14, 0.72, 5, 12]} />
                 <meshStandardMaterial color={index % 2 ? "#8b6545" : "#6f4a36"} roughness={0.91} />
               </mesh>
             ))}
@@ -434,38 +418,32 @@ function Obstacle({
           </group>
         ) : (
           <group>
-            <mesh position={[0, 0.62, 0]}>
-              <boxGeometry args={[obstacle.width, 1.12, 0.48]} />
-              <meshStandardMaterial color="#745340" roughness={0.86} />
-            </mesh>
-            {[-0.8, 0, 0.8].map((x) => (
-              <mesh key={x} position={[x, 0.62, 0.27]}>
-                <boxGeometry args={[0.08, 0.72, 0.035]} />
-                <meshStandardMaterial color="#bc8a53" roughness={0.75} />
+            {[-1, 1].map((side) => (
+              <mesh key={side} position={[side * (obstacle.width / 2 - 0.22), 0.56, 0.14]} rotation={[0, 0, side * -0.12]}>
+                <cylinderGeometry args={[0.085, 0.13, 1.12, 16, 3]} />
+                <meshStandardMaterial color="#684a37" roughness={0.91} />
               </mesh>
             ))}
-            <mesh position={[0, 1.25, 0]} rotation={[0, 0, -0.06]}>
-              <boxGeometry args={[2.75, 0.13, 0.56]} />
-              <meshStandardMaterial color="#3b2927" roughness={0.9} />
-            </mesh>
+            {[0.35, 0.72, 1.08].map((y, index) => (
+              <mesh key={y} position={[0, y, index === 1 ? 0.04 : -0.08]} rotation={[0, 0, index === 1 ? 0.025 : -0.02]}>
+                <capsuleGeometry args={[0.15, Math.max(0.2, obstacle.width - 0.46), 6, 18]} />
+                <meshStandardMaterial color={index === 1 ? "#745340" : "#825b3c"} roughness={0.9} />
+              </mesh>
+            ))}
           </group>
         )
       ) : (
         <group>
-          <mesh position={[0, 0.62, 0]}>
-            <boxGeometry args={[obstacle.width, 1.12, 0.48]} />
+          <mesh position={[0, 0.55, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.17, Math.max(0.2, obstacle.width - 0.42), 6, 16]} />
             <meshStandardMaterial color="#745340" roughness={0.86} />
           </mesh>
-          {[-0.8, 0, 0.8].map((x) => (
-            <mesh key={x} position={[x, 0.62, 0.27]}>
-              <boxGeometry args={[0.08, 0.72, 0.035]} />
-              <meshStandardMaterial color="#bc8a53" roughness={0.75} />
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * (obstacle.width / 2 - 0.22), 0.55, 0.12]}>
+              <cylinderGeometry args={[0.085, 0.13, 1.1, 16, 3]} />
+              <meshStandardMaterial color="#684a37" roughness={0.91} />
             </mesh>
           ))}
-          <mesh position={[0, 1.25, 0]} rotation={[0, 0, -0.06]}>
-            <boxGeometry args={[2.75, 0.13, 0.56]} />
-            <meshStandardMaterial color="#3b2927" roughness={0.9} />
-          </mesh>
         </group>
       )}
     </group>

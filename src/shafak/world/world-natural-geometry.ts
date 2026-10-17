@@ -6,6 +6,8 @@ export type TreeSpecies = "ash" | "pine" | "skeletal" | "mangrove";
 export type LandmarkKind = "tower" | "ruin" | "arch";
 export type LandscapeQuality = "high" | "balanced" | "low";
 
+export const WORLD_ROAD_WIDTH = 9.2;
+
 function seededRandom(initialSeed: number) {
   let seed = initialSeed >>> 0;
   return () => {
@@ -103,7 +105,7 @@ function createBrokenTowerGeometry() {
   const geometry = new THREE.BufferGeometry();
   const positions: number[] = [];
   const indices: number[] = [];
-  const segments = 16;
+  const segments = 48;
   const outside = [
     { y: 0, radius: 0.95 },
     { y: 0.12, radius: 1.24 },
@@ -184,11 +186,11 @@ function createExtrudedRuin(kind: "ruin" | "arch") {
   const geometry = new THREE.ExtrudeGeometry(outline, {
     depth: kind === "arch" ? 0.78 : 0.66,
     bevelEnabled: true,
-    bevelSegments: 1,
+    bevelSegments: 3,
     steps: 1,
     bevelSize: 0.075,
     bevelThickness: 0.08,
-    curveSegments: 8,
+    curveSegments: 20,
   });
   geometry.clearGroups();
   geometry.computeVertexNormals();
@@ -218,6 +220,7 @@ export function createRoadShoulderGeometry(quality: LandscapeQuality) {
   const segmentsAlong = quality === "high" ? 80 : quality === "balanced" ? 40 : 20;
   const segmentsAcross = quality === "high" ? 10 : quality === "balanced" ? 6 : 3;
   const segmentLength = 440;
+  const roadHalfWidth = WORLD_ROAD_WIDTH / 2;
   const shoulderWidth = 5.2;
 
   for (const side of [-1, 1]) {
@@ -228,7 +231,7 @@ export function createRoadShoulderGeometry(quality: LandscapeQuality) {
         + Math.sin(z * 0.117 - side) * 0.009;
       for (let across = 0; across <= segmentsAcross; across += 1) {
         const blend = across / segmentsAcross;
-        const x = side * (7.1 + blend * shoulderWidth);
+        const x = side * (roadHalfWidth + blend * shoulderWidth);
         const y = -0.08 - Math.pow(blend, 1.18) * 0.44 + wave * Math.sin(blend * Math.PI * 0.5);
         positions.push(x, y, z);
         const soil = 0.76 + blend * 0.18 + Math.sin(z * 0.19 + across * 3.7) * 0.035;
@@ -302,11 +305,11 @@ function createTreeGeometry(species: TreeSpecies, biome: WorldBiome) {
     part.dispose();
   };
 
-  const trunk = new THREE.CylinderGeometry(0.115, species === "mangrove" ? 0.3 : 0.24, 3.6, 7, 3);
+  const trunk = new THREE.CylinderGeometry(0.115, species === "mangrove" ? 0.3 : 0.24, 3.6, 16, 4);
   append(trunk, barkColor, [0, 1.72, 0], [0, 0, species === "mangrove" ? -0.08 : 0], [1, 1, 1]);
   trunk.dispose();
 
-  const branch = new THREE.CylinderGeometry(0.025, 0.105, 1.7, 5, 1);
+  const branch = new THREE.CylinderGeometry(0.025, 0.105, 1.7, 12, 2);
   const branchCount = species === "skeletal" ? 6 : species === "mangrove" ? 5 : 4;
   for (let index = 0; index < branchCount; index += 1) {
     const side = index % 2 === 0 ? -1 : 1;
@@ -324,7 +327,7 @@ function createTreeGeometry(species: TreeSpecies, biome: WorldBiome) {
   branch.dispose();
 
   if (species !== "skeletal") {
-    const foliage = new THREE.SphereGeometry(1, 8, 6);
+    const foliage = new THREE.SphereGeometry(1, 18, 12);
     const clumps = species === "pine"
       ? [
         [-0.12, 3.05, 0, 0.83, 0.68, 0.78],

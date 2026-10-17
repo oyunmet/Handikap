@@ -1161,16 +1161,16 @@ export function FinalGate({
           locked={!gateOpen}
         />
       ))}
-      <mesh position={[0, 3.45, 0.12]}>
-        <boxGeometry args={[0.78, 6.9, 1.45]} />
-        <meshStandardMaterial color="#353034" roughness={0.93} flatShading />
+      <mesh position={[0, 2.62, 0.12]}>
+        <cylinderGeometry args={[0.46, 0.58, 5.24, 28, 4]} />
+        <meshStandardMaterial color="#353034" roughness={0.95} />
       </mesh>
-      <mesh position={[0, 7.15, 0.16]}>
-        <boxGeometry args={[1.25, 0.24, 1.65]} />
+      <mesh position={[0, 5.33, 0.16]}>
+        <cylinderGeometry args={[0.72, 0.6, 0.28, 28, 2]} />
         <meshStandardMaterial color="#937455" metalness={0.32} roughness={0.55} />
       </mesh>
-      <mesh position={[0, 7.62, 0.18]}>
-        <octahedronGeometry args={[0.38, 0]} />
+      <mesh position={[0, 5.74, 0.18]}>
+        <sphereGeometry args={[0.34, 20, 14]} />
         <meshStandardMaterial
           color="#f0c982"
           emissive="#9e5e32"
@@ -1197,20 +1197,20 @@ function RouteGatePortal({
     <group position={[centerX, 0, 0]}>
       {([-2.2, 2.2] as const).map((x) => (
         <group key={x} position={[x, 0, 0]}>
-          <mesh position={[0, 0.34, 0]}>
-            <boxGeometry args={[0.94, 0.68, 1.8]} />
-            <meshStandardMaterial color="#827064" roughness={0.95} flatShading />
+          <mesh position={[0, 1.58, 0]}>
+            <cylinderGeometry args={[0.4, 0.54, 3.16, 24, 4]} />
+            <meshStandardMaterial color="#827064" roughness={0.96} />
           </mesh>
-          <mesh position={[0, 3.65, 0]}>
-            <boxGeometry args={[0.72, 6.65, 1.42]} />
-            <meshStandardMaterial color="#51464a" roughness={0.93} flatShading />
+          <mesh position={[0, 3.13, 0]}>
+            <cylinderGeometry args={[0.62, 0.46, 0.32, 24, 3]} />
+            <meshStandardMaterial color="#51464a" roughness={0.96} />
           </mesh>
-          <mesh position={[0, 6.95, 0.04]}>
-            <boxGeometry args={[1.06, 0.42, 1.62]} />
-            <meshStandardMaterial color="#756057" roughness={0.91} flatShading />
+          <mesh position={[0, 2.92, 0.03]}>
+            <torusGeometry args={[2.2, 0.34, 18, 48, Math.PI]} />
+            <meshStandardMaterial color="#756057" roughness={0.95} />
           </mesh>
-          <mesh position={[0, 5.35, 0.77]}>
-            <boxGeometry args={[0.16, 2.8, 0.06]} />
+          <mesh position={[0, 4.55, 0.77]}>
+            <cylinderGeometry args={[0.045, 0.045, 1.15, 16, 2]} />
             <meshStandardMaterial
               color="#c7a16b"
               emissive="#6c4028"
@@ -1220,32 +1220,31 @@ function RouteGatePortal({
             />
           </mesh>
           <mesh position={[0, 7.43, 0]}>
-            <coneGeometry args={[0.48, 0.72, 4]} />
-            <meshStandardMaterial color="#b18b60" roughness={0.65} flatShading />
+            <sphereGeometry args={[0.38, 18, 12]} />
+            <meshStandardMaterial color="#b18b60" roughness={0.72} />
           </mesh>
           <mesh position={[0, 7.94, 0.08]}>
-            <octahedronGeometry args={[0.24, 0]} />
+            <sphereGeometry args={[0.2, 16, 12]} />
             <meshStandardMaterial
               color="#f5cf89"
               emissive="#c8793d"
               emissiveIntensity={0.6}
               metalness={0.45}
               roughness={0.34}
-              flatShading
             />
           </mesh>
         </group>
       ))}
       <mesh position={[0, 7.26, 0]}>
-        <boxGeometry args={[5.35, 0.82, 1.78]} />
-        <meshStandardMaterial color="#625052" roughness={0.92} flatShading />
+        <capsuleGeometry args={[0.42, 4.45, 8, 24]} />
+        <meshStandardMaterial color="#625052" roughness={0.96} />
       </mesh>
       <mesh position={[0, 6.73, 0.04]}>
-        <boxGeometry args={[5.6, 0.14, 1.86]} />
+        <capsuleGeometry args={[0.09, 5.38, 5, 18]} />
         <meshStandardMaterial color="#c19a66" metalness={0.28} roughness={0.58} />
       </mesh>
       <mesh position={[0, 6.92, 0.94]}>
-        <boxGeometry args={[3.46, 0.48, 0.12]} />
+        <capsuleGeometry args={[0.2, 3.06, 6, 18]} />
         <meshStandardMaterial color="#30272a" roughness={0.82} />
       </mesh>
       <Html
