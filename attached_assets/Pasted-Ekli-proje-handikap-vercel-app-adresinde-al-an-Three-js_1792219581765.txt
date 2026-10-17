@@ -1,0 +1,50 @@
+Ekli proje, handikap.vercel.app adresinde çalışan, Three.js tabanlı, mobil öncelikli bir 3B aksiyon oyunu (Türkçe arayüz). Oyun iki moddan oluşuyor: (1) "Kül Yolu" koşu/engel modu (zıpla, eğil, koş, düşen kaya, barikat, vazo kırma, altın/elmas toplama, kapı önünde boss) ve (2) "Demir Taç" ile bölüm boss düellosu (Saldırı, Kalkan, Kaç, Kor, Yıldırım, Zıpla, dayanıklılık çubuğu, 2 silah yuvası: Kül Kılıcı / Gölge Kılıcı).
+
+GÖREV: Mevcut oyun mantığını, UI'ı, Türkçe metinleri, kontrolleri ve oyun dengesini BOZMADAN, tüm görsel ve oynanış hissini AAA'ya yakın, sinematik ve adrenalin dolu bir seviyeye çıkar. Şu an her şey koni, küp ve üçgen gibi ilkel (primitive) geometrilerden oluşuyor; bunu tamamen değiştir.
+
+1) MODELLER VE GEOMETRİ
+- Koni/küp/kutu tabanlı tüm nesneleri (karakter, boss, silahlar, sütunlar, meşaleler, vazolar, kayalar, barikatlar, kapı) gerçekçi, yüksek poligonlu, yumuşak hatlı şekillerle yeniden oluştur: ExtrudeGeometry, LatheGeometry, TubeGeometry, bevel'li kenarlar, SubdivisionModifier benzeri yumuşatma, birleştirilmiş (merged) geometriler.
+- Karakter ve boss: insansı oranlar, eklemli iskelet (bone/hiyerarşik grup), zırh parçaları (omuz, göğüs, kask, pelerin), kapalı yüzeyler, normal düzgün hesaplanmış (computeVertexNormals), flatShading KAPALI.
+- Demir Taç boss: daha heybetli, boynuzlu/taçlı kask, parlayan gözler, yırtık pelerin (cloth simülasyonu veya vertex animasyonu), büyük çift elli kılıç.
+- Silahlar: keskin kenarlı, kabartmalı kabzalı, gerçekçi kılıç silüeti; saldırıda ışık izi (trail/ribbon).
+- Kodda GLTF yükleme altyapısı da ekle (varsa ileride gerçek .glb modelleri takılabilsin), ama internet gerektirmeyen prosedürel yedek modeller her zaman çalışsın.
+
+2) MATERYAL VE IŞIKLANDIRMA
+- MeshStandardMaterial / MeshPhysicalMaterial ile PBR: metalness, roughness, normal/bump map (prosedürel canvas dokularla üretilmiş: taş, metal, kumaş, deri, çatlak).
+- Metal zırhta env map (prosedürel gökyüzünden PMREM), yansımalar, clearcoat.
+- Gün batımı/kül atmosferi: yönlü ana ışık + gölge (PCFSoftShadowMap, cascade benzeri kalite ayarı), hemisphere ışık, rim light, boss için kırmızı/turuncu dinamik ışıklar, meşalelerde titreyen PointLight.
+- Post-processing (EffectComposer): Bloom, SSAO veya hafif ambient occlusion, vignette, film grain, hafif chromatic aberration (darbe anında), renk derecelendirme (sinematik turuncu-teal), ACESFilmic tone mapping, sRGB çıktı.
+- Mobil için kalite ayarı: Düşük / Orta / Yüksek seçeneği (AYARLAR'da), cihaz FPS'ine göre otomatik düşürme, pixelRatio sınırı (maks 2), 60 FPS hedefi.
+
+3) ÇEVRE VE DÜNYA
+- Kül Yolu: gerçekçi kayalık kanyon/yıkık kale koridoru; sağ-solda detaylı kaya duvarları (noise tabanlı displacement ile organik kaya, keskin üçgen yerine doğal yüzey), yıkık sütunlar, kırık heykeller, taş kemerler, kapı ve dişli ızgara (portcullis), meşaleler.
+- Zemin: çatlaklı taş kaldırım dokusu, kül ve toz katmanı, su birikintileri/yansıma, kapı yaklaştıkça artan sis.
+- Gökyüzü: gradient skydome, güneş/ay halesi, hareketli bulutlar, uzakta silüet dağlar, yıldız/kıvılcım parçacıkları.
+- Parçacıklar: düşen kül, kıvılcım, toz, rüzgârla savrulan kül (hava durumu "Kül" ile uyumlu), meşale dumanı.
+- Boss arenası: dairesel, taş zeminli, kenarda yanan çanaklar, çatlak zemin, ortada rün çemberleri, uzakta yıkık sütunlar ve devasa heykeller; arena boss'un öfke aşamasına göre kırmızıya döner.
+
+4) DÜELLO / SAVAŞ HİSSİ (ADRENALİN)
+- Animasyonlar: yürüme/koşma döngüsü, hazırlık (anticipation), vuruş, toparlanma (recovery); vuruşlarda yumuşak easing, ağırlık hissi.
+- Boss saldırı desenleri: hafif, ağır, daire alanı (AoE), atılma (dash), yerden şok dalgası; her saldırıdan önce net görsel uyarı (kırmızı zemin göstergesi, ışıma) ve ses/titreşim ipucu.
+- Vuruş hissi: hit-stop (40-80 ms donma), kamera sarsıntısı (screen shake, şiddete göre), kıvılcım ve kan/enerji parçacıkları, hasar rakamları (mevcut "-6 CAN" tarzını koru ama daha şık), vuruş anında kısa yavaş çekim.
+- Kalkan: parlayan enerji kalkanı, tam zamanında blok (parry) için ekstra efekt ve boss'u sersemletme.
+- Kaç (dodge): kısa hayalet izi (afterimage), hız çizgileri.
+- Kor: ateş efektli dalga/yanma (burn) durumu. Yıldırım: yukarıdan inen gerçek şimşek, ekran flaşı, zincirleme ışık, küçük şok dalgası.
+- Dinamik kamera: oyuncu ve boss'u çerçeveleyen yumuşak takip, saldırıda hafif zoom, boss fazlarında dramatik açılar, FOV nabzı (hız hissi), düşük sağlıkta kırmızı vignette ve kalp atışı efekti.
+- Boss fazları: %66 ve %33 canda faz geçişi (kısa sinematik, kükreme, aura değişimi, yeni saldırılar).
+- Koşu modunda: hız hissi için FOV artışı, hız çizgileri, kamera sallanması, engele çarpma/atlama anlarında vurgu.
+
+5) SES VE GERİ BİLDİRİM
+- Web Audio API ile prosedürel ses: kılıç sallama, metal çarpışma, kalkan bloğu, adım sesi, şimşek, boss kükremesi, ortam rüzgârı; gerilim müziği (arena girişinde yoğunlaşan drone + davul).
+- Mobilde navigator.vibrate ile dokunsal geri bildirim (vuruş, blok, ağır darbe).
+- Ses ve titreşim için AYARLAR'da aç/kapat.
+
+6) KISITLAR
+- Mevcut UI düzeni, Türkçe metinler, buton konumları, ekonomi (altın, elmas, seviye), günlük düello hakkı, silah yuvaları ve kayıt sistemi AYNEN kalsın.
+- Mobil Safari/Chrome'da akıcı çalışmalı; ağır efektleri kalite seviyesine bağla.
+- Harici varlık yüklemeden (prosedürel doku/model) çalışmalı; sadece Three.js ve gerekli addon'lar kullanılabilir.
+- Kodu modüler yaz (karakter, boss, çevre, efektler, kamera, ses ayrı dosya/fonksiyon), performans için instancing, geometri birleştirme, nesne havuzu (object pooling) kullan.
+
+7) ÇIKTI
+- Önce değişiklik planını kısaca listele, sonra değiştirilen/eklenen dosyaların TAM kodunu ver (kısaltma veya "burası aynı" yazma).
+- Hangi kalite ayarının nerede değiştirileceğini belirt.

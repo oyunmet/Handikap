@@ -18,17 +18,42 @@ import {
   getWorldForkCenterline,
   getWorldForkGateDistances,
 } from "./world-route-layout";
+import {
+  applyProceduralStoneMaterials,
+  BEVELED_STONE_BLOCK_GEOMETRY,
+  STONE_PBR_MATERIAL_PROPS,
+  STONE_PBR_TEXTURES,
+} from "./procedural-materials";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
 
-const STONE_GEOMETRY = new THREE.DodecahedronGeometry(0.5, 0);
+const STONE_GEOMETRY = new THREE.DodecahedronGeometry(0.5, 1);
 const STONE_MATERIAL = new THREE.MeshStandardMaterial({
   color: "#665c56",
   roughness: 0.94,
   metalness: 0.06,
-  flatShading: true,
+  map: STONE_PBR_TEXTURES.color,
+  normalMap: STONE_PBR_TEXTURES.normal,
+  normalScale: new THREE.Vector2(0.2, 0.2),
+  roughnessMap: STONE_PBR_TEXTURES.roughness,
 });
+
+function StoneBlock({
+  position,
+  size,
+  color,
+}: {
+  position: [number, number, number];
+  size: [number, number, number];
+  color: string;
+}) {
+  return (
+    <mesh position={position} scale={size} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
+      <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color={color} roughness={0.92} />
+    </mesh>
+  );
+}
 const ROAD_TEXTURE_SIZE = 128;
 function createRoadTextures() {
   const roadHeight = new Float32Array(ROAD_TEXTURE_SIZE * ROAD_TEXTURE_SIZE);
@@ -575,6 +600,11 @@ function WorldProp({
     }
   });
 
+  useEffect(() => {
+    const root = rootRef.current;
+    if (root) applyProceduralStoneMaterials(root, object.kind);
+  }, [object.kind]);
+
   const darkStone = object.flickerSeed % 3 === 0 ? "#51484a" : "#615655";
   return (
     <group
@@ -607,33 +637,24 @@ function WorldProp({
       )}
       {object.kind === "ruin" && (
         <group>
-          <mesh position={[-0.82, 1.3, 0]}>
-            <boxGeometry args={[0.52, 2.6, 0.55]} />
-            <meshStandardMaterial color={darkStone} roughness={0.96} flatShading />
-          </mesh>
-          <mesh position={[0.82, 1.78, 0]}>
-            <boxGeometry args={[0.54, 3.55, 0.58]} />
-            <meshStandardMaterial color="#73635e" roughness={0.96} flatShading />
-          </mesh>
-          <mesh position={[0, 3.45, 0]}>
-            <boxGeometry args={[1.8, 0.52, 0.64]} />
-            <meshStandardMaterial color="#655653" roughness={0.96} flatShading />
-          </mesh>
+          <StoneBlock position={[-0.82, 1.3, 0]} size={[0.52, 2.6, 0.55]} color={darkStone} />
+          <StoneBlock position={[0.82, 1.78, 0]} size={[0.54, 3.55, 0.58]} color="#73635e" />
+          <StoneBlock position={[0, 3.45, 0]} size={[1.8, 0.52, 0.64]} color="#655653" />
         </group>
       )}
       {object.kind === "arch" && (
         <group>
           <mesh position={[-1.45, 1.75, 0]}>
-            <cylinderGeometry args={[0.34, 0.46, 3.5, 6]} />
-            <meshStandardMaterial color="#77655e" roughness={0.95} flatShading />
+            <cylinderGeometry args={[0.34, 0.46, 3.5, 20, 1]} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#77655e" roughness={0.95} />
           </mesh>
           <mesh position={[1.45, 1.75, 0]}>
-            <cylinderGeometry args={[0.34, 0.46, 3.5, 6]} />
-            <meshStandardMaterial color="#77655e" roughness={0.95} flatShading />
+            <cylinderGeometry args={[0.34, 0.46, 3.5, 20, 1]} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#77655e" roughness={0.95} />
           </mesh>
           <mesh position={[0, 3.35, 0]}>
-            <torusGeometry args={[1.45, 0.27, 5, 10, Math.PI]} />
-            <meshStandardMaterial color="#817069" roughness={0.92} flatShading />
+            <torusGeometry args={[1.45, 0.27, 10, 28, Math.PI]} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#817069" roughness={0.92} />
           </mesh>
         </group>
       )}
@@ -716,8 +737,8 @@ function WorldProp({
       {object.kind === "rock" && (
         <group>
           <mesh position={[0, 0.45, 0]} rotation={[0.14, 0.36, 0]}>
-            <dodecahedronGeometry args={[0.86, 0]} />
-            <meshStandardMaterial color={darkStone} roughness={0.98} flatShading />
+            <dodecahedronGeometry args={[0.86, 1]} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color={darkStone} roughness={0.98} />
           </mesh>
           <mesh position={[0.76, 0.3, -0.18]} rotation={[0.2, -0.2, 0.18]} scale={[0.7, 0.72, 0.84]}>
             <dodecahedronGeometry args={[0.62, 0]} />

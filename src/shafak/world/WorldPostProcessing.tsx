@@ -146,10 +146,11 @@ export default function WorldPostProcessing({
       composer.addPass(new RenderPass(scene, camera));
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(1, 1),
-        quality === "high" ? 0.22 : 0.14,
+        quality === "high" ? 0.22 : quality === "balanced" ? 0.14 : 0,
         0.34,
         0.86,
       );
+      bloomPass.enabled = quality !== "low";
       composer.addPass(bloomPass);
       const filmPass = new ShaderPass(VignetteGrainShader);
       composer.addPass(filmPass);

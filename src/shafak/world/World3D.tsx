@@ -31,6 +31,10 @@ import {
 } from "./frame-metrics";
 import { hasWebGLApi } from "./webgl-support";
 import {
+  BEVELED_STONE_BLOCK_GEOMETRY,
+  STONE_PBR_MATERIAL_PROPS,
+} from "./procedural-materials";
+import {
   DUEL_ARENA_AMBIENT_PARTICLE_COUNT,
   DUEL_HIT_SPARK_COUNT,
   getDuelVfxKind,
@@ -40,6 +44,62 @@ import {
   type DuelVfxKind,
 } from "./duel-vfx";
 import { getDuelCameraPose, getDuelFacingAngle, getDuelJumpHeight } from "../game/duel-camera";
+
+function createProceduralEnvironmentTexture() {
+  const width = 128;
+  const height = 64;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    const v = y / height;
+    const horizon = Math.exp(-(((v - 0.52) / 0.16) ** 2));
+    const upperSky = Math.max(0, 1 - v * 1.55);
+    for (let x = 0; x < width; x += 1) {
+      const u = x / width;
+      const warmLight = Math.exp(-(((u - 0.13) / 0.11) ** 2 + ((v - 0.43) / 0.17) ** 2));
+      const coolLight = Math.exp(-(((u - 0.66) / 0.16) ** 2 + ((v - 0.46) / 0.2) ** 2));
+      const index = (y * width + x) * 4;
+      data[index] = Math.min(255, Math.round(15 + upperSky * 24 + horizon * 25 + warmLight * 150));
+      data[index + 1] = Math.min(255, Math.round(17 + upperSky * 27 + horizon * 29 + warmLight * 76 + coolLight * 22));
+      data[index + 2] = Math.min(255, Math.round(27 + upperSky * 43 + horizon * 41 + coolLight * 100));
+      data[index + 3] = 255;
+    }
+  }
+  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function ProceduralEnvironment() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const previousEnvironment = scene.environment;
+    const previousIntensity = scene.environmentIntensity;
+    const source = createProceduralEnvironmentTexture();
+    const pmrem = new THREE.PMREMGenerator(gl);
+    let target: THREE.WebGLRenderTarget | null = null;
+    try {
+      pmrem.compileEquirectangularShader();
+      target = pmrem.fromEquirectangular(source);
+      scene.environment = target.texture;
+      scene.environmentIntensity = 0.62;
+    } catch (error) {
+      console.warn("[shafak-world] Procedural reflection map could not start.", error);
+    }
+    return () => {
+      scene.environment = previousEnvironment;
+      scene.environmentIntensity = previousIntensity;
+      target?.dispose();
+      source.dispose();
+      pmrem.dispose();
+    };
+  }, [gl, scene]);
+  return null;
+}
 import { getDuelArenaTheme } from "../game/duel-arena-theme";
 import type { DuelArenaTheme } from "../game/duel-arena-theme";
 
@@ -1194,24 +1254,24 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
   return (
     <>
       <instancedMesh ref={pavingRef} args={[undefined, undefined, 160]} receiveShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#a99a92" roughness={0.96} metalness={0.015} />
+        <primitive object={BEVELED_STONE_BLOCK_GEOMETRY} attach="geometry" />
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.96} metalness={0.015} />
       </instancedMesh>
       <instancedMesh ref={stainRef} args={[undefined, undefined, 6]} renderOrder={1}>
         <circleGeometry args={[1, 10]} />
         <meshBasicMaterial color="#775351" transparent opacity={0.2} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={wallRef} args={[undefined, undefined, 11]} castShadow receiveShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#a89a92" roughness={0.97} />
+        <primitive object={BEVELED_STONE_BLOCK_GEOMETRY} attach="geometry" />
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.97} />
       </instancedMesh>
       <instancedMesh ref={columnRef} args={[undefined, undefined, 13]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.25, 0.34, 1, 7, 1]} />
-        <meshStandardMaterial color="#b4a39a" roughness={0.91} />
+        <cylinderGeometry args={[0.25, 0.34, 1, 20, 1]} />
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.91} />
       </instancedMesh>
       <instancedMesh ref={capstoneRef} args={[undefined, undefined, 6]} castShadow receiveShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#ad9b8f" roughness={0.92} />
+        <primitive object={BEVELED_STONE_BLOCK_GEOMETRY} attach="geometry" />
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.92} />
       </instancedMesh>
       <instancedMesh ref={torchShaftRef} args={[undefined, undefined, 4]} castShadow>
         <cylinderGeometry args={[0.1, 0.15, 1, 6]} />
@@ -1626,6 +1686,7 @@ function SceneContents({
 
   return (
     <>
+      <ProceduralEnvironment />
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
@@ -1719,6 +1780,8 @@ export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
+  const [contextLost, setContextLost] = useState(false);
+  const contextCleanupRef = useRef<(() => void) | null>(null);
   const [renderOverrides, setRenderOverrides] = useState<RenderOverrides>({
     disableFrustumCulling: false,
   });
@@ -1772,8 +1835,13 @@ export default function World3D(props: World3DProps) {
   const maxDpr = getWorldRenderPixelRatio(rendererQuality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
   const retryWebGL = useCallback(() => {
+    setContextLost(false);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
+  }, []);
+  useEffect(() => () => {
+    contextCleanupRef.current?.();
+    contextCleanupRef.current = null;
   }, []);
   const fallback = (
     <div className="world-three-fallback" role="alert">
@@ -1824,6 +1892,22 @@ export default function World3D(props: World3DProps) {
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.info.autoReset = false;
               scene.background = new THREE.Color("#443541");
+              contextCleanupRef.current?.();
+              const canvas = renderer.domElement;
+              const handleContextLost = (event: Event) => {
+                event.preventDefault();
+                setContextLost(true);
+              };
+              const handleContextRestored = () => {
+                setContextLost(false);
+                setCanvasAttempt((attempt) => attempt + 1);
+              };
+              canvas.addEventListener("webglcontextlost", handleContextLost, false);
+              canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
+              contextCleanupRef.current = () => {
+                canvas.removeEventListener("webglcontextlost", handleContextLost, false);
+                canvas.removeEventListener("webglcontextrestored", handleContextRestored, false);
+              };
             }}
             fallback={fallback}
           >
@@ -1841,6 +1925,15 @@ export default function World3D(props: World3DProps) {
         </WorldCanvasErrorBoundary>
       ) : (
         fallback
+      )}
+      {contextLost && (
+        <div className="world-three-context-loss" role="alertdialog" aria-modal="true" aria-labelledby="world-context-loss-title">
+          <div className="world-three-fallback__content">
+            <h2 id="world-context-loss-title">3D sahne duraklatıldı</h2>
+            <p>Tarayıcı grafik belleğini yeniliyor. Oyun ilerlemen korunuyor; sahneyi yeniden oluşturabilirsin.</p>
+            <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
+          </div>
+        </div>
       )}
       {debugEnabled && (
         <aside className="world-debug" aria-label="3D dünya hata ayıklama bilgileri">

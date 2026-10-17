@@ -198,7 +198,7 @@ function ShoulderPad({ side }: { side: -1 | 1 }) {
   return (
     <>
       <mesh position={[localX, 0.06, 0]}>
-        <sphereGeometry args={[0.225, 8, 6]} />
+        <sphereGeometry args={[0.225, 16, 12]} />
         <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.78} flatShading />
       </mesh>
       <mesh position={[localX, 0.07, -0.038]} scale={[0.8, 0.18, 0.3]}>
@@ -547,6 +547,13 @@ export default function Knight3D({
     root?.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || object.material === shadowMaterial) return;
       object.castShadow = castShadow;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+          material.flatShading = false;
+          material.needsUpdate = true;
+        }
+      }
     });
   }, [shadowMaterial, castShadow]);
 
@@ -558,7 +565,7 @@ export default function Knight3D({
       <Cape motionRef={motionRef} motionReduced={motionReduced} appearance={appearance} />
       <group ref={torsoRef} position={[0, 0, 0]}>
         <mesh position={[0, 1.26, 0]} scale={[0.31, 0.36, 0.2]}>
-          <icosahedronGeometry args={[1, 1]} />
+          <icosahedronGeometry args={[1, 2]} />
           <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.48} metalness={0.72} flatShading />
         </mesh>
         <mesh position={[0, 1.28, -0.174]} scale={[0.235, 0.25, 0.055]}>
@@ -570,11 +577,11 @@ export default function Knight3D({
           <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} metalness={0.7} roughness={0.32} />
         </mesh>
         <mesh position={[0, 1.49, 0]}>
-          <cylinderGeometry args={[0.17, 0.19, 0.15, 8]} />
+          <cylinderGeometry args={[0.17, 0.19, 0.15, 16]} />
           <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.68} />
         </mesh>
         <mesh position={[0, 1.65, 0]}>
-          <cylinderGeometry args={[0.12, 0.15, 0.2, 7]} />
+          <cylinderGeometry args={[0.12, 0.15, 0.2, 16]} />
           <meshStandardMaterial color={KNIGHT_CONFIG.colors.armorDark} roughness={0.48} metalness={0.68} flatShading />
         </mesh>
         <mesh position={[0, 0.91, 0]}>
@@ -583,7 +590,7 @@ export default function Knight3D({
         </mesh>
         <group ref={headRef} position={[0, 1.76, 0]}>
           <mesh position={[0, 0.08, 0]} scale={[0.21, 0.25, 0.19]}>
-            <sphereGeometry args={[1, 8, 6]} />
+            <sphereGeometry args={[1, 24, 16]} />
             <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorDark} roughness={0.36} metalness={0.78} flatShading />
           </mesh>
           <mesh position={[0, 0.2, 0]}>
@@ -602,13 +609,24 @@ export default function Knight3D({
               emissiveIntensity={appearance?.armorStyle === "shadow" ? 0.8 : 0.52}
             />
           </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={`eye-${side}`} position={[side * 0.067, 0.045, -0.208]} rotation={[0, 0, side * 0.08]}>
+              <boxGeometry args={[0.048, 0.016, 0.008]} />
+              <meshStandardMaterial
+                color={appearance?.auraColor ?? "#ffac66"}
+                emissive={appearance?.auraColor ?? "#ff6d3a"}
+                emissiveIntensity={appearance?.armorStyle === "shadow" ? 1.15 : 0.82}
+                toneMapped={false}
+              />
+            </mesh>
+          ))}
           <mesh ref={mouthRef} position={[0, -0.09, -0.215]}>
             <boxGeometry args={[0.16, 0.035, 0.016]} />
             <meshBasicMaterial color="#100f12" />
           </mesh>
           {[-1, 1].map((side) => (
             <mesh key={side} position={[side * 0.12, 0.31, 0.02]} rotation={[0, 0, -side * 0.28]}>
-              <coneGeometry args={[0.055, 0.22, 5]} />
+              <coneGeometry args={[0.055, 0.22, 10]} />
               <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} metalness={0.62} roughness={0.36} flatShading />
             </mesh>
           ))}
@@ -636,16 +654,16 @@ export default function Knight3D({
         <group ref={leftArmRef} position={[-0.46, 1.48, 0]}>
           <ShoulderPad side={-1} />
           <mesh position={[0, -KNIGHT_CONFIG.proportions.upperArm / 2, 0]}>
-            <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 7]} />
+            <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 16]} />
             <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
           </mesh>
           <group ref={leftElbowRef} position={[0, -0.43, 0]}>
             <mesh position={[0, 0, -0.01]}>
-              <sphereGeometry args={[0.13, 7, 5]} />
+              <sphereGeometry args={[0.13, 12, 10]} />
               <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.72} />
             </mesh>
             <mesh position={[0, -KNIGHT_CONFIG.proportions.forearm / 2, 0]}>
-              <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 7]} />
+              <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 16]} />
               <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
             </mesh>
             <mesh position={[0, -0.37, -0.02]}>
@@ -680,16 +698,16 @@ export default function Knight3D({
         <group ref={rightArmRef} position={[0.46, 1.48, 0]}>
           <ShoulderPad side={1} />
           <mesh position={[0, -KNIGHT_CONFIG.proportions.upperArm / 2, 0]}>
-            <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 7]} />
+            <cylinderGeometry args={[0.12, 0.145, KNIGHT_CONFIG.proportions.upperArm, 16]} />
             <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armor} roughness={0.43} metalness={0.75} flatShading />
           </mesh>
           <group ref={rightElbowRef} position={[0, -0.43, 0]}>
             <mesh position={[0, 0, -0.01]}>
-              <sphereGeometry args={[0.13, 7, 5]} />
+              <sphereGeometry args={[0.13, 12, 10]} />
               <meshStandardMaterial color={KNIGHT_CONFIG.colors.gold} roughness={0.35} metalness={0.72} />
             </mesh>
             <mesh position={[0, -KNIGHT_CONFIG.proportions.forearm / 2, 0]}>
-              <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 7]} />
+              <cylinderGeometry args={[0.095, 0.13, KNIGHT_CONFIG.proportions.forearm, 16]} />
               <meshStandardMaterial {...ARMOR_MAP_PROPS} color={KNIGHT_CONFIG.colors.armorLight} roughness={0.4} metalness={0.78} flatShading />
             </mesh>
             <mesh position={[0, -0.37, -0.02]}>

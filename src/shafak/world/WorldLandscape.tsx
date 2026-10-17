@@ -6,6 +6,10 @@ import type { WorldMotion } from "./movement";
 import { WORLD_CHUNK_LENGTH_METERS } from "./movement";
 import { createWorldChunk, type WorldChunk, type WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
+import {
+  BEVELED_STONE_BLOCK_GEOMETRY,
+  STONE_PBR_MATERIAL_PROPS,
+} from "./procedural-materials";
 
 type WorldQuality = "high" | "balanced" | "low";
 
@@ -419,17 +423,14 @@ function ScenicProp({
     >
       {(object.kind === "tower" || object.kind === "ruin" || object.kind === "arch") && (
         <group>
-          <mesh position={[-1.35, 1.9, 0]}>
-            <boxGeometry args={[0.72, 3.8, 0.82]} />
-            <meshStandardMaterial color={tint} roughness={0.96} flatShading />
+          <mesh position={[-1.35, 1.9, 0]} scale={[0.72, 3.8, 0.82]} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color={tint} roughness={0.96} />
           </mesh>
-          <mesh position={[1.35, 2.35, 0]}>
-            <boxGeometry args={[0.7, 4.7, 0.86]} />
-            <meshStandardMaterial color="#806761" roughness={0.93} flatShading />
+          <mesh position={[1.35, 2.35, 0]} scale={[0.7, 4.7, 0.86]} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#806761" roughness={0.93} />
           </mesh>
-          <mesh position={[0, 4.45, 0]}>
-            <boxGeometry args={[3.5, 0.62, 0.94]} />
-            <meshStandardMaterial color="#76605d" roughness={0.94} flatShading />
+          <mesh position={[0, 4.45, 0]} scale={[3.5, 0.62, 0.94]} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#76605d" roughness={0.94} />
           </mesh>
           <mesh position={[-1.35, 2.52, 0.44]}>
             <boxGeometry args={[0.18, 0.62, 0.08]} />
@@ -441,8 +442,8 @@ function ScenicProp({
           </mesh>
           {object.kind === "arch" && (
             <mesh position={[0, 3.9, 0.08]} rotation={[0, 0, Math.PI / 2]}>
-              <torusGeometry args={[1.15, 0.2, 6, 10, Math.PI]} />
-              <meshStandardMaterial color="#90776b" roughness={0.92} flatShading />
+              <torusGeometry args={[1.15, 0.2, 10, 28, Math.PI]} />
+              <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#90776b" roughness={0.92} />
             </mesh>
           )}
         </group>
@@ -501,12 +502,12 @@ function ScenicProp({
       {object.kind === "rock" && (
         <group>
           <mesh position={[0, 0.58, 0]} rotation={[0.12, 0.34, 0.14]}>
-            <dodecahedronGeometry args={[0.82, 0]} />
-            <meshStandardMaterial color="#655858" roughness={0.88} flatShading />
+            <dodecahedronGeometry args={[0.82, 1]} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#655858" roughness={0.88} />
           </mesh>
           <mesh position={[0.62, 0.34, -0.12]} rotation={[0.2, 0.1, 0.16]} scale={0.62}>
-            <dodecahedronGeometry args={[0.72, 0]} />
-            <meshStandardMaterial color="#51494b" roughness={0.98} flatShading />
+            <dodecahedronGeometry args={[0.72, 1]} />
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#51494b" roughness={0.98} />
           </mesh>
         </group>
       )}
