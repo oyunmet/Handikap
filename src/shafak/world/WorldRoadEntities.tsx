@@ -68,12 +68,14 @@ function Collectible({
   unlocked,
   reducedMotion,
   maxVisibleDistance,
+  labelVisible,
 }: {
   pickup: WorldPickup;
   motionRef: MotionRef;
   unlocked: boolean;
   reducedMotion: boolean;
   maxVisibleDistance: number;
+  labelVisible: boolean;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
@@ -148,7 +150,7 @@ function Collectible({
         )}
         <Sparkles count={pickup.kind === "seal-fragment" || pickup.kind === "diamond-small" ? 5 : 3} scale={0.85} size={2.3} speed={reducedMotion ? 0 : 0.3} color={style.color} />
       </group>
-      {(
+      {labelVisible && (
         pickup.kind === "gold-small" ||
         pickup.kind === "gold-large" ||
         pickup.kind === "diamond-small" ||
@@ -167,12 +169,14 @@ function Obstacle({
   motionRef,
   broken,
   maxVisibleDistance,
+  labelVisible,
   interactableRegistry,
 }: {
   obstacle: WorldObstacle;
   motionRef: MotionRef;
   broken: boolean;
   maxVisibleDistance: number;
+  labelVisible: boolean;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
 }) {
   const rootRef = useRef<THREE.Group>(null);
@@ -254,9 +258,11 @@ function Obstacle({
 
   return (
     <group ref={rootRef} position={[obstacle.x, groundY, 0]}>
-      <Html position={[0, 2.12, 0]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
-        <span className={`world-obstacle-tag is-${obstacle.kind}`}>{obstacleLabel}</span>
-      </Html>
+      {labelVisible && (
+        <Html position={[0, 2.12, 0]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
+          <span className={`world-obstacle-tag is-${obstacle.kind}`}>{obstacleLabel}</span>
+        </Html>
+      )}
       {!["falling-rock-trap", "spike-trap", "treasure-chest"].includes(obstacle.kind) && (
         <mesh position={[0, 0.028, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[obstacle.width * 0.55, obstacle.width * 0.63, 28]} />
@@ -566,6 +572,8 @@ function BotActor({
   motionRef,
   dialoguePortal,
   reducedMotion,
+  labelVisible,
+  animationPaused,
   focused,
   talking,
   canChallenge,
@@ -578,6 +586,8 @@ function BotActor({
   motionRef: MotionRef;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   reducedMotion: boolean;
+  labelVisible: boolean;
+  animationPaused: boolean;
   focused: boolean;
   talking: boolean;
   canChallenge: boolean;
@@ -625,7 +635,7 @@ function BotActor({
     const playerZ = -(motion.distance - motion.cameraX);
     root.position.set(0, 0, actorZ);
     root.scale.setScalar(rival.isBoss ? 1 : rival.size);
-    root.visible = gap >= -12 && gap <= 105;
+    root.visible = gap >= -12 && gap <= 60;
     root.rotation.y = 0;
     if (actorPivotRef.current) {
       const targetYaw = focused || talking
@@ -655,6 +665,7 @@ function BotActor({
           talking={talking && Math.abs(rival.distance - motionRef.current.distance) <= 12}
           motionReduced={reducedMotion}
           animationTimeScale={1}
+          animationPaused={animationPaused}
           castShadow
           appearance={profile?.appearance}
           modelConfig={modelConfig}
@@ -703,11 +714,13 @@ function BotActor({
           depthWrite={false}
         />
       </mesh>
-      <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-        <span className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`} data-weapon={rival.weapon}>
-          <b>{rival.name}</b><span>{rival.title}</span>
-        </span>
-      </Html>
+      {labelVisible && (
+        <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+          <span className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`} data-weapon={rival.weapon}>
+            <b>{rival.name}</b><span>{rival.title}</span>
+          </span>
+        </Html>
+      )}
     </group>
   );
 }
@@ -729,6 +742,7 @@ export default function WorldRoadEntities({
   reducedMotion,
   weather,
   interactableRegistry,
+  visibleLabelIds,
 }: {
   motionRef: MotionRef;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
@@ -746,8 +760,9 @@ export default function WorldRoadEntities({
   reducedMotion: boolean;
   weather: WeatherMode;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
+  visibleLabelIds: ReadonlySet<string>;
 }) {
-  const maxVisibleDistance = weather === "fog" ? 48 : weather === "storm" ? 80 : 112;
+  const maxVisibleDistance = Math.min(60, weather === "fog" ? 48 : weather === "storm" ? 80 : 112);
   const unlockedPickupIds = useMemo(() => {
     const unlocked = new Set<string>();
     for (const obstacle of obstacles) {
@@ -777,6 +792,7 @@ export default function WorldRoadEntities({
           unlocked
           reducedMotion={reducedMotion}
           maxVisibleDistance={maxVisibleDistance}
+          labelVisible={visibleLabelIds.has(`pickup:${pickup.id}`)}
         />
       ))}
       {visibleObstacles.map((obstacle) => (
@@ -786,6 +802,7 @@ export default function WorldRoadEntities({
           motionRef={motionRef}
           broken={brokenObstacleIds.has(obstacle.id)}
           maxVisibleDistance={maxVisibleDistance}
+          labelVisible={visibleLabelIds.has(`obstacle:${obstacle.id}`)}
           interactableRegistry={interactableRegistry}
         />
       ))}
@@ -796,6 +813,8 @@ export default function WorldRoadEntities({
           motionRef={motionRef}
           dialoguePortal={dialoguePortal}
           reducedMotion={reducedMotion}
+          labelVisible={visibleLabelIds.has(`rival:${rival.id}`)}
+          animationPaused={Math.abs(rival.distance - motionRef.current.distance) > 40}
           focused={rival.id === focusedRivalId}
           talking={rival.id === talkingRivalId}
           canChallenge={canChallenge && rival.id === talkingRivalId}

@@ -12,7 +12,7 @@ export type DuelJumpState = {
 };
 
 export const DUEL_JUMP_HEIGHT = 1.12;
-export const DUEL_CAMERA_HEADING = Math.PI;
+export const DUEL_CAMERA_HEADING = Math.PI * 2 / 3;
 export const DUEL_CAMERA_ARENA_RADIUS = 9;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 
@@ -63,19 +63,29 @@ export function getDuelCameraPose(
   const baseOffsetLength = Math.max(1e-4, Math.hypot(baseOffsetX, baseOffsetZ));
   const extraFramingDistance = Math.min(8, Math.max(0, distance)) * 0.48;
   const offsetScale = (baseOffsetLength + extraFramingDistance) / baseOffsetLength;
-  const cameraX = centerX + baseOffsetX * offsetScale;
-  const cameraZ = centerZ + baseOffsetZ * offsetScale;
-  const relativeCameraX = cameraX;
-  const relativeCameraZ = cameraZ - arenaCenterZ;
-  const cameraRadius = Math.hypot(relativeCameraX, relativeCameraZ);
+  const offsetX = baseOffsetX * offsetScale;
+  const offsetZ = baseOffsetZ * offsetScale;
   const maxCameraRadius = Math.max(0, arenaRadius - 0.35);
-  const cameraScale = cameraRadius > maxCameraRadius ? maxCameraRadius / cameraRadius : 1;
+  const targetOffsetZ = centerZ - arenaCenterZ;
+  const targetRadiusSquared = centerX * centerX + targetOffsetZ * targetOffsetZ;
+  const offsetLengthSquared = offsetX * offsetX + offsetZ * offsetZ;
+  const offsetDot = centerX * offsetX + targetOffsetZ * offsetZ;
+  const boundaryConstant = targetRadiusSquared - maxCameraRadius * maxCameraRadius;
+  const discriminant = Math.max(0, offsetDot * offsetDot - offsetLengthSquared * boundaryConstant);
+  const maximumOffsetScale = offsetLengthSquared > 0
+    ? Math.max(0, (-offsetDot + Math.sqrt(discriminant)) / offsetLengthSquared)
+    : 0;
+  const cameraScale = targetRadiusSquared > maxCameraRadius * maxCameraRadius
+    ? 0
+    : Math.min(1, maximumOffsetScale);
+  const cameraX = centerX + offsetX * cameraScale;
+  const cameraZ = centerZ + offsetZ * cameraScale;
 
   return {
     position: {
-      x: cameraX * cameraScale,
+      x: cameraX,
       y: 3.2 + jumpLift * 0.16 + extraFramingDistance * 0.08,
-      z: worldOffsetZ + arenaCenterZ + relativeCameraZ * cameraScale,
+      z: worldOffsetZ + cameraZ,
     },
     target: {
       x: centerX,

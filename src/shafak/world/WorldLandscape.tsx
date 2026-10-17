@@ -29,8 +29,37 @@ import {
   WorldRockFarLod,
 } from "./WorldModel";
 import WorldStaticBatches from "./WorldStaticBatches";
+import { getWorldGlowTexture } from "./world-glow.ts";
 
 type WorldQuality = LandscapeQuality;
+
+function WorldGlowSprite({
+  color,
+  position = [0, 0.3, 0],
+  size = 2.8,
+  opacity = 0.3,
+}: {
+  color: string;
+  position?: [number, number, number];
+  size?: number;
+  opacity?: number;
+}) {
+  const texture = useMemo(() => getWorldGlowTexture(), []);
+  if (!texture) return null;
+  return (
+    <sprite position={position} scale={[size, size, 1]}>
+      <spriteMaterial
+        map={texture}
+        color={color}
+        transparent
+        opacity={opacity}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </sprite>
+  );
+}
 
 type Props = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -568,7 +597,7 @@ function Road({
       </mesh>
       {[-WORLD_ROAD_WIDTH / 2, WORLD_ROAD_WIDTH / 2].map((x) => (
         <group key={x}>
-          <mesh position={[x * 1.02, -0.015, ROAD_CENTER_Z]} rotation={[Math.PI / 2, 0, 0]} receiveShadow castShadow>
+          <mesh position={[x * 1.02, -0.015, ROAD_CENTER_Z]} rotation={[Math.PI / 2, 0, 0]} receiveShadow castShadow={false}>
             <cylinderGeometry args={[0.078, 0.078, ROAD_LENGTH, 10, 1]} />
             <primitive object={railMaterial} attach="material" />
           </mesh>
@@ -670,8 +699,8 @@ function ScenicProp({
             <mesh
               geometry={landmarkGeometry}
               material={WEATHERED_LANDMARK_MATERIAL}
-              castShadow
-              receiveShadow
+              castShadow={false}
+              receiveShadow={false}
             />
           )}
         </group>
@@ -681,8 +710,8 @@ function ScenicProp({
           <mesh
             geometry={treeGeometry}
             material={NATURAL_TREE_MATERIAL}
-            castShadow
-            receiveShadow
+            castShadow={false}
+            receiveShadow={false}
             rotation={[0, 0, treeSpecies === "skeletal" ? -0.035 : 0]}
           />
         </group>
@@ -726,8 +755,8 @@ function ScenicProp({
             position={[0, 0.56, 0]}
             rotation={[0.12, 0.34, 0.14]}
             scale={[1.02, 0.78, 0.94]}
-            castShadow
-            receiveShadow
+            castShadow={false}
+            receiveShadow={false}
           >
             <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#a69f90" roughness={0.9} metalness={0} />
           </mesh>
@@ -736,8 +765,8 @@ function ScenicProp({
             position={[0.62, 0.3, -0.12]}
             rotation={[0.2, 0.1, 0.16]}
             scale={[0.54, 0.48, 0.58]}
-            castShadow
-            receiveShadow
+            castShadow={false}
+            receiveShadow={false}
           >
             <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#938c80" roughness={0.9} metalness={0} />
           </mesh>
@@ -773,11 +802,11 @@ function ScenicProp({
             <sphereGeometry args={[0.18, 14, 10]} />
             <meshBasicMaterial color={object.biome === "frozen-pass" ? "#c9f7ff" : "#ffdf9d"} toneMapped={false} />
           </mesh>
-          <pointLight
+          <WorldGlowSprite
             color={object.biome === "frozen-pass" ? "#8ce7ff" : "#ff9957"}
-            intensity={1.2}
-            distance={6}
-            decay={2}
+            position={[0, 0.25, 0.02]}
+            size={3}
+            opacity={0.34}
           />
         </group>
       )}

@@ -48,16 +48,17 @@ test("world pixel ratio stays within the mobile rendering budget", () => {
   assert.equal(getPixelRatioCap("balanced"), 1.35);
   assert.equal(getPixelRatioCap("low"), 1);
   assert.equal(getWorldRenderPixelRatio("high", 3), 1.5);
-  assert.equal(getWorldRenderPixelRatio("high", 3, true), 1);
+  assert.equal(getWorldRenderPixelRatio("high", 3, true), 1.5);
+  assert.equal(getWorldRenderPixelRatio("balanced", 3, true), 1.35);
   assert.equal(getWorldRenderPixelRatio("balanced", 0.75, true), 1);
 });
 
 test("shadow maps stay within the quality budget and scale with device DPR", () => {
-  assert.equal(getShadowMapSize("high", 1), 512);
+  assert.equal(getShadowMapSize("high", 1), 1_024);
   assert.equal(getShadowMapSize("high", 2), 1_024);
   assert.equal(getShadowMapSize("high", 4), 1_024);
   assert.equal(getShadowMapSize("balanced", 4), 1_024);
-  assert.equal(getShadowMapSize("low", 4), 512);
+  assert.equal(getShadowMapSize("low", 4), 1_024);
 });
 
 test("world shadows use the sun on balanced/high quality, including touch renderers", () => {

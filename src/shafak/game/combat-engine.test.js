@@ -59,11 +59,15 @@ function advanceCombat(state, ticks, buttons = 0) {
   return { state, events };
 }
 
-test("duel fighters begin facing each other along the arena depth", () => {
+test("duel fighters begin side by side, facing each other within the arena", () => {
   const state = createCombatState(21, "easy");
-  assert.equal(state.player.x, state.bot.x);
-  assert.ok(state.player.z > state.bot.z);
-  assert.ok(Math.abs(state.player.z - state.bot.z) > 2.5);
+  assert.equal(state.player.x, -3);
+  assert.equal(state.bot.x, 3);
+  assert.equal(state.player.z, COMBAT_ARENA_CENTER_Z);
+  assert.equal(state.bot.z, COMBAT_ARENA_CENTER_Z);
+  for (const cover of DUEL_COVERS) {
+    assert.ok(Math.abs(cover.z - COMBAT_ARENA_CENTER_Z) > 4, "arena cover must not block either spawn point");
+  }
 });
 
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
@@ -394,7 +398,7 @@ test("a quick second dash rebounds inward at the arena edge and grants 0.25 seco
 
   assert.ok(event?.edgeRebound);
   assert.equal(result.state.player.action, "backflip");
-  assert.equal(result.state.player.invulnerableUntilTick, result.state.tick + 16);
+  assert.equal(result.state.player.invulnerableUntilTick, result.state.tick + 15);
   assert.ok(result.state.player.vx < 0, "the rebound pushes the player back into the arena");
   assert.ok(Math.hypot(
     result.state.player.x,
@@ -463,11 +467,13 @@ test("the perfect-block window lasts 0.2 seconds, then becomes a normal block", 
   assert.ok(resolveAtOffset(PERFECT_BLOCK_WINDOW_TICKS + 1).some((event) => event.type === "block"));
 });
 
-test("combat movement can advance toward the opponent along the arena depth axis", () => {
+test("combat movement can advance toward the opponent along the arena width axis", () => {
   const initial = createCombatState(8123, "easy");
-  const moved = stepCombat(initial, { x: 0, y: -100, buttons: 0, pressed: 0, released: 0 }).state;
-  assert.ok(moved.player.z < initial.player.z);
-  assert.equal(moved.player.x, initial.player.x);
+  const playerX = initial.player.x;
+  const playerZ = initial.player.z;
+  const moved = stepCombat(initial, { x: 100, y: 0, buttons: 0, pressed: 0, released: 0 }).state;
+  assert.ok(moved.player.x > playerX);
+  assert.equal(moved.player.z, playerZ);
 });
 
 test("both combatants stay inside the circular duel arena while moving diagonally", () => {

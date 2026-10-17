@@ -23,6 +23,7 @@ import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, sav
 import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
 import {
+  AUTO_QUALITY_DOWN_FPS,
   getAutoQualityAction,
   normalizeGraphicsMode,
   resolveRenderQuality,

@@ -65,7 +65,7 @@ function StoneBlock({
   color: string;
 }) {
   return (
-    <mesh position={position} scale={size} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow receiveShadow>
+    <mesh position={position} scale={size} geometry={BEVELED_STONE_BLOCK_GEOMETRY} castShadow={false} receiveShadow={false}>
       <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color={color} roughness={0.92} />
     </mesh>
   );
@@ -1143,10 +1143,12 @@ export function FinalGate({
   motionRef,
   unlockedThroughChapter,
   touchRenderer,
+  visibleLabelIds,
 }: {
   motionRef: MotionRef;
   unlockedThroughChapter: number;
   touchRenderer: boolean;
+  visibleLabelIds?: ReadonlySet<string>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const getCurrentGateDistance = () => {
@@ -1175,6 +1177,7 @@ export function FinalGate({
           centerX={side * 3.35}
           label={side === -1 ? "SOL GEÇİT" : "SAĞ GEÇİT"}
           locked={!gateOpen}
+          labelVisible={visibleLabelIds?.has(side === -1 ? "route-gate:left" : "route-gate:right") ?? true}
         />
       ))}
       <mesh
@@ -1209,10 +1212,12 @@ function RouteGatePortal({
   centerX,
   label,
   locked,
+  labelVisible,
 }: {
   centerX: number;
   label: string;
   locked: boolean;
+  labelVisible: boolean;
 }) {
   return (
     <group position={[centerX, 0, 0]}>
@@ -1261,7 +1266,7 @@ function RouteGatePortal({
         <capsuleGeometry args={[0.42, 4.45, 8, 24]} />
         <meshStandardMaterial color="#625052" roughness={0.96} />
       </mesh>
-      <mesh position={[0, 5.18, 0.18]} castShadow receiveShadow>
+      <mesh position={[0, 5.18, 0.18]} castShadow={false} receiveShadow={false}>
         <boxGeometry args={[0.74, 0.34, 0.86]} />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#947d69" roughness={0.92} />
       </mesh>
@@ -1273,16 +1278,18 @@ function RouteGatePortal({
         <capsuleGeometry args={[0.2, 3.06, 6, 18]} />
         <meshStandardMaterial color="#30272a" roughness={0.82} />
       </mesh>
-      <Html
-        position={[0, 6.92, 1.02]}
-        center
-        transform
-        distanceFactor={8}
-        zIndexRange={[40, 0]}
-        style={{ pointerEvents: "none" }}
-      >
-        <div className="world-route-gate-sign">{label}</div>
-      </Html>
+      {labelVisible && (
+        <Html
+          position={[0, 6.92, 1.02]}
+          center
+          transform
+          distanceFactor={8}
+          zIndexRange={[40, 0]}
+          style={{ pointerEvents: "none" }}
+        >
+          <div className="world-route-gate-sign">{label}</div>
+        </Html>
+      )}
       {locked && (
         <group position={[0, 3.1, 0.82]}>
           {[-1.42, -0.71, 0, 0.71, 1.42].map((x) => (

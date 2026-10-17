@@ -8,6 +8,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { WorldMotion } from "./movement";
 import type { WorldObject } from "./world-generation";
 import { applyRockPbrMaterials } from "./procedural-materials";
+import { capWorldTextures } from "./texture-budget.ts";
 import {
   createRoadShoulderGeometry,
   getNaturalRockGeometry,
@@ -53,6 +54,7 @@ type ModelProps = {
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
+  castShadow?: boolean;
 };
 
 type WorldAssetErrorBoundaryProps = {
@@ -154,6 +156,7 @@ export function WorldAssetFallback({
   position = [0, 0, 0],
   rotation = [0, 0, 0],
   scale = 1,
+  castShadow = false,
 }: ModelProps) {
   const kind = getWorldAssetFallbackKind(src);
 
@@ -166,30 +169,30 @@ export function WorldAssetFallback({
             material={FALLBACK_ROCK_MATERIAL}
             position={[0, height * 0.49, 0]}
             scale={[height * 0.64, height * 0.49, height * 0.61]}
-            castShadow
-            receiveShadow
+            castShadow={castShadow}
+            receiveShadow={castShadow}
           />
           <mesh
             geometry={getNaturalRockGeometry(4)}
             material={FALLBACK_ROCK_MATERIAL}
             position={[height * 0.26, height * 0.2, -height * 0.2]}
             scale={[height * 0.23, height * 0.2, height * 0.25]}
-            castShadow
-            receiveShadow
+            castShadow={castShadow}
+            receiveShadow={castShadow}
           />
         </group>
       )}
       {kind === "barrel" && (
         <group scale={[height, height, height]}>
-          <mesh geometry={FALLBACK_BARREL_GEOMETRY} material={FALLBACK_WOOD_MATERIAL} castShadow receiveShadow />
+          <mesh geometry={FALLBACK_BARREL_GEOMETRY} material={FALLBACK_WOOD_MATERIAL} castShadow={castShadow} receiveShadow={castShadow} />
           {[0.13, 0.87].map((y) => (
             <mesh
               key={y}
               position={[0, y, 0]}
               rotation={[Math.PI / 2, 0, 0]}
               material={FALLBACK_BRONZE_MATERIAL}
-              castShadow
-              receiveShadow
+              castShadow={castShadow}
+              receiveShadow={castShadow}
             >
               <torusGeometry args={[0.41, 0.032, 8, 32]} />
             </mesh>
@@ -207,7 +210,7 @@ export function WorldAssetFallback({
       )}
       {kind === "vase" && (
         <group scale={[height, height, height]}>
-          <mesh geometry={FALLBACK_VASE_GEOMETRY} material={FALLBACK_CLAY_MATERIAL} castShadow receiveShadow />
+          <mesh geometry={FALLBACK_VASE_GEOMETRY} material={FALLBACK_CLAY_MATERIAL} castShadow={castShadow} receiveShadow={castShadow} />
           <mesh
             position={[0, 0.95, 0]}
             rotation={[Math.PI / 2, 0, 0]}
@@ -219,14 +222,14 @@ export function WorldAssetFallback({
       )}
       {kind === "chest" && (
         <group scale={[height, height, height]}>
-          <mesh geometry={FALLBACK_CHEST_BODY} position={[0, 0.27, 0]} material={FALLBACK_WOOD_MATERIAL} castShadow receiveShadow />
+          <mesh geometry={FALLBACK_CHEST_BODY} position={[0, 0.27, 0]} material={FALLBACK_WOOD_MATERIAL} castShadow={castShadow} receiveShadow={castShadow} />
           <mesh
             geometry={FALLBACK_CHEST_LID}
             position={[0, 0.54, 0]}
             scale={[0.42, 0.43, 0.31]}
             material={FALLBACK_WOOD_HIGHLIGHT_MATERIAL}
-            castShadow
-            receiveShadow
+            castShadow={castShadow}
+            receiveShadow={castShadow}
           />
           {[-0.25, 0.25].map((x) => (
             <mesh
@@ -234,16 +237,16 @@ export function WorldAssetFallback({
               geometry={FALLBACK_CHEST_STRAP}
               position={[x, 0.47, 0]}
               material={FALLBACK_BRONZE_MATERIAL}
-              castShadow
-              receiveShadow
+              castShadow={castShadow}
+              receiveShadow={castShadow}
             />
           ))}
           <mesh
             geometry={FALLBACK_CHEST_LATCH}
             position={[0, 0.42, 0.335]}
             material={FALLBACK_BRONZE_MATERIAL}
-            castShadow
-            receiveShadow
+            castShadow={castShadow}
+            receiveShadow={castShadow}
           />
         </group>
       )}
@@ -253,8 +256,8 @@ export function WorldAssetFallback({
           material={FALLBACK_ROCK_MATERIAL}
           position={[0, height * 0.5, 0]}
           scale={[height * 0.42, height * 0.5, height * 0.42]}
-          castShadow
-          receiveShadow
+          castShadow={castShadow}
+          receiveShadow={castShadow}
         />
       )}
     </group>
@@ -267,9 +270,11 @@ function LoadedWorldAssetModel({
   position = [0, 0, 0],
   rotation = [0, 0, 0],
   scale = 1,
+  castShadow = false,
 }: ModelProps) {
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
   const normalizedScene = useMemo(() => {
+    capWorldTextures(gltf.scene);
     const model = gltf.scene.clone(true);
     if (getWorldAssetFallbackKind(src) === "rock") applyRockPbrMaterials(model);
     model.updateMatrixWorld(true);
@@ -281,8 +286,8 @@ function LoadedWorldAssetModel({
     model.position.set(-center.x * fit, -bounds.min.y * fit, -center.z * fit);
     model.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
-      child.receiveShadow = true;
+      child.castShadow = castShadow;
+      child.receiveShadow = castShadow;
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach((material) => {
         for (const value of Object.values(material)) {
@@ -292,7 +297,7 @@ function LoadedWorldAssetModel({
     });
     model.updateMatrixWorld(true);
     return model;
-  }, [gltf.scene, height]);
+  }, [castShadow, gltf.scene, height]);
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
@@ -322,6 +327,7 @@ type AssetBatchProps = {
   motionRef: MutableRefObject<WorldMotion>;
   maxVisibleDistance?: number;
   maxDetailedDistance?: number;
+  castShadow?: boolean;
 };
 
 function ModelPartInstances({
@@ -331,6 +337,7 @@ function ModelPartInstances({
   maxVisibleDistance,
   maxDetailedDistance,
   fitTransform,
+  castShadow,
 }: {
   part: ModelPart;
   items: readonly WorldObject[];
@@ -338,6 +345,7 @@ function ModelPartInstances({
   maxVisibleDistance: number;
   maxDetailedDistance?: number;
   fitTransform: THREE.Matrix4;
+  castShadow: boolean;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -373,8 +381,8 @@ function ModelPartInstances({
     <instancedMesh
       ref={meshRef}
       args={[part.geometry, part.material, items.length]}
-      castShadow
-      receiveShadow
+      castShadow={castShadow}
+      receiveShadow={castShadow}
       frustumCulled={false}
     />
   );
@@ -387,9 +395,11 @@ export function WorldAssetInstanceBatch({
   motionRef,
   maxVisibleDistance = 150,
   maxDetailedDistance,
+  castShadow = false,
 }: AssetBatchProps) {
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
   const { parts, fitTransform } = useMemo(() => {
+    capWorldTextures(gltf.scene);
     if (getWorldAssetFallbackKind(src) === "rock") applyRockPbrMaterials(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(gltf.scene);
@@ -402,8 +412,8 @@ export function WorldAssetInstanceBatch({
     const parts: ModelPart[] = [];
     gltf.scene.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
-      child.receiveShadow = true;
+      child.castShadow = castShadow;
+      child.receiveShadow = castShadow;
       parts.push({
         geometry: child.geometry,
         material: child.material,
@@ -411,7 +421,7 @@ export function WorldAssetInstanceBatch({
       });
     });
     return { parts, fitTransform };
-  }, [gltf.scene, targetHeight]);
+  }, [castShadow, gltf.scene, targetHeight]);
 
   return (
     <group>
@@ -424,6 +434,7 @@ export function WorldAssetInstanceBatch({
           maxVisibleDistance={maxVisibleDistance}
           maxDetailedDistance={maxDetailedDistance}
           fitTransform={fitTransform}
+          castShadow={castShadow}
         />
       ))}
     </group>
@@ -469,8 +480,8 @@ export function WorldRockFarLod({
     <instancedMesh
       ref={meshRef}
       args={[geometry, material, items.length]}
-      castShadow
-      receiveShadow
+      castShadow={false}
+      receiveShadow={false}
       frustumCulled={false}
     />
   );

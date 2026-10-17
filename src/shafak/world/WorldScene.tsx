@@ -47,6 +47,7 @@ import {
 } from "../game/combat-engine";
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { rollCombatLoot } from "../game/combat-loot.ts";
+import { DUEL_CAMERA_HEADING, getDuelCameraRelativeInput } from "../game/duel-camera.ts";
 import { resolveCharacterAnimationState } from "./character-animation";
 import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import StoryDialogueOverlay from "./StoryDialogueOverlay";
@@ -65,7 +66,7 @@ import {
   type WorldMotionFrame,
   type WorldMotion,
 } from "./movement";
-import { nextGateDistance } from "./world-generation";
+import { nextGateDistance, nextGateDistanceForCamera } from "./world-generation";
 import {
   getWorldChapter,
   PICKUP_RADIUS_METERS,
@@ -1899,8 +1900,13 @@ export default function WorldScene({
     input.released |= button;
   };
   const moveDuelPlayer = (x: number, y: number) => {
-    combatInputRef.current.x = Math.max(-1, Math.min(1, x)) * 100;
-    combatInputRef.current.y = Math.max(-1, Math.min(1, y)) * 100;
+    const input = getDuelCameraRelativeInput(
+      Math.max(-1, Math.min(1, x)),
+      Math.max(-1, Math.min(1, y)),
+      DUEL_CAMERA_HEADING,
+    );
+    combatInputRef.current.x = input.x * 100;
+    combatInputRef.current.y = input.z * 100;
   };
 
   const debugStartBattle = () => {
@@ -2917,6 +2923,9 @@ export default function WorldScene({
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
+            dodgeRingSeconds={combatRender.player.action === "dodge"
+              ? Math.max(0, combatRender.player.actionUntilTick - combatRender.tick) / COMBAT_HZ
+              : 0}
             quickItems={combatRender.quickSlotItemIds.map((itemId, index) => {
               const item = getCombatItem(itemId);
               const duelDistance = Math.hypot(

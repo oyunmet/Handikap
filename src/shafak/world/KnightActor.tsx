@@ -48,12 +48,15 @@ import {
   prepareCharacterSkinnedMeshes,
 } from "./character-model";
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
+import { capWorldTextures } from "./texture-budget.ts";
+import { getWorldGlowTexture } from "./world-glow.ts";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
   state: CharacterAnimationState;
   motionReduced: boolean;
   animationTimeScale?: number;
+  animationPaused?: boolean;
   facingAngle?: number;
   debugUpright?: boolean;
   talking?: boolean;
@@ -274,6 +277,7 @@ function OptionalGlbKnight({
   modelAnimationState,
   motionReduced,
   animationTimeScale = 1,
+  animationPaused = false,
   facingAngle,
   debugUpright = false,
   footSlipRef,
@@ -285,6 +289,7 @@ function OptionalGlbKnight({
   const { camera: activeCamera, size } = useThree();
   const modelPath = modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH;
   const gltf = useLoader(GLTFLoader, modelPath, loadCharacter) as GLTF;
+  const actorGlowTexture = useMemo(() => getWorldGlowTexture(), []);
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
   const rootBoneName = modelConfig?.rootBoneName
@@ -293,15 +298,18 @@ function OptionalGlbKnight({
     ?? PLAYER_CHARACTER_ANIMATION_CLIPS;
   const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
   const { model, ownedMaterials, ownedGeometries, playerRig } = useMemo(
-    () => prepareModel(
-      gltf.scene,
-      modelPath,
-      modelConfig,
-      castShadow,
-      playerCharacter,
-      appearance,
-      targetHeight,
-    ),
+    () => {
+      capWorldTextures(gltf.scene);
+      return prepareModel(
+        gltf.scene,
+        modelPath,
+        modelConfig,
+        castShadow,
+        playerCharacter,
+        appearance,
+        targetHeight,
+      );
+    },
     [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight],
   );
   const equippedHand = playerCharacter || modelConfig
@@ -488,6 +496,10 @@ function OptionalGlbKnight({
         warnedTiltRef.current = tilted;
       }
     }
+    if (animationPaused) {
+      if (footSlipRef) footSlipRef.current = 0;
+      return;
+    }
     if (previousFallbackState.current !== state) {
       previousFallbackState.current = state;
       fallbackActionElapsed.current = 0;
@@ -618,14 +630,18 @@ function OptionalGlbKnight({
 
   return (
     <group ref={rootRef} name={playerCharacter ? "player-actor-root" : "character-actor-root"}>
-      {playerCharacter && facingAngle === undefined && (
-        <pointLight
-          position={[0, 1.15, 0.18]}
-          color="#ddb371"
-          intensity={1.5}
-          distance={3.8}
-          decay={2}
-        />
+      {playerCharacter && facingAngle === undefined && actorGlowTexture && (
+        <sprite position={[0, 1.15, 0.18]} scale={[2.5, 2.5, 1]}>
+          <spriteMaterial
+            map={actorGlowTexture}
+            color="#ddb371"
+            transparent
+            opacity={0.24}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </sprite>
       )}
       <mesh
         name="player-contact-shadow"
@@ -645,13 +661,19 @@ function OptionalGlbKnight({
       </group>
       {modelConfig?.isBoss && (
         <group position={[0, targetHeight * 0.9, 0]} rotation={[0, modelFacing, 0]}>
-          <pointLight
-            position={[0, 0, 0.2]}
-            color="#ff2638"
-            intensity={2.2}
-            distance={4.8}
-            decay={2}
-          />
+          {actorGlowTexture && (
+            <sprite position={[0, 0, 0.2]} scale={[2.1, 2.1, 1]}>
+              <spriteMaterial
+                map={actorGlowTexture}
+                color="#ff2638"
+                transparent
+                opacity={0.24}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </sprite>
+          )}
           {[-0.075, 0.075].map((x) => (
             <mesh key={x} position={[x, 0, 0.1]}>
               <sphereGeometry args={[0.034, 8, 6]} />

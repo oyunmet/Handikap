@@ -163,7 +163,7 @@ test("backward movement reverses the travel camera instead of freezing at the or
 });
 
 test("the player stays 0.6 m inside the road edge and gets a small inward push", () => {
-  assert.equal(WORLD_PLAYER_LATERAL_LIMIT_METERS, 4);
+  assert.ok(Math.abs(WORLD_PLAYER_LATERAL_LIMIT_METERS - 4) < 1e-12);
   const atEdge = createWorldMotion(0, WORLD_PLAYER_DEPTH_LIMIT);
   let state = atEdge;
   const right = readWorldInput(new Set(), { x: 1, y: 0 });

@@ -21,7 +21,7 @@ export function normalizeGraphicsMode(value: unknown): GraphicsMode {
 }
 
 const SHADOW_BUDGET: Record<RenderQuality, number> = {
-  low: 512,
+  low: 1_024,
   balanced: 1_024,
   high: 1_024,
 };
@@ -47,7 +47,8 @@ export function getAutoQualityAction(fps: number, sustainedForMs: number): "down
 }
 
 export function getPixelRatioCap(quality: RenderQuality, touchDevice = false): number {
-  return touchDevice ? 1 : PIXEL_RATIO_CAP[quality];
+  void touchDevice;
+  return PIXEL_RATIO_CAP[quality];
 }
 
 export function getWorldRenderPixelRatio(

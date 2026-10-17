@@ -2062,3 +2062,167 @@
   transform: translateX(-50%);
   pointer-events: none;
 }
+@media (max-width: 760px) {
+  .duel-controls--field .duel-forfeit {
+    top: max(8px, calc(env(safe-area-inset-top) + 8px));
+    left: max(12px, calc(env(safe-area-inset-left) + 8px));
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+    padding: 4px;
+    font-size: 7px;
+  }
+  .duel-controls--field .duel-help-button {
+    top: max(8px, calc(env(safe-area-inset-top) + 8px));
+    right: max(12px, calc(env(safe-area-inset-right) + 8px));
+    left: auto;
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+  }
+  .duel-controls--field .duel-weapon-select {
+    top: max(72px, calc(env(safe-area-inset-top) + 64px));
+    width: min(260px, calc(100vw - 24px));
+    gap: 6px;
+  }
+  .duel-controls--field .duel-weapon-select__slot,
+  .duel-controls--field .duel-weapon-select__empty {
+    min-height: 56px;
+    padding: 6px 8px;
+  }
+  .duel-controls--field .duel-quickbar {
+    top: max(156px, calc(env(safe-area-inset-top) + 148px));
+    left: 50%;
+    grid-auto-columns: 56px;
+    gap: 6px;
+    max-width: calc(100vw - 24px);
+  }
+  .duel-controls--field .duel-quickslot {
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+  }
+  .duel-controls--field .duel-stance-controls {
+    top: max(220px, calc(env(safe-area-inset-top) + 212px));
+    left: max(14px, calc(env(safe-area-inset-left) + 10px));
+    gap: 6px;
+  }
+  .duel-controls--field .duel-control.is-stance {
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+    font-size: 7px;
+  }
+  .duel-controls--field .duel-control-cluster {
+    right: max(10px, calc(env(safe-area-inset-right) + 8px));
+    bottom: max(12px, calc(env(safe-area-inset-bottom) + 8px));
+    left: auto;
+    display: block;
+    width: 228px;
+    height: 248px;
+  }
+  .duel-controls--field .duel-control-cluster__skills,
+  .duel-controls--field .duel-control-cluster__actions {
+    display: contents;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control {
+    position: absolute;
+    display: grid;
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+    padding: 4px;
+    gap: 2px;
+    border-radius: 18px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-block {
+    top: auto;
+    right: auto;
+    bottom: 4px;
+    left: 42px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-dodge {
+    top: auto;
+    right: auto;
+    bottom: 96px;
+    left: 92px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-fire {
+    top: auto;
+    right: auto;
+    bottom: 162px;
+    left: 110px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-lightning {
+    top: auto;
+    right: auto;
+    bottom: 140px;
+    left: 170px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack {
+    top: auto;
+    right: 0;
+    bottom: 4px;
+    left: auto;
+    width: 86px;
+    min-width: 86px;
+    height: 86px;
+    min-height: 86px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack .duel-control__icon {
+    width: 22px;
+    height: 22px;
+  }
+  .duel-controls--field .duel-aim-status {
+    top: max(214px, calc(env(safe-area-inset-top) + 206px));
+    left: calc(50% + 20px);
+  }
+}
+@media (max-height: 700px) and (orientation: landscape) and (max-width: 760px) {
+  .duel-controls--field .duel-forfeit,
+  .duel-controls--field .duel-help-button {
+    top: max(8px, calc(env(safe-area-inset-top) + 8px));
+  }
+  .duel-controls--field .duel-weapon-select {
+    top: max(8px, calc(env(safe-area-inset-top) + 8px));
+  }
+  .duel-controls--field .duel-weapon-select__heading {
+    display: none;
+  }
+  .duel-controls--field .duel-quickbar {
+    top: max(72px, calc(env(safe-area-inset-top) + 64px));
+  }
+  .duel-controls--field .duel-stance-controls {
+    top: max(134px, calc(env(safe-area-inset-top) + 126px));
+  }
+  .duel-controls--field .duel-control-cluster {
+    bottom: max(8px, calc(env(safe-area-inset-bottom) + 5px));
+    width: 228px;
+    height: 202px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-fire {
+    bottom: 148px;
+    left: 110px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-lightning {
+    bottom: 130px;
+    left: 170px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-dodge {
+    bottom: 92px;
+    left: 88px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-block {
+    bottom: 4px;
+    left: 42px;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack {
+    bottom: 4px;
+  }
+  .duel-controls--field .duel-aim-status { display: none; }
+}

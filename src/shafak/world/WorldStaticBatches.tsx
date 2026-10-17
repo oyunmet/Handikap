@@ -5,6 +5,7 @@ import type { MutableRefObject } from "react";
 import type { WorldMotion } from "./movement";
 import type { WorldObject } from "./world-generation";
 import { raycastWorldGround } from "./WorldModel";
+import { getWorldGlowTexture } from "./world-glow.ts";
 
 type Transform = {
   position: [number, number, number];
@@ -408,7 +409,47 @@ export default function WorldStaticBatches({
   originDistance: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const torchGlowRef = useRef<THREE.InstancedMesh>(null);
   const batches = useMemo(() => buildStaticBatches(objects, originDistance), [objects, originDistance]);
+  const glowObjects = useMemo(
+    () => objects.filter((object) => object.kind === "torch" || object.kind === "firepit"),
+    [objects],
+  );
+  const glowGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const glowMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    map: getWorldGlowTexture() ?? undefined,
+    color: "#ffffff",
+    transparent: true,
+    opacity: 0.38,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  }), []);
+
+  useLayoutEffect(() => {
+    const mesh = torchGlowRef.current;
+    if (!mesh) return undefined;
+    const dummy = new THREE.Object3D();
+    const tint = new THREE.Color();
+    mesh.count = glowObjects.length;
+    glowObjects.forEach((object, index) => {
+      const x = object.lane * 9.7;
+      const ground = raycastWorldGround(x, -150);
+      const flameHeight = object.kind === "torch" ? 2.05 : 0.76;
+      const size = object.kind === "torch" ? 2.8 : 2.4;
+      dummy.position.set(x, ground + flameHeight * object.scale, -(object.worldX - originDistance));
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(size * object.scale, size * object.scale, 1);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+      mesh.setColorAt(index, tint.set(object.biome === "frozen-pass" ? "#91eaff" : "#ff9957"));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    return undefined;
+  }, [glowObjects, originDistance]);
+
   useFrame(() => {
     if (groupRef.current) groupRef.current.position.z = motionRef.current.cameraX - originDistance;
   });
@@ -416,6 +457,14 @@ export default function WorldStaticBatches({
   return (
     <group ref={groupRef}>
       {batches.map((batch) => <InstancedPropBatch key={batch.key} batch={batch} />)}
+      {glowObjects.length > 0 && (
+        <instancedMesh
+          ref={torchGlowRef}
+          args={[glowGeometry, glowMaterial, glowObjects.length]}
+          frustumCulled={false}
+          renderOrder={2}
+        />
+      )}
     </group>
   );
 }

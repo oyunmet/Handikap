@@ -1,4 +1,4 @@
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PerspectiveCamera } from "@react-three/drei";
@@ -52,6 +52,9 @@ import {
   getDuelJumpHeight,
 } from "../game/duel-camera";
 import { WORLD_ROAD_WIDTH } from "./movement";
+import { getNearestWorldLabelIds, type WorldLabelCandidate } from "./world-label-layout";
+import { getWorldGlowTexture } from "./world-glow.ts";
+import { nextGateDistanceForCamera } from "./world-generation";
 
 function createProceduralEnvironmentTexture() {
   const width = 128;
@@ -83,7 +86,11 @@ function createProceduralEnvironmentTexture() {
 }
 
 function downscaleHdrTexture(texture: THREE.DataTexture, maxDimension = 1_024) {
-  const image = texture.image as { data?: ArrayLike<number>; width?: number; height?: number };
+  const image = texture.image as {
+    data?: Uint8Array | Uint16Array | Float32Array;
+    width?: number;
+    height?: number;
+  };
   const source = image.data;
   const width = Math.max(1, Math.floor(image.width ?? 1));
   const height = Math.max(1, Math.floor(image.height ?? 1));
@@ -93,8 +100,14 @@ function downscaleHdrTexture(texture: THREE.DataTexture, maxDimension = 1_024) {
   const targetWidth = Math.max(1, Math.round(width * scale));
   const targetHeight = Math.max(1, Math.round(height * scale));
   const channels = Math.max(1, Math.floor(source.length / (width * height)));
-  const TypedArray = source.constructor as { new(length: number): typeof source };
-  const data = new TypedArray(targetWidth * targetHeight * channels);
+  const data = source instanceof Float32Array
+    ? new Float32Array(targetWidth * targetHeight * channels)
+    : source instanceof Uint16Array
+      ? new Uint16Array(targetWidth * targetHeight * channels)
+      : source instanceof Uint8Array
+        ? new Uint8Array(targetWidth * targetHeight * channels)
+        : null;
+  if (!data) return texture;
   for (let y = 0; y < targetHeight; y += 1) {
     const sourceY = ((y + 0.5) * height) / targetHeight - 0.5;
     const y0 = Math.max(0, Math.floor(sourceY));
@@ -118,7 +131,13 @@ function downscaleHdrTexture(texture: THREE.DataTexture, maxDimension = 1_024) {
     }
   }
 
-  const resized = new THREE.DataTexture(data, targetWidth, targetHeight, texture.format, texture.type);
+  const resized = new THREE.DataTexture(
+    data,
+    targetWidth,
+    targetHeight,
+    texture.format as THREE.PixelFormat,
+    texture.type,
+  );
   resized.colorSpace = texture.colorSpace;
   resized.mapping = texture.mapping;
   resized.wrapS = texture.wrapS;
@@ -431,7 +450,7 @@ function CameraRig({
     const lateral = motion.depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
     if (combat) {
-      duelCameraHeadingRef.current = Math.PI;
+      duelCameraHeadingRef.current = DUEL_CAMERA_HEADING;
     } else {
       duelCameraHeadingRef.current = null;
     }
@@ -486,8 +505,8 @@ function CameraRig({
       targetRef.set(lateral * 0.42, travelCamera.targetHeight, -travelCamera.targetDistanceAhead);
     }
     if (!combat) {
-      const roadHalfWidth = WORLD_ROAD_WIDTH * 0.5;
-      desiredRef.x = THREE.MathUtils.clamp(desiredRef.x, -roadHalfWidth, roadHalfWidth);
+      const roadCameraLimit = WORLD_ROAD_WIDTH * 0.5;
+      desiredRef.x = THREE.MathUtils.clamp(desiredRef.x, -roadCameraLimit, roadCameraLimit);
     }
     camera.position.lerp(desiredRef, response);
     if (!combat) {
@@ -495,6 +514,11 @@ function CameraRig({
       const time = _.clock.elapsedTime;
       camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
       camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
+      camera.position.x = THREE.MathUtils.clamp(
+        camera.position.x,
+        -WORLD_ROAD_WIDTH * 0.5,
+        WORLD_ROAD_WIDTH * 0.5,
+      );
     }
     camera.up.set(0, 1, 0);
     camera.lookAt(targetRef);
@@ -535,6 +559,49 @@ function combatAnimation(action: CombatAction, speed: number) {
   if (action === "jump" || action === "plunge" || action === "backflip") return action;
   if (action === "block" || action === "dodge" || action === "hit" || action === "die") return action;
   return speed > 0.28 ? "walk" as const : "idle" as const;
+}
+
+function DuelGuardShield({
+  side,
+  facingAngle,
+  combatStateRef,
+}: {
+  side: "player" | "bot";
+  facingAngle: number;
+  combatStateRef: MutableRefObject<CombatState | null>;
+}) {
+  const shieldRef = useRef<THREE.Group>(null);
+  const tint = side === "player" ? "#f2ca7c" : "#83d8e8";
+  useFrame((_frame, delta) => {
+    const shield = shieldRef.current;
+    if (!shield) return;
+    const actor = combatStateRef.current?.[side];
+    const held = actor?.action === "block" || Boolean(actor?.isCrouching);
+    const nextScale = THREE.MathUtils.damp(shield.scale.x, held ? 1 : 0, 22, Math.min(delta, 0.05));
+    shield.scale.setScalar(nextScale);
+    shield.visible = held || nextScale > 0.025;
+  });
+  return (
+    <group ref={shieldRef} position={[0, 0, 0]} rotation={[0, facingAngle, 0]} scale={0}>
+      <mesh position={[0, 1.02, -0.68]} scale={[0.78, 1.08, 0.16]} castShadow={false}>
+        <dodecahedronGeometry args={[0.56, 1]} />
+        <meshStandardMaterial
+          color={tint}
+          emissive={tint}
+          emissiveIntensity={0.6}
+          transparent
+          opacity={0.48}
+          metalness={0.38}
+          roughness={0.3}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh position={[0, 1.02, -0.84]} rotation={[0, Math.PI, 0]}>
+        <torusGeometry args={[0.48, 0.035, 8, 32]} />
+        <meshBasicMaterial color={tint} transparent opacity={0.78} toneMapped={false} depthWrite={false} />
+      </mesh>
+    </group>
+  );
 }
 
 function DuelFighter({
@@ -606,6 +673,7 @@ function DuelFighter({
   const elite = side === "bot" && Boolean(combatRender?.opponentTuning.isElite);
   const enraged = side === "bot" && Boolean(renderedActor && isCombatBotEnraged(renderedActor));
   const combatGlow = side === "player" ? "#ffad58" : elite || boss ? "#e8b052" : "#6de0e5";
+  const duelGlowTexture = useMemo(() => getWorldGlowTexture(), []);
 
   useFrame(() => {
     const state = combatStateRef.current;
@@ -679,13 +747,19 @@ function DuelFighter({
             <ringGeometry args={[boss ? 0.58 : 0.48, boss ? (isAttackBeat ? 0.96 : 0.84) : isAttackBeat ? 0.76 : 0.66, 32]} />
             <meshBasicMaterial color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow} transparent opacity={enraged ? 0.5 : isAttackBeat ? 0.64 : boss ? 0.42 : 0.24} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
-          <pointLight
-            position={[0, 1.55, 0.25]}
-            color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow}
-            intensity={enraged ? 6.2 : isAttackBeat ? 12 : boss ? 5.2 : 3.2}
-            distance={isAttackBeat ? 5.5 : boss ? 4.8 : 3.8}
-            decay={2}
-          />
+          {duelGlowTexture && (
+            <sprite position={[0, 1.55, 0.25]} scale={[4.2, 4.2, 1]}>
+              <spriteMaterial
+                map={duelGlowTexture}
+                color={enraged ? "#ff434b" : isAttackBeat ? "#fff0ad" : combatGlow}
+                transparent
+                opacity={isAttackBeat ? 0.32 : boss ? 0.2 : 0.16}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </sprite>
+          )}
         </>
       )}
       <group ref={actorVisualRoot} scale={1}>
@@ -702,6 +776,7 @@ function DuelFighter({
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}
         />
+        <DuelGuardShield side={side} facingAngle={facingAngle} combatStateRef={combatStateRef} />
         {enraged && (
           <group position={[0, 1.76, 0]} rotation={[0, facingAngle - Math.PI, 0]}>
             <mesh position={[-0.075, 0.035, -0.2]}>
@@ -790,17 +865,15 @@ function DuelTelegraph({ combatStateRef, motionReduced }: { combatStateRef: Muta
   const ringRef = useRef<THREE.Group>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
   const glintMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
-  const glintLightRef = useRef<THREE.PointLight>(null);
 
   useFrame((frame) => {
     const bot = combatStateRef.current?.bot;
-    if (!bot || !ringRef.current || !materialRef.current || !glintMaterialRef.current || !glintLightRef.current) return;
+    if (!bot || !ringRef.current || !materialRef.current || !glintMaterialRef.current) return;
     const pulse = motionReduced ? 0.5 : (Math.sin(frame.clock.elapsedTime * 17) + 1) * 0.5;
     ringRef.current.position.set(bot.x, 0.07, bot.z + 0.88);
     ringRef.current.scale.setScalar(0.94 + pulse * 0.12);
     materialRef.current.opacity = 0.48 + pulse * 0.34;
     glintMaterialRef.current.opacity = 0.25 + pulse * 0.72;
-    glintLightRef.current.intensity = 0.25 + pulse * 1.1;
   });
 
   return (
@@ -1262,6 +1335,7 @@ const ARENA_COLUMN_PROFILE = [
 ];
 
 function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
+  const flameGlowTexture = useMemo(() => getWorldGlowTexture(), []);
   const pavingRef = useRef<THREE.InstancedMesh>(null);
   const stainRef = useRef<THREE.InstancedMesh>(null);
   const wallRef = useRef<THREE.InstancedMesh>(null);
@@ -1391,19 +1465,19 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
         <circleGeometry args={[1, 10]} />
         <meshBasicMaterial color="#775351" transparent opacity={0.2} depthWrite={false} />
       </instancedMesh>
-      <instancedMesh ref={wallRef} args={[undefined, undefined, 11]} castShadow receiveShadow>
+      <instancedMesh ref={wallRef} args={[undefined, undefined, 11]} castShadow={false} receiveShadow={false}>
         <primitive object={BEVELED_STONE_BLOCK_GEOMETRY} attach="geometry" />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.97} />
       </instancedMesh>
-      <instancedMesh ref={columnRef} args={[undefined, undefined, 13]} castShadow receiveShadow>
+      <instancedMesh ref={columnRef} args={[undefined, undefined, 13]} castShadow={false} receiveShadow={false}>
         <latheGeometry args={[ARENA_COLUMN_PROFILE, 32]} />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.91} />
       </instancedMesh>
-      <instancedMesh ref={capstoneRef} args={[undefined, undefined, 6]} castShadow receiveShadow>
+      <instancedMesh ref={capstoneRef} args={[undefined, undefined, 6]} castShadow={false} receiveShadow={false}>
         <primitive object={BEVELED_STONE_BLOCK_GEOMETRY} attach="geometry" />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.92} />
       </instancedMesh>
-      <instancedMesh ref={torchShaftRef} args={[undefined, undefined, 4]} castShadow>
+      <instancedMesh ref={torchShaftRef} args={[undefined, undefined, 4]} castShadow={false}>
         <cylinderGeometry args={[0.1, 0.15, 1, 20, 3]} />
         <meshStandardMaterial color="#a9937e" roughness={0.84} />
       </instancedMesh>
@@ -1452,11 +1526,73 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
         );
       })}
 
-      {[-5.72, 5.72].map((x) => (
-        <pointLight key={x} position={[x, 1.55, -0.55]} color={theme.flame} intensity={8} distance={13} decay={2} />
+      {flameGlowTexture && [-5.72, 5.72].map((x) => (
+        <sprite key={x} position={[x, 1.75, -0.55]} scale={[5.2, 5.2, 1]}>
+          <spriteMaterial
+            map={flameGlowTexture}
+            color={theme.flame}
+            transparent
+            opacity={0.42}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </sprite>
       ))}
     </>
   );
+}
+
+function DuelArenaBoundaryRunes({
+  theme,
+  combatStateRef,
+}: {
+  theme: DuelArenaTheme;
+  combatStateRef: MutableRefObject<CombatState | null>;
+}) {
+  const runeRef = useRef<THREE.InstancedMesh>(null);
+  const geometry = useMemo(() => new THREE.BoxGeometry(0.38, 0.035, 0.12), []);
+  const baseColor = useMemo(() => new THREE.Color(theme.accent), [theme.accent]);
+  const warningColor = useMemo(() => new THREE.Color("#ff6559"), []);
+  const material = useMemo(() => new THREE.MeshBasicMaterial({
+    color: theme.accent,
+    transparent: true,
+    opacity: 0.24,
+    depthWrite: false,
+    toneMapped: false,
+  }), [theme.accent]);
+
+  useLayoutEffect(() => {
+    const mesh = runeRef.current;
+    if (!mesh) return undefined;
+    const dummy = new THREE.Object3D();
+    const count = 32;
+    for (let index = 0; index < count; index += 1) {
+      const angle = (index / count) * Math.PI * 2;
+      dummy.position.set(Math.sin(angle) * 8.1, 0.12, -0.6 + Math.cos(angle) * 8.1);
+      dummy.rotation.set(0, angle, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    return undefined;
+  }, []);
+
+  useFrame(() => {
+    const state = combatStateRef.current;
+    const actorRadius = state
+      ? Math.max(
+        Math.hypot(state.player.x, state.player.z + 0.6),
+        Math.hypot(state.bot.x, state.bot.z + 0.6),
+      )
+      : 0;
+    const warning = THREE.MathUtils.smoothstep(actorRadius, 5.8, 8.05);
+    material.color.copy(baseColor).lerp(warningColor, warning * 0.82);
+    material.opacity = 0.22 + warning * 0.72;
+  });
+
+  return <instancedMesh ref={runeRef} args={[geometry, material, 32]} frustumCulled={false} />;
 }
 
 function DuelArenaBackdrop({ theme }: { theme: DuelArenaTheme }) {
@@ -1581,6 +1717,7 @@ function DuelArena({
         <ringGeometry args={[8.12, 8.24, 96]} />
         <meshBasicMaterial color={theme.accent} transparent opacity={0.28} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
+      <DuelArenaBoundaryRunes theme={theme} combatStateRef={combatStateRef} />
       {DUEL_COVERS.map((cover, index) => (
         <group key={index} position={[cover.x, 0, cover.z]}>
           <mesh position={[0, 0.53, 0]} castShadow receiveShadow>
@@ -1750,6 +1887,32 @@ function SceneContents({
   const { gl, camera, scene } = useThree();
   const debugClock = useRef({ startedAt: 0, frames: 0, longFrames: 0, maxFrameMs: 0 });
   const performanceMetricsRef = useRef(createFrameMetricsAccumulator());
+  const visibleLabelIdsRef = useRef("");
+  const labelRefreshElapsedRef = useRef(0.2);
+  const [visibleLabelIds, setVisibleLabelIds] = useState<ReadonlySet<string>>(() => new Set());
+  const labelCandidates = useMemo<WorldLabelCandidate[]>(() => {
+    const candidates: WorldLabelCandidate[] = [];
+    const unlockedDropIds = new Set<string>();
+    for (const obstacle of obstacles) {
+      if (obstacle.dropPickupId && brokenObstacleIds.has(obstacle.id)) {
+        unlockedDropIds.add(obstacle.dropPickupId);
+      }
+    }
+    for (const pickup of pickups) {
+      if (collectedPickupIds.has(pickup.id)) continue;
+      if (pickup.sourceObstacleId && !unlockedDropIds.has(pickup.id)) continue;
+      if (!["gold-small", "gold-large", "diamond-small", "treasure-cache"].includes(pickup.kind)) continue;
+      candidates.push({ id: `pickup:${pickup.id}`, x: pickup.x, distance: pickup.distance });
+    }
+    for (const obstacle of obstacles) {
+      if (brokenObstacleIds.has(obstacle.id)) continue;
+      candidates.push({ id: `obstacle:${obstacle.id}`, x: obstacle.x, distance: obstacle.distance });
+    }
+    for (const rival of rivals) {
+      candidates.push({ id: `rival:${rival.id}`, x: rival.x, distance: rival.distance });
+    }
+    return candidates;
+  }, [brokenObstacleIds, collectedPickupIds, motionRef, obstacles, pickups, rivals]);
 
   useEffect(() => {
     performanceMetricsRef.current = createFrameMetricsAccumulator();
@@ -1808,6 +1971,34 @@ function SceneContents({
 
   useFrame((frame, delta) => {
     const motion = motionRef.current;
+    labelRefreshElapsedRef.current += delta;
+    if (!combatActive && labelRefreshElapsedRef.current >= 0.2) {
+      labelRefreshElapsedRef.current %= 0.2;
+      const speed = Math.hypot(motion.velocityX, motion.velocityY);
+      const gateDistance = nextGateDistanceForCamera(
+        motion.cameraX,
+        getTravelCameraSettings(speed, touchRenderer).distanceBehind,
+      );
+      const gateCandidates: WorldLabelCandidate[] = [
+        { id: "route-gate:left", x: -3.35, distance: gateDistance },
+        { id: "route-gate:right", x: 3.35, distance: gateDistance },
+      ];
+      const activeCandidates = labelCandidates.filter((candidate) => {
+        if (!candidate.id.startsWith("rival:")) return true;
+        const gap = candidate.distance - motion.distance;
+        return gap >= -12 && gap <= 60;
+      });
+      const nextIds = getNearestWorldLabelIds(
+        [...activeCandidates, ...gateCandidates],
+        motion.depth * 5.2,
+        motion.distance,
+      );
+      const signature = nextIds.join("\u001f");
+      if (signature !== visibleLabelIdsRef.current) {
+        visibleLabelIdsRef.current = signature;
+        setVisibleLabelIds(new Set(nextIds));
+      }
+    }
     if (performanceMonitorEnabled) {
       const stats = recordFrameMetric(
         performanceMetricsRef.current,
@@ -1899,6 +2090,7 @@ function SceneContents({
             motionRef={motionRef}
             unlockedThroughChapter={unlockedThroughChapter}
             touchRenderer={touchRenderer}
+            visibleLabelIds={visibleLabelIds}
           />
         </group>
       )}
@@ -1927,6 +2119,7 @@ function SceneContents({
         onChallenge={onChallenge}
         reducedMotion={motionReduced}
         interactableRegistry={interactableRegistry}
+        visibleLabelIds={visibleLabelIds}
       />}
       {!combatActive && <PlayerLight motionRef={motionRef} level={level} relicCount={relicCount} lightRadius={lightRadius} lightColor={equipmentVisual.auraColor ?? "#ffb36f"} />}
       {combatActive ? (
