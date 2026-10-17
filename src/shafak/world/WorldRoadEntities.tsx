@@ -712,10 +712,6 @@ function BotActor({
         </Html>
       )}
       <BotSignature rival={rival} />
-      <mesh position={[rival.x - 0.38, 1.52, 0.02]} rotation={[0, 0, rival.weapon === "axe" ? -0.16 : 0.08]}>
-        <dodecahedronGeometry args={[rival.weapon === "mace" ? 0.34 : 0.27, 0]} />
-        <meshStandardMaterial color={rival.armorTint} roughness={0.38} metalness={0.62} flatShading />
-      </mesh>
       <mesh position={[rival.x, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={focused || talking ? [1.45, 1.62, 32] : [1.05, 1.18, 24]} />
         <meshBasicMaterial

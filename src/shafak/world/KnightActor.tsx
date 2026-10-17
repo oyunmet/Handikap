@@ -11,6 +11,11 @@ import type { CharacterAnimationState } from "./character-animation";
 import { KNIGHT_CONFIG } from "./knight-config";
 import Knight3D from "./Knight3D";
 import {
+  ensureKnightGeometryUVs,
+  KNIGHT_SURFACE_MAPS,
+  KNIGHT_SURFACE_NORMAL_SCALE,
+} from "./knight-surface-detail";
+import {
   getOpponentAnimationPlayback,
   isRootTranslationTrack,
   resolveGlbClipName,
@@ -138,7 +143,7 @@ function prepareModel(
   const paletteAppearance = modelConfig?.appearance ?? (playerCharacter ? appearance : undefined);
   const materialNameAliases = modelConfig?.materialNameAliases
     ?? (playerCharacter ? PLAYER_CHARACTER_MATERIAL_ALIASES : undefined);
-  if (!paletteAppearance || !materialNameAliases) {
+  if (!materialNameAliases) {
     return { model, ownedMaterials, ownedGeometries, playerRig };
   }
 
@@ -158,7 +163,10 @@ function prepareModel(
         materialName.includes(normalizeMaterialName(alias)));
       const isArmor = materialNameAliases.armor.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const color = isCape
+      const hasSurfaceDetail = isArmor || isArmorLight || isArmorDark || isAccent;
+      const color = !paletteAppearance
+        ? undefined
+        : isCape
         ? paletteAppearance.cape
         : isAccent
           ? paletteAppearance.trim
@@ -169,17 +177,26 @@ function prepareModel(
               : isArmor
                 ? paletteAppearance.armor
           : undefined;
-      if (!color) return original;
+      if (!color && !hasSurfaceDetail) return original;
       const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
-      if (!originalColor?.isColor) return original;
+      if (!(original instanceof THREE.MeshStandardMaterial)) return original;
+      if (color && !originalColor?.isColor) return original;
 
       const customized = original.clone();
       const materialColor = (customized as THREE.Material & { color?: THREE.Color }).color;
-      if (!materialColor?.isColor) {
+      if (color && !materialColor?.isColor) {
         customized.dispose();
         return original;
       }
-      materialColor.set(color);
+      if (color && materialColor?.isColor) materialColor.set(color);
+      if (hasSurfaceDetail) {
+        ensureKnightGeometryUVs(object.geometry);
+        customized.map ??= KNIGHT_SURFACE_MAPS.color;
+        customized.normalMap ??= KNIGHT_SURFACE_MAPS.normal;
+        customized.roughnessMap ??= KNIGHT_SURFACE_MAPS.roughness;
+        customized.normalScale.set(KNIGHT_SURFACE_NORMAL_SCALE, KNIGHT_SURFACE_NORMAL_SCALE);
+        customized.needsUpdate = true;
+      }
       ownedMaterials.push(customized);
       changed = true;
       return customized;
