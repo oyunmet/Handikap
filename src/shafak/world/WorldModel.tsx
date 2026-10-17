@@ -97,8 +97,8 @@ export function getWorldAssetFallbackKind(src: string): WorldAssetFallbackKind {
 }
 
 const FALLBACK_ROCK_MATERIAL = new THREE.MeshStandardMaterial({
-  color: "#a69f90",
-  roughness: 0.9,
+  color: "#aaa595",
+  roughness: 0.97,
   metalness: 0,
 });
 const FALLBACK_WOOD_MATERIAL = new THREE.MeshStandardMaterial({

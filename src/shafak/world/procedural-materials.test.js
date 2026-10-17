@@ -31,8 +31,8 @@ test("loaded rock materials use matte grey-beige procedural stone", () => {
   applyRockPbrMaterials(model);
 
   const material = mesh.material;
-  assert.equal(material.color.getHexString(), "a69f90");
-  assert.equal(material.roughness, 0.9);
+  assert.equal(material.color.getHexString(), "aaa595");
+  assert.equal(material.roughness, 0.97);
   assert.equal(material.metalness, 0);
   assert.equal(material.map, STONE_PBR_TEXTURES.color);
   assert.equal(material.normalMap, STONE_PBR_TEXTURES.normal);

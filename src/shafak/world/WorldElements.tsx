@@ -3,13 +3,16 @@ import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
-import { WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
+import { createWorldMotion, WORLD_GATE_INTERVAL_METERS, type WorldMotion } from "./movement";
 import { getTravelCameraSettings, WORLD_SKY_RADIUS } from "./camera-settings";
 import { nextGateDistanceForCamera } from "./world-generation";
 import type { WorldChunk, WorldObject } from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import type { WorldQuality } from "./World3D";
 import WorldStaticBatches from "./WorldStaticBatches";
+import KnightActor from "./KnightActor";
+import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import {
   fillWorldRoadTileZPositions,
   WORLD_ROAD_TILE_COUNT,
@@ -27,6 +30,26 @@ import {
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
+
+const GATE_BOSS_PROFILE = getWorldBotProfileByArchetype("chapter-boss");
+const GATE_BOSS_MODEL_CONFIG = getAnimatedRivalModelConfig("Demir Taç", GATE_BOSS_PROFILE)!;
+
+function GateBossGuard() {
+  const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
+  return (
+    <group position={[0, 0, 1.85]}>
+      <KnightActor
+        motionRef={motionRef}
+        state="idle"
+        motionReduced={false}
+        animationPaused={false}
+        appearance={GATE_BOSS_PROFILE.appearance}
+        modelConfig={GATE_BOSS_MODEL_CONFIG}
+        castShadow
+      />
+    </group>
+  );
+}
 
 const GATE_PILASTER_GEOMETRY = new THREE.LatheGeometry([
   new THREE.Vector2(0, 0),
@@ -1180,6 +1203,7 @@ export function FinalGate({
           labelVisible={visibleLabelIds?.has(side === -1 ? "route-gate:left" : "route-gate:right") ?? true}
         />
       ))}
+      {!gateOpen && <GateBossGuard />}
       <mesh
         geometry={GATE_PILASTER_GEOMETRY}
         position={[0, 0, 0.12]}

@@ -109,7 +109,7 @@ test("player animation states map to the Quaternius hero clips and leave jump to
     && channel.target.path === "rotation")));
 });
 
-test("road rivals alternate between Quaternius humans and base characters; bosses use the static knight", () => {
+test("rivals use the selected player-like archetype models while bosses use the static knight", () => {
   const archetypes = [
     "gate-warden",
     "iron-oath",
@@ -123,10 +123,20 @@ test("road rivals alternate between Quaternius humans and base characters; bosse
     "chapter-boss",
   ];
   const profiles = archetypes.map((archetype) => getWorldBotProfileByArchetype(archetype));
+  const expectedModels = {
+    "gate-warden": ["/models/player-hero.glb", "sword", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
+    "iron-oath": ["/models/human.glb", "daggers", ["Human Armature|Punch"]],
+    "ash-archer": ["/models/base-character.glb", "bow", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
+    "shadow-knight": ["/models/base-character.glb", "daggers", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
+    "storm-lancer": ["/models/human.glb", "spear", ["Human Armature|Punch"]],
+    "rift-berserker": ["/models/player-hero.glb", "axe", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
+    "ember-alchemist": ["/models/base-character.glb", "staff", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
+    "venom-assassin": ["/models/player-hero.glb", "daggers", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
+    "frost-hunter": ["/models/base-character.glb", "bow", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
+  };
   for (const profile of profiles) {
     const config = getAnimatedRivalModelConfig(profile.name, profile);
     assert.ok(config);
-    assert.equal(config.weapon, profile.weapon);
     assert.equal(config.appearance.armor, profile.appearance.armor);
     assert.equal(config.appearance.cape, profile.appearance.cape);
     assert.ok(config.tintColor);
@@ -135,19 +145,17 @@ test("road rivals alternate between Quaternius humans and base characters; bosse
       assert.equal(config.targetHeight, 2.6);
       assert.deepEqual(config.modelRotation, [-Math.PI / 2, 0, 0]);
       assert.equal(config.isBoss, true);
-    } else if (["gate-warden", "iron-oath", "ash-archer", "storm-lancer"].includes(profile.archetype)) {
-      assert.equal(config.modelPath, "/models/human.glb");
-      assert.equal(config.targetHeight, 1.8);
-      assert.deepEqual(config.animationClips.attack, ["Human Armature|Punch"]);
     } else {
-      assert.equal(config.modelPath, "/models/base-character.glb");
+      const [modelPath, weapon, attackClips] = expectedModels[profile.archetype];
+      assert.equal(config.modelPath, modelPath);
       assert.equal(config.targetHeight, 1.8);
-      assert.deepEqual(config.animationClips.attack, ["Rig|Sword_Attack", "Rig|Sword_Attack_RM"]);
+      assert.equal(config.weapon, weapon);
+      assert.deepEqual(config.animationClips.attack, attackClips);
     }
   }
   assert.equal(
     getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
-    "#f0bd69",
+    "#bd5a56",
   );
 });
 

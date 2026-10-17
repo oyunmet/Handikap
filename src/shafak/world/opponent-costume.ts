@@ -1,0 +1,270 @@
+import * as THREE from "three";
+import type { EquipmentVisual } from "../game/store-types";
+import type { OpponentModelConfig } from "./opponent-model-config";
+
+type CapeRecord = {
+  geometry: THREE.BufferGeometry;
+  basePositions: Float32Array;
+};
+
+export type AttachedOpponentCostume = {
+  update: (time: number) => void;
+  dispose: () => void;
+};
+
+const BONE_NAMES = {
+  head: ["Head", "DEF-head", "head", "Rig_Head"],
+  torso: ["Spine2", "Spine1", "Torso", "DEF-spine.003", "DEF-spine.002", "Spine", "torso", "Hips"],
+  leftShoulder: ["Shoulder.L", "LeftShoulder", "DEF-shoulder.L", "Rig_LeftShoulder"],
+  rightShoulder: ["Shoulder.R", "RightShoulder", "DEF-shoulder.R", "Rig_RightShoulder"],
+} as const;
+
+function findMount(model: THREE.Object3D, names: readonly string[]) {
+  let fallback: THREE.Object3D | null = null;
+  model.traverse((object) => {
+    if (!names.includes(object.name)) return;
+    if (object instanceof THREE.Bone) fallback = object;
+    else fallback ??= object;
+  });
+  return fallback ?? model;
+}
+
+function createCapeGeometry(width: number, length: number, columns = 6, rows = 8): CapeRecord {
+  const basePositions = new Float32Array((columns + 1) * (rows + 1) * 3);
+  const uvs = new Float32Array((columns + 1) * (rows + 1) * 2);
+  const indices: number[] = [];
+  for (let row = 0; row <= rows; row += 1) {
+    for (let column = 0; column <= columns; column += 1) {
+      const vertex = row * (columns + 1) + column;
+      const u = column / columns;
+      const v = row / rows;
+      basePositions[vertex * 3] = (u - 0.5) * width * (0.84 + v * 0.16);
+      basePositions[vertex * 3 + 1] = -v * length;
+      basePositions[vertex * 3 + 2] = -0.13 - Math.sin(v * Math.PI * 0.5) * 0.12;
+      uvs[vertex * 2] = u;
+      uvs[vertex * 2 + 1] = 1 - v;
+      if (row < rows && column < columns) {
+        const nextRow = vertex + columns + 1;
+        indices.push(vertex, nextRow, vertex + 1, vertex + 1, nextRow, nextRow + 1);
+      }
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(basePositions.slice(), 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return { geometry, basePositions };
+}
+
+function makeMaterial(
+  color: string,
+  roughness = 0.84,
+  metalness = 0.16,
+): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness,
+    metalness: Math.min(0.3, metalness),
+    flatShading: true,
+  });
+}
+
+/**
+ * Adds small archetype-specific gear to each cloned opponent model. Mounted
+ * pieces inherit the character rig's animation; cape size is normalized after
+ * the source GLB has been fitted to its target height.
+ */
+export function attachOpponentCostume(
+  model: THREE.Object3D,
+  modelConfig: OpponentModelConfig,
+  appearance: EquipmentVisual | undefined,
+): AttachedOpponentCostume {
+  const style = modelConfig.costume;
+  const trim = appearance?.trim ?? appearance?.armorLight ?? "#b99b70";
+  const capeColor = appearance?.cape ?? appearance?.armorDark ?? "#44373a";
+  const armorColor = appearance?.armorLight ?? appearance?.armor ?? "#746458";
+  const maskColor = appearance?.armorDark ?? "#27262b";
+  const normalizedInverseScale = 1 / Math.max(0.01, Math.abs(model.scale.x));
+  const ownedMaterials: THREE.Material[] = [];
+  const ownedGeometries: THREE.BufferGeometry[] = [];
+  const mounts: THREE.Object3D[] = [];
+  const capes: CapeRecord[] = [];
+  const capeMeshes: THREE.Mesh[] = [];
+  const head = findMount(model, BONE_NAMES.head);
+  const torso = findMount(model, BONE_NAMES.torso);
+
+  const mountGroup = (
+    parent: THREE.Object3D,
+    position: THREE.Vector3,
+  ) => {
+    const group = new THREE.Group();
+    group.scale.setScalar(normalizedInverseScale);
+    group.position.copy(position);
+    parent.add(group);
+    mounts.push(group);
+    return group;
+  };
+
+  const mesh = (
+    parent: THREE.Object3D,
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material,
+    position?: THREE.Vector3,
+    scale?: THREE.Vector3,
+  ) => {
+    const item = new THREE.Mesh(geometry, material);
+    item.castShadow = true;
+    item.receiveShadow = true;
+    if (position) item.position.copy(position);
+    if (scale) item.scale.copy(scale);
+    parent.add(item);
+    ownedGeometries.push(geometry);
+    ownedMaterials.push(material);
+    return item;
+  };
+
+  const headGear = mountGroup(
+    head,
+    head === model
+      ? new THREE.Vector3(0, modelConfig.targetHeight ? modelConfig.targetHeight * 0.88 * normalizedInverseScale : 1.55 * normalizedInverseScale, 0)
+      : new THREE.Vector3(0, 0, 0),
+  );
+
+  if (style.hood) {
+    const hoodMaterial = makeMaterial(capeColor, 0.94, 0.02);
+    const hood = mesh(
+      headGear,
+      new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.72),
+      hoodMaterial,
+      new THREE.Vector3(0, 0.025, -0.045),
+      new THREE.Vector3(1.05, 1.18, 1.3),
+    );
+    hood.material.side = THREE.DoubleSide;
+  }
+
+  if (style.helmet) {
+    const helmet = mesh(
+      headGear,
+      new THREE.SphereGeometry(0.205, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.56),
+      makeMaterial(armorColor, 0.74, 0.28),
+      new THREE.Vector3(0, 0.075, -0.015),
+      new THREE.Vector3(1.12, 1.08, 1.2),
+    );
+    helmet.material.side = THREE.DoubleSide;
+    mesh(
+      headGear,
+      new THREE.BoxGeometry(0.3, 0.045, 0.075),
+      makeMaterial(trim, 0.76, 0.24),
+      new THREE.Vector3(0, 0.02, 0.13),
+    );
+  }
+
+  if (style.mask) {
+    mesh(
+      headGear,
+      new THREE.BoxGeometry(0.25, 0.105, 0.055),
+      makeMaterial(maskColor, 0.86, 0.1),
+      new THREE.Vector3(0, -0.075, 0.16),
+    );
+  }
+
+  if (style.horns) {
+    for (const side of [-1, 1]) {
+      const horn = mesh(
+        headGear,
+        new THREE.ConeGeometry(modelConfig.isBoss ? 0.055 : 0.045, modelConfig.isBoss ? 0.34 : 0.27, 6),
+        makeMaterial(trim, 0.8, 0.2),
+        new THREE.Vector3(side * 0.16, 0.16, -0.015),
+      );
+      horn.rotation.z = -side * 0.52;
+    }
+  }
+
+  if (style.cape) {
+    const cloth = createCapeGeometry(modelConfig.isBoss ? 0.92 : 0.76, modelConfig.isBoss ? 1.25 : 0.88);
+    const capeMesh = mesh(
+      mountGroup(torso, torso === model
+        ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 1.8) * 0.62 * normalizedInverseScale, 0)
+        : new THREE.Vector3(0, -0.06, -0.02)),
+      cloth.geometry,
+      new THREE.MeshStandardMaterial({
+        color: capeColor,
+        roughness: 0.95,
+        metalness: 0.02,
+        side: THREE.DoubleSide,
+        vertexColors: false,
+      }),
+    );
+    cloth.geometry.computeVertexNormals();
+    capes.push(cloth);
+    capeMeshes.push(capeMesh);
+  }
+
+  for (const [side, names] of [
+    [-1, BONE_NAMES.leftShoulder],
+    [1, BONE_NAMES.rightShoulder],
+  ] as const) {
+    const shoulder = findMount(model, names);
+    const shoulderGroup = mountGroup(
+      shoulder,
+      shoulder === model
+        ? new THREE.Vector3(side * 0.25 * normalizedInverseScale, (modelConfig.targetHeight ?? 1.8) * 0.75 * normalizedInverseScale, 0)
+        : new THREE.Vector3(0, -0.045, 0),
+    );
+    const pad = mesh(
+      shoulderGroup,
+      new THREE.SphereGeometry(style.shoulders === "fur" ? 0.155 : 0.135, 10, 7),
+      makeMaterial(style.shoulders === "fur" ? capeColor : armorColor, style.shoulders === "fur" ? 0.98 : 0.78, style.shoulders === "metal" ? 0.28 : 0.08),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(1.45, 0.92, 1.2),
+    );
+    if (style.shoulders === "metal") {
+      const spike = mesh(
+        shoulderGroup,
+        new THREE.ConeGeometry(0.045, 0.18, 5),
+        makeMaterial(trim, 0.72, 0.28),
+        new THREE.Vector3(side * 0.13, 0.055, 0),
+      );
+      spike.rotation.z = -side * 0.55;
+    } else if (style.shoulders === "fur") {
+      for (const offset of [-0.11, 0, 0.11]) {
+        mesh(
+          shoulderGroup,
+          new THREE.ConeGeometry(0.055, 0.17, 5),
+          makeMaterial(capeColor, 0.98, 0.01),
+          new THREE.Vector3(offset, -0.055, 0),
+        ).rotation.z = -0.28;
+      }
+    }
+    // Keep the sphere in the scene tree so it follows the rigged shoulder joint.
+    pad.visible = true;
+  }
+
+  const update = (time: number) => {
+    capes.forEach(({ geometry, basePositions }, capeIndex) => {
+      const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+      const vertexCount = positions.count;
+      for (let vertex = 0; vertex < vertexCount; vertex += 1) {
+        const x = basePositions[vertex * 3];
+        const y = basePositions[vertex * 3 + 1];
+        const z = basePositions[vertex * 3 + 2];
+        const amount = THREE.MathUtils.clamp(-y / 0.88, 0, 1);
+        const wave = Math.sin(time * 2.2 + x * 3.2 + amount * 3.5 + capeIndex) * amount * 0.12;
+        positions.setXYZ(vertex, x + wave * 0.32, y, z + wave);
+      }
+      positions.needsUpdate = true;
+      geometry.computeVertexNormals();
+    });
+  };
+
+  const dispose = () => {
+    mounts.forEach((group) => group.removeFromParent());
+    capeMeshes.length = 0;
+    ownedGeometries.forEach((geometry) => geometry.dispose());
+    ownedMaterials.forEach((material) => material.dispose());
+  };
+
+  return { update, dispose };
+}

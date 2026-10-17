@@ -99,12 +99,12 @@ export function applyRockPbrMaterials(root: THREE.Object3D) {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (!(material instanceof THREE.MeshStandardMaterial)) continue;
-      material.color.set("#a69f90");
+      material.color.set("#aaa595");
       material.map = STONE_PBR_TEXTURES.color;
       material.normalMap = STONE_PBR_TEXTURES.normal;
       material.normalScale.set(0.2, 0.2);
       material.roughnessMap = STONE_PBR_TEXTURES.roughness;
-      material.roughness = 0.9;
+      material.roughness = 0.97;
       material.metalness = 0;
       material.emissive.set(0);
       material.emissiveIntensity = 0;

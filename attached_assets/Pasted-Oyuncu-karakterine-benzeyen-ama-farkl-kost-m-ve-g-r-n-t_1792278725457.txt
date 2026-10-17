@@ -1,0 +1,25 @@
+Oyuncu karakterine benzeyen ama farklı kostüm ve görünüşte düşmanlar üret. Oyun mantığına dokunma. Başlamadan commit al.
+
+1) ORTAK KARAKTER ÜRETİCİ
+- loadCharacter fonksiyonunu kullan: player-hero.glb, human.glb ve base-character.glb temel modellerini her düşman için SkeletonUtils.clone ile klonla. Materyalleri de klonla (paylaşma).
+- Mevcut altın manken ve gri heykel görünümünü kaldır: materyal adlarını konsola yazdır, gövde/kıyafet/saç/deri/ayakkabı materyallerini ayırt edip her düşman arketipine ÖZEL renk paleti ver. map ve normal map korunsun, sadece color/roughness/metalness değişsin, metalness en fazla 0.3.
+- Her düşmana farklı ölçek (0.95-1.1), farklı silah (hançer, balta, asa, çift hançer, kılıç), kapüşon/pelerin (basit kumaş plane, vertex dalgalanması) ve omuz/kask parçaları ekle. Hepsi elin kemiğine bağlı ve normalize boyutlu olsun.
+- Animasyon: bekleme, yürü/koş, saldır, hasar al, ölüm. Klip yoksa player-hero.glb'nin kliplerini retarget et ya da en yakın klibi kullan. Düşman her zaman oyuncuya dönük dursun.
+
+2) ARKETİPLER (ad ve unvanlar aynı kalsın)
+- Kül Gezgini (Nöbetçi): gri-kahve deri zırh, açık kapüşon, uzun kılıç.
+- Mor Hançer (Yeminli Savaşçı): mor pelerin, koyu deri, çift hançer, yüz maskesi.
+- Kızıl Pelerin (Zehir Suikastçisi): kırmızı pelerin, koyu yeşil giysi, yeşil parlayan hançer, hafif.
+- Taş Mühür (Ayaz Avcısı): buz mavisi kürklü omuzluk, beyaz-gri giysi, mavi parlayan asa/ok, yüksekçe.
+- Demir Taç (Bölüm Boss): public/models/fantasy_knight.glb, 2.6 m, koyu metal zırh, kırmızı parlayan göz, büyük kılıç, boynuzlu taç.
+- Diğer düşman türleri için karışık palet ve ekipman üret, hiçbiri aynı görünmesin.
+
+3) KAPI ÖNÜNÜ TEMİZLE
+- Kapıdaki siyah sütun, turuncu koni, kırmızı elmas ve koyu mavi kutu gibi eski ilkel yer tutucuları kaldır. Demir Taç'ı yukarıdaki boss modeliyle kapının önünde, bekleme animasyonuyla yerleştir.
+- Düşmanlar yol kenarında dururken yola taşmasın, birbirine geçmesin.
+
+4) EK
+- Tuzak dikenlerini düz koni yerine eğik, düzensiz, pas dokulu demir/ahşap kazıklar yap.
+- Kaya materyallerini mat gri-bej taş yap (şu an çikolata gibi parlak).
+- Düello sahnesinde rakip de aynı arketip modelle çıksın (düello ve yol modeli tutarlı olsun).
+- Rapor: her arketip için kullanılan temel model, palet ve silah listesi.

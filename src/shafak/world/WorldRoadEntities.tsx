@@ -62,6 +62,127 @@ function calculateNpcDialogueElementPosition(
   return calculateNpcDialoguePosition(projectedX, projectedY, size);
 }
 
+function createJaggedStakeGeometry(seed: number, height: number, lean: number) {
+  const sides = 7;
+  const ringHeights = [0, 0.18, 0.43, 0.68, 0.88];
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  const oxide = new THREE.Color(seed % 2 ? "#754b3b" : "#645044");
+  const rust = new THREE.Color("#966346");
+  const ironTip = new THREE.Color("#9e9585");
+  const jitter = (value: number) => {
+    const noise = Math.sin(value * 91.73 + seed * 17.31) * 43758.5453;
+    return noise - Math.floor(noise);
+  };
+
+  ringHeights.forEach((fraction, ring) => {
+    for (let side = 0; side < sides; side += 1) {
+      const angle = side / sides * Math.PI * 2;
+      const roughness = 0.78 + jitter(ring * 13 + side) * 0.48;
+      const radius = 0.125 * (1 - fraction) ** 0.82 * roughness;
+      const drift = fraction * lean;
+      positions.push(
+        Math.cos(angle) * radius + drift,
+        fraction * height,
+        Math.sin(angle) * radius + Math.sin(fraction * Math.PI * 1.4 + seed) * fraction * 0.06,
+      );
+      const hueNoise = jitter(side * 7 + ring * 19);
+      const color = fraction > 0.68
+        ? rust.clone().lerp(ironTip, (fraction - 0.68) * 3.4)
+        : oxide.clone().lerp(rust, hueNoise * 0.55 + fraction * 0.28);
+      colors.push(color.r, color.g, color.b);
+    }
+  });
+
+  for (let ring = 0; ring < ringHeights.length - 1; ring += 1) {
+    for (let side = 0; side < sides; side += 1) {
+      const current = ring * sides + side;
+      const nextSide = ring * sides + (side + 1) % sides;
+      const upper = current + sides;
+      const upperNext = nextSide + sides;
+      indices.push(current, upper, nextSide, nextSide, upper, upperNext);
+    }
+  }
+  const apex = positions.length / 3;
+  positions.push(lean, height, Math.sin(seed * 1.7) * 0.06);
+  colors.push(ironTip.r, ironTip.g, ironTip.b);
+  const lastRing = (ringHeights.length - 1) * sides;
+  for (let side = 0; side < sides; side += 1) {
+    indices.push(lastRing + side, apex, lastRing + (side + 1) % sides);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function RuggedSpikeTrap({
+  width,
+  warningRef,
+}: {
+  width: number;
+  warningRef: MutableRefObject<THREE.Mesh | null>;
+}) {
+  const stakes = useMemo(() => {
+    const count = 7;
+    const usableWidth = Math.max(1.2, width - 0.55);
+    return Array.from({ length: count }, (_, index) => {
+      const value = Math.sin((index + 1) * 27.71) * 43758.5453;
+      const variation = value - Math.floor(value);
+      const side = index % 2 ? 1 : -1;
+      const height = 0.68 + variation * 0.48;
+      return {
+        key: index,
+        x: -usableWidth / 2 + usableWidth * index / (count - 1),
+        z: side * (0.12 + variation * 0.18),
+        height,
+        rotation: side * (0.11 + variation * 0.18),
+        geometry: createJaggedStakeGeometry(index + 3, height, side * (0.08 + variation * 0.1)),
+      };
+    });
+  }, [width]);
+  const stakeMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#fff",
+    vertexColors: true,
+    metalness: 0.18,
+    roughness: 0.94,
+    flatShading: true,
+  }), []);
+  useEffect(() => () => {
+    stakes.forEach((stake) => stake.geometry.dispose());
+    stakeMaterial.dispose();
+  }, [stakeMaterial, stakes]);
+
+  return (
+    <group>
+      <mesh position={[0, 0.075, 0]}>
+        <boxGeometry args={[width, 0.13, 1.65]} />
+        <meshStandardMaterial color="#49362e" roughness={0.96} metalness={0.02} />
+      </mesh>
+      {stakes.map((stake) => (
+        <mesh
+          key={stake.key}
+          geometry={stake.geometry}
+          material={stakeMaterial}
+          position={[stake.x, 0.12, stake.z]}
+          rotation={[0, stake.rotation * 0.35, stake.rotation]}
+          dispose={null}
+          castShadow
+          receiveShadow
+        />
+      ))}
+      <mesh ref={warningRef} position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[2.3, 2.45, 32]} />
+        <meshBasicMaterial color="#ff795b" transparent opacity={0.46} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
 function Collectible({
   pickup,
   motionRef,
@@ -319,22 +440,7 @@ function Obstacle({
           )}
         </group>
       ) : obstacle.kind === "spike-trap" ? (
-        <group>
-          <mesh position={[0, 0.05, 0]}>
-            <boxGeometry args={[obstacle.width, 0.08, 1.8]} />
-            <meshStandardMaterial color="#553438" roughness={0.82} />
-          </mesh>
-          {[-1.25, 0, 1.25].map((x) => (
-            <mesh key={x} position={[x, 0.55, 0]} rotation={[0, 0, 0.12]}>
-              <cylinderGeometry args={[0.025, 0.18, 0.95, 18, 8]} />
-              <meshStandardMaterial color="#c7c0b2" metalness={0.58} roughness={0.34} />
-            </mesh>
-          ))}
-          <mesh ref={warningRef} position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[2.3, 2.45, 32]} />
-            <meshBasicMaterial color="#ff795b" transparent opacity={0.46} side={THREE.DoubleSide} depthWrite={false} />
-          </mesh>
-        </group>
+        <RuggedSpikeTrap width={obstacle.width} warningRef={warningRef} />
       ) : obstacle.kind === "barrel" ? (
         broken ? (
           <group>
@@ -599,12 +705,12 @@ function BotActor({
   const rootRef = useRef<THREE.Group>(null);
   const actorPivotRef = useRef<THREE.Group>(null);
   const poseRef = useRef(createWorldMotion());
-  const tint = useMemo(() => new THREE.Color(rival.armorTint), [rival.armorTint]);
   const profile = getWorldBotProfileByArchetype(rival.archetype);
   const modelConfig = useMemo(
     () => getAnimatedRivalModelConfig(rival.name, profile),
     [profile, rival.name],
   );
+  const renderedX = rival.isBoss ? rival.x : (rival.x < 0 ? -1 : 1) * 7.35;
   const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
@@ -633,14 +739,13 @@ function BotActor({
     const actorZ = -(rival.distance - motion.cameraX);
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
+    const targetYaw = Math.atan2(renderedX - playerX, actorZ - playerZ) - (modelConfig?.modelFacing ?? 0);
     root.position.set(0, 0, actorZ);
-    root.scale.setScalar(rival.isBoss ? 1 : rival.size);
+    root.scale.setScalar(1);
     root.visible = gap >= -12 && gap <= 60;
     root.rotation.y = 0;
     if (actorPivotRef.current) {
-      const targetYaw = focused || talking
-        ? Math.atan2(rival.x - playerX, actorZ - playerZ)
-        : 0;
+      actorPivotRef.current.position.x = renderedX;
       actorPivotRef.current.rotation.y = THREE.MathUtils.damp(
         actorPivotRef.current.rotation.y,
         targetYaw,
@@ -658,7 +763,7 @@ function BotActor({
 
   return (
     <group ref={rootRef}>
-      <group ref={actorPivotRef} position={[rival.x, 0, 0]}>
+      <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
           state="idle"
@@ -674,7 +779,7 @@ function BotActor({
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= RIVAL_DIALOGUE_RANGE_METERS && (
         <Html
           portal={dialoguePortal}
-          position={[rival.x, 2.95, 0]}
+          position={[renderedX, 2.95, 0]}
           center
           zIndexRange={[90, 0]}
           calculatePosition={calculateNpcDialogueElementPosition}
@@ -703,8 +808,7 @@ function BotActor({
           </div>
         </Html>
       )}
-      <BotSignature rival={rival} />
-      <mesh position={[rival.x, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[renderedX, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={focused || talking ? [1.45, 1.62, 32] : [1.05, 1.18, 24]} />
         <meshBasicMaterial
           color={focused || talking ? "#ff704f" : rival.armorTint}
@@ -715,7 +819,7 @@ function BotActor({
         />
       </mesh>
       {labelVisible && (
-        <Html position={[rival.x, 2.85 * rival.size, 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+        <Html position={[renderedX, rival.isBoss ? 3.02 : 2.62 * (modelConfig?.scale ?? 1), 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
           <span className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`} data-weapon={rival.weapon}>
             <b>{rival.name}</b><span>{rival.title}</span>
           </span>

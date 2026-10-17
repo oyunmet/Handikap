@@ -29,6 +29,11 @@ export const PLAYER_CHARACTER_MATERIAL_ALIASES: ModelMaterialNameAliases = {
   armor: ["leather"],
   armorLight: ["steel_light"],
   armorDark: ["steel_dark", "leather_dark"],
+  skin: ["skin", "body", "face"],
+  hair: ["hair"],
+  clothing: ["shirt", "cloth"],
+  pants: ["pants"],
+  boots: ["boot", "shoe"],
 };
 
 export function shouldRenderPlayerModel(playerCharacter: boolean, animationCount: number) {

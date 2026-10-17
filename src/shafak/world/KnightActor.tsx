@@ -47,6 +47,7 @@ import {
   loadCharacter,
   prepareCharacterSkinnedMeshes,
 } from "./character-model";
+import { attachOpponentCostume, type AttachedOpponentCostume } from "./opponent-costume";
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
@@ -71,6 +72,7 @@ type KnightActorProps = {
 const warnedModelPaths = new Set<string>();
 const loggedCharacterFraming = new Set<string>();
 const loggedPlayerSceneGraphs = new Set<string>();
+const loggedOpponentMaterialNames = new Set<string>();
 
 const GLB_CONTACT_SHADOW_GEOMETRY = new THREE.CircleGeometry(1, 28);
 const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
@@ -163,7 +165,20 @@ function prepareModel(
   const paletteAppearance = modelConfig?.appearance ?? (playerCharacter ? appearance : undefined);
   const materialNameAliases = modelConfig?.materialNameAliases
     ?? (playerCharacter ? PLAYER_CHARACTER_MATERIAL_ALIASES : undefined);
+  const materialPalette = modelConfig?.materialPalette;
+  const isOpponentModel = Boolean(modelConfig && !playerCharacter);
   const tintColor = modelConfig?.tintColor ? new THREE.Color(modelConfig.tintColor) : null;
+
+  if (isOpponentModel && !loggedOpponentMaterialNames.has(modelPath)) {
+    const names = new Set<string>();
+    source.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => names.add(material.name || "(unnamed)"));
+    });
+    loggedOpponentMaterialNames.add(modelPath);
+    console.info("[shafak-model] Rival material names", { model: modelPath, materials: [...names] });
+  }
 
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -171,17 +186,23 @@ function prepareModel(
     let changed = false;
     const materials = originalMaterials.map((original) => {
       const materialName = normalizeMaterialName(original.name);
+      const meshName = normalizeMaterialName(object.name);
       const aliases = materialNameAliases;
-      const isCape = aliases?.cape.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
-      const isAccent = aliases?.accent.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
-      const isArmorLight = aliases?.armorLight.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
-      const isArmorDark = aliases?.armorDark.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
-      const isArmor = aliases?.armor.some((alias) =>
-        materialName.includes(normalizeMaterialName(alias)));
+      const matches = (values: readonly string[] | undefined) =>
+        values?.some((alias) => {
+          const normalizedAlias = normalizeMaterialName(alias);
+          return materialName.includes(normalizedAlias) || meshName.includes(normalizedAlias);
+        }) ?? false;
+      const isCape = matches(aliases?.cape);
+      const isAccent = matches(aliases?.accent);
+      const isArmorLight = matches(aliases?.armorLight);
+      const isArmorDark = matches(aliases?.armorDark);
+      const isSkin = matches(aliases?.skin);
+      const isHair = matches(aliases?.hair);
+      const isClothing = matches(aliases?.clothing);
+      const isPants = matches(aliases?.pants);
+      const isBoots = matches(aliases?.boots);
+      const isArmor = matches(aliases?.armor);
       const hasSurfaceDetail = isArmor || isArmorLight || isArmorDark || isAccent;
       const color = !paletteAppearance
         ? undefined
@@ -191,20 +212,33 @@ function prepareModel(
           ? paletteAppearance.trim
           : isArmorLight
             ? paletteAppearance.armorLight
-            : isArmorDark
-              ? paletteAppearance.armorDark
-              : isArmor
-                ? paletteAppearance.armor
-          : undefined;
-      if (!(original instanceof THREE.MeshStandardMaterial)) return original;
-      const needsPhysicalTuning = original.metalness > 0.2 || original.roughness < 0.62;
-      if (!color && !hasSurfaceDetail && !tintColor && !needsPhysicalTuning) return original;
+            : isSkin
+              ? materialPalette?.skin
+              : isHair
+                ? materialPalette?.hair
+                : isClothing
+                  ? materialPalette?.clothing
+                  : isPants
+                    ? materialPalette?.pants
+                    : isBoots
+                      ? materialPalette?.boots
+                      : isArmorDark
+                        ? paletteAppearance.armorDark
+                        : isArmor
+                          ? paletteAppearance.armor
+                          : isOpponentModel
+                            ? materialPalette?.default
+                            : undefined;
+      const needsPhysicalTuning = isOpponentModel
+        || (original instanceof THREE.MeshStandardMaterial
+          && (original.metalness > 0.2 || original.roughness < 0.62));
+      if (!isOpponentModel && !color && !hasSurfaceDetail && !tintColor && !needsPhysicalTuning) return original;
       const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
-      if (color && !originalColor?.isColor) return original;
+      if (color && !originalColor?.isColor && !isOpponentModel) return original;
 
       const customized = original.clone();
       const materialColor = (customized as THREE.Material & { color?: THREE.Color }).color;
-      if (color && !materialColor?.isColor) {
+      if (color && !materialColor?.isColor && !isOpponentModel) {
         customized.dispose();
         return original;
       }
@@ -212,9 +246,14 @@ function prepareModel(
       else if (tintColor && materialColor?.isColor) {
         materialColor.lerp(tintColor, modelConfig?.tintStrength ?? 0.68);
       }
-      customized.metalness = Math.min(customized.metalness, 0.2);
-      customized.roughness = Math.max(customized.roughness, 0.62);
-      if (hasSurfaceDetail) {
+      if (isOpponentModel && customized instanceof THREE.MeshStandardMaterial) {
+        customized.metalness = Math.min(customized.metalness, 0.3);
+        customized.roughness = Math.max(customized.roughness, 0.76);
+      } else if (customized instanceof THREE.MeshStandardMaterial) {
+        customized.metalness = Math.min(customized.metalness, 0.2);
+        customized.roughness = Math.max(customized.roughness, 0.62);
+      }
+      if (!isOpponentModel && hasSurfaceDetail) {
         ensureKnightGeometryUVs(object.geometry);
         customized.map ??= KNIGHT_SURFACE_MAPS.color;
         customized.normalMap ??= KNIGHT_SURFACE_MAPS.normal;
@@ -318,7 +357,10 @@ function OptionalGlbKnight({
         "Rig_RightHand",
         "mixamorigRightHand",
         "FistR",
+        "Fist.R",
         "RightHand",
+        "RightHandBone",
+        "DEF-hand.R",
         "DEF-handR",
       ].map((name) => model.getObjectByName(name)).find(Boolean)
     : undefined;
@@ -347,6 +389,16 @@ function OptionalGlbKnight({
     weaponAppearance?.weaponColor,
     weaponAppearance?.weaponStyle,
   ]);
+  const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
+  useEffect(() => {
+    if (!modelConfig || playerCharacter) return undefined;
+    const costume = attachOpponentCostume(model, modelConfig, appearance ?? modelConfig.appearance);
+    opponentCostumeRef.current = costume;
+    return () => {
+      if (opponentCostumeRef.current === costume) opponentCostumeRef.current = null;
+      costume.dispose();
+    };
+  }, [appearance, model, modelConfig, playerCharacter]);
   useEffect(() => {
     if (!playerCharacter) return undefined;
     const diagnosticKey = `${modelPath}:${targetHeight}`;
@@ -393,6 +445,7 @@ function OptionalGlbKnight({
     : resolveGlbClipName(clipState, animationClips.map((clip) => clip.name), animationClipMap);
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
   const staticPlayerModel = shouldRenderPlayerModel(playerCharacter, animationClips.length);
+  const proceduralPoseEnabled = playerCharacter ? staticPlayerModel : !selectedAction;
   const modelFacing = modelConfig?.modelFacing
     ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_FACING : KNIGHT_CONFIG.modelFacing);
   const staticPoseRef = useRef<THREE.Group>(null);
@@ -500,13 +553,14 @@ function OptionalGlbKnight({
       if (footSlipRef) footSlipRef.current = 0;
       return;
     }
+    opponentCostumeRef.current?.update(frame.clock.elapsedTime);
     if (previousFallbackState.current !== state) {
       previousFallbackState.current = state;
       fallbackActionElapsed.current = 0;
     } else {
       fallbackActionElapsed.current += dt * animationTimeScale;
     }
-    if (staticPlayerModel && staticPoseRef.current) {
+    if (proceduralPoseEnabled && staticPoseRef.current) {
       const pose = staticPoseRef.current;
       const time = frame.clock.elapsedTime;
       const speed = Math.hypot(motion.velocityX, motion.velocityY);
@@ -652,15 +706,16 @@ function OptionalGlbKnight({
         scale={[0.78, 0.52, 1]}
         dispose={null}
       />
-      <group ref={staticPlayerModel ? staticPoseRef : undefined}>
-        <primitive
-          object={model}
-          rotation={[0, modelFacing, 0]}
-          dispose={null}
-        />
-      </group>
-      {modelConfig?.isBoss && (
-        <group position={[0, targetHeight * 0.9, 0]} rotation={[0, modelFacing, 0]}>
+      <group scale={modelConfig?.scale ?? 1}>
+        <group ref={proceduralPoseEnabled ? staticPoseRef : undefined}>
+          <primitive
+            object={model}
+            rotation={[0, modelFacing, 0]}
+            dispose={null}
+          />
+        </group>
+        {modelConfig?.isBoss && (
+          <group position={[0, targetHeight * 0.9, 0]} rotation={[0, modelFacing, 0]}>
           {actorGlowTexture && (
             <sprite position={[0, 0, 0.2]} scale={[2.1, 2.1, 1]}>
               <spriteMaterial
@@ -680,8 +735,9 @@ function OptionalGlbKnight({
               <meshBasicMaterial color="#ff2638" toneMapped={false} />
             </mesh>
           ))}
-        </group>
-      )}
+          </group>
+        )}
+      </group>
     </group>
   );
 }
