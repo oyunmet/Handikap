@@ -373,3 +373,41 @@ export function getNaturalTreeGeometry(species: TreeSpecies, biome: WorldBiome) 
   }
   return geometry;
 }
+
+const naturalRockGeometryCache = new Map<number, THREE.BufferGeometry>();
+
+function createNaturalRockGeometry(variant: number) {
+  const geometry = new THREE.SphereGeometry(1, 32, 24);
+  const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+  const phase = variant * 1.731;
+
+  for (let index = 0; index < positions.count; index += 1) {
+    const x = positions.getX(index);
+    const y = positions.getY(index);
+    const z = positions.getZ(index);
+    const broadForm = Math.sin(x * 3.1 + phase)
+      * Math.cos(y * 2.7 - phase * 0.6)
+      + Math.sin(z * 3.4 - phase * 0.8) * 0.55;
+    const weathering = Math.sin(x * 7.2 + y * 4.1 + phase)
+      * Math.cos(z * 6.3 - y * 3.8 + phase * 0.4);
+    const radius = 1 + broadForm * 0.034 + weathering * 0.009;
+    positions.setXYZ(index, x * radius, y * radius * 0.88, z * radius);
+  }
+
+  positions.needsUpdate = true;
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+/** Rounded, weathered fallback rocks shared by the scenery and road renderers. */
+export function getNaturalRockGeometry(variant = 0) {
+  const normalizedVariant = ((Math.floor(variant) % 6) + 6) % 6;
+  let geometry = naturalRockGeometryCache.get(normalizedVariant);
+  if (!geometry) {
+    geometry = createNaturalRockGeometry(normalizedVariant);
+    naturalRockGeometryCache.set(normalizedVariant, geometry);
+  }
+  return geometry;
+}

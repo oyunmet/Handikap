@@ -5,6 +5,7 @@ import {
   createConnectedRidgeGeometry,
   createRoadShoulderGeometry,
   getLandmarkGeometry,
+  getNaturalRockGeometry,
   getNaturalTreeGeometry,
 } from "./world-natural-geometry.ts";
 
@@ -86,6 +87,30 @@ test("tree species and biome variants produce bounded, colored single-mesh geome
     getNaturalTreeGeometry("ash", "red-marsh"),
     "biome variants should retain separate baked foliage palettes",
   );
+});
+
+test("procedural rock fallbacks are rounded, high-detail, finite, and reused by variant", () => {
+  const rock = getNaturalRockGeometry(2);
+  const positions = rock.getAttribute("position") as THREE.BufferAttribute;
+  const normals = rock.getAttribute("normal") as THREE.BufferAttribute;
+  const otherVariant = getNaturalRockGeometry(3);
+  rock.computeBoundingBox();
+
+  assert.ok(positions.count >= 800);
+  assert.ok(rock.index);
+  assert.ok(rock.index.count / 3 > 1_400);
+  assert.ok(rock.boundingBox);
+  assert.ok(rock.boundingBox.min.y < -0.8);
+  assert.ok(rock.boundingBox.max.y > 0.8);
+  assertFiniteAttribute(positions);
+  assertFiniteAttribute(normals);
+  for (let index = 0; index < normals.count; index += 1) {
+    const length = Math.hypot(normals.getX(index), normals.getY(index), normals.getZ(index));
+    assert.ok(length > 0.98 && length < 1.02);
+  }
+  assert.equal(getNaturalRockGeometry(2), rock);
+  assert.notEqual(otherVariant, rock);
+  assert.notDeepEqual(Array.from(otherVariant.getAttribute("position").array), Array.from(positions.array));
 });
 
 test("tower, broken ruin and arch have separate weathered profiles for each biome", () => {

@@ -14,7 +14,7 @@ import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import type { WeatherMode } from "./world-biomes";
-import { raycastWorldGround, WorldAssetModel } from "./WorldModel";
+import { raycastWorldGround, WorldAssetFallback, WorldAssetModel } from "./WorldModel";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -263,23 +263,13 @@ function Obstacle({
         </mesh>
       )}
       {obstacle.kind === "rock" ? (
-        <Suspense fallback={(
-          <mesh position={[0, 0.82, 0]} rotation={[0.1, 0.7, 0.2]}>
-            <icosahedronGeometry args={[0.92, 2]} />
-            <meshStandardMaterial color="#84776e" emissive="#4b3022" emissiveIntensity={0.16} roughness={0.94} />
-          </mesh>
-        )}>
+        <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={1.95} />}>
           <WorldAssetModel src="/assets/rock-wall.glb" height={1.95} />
         </Suspense>
       ) : obstacle.kind === "falling-rock-trap" ? (
         <group>
           <group ref={fallingRockRef} position={[0, 5.2, 0]}>
-            <Suspense fallback={(
-              <mesh position={[0, 1.08, 0]} castShadow>
-                <icosahedronGeometry args={[1.08, 2]} />
-                <meshStandardMaterial color="#5d5655" roughness={0.96} />
-              </mesh>
-            )}>
+            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={2.16} />}>
               <WorldAssetModel src="/assets/rock-wall.glb" height={2.16} />
             </Suspense>
           </group>
@@ -307,12 +297,7 @@ function Obstacle({
               </mesh>
             </group>
           ) : (
-            <Suspense fallback={(
-              <mesh position={[0, 0.58, 0]} scale={[1.5, 0.8, 1]}>
-                <sphereGeometry args={[0.62, 18, 12]} />
-                <meshStandardMaterial color="#714326" roughness={0.76} />
-              </mesh>
-            )}>
+            <Suspense fallback={<WorldAssetFallback src="/assets/treasure-chest.glb" height={1.24} />}>
               <WorldAssetModel src="/assets/treasure-chest.glb" height={1.24} />
             </Suspense>
           )}
@@ -356,12 +341,7 @@ function Obstacle({
             <Sparkles count={5} position={[0, 0.5, 0]} scale={1.1} size={2.4} speed={0.2} color="#f5c56d" />
           </group>
         ) : (
-          <Suspense fallback={(
-            <mesh position={[0, 0.55, 0]}>
-              <cylinderGeometry args={[0.41, 0.43, 1.05, 20, 6]} />
-              <meshStandardMaterial color="#78492d" roughness={0.86} />
-            </mesh>
-          )}>
+          <Suspense fallback={<WorldAssetFallback src="/assets/wooden-barrel.glb" height={1.12} />}>
             <WorldAssetModel src="/assets/wooden-barrel.glb" height={1.12} />
           </Suspense>
         )
@@ -377,12 +357,7 @@ function Obstacle({
             <Sparkles count={5} position={[0, 0.45, 0]} scale={0.9} size={2.2} speed={0.2} color="#f5c56d" />
           </group>
         ) : (
-          <Suspense fallback={(
-            <mesh position={[0, 0.51, 0]}>
-              <cylinderGeometry args={[0.27, 0.4, 0.92, 20, 6]} />
-              <meshStandardMaterial color="#a96b58" roughness={0.82} />
-            </mesh>
-          )}>
+          <Suspense fallback={<WorldAssetFallback src="/assets/ceramic-vase.glb" height={1.04} />}>
             <WorldAssetModel src="/assets/ceramic-vase.glb" height={1.04} />
           </Suspense>
         )

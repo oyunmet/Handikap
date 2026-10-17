@@ -15,13 +15,19 @@ import {
   createConnectedRidgeGeometry,
   createRoadShoulderGeometry,
   getLandmarkGeometry,
+  getNaturalRockGeometry,
   getNaturalTreeGeometry,
   WORLD_ROAD_WIDTH,
   type LandmarkKind,
   type LandscapeQuality,
   type TreeSpecies,
 } from "./world-natural-geometry";
-import { raycastWorldGround, WorldAssetInstanceBatch, WorldRockFarLod } from "./WorldModel";
+import {
+  raycastWorldGround,
+  WorldAssetErrorBoundary,
+  WorldAssetInstanceBatch,
+  WorldRockFarLod,
+} from "./WorldModel";
 
 type WorldQuality = LandscapeQuality;
 
@@ -628,6 +634,7 @@ function ScenicProp({
     : object.kind === "skeletal-tree" ? "skeletal"
       : object.kind === "mangrove" ? "mangrove" : "ash";
   const treeGeometry = getNaturalTreeGeometry(treeSpecies, object.biome);
+  const rockGeometry = object.kind === "rock" ? getNaturalRockGeometry(seed) : null;
   const groundY = useMemo(() => raycastWorldGround(object.lane * 9.7, -150), [object.lane]);
 
   useFrame((frame) => {
@@ -705,12 +712,24 @@ function ScenicProp({
       )}
       {object.kind === "rock" && (
         <group>
-          <mesh position={[0, 0.58, 0]} rotation={[0.12, 0.34, 0.14]}>
-            <dodecahedronGeometry args={[0.82, 1]} />
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#655858" roughness={0.88} />
+          <mesh
+            geometry={rockGeometry!}
+            position={[0, 0.56, 0]}
+            rotation={[0.12, 0.34, 0.14]}
+            scale={[1.02, 0.78, 0.94]}
+            castShadow
+            receiveShadow
+          >
+            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#655858" roughness={0.94} />
           </mesh>
-          <mesh position={[0.62, 0.34, -0.12]} rotation={[0.2, 0.1, 0.16]} scale={0.62}>
-            <dodecahedronGeometry args={[0.72, 1]} />
+          <mesh
+            geometry={getNaturalRockGeometry(seed + 1)}
+            position={[0.62, 0.3, -0.12]}
+            rotation={[0.2, 0.1, 0.16]}
+            scale={[0.54, 0.48, 0.58]}
+            castShadow
+            receiveShadow
+          >
             <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#51494b" roughness={0.98} />
           </mesh>
         </group>
@@ -921,13 +940,21 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
             ))}
           </group>
         )}>
-          <WorldAssetInstanceBatch
-            src="/assets/rock-wall.glb"
-            targetHeight={2.15}
-            items={rockObjects}
-            motionRef={motionRef}
-            maxDetailedDistance={72}
-          />
+          <WorldAssetErrorBoundary fallback={(
+            <group>
+              {rockObjects.map((object) => (
+                <ScenicProp key={object.id} object={object} motionRef={motionRef} motionReduced={motionReduced} />
+              ))}
+            </group>
+          )}>
+            <WorldAssetInstanceBatch
+              src="/assets/rock-wall.glb"
+              targetHeight={2.15}
+              items={rockObjects}
+              motionRef={motionRef}
+              maxDetailedDistance={72}
+            />
+          </WorldAssetErrorBoundary>
           <WorldRockFarLod items={rockObjects} motionRef={motionRef} />
         </Suspense>
       )}

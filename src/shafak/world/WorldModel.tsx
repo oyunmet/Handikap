@@ -1,13 +1,17 @@
 import { Html, useProgress } from "@react-three/drei";
 import { useFrame, useLoader } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import type { MutableRefObject } from "react";
+import { Component, useMemo, useRef } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import * as THREE from "three";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { WorldMotion } from "./movement";
 import type { WorldObject } from "./world-generation";
-import { createRoadShoulderGeometry, WORLD_ROAD_WIDTH } from "./world-natural-geometry";
+import {
+  createRoadShoulderGeometry,
+  getNaturalRockGeometry,
+  WORLD_ROAD_WIDTH,
+} from "./world-natural-geometry";
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/assets/draco/");
@@ -50,7 +54,213 @@ type ModelProps = {
   scale?: number;
 };
 
-export function WorldAssetModel({
+type WorldAssetErrorBoundaryProps = {
+  fallback: ReactNode;
+  children?: ReactNode;
+};
+
+class WorldAssetLoadBoundary extends Component<
+  WorldAssetErrorBoundaryProps,
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn("[shafak-world] Model load failed; using procedural geometry.", error.message);
+  }
+
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+export function WorldAssetErrorBoundary(props: WorldAssetErrorBoundaryProps) {
+  return <WorldAssetLoadBoundary {...props} />;
+}
+
+export type WorldAssetFallbackKind = "rock" | "barrel" | "chest" | "vase" | "generic";
+
+export function getWorldAssetFallbackKind(src: string): WorldAssetFallbackKind {
+  const path = src.toLowerCase();
+  if (path.includes("rock")) return "rock";
+  if (path.includes("barrel")) return "barrel";
+  if (path.includes("chest")) return "chest";
+  if (path.includes("vase")) return "vase";
+  return "generic";
+}
+
+const FALLBACK_ROCK_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#776d66",
+  roughness: 0.96,
+  metalness: 0,
+});
+const FALLBACK_WOOD_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#694731",
+  roughness: 0.9,
+});
+const FALLBACK_WOOD_HIGHLIGHT_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#8a6141",
+  roughness: 0.88,
+});
+const FALLBACK_CLAY_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#a76755",
+  roughness: 0.82,
+});
+const FALLBACK_BRONZE_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#9a7953",
+  metalness: 0.58,
+  roughness: 0.46,
+});
+const FALLBACK_BARREL_GEOMETRY = new THREE.LatheGeometry([
+  new THREE.Vector2(0, 0),
+  new THREE.Vector2(0.31, 0),
+  new THREE.Vector2(0.37, 0.08),
+  new THREE.Vector2(0.42, 0.26),
+  new THREE.Vector2(0.44, 0.5),
+  new THREE.Vector2(0.42, 0.74),
+  new THREE.Vector2(0.37, 0.92),
+  new THREE.Vector2(0.31, 1),
+  new THREE.Vector2(0, 1),
+], 32);
+const FALLBACK_VASE_GEOMETRY = new THREE.LatheGeometry([
+  new THREE.Vector2(0, 0),
+  new THREE.Vector2(0.2, 0),
+  new THREE.Vector2(0.28, 0.08),
+  new THREE.Vector2(0.38, 0.3),
+  new THREE.Vector2(0.4, 0.52),
+  new THREE.Vector2(0.32, 0.71),
+  new THREE.Vector2(0.19, 0.84),
+  new THREE.Vector2(0.16, 0.96),
+  new THREE.Vector2(0.21, 1),
+  new THREE.Vector2(0.14, 1),
+  new THREE.Vector2(0.13, 0.9),
+  new THREE.Vector2(0.1, 0.8),
+  new THREE.Vector2(0, 0.8),
+], 32);
+const FALLBACK_CHEST_BODY = new THREE.BoxGeometry(0.84, 0.54, 0.62);
+const FALLBACK_CHEST_LID = new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+const FALLBACK_CHEST_STRAP = new THREE.BoxGeometry(0.075, 0.9, 0.66);
+const FALLBACK_CHEST_LATCH = new THREE.BoxGeometry(0.14, 0.18, 0.045);
+const FALLBACK_GENERIC_GEOMETRY = new THREE.SphereGeometry(1, 32, 24);
+
+export function WorldAssetFallback({
+  src,
+  height,
+  position = [0, 0, 0],
+  rotation = [0, 0, 0],
+  scale = 1,
+}: ModelProps) {
+  const kind = getWorldAssetFallbackKind(src);
+
+  return (
+    <group position={position} rotation={rotation} scale={scale}>
+      {kind === "rock" && (
+        <group>
+          <mesh
+            geometry={getNaturalRockGeometry(2)}
+            material={FALLBACK_ROCK_MATERIAL}
+            position={[0, height * 0.49, 0]}
+            scale={[height * 0.64, height * 0.49, height * 0.61]}
+            castShadow
+            receiveShadow
+          />
+          <mesh
+            geometry={getNaturalRockGeometry(4)}
+            material={FALLBACK_ROCK_MATERIAL}
+            position={[height * 0.26, height * 0.2, -height * 0.2]}
+            scale={[height * 0.23, height * 0.2, height * 0.25]}
+            castShadow
+            receiveShadow
+          />
+        </group>
+      )}
+      {kind === "barrel" && (
+        <group scale={[height, height, height]}>
+          <mesh geometry={FALLBACK_BARREL_GEOMETRY} material={FALLBACK_WOOD_MATERIAL} castShadow receiveShadow />
+          {[0.13, 0.87].map((y) => (
+            <mesh
+              key={y}
+              position={[0, y, 0]}
+              rotation={[Math.PI / 2, 0, 0]}
+              material={FALLBACK_BRONZE_MATERIAL}
+              castShadow
+              receiveShadow
+            >
+              <torusGeometry args={[0.41, 0.032, 8, 32]} />
+            </mesh>
+          ))}
+          {[-0.2, 0, 0.2].map((x) => (
+            <mesh
+              key={x}
+              position={[x, 0.5, 0.414]}
+              scale={[0.075, 0.73, 0.012]}
+              geometry={FALLBACK_GENERIC_GEOMETRY}
+              material={FALLBACK_WOOD_HIGHLIGHT_MATERIAL}
+            />
+          ))}
+        </group>
+      )}
+      {kind === "vase" && (
+        <group scale={[height, height, height]}>
+          <mesh geometry={FALLBACK_VASE_GEOMETRY} material={FALLBACK_CLAY_MATERIAL} castShadow receiveShadow />
+          <mesh
+            position={[0, 0.95, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            material={FALLBACK_CLAY_MATERIAL}
+          >
+            <torusGeometry args={[0.18, 0.035, 8, 24]} />
+          </mesh>
+        </group>
+      )}
+      {kind === "chest" && (
+        <group scale={[height, height, height]}>
+          <mesh geometry={FALLBACK_CHEST_BODY} position={[0, 0.27, 0]} material={FALLBACK_WOOD_MATERIAL} castShadow receiveShadow />
+          <mesh
+            geometry={FALLBACK_CHEST_LID}
+            position={[0, 0.54, 0]}
+            scale={[0.42, 0.43, 0.31]}
+            material={FALLBACK_WOOD_HIGHLIGHT_MATERIAL}
+            castShadow
+            receiveShadow
+          />
+          {[-0.25, 0.25].map((x) => (
+            <mesh
+              key={x}
+              geometry={FALLBACK_CHEST_STRAP}
+              position={[x, 0.47, 0]}
+              material={FALLBACK_BRONZE_MATERIAL}
+              castShadow
+              receiveShadow
+            />
+          ))}
+          <mesh
+            geometry={FALLBACK_CHEST_LATCH}
+            position={[0, 0.42, 0.335]}
+            material={FALLBACK_BRONZE_MATERIAL}
+            castShadow
+            receiveShadow
+          />
+        </group>
+      )}
+      {kind === "generic" && (
+        <mesh
+          geometry={FALLBACK_GENERIC_GEOMETRY}
+          material={FALLBACK_ROCK_MATERIAL}
+          position={[0, height * 0.5, 0]}
+          scale={[height * 0.42, height * 0.5, height * 0.42]}
+          castShadow
+          receiveShadow
+        />
+      )}
+    </group>
+  );
+}
+
+function LoadedWorldAssetModel({
   src,
   height,
   position = [0, 0, 0],
@@ -86,6 +296,14 @@ export function WorldAssetModel({
     <group position={position} rotation={rotation} scale={scale}>
       <primitive object={normalizedScene} dispose={null} />
     </group>
+  );
+}
+
+export function WorldAssetModel(props: ModelProps) {
+  return (
+    <WorldAssetLoadBoundary fallback={<WorldAssetFallback {...props} />}>
+      <LoadedWorldAssetModel {...props} />
+    </WorldAssetLoadBoundary>
   );
 }
 
@@ -218,7 +436,7 @@ export function WorldRockFarLod({
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const geometry = useMemo(() => new THREE.IcosahedronGeometry(1, 2), []);
+  const geometry = useMemo(() => getNaturalRockGeometry(3), []);
   const material = useMemo(() => new THREE.MeshStandardMaterial({
     color: "#756b66",
     roughness: 0.94,

@@ -13,6 +13,7 @@ const assetUrl = new URL(
   "../../../attached_assets/steampunk_toad_warrior_1792140030602.glb",
   import.meta.url,
 );
+const playerModelUrl = new URL(`../../../public${PLAYER_CHARACTER_MODEL_PATH}`, import.meta.url);
 
 function readGlbJson(buffer) {
   assert.equal(buffer.toString("ascii", 0, 4), "glTF");
@@ -29,10 +30,22 @@ test("the player GLB can use its generated rig when it contains no animation cli
   assert.equal(shouldRenderPlayerModel(false, 0), false);
 });
 
-test("player model path references the supplied source GLB and has an intentional game fit", () => {
-  assert.equal(new URL(PLAYER_CHARACTER_MODEL_PATH).pathname, assetUrl.pathname);
-  assert.ok(PLAYER_CHARACTER_MODEL_SCALE > 2.5 && PLAYER_CHARACTER_MODEL_SCALE < 3);
-  assert.equal(PLAYER_CHARACTER_MODEL_FACING, Math.PI);
+test("player model uses the bundled animated knight and the source GLB remains riggable", () => {
+  assert.equal(
+    new URL(PLAYER_CHARACTER_MODEL_PATH, "https://safak.invalid").pathname,
+    "/models/gece-nobetcisi.glb",
+  );
+  assert.equal(PLAYER_CHARACTER_MODEL_SCALE, 1);
+  assert.equal(PLAYER_CHARACTER_MODEL_FACING, 0);
+
+  const playerGlb = fs.readFileSync(playerModelUrl);
+  const playerModel = readGlbJson(playerGlb);
+  assert.equal(playerModel.asset.version, "2.0");
+  assert.equal(playerModel.skins?.length, 1);
+  const playerClips = new Set(playerModel.animations.map((clip) => clip.name));
+  for (const clip of ["Idle", "Walk", "Run", "Attack1", "Block", "Dodge", "HitReaction", "Death", "Victory"]) {
+    assert.ok(playerClips.has(clip), `the bundled knight model should include the ${clip} clip`);
+  }
 
   const glb = fs.readFileSync(assetUrl);
   const model = readGlbJson(glb);
