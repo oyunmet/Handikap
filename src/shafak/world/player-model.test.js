@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_MODEL_SCALE,
+  PLAYER_CHARACTER_ROOT_BONE,
+  PLAYER_CHARACTER_TARGET_HEIGHT,
   shouldRenderPlayerModel,
 } from "./player-model.ts";
-import { getPlayerSkinInfluences } from "./player-skeletal-rig.ts";
+import { resolveMappedGlbClipName } from "./model-animation.ts";
+import { PLAYER_CHARACTER_ANIMATION_CLIPS } from "./player-model.ts";
+import { findCharacterPoseBones } from "./character-pose.ts";
 
-const assetUrl = new URL(
-  "../../../attached_assets/steampunk_toad_warrior_1792140030602.glb",
-  import.meta.url,
-);
 const playerModelUrl = new URL(`../../../public${PLAYER_CHARACTER_MODEL_PATH}`, import.meta.url);
 
 function readGlbJson(buffer) {
@@ -30,61 +31,40 @@ test("the player GLB can use its generated rig when it contains no animation cli
   assert.equal(shouldRenderPlayerModel(false, 0), false);
 });
 
-test("player model uses the bundled animated knight and the source GLB remains riggable", () => {
+test("player model uses the animated Quaternius hero at the configured height and facing", async () => {
   assert.equal(
     new URL(PLAYER_CHARACTER_MODEL_PATH, "https://safak.invalid").pathname,
-    "/models/gece-nobetcisi.glb",
+    "/models/player-hero.glb",
   );
   assert.equal(PLAYER_CHARACTER_MODEL_SCALE, 1);
-  assert.equal(PLAYER_CHARACTER_MODEL_FACING, 0);
+  assert.equal(PLAYER_CHARACTER_MODEL_FACING, Math.PI);
+  assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.8);
+  assert.equal(PLAYER_CHARACTER_ROOT_BONE, "Root");
 
   const playerGlb = fs.readFileSync(playerModelUrl);
   const playerModel = readGlbJson(playerGlb);
   assert.equal(playerModel.asset.version, "2.0");
-  assert.equal(playerModel.skins?.length, 1);
+  assert.ok(playerModel.skins?.length >= 1);
   const playerClips = new Set(playerModel.animations.map((clip) => clip.name));
-  for (const clip of ["Idle", "Walk", "Run", "Attack1", "Block", "Dodge", "HitReaction", "Death", "Victory"]) {
+  for (const clip of ["Idle", "Walk", "Run", "Dagger_Attack", "Dagger_Attack2", "Attacking_Idle", "Roll", "RecieveHit", "Death"]) {
     assert.ok(playerClips.has(clip), `the bundled knight model should include the ${clip} clip`);
   }
-
-  const glb = fs.readFileSync(assetUrl);
-  const model = readGlbJson(glb);
-  const mesh = model.meshes.find((entry) => entry.name === "FrogWarrior");
-  const primitive = mesh?.primitives[0];
-  const bounds = model.accessors[primitive.attributes.POSITION];
-
-  assert.ok(mesh, "the supplied player model contains its FrogWarrior mesh");
-  assert.equal(model.asset.version, "2.0");
-  assert.equal(model.skins?.length ?? 0, 0);
-  assert.equal(model.animations?.length ?? 0, 0);
-  assert.ok(model.images.some((image) => image.mimeType === "image/png" && image.bufferView !== undefined));
-  assert.deepEqual(bounds.min, [-0.2802956700325012, 0, -0.22021245956420898]);
-  assert.ok(Math.abs(bounds.max[1] - 0.7) < 0.001);
-  assert.equal(bounds.count, 27_035);
-  assert.equal(model.accessors[primitive.indices].count / 3, 39_200);
-
-  const positionView = model.bufferViews[bounds.bufferView];
-  const positionOffset = 20 + glb.readUInt32LE(12) + 8 + positionView.byteOffset + bounds.byteOffset;
-  const positionStride = positionView.byteStride ?? 12;
-  const weightedBones = new Set();
-  for (let vertex = 0; vertex < bounds.count; vertex += 1) {
-    const offset = positionOffset + vertex * positionStride;
-    const x = glb.readFloatLE(offset);
-    const y = glb.readFloatLE(offset + 4);
-    const influences = getPlayerSkinInfluences(x, y, { min: bounds.min, max: bounds.max });
-    const total = influences.reduce((sum, influence) => sum + influence.weight, 0);
-    assert.ok(Number.isFinite(total) && Math.abs(total - 1) < 1e-6);
-    for (const influence of influences) {
-      if (influence.weight > 0.02) weightedBones.add(influence.bone);
-    }
+  const arrayBuffer = playerGlb.buffer.slice(
+    playerGlb.byteOffset,
+    playerGlb.byteOffset + playerGlb.byteLength,
+  );
+  const gltf = await new Promise((resolve, reject) =>
+    new GLTFLoader().parse(arrayBuffer, "/", resolve, reject));
+  const bones = findCharacterPoseBones(gltf.scene);
+  for (const bone of ["Root", "Hips", "Head"]) {
+    assert.ok(gltf.scene.getObjectByName(bone), `the player GLB should include the ${bone} skeleton bone`);
   }
-  for (const bone of [
-    "Rig_LeftUpperArm", "Rig_LeftForearm", "Rig_LeftHand",
-    "Rig_RightUpperArm", "Rig_RightForearm", "Rig_RightHand",
-    "Rig_LeftThigh", "Rig_LeftShin", "Rig_LeftFoot",
-    "Rig_RightThigh", "Rig_RightShin", "Rig_RightFoot",
-    "Rig_Hips", "Rig_Spine", "Rig_Chest", "Rig_Neck", "Rig_Head",
-  ]) {
-    assert.ok(weightedBones.has(bone), `source player vertices should receive the ${bone} skin influence`);
-  }
+  assert.ok(bones.leftUpperArm, "the left upper arm should bind to the fallback pose");
+  assert.ok(bones.rightForearm, "the right forearm should bind to the fallback pose");
+  assert.ok(bones.leftThigh, "the left thigh should bind to the fallback pose");
+  assert.equal(
+    resolveMappedGlbClipName("jump", [...playerClips], PLAYER_CHARACTER_ANIMATION_CLIPS),
+    null,
+    "jump should use the articulated procedural pose because the source model has no jump clip",
+  );
 });

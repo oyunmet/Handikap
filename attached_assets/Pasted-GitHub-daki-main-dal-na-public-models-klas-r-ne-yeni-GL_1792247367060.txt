@@ -1,0 +1,30 @@
+GitHub'daki main dalına public/models/ klasörüne yeni GLB dosyaları eklendi. Önce git pull yap (çakışma olursa benim eklediğim dosyaları koru).
+
+DOSYALAR
+- public/models/ içinde adı "Character Animated by Quaternius", "Animated Human by Quaternius" ve "Animated Base Character by Quaternius" ile başlayan 3 dosya var. Adlarında boşluk var, bunları şu kısa adlara çevir (git mv):
+  player-hero.glb (Character Animated), human.glb (Animated Human), base-character.glb (Animated Base Character).
+- Kodda eski adlara referans varsa güncelle. fantasy_knight.glb ve gece-nobetcisi.glb dosyalarına dokunma.
+
+GÖREV: Oyuncu karakteri
+- Prosedürel küre/koni karakter kodunu tamamen kaldır. player-hero.glb dosyasını GLTFLoader ile oyuncu karakteri olarak kullan.
+- İlk iş: tüm GLB'lerin gltf.animations klip adlarını ve kemik adlarını konsola yazdır, bana listele.
+- Modeli ~1.8 m boyuna ölçekle, ayakları zemine otursun (bounding box ile), arkası kameraya dönük olsun, gölge düşürsün.
+- AnimationMixer ile mevcut oyun durumlarını klip adlarıyla eşle: bekleme/dinleniyor, koş, zıpla, eğil, saldır, kalkan, kaç, hasar alma. Birebir klip yoksa en yakın klibi kullan, geçişlerde crossFade (0.2 sn). Klip bulunamayan durumlar için kemik tabanlı basit prosedürel animasyon yaz.
+- Model T-pozda kalmasın. Animasyon hiç yoksa kolları aşağı indir ve sinüs dalgasıyla koşu/bekleme animasyonu üret.
+- Çarpışma, hitbox, oyun mantığı, UI ve Türkçe metinler aynı kalsın.
+- Yükleme başarısız olursa sahne çökmesin, basit kapsül yer tutucu göster.
+
+DÜŞMANLAR
+- Mavi plastik robot düşmanlar yerine human.glb ve base-character.glb modellerini kullan. Aynı yükleme kodunu yeniden kullanılabilir bir fonksiyon yap (loadCharacter). Her düşman türüne farklı renk tonu ver (material.color ile koyu kahve, paslı kızıl, koyu yeşil), böylece hepsi aynı görünmesin. Boyutları ~1.8 m.
+- Demir Taç boss için fantasy_knight.glb varsa onu ~2.6 m ölçekle kullan, koyu metal tonu ve kırmızı parlayan göz/ışık ekle.
+
+IŞIK (şu an aşırı parlak)
+- toneMappingExposure değerini 0.65'e düşür.
+- Zemin materyalinin albedo rengini gri-kahve taşa doğru koyulaştır, roughness 0.85+, metalness 0 yap.
+- Güneş yoğunluğunu azalt, karakterlerin zemine net gölgesi düşsün.
+- Karakter materyallerinde metalness 0.2'yi geçmesin, plastik gibi parlamasın.
+
+KISITLAR
+- Sadece karakter/model yükleme, render ve ışık dosyalarını değiştir.
+- CC0 olan iki modeli ve CC-BY olan "Animated Base Character" için kredi satırını public/assets/ASSET_SOURCES.md dosyasına ekle (Quaternius, poly.pizza).
+- Bitirince değişen dosyaları, bulunan klip adlarını ve hangi durumun hangi klibe eşlendiğini listele. Uygulamanın hatasız açıldığını doğrula.

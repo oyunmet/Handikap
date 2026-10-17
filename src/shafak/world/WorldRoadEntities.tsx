@@ -599,7 +599,6 @@ function BotActor({
   const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
-  const tintAppliedRef = useRef(false);
   useEffect(() => {
     const mesh = rootRef.current;
     if (!mesh) return undefined;
@@ -626,7 +625,7 @@ function BotActor({
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
     root.position.set(0, 0, actorZ);
-    root.scale.setScalar(rival.size);
+    root.scale.setScalar(rival.isBoss ? 1 : rival.size);
     root.visible = gap >= -12 && gap <= 105;
     root.rotation.y = 0;
     if (actorPivotRef.current) {
@@ -641,23 +640,6 @@ function BotActor({
       );
     }
 
-    if (!tintAppliedRef.current) {
-      root.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        const tinted = materials.map((material) => {
-          if (!(material instanceof THREE.MeshStandardMaterial)) return material;
-          const clone = material.clone();
-          clone.color.lerp(tint, 0.29);
-          if (clone.emissive) clone.emissive.lerp(tint, 0.12);
-          return clone;
-        });
-        if (tinted.some((material, index) => material !== materials[index])) {
-          object.material = Array.isArray(object.material) ? tinted : tinted[0];
-        }
-      });
-      tintAppliedRef.current = true;
-    }
   });
 
   const botMotion = poseRef.current;
@@ -674,7 +656,7 @@ function BotActor({
           talking={talking && Math.abs(rival.distance - motionRef.current.distance) <= 12}
           motionReduced={reducedMotion}
           animationTimeScale={1}
-          castShadow={focused || talking}
+          castShadow
           appearance={profile?.appearance}
           modelConfig={modelConfig}
         />

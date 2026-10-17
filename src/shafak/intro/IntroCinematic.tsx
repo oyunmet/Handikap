@@ -104,6 +104,7 @@ function IntroWorld({
           state="idle"
           motionReduced={reducedMotion}
           castShadow={false}
+          playerCharacter
         />
       </Canvas>
     </IntroCanvasBoundary>

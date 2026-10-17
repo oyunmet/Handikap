@@ -461,6 +461,7 @@ function Road({
     normalScale: new THREE.Vector2(0.24, 0.24),
     roughnessMap: groundTextures.roughness,
     roughness: 0.96,
+    metalness: 0,
     flatShading: false,
   }), [groundTextures]);
   const shoulderMaterial = useMemo(() => new THREE.MeshStandardMaterial({
@@ -470,6 +471,7 @@ function Road({
     normalScale: new THREE.Vector2(0.24, 0.24),
     roughnessMap: groundTextures.roughness,
     roughness: 0.98,
+    metalness: 0,
     vertexColors: true,
     flatShading: false,
   }), [groundTextures]);
@@ -525,7 +527,10 @@ function Road({
     const transition = getBiomeTransition(motionRef.current.distance);
     const from = WORLD_BIOME_PALETTES[transition.from];
     const to = WORLD_BIOME_PALETTES[transition.to];
-    groundMaterial.color.set(from.ground).lerp(groundTargetColor.set(to.ground), transition.mix);
+    groundMaterial.color
+      .set(from.ground)
+      .lerp(groundTargetColor.set(to.ground), transition.mix)
+      .multiplyScalar(0.74);
     roadMaterial.color.set(from.road).lerp(roadTargetColor.set(to.road), transition.mix);
     shoulderMaterial.color.copy(groundMaterial.color).multiplyScalar(1.08);
     const roadOffset = ((motionRef.current.cameraX / 8) % 1 + 1) % 1;
@@ -963,12 +968,12 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
       )}
       <WeatherParticles weather={weather} quality={quality} motionReduced={motionReduced} />
       <AmbientMotes motionRef={motionRef} quality={quality} motionReduced={motionReduced} />
-      <hemisphereLight args={["#fff1d9", "#81796b", 2.05]} />
-      <ambientLight color="#ffe8c9" intensity={0.52} />
+      <hemisphereLight args={["#fff1d9", "#81796b", 1.35]} />
+      <ambientLight color="#ffe8c9" intensity={0.3} />
       <directionalLight
         position={[-22, 34, -42]}
         color="#ffd39b"
-        intensity={3.1}
+        intensity={1.45}
         castShadow={quality !== "low"}
         shadow-mapSize-width={shadowMapSize}
         shadow-mapSize-height={shadowMapSize}
@@ -981,8 +986,8 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
         shadow-normalBias={0.025}
         shadow-radius={4}
       />
-      <directionalLight position={[14, 18, -26]} color="#b7d9ed" intensity={0.48} />
-      <pointLight position={[0, 5.8, 1.5]} color="#ffc681" intensity={8} distance={20} decay={2} />
+      <directionalLight position={[14, 18, -26]} color="#b7d9ed" intensity={0.32} />
+      <pointLight position={[0, 5.8, 1.5]} color="#ffc681" intensity={3.1} distance={20} decay={2} />
     </group>
   );
 }

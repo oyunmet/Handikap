@@ -2018,7 +2018,7 @@ export default function World3D(props: World3DProps) {
               antialias: !touchRenderer,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
-              toneMappingExposure: 1.2,
+              toneMappingExposure: 0.65,
             }}
             onCreated={({ gl: renderer, scene }) => {
               renderer.outputColorSpace = THREE.SRGBColorSpace;

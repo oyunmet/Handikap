@@ -4,12 +4,10 @@ import { useFrame, useLoader } from "@react-three/fiber";
 import { Html, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { CharacterAnimationState } from "./character-animation";
 import { KNIGHT_CONFIG } from "./knight-config";
-import Knight3D from "./Knight3D";
 import {
   ensureKnightGeometryUVs,
   KNIGHT_SURFACE_MAPS,
@@ -18,6 +16,7 @@ import {
 import {
   getOpponentAnimationPlayback,
   isRootTranslationTrack,
+  resolveMappedGlbClipName,
   resolveGlbClipName,
   type ModelAnimationState,
 } from "./model-animation";
@@ -32,11 +31,13 @@ import {
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_ROOT_BONE,
   PLAYER_CHARACTER_MODEL_SCALE,
+  PLAYER_CHARACTER_TARGET_HEIGHT,
   shouldRenderPlayerModel,
 } from "./player-model";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 import { createDuelWeapon, disposeDuelWeapon } from "./duel-weapon";
-import { configureWorldGLTFLoader } from "./WorldModel";
+import { fitCharacterModel, loadCharacter } from "./character-model";
+import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 
 type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -71,8 +72,8 @@ const GLB_CONTACT_SHADOW_MATERIAL = new THREE.ShaderMaterial({
     varying vec2 vUv;
     void main() {
       float radius = length((vUv - 0.5) * 2.0);
-      float alpha = (1.0 - smoothstep(0.18, 1.0, radius)) * 0.42;
-      gl_FragColor = vec4(0.018, 0.014, 0.024, alpha);
+      float alpha = (1.0 - smoothstep(0.24, 0.86, radius)) * 0.56;
+      gl_FragColor = vec4(0.018, 0.014, 0.012, alpha);
     }
   `,
 });
@@ -127,8 +128,11 @@ function prepareModel(
   castShadow = true,
   playerCharacter = false,
   appearance?: EquipmentVisual,
+  targetHeight = PLAYER_CHARACTER_TARGET_HEIGHT,
 ) {
   const model = cloneSkinned(source);
+  if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
+  fitCharacterModel(model, targetHeight);
   inspectModelBudget(model, modelPath);
   model.traverse((object) => {
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
@@ -143,9 +147,7 @@ function prepareModel(
   const paletteAppearance = modelConfig?.appearance ?? (playerCharacter ? appearance : undefined);
   const materialNameAliases = modelConfig?.materialNameAliases
     ?? (playerCharacter ? PLAYER_CHARACTER_MATERIAL_ALIASES : undefined);
-  if (!materialNameAliases) {
-    return { model, ownedMaterials, ownedGeometries, playerRig };
-  }
+  const tintColor = modelConfig?.tintColor ? new THREE.Color(modelConfig.tintColor) : null;
 
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -153,15 +155,16 @@ function prepareModel(
     let changed = false;
     const materials = originalMaterials.map((original) => {
       const materialName = normalizeMaterialName(original.name);
-      const isCape = materialNameAliases.cape.some((alias) =>
+      const aliases = materialNameAliases;
+      const isCape = aliases?.cape.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const isAccent = materialNameAliases.accent.some((alias) =>
+      const isAccent = aliases?.accent.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const isArmorLight = materialNameAliases.armorLight.some((alias) =>
+      const isArmorLight = aliases?.armorLight.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const isArmorDark = materialNameAliases.armorDark.some((alias) =>
+      const isArmorDark = aliases?.armorDark.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
-      const isArmor = materialNameAliases.armor.some((alias) =>
+      const isArmor = aliases?.armor.some((alias) =>
         materialName.includes(normalizeMaterialName(alias)));
       const hasSurfaceDetail = isArmor || isArmorLight || isArmorDark || isAccent;
       const color = !paletteAppearance
@@ -177,9 +180,10 @@ function prepareModel(
               : isArmor
                 ? paletteAppearance.armor
           : undefined;
-      if (!color && !hasSurfaceDetail) return original;
-      const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
       if (!(original instanceof THREE.MeshStandardMaterial)) return original;
+      const needsPhysicalTuning = original.metalness > 0.2 || original.roughness < 0.62;
+      if (!color && !hasSurfaceDetail && !tintColor && !needsPhysicalTuning) return original;
+      const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
       if (color && !originalColor?.isColor) return original;
 
       const customized = original.clone();
@@ -189,6 +193,11 @@ function prepareModel(
         return original;
       }
       if (color && materialColor?.isColor) materialColor.set(color);
+      else if (tintColor && materialColor?.isColor) {
+        materialColor.lerp(tintColor, modelConfig?.tintStrength ?? 0.68);
+      }
+      customized.metalness = Math.min(customized.metalness, 0.2);
+      customized.roughness = Math.max(customized.roughness, 0.62);
       if (hasSurfaceDetail) {
         ensureKnightGeometryUVs(object.geometry);
         customized.map ??= KNIGHT_SURFACE_MAPS.color;
@@ -219,6 +228,33 @@ function getFallbackAppearance(
     : base;
 }
 
+function CharacterCapsule({
+  height,
+  color,
+  castShadow = true,
+}: {
+  height: number;
+  color?: string;
+  castShadow?: boolean;
+}) {
+  const radius = Math.min(0.24, height * 0.15);
+  const cylindricalHeight = Math.max(0.08, height - radius * 2);
+  return (
+    <mesh
+      position={[0, height / 2, 0]}
+      castShadow={castShadow}
+      receiveShadow
+    >
+      <capsuleGeometry args={[radius, cylindricalHeight, 4, 10]} />
+      <meshStandardMaterial
+        color={color ?? "#3b342e"}
+        metalness={0.12}
+        roughness={0.82}
+      />
+    </mesh>
+  );
+}
+
 function OptionalGlbKnight({
   motionRef,
   state,
@@ -227,50 +263,60 @@ function OptionalGlbKnight({
   animationTimeScale = 1,
   facingAngle,
   debugUpright = false,
-  talking = false,
   footSlipRef,
   appearance,
   modelConfig,
   castShadow = true,
   playerCharacter = false,
 }: KnightActorProps) {
-  const modelPath = modelConfig?.modelPath
-    ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_PATH : KNIGHT_CONFIG.modelPath);
-  const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
-    loader.setMeshoptDecoder(MeshoptDecoder);
-    configureWorldGLTFLoader(loader);
-  }) as GLTF;
+  const modelPath = modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH;
+  const gltf = useLoader(GLTFLoader, modelPath, loadCharacter) as GLTF;
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
   const rootBoneName = modelConfig?.rootBoneName
-    ?? (playerCharacter ? PLAYER_CHARACTER_ROOT_BONE : undefined);
+    ?? PLAYER_CHARACTER_ROOT_BONE;
   const animationClipMap = modelConfig?.animationClips
-    ?? (playerCharacter ? PLAYER_CHARACTER_ANIMATION_CLIPS : undefined);
+    ?? PLAYER_CHARACTER_ANIMATION_CLIPS;
+  const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
   const { model, ownedMaterials, ownedGeometries, playerRig } = useMemo(
-    () => prepareModel(gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance),
-    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance],
+    () => prepareModel(
+      gltf.scene,
+      modelPath,
+      modelConfig,
+      castShadow,
+      playerCharacter,
+      appearance,
+      targetHeight,
+    ),
+    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight],
   );
-  const equippedHand = playerCharacter
+  const equippedHand = playerCharacter || modelConfig
     ? playerRig?.bones.Rig_RightHand
-      ?? model.getObjectByName("Rig_RightHand")
-      ?? model.getObjectByName("mixamorigRightHand")
-      ?? model.getObjectByName("RightHand")
+      ?? [
+        "Rig_RightHand",
+        "mixamorigRightHand",
+        "FistR",
+        "RightHand",
+        "DEF-handR",
+      ].map((name) => model.getObjectByName(name)).find(Boolean)
     : undefined;
+  const weaponAppearance = getFallbackAppearance(appearance, modelConfig);
   useEffect(() => {
     if (!equippedHand) return undefined;
-    const weapon = createDuelWeapon(appearance);
+    const weapon = createDuelWeapon(weaponAppearance);
     equippedHand.add(weapon);
     return () => {
       equippedHand.remove(weapon);
       disposeDuelWeapon(weapon);
     };
   }, [
-    appearance?.auraColor,
-    appearance?.trim,
-    appearance?.weaponColor,
-    appearance?.weaponStyle,
     equippedHand,
+    weaponAppearance?.auraColor,
+    weaponAppearance?.trim,
+    weaponAppearance?.weaponColor,
+    weaponAppearance?.weaponStyle,
   ]);
+  const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
     if (!rootBoneName) return gltf.animations;
@@ -281,18 +327,16 @@ function OptionalGlbKnight({
       );
       return inPlaceClip;
     });
-  }, [gltf.animations, modelConfig?.rootBoneName]);
+  }, [gltf.animations, rootBoneName]);
   const actions = useMemo(() => {
     const entries = animationClips.map((clip) => [clip.name, mixer.clipAction(clip)] as const);
     return new Map(entries);
   }, [animationClips, mixer]);
   const currentAction = useRef<THREE.AnimationAction | null>(null);
   const clipState = modelAnimationState ?? state;
-  const selectedClip = resolveGlbClipName(
-    clipState,
-    animationClips.map((clip) => clip.name),
-    animationClipMap,
-  );
+  const selectedClip = playerCharacter
+    ? resolveMappedGlbClipName(clipState, animationClips.map((clip) => clip.name), animationClipMap)
+    : resolveGlbClipName(clipState, animationClips.map((clip) => clip.name), animationClipMap);
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
   const staticPlayerModel = shouldRenderPlayerModel(playerCharacter, animationClips.length);
   const modelFacing = modelConfig?.modelFacing
@@ -302,6 +346,8 @@ function OptionalGlbKnight({
   const staticPoseRef = useRef<THREE.Group>(null);
   const previousStaticState = useRef(state);
   const staticActionElapsed = useRef(0);
+  const previousFallbackState = useRef(state);
+  const fallbackActionElapsed = useRef(0);
 
   useEffect(() => {
     const previous = currentAction.current;
@@ -365,11 +411,7 @@ function OptionalGlbKnight({
     if (root) {
       root.position.x = motion.depth * 5.2;
       root.position.y = motion.jumpHeight;
-      if (facingAngle === undefined) {
-        root.scale.y = THREE.MathUtils.damp(root.scale.y, motion.crouching ? 0.72 : 1, 12, Math.min(delta, 0.05));
-      } else {
-        root.scale.set(1, 1, 1);
-      }
+      root.scale.set(1, 1, 1);
       if (facingAngle === undefined) {
         const targetYaw = motion.velocityY < -0.25
           ? Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY))
@@ -400,6 +442,12 @@ function OptionalGlbKnight({
         }
         warnedTiltRef.current = tilted;
       }
+    }
+    if (previousFallbackState.current !== state) {
+      previousFallbackState.current = state;
+      fallbackActionElapsed.current = 0;
+    } else {
+      fallbackActionElapsed.current += dt * animationTimeScale;
     }
     if (staticPlayerModel && staticPoseRef.current) {
       const pose = staticPoseRef.current;
@@ -469,6 +517,23 @@ function OptionalGlbKnight({
           : 1;
     }
     mixer.update(dt * (motionReduced ? 0.35 : 1) * animationTimeScale);
+    if (
+      playerCharacter
+      && poseBones
+      && (!selectedAction || state === "block" || state === "jump" || motion.crouching)
+    ) {
+      poseCharacterWithoutClip(
+        poseBones,
+        state,
+        Math.hypot(motion.velocityX, motion.velocityY),
+        motion.stepPhase,
+        THREE.MathUtils.clamp(fallbackActionElapsed.current / 0.42, 0, 1),
+        motion.crouching,
+        motionReduced,
+        frame.clock.elapsedTime,
+        Boolean(selectedAction),
+      );
+    }
     if (footSlipRef) footSlipRef.current = 0;
   });
 
@@ -498,37 +563,29 @@ function OptionalGlbKnight({
         scale={[0.78, 0.52, 1]}
         dispose={null}
       />
-      {selectedAction || staticPlayerModel ? (
-        staticPlayerModel ? (
-          <group ref={staticPoseRef}>
-            <primitive
-              object={model}
-              rotation={[0, modelFacing, 0]}
-              scale={modelScale}
-              dispose={null}
-            />
-          </group>
-        ) : (
-          <primitive
-            object={model}
-            rotation={[0, modelFacing, 0]}
-            scale={modelScale}
-            dispose={null}
+      <group ref={staticPlayerModel ? staticPoseRef : undefined}>
+        <primitive
+          object={model}
+          rotation={[0, modelFacing, 0]}
+          scale={modelScale}
+          dispose={null}
+        />
+      </group>
+      {modelConfig?.isBoss && (
+        <group position={[0, targetHeight * 0.9, 0]} rotation={[0, modelFacing, 0]}>
+          <pointLight
+            position={[0, 0, 0.2]}
+            color="#ff2638"
+            intensity={2.2}
+            distance={4.8}
+            decay={2}
           />
-        )
-      ) : (
-        <group scale={modelScale}>
-          <Knight3D
-            motionRef={motionRef}
-            state={state}
-            motionReduced={motionReduced}
-            animationTimeScale={animationTimeScale}
-            facingAngle={facingAngle}
-            talking={talking}
-            footSlipRef={footSlipRef}
-            castShadow={castShadow}
-            appearance={getFallbackAppearance(appearance, modelConfig)}
-          />
+          {[-0.075, 0.075].map((x) => (
+            <mesh key={x} position={[x, 0, 0.1]}>
+              <sphereGeometry args={[0.034, 8, 6]} />
+              <meshBasicMaterial color="#ff2638" toneMapped={false} />
+            </mesh>
+          ))}
         </group>
       )}
     </group>
@@ -540,20 +597,19 @@ type BoundaryState = { failed: boolean };
 
 function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
   const { progress } = useProgress();
-  const {
-    modelConfig,
-    modelAnimationState: _modelAnimationState,
-    playerCharacter: _playerCharacter,
-    ...knightProps
-  } = props;
-  const appearance = getFallbackAppearance(knightProps.appearance, modelConfig);
+  const { modelConfig, appearance, castShadow = true } = props;
+  const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
   return (
     <>
       <group scale={modelConfig?.scale ?? 1}>
-        <Knight3D {...knightProps} appearance={appearance} />
+        <CharacterCapsule
+          height={targetHeight}
+          color={getFallbackAppearance(appearance, modelConfig)?.armorDark}
+          castShadow={castShadow}
+        />
       </group>
       {modelConfig && (
-        <Html position={[0, 2.65, 0]} center distanceFactor={9} zIndexRange={[30, 0]}>
+        <Html position={[0, targetHeight + 0.3, 0]} center distanceFactor={9} zIndexRange={[30, 0]}>
           <div className="duel-model-loading" role="status" aria-live="polite">
             <span>Rakip yükleniyor</span>
             <span className="duel-model-loading__track" aria-hidden="true">
@@ -579,24 +635,18 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 export default function KnightActor(props: KnightActorProps) {
-  const {
-    modelConfig,
-    modelAnimationState: _modelAnimationState,
-    playerCharacter: _playerCharacter,
-    ...knightProps
-  } = props;
+  const { modelConfig, appearance, castShadow = true } = props;
+  const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
-      <Knight3D
-        {...knightProps}
-        appearance={getFallbackAppearance(knightProps.appearance, modelConfig)}
+      <CharacterCapsule
+        height={targetHeight}
+        color={getFallbackAppearance(appearance, modelConfig)?.armorDark}
+        castShadow={castShadow}
       />
     </group>
   );
 
-  // Ambient rivals keep the procedural rig; only configured opponents and the
-  // explicitly marked player load a GLB model.
-  if (!modelConfig?.modelPath && !props.playerCharacter) return proceduralFallback;
   return (
     <ModelErrorBoundary fallback={proceduralFallback}>
       <Suspense fallback={<ModelLoadingFallback props={props} />}>

@@ -11,4 +11,9 @@ The bundled models below are downloaded as self-contained glTF Binary (`.glb`) f
 
 Poly Haven asset license: <https://polyhaven.com/license>.
 
-The armored knight model and its animation clips already existed in `public/models/gece-nobetcisi.glb`; it is reused here and is not represented as a newly sourced Poly Haven or Quaternius download. The rest of the environment uses the scene's procedural, smoothed geometry where no suitable local GLB was available.
+| `player-hero.glb` | [Character Animated — Quaternius, Poly Pizza](https://poly.pizza/m/DgOCW9ZCRJ) | CC0 1.0 |
+| `human.glb` | [Animated Human — Quaternius, Poly Pizza](https://poly.pizza/m/c3Ibh9I3udk) | CC0 1.0 |
+| `base-character.glb` | [Animated Base Character — Quaternius, Poly Pizza](https://poly.pizza/m/cwYvO5UauX) | CC-BY 4.0 |
+
+Quaternius models are credited to Quaternius; source library: [Poly Pizza](https://poly.pizza/).
+The armored knight model `fantasy_knight.glb` and night watcher `gece-nobetcisi.glb` were already present in `public/models` and are unchanged. The rest of the environment uses the scene's procedural, smoothed geometry where no suitable local GLB was available.

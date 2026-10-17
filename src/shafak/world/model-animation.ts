@@ -43,15 +43,25 @@ export function resolveGlbClipName(
   availableNames: string[],
   animationClips: AnimationClipMap = KNIGHT_CONFIG.animationClips,
 ): string | null {
+  const mapped = resolveMappedGlbClipName(state, availableNames, animationClips);
+  if (mapped) return mapped;
+  if (state === "walk") return resolveGlbClipName("idle", availableNames, animationClips);
+  if (state === "run") return resolveGlbClipName("walk", availableNames, animationClips)
+    ?? resolveGlbClipName("idle", availableNames, animationClips);
+  if (state !== "idle") return resolveGlbClipName("idle", availableNames, animationClips);
+  return null;
+}
+
+export function resolveMappedGlbClipName(
+  state: ModelAnimationState,
+  availableNames: string[],
+  animationClips: AnimationClipMap,
+): string | null {
   const candidates = animationClips[state] ?? [];
   const byNormalizedName = new Map(availableNames.map((name) => [normalizeClipName(name), name]));
   for (const candidate of candidates) {
     const exact = byNormalizedName.get(normalizeClipName(candidate));
     if (exact) return exact;
   }
-  if (state === "walk") return resolveGlbClipName("idle", availableNames, animationClips);
-  if (state === "run") return resolveGlbClipName("walk", availableNames, animationClips)
-    ?? resolveGlbClipName("idle", availableNames, animationClips);
-  if (state !== "idle") return resolveGlbClipName("idle", availableNames, animationClips);
   return null;
 }

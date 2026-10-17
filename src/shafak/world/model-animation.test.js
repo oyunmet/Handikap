@@ -5,6 +5,7 @@ import {
   getOpponentAnimationPlayback,
   isRootTranslationTrack,
   mapOpponentAnimationState,
+  resolveMappedGlbClipName,
   resolveGlbClipName,
 } from "./model-animation.ts";
 import {
@@ -19,9 +20,14 @@ import {
 } from "./player-model.ts";
 
 test("GLB clip names are resolved case-insensitively from one configurable map", () => {
-  assert.equal(resolveGlbClipName("idle", ["mixamo.com", "BREATHING IDLE"]), "BREATHING IDLE");
-  assert.equal(resolveGlbClipName("attack", ["Attack3", "HeavyAttack"]), "Attack3");
-  assert.equal(resolveGlbClipName("hit", ["Hit Reaction"]), "Hit Reaction");
+  const clips = {
+    idle: ["Breathing Idle"],
+    attack: ["Attack3", "HeavyAttack"],
+    hit: ["Hit Reaction"],
+  };
+  assert.equal(resolveGlbClipName("idle", ["mixamo.com", "BREATHING IDLE"], clips), "BREATHING IDLE");
+  assert.equal(resolveGlbClipName("attack", ["Attack3", "HeavyAttack"], clips), "Attack3");
+  assert.equal(resolveGlbClipName("hit", ["Hit Reaction"], clips), "Hit Reaction");
 });
 
 test("missing locomotion clips fall back to a usable idle or walking clip", () => {
@@ -66,8 +72,8 @@ test("Gece Nöbetçisi resolves to the GLB's sword config while keeping other na
   assert.equal(getOpponentModelConfig("Demir Taç"), undefined);
 });
 
-test("player animations map to the bundled knight clips and strip duplicate root travel", () => {
-  const buffer = fs.readFileSync(new URL("../../../public/models/gece-nobetcisi.glb", import.meta.url));
+test("player animation states map to the Quaternius hero clips and leave jump to the rig pose", () => {
+  const buffer = fs.readFileSync(new URL("../../../public/models/player-hero.glb", import.meta.url));
   const jsonLength = buffer.readUInt32LE(12);
   const model = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
   const clips = model.animations.map((clip) => clip.name);
@@ -75,50 +81,69 @@ test("player animations map to the bundled knight clips and strip duplicate root
     idle: "Idle",
     walk: "Walk",
     run: "Run",
-    attack: "Attack1",
-    heavyAttack: "Attack1",
-    block: "Block",
-    dodge: "Dodge",
-    jump: "Dodge",
-    backflip: "Dodge",
-    plunge: "Attack1",
-    hit: "HitReaction",
+    attack: "Dagger_Attack",
+    heavyAttack: "Dagger_Attack2",
+    block: "Attacking_Idle",
+    dodge: "Roll",
+    jump: null,
+    backflip: "Roll",
+    plunge: "Dagger_Attack2",
+    hit: "RecieveHit",
     die: "Death",
   };
 
-  assert.equal(PLAYER_CHARACTER_ROOT_BONE, "Rig_Hips");
+  assert.equal(PLAYER_CHARACTER_ROOT_BONE, "Root");
   for (const [state, clip] of Object.entries(expected)) {
-    assert.deepEqual(PLAYER_CHARACTER_ANIMATION_CLIPS[state], [clip]);
-    assert.equal(resolveGlbClipName(state, clips, PLAYER_CHARACTER_ANIMATION_CLIPS), clip);
+    if (clip) {
+      assert.ok(PLAYER_CHARACTER_ANIMATION_CLIPS[state].includes(clip));
+      assert.equal(resolveMappedGlbClipName(state, clips, PLAYER_CHARACTER_ANIMATION_CLIPS), clip);
+    } else {
+      assert.deepEqual(PLAYER_CHARACTER_ANIMATION_CLIPS[state], []);
+      assert.equal(resolveMappedGlbClipName(state, clips, PLAYER_CHARACTER_ANIMATION_CLIPS), null);
+    }
   }
+  const rootIndex = model.nodes.findIndex((node) => node.name === PLAYER_CHARACTER_ROOT_BONE);
+  assert.ok(rootIndex >= 0, "the animated hero should include the configured root bone");
   assert.ok(model.animations.some((clip) => clip.channels.some((channel) =>
-    channel.target.node === model.skins[0].skeleton
-    && channel.target.path === "translation")));
+    channel.target.node !== rootIndex
+    && channel.target.path === "rotation")));
 });
 
-test("all road rivals and chapter bosses can use the animated model with their own palette", () => {
-  const profiles = [
-    ...Array.from({ length: 9 }, (_, index) => getWorldBotProfileByArchetype([
-      "gate-warden",
-      "iron-oath",
-      "ash-archer",
-      "shadow-knight",
-      "storm-lancer",
-      "rift-berserker",
-      "ember-alchemist",
-      "venom-assassin",
-      "frost-hunter",
-    ][index])),
-    getWorldBotProfileByArchetype("chapter-boss"),
+test("road rivals alternate between Quaternius humans and base characters; bosses use the static knight", () => {
+  const archetypes = [
+    "gate-warden",
+    "iron-oath",
+    "ash-archer",
+    "shadow-knight",
+    "storm-lancer",
+    "rift-berserker",
+    "ember-alchemist",
+    "venom-assassin",
+    "frost-hunter",
+    "chapter-boss",
   ];
+  const profiles = archetypes.map((archetype) => getWorldBotProfileByArchetype(archetype));
   for (const profile of profiles) {
     const config = getAnimatedRivalModelConfig(profile.name, profile);
     assert.ok(config);
-    assert.equal(config.modelPath, "/models/gece-nobetcisi.glb");
     assert.equal(config.weapon, profile.weapon);
     assert.equal(config.appearance.armor, profile.appearance.armor);
     assert.equal(config.appearance.cape, profile.appearance.cape);
-    assert.deepEqual(config.animationClips.attack, ["Attack1"]);
+    assert.ok(config.tintColor);
+    if (profile.archetype === "chapter-boss") {
+      assert.equal(config.modelPath, "/models/fantasy_knight.glb");
+      assert.equal(config.targetHeight, 2.6);
+      assert.deepEqual(config.modelRotation, [-Math.PI / 2, 0, 0]);
+      assert.equal(config.isBoss, true);
+    } else if (["gate-warden", "iron-oath", "ash-archer", "storm-lancer"].includes(profile.archetype)) {
+      assert.equal(config.modelPath, "/models/human.glb");
+      assert.equal(config.targetHeight, 1.8);
+      assert.deepEqual(config.animationClips.attack, ["Human Armature|Punch"]);
+    } else {
+      assert.equal(config.modelPath, "/models/base-character.glb");
+      assert.equal(config.targetHeight, 1.8);
+      assert.deepEqual(config.animationClips.attack, ["Rig|Sword_Attack", "Rig|Sword_Attack_RM"]);
+    }
   }
   assert.equal(
     getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
