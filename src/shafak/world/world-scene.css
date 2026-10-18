@@ -1243,6 +1243,54 @@
   .world-status { display: none; }
   .world-joystick { left: max(14px, calc(env(safe-area-inset-left) + 8px)); width: 116px; height: 116px; }
 }
+
+.world-movement-actions,
+.world-hazard-hint { display: none; }
+.world-encounter__actions { display: flex; gap: 6px; pointer-events: auto; }
+.world-encounter__talk {
+  min-height: 42px; padding: 0 13px; border: 1px solid rgba(227,195,137,.52); border-radius: 3px;
+  background: rgba(42,37,34,.92); color: #f3dfb8; cursor: pointer;
+  font-size: 9px; font-weight: 900; letter-spacing: .12em;
+}
+.world-encounter__talk:hover { background: rgba(79,61,42,.96); }
+.world-encounter__actions .world-encounter__fight { flex: 1; }
+.duel-error-card .game-practice-button {
+  width: 100%; min-height: 46px; margin: 0 0 9px; border: 1px solid rgba(132,202,185,.54);
+  background: linear-gradient(110deg,rgba(34,94,78,.93),rgba(25,63,60,.96)); color: #d8f4e9;
+  cursor: pointer; font-size: 9px; font-weight: 900; letter-spacing: .12em;
+}
+.duel-error-card__practice-note { display: block; margin: -1px 0 12px; color: rgba(229,220,204,.58); font-size: 9px; line-height: 1.45; }
+
+@media (max-width: 760px) {
+  .world-movement-actions {
+    position: absolute; z-index: 8; right: max(12px, env(safe-area-inset-right));
+    bottom: max(106px, calc(env(safe-area-inset-bottom) + 96px));
+    display: flex; flex-direction: column; gap: 6px; touch-action: none;
+  }
+  .world-movement-actions button {
+    display: grid; width: 58px; min-height: 47px; place-content: center; gap: 1px;
+    border: 1px solid rgba(231,201,153,.48); border-radius: 8px;
+    background: linear-gradient(145deg,rgba(34,31,32,.88),rgba(13,14,18,.88));
+    box-shadow: 0 4px 14px rgba(0,0,0,.32); color: #eed9ae; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none;
+  }
+  .world-movement-actions button:active { border-color: #e7bd72; background: rgba(127,88,43,.86); }
+  .world-movement-actions button span { font-size: 15px; line-height: 1; }
+  .world-movement-actions button b { font-size: 7px; letter-spacing: .12em; }
+  .world-hazard-hint {
+    position: absolute; z-index: 7; bottom: max(235px, calc(env(safe-area-inset-bottom) + 220px));
+    left: 50%; display: block; max-width: calc(100% - 148px); padding: 7px 10px;
+    transform: translateX(-50%); border: 1px solid rgba(239,178,104,.68); border-radius: 4px;
+    background: rgba(48,29,23,.88); color: #ffe5b2; font-size: 8px; font-weight: 900;
+    letter-spacing: .11em; text-align: center; pointer-events: none;
+  }
+  .world-encounter__actions { gap: 5px; }
+  .world-encounter__talk { min-height: 40px; padding: 0 10px; font-size: 8px; }
+  .world-encounter__actions .world-encounter__fight { min-height: 40px; padding-inline: 10px; font-size: 9px; }
+  .world-scene:not([data-battle="none"]) .world-movement-actions,
+  .world-scene:not([data-battle="none"]) .world-hazard-hint { display: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .world-scene *, .world-scene *::before, .world-scene *::after { scroll-behavior: auto !important; }
   .world-encounter, .world-encounter__fight, .world-battle-entry__versus,

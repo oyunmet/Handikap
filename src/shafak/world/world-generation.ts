@@ -71,7 +71,7 @@ const WORLD_OBJECT_HALF_WIDTH: Record<WorldObjectKind, number> = {
 
 export function getMinimumWorldSceneryAxisOffset(kind: WorldObjectKind, scale = 1) {
   const safeScale = Number.isFinite(scale) ? Math.max(0.1, scale) : 1;
-  return WORLD_ROAD_WIDTH / 2 + WORLD_OBJECT_HALF_WIDTH[kind] * safeScale + 0.65;
+  return WORLD_ROAD_WIDTH / 2 + WORLD_OBJECT_HALF_WIDTH[kind] * safeScale + 1.8;
 }
 
 /** Moves any too-close scenery beyond the road and camera corridor, preserving its side. */

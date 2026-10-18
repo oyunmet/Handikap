@@ -523,6 +523,17 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
             : undefined,
       });
     }
+    for (const rival of chapter.rivals) {
+      add({
+        id: `${rival.id}:collision`,
+        x: rival.x,
+        distance: rival.distance,
+        shape: "circle",
+        radius: 0.62,
+        halfWidth: 0.62,
+        halfDepth: 0.48,
+      });
+    }
   }
   return grid;
 }

@@ -32,12 +32,15 @@ type MotionRef = MutableRefObject<WorldMotion>;
 type LocalLightIds = MutableRefObject<Set<string>>;
 
 const GATE_BOSS_PROFILE = getWorldBotProfileByArchetype("chapter-boss");
-const GATE_BOSS_MODEL_CONFIG = getAnimatedRivalModelConfig("Demir Taç", GATE_BOSS_PROFILE)!;
+const GATE_BOSS_MODEL_CONFIG = {
+  ...getAnimatedRivalModelConfig("Demir Taç", GATE_BOSS_PROFILE)!,
+  targetHeight: 1.95,
+};
 
 function GateBossGuard() {
   const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
   return (
-    <group position={[0, 0, 1.85]} userData={{ cameraCollisionIgnore: true }}>
+    <group position={[-3.8, 0, 0]} userData={{ cameraCollisionIgnore: true }}>
       <KnightActor
         motionRef={motionRef}
         state="idle"

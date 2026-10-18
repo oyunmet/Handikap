@@ -53,6 +53,7 @@ import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import StoryDialogueOverlay from "./StoryDialogueOverlay";
 import {
   getChapterStoryDialogue,
+  getNpcStoryDialogue,
   getOpeningStoryDialogue,
   type StoryDialogue,
 } from "./story-dialogue";
@@ -891,6 +892,21 @@ export default function WorldScene({
   const nextOpponentDefeated = Boolean(
     nextOpponent && profile.defeatedOpponents.includes(nextOpponent.id),
   );
+  const playerWorldX = motionRef.current.depth * 5.2;
+  const nearbyHazard = activeContent.obstacles
+    .filter((obstacle) =>
+      obstacle.kind === "spike-trap"
+      || obstacle.kind === "low-bar"
+      || obstacle.kind === "falling-rock-trap",
+    )
+    .map((obstacle) => ({
+      obstacle,
+      distance: Math.abs(obstacle.distance - motionRef.current.distance),
+    }))
+    .filter(({ obstacle, distance }) =>
+      distance <= 12 && Math.abs(obstacle.x - playerWorldX) <= obstacle.width / 2 + 1.4,
+    )
+    .sort((left, right) => left.distance - right.distance)[0]?.obstacle;
   const encounterDistance = nextOpponent ? Math.abs(nextOpponent.distance - travel) : Number.POSITIVE_INFINITY;
   const dialoguePrompt = getRivalDialoguePrompt(
     allRivals,
@@ -1668,7 +1684,7 @@ export default function WorldScene({
     try { window.localStorage.setItem("safak-combat-tutorial-seen-v1", "1"); } catch { /* Tutorial still works when storage is unavailable. */ }
   }
 
-  const beginEncounter = useCallback(async (rival: WorldRival) => {
+  const beginEncounter = useCallback(async (rival: WorldRival, forcePractice = false) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
     if (duelWeaponSelectionBeforeRef.current && !skipWeaponSelectionRef.current) {
       setWeaponPickerSlot(activeWorldWeaponSlotRef.current);
@@ -1676,13 +1692,15 @@ export default function WorldScene({
       return;
     }
     skipWeaponSelectionRef.current = false;
+    const rematch = profileRef.current.defeatedOpponents.includes(rival.id);
+    const practice = debugOneHitEnabled || rematch || forcePractice;
     const dailyAccess = canStartDailyDuel(profileRef.current);
-    if (!dailyAccess.allowed) {
+    if (!dailyAccess.allowed && !practice) {
       setDailyAdMessage("Bugünkü üç yenilgi hakkın doldu. Yeni haklar İstanbul saatiyle 00.00’da yenilenir.");
       setDailyClockTick(Date.now());
       return;
     }
-    if (!userId && dailyAccess.usesAdDuel) {
+    if (!practice && !userId && dailyAccess.usesAdDuel) {
       const consumed = consumeDailyAdDuel(profileRef.current);
       if (!consumed) return;
       commitBattleProfile({ ...profileRef.current, ...consumed });
@@ -1704,8 +1722,6 @@ export default function WorldScene({
       cameraLead: 0,
     };
     motionRef.current = battleFrozenMotionRef.current;
-    const rematch = profile.defeatedOpponents.includes(rival.id);
-    const practice = debugOneHitEnabled || rematch;
     const initialSession: BattleSession = { rival, phase: "sweep", beat: 0, practice };
     battleSessionRef.current = initialSession;
     setBattleSession(initialSession);
@@ -3154,23 +3170,83 @@ export default function WorldScene({
         onPointerCancel={worldInput.onJoystickPointerCancel}
       ><span className="world-joystick__nub" /></div>
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
+      <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">
+        <button
+          type="button"
+          aria-label="Koş"
+          onPointerDown={(event) => worldInput.onActionPointerDown(event, "shift")}
+          onPointerUp={(event) => worldInput.onActionPointerUp(event, "shift")}
+          onPointerCancel={(event) => worldInput.onActionPointerUp(event, "shift")}
+          onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "shift")}
+        ><span aria-hidden="true">»</span><b>KOŞ</b></button>
+        <button
+          type="button"
+          aria-label="Zıpla"
+          onPointerDown={(event) => worldInput.onActionPointerDown(event, "space")}
+          onPointerUp={(event) => worldInput.onActionPointerUp(event, "space")}
+          onPointerCancel={(event) => worldInput.onActionPointerUp(event, "space")}
+          onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "space")}
+        ><span aria-hidden="true">↑</span><b>ZIPLA</b></button>
+        <button
+          type="button"
+          aria-label="Eğil"
+          onPointerDown={(event) => worldInput.onActionPointerDown(event, "c")}
+          onPointerUp={(event) => worldInput.onActionPointerUp(event, "c")}
+          onPointerCancel={(event) => worldInput.onActionPointerUp(event, "c")}
+          onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "c")}
+        ><span aria-hidden="true">↓</span><b>EĞİL</b></button>
+      </div>
+      {nearbyHazard && !battleSession && (
+        <div className="world-hazard-hint" role="status">
+          {nearbyHazard.kind === "spike-trap"
+            ? "DİKENLİ TUZAK · ZIPLA"
+            : nearbyHazard.kind === "low-bar"
+              ? "ALÇAK KİRİŞ · EĞİL"
+              : "DÜŞEN KAYA · YANA KAÇ"}
+        </div>
+      )}
       {encounterVisible && nextOpponent && !storyDialogue && !talkingRivalId && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
           <div className="world-encounter__card">
             <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
-            <span>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</span>
+            <span>{nextOpponentDefeated
+              ? "Ödülsüz antrenman karşılaşması"
+              : <>Seviye {nextOpponent.level} <i>·</i> Tahmini ganimet {nextOpponent.loot} altın</>}
+            </span>
             {canChallenge && talkingRivalId !== nextOpponent.id && (
-              <button
-                type="button"
-                className="world-encounter__fight"
-                onClick={() => beginEncounter(nextOpponent)}
-                disabled={!dailyAccess.allowed}
-                aria-describedby={!dailyAccess.allowed ? "world-daily-status" : undefined}
-              >
-                <span aria-hidden="true">⚔</span> {dailyAccess.allowed ? nextOpponentDefeated ? "YENİDEN DÜELLO" : "SAVAŞ" : "GÜNLÜK HAK DOLDU"}
-              </button>
+              <div className="world-encounter__actions">
+                <button
+                  type="button"
+                  className="world-encounter__talk"
+                  onClick={() => {
+                    wake();
+                    const dialogue = getNpcStoryDialogue(nextOpponent.name, nextOpponent.chapterId);
+                    showStoryDialogue(dialogue ?? {
+                      id: `world-rival-${nextOpponent.id}`,
+                      kind: "npc",
+                      title: nextOpponent.name,
+                      speaker: nextOpponent.name,
+                      lines: [nextOpponent.taunt, "Yolun devamı cesaret ve dikkat istiyor."],
+                      hint: "DEVAM ETMEK İÇİN DOKUN",
+                    });
+                  }}
+                >
+                  KONUŞ
+                </button>
+                <button
+                  type="button"
+                  className="world-encounter__fight"
+                  onClick={() => beginEncounter(nextOpponent)}
+                  disabled={!dailyAccess.allowed && !nextOpponentDefeated}
+                  aria-describedby={!dailyAccess.allowed && !nextOpponentDefeated ? "world-daily-status" : undefined}
+                >
+                  <span aria-hidden="true">⚔</span> {dailyAccess.allowed
+                    ? nextOpponentDefeated ? "YENİDEN DÜELLO · ÖDÜLSÜZ" : "SAVAŞ"
+                    : nextOpponentDefeated ? "YENİDEN DÜELLO · ÖDÜLSÜZ" : "GÜNLÜK HAK DOLDU"}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -3229,13 +3305,19 @@ export default function WorldScene({
         <div className="duel-error-layer" role="alertdialog" aria-modal="true" aria-labelledby="duel-error-title">
           <section className="duel-error-card">
             <span className="game-eyebrow">DÜELLO BAŞLATILAMADI</span>
-            <h2 id="duel-error-title">Bağlantı doğrulanamadı</h2>
+            <h2 id="duel-error-title">Hesap düellosu açılamadı</h2>
             <p>{battleSession.message}</p>
             <button type="button" className="game-gold-button" onClick={() => {
               const rival = battleSession.rival;
               closeEncounter();
               window.setTimeout(() => void beginEncounter(rival), 0);
             }}>TEKRAR DENE</button>
+            <button type="button" className="game-practice-button" onClick={() => {
+              const rival = battleSession.rival;
+              closeEncounter();
+              window.setTimeout(() => void beginEncounter(rival, true), 0);
+            }}>ÖDÜLSÜZ EĞİTİM DÜELLOSU</button>
+            <small className="duel-error-card__practice-note">Bağlantı düzeldiğinde hesap ödülleri için normal düelloyu kullanabilirsin.</small>
             <button type="button" className="game-quiet-button" onClick={closeEncounter}>KEŞFE DÖN</button>
           </section>
         </div>

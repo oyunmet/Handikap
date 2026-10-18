@@ -253,7 +253,7 @@ test("spatial collision grid blocks props, permits lateral sliding, and enforces
   }
 });
 
-test("only visible gameplay obstacles add collision shapes; roadside scenery stays decorative", () => {
+test("visible obstacles and rivals add collision shapes; roadside scenery stays decorative", () => {
   const chapter = getWorldChapter(0);
   const grid = buildWorldCollisionGrid([chapter]);
   const colliderIds = [...grid.values()]
@@ -262,15 +262,35 @@ test("only visible gameplay obstacles add collision shapes; roadside scenery sta
   const expectedIds = chapter.obstacles
     .filter((obstacle) => obstacle.kind !== "spike-trap")
     .map((obstacle) => obstacle.id);
+  const expectedRivalIds = chapter.rivals.map((rival) => `${rival.id}:collision`);
 
-  assert.deepEqual(new Set(colliderIds), new Set(expectedIds));
+  assert.deepEqual(new Set(colliderIds), new Set([...expectedIds, ...expectedRivalIds]));
   const fallingRock = chapter.obstacles.find((obstacle) => obstacle.kind === "falling-rock-trap");
   const fallingRockCollider = [...grid.values()]
     .flatMap((row) => [...row.values()].flat())
     .find((collider) => collider.id === fallingRock?.id);
   assert.ok(fallingRockCollider);
   assert.equal(fallingRockCollider.requiredAction, "jump");
-  assert.equal(colliderIds.length, expectedIds.length);
+  assert.equal(colliderIds.length, expectedIds.length + expectedRivalIds.length);
+});
+
+test("rival colliders keep stationary world characters in place without blocking sidesteps", () => {
+  const chapter = getWorldChapter(0);
+  const rival = chapter.rivals[0];
+  const grid = buildWorldCollisionGrid([chapter]);
+  const stopped = resolveWorldPathCollision(
+    rival.x, rival.distance - 2,
+    rival.x, rival.distance + 2,
+    grid, new Set(),
+  );
+  const sidestepped = resolveWorldPathCollision(
+    rival.x + 1.6, rival.distance - 2,
+    rival.x + 1.6, rival.distance + 2,
+    grid, new Set(),
+  );
+
+  assert.ok(stopped.distance < rival.distance);
+  assert.ok(Math.abs(sidestepped.distance - (rival.distance + 2)) < 1e-8);
 });
 
 test("crouching clears a low bar while standing remains blocked", () => {

@@ -750,7 +750,10 @@ function BotActor({
   const poseRef = useRef(createWorldMotion());
   const profile = getWorldBotProfileByArchetype(rival.archetype);
   const modelConfig = useMemo(
-    () => getAnimatedRivalModelConfig(rival.name, profile),
+    () => {
+      const config = getAnimatedRivalModelConfig(rival.name, profile);
+      return config?.isBoss ? { ...config, targetHeight: 1.95 } : config;
+    },
     [profile, rival.name],
   );
   // Render rivals at the same lateral position used by their interaction
@@ -807,7 +810,7 @@ function BotActor({
   botMotion.velocityY = 0;
 
   return (
-    <group ref={rootRef} userData={{ cameraCollisionIgnore: true }}>
+    <group ref={rootRef} userData={{ cameraOccluder: true }}>
       <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
