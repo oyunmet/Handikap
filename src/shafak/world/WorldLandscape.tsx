@@ -22,8 +22,6 @@ import {
   getLandmarkGeometry,
   getNaturalRockGeometry,
   getNaturalTreeGeometry,
-  WORLD_RIDGE_BASE_DISTANCE_METERS,
-  WORLD_RIDGE_LAYER_SPACING_METERS,
   getWorldRidgeDistance,
   WORLD_ROAD_WIDTH,
   type LandmarkKind,

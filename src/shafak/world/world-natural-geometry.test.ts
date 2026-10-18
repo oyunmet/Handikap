@@ -7,6 +7,8 @@ import {
   getLandmarkGeometry,
   getNaturalRockGeometry,
   getNaturalTreeGeometry,
+  getWorldRidgeDistance,
+  WORLD_RIDGE_PARALLAX_LIMIT_METERS,
   WORLD_RIDGE_BASE_DISTANCE_METERS,
   WORLD_RIDGE_LAYER_SPACING_METERS,
 } from "./world-natural-geometry.ts";
@@ -35,12 +37,15 @@ test("connected mountain geometry stays a distant skyline instead of filling the
   assert.ok(geometry.boundingBox.max.z - geometry.boundingBox.min.z < 12);
   assert.ok(geometry.boundingBox.max.x - geometry.boundingBox.min.x > 419);
 
+  const minimumNearRidgeDistance = WORLD_RIDGE_BASE_DISTANCE_METERS
+    + 2 * WORLD_RIDGE_LAYER_SPACING_METERS
+    - WORLD_RIDGE_PARALLAX_LIMIT_METERS;
   const camera = new THREE.PerspectiveCamera(60, 0.5, 0.35, 1_200);
   camera.position.set(0, 2.2, 4.5);
   camera.lookAt(0, 1.15, -11.5);
   camera.updateMatrixWorld(true);
   const ridge = new THREE.Mesh(geometry);
-  ridge.position.z = -WORLD_RIDGE_BASE_DISTANCE_METERS - 2 * WORLD_RIDGE_LAYER_SPACING_METERS;
+  ridge.position.z = -minimumNearRidgeDistance;
   ridge.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(ridge);
   const projectedHeights = [
@@ -54,19 +59,33 @@ test("connected mountain geometry stays a distant skyline instead of filling the
     new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.max.z),
   ].map((corner) => corner.project(camera).y);
   const projectedCoverage = (Math.max(...projectedHeights) - Math.min(...projectedHeights)) / 2;
-  assert.ok(projectedCoverage < 0.15, `ridge covers ${projectedCoverage.toFixed(3)} of the screen height`);
+  assert.ok(projectedCoverage < 0.08, `ridge covers ${projectedCoverage.toFixed(3)} of the screen height`);
 
-  const repeated = createConnectedRidgeGeometry(0x45a21, 1);
-  const different = createConnectedRidgeGeometry(0x92a51, 1);
+  for (const cameraX of [0, 144, 1_024, 5_000, 12_000, 60_000]) {
+    for (const layer of [0, 1, 2]) {
+      const distance = getWorldRidgeDistance(cameraX, layer);
+      const minimumDistance = WORLD_RIDGE_BASE_DISTANCE_METERS
+        + layer * WORLD_RIDGE_LAYER_SPACING_METERS
+        - WORLD_RIDGE_PARALLAX_LIMIT_METERS;
+      const maximumDistance = WORLD_RIDGE_BASE_DISTANCE_METERS
+        + layer * WORLD_RIDGE_LAYER_SPACING_METERS
+        + WORLD_RIDGE_PARALLAX_LIMIT_METERS;
+      assert.ok(distance >= minimumDistance && distance <= maximumDistance);
+      assert.ok(distance > 400, `layer ${layer} approaches to ${distance.toFixed(1)}m`);
+    }
+  }
+
+  const repeated = createConnectedRidgeGeometry(0x45a21, 2);
+  const different = createConnectedRidgeGeometry(0x92a51, 2);
   assert.deepEqual(
     Array.from(positions.array),
     Array.from(repeated.getAttribute("position").array),
-    "the connected skyline should be stable across renders",
+    "the same seed and layer should produce a stable skyline",
   );
   assert.notDeepEqual(
     Array.from(positions.array),
     Array.from(different.getAttribute("position").array),
-    "different biome layers should use distinct terrain profiles",
+    "different seeds should produce distinct terrain profiles",
   );
   const balanced = createConnectedRidgeGeometry(0x45a21, 1, "balanced");
   const low = createConnectedRidgeGeometry(0x45a21, 1, "low");
