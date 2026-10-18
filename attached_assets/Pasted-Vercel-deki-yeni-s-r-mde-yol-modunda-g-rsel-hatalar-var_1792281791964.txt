@@ -1,0 +1,30 @@
+Vercel'deki yeni sürümde yol modunda görsel hatalar var. Oyun mantığına, Türkçe metinlere, ekonomiye ve kayıtlara dokunma. Başlamadan git commit ile yedek al.
+
+SORUN 1: DÜNYA KAYBOLMUŞ, EKRANI DEV DÜZ YÜZEYLER KAPLIYOR
+Gökyüzü, dağlar, ağaçlar, sütunlar görünmüyor. Ekranı büyük düz gri/mor/bej yüzeyler kaplıyor, bazen sahne tamamen boş bej oluyor (kamera bir yüzeyin içinde).
+- TEŞHİS: Kamera pozisyonuna 40 m içindeki tüm mesh'leri traverse et. Dünya Box3 boyutu herhangi bir eksende 12 m'den büyük olanları konsola yaz: ad, parent, geometri tipi, materyal rengi, visible, kameraya uzaklık. Listeyi raporla.
+- Yol sınırı için eklenen görünmez duvar/clamp nesneleri render edilmesin: visible=false (veya hiç mesh oluşturma). Sınırı sadece matematiksel clamp ile uygula (oyuncunun yan konumunu yol yarı genişliğine sıkıştır). Görünmez duvar mesh'i kalırsa materyalini colorWrite=false, depthWrite=false yap ve raycast/kamera çarpışma listesinden çıkar.
+- Gökyüzü, HDRI/skydome, uzak dağ silüetleri, ağaç ve sütun dekorları geri gelsin. scene.background, scene.environment ve fog ayarlarını kontrol et; HDRI yüklenemezse gradient gökyüzü yedeği çalışsın. Sis rengi ufuk rengiyle aynı olsun, sis bu kadar yakında dünyayı yutmasın (fog near ≥ 40, far ≥ 220).
+- Parça A'daki shadow camera, frustum culling ve InstancedMesh değişikliklerinden biri dekorları yok etmiş olabilir: InstancedMesh'lerde boundingSphere'i yeniden hesapla (computeBoundingSphere), frustumCulled=false yap, instance matrislerinin doğru yazıldığını ve instanceMatrix.needsUpdate=true olduğunu kontrol et. Dekorların hepsinin sahnede ve yolun dışında (≥6 m) olduğunu doğrula.
+- Zemin ve nesneler tekrar aşırı beyaza kaçıyor: toneMappingExposure 0.75, güneş yoğunluğunu azalt.
+
+SORUN 2: KAMERA YÜZEYİN İÇİNE GİRİYOR
+- Kamera oyuncunun arkasında 4.5 m, 2.2 m yükseklikte kalsın ve yolun yan sınırları içine clamp edilsin (|x| ≤ yol yarı genişliği).
+- Her karede oyuncudan kameraya raycast at. SADECE gerçek dekor/engel mesh'lerine bak (görünmez sınır, trigger ve etiket nesnelerini hariç tut). Çarpma varsa kamerayı çarpma noktasının 0.3 m önüne çek (lerp). Kamera hiçbir mesh'in içine girmesin. camera.near = 0.3.
+- Kamera ile oyuncu arasında kalan dekor yarı saydam olsun ya da gizlensin.
+
+SORUN 3: ETİKETLER DEV BOYUTA ÇIKIYOR
+"SANDIK · ZIPLA VE KIR" ve "TUZAK · ZIPLA" etiketleri yaklaşınca ekranı kaplıyor.
+- Etiket ölçeği mesafeyle büyümesin: sabit piksel boyutu kullan (CSS2D/HTML etiketlerde distanceFactor ve scale'i kaldır ya da clamp et: scale en az 0.7, en fazla 1.0).
+- Maksimum genişlik 220 px, font en fazla 14 px, tek satır. Kameraya 3 m'den yakın etiketleri gizle (opacity geçişiyle). 25 m'den uzak etiketleri gizle, en yakın 5 etiket görünsün.
+- Etiketler üst üste binmesin; çakışanlardan uzak olanı gizle. Etiketler ekran üst bilgi kartlarının (profil, ilerleme) üstüne çıkmasın.
+
+SORUN 4: DÜELLO ARAYÜZÜ ÇAKIŞMALARI
+- PES ET butonu sol can çubuğunu ve DAYANIKLILIK yazısını kapatıyor, "?" butonu rakibin can sayısını (181/20x) kapatıyor. Bu iki butonu küçült (40-44 px, ikon/kısa metin) ve can çubuklarının ALTINA, ekranın sol-üst ve sağ-üst köşelerine taşı (üst bilgi şeridinin altında, çubuklarla çakışmasın). Can çubuğu ve sayıları tamamen görünsün.
+- Silah kartları (Ana Silah/İkinci Silah) can çubuklarının altında kalsın, ekranın ortasındaki dövüş alanını fazla kapatmasın; kompakt (yükseklik ≤ 56 px) olsun.
+- Alt sağdaki buton yayı (SALDIRI, KALKAN, KAÇ, KOR, YILDIRIM) aynı kalsın.
+
+SORUN 5: DOĞRULAMA
+- Bitirince raporla: dev mesh listesi, hangi nesne görünür sınır/yüzey olarak çıkmıştı, neyi düzelttin, ortalama FPS, gökyüzü/dağ/dekorların görünür olduğu.
+- Kapıdaki Demir Taç ve yol düşmanlarının sahnede göründüğünü ve yolun dışında durduğunu konsola yazdır (konum, ölçek, visible).
+- Çarpışma, oyun mantığı ve UI metinleri değişmesin.
