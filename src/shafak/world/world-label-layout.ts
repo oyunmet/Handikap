@@ -4,8 +4,19 @@ export type WorldLabelCandidate = {
   distance: number;
 };
 
-export const WORLD_LABEL_LIMIT = 6;
-export const WORLD_LABEL_RANGE_METERS = 20;
+export const WORLD_LABEL_LIMIT = 5;
+export const WORLD_LABEL_RANGE_METERS = 25;
+export const WORLD_LABEL_MIN_DISTANCE_METERS = 3;
+export const WORLD_LABEL_FADE_DISTANCE_METERS = 4.5;
+export const WORLD_LABEL_MIN_SEPARATION_METERS = 3.5;
+
+export function getWorldLabelOpacity(distance: number) {
+  if (!Number.isFinite(distance) || distance <= WORLD_LABEL_MIN_DISTANCE_METERS) return 0;
+  if (distance >= WORLD_LABEL_FADE_DISTANCE_METERS) return 1;
+  const progress = (distance - WORLD_LABEL_MIN_DISTANCE_METERS)
+    / (WORLD_LABEL_FADE_DISTANCE_METERS - WORLD_LABEL_MIN_DISTANCE_METERS);
+  return progress * progress * (3 - 2 * progress);
+}
 
 export function getNearestWorldLabelIds(
   candidates: readonly WorldLabelCandidate[],
@@ -16,17 +27,28 @@ export function getNearestWorldLabelIds(
 ): string[] {
   if (!Number.isFinite(playerX) || !Number.isFinite(playerDistance)) return [];
 
-  const nearest = new Map<string, number>();
+  const nearest = new Map<string, { distance: number; x: number; routeDistance: number }>();
   for (const candidate of candidates) {
     if (!candidate.id || !Number.isFinite(candidate.x) || !Number.isFinite(candidate.distance)) continue;
     const distance = Math.hypot(candidate.x - playerX, candidate.distance - playerDistance);
-    if (distance > rangeMeters) continue;
+    if (distance < WORLD_LABEL_MIN_DISTANCE_METERS || distance > rangeMeters) continue;
     const previous = nearest.get(candidate.id);
-    if (previous === undefined || distance < previous) nearest.set(candidate.id, distance);
+    if (previous === undefined || distance < previous.distance) {
+      nearest.set(candidate.id, { distance, x: candidate.x, routeDistance: candidate.distance });
+    }
   }
 
-  return Array.from(nearest, ([id, distance]) => ({ id, distance }))
+  const ordered = Array.from(nearest, ([id, candidate]) => ({ id, ...candidate }))
     .sort((left, right) => left.distance - right.distance || left.id.localeCompare(right.id))
-    .slice(0, Math.max(0, Math.floor(limit)))
-    .map(({ id }) => id);
+    .slice(0, Math.max(0, Math.floor(limit)) * 3);
+  const selected: typeof ordered = [];
+  for (const candidate of ordered) {
+    const crowdsAnotherLabel = selected.some((other) => Math.hypot(
+      candidate.x - other.x,
+      candidate.routeDistance - other.routeDistance,
+    ) < WORLD_LABEL_MIN_SEPARATION_METERS);
+    if (!crowdsAnotherLabel) selected.push(candidate);
+    if (selected.length >= Math.max(0, Math.floor(limit))) break;
+  }
+  return selected.map(({ id }) => id);
 }

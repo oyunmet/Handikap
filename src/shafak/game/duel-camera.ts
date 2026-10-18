@@ -12,7 +12,9 @@ export type DuelJumpState = {
 };
 
 export const DUEL_JUMP_HEIGHT = 1.12;
-export const DUEL_CAMERA_HEADING = Math.PI * 2 / 3;
+export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
+export const DUEL_CAMERA_TOUCH_FOV = 80;
+export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_RADIUS = 9;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 
@@ -56,7 +58,8 @@ export function getDuelCameraPose(
   const forwardZ = Math.cos(heading);
   const sideX = -forwardZ;
   const sideZ = forwardX;
-  const centerX = (player.x + opponent.x) * 0.5;
+  const centerX = player.x * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
+    + opponent.x * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT);
   const centerZ = (player.z + opponent.z) * 0.5;
   const baseOffsetX = -forwardX * cameraBack + sideX * shoulderOffset;
   const baseOffsetZ = -forwardZ * cameraBack + sideZ * shoulderOffset;
@@ -84,7 +87,7 @@ export function getDuelCameraPose(
   return {
     position: {
       x: cameraX,
-      y: 3.2 + jumpLift * 0.16 + extraFramingDistance * 0.08,
+    y: 2.6 + jumpLift * 0.16 + extraFramingDistance * 0.08,
       z: worldOffsetZ + cameraZ,
     },
     target: {

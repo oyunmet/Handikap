@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getCameraClearanceDistance,
   getTravelCameraSettings,
+  WORLD_CAMERA_COLLISION_MARGIN,
   WORLD_CAMERA_FAR,
+  WORLD_CAMERA_MIN_COLLISION_DISTANCE,
+  WORLD_CAMERA_NEAR,
   WORLD_SKY_RADIUS,
 } from "./camera-settings.ts";
 
@@ -11,6 +15,20 @@ test("world camera clipping range contains the sky and the procedural star field
 
   assert.ok(WORLD_CAMERA_FAR > WORLD_SKY_RADIUS);
   assert.ok(WORLD_CAMERA_FAR > farthestStarDistance);
+});
+
+test("camera clearance keeps the lens ahead of real scene occluders", () => {
+  assert.equal(WORLD_CAMERA_NEAR, 0.35);
+  assert.equal(getCameraClearanceDistance(4.5), 4.5);
+  assert.equal(getCameraClearanceDistance(4.5, 5), 4.5);
+  assert.equal(
+    getCameraClearanceDistance(4.5, 2.8),
+    2.8 - WORLD_CAMERA_COLLISION_MARGIN,
+  );
+  assert.equal(
+    getCameraClearanceDistance(4.5, 0.2),
+    WORLD_CAMERA_MIN_COLLISION_DISTANCE,
+  );
 });
 
 test("mobile travel camera keeps the same framing while stopped and running", () => {

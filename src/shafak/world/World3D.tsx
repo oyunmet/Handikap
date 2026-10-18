@@ -26,7 +26,12 @@ import {
   getWorldRenderPixelRatio,
   shouldEnableWorldShadows,
 } from "./graphics-quality";
-import { getTravelCameraSettings, WORLD_CAMERA_FAR, WORLD_CAMERA_NEAR } from "./camera-settings";
+import {
+  getCameraClearanceDistance,
+  getTravelCameraSettings,
+  WORLD_CAMERA_FAR,
+  WORLD_CAMERA_NEAR,
+} from "./camera-settings";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -48,6 +53,7 @@ import {
 } from "./duel-vfx";
 import {
   DUEL_CAMERA_HEADING,
+  DUEL_CAMERA_TOUCH_FOV,
   getDuelCameraPose,
   getDuelFacingAngle,
   getDuelJumpHeight,
@@ -432,8 +438,17 @@ function CameraRig({
   finisherSlowMotion: boolean;
 }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+  const scene = useThree((state) => state.scene);
   const targetRef = useMemo(() => new THREE.Vector3(), []);
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
+  const cameraOriginRef = useMemo(() => new THREE.Vector3(), []);
+  const cameraDirectionRef = useMemo(() => new THREE.Vector3(), []);
+  const collisionTargetRef = useMemo(() => new THREE.Vector3(), []);
+  const cameraRaycaster = useMemo(() => new THREE.Raycaster(), []);
+  const cameraOccludersRef = useRef<THREE.Object3D[]>([]);
+  const cameraOccluderScanElapsedRef = useRef(1);
+  const cameraRaycastElapsedRef = useRef(1);
+  const obstructionDistanceRef = useRef<number | undefined>(undefined);
   const duelCameraHeadingRef = useRef<number | null>(null);
   const cinematicStartRef = useRef<number | null>(null);
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
@@ -509,9 +524,48 @@ function CameraRig({
       const roadCameraLimit = WORLD_ROAD_WIDTH * 0.5;
       desiredRef.x = THREE.MathUtils.clamp(desiredRef.x, -roadCameraLimit, roadCameraLimit);
     }
-    camera.position.lerp(desiredRef, response);
+    let cameraTarget = desiredRef;
+    let cameraObstructed = false;
+    if (!combat && !focusedRival) {
+      cameraOriginRef.set(lateral, 1.15, 0);
+      cameraDirectionRef.copy(desiredRef).sub(cameraOriginRef);
+      const requestedDistance = cameraDirectionRef.length();
+      if (requestedDistance > 0.05) {
+        cameraDirectionRef.multiplyScalar(1 / requestedDistance);
+        cameraOccluderScanElapsedRef.current += Math.min(delta, 0.05);
+        if (cameraOccluderScanElapsedRef.current >= 0.35) {
+          cameraOccluderScanElapsedRef.current = 0;
+          cameraOccludersRef.current = [];
+          scene.traverse((object) => {
+            if (object.userData.cameraOccluder === true) cameraOccludersRef.current.push(object);
+          });
+        }
+        cameraRaycastElapsedRef.current += Math.min(delta, 0.05);
+        if (cameraRaycastElapsedRef.current >= 0.05) {
+          cameraRaycastElapsedRef.current = 0;
+          const visibleOccluders = cameraOccludersRef.current.filter(isEffectivelyVisible);
+          cameraRaycaster.near = 0.05;
+          cameraRaycaster.far = requestedDistance;
+          cameraRaycaster.set(cameraOriginRef, cameraDirectionRef);
+          obstructionDistanceRef.current = visibleOccluders.length
+            ? cameraRaycaster.intersectObjects(visibleOccluders, true)[0]?.distance
+            : undefined;
+        }
+        const clearDistance = getCameraClearanceDistance(
+          requestedDistance,
+          obstructionDistanceRef.current,
+        );
+        cameraObstructed = clearDistance < requestedDistance;
+        collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
+        cameraTarget = collisionTargetRef;
+      }
+    }
+    camera.position.lerp(cameraTarget, response);
+    if (cameraObstructed && camera.position.distanceTo(cameraOriginRef) > cameraTarget.distanceTo(cameraOriginRef)) {
+      camera.position.copy(cameraTarget);
+    }
     if (!combat) {
-      const runShake = motionReduced ? 0 : travelCamera.runShake;
+      const runShake = motionReduced || cameraObstructed ? 0 : travelCamera.runShake;
       const time = _.clock.elapsedTime;
       camera.position.x += Math.sin(time * 17.5) * 0.018 * runShake;
       camera.position.y += Math.cos(time * 13.2) * 0.014 * runShake;
@@ -527,7 +581,7 @@ function CameraRig({
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
-      ? (touchRenderer ? 60 : 52)
+      ? (touchRenderer ? DUEL_CAMERA_TOUCH_FOV : 52)
         - combatImpact * 1.1
         - skillZoom
         - finisherZoom

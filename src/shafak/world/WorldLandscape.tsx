@@ -414,7 +414,7 @@ function RidgeLayer({
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    mesh.position.z = -92 - layer * 28 - ((motionRef.current.cameraX * (0.025 + layer * 0.018)) % 150);
+    mesh.position.z = -140 - layer * 34 - ((motionRef.current.cameraX * (0.025 + layer * 0.018)) % 150);
     const distance = motionRef.current.distance;
     if (Math.abs(distance - lastPalette.distance) < 0.75) return;
     const transition = getBiomeTransition(distance);
@@ -434,6 +434,7 @@ function RidgeLayer({
   return (
     <mesh
       ref={meshRef}
+      name={`distant-ridge-layer-${layer}`}
       geometry={geometry}
       material={material}
       frustumCulled={false}

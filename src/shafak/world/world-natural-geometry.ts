@@ -33,8 +33,10 @@ export function createConnectedRidgeGeometry(
   const segments = quality === "high" ? 96 : quality === "balanced" ? 64 : 40;
   const crossSections = 3;
   const controls = Array.from({ length: 20 }, () => 0.1 + random() * 0.82);
-  const baseHeight = 9 + layer * 3.5;
-  const elevation = 25 + layer * 12;
+  // Keep these as distant skyline silhouettes, not tall curtains that fill the
+  // camera view. The earlier 60m peaks began only ~90m ahead of the player.
+  const baseHeight = 3.2 + layer * 1.3;
+  const elevation = 9 + layer * 3;
 
   for (let segment = 0; segment <= segments; segment += 1) {
     const progress = segment / segments;
@@ -51,8 +53,8 @@ export function createConnectedRidgeGeometry(
     const shade = 0.78 + broadForm * 0.22;
     const rowData = [
       { y: height, z: ridgeDepth, color: shade },
-      { y: -20, z: ridgeDepth, color: 0.73 },
-      { y: -20, z: -28 + ridgeDepth, color: 0.66 },
+      { y: -3.5, z: ridgeDepth, color: 0.73 },
+      { y: -3.5, z: -9 + ridgeDepth, color: 0.66 },
     ];
     for (let row = 0; row < crossSections; row += 1) {
       const vertex = rowData[row];

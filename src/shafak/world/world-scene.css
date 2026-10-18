@@ -933,6 +933,21 @@
 .world-obstacle-tag.is-low-bar { background: rgba(67, 45, 26, .9); }
 .world-obstacle-tag.is-barricade { background: rgba(53, 38, 29, .9); }
 .world-obstacle-tag.is-treasure-chest { border-color: rgba(255,211,104,.94); color: #ffe6a4; background: rgba(77,47,18,.94); box-shadow: 0 0 15px rgba(255,184,55,.42); }
+.world-pickup-tag,
+.world-obstacle-tag,
+.world-rival-tag {
+  max-width: min(220px, calc(100vw - 24px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity .12s linear;
+  font-size: clamp(8px, 2.8vw, 12px);
+}
+.world-rival-tag b,
+.world-rival-tag > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .duel-model-loading {
   display: grid; width: 112px; gap: 5px; padding: 5px 7px;
   border: 1px solid rgba(134,207,212,.44); border-radius: 3px;

@@ -71,7 +71,8 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(frostConfig.appearance.armorLight, "#c8e1e5");
   assert.equal(frostConfig.weapon, "bow");
   assert.equal(bossConfig.modelPath, "/models/fantasy_knight.glb");
-  assert.equal(bossConfig.targetHeight, 2.6);
+  assert.equal(bossConfig.targetHeight, 2.2);
+  assert.equal(bossConfig.tintStrength, 0.22);
   assert.equal(bossConfig.weapon, "greatsword");
   assert.equal(bossConfig.isBoss, true);
 });

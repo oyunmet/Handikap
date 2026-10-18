@@ -28,8 +28,9 @@ test("connected mountain geometry is deterministic, outward-facing, and spans on
   assert.ok(geometry.index);
   assert.equal(geometry.index.count / 3, 384);
   assert.ok(geometry.boundingBox);
-  assert.ok(geometry.boundingBox.min.y <= -19.9);
-  assert.ok(geometry.boundingBox.max.y > 25);
+  assert.ok(geometry.boundingBox.min.y >= -3.5);
+  assert.ok(geometry.boundingBox.max.y < 22);
+  assert.ok(geometry.boundingBox.max.z - geometry.boundingBox.min.z < 12);
   assert.ok(geometry.boundingBox.max.x - geometry.boundingBox.min.x > 419);
   const repeated = createConnectedRidgeGeometry(0x45a21, 1);
   const different = createConnectedRidgeGeometry(0x92a51, 1);

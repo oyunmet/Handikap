@@ -2,7 +2,7 @@ import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { MutableRefObject } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import KnightActor from "./KnightActor";
 import { createWorldMotion, type WorldMotion } from "./movement";
 import {
@@ -11,6 +11,7 @@ import {
 } from "./world-interactables";
 import { getNpcStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
+import { getWorldLabelOpacity } from "./world-label-layout";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config";
@@ -183,6 +184,34 @@ function RuggedSpikeTrap({
   );
 }
 
+function WorldDistanceLabel({
+  motionRef,
+  x,
+  distance,
+  className,
+  dataWeapon,
+  children,
+}: {
+  motionRef: MotionRef;
+  x: number;
+  distance: number;
+  className: string;
+  dataWeapon?: string;
+  children: ReactNode;
+}) {
+  const labelRef = useRef<HTMLSpanElement>(null);
+  useFrame(() => {
+    const label = labelRef.current;
+    if (!label) return;
+    const motion = motionRef.current;
+    const gap = Math.hypot(x - motion.depth * 5.2, distance - motion.distance);
+    const opacity = getWorldLabelOpacity(gap);
+    label.style.opacity = String(opacity);
+    label.style.visibility = opacity > 0.01 ? "visible" : "hidden";
+  });
+  return <span ref={labelRef} className={className} data-weapon={dataWeapon}>{children}</span>;
+}
+
 function Collectible({
   pickup,
   motionRef,
@@ -277,8 +306,15 @@ function Collectible({
         pickup.kind === "diamond-small" ||
         pickup.kind === "treasure-cache"
       ) && (
-        <Html position={[0, 1.45, 0]} center distanceFactor={11} zIndexRange={[14, 0]} style={{ pointerEvents: "none" }}>
-          <span className={`world-pickup-tag is-${pickup.kind}`}>{pickupLabel(pickup)}</span>
+        <Html position={[0, 1.45, 0]} center zIndexRange={[14, 0]} style={{ pointerEvents: "none" }}>
+          <WorldDistanceLabel
+            motionRef={motionRef}
+            x={pickup.x}
+            distance={pickup.distance}
+            className={`world-pickup-tag is-${pickup.kind}`}
+          >
+            {pickupLabel(pickup)}
+          </WorldDistanceLabel>
         </Html>
       )}
     </group>
@@ -378,10 +414,17 @@ function Obstacle({
   });
 
   return (
-    <group ref={rootRef} position={[obstacle.x, groundY, 0]}>
+    <group ref={rootRef} userData={{ cameraOccluder: true }} position={[obstacle.x, groundY, 0]}>
       {labelVisible && (
-        <Html position={[0, 2.12, 0]} center distanceFactor={16} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
-          <span className={`world-obstacle-tag is-${obstacle.kind}`}>{obstacleLabel}</span>
+        <Html position={[0, 2.12, 0]} center zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
+          <WorldDistanceLabel
+            motionRef={motionRef}
+            x={obstacle.x}
+            distance={obstacle.distance}
+            className={`world-obstacle-tag is-${obstacle.kind}`}
+          >
+            {obstacleLabel}
+          </WorldDistanceLabel>
         </Html>
       )}
       {!["falling-rock-trap", "spike-trap", "treasure-chest"].includes(obstacle.kind) && (
@@ -710,7 +753,9 @@ function BotActor({
     () => getAnimatedRivalModelConfig(rival.name, profile),
     [profile, rival.name],
   );
-  const renderedX = rival.isBoss ? rival.x : (rival.x < 0 ? -1 : 1) * 7.35;
+  // Render rivals at the same lateral position used by their interaction
+  // collider; the previous ±7.35m display offset put them beyond the road edge.
+  const renderedX = rival.x;
   const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
@@ -762,7 +807,7 @@ function BotActor({
   botMotion.velocityY = 0;
 
   return (
-    <group ref={rootRef}>
+    <group ref={rootRef} userData={{ cameraOccluder: true }}>
       <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
@@ -819,10 +864,16 @@ function BotActor({
         />
       </mesh>
       {labelVisible && (
-        <Html position={[renderedX, rival.isBoss ? 3.02 : 2.62 * (modelConfig?.scale ?? 1), 0]} center distanceFactor={13} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-          <span className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`} data-weapon={rival.weapon}>
+        <Html position={[renderedX, rival.isBoss ? 2.7 : 2.25 * (modelConfig?.scale ?? 1), 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+          <WorldDistanceLabel
+            motionRef={motionRef}
+            x={rival.x}
+            distance={rival.distance}
+            className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`}
+            dataWeapon={rival.weapon}
+          >
             <b>{rival.name}</b><span>{rival.title}</span>
-          </span>
+          </WorldDistanceLabel>
         </Html>
       )}
     </group>

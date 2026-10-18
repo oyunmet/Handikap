@@ -142,7 +142,7 @@ test("rivals use the selected player-like archetype models while bosses use the 
     assert.ok(config.tintColor);
     if (profile.archetype === "chapter-boss") {
       assert.equal(config.modelPath, "/models/fantasy_knight.glb");
-      assert.equal(config.targetHeight, 2.6);
+      assert.equal(config.targetHeight, 2.2);
       assert.deepEqual(config.modelRotation, [-Math.PI / 2, 0, 0]);
       assert.equal(config.isBoss, true);
     } else {

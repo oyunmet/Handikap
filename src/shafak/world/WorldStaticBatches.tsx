@@ -392,6 +392,7 @@ function InstancedPropBatch({ batch }: { batch: StaticBatch }) {
     <instancedMesh
       ref={meshRef}
       args={[batch.geometry, batch.material, batch.matrices.length]}
+      userData={{ cameraOccluder: true }}
       castShadow={false}
       receiveShadow={false}
       dispose={null}
