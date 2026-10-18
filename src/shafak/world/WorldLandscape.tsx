@@ -24,6 +24,7 @@ import {
   getNaturalTreeGeometry,
   WORLD_RIDGE_BASE_DISTANCE_METERS,
   WORLD_RIDGE_LAYER_SPACING_METERS,
+  getWorldRidgeDistance,
   WORLD_ROAD_WIDTH,
   type LandmarkKind,
   type LandscapeQuality,
@@ -421,9 +422,7 @@ function RidgeLayer({
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    mesh.position.z = -WORLD_RIDGE_BASE_DISTANCE_METERS
-      - layer * WORLD_RIDGE_LAYER_SPACING_METERS
-      - ((motionRef.current.cameraX * (0.025 + layer * 0.018)) % 150);
+    mesh.position.z = -getWorldRidgeDistance(motionRef.current.cameraX, layer);
     const distance = motionRef.current.distance;
     if (Math.abs(distance - lastPalette.distance) < 0.75) return;
     const transition = getBiomeTransition(distance);

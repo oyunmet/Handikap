@@ -9,8 +9,17 @@ export type TreeSpecies = "ash" | "pine" | "skeletal" | "mangrove";
 export type LandmarkKind = "tower" | "column" | "ruin" | "arch";
 export type LandscapeQuality = "high" | "balanced" | "low";
 
-export const WORLD_RIDGE_BASE_DISTANCE_METERS = 220;
-export const WORLD_RIDGE_LAYER_SPACING_METERS = 34;
+export const WORLD_RIDGE_BASE_DISTANCE_METERS = 420;
+export const WORLD_RIDGE_LAYER_SPACING_METERS = 38;
+export const WORLD_RIDGE_PARALLAX_LIMIT_METERS = 6;
+
+export function getWorldRidgeDistance(cameraX: number, layer: number) {
+  const safeCameraX = Number.isFinite(cameraX) ? cameraX : 0;
+  const safeLayer = THREE.MathUtils.clamp(Math.floor(Number.isFinite(layer) ? layer : 0), 0, 2);
+  const phase = safeCameraX * (0.002 + safeLayer * 0.00035) + safeLayer * 1.7;
+  const drift = Math.sin(phase) * WORLD_RIDGE_PARALLAX_LIMIT_METERS;
+  return WORLD_RIDGE_BASE_DISTANCE_METERS + safeLayer * WORLD_RIDGE_LAYER_SPACING_METERS + drift;
+}
 
 function seededRandom(initialSeed: number) {
   let seed = initialSeed >>> 0;
@@ -36,8 +45,8 @@ export function createConnectedRidgeGeometry(
   const segments = quality === "high" ? 96 : quality === "balanced" ? 64 : 40;
   const crossSections = 3;
   const controls = Array.from({ length: 20 }, () => 0.1 + random() * 0.82);
-  // Keep the ridge below the upper skyline and far beyond the road. Taller,
-  // closer sheets read as a wall across the whole view on a mobile camera.
+  // Keep the ridge low and distant. A solid sheet that rises too high or
+  // approaches the camera reads as a wall across the whole mobile view.
   const baseHeight = 0.8 + layer * 0.45;
   const elevation = 7 + layer * 1.2;
 
