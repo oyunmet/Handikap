@@ -9,6 +9,9 @@ export type TreeSpecies = "ash" | "pine" | "skeletal" | "mangrove";
 export type LandmarkKind = "tower" | "column" | "ruin" | "arch";
 export type LandscapeQuality = "high" | "balanced" | "low";
 
+export const WORLD_RIDGE_BASE_DISTANCE_METERS = 220;
+export const WORLD_RIDGE_LAYER_SPACING_METERS = 34;
+
 function seededRandom(initialSeed: number) {
   let seed = initialSeed >>> 0;
   return () => {
@@ -33,10 +36,10 @@ export function createConnectedRidgeGeometry(
   const segments = quality === "high" ? 96 : quality === "balanced" ? 64 : 40;
   const crossSections = 3;
   const controls = Array.from({ length: 20 }, () => 0.1 + random() * 0.82);
-  // Keep these as distant skyline silhouettes, not tall curtains that fill the
-  // camera view. The earlier 60m peaks began only ~90m ahead of the player.
-  const baseHeight = 3.2 + layer * 1.3;
-  const elevation = 9 + layer * 3;
+  // Keep the ridge below the upper skyline and far beyond the road. Taller,
+  // closer sheets read as a wall across the whole view on a mobile camera.
+  const baseHeight = 0.8 + layer * 0.45;
+  const elevation = 7 + layer * 1.2;
 
   for (let segment = 0; segment <= segments; segment += 1) {
     const progress = segment / segments;

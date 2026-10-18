@@ -7,6 +7,8 @@ import {
   getLandmarkGeometry,
   getNaturalRockGeometry,
   getNaturalTreeGeometry,
+  WORLD_RIDGE_BASE_DISTANCE_METERS,
+  WORLD_RIDGE_LAYER_SPACING_METERS,
 } from "./world-natural-geometry.ts";
 
 function assertFiniteAttribute(attribute: THREE.BufferAttribute) {
@@ -17,8 +19,8 @@ function assertFiniteAttribute(attribute: THREE.BufferAttribute) {
   }
 }
 
-test("connected mountain geometry is deterministic, outward-facing, and spans one continuous ridge", () => {
-  const geometry = createConnectedRidgeGeometry(0x45a21, 1);
+test("connected mountain geometry stays a distant skyline instead of filling the camera view", () => {
+  const geometry = createConnectedRidgeGeometry(0x45a21, 2);
   const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
   const normals = geometry.getAttribute("normal") as THREE.BufferAttribute;
   geometry.computeBoundingBox();
@@ -29,9 +31,31 @@ test("connected mountain geometry is deterministic, outward-facing, and spans on
   assert.equal(geometry.index.count / 3, 384);
   assert.ok(geometry.boundingBox);
   assert.ok(geometry.boundingBox.min.y >= -3.5);
-  assert.ok(geometry.boundingBox.max.y < 22);
+  assert.ok(geometry.boundingBox.max.y < 11.2);
   assert.ok(geometry.boundingBox.max.z - geometry.boundingBox.min.z < 12);
   assert.ok(geometry.boundingBox.max.x - geometry.boundingBox.min.x > 419);
+
+  const camera = new THREE.PerspectiveCamera(60, 0.5, 0.35, 1_200);
+  camera.position.set(0, 2.2, 4.5);
+  camera.lookAt(0, 1.15, -11.5);
+  camera.updateMatrixWorld(true);
+  const ridge = new THREE.Mesh(geometry);
+  ridge.position.z = -WORLD_RIDGE_BASE_DISTANCE_METERS - 2 * WORLD_RIDGE_LAYER_SPACING_METERS;
+  ridge.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(ridge);
+  const projectedHeights = [
+    new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.min.z),
+    new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.max.z),
+    new THREE.Vector3(bounds.min.x, bounds.max.y, bounds.min.z),
+    new THREE.Vector3(bounds.min.x, bounds.max.y, bounds.max.z),
+    new THREE.Vector3(bounds.max.x, bounds.min.y, bounds.min.z),
+    new THREE.Vector3(bounds.max.x, bounds.min.y, bounds.max.z),
+    new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.min.z),
+    new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.max.z),
+  ].map((corner) => corner.project(camera).y);
+  const projectedCoverage = (Math.max(...projectedHeights) - Math.min(...projectedHeights)) / 2;
+  assert.ok(projectedCoverage < 0.15, `ridge covers ${projectedCoverage.toFixed(3)} of the screen height`);
+
   const repeated = createConnectedRidgeGeometry(0x45a21, 1);
   const different = createConnectedRidgeGeometry(0x92a51, 1);
   assert.deepEqual(
