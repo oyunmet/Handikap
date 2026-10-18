@@ -7,8 +7,8 @@ import {
   shouldRecoverCanvasFrame,
 } from "./world-screen-probe";
 
-const CANVAS_PROBE_COLUMNS = 4;
-const CANVAS_PROBE_ROWS = 4;
+const CANVAS_PROBE_COLUMNS = 2;
+const CANVAS_PROBE_ROWS = 2;
 const PROBE_INTERVAL_MS = 1_200;
 const PROBE_WARMUP_MS = 2_500;
 const BLACK_SAMPLES_TO_RECOVER = 2;

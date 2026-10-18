@@ -35,7 +35,9 @@ test("duel camera keeps a stable world heading as fighters move and cross", () =
   );
   assert.ok(Math.abs(headingFromTarget(spawnPose) - headingFromTarget(movedPose)) < 1e-9);
   assert.ok(Number.isFinite(movedPose.position.x) && Number.isFinite(movedPose.position.z));
-  assert.ok(Math.abs(movedPose.target.x - 0.15) < 1e-9);
+  const expectedTargetX = 3.1 * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
+    + (-2.8) * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT);
+  assert.ok(Math.abs(movedPose.target.x - expectedTargetX) < 1e-9);
   assert.ok(Math.abs(movedPose.target.z - (-120 - 0.25)) < 1e-9);
   for (const pose of [spawnPose, movedPose]) {
     assert.ok(Math.hypot(

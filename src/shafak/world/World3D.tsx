@@ -15,6 +15,7 @@ import { FinalGate } from "./WorldElements";
 import type { WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import WorldLandscape from "./WorldLandscape";
+import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import { WorldAssetProgress } from "./WorldModel";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
@@ -2237,8 +2238,9 @@ export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
-  const [contextLost, setContextLost] = useState(false);
   const contextCleanupRef = useRef<(() => void) | null>(null);
+  const automaticRecoveryAttemptsRef = useRef(0);
+  const recoveryRequestedRef = useRef(false);
   const [renderOverrides, setRenderOverrides] = useState<RenderOverrides>({
     disableFrustumCulling: false,
   });
@@ -2292,7 +2294,21 @@ export default function World3D(props: World3DProps) {
   const maxDpr = getWorldRenderPixelRatio(rendererQuality, pixelRatio, touchRenderer);
   const minDpr = Math.min(1, maxDpr);
   const retryWebGL = useCallback(() => {
-    setContextLost(false);
+    automaticRecoveryAttemptsRef.current = 0;
+    recoveryRequestedRef.current = false;
+    setWebglAvailable(null);
+    setCanvasAttempt((attempt) => attempt + 1);
+  }, []);
+  const recoverFromBlackFrame = useCallback(() => {
+    if (recoveryRequestedRef.current) return;
+    if (automaticRecoveryAttemptsRef.current >= 1) {
+      console.error("[world] The 3D world stayed black after rebuilding. Waiting for a manual 3D retry.");
+      setWebglAvailable(false);
+      return;
+    }
+    automaticRecoveryAttemptsRef.current += 1;
+    recoveryRequestedRef.current = true;
+    console.warn("[world] Repeated black or empty 3D frames; rebuilding the 3D renderer.");
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
@@ -2303,8 +2319,8 @@ export default function World3D(props: World3DProps) {
   const fallback = (
     <div className="world-three-fallback" role="alert">
       <div className="world-three-fallback__content">
-        <p>3D dünya başlatılamadı. WebGL destekli bir tarayıcıda yeniden deneyin.</p>
-        <button type="button" onClick={retryWebGL}>3D DÜNYAYI YENİDEN OLUŞTUR</button>
+        <p>3D sahne başlatılamadı. Siyah ekranda kalmaması için bu 3D oturumu durduruldu. WebGL destekli bir tarayıcıda yeniden deneyin.</p>
+        <button type="button" onClick={retryWebGL}>3D SAHNEYİ YENİDEN OLUŞTUR</button>
       </div>
     </div>
   );
@@ -2316,9 +2332,21 @@ export default function World3D(props: World3DProps) {
   }, []);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGL()));
+    const frame = window.requestAnimationFrame(() => {
+      const available = supportsWebGL();
+      if (available) recoveryRequestedRef.current = false;
+      setWebglAvailable(available);
+    });
     return () => window.cancelAnimationFrame(frame);
   }, [canvasAttempt]);
+
+  useEffect(() => {
+    if (!webglAvailable) return undefined;
+    const resetRecoveryBudget = window.setTimeout(() => {
+      automaticRecoveryAttemptsRef.current = 0;
+    }, 15_000);
+    return () => window.clearTimeout(resetRecoveryBudget);
+  }, [canvasAttempt, webglAvailable]);
 
   return (
     <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
@@ -2357,11 +2385,10 @@ export default function World3D(props: World3DProps) {
               const canvas = renderer.domElement;
               const handleContextLost = (event: Event) => {
                 event.preventDefault();
-                setContextLost(true);
+                setWebglAvailable(false);
               };
               const handleContextRestored = () => {
-                setContextLost(false);
-                setCanvasAttempt((attempt) => attempt + 1);
+                recoverFromBlackFrame();
               };
               canvas.addEventListener("webglcontextlost", handleContextLost, false);
               canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
@@ -2382,19 +2409,14 @@ export default function World3D(props: World3DProps) {
               onDebugStats={setDebugStats}
               onPerformanceStats={setPerformanceStats}
             />
+            <WorldBlackFrameProbe
+              onBlackFrame={recoverFromBlackFrame}
+              manualRender
+            />
           </Canvas>
         </WorldCanvasErrorBoundary>
       ) : (
         fallback
-      )}
-      {contextLost && (
-        <div className="world-three-context-loss" role="alertdialog" aria-modal="true" aria-labelledby="world-context-loss-title">
-          <div className="world-three-fallback__content">
-            <h2 id="world-context-loss-title">3D sahne duraklatıldı</h2>
-            <p>Tarayıcı grafik belleğini yeniliyor. Oyun ilerlemen korunuyor; sahneyi yeniden oluşturabilirsin.</p>
-            <button type="button" onClick={retryWebGL}>SAHNEYİ YENİDEN YÜKLE</button>
-          </div>
-        </div>
       )}
       {debugEnabled && (
         <aside className="world-debug" aria-label="3D dünya hata ayıklama bilgileri">
