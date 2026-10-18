@@ -141,11 +141,11 @@ function getCameraOccluderLabel(mesh: THREE.Mesh, instanceId?: number) {
   return mesh.name || mesh.type;
 }
 
-/** Finds occluder meshes that contain the camera or project over 40% of the view. */
+/** Finds occluder meshes that contain the camera or project over 25% of the view. */
 export function inspectCameraOccluders(
   occluders: readonly THREE.Object3D[],
   camera: THREE.Camera,
-  minimumScreenArea = 0.4,
+  minimumScreenArea = 0.25,
 ) {
   camera.updateMatrixWorld(true);
   const cameraPosition = camera.getWorldPosition(new THREE.Vector3());

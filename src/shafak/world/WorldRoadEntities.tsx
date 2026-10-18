@@ -372,7 +372,7 @@ function Obstacle({
   const obstacleLabel = obstacle.kind === "spike-trap"
     ? "TUZAK · ZIPLA"
     : obstacle.kind === "falling-rock-trap"
-      ? "DÜŞEN KAYA · ZIPLA"
+      ? "DÜŞEN KAYA · YANA KAÇ"
     : obstacle.kind === "low-bar"
       ? "ALÇAK ENGEL · EĞİL"
         : obstacle.kind === "barrel"

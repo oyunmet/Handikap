@@ -654,7 +654,12 @@ function WorldProp({
       position={[object.lane * 9.3, 0, 0]}
       rotation={[0, (object.flickerSeed % 628) / 100, 0]}
       scale={scale}
-      userData={{ cameraOccluder: true }}
+      name={`world-prop:${object.kind}:${object.id}`}
+      userData={{
+        cameraOccluder: true,
+        worldModelCategory: "prop",
+        worldModelLabel: `${object.kind}:${object.id}`,
+      }}
     >
       {object.kind === "tower" && (
         <group>

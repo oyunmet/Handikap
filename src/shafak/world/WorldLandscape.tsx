@@ -938,7 +938,6 @@ export default function WorldLandscape({ motionRef, quality, weather, motionRedu
           )}>
             <WorldAssetInstanceBatch
               src="/assets/rock-wall.glb"
-              targetHeight={2.15}
               items={rockObjects}
               motionRef={motionRef}
               maxDetailedDistance={72}

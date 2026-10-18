@@ -215,7 +215,7 @@ export function WorldAssetFallback({
         </group>
       )}
       {kind === "barrel" && (
-        <group scale={[height, height, height]}>
+        <group scale={[targetHeight, targetHeight, targetHeight]}>
           <mesh geometry={FALLBACK_BARREL_GEOMETRY} material={FALLBACK_WOOD_MATERIAL} castShadow={castShadow} receiveShadow={castShadow} />
           {[0.13, 0.87].map((y) => (
             <mesh
@@ -241,7 +241,7 @@ export function WorldAssetFallback({
         </group>
       )}
       {kind === "vase" && (
-        <group scale={[height, height, height]}>
+        <group scale={[targetHeight, targetHeight, targetHeight]}>
           <mesh geometry={FALLBACK_VASE_GEOMETRY} material={FALLBACK_CLAY_MATERIAL} castShadow={castShadow} receiveShadow={castShadow} />
           <mesh
             position={[0, 0.95, 0]}
@@ -253,7 +253,7 @@ export function WorldAssetFallback({
         </group>
       )}
       {kind === "chest" && (
-        <group scale={[height, height, height]}>
+        <group scale={[targetHeight, targetHeight, targetHeight]}>
           <mesh geometry={FALLBACK_CHEST_BODY} position={[0, 0.27, 0]} material={FALLBACK_WOOD_MATERIAL} castShadow={castShadow} receiveShadow={castShadow} />
           <mesh
             geometry={FALLBACK_CHEST_LID}
@@ -286,8 +286,8 @@ export function WorldAssetFallback({
         <mesh
           geometry={FALLBACK_GENERIC_GEOMETRY}
           material={FALLBACK_ROCK_MATERIAL}
-          position={[0, height * 0.5, 0]}
-          scale={[height * 0.42, height * 0.5, height * 0.42]}
+          position={[0, targetHeight * 0.5, 0]}
+          scale={[targetHeight * 0.42, targetHeight * 0.5, targetHeight * 0.42]}
           castShadow={castShadow}
           receiveShadow={castShadow}
         />
@@ -457,6 +457,7 @@ function ModelPartInstances({
       args={[part.geometry, part.material, items.length]}
       userData={{
         cameraOccluder: true,
+        worldModelCategory: "prop",
         worldPropNames: items.map((item) => `${item.kind}:${item.id}`),
       }}
       castShadow={castShadow}

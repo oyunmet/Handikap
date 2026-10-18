@@ -40,6 +40,7 @@ import {
   isEffectivelyVisible,
   WorldCameraOcclusionFader,
 } from "./world-camera-collision";
+import { WorldScaleDiagnostics } from "./world-model-diagnostics";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -266,6 +267,7 @@ type World3DProps = {
   dailyAccessAllowed: boolean;
   challengeLabel: string;
   onChallenge: (rival: WorldRival) => void;
+  onFallingRockDespawn: (obstacleId: string) => void;
   slowMotion: boolean;
   combatActive: boolean;
   combatStateRef: MutableRefObject<CombatState | null>;
@@ -639,14 +641,17 @@ function CameraRig({
   });
 
   return (
-    <PerspectiveCamera
-      ref={cameraRef}
-      makeDefault
-      position={[0, 2.2, 4.5]}
-      fov={74}
-      near={WORLD_CAMERA_NEAR}
-      far={WORLD_CAMERA_FAR}
-    />
+    <>
+      <PerspectiveCamera
+        ref={cameraRef}
+        makeDefault
+        position={[0, 2.2, 4.5]}
+        fov={74}
+        near={WORLD_CAMERA_NEAR}
+        far={WORLD_CAMERA_FAR}
+      />
+      <WorldScaleDiagnostics enabled={debugEnabled} />
+    </>
   );
 }
 
@@ -1981,6 +1986,7 @@ function SceneContents({
   dailyAccessAllowed,
   challengeLabel,
   onChallenge,
+  onFallingRockDespawn,
   slowMotion,
   combatActive,
   combatStateRef,
@@ -2238,6 +2244,7 @@ function SceneContents({
         dailyAccessAllowed={dailyAccessAllowed}
         challengeLabel={challengeLabel}
         onChallenge={onChallenge}
+        onFallingRockDespawn={onFallingRockDespawn}
         reducedMotion={motionReduced}
         interactableRegistry={interactableRegistry}
         visibleLabelIds={visibleLabelIds}

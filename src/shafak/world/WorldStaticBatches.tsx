@@ -395,7 +395,11 @@ function InstancedPropBatch({ batch }: { batch: StaticBatch }) {
       ref={meshRef}
       name={`world-scenery:${batch.key}`}
       args={[batch.geometry, batch.material, batch.matrices.length]}
-      userData={{ cameraOccluder: true, worldPropNames: batch.worldPropNames }}
+      userData={{
+        cameraOccluder: true,
+        worldModelCategory: "prop",
+        worldPropNames: batch.worldPropNames,
+      }}
       castShadow={false}
       receiveShadow={false}
       dispose={null}

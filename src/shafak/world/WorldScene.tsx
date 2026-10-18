@@ -830,6 +830,7 @@ export default function WorldScene({
   const claimQueueRef = useRef(new Map<number, Set<string>>());
   const claimTimersRef = useRef(new Map<number, number>());
   const trapCooldownRef = useRef(new Map<string, number>());
+  const despawnedFallingRockIdsRef = useRef(new Set<string>());
   const attackRequestedRef = useRef(false);
   const nextAttackAtRef = useRef(0);
   const simulationTimeRef = useRef(0);
@@ -2325,6 +2326,7 @@ export default function WorldScene({
           brokenRef.current,
           collisionPosition,
           { crouching: nextFrame.crouching, jumpHeight: nextFrame.jumpHeight },
+          despawnedFallingRockIdsRef.current,
         );
         if (
           Math.abs(resolvedPosition.distance - nextFrame.distance) > 0.0001
@@ -2449,6 +2451,7 @@ export default function WorldScene({
         for (const obstacle of obstacles) {
           const fallingRock = obstacle.kind === "falling-rock-trap";
           if (!fallingRock && obstacle.kind !== "spike-trap") continue;
+          if (fallingRock && despawnedFallingRockIdsRef.current.has(obstacle.id)) continue;
           const longitudinal = Math.abs(obstacle.distance - nextFrame.distance);
           const lateral = Math.abs(obstacle.x - playerX);
           if (longitudinal > 5 || lateral > obstacle.width / 2 + 1.8) {
@@ -2463,7 +2466,7 @@ export default function WorldScene({
             nextFrame.jumpHeight < WORLD_JUMP_CLEARANCE_METERS
           ) {
             trapCooldownRef.current.set(obstacle.id, simulationTimeRef.current + (fallingRock ? 1.25 : 1.1));
-            setPickupNotice(fallingRock ? "Düşen kaya çarptı! Yere çarpmadan önce zıpla." : "Dikenli tuzak! 1 saniye yavaşladın.");
+            setPickupNotice(fallingRock ? "Düşen kaya çarptı! Sonraki sefer yana kaç." : "Dikenli tuzak! 1 saniye yavaşladın.");
             if (vibrationOn && "vibrate" in navigator) {
               try { navigator.vibrate([35, 35, 25]); } catch { /* Haptics are optional. */ }
             }
@@ -2782,6 +2785,11 @@ export default function WorldScene({
               ? "YENİDEN DÜELLO"
               : "SAVAŞ"}
             onChallenge={beginEncounter}
+            onFallingRockDespawn={(obstacleId) => {
+              const ids = despawnedFallingRockIdsRef.current;
+              ids.add(obstacleId);
+              if (ids.size > 128) ids.delete(ids.values().next().value as string);
+            }}
             slowMotion={Boolean(battleSession && ["sweep", "vs", "countdown"].includes(battleSession.phase))}
             combatActive={Boolean(battleSession && battleSession.phase !== "error")}
             combatStateRef={combatStateRef}
