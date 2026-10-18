@@ -1,0 +1,27 @@
+KARAR: Mevcut 3D dünya katmanı (sahne, kamera, engeller, NPC'ler, dekor) çok sayıda yama denemesine rağmen düzelmedi: oyuncu ilerlerken ekranı dev düz renkli yüzeyler kaplıyor. Yamalamayı bırak. 3D dünya katmanını SIFIRDAN, temiz ve ölçülebilir şekilde yeniden yaz.
+
+DOKUNMA (aynen kalsın): HUD/UI (profil, seviye, para, ilerleme çemberi, düello hakkı, joystick, KOŞ/ZIPLA/EĞİL, HEYBE, AYARLAR), oyun mantığı (ilerleme yüzdesi, KAPI mesafesi, düello, ödül, envanter, kayıt, hava toggle), dil/metinler. Mevcut state ve event arayüzlerini koru; yeni 3D katman bunları aynı API ile kullansın. Eski 3D kodunu silmeden önce dosya adlarını listele, yeni katman çalışınca kaldır.
+
+HEDEF SAHNE ("Kül Yolu", tüm bölümlerde aynı sistem):
+- Düz, uzun bir taş yol (genişlik 6 m, uzunluk bölüm başına ~120 m), iki yanda alçak korkuluk/ray, yol dışı zemin.
+- Gökyüzü: tek bir büyük SkyDome veya düz renk + THREE.Fog. Dekor (kule, çam, fener, bayrak) sadece küçük, yol kenarında, oyuncudan en az 4 m yanda.
+- Oyuncu, NPC'ler ve engeller dünya birimiyle tutarlı: insan boyu 1.7 m.
+
+KATI KURALLAR (bunlar bu sorunun kök nedenini önler):
+1. ÖLÇEK STANDARDI: Her GLB yüklemesi tek bir loadAsset(url, {targetHeight | targetMaxDim}) fonksiyonundan geçsin. Boyut, SkinnedMesh'lerde Box3.setFromObject DEĞİL, animasyonun ilk karesi uygulandıktan sonra Box3.expandByObject(obj, true) veya kemik world pozisyonlarından hesaplansın. Armature/root scale (cm-m farkı, 100/0.01) normalize edilsin. Karakter klonları SkeletonUtils.clone ile yapılsın. Tüm hedef boyutlar tek config dosyasında: oyuncu 1.7, NPC 1.7, kaya max 2 m, dikenli tuzak 3x0.5 m (yol genişliğinin yarısı), alçak giriş kapısı 3 m genişlik / 1.4 m açıklık, fener 2.5 m, kule 8 m.
+2. DEV MESH YASAĞI: Sahne kurulumu sonrası bir doğrulama geçişi: yol zemini hariç world boyutu 12 m'den büyük hiçbir mesh olmasın; olursa konsola hata yaz ve ?debug=1 overlay'inde kırmızı göster. InstancedMesh'lerde instanceMatrix scale'i de kontrol et.
+3. KAMERA: Basit üçüncü şahıs takip kamerası: oyuncunun 4.5 m arkası, 2.2 m yukarısı, hafif lerp. Oyuncudan kameraya raycast yap; sadece "çarpışan" katmandaki (duvar/engel/dekor) meshlere çarparsa kamerayı çarpma noktasının 0.3 m önüne çek. camera.near=0.2, far=400. NPC'ler kamera raycast'ine dahil olmasın (NPC'nin içine girme sorunu yerine NPC'ler yoldan en az 2 m yanda dursun).
+4. NPC'LER: yolun kenarında (merkezden 2.5 m), oyuncuya doğru bakan, idle animasyonlu, tam gövdeli. Oyuncunun kullandığı player-hero.glb rig'i kullan (human.glb kullanma). Renk farkı için sadece materyal rengi/tint değiştir: Mor Hançer (mor), Kızıl Pelerin (kırmızı), Kül Gezgini (gri). Düello tetikleme mesafesi ve konuşma balonu mantığı aynı kalsın.
+5. ENGELLER (tetik mesafesiyle, mevcut isim ve uyarı metinleriyle):
+ - DİKENLİ TUZAK · ZIPLA: yolda yere gömülü diken plakası (3x0.5 m), üstünden zıplayınca geçilir, çarpınca 1 sn yavaşlama + "Dikenli tuzak! 1 saniye yavaşladın." mesajı.
+ - ALÇAK KİRİŞ · EĞİL: yolun üstünde 1.4 m yükseklikte kiriş; eğilince geçilir.
+ - DÜŞEN KAYA · YANA KAÇ: oyuncu tetik mesafesine girince yolda bir şeritte gölge/halka uyarısı, 1 sn sonra yukarıdan düşer (kaya max 2 m, düz renkli low-poly), yere çarpınca kısa süre sonra dispose edilerek yok olur. Çarpışma kutusu görsel boyutla aynı.
+ - SAĞ GEÇİT / SOL GEÇİT: kenar şerit yönlendirme işaretleri.
+ Kaya modeli (rock-wall.glb) sorunlu olabilir: kullanma, bunun yerine kodla üretilmiş IcosahedronGeometry(1, 0) + flatShading malzeme kullan.
+6. PERFORMANS (mobil dikey 390x844): setPixelRatio(min(devicePixelRatio, 2)), gölge sadece oyuncu için, antialias açık, parçacık yok (kül efekti HAVA toggle'ına bağlı sadece küçük Points, size 0.05-0.1, sizeAttenuation true, kameradan 2 m'den yakın çizilmesin).
+7. TEŞHİS ARACI (kalıcı): ?debug=1 overlay: FPS, kamera konumu, kamera etrafında 3 m içindeki mesh'ler, 6 m üstü mesh uyarısı. Sağ köşede küçük "build: <git hash>" damgası. ?nonpc=1, ?noprops=1, ?nofx=1 anahtarları ilgili grupları gizlesin; böylece telefonda sorun çıkarsa hangi grup olduğunu tek tek bulabileyim.
+
+TESLİM VE DOĞRULAMA:
+- Önce yeni 3D katmanı eski sistemin yanında ayrı bir modül olarak yaz, URL'de ?v2=1 ile aç. Çalışınca varsayılan yap ve eski kodu sil.
+- Tam oynatma testi yapamıyorsan bunu açıkça yaz (WebGL yoksa). Bunun yerine birim testleri yaz: (a) loadAsset her asset için world boyunu hedefin ±%10'unda döndürüyor, (b) sahne kurulumundan sonra 12 m üstü mesh yok, (c) kamera çarpışma fonksiyonu duvar içine konum döndürmüyor.
+- En sonda: yeni dosya yapısını, config'teki hedef boyutları ve ?v2=1 ile nasıl deneyeceğimi 8 satırda özetle.

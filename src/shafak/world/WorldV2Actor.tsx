@@ -1,0 +1,109 @@
+import { useEffect, useMemo, useRef } from "react";
+import type { MutableRefObject } from "react";
+import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import type { CharacterAnimationState } from "./character-animation";
+import type { WorldMotion } from "./movement";
+import { KNIGHT_CONFIG, getKnightActorRootYaw } from "./knight-config";
+import type { LoadedWorldAsset } from "./world-v2-assets";
+import { cloneWorldCharacter } from "./world-v2-assets";
+
+type Props = {
+  asset: LoadedWorldAsset;
+  motionRef: MutableRefObject<WorldMotion>;
+  isPlayer: boolean;
+  distance?: number;
+  x?: number;
+  tint?: string;
+  animationState?: CharacterAnimationState;
+  localToParent?: boolean;
+};
+
+function resolveClip(asset: LoadedWorldAsset, state: CharacterAnimationState) {
+  const aliases = KNIGHT_CONFIG.animationClips[state] as readonly string[];
+  const normalizedNames = aliases.map((name) => name.toLowerCase());
+  return asset.animations.find((clip) => normalizedNames.includes(clip.name.toLowerCase()))
+    ?? asset.animations.find((clip) => clip.name.toLowerCase().includes(state.toLowerCase()))
+    ?? asset.animations.find((clip) => clip.name.toLowerCase().includes("idle"))
+    ?? asset.animations[0];
+}
+
+export default function WorldV2Actor({
+  asset,
+  motionRef,
+  isPlayer,
+  distance = 0,
+  x = 0,
+  tint,
+  animationState = "idle",
+  localToParent = false,
+}: Props) {
+  const rootRef = useRef<THREE.Group>(null);
+  const model = useMemo(() => {
+    const clone = cloneWorldCharacter(asset, tint);
+    clone.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.castShadow = isPlayer;
+      object.receiveShadow = false;
+    });
+    return clone;
+  }, [asset, isPlayer, tint]);
+  const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
+  const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+  const activeClipNameRef = useRef("");
+  const playerPosition = useMemo(() => new THREE.Vector3(), []);
+
+  useEffect(() => () => {
+    mixer.stopAllAction();
+    mixer.uncacheRoot(model);
+    model.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => material.dispose());
+    });
+  }, [mixer, model]);
+
+  useFrame((_frame, delta) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const motion = motionRef.current;
+    playerPosition.set(motion.depth * 5.2, 0, -(motion.distance - motion.cameraX));
+
+    if (isPlayer) {
+      root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
+      root.rotation.y = getKnightActorRootYaw(Math.PI);
+    } else {
+      const actorZ = -(distance - motion.cameraX);
+      root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
+      const directionX = playerPosition.x - x;
+      const directionZ = playerPosition.z - actorZ;
+      root.rotation.y = getKnightActorRootYaw(Math.atan2(directionX, directionZ));
+    }
+
+    const state = isPlayer ? animationState : "idle";
+    const clip = resolveClip(asset, state);
+    if (clip && clip.name !== activeClipNameRef.current) {
+      const nextAction = mixer.clipAction(clip);
+      nextAction.reset().fadeIn(0.16).play();
+      activeActionRef.current?.fadeOut(0.16);
+      activeActionRef.current = nextAction;
+      activeClipNameRef.current = clip.name;
+    }
+    mixer.update(Math.min(delta, 0.05));
+  });
+
+  return (
+    <group ref={rootRef} name={isPlayer ? "world-v2-player" : "world-v2-npc"}>
+      <primitive
+        object={model}
+        dispose={null}
+      />
+      {isPlayer && (
+        <mesh name="player-contact-shadow" position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.54, 0.78, 1]}>
+          <circleGeometry args={[1, 20]} />
+          <meshBasicMaterial color="#171512" transparent opacity={0.42} depthWrite={false} />
+        </mesh>
+      )}
+    </group>
+  );
+}

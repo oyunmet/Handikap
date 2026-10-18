@@ -128,7 +128,7 @@ import {
 } from "./world-interactables";
 import { createLatestAsyncSaveQueue } from "./latest-async-save-queue.ts";
 
-const World3D = lazy(() => import("./World3D"));
+const World3D = lazy(() => import("./World3DRouter"));
 import "./world-scene.css";
 
 const WEATHER_LABELS: Record<WeatherMode, string> = {
@@ -511,6 +511,8 @@ export default function WorldScene({
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const npcDialoguePortalRef = useRef<HTMLDivElement>(null!);
+  const rendererV2Requested = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("v2") === "1";
   const profileRef = useRef(profile);
   const [dailyClockTick, setDailyClockTick] = useState(() => Date.now());
   const [dailyAdBusy, setDailyAdBusy] = useState(false);
@@ -2712,6 +2714,7 @@ export default function WorldScene({
     <main
       ref={sceneRef}
       className="world-scene"
+      data-renderer-v2={rendererV2Requested ? "true" : "false"}
       data-battle={battleSession?.phase ?? "none"}
       data-story-open={storyDialogue ? "true" : "false"}
       data-npc-dialogue-open={talkingRivalId ? "true" : "false"}

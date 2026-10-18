@@ -238,7 +238,7 @@ import type { DuelArenaTheme } from "../game/duel-arena-theme";
 export type WorldQuality = "high" | "balanced" | "low";
 type CombatVisualEvent = CombatEvent & { expiresAt: number };
 
-type World3DProps = {
+export type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   unlockedThroughChapter: number;

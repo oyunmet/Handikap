@@ -8,5 +8,7 @@
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep world rivals anchored, combatants unobscured, and rewards and hazards easy to spot and reach.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
+- [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms applied while measuring; `AnimationMixer.stopAllAction()` restores the source pose.
 - [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.
+- [User-owned deployment](user-owned-deployment.md) — Make code changes only; the user handles Git pushes and Vercel deploys.
