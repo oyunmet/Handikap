@@ -810,7 +810,7 @@ function BotActor({
   botMotion.velocityY = 0;
 
   return (
-    <group ref={rootRef} userData={{ cameraOccluder: true }}>
+    <group ref={rootRef} userData={{ cameraCollisionIgnore: true }}>
       <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}

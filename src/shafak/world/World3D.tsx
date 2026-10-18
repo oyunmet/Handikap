@@ -542,8 +542,9 @@ function CameraRig({
     }
     let cameraTarget = desiredRef;
     let cameraObstructed = false;
-    if (!combat && !focusedRival) {
-      cameraOriginRef.set(lateral, 1.15, 0);
+    if (!combat) {
+      if (focusedRival) cameraOriginRef.copy(targetRef);
+      else cameraOriginRef.set(lateral, 1.15, 0);
       cameraDirectionRef.copy(desiredRef).sub(cameraOriginRef);
       const requestedDistance = cameraDirectionRef.length();
       if (requestedDistance > 0.05) {

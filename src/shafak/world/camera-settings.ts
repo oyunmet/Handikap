@@ -21,14 +21,17 @@ export function getCameraClearanceDistance(
   if (
     typeof obstructionDistance !== "number"
     || !Number.isFinite(obstructionDistance)
-    || obstructionDistance >= cameraDistance
+    || obstructionDistance > cameraDistance
   ) {
     return cameraDistance;
   }
-  return Math.max(
-    WORLD_CAMERA_MIN_COLLISION_DISTANCE,
-    obstructionDistance - WORLD_CAMERA_COLLISION_MARGIN,
-  );
+  const margin = Math.min(WORLD_CAMERA_COLLISION_MARGIN, obstructionDistance * 0.2);
+  const clearDistance = obstructionDistance - margin;
+  if (clearDistance >= WORLD_CAMERA_MIN_COLLISION_DISTANCE) return clearDistance;
+
+  // At very close intersections the old minimum could place the lens beyond
+  // the hit surface. Keep it on the player side of the obstruction instead.
+  return Math.max(0, obstructionDistance * 0.68);
 }
 
 export function getTravelCameraSettings(speed: number, touchRenderer: boolean): TravelCameraSettings {

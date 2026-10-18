@@ -25,10 +25,12 @@ test("camera clearance keeps the lens ahead of real scene occluders", () => {
     getCameraClearanceDistance(4.5, 2.8),
     2.8 - WORLD_CAMERA_COLLISION_MARGIN,
   );
-  assert.equal(
-    getCameraClearanceDistance(4.5, 0.2),
-    WORLD_CAMERA_MIN_COLLISION_DISTANCE,
-  );
+  const closeObstacleClearance = getCameraClearanceDistance(4.5, 0.2);
+  assert.ok(closeObstacleClearance > 0);
+  assert.ok(closeObstacleClearance < 0.2);
+  assert.ok(closeObstacleClearance < WORLD_CAMERA_MIN_COLLISION_DISTANCE);
+  assert.ok(getCameraClearanceDistance(4.5, 0.01) < 0.01);
+  assert.ok(getCameraClearanceDistance(4.5, 4.5) < 4.5);
 });
 
 test("mobile travel camera keeps the same framing while stopped and running", () => {

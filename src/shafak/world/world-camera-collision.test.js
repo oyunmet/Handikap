@@ -44,6 +44,32 @@ test("fading an occluder clones its material and never changes a shared material
   assert.equal(untouchedMesh.material, sharedMaterial);
 });
 
+test("does not fade every instance in a shared scenery batch", () => {
+  const sharedMaterial = new THREE.MeshStandardMaterial({ color: "#b9c3c9" });
+  const instancedMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(), sharedMaterial, 2);
+  const fader = new WorldCameraOcclusionFader();
+
+  fader.update([instancedMesh]);
+
+  assert.equal(instancedMesh.material, sharedMaterial);
+  assert.equal(sharedMaterial.opacity, 1);
+  fader.clear();
+});
+
+test("keeps nearby characters opaque instead of treating them as camera occluders", () => {
+  const material = new THREE.MeshStandardMaterial({ color: "#74636d" });
+  const character = new THREE.Group();
+  character.userData.cameraCollisionIgnore = true;
+  const characterMesh = new THREE.Mesh(new THREE.BoxGeometry(), material);
+  character.add(characterMesh);
+  const fader = new WorldCameraOcclusionFader();
+
+  fader.update([characterMesh]);
+
+  assert.equal(characterMesh.material, material);
+  fader.clear();
+});
+
 test("occluder diagnostics report camera intrusion and large projected coverage", () => {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(70, 1, 0.35, 100);

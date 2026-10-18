@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export const WORLD_CAMERA_OCCLUSION_OPACITY = 0.15;
+export const WORLD_CAMERA_OCCLUSION_OPACITY = 0.04;
 
 export function isEffectivelyVisible(object: THREE.Object3D) {
   let current: THREE.Object3D | null = object;
@@ -64,7 +64,11 @@ function disposeFadedMaterial(material: THREE.Material | THREE.Material[]) {
   else material.dispose();
 }
 
-/** Fades only hit meshes, without mutating materials shared by other scene objects. */
+/**
+ * Fades only the exact hit meshes, without mutating shared materials.
+ * InstancedMesh is intentionally excluded: fading one hit instance by
+ * replacing its material makes every instance in that batch translucent.
+ */
 export class WorldCameraOcclusionFader {
   private readonly fadedMeshes = new Map<THREE.Mesh, FadedMaterial>();
 
@@ -73,6 +77,7 @@ export class WorldCameraOcclusionFader {
     for (const object of hitObjects) {
       if (
         object instanceof THREE.Mesh
+        && !(object instanceof THREE.InstancedMesh)
         && !isCameraCollisionIgnored(object)
         && isEffectivelyVisible(object)
       ) {
