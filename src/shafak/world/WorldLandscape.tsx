@@ -34,6 +34,7 @@ import {
   WorldAssetInstanceBatch,
   WorldRockFarLod,
 } from "./WorldModel";
+import { SKY_BACKGROUND_DEPTH_STATE, syncSkyShellPositions } from "./world-sky-background.ts";
 import WorldStaticBatches from "./WorldStaticBatches";
 import { getWorldGlowTexture } from "./world-glow.ts";
 
@@ -314,6 +315,7 @@ function WorldSky({ motionRef }: { motionRef: Props["motionRef"] }) {
   const sunRef = useRef<THREE.Sprite>(null);
   const lastPaintedBiome = useMemo(() => ({ biome: "", mix: -1 }), []);
   const { scene, camera } = useThree();
+  const skyCenter = useMemo(() => new THREE.Vector3(), []);
   const sunPosition = useMemo(() => new THREE.Vector3(), []);
   const sunDirection = useMemo(() => new THREE.Vector3(), []);
   const sunRight = useMemo(() => new THREE.Vector3(), []);
@@ -330,6 +332,15 @@ function WorldSky({ motionRef }: { motionRef: Props["motionRef"] }) {
     if (skyRef.current) skyRef.current.visible = !hasHdriSky;
     if (firstCloudRef.current) firstCloudRef.current.visible = !hasHdriSky;
     if (secondCloudRef.current) secondCloudRef.current.visible = !hasHdriSky;
+    if (!hasHdriSky) {
+      syncSkyShellPositions(
+        camera,
+        skyCenter,
+        skyRef.current,
+        firstCloudRef.current,
+        secondCloudRef.current,
+      );
+    }
     if (sunRef.current) {
       sunRef.current.visible = !hasHdriSky;
       if (!hasHdriSky) {
@@ -353,8 +364,14 @@ function WorldSky({ motionRef }: { motionRef: Props["motionRef"] }) {
   });
   return (
     <>
-      <mesh ref={skyRef} geometry={geometry} frustumCulled={false} renderOrder={-30}>
-        <meshBasicMaterial vertexColors side={THREE.BackSide} toneMapped={false} fog={false} />
+      <mesh ref={skyRef} geometry={geometry} frustumCulled={false} renderOrder={-1000}>
+        <meshBasicMaterial
+          vertexColors
+          side={THREE.BackSide}
+          toneMapped={false}
+          fog={false}
+          {...SKY_BACKGROUND_DEPTH_STATE}
+        />
       </mesh>
       <mesh ref={firstCloudRef} geometry={cloudGeometry} frustumCulled={false} renderOrder={-29}>
         <meshBasicMaterial
