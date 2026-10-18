@@ -13,6 +13,7 @@ import {
   getWorldAssetKind,
   getWorldAssetRepresentativeNode,
   getWorldAssetSizeTarget,
+  getWorldModelFit,
   getWorldModelFitScale,
 } from "./world-model-sizing.ts";
 export { getWorldAssetKind as getWorldAssetFallbackKind } from "./world-model-sizing.ts";
@@ -161,11 +162,9 @@ export function WorldAssetFallback({
   const kind = getWorldAssetKind(src);
   const sizing = getWorldAssetSizeTarget(src);
   const targetHeight = height ?? sizing.targetHeight;
-  const rockFit = getWorldModelFitScale(
-    { x: 0.169, y: 0.144, z: 0.32 },
-    targetHeight,
-    sizing.maxDimension,
-  );
+  const rockFit = sizing.sourceDimensions
+    ? getWorldModelFitScale(sizing.sourceDimensions, { ...sizing, targetHeight })
+    : 1;
   const rockGeometry = useMemo(
     () => disposeOnUnmount ? getNaturalRockGeometry(2).clone() : getNaturalRockGeometry(2),
     [disposeOnUnmount],
@@ -332,10 +331,10 @@ function LoadedWorldAssetModel({
     const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
     const sizing = getWorldAssetSizeTarget(src);
-    const fit = getWorldModelFitScale(size, height ?? sizing.targetHeight, sizing.maxDimension);
+    const fit = getWorldModelFit(size, { ...sizing, targetHeight: height ?? sizing.targetHeight });
     const center = bounds.getCenter(new THREE.Vector3());
-    model.scale.multiplyScalar(fit);
-    model.position.set(-center.x * fit, -bounds.min.y * fit, -center.z * fit);
+    model.scale.multiplyScalar(fit.scale);
+    model.position.set(-center.x * fit.scale, -bounds.min.y * fit.scale, -center.z * fit.scale);
     const ownedGeometries: THREE.BufferGeometry[] = [];
     const ownedMaterials: THREE.Material[] = [];
     model.traverse((child) => {
@@ -409,6 +408,7 @@ function ModelPartInstances({
   maxVisibleDistance,
   maxDetailedDistance,
   fitTransform,
+  maxInstanceScale,
   castShadow,
 }: {
   part: ModelPart;
@@ -418,6 +418,7 @@ function ModelPartInstances({
   maxVisibleDistance: number;
   maxDetailedDistance?: number;
   fitTransform: THREE.Matrix4;
+  maxInstanceScale: number;
   castShadow: boolean;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -441,7 +442,7 @@ function ModelPartInstances({
         -(item.worldX - motion.cameraX) * item.parallax,
       );
       dummy.rotation.set(0, (item.flickerSeed % 63) * 0.1, 0);
-      dummy.scale.setScalar(visible ? item.scale : 0);
+      dummy.scale.setScalar(visible ? Math.max(0, Math.min(item.scale, maxInstanceScale)) : 0);
       dummy.updateMatrix();
       instanceMatrix.copy(dummy.matrix).multiply(fitTransform).multiply(part.transform);
       mesh.setMatrixAt(index, instanceMatrix);
@@ -477,7 +478,7 @@ export function WorldAssetInstanceBatch({
   castShadow = false,
 }: AssetBatchProps) {
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
-  const { parts, fitTransform } = useMemo(() => {
+  const { parts, fitTransform, maxInstanceScale } = useMemo(() => {
     gltf.scene.updateMatrixWorld(true);
     let model = gltf.scene.clone(true);
     const representativeName = getWorldAssetRepresentativeNode(src);
@@ -503,11 +504,12 @@ export function WorldAssetInstanceBatch({
     const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
     const sizing = getWorldAssetSizeTarget(src);
-    const fit = getWorldModelFitScale(size, targetHeight ?? sizing.targetHeight, sizing.maxDimension);
+    const fit = getWorldModelFit(size, { ...sizing, targetHeight: targetHeight ?? sizing.targetHeight });
+    const maxInstanceScale = fit.maxInstanceScale;
     const center = bounds.getCenter(new THREE.Vector3());
     const fitTransform = new THREE.Matrix4()
-      .makeTranslation(-center.x * fit, -bounds.min.y * fit, -center.z * fit)
-      .multiply(new THREE.Matrix4().makeScale(fit, fit, fit));
+      .makeTranslation(-center.x * fit.scale, -bounds.min.y * fit.scale, -center.z * fit.scale)
+      .multiply(new THREE.Matrix4().makeScale(fit.scale, fit.scale, fit.scale));
     const parts: ModelPart[] = [];
     model.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
@@ -519,7 +521,7 @@ export function WorldAssetInstanceBatch({
         transform: child.matrixWorld.clone(),
       });
     });
-    return { parts, fitTransform };
+    return { parts, fitTransform, maxInstanceScale };
   }, [castShadow, gltf.scene, src, targetHeight]);
 
   return (
@@ -534,6 +536,7 @@ export function WorldAssetInstanceBatch({
           maxVisibleDistance={maxVisibleDistance}
           maxDetailedDistance={maxDetailedDistance}
           fitTransform={fitTransform}
+          maxInstanceScale={maxInstanceScale}
           castShadow={castShadow}
         />
       ))}

@@ -60,6 +60,11 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   const venomConfig = getAnimatedRivalModelConfig(crimsonCloak.name, getWorldBotProfileByArchetype(crimsonCloak.archetype));
   const frostConfig = getAnimatedRivalModelConfig(frostSeal.name, getWorldBotProfileByArchetype(frostSeal.archetype));
   const bossConfig = getAnimatedRivalModelConfig(ironCrown.name, getWorldBotProfileByArchetype(ironCrown.archetype));
+  const worldBossConfig = getAnimatedRivalModelConfig(
+    ironCrown.name,
+    getWorldBotProfileByArchetype(ironCrown.archetype),
+    "world",
+  );
 
   assert.equal(purpleConfig.weapon, "daggers");
   assert.equal(purpleConfig.appearance.cape, "#624574");
@@ -71,6 +76,7 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(frostConfig.weapon, "bow");
   assert.equal(bossConfig.modelPath, "/models/player-hero.glb");
   assert.equal(bossConfig.targetHeight, 3.35);
+  assert.equal(worldBossConfig.targetHeight, 1.95);
   assert.equal(bossConfig.rootBoneName, "Root");
   assert.equal(bossConfig.modelFacing, Math.PI);
   assert.equal(bossConfig.tintStrength, 0.22);

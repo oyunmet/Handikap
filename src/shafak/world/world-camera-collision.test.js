@@ -25,6 +25,23 @@ test("camera ray candidates include marked scenery but exclude actors and their 
   assert.equal(isCameraCollisionIgnored(actor.children[0]), true);
 });
 
+test("hazard and prop meshes remain camera occluders even when generic ignore flags are set", () => {
+  const scene = new THREE.Scene();
+  const hazard = new THREE.Group();
+  hazard.userData.worldModelCategory = "hazard";
+  hazard.userData.cameraCollisionIgnore = true;
+  hazard.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+  const prop = new THREE.Group();
+  prop.userData.worldModelCategory = "prop";
+  prop.userData.cameraOccluder = false;
+  prop.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+  scene.add(hazard, prop);
+
+  assert.deepEqual(collectCameraOccluders(scene), [hazard, prop]);
+  assert.equal(isCameraCollisionIgnored(hazard.children[0]), false);
+  assert.equal(isCameraCollisionIgnored(prop.children[0]), false);
+});
+
 test("fading an occluder clones its material and never changes a shared material", () => {
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: "#556677", opacity: 0.7 });
   const fadedMesh = new THREE.Mesh(new THREE.BoxGeometry(), sharedMaterial);

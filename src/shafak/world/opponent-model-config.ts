@@ -1,5 +1,9 @@
 import type { EquipmentVisual } from "../game/store-types";
 import type { WorldBotArchetype, WorldBotProfile } from "./world-bot-profiles";
+import {
+  getWorldCharacterSizeTarget,
+  type WorldCharacterSizeContext,
+} from "./world-model-sizing.ts";
 
 export type ModelMaterialNameAliases = {
   cape: readonly string[];
@@ -52,6 +56,7 @@ export type OpponentModelConfig = {
   rootBoneName: string;
   preserveOriginalMaterialAliases?: readonly string[];
   targetHeight?: number;
+  maxDimension?: number;
   modelRotation?: readonly [number, number, number];
   tintColor?: string;
   tintStrength?: number;
@@ -141,6 +146,7 @@ export function getOpponentModelConfig(name: string | undefined) {
 export function getAnimatedRivalModelConfig(
   name: string | undefined,
   profile?: Pick<WorldBotProfile, "appearance" | "weapon" | "archetype" | "size">,
+  sizeContext: WorldCharacterSizeContext = "duel",
 ) {
   const namedConfig = name
     ? OPPONENT_MODEL_CONFIGS[name as keyof typeof OPPONENT_MODEL_CONFIGS]
@@ -166,7 +172,7 @@ export function getAnimatedRivalModelConfig(
   const weapon = archetype ? visualWeaponByArchetype[archetype] : baseConfig.weapon;
   const modelByArchetype: Record<WorldBotArchetype, string> = {
     "gate-warden": "/models/player-hero.glb",
-    "iron-oath": "/models/human.glb",
+    "iron-oath": "/models/player-hero.glb",
     "ash-archer": "/models/base-character.glb",
     "shadow-knight": "/models/base-character.glb",
     "storm-lancer": "/models/human.glb",
@@ -177,6 +183,7 @@ export function getAnimatedRivalModelConfig(
     "chapter-boss": "/models/player-hero.glb",
   };
   const modelPath = isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
+  const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
   const heroAnimations = {
     idle: ["CharacterArmature|Idle", "Idle"],
     walk: ["CharacterArmature|Walk", "Walk"],
@@ -267,7 +274,8 @@ export function getAnimatedRivalModelConfig(
     modelFacing: usePlayerHero ? Math.PI : 0,
     rootBoneName: useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
     preserveOriginalMaterialAliases: useHuman ? ["texture"] : undefined,
-    targetHeight: isBoss ? 3.35 : 1.8,
+    targetHeight: sizeTarget.targetHeight,
+    maxDimension: sizeTarget.maxDimension,
     isBoss,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
     tintStrength: isBoss ? 0.22 : 0.68,

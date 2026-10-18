@@ -125,7 +125,7 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
   const profiles = archetypes.map((archetype) => getWorldBotProfileByArchetype(archetype));
   const expectedModels = {
     "gate-warden": ["/models/player-hero.glb", "sword", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
-    "iron-oath": ["/models/human.glb", "daggers", ["Human Armature|Punch"]],
+    "iron-oath": ["/models/player-hero.glb", "daggers", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
     "ash-archer": ["/models/base-character.glb", "bow", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
     "shadow-knight": ["/models/base-character.glb", "daggers", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
     "storm-lancer": ["/models/human.glb", "spear", ["Human Armature|Punch"]],

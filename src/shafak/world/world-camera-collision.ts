@@ -13,23 +13,24 @@ export function isEffectivelyVisible(object: THREE.Object3D) {
 
 export function isCameraCollisionIgnored(object: THREE.Object3D) {
   let current: THREE.Object3D | null = object;
+  let ignored = false;
+  let isHazardOrProp = false;
   while (current) {
-    if (
-      current.userData.cameraCollisionIgnore === true
-      || current.userData.cameraOccluder === false
-    ) {
-      return true;
-    }
+    const category = current.userData.worldModelCategory;
+    if (category === "hazard" || category === "prop") isHazardOrProp = true;
+    if (current.userData.cameraCollisionIgnore === true || current.userData.cameraOccluder === false) ignored = true;
     current = current.parent;
   }
-  return false;
+  return ignored && !isHazardOrProp;
 }
 
 export function collectCameraOccluders(scene: THREE.Scene) {
   const occluders: THREE.Object3D[] = [];
   scene.traverse((object) => {
+    const category = object.userData.worldModelCategory;
+    const isHazardOrProp = category === "hazard" || category === "prop";
     if (
-      object.userData.cameraOccluder === true
+      (object.userData.cameraOccluder === true || isHazardOrProp)
       && !isCameraCollisionIgnored(object)
       && isEffectivelyVisible(object)
     ) {

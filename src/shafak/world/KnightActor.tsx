@@ -30,7 +30,6 @@ import {
   PLAYER_CHARACTER_MATERIAL_ALIASES,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_ROOT_BONE,
-  PLAYER_CHARACTER_TARGET_HEIGHT,
   shouldRenderPlayerModel,
 } from "./player-model";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
@@ -52,6 +51,7 @@ import { attachOpponentCostume, type AttachedOpponentCostume } from "./opponent-
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
+import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
 
 export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -146,11 +146,17 @@ function prepareModel(
   castShadow = true,
   playerCharacter = false,
   appearance?: EquipmentVisual,
-  targetHeight = PLAYER_CHARACTER_TARGET_HEIGHT,
+  targetHeight: number = WORLD_MODEL_SIZE_TARGETS.player.targetHeight,
+  targetMaxDimension: number = WORLD_MODEL_SIZE_TARGETS.player.maxDimension,
 ) {
   const model = cloneSkinned(source);
   if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
-  fitCharacterModel(model, targetHeight, modelPath);
+  fitCharacterModel(
+    model,
+    targetHeight,
+    modelPath,
+    targetMaxDimension / (modelConfig?.scale ?? 1),
+  );
   const validation = validateCharacterModel(model, targetHeight);
   if (!validation.valid) {
     console.warn("[shafak-model] Character rig validation failed.", {
@@ -348,7 +354,8 @@ function OptionalGlbKnight({
     ?? PLAYER_CHARACTER_ROOT_BONE;
   const animationClipMap = modelConfig?.animationClips
     ?? PLAYER_CHARACTER_ANIMATION_CLIPS;
-  const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
+  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
+  const targetMaxDimension = modelConfig?.maxDimension ?? WORLD_MODEL_SIZE_TARGETS.player.maxDimension;
   const { model, ownedMaterials, ownedGeometries, playerRig } = useMemo(
     () => {
       capWorldTextures(gltf.scene);
@@ -360,9 +367,10 @@ function OptionalGlbKnight({
         playerCharacter,
         appearance,
         targetHeight,
+        targetMaxDimension,
       );
     },
-    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight],
+    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight, targetMaxDimension],
   );
   const equippedHand = playerCharacter || modelConfig
     ? playerRig?.bones.Rig_RightHand
@@ -760,7 +768,7 @@ type BoundaryState = { failed: boolean };
 function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
   const { progress } = useProgress();
   const { modelConfig, appearance, castShadow = true } = props;
-  const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
+  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   return (
     <>
       <group scale={modelConfig?.scale ?? 1}>
@@ -798,7 +806,7 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
 export default function KnightActor(props: KnightActorProps) {
   const { modelConfig, appearance, castShadow = true } = props;
-  const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
+  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
       <CharacterCapsule

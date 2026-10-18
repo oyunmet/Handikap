@@ -3,8 +3,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { configureWorldGLTFLoader } from "./WorldModel";
 import {
-  getWorldCharacterFitScale,
-  WORLD_CHARACTER_REFERENCE_HEIGHT,
+  getWorldModelFit,
+  WORLD_MODEL_SIZE_TARGETS,
 } from "./world-model-sizing.ts";
 
 const normalizedCharacterLogs = new Set<string>();
@@ -156,10 +156,15 @@ export function prepareCharacterSkinnedMeshes(model: THREE.Object3D) {
 }
 
 /** Fits a loaded model to a world-space height and puts its lowest point on y=0. */
-export function fitCharacterModel(model: THREE.Object3D, targetHeight: number, diagnosticLabel?: string) {
+export function fitCharacterModel(
+  model: THREE.Object3D,
+  targetHeight: number,
+  diagnosticLabel?: string,
+  maxDimension = targetHeight * 1.5,
+) {
   const heightTarget = Number.isFinite(targetHeight)
     ? Math.max(0.1, targetHeight)
-    : WORLD_CHARACTER_REFERENCE_HEIGHT;
+    : WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   model.scale.set(1, 1, 1);
   model.position.set(0, 0, 0);
   model.updateMatrixWorld(true);
@@ -169,7 +174,10 @@ export function fitCharacterModel(model: THREE.Object3D, targetHeight: number, d
     throw new Error("Character model has no measurable height.");
   }
 
-  const scale = getWorldCharacterFitScale(bounds.getSize(new THREE.Vector3()), heightTarget);
+  const scale = getWorldModelFit(
+    bounds.getSize(new THREE.Vector3()),
+    { targetHeight: heightTarget, maxDimension },
+  ).scale;
   const center = bounds.getCenter(new THREE.Vector3());
   model.scale.setScalar(scale);
   model.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);

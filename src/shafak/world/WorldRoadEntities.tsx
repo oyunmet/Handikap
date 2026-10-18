@@ -771,10 +771,7 @@ function BotActor({
   const poseRef = useRef(createWorldMotion());
   const profile = getWorldBotProfileByArchetype(rival.archetype);
   const modelConfig = useMemo(
-    () => {
-      const config = getAnimatedRivalModelConfig(rival.name, profile);
-      return config?.isBoss ? { ...config, targetHeight: 1.95 } : config;
-    },
+    () => getAnimatedRivalModelConfig(rival.name, profile, "world"),
     [profile, rival.name],
   );
   // Render rivals at the same lateral position used by their interaction

@@ -18,7 +18,8 @@ test("world camera clipping range contains the sky and the procedural star field
 });
 
 test("camera clearance keeps the lens ahead of real scene occluders", () => {
-  assert.equal(WORLD_CAMERA_NEAR, 0.35);
+  assert.equal(WORLD_CAMERA_NEAR, 0.2);
+  assert.ok(WORLD_CAMERA_NEAR >= 0.1 && WORLD_CAMERA_NEAR <= 0.3);
   assert.equal(getCameraClearanceDistance(4.5), 4.5);
   assert.equal(getCameraClearanceDistance(4.5, 5), 4.5);
   assert.equal(
