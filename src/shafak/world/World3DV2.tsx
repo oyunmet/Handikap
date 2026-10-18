@@ -9,10 +9,10 @@ import { KNIGHT_CONFIG } from "./knight-config";
 import WorldV2Actor from "./WorldV2Actor";
 import { WorldV2Entities } from "./WorldV2Entities";
 import {
-  WorldV2EnvironmentLayer,
   WorldV2RouteGates,
   WorldV2WeatherPoints,
 } from "./WorldV2Environment";
+import WorldRoadEnvironmentLayer from "./WorldRoadEnvironment";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { loadAsset } from "./world-v2-assets";
 import type { LoadedWorldAsset } from "./world-v2-assets";
@@ -38,40 +38,6 @@ type DebugSnapshot = {
 function readQueryFlag(name: string) {
   if (typeof window === "undefined") return false;
   return new URLSearchParams(window.location.search).get(name) === "1";
-}
-
-function WorldSceneSetup() {
-  const { scene } = useThree();
-  useEffect(() => {
-    const previousBackground = scene.background;
-    const previousFog = scene.fog;
-    scene.background = new THREE.Color("#82919b");
-    scene.fog = new THREE.Fog("#a9aaa2", 50, 145);
-    return () => {
-      scene.background = previousBackground;
-      scene.fog = previousFog;
-    };
-  }, [scene]);
-  return (
-    <>
-      <hemisphereLight args={["#d8d2c6", "#34312e", 1.25]} />
-      <ambientLight color="#e7dfd0" intensity={0.48} />
-      <directionalLight
-        position={[-5, 12, 8]}
-        color="#ffe0b1"
-        intensity={2.05}
-        castShadow
-        shadow-mapSize={[512, 512]}
-        shadow-camera-near={0.5}
-        shadow-camera-far={26}
-        shadow-camera-left={-8}
-        shadow-camera-right={8}
-        shadow-camera-top={9}
-        shadow-camera-bottom={-5}
-      />
-      <directionalLight position={[7, 6, -12]} color="#a6b9c5" intensity={0.36} />
-    </>
-  );
 }
 
 function WorldV2Camera({
@@ -311,7 +277,7 @@ export default function World3DV2(props: World3DProps) {
   }, []);
 
   return (
-    <div className="world-three-layer world-v2-layer" aria-label="Kül Yolu yeni 3D dünyası">
+    <div className="world-three-layer world-3d-layer" aria-label="Kül Yolu 3D dünyası">
       {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
       ) : !webglAvailable ? (
@@ -343,7 +309,13 @@ export default function World3DV2(props: World3DProps) {
               near: WORLD_V2_CONFIG.camera.near,
               far: WORLD_V2_CONFIG.camera.far,
             }}
-            gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
+            gl={{
+              alpha: false,
+              antialias: !touchRenderer,
+              powerPreference: "high-performance",
+              toneMapping: THREE.ACESFilmicToneMapping,
+              toneMappingExposure: 1.05,
+            }}
             onCreated={({ gl, scene }) => {
               gl.setPixelRatio(renderPixelRatio);
               gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -375,9 +347,12 @@ export default function World3DV2(props: World3DProps) {
               </div>
             }
           >
-            <WorldSceneSetup />
             <Suspense fallback={null}>
-              <WorldV2EnvironmentLayer motionRef={props.motionRef} showProps={!noProps} />
+              <WorldRoadEnvironmentLayer
+                motionRef={props.motionRef}
+                weather={props.weatherMode}
+                showProps={!noProps}
+              />
               <WorldV2Camera motionRef={props.motionRef} />
               <WorldV2RouteGates
                 motionRef={props.motionRef}

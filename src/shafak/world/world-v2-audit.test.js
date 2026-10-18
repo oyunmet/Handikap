@@ -2,14 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
 import { auditWorldMeshSizes } from "./world-v2-audit.ts";
-import { createWorldV2Environment } from "./world-v2-geometry.ts";
+import {
+  createWorldRoadEnvironment,
+  positionWorldRoadEnvironment,
+  WORLD_ROAD_TILE_LENGTH,
+} from "./world-road-environment.ts";
 
-test("new environment meshes remain within the 12m world limit", () => {
-  const environment = createWorldV2Environment();
+test("rebuilt 3D road environment has a recycled, size-audited scene ring", () => {
+  const environment = createWorldRoadEnvironment();
   try {
     const issues = auditWorldMeshSizes(environment.root);
-    assert.ok(issues.some((issue) => issue.maxDimension > 6.5), "tower meshes should be measured in world units");
-    assert.deepEqual(issues.filter((issue) => issue.error), []);
+    assert.equal(environment.segments.length, 17);
+    assert.equal(environment.mountainLayers.length, 3);
+    assert.deepEqual(issues, []);
+
+    positionWorldRoadEnvironment(environment, WORLD_ROAD_TILE_LENGTH * 4.25, 51, 1.5);
+    assert.equal(environment.segments[2].root.position.z, -3);
+    assert.ok(Math.abs(environment.mountainLayers[0].root.position.x - 1.05) < 1e-9);
+    environment.updatePalette(450, "rain");
+    assert.ok(environment.root.children.some((child) => child.name === "world-horizon-layer-2"));
   } finally {
     environment.dispose();
   }

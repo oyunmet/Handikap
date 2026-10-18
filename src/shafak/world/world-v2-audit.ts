@@ -16,7 +16,7 @@ const worldBounds = new THREE.Box3();
 const size = new THREE.Vector3();
 
 function addIssue(issues: WorldMeshSizeIssue[], object: THREE.Mesh, bounds: THREE.Box3, instanceId?: number) {
-  if (object.userData.worldV2RoadGround === true) return;
+  if (object.userData.worldV2RoadGround === true || object.userData.worldV2AuditExempt === true) return;
   bounds.getSize(size);
   const maxDimension = Math.max(size.x, size.y, size.z);
   if (maxDimension <= WORLD_V2_CONFIG.debugWarningLimit) return;

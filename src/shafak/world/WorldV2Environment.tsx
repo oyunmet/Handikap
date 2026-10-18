@@ -8,30 +8,9 @@ import type { WeatherMode } from "./world-biomes";
 import { WORLD_GATE_INTERVAL_METERS } from "./movement";
 import { nextGateDistanceForCamera } from "./world-generation";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
-import { createWorldV2Environment, WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
+import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 
 type MotionRef = MutableRefObject<WorldMotion>;
-
-export function WorldV2EnvironmentLayer({
-  motionRef,
-  showProps,
-}: {
-  motionRef: MotionRef;
-  showProps: boolean;
-}) {
-  const environment = useMemo(() => createWorldV2Environment(showProps), [showProps]);
-  useEffect(() => () => environment.dispose(), [environment]);
-  useFrame(() => {
-    const motion = motionRef.current;
-    const currentTile = Math.floor(motion.distance / WORLD_V2_CONFIG.road.tileLength);
-    for (const segment of environment.segments) {
-      const offset = Number(segment.userData.worldV2TileOffset) || 0;
-      const start = (currentTile + offset) * WORLD_V2_CONFIG.road.tileLength;
-      segment.position.z = -(start + WORLD_V2_CONFIG.road.tileLength / 2 - motion.cameraX);
-    }
-  });
-  return <primitive object={environment.root} dispose={null} />;
-}
 
 export function WorldV2RouteGates({
   motionRef,
