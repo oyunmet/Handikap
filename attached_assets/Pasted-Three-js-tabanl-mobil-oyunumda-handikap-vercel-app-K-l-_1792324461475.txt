@@ -1,0 +1,39 @@
+Three.js tabanlı mobil oyunumda (handikap.vercel.app, "Kül Yolu" ve diğer tüm bölümler) görsel ve kamera sorunlarını TÜM BÖLÜMLER için düzelt. Çözümler bölüme özel yama olarak değil, ortak (global) sistem olarak yazılsın; yeni eklenecek bölümler de otomatik etkilensin.
+
+## SORUN 1: Kamera ekranı kaplayan nesnelerin içinden geçiyor
+
+Belirti: Oyuncu ilerlerken ekranın büyük kısmı bir anda düz kırmızı, mor, gri veya siyah/kahverengi bir yüzeyle doluyor (dev kolonlar, duvar benzeri yüzeyler, kuleler, kayalar, kemerler). Karakter bazen bu yüzeylerin arkasında kalıyor. Sorun bölüm 4 ve 5'te görüldü ama diğer bölümlerde de olabilir.
+
+Yapılacaklar:
+1. Ortak bir CameraController yaz: Her karede oyuncudan kameranın istenen konumuna Raycaster at. Aradaki ilk dekor nesnesine çarparsa kamerayı çarpma noktasının 0.3-0.5 birim önüne çek, geçişi lerp ile yumuşat. Zemin, oyuncu, düşmanlar ve etkileşim halkaları raycast dışında kalsın (layer veya userData flag ile).
+2. Kamera-oyuncu hattındaki nesneleri fade ile yarı saydam yap (opacity 0.15), hat boşalınca eski haline döndür. Materyal klonlama sorunlarına dikkat et, paylaşılan materyalleri bozma.
+3. Tüm bölümlerin sahne verisini tara: yol kenarı dekorları (kolon, kule, kaya, kemer, dev ayaklar vb.) yol eksenine en az X birim uzakta olsun. Bunu tek bir doğrulama fonksiyonuyla zorla: bir dekor yola veya kamera takip hattına çok yakınsa otomatik olarak dışarı kaydırılsın ya da ölçeği küçültülsün.
+4. Kamera near plane 0.1 yerine 0.3-0.5 olsun, far plane gereksiz büyük olmasın. Kamera yüksekliği ve takip mesafesi nesnelerin üstünden görecek şekilde ayarlansın.
+5. Büyük düz yüzeyler (duvar benzeri mor/kırmızı/gri bloklar): Her bölümde sahnedeki bounding box'ı belirli bir boyutu aşan mesh'leri listele ve kameraya yaklaşınca ekranı dolduranları tespit et. Bunları yoldan uzaklaştır, gerekiyorsa side: FrontSide ile kameranın içinden bakınca görünmez yap.
+6. Debug modu ekle (?debug=1): Her bölümde kameranın içine giren veya ekranın %40'ından fazlasını kaplayan mesh'lerin adını konsola yazsın, böylece kalan sorunlar bulunabilsin.
+
+## SORUN 2: Boss ve NPC karakterleri bozuk (özellikle Demir Taç)
+
+Belirti: Demir Taç ayakta durmuyor, yerde yatıyor. Gövde, kol ve baş parçaları koyu gri toplar halinde dağınık, kırmızı kıymıklar ve çubuklar rastgele yönlerde. Silüeti okunmuyor. Diğer boss ve NPC'lerde (Kızıl Pelerin, Taş Mühür vb.) de benzer hiza, duruş veya oran sorunu olabilir.
+
+Yapılacaklar:
+1. Tüm boss/NPC/düşman karakterleri için ortak bir karakter kurulum yapısı kullan: tek bir root Group, içinde gövde, baş, kollar, bacaklar, aksesuar ve silah ebeveyn-çocuk ilişkisiyle bağlı. Root pivotu ayakların altında, yere değer şekilde olsun.
+2. Tüm karakterlerin duruşunu kontrol et: root rotation x/z = 0, dik dursun, oyuncuya dönük olsun. Boss'lar oyuncunun yaklaşık 1.8-2 katı, normal NPC'ler oyuncuya yakın boyda olsun.
+3. Demir Taç'ı baştan kur: geniş omuzlu zırhlı gövde, kask benzeri baş, başın üzerinde belirgin demir taç (kırmızı vurgu), elinde kılıç, koyu gri/demir ve kırmızı palet. Simetrik ve oranlı olsun.
+4. Rastgele konum veya rotasyon veren kodları kaldır. Fizik/ragdoll yanlışlıkla karaktere uygulanıyorsa kapat.
+5. Tüm karakterler için otomatik doğrulama yaz: yere gömülü, havada asılı, yatık duran veya parçaları birbirinden kopuk olan model varsa konsola uyarı versin.
+6. Animasyon basit kalsın: idle'da nefes alma, savaşta kol/silah hareketi. Etkileşim halkası ve konuşma balonu karakterin ayakta konumunun üstünde doğru yerde görünsün.
+
+## SORUN 3: Tüm bölümlerin genel kontrolü
+
+1. Her bölümü (Bölüm 1'den sonuncuya kadar) başlangıçtan kapıya kadar sanal olarak yürüyüp kontrol eden bir test rutini yaz: kamera çarpışması, ekranı kaplayan nesne ve bozuk karakter kontrolleri her bölümde çalışsın.
+2. Sis, gökyüzü ve arka plan renkleri bölümler arasında ani ve çok doygun düz renk bloklarına dönüşmesin. Büyük arka plan geometrileri kameradan yeterince uzakta kalsın.
+3. Bölüm geçişlerinde kamera ve karakter durumu sıfırlansın, önceki bölümden kalan nesne veya materyal sızıntısı olmasın.
+
+## Kabul kriterleri
+- Hiçbir bölümde ekran herhangi bir noktada tek renk bir yüzeyle dolmasın.
+- Kamera hiçbir bölümde dekorun içine girmesin, yaklaşınca oyuncuya doğru kısalsın.
+- Tüm boss ve NPC'ler dik duruyor, parçaları hizalı, silüetleri net okunuyor; Demir Taç özellikle düzgün.
+- Mobilde 60 FPS hedefi korunsun, raycast her karede değil gerekirse 2-3 karede bir çalışsın.
+
+Önce kamera kodunu, tüm bölümlerin sahne kurulumlarını ve karakter model dosyalarını incele, sorunların kaynağını bul, sonra düzelt ve hangi dosyada neyi değiştirdiğini kısaca özetle.

@@ -34,6 +34,13 @@ import {
   WORLD_CAMERA_NEAR,
 } from "./camera-settings";
 import {
+  collectCameraOccluders,
+  inspectCameraOccluders,
+  isCameraCollisionIgnored,
+  isEffectivelyVisible,
+  WorldCameraOcclusionFader,
+} from "./world-camera-collision";
+import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
   type FrameMetricsSnapshot,
@@ -59,7 +66,7 @@ import {
   getDuelFacingAngle,
   getDuelJumpHeight,
 } from "../game/duel-camera";
-import { WORLD_ROAD_WIDTH } from "./movement";
+import { WORLD_GATE_INTERVAL_METERS, WORLD_ROAD_WIDTH } from "./movement";
 import { getNearestWorldLabelIds, type WorldLabelCandidate } from "./world-label-layout";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { nextGateDistanceForCamera } from "./world-generation";
@@ -324,15 +331,6 @@ type RenderOverrides = {
   disableFrustumCulling: boolean;
 };
 
-function isEffectivelyVisible(object: THREE.Object3D) {
-  let current: THREE.Object3D | null = object;
-  while (current) {
-    if (!current.visible) return false;
-    current = current.parent;
-  }
-  return true;
-}
-
 function getSceneDiagnostics(scene: THREE.Scene, camera: THREE.Camera) {
   const perspectiveCamera = camera as THREE.PerspectiveCamera;
   const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
@@ -425,6 +423,7 @@ function CameraRig({
   visualEffectsEnabled,
   cinematicIntro,
   finisherSlowMotion,
+  debugEnabled,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   motionReduced: boolean;
@@ -437,6 +436,7 @@ function CameraRig({
   visualEffectsEnabled: boolean;
   cinematicIntro: boolean;
   finisherSlowMotion: boolean;
+  debugEnabled: boolean;
 }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const scene = useThree((state) => state.scene);
@@ -446,10 +446,14 @@ function CameraRig({
   const cameraDirectionRef = useMemo(() => new THREE.Vector3(), []);
   const collisionTargetRef = useMemo(() => new THREE.Vector3(), []);
   const cameraRaycaster = useMemo(() => new THREE.Raycaster(), []);
+  const cameraOcclusionFader = useMemo(() => new WorldCameraOcclusionFader(), []);
   const cameraOccludersRef = useRef<THREE.Object3D[]>([]);
   const cameraOccluderScanElapsedRef = useRef(1);
   const cameraRaycastElapsedRef = useRef(1);
   const obstructionDistanceRef = useRef<number | undefined>(undefined);
+  const cameraModeRef = useRef("travel");
+  const cameraDiagnosticSignatureRef = useRef("");
+  const cameraHitSignatureRef = useRef("");
   const duelCameraHeadingRef = useRef<number | null>(null);
   const cinematicStartRef = useRef<number | null>(null);
   const skillPulseRef = useRef<{ id: number; startedAt: number; attack: "skillOne" | "skillTwo" | null }>({
@@ -458,10 +462,21 @@ function CameraRig({
     attack: null,
   });
 
+  useEffect(() => () => cameraOcclusionFader.clear(), [cameraOcclusionFader]);
+
   useFrame((_, delta) => {
     const camera = cameraRef.current;
     if (!camera) return;
     const motion = motionRef.current;
+    const cameraMode = combatActive ? "duel" : focusedRival ? "encounter" : "travel";
+    if (cameraModeRef.current !== cameraMode) {
+      cameraModeRef.current = cameraMode;
+      obstructionDistanceRef.current = undefined;
+      cameraRaycastElapsedRef.current = 1;
+      cameraOcclusionFader.clear();
+      cameraDiagnosticSignatureRef.current = "";
+      cameraHitSignatureRef.current = "";
+    }
     const speed = Math.hypot(motion.velocityX, motion.velocityY);
     const travelCamera = getTravelCameraSettings(speed, touchRenderer);
     const lateral = motion.depth * 5.2;
@@ -534,12 +549,24 @@ function CameraRig({
       if (requestedDistance > 0.05) {
         cameraDirectionRef.multiplyScalar(1 / requestedDistance);
         cameraOccluderScanElapsedRef.current += Math.min(delta, 0.05);
-        if (cameraOccluderScanElapsedRef.current >= 0.35) {
+        if (cameraOccluderScanElapsedRef.current >= 0.25) {
           cameraOccluderScanElapsedRef.current = 0;
-          cameraOccludersRef.current = [];
-          scene.traverse((object) => {
-            if (object.userData.cameraOccluder === true) cameraOccludersRef.current.push(object);
-          });
+          cameraOccludersRef.current = collectCameraOccluders(scene);
+          if (debugEnabled) {
+            const diagnostics = inspectCameraOccluders(cameraOccludersRef.current, camera);
+            const signature = diagnostics
+              .map((entry) => `${entry.name}:${entry.cameraInside ? "inside" : entry.screenArea}`)
+              .sort()
+              .join("|");
+            if (signature && signature !== cameraDiagnosticSignatureRef.current) {
+              console.warn("[shafak-world] Camera occlusion diagnostic", {
+                chapter: Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS) + 1,
+                distance: Number(motion.distance.toFixed(1)),
+                meshes: diagnostics,
+              });
+            }
+            cameraDiagnosticSignatureRef.current = signature;
+          }
         }
         cameraRaycastElapsedRef.current += Math.min(delta, 0.05);
         if (cameraRaycastElapsedRef.current >= 0.05) {
@@ -548,9 +575,29 @@ function CameraRig({
           cameraRaycaster.near = 0.05;
           cameraRaycaster.far = requestedDistance;
           cameraRaycaster.set(cameraOriginRef, cameraDirectionRef);
-          obstructionDistanceRef.current = visibleOccluders.length
-            ? cameraRaycaster.intersectObjects(visibleOccluders, true)[0]?.distance
-            : undefined;
+          const intersections = visibleOccluders.length
+            ? cameraRaycaster.intersectObjects(visibleOccluders, true)
+              .filter((intersection) => !isCameraCollisionIgnored(intersection.object))
+            : [];
+          obstructionDistanceRef.current = intersections[0]?.distance;
+          cameraOcclusionFader.update(intersections.map((intersection) => intersection.object));
+          if (debugEnabled) {
+            const labels = intersections.map(({ object, instanceId }) => {
+              const worldPropNames = object.userData.worldPropNames as string[] | undefined;
+              return typeof instanceId === "number" && worldPropNames?.[instanceId]
+                ? worldPropNames[instanceId]
+                : object.name || object.type;
+            });
+            const signature = [...new Set(labels)].sort().join("|");
+            if (signature && signature !== cameraHitSignatureRef.current) {
+              console.warn("[shafak-world] Camera shortened before scenery", {
+                chapter: Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS) + 1,
+                obstructionDistance: Number(intersections[0].distance.toFixed(2)),
+                meshes: [...new Set(labels)],
+              });
+            }
+            cameraHitSignatureRef.current = signature;
+          }
         }
         const clearDistance = getCameraClearanceDistance(
           requestedDistance,
@@ -2155,6 +2202,7 @@ function SceneContents({
         visualEffectsEnabled={visualEffectsEnabled}
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
+        debugEnabled={debugEnabled}
       />
       {!combatActive && (
         <group name="road-world">

@@ -2,12 +2,14 @@ import {
   WORLD_GATE_INTERVAL_METERS,
   WORLD_CHUNK_LENGTH_METERS,
   WORLD_METERS_TO_PIXELS,
+  WORLD_ROAD_WIDTH,
 } from "./movement.ts";
 import { getBiomeForDistance, type WorldBiome } from "./world-biomes.ts";
 
 export const WORLD_SEED = 0x5afacafe;
 export const WORLD_CHUNK_OBJECTS = 7;
 export const MIN_WORLD_PARALLAX = 0.38;
+export const WORLD_SCENERY_LATERAL_SCALE = 9.7;
 
 export type WorldObjectKind =
   | "tower"
@@ -46,6 +48,43 @@ export type WorldChunk = {
   biome: WorldBiome;
   objects: WorldObject[];
 };
+
+const WORLD_OBJECT_HALF_WIDTH: Record<WorldObjectKind, number> = {
+  tower: 1.45,
+  column: 0.8,
+  ruin: 2.1,
+  arch: 1.7,
+  tree: 1.7,
+  "pine-tree": 2.2,
+  "skeletal-tree": 1.8,
+  flag: 1,
+  rock: 1.35,
+  torch: 0.55,
+  firepit: 0.6,
+  cart: 1.15,
+  bones: 1,
+  reed: 0.6,
+  mangrove: 1.35,
+  fern: 0.85,
+  "moss-bush": 0.8,
+};
+
+export function getMinimumWorldSceneryAxisOffset(kind: WorldObjectKind, scale = 1) {
+  const safeScale = Number.isFinite(scale) ? Math.max(0.1, scale) : 1;
+  return WORLD_ROAD_WIDTH / 2 + WORLD_OBJECT_HALF_WIDTH[kind] * safeScale + 0.65;
+}
+
+/** Moves any too-close scenery beyond the road and camera corridor, preserving its side. */
+export function normalizeWorldObjectPlacement<T extends Pick<WorldObject, "kind" | "lane" | "scale">>(object: T): T {
+  const minimumAxisOffset = getMinimumWorldSceneryAxisOffset(object.kind, object.scale);
+  const currentAxisOffset = Math.abs(object.lane * WORLD_SCENERY_LATERAL_SCALE);
+  if (currentAxisOffset >= minimumAxisOffset) return object;
+  const side = object.lane < 0 ? -1 : 1;
+  return {
+    ...object,
+    lane: side * minimumAxisOffset / WORLD_SCENERY_LATERAL_SCALE,
+  };
+}
 
 export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
   const random = seededRandom((seed ^ Math.imul(index, 0x9e3779b1)) >>> 0);
@@ -101,7 +140,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       ? 0.94 + random() * 0.24
       : 0.7 + random() * 0.3;
 
-    return {
+    return normalizeWorldObjectPlacement({
       id: `${index}:${objectIndex}`,
       worldX,
       lane: roadsideLane,
@@ -110,7 +149,7 @@ export function createWorldChunk(index: number, seed = WORLD_SEED): WorldChunk {
       scale: landmarkScale,
       parallax: parallaxFor(kind),
       flickerSeed: Math.floor(random() * 10000),
-    };
+    });
   });
 
   return {

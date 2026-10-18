@@ -188,6 +188,24 @@ export function fitCharacterModel(model: THREE.Object3D, targetHeight: number, d
   return scale;
 }
 
+export function validateCharacterModel(model: THREE.Object3D, targetHeight: number) {
+  const bounds = getCharacterBounds(model);
+  const size = bounds.getSize(new THREE.Vector3());
+  const heightTolerance = 0.08;
+  const issues: string[] = [];
+  if (bounds.isEmpty()) issues.push("no visible geometry");
+  if (Math.abs(bounds.min.y) > 0.08) {
+    issues.push(`feet pivot is ${bounds.min.y.toFixed(3)}m from ground`);
+  }
+  if (Math.abs(size.y - targetHeight) > heightTolerance) {
+    issues.push(`height ${size.y.toFixed(3)}m differs from target ${targetHeight.toFixed(3)}m`);
+  }
+  if (size.x > Math.max(3.5, targetHeight * 1.75) || size.z > Math.max(3.5, targetHeight * 1.75)) {
+    issues.push(`model bounds are unusually wide (${size.x.toFixed(2)} × ${size.z.toFixed(2)}m)`);
+  }
+  return { valid: issues.length === 0, issues, bounds };
+}
+
 /** Returns the visible character's projected viewport coverage as fractions from 0 to 1. */
 export function getCharacterScreenCoverage(
   model: THREE.Object3D,

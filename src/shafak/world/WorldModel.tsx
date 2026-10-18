@@ -334,6 +334,7 @@ function ModelPartInstances({
   part,
   items,
   motionRef,
+  name,
   maxVisibleDistance,
   maxDetailedDistance,
   fitTransform,
@@ -342,6 +343,7 @@ function ModelPartInstances({
   part: ModelPart;
   items: readonly WorldObject[];
   motionRef: MutableRefObject<WorldMotion>;
+  name: string;
   maxVisibleDistance: number;
   maxDetailedDistance?: number;
   fitTransform: THREE.Matrix4;
@@ -380,7 +382,12 @@ function ModelPartInstances({
   return (
     <instancedMesh
       ref={meshRef}
+      name={name}
       args={[part.geometry, part.material, items.length]}
+      userData={{
+        cameraOccluder: true,
+        worldPropNames: items.map((item) => `${item.kind}:${item.id}`),
+      }}
       castShadow={castShadow}
       receiveShadow={castShadow}
       frustumCulled={false}
@@ -428,6 +435,7 @@ export function WorldAssetInstanceBatch({
       {parts.map((part, index) => (
         <ModelPartInstances
           key={`${src}:${index}`}
+          name={`roadside-asset:${src}:${index}`}
           part={part}
           items={items}
           motionRef={motionRef}

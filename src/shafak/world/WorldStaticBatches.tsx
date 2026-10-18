@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { WorldMotion } from "./movement";
-import type { WorldObject } from "./world-generation";
+import { WORLD_SCENERY_LATERAL_SCALE, type WorldObject } from "./world-generation";
 import { raycastWorldGround } from "./WorldModel";
 import { getWorldGlowTexture } from "./world-glow.ts";
 
@@ -33,6 +33,7 @@ type StaticBatch = {
   geometry: THREE.BufferGeometry;
   material: THREE.MeshStandardMaterial;
   matrices: THREE.Matrix4[];
+  worldPropNames: string[];
 };
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -352,7 +353,7 @@ function buildStaticBatches(objects: WorldObject[], originDistance: number): Sta
   const root = new THREE.Object3D();
   const partTransform = new THREE.Object3D();
   for (const object of objects) {
-    const x = object.lane * 9.7;
+    const x = object.lane * WORLD_SCENERY_LATERAL_SCALE;
     root.position.set(x, raycastWorldGround(x, -150), -(object.worldX - originDistance));
     root.rotation.set(0, (object.flickerSeed % 628) / 100, 0);
     root.scale.setScalar(object.scale);
@@ -364,7 +365,7 @@ function buildStaticBatches(objects: WorldObject[], originDistance: number): Sta
       const key = `${part.type}:${part.args.join(",")}|${materialKey}`;
       let batch = batches.get(key);
       if (!batch) {
-        batch = { key, geometry, material, matrices: [] };
+        batch = { key, geometry, material, matrices: [], worldPropNames: [] };
         batches.set(key, batch);
       }
       partTransform.position.set(...part.position);
@@ -372,6 +373,7 @@ function buildStaticBatches(objects: WorldObject[], originDistance: number): Sta
       partTransform.scale.set(...(part.scale ?? [1, 1, 1]));
       partTransform.updateMatrix();
       batch.matrices.push(new THREE.Matrix4().multiplyMatrices(root.matrix, partTransform.matrix));
+      batch.worldPropNames.push(`${object.kind}:${object.id}`);
     }
   }
   return Array.from(batches.values());
@@ -391,8 +393,9 @@ function InstancedPropBatch({ batch }: { batch: StaticBatch }) {
   return (
     <instancedMesh
       ref={meshRef}
+      name={`world-scenery:${batch.key}`}
       args={[batch.geometry, batch.material, batch.matrices.length]}
-      userData={{ cameraOccluder: true }}
+      userData={{ cameraOccluder: true, worldPropNames: batch.worldPropNames }}
       castShadow={false}
       receiveShadow={false}
       dispose={null}
@@ -434,7 +437,7 @@ export default function WorldStaticBatches({
     const tint = new THREE.Color();
     mesh.count = glowObjects.length;
     glowObjects.forEach((object, index) => {
-      const x = object.lane * 9.7;
+      const x = object.lane * WORLD_SCENERY_LATERAL_SCALE;
       const ground = raycastWorldGround(x, -150);
       const flameHeight = object.kind === "torch" ? 2.05 : 0.76;
       const size = object.kind === "torch" ? 2.8 : 2.4;

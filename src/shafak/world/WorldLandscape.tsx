@@ -4,7 +4,12 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldMotion } from "./movement";
 import { WORLD_CHUNK_LENGTH_METERS } from "./movement";
-import { createWorldChunk, type WorldChunk, type WorldObject } from "./world-generation";
+import {
+  createWorldChunk,
+  WORLD_SCENERY_LATERAL_SCALE,
+  type WorldChunk,
+  type WorldObject,
+} from "./world-generation";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import {
   STONE_PBR_MATERIAL_PROPS,
@@ -674,7 +679,8 @@ function ScenicProp({
       : object.kind === "mangrove" ? "mangrove" : "ash";
   const treeGeometry = getNaturalTreeGeometry(treeSpecies, object.biome);
   const rockGeometry = object.kind === "rock" ? getNaturalRockGeometry(seed) : null;
-  const groundY = useMemo(() => raycastWorldGround(object.lane * 9.7, -150), [object.lane]);
+  const sceneryX = object.lane * WORLD_SCENERY_LATERAL_SCALE;
+  const groundY = useMemo(() => raycastWorldGround(sceneryX, -150), [sceneryX]);
 
   useFrame((frame) => {
     const root = rootRef.current;
@@ -690,7 +696,9 @@ function ScenicProp({
   return (
     <group
       ref={rootRef}
-      position={[object.lane * 9.7, groundY, 0]}
+      name={`world-scenery:${object.kind}:${object.id}`}
+      userData={{ cameraOccluder: true }}
+      position={[sceneryX, groundY, 0]}
       rotation={[0, (seed % 63) * 0.1, 0]}
       scale={object.scale}
     >

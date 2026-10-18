@@ -3,8 +3,11 @@ import test from "node:test";
 import {
   createWorldChunk,
   getVisibleWorldChunks,
+  getMinimumWorldSceneryAxisOffset,
+  normalizeWorldObjectPlacement,
   nextGateDistance,
   nextGateDistanceForCamera,
+  WORLD_SCENERY_LATERAL_SCALE,
 } from "./world-generation.ts";
 
 test("world chunks are deterministic for a seed and vary between seeds", () => {
@@ -70,6 +73,18 @@ test("carved landmarks sit farther out than foliage while roadside props stay of
     }
   }
   assert.ok(columnsSeen > 0, "world chunks should include the new carved column landmark");
+});
+
+test("the shared scenery validator shifts objects beyond their scaled camera clearance", () => {
+  const tooCloseArch = normalizeWorldObjectPlacement({ kind: "arch", lane: 0.2, scale: 1.2 });
+  const tooCloseRock = normalizeWorldObjectPlacement({ kind: "rock", lane: -0.1, scale: 0.8 });
+  const alreadySafe = { kind: "torch", lane: -1, scale: 1 };
+
+  assert.ok(Math.abs(tooCloseArch.lane * WORLD_SCENERY_LATERAL_SCALE) >= getMinimumWorldSceneryAxisOffset("arch", 1.2));
+  assert.ok(Math.abs(tooCloseRock.lane * WORLD_SCENERY_LATERAL_SCALE) >= getMinimumWorldSceneryAxisOffset("rock", 0.8));
+  assert.ok(tooCloseArch.lane > 0, "positive-side props remain on their original side");
+  assert.ok(tooCloseRock.lane < 0, "negative-side props remain on their original side");
+  assert.equal(normalizeWorldObjectPlacement(alreadySafe), alreadySafe);
 });
 
 test("visible world chunks stay bounded and reuse generated chunks", () => {

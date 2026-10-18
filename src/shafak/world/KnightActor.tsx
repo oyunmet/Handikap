@@ -46,13 +46,15 @@ import {
   inspectCharacterSceneGraph,
   loadCharacter,
   prepareCharacterSkinnedMeshes,
+  validateCharacterModel,
 } from "./character-model";
 import { attachOpponentCostume, type AttachedOpponentCostume } from "./opponent-costume";
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
+import IronCrownActor from "./IronCrownActor";
 
-type KnightActorProps = {
+export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
   state: CharacterAnimationState;
   motionReduced: boolean;
@@ -150,6 +152,13 @@ function prepareModel(
   const model = cloneSkinned(source);
   if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
   fitCharacterModel(model, targetHeight, modelPath);
+  const validation = validateCharacterModel(model, targetHeight);
+  if (!validation.valid) {
+    console.warn("[shafak-model] Character rig validation failed.", {
+      model: modelPath,
+      issues: validation.issues,
+    });
+  }
   prepareCharacterSkinnedMeshes(model);
   inspectModelBudget(model, modelPath);
   model.traverse((object) => {
@@ -629,9 +638,8 @@ function OptionalGlbKnight({
     }
     mixer.update(dt * (motionReduced ? 0.35 : 1) * animationTimeScale);
     if (
-      playerCharacter
-      && poseBones
-      && (!selectedAction || state === "block" || state === "jump" || motion.crouching)
+      poseBones
+      && (!selectedAction || playerCharacter && (state === "block" || state === "jump" || motion.crouching))
     ) {
       poseCharacterWithoutClip(
         poseBones,
@@ -786,6 +794,7 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
 export default function KnightActor(props: KnightActorProps) {
   const { modelConfig, appearance, castShadow = true } = props;
+  if (modelConfig?.isBoss) return <IronCrownActor {...props} />;
   const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>

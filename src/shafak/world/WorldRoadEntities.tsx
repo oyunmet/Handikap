@@ -414,7 +414,7 @@ function Obstacle({
   });
 
   return (
-    <group ref={rootRef} userData={{ cameraOccluder: true }} position={[obstacle.x, groundY, 0]}>
+    <group ref={rootRef} userData={{ cameraCollisionIgnore: true }} position={[obstacle.x, groundY, 0]}>
       {labelVisible && (
         <Html position={[0, 2.12, 0]} center zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
           <WorldDistanceLabel
@@ -807,7 +807,7 @@ function BotActor({
   botMotion.velocityY = 0;
 
   return (
-    <group ref={rootRef} userData={{ cameraOccluder: true }}>
+    <group ref={rootRef} userData={{ cameraCollisionIgnore: true }}>
       <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
