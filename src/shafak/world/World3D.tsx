@@ -168,9 +168,7 @@ function ProceduralEnvironment() {
   const { gl, scene } = useThree();
   useEffect(() => {
     const previousEnvironment = scene.environment;
-    const previousBackground = scene.background;
     const previousIntensity = scene.environmentIntensity;
-    const previousBackgroundIntensity = scene.backgroundIntensity;
     const previousFog = scene.fog;
     const source = createProceduralEnvironmentTexture();
     const pmrem = new THREE.PMREMGenerator(gl);
@@ -209,8 +207,6 @@ function ProceduralEnvironment() {
           hdriTexture = sourceTexture;
           scene.environment = hdrTarget.texture;
           scene.environmentIntensity = 0.82;
-          scene.background = sourceTexture;
-          scene.backgroundIntensity = 0.78;
         } catch (error) {
           texture.dispose();
           console.warn("[shafak-world] HDRI could not be prepared; using the procedural sky.", error);
@@ -225,9 +221,7 @@ function ProceduralEnvironment() {
     return () => {
       active = false;
       scene.environment = previousEnvironment;
-      scene.background = previousBackground;
       scene.environmentIntensity = previousIntensity;
-      scene.backgroundIntensity = previousBackgroundIntensity;
       scene.fog = previousFog;
       target?.dispose();
       hdriTexture?.dispose();

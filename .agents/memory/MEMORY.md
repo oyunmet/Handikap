@@ -7,6 +7,6 @@
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep world rivals anchored, combatants unobscured, and rewards and hazards easy to spot and reach.
-- [World-scene scope](world-scene-scope.md) — For world visuals, preserve gameplay, UI, Turkish copy, controls, economy, and saves.
+- [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
 - [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.

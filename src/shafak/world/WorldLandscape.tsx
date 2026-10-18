@@ -34,7 +34,11 @@ import {
   WorldAssetInstanceBatch,
   WorldRockFarLod,
 } from "./WorldModel";
-import { SKY_BACKGROUND_DEPTH_STATE, syncSkyShellPositions } from "./world-sky-background.ts";
+import {
+  paintWorldSkyGradient,
+  WORLD_SKY_BACKGROUND_HEIGHT,
+  WORLD_SKY_BACKGROUND_WIDTH,
+} from "./world-sky-background.ts";
 import WorldStaticBatches from "./WorldStaticBatches";
 import { getWorldGlowTexture } from "./world-glow.ts";
 
@@ -77,7 +81,6 @@ type Props = {
 
 const ROAD_LENGTH = 440;
 const ROAD_CENTER_Z = -150;
-const WORLD_RADIUS = 260;
 
 function seededRandom(initialSeed: number) {
   let seed = initialSeed >>> 0;
@@ -88,14 +91,6 @@ function seededRandom(initialSeed: number) {
     value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
     return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-function makeSkyGeometry() {
-  const geometry = new THREE.SphereGeometry(WORLD_RADIUS, 32, 20);
-  const positions = geometry.getAttribute("position");
-  const colors = new Float32Array(positions.count * 3);
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  return geometry;
 }
 
 const NATURAL_TREE_MATERIAL = new THREE.MeshStandardMaterial({
@@ -110,29 +105,6 @@ const WEATHERED_LANDMARK_MATERIAL = new THREE.MeshStandardMaterial({
   roughness: 0.96,
   metalness: 0,
 });
-
-function paintSky(geometry: THREE.SphereGeometry, distance: number) {
-  const transition = getBiomeTransition(distance);
-  const from = WORLD_BIOME_PALETTES[transition.from];
-  const to = WORLD_BIOME_PALETTES[transition.to];
-  const horizon = new THREE.Color(from.horizon).lerp(new THREE.Color(to.horizon), transition.mix);
-  const middle = new THREE.Color(from.middle).lerp(new THREE.Color(to.middle), transition.mix);
-  const zenith = new THREE.Color(from.zenith).lerp(new THREE.Color(to.zenith), transition.mix);
-  const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
-  const positions = geometry.getAttribute("position");
-  const color = new THREE.Color();
-
-  for (let index = 0; index < positions.count; index += 1) {
-    const elevation = positions.getY(index) / WORLD_RADIUS;
-    if (elevation < 0.1) {
-      color.copy(horizon).lerp(middle, THREE.MathUtils.smoothstep(elevation, -0.82, 0.18));
-    } else {
-      color.copy(middle).lerp(zenith, THREE.MathUtils.smoothstep(elevation, 0.05, 0.9));
-    }
-    colors.setXYZ(index, color.r, color.g, color.b);
-  }
-  colors.needsUpdate = true;
-}
 
 function createRoadTexture() {
   const size = 512;
@@ -241,58 +213,6 @@ function createRoadTexture() {
   };
 }
 
-function createCloudTexture(seed: number, warm: boolean) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 768;
-  canvas.height = 256;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Gökyüzü bulutları için 2D canvas oluşturulamadı.");
-  const random = seededRandom(seed);
-  const cloudColor = warm ? "255,226,194" : "246,250,255";
-
-  for (let index = 0; index < 22; index += 1) {
-    const x = random() * canvas.width;
-    const y = 102 + random() * 64;
-    const radius = 24 + random() * 48;
-    for (const wrap of [-canvas.width, 0, canvas.width]) {
-      const gradient = context.createRadialGradient(x + wrap, y, radius * 0.06, x + wrap, y, radius);
-      gradient.addColorStop(0, `rgba(${cloudColor},${0.19 + random() * 0.1})`);
-      gradient.addColorStop(0.52, `rgba(${cloudColor},0.09)`);
-      gradient.addColorStop(1, `rgba(${cloudColor},0)`);
-      context.fillStyle = gradient;
-      context.fillRect(x + wrap - radius, y - radius * 0.45, radius * 2, radius * 0.9);
-    }
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  return texture;
-}
-
-function createSunHaloTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 128;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Güneş halesi için 2D canvas oluşturulamadı.");
-  const gradient = context.createRadialGradient(64, 64, 2, 64, 64, 64);
-  gradient.addColorStop(0, "rgba(255,250,220,1)");
-  gradient.addColorStop(0.09, "rgba(255,238,184,.98)");
-  gradient.addColorStop(0.2, "rgba(255,198,123,.62)");
-  gradient.addColorStop(0.46, "rgba(255,172,103,.2)");
-  gradient.addColorStop(1, "rgba(255,158,92,0)");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 128, 128);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
 function cloneRepeatedTexture(texture: THREE.Texture, repeatX: number, repeatY: number) {
   const clone = texture.clone();
   clone.wrapS = THREE.RepeatWrapping;
@@ -304,108 +224,53 @@ function cloneRepeatedTexture(texture: THREE.Texture, repeatX: number, repeatY: 
 }
 
 function WorldSky({ motionRef }: { motionRef: Props["motionRef"] }) {
-  const geometry = useMemo(makeSkyGeometry, []);
-  const cloudGeometry = useMemo(() => new THREE.SphereGeometry(WORLD_RADIUS - 1, 32, 20), []);
-  const firstCloudTexture = useMemo(() => createCloudTexture(0x1023, true), []);
-  const secondCloudTexture = useMemo(() => createCloudTexture(0x3819, false), []);
-  const sunTexture = useMemo(createSunHaloTexture, []);
-  const skyRef = useRef<THREE.Mesh>(null);
-  const firstCloudRef = useRef<THREE.Mesh>(null);
-  const secondCloudRef = useRef<THREE.Mesh>(null);
-  const sunRef = useRef<THREE.Sprite>(null);
+  const background = useMemo(() => {
+    const pixels = new Uint8Array(
+      WORLD_SKY_BACKGROUND_WIDTH * WORLD_SKY_BACKGROUND_HEIGHT * 4,
+    );
+    const texture = new THREE.DataTexture(
+      pixels,
+      WORLD_SKY_BACKGROUND_WIDTH,
+      WORLD_SKY_BACKGROUND_HEIGHT,
+      THREE.RGBAFormat,
+    );
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    return { pixels, texture };
+  }, []);
   const lastPaintedBiome = useMemo(() => ({ biome: "", mix: -1 }), []);
-  const { scene, camera } = useThree();
-  const skyCenter = useMemo(() => new THREE.Vector3(), []);
-  const sunPosition = useMemo(() => new THREE.Vector3(), []);
-  const sunDirection = useMemo(() => new THREE.Vector3(), []);
-  const sunRight = useMemo(() => new THREE.Vector3(), []);
-  const sunUp = useMemo(() => new THREE.Vector3(), []);
-  useEffect(() => () => {
-    geometry.dispose();
-    cloudGeometry.dispose();
-    firstCloudTexture.dispose();
-    secondCloudTexture.dispose();
-    sunTexture.dispose();
-  }, [cloudGeometry, firstCloudTexture, geometry, secondCloudTexture, sunTexture]);
+  const { scene } = useThree();
+  useLayoutEffect(() => {
+    const previousBackground = scene.background;
+    const previousBackgroundIntensity = scene.backgroundIntensity;
+    scene.background = background.texture;
+    scene.backgroundIntensity = 1;
+    return () => {
+      if (scene.background === background.texture) scene.background = previousBackground;
+      scene.backgroundIntensity = previousBackgroundIntensity;
+      background.texture.dispose();
+    };
+  }, [background, scene]);
   useFrame(() => {
-    const hasHdriSky = scene.background instanceof THREE.Texture;
-    if (skyRef.current) skyRef.current.visible = !hasHdriSky;
-    if (firstCloudRef.current) firstCloudRef.current.visible = !hasHdriSky;
-    if (secondCloudRef.current) secondCloudRef.current.visible = !hasHdriSky;
-    if (!hasHdriSky) {
-      syncSkyShellPositions(
-        camera,
-        skyCenter,
-        skyRef.current,
-        firstCloudRef.current,
-        secondCloudRef.current,
-      );
-    }
-    if (sunRef.current) {
-      sunRef.current.visible = !hasHdriSky;
-      if (!hasHdriSky) {
-        camera.getWorldPosition(sunPosition);
-        camera.getWorldDirection(sunDirection);
-        sunRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
-        sunUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
-        sunPosition
-          .addScaledVector(sunDirection, WORLD_RADIUS * 0.88)
-          .addScaledVector(sunRight, -WORLD_RADIUS * 0.25)
-          .addScaledVector(sunUp, WORLD_RADIUS * 0.06);
-        sunRef.current.position.copy(sunPosition);
-      }
-    }
     const transition = getBiomeTransition(motionRef.current.distance);
     if (transition.biome !== lastPaintedBiome.biome || Math.abs(transition.mix - lastPaintedBiome.mix) > 0.012) {
-      paintSky(geometry, motionRef.current.distance);
+      paintWorldSkyGradient(
+        background.pixels,
+        WORLD_SKY_BACKGROUND_WIDTH,
+        WORLD_SKY_BACKGROUND_HEIGHT,
+        motionRef.current.distance,
+      );
+      background.texture.needsUpdate = true;
       lastPaintedBiome.biome = transition.biome;
       lastPaintedBiome.mix = transition.mix;
     }
+    if (scene.background !== background.texture) scene.background = background.texture;
   });
-  return (
-    <>
-      <mesh ref={skyRef} geometry={geometry} frustumCulled={false} renderOrder={-1000}>
-        <meshBasicMaterial
-          vertexColors
-          side={THREE.BackSide}
-          toneMapped={false}
-          fog={false}
-          {...SKY_BACKGROUND_DEPTH_STATE}
-        />
-      </mesh>
-      <mesh ref={firstCloudRef} geometry={cloudGeometry} frustumCulled={false} renderOrder={-29}>
-        <meshBasicMaterial
-          map={firstCloudTexture}
-          transparent
-          opacity={0.62}
-          side={THREE.BackSide}
-          depthWrite={false}
-          toneMapped={false}
-          fog={false}
-        />
-      </mesh>
-      <mesh ref={secondCloudRef} geometry={cloudGeometry} scale={[1, 1, 0.995]} frustumCulled={false} renderOrder={-28}>
-        <meshBasicMaterial
-          map={secondCloudTexture}
-          transparent
-          opacity={0.42}
-          side={THREE.BackSide}
-          depthWrite={false}
-          toneMapped={false}
-          fog={false}
-        />
-      </mesh>
-      <sprite ref={sunRef} scale={[44, 44, 1]} frustumCulled={false} renderOrder={-27}>
-        <spriteMaterial
-          map={sunTexture}
-          transparent
-          depthWrite={false}
-          toneMapped={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </sprite>
-    </>
-  );
+  return null;
 }
 
 function RidgeLayer({
