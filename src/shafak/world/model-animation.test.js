@@ -109,7 +109,7 @@ test("player animation states map to the Quaternius hero clips and leave jump to
     && channel.target.path === "rotation")));
 });
 
-test("rivals use the selected player-like archetype models while bosses use the static knight", () => {
+test("rivals and chapter bosses use animated player-like rigs with distinct boss scale", () => {
   const archetypes = [
     "gate-warden",
     "iron-oath",
@@ -141,9 +141,11 @@ test("rivals use the selected player-like archetype models while bosses use the 
     assert.equal(config.appearance.cape, profile.appearance.cape);
     assert.ok(config.tintColor);
     if (profile.archetype === "chapter-boss") {
-      assert.equal(config.modelPath, "/models/fantasy_knight.glb");
-      assert.equal(config.targetHeight, 2.2);
-      assert.deepEqual(config.modelRotation, [-Math.PI / 2, 0, 0]);
+      assert.equal(config.modelPath, "/models/player-hero.glb");
+      assert.equal(config.targetHeight, 3.35);
+      assert.equal(config.rootBoneName, "Root");
+      assert.equal(config.modelRotation, undefined);
+      assert.ok(config.animationClips.attack?.includes("Dagger_Attack"));
       assert.equal(config.isBoss, true);
     } else {
       const [modelPath, weapon, attackClips] = expectedModels[profile.archetype];
@@ -155,7 +157,7 @@ test("rivals use the selected player-like archetype models while bosses use the 
   }
   assert.equal(
     getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
-    "#bd5a56",
+    "#c7463f",
   );
 });
 

@@ -29,7 +29,6 @@ test("rival archetypes select fitted, independently skinned hero bases and bound
     "/models/player-hero.glb",
     "/models/human.glb",
     "/models/base-character.glb",
-    "/models/fantasy_knight.glb",
   ]));
   for (const config of configs.slice(0, -1)) {
     assert.ok(config.scale >= 0.95 && config.scale <= 1.1);
@@ -70,9 +69,15 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(venomConfig.weapon, "daggers");
   assert.equal(frostConfig.appearance.armorLight, "#c8e1e5");
   assert.equal(frostConfig.weapon, "bow");
-  assert.equal(bossConfig.modelPath, "/models/fantasy_knight.glb");
-  assert.equal(bossConfig.targetHeight, 2.2);
+  assert.equal(bossConfig.modelPath, "/models/player-hero.glb");
+  assert.equal(bossConfig.targetHeight, 3.35);
+  assert.equal(bossConfig.rootBoneName, "Root");
+  assert.equal(bossConfig.modelFacing, Math.PI);
   assert.equal(bossConfig.tintStrength, 0.22);
   assert.equal(bossConfig.weapon, "greatsword");
   assert.equal(bossConfig.isBoss, true);
+  assert.equal(bossConfig.costume.helmet, true);
+  assert.equal(bossConfig.costume.cape, true);
+  assert.equal(bossConfig.costume.horns, false);
+  assert.ok(bossConfig.animationClips.attack?.length);
 });

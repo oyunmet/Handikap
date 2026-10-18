@@ -173,7 +173,7 @@ export function getAnimatedRivalModelConfig(
     "ember-alchemist": "/models/base-character.glb",
     "venom-assassin": "/models/player-hero.glb",
     "frost-hunter": "/models/base-character.glb",
-    "chapter-boss": "/models/fantasy_knight.glb",
+    "chapter-boss": "/models/player-hero.glb",
   };
   const modelPath = isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
   const heroAnimations = {
@@ -254,7 +254,7 @@ export function getAnimatedRivalModelConfig(
     "ember-alchemist": { cape: true, hood: true, mask: false, helmet: false, horns: false, shoulders: "leather" },
     "venom-assassin": { cape: true, hood: true, mask: true, helmet: false, horns: false, shoulders: "leather" },
     "frost-hunter": { cape: true, hood: true, mask: false, helmet: false, horns: false, shoulders: "fur" },
-    "chapter-boss": { cape: false, hood: false, mask: false, helmet: true, horns: true, shoulders: "metal" },
+    "chapter-boss": { cape: true, hood: false, mask: true, helmet: true, horns: false, shoulders: "metal" },
   };
   const colors = paletteByArchetype[selectedArchetype];
   const usePlayerHero = modelPath === "/models/player-hero.glb";
@@ -264,13 +264,12 @@ export function getAnimatedRivalModelConfig(
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
     modelFacing: usePlayerHero ? Math.PI : 0,
-    rootBoneName: isBoss ? "world" : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
-    targetHeight: isBoss ? 2.2 : 1.8,
-    modelRotation: isBoss ? [-Math.PI / 2, 0, 0] as const : undefined,
+    rootBoneName: useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+    targetHeight: isBoss ? 3.35 : 1.8,
     isBoss,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
     tintStrength: isBoss ? 0.22 : 0.68,
-    animationClips: isBoss ? {} : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+    animationClips: usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
     weapon,
     appearance,
     materialNameAliases,

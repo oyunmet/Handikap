@@ -37,7 +37,7 @@ const GATE_BOSS_MODEL_CONFIG = getAnimatedRivalModelConfig("Demir Taç", GATE_BO
 function GateBossGuard() {
   const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
   return (
-    <group position={[0, 0, 1.85]}>
+    <group position={[0, 0, 1.85]} userData={{ cameraCollisionIgnore: true }}>
       <KnightActor
         motionRef={motionRef}
         state="idle"
@@ -651,6 +651,7 @@ function WorldProp({
       position={[object.lane * 9.3, 0, 0]}
       rotation={[0, (object.flickerSeed % 628) / 100, 0]}
       scale={scale}
+      userData={{ cameraOccluder: true }}
     >
       {object.kind === "tower" && (
         <group>
@@ -1193,6 +1194,7 @@ export function FinalGate({
     <group
       ref={groupRef}
       position={[0, 0, motionRef.current.cameraX - gateDistanceAtRender]}
+      userData={{ cameraOccluder: true }}
     >
       {([-1, 1] as const).map((side) => (
         <RouteGatePortal

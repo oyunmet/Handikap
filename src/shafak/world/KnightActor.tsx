@@ -52,7 +52,6 @@ import { attachOpponentCostume, type AttachedOpponentCostume } from "./opponent-
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
-import IronCrownActor from "./IronCrownActor";
 
 export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -794,7 +793,6 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
 export default function KnightActor(props: KnightActorProps) {
   const { modelConfig, appearance, castShadow = true } = props;
-  if (modelConfig?.isBoss) return <IronCrownActor {...props} />;
   const targetHeight = modelConfig?.targetHeight ?? PLAYER_CHARACTER_TARGET_HEIGHT;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
