@@ -50,6 +50,7 @@ export type OpponentModelConfig = {
   scale: number;
   modelFacing: number;
   rootBoneName: string;
+  preserveOriginalMaterialAliases?: readonly string[];
   targetHeight?: number;
   modelRotation?: readonly [number, number, number];
   tintColor?: string;
@@ -265,6 +266,7 @@ export function getAnimatedRivalModelConfig(
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
     modelFacing: usePlayerHero ? Math.PI : 0,
     rootBoneName: useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+    preserveOriginalMaterialAliases: useHuman ? ["texture"] : undefined,
     targetHeight: isBoss ? 3.35 : 1.8,
     isBoss,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),

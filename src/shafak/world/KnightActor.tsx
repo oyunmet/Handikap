@@ -195,6 +195,11 @@ function prepareModel(
     const materials = originalMaterials.map((original) => {
       const materialName = normalizeMaterialName(original.name);
       const meshName = normalizeMaterialName(object.name);
+      const preserveOriginal = modelConfig?.preserveOriginalMaterialAliases?.some((alias) => {
+        const normalizedAlias = normalizeMaterialName(alias);
+        return materialName.includes(normalizedAlias) || meshName.includes(normalizedAlias);
+      }) ?? false;
+      if (preserveOriginal) return original;
       const aliases = materialNameAliases;
       const matches = (values: readonly string[] | undefined) =>
         values?.some((alias) => {

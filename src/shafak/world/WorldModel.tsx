@@ -1,6 +1,6 @@
 import { Html, useProgress } from "@react-three/drei";
 import { useFrame, useLoader } from "@react-three/fiber";
-import { Component, useMemo, useRef } from "react";
+import { Component, useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject, ReactNode } from "react";
 import * as THREE from "three";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -9,6 +9,13 @@ import type { WorldMotion } from "./movement";
 import type { WorldObject } from "./world-generation";
 import { applyRockPbrMaterials } from "./procedural-materials";
 import { capWorldTextures } from "./texture-budget.ts";
+import {
+  getWorldAssetKind,
+  getWorldAssetRepresentativeNode,
+  getWorldAssetSizeTarget,
+  getWorldModelFitScale,
+} from "./world-model-sizing.ts";
+export { getWorldAssetKind as getWorldAssetFallbackKind } from "./world-model-sizing.ts";
 import {
   createRoadShoulderGeometry,
   getNaturalRockGeometry,
@@ -50,11 +57,12 @@ export function raycastWorldGround(x: number, z: number) {
 
 type ModelProps = {
   src: string;
-  height: number;
+  height?: number;
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
   castShadow?: boolean;
+  disposeOnUnmount?: boolean;
 };
 
 type WorldAssetErrorBoundaryProps = {
@@ -85,16 +93,7 @@ export function WorldAssetErrorBoundary(props: WorldAssetErrorBoundaryProps) {
   return <WorldAssetLoadBoundary {...props} />;
 }
 
-export type WorldAssetFallbackKind = "rock" | "barrel" | "chest" | "vase" | "generic";
-
-export function getWorldAssetFallbackKind(src: string): WorldAssetFallbackKind {
-  const path = src.toLowerCase();
-  if (path.includes("rock")) return "rock";
-  if (path.includes("barrel")) return "barrel";
-  if (path.includes("chest")) return "chest";
-  if (path.includes("vase")) return "vase";
-  return "generic";
-}
+export type WorldAssetFallbackKind = ReturnType<typeof getWorldAssetKind>;
 
 const FALLBACK_ROCK_MATERIAL = new THREE.MeshStandardMaterial({
   color: "#aaa595",
@@ -157,26 +156,59 @@ export function WorldAssetFallback({
   rotation = [0, 0, 0],
   scale = 1,
   castShadow = false,
+  disposeOnUnmount = false,
 }: ModelProps) {
-  const kind = getWorldAssetFallbackKind(src);
+  const kind = getWorldAssetKind(src);
+  const sizing = getWorldAssetSizeTarget(src);
+  const targetHeight = height ?? sizing.targetHeight;
+  const rockFit = getWorldModelFitScale(
+    { x: 0.169, y: 0.144, z: 0.32 },
+    targetHeight,
+    sizing.maxDimension,
+  );
+  const rockGeometry = useMemo(
+    () => disposeOnUnmount ? getNaturalRockGeometry(2).clone() : getNaturalRockGeometry(2),
+    [disposeOnUnmount],
+  );
+  const rockSecondaryGeometry = useMemo(
+    () => disposeOnUnmount ? getNaturalRockGeometry(4).clone() : getNaturalRockGeometry(4),
+    [disposeOnUnmount],
+  );
+  const rockMaterial = useMemo(
+    () => disposeOnUnmount ? FALLBACK_ROCK_MATERIAL.clone() : FALLBACK_ROCK_MATERIAL,
+    [disposeOnUnmount],
+  );
+
+  useEffect(() => {
+    if (!disposeOnUnmount) return undefined;
+    return () => {
+      rockGeometry.dispose();
+      rockSecondaryGeometry.dispose();
+      rockMaterial.dispose();
+    };
+  }, [disposeOnUnmount, rockGeometry, rockMaterial, rockSecondaryGeometry]);
 
   return (
-    <group position={position} rotation={rotation} scale={scale}>
+    <group
+      position={position}
+      rotation={rotation}
+      scale={scale * (kind === "rock" ? rockFit : 1)}
+    >
       {kind === "rock" && (
         <group>
           <mesh
-            geometry={getNaturalRockGeometry(2)}
-            material={FALLBACK_ROCK_MATERIAL}
-            position={[0, height * 0.49, 0]}
-            scale={[height * 0.64, height * 0.49, height * 0.61]}
+            geometry={rockGeometry}
+            material={rockMaterial}
+            position={[0, 0.072, 0]}
+            scale={[0.0845, 0.072, 0.16]}
             castShadow={castShadow}
             receiveShadow={castShadow}
           />
           <mesh
-            geometry={getNaturalRockGeometry(4)}
-            material={FALLBACK_ROCK_MATERIAL}
-            position={[height * 0.26, height * 0.2, -height * 0.2]}
-            scale={[height * 0.23, height * 0.2, height * 0.25]}
+            geometry={rockSecondaryGeometry}
+            material={rockMaterial}
+            position={[0.017, 0.026, -0.048]}
+            scale={[0.02, 0.026, 0.027]}
             castShadow={castShadow}
             receiveShadow={castShadow}
           />
@@ -271,23 +303,57 @@ function LoadedWorldAssetModel({
   rotation = [0, 0, 0],
   scale = 1,
   castShadow = false,
+  disposeOnUnmount = false,
 }: ModelProps) {
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
-  const normalizedScene = useMemo(() => {
-    capWorldTextures(gltf.scene);
-    const model = gltf.scene.clone(true);
-    if (getWorldAssetFallbackKind(src) === "rock") applyRockPbrMaterials(model);
+  const normalizedAsset = useMemo(() => {
+    gltf.scene.updateMatrixWorld(true);
+    let model = gltf.scene.clone(true);
+    const representativeName = getWorldAssetRepresentativeNode(src);
+    if (representativeName) {
+      const representative = model.getObjectByName(representativeName);
+      if (!representative) {
+        throw new Error(`World asset "${src}" is missing expected node "${representativeName}".`);
+      }
+      const sourceTransform = representative.matrixWorld.clone();
+      representative.removeFromParent();
+      const isolated = new THREE.Group();
+      isolated.name = representativeName;
+      sourceTransform.decompose(isolated.position, isolated.quaternion, isolated.scale);
+      isolated.add(representative);
+      representative.position.set(0, 0, 0);
+      representative.rotation.set(0, 0, 0);
+      representative.scale.set(1, 1, 1);
+      model = isolated;
+    }
+    capWorldTextures(model);
+    if (getWorldAssetKind(src) === "rock") applyRockPbrMaterials(model);
     model.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
-    const fit = height / Math.max(size.y, 0.001);
+    const sizing = getWorldAssetSizeTarget(src);
+    const fit = getWorldModelFitScale(size, height ?? sizing.targetHeight, sizing.maxDimension);
     const center = bounds.getCenter(new THREE.Vector3());
-    model.scale.setScalar(fit);
+    model.scale.multiplyScalar(fit);
     model.position.set(-center.x * fit, -bounds.min.y * fit, -center.z * fit);
+    const ownedGeometries: THREE.BufferGeometry[] = [];
+    const ownedMaterials: THREE.Material[] = [];
     model.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = castShadow;
       child.receiveShadow = castShadow;
+      if (disposeOnUnmount) {
+        child.geometry = child.geometry.clone();
+        ownedGeometries.push(child.geometry);
+        const cloneMaterial = (material: THREE.Material) => {
+          const clone = material.clone();
+          ownedMaterials.push(clone);
+          return clone;
+        };
+        child.material = Array.isArray(child.material)
+          ? child.material.map(cloneMaterial)
+          : cloneMaterial(child.material);
+      }
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach((material) => {
         for (const value of Object.values(material)) {
@@ -296,12 +362,17 @@ function LoadedWorldAssetModel({
       });
     });
     model.updateMatrixWorld(true);
-    return model;
-  }, [castShadow, gltf.scene, height]);
+    return { model, ownedGeometries, ownedMaterials };
+  }, [castShadow, disposeOnUnmount, gltf.scene, height, src]);
+
+  useEffect(() => () => {
+    normalizedAsset.ownedGeometries.forEach((geometry) => geometry.dispose());
+    normalizedAsset.ownedMaterials.forEach((material) => material.dispose());
+  }, [normalizedAsset]);
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
-      <primitive object={normalizedScene} dispose={null} />
+      <primitive object={normalizedAsset.model} dispose={null} />
     </group>
   );
 }
@@ -322,7 +393,7 @@ type ModelPart = {
 
 type AssetBatchProps = {
   src: string;
-  targetHeight: number;
+  targetHeight?: number;
   items: readonly WorldObject[];
   motionRef: MutableRefObject<WorldMotion>;
   maxVisibleDistance?: number;
@@ -406,18 +477,38 @@ export function WorldAssetInstanceBatch({
 }: AssetBatchProps) {
   const gltf = useLoader(GLTFLoader, src, configureWorldGLTFLoader);
   const { parts, fitTransform } = useMemo(() => {
-    capWorldTextures(gltf.scene);
-    if (getWorldAssetFallbackKind(src) === "rock") applyRockPbrMaterials(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(gltf.scene);
+    let model = gltf.scene.clone(true);
+    const representativeName = getWorldAssetRepresentativeNode(src);
+    if (representativeName) {
+      const representative = model.getObjectByName(representativeName);
+      if (!representative) {
+        throw new Error(`World asset "${src}" is missing expected node "${representativeName}".`);
+      }
+      const sourceTransform = representative.matrixWorld.clone();
+      representative.removeFromParent();
+      const isolated = new THREE.Group();
+      isolated.name = representativeName;
+      sourceTransform.decompose(isolated.position, isolated.quaternion, isolated.scale);
+      isolated.add(representative);
+      representative.position.set(0, 0, 0);
+      representative.rotation.set(0, 0, 0);
+      representative.scale.set(1, 1, 1);
+      model = isolated;
+    }
+    capWorldTextures(model);
+    if (getWorldAssetKind(src) === "rock") applyRockPbrMaterials(model);
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
-    const fit = targetHeight / Math.max(size.y, 0.001);
+    const sizing = getWorldAssetSizeTarget(src);
+    const fit = getWorldModelFitScale(size, targetHeight ?? sizing.targetHeight, sizing.maxDimension);
     const center = bounds.getCenter(new THREE.Vector3());
     const fitTransform = new THREE.Matrix4()
       .makeTranslation(-center.x * fit, -bounds.min.y * fit, -center.z * fit)
       .multiply(new THREE.Matrix4().makeScale(fit, fit, fit));
     const parts: ModelPart[] = [];
-    gltf.scene.traverse((child) => {
+    model.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = castShadow;
       child.receiveShadow = castShadow;
@@ -428,7 +519,7 @@ export function WorldAssetInstanceBatch({
       });
     });
     return { parts, fitTransform };
-  }, [castShadow, gltf.scene, targetHeight]);
+  }, [castShadow, gltf.scene, src, targetHeight]);
 
   return (
     <group>

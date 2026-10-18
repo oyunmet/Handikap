@@ -1,0 +1,17 @@
+SORUN: Oyunun TÜM bölümlerinde (belirli bir bölüme özgü değil) engel/prop/NPC mesh'leri orantısız büyük render ediliyor. Oyuncu bir engele (Düşen Kaya mor kristal, Dikenli Tuzak kapısı, ahşap yapılar vb.) yaklaşınca kamera mesh'in içine giriyor ve ekranın tamamı mor/gri düz yüzeylerle kaplanıyor. Oyun oynanamıyor. Ek belirtiler: (1) bazı karelerde ekranı kaplayan dev gri/beyaz düzlemler, (2) Mor Hançer NPC'sinin gövdesi yok, sadece siyah saç/kafa kümesi havada duruyor. Hepsi global ölçek/kamera sorunu gibi görünüyor. Semptomu maskeleme, KÖKTEN çöz.
+
+YAP:
+
+1. TEŞHİS (önce, kod değiştirmeden): Tüm sahnelerdeki hazard/prop/NPC mesh'lerinin adını, world-space boyutunu (Box3.setFromObject → getSize) ve world scale'ini konsola yazdıran bir debug fonksiyonu ekle (?debug=1 ile açılsın). Karakter boyuna (~1.7 birim) göre 3 kattan büyük olan her şeyi listele. Kök nedeni bul: model birimi (cm/m), scale'in iki kez uygulanması (parent × child), yanlış import ölçeği veya bounding box'a göre normalize edilmemesi.
+
+2. ÖLÇEK: Tüm hazard/prop/NPC'leri, hangi bölümde olurlarsa olsunlar, yüklerken bounding box'a göre hedef boyuta normalize et (örn. Düşen Kaya max ~1.5–2 m, Dikenli Tuzak kapısı yol genişliğinin yarısı, NPC ≈ oyuncu boyu). Hedef boyutları tek bir merkezi config dosyasında topla; bölümlere özel ölçek hack'i ekleme.
+
+3. DÜŞEN KAYA DAVRANIŞI: Kaya yolda sabit dev blok olarak durmamalı. Oyuncu tetik mesafesine girince yolun bir şeridinde gölge/işaretle uyarı versin, yukarıdan düşsün, yere çarpınca kısa süre sonra yok olsun (geometry/material dispose et). Oyuncu "yana kaç" ile kaçabilmeli. Çarpışma kutusu görsel boyutla eşleşsin.
+
+4. KAMERA (global): (a) Oyuncudan kameraya raycast at; engel varsa kamerayı engelin önüne çek (spring-arm/collision). (b) camera.near değerini 0.1–0.3 arasına ayarla. (c) Kamera hiçbir mesh'in içine giremesin. (d) Kamera ile oyuncu arasında kalan mesh'leri geçici yarı saydam yap.
+
+5. DİĞERLERİ: Gri/beyaz dev düzlemlerin ne olduğunu bul (fog planı, skybox, duvar vb.) ve doğru boyuta/konuma getir. Mor Hançer NPC'sinin gövde/kıyafet mesh'inin neden yüklenmediğini veya gizlendiğini düzelt (saç tek başına render ediliyor).
+
+6. DOĞRULAMA: Mobil dikey ekranda (390×844) TÜM bölümleri baştan sona koş. Hiçbir karede ekranın %25'inden fazlasını tek bir mesh kaplamasın. Tüm engel türleri (Düşen Kaya, Dikenli Tuzak, Alçak Giriş) her bölümde doğru çalışsın. Yaptığın değişiklikleri ve bulduğun kök nedeni kısaca özetle.
+
+Kural: Sadece scale/clipping'i gizleyen hack yapma (örn. mesh'i görünmez yapmak). Kök nedeni düzelt.

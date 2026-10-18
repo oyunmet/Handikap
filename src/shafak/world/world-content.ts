@@ -3,6 +3,7 @@ import { WORLD_SEED } from "./world-generation.ts";
 import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } from "./world-bot-profiles.ts";
 import type { WorldRouteDifficulty } from "./route-difficulty.ts";
 import type { CombatDifficulty } from "../game/combat-engine.ts";
+import { WORLD_ROCK_OBSTACLE_DIMENSIONS } from "./world-model-sizing.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -283,7 +284,7 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       kind: "rock",
       x: -4.1,
       distance: chapterStart + 42,
-      width: 2.1,
+      width: WORLD_ROCK_OBSTACLE_DIMENSIONS.width,
       health: 0,
     },
     {
@@ -292,7 +293,7 @@ function createObstacles(chapterId: number): WorldObstacle[] {
       kind: "falling-rock-trap",
       x: -3.2,
       distance: chapterStart + 128,
-      width: 2.4,
+      width: WORLD_ROCK_OBSTACLE_DIMENSIONS.width,
       health: 0,
     },
     {
@@ -501,10 +502,14 @@ export function buildWorldCollisionGrid(chapters: readonly WorldChapterContent[]
         id: obstacle.id,
         x: obstacle.x,
         distance: obstacle.distance,
-        shape: obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap" ? "circle" : "box",
+        shape: "box",
         radius: obstacle.width * 0.44,
-        halfWidth: obstacle.width / 2,
-        halfDepth: obstacle.kind === "barricade" || obstacle.kind === "low-bar"
+        halfWidth: obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap"
+          ? WORLD_ROCK_OBSTACLE_DIMENSIONS.width / 2
+          : obstacle.width / 2,
+        halfDepth: obstacle.kind === "rock" || obstacle.kind === "falling-rock-trap"
+          ? WORLD_ROCK_OBSTACLE_DIMENSIONS.depth / 2
+          : obstacle.kind === "barricade" || obstacle.kind === "low-bar"
           ? 0.24
           : obstacle.kind === "barrel"
             ? 0.43
@@ -547,6 +552,7 @@ export function resolveWorldPathCollision(
   brokenObstacleIds: ReadonlySet<string>,
   target: { x: number; distance: number } = { x: 0, distance: 0 },
   clearance: { crouching?: boolean; jumpHeight?: number } = {},
+  ignoredColliderIds?: ReadonlySet<string>,
 ) {
   const startX = Number.isFinite(previousX) ? previousX : 0;
   const startDistance = Number.isFinite(previousDistance) ? Math.max(0, previousDistance) : 0;
@@ -576,6 +582,7 @@ export function resolveWorldPathCollision(
         for (const collider of colliders) {
           const gap = collider.distance - distance;
           if (gap < -1.5) continue;
+          if (ignoredColliderIds?.has(collider.id)) continue;
           if (collider.breakableId && brokenObstacleIds.has(collider.breakableId)) continue;
           if (collider.requiredAction === "crouch" && clearance.crouching) continue;
           if (collider.requiredAction === "jump" && (clearance.jumpHeight ?? 0) >= WORLD_JUMP_CLEARANCE_METERS) continue;

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export const WORLD_CAMERA_OCCLUSION_OPACITY = 0.04;
+export const WORLD_CAMERA_OCCLUSION_OPACITY = 0.32;
 
 export function isEffectivelyVisible(object: THREE.Object3D) {
   let current: THREE.Object3D | null = object;

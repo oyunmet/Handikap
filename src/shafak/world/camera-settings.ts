@@ -7,7 +7,7 @@ export type TravelCameraSettings = {
   runShake: number;
 };
 
-export const WORLD_CAMERA_NEAR = 0.35;
+export const WORLD_CAMERA_NEAR = 0.18;
 export const WORLD_SKY_RADIUS = 260;
 export const WORLD_CAMERA_FAR = WORLD_SKY_RADIUS + 80;
 export const WORLD_CAMERA_COLLISION_MARGIN = 0.4;

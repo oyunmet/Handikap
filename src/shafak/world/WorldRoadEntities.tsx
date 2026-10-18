@@ -1,6 +1,6 @@
 import { Html, Sparkles } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MutableRefObject, ReactNode } from "react";
 import KnightActor from "./KnightActor";
@@ -328,6 +328,7 @@ function Obstacle({
   maxVisibleDistance,
   labelVisible,
   interactableRegistry,
+  onFallingRockDespawn,
 }: {
   obstacle: WorldObstacle;
   motionRef: MotionRef;
@@ -335,11 +336,14 @@ function Obstacle({
   maxVisibleDistance: number;
   labelVisible: boolean;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
+  onFallingRockDespawn: (obstacleId: string) => void;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const warningRef = useRef<THREE.Mesh>(null);
   const fallingRockRef = useRef<THREE.Group>(null);
   const fallStartedAtRef = useRef<number | null>(null);
+  const fallingRockRemovedRef = useRef(false);
+  const [fallingRockRemoved, setFallingRockRemoved] = useState(false);
   const chestLidRef = useRef<THREE.Group>(null);
   const groundY = useMemo(() => raycastWorldGround(obstacle.x, -150), [obstacle.x]);
   useEffect(() => {
@@ -387,7 +391,8 @@ function Obstacle({
     rootRef.current.position.z = -(obstacle.distance - motionRef.current.cameraX);
     // Keep roadside gameplay objects in front of the player. A passed obstacle
     // must leave the camera corridor instead of enclosing the trailing camera.
-    rootRef.current.visible = Math.abs(gap) <= maxVisibleDistance
+    rootRef.current.visible = !fallingRockRemoved
+      && Math.abs(gap) <= maxVisibleDistance
       && (gap >= -1.5 || (broken && obstacle.health > 0));
     if (fallingRockRef.current) {
       if (gap <= 7.2 && fallStartedAtRef.current === null) {
@@ -398,9 +403,14 @@ function Obstacle({
         : Math.max(0, frame.clock.elapsedTime - fallStartedAtRef.current);
       const progress = THREE.MathUtils.clamp(elapsed / 0.48, 0, 1);
       const eased = 1 - (1 - progress) ** 3;
-      fallingRockRef.current.position.y = 5.2 - eased * 4.25;
+      fallingRockRef.current.position.y = 5.2 - eased * 5.15;
       fallingRockRef.current.rotation.x = 0.16 + eased * 0.82;
       fallingRockRef.current.rotation.z = -0.1 - eased * 0.36;
+      if (elapsed >= 1.16 && !fallingRockRemovedRef.current) {
+        fallingRockRemovedRef.current = true;
+        setFallingRockRemoved(true);
+        onFallingRockDespawn(obstacle.id);
+      }
     }
     if (chestLidRef.current) {
       const target = broken ? -1.18 : 0;
@@ -414,7 +424,16 @@ function Obstacle({
   });
 
   return (
-    <group ref={rootRef} userData={{ cameraCollisionIgnore: true }} position={[obstacle.x, groundY, 0]}>
+    <group
+      ref={rootRef}
+      name={`world-hazard:${obstacle.kind}:${obstacle.id}`}
+      userData={{
+        cameraOccluder: true,
+        worldModelCategory: "hazard",
+        worldModelLabel: `${obstacle.kind}:${obstacle.id}`,
+      }}
+      position={[obstacle.x, groundY, 0]}
+    >
       {labelVisible && (
         <Html position={[0, 2.12, 0]} center zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
           <WorldDistanceLabel
@@ -434,22 +453,24 @@ function Obstacle({
         </mesh>
       )}
       {obstacle.kind === "rock" ? (
-            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={1.95} castShadow />}>
-              <WorldAssetModel src="/assets/rock-wall.glb" height={1.95} castShadow />
+            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" castShadow />}>
+              <WorldAssetModel src="/assets/rock-wall.glb" castShadow />
         </Suspense>
       ) : obstacle.kind === "falling-rock-trap" ? (
-        <group>
-          <group ref={fallingRockRef} position={[0, 5.2, 0]}>
-            <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" height={2.16} castShadow />}>
-              <WorldAssetModel src="/assets/rock-wall.glb" height={2.16} castShadow />
-            </Suspense>
+        !fallingRockRemoved && (
+          <group>
+            <group ref={fallingRockRef} position={[0, 5.2, 0]}>
+              <Suspense fallback={<WorldAssetFallback src="/assets/rock-wall.glb" castShadow disposeOnUnmount />}>
+                <WorldAssetModel src="/assets/rock-wall.glb" castShadow disposeOnUnmount />
+              </Suspense>
+            </group>
+            <mesh ref={warningRef} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[1.75, 1.94, 28]} />
+              <meshBasicMaterial color="#ff795b" transparent opacity={0.52} side={THREE.DoubleSide} depthWrite={false} />
+            </mesh>
+            <Sparkles count={6} position={[0, 1.05, 0]} scale={[2.8, 0.5, 1.3]} size={2.4} speed={0.22} color="#d8bc9b" />
           </group>
-          <mesh ref={warningRef} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.75, 1.94, 28]} />
-            <meshBasicMaterial color="#ff795b" transparent opacity={0.52} side={THREE.DoubleSide} depthWrite={false} />
-          </mesh>
-          <Sparkles count={6} position={[0, 1.05, 0]} scale={[2.8, 0.5, 1.3]} size={2.4} speed={0.22} color="#d8bc9b" />
-        </group>
+        )
       ) : obstacle.kind === "treasure-chest" ? (
         <group>
           <mesh position={[0, 0.045, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -468,8 +489,8 @@ function Obstacle({
               </mesh>
             </group>
           ) : (
-            <Suspense fallback={<WorldAssetFallback src="/assets/treasure-chest.glb" height={1.24} />}>
-              <WorldAssetModel src="/assets/treasure-chest.glb" height={1.24} />
+            <Suspense fallback={<WorldAssetFallback src="/assets/treasure-chest.glb" />}>
+              <WorldAssetModel src="/assets/treasure-chest.glb" />
             </Suspense>
           )}
           {broken && (
@@ -496,8 +517,8 @@ function Obstacle({
             <Sparkles count={5} position={[0, 0.5, 0]} scale={1.1} size={2.4} speed={0.2} color="#f5c56d" />
           </group>
         ) : (
-          <Suspense fallback={<WorldAssetFallback src="/assets/wooden-barrel.glb" height={1.12} />}>
-            <WorldAssetModel src="/assets/wooden-barrel.glb" height={1.12} />
+          <Suspense fallback={<WorldAssetFallback src="/assets/wooden-barrel.glb" />}>
+            <WorldAssetModel src="/assets/wooden-barrel.glb" />
           </Suspense>
         )
       ) : obstacle.kind === "vase" ? (
@@ -512,8 +533,8 @@ function Obstacle({
             <Sparkles count={5} position={[0, 0.45, 0]} scale={0.9} size={2.2} speed={0.2} color="#f5c56d" />
           </group>
         ) : (
-          <Suspense fallback={<WorldAssetFallback src="/assets/ceramic-vase.glb" height={1.04} />}>
-            <WorldAssetModel src="/assets/ceramic-vase.glb" height={1.04} />
+          <Suspense fallback={<WorldAssetFallback src="/assets/ceramic-vase.glb" />}>
+            <WorldAssetModel src="/assets/ceramic-vase.glb" />
           </Suspense>
         )
       ) : obstacle.kind === "low-bar" ? (
@@ -810,7 +831,15 @@ function BotActor({
   botMotion.velocityY = 0;
 
   return (
-    <group ref={rootRef} userData={{ cameraCollisionIgnore: true }}>
+    <group
+      ref={rootRef}
+      name={`world-npc:${rival.name}:${rival.id}`}
+      userData={{
+        cameraOccluder: true,
+        worldModelCategory: "npc",
+        worldModelLabel: `${rival.name}:${rival.id}`,
+      }}
+    >
       <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
@@ -897,6 +926,7 @@ export default function WorldRoadEntities({
   dailyAccessAllowed,
   challengeLabel,
   onChallenge,
+  onFallingRockDespawn,
   reducedMotion,
   weather,
   interactableRegistry,
@@ -915,6 +945,7 @@ export default function WorldRoadEntities({
   dailyAccessAllowed: boolean;
   challengeLabel: string;
   onChallenge: (rival: WorldRival) => void;
+  onFallingRockDespawn: (obstacleId: string) => void;
   reducedMotion: boolean;
   weather: WeatherMode;
   interactableRegistry: WorldInteractableRegistry<WorldObstacle | WorldRival>;
@@ -962,6 +993,7 @@ export default function WorldRoadEntities({
           maxVisibleDistance={maxVisibleDistance}
           labelVisible={visibleLabelIds.has(`obstacle:${obstacle.id}`)}
           interactableRegistry={interactableRegistry}
+          onFallingRockDespawn={onFallingRockDespawn}
         />
       ))}
       {activeRivals.map((rival) => (
