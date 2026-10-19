@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
-import { KNIGHT_CONFIG } from "./knight-config";
+import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
@@ -82,7 +82,7 @@ export default function WorldV2Actor({
         playerFacingAngle.current = targetHeading;
       }
       const yawDelta = THREE.MathUtils.euclideanModulo(
-        targetHeading - root.rotation.y + Math.PI,
+        getKnightActorRootYaw(targetHeading) - root.rotation.y + Math.PI,
         Math.PI * 2,
       ) - Math.PI;
       root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
@@ -91,7 +91,7 @@ export default function WorldV2Actor({
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
       const directionX = playerPosition.x - x;
       const directionZ = playerPosition.z - actorZ;
-      root.rotation.y = Math.atan2(directionX, directionZ);
+      root.rotation.y = getKnightActorRootYaw(Math.atan2(directionX, directionZ));
     }
 
     const state = isPlayer ? animationState : "idle";
@@ -108,7 +108,7 @@ export default function WorldV2Actor({
 
   return (
     <group ref={rootRef} name={isPlayer ? "world-v2-player" : "world-v2-npc"}>
-      <group rotation={[0, -WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
+      <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
         <primitive object={model} dispose={null} />
       </group>
       <mesh

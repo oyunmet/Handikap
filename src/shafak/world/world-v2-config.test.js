@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getKnightActorRootYaw } from "./knight-config.ts";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config.ts";
 
 test("world-v2 headings follow camera-relative joystick directions", () => {
@@ -13,4 +14,12 @@ test("world-v2 headings follow camera-relative joystick directions", () => {
   assert.ok(getWorldV2Heading(-1, 0) < 0, "leftward movement turns toward the left lane");
   assert.equal(getWorldV2Heading(0, 0, 0.75), 0.75, "idle input keeps the last heading");
   assert.equal(WORLD_V2_CONFIG.modelFacing, Math.PI, "the GLB's native forward-axis offset is corrected");
+
+  const rootYaw = getKnightActorRootYaw(forwardYaw);
+  const renderedWorldHeading = rootYaw + WORLD_V2_CONFIG.modelFacing;
+  assert.ok(
+    Math.abs(Math.sin(renderedWorldHeading)) < 0.001
+      && Math.cos(renderedWorldHeading) < -0.999,
+    "the corrected GLB faces down the road instead of walking backward",
+  );
 });

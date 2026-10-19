@@ -8,6 +8,7 @@ import { WORLD_GATE_INTERVAL_METERS } from "./movement";
 import { nextGateDistanceForCamera } from "./world-generation";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
+import { shouldOpenWorldV2Gate } from "./world-v2-gate-state";
 import { WorldV2Label } from "./WorldV2Labels";
 
 type MotionRef = MutableRefObject<WorldMotion>;
@@ -21,8 +22,11 @@ export function WorldV2RouteGates({
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const routeSignsRef = useRef<THREE.Group>(null);
+  const leftDoorRef = useRef<THREE.Group>(null);
+  const rightDoorRef = useRef<THREE.Group>(null);
   const gateMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#807469", roughness: 0.92, flatShading: true }), []);
   const trimMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#c5a26e", metalness: 0.34, roughness: 0.54 }), []);
+  const doorMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#50382c", roughness: 0.88, flatShading: true }), []);
   const lampMaterial = useMemo(() => new THREE.MeshStandardMaterial({
     color: "#ffbd70",
     emissive: "#ff672d",
@@ -45,6 +49,8 @@ export function WorldV2RouteGates({
     7,
     false,
   ), []);
+  const doorPanelGeometry = useMemo(() => new THREE.BoxGeometry(4.45, 4.1, 0.32), []);
+  const doorBraceGeometry = useMemo(() => new THREE.BoxGeometry(3.72, 0.14, 0.1), []);
   const markCollision = (object: THREE.Object3D | null) => {
     object?.layers.enable(WORLD_V2_CAMERA_COLLISION_LAYER);
   };
@@ -52,11 +58,14 @@ export function WorldV2RouteGates({
   useEffect(() => () => {
     gateMaterial.dispose();
     trimMaterial.dispose();
+    doorMaterial.dispose();
     lampMaterial.dispose();
     archGeometry.dispose();
-  }, [archGeometry, gateMaterial, lampMaterial, trimMaterial]);
+    doorPanelGeometry.dispose();
+    doorBraceGeometry.dispose();
+  }, [archGeometry, doorBraceGeometry, doorMaterial, doorPanelGeometry, gateMaterial, lampMaterial, trimMaterial]);
 
-  useFrame(() => {
+  useFrame((_frame, delta) => {
     const motion = motionRef.current;
     const gateDistance = nextGateDistanceForCamera(
       motion.cameraX,
@@ -65,6 +74,29 @@ export function WorldV2RouteGates({
     if (rootRef.current) rootRef.current.position.z = -(gateDistance - motion.cameraX);
     const chapterAtGate = Math.max(0, Math.floor(gateDistance / WORLD_GATE_INTERVAL_METERS) - 1);
     if (routeSignsRef.current) routeSignsRef.current.visible = chapterAtGate <= unlockedThroughChapter;
+    const open = shouldOpenWorldV2Gate(
+      gateDistance - motion.distance,
+      chapterAtGate,
+      unlockedThroughChapter,
+    );
+    const targetAngle = open ? Math.PI * 0.49 : 0;
+    const safeDelta = Math.min(Math.max(delta, 0), 0.05);
+    if (leftDoorRef.current) {
+      leftDoorRef.current.rotation.y = THREE.MathUtils.damp(
+        leftDoorRef.current.rotation.y,
+        targetAngle,
+        8,
+        safeDelta,
+      );
+    }
+    if (rightDoorRef.current) {
+      rightDoorRef.current.rotation.y = THREE.MathUtils.damp(
+        rightDoorRef.current.rotation.y,
+        targetAngle,
+        8,
+        safeDelta,
+      );
+    }
   });
 
   return (
@@ -92,6 +124,35 @@ export function WorldV2RouteGates({
             <sphereGeometry args={[0.29, 10, 8]} />
             <primitive object={lampMaterial} attach="material" />
           </mesh>
+        </group>
+      ))}
+      {([-1, 1] as const).map((side) => (
+        <group
+          key={`gate-door-${side}`}
+          ref={side < 0 ? leftDoorRef : rightDoorRef}
+          name={side < 0 ? "world-v2-gate-door-left" : "world-v2-gate-door-right"}
+          position={[side * 4.1, 0.12, 0]}
+        >
+          <mesh
+            name="world-v2-gate-door-leaf"
+            geometry={doorPanelGeometry}
+            material={doorMaterial}
+            position={[-side * 2.225, 2.05, 0]}
+            castShadow
+            receiveShadow
+          />
+          <mesh
+            geometry={doorBraceGeometry}
+            material={trimMaterial}
+            position={[-side * 2.225, 0.55, 0.2]}
+            castShadow
+          />
+          <mesh
+            geometry={doorBraceGeometry}
+            material={trimMaterial}
+            position={[-side * 2.225, 3.55, 0.2]}
+            castShadow
+          />
         </group>
       ))}
       <mesh position={[0, 6.45, 0]}>
