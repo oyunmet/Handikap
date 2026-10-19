@@ -91,8 +91,13 @@ export function readWorldInput(
   const keyY = Number(keys.has("arrowup") || keys.has("w"))
     - Number(keys.has("arrowdown") || keys.has("s"));
   const hasKeyboardDirection = keyX !== 0 || keyY !== 0;
-  const x = hasKeyboardDirection ? keyX : finiteOrZero(analog.x);
-  const y = hasKeyboardDirection ? keyY : finiteOrZero(analog.y);
+  const analogX = finiteOrZero(analog.x);
+  const analogY = finiteOrZero(analog.y);
+  const isForwardOrBackwardTouch = !hasKeyboardDirection && Math.abs(analogY) >= 0.15;
+  const x = hasKeyboardDirection
+    ? keyX
+    : isForwardOrBackwardTouch && Math.abs(analogX) < 0.12 ? 0 : analogX;
+  const y = hasKeyboardDirection ? keyY : analogY;
   const magnitude = Math.hypot(x, y);
   const scale = magnitude > 1 ? 1 / magnitude : 1;
 

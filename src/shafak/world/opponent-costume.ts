@@ -148,18 +148,18 @@ export function attachOpponentCostume(
   if (style.helmet) {
     const helmet = mesh(
       headGear,
-      new THREE.SphereGeometry(0.205, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.56),
-      makeMaterial(armorColor, 0.74, 0.28),
-      new THREE.Vector3(0, 0.075, -0.015),
-      new THREE.Vector3(1.12, 1.08, 1.2),
+      new THREE.SphereGeometry(modelConfig.isBoss ? 0.235 : 0.205, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.56),
+      makeMaterial(modelConfig.isBoss ? "#7d8992" : armorColor, 0.68, 0.3),
+      new THREE.Vector3(0, 0.09, -0.015),
+      new THREE.Vector3(1.16, 1.12, 1.22),
     );
     if (modelConfig.isBoss) helmet.name = "demir-tac-helmet";
     helmet.material.side = THREE.DoubleSide;
     mesh(
       headGear,
-      new THREE.BoxGeometry(0.3, 0.045, 0.075),
-      makeMaterial(trim, 0.76, 0.24),
-      new THREE.Vector3(0, 0.02, 0.13),
+      new THREE.BoxGeometry(modelConfig.isBoss ? 0.34 : 0.3, 0.05, 0.075),
+      makeMaterial(modelConfig.isBoss ? "#c0c7cb" : trim, 0.68, 0.28),
+      new THREE.Vector3(0, 0.035, 0.145),
     );
   }
 
@@ -197,21 +197,21 @@ export function attachOpponentCostume(
   if (modelConfig.isBoss) {
     const crownBand = mesh(
       headGear,
-      new THREE.TorusGeometry(0.205, 0.032, 8, 24),
-      makeMaterial("#aeb7be", 0.42, 0.28),
-      new THREE.Vector3(0, 0.22, -0.015),
-      new THREE.Vector3(1.1, 0.84, 1),
+      new THREE.TorusGeometry(0.245, 0.038, 8, 24),
+      makeMaterial("#d1d9dd", 0.38, 0.3),
+      new THREE.Vector3(0, 0.25, -0.015),
+      new THREE.Vector3(1.08, 0.84, 1),
     );
     crownBand.name = "demir-tac-crown-band";
     crownBand.rotation.x = Math.PI / 2;
 
     for (const [index, x] of [-2, -1, 0, 1, 2].entries()) {
-      const height = index === 2 ? 0.29 : index % 2 === 0 ? 0.19 : 0.23;
+      const height = index === 2 ? 0.38 : index % 2 === 0 ? 0.25 : 0.3;
       const spike = mesh(
         headGear,
-        new THREE.ConeGeometry(index === 2 ? 0.045 : 0.034, height, 5),
-        makeMaterial(index === 2 ? "#d54b43" : "#aeb7be", 0.44, 0.28),
-        new THREE.Vector3(x * 0.075, 0.34 + height * 0.42, -0.015),
+        new THREE.ConeGeometry(index === 2 ? 0.052 : 0.04, height, 5),
+        makeMaterial(index === 2 ? "#df594f" : "#d1d9dd", 0.4, 0.3),
+        new THREE.Vector3(x * 0.09, 0.39 + height * 0.42, -0.015),
       );
       spike.name = `demir-tac-crown-spike-${index}`;
       spike.rotation.z = -x * 0.16;
@@ -219,7 +219,7 @@ export function attachOpponentCostume(
 
     const crownGem = mesh(
       headGear,
-      new THREE.OctahedronGeometry(0.065, 0),
+      new THREE.OctahedronGeometry(0.075, 0),
       new THREE.MeshStandardMaterial({
         color: "#df5148",
         emissive: "#a8232c",
@@ -227,7 +227,7 @@ export function attachOpponentCostume(
         metalness: 0.32,
         roughness: 0.34,
       }),
-      new THREE.Vector3(0, 0.18, 0.225),
+      new THREE.Vector3(0, 0.21, 0.255),
     );
     crownGem.name = "demir-tac-crown-gem";
 

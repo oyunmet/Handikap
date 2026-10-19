@@ -26,6 +26,7 @@ test("the chapter boss costume adds a readable iron crown, crimson armor marks, 
   const costume = attachOpponentCostume(model, config, config.appearance);
   const names = [];
   model.traverse((object) => names.push(object.name));
+  const headGear = head.getObjectByName("demir-tac-head-gear");
 
   assert.ok(names.includes("demir-tac-helmet"));
   assert.ok(names.includes("demir-tac-crown-band"));
@@ -36,6 +37,9 @@ test("the chapter boss costume adds a readable iron crown, crimson armor marks, 
   assert.ok(names.includes("demir-tac-angular-pauldron-left"));
   assert.ok(names.includes("demir-tac-angular-pauldron-right"));
   assert.ok(names.includes("demir-tac-crimson-cape"));
+  assert.equal(headGear?.parent, head, "the helmet and crown stay attached to the animated head bone");
+  assert.equal(headGear?.getObjectByName("demir-tac-helmet")?.parent, headGear);
+  assert.equal(headGear?.getObjectByName("demir-tac-crown-band")?.parent, headGear);
 
   costume.update(1.2);
   costume.dispose();

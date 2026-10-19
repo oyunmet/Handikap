@@ -61,6 +61,10 @@ export function paintWorldSkyGradient(
   const color = new THREE.Color();
   const rowBase = new THREE.Color();
   const srgbColor = new THREE.Color();
+  const warmHorizon = new THREE.Color(weather === "ash" ? "#e7b28f" : "#ffe0b4");
+  const sunCore = new THREE.Color("#fff0c8");
+  const sunHalo = new THREE.Color("#ffd18e");
+  const sunLongitude = Math.PI * 0.48;
 
   for (let y = 0; y < height; y += 1) {
     const latitude = Math.abs(y / (height - 1) - 0.5) * 2;
@@ -71,7 +75,22 @@ export function paintWorldSkyGradient(
     }
     rowBase.copy(color);
     for (let x = 0; x < width; x += 1) {
-      color.copy(rowBase).lerp(cloud, clouds[y * width + x] * (weather === "ash" ? 0.38 : 0.28));
+      const longitude = (x / width) * Math.PI * 2;
+      const longitudeDelta = Math.min(
+        Math.abs(longitude - sunLongitude),
+        Math.PI * 2 - Math.abs(longitude - sunLongitude),
+      );
+      const horizonGlow = Math.exp(-(((latitude - 0.06) / 0.2) ** 2)) * 0.2;
+      const sunDistance = ((longitudeDelta / 0.19) ** 2) + (((latitude - 0.2) / 0.12) ** 2);
+      const sunGlow = Math.exp(-sunDistance) * 0.42;
+      const sunDisc = Math.exp(
+        -((longitudeDelta / 0.028) ** 2) - (((latitude - 0.2) / 0.035) ** 2),
+      );
+      color.copy(rowBase)
+        .lerp(warmHorizon, horizonGlow)
+        .lerp(sunHalo, sunGlow)
+        .lerp(sunCore, sunDisc * 0.82)
+        .lerp(cloud, clouds[y * width + x] * (weather === "ash" ? 0.32 : 0.25));
       srgbColor.copy(color).convertLinearToSRGB();
       const offset = (y * width + x) * 4;
       pixels[offset] = Math.round(THREE.MathUtils.clamp(srgbColor.r, 0, 1) * 255);

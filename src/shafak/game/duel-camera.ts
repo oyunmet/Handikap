@@ -15,7 +15,6 @@ export const DUEL_JUMP_HEIGHT = 1.12;
 export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
-export const DUEL_CAMERA_ARENA_RADIUS = 9;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 
 export function getDuelJumpHeight(actor: DuelJumpState, tick: number) {
@@ -47,8 +46,6 @@ export function getDuelCameraPose(
   shoulderOffset = 0.45,
   jumpLift = 0,
   cameraHeading = DUEL_CAMERA_HEADING,
-  arenaRadius = DUEL_CAMERA_ARENA_RADIUS,
-  arenaCenterZ = DUEL_CAMERA_ARENA_CENTER_Z,
 ): DuelCameraPose {
   const dx = opponent.x - player.x;
   const dz = opponent.z - player.z;
@@ -68,27 +65,12 @@ export function getDuelCameraPose(
   const offsetScale = (baseOffsetLength + extraFramingDistance) / baseOffsetLength;
   const offsetX = baseOffsetX * offsetScale;
   const offsetZ = baseOffsetZ * offsetScale;
-  const maxCameraRadius = Math.max(0, arenaRadius - 0.35);
-  const targetOffsetZ = centerZ - arenaCenterZ;
-  const targetRadiusSquared = centerX * centerX + targetOffsetZ * targetOffsetZ;
-  const offsetLengthSquared = offsetX * offsetX + offsetZ * offsetZ;
-  const offsetDot = centerX * offsetX + targetOffsetZ * offsetZ;
-  const boundaryConstant = targetRadiusSquared - maxCameraRadius * maxCameraRadius;
-  const discriminant = Math.max(0, offsetDot * offsetDot - offsetLengthSquared * boundaryConstant);
-  const maximumOffsetScale = offsetLengthSquared > 0
-    ? Math.max(0, (-offsetDot + Math.sqrt(discriminant)) / offsetLengthSquared)
-    : 0;
-  const cameraScale = targetRadiusSquared > maxCameraRadius * maxCameraRadius
-    ? 0
-    : Math.min(1, maximumOffsetScale);
-  const cameraX = centerX + offsetX * cameraScale;
-  const cameraZ = centerZ + offsetZ * cameraScale;
 
   return {
     position: {
-      x: cameraX,
-    y: 2.6 + jumpLift * 0.16 + extraFramingDistance * 0.08,
-      z: worldOffsetZ + cameraZ,
+      x: centerX + offsetX,
+      y: 2.6 + jumpLift * 0.16 + extraFramingDistance * 0.08,
+      z: worldOffsetZ + centerZ + offsetZ,
     },
     target: {
       x: centerX,

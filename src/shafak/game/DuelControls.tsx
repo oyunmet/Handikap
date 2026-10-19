@@ -268,41 +268,32 @@ export default function DuelControls({
           <span>ZIPLA</span>
         </button>
       </div>
-      {weaponNames[1] && <div className="duel-weapon-select" role="group" aria-label="Düello silah seçimi">
-        <div className="duel-weapon-select__heading">
-          <span>DONANIM</span>
-          <b aria-hidden="true">V</b>
-          <span className="duel-weapon-select__prompt">SİLAH DEĞİŞTİR</span>
-        </div>
-        <div className="duel-weapon-select__slots">{weaponNames.map((name, slot) => {
-          if (!name) return null;
-          const selected = activeWeaponSlot === slot;
-          const ariaDisabled = selected || weaponSwapCooldownSeconds > 0 || disabled;
-          const slotLabel = slot === 0 ? "ANA SİLAH" : "İKİNCİ SİLAH";
-          return (
-            <button
-              key={slot}
-              className={`duel-weapon-select__slot${selected ? " is-active" : ""}`}
-              type="button"
-              aria-label={`${slotLabel}: ${name}${selected ? ", etkin" : ""}`}
-              aria-pressed={selected}
-              aria-disabled={ariaDisabled}
-              disabled={disabled || selected}
-              onClick={() => tapAction(
-                INPUT_BUTTON.weaponSwitch,
-                weaponSwapCooldownSeconds > 0
-                  ? `Silah değişimi için ${weaponSwapCooldownSeconds.toFixed(1)} saniye bekle.`
-                  : "",
-              )}
-            >
-              <span>{slot === 0 ? "1" : "2"}</span>
-              <small>{slotLabel}</small>
-              <strong>{name}</strong>
-              {selected && <i>ETKİN</i>}
-              {!selected && weaponSwapCooldownSeconds > 0 && <i>{weaponSwapCooldownSeconds.toFixed(1)} sn</i>}
-            </button>
-          );
-        })}</div>
+      {weaponNames[1] && <div className="duel-weapon-select">
+        <button
+          className="duel-weapon-switch"
+          type="button"
+          aria-label={`Silah değiştir. Etkin: ${weaponNames[activeWeaponSlot] ?? weaponNames[0]}. Diğer: ${weaponNames[activeWeaponSlot === 0 ? 1 : 0]}.`}
+          aria-disabled={disabled || weaponSwapCooldownSeconds > 0}
+          disabled={disabled}
+          onClick={() => tapAction(
+            INPUT_BUTTON.weaponSwitch,
+            weaponSwapCooldownSeconds > 0
+              ? `Silah değişimi için ${weaponSwapCooldownSeconds.toFixed(1)} saniye bekle.`
+              : "",
+          )}
+        >
+          <span className="duel-weapon-switch__key" aria-hidden="true">V</span>
+          <span className="duel-weapon-switch__active">
+            <small>ETKİN</small>
+            <strong>{weaponNames[activeWeaponSlot] ?? weaponNames[0]}</strong>
+          </span>
+          <b className="duel-weapon-switch__arrows" aria-hidden="true">⇄</b>
+          <span className="duel-weapon-switch__next">
+            <small>DİĞER</small>
+            <strong>{weaponNames[activeWeaponSlot === 0 ? 1 : 0]}</strong>
+          </span>
+          {weaponSwapCooldownSeconds > 0 && <i>{weaponSwapCooldownSeconds.toFixed(1)} sn</i>}
+        </button>
       </div>}
       {quickItems.some((item) => item.id) && <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
         {quickItems.map((item, index) => {

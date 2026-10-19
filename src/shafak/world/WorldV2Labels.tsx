@@ -162,7 +162,7 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
     }
 
     const selected = new Set(
-      selectWorldV2Labels(projected, [...uiRects, playerRect], 3).map((label) => label.id),
+      selectWorldV2Labels(projected, [...uiRects, playerRect]).map((label) => label.id),
     );
     for (const [id, label] of current) {
       const visible = selected.has(id);

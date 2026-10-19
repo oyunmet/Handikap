@@ -68,11 +68,14 @@ function createSurfacePixels(kind: "cobble" | "ash-gravel", size: number, seed: 
       let relief: number;
 
       if (kind === "cobble") {
-        const cellX = Math.floor(x / cellSize);
+        const row = Math.floor(y / cellSize);
+        const stagger = row % 2 === 0 ? 0 : cellSize / 2;
+        const shiftedX = wrap(x + stagger, size);
+        const cellX = Math.floor(shiftedX / cellSize);
         const cellY = Math.floor(y / cellSize);
-        const localX = (x % cellSize) / cellSize;
+        const localX = (shiftedX % cellSize) / cellSize;
         const localY = (y % cellSize) / cellSize;
-        const edgeNoise = periodicNoise(x / 7, y / 7, size / 7, size / 7, seed ^ 0x27d4eb2d);
+        const edgeNoise = periodicNoise(shiftedX / 7, y / 7, size / 7, size / 7, seed ^ 0x27d4eb2d);
         const edgeDistance = Math.min(localX, 1 - localX, localY, 1 - localY) * cellSize;
         joint = edgeDistance < 4.2 + edgeNoise * 2.4;
         const stoneTone = hash(cellX % cells, cellY % cells, seed ^ 0x165667b1);
@@ -83,7 +86,7 @@ function createSurfacePixels(kind: "cobble" | "ash-gravel", size: number, seed: 
           && Math.abs(localY - crackPath) < 0.012 + edgeNoise * 0.008;
         base = joint
           ? 48 + midNoise * 21
-          : 91 + stoneTone * 44 + (stoneWorn - 0.5) * 22 + (lowNoise - 0.5) * 12;
+          : 136 + stoneTone * 38 + (stoneWorn - 0.5) * 22 + (lowNoise - 0.5) * 12;
         if (crack) base *= 0.62;
         relief = joint ? -0.2 : 0.035 + stoneWorn * 0.04 - (crack ? 0.12 : 0);
       } else {

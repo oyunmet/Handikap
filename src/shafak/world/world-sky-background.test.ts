@@ -22,6 +22,11 @@ test("the sky background is a smooth, opaque equirectangular gradient", () => {
   assert.deepEqual(zenith, colorAt(0, height - 1), "the equirectangular poles match");
   assert.deepEqual(colorAt(0, 36), colorAt(width - 1, 36), "the gradient is seamless around the horizon");
   assert.ok(pixels.every((_, index) => index % 4 !== 3 || pixels[index] === 255), "every pixel is opaque");
+  const sunX = Math.round(width * 0.24);
+  const sunY = Math.round(height * 0.4);
+  const sunBrightness = colorAt(sunX, sunY).slice(0, 3).reduce((sum, channel) => sum + channel, 0);
+  const nearbyBrightness = colorAt(0, sunY).slice(0, 3).reduce((sum, channel) => sum + channel, 0);
+  assert.ok(sunBrightness > nearbyBrightness, "the horizon glow creates a visible focal point in the sky");
 
   for (let y = 1; y < height; y += 1) {
     for (let channel = 0; channel < 3; channel += 1) {

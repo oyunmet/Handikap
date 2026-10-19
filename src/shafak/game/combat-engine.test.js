@@ -67,7 +67,8 @@ test("duel fighters begin side by side, facing each other within the arena", () 
   assert.equal(state.player.z, COMBAT_ARENA_CENTER_Z);
   assert.equal(state.bot.z, COMBAT_ARENA_CENTER_Z);
   for (const cover of DUEL_COVERS) {
-    assert.ok(Math.abs(cover.z - COMBAT_ARENA_CENTER_Z) > 4, "arena cover must not block either spawn point");
+    assert.ok(Math.abs(cover.x) > 6, "arena cover must stay off the center fighting lane");
+    assert.equal(cover.z, COMBAT_ARENA_CENTER_Z);
   }
 });
 
@@ -340,11 +341,11 @@ test("a short bow requires aim, uses a knife at close range, and can fire throug
 test("ranged shots are stopped by arena cover rather than damaging the rival", () => {
   const state = createCombatState(2906, "easy");
   state.weaponIds[0] = "weapon_short_bow";
-  const coverZ = DUEL_COVERS[1].z;
-  state.player.x = -4;
-  state.player.z = coverZ;
-  state.bot.x = 4;
-  state.bot.z = coverZ;
+  const cover = DUEL_COVERS[0];
+  state.player.x = cover.x;
+  state.player.z = cover.z - 3.2;
+  state.bot.x = cover.x;
+  state.bot.z = cover.z + 3.2;
   state.bot.staggerUntilTick = 1_000;
   const attack = tapCombatButton(state, INPUT_BUTTON.attack, INPUT_BUTTON.aim);
   const resolved = advanceCombat(attack.state, 12, INPUT_BUTTON.aim);

@@ -1910,14 +1910,78 @@
 .duel-controls--field .duel-quickslot b { right: 5px; bottom: 4px; color: #e2c68d; font-size: 9px; }
 .duel-controls--field .duel-quickslot.is-unavailable { filter: grayscale(.58) brightness(.72); }
 .duel-controls--field .duel-weapon-select {
-  top: auto;
+  top: max(96px, calc(env(safe-area-inset-top) + 88px));
   right: max(14px, calc(env(safe-area-inset-right) + 10px));
-  bottom: max(207px, calc(env(safe-area-inset-bottom) + 197px));
+  bottom: auto;
   left: auto;
   display: block;
-  width: clamp(210px, 57vw, 232px);
+  width: clamp(156px, 48vw, 190px);
   transform: none;
 }
+.duel-controls--field .duel-weapon-switch {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 42px;
+  grid-template-columns: 19px minmax(0, 1fr) 15px minmax(0, .78fr);
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid rgba(202, 174, 126, .64);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(53,49,42,.96), rgba(18,21,21,.97));
+  box-shadow: 0 4px 12px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.08);
+  color: #efe0c2;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+}
+.duel-controls--field .duel-weapon-switch__key {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid rgba(221, 190, 139, .64);
+  border-radius: 50%;
+  color: #f2d7a4;
+  font-size: 8px;
+  font-weight: 900;
+}
+.duel-controls--field .duel-weapon-switch__active,
+.duel-controls--field .duel-weapon-switch__next {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.duel-controls--field .duel-weapon-switch small {
+  color: #c3ac83;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1;
+}
+.duel-controls--field .duel-weapon-switch strong {
+  overflow: hidden;
+  color: #f4e7ce;
+  font-size: 8px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duel-controls--field .duel-weapon-switch__arrows {
+  color: #d1b983;
+  font-size: 14px;
+  text-align: center;
+}
+.duel-controls--field .duel-weapon-switch i {
+  position: absolute;
+  right: 7px;
+  bottom: 2px;
+  color: #f3cf8e;
+  font-size: 6px;
+  font-style: normal;
+}
+.duel-controls--field .duel-weapon-switch:disabled { cursor: default; opacity: .65; }
 .duel-controls--field .duel-weapon-select__heading {
   display: flex;
   height: 18px;
@@ -1994,6 +2058,7 @@
 .duel-controls--field .duel-control-hint { display: none; }
 .duel-controls--field .duel-forfeit:focus-visible,
 .duel-controls--field .duel-help-button:focus-visible,
+.duel-controls--field .duel-weapon-switch:focus-visible,
 .duel-controls--field .duel-weapon-select__slot:focus-visible,
 .duel-controls--field .duel-quickslot:focus-visible,
 .duel-controls--field .duel-control:focus-visible {

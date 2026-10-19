@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DUEL_CAMERA_ARENA_CENTER_Z,
-  DUEL_CAMERA_ARENA_RADIUS,
   DUEL_CAMERA_HEADING,
   DUEL_CAMERA_PLAYER_FRAME_WEIGHT,
   DUEL_CAMERA_TOUCH_FOV,
@@ -39,12 +38,14 @@ test("duel camera keeps a stable world heading as fighters move and cross", () =
     + (-2.8) * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT);
   assert.ok(Math.abs(movedPose.target.x - expectedTargetX) < 1e-9);
   assert.ok(Math.abs(movedPose.target.z - (-120 - 0.25)) < 1e-9);
-  for (const pose of [spawnPose, movedPose]) {
-    assert.ok(Math.hypot(
-      pose.position.x,
-      pose.position.z - (-120 + DUEL_CAMERA_ARENA_CENTER_Z),
-    ) <= DUEL_CAMERA_ARENA_RADIUS - 0.35 + 1e-9);
-  }
+  assert.ok(Math.hypot(
+    spawnPose.position.x - spawnPose.target.x,
+    spawnPose.position.z - spawnPose.target.z,
+  ) > 8);
+  assert.ok(Math.hypot(
+    movedPose.position.x - movedPose.target.x,
+    movedPose.position.z - movedPose.target.z,
+  ) > 8);
 });
 
 test("procedural duel fighters turn their armored fronts toward one another", () => {
@@ -142,15 +143,15 @@ test("joystick input follows the same fixed camera heading throughout the duel",
   assert.deepEqual(getDuelCameraRelativeInput(0, 0), { x: 0, z: 0 });
 });
 
-test("the mobile camera stays inside the arena while following the fighters near its edge", () => {
+test("the mobile camera keeps its framing distance when both fighters reach the arena edge", () => {
   const player = { x: 7.5, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const opponent = { x: 8, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const pose = getDuelCameraPose(player, opponent, 0, 8.4, 0.45);
-  const cameraRadius = Math.hypot(
-    pose.position.x,
-    pose.position.z - DUEL_CAMERA_ARENA_CENTER_Z,
+  const cameraDistance = Math.hypot(
+    pose.position.x - pose.target.x,
+    pose.position.z - pose.target.z,
   );
-  assert.ok(cameraRadius <= DUEL_CAMERA_ARENA_RADIUS - 0.35 + 1e-9);
+  assert.ok(cameraDistance > 8.4);
   assert.ok(Math.abs(pose.target.x - (
     player.x * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
     + opponent.x * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT)

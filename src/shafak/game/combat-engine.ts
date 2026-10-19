@@ -10,8 +10,8 @@ export const COMBAT_ARENA_ACTOR_LIMIT = 8.2;
 export const COMBAT_DODGE_DURATION_TICKS = Math.round(COMBAT_HZ * 0.25);
 export const COMBAT_DODGE_DISTANCE_METERS = 3;
 export const DUEL_COVERS = [
-  { x: 0, z: COMBAT_ARENA_CENTER_Z - 5.2, halfWidth: 0.78, halfDepth: 0.42 },
-  { x: 0, z: COMBAT_ARENA_CENTER_Z + 5.2, halfWidth: 0.78, halfDepth: 0.42 },
+  { x: -6.35, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.38, halfDepth: 0.92 },
+  { x: 6.35, z: COMBAT_ARENA_CENTER_Z, halfWidth: 0.38, halfDepth: 0.92 },
 ] as const;
 export const COMBO_CHAIN_WINDOW_TICKS = 78;
 export const PERFECT_BLOCK_WINDOW_TICKS = 12;

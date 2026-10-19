@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes.ts";
 import { WORLD_ROAD_WIDTH } from "./movement.ts";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures.ts";
+import { BEVELED_STONE_BLOCK_GEOMETRY } from "./procedural-materials.ts";
 
 export const WORLD_ROAD_TILE_LENGTH = 12;
 export const WORLD_ROAD_TILE_OFFSETS = { first: -2, last: 14 } as const;
@@ -26,10 +27,10 @@ const BIOME_DETAIL_COLORS = {
 
 const ASH_SURFACE_COLORS = {
   ground: "#a69b8c",
-  road: "#a18b75",
+  road: "#bec7c7",
 } as const;
 const ASH_WEATHER_TINTS = {
-  road: new THREE.Color("#797875"),
+  road: new THREE.Color("#7d8585"),
   ground: new THREE.Color("#4f504e"),
   shoulder: new THREE.Color("#66635e"),
   stone: new THREE.Color("#817a71"),
@@ -91,6 +92,53 @@ function setInstanceEuler(
   ));
 }
 
+function createRoadPaving(
+  geometry: THREE.BufferGeometry,
+  material: THREE.MeshStandardMaterial,
+  offset: number,
+) {
+  const roadHalf = WORLD_ROAD_WIDTH / 2;
+  const columns = 9;
+  const rows = 14;
+  const tileWidth = WORLD_ROAD_WIDTH / columns;
+  const tileDepth = WORLD_ROAD_TILE_LENGTH / rows;
+  const mesh = new THREE.InstancedMesh(geometry, material, rows * (columns + 1));
+  mesh.name = "world-cobblestone-road-stones";
+  mesh.receiveShadow = true;
+  const random = seededRandom((offset + 64) * 0x4f1bbcdc);
+  const position = new THREE.Vector3();
+  const scale = new THREE.Vector3();
+  const color = new THREE.Color();
+  let count = 0;
+
+  for (let row = 0; row < rows; row += 1) {
+    const stagger = row % 2 === 0 ? 0 : tileWidth / 2;
+    for (let column = 0; column <= columns; column += 1) {
+      const intervalStart = -roadHalf + stagger + column * tileWidth;
+      const left = Math.max(-roadHalf + 0.018, intervalStart + 0.035);
+      const right = Math.min(roadHalf - 0.018, intervalStart + tileWidth - 0.035);
+      const width = right - left;
+      if (width < 0.38) continue;
+
+      position.set(
+        (left + right) / 2,
+        -0.012 + random() * 0.006,
+        -WORLD_ROAD_TILE_LENGTH / 2 + (row + 0.5) * tileDepth,
+      );
+      scale.set(width, 0.11 + random() * 0.012, tileDepth - 0.052);
+      const tint = 0.78 + random() * 0.2;
+      color.setRGB(tint, tint * (0.99 + random() * 0.018), tint * (0.97 + random() * 0.035));
+      setInstance(mesh, count, position, scale, (random() - 0.5) * 0.018, color);
+      count += 1;
+    }
+  }
+
+  mesh.count = count;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  return mesh;
+}
+
 function createEdgeBlendGeometry() {
   const width = 3.2;
   const geometry = new THREE.PlaneGeometry(width, WORLD_ROAD_TILE_LENGTH, 16, 1);
@@ -130,6 +178,7 @@ function createTile(
   offset: number,
   shared: {
     road: THREE.MeshStandardMaterial[];
+    roadBed: THREE.MeshStandardMaterial;
     ground: THREE.MeshStandardMaterial;
     shoulder: THREE.MeshStandardMaterial[];
     curb: THREE.MeshStandardMaterial;
@@ -141,6 +190,7 @@ function createTile(
     ember: THREE.MeshStandardMaterial;
     transition: THREE.MeshStandardMaterial;
     roadGeometry: THREE.BufferGeometry;
+    pavingGeometry: THREE.BufferGeometry;
     shoulderGeometry: THREE.BufferGeometry;
     outerGroundGeometry: THREE.BufferGeometry;
     curbGeometry: THREE.BufferGeometry;
@@ -185,7 +235,8 @@ function createTile(
     return mesh;
   };
 
-  makeMesh(shared.roadGeometry, shared.road[variant], "world-cobblestone-road", [0, -0.12, 0], true);
+  makeMesh(shared.roadGeometry, shared.roadBed, "world-cobblestone-road", [0, -0.12, 0], true);
+  root.add(createRoadPaving(shared.pavingGeometry, shared.road[variant], offset));
   for (const sign of [-1, 1]) {
     makeMesh(shared.shoulderGeometry, shared.shoulder[variant], "world-cobblestone-shoulder", [side(sign), -0.15, 0], true);
     makeMesh(shared.outerGroundGeometry, shared.ground, "world-road-verge", [sign * 19, -0.31, 0], true);
@@ -478,7 +529,8 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
     flatShading: false,
   });
   const materials = {
-    road: [0, 1, 2].map((variant) => createRoadMaterial(variant, "#a18b75", 0.96)),
+    road: [0, 1, 2].map((variant) => createRoadMaterial(variant, "#d2d3ce", 0.96)),
+    roadBed: new THREE.MeshStandardMaterial({ color: "#464a49", roughness: 0.99 }),
     ground: new THREE.MeshStandardMaterial({
       color: "#a69b8c",
       map: surfaceTextures.ground.color,
@@ -533,6 +585,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
   };
   const geometries = {
     road: new THREE.BoxGeometry(WORLD_ROAD_WIDTH, 0.14, WORLD_ROAD_TILE_LENGTH),
+    paving: BEVELED_STONE_BLOCK_GEOMETRY,
     shoulder: new THREE.BoxGeometry(2.2, 0.18, WORLD_ROAD_TILE_LENGTH),
     outerGround: new THREE.BoxGeometry(21, 0.25, WORLD_ROAD_TILE_LENGTH),
     curb: new THREE.BoxGeometry(0.16, 0.26, WORLD_ROAD_TILE_LENGTH),
@@ -555,7 +608,8 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
   const resourceMaterials = Object.values(materials).flatMap((material) =>
     Array.isArray(material) ? material : [material],
   );
-  const resourceGeometries = Object.values(geometries);
+  const resourceGeometries = Object.values(geometries)
+    .filter((geometry) => geometry !== BEVELED_STONE_BLOCK_GEOMETRY);
   const segments: Segment[] = [];
   for (let offset = WORLD_ROAD_TILE_OFFSETS.first; offset <= WORLD_ROAD_TILE_OFFSETS.last; offset += 1) {
     const segment = new THREE.Group();
@@ -564,6 +618,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
     if (showProps) {
       segment.add(createTile(offset, {
         road: materials.road,
+         roadBed: materials.roadBed,
         ground: materials.ground,
         shoulder: materials.shoulder,
         curb: materials.curb,
@@ -575,6 +630,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
         ember: materials.ember,
         transition: materials.transition,
         roadGeometry: geometries.road,
+         pavingGeometry: geometries.paving,
         shoulderGeometry: geometries.shoulder,
         outerGroundGeometry: geometries.outerGround,
         curbGeometry: geometries.curb,
@@ -596,11 +652,11 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
         quality,
       }));
     } else {
-      const road = new THREE.Mesh(geometries.road, materials.road[0]);
+      const road = new THREE.Mesh(geometries.road, materials.roadBed);
       road.name = "world-road-surface";
       road.userData.worldV2RoadGround = true;
       road.position.y = -0.12;
-      segment.add(road);
+      segment.add(road, createRoadPaving(geometries.paving, materials.road[0], offset));
     }
     root.add(segment);
     segments.push({ root: segment, offset });
@@ -621,9 +677,13 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
     lastWeather = weather;
     const ashWeather = weather === "ash";
     materials.road.forEach((material) => {
-      material.color.copy(colorForBiome(distance, "road")).multiplyScalar(1.08);
-      if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.road, 0.48);
+      material.color.copy(colorForBiome(distance, "road"))
+        .lerp(new THREE.Color("#c5cbca"), 0.4)
+        .multiplyScalar(1.08);
+      if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.road, 0.24);
     });
+    materials.roadBed.color.copy(colorForBiome(distance, "road"))
+      .multiplyScalar(0.28);
     materials.ground.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.79);
     if (ashWeather) materials.ground.color.lerp(ASH_WEATHER_TINTS.ground, 0.32);
     materials.shoulder.forEach((material) => {

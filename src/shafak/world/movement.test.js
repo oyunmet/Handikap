@@ -21,6 +21,15 @@ test("keyboard input reads WASD and arrows and normalizes diagonal travel", () =
   assert.deepEqual([north.x, north.y], [0, 1]);
 });
 
+test("forward touch input ignores small horizontal thumb drift but keeps deliberate diagonals", () => {
+  const straight = readWorldInput(new Set(), { x: -0.08, y: 0.28 });
+  const diagonal = readWorldInput(new Set(), { x: 0.25, y: 0.9 });
+
+  assert.deepEqual([straight.x, straight.y], [0, 0.28]);
+  assert.ok(diagonal.x > 0.2);
+  assert.ok(diagonal.y > 0.8);
+});
+
 test("mobile action keys map to jump, crouch, and sprint", () => {
   const input = readWorldInput(new Set(["space", "c", "shift"]), { x: 0, y: 1 });
   assert.equal(input.jump, true);
