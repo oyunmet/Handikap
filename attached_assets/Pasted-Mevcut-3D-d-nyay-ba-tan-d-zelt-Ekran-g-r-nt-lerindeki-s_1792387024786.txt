@@ -1,0 +1,37 @@
+Mevcut 3D dünyayı baştan düzelt. Ekran görüntülerindeki sorunlar ve istediklerim:
+
+## 1) KARAKTER YÖNÜ (kritik hata)
+- Karakter şu an yüzü kameraya dönük, yani gideceği yöne (kapıya) sırtını dönmüş şekilde ters yürüyor/koşuyor.
+- Kamera karakterin ARKASINDA ve hafif yukarıda olmalı (third-person chase cam). Oyuncu karakterin sırtını ve ilerideki yolu görmeli.
+- Karakterin modeli, hareket vektörüne göre döndürülmeli: mesh'in "forward" ekseni ile hareket yönü eşleşmeli. Gerekirse modelin rotation.y değerini 180° çevir veya forward ekseni düzelt. Joystick yönü = karakterin baktığı yön olmalı (yumuşak lerp/slerp ile dönüş).
+- İleri = ilerideki kapı (KAPI · xx m göstergesi azalırken karakter kapıya doğru bakmalı).
+
+## 2) ZEMİN VE DOKU (şu an çok kötü)
+- Şu an zemin düz gri-beyaz, dokusuz ve boş. Bu kabul edilemez.
+- Yol: eski sürümdeki gibi detaylı kaldırım taşı dokusu (kalın derz çizgileri, taş taş farklı ton, hafif çatlak/aşınma, normal/bump map). Texture tekrarı belli olmasın (UV'yi büyük ölçekte karıştır, 2-3 farklı taş varyasyonu, rastgele ton kaydırma).
+- Yol kenarlarında kaldırım/bordür, yol dışında toprak/kül/çakıl zemin: ayrı doku, yol ile yumuşak geçiş (vertex color veya splat blend).
+- Zemin asla tek renk düz olmasın: ince gürültü (noise) ile renk varyasyonu, küçük taş/çakıl/kül izleri, kuru ot kümeleri.
+- Anisotropic filtering ve mipmap aç; uzakta doku bulanıklaşıp titremesin.
+
+## 3) DÜNYA DOLULUĞU VE ATMOSFER
+Tema: "Kül Yolu" – küllü, terk edilmiş, kasvetli ama güzel bir fantezi yolu. Eski sürümdeki unsurları geri getir ve zenginleştir:
+- Yol boyunca yıkık kuleler, kırık sütunlar, harabe kemerler, eğri duran direkler ve fenerler, küçük ateş/korlar.
+- Bölümün sonunda büyük, kemerli bir KAPI (eski sürümdeki gibi; üstünde küreler/lambalar, iki yanında kule direkleri).
+- Yol kenarlarında kayalar, ölü ağaçlar, birkaç solgun çam/ağaç, çalılar, kırık arabalar, variller, sandıklar. Prop'lar rastgele ama yola çarpmayacak şekilde dağıtılsın (instancing kullan).
+- Gökyüzü: eski sürümdeki gibi bulutlu skybox/gradient, uzakta sis içinde dağ silüetleri (en az 2-3 katman, parallax).
+- Atmosfer: mesafe sisi (fog), sıcak/soğuk ışık karşıtlığı, bir yönlü güneş ışığı + yumuşak gölgeler, hafif ambient occlusion, havada uçuşan kül parçacıkları.
+- "Hava: KÜL" modu seçiliyken renk paleti kül grisi + turuncu-kor vurgular olsun; zemin tamamen beyaz/gri bir boşluk gibi görünmesin.
+
+## 4) ARAYÜZ (UI) DÜZELTMELERİ
+- Dünya etiketleri (KAYA · ETRAFINDAN DOLAŞ, VARİL · KIR, SAĞ GEÇİT, DÜŞEN KAYA · YANA KAÇ vb.) üst üste binip okunmaz hale geliyor. Çözüm: mesafeye göre ölçekle, yalnızca en yakın 2-3 etiketi göster, çakışmaları engelle (screen-space collision/yer değiştirme), uzaktakileri gizle veya solgunlaştır.
+- Etiketler karakterin tam üstüne/önüne binmesin; karakter ve joystick alanı net kalsın.
+- "KAPI KİLİTLİ" gibi paneller joystick ve butonları örtmesin.
+
+## 5) PERFORMANS (mobil Safari / iPhone)
+- 60 FPS hedefi: instancing, düşük poligonlu modeller, texture atlas, dokular max 1024-2048px, gölge çözünürlüğü makul, uzak objeler için LOD/culling.
+- Piksel oranını (devicePixelRatio) 1.5 ile sınırla.
+
+## 6) TESLİM
+- Önce mevcut kodu incele ve yukarıdaki maddelerin her biri için neyi değiştirdiğini kısaca listele.
+- Sonra düzeltilmiş tüm kodu ver.
+- Eski sürümdeki kaldırım yolu, kapı, harabeler ve gökyüzü görünümü referans; onun kalitesinin altına inme, üstüne çık.
