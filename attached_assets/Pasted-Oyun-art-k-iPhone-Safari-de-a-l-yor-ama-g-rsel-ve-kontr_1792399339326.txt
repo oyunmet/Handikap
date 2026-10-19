@@ -1,0 +1,44 @@
+Oyun artık iPhone Safari'de açılıyor ama görsel ve kontrol sorunları var. Mevcut oyun mantığını, ilerlemeyi, envanteri ve HUD işlevlerini bozmadan aşağıdakileri düzelt. Sırayla ilerle, her adımdan sonra TypeScript kontrolünü ve testleri çalıştır.
+
+1) KARAKTER YÖNÜ (öncelik 1)
+- Oyuncu yan yan yürüyor. Modelin ön yüzü hareket yönüne bakmalı.
+- Joystick yönüne göre karakter yumuşak şekilde dönsün (slerp/lerp ile yaw dönüşü), model ileri bakarken yürüme/koşma animasyonu oynasın.
+- Kameranın baktığı yön ile joystick yönü doğru eşleşsin. Joystick yukarı = kameranın baktığı yöne ileri.
+- Model eksen/offset sorunu varsa (modelin ön yönü yanlış eksende) model grubunu bir sarmalayıcı içinde döndürerek çöz.
+
+2) ETİKETLER ÜST ÜSTE BİNİYOR (öncelik 2)
+- "KAYA · ETRAFINDAN DOLAŞ", "VARİL · KIR", "SAĞ GEÇİT", "EĞİL", "ZIPLA" gibi yüzen etiketler birbirinin üstüne yığılıyor ve ekranı kirletiyor.
+- Etiketleri sadece oyuncuya yakın (örn. 6 metre içinde) ve kameraya bakan nesneler için göster. Aynı anda en fazla 2 etiket görünsün, en yakın olan öncelikli.
+- Mesafeye göre opaklık azalt, uzaktakileri tamamen gizle. Etiketler birbiriyle çakışırsa uzak olanı gizle.
+- Etiket yazı boyutunu küçült, kompakt yap.
+
+3) KONUŞMA KUTUSU VE HUD
+- "DEMİR TAÇ KONUŞUYOR" kutusu ekranın ortasını kapatıyor. Daha küçük yap, ekranın üst kısmına veya NPC'nin başının üstüne konumlandır, joystick ve oyun alanını kapatmasın.
+- Üstteki HUD (profil, para, hava, yol ilerlemesi, düello hakkı) ekranın yaklaşık üçte birini kaplıyor. Mobilde bunu küçült: profil ve kaynakları tek satıra sığdır, yol ilerlemesi ve düello hakkını tek ince şeride indir, arka planları daha saydam yap. 3D sahne daha çok görünsün.
+
+4) GÖRÜNTÜ KALİTESİ (nesneler ve çevre belirsiz)
+- Renderer pixel ratio'yu min(devicePixelRatio, 2) yap. Şu an düşük çözünürlük gibi pikselli görünüyor.
+- Antialiasing aç, mümkünse FXAA/SMAA benzeri hafif bir çözüm kullan. Mobil performansı koru.
+- Sis (fog) çok yoğun ve gökyüzü düz gri. Sis mesafesini artır, ufukta hafif derinlik kalsın ama nesneler seçilebilsin.
+- Aydınlatmayı iyileştir: yönlü ana ışık + hemisphere ambient ışık, karakterin ve NPC'lerin net seçilmesi için hafif rim/kontur ışığı. Yol çok koyu, yol dokusunu biraz aç.
+- NPC ve düşmanları ayırt edilebilir yap: her birinin renk paleti, silüeti ve başının üstünde küçük isim etiketi olsun (sadece yakındayken).
+- Karakter ve NPC modelleri için gölge ekle (karakter altında en azından blob gölge, yakın nesnelerde gerçek gölge).
+
+5) DAHA DOLU BİR 3D DÜNYA
+- Yolun iki yanını doldur: farklı boyutlarda ağaçlar (ölü/kül temalı), kayalar, çalılar, kırık çitler, fenerler/meşaleler, harabe duvarlar, yol kenarı sütunlar.
+- Instancing (InstancedMesh) kullan ki performans düşmesin. Nesneleri yolun iki yanında rastgele ama tekrar etmeyen şekilde dağıt (seed'li rastgelelik).
+- Arka planda katmanlı uzak dağ/orman silüetleri (parallax hissi), gökyüzünde hafif hareket eden kül/kıvılcım parçacıkları.
+- Yol üzerinde ve kenarlarda detay: çatlaklar, taş yığınları, yere düşmüş silahlar, kemikler, kırık arabalar gibi ortam hikâyesi veren nesneler.
+- Kule/kapı/geçit gibi ana yapıları daha büyük ve belirgin yap ki oyuncu hedefi uzaktan görebilsin. "KAPI · 8 m" hedefi sahnede net görünür bir yapı olsun.
+- Hava durumu (kül) için ince parçacık sistemi, rüzgârda sallanan bayrak/kumaş gibi küçük animasyonlar.
+
+6) PERFORMANS VE KAPSAM
+- iPhone Safari'de akıcı kalsın: hedef 30 FPS altına düşmesin. Gerekirse nesne sayısını ve parçacık sayısını cihaza göre ölçekle (düşük/orta/yüksek kalite, otomatik algılama).
+- Ayarlar'a "Grafik kalitesi" seçeneği ekle (Düşük / Orta / Yüksek).
+- WebGL başlatma hatasında mevcut "yeniden dene" akışı çalışmaya devam etsin.
+
+7) BİTİRİRKEN
+- TypeScript kontrolü, testler ve production build'in geçtiğini doğrula.
+- Uygulamayı başlatıp mobil görünümde (390x844) ekran görüntüsü alarak yukarıdaki sorunların giderildiğini kontrol et.
+- Değişiklikleri GitHub'a commit/push et, böylece Vercel yeniden yayınlasın.
+- Sonunda neyi değiştirdiğini ve hâlâ eksik kalan bir şey varsa kısa bir listeyle yaz.

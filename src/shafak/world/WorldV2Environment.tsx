@@ -111,9 +111,9 @@ export function WorldV2RouteGates({
   );
 }
 
-function createWeatherPoints() {
-  const positions = new Float32Array(48 * 3);
-  for (let index = 0; index < 48; index += 1) {
+function createWeatherPoints(count: number) {
+  const positions = new Float32Array(count * 3);
+  for (let index = 0; index < count; index += 1) {
     const angle = index * 2.399963229728653;
     const radius = 3 + (index % 11) * 0.78;
     positions[index * 3] = Math.cos(angle) * radius;
@@ -130,13 +130,16 @@ export function WorldV2WeatherPoints({
   motionRef,
   weather,
   enabled,
+  quality,
 }: {
   motionRef: MotionRef;
   weather: WeatherMode;
   enabled: boolean;
+  quality: "high" | "balanced" | "low";
 }) {
   const pointsRef = useRef<THREE.Points>(null);
-  const geometry = useMemo(createWeatherPoints, []);
+  const count = quality === "high" ? 48 : quality === "balanced" ? 24 : 10;
+  const geometry = useMemo(() => createWeatherPoints(count), [count]);
   const color = weather === "storm" || weather === "rain"
     ? "#c6d8e6"
     : weather === "fog" ? "#d4c9c0" : weather === "ash" ? "#ff9b55" : "#e7b27f";

@@ -8,8 +8,17 @@ import {
   WORLD_ROAD_TILE_LENGTH,
 } from "./world-road-environment.ts";
 
+function countInstances(root, name) {
+  let total = 0;
+  root.traverse((object) => {
+    if (object instanceof THREE.InstancedMesh && object.name === name) total += object.count;
+  });
+  return total;
+}
+
 test("rebuilt 3D road environment has a recycled, size-audited scene ring", () => {
   const environment = createWorldRoadEnvironment();
+  const lowQualityEnvironment = createWorldRoadEnvironment(true, "low");
   try {
     const issues = auditWorldMeshSizes(environment.root);
     assert.equal(environment.segments.length, 17);
@@ -21,8 +30,16 @@ test("rebuilt 3D road environment has a recycled, size-audited scene ring", () =
     assert.ok(Math.abs(environment.mountainLayers[0].root.position.x - 1.05) < 1e-9);
     environment.updatePalette(450, "rain");
     assert.ok(environment.root.children.some((child) => child.name === "world-horizon-layer-2"));
+    assert.ok(countInstances(environment.segments[0].root, "world-road-tree-trunks")
+      > countInstances(lowQualityEnvironment.segments[0].root, "world-road-tree-trunks"));
+    assert.ok(countInstances(environment.segments[0].root, "world-roadside-rocks")
+      > countInstances(lowQualityEnvironment.segments[0].root, "world-roadside-rocks"));
+    assert.ok(countInstances(environment.segments[0].root, "world-roadside-grass")
+      > countInstances(lowQualityEnvironment.segments[0].root, "world-roadside-grass"));
+    assert.ok(environment.segments.some(({ root }) => root.getObjectByName("world-road-broken-fence")));
   } finally {
     environment.dispose();
+    lowQualityEnvironment.dispose();
   }
 });
 

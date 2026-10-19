@@ -8,6 +8,7 @@ export const WORLD_ROAD_TILE_OFFSETS = { first: -2, last: 14 } as const;
 
 type Segment = { root: THREE.Group; offset: number };
 type MountainLayer = { root: THREE.Group; distance: number; index: number };
+type RoadQuality = "high" | "balanced" | "low";
 
 export type WorldRoadEnvironment = {
   root: THREE.Group;
@@ -157,6 +158,8 @@ function createTile(
     emberGeometry: THREE.BufferGeometry;
     cartBoardGeometry: THREE.BufferGeometry;
     cartWheelGeometry: THREE.BufferGeometry;
+    fenceGeometry: THREE.BufferGeometry;
+    quality: RoadQuality;
   },
 ) {
   const root = new THREE.Group();
@@ -192,7 +195,7 @@ function createTile(
     curb.userData.worldV2AuditExempt = true;
 
     const random = seededRandom((offset + 64) * 8191 + (sign + 2) * 113);
-    const treeCount = 3;
+    const treeCount = shared.quality === "high" ? 3 : shared.quality === "balanced" ? 2 : 1;
     const trunks = new THREE.InstancedMesh(shared.trunkGeometry, shared.bark, treeCount);
     trunks.name = "world-road-tree-trunks";
     trunks.castShadow = true;
@@ -225,11 +228,13 @@ function createTile(
     canopies.instanceMatrix.needsUpdate = true;
     root.add(trunks, canopies);
 
-    const rocks = new THREE.InstancedMesh(shared.rockGeometry, shared.rock, 5);
+    const rockCount = shared.quality === "high" ? 5 : shared.quality === "balanced" ? 4 : 2;
+    const grassCount = shared.quality === "high" ? 12 : shared.quality === "balanced" ? 8 : 4;
+    const rocks = new THREE.InstancedMesh(shared.rockGeometry, shared.rock, rockCount);
     rocks.name = "world-roadside-rocks";
-    const grass = new THREE.InstancedMesh(shared.grassGeometry, shared.grass, 12);
+    const grass = new THREE.InstancedMesh(shared.grassGeometry, shared.grass, grassCount);
     grass.name = "world-roadside-grass";
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < rockCount; index += 1) {
       const x = sign * (roadHalf + 5.25 + random() * 7.2);
       const z = (random() - 0.5) * WORLD_ROAD_TILE_LENGTH;
       const scale = 0.32 + random() * 0.6;
@@ -241,7 +246,7 @@ function createTile(
         random() * Math.PI,
       );
     }
-    for (let index = 0; index < 12; index += 1) {
+    for (let index = 0; index < grassCount; index += 1) {
       const x = sign * (roadHalf + 5 + random() * 6.8);
       const z = (random() - 0.5) * WORLD_ROAD_TILE_LENGTH;
       const scale = 0.55 + random() * 0.8;
@@ -254,6 +259,33 @@ function createTile(
       );
     }
     root.add(rocks, grass);
+
+    if (tileOrdinal % 5 === 2) {
+      const fence = new THREE.InstancedMesh(shared.fenceGeometry, shared.bark, 5);
+      fence.name = "world-road-broken-fence";
+      const fenceSide = tileOrdinal % 2 === 0 ? -1 : 1;
+      const fenceX = fenceSide * (roadHalf + 7.1);
+      const fenceZ = (random() - 0.5) * WORLD_ROAD_TILE_LENGTH * 0.55;
+      const pieces = [
+        { position: [fenceX, 0.48, fenceZ - 1.15] as [number, number, number], scale: [0.13, 0.96, 0.13] as [number, number, number], tilt: 0 },
+        { position: [fenceX, 0.36, fenceZ] as [number, number, number], scale: [0.13, 0.72, 0.13] as [number, number, number], tilt: 0.2 },
+        { position: [fenceX, 0.48, fenceZ + 1.15] as [number, number, number], scale: [0.13, 0.96, 0.13] as [number, number, number], tilt: 0 },
+        { position: [fenceX, 0.78, fenceZ - 0.58] as [number, number, number], scale: [0.13, 0.13, 0.82] as [number, number, number], tilt: -0.08 },
+        { position: [fenceX, 0.64, fenceZ + 0.66] as [number, number, number], scale: [0.13, 0.13, 0.62] as [number, number, number], tilt: 0.14 },
+      ];
+      pieces.forEach((piece, index) => {
+        setInstanceEuler(
+          fence,
+          index,
+          new THREE.Vector3(...piece.position),
+          new THREE.Vector3(...piece.scale),
+          new THREE.Euler(0, 0, piece.tilt),
+        );
+      });
+      fence.instanceMatrix.needsUpdate = true;
+      fence.castShadow = true;
+      root.add(fence);
+    }
 
     if (tileOrdinal % 4 === 1) {
       const x = sign * (roadHalf + 9.2 + random() * 1.3);
@@ -432,7 +464,7 @@ function createMountainLayer(index: number, distance: number, material: THREE.Me
   return { root, distance, index };
 }
 
-export function createWorldRoadEnvironment(showProps = true): WorldRoadEnvironment {
+export function createWorldRoadEnvironment(showProps = true, quality: RoadQuality = "high"): WorldRoadEnvironment {
   const root = new THREE.Group();
   root.name = "rebuilt-3d-road-environment";
   const surfaceTextures = createWorldRoadSurfaceTextures();
@@ -518,6 +550,7 @@ export function createWorldRoadEnvironment(showProps = true): WorldRoadEnvironme
     ember: new THREE.ConeGeometry(0.18, 0.46, 5, 1),
     cartBoard: new THREE.BoxGeometry(0.14, 0.9, 0.09),
     cartWheel: new THREE.TorusGeometry(0.31, 0.055, 4, 12),
+    fence: new THREE.BoxGeometry(1, 1, 1),
   };
   const resourceMaterials = Object.values(materials).flatMap((material) =>
     Array.isArray(material) ? material : [material],
@@ -559,6 +592,8 @@ export function createWorldRoadEnvironment(showProps = true): WorldRoadEnvironme
         emberGeometry: geometries.ember,
         cartBoardGeometry: geometries.cartBoard,
         cartWheelGeometry: geometries.cartWheel,
+        fenceGeometry: geometries.fence,
+        quality,
       }));
     } else {
       const road = new THREE.Mesh(geometries.road, materials.road[0]);
@@ -586,13 +621,13 @@ export function createWorldRoadEnvironment(showProps = true): WorldRoadEnvironme
     lastWeather = weather;
     const ashWeather = weather === "ash";
     materials.road.forEach((material) => {
-      material.color.copy(colorForBiome(distance, "road"));
+      material.color.copy(colorForBiome(distance, "road")).multiplyScalar(1.08);
       if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.road, 0.48);
     });
-    materials.ground.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.72);
+    materials.ground.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.79);
     if (ashWeather) materials.ground.color.lerp(ASH_WEATHER_TINTS.ground, 0.32);
     materials.shoulder.forEach((material) => {
-      material.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.91);
+      material.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.98);
       if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.shoulder, 0.34);
     });
     materials.curb.color.copy(colorForBiome(distance, "stone")).multiplyScalar(0.88);

@@ -5,7 +5,10 @@ import type { ReactNode } from "react";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { WorldMotion } from "./movement";
-import { selectWorldV2Labels } from "./world-v2-label-layout";
+import {
+  selectWorldV2Labels,
+  WORLD_V2_LABEL_MAX_DISTANCE,
+} from "./world-v2-label-layout";
 import type { WorldV2ProjectedLabel, WorldV2ScreenRect } from "./world-v2-label-layout";
 
 type RegisteredLabel = {
@@ -76,7 +79,8 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
   const elapsed = useRef(0);
   const projectedPosition = useRef(new THREE.Vector3());
   const worldPosition = useRef(new THREE.Vector3());
-  const playerPosition = useRef(new THREE.Vector3());
+  const playerWorldPosition = useRef(new THREE.Vector3());
+  const playerProjectedPosition = useRef(new THREE.Vector3());
 
   useFrame((_state, delta) => {
     elapsed.current += delta;
@@ -92,9 +96,12 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
       bottom: canvasRect.bottom,
     };
     const motion = motionRef.current;
-    const player = playerPosition.current
-      .set(motion.depth * 5.2, motion.jumpHeight + 0.85, -(motion.distance - motion.cameraX))
-      .project(camera);
+    const playerWorld = playerWorldPosition.current.set(
+      motion.depth * 5.2,
+      motion.jumpHeight + 0.85,
+      -(motion.distance - motion.cameraX),
+    );
+    const player = playerProjectedPosition.current.copy(playerWorld).project(camera);
     const playerScreenX = canvasRect.left + (player.x + 1) * 0.5 * canvasRect.width;
     const playerScreenY = canvasRect.top + (1 - player.y) * 0.5 * canvasRect.height;
     const playerRect: WorldV2ScreenRect = {
@@ -130,7 +137,7 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
       }
       if (!effectivelyVisible || !element.isConnected) continue;
       anchor.updateWorldMatrix(true, false);
-      const distance = anchor.getWorldPosition(worldPosition.current).distanceTo(camera.position);
+      const distance = anchor.getWorldPosition(worldPosition.current).distanceTo(playerWorld);
       const ndc = projectedPosition.current.copy(worldPosition.current).project(camera);
       const x = canvasRect.left + (ndc.x + 1) * 0.5 * canvasRect.width;
       const y = canvasRect.top + (1 - ndc.y) * 0.5 * canvasRect.height;
@@ -162,9 +169,10 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
       label.element.style.visibility = visible ? "visible" : "hidden";
       if (!visible) continue;
       const distance = projected.find((item) => item.id === id)?.distance ?? label.maxDistance;
-      const ratio = THREE.MathUtils.clamp(label.maxDistance ? 1 - distance / label.maxDistance : 1, 0, 1);
+      const effectiveMaxDistance = Math.min(label.maxDistance, WORLD_V2_LABEL_MAX_DISTANCE);
+      const ratio = THREE.MathUtils.clamp(1 - distance / effectiveMaxDistance, 0, 1);
       const scale = THREE.MathUtils.clamp(0.7 + ratio * 0.3, 0.7, 1);
-      label.element.style.opacity = String(0.38 + ratio * 0.62);
+      label.element.style.opacity = String(0.22 + ratio * 0.78);
       label.element.style.transform = `scale(${scale})`;
       label.element.style.transformOrigin = "center";
     }

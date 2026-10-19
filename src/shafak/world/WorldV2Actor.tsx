@@ -7,7 +7,7 @@ import type { WorldMotion } from "./movement";
 import { KNIGHT_CONFIG } from "./knight-config";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter } from "./world-v2-assets";
-import { WORLD_V2_CONFIG } from "./world-v2-config";
+import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
 
 type Props = {
   asset: LoadedWorldAsset;
@@ -44,7 +44,7 @@ export default function WorldV2Actor({
     const clone = cloneWorldCharacter(asset, tint);
     clone.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = isPlayer;
+      object.castShadow = true;
       object.receiveShadow = false;
     });
     return clone;
@@ -53,7 +53,6 @@ export default function WorldV2Actor({
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const activeClipNameRef = useRef("");
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
-  const previousPlayerMotion = useRef({ distance: Number.NaN, depth: Number.NaN });
   const playerFacingAngle = useRef(Math.PI);
 
   useEffect(() => () => {
@@ -74,34 +73,25 @@ export default function WorldV2Actor({
 
     if (isPlayer) {
       root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
-      const previous = previousPlayerMotion.current;
-      const firstPlayerFrame = !Number.isFinite(previous.distance) || !Number.isFinite(previous.depth);
-      if (!firstPlayerFrame) {
-        const forwardDelta = motion.distance - previous.distance;
-        const lateralDelta = (motion.depth - previous.depth) * 5.2;
-        if (Math.hypot(forwardDelta, lateralDelta) > 0.0005) {
-          playerFacingAngle.current = Math.atan2(lateralDelta, -forwardDelta);
-        }
+      const targetHeading = getWorldV2Heading(
+        motion.velocityX,
+        motion.velocityY,
+        playerFacingAngle.current,
+      );
+      if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
+        playerFacingAngle.current = targetHeading;
       }
-      previous.distance = motion.distance;
-      previous.depth = motion.depth;
-
-      const targetYaw = playerFacingAngle.current - WORLD_V2_CONFIG.modelFacing;
-      if (firstPlayerFrame) {
-        root.rotation.y = targetYaw;
-      } else {
-        const yawDelta = THREE.MathUtils.euclideanModulo(
-          targetYaw - root.rotation.y + Math.PI,
-          Math.PI * 2,
-        ) - Math.PI;
-        root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
-      }
+      const yawDelta = THREE.MathUtils.euclideanModulo(
+        targetHeading - root.rotation.y + Math.PI,
+        Math.PI * 2,
+      ) - Math.PI;
+      root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
     } else {
       const actorZ = -(distance - motion.cameraX);
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
       const directionX = playerPosition.x - x;
       const directionZ = playerPosition.z - actorZ;
-      root.rotation.y = Math.atan2(directionX, directionZ) - WORLD_V2_CONFIG.modelFacing;
+      root.rotation.y = Math.atan2(directionX, directionZ);
     }
 
     const state = isPlayer ? animationState : "idle";
@@ -118,16 +108,18 @@ export default function WorldV2Actor({
 
   return (
     <group ref={rootRef} name={isPlayer ? "world-v2-player" : "world-v2-npc"}>
-      <primitive
-        object={model}
-        dispose={null}
-      />
-      {isPlayer && (
-        <mesh name="player-contact-shadow" position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.54, 0.78, 1]}>
-          <circleGeometry args={[1, 20]} />
-          <meshBasicMaterial color="#171512" transparent opacity={0.42} depthWrite={false} />
-        </mesh>
-      )}
+      <group rotation={[0, -WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
+        <primitive object={model} dispose={null} />
+      </group>
+      <mesh
+        name={isPlayer ? "player-contact-shadow" : "npc-contact-shadow"}
+        position={[0, 0.025, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[0.54, 0.78, 1]}
+      >
+        <circleGeometry args={[1, 20]} />
+        <meshBasicMaterial color="#171512" transparent opacity={isPlayer ? 0.42 : 0.34} depthWrite={false} />
+      </mesh>
     </group>
   );
 }

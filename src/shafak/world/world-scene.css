@@ -1113,50 +1113,144 @@
 }
 @media (max-width: 760px) {
   .world-topbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-  }
-  .world-profile { width: fit-content; max-width: 100%; }
-  .world-profile { gap: 8px; padding: 7px 10px 7px 7px; }
-  .world-profile__crest { width: 36px; height: 39px; }
-  .world-profile__level { margin-left: 2px; padding-left: 8px; }
-  .world-profile__demo { font-size: 7px; }
-  .world-currency { min-height: 36px; padding: 0 10px; }
-  .world-material-hud { min-width: 0; justify-content: space-around; gap: 4px; padding: 3px 5px; font-size: 8px; }
-  .world-resource-hud {
-    display: grid;
-    flex: none;
-    grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+    display: flex;
     align-items: center;
-    width: 100%;
-    max-width: 100%;
+    gap: 4px;
+  }
+  .world-profile {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 36%;
     gap: 5px;
+    padding: 4px 6px 4px 4px;
+    background: rgba(18,18,22,.56);
+    box-shadow: 0 5px 16px rgba(0,0,0,.16);
+    backdrop-filter: blur(7px);
   }
-  .world-weather { min-width: 0; gap: 5px; padding: 6px 7px; font-size: 7px; }
-  .world-weather > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .world-progress {
-    top: calc(max(14px, env(safe-area-inset-top)) + 112px);
-    left: max(14px, env(safe-area-inset-left));
-    width: min(360px, calc(100vw - 28px));
-    max-height: min(190px, max(130px, calc(100dvh - 660px)));
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 8px 11px;
-  }
-  .world-progress__map { width: 44px; height: 44px; flex-basis: 44px; }
-  .world-daily-lives {
+  .world-profile__crest { width: 28px; height: 30px; font-size: 12px; }
+  .world-profile__identity { max-width: 64px; gap: 1px; }
+  .world-profile__name { overflow: hidden; font-size: 9px; text-overflow: ellipsis; }
+  .world-profile__demo { display: none; }
+  .world-profile__level {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 6px 8px;
-    margin-top: 8px;
-    padding-top: 8px;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 7px;
   }
-  .world-daily-lives__label { font-size: 7px; letter-spacing: .1em; }
-  .world-daily-lives__hearts { font-size: 13px; }
-  .world-daily-lives__count { font-size: 8px; }
-  .world-daily-lives__message { grid-column: 1 / -1; flex: none; font-size: 8px; }
-  .world-daily-ad { grid-column: 1 / -1; width: 100%; min-height: 36px; flex: none; font-size: 8px; }
+  .world-profile__level > span { display: none; }
+  .world-profile__level b { font-size: 11px; }
+  .world-resource-hud {
+    display: flex;
+    flex: 1 1 auto;
+    grid-template-columns: none;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 3px;
+  }
+  .world-currency {
+    min-width: 0;
+    min-height: 29px;
+    gap: 4px;
+    padding: 0 6px;
+    background: rgba(17,17,21,.52);
+    font-size: 9px;
+    backdrop-filter: blur(7px);
+  }
+  .world-currency__coin { width: 10px; height: 10px; }
+  .world-currency__diamond { width: 9px; height: 9px; }
+  .world-material-hud {
+    min-width: 0;
+    flex: 0 1 auto;
+    justify-content: center;
+    gap: 5px;
+    padding: 3px 5px;
+    background: rgba(13,14,19,.5);
+    font-size: 7px;
+    backdrop-filter: blur(7px);
+  }
+  .world-material-hud small { display: none; }
+  .world-resource-hud {
+    align-items: center;
+  }
+  .world-weather {
+    min-width: 38px;
+    min-height: 29px;
+    justify-content: center;
+    gap: 0;
+    padding: 3px;
+    background: rgba(20,20,24,.5);
+    backdrop-filter: blur(7px);
+  }
+  .world-weather > span { display: none; }
+  .world-weather__switch { width: 32px; height: 20px; }
+  .world-weather__switch.is-ash span { transform: translateX(4px); }
+  .world-weather__switch.is-rain span { transform: translateX(8px); }
+  .world-weather__switch.is-storm span { transform: translateX(12px); }
+  .world-weather__switch.is-fog span { transform: translateX(15px); }
+  .world-progress {
+    top: calc(max(14px, env(safe-area-inset-top)) + 42px);
+    left: max(14px, env(safe-area-inset-left));
+    display: flex;
+    width: min(620px, calc(100vw - 28px));
+    max-height: none;
+    align-items: center;
+    gap: 8px;
+    overflow: visible;
+    padding: 5px 8px;
+    border-color: rgba(226,190,125,.2);
+    background: rgba(13,14,18,.48);
+    box-shadow: 0 4px 14px rgba(0,0,0,.14);
+    backdrop-filter: blur(7px);
+  }
+  .world-progress__body { min-width: 0; flex: 1 1 auto; gap: 6px; }
+  .world-progress__map { width: 27px; height: 27px; flex: 0 0 27px; }
+  .world-progress__map > b { font-size: 6px; }
+  .world-progress__heading span { font-size: 6px; letter-spacing: .1em; }
+  .world-progress__track { height: 2px; margin: 3px 0 2px; }
+  .world-progress__distance { font-size: 6px; }
+  .world-daily-lives {
+    display: flex;
+    min-height: 0;
+    flex: 0 0 auto;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .world-daily-lives__label { display: none; }
+  .world-daily-lives__hearts { gap: 1px; font-size: 9px; }
+  .world-daily-lives__count { font-size: 6px; }
+  .world-daily-lives__message { flex: 1 0 100%; font-size: 7px; }
+  .world-daily-ad { min-height: 30px; font-size: 7px; }
+  .world-npc-dialogue {
+    width: min(170px, calc(100vw - 24px));
+    padding: 5px 7px 6px;
+    background: rgba(22,20,21,.86);
+    box-shadow: 0 5px 16px rgba(0,0,0,.35);
+  }
+  .world-npc-dialogue > span:not(.world-npc-dialogue__status) { margin-bottom: 2px; font-size: 6px; }
+  .world-npc-dialogue p { font-size: 9px; line-height: 1.3; }
+  .world-npc-dialogue__fight { min-height: 34px; margin-top: 4px; padding: 4px 6px; font-size: 8px; }
+  .world-npc-dialogue__status { margin-top: 4px; padding: 4px 6px; font-size: 7px; }
+  .world-npc-dialogue__fight span { font-size: 11px; }
+  .world-progress__distance { white-space: nowrap; }
+  .world-progress__heading { min-width: 0; }
+  .world-progress__heading span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .world-progress__details { overflow: hidden; }
+  .world-progress__map svg { overflow: visible; }
+  .world-progress__details > .world-progress__distance { display: block; }
+  .world-daily-lives:has(.world-daily-lives__message),
+  .world-daily-lives:has(.world-daily-ad) {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 47%;
+  }
   .world-gate-prompt {
     top: auto;
     bottom: max(164px, calc(env(safe-area-inset-bottom) + 164px));
@@ -1227,20 +1321,17 @@
   .world-npc-dialogue__fight { min-height: 38px; margin-top: 5px; }
 }
 @media (max-width: 390px) {
-  .world-weather {
-    width: 44px;
-    min-height: 36px;
-    justify-content: center;
-    gap: 0;
-    padding: 4px 0;
-  }
-  .world-weather > span { display: none; }
-  .world-weather__switch { width: 44px; }
-  .world-profile__identity { max-width: 88px; }
-  .world-profile__name { overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
-  .world-profile__level { font-size: 8px; }
-  .world-currency { gap: 6px; font-size: 10px; }
-  .world-material-hud { gap: 5px; font-size: 7px; }
+  .world-profile { max-width: 34%; }
+  .world-profile__identity { max-width: 52px; }
+  .world-profile__name { font-size: 8px; }
+  .world-currency { gap: 3px; padding: 0 5px; font-size: 8px; }
+  .world-material-hud { gap: 4px; padding: 3px 4px; font-size: 6px; }
+  .world-weather { min-width: 34px; padding: 2px; }
+  .world-weather__switch { width: 29px; }
+  .world-weather__switch.is-ash span { transform: translateX(3px); }
+  .world-weather__switch.is-rain span { transform: translateX(6px); }
+  .world-weather__switch.is-storm span { transform: translateX(9px); }
+  .world-weather__switch.is-fog span { transform: translateX(12px); }
   .world-status { display: none; }
   .world-joystick { left: max(14px, calc(env(safe-area-inset-left) + 8px)); width: 116px; height: 116px; }
 }

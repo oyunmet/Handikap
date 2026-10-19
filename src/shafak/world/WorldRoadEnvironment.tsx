@@ -16,13 +16,18 @@ export default function WorldRoadEnvironmentLayer({
   motionRef,
   weather,
   showProps,
+  quality,
 }: {
   motionRef: MotionRef;
   weather: WeatherMode;
   showProps: boolean;
+  quality: "high" | "balanced" | "low";
 }) {
   const { scene } = useThree();
-  const environment = useMemo(() => createWorldRoadEnvironment(showProps), [showProps]);
+  const environment = useMemo(
+    () => createWorldRoadEnvironment(showProps, quality),
+    [quality, showProps],
+  );
   const skyTexture = useMemo(() => {
     const pixels = new Uint8Array(WORLD_SKY_BACKGROUND_WIDTH * WORLD_SKY_BACKGROUND_HEIGHT * 4);
     paintWorldSkyGradient(pixels, WORLD_SKY_BACKGROUND_WIDTH, WORLD_SKY_BACKGROUND_HEIGHT, 0, weather);
@@ -54,12 +59,16 @@ export default function WorldRoadEnvironmentLayer({
     const previousBackground = scene.background;
     const previousFog = scene.fog;
     scene.background = skyTexture;
-    scene.fog = new THREE.Fog(WORLD_BIOME_PALETTES["ash-road"].horizon, 126, 330);
+    scene.fog = new THREE.Fog(
+      WORLD_BIOME_PALETTES["ash-road"].horizon,
+      quality === "low" ? 155 : 180,
+      quality === "low" ? 370 : 440,
+    );
     return () => {
       scene.background = previousBackground;
       scene.fog = previousFog;
     };
-  }, [scene, skyTexture]);
+  }, [quality, scene, skyTexture]);
 
   useEffect(() => () => {
     skyTexture.dispose();
@@ -129,7 +138,7 @@ export default function WorldRoadEnvironmentLayer({
         shadow-camera-top={13}
         shadow-camera-bottom={-8}
       />
-      <directionalLight position={[6, 5, -10]} color="#a3c9df" intensity={0.28} />
+      <directionalLight position={[7, 8, -9]} color="#a3c9df" intensity={0.42} />
       <primitive object={environment.root} dispose={null} />
     </>
   );

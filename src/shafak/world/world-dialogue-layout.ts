@@ -13,16 +13,12 @@ export function calculateNpcDialoguePosition(
   const bubbleWidth = mobile
     ? Math.min(compactMobile ? 214 : 230, size.width - 24)
     : Math.min(270, size.width - 48);
-  const halfHeight = size.height < 520 ? 52 : mobile ? 76 : 76;
+  const halfHeight = mobile ? (size.height < 520 ? 42 : 54) : 76;
   const hudBottom = mobile
-    ? (compactMobile ? 104 : 126) + (
-      compactMobile
-        ? Math.max(90, Math.min(150, size.height - 500))
-        : Math.min(190, Math.max(130, size.height - 660))
-    )
+    ? compactMobile ? 92 : 116
     : 0;
   const safeTop = mobile
-    ? Math.max(hudBottom + halfHeight + 16, size.height * 0.38)
+    ? Math.max(hudBottom + halfHeight + 10, size.height * 0.18)
     : Math.max(226, size.height * 0.38);
 
   // The joystick sits well above the bottom edge on phones, so reserve its full

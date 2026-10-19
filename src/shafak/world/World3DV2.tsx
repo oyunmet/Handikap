@@ -24,6 +24,7 @@ import {
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import { WorldV2LabelManager } from "./WorldV2Labels";
+import { getWorldRenderPixelRatio, shouldEnableWorldShadows } from "./graphics-quality";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
@@ -212,7 +213,8 @@ export default function World3DV2(props: World3DProps) {
   });
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const renderPixelRatio = touchRenderer ? 1 : Math.min(pixelRatio, 1.5);
+  const renderPixelRatio = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
+  const enableWorldShadows = shouldEnableWorldShadows(props.quality, touchRenderer);
   const contextCleanupRef = useRef<(() => void) | null>(null);
   const automaticRecoveryAttemptsRef = useRef(0);
   const recoveryRequestedRef = useRef(false);
@@ -286,7 +288,7 @@ export default function World3DV2(props: World3DProps) {
           <Canvas
             key={canvasAttempt}
             dpr={renderPixelRatio}
-            shadows={!touchRenderer}
+            shadows={enableWorldShadows}
             camera={{
               position: [0, WORLD_V2_CONFIG.camera.height, WORLD_V2_CONFIG.camera.distanceBehind],
               fov: 70,
@@ -295,7 +297,7 @@ export default function World3DV2(props: World3DProps) {
             }}
             gl={{
               alpha: false,
-              antialias: !touchRenderer,
+              antialias: true,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: 1.05,
@@ -303,7 +305,7 @@ export default function World3DV2(props: World3DProps) {
             onCreated={({ gl, scene }) => {
               gl.setPixelRatio(renderPixelRatio);
               gl.outputColorSpace = THREE.SRGBColorSpace;
-              gl.shadowMap.enabled = !touchRenderer;
+              gl.shadowMap.enabled = enableWorldShadows;
               gl.shadowMap.type = THREE.PCFSoftShadowMap;
               gl.info.autoReset = false;
               scene.background = new THREE.Color("#82919b");
@@ -336,13 +338,19 @@ export default function World3DV2(props: World3DProps) {
                 motionRef={props.motionRef}
                 weather={props.weatherMode}
                 showProps={!noProps}
+                quality={props.quality}
               />
               <WorldV2Camera motionRef={props.motionRef} />
               <WorldV2RouteGates
                 motionRef={props.motionRef}
                 unlockedThroughChapter={props.unlockedThroughChapter}
               />
-              <WorldV2WeatherPoints motionRef={props.motionRef} weather={props.weatherMode} enabled={!noFx} />
+              <WorldV2WeatherPoints
+                motionRef={props.motionRef}
+                weather={props.weatherMode}
+                enabled={!noFx}
+                quality={props.quality}
+              />
               {asset && (
                 <>
                   <WorldV2Actor
