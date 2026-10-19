@@ -25,7 +25,7 @@ export default function WorldRoadEnvironmentLayer({
   const environment = useMemo(() => createWorldRoadEnvironment(showProps), [showProps]);
   const skyTexture = useMemo(() => {
     const pixels = new Uint8Array(WORLD_SKY_BACKGROUND_WIDTH * WORLD_SKY_BACKGROUND_HEIGHT * 4);
-    paintWorldSkyGradient(pixels, WORLD_SKY_BACKGROUND_WIDTH, WORLD_SKY_BACKGROUND_HEIGHT, 0);
+    paintWorldSkyGradient(pixels, WORLD_SKY_BACKGROUND_WIDTH, WORLD_SKY_BACKGROUND_HEIGHT, 0, weather);
     const texture = new THREE.DataTexture(
       pixels,
       WORLD_SKY_BACKGROUND_WIDTH,
@@ -39,8 +39,9 @@ export default function WorldRoadEnvironmentLayer({
     texture.generateMipmaps = false;
     texture.needsUpdate = true;
     return texture;
-  }, []);
+  }, [weather]);
   const lastSkyDistance = useRef(Number.NaN);
+  const lastSkyWeather = useRef<WeatherMode | null>(null);
   const lastLightingDistance = useRef(Number.NaN);
   const hemisphereRef = useRef<THREE.HemisphereLight>(null);
   const sunRef = useRef<THREE.DirectionalLight>(null);
@@ -79,16 +80,18 @@ export default function WorldRoadEnvironmentLayer({
     );
     environment.updatePalette(distance, weather);
 
-    if (Math.abs(distance - lastSkyDistance.current) >= 0.75) {
-      paintWorldSkyGradient(skyPixels, WORLD_SKY_BACKGROUND_WIDTH, WORLD_SKY_BACKGROUND_HEIGHT, distance);
+    if (Math.abs(distance - lastSkyDistance.current) >= 0.75 || weather !== lastSkyWeather.current) {
+      paintWorldSkyGradient(skyPixels, WORLD_SKY_BACKGROUND_WIDTH, WORLD_SKY_BACKGROUND_HEIGHT, distance, weather);
       skyTexture.needsUpdate = true;
       const transition = getBiomeTransition(distance);
       const from = WORLD_BIOME_PALETTES[transition.from];
       const to = WORLD_BIOME_PALETTES[transition.to];
       const fogColor = new THREE.Color(from.horizon).lerp(new THREE.Color(to.horizon), transition.mix);
+      if (weather === "ash") fogColor.lerp(new THREE.Color("#a1968a"), 0.28);
       const fog = scene.fog;
       if (fog instanceof THREE.Fog) fog.color.copy(fogColor);
       lastSkyDistance.current = distance;
+      lastSkyWeather.current = weather;
     }
 
     if (Math.abs(distance - lastLightingDistance.current) >= 0.75) {

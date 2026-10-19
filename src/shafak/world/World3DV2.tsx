@@ -23,7 +23,7 @@ import {
 } from "./world-v2-camera";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
-import { hasWebGLApi } from "./webgl-support";
+import { WorldV2LabelManager } from "./WorldV2Labels";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
@@ -195,20 +195,12 @@ class WorldV2CanvasErrorBoundary extends Component<
   }
 }
 
-function supportsWebGLApi() {
-  if (typeof window === "undefined") return false;
-  return hasWebGLApi(
-    typeof WebGL2RenderingContext === "undefined" ? undefined : WebGL2RenderingContext,
-    typeof WebGLRenderingContext === "undefined" ? undefined : WebGLRenderingContext,
-  );
-}
-
 export default function World3DV2(props: World3DProps) {
   const [debug] = useState(isDebugEnabled);
   const [noNpc] = useState(() => readQueryFlag("nonpc"));
   const [noProps] = useState(() => readQueryFlag("noprops"));
   const [noFx] = useState(() => readQueryFlag("nofx"));
-  const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
+  const [rendererUnavailable, setRendererUnavailable] = useState(false);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const [asset, setAsset] = useState<LoadedWorldAsset | null>(null);
   const [assetError, setAssetError] = useState("");
@@ -220,7 +212,7 @@ export default function World3DV2(props: World3DProps) {
   });
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
-  const renderPixelRatio = touchRenderer ? 1 : Math.min(pixelRatio, 2);
+  const renderPixelRatio = touchRenderer ? 1 : Math.min(pixelRatio, 1.5);
   const contextCleanupRef = useRef<(() => void) | null>(null);
   const automaticRecoveryAttemptsRef = useRef(0);
   const recoveryRequestedRef = useRef(false);
@@ -228,34 +220,28 @@ export default function World3DV2(props: World3DProps) {
   const retryWorld3D = useCallback(() => {
     automaticRecoveryAttemptsRef.current = 0;
     recoveryRequestedRef.current = false;
-    setWebglAvailable(null);
+    setRendererUnavailable(false);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
   const recoverWorld3D = useCallback(() => {
     if (recoveryRequestedRef.current) return;
     if (automaticRecoveryAttemptsRef.current >= 1) {
       console.error("[world-v2] 3D renderer stayed black after rebuilding; waiting for a manual 3D retry.");
-      setWebglAvailable(false);
+      setRendererUnavailable(true);
       return;
     }
     automaticRecoveryAttemptsRef.current += 1;
     recoveryRequestedRef.current = true;
     console.warn("[world-v2] rebuilding the 3D renderer after an empty frame or context loss.");
-    setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
   }, []);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setWebglAvailable(supportsWebGLApi()));
-    return () => window.cancelAnimationFrame(frame);
-  }, [canvasAttempt]);
 
   useEffect(() => {
     const resetRecoveryBudget = window.setTimeout(() => {
       automaticRecoveryAttemptsRef.current = 0;
     }, 15_000);
     return () => window.clearTimeout(resetRecoveryBudget);
-  }, [canvasAttempt, webglAvailable]);
+  }, [canvasAttempt, rendererUnavailable]);
 
   useEffect(() => () => {
     contextCleanupRef.current?.();
@@ -278,12 +264,10 @@ export default function World3DV2(props: World3DProps) {
 
   return (
     <div className="world-three-layer world-3d-layer" aria-label="Kül Yolu 3D dünyası">
-      {webglAvailable === null ? (
-        <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
-      ) : !webglAvailable ? (
+      {rendererUnavailable ? (
         <div className="world-three-fallback" role="alert">
           <div className="world-three-fallback__content">
-            <p>3D sahne başlatılamadı. WebGL destekli bir tarayıcıda yeniden deneyin.</p>
+            <p>3D görüntüleyici iki denemeden sonra da açılamadı. Safari’de WebGL’i destekleyen bir sekmede yeniden deneyin.</p>
             <button type="button" onClick={retryWorld3D}>3D SAHNEYİ YENİDEN OLUŞTUR</button>
           </div>
         </div>
@@ -293,7 +277,7 @@ export default function World3DV2(props: World3DProps) {
           fallback={
             <div className="world-three-fallback" role="alert">
               <div className="world-three-fallback__content">
-                <p>3D sahne başlatılamadı. Siyah ekranda kalmaması için bu 3D oturumu durduruldu.</p>
+                <p>3D görüntüleyici başlatılamadı. Sahne 3D olarak yeniden oluşturulmayı bekliyor.</p>
                 <button type="button" onClick={retryWorld3D}>3D SAHNEYİ YENİDEN OLUŞTUR</button>
               </div>
             </div>
@@ -390,6 +374,7 @@ export default function World3DV2(props: World3DProps) {
                 </>
               )}
             </Suspense>
+            <WorldV2LabelManager motionRef={props.motionRef} />
             {debug && <WorldV2Diagnostics enabled={debug} onUpdate={setDebugSnapshot} />}
             <WorldBlackFrameProbe onBlackFrame={recoverWorld3D} manualRender />
           </Canvas>

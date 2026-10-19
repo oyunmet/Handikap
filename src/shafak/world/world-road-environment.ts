@@ -27,6 +27,13 @@ const ASH_SURFACE_COLORS = {
   ground: "#a69b8c",
   road: "#a18b75",
 } as const;
+const ASH_WEATHER_TINTS = {
+  road: new THREE.Color("#797875"),
+  ground: new THREE.Color("#4f504e"),
+  shoulder: new THREE.Color("#66635e"),
+  stone: new THREE.Color("#817a71"),
+  foliage: new THREE.Color("#635e55"),
+};
 
 function seededRandom(seed: number) {
   let state = seed >>> 0;
@@ -329,6 +336,36 @@ function createTile(
     root.add(pillars, capitals, ruinArch);
   }
 
+  if (tileOrdinal % 13 === 5) {
+    const towerRandom = seededRandom((offset + 64) * 7_919 + tileOrdinal * 173);
+    const sideSign = tileOrdinal % 2 === 0 ? -1 : 1;
+    const x = sideSign * (roadHalf + 11.4);
+    const z = (towerRandom() - 0.5) * WORLD_ROAD_TILE_LENGTH * 0.64;
+    const tower = new THREE.InstancedMesh(shared.ruinColumnGeometry, shared.stone, 1);
+    const towerCap = new THREE.InstancedMesh(shared.ruinCapGeometry, shared.stone, 1);
+    tower.name = "world-ash-broken-watchtower";
+    towerCap.name = "world-ash-watchtower-cap";
+    setInstanceEuler(
+      tower,
+      0,
+      new THREE.Vector3(x, 2.76, z),
+      new THREE.Vector3(2.6, 1.8, 2.6),
+      new THREE.Euler(0, towerRandom() * Math.PI * 2, sideSign * 0.055),
+    );
+    setInstance(
+      towerCap,
+      0,
+      new THREE.Vector3(x, 5.62, z),
+      new THREE.Vector3(2.8, 1, 2.8),
+      towerRandom() * Math.PI,
+    );
+    tower.instanceMatrix.needsUpdate = true;
+    towerCap.instanceMatrix.needsUpdate = true;
+    tower.castShadow = true;
+    towerCap.castShadow = true;
+    root.add(tower, towerCap);
+  }
+
   if (tileOrdinal % 11 === 6) {
     const cartRoot = new THREE.Group();
     cartRoot.name = "world-roadside-broken-cart";
@@ -547,20 +584,40 @@ export function createWorldRoadEnvironment(showProps = true): WorldRoadEnvironme
     if (Math.abs(distance - lastPaletteDistance) < 0.65 && weather === lastWeather) return;
     lastPaletteDistance = distance;
     lastWeather = weather;
-    materials.road.color.copy(colorForBiome(distance, "road"));
+    const ashWeather = weather === "ash";
+    materials.road.forEach((material) => {
+      material.color.copy(colorForBiome(distance, "road"));
+      if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.road, 0.48);
+    });
     materials.ground.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.72);
-    materials.shoulder.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.91);
+    if (ashWeather) materials.ground.color.lerp(ASH_WEATHER_TINTS.ground, 0.32);
+    materials.shoulder.forEach((material) => {
+      material.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.91);
+      if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.shoulder, 0.34);
+    });
     materials.curb.color.copy(colorForBiome(distance, "stone")).multiplyScalar(0.88);
     materials.stone.color.copy(colorForBiome(distance, "stone"));
+    if (ashWeather) {
+      materials.curb.color.lerp(ASH_WEATHER_TINTS.stone, 0.22);
+      materials.stone.color.lerp(ASH_WEATHER_TINTS.stone, 0.22);
+    }
     materials.bark.color.copy(colorForBiome(distance, "bark"));
     materials.foliage.color.copy(colorForBiome(distance, "foliage"));
+    if (ashWeather) materials.foliage.color.lerp(ASH_WEATHER_TINTS.foliage, 0.38);
     materials.rock.color.copy(colorForBiome(distance, "stone")).multiplyScalar(0.93);
     materials.grass.color.copy(colorForBiome(distance, "foliage")).lerp(colorForBiome(distance, "ground"), 0.34);
     materials.farMountain.color.copy(colorForBiome(distance, "far"));
     materials.midMountain.color.copy(colorForBiome(distance, "mid"));
     materials.nearMountain.color.copy(colorForBiome(distance, "near"));
-    materials.road.roughness = weather === "storm" ? 0.64 : weather === "rain" ? 0.72 : 0.94;
-    materials.road.metalness = weather === "storm" ? 0.035 : weather === "rain" ? 0.018 : 0;
+    materials.road.forEach((material) => {
+      material.roughness = weather === "storm" ? 0.64 : weather === "rain" ? 0.72 : 0.94;
+      material.metalness = weather === "storm" ? 0.035 : weather === "rain" ? 0.018 : 0;
+    });
+    materials.shoulder.forEach((material) => {
+      material.roughness = weather === "storm" ? 0.68 : weather === "rain" ? 0.76 : 0.98;
+      material.metalness = weather === "storm" ? 0.025 : weather === "rain" ? 0.012 : 0;
+    });
+    materials.ember.emissiveIntensity = ashWeather ? 1.85 : 1.45;
   };
 
   updatePalette(0, "clear");

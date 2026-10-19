@@ -13,6 +13,7 @@ import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import WorldV2Actor from "./WorldV2Actor";
+import { WorldV2Label } from "./WorldV2Labels";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type Registry = WorldInteractableRegistry<WorldObstacle | WorldRival>;
@@ -193,9 +194,7 @@ function WorldV2Obstacle({
               </mesh>
             );
           })}
-          <Html position={[0, 0.72, 0]} center style={{ pointerEvents: "none" }}>
-            <span className="world-v2-label">DİKENLİ TUZAK · ZIPLA</span>
-          </Html>
+          <WorldV2Label position={[0, 0.72, 0]} maxDistance={30}>DİKENLİ TUZAK · ZIPLA</WorldV2Label>
         </group>
       )}
 
@@ -217,9 +216,7 @@ function WorldV2Obstacle({
               <meshStandardMaterial color="#efb654" emissive="#9b592f" emissiveIntensity={0.25} />
             </mesh>
           ))}
-          <Html position={[0, 1.9, 0]} center style={{ pointerEvents: "none" }}>
-            <span className="world-v2-label">ALÇAK KİRİŞ · EĞİL</span>
-          </Html>
+          <WorldV2Label position={[0, 1.9, 0]} maxDistance={30}>ALÇAK KİRİŞ · EĞİL</WorldV2Label>
         </group>
       )}
 
@@ -235,9 +232,13 @@ function WorldV2Obstacle({
                 <circleGeometry args={[0.62, 20]} />
                 <meshBasicMaterial color="#191614" transparent opacity={0.32} depthWrite={false} />
               </mesh>
-              <Html position={[0, 1.15, 0]} center style={{ pointerEvents: "none" }}>
-                <span className="world-v2-label world-v2-label--danger">DÜŞEN KAYA · YANA KAÇ</span>
-              </Html>
+              <WorldV2Label
+                position={[0, 1.15, 0]}
+                maxDistance={34}
+                className="world-v2-label world-v2-label--danger"
+              >
+                DÜŞEN KAYA · YANA KAÇ
+              </WorldV2Label>
             </group>
           )}
           <group ref={rockRef} visible={!falling} position={[0, 0.65, 0]}>
@@ -246,7 +247,7 @@ function WorldV2Obstacle({
               <primitive object={rockMaterial} attach="material" />
             </mesh>
           </group>
-          {!falling && <Html position={[0, 1.45, 0]} center style={{ pointerEvents: "none" }}><span className="world-v2-label">KAYA · ETRAFINDAN DOLAŞ</span></Html>}
+          {!falling && <WorldV2Label position={[0, 1.45, 0]} maxDistance={34}>KAYA · ETRAFINDAN DOLAŞ</WorldV2Label>}
         </group>
       )}
 
@@ -284,11 +285,9 @@ function WorldV2Obstacle({
         </group>
       )}
       {obstacle.kind !== "spike-trap" && obstacle.kind !== "low-bar" && obstacle.kind !== "rock" && !falling && (
-        <Html position={[0, 1.25, 0]} center style={{ pointerEvents: "none" }}>
-          <span className="world-v2-label">
-            {obstacle.kind === "barrel" ? "VARİL · KIR" : obstacle.kind === "vase" ? "VAZO · KIR" : obstacle.kind === "barricade" ? "BARİKAT · SALDIR" : "SANDIK"}
-          </span>
-        </Html>
+        <WorldV2Label position={[0, 1.25, 0]} maxDistance={34}>
+          {obstacle.kind === "barrel" ? "VARİL · KIR" : obstacle.kind === "vase" ? "VAZO · KIR" : obstacle.kind === "barricade" ? "BARİKAT · SALDIR" : "SANDIK"}
+        </WorldV2Label>
       )}
     </group>
   );
@@ -368,11 +367,13 @@ function WorldV2Npc({
           <ringGeometry args={focused || talking ? [0.83, 0.96, 28] : [0.65, 0.74, 24]} />
           <meshBasicMaterial color={focused || talking ? "#ef704f" : NPC_TINTS[rival.name] ?? rival.armorTint} transparent opacity={focused || talking ? 0.7 : 0.32} depthWrite={false} />
         </mesh>
-        <Html position={[0, 2.1, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-          <span className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`}>
-            <b>{rival.name}</b><span>{rival.title}</span>
-          </span>
-        </Html>
+        <WorldV2Label
+          position={[0, 2.1, 0]}
+          maxDistance={54}
+          className={`world-rival-tag${focused ? " is-focused" : ""}${rival.isBoss ? " is-boss" : ""}`}
+        >
+          <b>{rival.name}</b><span>{rival.title}</span>
+        </WorldV2Label>
         {talking && Math.abs(rival.distance - motionRef.current.distance) <= RIVAL_DIALOGUE_RANGE_METERS && (
           <Html
             portal={dialoguePortal}

@@ -6,6 +6,7 @@ export const WORLD_V2_CONFIG = {
   },
   player: { targetHeight: 1.7 },
   npc: { targetHeight: 1.7 },
+  modelFacing: 0,
   rock: { targetMaxDim: 2 },
   spikeTrap: { width: 3, height: 0.5 },
   lowBeam: { width: 3, openingHeight: 1.4, beamHeight: 0.16 },

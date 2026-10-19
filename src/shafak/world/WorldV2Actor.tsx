@@ -4,9 +4,10 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
-import { KNIGHT_CONFIG, getKnightActorRootYaw } from "./knight-config";
+import { KNIGHT_CONFIG } from "./knight-config";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter } from "./world-v2-assets";
+import { WORLD_V2_CONFIG } from "./world-v2-config";
 
 type Props = {
   asset: LoadedWorldAsset;
@@ -52,6 +53,8 @@ export default function WorldV2Actor({
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const activeClipNameRef = useRef("");
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
+  const previousPlayerMotion = useRef({ distance: Number.NaN, depth: Number.NaN });
+  const playerFacingAngle = useRef(Math.PI);
 
   useEffect(() => () => {
     mixer.stopAllAction();
@@ -71,13 +74,34 @@ export default function WorldV2Actor({
 
     if (isPlayer) {
       root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
-      root.rotation.y = getKnightActorRootYaw(Math.PI);
+      const previous = previousPlayerMotion.current;
+      const firstPlayerFrame = !Number.isFinite(previous.distance) || !Number.isFinite(previous.depth);
+      if (!firstPlayerFrame) {
+        const forwardDelta = motion.distance - previous.distance;
+        const lateralDelta = (motion.depth - previous.depth) * 5.2;
+        if (Math.hypot(forwardDelta, lateralDelta) > 0.0005) {
+          playerFacingAngle.current = Math.atan2(lateralDelta, -forwardDelta);
+        }
+      }
+      previous.distance = motion.distance;
+      previous.depth = motion.depth;
+
+      const targetYaw = playerFacingAngle.current - WORLD_V2_CONFIG.modelFacing;
+      if (firstPlayerFrame) {
+        root.rotation.y = targetYaw;
+      } else {
+        const yawDelta = THREE.MathUtils.euclideanModulo(
+          targetYaw - root.rotation.y + Math.PI,
+          Math.PI * 2,
+        ) - Math.PI;
+        root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
+      }
     } else {
       const actorZ = -(distance - motion.cameraX);
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
       const directionX = playerPosition.x - x;
       const directionZ = playerPosition.z - actorZ;
-      root.rotation.y = getKnightActorRootYaw(Math.atan2(directionX, directionZ));
+      root.rotation.y = Math.atan2(directionX, directionZ) - WORLD_V2_CONFIG.modelFacing;
     }
 
     const state = isPlayer ? animationState : "idle";

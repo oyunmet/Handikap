@@ -74,7 +74,7 @@ function createSurfacePixels(kind: "cobble" | "ash-gravel", size: number, seed: 
         const localY = (y % cellSize) / cellSize;
         const edgeNoise = periodicNoise(x / 7, y / 7, size / 7, size / 7, seed ^ 0x27d4eb2d);
         const edgeDistance = Math.min(localX, 1 - localX, localY, 1 - localY) * cellSize;
-        joint = edgeDistance < 2.8 + edgeNoise * 1.8;
+        joint = edgeDistance < 4.2 + edgeNoise * 2.4;
         const stoneTone = hash(cellX % cells, cellY % cells, seed ^ 0x165667b1);
         const stoneWorn = periodicNoise(x / 19, y / 19, size / 19, size / 19, seed ^ 0x9e3779b9);
         const crackSeed = hash(cellX % cells, cellY % cells, seed ^ 0x85ebca6b);

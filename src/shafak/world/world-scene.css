@@ -1160,7 +1160,8 @@
   .world-gate-prompt {
     top: auto;
     bottom: max(164px, calc(env(safe-area-inset-bottom) + 164px));
-    width: min(290px, calc(100% - 26px));
+    left: calc(50% + 27px);
+    width: min(170px, calc(100% - 206px));
     max-height: max(116px, min(290px, calc(100dvh - 500px)));
     gap: 5px;
     padding: 12px 14px;
@@ -1246,6 +1247,14 @@
 
 .world-movement-actions,
 .world-hazard-hint { display: none; }
+
+@media (max-width: 360px) {
+  .world-gate-prompt {
+    left: 50%;
+    bottom: max(205px, calc(env(safe-area-inset-bottom) + 205px));
+    width: min(290px, calc(100% - 24px));
+  }
+}
 .world-encounter__actions { display: flex; gap: 6px; pointer-events: auto; }
 .world-encounter__talk {
   min-height: 42px; padding: 0 13px; border: 1px solid rgba(227,195,137,.52); border-radius: 3px;

@@ -1,4 +1,3 @@
-import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
@@ -9,6 +8,7 @@ import { WORLD_GATE_INTERVAL_METERS } from "./movement";
 import { nextGateDistanceForCamera } from "./world-generation";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
+import { WorldV2Label } from "./WorldV2Labels";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 
@@ -20,9 +20,31 @@ export function WorldV2RouteGates({
   unlockedThroughChapter: number;
 }) {
   const rootRef = useRef<THREE.Group>(null);
-  const poleRef = useRef<THREE.Group>(null);
+  const routeSignsRef = useRef<THREE.Group>(null);
   const gateMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#807469", roughness: 0.92, flatShading: true }), []);
   const trimMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#c5a26e", metalness: 0.34, roughness: 0.54 }), []);
+  const lampMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#ffbd70",
+    emissive: "#ff672d",
+    emissiveIntensity: 2.1,
+    roughness: 0.28,
+    metalness: 0.12,
+  }), []);
+  const archGeometry = useMemo(() => new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-5.05, 4.35, 0),
+      new THREE.Vector3(-4.65, 5.45, 0),
+      new THREE.Vector3(-3.25, 6.15, 0),
+      new THREE.Vector3(0, 6.55, 0),
+      new THREE.Vector3(3.25, 6.15, 0),
+      new THREE.Vector3(4.65, 5.45, 0),
+      new THREE.Vector3(5.05, 4.35, 0),
+    ]),
+    32,
+    0.24,
+    7,
+    false,
+  ), []);
   const markCollision = (object: THREE.Object3D | null) => {
     object?.layers.enable(WORLD_V2_CAMERA_COLLISION_LAYER);
   };
@@ -30,7 +52,9 @@ export function WorldV2RouteGates({
   useEffect(() => () => {
     gateMaterial.dispose();
     trimMaterial.dispose();
-  }, [gateMaterial, trimMaterial]);
+    lampMaterial.dispose();
+    archGeometry.dispose();
+  }, [archGeometry, gateMaterial, lampMaterial, trimMaterial]);
 
   useFrame(() => {
     const motion = motionRef.current;
@@ -40,25 +64,46 @@ export function WorldV2RouteGates({
     );
     if (rootRef.current) rootRef.current.position.z = -(gateDistance - motion.cameraX);
     const chapterAtGate = Math.max(0, Math.floor(gateDistance / WORLD_GATE_INTERVAL_METERS) - 1);
-    if (poleRef.current) poleRef.current.visible = chapterAtGate <= unlockedThroughChapter;
+    if (routeSignsRef.current) routeSignsRef.current.visible = chapterAtGate <= unlockedThroughChapter;
   });
 
   return (
     <group ref={rootRef} name="world-v2-route-gates">
-      <group ref={poleRef}>
+      <mesh geometry={archGeometry} material={gateMaterial} position={[0, 0, 0.18]} castShadow receiveShadow />
+      {([-1, 1] as const).map((side) => (
+        <group key={side} position={[side * 5.15, 0, 0]}>
+          <mesh position={[0, 0.2, 0]}>
+            <boxGeometry args={[1.28, 0.4, 1.08]} />
+            <primitive object={trimMaterial} attach="material" />
+          </mesh>
+          <mesh ref={markCollision} position={[0, 2.35, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[0.49, 0.67, 4.3, 7]} />
+            <primitive object={gateMaterial} attach="material" />
+          </mesh>
+          <mesh position={[0, 4.58, 0]}>
+            <boxGeometry args={[1.35, 0.34, 1.14]} />
+            <primitive object={trimMaterial} attach="material" />
+          </mesh>
+          <mesh position={[0, 5.18, 0]}>
+            <cylinderGeometry args={[0.44, 0.52, 1.12, 6]} />
+            <primitive object={gateMaterial} attach="material" />
+          </mesh>
+          <mesh position={[0, 5.86, 0]}>
+            <sphereGeometry args={[0.29, 10, 8]} />
+            <primitive object={lampMaterial} attach="material" />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 6.45, 0]}>
+        <sphereGeometry args={[0.2, 10, 8]} />
+        <primitive object={lampMaterial} attach="material" />
+      </mesh>
+      <group ref={routeSignsRef}>
         {([-1, 1] as const).map((side) => (
           <group key={side} position={[side * 2.55, 0, 0]}>
-            <mesh ref={markCollision} position={[0, 0.85, 0]}>
-              <boxGeometry args={[0.22, 1.7, 0.24]} />
-              <primitive object={gateMaterial} attach="material" />
-            </mesh>
-            <mesh position={[0, 1.75, 0]}>
-              <boxGeometry args={[0.34, 0.12, 0.32]} />
-              <primitive object={trimMaterial} attach="material" />
-            </mesh>
-            <Html position={[0, 2.05, 0]} center style={{ pointerEvents: "none" }}>
-              <span className="world-v2-label">{side < 0 ? "SOL GEÇİT" : "SAĞ GEÇİT"}</span>
-            </Html>
+            <WorldV2Label position={[0, 2.05, 0]} maxDistance={48}>
+              {side < 0 ? "SOL GEÇİT" : "SAĞ GEÇİT"}
+            </WorldV2Label>
           </group>
         ))}
       </group>
@@ -94,9 +139,9 @@ export function WorldV2WeatherPoints({
   const geometry = useMemo(createWeatherPoints, []);
   const color = weather === "storm" || weather === "rain"
     ? "#c6d8e6"
-    : weather === "fog" ? "#d4c9c0" : "#e7b27f";
+    : weather === "fog" ? "#d4c9c0" : weather === "ash" ? "#ff9b55" : "#e7b27f";
   useEffect(() => () => geometry.dispose(), [geometry]);
-  useFrame(() => {
+  useFrame((frame) => {
     const motion = motionRef.current;
     if (!pointsRef.current) return;
     pointsRef.current.position.set(
@@ -104,6 +149,11 @@ export function WorldV2WeatherPoints({
       0,
       -(motion.distance - motion.cameraX),
     );
+    if (weather === "ash") {
+      pointsRef.current.rotation.z = Math.sin(frame.clock.elapsedTime * 0.14) * 0.012;
+    } else {
+      pointsRef.current.rotation.z = 0;
+    }
     pointsRef.current.visible = enabled && weather !== "clear";
   });
   return (
@@ -113,7 +163,7 @@ export function WorldV2WeatherPoints({
         size={0.07}
         sizeAttenuation
         transparent
-        opacity={weather === "fog" ? 0.24 : 0.42}
+        opacity={weather === "fog" ? 0.24 : weather === "ash" ? 0.5 : 0.42}
         depthWrite={false}
       />
     </points>
