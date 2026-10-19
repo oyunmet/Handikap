@@ -71,6 +71,7 @@ import { WORLD_GATE_INTERVAL_METERS, WORLD_ROAD_WIDTH } from "./movement";
 import { getNearestWorldLabelIds, type WorldLabelCandidate } from "./world-label-layout";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { nextGateDistanceForCamera } from "./world-generation";
+import { createDuelArenaBackdropMountains } from "./duel-arena-backdrop";
 
 function createProceduralEnvironmentTexture() {
   const width = 128;
@@ -1723,15 +1724,10 @@ function DuelArenaBoundaryRunes({
 function DuelArenaBackdrop({ theme }: { theme: DuelArenaTheme }) {
   const mountainsRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const mountains = useMemo(() => Array.from({ length: 9 }, (_, index) => ({
-    x: (index - 4) * 12.2,
-    y: -3.2 + (index % 3) * 1.2,
-    z: -34 - (index % 2) * 4,
-    sx: 8.5 + (index % 4) * 1.8,
-    sy: 12 + (index % 5) * 2.4,
-    sz: 6.4 + (index % 3) * 1.1,
-    color: theme.wall[index % theme.wall.length],
-  })), [theme.wall]);
+  const mountains = useMemo(
+    () => createDuelArenaBackdropMountains(theme.wall),
+    [theme.wall],
+  );
 
   useEffect(() => {
     const mesh = mountainsRef.current;

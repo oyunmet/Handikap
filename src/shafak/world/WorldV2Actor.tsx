@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
+import { createUprightTorsoClip } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
@@ -20,13 +21,13 @@ type Props = {
   localToParent?: boolean;
 };
 
-function resolveClip(asset: LoadedWorldAsset, state: CharacterAnimationState) {
+function resolveClip(animations: THREE.AnimationClip[], state: CharacterAnimationState) {
   const aliases = KNIGHT_CONFIG.animationClips[state] as readonly string[];
   const normalizedNames = aliases.map((name) => name.toLowerCase());
-  return asset.animations.find((clip) => normalizedNames.includes(clip.name.toLowerCase()))
-    ?? asset.animations.find((clip) => clip.name.toLowerCase().includes(state.toLowerCase()))
-    ?? asset.animations.find((clip) => clip.name.toLowerCase().includes("idle"))
-    ?? asset.animations[0];
+  return animations.find((clip) => normalizedNames.includes(clip.name.toLowerCase()))
+    ?? animations.find((clip) => clip.name.toLowerCase().includes(state.toLowerCase()))
+    ?? animations.find((clip) => clip.name.toLowerCase().includes("idle"))
+    ?? animations[0];
 }
 
 export default function WorldV2Actor({
@@ -49,6 +50,12 @@ export default function WorldV2Actor({
     });
     return clone;
   }, [asset, isPlayer, tint]);
+  const animations = useMemo(() => isPlayer
+    ? asset.animations.map((clip) => {
+      const baseName = clip.name.toLowerCase().split("|").at(-1);
+      return baseName === "run" ? createUprightTorsoClip(clip) : clip;
+    })
+    : asset.animations, [asset, isPlayer]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const activeClipNameRef = useRef("");
@@ -95,7 +102,7 @@ export default function WorldV2Actor({
     }
 
     const state = isPlayer ? animationState : "idle";
-    const clip = resolveClip(asset, state);
+    const clip = resolveClip(animations, state);
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
       nextAction.reset().fadeIn(0.16).play();

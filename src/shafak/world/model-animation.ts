@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { CombatAction } from "../game/combat-engine";
 import { KNIGHT_CONFIG } from "./knight-config";
@@ -32,6 +33,29 @@ export function isRootTranslationTrack(trackName: string, rootBoneName: string):
   const pathSegments = trackName.split(/[.[\]]+/).filter(Boolean);
   return pathSegments.at(-1)?.toLocaleLowerCase() === "position"
     && pathSegments.at(-2)?.toLocaleLowerCase() === rootBoneName.toLocaleLowerCase();
+}
+
+export function createUprightTorsoClip(clip: THREE.AnimationClip): THREE.AnimationClip {
+  const uprightClip = clip.clone();
+  const rotation = new THREE.Quaternion();
+  const euler = new THREE.Euler();
+
+  for (const track of uprightClip.tracks) {
+    const pathSegments = track.name.split(/[.[\]]+/).filter(Boolean);
+    if (
+      pathSegments.at(-1)?.toLocaleLowerCase() !== "quaternion"
+      || pathSegments.at(-2)?.toLocaleLowerCase() !== "torso"
+    ) continue;
+
+    for (let offset = 0; offset + 3 < track.values.length; offset += 4) {
+      rotation.fromArray(track.values, offset);
+      euler.setFromQuaternion(rotation, "XYZ");
+      euler.z = 0;
+      rotation.setFromEuler(euler).toArray(track.values, offset);
+    }
+  }
+
+  return uprightClip;
 }
 
 function normalizeClipName(name: string) {

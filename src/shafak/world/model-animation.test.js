@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import * as THREE from "three";
 import {
+  createUprightTorsoClip,
   getOpponentAnimationPlayback,
   isRootTranslationTrack,
   mapOpponentAnimationState,
@@ -18,6 +20,31 @@ import {
   PLAYER_CHARACTER_ANIMATION_CLIPS,
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model.ts";
+
+test("upright locomotion keeps torso pitch and yaw but removes sideways lean", () => {
+  const tilted = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, -0.08, 0.16, "XYZ"));
+  const track = new THREE.QuaternionKeyframeTrack(
+    "Torso.quaternion",
+    [0],
+    tilted.toArray(),
+  );
+  const clip = new THREE.AnimationClip("Run", 1, [track]);
+  const upright = createUprightTorsoClip(clip);
+  const originalRotation = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion().fromArray(clip.tracks[0].values),
+    "XYZ",
+  );
+  const fixedRotation = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion().fromArray(upright.tracks[0].values),
+    "XYZ",
+  );
+
+  assert.notEqual(upright, clip);
+  assert.ok(Math.abs(fixedRotation.z) < 1e-6);
+  assert.ok(Math.abs(fixedRotation.x - originalRotation.x) < 1e-6);
+  assert.ok(Math.abs(fixedRotation.y - originalRotation.y) < 1e-6);
+  assert.ok(Math.abs(originalRotation.z - 0.16) < 1e-6, "the source clip remains unchanged");
+});
 
 test("GLB clip names are resolved case-insensitively from one configurable map", () => {
   const clips = {
