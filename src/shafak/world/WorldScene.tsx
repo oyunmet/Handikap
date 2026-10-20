@@ -3181,29 +3181,41 @@ export default function WorldScene({
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">
         <button
+          className={`world-movement-action${worldInput.isActionToggled("shift") ? " is-active" : ""}`}
           type="button"
           aria-label="Koş"
-          onPointerDown={(event) => worldInput.onActionPointerDown(event, "shift")}
-          onPointerUp={(event) => worldInput.onActionPointerUp(event, "shift")}
-          onPointerCancel={(event) => worldInput.onActionPointerUp(event, "shift")}
-          onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "shift")}
-        ><span aria-hidden="true">»</span><b>KOŞ</b></button>
+          aria-pressed={worldInput.isActionToggled("shift")}
+          onClick={() => worldInput.toggleAction("shift")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="15.5" cy="4.5" r="1.7" />
+            <path d="m13 7-3.5 3.3 3.2 1.2 2.2 3.2m-5.4-4.4-1.2 4.1-3.1 3m5.1-7.1 4.2-1 3.1 2m-7.3-1 1-3.3" />
+          </svg>
+          <b>KOŞ</b>
+        </button>
         <button
+          className="world-movement-action is-jump"
           type="button"
           aria-label="Zıpla"
-          onPointerDown={(event) => worldInput.onActionPointerDown(event, "space")}
-          onPointerUp={(event) => worldInput.onActionPointerUp(event, "space")}
-          onPointerCancel={(event) => worldInput.onActionPointerUp(event, "space")}
-          onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "space")}
-        ><span aria-hidden="true">↑</span><b>ZIPLA</b></button>
+          onClick={() => worldInput.triggerAction("space")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 20V4m-6 6 6-6 6 6" />
+          </svg>
+          <b>ZIPLA</b>
+        </button>
         <button
+          className={`world-movement-action${worldInput.isActionToggled("c") ? " is-active" : ""}`}
           type="button"
           aria-label="Eğil"
-          onPointerDown={(event) => worldInput.onActionPointerDown(event, "c")}
-          onPointerUp={(event) => worldInput.onActionPointerUp(event, "c")}
-          onPointerCancel={(event) => worldInput.onActionPointerUp(event, "c")}
-          onLostPointerCapture={(event) => worldInput.onActionPointerUp(event, "c")}
-        ><span aria-hidden="true">↓</span><b>EĞİL</b></button>
+          aria-pressed={worldInput.isActionToggled("c")}
+          onClick={() => worldInput.toggleAction("c")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 4v8m-6-2 6 6 6-6M5 20h14" />
+          </svg>
+          <b>EĞİL</b>
+        </button>
       </div>
       {nearbyHazard && !battleSession && (
         <div className="world-hazard-hint" role="status">

@@ -21,7 +21,7 @@ import {
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model.ts";
 
-test("upright locomotion keeps torso pitch and yaw but removes sideways lean", () => {
+test("locomotion clips keep forward lean but remove sideways lean and body turns", () => {
   const tilted = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, -0.08, 0.16, "XYZ"));
   const track = new THREE.QuaternionKeyframeTrack(
     "Torso.quaternion",
@@ -42,7 +42,8 @@ test("upright locomotion keeps torso pitch and yaw but removes sideways lean", (
   assert.notEqual(upright, clip);
   assert.ok(Math.abs(fixedRotation.z) < 1e-6);
   assert.ok(Math.abs(fixedRotation.x - originalRotation.x) < 1e-6);
-  assert.ok(Math.abs(fixedRotation.y - originalRotation.y) < 1e-6);
+  assert.ok(Math.abs(fixedRotation.y) < 1e-6);
+  assert.ok(Math.abs(originalRotation.y + 0.08) < 1e-6);
   assert.ok(Math.abs(originalRotation.z - 0.16) < 1e-6, "the source clip remains unchanged");
 });
 

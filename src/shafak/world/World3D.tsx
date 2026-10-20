@@ -63,6 +63,7 @@ import {
 import {
   DUEL_CAMERA_HEADING,
   DUEL_CAMERA_TOUCH_FOV,
+  getDuelCameraFramingDistance,
   getDuelCameraPose,
   getDuelFacingAngle,
   getDuelJumpHeight,
@@ -437,6 +438,7 @@ function CameraRig({
 }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const scene = useThree((state) => state.scene);
+  const viewport = useThree((state) => state.size);
   const targetRef = useMemo(() => new THREE.Vector3(), []);
   const desiredRef = useMemo(() => new THREE.Vector3(), []);
   const cameraOriginRef = useMemo(() => new THREE.Vector3(), []);
@@ -510,11 +512,21 @@ function CameraRig({
         getDuelJumpHeight(combat.player, combat.tick),
         getDuelJumpHeight(combat.bot, combat.tick),
       );
+      const duelFov = touchRenderer ? DUEL_CAMERA_TOUCH_FOV : 52;
+      const duelAspect = viewport.width / Math.max(1, viewport.height);
+      const cameraBack = getDuelCameraFramingDistance(
+        combat.player,
+        combat.bot,
+        duelAspect,
+        duelFov - 4,
+        touchRenderer ? 7.2 : 7.7,
+        duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
+      );
       const pose = getDuelCameraPose(
         combat.player,
         combat.bot,
         -(motion.distance - motion.originDistance),
-        touchRenderer ? 7.2 : 7.7,
+        cameraBack,
         touchRenderer ? 0.32 : 0.45,
         jumpLift,
         duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
@@ -1853,10 +1865,6 @@ function DuelArena({
   const theme = getDuelArenaTheme(motionRef.current.distance);
   return (
     <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
-      <mesh position={[0, -0.11, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[42, 96]} />
-        <meshBasicMaterial color={theme.background} side={THREE.DoubleSide} toneMapped={false} />
-      </mesh>
       <DuelArenaAtmosphere theme={theme} />
       <DuelArenaStonework theme={theme} />
       <DuelArenaBackdrop theme={theme} />

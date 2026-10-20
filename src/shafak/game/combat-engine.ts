@@ -6,7 +6,7 @@ export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
 export const COMBAT_ARENA_CENTER_Z = -0.6;
 export const COMBAT_ARENA_RADIUS = 9;
-export const COMBAT_ARENA_ACTOR_LIMIT = 8.2;
+export const COMBAT_ARENA_ACTOR_LIMIT = 7.5;
 export const COMBAT_DODGE_DURATION_TICKS = Math.round(COMBAT_HZ * 0.25);
 export const COMBAT_DODGE_DISTANCE_METERS = 3;
 export const DUEL_COVERS = [
@@ -1052,7 +1052,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
     const edgeDx = player.x;
     const edgeDz = player.z - COMBAT_ARENA_CENTER_Z;
     const edgeDistance = Math.hypot(edgeDx, edgeDz);
-    const edgeRebound = rapidRepeat && COMBAT_ARENA_RADIUS - edgeDistance <= 1.1;
+    const edgeRebound = rapidRepeat && COMBAT_ARENA_ACTOR_LIMIT - edgeDistance <= 0.85;
     const backflip = edgeRebound || (rapidRepeat && player.lastDodgeWasRetreat && retreatIntent);
     const inward = normalized(-edgeDx, -edgeDz);
     const impulse = edgeRebound

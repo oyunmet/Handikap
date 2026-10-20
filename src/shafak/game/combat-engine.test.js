@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   INPUT_BUTTON,
   COMBAT_ARENA_CENTER_Z,
+  COMBAT_ARENA_ACTOR_LIMIT,
   COMBAT_ARENA_RADIUS,
   COMBAT_BOT_ARCHETYPES,
   COMBO_CHAIN_WINDOW_TICKS,
@@ -487,7 +488,7 @@ test("both combatants stay inside the circular duel arena while moving diagonall
     state = stepCombat(state, { x: 100, y: 100, buttons: 0, pressed: 0, released: 0 }).state;
     for (const actor of [state.player, state.bot]) {
       assert.ok(
-        Math.hypot(actor.x, actor.z - COMBAT_ARENA_CENTER_Z) <= COMBAT_ARENA_RADIUS + 1e-9,
+        Math.hypot(actor.x, actor.z - COMBAT_ARENA_CENTER_Z) <= COMBAT_ARENA_ACTOR_LIMIT + 1e-9,
       );
     }
   }

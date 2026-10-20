@@ -16,6 +16,35 @@ export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
+export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.35;
+
+export function getDuelCameraFramingDistance(
+  player: DuelPoint,
+  opponent: DuelPoint,
+  aspect: number,
+  verticalFovDegrees: number,
+  minimumDistance = 7.2,
+  cameraHeading = DUEL_CAMERA_HEADING,
+) {
+  const safeAspect = Number.isFinite(aspect) ? Math.max(0.25, Math.min(2.4, aspect)) : 0.46;
+  const safeFov = Number.isFinite(verticalFovDegrees)
+    ? Math.max(35, Math.min(100, verticalFovDegrees))
+    : DUEL_CAMERA_TOUCH_FOV;
+  const heading = Number.isFinite(cameraHeading) ? cameraHeading : DUEL_CAMERA_HEADING;
+  const sideX = -Math.cos(heading);
+  const sideZ = Math.sin(heading);
+  const centerX = player.x * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
+    + opponent.x * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT);
+  const centerZ = (player.z + opponent.z) * 0.5;
+  const playerOffset = (player.x - centerX) * sideX + (player.z - centerZ) * sideZ;
+  const opponentOffset = (opponent.x - centerX) * sideX + (opponent.z - centerZ) * sideZ;
+  const horizontalFov = 2 * Math.atan(Math.tan((safeFov * Math.PI) / 360) * safeAspect);
+  const requiredHalfWidth = Math.max(Math.abs(playerOffset), Math.abs(opponentOffset))
+    + DUEL_CAMERA_ACTOR_EDGE_MARGIN;
+  const requiredDistance = requiredHalfWidth / Math.tan(horizontalFov * 0.5);
+  const safeMinimum = Number.isFinite(minimumDistance) ? Math.max(0, minimumDistance) : 7.2;
+  return Math.max(safeMinimum, requiredDistance);
+}
 
 export function getDuelJumpHeight(actor: DuelJumpState, tick: number) {
   const duration = actor.jumpUntilTick - actor.jumpStartedTick;
@@ -60,17 +89,12 @@ export function getDuelCameraPose(
   const centerZ = (player.z + opponent.z) * 0.5;
   const baseOffsetX = -forwardX * cameraBack + sideX * shoulderOffset;
   const baseOffsetZ = -forwardZ * cameraBack + sideZ * shoulderOffset;
-  const baseOffsetLength = Math.max(1e-4, Math.hypot(baseOffsetX, baseOffsetZ));
-  const extraFramingDistance = Math.min(8, Math.max(0, distance)) * 0.48;
-  const offsetScale = (baseOffsetLength + extraFramingDistance) / baseOffsetLength;
-  const offsetX = baseOffsetX * offsetScale;
-  const offsetZ = baseOffsetZ * offsetScale;
 
   return {
     position: {
-      x: centerX + offsetX,
-      y: 2.6 + jumpLift * 0.16 + extraFramingDistance * 0.08,
-      z: worldOffsetZ + centerZ + offsetZ,
+      x: centerX + baseOffsetX,
+      y: 2.6 + jumpLift * 0.16,
+      z: worldOffsetZ + centerZ + baseOffsetZ,
     },
     target: {
       x: centerX,

@@ -53,7 +53,9 @@ export default function WorldV2Actor({
   const animations = useMemo(() => isPlayer
     ? asset.animations.map((clip) => {
       const baseName = clip.name.toLowerCase().split("|").at(-1);
-      return baseName === "run" ? createUprightTorsoClip(clip) : clip;
+      return baseName === "run" || baseName === "walk"
+        ? createUprightTorsoClip(clip)
+        : clip;
     })
     : asset.animations, [asset, isPlayer]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);

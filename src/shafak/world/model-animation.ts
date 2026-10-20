@@ -39,17 +39,19 @@ export function createUprightTorsoClip(clip: THREE.AnimationClip): THREE.Animati
   const uprightClip = clip.clone();
   const rotation = new THREE.Quaternion();
   const euler = new THREE.Euler();
+  const directionalBones = new Set(["body", "abdomen", "torso", "neck", "head"]);
 
   for (const track of uprightClip.tracks) {
     const pathSegments = track.name.split(/[.[\]]+/).filter(Boolean);
     if (
       pathSegments.at(-1)?.toLocaleLowerCase() !== "quaternion"
-      || pathSegments.at(-2)?.toLocaleLowerCase() !== "torso"
+      || !directionalBones.has(pathSegments.at(-2)?.toLocaleLowerCase() ?? "")
     ) continue;
 
     for (let offset = 0; offset + 3 < track.values.length; offset += 4) {
       rotation.fromArray(track.values, offset);
       euler.setFromQuaternion(rotation, "XYZ");
+      euler.y = 0;
       euler.z = 0;
       rotation.setFromEuler(euler).toArray(track.values, offset);
     }

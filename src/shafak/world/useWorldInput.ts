@@ -21,6 +21,7 @@ export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
   const tapTimer = useRef<number | undefined>(undefined);
+  const actionTimersRef = useRef(new Map<string, number>());
   const toggledActionsRef = useRef(new Set<"shift" | "c">());
   const [toggledActions, setToggledActions] = useState<ReadonlySet<"shift" | "c">>(() => new Set());
 
@@ -98,7 +99,22 @@ export default function useWorldInput(wake: () => void) {
     wake();
   }, [wake]);
 
+  const triggerAction = useCallback((key: "space") => {
+    const previousTimer = actionTimersRef.current.get(key);
+    if (previousTimer) window.clearTimeout(previousTimer);
+    heldKeys.current.add(key);
+    wake();
+    const timer = window.setTimeout(() => {
+      if (actionTimersRef.current.get(key) !== timer) return;
+      actionTimersRef.current.delete(key);
+      heldKeys.current.delete(key);
+    }, 140);
+    actionTimersRef.current.set(key, timer);
+  }, [wake]);
+
   const clearActions = useCallback(() => {
+    actionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    actionTimersRef.current.clear();
     heldKeys.current.clear();
     joystick.current = { x: 0, y: 0 };
     toggledActionsRef.current.clear();
@@ -115,7 +131,9 @@ export default function useWorldInput(wake: () => void) {
       wake();
     };
     const onKeyUp = (event: KeyboardEvent) => {
-      heldKeys.current.delete(event.key === " " ? "space" : event.key.toLowerCase());
+      const key = event.key === " " ? "space" : event.key.toLowerCase();
+      if ((key === "shift" || key === "c") && toggledActionsRef.current.has(key)) return;
+      heldKeys.current.delete(key);
     };
     const onBlur = clearActions;
     window.addEventListener("keydown", onKeyDown);
@@ -130,6 +148,8 @@ export default function useWorldInput(wake: () => void) {
 
   useEffect(() => () => {
     if (tapTimer.current) window.clearTimeout(tapTimer.current);
+    actionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    actionTimersRef.current.clear();
   }, []);
 
   return {
@@ -143,6 +163,7 @@ export default function useWorldInput(wake: () => void) {
     onActionPointerDown,
     onActionPointerUp,
     toggleAction,
+    triggerAction,
     isActionToggled: (key: "shift" | "c") => toggledActions.has(key),
     clearActions,
   };
