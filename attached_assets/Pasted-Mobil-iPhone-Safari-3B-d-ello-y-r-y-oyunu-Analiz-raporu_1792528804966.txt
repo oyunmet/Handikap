@@ -1,0 +1,34 @@
+Mobil (iPhone Safari) 3B düello/yürüyüş oyunu. Analiz raporu yazma, açıklama yapma, mevcut mantığı (can, stamina, hasar, ilerleme, envanter) bozma. Dosyaları doğrudan düzenle, tek geçişte bitir. Bittiğinde sadece değişen dosyaları listele.
+
+ÖNCELİK SIRASIYLA DÜZELT:
+
+1. DÜELLO KAMERASI (en kritik)
+- Kamera duvara/sütuna giriyor, ekran düz duvar oluyor. Oyuncudan kameraya raycast at, engel varsa kamerayı yaklaştır (min mesafe + lerp).
+- Kamera her zaman oyuncu ile rakibin orta noktasına baksın, aradaki mesafeye göre zoom yapsın. Rakip hiç görünmüyor: modelin yüklendiğini, konumunu ve ölçeğini kontrol et, arena içinde oyuncunun karşısında dursun.
+- Rakip portresi "?" gösteriyor, ikon veya renkli placeholder koy.
+
+2. HUD ÇAKIŞMALARI
+- "RAKİP SALDIRIYOR" bandı sürekli açık, sadece gerçek saldırı animasyonu süresince görünsün, sonra gizlensin. "Gölge Kılıcı" panelinin üstüne binmesin, konumlarını ayır.
+- Üst bar flex/grid ile yeniden kurulsun: portre, isim, can barı, sayı (ör. "249 / 426") kesilmesin, birbirini örtmesin. "PES ET" butonu barı örtmesin.
+- Yürüyüş sahnesindeki dünya etiketleri (KAYA, VARİL, BARİKAT vb.) üst üste biniyor ve boş kutucuklar var. Ekran-uzayında çakışma kontrolü yap, sadece en yakın 2 etiketi göster, mesafeye göre fade et, boş kutuları kaldır.
+- Diyalog kartı ("Yeminli Savaşçı...") solda kesiliyor ve joystickin arkasında kalıyor. Ekran içine al, max-width ve satır kaydırma ekle. Diyalog açıkken dünya etiketlerini gizle. "YENİDEN DÜELLO" butonu iki satıra bölünüyor, white-space:nowrap ve padding düzelt.
+- Üst ilerleme çubuğu ve yazılar gökyüzünde okunmuyor: koyu yarı saydam arka plan ekle. Para çipleri (35/11/1) çok küçük, büyüt.
+
+3. KONTROLLER
+- Joystick topuzu tabanın dışına taşıyor: vektörü taban yarıçapına clamp'le, bırakınca merkeze dönsün.
+- Joystick ile aksiyon butonları aynı anda çalışsın (pointer id takibi, touch-action:none).
+- Düello butonları min 48px olsun, birbirine binmesin. Cooldown'daki buton net soluk görünsün.
+- viewport-fit=cover, 100dvh, env(safe-area-inset-*), overscroll-behavior:none, çift dokunma zoom engeli.
+
+4. GÖRSEL KALİTE
+- Pikselli görüntü: renderer.setPixelRatio(Math.min(devicePixelRatio, 2)), antialias açık.
+- Sütun/duvar texture'ları gürültülü: texture repeat, anisotropy ve mipmap ayarla. Zemin taşlarında moiré ve siyah derzler var, texture ölçeğini küçült.
+- Arena dışında dev düz duvarlar ve alt kısımda kırmızı gradyan alan var: arenayı kapat, gökyüzü + sis ekle, kırmızı kaplamanın kaynağını bul (decal/vignette) ve kapat veya hafiflet.
+- Düellodaki karakterin kafası yanında yüzen gri nesne var: silahı el kemiğine (hand bone) doğru offset/rotasyonla bağla.
+- Kapı düz kutu gibi ve kemerle hizasız: kemerin içine oturt.
+- NPC'ler oyuncunun birebir klonu: renk/kıyafet farklılaştır ve kameraya yapışmasın (min mesafe).
+
+5. PERFORMANS (sadece kolay kazançlar)
+- Gölge map boyutu/bias ayarla, uzak objelere sis uygula, tekrar eden objeleri instancing yap.
+
+KURAL: Soru sorma, varsayım yap, en basit çözümü seç. Büyük refactor yapma.
