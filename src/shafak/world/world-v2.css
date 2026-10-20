@@ -75,6 +75,7 @@
   letter-spacing: .07em;
   white-space: nowrap;
 }
+.world-v2-label { visibility: hidden; }
 
 .world-v2-label--danger,
 .world-scene-label--danger {

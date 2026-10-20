@@ -54,6 +54,16 @@ function GateBossGuard() {
   );
 }
 
+const GATE_DOOR_SHAPE = (() => {
+  const shape = new THREE.Shape();
+  shape.moveTo(-1.82, 0);
+  shape.lineTo(1.82, 0);
+  shape.lineTo(1.82, 2.9);
+  shape.absarc(0, 2.9, 1.82, 0, Math.PI, false);
+  shape.closePath();
+  return shape;
+})();
+
 const GATE_PILASTER_GEOMETRY = new THREE.LatheGeometry([
   new THREE.Vector2(0, 0),
   new THREE.Vector2(0.37, 0),
@@ -1266,25 +1276,11 @@ function RouteGatePortal({
           >
             <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#827064" roughness={0.96} />
           </mesh>
-          <mesh position={[0, 2.92, 0.03]}>
-            <torusGeometry args={[2.2, 0.34, 18, 48, Math.PI]} />
-            <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#756057" roughness={0.95} />
-          </mesh>
-          <mesh position={[0, 4.55, 0.77]}>
-            <cylinderGeometry args={[0.045, 0.045, 1.15, 16, 2]} />
-            <meshStandardMaterial
-              color="#c7a16b"
-              emissive="#6c4028"
-              emissiveIntensity={0.28}
-              metalness={0.52}
-              roughness={0.48}
-            />
-          </mesh>
-          <mesh position={[0, 7.43, 0]}>
+          <mesh position={[0, 1.82, 0]}>
             <sphereGeometry args={[0.38, 18, 12]} />
             <meshStandardMaterial color="#b18b60" roughness={0.72} />
           </mesh>
-          <mesh position={[0, 7.94, 0.08]}>
+          <mesh position={[0, 2.34, 0.08]}>
             <sphereGeometry args={[0.2, 16, 12]} />
             <meshStandardMaterial
               color="#f5cf89"
@@ -1296,21 +1292,13 @@ function RouteGatePortal({
           </mesh>
         </group>
       ))}
-      <mesh position={[0, 7.26, 0]}>
-        <capsuleGeometry args={[0.42, 4.45, 8, 24]} />
-        <meshStandardMaterial color="#625052" roughness={0.96} />
+      <mesh position={[0, 2.92, 0.03]}>
+        <torusGeometry args={[2.2, 0.34, 18, 48, Math.PI]} />
+        <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#756057" roughness={0.95} />
       </mesh>
-      <mesh position={[0, 5.18, 0.18]} castShadow={false} receiveShadow={false}>
+      <mesh position={[0, 5.02, 0.18]} castShadow={false} receiveShadow={false}>
         <boxGeometry args={[0.74, 0.34, 0.86]} />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#947d69" roughness={0.92} />
-      </mesh>
-      <mesh position={[0, 6.73, 0.04]}>
-        <capsuleGeometry args={[0.09, 5.38, 5, 18]} />
-        <meshStandardMaterial color="#c19a66" metalness={0.28} roughness={0.58} />
-      </mesh>
-      <mesh position={[0, 6.92, 0.94]}>
-        <capsuleGeometry args={[0.2, 3.06, 6, 18]} />
-        <meshStandardMaterial color="#30272a" roughness={0.82} />
       </mesh>
       {labelVisible && (
         <Html
@@ -1325,19 +1313,25 @@ function RouteGatePortal({
         </Html>
       )}
       {locked && (
-        <group position={[0, 3.1, 0.82]}>
+        <group>
+          <mesh position={[0, 0, 0.58]} castShadow receiveShadow>
+            <extrudeGeometry args={[GATE_DOOR_SHAPE, { depth: 0.12, bevelEnabled: false }]} />
+            <meshStandardMaterial color="#302320" roughness={0.9} metalness={0.04} />
+          </mesh>
+          <group position={[0, 2.2, 0.82]}>
           {[-1.42, -0.71, 0, 0.71, 1.42].map((x) => (
             <mesh key={`gate-bar-v-${x}`} position={[x, 0, 0]}>
-              <boxGeometry args={[0.1, 4.65, 0.11]} />
+              <boxGeometry args={[0.1, 4.1, 0.11]} />
               <meshBasicMaterial color="#e7aa71" transparent opacity={0.8} depthWrite={false} toneMapped={false} />
             </mesh>
           ))}
-          {[-1.45, 0, 1.45].map((y) => (
+          {[-1.1, 0, 1.1].map((y) => (
             <mesh key={`gate-bar-h-${y}`} position={[0, y, 0]}>
               <boxGeometry args={[3.18, 0.11, 0.11]} />
               <meshBasicMaterial color="#e7aa71" transparent opacity={0.8} depthWrite={false} toneMapped={false} />
             </mesh>
           ))}
+          </group>
         </group>
       )}
     </group>

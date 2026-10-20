@@ -23,6 +23,8 @@
   --ws-shadow-scale: 1;
   position: relative;
   isolation: isolate;
+  touch-action: manipulation;
+  overscroll-behavior: none;
   width: 100%;
   height: 100vh;
   height: 100dvh;
@@ -716,7 +718,7 @@
 .world-weapon-picker__confirm:disabled { opacity: .5; cursor: wait; }
 .world-mobile-hint { display: none; }
 .world-encounter {
-  position: absolute; z-index: 4; top: 34%; left: 50%;
+  position: absolute; z-index: 12; top: 34%; left: 50%;
   display: flex; width: min(520px, calc(100% - 28px)); align-items: flex-end; gap: 8px;
   transform: translateX(-50%); pointer-events: none;
   animation: encounter-arrive .5s cubic-bezier(.2,.72,.24,1) both;
@@ -727,6 +729,9 @@
   background: linear-gradient(145deg, rgba(32,28,28,.98), rgba(13,14,19,.97));
   box-shadow: 0 8px 24px rgba(0,0,0,.52), inset 0 1px rgba(255,255,255,.05);
   color: #f2e2c3; text-align: center; overflow-wrap: anywhere; animation: npc-dialogue-appear .24s ease-out both;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   pointer-events: none;
 }
 .world-npc-dialogue::after {
@@ -742,7 +747,7 @@
   background: linear-gradient(135deg, #9f482c, #613221 72%, #39251e);
   box-shadow: inset 0 1px rgba(255,255,255,.17), 0 3px 11px rgba(0,0,0,.3);
   color: #fff0cf; font-size: 10px; font-weight: 900; line-height: 1.25; letter-spacing: .07em; text-shadow: 0 1px 3px #311a15;
-  pointer-events: auto; cursor: pointer; touch-action: manipulation;
+  pointer-events: auto; cursor: pointer; touch-action: manipulation; white-space: nowrap;
 }
 .world-npc-dialogue__fight { pointer-events: auto; }
 .world-npc-dialogue__status {
@@ -798,7 +803,7 @@
   background: linear-gradient(105deg, #963c37, #512628 70%, #352123);
   box-shadow: 0 0 16px rgba(208,78,55,.34), inset 0 1px 0 rgba(255,255,255,.14);
   color: #ffebcf; cursor: pointer; font-size: 10px; font-weight: 900; letter-spacing: .18em;
-  pointer-events: auto; animation: fight-pulse 1.2s ease-in-out infinite alternate;
+  pointer-events: auto; white-space: nowrap; animation: fight-pulse 1.2s ease-in-out infinite alternate;
 }
 .world-encounter__fight span { font-size: 16px; }
 .world-encounter__fight:hover { filter: brightness(1.18); }
@@ -1542,7 +1547,7 @@
 .duel-impact-number.is-critical { color: #ffe17d; font-size: 34px; text-shadow: 0 2px 2px #35140a, 0 0 12px #ff8a34, 0 0 24px #ffdc62; }
 .duel-impact-number i { color: #fff2ad; font: 900 8px/1 var(--font-body, sans-serif); letter-spacing: .16em; }
 @keyframes duel-impact-number-rise { from { opacity: 0; transform: translateY(8px) scale(.76); } 18% { opacity: 1; } to { opacity: 0; transform: translateY(-28px) scale(1.08); } }
-.duel-low-health-vignette { position: absolute; z-index: 6; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 38%, rgba(147,15,22,.55) 100%); pointer-events: none; transition: opacity .35s; }
+.duel-low-health-vignette { position: absolute; z-index: 6; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(147,15,22,.24) 100%); pointer-events: none; transition: opacity .35s; }
 .world-scene[data-danger="true"][data-battle="fight"] .duel-low-health-vignette { opacity: 1; animation: duel-heartbeat 1.2s ease-in-out infinite; }
 .duel-hit-flash { position: absolute; z-index: 8; inset: 0; pointer-events: none; animation: duel-flash .15s ease-out both; }
 .duel-hit-flash.is-hit { background: radial-gradient(ellipse at center,transparent 39%,rgba(122,8,19,.08) 65%,rgba(239,34,44,.48) 100%); }
@@ -1640,7 +1645,7 @@
   .duel-control-cluster__skills,.duel-control-cluster__actions { gap: 6px; }
   .duel-control { width: 56px; height: 56px; font-size: 8px; }
   .duel-control.is-attack { width: 72px; height: 72px; }
-  .duel-control.is-skill { width: 46px; height: 46px; font-size: 7px; }
+  .duel-control.is-skill { width: 48px; height: 48px; font-size: 7px; }
   .duel-forfeit { top: max(68px,calc(env(safe-area-inset-top) + 58px)); right: 12px; min-height: 44px; font-size: 7px; }
   .duel-control-hint { display: none !important; }
   .duel-result-layer { padding: max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); }
@@ -1656,9 +1661,9 @@
   .duel-health__label b { font-size: 7px; }
   .duel-stick { left: max(10px,env(safe-area-inset-left)); width: 96px; height: 96px; }
   .duel-control-cluster { right: 9px; }
-  .duel-control { width: 47px; height: 47px; }
+  .duel-control { width: 48px; height: 48px; }
   .duel-control.is-attack { width: 60px; height: 60px; }
-  .duel-control.is-skill { width: 38px; height: 38px; }
+  .duel-control.is-skill { width: 48px; height: 48px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .duel-combat-fx,.duel-combat-fx > i,.duel-low-health-vignette { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
@@ -1730,7 +1735,7 @@
   .duel-controls .duel-control.is-block { top: 88px; width: 58px; height: 58px; }
   .duel-controls .duel-control.is-dodge { top: 55px; left: 62px; width: 58px; height: 58px; }
   .duel-controls .duel-control.is-attack { top: 86px; width: 72px; height: 72px; }
-  .duel-controls .duel-control.is-skill { width: 46px; height: 46px; }
+  .duel-controls .duel-control.is-skill { width: 48px; height: 48px; }
   .duel-controls .duel-control-cluster { width: 204px; height: 166px; }
 }
 @media (prefers-reduced-motion: reduce) {

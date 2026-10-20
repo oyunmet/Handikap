@@ -57,12 +57,29 @@ export function WorldV2Label({
   const elementRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    const anchor = anchorRef.current;
-    const element = elementRef.current;
-    if (!anchor || !element) return undefined;
-    const id = nextLabelId++;
-    element.style.visibility = "hidden";
-    return registerLabel({ id, anchor, element, maxDistance });
+    let frame = 0;
+    let attempts = 0;
+    let unregister: (() => void) | undefined;
+    let active = true;
+    const attachWhenHtmlIsReady = () => {
+      if (!active) return;
+      const anchor = anchorRef.current;
+      const element = elementRef.current;
+      if (anchor && element?.isConnected) {
+        const id = nextLabelId++;
+        element.style.visibility = "hidden";
+        unregister = registerLabel({ id, anchor, element, maxDistance });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 60) frame = window.requestAnimationFrame(attachWhenHtmlIsReady);
+    };
+    frame = window.requestAnimationFrame(attachWhenHtmlIsReady);
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(frame);
+      unregister?.();
+    };
   }, [maxDistance]);
 
   return (
@@ -95,6 +112,12 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
       right: canvasRect.right,
       bottom: canvasRect.bottom,
     };
+    if (document.querySelector(
+      '.world-scene[data-story-open="true"], .world-scene[data-npc-dialogue-open="true"], .world-npc-dialogue',
+    )) {
+      for (const label of registeredLabels.values()) label.element.style.visibility = "hidden";
+      return;
+    }
     const motion = motionRef.current;
     const playerWorld = playerWorldPosition.current.set(
       motion.depth * 5.2,
@@ -126,6 +149,10 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
     const current = new Map<number, RegisteredLabel>();
     for (const [id, label] of registeredLabels) {
       const { anchor, element, maxDistance } = label;
+      if (!element.textContent?.trim()) {
+        element.style.visibility = "hidden";
+        continue;
+      }
       let ancestor: THREE.Object3D | null = anchor;
       let effectivelyVisible = true;
       while (ancestor) {

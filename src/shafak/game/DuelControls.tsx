@@ -193,7 +193,11 @@ export default function DuelControls({
     const element = joystickRef.current;
     if (!element) return;
     const rect = element.getBoundingClientRect();
-    const radius = Math.min(rect.width, rect.height) * 0.37;
+    const nub = element.querySelector<HTMLElement>("span");
+    const radius = Math.max(1, Math.min(
+      (rect.width - (nub?.getBoundingClientRect().width ?? 0)) / 2,
+      (rect.height - (nub?.getBoundingClientRect().height ?? 0)) / 2,
+    ));
     const dx = (event.clientX - (rect.left + rect.width / 2)) / radius;
     const dy = ((rect.top + rect.height / 2) - event.clientY) / radius;
     const length = Math.hypot(dx, dy);

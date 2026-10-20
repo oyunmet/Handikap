@@ -551,72 +551,70 @@ function CameraRig({
     }
     let cameraTarget = desiredRef;
     let cameraObstructed = false;
-    if (!combat) {
-      if (focusedRival) cameraOriginRef.copy(targetRef);
-      else cameraOriginRef.set(lateral, 1.15, 0);
-      cameraDirectionRef.copy(desiredRef).sub(cameraOriginRef);
-      const requestedDistance = cameraDirectionRef.length();
-      if (requestedDistance > 0.05) {
-        cameraDirectionRef.multiplyScalar(1 / requestedDistance);
-        cameraOccluderScanElapsedRef.current += Math.min(delta, 0.05);
-        if (cameraOccluderScanElapsedRef.current >= 0.25) {
-          cameraOccluderScanElapsedRef.current = 0;
-          cameraOccludersRef.current = collectCameraOccluders(scene);
-          if (debugEnabled) {
-            const diagnostics = inspectCameraOccluders(cameraOccludersRef.current, camera);
-            const signature = diagnostics
-              .map((entry) => `${entry.name}:${entry.cameraInside ? "inside" : entry.screenArea}`)
-              .sort()
-              .join("|");
-            if (signature && signature !== cameraDiagnosticSignatureRef.current) {
-              console.warn("[shafak-world] Camera occlusion diagnostic", {
-                chapter: Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS) + 1,
-                distance: Number(motion.distance.toFixed(1)),
-                meshes: diagnostics,
-              });
-            }
-            cameraDiagnosticSignatureRef.current = signature;
-          }
-        }
-        cameraRaycastElapsedRef.current += Math.min(delta, 0.05);
-        if (cameraRaycastElapsedRef.current >= 0.05) {
-          cameraRaycastElapsedRef.current = 0;
-          const visibleOccluders = cameraOccludersRef.current.filter(isEffectivelyVisible);
-          cameraRaycaster.near = 0.05;
-          cameraRaycaster.far = requestedDistance;
-          cameraRaycaster.set(cameraOriginRef, cameraDirectionRef);
-          const intersections = visibleOccluders.length
-            ? cameraRaycaster.intersectObjects(visibleOccluders, true)
-              .filter((intersection) => !isCameraCollisionIgnored(intersection.object))
-            : [];
-          obstructionDistanceRef.current = intersections[0]?.distance;
-          cameraOcclusionFader.update(intersections.map((intersection) => intersection.object));
-          if (debugEnabled) {
-            const labels = intersections.map(({ object, instanceId }) => {
-              const worldPropNames = object.userData.worldPropNames as string[] | undefined;
-              return typeof instanceId === "number" && worldPropNames?.[instanceId]
-                ? worldPropNames[instanceId]
-                : object.name || object.type;
+    if (combat || focusedRival) cameraOriginRef.copy(targetRef);
+    else cameraOriginRef.set(lateral, 1.15, 0);
+    cameraDirectionRef.copy(desiredRef).sub(cameraOriginRef);
+    const requestedDistance = cameraDirectionRef.length();
+    if (requestedDistance > 0.05) {
+      cameraDirectionRef.multiplyScalar(1 / requestedDistance);
+      cameraOccluderScanElapsedRef.current += Math.min(delta, 0.05);
+      if (cameraOccluderScanElapsedRef.current >= 0.25) {
+        cameraOccluderScanElapsedRef.current = 0;
+        cameraOccludersRef.current = collectCameraOccluders(scene);
+        if (debugEnabled) {
+          const diagnostics = inspectCameraOccluders(cameraOccludersRef.current, camera);
+          const signature = diagnostics
+            .map((entry) => `${entry.name}:${entry.cameraInside ? "inside" : entry.screenArea}`)
+            .sort()
+            .join("|");
+          if (signature && signature !== cameraDiagnosticSignatureRef.current) {
+            console.warn("[shafak-world] Camera occlusion diagnostic", {
+              chapter: Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS) + 1,
+              distance: Number(motion.distance.toFixed(1)),
+              meshes: diagnostics,
             });
-            const signature = [...new Set(labels)].sort().join("|");
-            if (signature && signature !== cameraHitSignatureRef.current) {
-              console.warn("[shafak-world] Camera shortened before scenery", {
-                chapter: Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS) + 1,
-                obstructionDistance: Number(intersections[0].distance.toFixed(2)),
-                meshes: [...new Set(labels)],
-              });
-            }
-            cameraHitSignatureRef.current = signature;
           }
+          cameraDiagnosticSignatureRef.current = signature;
         }
-        const clearDistance = getCameraClearanceDistance(
-          requestedDistance,
-          obstructionDistanceRef.current,
-        );
-        cameraObstructed = clearDistance < requestedDistance;
-        collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
-        cameraTarget = collisionTargetRef;
       }
+      cameraRaycastElapsedRef.current += Math.min(delta, 0.05);
+      if (cameraRaycastElapsedRef.current >= 0.05) {
+        cameraRaycastElapsedRef.current = 0;
+        const visibleOccluders = cameraOccludersRef.current.filter(isEffectivelyVisible);
+        cameraRaycaster.near = 0.05;
+        cameraRaycaster.far = requestedDistance;
+        cameraRaycaster.set(cameraOriginRef, cameraDirectionRef);
+        const intersections = visibleOccluders.length
+          ? cameraRaycaster.intersectObjects(visibleOccluders, true)
+            .filter((intersection) => !isCameraCollisionIgnored(intersection.object))
+          : [];
+        obstructionDistanceRef.current = intersections[0]?.distance;
+        cameraOcclusionFader.update(intersections.map((intersection) => intersection.object));
+        if (debugEnabled) {
+          const labels = intersections.map(({ object, instanceId }) => {
+            const worldPropNames = object.userData.worldPropNames as string[] | undefined;
+            return typeof instanceId === "number" && worldPropNames?.[instanceId]
+              ? worldPropNames[instanceId]
+              : object.name || object.type;
+          });
+          const signature = [...new Set(labels)].sort().join("|");
+          if (signature && signature !== cameraHitSignatureRef.current) {
+            console.warn("[shafak-world] Camera shortened before scenery", {
+              chapter: Math.floor(motion.distance / WORLD_GATE_INTERVAL_METERS) + 1,
+              obstructionDistance: Number(intersections[0].distance.toFixed(2)),
+              meshes: [...new Set(labels)],
+            });
+          }
+          cameraHitSignatureRef.current = signature;
+        }
+      }
+      const clearDistance = getCameraClearanceDistance(
+        requestedDistance,
+        obstructionDistanceRef.current,
+      );
+      cameraObstructed = clearDistance < requestedDistance;
+      collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
+      cameraTarget = collisionTargetRef;
     }
     camera.position.lerp(cameraTarget, response);
     if (cameraObstructed && camera.position.distanceTo(cameraOriginRef) > cameraTarget.distanceTo(cameraOriginRef)) {
@@ -870,7 +868,7 @@ function DuelFighter({
 
   if (!renderedActor) return null;
   return (
-    <group ref={actorRoot}>
+    <group ref={actorRoot} userData={{ cameraCollisionIgnore: true }}>
       {visualEffectsEnabled && (
         <>
           <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -1603,11 +1601,23 @@ function DuelArenaStonework({ theme }: { theme: DuelArenaTheme }) {
         <circleGeometry args={[1, 10]} />
         <meshBasicMaterial color="#775351" transparent opacity={0.2} depthWrite={false} />
       </instancedMesh>
-      <instancedMesh ref={wallRef} args={[undefined, undefined, 11]} castShadow={false} receiveShadow={false}>
+      <instancedMesh
+        ref={wallRef}
+        args={[undefined, undefined, 11]}
+        castShadow={false}
+        receiveShadow={false}
+        userData={{ cameraOccluder: true }}
+      >
         <primitive object={BEVELED_STONE_BLOCK_GEOMETRY} attach="geometry" />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.97} />
       </instancedMesh>
-      <instancedMesh ref={columnRef} args={[undefined, undefined, 13]} castShadow={false} receiveShadow={false}>
+      <instancedMesh
+        ref={columnRef}
+        args={[undefined, undefined, 13]}
+        castShadow={false}
+        receiveShadow={false}
+        userData={{ cameraOccluder: true }}
+      >
         <latheGeometry args={[ARENA_COLUMN_PROFILE, 32]} />
         <meshStandardMaterial {...STONE_PBR_MATERIAL_PROPS} color="#ffffff" roughness={0.91} />
       </instancedMesh>
@@ -1765,7 +1775,12 @@ function DuelArenaBackdrop({ theme }: { theme: DuelArenaTheme }) {
         <meshStandardMaterial color="#ffffff" roughness={1} />
       </instancedMesh>
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * 11.8, 0, -8.5]} rotation={[0, side * -0.16, 0]}>
+        <group
+          key={side}
+          position={[side * 11.8, 0, -8.5]}
+          rotation={[0, side * -0.16, 0]}
+          userData={{ cameraOccluder: true }}
+        >
           <mesh position={[0, 0.43, 0]}>
             <cylinderGeometry args={[0.58, 0.78, 0.86, 24, 3]} />
             <meshStandardMaterial color={theme.column[1]} roughness={0.97} />
@@ -1886,7 +1901,11 @@ function DuelArena({
       </mesh>
       <DuelArenaBoundaryRunes theme={theme} combatStateRef={combatStateRef} />
       {DUEL_COVERS.map((cover, index) => (
-        <group key={index} position={[cover.x, 0, cover.z]}>
+        <group
+          key={index}
+          position={[cover.x, 0, cover.z]}
+          userData={{ cameraOccluder: true }}
+        >
           <mesh position={[0, 0.43, 0]} castShadow receiveShadow>
             <boxGeometry args={[cover.halfWidth * 2, 0.86, cover.halfDepth * 2]} />
             <meshStandardMaterial color="#554b50" roughness={0.96} />
@@ -2460,7 +2479,7 @@ export default function World3D(props: World3DProps) {
             }}
             gl={{
               alpha: false,
-              antialias: !touchRenderer,
+              antialias: true,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: 0.65,

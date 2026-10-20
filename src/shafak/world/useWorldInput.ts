@@ -20,6 +20,7 @@ const MOVEMENT_KEYS = new Set([
 export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
+  const joystickPointerId = useRef<number | null>(null);
   const tapTimer = useRef<number | undefined>(undefined);
   const actionTimersRef = useRef(new Map<string, number>());
   const toggledActionsRef = useRef(new Set<"shift" | "c">());
@@ -39,31 +40,41 @@ export default function useWorldInput(wake: () => void) {
   }, [wake]);
 
   const updateJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerId.current !== event.pointerId) return;
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const dx = event.clientX - (rect.left + rect.width / 2);
     const dy = event.clientY - (rect.top + rect.height / 2);
-    const max = rect.width * .34;
+    const nub = event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub");
+    const maxX = (rect.width - (nub?.getBoundingClientRect().width ?? 0)) / 2;
+    const maxY = (rect.height - (nub?.getBoundingClientRect().height ?? 0)) / 2;
+    const max = Math.max(1, Math.min(maxX, maxY));
     const length = Math.min(Math.hypot(dx, dy), max);
     const scale = length > 0 ? length / Math.hypot(dx, dy) : 0;
     const x = dx * scale;
     const y = dy * scale;
     joystick.current = { x: x / max, y: -y / max };
-    const nub = event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub");
     nub?.style.setProperty("transform", `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`);
   }, []);
 
   const onJoystickPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerId.current !== null) return;
     event.preventDefault();
+    joystickPointerId.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     wake();
     updateJoystick(event);
   }, [updateJoystick, wake]);
 
   const releaseJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerId.current !== event.pointerId) return;
+    joystickPointerId.current = null;
     joystick.current = { x: 0, y: 0 };
     event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub")
       ?.style.setProperty("transform", "translate(-50%,-50%)");
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }, []);
 
   const onActionPointerDown = useCallback((
@@ -117,6 +128,7 @@ export default function useWorldInput(wake: () => void) {
     actionTimersRef.current.clear();
     heldKeys.current.clear();
     joystick.current = { x: 0, y: 0 };
+    joystickPointerId.current = null;
     toggledActionsRef.current.clear();
     setToggledActions(new Set());
   }, []);

@@ -29,6 +29,7 @@ test("rival archetypes select fitted, independently skinned hero bases and bound
     "/models/player-hero.glb",
     "/models/human.glb",
     "/models/base-character.glb",
+    "/models/gece-nobetcisi.glb",
   ]));
   for (const config of configs.slice(0, -1)) {
     assert.ok(config.scale >= 0.95 && config.scale <= 1.1);

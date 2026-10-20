@@ -155,7 +155,7 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     "gate-warden": ["/models/player-hero.glb", "sword", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
     "iron-oath": ["/models/player-hero.glb", "daggers", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
     "ash-archer": ["/models/base-character.glb", "bow", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
-    "shadow-knight": ["/models/base-character.glb", "daggers", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
+    "shadow-knight": ["/models/gece-nobetcisi.glb", "daggers", ["Attack1"]],
     "storm-lancer": ["/models/human.glb", "spear", ["Human Armature|Punch"]],
     "rift-berserker": ["/models/player-hero.glb", "axe", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
     "ember-alchemist": ["/models/base-character.glb", "staff", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],

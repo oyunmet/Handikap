@@ -174,7 +174,7 @@ export function getAnimatedRivalModelConfig(
     "gate-warden": "/models/player-hero.glb",
     "iron-oath": "/models/player-hero.glb",
     "ash-archer": "/models/base-character.glb",
-    "shadow-knight": "/models/base-character.glb",
+    "shadow-knight": "/models/gece-nobetcisi.glb",
     "storm-lancer": "/models/human.glb",
     "rift-berserker": "/models/player-hero.glb",
     "ember-alchemist": "/models/base-character.glb",
@@ -267,19 +267,26 @@ export function getAnimatedRivalModelConfig(
   const colors = paletteByArchetype[selectedArchetype];
   const usePlayerHero = modelPath === "/models/player-hero.glb";
   const useHuman = modelPath === "/models/human.glb";
+  const useNightWatcher = modelPath === "/models/gece-nobetcisi.glb";
   return {
     ...baseConfig,
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
-    modelFacing: usePlayerHero ? Math.PI : 0,
-    rootBoneName: useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
-    preserveOriginalMaterialAliases: useHuman ? ["texture"] : undefined,
+    modelFacing: usePlayerHero ? Math.PI : baseConfig.modelFacing,
+    rootBoneName: useNightWatcher
+      ? baseConfig.rootBoneName
+      : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+    preserveOriginalMaterialAliases: useNightWatcher
+      ? ["gold", "steel", "cape"]
+      : useHuman ? ["texture"] : undefined,
     targetHeight: sizeTarget.targetHeight,
     maxDimension: sizeTarget.maxDimension,
     isBoss,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
-    tintStrength: isBoss ? 0.22 : 0.68,
-    animationClips: usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+    tintStrength: isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
+    animationClips: useNightWatcher
+      ? baseConfig.animationClips
+      : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
     weapon,
     appearance,
     materialNameAliases,
