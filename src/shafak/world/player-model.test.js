@@ -13,6 +13,7 @@ import {
   shouldRenderPlayerModel,
 } from "./player-model.ts";
 import {
+  createPlayerLocomotionClip,
   createUprightTorsoClip,
   isRootTranslationTrack,
   resolveMappedGlbClipName,
@@ -99,6 +100,50 @@ test("player model uses the animated Quaternius hero at the configured height an
     assert.ok(Math.abs(uprightEuler.z) < 1e-6);
   }
   assert.ok(sourceTorsoRoll > 0.05, "the source Run clip contains a sideways torso roll");
+  const walkSourceClip = gltf.animations.find((clip) => clip.name === "Walk");
+  assert.ok(walkSourceClip, "the player GLB should contain a Walk clip");
+  const uprightWalkClip = createPlayerLocomotionClip(walkSourceClip);
+  assert.notEqual(uprightWalkClip, walkSourceClip);
+  for (const locomotionClip of [uprightWalkClip, uprightRunClip]) {
+    for (const track of locomotionClip.tracks) {
+      const pathSegments = track.name.split(/[.[\]]+/).filter(Boolean);
+      if (
+        pathSegments.at(-1)?.toLowerCase() !== "quaternion"
+        || !["body", "abdomen", "torso", "neck", "head"].includes(
+          pathSegments.at(-2)?.toLowerCase() ?? "",
+        )
+      ) continue;
+      for (let offset = 0; offset + 3 < track.values.length; offset += 4) {
+        const euler = new THREE.Euler().setFromQuaternion(
+          new THREE.Quaternion().fromArray(track.values, offset),
+          "XYZ",
+        );
+        assert.ok(Math.abs(euler.y) < 1e-6, `${track.name} should have no yaw twist`);
+        assert.ok(Math.abs(euler.z) < 1e-6, `${track.name} should have no sideways roll`);
+      }
+    }
+  }
+  const maxHipsToHeadLean = (clip) => {
+    const actor = cloneSkinned(gltf.scene);
+    const mixer = new THREE.AnimationMixer(actor);
+    mixer.clipAction(clip).play();
+    const hips = actor.getObjectByName("Hips");
+    const head = actor.getObjectByName("Head");
+    let maxLean = 0;
+    const frameCount = Math.ceil(clip.duration * 60);
+    for (let frame = 0; frame <= frameCount; frame += 1) {
+      mixer.setTime(clip.duration * frame / frameCount);
+      actor.updateMatrixWorld(true);
+      const bodyAxis = head.getWorldPosition(new THREE.Vector3())
+        .sub(hips.getWorldPosition(new THREE.Vector3()));
+      maxLean = Math.max(maxLean, Math.abs(Math.atan2(bodyAxis.x, bodyAxis.y)));
+    }
+    mixer.stopAllAction();
+    mixer.uncacheRoot(actor);
+    return THREE.MathUtils.radToDeg(maxLean);
+  };
+  assert.ok(maxHipsToHeadLean(runSourceClip) > 3, "the uncorrected Run clip visibly leans sideways");
+  assert.ok(maxHipsToHeadLean(uprightRunClip) < 0.1, "upright Run keeps the hips-to-head axis vertical");
   for (const boneName of ["Root", "Hips"]) {
     const bone = gltf.scene.getObjectByName(boneName);
     assert.ok(bone, `the player GLB should contain ${boneName}`);

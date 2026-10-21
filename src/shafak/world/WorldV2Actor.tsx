@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
-import { createUprightTorsoClip, isRootTranslationTrack } from "./model-animation";
+import { createPlayerLocomotionClip, isRootTranslationTrack } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
@@ -19,6 +19,7 @@ export type WorldV2ActorDebugSnapshot = {
   rootRotation: [number, number, number] | null;
   hipsRotation: [number, number, number] | null;
   torsoRotation: [number, number, number] | null;
+  bodyLean: number;
   rootMotionTracks: string[];
 };
 
@@ -69,18 +70,15 @@ export default function WorldV2Actor({
     });
     return clone;
   }, [asset, isPlayer, tint]);
-  const animations = useMemo(() => isPlayer
-    ? asset.animations.map((clip) => {
-      const baseName = clip.name.toLowerCase().split("|").at(-1);
-      return baseName === "run" || baseName === "walk"
-        ? createUprightTorsoClip(clip)
-        : clip;
-    })
-    : asset.animations, [asset, isPlayer]);
+  const animations = useMemo(
+    () => isPlayer ? asset.animations.map(createPlayerLocomotionClip) : asset.animations,
+    [asset, isPlayer],
+  );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const actionsRef = useRef(new Map<string, THREE.AnimationAction>());
   const activeClipNameRef = useRef("");
+  const debugRefreshElapsed = useRef(0);
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
   const playerFacingAngle = useRef(Math.PI);
 
@@ -146,9 +144,27 @@ export default function WorldV2Actor({
         weight: action.getEffectiveWeight(),
       }));
     if (isPlayer && debugRef) {
+      debugRefreshElapsed.current += Math.min(delta, 0.1);
+      if (debugRefreshElapsed.current < 0.2) return;
+      debugRefreshElapsed.current %= 0.2;
+      model.updateWorldMatrix(true, true);
       const rootBone = model.getObjectByName("Root");
       const hipsBone = model.getObjectByName("Hips");
       const torsoBone = model.getObjectByName("Torso");
+      const headBone = model.getObjectByName("Head");
+      let bodyLean = 0;
+      if (hipsBone && headBone) {
+        const hipsWorld = hipsBone.getWorldPosition(new THREE.Vector3());
+        const bodyAxis = headBone.getWorldPosition(new THREE.Vector3()).sub(hipsWorld);
+        const facing = root.getWorldQuaternion(new THREE.Quaternion()).multiply(
+          new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            WORLD_V2_CONFIG.modelFacing,
+          ),
+        );
+        const characterRight = new THREE.Vector3(1, 0, 0).applyQuaternion(facing);
+        bodyLean = Math.atan2(bodyAxis.dot(characterRight), bodyAxis.y);
+      }
       const visibleHeading = root.rotation.y + WORLD_V2_CONFIG.modelFacing + model.rotation.y;
       debugRef.current = {
         yaw: root.rotation.y,
@@ -159,6 +175,7 @@ export default function WorldV2Actor({
         rootRotation: readLocalRotation(rootBone),
         hipsRotation: readLocalRotation(hipsBone),
         torsoRotation: readLocalRotation(torsoBone),
+        bodyLean,
         rootMotionTracks: (clip?.tracks ?? [])
           .filter((track) =>
             isRootTranslationTrack(track.name, "Root")

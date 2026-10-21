@@ -15,6 +15,7 @@ import {
 } from "./knight-surface-detail";
 import {
   getOpponentAnimationPlayback,
+  createPlayerLocomotionClip,
   isRootTranslationTrack,
   resolveMappedGlbClipName,
   resolveGlbClipName,
@@ -461,15 +462,19 @@ function OptionalGlbKnight({
   const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
-    if (!rootBoneName) return gltf.animations;
+    if (!rootBoneName && !playerCharacter) return gltf.animations;
     return gltf.animations.map((clip) => {
       const inPlaceClip = clip.clone();
-      inPlaceClip.tracks = inPlaceClip.tracks.filter(
-        (track) => !isRootTranslationTrack(track.name, rootBoneName),
-      );
-      return inPlaceClip;
+      if (rootBoneName) {
+        inPlaceClip.tracks = inPlaceClip.tracks.filter(
+          (track) => !isRootTranslationTrack(track.name, rootBoneName),
+        );
+      }
+      return playerCharacter
+        ? createPlayerLocomotionClip(inPlaceClip)
+        : inPlaceClip;
     });
-  }, [gltf.animations, rootBoneName]);
+  }, [gltf.animations, playerCharacter, rootBoneName]);
   const actions = useMemo(() => {
     const entries = animationClips.map((clip) => [clip.name, mixer.clipAction(clip)] as const);
     return new Map(entries);

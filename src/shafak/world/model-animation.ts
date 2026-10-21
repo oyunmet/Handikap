@@ -60,6 +60,13 @@ export function createUprightTorsoClip(clip: THREE.AnimationClip): THREE.Animati
   return uprightClip;
 }
 
+export function createPlayerLocomotionClip(clip: THREE.AnimationClip): THREE.AnimationClip {
+  const baseName = clip.name.toLocaleLowerCase().split("|").at(-1);
+  return baseName === "run" || baseName === "walk"
+    ? createUprightTorsoClip(clip)
+    : clip;
+}
+
 function normalizeClipName(name: string) {
   return name.toLocaleLowerCase().replace(/[^a-z0-9]/g, "");
 }
