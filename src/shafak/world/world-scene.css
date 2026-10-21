@@ -1172,10 +1172,11 @@
     min-width: 0;
     flex: 0 1 auto;
     justify-content: center;
-    gap: 5px;
-    padding: 3px 5px;
+    gap: 6px;
+    min-height: 29px;
+    padding: 4px 6px;
     background: rgba(13,14,19,.5);
-    font-size: 7px;
+    font-size: 8px;
     backdrop-filter: blur(7px);
   }
   .world-material-hud small { display: none; }
@@ -1330,7 +1331,7 @@
   .world-profile__identity { max-width: 52px; }
   .world-profile__name { font-size: 8px; }
   .world-currency { gap: 3px; padding: 0 5px; font-size: 8px; }
-  .world-material-hud { gap: 4px; padding: 3px 4px; font-size: 6px; }
+  .world-material-hud { gap: 5px; padding: 4px 5px; font-size: 7px; }
   .world-weather { min-width: 34px; padding: 2px; }
   .world-weather__switch { width: 29px; }
   .world-weather__switch.is-ash span { transform: translateX(3px); }
@@ -1616,7 +1617,18 @@
   .duel-controls .duel-control.is-block { top: 80px; left: 2px; }
   .duel-controls .duel-control.is-dodge { top: 45px; left: 59px; }
   .duel-controls .duel-control.is-attack { top: 70px; right: 0; }
-  .duel-attack-warning { top: max(73px,calc(env(safe-area-inset-top) + 67px)); max-width: 80vw; font-size: 8px; }
+  .duel-attack-warning {
+    top: max(73px,calc(env(safe-area-inset-top) + 67px));
+    left: max(78px,calc(env(safe-area-inset-left) + 70px));
+    right: max(78px,calc(env(safe-area-inset-right) + 70px));
+    width: auto;
+    max-width: none;
+    padding: 6px 8px;
+    font-size: 7px;
+    letter-spacing: .06em;
+    white-space: nowrap;
+    transform: none;
+  }
   .duel-help-button { top: max(120px,calc(env(safe-area-inset-top) + 110px)); }
 }
 
@@ -2311,7 +2323,7 @@
 }
 @media (max-width: 760px) {
   .duel-controls--field .duel-forfeit {
-    top: max(8px, calc(env(safe-area-inset-top) + 8px));
+    top: max(64px, calc(env(safe-area-inset-top) + 56px));
     left: max(12px, calc(env(safe-area-inset-left) + 8px));
     width: 56px;
     min-width: 56px;
@@ -2321,7 +2333,7 @@
     font-size: 7px;
   }
   .duel-controls--field .duel-help-button {
-    top: max(8px, calc(env(safe-area-inset-top) + 8px));
+    top: max(72px, calc(env(safe-area-inset-top) + 64px));
     right: max(12px, calc(env(safe-area-inset-right) + 8px));
     left: auto;
     width: 56px;

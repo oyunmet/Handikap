@@ -57,7 +57,7 @@ export function WorldV2Label({
   const elementRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    let frame = 0;
+    let retryTimer: number | undefined;
     let attempts = 0;
     let unregister: (() => void) | undefined;
     let active = true;
@@ -72,12 +72,12 @@ export function WorldV2Label({
         return;
       }
       attempts += 1;
-      if (attempts < 60) frame = window.requestAnimationFrame(attachWhenHtmlIsReady);
+      if (attempts < 60) retryTimer = window.setTimeout(attachWhenHtmlIsReady, 16);
     };
-    frame = window.requestAnimationFrame(attachWhenHtmlIsReady);
+    retryTimer = window.setTimeout(attachWhenHtmlIsReady, 0);
     return () => {
       active = false;
-      window.cancelAnimationFrame(frame);
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       unregister?.();
     };
   }, [maxDistance]);
@@ -113,7 +113,7 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
       bottom: canvasRect.bottom,
     };
     if (document.querySelector(
-      '.world-scene[data-story-open="true"], .world-scene[data-npc-dialogue-open="true"], .world-npc-dialogue',
+      '.world-scene[data-story-open="true"], .world-scene[data-npc-dialogue-open="true"]',
     )) {
       for (const label of registeredLabels.values()) label.element.style.visibility = "hidden";
       return;
