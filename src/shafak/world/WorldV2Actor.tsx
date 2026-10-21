@@ -5,15 +5,27 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
-import { createUprightTorsoClip } from "./model-animation";
+import { createUprightTorsoClip, isRootTranslationTrack } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
 
+export type WorldV2ActorDebugSnapshot = {
+  yaw: number;
+  targetHeading: number;
+  visibleHeading: number;
+  clipName: string;
+  clipWeight: number;
+  rootRotation: [number, number, number] | null;
+  hipsRotation: [number, number, number] | null;
+  torsoRotation: [number, number, number] | null;
+  rootMotionTracks: string[];
+};
+
 type Props = {
   asset: LoadedWorldAsset;
   motionRef: MutableRefObject<WorldMotion>;
-  debugRef?: MutableRefObject<{ yaw: number; clipName: string; clipWeight: number } | null>;
+  debugRef?: MutableRefObject<WorldV2ActorDebugSnapshot | null>;
   isPlayer: boolean;
   distance?: number;
   x?: number;
@@ -29,6 +41,11 @@ function resolveClip(animations: THREE.AnimationClip[], state: CharacterAnimatio
     ?? animations.find((clip) => clip.name.toLowerCase().includes(state.toLowerCase()))
     ?? animations.find((clip) => clip.name.toLowerCase().includes("idle"))
     ?? animations[0];
+}
+
+function readLocalRotation(object: THREE.Object3D | undefined): [number, number, number] | null {
+  if (!object) return null;
+  return [object.rotation.x, object.rotation.y, object.rotation.z];
 }
 
 export default function WorldV2Actor({
@@ -86,14 +103,14 @@ export default function WorldV2Actor({
     if (!root) return;
     const motion = motionRef.current;
     playerPosition.set(motion.depth * 5.2, 0, -(motion.distance - motion.cameraX));
+    const targetHeading = getWorldV2Heading(
+      motion.velocityX,
+      motion.velocityY,
+      playerFacingAngle.current,
+    );
 
     if (isPlayer) {
       root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
-      const targetHeading = getWorldV2Heading(
-        motion.velocityX,
-        motion.velocityY,
-        playerFacingAngle.current,
-      );
       if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
         playerFacingAngle.current = targetHeading;
       }
@@ -129,10 +146,25 @@ export default function WorldV2Actor({
         weight: action.getEffectiveWeight(),
       }));
     if (isPlayer && debugRef) {
+      const rootBone = model.getObjectByName("Root");
+      const hipsBone = model.getObjectByName("Hips");
+      const torsoBone = model.getObjectByName("Torso");
+      const visibleHeading = root.rotation.y + WORLD_V2_CONFIG.modelFacing + model.rotation.y;
       debugRef.current = {
         yaw: root.rotation.y,
+        targetHeading,
+        visibleHeading: Math.atan2(Math.sin(visibleHeading), Math.cos(visibleHeading)),
         clipName: activeActionRef.current?.getClip().name ?? "—",
         clipWeight: activeActionRef.current?.getEffectiveWeight() ?? 0,
+        rootRotation: readLocalRotation(rootBone),
+        hipsRotation: readLocalRotation(hipsBone),
+        torsoRotation: readLocalRotation(torsoBone),
+        rootMotionTracks: (clip?.tracks ?? [])
+          .filter((track) =>
+            isRootTranslationTrack(track.name, "Root")
+            || isRootTranslationTrack(track.name, "Hips"),
+          )
+          .map((track) => track.name),
       };
     }
   });

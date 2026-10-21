@@ -40,7 +40,11 @@ export function inspectWorldCharacterGroups(scene: THREE.Scene): WorldCharacterD
         }
       }
       if (!(child instanceof THREE.SkinnedMesh)) return;
-      const meshPosition = child.getWorldPosition(new THREE.Vector3());
+      child.skeleton.update();
+      child.computeBoundingBox();
+      const meshPosition = child.boundingBox && !child.boundingBox.isEmpty()
+        ? child.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(child.matrixWorld)
+        : child.getWorldPosition(new THREE.Vector3());
       const offset = groupPosition.distanceTo(meshPosition);
       meshes.push({
         name: child.name || child.type,

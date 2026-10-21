@@ -10,6 +10,8 @@ import {
   WORLD_PLAYER_LATERAL_LIMIT_METERS,
   WORLD_ORIGIN_REBASE_INTERVAL_METERS,
 } from "./movement.ts";
+import { getKnightActorRootYaw } from "./knight-config.ts";
+import { getWorldV2Heading } from "./world-v2-config.ts";
 
 test("keyboard input reads WASD and arrows and normalizes diagonal travel", () => {
   const diagonal = readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 });
@@ -21,13 +23,31 @@ test("keyboard input reads WASD and arrows and normalizes diagonal travel", () =
   assert.deepEqual([north.x, north.y], [0, 1]);
 });
 
-test("forward touch input ignores small horizontal thumb drift but keeps deliberate diagonals", () => {
-  const straight = readWorldInput(new Set(), { x: -0.08, y: 0.28 });
+test("forward touch input ignores horizontal thumb drift under 0.20 but keeps deliberate diagonals", () => {
+  const straight = readWorldInput(new Set(), { x: -0.18, y: 0.9 });
   const diagonal = readWorldInput(new Set(), { x: 0.25, y: 0.9 });
+  const overRange = readWorldInput(new Set(), { x: 1, y: 1 });
 
-  assert.deepEqual([straight.x, straight.y], [0, 0.28]);
+  assert.deepEqual([straight.x, straight.y], [0, 0.9]);
   assert.ok(diagonal.x > 0.2);
   assert.ok(diagonal.y > 0.8);
+  assert.ok(Math.abs(Math.hypot(overRange.x, overRange.y) - 1) < 1e-10);
+});
+
+test("forward running with sub-deadzone thumb drift keeps the runner facing straight ahead", () => {
+  const input = readWorldInput(new Set(), { x: -0.18, y: 0.9 });
+  let motion = createWorldMotion();
+  for (let frame = 0; frame < 120; frame += 1) {
+    motion = stepWorldMotion(motion, input, 1 / 60);
+  }
+
+  const heading = getWorldV2Heading(motion.velocityX, motion.velocityY);
+  const rootYaw = getKnightActorRootYaw(heading);
+
+  assert.equal(input.x, 0);
+  assert.equal(motion.velocityX, 0);
+  assert.ok(Math.abs(heading - Math.PI) < 1e-8);
+  assert.ok(Math.abs(rootYaw) < 1e-8);
 });
 
 test("mobile action keys map to jump, crouch, and sprint", () => {

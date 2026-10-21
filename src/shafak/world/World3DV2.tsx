@@ -3,11 +3,12 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState 
 import type { ErrorInfo, ReactNode } from "react";
 import * as THREE from "three";
 import type { World3DProps } from "./World3D";
-import { readWorldInput } from "./movement";
+import { readWorldInput, WORLD_JOYSTICK_X_DEADZONE } from "./movement";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
 import { KNIGHT_CONFIG } from "./knight-config";
 import WorldV2Actor from "./WorldV2Actor";
+import type { WorldV2ActorDebugSnapshot } from "./WorldV2Actor";
 import { WorldV2Entities } from "./WorldV2Entities";
 import {
   WorldV2RouteGates,
@@ -26,7 +27,7 @@ import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import { WorldV2LabelManager } from "./WorldV2Labels";
 import { getWorldRenderPixelRatio, shouldEnableWorldShadows } from "./graphics-quality";
-import { formatWorldCharacterGroups, inspectWorldCharacterGroups } from "./world-character-debug";
+import { inspectWorldCharacterGroups } from "./world-character-debug";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
@@ -37,8 +38,6 @@ type DebugSnapshot = {
   nearbyMeshes: string[];
   sizeWarnings: WorldMeshSizeIssue[];
 };
-
-type ActorDebugSnapshot = { yaw: number; clipName: string; clipWeight: number };
 
 const NO_HELD_KEYS: ReadonlySet<string> = new Set();
 
@@ -183,7 +182,7 @@ function WorldV2FrameDebug({
   enabled: boolean;
   motionRef: MotionRef;
   joystickRef: World3DProps["joystickRef"];
-  actorDebugRef: React.MutableRefObject<ActorDebugSnapshot | null>;
+  actorDebugRef: React.MutableRefObject<WorldV2ActorDebugSnapshot | null>;
   visibleLabelCountRef: React.MutableRefObject<number>;
   outputRef: React.RefObject<HTMLPreElement | null>;
   rivals: World3DProps["rivals"];
@@ -192,10 +191,15 @@ function WorldV2FrameDebug({
   const cameraPosition = useMemo(() => new THREE.Vector3(), []);
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
   const bossPosition = useMemo(() => new THREE.Vector3(), []);
+  const cameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const refreshElapsed = useRef(0);
   const empty = "—";
 
-  useFrame(() => {
+  useFrame((_state, delta) => {
     if (!enabled || !outputRef.current) return;
+    refreshElapsed.current += Math.min(delta, 0.1);
+    if (refreshElapsed.current < 0.2) return;
+    refreshElapsed.current %= 0.2;
     const motion = motionRef.current;
     const rawJoystick = joystickRef.current;
     const processedJoystick = readWorldInput(NO_HELD_KEYS, rawJoystick);
@@ -204,6 +208,8 @@ function WorldV2FrameDebug({
     const playerGroup = characterGroups.find((group) => group.isPlayer);
     const bossGroup = characterGroups.find((group) => group.isBoss);
     camera.getWorldPosition(cameraPosition);
+    camera.getWorldDirection(cameraDirection);
+    const cameraYaw = Math.atan2(cameraDirection.x, -cameraDirection.z);
     if (playerGroup) playerPosition.fromArray(playerGroup.position);
     else playerPosition.set(motion.depth * 5.2, motion.jumpHeight, -(motion.distance - motion.cameraX));
     const cameraPlayerDistance = cameraPosition.distanceTo(playerPosition);
@@ -219,10 +225,30 @@ function WorldV2FrameDebug({
     const characterErrors = characterGroups.flatMap((group) =>
       group.errors.map((error) => `${group.name} / ${error}`),
     );
+    const formatDegrees = (value: number) => Number.isFinite(value)
+      ? `${THREE.MathUtils.radToDeg(value).toFixed(1)}°`
+      : empty;
+    const formatRotation = (rotation: [number, number, number] | null) => rotation
+      ? rotation.map(formatDegrees).join("/")
+      : empty;
+    const playerAnimations = playerGroup?.animations ?? [];
+    const strafeAnimations = playerAnimations.filter((animation) =>
+      /strafe|side|left|right/i.test(animation.name),
+    );
+    const strafeWeight = strafeAnimations.reduce((weight, animation) => weight + animation.weight, 0);
+    const targetYawText = actorDebug ? formatDegrees(actorDebug.targetHeading) : empty;
+    const bodyYawText = yaw === undefined ? empty : formatDegrees(yaw);
+    const visibleHeadingText = actorDebug ? formatDegrees(actorDebug.visibleHeading) : empty;
     outputRef.current.textContent = [
       `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
-      `Joystick deadzone: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
-      `Karakter yaw: ${yaw === undefined ? empty : `${format(yaw)} rad / ${format(THREE.MathUtils.radToDeg(yaw))}°`}`,
+      `Joystick deadzone |x|<${format(WORLD_JOYSTICK_X_DEADZONE)}: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
+      `Hız X / ileri: ${format(motion.velocityX)}, ${format(motion.velocityY)} m/sn`,
+      `Kamera yaw: ${formatDegrees(cameraYaw)}`,
+      `Hedef yaw / gövde yaw / net model yönü: ${targetYawText} / ${bodyYawText} / ${visibleHeadingText}`,
+      `Root XYZ / Hips XYZ: ${formatRotation(actorDebug?.rootRotation ?? null)} / ${formatRotation(actorDebug?.hipsRotation ?? null)}`,
+      `Torso XYZ: ${formatRotation(actorDebug?.torsoRotation ?? null)}`,
+      `Root/Hips konum track'i: ${actorDebug?.rootMotionTracks.join(", ") || "yok"}`,
+      `Strafe clip ağırlığı: ${format(strafeWeight)}${strafeAnimations.length ? "" : " (clip yok)"}`,
       `Kamera-oyuncu: ${format(cameraPlayerDistance)} m`,
       `Kamera-boss: ${cameraBossDistance === null ? empty : `${format(cameraBossDistance)} m`}`,
       `Çalan animasyonlar: ${characterGroups.flatMap((group) =>
@@ -230,9 +256,8 @@ function WorldV2FrameDebug({
       ).join(", ") || `${actorDebug?.clipName ?? empty}=${format(actorDebug?.clipWeight ?? 0)}`}`,
       `Görünür dünya etiketi: ${visibleLabelCountRef.current}`,
       `HATA karakter mesh offset: ${characterErrors.length}`,
-      ...characterErrors.map((error) => `HATA ${error}`),
-      "Karakter grupları:",
-      ...formatWorldCharacterGroups(characterGroups),
+      ...characterErrors.slice(0, 4).map((error) => `HATA ${error}`),
+      ...(characterErrors.length > 4 ? [`…${characterErrors.length - 4} başka hata`] : []),
     ].join("\n");
   });
   return null;
@@ -285,7 +310,7 @@ export default function World3DV2(props: World3DProps) {
     sizeWarnings: [],
   });
   const frameDebugOutputRef = useRef<HTMLPreElement>(null);
-  const actorDebugRef = useRef<ActorDebugSnapshot | null>(null);
+  const actorDebugRef = useRef<WorldV2ActorDebugSnapshot | null>(null);
   const visibleLabelCountRef = useRef(0);
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;

@@ -12,7 +12,11 @@ import {
   PLAYER_CHARACTER_TARGET_HEIGHT,
   shouldRenderPlayerModel,
 } from "./player-model.ts";
-import { resolveMappedGlbClipName } from "./model-animation.ts";
+import {
+  createUprightTorsoClip,
+  isRootTranslationTrack,
+  resolveMappedGlbClipName,
+} from "./model-animation.ts";
 import { PLAYER_CHARACTER_ANIMATION_CLIPS } from "./player-model.ts";
 import { findCharacterPoseBones } from "./character-pose.ts";
 import {
@@ -68,6 +72,44 @@ test("player model uses the animated Quaternius hero at the configured height an
   );
   const gltf = await new Promise((resolve, reject) =>
     new GLTFLoader().parse(arrayBuffer, "/", resolve, reject));
+  assert.deepEqual(
+    gltf.animations.filter((clip) => /strafe|side.?step|run.?left|run.?right/i.test(clip.name)).map((clip) => clip.name),
+    [],
+    "the world player asset has no separate lateral run/strafe clips to blend",
+  );
+  const runSourceClip = gltf.animations.find((clip) => clip.name === "Run");
+  assert.ok(runSourceClip, "the player GLB should contain a Run clip");
+  const runTorsoTrack = runSourceClip.tracks.find((track) => track.name === "Torso.quaternion");
+  assert.ok(runTorsoTrack, "the player Run clip should animate the torso");
+  const uprightRunClip = createUprightTorsoClip(runSourceClip);
+  const uprightTorsoTrack = uprightRunClip.tracks.find((track) => track.name === "Torso.quaternion");
+  assert.ok(uprightTorsoTrack);
+  let sourceTorsoRoll = 0;
+  for (let offset = 0; offset + 3 < runTorsoTrack.values.length; offset += 4) {
+    const sourceEuler = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion().fromArray(runTorsoTrack.values, offset),
+      "XYZ",
+    );
+    sourceTorsoRoll = Math.max(sourceTorsoRoll, Math.abs(sourceEuler.z));
+    const uprightEuler = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion().fromArray(uprightTorsoTrack.values, offset),
+      "XYZ",
+    );
+    assert.ok(Math.abs(uprightEuler.y) < 1e-6);
+    assert.ok(Math.abs(uprightEuler.z) < 1e-6);
+  }
+  assert.ok(sourceTorsoRoll > 0.05, "the source Run clip contains a sideways torso roll");
+  for (const boneName of ["Root", "Hips"]) {
+    const bone = gltf.scene.getObjectByName(boneName);
+    assert.ok(bone, `the player GLB should contain ${boneName}`);
+    assert.ok(Math.abs(bone.rotation.y) < 1e-6, `${boneName} should have no bind-pose yaw offset`);
+    assert.ok(Math.abs(bone.rotation.z) < 1e-6, `${boneName} should have no bind-pose roll offset`);
+  }
+  const rootMotionTracks = runSourceClip.tracks.filter((track) =>
+    isRootTranslationTrack(track.name, "Root")
+    || isRootTranslationTrack(track.name, "Hips"),
+  );
+  assert.deepEqual(rootMotionTracks, [], "the Run clip has no Root/Hips translation to strip");
   const firstActor = cloneSkinned(gltf.scene);
   const secondActor = cloneSkinned(gltf.scene);
   const firstResources = cloneCharacterResources(firstActor);

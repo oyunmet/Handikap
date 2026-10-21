@@ -47,6 +47,7 @@ export const WORLD_PLAYER_DEPTH_LIMIT = WORLD_PLAYER_LATERAL_LIMIT_METERS / 5.2;
 export const WORLD_CHUNK_LENGTH_METERS = 48;
 export const WORLD_GATE_INTERVAL_METERS = 144;
 export const WORLD_ORIGIN_REBASE_INTERVAL_METERS = 1024;
+export const WORLD_JOYSTICK_X_DEADZONE = 0.2;
 
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6.8;
@@ -93,10 +94,9 @@ export function readWorldInput(
   const hasKeyboardDirection = keyX !== 0 || keyY !== 0;
   const analogX = finiteOrZero(analog.x);
   const analogY = finiteOrZero(analog.y);
-  const isForwardOrBackwardTouch = !hasKeyboardDirection && Math.abs(analogY) >= 0.15;
   const x = hasKeyboardDirection
     ? keyX
-    : isForwardOrBackwardTouch && Math.abs(analogX) < 0.12 ? 0 : analogX;
+    : Math.abs(analogX) < WORLD_JOYSTICK_X_DEADZONE ? 0 : analogX;
   const y = hasKeyboardDirection ? keyY : analogY;
   const magnitude = Math.hypot(x, y);
   const scale = magnitude > 1 ? 1 / magnitude : 1;

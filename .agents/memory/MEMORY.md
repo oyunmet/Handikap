@@ -9,6 +9,7 @@
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep world rivals anchored, combatants unobscured, and rewards and hazards easy to spot and reach.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
 - [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms applied while measuring; `AnimationMixer.stopAllAction()` restores the source pose.
+- [Skinned-mesh debug bounds](skinned-mesh-debug-bounds.md) — Compare deformed geometry centers, not source pivots; player mesh origins can sit about 9.98 m away.
 - [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.
 - [Duel boundary and cover geometry](duel-arena-boundary.md) — Tightening movement bounds can alter cover-shot paths; verify both arena limits and cover interactions.
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.
