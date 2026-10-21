@@ -13,6 +13,7 @@ import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
 type Props = {
   asset: LoadedWorldAsset;
   motionRef: MutableRefObject<WorldMotion>;
+  debugRef?: MutableRefObject<{ yaw: number; clipName: string; clipWeight: number } | null>;
   isPlayer: boolean;
   distance?: number;
   x?: number;
@@ -33,6 +34,7 @@ function resolveClip(animations: THREE.AnimationClip[], state: CharacterAnimatio
 export default function WorldV2Actor({
   asset,
   motionRef,
+  debugRef,
   isPlayer,
   distance = 0,
   x = 0,
@@ -113,6 +115,13 @@ export default function WorldV2Actor({
       activeClipNameRef.current = clip.name;
     }
     mixer.update(Math.min(delta, 0.05));
+    if (isPlayer && debugRef) {
+      debugRef.current = {
+        yaw: root.rotation.y,
+        clipName: activeActionRef.current?.getClip().name ?? "—",
+        clipWeight: activeActionRef.current?.getEffectiveWeight() ?? 0,
+      };
+    }
   });
 
   return (

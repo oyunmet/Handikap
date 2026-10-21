@@ -3,6 +3,7 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState 
 import type { ErrorInfo, ReactNode } from "react";
 import * as THREE from "three";
 import type { World3DProps } from "./World3D";
+import { readWorldInput } from "./movement";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
 import { KNIGHT_CONFIG } from "./knight-config";
@@ -35,6 +36,10 @@ type DebugSnapshot = {
   nearbyMeshes: string[];
   sizeWarnings: WorldMeshSizeIssue[];
 };
+
+type ActorDebugSnapshot = { yaw: number; clipName: string; clipWeight: number };
+
+const NO_HELD_KEYS: ReadonlySet<string> = new Set();
 
 function readQueryFlag(name: string) {
   if (typeof window === "undefined") return false;
@@ -165,6 +170,64 @@ function WorldV2Diagnostics({
   return null;
 }
 
+function WorldV2FrameDebug({
+  enabled,
+  motionRef,
+  joystickRef,
+  actorDebugRef,
+  visibleLabelCountRef,
+  outputRef,
+  rivals,
+}: {
+  enabled: boolean;
+  motionRef: MotionRef;
+  joystickRef: World3DProps["joystickRef"];
+  actorDebugRef: React.MutableRefObject<ActorDebugSnapshot | null>;
+  visibleLabelCountRef: React.MutableRefObject<number>;
+  outputRef: React.RefObject<HTMLPreElement | null>;
+  rivals: World3DProps["rivals"];
+}) {
+  const { camera, scene } = useThree();
+  const cameraPosition = useMemo(() => new THREE.Vector3(), []);
+  const playerPosition = useMemo(() => new THREE.Vector3(), []);
+  const bossPosition = useMemo(() => new THREE.Vector3(), []);
+  const empty = "—";
+
+  useFrame(() => {
+    if (!enabled || !outputRef.current) return;
+    const motion = motionRef.current;
+    const rawJoystick = joystickRef.current;
+    const processedJoystick = readWorldInput(NO_HELD_KEYS, rawJoystick);
+    const actorDebug = actorDebugRef.current;
+    camera.getWorldPosition(cameraPosition);
+    playerPosition.set(
+      motion.depth * 5.2,
+      motion.jumpHeight,
+      -(motion.distance - motion.cameraX),
+    );
+    const cameraPlayerDistance = cameraPosition.distanceTo(playerPosition);
+    const boss = rivals.find((rival) => rival.isBoss);
+    const bossActor = boss
+      ? scene.getObjectByName(`world-v2-npc:${boss.name}:${boss.id}`)
+      : undefined;
+    const cameraBossDistance = bossActor
+      ? cameraPosition.distanceTo(bossActor.getWorldPosition(bossPosition))
+      : null;
+    const format = (value: number) => Number.isFinite(value) ? value.toFixed(2) : empty;
+    const yaw = actorDebug?.yaw;
+    outputRef.current.textContent = [
+      `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
+      `Joystick deadzone: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
+      `Karakter yaw: ${yaw === undefined ? empty : `${format(yaw)} rad / ${format(THREE.MathUtils.radToDeg(yaw))}°`}`,
+      `Kamera-oyuncu: ${format(cameraPlayerDistance)} m`,
+      `Kamera-boss: ${cameraBossDistance === null ? empty : `${format(cameraBossDistance)} m`}`,
+      `Animasyon: ${actorDebug?.clipName ?? empty} · ağırlık ${format(actorDebug?.clipWeight ?? 0)}`,
+      `Görünür dünya etiketi: ${visibleLabelCountRef.current}`,
+    ].join("\n");
+  });
+  return null;
+}
+
 function isDebugEnabled() {
   return readQueryFlag("debug");
 }
@@ -211,6 +274,9 @@ export default function World3DV2(props: World3DProps) {
     nearbyMeshes: [],
     sizeWarnings: [],
   });
+  const frameDebugOutputRef = useRef<HTMLPreElement>(null);
+  const actorDebugRef = useRef<ActorDebugSnapshot | null>(null);
+  const visibleLabelCountRef = useRef(0);
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const renderPixelRatio = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
@@ -356,6 +422,7 @@ export default function World3DV2(props: World3DProps) {
                   <WorldV2Actor
                     asset={asset}
                     motionRef={props.motionRef}
+                    debugRef={debug ? actorDebugRef : undefined}
                     isPlayer
                     animationState={props.animationState}
                   />
@@ -382,7 +449,21 @@ export default function World3DV2(props: World3DProps) {
                 </>
               )}
             </Suspense>
-            <WorldV2LabelManager motionRef={props.motionRef} />
+            <WorldV2LabelManager
+              motionRef={props.motionRef}
+              visibleCountRef={debug ? visibleLabelCountRef : undefined}
+            />
+            {debug && (
+              <WorldV2FrameDebug
+                enabled={debug}
+                motionRef={props.motionRef}
+                joystickRef={props.joystickRef}
+                actorDebugRef={actorDebugRef}
+                visibleLabelCountRef={visibleLabelCountRef}
+                outputRef={frameDebugOutputRef}
+                rivals={props.rivals}
+              />
+            )}
             {debug && <WorldV2Diagnostics enabled={debug} onUpdate={setDebugSnapshot} />}
             <WorldBlackFrameProbe onBlackFrame={recoverWorld3D} manualRender />
           </Canvas>
@@ -392,6 +473,12 @@ export default function World3DV2(props: World3DProps) {
         <div className="world-v2-error" role="alert">
           player-hero.glb yüklenemedi: {assetError}
         </div>
+      )}
+      {debug && (
+        <aside className="world-v2-frame-debug" aria-label="Kare başına dünya tanılaması">
+          <b>FRAME DEBUG</b>
+          <pre ref={frameDebugOutputRef}>Joystick ve sahne verileri bekleniyor…</pre>
+        </aside>
       )}
       {debug && (
         <aside className="world-v2-debug" aria-live="polite">

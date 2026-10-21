@@ -2749,6 +2749,7 @@ export default function WorldScene({
         >
           <World3D
             motionRef={motionRef}
+            joystickRef={worldInput.joystick}
             dialoguePortal={npcDialoguePortalRef}
             unlockedThroughChapter={worldProgress.unlockedThroughChapter}
             collisionGrid={getCachedWorldContent(

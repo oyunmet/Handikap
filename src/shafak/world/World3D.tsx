@@ -242,6 +242,7 @@ type CombatVisualEvent = CombatEvent & { expiresAt: number };
 
 export type World3DProps = {
   motionRef: MutableRefObject<WorldMotion>;
+  joystickRef: MutableRefObject<{ x: number; y: number }>;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   unlockedThroughChapter: number;
   collisionGrid: WorldCollisionGrid;

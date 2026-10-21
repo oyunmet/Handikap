@@ -91,7 +91,13 @@ export function WorldV2Label({
   );
 }
 
-export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
+export function WorldV2LabelManager({
+  motionRef,
+  visibleCountRef,
+}: {
+  motionRef: MotionRef;
+  visibleCountRef?: MutableRefObject<number>;
+}) {
   const { camera, gl } = useThree();
   const elapsed = useRef(0);
   const projectedPosition = useRef(new THREE.Vector3());
@@ -116,6 +122,7 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
       '.world-scene[data-story-open="true"], .world-scene[data-npc-dialogue-open="true"]',
     )) {
       for (const label of registeredLabels.values()) label.element.style.visibility = "hidden";
+      if (visibleCountRef) visibleCountRef.current = 0;
       return;
     }
     const motion = motionRef.current;
@@ -191,6 +198,7 @@ export function WorldV2LabelManager({ motionRef }: { motionRef: MotionRef }) {
     const selected = new Set(
       selectWorldV2Labels(projected, [...uiRects, playerRect]).map((label) => label.id),
     );
+    if (visibleCountRef) visibleCountRef.current = selected.size;
     for (const [id, label] of current) {
       const visible = selected.has(id);
       label.element.style.visibility = visible ? "visible" : "hidden";
