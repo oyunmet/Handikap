@@ -67,11 +67,18 @@ export default function WorldV2Actor({
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
   const playerFacingAngle = useRef(Math.PI);
 
-  useEffect(() => () => {
-    mixer.stopAllAction();
-    mixer.uncacheRoot(model);
+  useEffect(() => {
+    activeActionRef.current = null;
+    activeClipNameRef.current = "";
     actionsRef.current.clear();
-    disposeWorldCharacter(model);
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(model);
+      activeActionRef.current = null;
+      activeClipNameRef.current = "";
+      actionsRef.current.clear();
+      disposeWorldCharacter(model);
+    };
   }, [mixer, model]);
 
   useFrame((_frame, delta) => {
