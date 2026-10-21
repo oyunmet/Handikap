@@ -9,6 +9,75 @@ import {
 
 const normalizedCharacterLogs = new Set<string>();
 
+export type CharacterOwnedResources = {
+  geometries: THREE.BufferGeometry[];
+  materials: THREE.Material[];
+  textures: THREE.Texture[];
+};
+
+function cloneTextureValue(
+  value: unknown,
+  textureClones: Map<THREE.Texture, THREE.Texture>,
+  ownedTextures: THREE.Texture[],
+): unknown {
+  if (value instanceof THREE.Texture) {
+    let clone = textureClones.get(value);
+    if (!clone) {
+      clone = value.clone();
+      textureClones.set(value, clone);
+      ownedTextures.push(clone);
+    }
+    return clone;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneTextureValue(item, textureClones, ownedTextures));
+  }
+  return value;
+}
+
+/** Gives one character instance ownership of its geometry, materials, and texture handles. */
+export function cloneCharacterResources(root: THREE.Object3D): CharacterOwnedResources {
+  const resources: CharacterOwnedResources = { geometries: [], materials: [], textures: [] };
+  const textureClones = new Map<THREE.Texture, THREE.Texture>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry = object.geometry.clone();
+    resources.geometries.push(object.geometry);
+    const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+    const materials = sourceMaterials.map((source) => {
+      const clone = source.clone();
+      const sourceProperties = source as unknown as Record<string, unknown>;
+      const cloneProperties = clone as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(sourceProperties)) {
+        if (value instanceof THREE.Texture || Array.isArray(value)) {
+          cloneProperties[key] = cloneTextureValue(value, textureClones, resources.textures);
+        }
+      }
+      if (source instanceof THREE.ShaderMaterial && clone instanceof THREE.ShaderMaterial) {
+        for (const [key, uniform] of Object.entries(clone.uniforms)) {
+          if (!uniform) continue;
+          uniform.value = cloneTextureValue(
+            uniform.value,
+            textureClones,
+            resources.textures,
+          );
+        }
+      }
+      resources.materials.push(clone);
+      return clone;
+    });
+    object.material = Array.isArray(object.material) ? materials : materials[0];
+    if (object instanceof THREE.SkinnedMesh) object.frustumCulled = false;
+  });
+  return resources;
+}
+
+export function disposeCharacterResources(resources: CharacterOwnedResources) {
+  resources.geometries.forEach((geometry) => geometry.dispose());
+  resources.materials.forEach((material) => material.dispose());
+  resources.textures.forEach((texture) => texture.dispose());
+}
+
 /** Shared GLTF loader setup for every player, rival, and boss model. */
 export function loadCharacter(loader: GLTFLoader) {
   loader.setMeshoptDecoder(MeshoptDecoder);

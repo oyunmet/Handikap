@@ -48,6 +48,7 @@ function GateBossGuard() {
         animationPaused={false}
         appearance={GATE_BOSS_PROFILE.appearance}
         modelConfig={GATE_BOSS_MODEL_CONFIG}
+        characterLabel="gate-boss-guard"
         castShadow
       />
     </group>

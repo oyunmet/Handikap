@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { auditWorldMeshSizes } from "./world-v2-audit.ts";
+import { prepareWorldAsset } from "./world-v2-assets.ts";
 import {
   createWorldRoadEnvironment,
   positionWorldRoadEnvironment,
@@ -59,4 +62,23 @@ test("world-size audit checks each InstancedMesh scale", () => {
   assert.equal(issues[0].maxDimension, 13);
   geometry.dispose();
   material.dispose();
+});
+
+test("the character-size audit uses the deformed bounds of the Rogue skinned rig", async () => {
+  const bytes = fs.readFileSync(new URL("../../../public/models/player-hero.glb", import.meta.url));
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const gltf = await new Promise((resolve, reject) =>
+    new GLTFLoader().parse(buffer, "/", resolve, reject));
+  const asset = prepareWorldAsset("/models/player-hero.glb", gltf, { targetHeight: 1.7 });
+  const rogueMeshes = [];
+  asset.scene.traverse((object) => {
+    if (object instanceof THREE.SkinnedMesh && object.name.startsWith("Rogue")) rogueMeshes.push(object);
+  });
+
+  assert.equal(rogueMeshes.length, 7);
+  assert.deepEqual(
+    auditWorldMeshSizes(asset.scene),
+    [],
+    "the un-deformed geometry box must not be reported as a 39–177 m world mesh",
+  );
 });

@@ -26,6 +26,7 @@ import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import { WorldV2LabelManager } from "./WorldV2Labels";
 import { getWorldRenderPixelRatio, shouldEnableWorldShadows } from "./graphics-quality";
+import { formatWorldCharacterGroups, inspectWorldCharacterGroups } from "./world-character-debug";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
@@ -199,30 +200,39 @@ function WorldV2FrameDebug({
     const rawJoystick = joystickRef.current;
     const processedJoystick = readWorldInput(NO_HELD_KEYS, rawJoystick);
     const actorDebug = actorDebugRef.current;
+    const characterGroups = inspectWorldCharacterGroups(scene);
+    const playerGroup = characterGroups.find((group) => group.isPlayer);
+    const bossGroup = characterGroups.find((group) => group.isBoss);
     camera.getWorldPosition(cameraPosition);
-    playerPosition.set(
-      motion.depth * 5.2,
-      motion.jumpHeight,
-      -(motion.distance - motion.cameraX),
-    );
+    if (playerGroup) playerPosition.fromArray(playerGroup.position);
+    else playerPosition.set(motion.depth * 5.2, motion.jumpHeight, -(motion.distance - motion.cameraX));
     const cameraPlayerDistance = cameraPosition.distanceTo(playerPosition);
     const boss = rivals.find((rival) => rival.isBoss);
-    const bossActor = boss
-      ? scene.getObjectByName(`world-v2-npc:${boss.name}:${boss.id}`)
-      : undefined;
+    const bossActor = bossGroup
+      ? scene.getObjectByName(bossGroup.name)
+      : boss ? scene.getObjectByName(`world-v2-npc:${boss.name}:${boss.id}`) : undefined;
     const cameraBossDistance = bossActor
       ? cameraPosition.distanceTo(bossActor.getWorldPosition(bossPosition))
       : null;
     const format = (value: number) => Number.isFinite(value) ? value.toFixed(2) : empty;
-    const yaw = actorDebug?.yaw;
+    const yaw = actorDebug?.yaw ?? playerGroup?.yaw ?? undefined;
+    const characterErrors = characterGroups.flatMap((group) =>
+      group.errors.map((error) => `${group.name} / ${error}`),
+    );
     outputRef.current.textContent = [
       `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
       `Joystick deadzone: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
       `Karakter yaw: ${yaw === undefined ? empty : `${format(yaw)} rad / ${format(THREE.MathUtils.radToDeg(yaw))}°`}`,
       `Kamera-oyuncu: ${format(cameraPlayerDistance)} m`,
       `Kamera-boss: ${cameraBossDistance === null ? empty : `${format(cameraBossDistance)} m`}`,
-      `Animasyon: ${actorDebug?.clipName ?? empty} · ağırlık ${format(actorDebug?.clipWeight ?? 0)}`,
+      `Çalan animasyonlar: ${characterGroups.flatMap((group) =>
+        group.animations.map((animation) => `${group.name}/${animation.name}=${animation.weight.toFixed(3)}`),
+      ).join(", ") || `${actorDebug?.clipName ?? empty}=${format(actorDebug?.clipWeight ?? 0)}`}`,
       `Görünür dünya etiketi: ${visibleLabelCountRef.current}`,
+      `HATA karakter mesh offset: ${characterErrors.length}`,
+      ...characterErrors.map((error) => `HATA ${error}`),
+      "Karakter grupları:",
+      ...formatWorldCharacterGroups(characterGroups),
     ].join("\n");
   });
   return null;

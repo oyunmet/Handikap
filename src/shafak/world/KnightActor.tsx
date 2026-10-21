@@ -5,7 +5,7 @@ import { Html, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
-import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { CharacterAnimationState } from "./character-animation";
 import { KNIGHT_CONFIG } from "./knight-config";
 import {
@@ -45,6 +45,8 @@ import {
   inspectCharacterSceneGraph,
   loadCharacter,
   prepareCharacterSkinnedMeshes,
+  cloneCharacterResources,
+  disposeCharacterResources,
   validateCharacterModel,
 } from "./character-model";
 import { attachOpponentCostume, type AttachedOpponentCostume } from "./opponent-costume";
@@ -68,6 +70,7 @@ export type KnightActorProps = {
   modelConfig?: OpponentModelConfig;
   modelAnimationState?: ModelAnimationState;
   playerCharacter?: boolean;
+  characterLabel?: string;
 };
 
 const warnedModelPaths = new Set<string>();
@@ -140,7 +143,8 @@ function inspectModelBudget(model: THREE.Object3D, modelPath: string) {
 }
 
 function prepareModel(
-  source: THREE.Object3D,
+  model: THREE.Object3D,
+  resources: ReturnType<typeof cloneCharacterResources>,
   modelPath: string,
   modelConfig?: OpponentModelConfig,
   castShadow = true,
@@ -149,7 +153,6 @@ function prepareModel(
   targetHeight: number = WORLD_MODEL_SIZE_TARGETS.player.targetHeight,
   targetMaxDimension: number = WORLD_MODEL_SIZE_TARGETS.player.maxDimension,
 ) {
-  const model = cloneSkinned(source);
   if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
   fitCharacterModel(
     model,
@@ -169,13 +172,14 @@ function prepareModel(
   model.traverse((object) => {
     if (object instanceof THREE.Mesh) object.castShadow = castShadow;
   });
-  const ownedMaterials: THREE.Material[] = [];
+  const ownedMaterials = resources.materials;
   let alreadyRigged = false;
   model.traverse((object) => {
     if ((object as THREE.SkinnedMesh).isSkinnedMesh) alreadyRigged = true;
   });
   const playerRig = playerCharacter && !alreadyRigged ? rigPlayerModel(model) : null;
-  const ownedGeometries = playerRig ? [playerRig.ownedGeometry] : [];
+  const ownedGeometries = resources.geometries;
+  if (playerRig) ownedGeometries.push(playerRig.ownedGeometry);
   const paletteAppearance = modelConfig?.appearance ?? (playerCharacter ? appearance : undefined);
   const materialNameAliases = modelConfig?.materialNameAliases
     ?? (playerCharacter ? PLAYER_CHARACTER_MATERIAL_ALIASES : undefined);
@@ -185,7 +189,7 @@ function prepareModel(
 
   if (isOpponentModel && !loggedOpponentMaterialNames.has(modelPath)) {
     const names = new Set<string>();
-    source.traverse((object) => {
+    model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       materials.forEach((material) => names.add(material.name || "(unnamed)"));
@@ -287,7 +291,14 @@ function prepareModel(
     if (changed) object.material = Array.isArray(object.material) ? materials : materials[0];
   });
 
-  return { model, ownedMaterials, ownedGeometries, playerRig };
+  return {
+    model,
+    ownedMaterials,
+    ownedGeometries,
+    ownedTextures: resources.textures,
+    ownedResources: resources,
+    playerRig,
+  };
 }
 
 const animatePlayerRig: typeof posePlayerRig = posePlayerRig;
@@ -343,6 +354,7 @@ function OptionalGlbKnight({
   modelConfig,
   castShadow = true,
   playerCharacter = false,
+  characterLabel,
 }: KnightActorProps) {
   const { camera: activeCamera, size } = useThree();
   const modelPath = modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH;
@@ -356,11 +368,14 @@ function OptionalGlbKnight({
     ?? PLAYER_CHARACTER_ANIMATION_CLIPS;
   const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const targetMaxDimension = modelConfig?.maxDimension ?? WORLD_MODEL_SIZE_TARGETS.player.maxDimension;
-  const { model, ownedMaterials, ownedGeometries, playerRig } = useMemo(
+  const { model, playerRig, ownedResources } = useMemo(
     () => {
       capWorldTextures(gltf.scene);
+      const model = cloneSkinned(gltf.scene);
+      const resources = cloneCharacterResources(model);
       return prepareModel(
-        gltf.scene,
+        model,
+        resources,
         modelPath,
         modelConfig,
         castShadow,
@@ -698,9 +713,8 @@ function OptionalGlbKnight({
   useEffect(() => () => {
     mixer.stopAllAction();
     mixer.uncacheRoot(model);
-    for (const material of ownedMaterials) material.dispose();
-    for (const geometry of ownedGeometries) geometry.dispose();
-  }, [mixer, model, ownedGeometries, ownedMaterials]);
+    disposeCharacterResources(ownedResources);
+  }, [mixer, model, ownedResources]);
 
   return (
     <group ref={rootRef} name={playerCharacter ? "player-actor-root" : "character-actor-root"}>

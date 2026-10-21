@@ -1,9 +1,15 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { WorldV2AssetTarget } from "./world-v2-config";
 import { fitObjectToTarget } from "./world-v2-sizing";
+import {
+  cloneCharacterResources,
+  disposeCharacterResources,
+  prepareCharacterSkinnedMeshes,
+  type CharacterOwnedResources,
+} from "./character-model";
 
 export type LoadedWorldAsset = {
   url: string;
@@ -13,6 +19,7 @@ export type LoadedWorldAsset = {
 };
 
 const assetCache = new Map<string, Promise<LoadedWorldAsset>>();
+const characterResources = new WeakMap<THREE.Object3D, CharacterOwnedResources>();
 
 function prepareFirstAnimationFrame(gltf: GLTF) {
   const firstClip = gltf.animations[0];
@@ -44,6 +51,8 @@ export function prepareWorldAsset(
 
 export function cloneWorldCharacter(asset: LoadedWorldAsset, tint?: string) {
   const clone = cloneSkinned(asset.scene) as THREE.Group;
+  characterResources.set(clone, cloneCharacterResources(clone));
+  prepareCharacterSkinnedMeshes(clone);
   tintWorldMaterials(clone, tint);
   return clone;
 }
@@ -52,15 +61,19 @@ export function tintWorldMaterials(root: THREE.Object3D, tint?: string) {
   const target = tint ? new THREE.Color(tint) : null;
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
-    const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
-    const materials = sourceMaterials.map((source) => {
-      const material = source.clone();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach((material) => {
       const colored = material as THREE.Material & { color?: THREE.Color };
       if (target && colored.color?.isColor) colored.color.lerp(target, 0.38);
-      return material;
     });
-    object.material = Array.isArray(object.material) ? materials : materials[0];
   });
+}
+
+export function disposeWorldCharacter(model: THREE.Object3D) {
+  const resources = characterResources.get(model);
+  if (!resources) return;
+  characterResources.delete(model);
+  disposeCharacterResources(resources);
 }
 
 /**

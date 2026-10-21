@@ -19,11 +19,10 @@ test("duel camera keeps a stable world heading as fighters move and cross", () =
   const spawnPlayer = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const spawnOpponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const cameraHeading = DUEL_CAMERA_HEADING;
-  const spawnPose = getDuelCameraPose(spawnPlayer, spawnOpponent, -120, 8.4, 1.2, 0, cameraHeading);
+  const spawnPose = getDuelCameraPose(spawnPlayer, spawnOpponent, 8.4, 1.2, 0, cameraHeading);
   const movedPose = getDuelCameraPose(
     { x: 3.1, z: -2.4 },
     { x: -2.8, z: 1.9 },
-    -120,
     8.4,
     1.2,
     0,
@@ -38,7 +37,8 @@ test("duel camera keeps a stable world heading as fighters move and cross", () =
   const expectedTargetX = 3.1 * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
     + (-2.8) * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT);
   assert.ok(Math.abs(movedPose.target.x - expectedTargetX) < 1e-9);
-  assert.ok(Math.abs(movedPose.target.z - (-120 - 0.25)) < 1e-9);
+  assert.ok(Math.abs(movedPose.target.z - -0.25) < 1e-9);
+  assert.ok(Math.abs(spawnPose.target.z) < 1, "duel camera target stays in the arena's local coordinate space");
   assert.ok(Math.hypot(
     spawnPose.position.x - spawnPose.target.x,
     spawnPose.position.z - spawnPose.target.z,
@@ -70,7 +70,7 @@ test("duel root rotations keep pitch and roll pinned to zero", () => {
 test("the camera keeps both fighters in a clear rear three-quarter frame", () => {
   const player = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const opponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
-  const pose = getDuelCameraPose(player, opponent, 0, 8.4, 0.45);
+  const pose = getDuelCameraPose(player, opponent, 8.4, 0.45);
   assert.ok(Math.abs(pose.target.x - (player.x * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
     + opponent.x * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT))) < 1e-9);
   assert.equal(pose.target.z, DUEL_CAMERA_ARENA_CENTER_Z);
@@ -99,7 +99,7 @@ test("the mobile duel framing keeps both fighters on-screen and nearly level", (
     DUEL_CAMERA_TOUCH_FOV,
     7.2,
   );
-  const pose = getDuelCameraPose(player, opponent, 0, cameraBack, 0.32);
+  const pose = getDuelCameraPose(player, opponent, cameraBack, 0.32);
   const forward = {
     x: pose.target.x - pose.position.x,
     y: pose.target.y - pose.position.y,
@@ -154,7 +154,7 @@ test("joystick input follows the same fixed camera heading throughout the duel",
 test("the mobile camera keeps its framing distance when both fighters reach the arena edge", () => {
   const player = { x: 7.5, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const opponent = { x: 8, z: DUEL_CAMERA_ARENA_CENTER_Z };
-  const pose = getDuelCameraPose(player, opponent, 0, 8.4, 0.45);
+  const pose = getDuelCameraPose(player, opponent, 8.4, 0.45);
   const cameraDistance = Math.hypot(
     pose.position.x - pose.target.x,
     pose.position.z - pose.target.z,
@@ -178,7 +178,7 @@ test("portrait duel framing fits fighters at opposite arena edges on screen", ()
     DUEL_CAMERA_TOUCH_FOV,
     7.2,
   );
-  const pose = getDuelCameraPose(player, opponent, 0, cameraBack, 0.32);
+  const pose = getDuelCameraPose(player, opponent, cameraBack, 0.32);
   const forward = {
     x: pose.target.x - pose.position.x,
     y: pose.target.y - pose.position.y,
@@ -228,8 +228,8 @@ test("the duel camera follows the jump arc and returns to its grounded framing",
 
   const player = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const opponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
-  const grounded = getDuelCameraPose(player, opponent, 0, 8.4, 1.2);
-  const lifted = getDuelCameraPose(player, opponent, 0, 8.4, 1.2, DUEL_JUMP_HEIGHT);
+  const grounded = getDuelCameraPose(player, opponent, 8.4, 1.2);
+  const lifted = getDuelCameraPose(player, opponent, 8.4, 1.2, DUEL_JUMP_HEIGHT);
   assert.ok(lifted.position.y > grounded.position.y);
   assert.ok(lifted.target.y > grounded.target.y);
 });

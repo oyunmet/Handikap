@@ -7,7 +7,7 @@ import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import type { WorldMotion } from "./movement";
-import { createWorldMotion } from "./movement";
+import { createWorldMotion, readWorldInput } from "./movement";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import { mapOpponentAnimationState } from "./model-animation";
@@ -41,6 +41,7 @@ import {
   WorldCameraOcclusionFader,
 } from "./world-camera-collision";
 import { WorldScaleDiagnostics } from "./world-model-diagnostics";
+import { formatWorldCharacterGroups, inspectWorldCharacterGroups } from "./world-character-debug";
 import {
   createFrameMetricsAccumulator,
   recordFrameMetric,
@@ -469,10 +470,13 @@ function CameraRig({
     if (!camera) return;
     const motion = motionRef.current;
     const cameraMode = combatActive ? "duel" : focusedRival ? "encounter" : "travel";
+    const enteringDuel = cameraModeRef.current !== cameraMode && cameraMode === "duel";
     if (cameraModeRef.current !== cameraMode) {
       cameraModeRef.current = cameraMode;
       obstructionDistanceRef.current = undefined;
       cameraRaycastElapsedRef.current = 1;
+      cameraOccluderScanElapsedRef.current = 1;
+      cameraOccludersRef.current = [];
       cameraOcclusionFader.clear();
       cameraDiagnosticSignatureRef.current = "";
       cameraHitSignatureRef.current = "";
@@ -526,7 +530,6 @@ function CameraRig({
       const pose = getDuelCameraPose(
         combat.player,
         combat.bot,
-        -(motion.distance - motion.originDistance),
         cameraBack,
         touchRenderer ? 0.32 : 0.45,
         jumpLift,
@@ -617,7 +620,8 @@ function CameraRig({
       collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
       cameraTarget = collisionTargetRef;
     }
-    camera.position.lerp(cameraTarget, response);
+    if (enteringDuel) camera.position.copy(cameraTarget);
+    else camera.position.lerp(cameraTarget, response);
     if (cameraObstructed && camera.position.distanceTo(cameraOriginRef) > cameraTarget.distanceTo(cameraOriginRef)) {
       camera.position.copy(cameraTarget);
     }
@@ -902,6 +906,7 @@ function DuelFighter({
           appearance={fighterAppearance}
           castShadow
           playerCharacter={side === "player"}
+          characterLabel={side === "player" ? "duel-player" : boss ? "duel-boss" : `duel-rival:${opponentName}`}
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}
         />
@@ -1880,7 +1885,7 @@ function DuelArena({
 }: Pick<World3DProps, "opponentName" | "motionRef" | "combatStateRef" | "combatRender" | "combatVisualEvents" | "motionReduced" | "equipmentVisual" | "visualEffectsEnabled" | "finisherSlowMotion" | "botTelegraphActive" | "performanceMonitorEnabled">) {
   const theme = getDuelArenaTheme(motionRef.current.distance);
   return (
-    <group position={[0, 0, -(motionRef.current.distance - motionRef.current.originDistance)]}>
+    <group position={[0, 0, 0]}>
       <DuelArenaAtmosphere theme={theme} />
       <DuelArenaStonework theme={theme} />
       <DuelArenaBackdrop theme={theme} />
@@ -2022,8 +2027,67 @@ function WorldCollisionDebug({
   );
 }
 
+const EMPTY_WORLD_DEBUG_KEYS: ReadonlySet<string> = new Set();
+
+function WorldCharacterFrameDebug({
+  enabled,
+  motionRef,
+  joystickRef,
+  outputRef,
+  visibleLabelCount,
+}: {
+  enabled: boolean;
+  motionRef: World3DProps["motionRef"];
+  joystickRef: World3DProps["joystickRef"];
+  outputRef: MutableRefObject<HTMLPreElement | null>;
+  visibleLabelCount: number;
+}) {
+  const { camera, scene } = useThree();
+  const cameraPosition = useMemo(() => new THREE.Vector3(), []);
+  const playerPosition = useMemo(() => new THREE.Vector3(), []);
+  const bossPosition = useMemo(() => new THREE.Vector3(), []);
+  useFrame(() => {
+    if (!enabled || !outputRef.current) return;
+    const characters = inspectWorldCharacterGroups(scene);
+    const player = characters.find((character) => character.isPlayer);
+    const boss = characters.find((character) => character.isBoss);
+    const rawJoystick = joystickRef.current;
+    const processedJoystick = readWorldInput(EMPTY_WORLD_DEBUG_KEYS, rawJoystick);
+    camera.getWorldPosition(cameraPosition);
+    if (player) playerPosition.fromArray(player.position);
+    else {
+      const motion = motionRef.current;
+      playerPosition.set(motion.depth * 5.2, motion.jumpHeight, -(motion.distance - motion.cameraX));
+    }
+    if (boss) bossPosition.fromArray(boss.position);
+    const cameraBossDistance = boss ? cameraPosition.distanceTo(bossPosition) : null;
+    const format = (value: number) => Number.isFinite(value) ? value.toFixed(2) : "—";
+    const errors = characters.flatMap((character) =>
+      character.errors.map((error) => `${character.name} / ${error}`),
+    );
+    const yaw = player?.yaw;
+    outputRef.current.textContent = [
+      `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
+      `Joystick deadzone: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
+      `Karakter yaw: ${yaw === null || yaw === undefined ? "—" : `${format(yaw)} rad / ${format(THREE.MathUtils.radToDeg(yaw))}°`}`,
+      `Kamera-oyuncu: ${format(cameraPosition.distanceTo(playerPosition))} m`,
+      `Kamera-boss: ${cameraBossDistance === null ? "—" : `${format(cameraBossDistance)} m`}`,
+      `Görünür dünya etiketi: ${visibleLabelCount}`,
+      `Çalan animasyonlar: ${characters.flatMap((character) =>
+        character.animations.map((animation) => `${character.name}/${animation.name}=${animation.weight.toFixed(3)}`),
+      ).join(", ") || "—"}`,
+      `HATA karakter mesh offset: ${errors.length}`,
+      ...errors.map((error) => `HATA ${error}`),
+      "Karakter grupları:",
+      ...formatWorldCharacterGroups(characters),
+    ].join("\n");
+  });
+  return null;
+}
+
 function SceneContents({
   motionRef,
+  joystickRef,
   dialoguePortal,
   unlockedThroughChapter,
   collisionGrid,
@@ -2064,12 +2128,14 @@ function SceneContents({
   debugEnabled,
   touchRenderer,
   renderOverrides,
+  characterDebugOutputRef,
 }: World3DProps & {
   touchRenderer: boolean;
   onDebugStats: (stats: DebugStats) => void;
   onPerformanceStats: (stats: FrameMetricsSnapshot) => void;
   debugEnabled: boolean;
   renderOverrides: RenderOverrides;
+  characterDebugOutputRef: MutableRefObject<HTMLPreElement | null>;
 }) {
   const footSlipRef = useRef(0);
   const { gl, camera, scene } = useThree();
@@ -2337,6 +2403,15 @@ function SceneContents({
         />
       )}
       {debugEnabled && <WorldCollisionDebug grid={collisionGrid} motionRef={motionRef} />}
+      {debugEnabled && (
+        <WorldCharacterFrameDebug
+          enabled={debugEnabled}
+          motionRef={motionRef}
+          joystickRef={joystickRef}
+          outputRef={characterDebugOutputRef}
+          visibleLabelCount={visibleLabelIds.size}
+        />
+      )}
     </>
   );
 }
@@ -2348,6 +2423,7 @@ function isDebugEnabled() {
 
 export default function World3D(props: World3DProps) {
   const [debugEnabled, setDebugEnabled] = useState(isDebugEnabled);
+  const characterDebugOutputRef = useRef<HTMLPreElement>(null);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const contextCleanupRef = useRef<(() => void) | null>(null);
@@ -2520,6 +2596,7 @@ export default function World3D(props: World3DProps) {
               renderOverrides={renderOverrides}
               onDebugStats={setDebugStats}
               onPerformanceStats={setPerformanceStats}
+              characterDebugOutputRef={characterDebugOutputRef}
             />
             <WorldBlackFrameProbe
               onBlackFrame={recoverFromBlackFrame}
@@ -2559,6 +2636,12 @@ export default function World3D(props: World3DProps) {
             <button type="button" onClick={props.onDebugStartBattle}>Savaşı hemen başlat</button>
             <button type="button" onClick={props.onToggleDebugOneHit}>Rakibi bir vuruşta öldür: {props.debugOneHitEnabled ? "AÇIK" : "KAPALI"}</button>
           </div>
+        </aside>
+      )}
+      {debugEnabled && (
+        <aside className="world-debug-frame" aria-label="Kare başına karakter ve kontrol tanılaması">
+          <b>FRAME DEBUG</b>
+          <pre ref={characterDebugOutputRef}>Joystick ve karakter verileri bekleniyor…</pre>
         </aside>
       )}
       {props.performanceMonitorEnabled && (

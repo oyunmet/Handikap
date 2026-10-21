@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
@@ -21,6 +21,8 @@ import {
   getCharacterScreenCoverage,
   inspectCharacterSceneGraph,
   prepareCharacterSkinnedMeshes,
+  cloneCharacterResources,
+  disposeCharacterResources,
 } from "./character-model.ts";
 import { getTravelCameraSettings } from "./camera-settings.ts";
 import { createDuelWeapon, normalizeDuelWeaponWorldSize } from "./duel-weapon.ts";
@@ -66,6 +68,48 @@ test("player model uses the animated Quaternius hero at the configured height an
   );
   const gltf = await new Promise((resolve, reject) =>
     new GLTFLoader().parse(arrayBuffer, "/", resolve, reject));
+  const firstActor = cloneSkinned(gltf.scene);
+  const secondActor = cloneSkinned(gltf.scene);
+  const firstResources = cloneCharacterResources(firstActor);
+  const secondResources = cloneCharacterResources(secondActor);
+  const firstSkinnedMeshes = [];
+  const secondSkinnedMeshes = [];
+  firstActor.traverse((object) => {
+    if (object instanceof THREE.SkinnedMesh) firstSkinnedMeshes.push(object);
+  });
+  secondActor.traverse((object) => {
+    if (object instanceof THREE.SkinnedMesh) secondSkinnedMeshes.push(object);
+  });
+  assert.equal(firstSkinnedMeshes.length, 7);
+  assert.equal(secondSkinnedMeshes.length, 7);
+  firstSkinnedMeshes.forEach((mesh, index) => {
+    assert.notEqual(mesh.skeleton, secondSkinnedMeshes[index].skeleton);
+    assert.notEqual(mesh.skeleton.bones[0], secondSkinnedMeshes[index].skeleton.bones[0]);
+    assert.notEqual(mesh.geometry, secondSkinnedMeshes[index].geometry);
+    assert.notEqual(mesh.material, secondSkinnedMeshes[index].material);
+  });
+  const runClip = gltf.animations.find((clip) => clip.name.toLowerCase() === "run");
+  const secondActorPose = secondSkinnedMeshes[0].skeleton.bones.map((bone) => [
+    ...bone.position.toArray(),
+    ...bone.quaternion.toArray(),
+    ...bone.scale.toArray(),
+  ]);
+  const firstMixer = new THREE.AnimationMixer(firstActor);
+  firstMixer.clipAction(runClip).play();
+  firstMixer.update(runClip.duration * 0.5);
+  assert.deepEqual(
+    secondSkinnedMeshes[0].skeleton.bones.map((bone) => [
+      ...bone.position.toArray(),
+      ...bone.quaternion.toArray(),
+      ...bone.scale.toArray(),
+    ]),
+    secondActorPose,
+    "animating one actor must leave the other actor's bones unchanged",
+  );
+  firstMixer.stopAllAction();
+  firstMixer.uncacheRoot(firstActor);
+  disposeCharacterResources(firstResources);
+  disposeCharacterResources(secondResources);
   const bones = findCharacterPoseBones(gltf.scene);
   for (const bone of ["Root", "Hips", "Head"]) {
     assert.ok(gltf.scene.getObjectByName(bone), `the player GLB should include the ${bone} skeleton bone`);

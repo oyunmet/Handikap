@@ -70,7 +70,6 @@ export function getUprightDuelRotation(yaw: number): UprightDuelRotation {
 export function getDuelCameraPose(
   player: DuelPoint,
   opponent: DuelPoint,
-  worldOffsetZ: number,
   cameraBack = 7.2,
   shoulderOffset = 0.45,
   jumpLift = 0,
@@ -94,12 +93,12 @@ export function getDuelCameraPose(
     position: {
       x: centerX + baseOffsetX,
       y: 2.6 + jumpLift * 0.16,
-      z: worldOffsetZ + centerZ + baseOffsetZ,
+      z: centerZ + baseOffsetZ,
     },
     target: {
       x: centerX,
       y: 1.05 + jumpLift * 0.35,
-      z: worldOffsetZ + centerZ,
+      z: centerZ,
     },
   };
 }

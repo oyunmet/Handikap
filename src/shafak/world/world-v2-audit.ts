@@ -35,9 +35,16 @@ export function auditWorldMeshSizes(root: THREE.Object3D) {
   const issues: WorldMeshSizeIssue[] = [];
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
-    object.geometry.computeBoundingBox();
-    if (!object.geometry.boundingBox) return;
-    localBounds.copy(object.geometry.boundingBox);
+    if (object instanceof THREE.SkinnedMesh) {
+      object.skeleton.update();
+      object.computeBoundingBox();
+      if (!object.boundingBox) return;
+      localBounds.copy(object.boundingBox);
+    } else {
+      object.geometry.computeBoundingBox();
+      if (!object.geometry.boundingBox) return;
+      localBounds.copy(object.geometry.boundingBox);
+    }
 
     if (object instanceof THREE.InstancedMesh) {
       for (let index = 0; index < object.count; index += 1) {

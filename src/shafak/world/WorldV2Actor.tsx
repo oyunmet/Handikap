@@ -7,7 +7,7 @@ import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
 import { createUprightTorsoClip } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
-import { cloneWorldCharacter } from "./world-v2-assets";
+import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
 
 type Props = {
@@ -62,6 +62,7 @@ export default function WorldV2Actor({
     : asset.animations, [asset, isPlayer]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+  const actionsRef = useRef(new Map<string, THREE.AnimationAction>());
   const activeClipNameRef = useRef("");
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
   const playerFacingAngle = useRef(Math.PI);
@@ -69,11 +70,8 @@ export default function WorldV2Actor({
   useEffect(() => () => {
     mixer.stopAllAction();
     mixer.uncacheRoot(model);
-    model.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      materials.forEach((material) => material.dispose());
-    });
+    actionsRef.current.clear();
+    disposeWorldCharacter(model);
   }, [mixer, model]);
 
   useFrame((_frame, delta) => {
@@ -110,11 +108,19 @@ export default function WorldV2Actor({
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
       nextAction.reset().fadeIn(0.16).play();
+      actionsRef.current.set(clip.name, nextAction);
       activeActionRef.current?.fadeOut(0.16);
       activeActionRef.current = nextAction;
       activeClipNameRef.current = clip.name;
     }
     mixer.update(Math.min(delta, 0.05));
+    root.userData.worldCharacterYaw = root.rotation.y;
+    root.userData.worldAnimationClips = [...actionsRef.current.values()]
+      .filter((action) => action.isScheduled() && action.getEffectiveWeight() > 0.001)
+      .map((action) => ({
+        name: action.getClip().name,
+        weight: action.getEffectiveWeight(),
+      }));
     if (isPlayer && debugRef) {
       debugRef.current = {
         yaw: root.rotation.y,
@@ -125,7 +131,11 @@ export default function WorldV2Actor({
   });
 
   return (
-    <group ref={rootRef} name={isPlayer ? "world-v2-player" : "world-v2-npc"}>
+    <group
+      ref={rootRef}
+      name={isPlayer ? "world-v2-player" : "world-v2-npc"}
+      userData={{ worldCharacterRoot: isPlayer, worldPlayerActor: isPlayer }}
+    >
       <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
         <primitive object={model} dispose={null} />
       </group>

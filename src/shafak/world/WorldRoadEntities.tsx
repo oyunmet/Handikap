@@ -848,6 +848,7 @@ function BotActor({
           castShadow
           appearance={profile?.appearance}
           modelConfig={modelConfig}
+          characterLabel={`world-npc:${rival.name}:${rival.id}`}
         />
       </group>
       {talking && Math.abs(rival.distance - motionRef.current.distance) <= RIVAL_DIALOGUE_RANGE_METERS && (

@@ -352,7 +352,15 @@ function WorldV2Npc({
   });
 
   return (
-    <group ref={rootRef} name={`world-v2-npc:${rival.name}:${rival.id}`} userData={{ worldModelCategory: "npc" }}>
+    <group
+      ref={rootRef}
+      name={`world-v2-npc:${rival.name}:${rival.id}`}
+      userData={{
+        worldModelCategory: "npc",
+        worldCharacterRoot: true,
+        worldBossActor: Boolean(rival.isBoss),
+      }}
+    >
       <WorldV2Actor
         asset={asset}
         motionRef={motionRef}
