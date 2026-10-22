@@ -187,6 +187,13 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
     "#c7463f",
   );
+  const ironCrown = getAnimatedRivalModelConfig(
+    "Demir Taç",
+    getWorldBotProfileByArchetype("chapter-boss"),
+  );
+  assert.equal(ironCrown?.modelPath, "/models/demir-tac.glb");
+  assert.deepEqual(ironCrown?.modelRotation, [-Math.PI / 2, 0, 0]);
+  assert.deepEqual(ironCrown?.animationClips, {});
 });
 
 test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {

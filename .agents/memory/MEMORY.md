@@ -14,3 +14,4 @@
 - [Duel boundary and cover geometry](duel-arena-boundary.md) — Tightening movement bounds can alter cover-shot paths; verify both arena limits and cover interactions.
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.
 - [User-owned deployment](user-owned-deployment.md) — Make code changes only; the user handles Git pushes and Vercel deploys.
+- [Fantasy Knight GLB axis](fantasy-knight-axis.md) — The legacy fantasy knight is Z-up and static; rotate it into Y-up and do not expect a rig or clips.

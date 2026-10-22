@@ -21,7 +21,7 @@ import {
   resolveGlbClipName,
   type ModelAnimationState,
 } from "./model-animation";
-import type { OpponentModelConfig } from "./opponent-model-config";
+import { DEMIR_TAC_MODEL_PATH, type OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
 import { getUprightDuelRotation } from "../game/duel-camera";
@@ -50,7 +50,11 @@ import {
   disposeCharacterResources,
   validateCharacterModel,
 } from "./character-model";
-import { attachOpponentCostume, type AttachedOpponentCostume } from "./opponent-costume";
+import {
+  attachOpponentCostume,
+  shouldAttachOpponentCostume,
+  type AttachedOpponentCostume,
+} from "./opponent-costume";
 import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
@@ -272,8 +276,9 @@ function prepareModel(
         materialColor.lerp(tintColor, modelConfig?.tintStrength ?? 0.68);
       }
       if (isOpponentModel && customized instanceof THREE.MeshStandardMaterial) {
-        customized.metalness = Math.min(customized.metalness, 0.3);
-        customized.roughness = Math.max(customized.roughness, 0.76);
+        const isDemirTac = modelConfig?.modelPath === DEMIR_TAC_MODEL_PATH;
+        customized.metalness = Math.min(customized.metalness, isDemirTac ? 0.68 : 0.3);
+        customized.roughness = Math.max(customized.roughness, isDemirTac ? 0.5 : 0.76);
       } else if (customized instanceof THREE.MeshStandardMaterial) {
         customized.metalness = Math.min(customized.metalness, 0.2);
         customized.roughness = Math.max(customized.roughness, 0.62);
@@ -429,7 +434,7 @@ function OptionalGlbKnight({
   ]);
   const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
   useEffect(() => {
-    if (!modelConfig || playerCharacter) return undefined;
+    if (!modelConfig || playerCharacter || !shouldAttachOpponentCostume(modelConfig)) return undefined;
     const costume = attachOpponentCostume(model, modelConfig, appearance ?? modelConfig.appearance);
     opponentCostumeRef.current = costume;
     return () => {

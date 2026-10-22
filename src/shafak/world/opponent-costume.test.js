@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
-import { attachOpponentCostume } from "./opponent-costume.ts";
+import { attachOpponentCostume, shouldAttachOpponentCostume } from "./opponent-costume.ts";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 
-test("the chapter boss costume adds a readable iron crown, crimson armor marks, and a cape to the player rig", () => {
+test("the shared boss costume still attaches correctly to non-Demir animated rivals", () => {
   const profile = getWorldBotProfileByArchetype("chapter-boss");
-  const config = getAnimatedRivalModelConfig("Demir Taç", profile);
+  const config = getAnimatedRivalModelConfig("Kül Tahtı", profile);
+  assert.equal(shouldAttachOpponentCostume(config), true);
   const model = new THREE.Group();
   model.scale.setScalar(3.35 / 1.8);
 
@@ -44,4 +45,18 @@ test("the chapter boss costume adds a readable iron crown, crimson armor marks, 
   costume.update(1.2);
   costume.dispose();
   assert.equal(head.children.length, 0);
+});
+
+test("other chapter bosses still receive the shared animated-rig costume", () => {
+  const profile = getWorldBotProfileByArchetype("chapter-boss");
+  const config = getAnimatedRivalModelConfig("Kül Tahtı", profile);
+  assert.equal(shouldAttachOpponentCostume(config), true);
+});
+
+test("the dedicated Demir Taç model does not receive duplicate generic armor", () => {
+  const config = getAnimatedRivalModelConfig(
+    "Demir Taç",
+    getWorldBotProfileByArchetype("chapter-boss"),
+  );
+  assert.equal(shouldAttachOpponentCostume(config), false);
 });

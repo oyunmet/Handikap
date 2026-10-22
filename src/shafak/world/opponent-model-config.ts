@@ -5,6 +5,8 @@ import {
   type WorldCharacterSizeContext,
 } from "./world-model-sizing.ts";
 
+export const DEMIR_TAC_MODEL_PATH = "/models/demir-tac.glb";
+
 export type ModelMaterialNameAliases = {
   cape: readonly string[];
   accent: readonly string[];
@@ -182,7 +184,10 @@ export function getAnimatedRivalModelConfig(
     "frost-hunter": "/models/base-character.glb",
     "chapter-boss": "/models/player-hero.glb",
   };
-  const modelPath = isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
+  const useDemirTac = name === "Demir Taç";
+  const modelPath = useDemirTac
+    ? DEMIR_TAC_MODEL_PATH
+    : isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
   const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
   const heroAnimations = {
     idle: ["CharacterArmature|Idle", "Idle"],
@@ -235,6 +240,18 @@ export function getAnimatedRivalModelConfig(
     pants: ["pants"],
     boots: ["boot", "shoe", "footwear"],
   };
+  const demirTacMaterialNameAliases: ModelMaterialNameAliases = {
+    cape: ["cape", "pelerin"],
+    accent: ["accent", "trim", "gold", "sigil", "ruby", "red"],
+    armor: ["armor", "torso", "chest", "pauldron", "arm", "greave", "knee", "helmet"],
+    armorLight: ["steel_light", "silver"],
+    armorDark: ["steel_dark", "dark", "boot", "gauntlet", "belt", "pelvis", "grip"],
+    skin: ["skin", "face"],
+    hair: ["hair"],
+    clothing: ["tabard", "cloth"],
+    pants: ["pants", "thigh"],
+    boots: ["boot", "shoe"],
+  };
   const appearance = {
     ...baseConfig.appearance,
     ...profile?.appearance,
@@ -272,8 +289,10 @@ export function getAnimatedRivalModelConfig(
     ...baseConfig,
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
-    modelFacing: usePlayerHero ? Math.PI : baseConfig.modelFacing,
-    rootBoneName: useNightWatcher
+    modelFacing: useDemirTac ? 0 : usePlayerHero ? Math.PI : baseConfig.modelFacing,
+    rootBoneName: useDemirTac
+      ? ""
+      : useNightWatcher
       ? baseConfig.rootBoneName
       : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
     preserveOriginalMaterialAliases: useNightWatcher
@@ -284,12 +303,15 @@ export function getAnimatedRivalModelConfig(
     isBoss,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
     tintStrength: isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
-    animationClips: useNightWatcher
+    animationClips: useDemirTac
+      ? {}
+      : useNightWatcher
       ? baseConfig.animationClips
       : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+    modelRotation: useDemirTac ? [-Math.PI / 2, 0, 0] as const : undefined,
     weapon,
     appearance,
-    materialNameAliases,
+    materialNameAliases: useDemirTac ? demirTacMaterialNameAliases : materialNameAliases,
     materialPalette: {
       skin: colors.skin,
       hair: colors.hair,

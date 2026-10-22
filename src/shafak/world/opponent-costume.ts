@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { EquipmentVisual } from "../game/store-types";
-import type { OpponentModelConfig } from "./opponent-model-config";
+import { DEMIR_TAC_MODEL_PATH, type OpponentModelConfig } from "./opponent-model-config";
 
 type CapeRecord = {
   geometry: THREE.BufferGeometry;
@@ -11,6 +11,10 @@ export type AttachedOpponentCostume = {
   update: (time: number) => void;
   dispose: () => void;
 };
+
+export function shouldAttachOpponentCostume(modelConfig: OpponentModelConfig | undefined) {
+  return Boolean(modelConfig && modelConfig.modelPath !== DEMIR_TAC_MODEL_PATH);
+}
 
 const BONE_NAMES = {
   head: ["Head", "DEF-head", "head", "Rig_Head"],
