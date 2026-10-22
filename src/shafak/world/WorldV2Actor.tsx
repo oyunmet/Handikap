@@ -5,10 +5,11 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
-import { createPlayerLocomotionClip, isRootTranslationTrack } from "./model-animation";
+import { isRootTranslationTrack } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
+import ProceduralHero from "./ProceduralHero";
 
 export type WorldV2ActorDebugSnapshot = {
   yaw: number;
@@ -61,7 +62,13 @@ export default function WorldV2Actor({
   localToParent = false,
 }: Props) {
   const rootRef = useRef<THREE.Group>(null);
+  const proceduralModelRef = useRef<THREE.Group | null>(null);
   const model = useMemo(() => {
+    if (isPlayer) {
+      const empty = new THREE.Group();
+      empty.name = "player-model-not-used";
+      return empty;
+    }
     const clone = cloneWorldCharacter(asset, tint);
     clone.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -71,7 +78,7 @@ export default function WorldV2Actor({
     return clone;
   }, [asset, isPlayer, tint]);
   const animations = useMemo(
-    () => isPlayer ? asset.animations.map(createPlayerLocomotionClip) : asset.animations,
+    () => isPlayer ? [] : asset.animations,
     [asset, isPlayer],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
@@ -126,7 +133,7 @@ export default function WorldV2Actor({
     }
 
     const state = isPlayer ? animationState : "idle";
-    const clip = resolveClip(animations, state);
+    const clip = isPlayer ? null : resolveClip(animations, state);
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
       nextAction.reset().fadeIn(0.16).play();
@@ -137,21 +144,25 @@ export default function WorldV2Actor({
     }
     mixer.update(Math.min(delta, 0.05));
     root.userData.worldCharacterYaw = root.rotation.y;
-    root.userData.worldAnimationClips = [...actionsRef.current.values()]
-      .filter((action) => action.isScheduled() && action.getEffectiveWeight() > 0.001)
-      .map((action) => ({
-        name: action.getClip().name,
-        weight: action.getEffectiveWeight(),
-      }));
+    root.userData.worldAnimationClips = isPlayer
+      ? [{ name: animationState, weight: 1 }]
+      : [...actionsRef.current.values()]
+        .filter((action) => action.isScheduled() && action.getEffectiveWeight() > 0.001)
+        .map((action) => ({
+          name: action.getClip().name,
+          weight: action.getEffectiveWeight(),
+        }));
     if (isPlayer && debugRef) {
       debugRefreshElapsed.current += Math.min(delta, 0.1);
       if (debugRefreshElapsed.current < 0.2) return;
       debugRefreshElapsed.current %= 0.2;
-      model.updateWorldMatrix(true, true);
-      const rootBone = model.getObjectByName("Root");
-      const hipsBone = model.getObjectByName("Hips");
-      const torsoBone = model.getObjectByName("Torso");
-      const headBone = model.getObjectByName("Head");
+      const debugModel = proceduralModelRef.current;
+      if (!debugModel) return;
+      debugModel.updateWorldMatrix(true, true);
+      const rootBone = debugModel.getObjectByName("Root");
+      const hipsBone = debugModel.getObjectByName("Hips");
+      const torsoBone = debugModel.getObjectByName("Torso");
+      const headBone = debugModel.getObjectByName("Head");
       let bodyLean = 0;
       if (hipsBone && headBone) {
         const hipsWorld = hipsBone.getWorldPosition(new THREE.Vector3());
@@ -193,7 +204,16 @@ export default function WorldV2Actor({
       userData={{ worldCharacterRoot: isPlayer, worldPlayerActor: isPlayer }}
     >
       <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
-        <primitive object={model} dispose={null} />
+        {isPlayer ? (
+          <ProceduralHero
+            rootRef={proceduralModelRef}
+            motionRef={motionRef}
+            state={animationState}
+            targetHeight={WORLD_V2_CONFIG.player.targetHeight}
+          />
+        ) : (
+          <primitive object={model} dispose={null} />
+        )}
       </group>
       <mesh
         name={isPlayer ? "player-contact-shadow" : "npc-contact-shadow"}

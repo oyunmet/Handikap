@@ -55,6 +55,7 @@ import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-po
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
+import ProceduralHero from "./ProceduralHero";
 
 export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -781,6 +782,104 @@ function OptionalGlbKnight({
   );
 }
 
+function ProceduralPlayerKnight({
+  motionRef,
+  state,
+  motionReduced,
+  animationTimeScale = 1,
+  animationPaused = false,
+  facingAngle,
+  footSlipRef,
+  appearance,
+  modelConfig,
+  castShadow = true,
+}: KnightActorProps) {
+  const rootRef = useRef<THREE.Group>(null);
+  const warnedTiltRef = useRef(false);
+  const actorGlowTexture = useMemo(() => getWorldGlowTexture(), []);
+  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
+  const weaponAppearance = getFallbackAppearance(appearance, modelConfig);
+
+  useFrame((_frame, delta) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const motion = motionRef.current;
+    const dt = Math.min(Math.max(delta, 0), 0.05);
+    root.position.x = motion.depth * 5.2;
+    root.position.y = motion.jumpHeight;
+    if (facingAngle === undefined) {
+      const targetYaw = motion.velocityY < -0.25
+        ? Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY))
+        : Math.atan2(-motion.velocityX, Math.max(0.01, Math.abs(motion.velocityY)));
+      const turn = Math.atan2(
+        Math.sin(targetYaw - root.rotation.y),
+        Math.cos(targetYaw - root.rotation.y),
+      );
+      root.rotation.y += turn * (1 - Math.exp(-dt * 12));
+    } else {
+      const targetYaw = facingAngle - PLAYER_CHARACTER_MODEL_FACING;
+      const turn = Math.atan2(
+        Math.sin(targetYaw - root.rotation.y),
+        Math.cos(targetYaw - root.rotation.y),
+      );
+      root.rotation.y += turn * (1 - Math.exp(-dt * 10));
+    }
+    root.rotation.set(...getUprightDuelRotation(root.rotation.y));
+
+    const tilted = Math.abs(root.rotation.x) > 0.05 || Math.abs(root.rotation.z) > 0.05;
+    if (tilted && !warnedTiltRef.current) {
+      console.warn("[shafak-player] Procedural actor root tilt exceeded 0.05 radians.", {
+        x: root.rotation.x,
+        z: root.rotation.z,
+        state,
+      });
+    }
+    warnedTiltRef.current = tilted;
+    if (!animationPaused && footSlipRef) footSlipRef.current = 0;
+  });
+
+  return (
+    <group ref={rootRef} name="player-actor-root">
+      {facingAngle === undefined && actorGlowTexture && (
+        <sprite position={[0, 1.15, 0.18]} scale={[2.5, 2.5, 1]}>
+          <spriteMaterial
+            map={actorGlowTexture}
+            color="#ddb371"
+            transparent
+            opacity={0.24}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </sprite>
+      )}
+      <mesh
+        name="player-contact-shadow"
+        geometry={GLB_CONTACT_SHADOW_GEOMETRY}
+        material={GLB_CONTACT_SHADOW_MATERIAL}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.018, 0]}
+        scale={[0.78, 0.52, 1]}
+        dispose={null}
+      />
+      <group scale={modelConfig?.scale ?? 1}>
+        <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]}>
+          <ProceduralHero
+            motionRef={motionRef}
+            state={state}
+            motionReduced={motionReduced}
+            animationTimeScale={animationTimeScale}
+            animationPaused={animationPaused}
+            appearance={weaponAppearance}
+            showWeapon
+            targetHeight={targetHeight}
+          />
+        </group>
+      </group>
+    </group>
+  );
+}
+
 type BoundaryProps = { children: ReactNode; fallback: ReactNode };
 type BoundaryState = { failed: boolean };
 
@@ -824,7 +923,8 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 export default function KnightActor(props: KnightActorProps) {
-  const { modelConfig, appearance, castShadow = true } = props;
+  const { modelConfig, appearance, castShadow = true, playerCharacter = false } = props;
+  if (playerCharacter) return <ProceduralPlayerKnight {...props} />;
   const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
