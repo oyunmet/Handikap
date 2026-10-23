@@ -8,6 +8,7 @@ import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
 import { KNIGHT_CONFIG } from "./knight-config";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import WorldV2Actor from "./WorldV2Actor";
 import type { WorldV2ActorDebugSnapshot } from "./WorldV2Actor";
 import { WorldV2Entities } from "./WorldV2Entities";
@@ -33,7 +34,11 @@ import { inspectWorldCharacterGroups } from "./world-character-debug";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
-const DEMIR_TAC_WORLD_CONFIG = getAnimatedRivalModelConfig("Demir Taç", undefined, "world")!;
+const DEMIR_TAC_WORLD_CONFIG = getAnimatedRivalModelConfig(
+  "Demir Taç",
+  getWorldBotProfileByArchetype("chapter-boss"),
+  "world",
+)!;
 const DEMIR_TAC_WORLD_ASSET_TARGET: WorldV2AssetTarget = {
   targetHeight: DEMIR_TAC_WORLD_CONFIG.targetHeight!,
   maxDimension: DEMIR_TAC_WORLD_CONFIG.maxDimension!,
