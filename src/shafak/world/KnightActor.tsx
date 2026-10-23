@@ -21,7 +21,7 @@ import {
   resolveGlbClipName,
   type ModelAnimationState,
 } from "./model-animation";
-import { DEMIR_TAC_MODEL_PATH, type OpponentModelConfig } from "./opponent-model-config";
+import type { OpponentModelConfig } from "./opponent-model-config";
 import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
 import { getUprightDuelRotation } from "../game/duel-camera";
@@ -276,7 +276,7 @@ function prepareModel(
         materialColor.lerp(tintColor, modelConfig?.tintStrength ?? 0.68);
       }
       if (isOpponentModel && customized instanceof THREE.MeshStandardMaterial) {
-        const isDemirTac = modelConfig?.modelPath === DEMIR_TAC_MODEL_PATH;
+        const isDemirTac = modelConfig?.isDemirTac === true;
         customized.metalness = Math.min(customized.metalness, isDemirTac ? 0.68 : 0.3);
         customized.roughness = Math.max(customized.roughness, isDemirTac ? 0.5 : 0.76);
       } else if (customized instanceof THREE.MeshStandardMaterial) {
@@ -436,12 +436,27 @@ function OptionalGlbKnight({
   useEffect(() => {
     if (!modelConfig || playerCharacter || !shouldAttachOpponentCostume(modelConfig)) return undefined;
     const costume = attachOpponentCostume(model, modelConfig, appearance ?? modelConfig.appearance);
+    if (modelConfig.isDemirTac) {
+      fitCharacterModel(
+        model,
+        targetHeight,
+        modelPath,
+        targetMaxDimension / Math.max(0.01, modelConfig.scale),
+      );
+      const validation = validateCharacterModel(model, targetHeight);
+      if (!validation.valid) {
+        console.warn("[shafak-model] Costumed boss size validation failed.", {
+          model: modelPath,
+          issues: validation.issues,
+        });
+      }
+    }
     opponentCostumeRef.current = costume;
     return () => {
       if (opponentCostumeRef.current === costume) opponentCostumeRef.current = null;
       costume.dispose();
     };
-  }, [appearance, model, modelConfig, playerCharacter]);
+  }, [appearance, model, modelConfig, modelPath, playerCharacter, targetHeight, targetMaxDimension]);
   useEffect(() => {
     if (!playerCharacter) return undefined;
     const diagnosticKey = `${modelPath}:${targetHeight}`;

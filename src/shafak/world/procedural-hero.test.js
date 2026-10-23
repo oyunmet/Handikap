@@ -57,6 +57,15 @@ test("the rebuilt player rig stays upright throughout a full run cycle", () => {
   assert.equal(rig.hips.name, "Hips");
   assert.equal(rig.torso.name, "Torso");
   assert.equal(rig.head.name, "Head");
+  const detailNames = new Set();
+  rig.root.traverse((object) => detailNames.add(object.name));
+  for (const name of [
+    "hero-layered-chest-plate",
+    "hero-chest-badge",
+    "hero-layered-pauldron-left",
+    "hero-forearm-bracer-right",
+    "hero-articulated-knee-guard-left",
+  ]) assert.ok(detailNames.has(name), `missing player detail ${name}`);
   const bounds = new THREE.Box3().setFromObject(rig.root, true);
   assert.ok(Math.abs(bounds.min.y) < 1e-6, `feet should rest at y=0, got ${bounds.min.y}`);
   assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).y - rig.height) < 1e-6);

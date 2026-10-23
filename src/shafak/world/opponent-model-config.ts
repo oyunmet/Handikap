@@ -5,8 +5,6 @@ import {
   type WorldCharacterSizeContext,
 } from "./world-model-sizing.ts";
 
-export const DEMIR_TAC_MODEL_PATH = "/models/demir-tac.glb";
-
 export type ModelMaterialNameAliases = {
   cape: readonly string[];
   accent: readonly string[];
@@ -63,6 +61,7 @@ export type OpponentModelConfig = {
   tintColor?: string;
   tintStrength?: number;
   isBoss?: boolean;
+  isDemirTac?: boolean;
   weapon: NonNullable<EquipmentVisual["weaponStyle"]>;
   appearance: EquipmentVisual;
   materialNameAliases: ModelMaterialNameAliases;
@@ -185,9 +184,7 @@ export function getAnimatedRivalModelConfig(
     "chapter-boss": "/models/player-hero.glb",
   };
   const useDemirTac = name === "Demir Taç";
-  const modelPath = useDemirTac
-    ? DEMIR_TAC_MODEL_PATH
-    : isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
+  const modelPath = isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
   const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
   const heroAnimations = {
     idle: ["CharacterArmature|Idle", "Idle"],
@@ -242,21 +239,34 @@ export function getAnimatedRivalModelConfig(
   };
   const demirTacMaterialNameAliases: ModelMaterialNameAliases = {
     cape: ["cape", "pelerin"],
-    accent: ["accent", "trim", "gold", "sigil", "ruby", "red"],
-    armor: ["armor", "torso", "chest", "pauldron", "arm", "greave", "knee", "helmet"],
-    armorLight: ["steel_light", "silver"],
+    accent: ["accent", "trim", "gold", "sigil", "ruby", "red", "detail"],
+    armor: ["armor", "torso", "chest", "pauldron", "arm", "greave", "knee", "helmet", "shirt"],
+    armorLight: ["steel_light", "silver", "material.006"],
     armorDark: ["steel_dark", "dark", "boot", "gauntlet", "belt", "pelvis", "grip"],
     skin: ["skin", "face"],
     hair: ["hair"],
-    clothing: ["tabard", "cloth"],
+    clothing: ["tabard", "cloth", "undershirt"],
     pants: ["pants", "thigh"],
     boots: ["boot", "shoe"],
   };
-  const appearance = {
+  const profileAppearance = {
     ...baseConfig.appearance,
     ...profile?.appearance,
     weaponStyle: weapon,
   };
+  const appearance = useDemirTac
+    ? {
+        ...profileAppearance,
+        armor: "#252a30",
+        armorLight: "#858e96",
+        armorDark: "#14181e",
+        trim: "#bc4142",
+        cape: "#641f2b",
+        weaponStyle: "greatsword" as const,
+        weaponColor: "#d3d8dc",
+        auraColor: "#b73940",
+      }
+    : profileAppearance;
   const paletteByArchetype: Record<WorldBotArchetype, { skin: string; hair: string }> = {
     "gate-warden": { skin: "#ba9675", hair: "#49352e" },
     "iron-oath": { skin: "#a98376", hair: "#302631" },
@@ -289,26 +299,22 @@ export function getAnimatedRivalModelConfig(
     ...baseConfig,
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
-    modelFacing: useDemirTac ? 0 : usePlayerHero ? Math.PI : baseConfig.modelFacing,
-    rootBoneName: useDemirTac
-      ? ""
-      : useNightWatcher
+    modelFacing: usePlayerHero ? Math.PI : baseConfig.modelFacing,
+    rootBoneName: useNightWatcher
       ? baseConfig.rootBoneName
       : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
     preserveOriginalMaterialAliases: useNightWatcher
       ? ["gold", "steel", "cape"]
-      : useHuman ? ["texture"] : undefined,
+      : useHuman ? ["texture"] : useDemirTac ? ["eye", "pupil", "white"] : undefined,
     targetHeight: sizeTarget.targetHeight,
     maxDimension: sizeTarget.maxDimension,
     isBoss,
+    isDemirTac: useDemirTac,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
     tintStrength: isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
-    animationClips: useDemirTac
-      ? {}
-      : useNightWatcher
+    animationClips: useNightWatcher
       ? baseConfig.animationClips
       : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
-    modelRotation: useDemirTac ? [-Math.PI / 2, 0, 0] as const : undefined,
     weapon,
     appearance,
     materialNameAliases: useDemirTac ? demirTacMaterialNameAliases : materialNameAliases,

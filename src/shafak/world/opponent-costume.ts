@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { EquipmentVisual } from "../game/store-types";
-import { DEMIR_TAC_MODEL_PATH, type OpponentModelConfig } from "./opponent-model-config";
+import type { OpponentModelConfig } from "./opponent-model-config";
 
 type CapeRecord = {
   geometry: THREE.BufferGeometry;
@@ -13,7 +13,7 @@ export type AttachedOpponentCostume = {
 };
 
 export function shouldAttachOpponentCostume(modelConfig: OpponentModelConfig | undefined) {
-  return Boolean(modelConfig && modelConfig.modelPath !== DEMIR_TAC_MODEL_PATH);
+  return Boolean(modelConfig);
 }
 
 const BONE_NAMES = {
@@ -21,6 +21,10 @@ const BONE_NAMES = {
   torso: ["Spine2", "Spine1", "Torso", "DEF-spine.003", "DEF-spine.002", "Spine", "torso", "Hips"],
   leftShoulder: ["Shoulder.L", "LeftShoulder", "DEF-shoulder.L", "Rig_LeftShoulder"],
   rightShoulder: ["Shoulder.R", "RightShoulder", "DEF-shoulder.R", "Rig_RightShoulder"],
+  leftForearm: ["LowerArm.L", "LeftForeArm", "LeftForearm", "DEF-forearm.L", "Rig_LeftForearm"],
+  rightForearm: ["LowerArm.R", "RightForeArm", "RightForearm", "DEF-forearm.R", "Rig_RightForearm"],
+  leftShin: ["LowerLeg.L", "LeftLeg", "LeftShin", "DEF-shin.L", "Rig_LeftShin"],
+  rightShin: ["LowerLeg.R", "RightLeg", "RightShin", "DEF-shin.R", "Rig_RightShin"],
 } as const;
 
 function findMount(model: THREE.Object3D, names: readonly string[]) {
@@ -96,6 +100,7 @@ export function attachOpponentCostume(
   const mounts: THREE.Object3D[] = [];
   const capes: CapeRecord[] = [];
   const capeMeshes: THREE.Mesh[] = [];
+  const isDemirTac = Boolean(modelConfig.isDemirTac);
   const head = findMount(model, BONE_NAMES.head);
   const torso = findMount(model, BONE_NAMES.torso);
 
@@ -157,7 +162,7 @@ export function attachOpponentCostume(
       new THREE.Vector3(0, 0.09, -0.015),
       new THREE.Vector3(1.16, 1.12, 1.22),
     );
-    if (modelConfig.isBoss) helmet.name = "demir-tac-helmet";
+    if (isDemirTac) helmet.name = "demir-tac-helmet";
     helmet.material.side = THREE.DoubleSide;
     mesh(
       headGear,
@@ -174,7 +179,7 @@ export function attachOpponentCostume(
       makeMaterial(maskColor, 0.86, 0.1),
       new THREE.Vector3(0, -0.075, 0.16),
     );
-    if (modelConfig.isBoss) {
+    if (isDemirTac) {
       mask.name = "demir-tac-face-plate";
       const visor = mesh(
         headGear,
@@ -235,36 +240,83 @@ export function attachOpponentCostume(
     );
     crownGem.name = "demir-tac-crown-gem";
 
+  }
+
+  if (modelConfig.isBoss) {
     const breastplate = mountGroup(
       torso,
       torso === model
         ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 3.35) * 0.59 * normalizedInverseScale, 0.1)
         : new THREE.Vector3(0, 0, 0.12),
     );
-    breastplate.name = "demir-tac-breastplate";
-    const chestArmor = mesh(
-      breastplate,
-      new THREE.CylinderGeometry(0.24, 0.34, 0.48, 6, 1),
-      makeMaterial(armorColor, 0.54, 0.28),
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(1, 1, 0.43),
-    );
-    chestArmor.name = "demir-tac-chest-armor";
-    const chestStripe = mesh(
-      breastplate,
-      new THREE.BoxGeometry(0.065, 0.35, 0.028),
-      makeMaterial("#c7463f", 0.48, 0.24),
-      new THREE.Vector3(0, 0, 0.155),
-    );
-    chestStripe.name = "demir-tac-chest-stripe";
-    const chestSigil = mesh(
-      breastplate,
-      new THREE.OctahedronGeometry(0.11, 0),
-      makeMaterial("#df5148", 0.42, 0.24),
-      new THREE.Vector3(0, 0.08, 0.19),
-      new THREE.Vector3(0.75, 1.35, 0.35),
-    );
-    chestSigil.name = "demir-tac-chest-sigil";
+    breastplate.name = isDemirTac ? "demir-tac-breastplate" : "opponent-breastplate";
+    if (isDemirTac) {
+      const chestArmor = mesh(
+        breastplate,
+        new THREE.SphereGeometry(0.29, 10, 7),
+        makeMaterial(armorColor, 0.48, 0.48),
+        new THREE.Vector3(0, 0.01, 0.04),
+        new THREE.Vector3(1.14, 1.14, 0.58),
+      );
+      chestArmor.name = "demir-tac-chest-armor";
+      const chestRidge = mesh(
+        breastplate,
+        new THREE.BoxGeometry(0.05, 0.31, 0.035),
+        makeMaterial("#bc4142", 0.4, 0.35),
+        new THREE.Vector3(0, -0.01, 0.208),
+      );
+      chestRidge.name = "demir-tac-chest-stripe";
+      for (const side of [-1, 1]) {
+        mesh(
+          breastplate,
+          new THREE.BoxGeometry(0.09, 0.23, 0.035),
+          makeMaterial("#747e87", 0.45, 0.42),
+          new THREE.Vector3(side * 0.18, 0.02, 0.18),
+          new THREE.Vector3(1, 1, 0.7),
+        ).rotation.z = side * -0.16;
+        mesh(
+          breastplate,
+          new THREE.SphereGeometry(0.025, 6, 4),
+          makeMaterial("#d2b8a3", 0.36, 0.52),
+          new THREE.Vector3(side * 0.19, -0.11, 0.208),
+        ).name = `demir-tac-chest-rivet-${side}`;
+      }
+      const chestSigil = mesh(
+        breastplate,
+        new THREE.OctahedronGeometry(0.105, 0),
+        new THREE.MeshStandardMaterial({
+          color: "#df5148",
+          emissive: "#a8232c",
+          emissiveIntensity: 0.38,
+          metalness: 0.36,
+          roughness: 0.32,
+        }),
+        new THREE.Vector3(0, 0.085, 0.235),
+        new THREE.Vector3(0.78, 1.18, 0.42),
+      );
+      chestSigil.name = "demir-tac-chest-sigil";
+    } else {
+      mesh(
+        breastplate,
+        new THREE.CylinderGeometry(0.24, 0.34, 0.48, 6, 1),
+        makeMaterial(armorColor, 0.54, 0.28),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(1, 1, 0.43),
+      ).name = "demir-tac-chest-armor";
+      mesh(
+        breastplate,
+        new THREE.BoxGeometry(0.065, 0.35, 0.028),
+        makeMaterial("#c7463f", 0.48, 0.24),
+        new THREE.Vector3(0, 0, 0.155),
+      ).name = "demir-tac-chest-stripe";
+      mesh(
+        breastplate,
+        new THREE.OctahedronGeometry(0.11, 0),
+        makeMaterial("#df5148", 0.42, 0.24),
+        new THREE.Vector3(0, 0.08, 0.19),
+        new THREE.Vector3(0.75, 1.35, 0.35),
+      ).name = "demir-tac-chest-sigil";
+    }
   }
 
   if (style.cape) {
@@ -282,7 +334,7 @@ export function attachOpponentCostume(
         vertexColors: false,
       }),
     );
-    if (modelConfig.isBoss) capeMesh.name = "demir-tac-crimson-cape";
+    if (modelConfig.isBoss) capeMesh.name = isDemirTac ? "demir-tac-crimson-cape" : "opponent-boss-cape";
     cloth.geometry.computeVertexNormals();
     capes.push(cloth);
     capeMeshes.push(capeMesh);
@@ -311,14 +363,18 @@ export function attachOpponentCostume(
         : new THREE.Vector3(1.45, 0.92, 1.2),
     );
     if (modelConfig.isBoss) {
-      pad.name = `demir-tac-angular-pauldron-${side < 0 ? "left" : "right"}`;
+      pad.name = isDemirTac
+        ? `demir-tac-angular-pauldron-${side < 0 ? "left" : "right"}`
+        : `opponent-angular-pauldron-${side < 0 ? "left" : "right"}`;
       const pauldronStripe = mesh(
         shoulderGroup,
         new THREE.BoxGeometry(0.17, 0.045, 0.025),
         makeMaterial("#c7463f", 0.48, 0.24),
         new THREE.Vector3(0, -0.035, 0.17),
       );
-      pauldronStripe.name = `demir-tac-pauldron-mark-${side < 0 ? "left" : "right"}`;
+      pauldronStripe.name = isDemirTac
+        ? `demir-tac-pauldron-mark-${side < 0 ? "left" : "right"}`
+        : `opponent-pauldron-mark-${side < 0 ? "left" : "right"}`;
     }
     if (style.shoulders === "metal") {
       const spike = mesh(
@@ -340,6 +396,39 @@ export function attachOpponentCostume(
     }
     // Keep the sphere in the scene tree so it follows the rigged shoulder joint.
     pad.visible = true;
+  }
+
+  if (isDemirTac) {
+    for (const [side, boneNames] of [
+      [-1, BONE_NAMES.leftForearm],
+      [1, BONE_NAMES.rightForearm],
+      [-1, BONE_NAMES.leftShin],
+      [1, BONE_NAMES.rightShin],
+    ] as const) {
+      const isArm = boneNames === BONE_NAMES.leftForearm || boneNames === BONE_NAMES.rightForearm;
+      const limb = findMount(model, boneNames);
+      const guard = mountGroup(
+        limb,
+        limb === model
+          ? new THREE.Vector3(side * (isArm ? 0.16 : 0.1) * normalizedInverseScale, (modelConfig.targetHeight ?? 3.35) * (isArm ? 0.53 : 0.24) * normalizedInverseScale, 0)
+          : new THREE.Vector3(0, -0.04, 0),
+      );
+      const baseName = isArm ? "vambrace" : "greave";
+      const plate = mesh(
+        guard,
+        new THREE.CylinderGeometry(isArm ? 0.105 : 0.125, isArm ? 0.13 : 0.15, isArm ? 0.23 : 0.29, 7, 1),
+        makeMaterial("#707982", 0.46, 0.42),
+        new THREE.Vector3(0, -0.035, 0),
+        new THREE.Vector3(1, 1, 0.76),
+      );
+      plate.name = isDemirTac ? `demir-tac-${baseName}-${side < 0 ? "left" : "right"}` : `opponent-${baseName}-${side < 0 ? "left" : "right"}`;
+      mesh(
+        guard,
+        new THREE.BoxGeometry(isArm ? 0.045 : 0.055, isArm ? 0.16 : 0.2, 0.025),
+        makeMaterial("#bc4142", 0.42, 0.3),
+        new THREE.Vector3(0, -0.035, isArm ? 0.103 : 0.123),
+      );
+    }
   }
 
   const update = (time: number) => {

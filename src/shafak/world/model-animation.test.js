@@ -191,9 +191,10 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(ironCrown?.modelPath, "/models/demir-tac.glb");
-  assert.deepEqual(ironCrown?.modelRotation, [-Math.PI / 2, 0, 0]);
-  assert.deepEqual(ironCrown?.animationClips, {});
+  assert.equal(ironCrown?.modelPath, "/models/player-hero.glb");
+  assert.equal(ironCrown?.modelFacing, Math.PI);
+  assert.equal(ironCrown?.animationClips.attack?.includes("CharacterArmature|Dagger_Attack"), true);
+  assert.equal(ironCrown?.isDemirTac, true);
 });
 
 test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {

@@ -5,7 +5,7 @@ import { attachOpponentCostume, shouldAttachOpponentCostume } from "./opponent-c
 import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 
-test("the shared boss costume still attaches correctly to non-Demir animated rivals", () => {
+test("other chapter bosses keep their existing animated costume unchanged", () => {
   const profile = getWorldBotProfileByArchetype("chapter-boss");
   const config = getAnimatedRivalModelConfig("Kül Tahtı", profile);
   assert.equal(shouldAttachOpponentCostume(config), true);
@@ -29,18 +29,15 @@ test("the shared boss costume still attaches correctly to non-Demir animated riv
   model.traverse((object) => names.push(object.name));
   const headGear = head.getObjectByName("demir-tac-head-gear");
 
-  assert.ok(names.includes("demir-tac-helmet"));
+  assert.ok(names.includes("demir-tac-head-gear"));
   assert.ok(names.includes("demir-tac-crown-band"));
-  assert.ok(names.includes("demir-tac-crown-spike-2"));
-  assert.ok(names.includes("demir-tac-crown-gem"));
-  assert.ok(names.includes("demir-tac-breastplate"));
+  assert.ok(names.includes("demir-tac-chest-armor"));
   assert.ok(names.includes("demir-tac-chest-sigil"));
-  assert.ok(names.includes("demir-tac-angular-pauldron-left"));
-  assert.ok(names.includes("demir-tac-angular-pauldron-right"));
-  assert.ok(names.includes("demir-tac-crimson-cape"));
-  assert.equal(headGear?.parent, head, "the helmet and crown stay attached to the animated head bone");
-  assert.equal(headGear?.getObjectByName("demir-tac-helmet")?.parent, headGear);
-  assert.equal(headGear?.getObjectByName("demir-tac-crown-band")?.parent, headGear);
+  assert.ok(names.includes("opponent-angular-pauldron-left"));
+  assert.ok(names.includes("opponent-angular-pauldron-right"));
+  assert.ok(names.includes("opponent-boss-cape"));
+  assert.equal(headGear?.parent, head);
+  assert.ok(!names.includes("demir-tac-vambrace-left"));
 
   costume.update(1.2);
   costume.dispose();
@@ -53,10 +50,42 @@ test("other chapter bosses still receive the shared animated-rig costume", () =>
   assert.equal(shouldAttachOpponentCostume(config), true);
 });
 
-test("the dedicated Demir Taç model does not receive duplicate generic armor", () => {
+test("Demir Taç receives an animated crown, layered iron armor, and limb guards", () => {
   const config = getAnimatedRivalModelConfig(
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(shouldAttachOpponentCostume(config), false);
+  assert.equal(shouldAttachOpponentCostume(config), true);
+  const model = new THREE.Group();
+  for (const name of [
+    "Head",
+    "Torso",
+    "Shoulder.L",
+    "Shoulder.R",
+    "LowerArm.L",
+    "LowerArm.R",
+    "LowerLeg.L",
+    "LowerLeg.R",
+  ]) {
+    const bone = new THREE.Bone();
+    bone.name = name;
+    model.add(bone);
+  }
+  const costume = attachOpponentCostume(model, config, config.appearance);
+  const names = [];
+  model.traverse((object) => names.push(object.name));
+
+  for (const name of [
+    "demir-tac-helmet",
+    "demir-tac-crown-band",
+    "demir-tac-crown-spike-2",
+    "demir-tac-crown-gem",
+    "demir-tac-chest-armor",
+    "demir-tac-chest-sigil",
+    "demir-tac-vambrace-left",
+    "demir-tac-greave-right",
+  ]) assert.ok(names.includes(name), `missing animated detail ${name}`);
+  assert.ok(!names.includes("opponent-breastplate"));
+
+  costume.dispose();
 });
