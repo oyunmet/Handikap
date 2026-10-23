@@ -367,7 +367,7 @@ function WorldV2Npc({
         isPlayer={false}
         distance={rival.distance}
         x={x}
-        tint={NPC_TINTS[rival.name] ?? rival.armorTint}
+        tint={rival.name === "Demir Taç" ? undefined : NPC_TINTS[rival.name] ?? rival.armorTint}
         localToParent
       />
       <group ref={anchorRef}>
@@ -417,6 +417,7 @@ function WorldV2Npc({
 export function WorldV2Entities({
   motionRef,
   asset,
+  demirTacAsset,
   dialoguePortal,
   rivals,
   pickups,
@@ -436,6 +437,7 @@ export function WorldV2Entities({
 }: {
   motionRef: MotionRef;
   asset: LoadedWorldAsset | null;
+  demirTacAsset: LoadedWorldAsset | null;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   rivals: WorldRival[];
   pickups: WorldPickup[];
@@ -482,12 +484,14 @@ export function WorldV2Entities({
       {!noNpc && asset && rivals.map((rival, index) => {
         const gap = rival.distance - motionRef.current.distance;
         if (gap < -12 || gap > maxVisibleDistance) return null;
+        const npcAsset = rival.name === "Demir Taç" ? demirTacAsset : asset;
+        if (!npcAsset) return null;
         return (
           <WorldV2Npc
             key={rival.id}
             rival={rival}
             index={index}
-            asset={asset}
+            asset={npcAsset}
             motionRef={motionRef}
             dialoguePortal={dialoguePortal}
             focused={rival.id === focusedRivalId}

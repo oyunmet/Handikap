@@ -7,6 +7,7 @@ import { readWorldInput, WORLD_JOYSTICK_X_DEADZONE } from "./movement";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
 import { KNIGHT_CONFIG } from "./knight-config";
+import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import WorldV2Actor from "./WorldV2Actor";
 import type { WorldV2ActorDebugSnapshot } from "./WorldV2Actor";
 import { WorldV2Entities } from "./WorldV2Entities";
@@ -18,6 +19,7 @@ import WorldRoadEnvironmentLayer from "./WorldRoadEnvironment";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { loadAsset } from "./world-v2-assets";
 import type { LoadedWorldAsset } from "./world-v2-assets";
+import type { WorldV2AssetTarget } from "./world-v2-config";
 import { auditWorldMeshSizes, reportWorldMeshSizeIssues } from "./world-v2-audit";
 import type { WorldMeshSizeIssue } from "./world-v2-audit";
 import {
@@ -31,6 +33,12 @@ import { inspectWorldCharacterGroups } from "./world-character-debug";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
+const DEMIR_TAC_WORLD_CONFIG = getAnimatedRivalModelConfig("Demir Taç", undefined, "world")!;
+const DEMIR_TAC_WORLD_ASSET_TARGET: WorldV2AssetTarget = {
+  targetHeight: DEMIR_TAC_WORLD_CONFIG.targetHeight!,
+  maxDimension: DEMIR_TAC_WORLD_CONFIG.maxDimension!,
+  modelRotation: DEMIR_TAC_WORLD_CONFIG.modelRotation,
+};
 
 type DebugSnapshot = {
   fps: number;
@@ -303,7 +311,9 @@ export default function World3DV2(props: World3DProps) {
   const [rendererUnavailable, setRendererUnavailable] = useState(false);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
   const [asset, setAsset] = useState<LoadedWorldAsset | null>(null);
+  const [demirTacAsset, setDemirTacAsset] = useState<LoadedWorldAsset | null>(null);
   const [assetError, setAssetError] = useState("");
+  const hasDemirTacRival = props.rivals.some((rival) => rival.name === "Demir Taç");
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot>({
     fps: 0,
     camera: [0, 0, 0],
@@ -354,9 +364,15 @@ export default function World3DV2(props: World3DProps) {
 
   useEffect(() => {
     let active = true;
-    loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player)
-      .then((loaded) => {
-        if (active) setAsset(loaded);
+    const playerAsset = loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player);
+    const bossAsset = hasDemirTacRival
+      ? loadAsset(DEMIR_TAC_WORLD_CONFIG.modelPath, DEMIR_TAC_WORLD_ASSET_TARGET)
+      : Promise.resolve(null);
+    Promise.all([playerAsset, bossAsset])
+      .then(([loadedPlayer, loadedDemirTac]) => {
+        if (!active) return;
+        setAsset(loadedPlayer);
+        setDemirTacAsset(loadedDemirTac);
       })
       .catch((error: unknown) => {
         if (active) setAssetError(error instanceof Error ? error.message : String(error));
@@ -364,7 +380,7 @@ export default function World3DV2(props: World3DProps) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [hasDemirTacRival]);
 
   return (
     <div className="world-three-layer world-3d-layer" aria-label="Kül Yolu 3D dünyası">
@@ -465,6 +481,7 @@ export default function World3DV2(props: World3DProps) {
                   <WorldV2Entities
                     motionRef={props.motionRef}
                     asset={asset}
+                    demirTacAsset={demirTacAsset}
                     dialoguePortal={props.dialoguePortal}
                     rivals={props.rivals}
                     pickups={props.pickups}
@@ -507,7 +524,7 @@ export default function World3DV2(props: World3DProps) {
       )}
       {assetError && (
         <div className="world-v2-error" role="alert">
-          player-hero.glb yüklenemedi: {assetError}
+          3D karakter modeli yüklenemedi: {assetError}
         </div>
       )}
       {debug && (

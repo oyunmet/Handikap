@@ -41,5 +41,15 @@ export function getWorldV2Heading(
 }
 
 export type WorldV2AssetTarget =
-  | { targetHeight: number; targetMaxDim?: never }
-  | { targetMaxDim: number; targetHeight?: never };
+  | {
+      targetHeight: number;
+      targetMaxDim?: never;
+      maxDimension?: number;
+      modelRotation?: readonly [number, number, number];
+    }
+  | {
+      targetMaxDim: number;
+      targetHeight?: never;
+      maxDimension?: never;
+      modelRotation?: readonly [number, number, number];
+    };

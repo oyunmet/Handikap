@@ -184,7 +184,9 @@ export function getAnimatedRivalModelConfig(
     "chapter-boss": "/models/player-hero.glb",
   };
   const useDemirTac = name === "Demir Taç";
-  const modelPath = isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
+  const modelPath = useDemirTac
+    ? "/models/fantasy_knight.glb"
+    : isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
   const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
   const heroAnimations = {
     idle: ["CharacterArmature|Idle", "Idle"],
@@ -254,19 +256,7 @@ export function getAnimatedRivalModelConfig(
     ...profile?.appearance,
     weaponStyle: weapon,
   };
-  const appearance = useDemirTac
-    ? {
-        ...profileAppearance,
-        armor: "#252a30",
-        armorLight: "#858e96",
-        armorDark: "#14181e",
-        trim: "#bc4142",
-        cape: "#641f2b",
-        weaponStyle: "greatsword" as const,
-        weaponColor: "#d3d8dc",
-        auraColor: "#b73940",
-      }
-    : profileAppearance;
+  const appearance = profileAppearance;
   const paletteByArchetype: Record<WorldBotArchetype, { skin: string; hair: string }> = {
     "gate-warden": { skin: "#ba9675", hair: "#49352e" },
     "iron-oath": { skin: "#a98376", hair: "#302631" },
@@ -300,21 +290,26 @@ export function getAnimatedRivalModelConfig(
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
     modelFacing: usePlayerHero ? Math.PI : baseConfig.modelFacing,
-    rootBoneName: useNightWatcher
-      ? baseConfig.rootBoneName
-      : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+    rootBoneName: useDemirTac
+      ? "world"
+      : useNightWatcher
+        ? baseConfig.rootBoneName
+        : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+    modelRotation: useDemirTac ? [-Math.PI / 2, 0, 0] as const : undefined,
     preserveOriginalMaterialAliases: useNightWatcher
       ? ["gold", "steel", "cape"]
-      : useHuman ? ["texture"] : useDemirTac ? ["eye", "pupil", "white"] : undefined,
+      : useHuman ? ["texture"] : undefined,
     targetHeight: sizeTarget.targetHeight,
     maxDimension: sizeTarget.maxDimension,
     isBoss,
     isDemirTac: useDemirTac,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
-    tintStrength: isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
-    animationClips: useNightWatcher
-      ? baseConfig.animationClips
-      : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+    tintStrength: useDemirTac ? 0 : isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
+    animationClips: useDemirTac
+      ? {}
+      : useNightWatcher
+        ? baseConfig.animationClips
+        : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
     weapon,
     appearance,
     materialNameAliases: useDemirTac ? demirTacMaterialNameAliases : materialNameAliases,

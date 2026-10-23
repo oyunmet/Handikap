@@ -34,6 +34,7 @@ export function fitObjectToTarget(
   root: THREE.Object3D,
   target: WorldV2AssetTarget,
 ) {
+  if (target.modelRotation) root.rotation.set(...target.modelRotation);
   normalizeArmatureScales(root);
   root.updateMatrixWorld(true);
   const sourceBounds = getPreciseWorldBounds(root);
@@ -41,9 +42,13 @@ export function fitObjectToTarget(
 
   const sourceSize = sourceBounds.getSize(new THREE.Vector3());
   const largestSourceDimension = Math.max(sourceSize.x, sourceSize.y, sourceSize.z);
-  const targetDimension = typeof target.targetHeight === "number"
+  const heightScale = typeof target.targetHeight === "number"
     ? sourceSize.y > 0 ? target.targetHeight / sourceSize.y : 0
     : largestSourceDimension > 0 ? target.targetMaxDim / largestSourceDimension : 0;
+  const maxDimensionScale = target.maxDimension !== undefined
+    ? target.maxDimension / largestSourceDimension
+    : Number.POSITIVE_INFINITY;
+  const targetDimension = Math.min(heightScale, maxDimensionScale);
   if (!Number.isFinite(targetDimension) || targetDimension <= 0) {
     throw new Error("Loaded world asset has invalid target dimensions.");
   }

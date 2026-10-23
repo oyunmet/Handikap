@@ -13,7 +13,7 @@ export type AttachedOpponentCostume = {
 };
 
 export function shouldAttachOpponentCostume(modelConfig: OpponentModelConfig | undefined) {
-  return Boolean(modelConfig);
+  return Boolean(modelConfig && !modelConfig.isDemirTac);
 }
 
 const BONE_NAMES = {

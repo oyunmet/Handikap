@@ -85,7 +85,12 @@ export function loadAsset(
   target: WorldV2AssetTarget,
   loader: Pick<GLTFLoader, "loadAsync"> = new GLTFLoader(),
 ): Promise<LoadedWorldAsset> {
-  const key = `${url}:${"targetHeight" in target ? `h${target.targetHeight}` : `d${target.targetMaxDim}`}`;
+  const key = [
+    url,
+    "targetHeight" in target ? `h${target.targetHeight}` : `d${target.targetMaxDim}`,
+    target.maxDimension === undefined ? "" : `m${target.maxDimension}`,
+    target.modelRotation?.join(",") ?? "",
+  ].join(":");
   const cached = assetCache.get(key);
   if (cached) return cached;
 

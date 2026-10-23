@@ -209,6 +209,7 @@ function prepareModel(
     const originalMaterials = Array.isArray(object.material) ? object.material : [object.material];
     let changed = false;
     const materials = originalMaterials.map((original) => {
+      if (modelConfig?.isDemirTac) return original;
       const materialName = normalizeMaterialName(original.name);
       const meshName = normalizeMaterialName(object.name);
       const preserveOriginal = modelConfig?.preserveOriginalMaterialAliases?.some((alias) => {
@@ -394,19 +395,21 @@ function OptionalGlbKnight({
     },
     [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight, targetMaxDimension],
   );
-  const equippedHand = playerCharacter || modelConfig
-    ? playerRig?.bones.Rig_RightHand
-      ?? [
-        "Rig_RightHand",
-        "mixamorigRightHand",
-        "FistR",
-        "Fist.R",
-        "RightHand",
-        "RightHandBone",
-        "DEF-hand.R",
-        "DEF-handR",
-      ].map((name) => model.getObjectByName(name)).find(Boolean)
-    : undefined;
+  const equippedHand = modelConfig?.isDemirTac
+    ? undefined
+    : playerCharacter || modelConfig
+      ? playerRig?.bones.Rig_RightHand
+        ?? [
+          "Rig_RightHand",
+          "mixamorigRightHand",
+          "FistR",
+          "Fist.R",
+          "RightHand",
+          "RightHandBone",
+          "DEF-hand.R",
+          "DEF-handR",
+        ].map((name) => model.getObjectByName(name)).find(Boolean)
+      : undefined;
   const weaponAppearance = getFallbackAppearance(appearance, modelConfig);
   useEffect(() => {
     if (!equippedHand) return undefined;
@@ -436,21 +439,6 @@ function OptionalGlbKnight({
   useEffect(() => {
     if (!modelConfig || playerCharacter || !shouldAttachOpponentCostume(modelConfig)) return undefined;
     const costume = attachOpponentCostume(model, modelConfig, appearance ?? modelConfig.appearance);
-    if (modelConfig.isDemirTac) {
-      fitCharacterModel(
-        model,
-        targetHeight,
-        modelPath,
-        targetMaxDimension / Math.max(0.01, modelConfig.scale),
-      );
-      const validation = validateCharacterModel(model, targetHeight);
-      if (!validation.valid) {
-        console.warn("[shafak-model] Costumed boss size validation failed.", {
-          model: modelPath,
-          issues: validation.issues,
-        });
-      }
-    }
     opponentCostumeRef.current = costume;
     return () => {
       if (opponentCostumeRef.current === costume) opponentCostumeRef.current = null;
@@ -768,11 +756,9 @@ function OptionalGlbKnight({
       />
       <group scale={modelConfig?.scale ?? 1}>
         <group ref={proceduralPoseEnabled ? staticPoseRef : undefined}>
-          <primitive
-            object={model}
-            rotation={[0, modelFacing, 0]}
-            dispose={null}
-          />
+          <group rotation={[0, modelFacing, 0]}>
+            <primitive object={model} dispose={null} />
+          </group>
         </group>
         {modelConfig?.isBoss && (
           <group position={[0, targetHeight * 0.9, 0]} rotation={[0, modelFacing, 0]}>

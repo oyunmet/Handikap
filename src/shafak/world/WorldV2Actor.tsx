@@ -9,7 +9,6 @@ import { isRootTranslationTrack } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
-import ProceduralHero from "./ProceduralHero";
 
 export type WorldV2ActorDebugSnapshot = {
   yaw: number;
@@ -62,13 +61,7 @@ export default function WorldV2Actor({
   localToParent = false,
 }: Props) {
   const rootRef = useRef<THREE.Group>(null);
-  const proceduralModelRef = useRef<THREE.Group | null>(null);
   const model = useMemo(() => {
-    if (isPlayer) {
-      const empty = new THREE.Group();
-      empty.name = "player-model-not-used";
-      return empty;
-    }
     const clone = cloneWorldCharacter(asset, tint);
     clone.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -76,10 +69,10 @@ export default function WorldV2Actor({
       object.receiveShadow = false;
     });
     return clone;
-  }, [asset, isPlayer, tint]);
+  }, [asset, tint]);
   const animations = useMemo(
-    () => isPlayer ? [] : asset.animations,
-    [asset, isPlayer],
+    () => asset.animations,
+    [asset],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
@@ -133,7 +126,7 @@ export default function WorldV2Actor({
     }
 
     const state = isPlayer ? animationState : "idle";
-    const clip = isPlayer ? null : resolveClip(animations, state);
+    const clip = resolveClip(animations, state);
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
       nextAction.reset().fadeIn(0.16).play();
@@ -156,8 +149,7 @@ export default function WorldV2Actor({
       debugRefreshElapsed.current += Math.min(delta, 0.1);
       if (debugRefreshElapsed.current < 0.2) return;
       debugRefreshElapsed.current %= 0.2;
-      const debugModel = proceduralModelRef.current;
-      if (!debugModel) return;
+      const debugModel = model;
       debugModel.updateWorldMatrix(true, true);
       const rootBone = debugModel.getObjectByName("Root");
       const hipsBone = debugModel.getObjectByName("Hips");
@@ -204,16 +196,7 @@ export default function WorldV2Actor({
       userData={{ worldCharacterRoot: isPlayer, worldPlayerActor: isPlayer }}
     >
       <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
-        {isPlayer ? (
-          <ProceduralHero
-            rootRef={proceduralModelRef}
-            motionRef={motionRef}
-            state={animationState}
-            targetHeight={WORLD_V2_CONFIG.player.targetHeight}
-          />
-        ) : (
-          <primitive object={model} dispose={null} />
-        )}
+        <primitive object={model} dispose={null} />
       </group>
       <mesh
         name={isPlayer ? "player-contact-shadow" : "npc-contact-shadow"}

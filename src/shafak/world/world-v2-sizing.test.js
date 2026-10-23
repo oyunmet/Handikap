@@ -67,3 +67,20 @@ test("max-dimension sizing caps a generated asset at the configured rock size", 
   const largest = Math.max(fitted.dimensions.x, fitted.dimensions.y, fitted.dimensions.z);
   assert.ok(Math.abs(largest - WORLD_V2_CONFIG.rock.targetMaxDim) < 0.01);
 });
+
+test("world-model rotation is applied before fitting and the optional footprint cap", () => {
+  const knight = new THREE.Group();
+  knight.add(new THREE.Mesh(
+    new THREE.BoxGeometry(4.8, 0.6, 2.4),
+    new THREE.MeshBasicMaterial(),
+  ));
+  const fitted = fitObjectToTarget(knight, {
+    targetHeight: 1.95,
+    maxDimension: 2.925,
+    modelRotation: [-Math.PI / 2, 0, 0],
+  });
+
+  assert.ok(Math.abs(knight.rotation.x + Math.PI / 2) < 1e-9);
+  assert.ok(Math.max(fitted.dimensions.x, fitted.dimensions.y, fitted.dimensions.z) <= 2.925 + 0.01);
+  assert.ok(fitted.dimensions.y < 1.95, "wide capes should use the fitted footprint cap");
+});
