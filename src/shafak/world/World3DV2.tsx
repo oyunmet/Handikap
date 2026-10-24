@@ -258,7 +258,7 @@ function WorldV2FrameDebug({
       `Hız X / ileri: ${format(motion.velocityX)}, ${format(motion.velocityY)} m/sn`,
       `Kamera yaw: ${formatDegrees(cameraYaw)}`,
       `Hedef yaw / gövde yaw / net model yönü: ${targetYawText} / ${bodyYawText} / ${visibleHeadingText}`,
-      `Gerçek beden eğimi (Hips→Head): ${formatDegrees(actorDebug?.bodyLean ?? Number.NaN)}`,
+      `Gerçek beden eğimi 3B (Hips→Head): ${formatDegrees(actorDebug?.bodyLean ?? Number.NaN)}`,
       `Root XYZ / Hips XYZ: ${formatRotation(actorDebug?.rootRotation ?? null)} / ${formatRotation(actorDebug?.hipsRotation ?? null)}`,
       `Torso XYZ: ${formatRotation(actorDebug?.torsoRotation ?? null)}`,
       `Root/Hips konum track'i: ${actorDebug?.rootMotionTracks.join(", ") || "yok"}`,

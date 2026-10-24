@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import * as THREE from "three";
 import {
-  createUprightTorsoClip,
+  createUprightLocomotionClip,
   getOpponentAnimationPlayback,
   isRootTranslationTrack,
   mapOpponentAnimationState,
@@ -22,30 +22,35 @@ import {
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model.ts";
 
-test("locomotion clips keep forward lean but remove sideways lean and body turns", () => {
+test("locomotion clips remove fixed body lean while keeping animated movement", () => {
   const tilted = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, -0.08, 0.16, "XYZ"));
+  const secondTilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.22, -0.03, 0.26, "XYZ"));
   const track = new THREE.QuaternionKeyframeTrack(
     "Torso.quaternion",
-    [0],
-    tilted.toArray(),
+    [0, 1],
+    [...tilted.toArray(), ...secondTilt.toArray()],
   );
+  const originalTrackValues = [...track.values];
   const clip = new THREE.AnimationClip("Run", 1, [track]);
-  const upright = createUprightTorsoClip(clip);
-  const originalRotation = new THREE.Euler().setFromQuaternion(
-    new THREE.Quaternion().fromArray(clip.tracks[0].values),
+  const upright = createUprightLocomotionClip(clip);
+  const fixedTrack = upright.tracks.find((candidate) => candidate.name === "Torso.quaternion");
+  assert.ok(fixedTrack);
+  const corrected = [0, 1].map((index) => new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion().fromArray(fixedTrack.values, index * 4),
     "XYZ",
-  );
-  const fixedRotation = new THREE.Euler().setFromQuaternion(
-    new THREE.Quaternion().fromArray(upright.tracks[0].values),
-    "XYZ",
-  );
+  ));
 
   assert.notEqual(upright, clip);
-  assert.ok(Math.abs(fixedRotation.z) < 1e-6);
-  assert.ok(Math.abs(fixedRotation.x - originalRotation.x) < 1e-6);
-  assert.ok(Math.abs(fixedRotation.y) < 1e-6);
-  assert.ok(Math.abs(originalRotation.y + 0.08) < 1e-6);
-  assert.ok(Math.abs(originalRotation.z - 0.16) < 1e-6, "the source clip remains unchanged");
+  const expectedOffsets = [0.05, 0.025, 0.05];
+  corrected.forEach((rotation, index) => {
+    const expected = index === 0 ? -1 : 1;
+    rotation.toArray().slice(0, 3).forEach((value, axis) =>
+      assert.ok(Math.abs(value - expected * expectedOffsets[axis]) < 1e-5));
+  });
+  assert.deepEqual([...clip.tracks[0].values], originalTrackValues);
+  const hipsTrack = upright.tracks.find((candidate) => candidate.name === "Hips.quaternion");
+  assert.ok(hipsTrack, "the baked Hips bind-pose tilt needs a neutral track");
+  assert.deepEqual([...hipsTrack.values], [0, 0, 0, 1]);
 });
 
 test("the world actor uses upright walk and run clips for the shared player rig", () => {
@@ -55,15 +60,17 @@ test("the world actor uses upright walk and run clips for the shared player rig"
   ]);
 
   const prepared = prepareWorldActorClips("/models/player-hero.glb", [source]);
+  const preparedTorso = prepared[0].tracks.find((candidate) => candidate.name === "Torso.quaternion");
   const preparedRotation = new THREE.Euler().setFromQuaternion(
-    new THREE.Quaternion().fromArray(prepared[0].tracks[0].values),
+    new THREE.Quaternion().fromArray(preparedTorso.values),
     "XYZ",
   );
 
   assert.notEqual(prepared[0], source);
-  assert.ok(Math.abs(preparedRotation.x - 0.12) < 1e-6);
+  assert.ok(Math.abs(preparedRotation.x) < 1e-6);
   assert.ok(Math.abs(preparedRotation.y) < 1e-6);
   assert.ok(Math.abs(preparedRotation.z) < 1e-6);
+  assert.ok(prepared[0].tracks.some((track) => track.name === "Hips.quaternion"));
   assert.equal(prepareWorldActorClips("/models/human.glb", [source])[0], source);
 });
 

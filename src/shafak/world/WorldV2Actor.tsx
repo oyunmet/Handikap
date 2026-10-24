@@ -210,7 +210,11 @@ export default function WorldV2Actor({
           ),
         );
         const characterRight = new THREE.Vector3(1, 0, 0).applyQuaternion(facing);
-        bodyLean = Math.atan2(bodyAxis.dot(characterRight), bodyAxis.y);
+        const characterForward = new THREE.Vector3(0, 0, -1).applyQuaternion(facing);
+        bodyLean = Math.atan2(
+          Math.hypot(bodyAxis.dot(characterRight), bodyAxis.dot(characterForward)),
+          bodyAxis.y,
+        );
       }
       const visibleHeading = root.rotation.y
         + WORLD_V2_CONFIG.modelFacing

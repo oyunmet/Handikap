@@ -35,26 +35,60 @@ export function isRootTranslationTrack(trackName: string, rootBoneName: string):
     && pathSegments.at(-2)?.toLocaleLowerCase() === rootBoneName.toLocaleLowerCase();
 }
 
-export function createUprightTorsoClip(clip: THREE.AnimationClip): THREE.AnimationClip {
+export function createUprightLocomotionClip(clip: THREE.AnimationClip): THREE.AnimationClip {
   const uprightClip = clip.clone();
   const rotation = new THREE.Quaternion();
   const euler = new THREE.Euler();
-  const directionalBones = new Set(["body", "abdomen", "torso", "neck", "head"]);
+  const uprightBones = new Set(["body", "hips", "abdomen", "torso", "neck", "head"]);
+  const animatedBones = new Set<string>();
 
   for (const track of uprightClip.tracks) {
     const pathSegments = track.name.split(/[.[\]]+/).filter(Boolean);
+    const boneName = pathSegments.at(-2)?.toLocaleLowerCase();
     if (
       pathSegments.at(-1)?.toLocaleLowerCase() !== "quaternion"
-      || !directionalBones.has(pathSegments.at(-2)?.toLocaleLowerCase() ?? "")
+      || !boneName
+      || !uprightBones.has(boneName)
     ) continue;
 
+    animatedBones.add(boneName);
+    const angles: THREE.Euler[] = [];
+    const angleSines = [0, 0, 0];
+    const angleCosines = [0, 0, 0];
     for (let offset = 0; offset + 3 < track.values.length; offset += 4) {
       rotation.fromArray(track.values, offset);
       euler.setFromQuaternion(rotation, "XYZ");
-      euler.y = 0;
-      euler.z = 0;
-      rotation.setFromEuler(euler).toArray(track.values, offset);
+      const anglesAtKey = euler.clone();
+      angles.push(anglesAtKey);
+      [anglesAtKey.x, anglesAtKey.y, anglesAtKey.z].forEach((angle, axis) => {
+        angleSines[axis] += Math.sin(angle);
+        angleCosines[axis] += Math.cos(angle);
+      });
     }
+
+    const averageAngles = angleSines.map((sine, axis) =>
+      Math.atan2(sine, angleCosines[axis]));
+    angles.forEach((anglesAtKey, index) => {
+      euler.set(
+        Math.atan2(Math.sin(anglesAtKey.x - averageAngles[0]), Math.cos(anglesAtKey.x - averageAngles[0])),
+        Math.atan2(Math.sin(anglesAtKey.y - averageAngles[1]), Math.cos(anglesAtKey.y - averageAngles[1])),
+        Math.atan2(Math.sin(anglesAtKey.z - averageAngles[2]), Math.cos(anglesAtKey.z - averageAngles[2])),
+      );
+      rotation.setFromEuler(euler).toArray(track.values, index * 4);
+    });
+  }
+
+  // The source GLB bakes a forward tilt into several unanimated spine bones,
+  // especially Hips. Give those bones neutral locomotion tracks so that the
+  // bind-pose lean cannot survive when a clip omits their rotation channels.
+  for (const boneName of uprightBones) {
+    if (animatedBones.has(boneName)) continue;
+    const trackBoneName = boneName[0].toLocaleUpperCase() + boneName.slice(1);
+    uprightClip.tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${trackBoneName}.quaternion`,
+      [0],
+      [0, 0, 0, 1],
+    ));
   }
 
   return uprightClip;
@@ -62,8 +96,8 @@ export function createUprightTorsoClip(clip: THREE.AnimationClip): THREE.Animati
 
 export function createPlayerLocomotionClip(clip: THREE.AnimationClip): THREE.AnimationClip {
   const baseName = clip.name.toLocaleLowerCase().split("|").at(-1);
-  return baseName === "run" || baseName === "walk"
-    ? createUprightTorsoClip(clip)
+  return baseName === "idle" || baseName === "run" || baseName === "walk"
+    ? createUprightLocomotionClip(clip)
     : clip;
 }
 
