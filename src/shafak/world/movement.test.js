@@ -10,8 +10,7 @@ import {
   WORLD_PLAYER_LATERAL_LIMIT_METERS,
   WORLD_ORIGIN_REBASE_INTERVAL_METERS,
 } from "./movement.ts";
-import { getKnightActorRootYaw } from "./knight-config.ts";
-import { getWorldV2Heading } from "./world-v2-config.ts";
+import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config.ts";
 
 test("keyboard input reads WASD and arrows and normalizes diagonal travel", () => {
   const diagonal = readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 });
@@ -42,12 +41,13 @@ test("forward running with sub-deadzone thumb drift keeps the runner facing stra
   }
 
   const heading = getWorldV2Heading(motion.velocityX, motion.velocityY);
-  const rootYaw = getKnightActorRootYaw(heading);
+  const rootYaw = heading;
 
   assert.equal(input.x, 0);
   assert.equal(motion.velocityX, 0);
   assert.ok(Math.abs(heading - Math.PI) < 1e-8);
-  assert.ok(Math.abs(rootYaw) < 1e-8);
+  const worldModelYaw = rootYaw + WORLD_V2_CONFIG.modelFacing;
+  assert.ok(Math.abs(-Math.cos(worldModelYaw) + 1) < 1e-8);
 });
 
 test("mobile action keys map to jump, crouch, and sprint", () => {

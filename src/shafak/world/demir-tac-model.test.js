@@ -50,6 +50,7 @@ test("Demir Taç uses the animated player rig and keeps a distinct boss identity
   assert.ok(loaded.scene.getObjectByName("ShoulderL"));
   assert.ok(loaded.scene.getObjectByName("LowerArmR"));
   assert.ok(loaded.scene.getObjectByName("LowerLegR"));
+  assert.ok(loaded.scene.getObjectByName("FistR"));
   assert.ok(loaded.animations.some((clip) => clip.name === "Run"));
   assert.ok(worldConfig.animationClips.run?.includes("CharacterArmature|Run"));
   const materials = new Map();

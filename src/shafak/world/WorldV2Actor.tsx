@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
-import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
+import { KNIGHT_CONFIG } from "./knight-config";
 import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
@@ -154,8 +154,9 @@ export default function WorldV2Actor({
       if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
         playerFacingAngle.current = targetHeading;
       }
+      // The -Z hero front is corrected by the additive model-axis group below.
       const yawDelta = THREE.MathUtils.euclideanModulo(
-        getKnightActorRootYaw(targetHeading) - root.rotation.y + Math.PI,
+        targetHeading - root.rotation.y + Math.PI,
         Math.PI * 2,
       ) - Math.PI;
       root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
@@ -164,7 +165,7 @@ export default function WorldV2Actor({
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
       const directionX = playerPosition.x - x;
       const directionZ = playerPosition.z - actorZ;
-      root.rotation.y = getKnightActorRootYaw(Math.atan2(directionX, directionZ));
+      root.rotation.y = Math.atan2(directionX, directionZ);
     }
 
     const state = isPlayer ? animationState : "idle";
@@ -211,7 +212,10 @@ export default function WorldV2Actor({
         const characterRight = new THREE.Vector3(1, 0, 0).applyQuaternion(facing);
         bodyLean = Math.atan2(bodyAxis.dot(characterRight), bodyAxis.y);
       }
-      const visibleHeading = root.rotation.y + WORLD_V2_CONFIG.modelFacing + model.rotation.y;
+      const visibleHeading = root.rotation.y
+        + WORLD_V2_CONFIG.modelFacing
+        + Math.PI
+        + model.rotation.y;
       debugRef.current = {
         yaw: root.rotation.y,
         targetHeading,

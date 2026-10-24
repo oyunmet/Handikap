@@ -51,6 +51,7 @@ import {
   validateCharacterModel,
 } from "./character-model";
 import {
+  applyOpponentBasePalette,
   attachOpponentCostume,
   shouldAttachOpponentCostume,
   type AttachedOpponentCostume,
@@ -299,6 +300,8 @@ function prepareModel(
     if (changed) object.material = Array.isArray(object.material) ? materials : materials[0];
   });
 
+  if (modelConfig) applyOpponentBasePalette(model, modelConfig);
+
   return {
     model,
     ownedMaterials,
@@ -395,21 +398,19 @@ function OptionalGlbKnight({
     },
     [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight, targetMaxDimension],
   );
-  const equippedHand = modelConfig?.isDemirTac
-    ? undefined
-    : playerCharacter || modelConfig
-      ? playerRig?.bones.Rig_RightHand
-        ?? [
-          "Rig_RightHand",
-          "mixamorigRightHand",
-          "FistR",
-          "Fist.R",
-          "RightHand",
-          "RightHandBone",
-          "DEF-hand.R",
-          "DEF-handR",
-        ].map((name) => model.getObjectByName(name)).find(Boolean)
-      : undefined;
+  const equippedHand = playerCharacter || modelConfig
+    ? playerRig?.bones.Rig_RightHand
+      ?? [
+        "Rig_RightHand",
+        "mixamorigRightHand",
+        "FistR",
+        "Fist.R",
+        "RightHand",
+        "RightHandBone",
+        "DEF-hand.R",
+        "DEF-handR",
+      ].map((name) => model.getObjectByName(name)).find(Boolean)
+    : undefined;
   const weaponAppearance = getFallbackAppearance(appearance, modelConfig);
   useEffect(() => {
     if (!equippedHand) return undefined;
