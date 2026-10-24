@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config.ts";
 
-test("world-v2 headings turn the hero's native -Z axis into camera-relative movement", () => {
+test("world-v2 headings keep the player's corrected GLB front aligned with movement", () => {
   const forwardYaw = getWorldV2Heading(0, 1);
-  assert.ok(Math.abs(forwardYaw - Math.PI) < 0.001, "joystick up points down the road in world coordinates");
+  assert.ok(Math.abs(forwardYaw) < 0.001, "joystick up keeps the corrected GLB front aimed down the road");
   const heroForward = (heading) => {
     const modelYaw = heading + WORLD_V2_CONFIG.modelFacing;
-    return { x: -Math.sin(modelYaw), z: -Math.cos(modelYaw) };
+    // The source GLB's face is on local +Z; the model-axis correction is applied at runtime.
+    return { x: Math.sin(modelYaw), z: Math.cos(modelYaw) };
   };
   const forward = heroForward(forwardYaw);
-  assert.ok(forward.z < -0.99, "the hero's native -Z front points down the road");
+  assert.ok(forward.z < -0.99, "the source GLB's +Z front points down the road after axis correction");
 
   const rightYaw = getWorldV2Heading(1, 0);
   const right = heroForward(rightYaw);

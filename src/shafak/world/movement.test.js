@@ -45,9 +45,9 @@ test("forward running with sub-deadzone thumb drift keeps the runner facing stra
 
   assert.equal(input.x, 0);
   assert.equal(motion.velocityX, 0);
-  assert.ok(Math.abs(heading - Math.PI) < 1e-8);
+  assert.ok(Math.abs(heading) < 1e-8);
   const worldModelYaw = rootYaw + WORLD_V2_CONFIG.modelFacing;
-  assert.ok(Math.abs(-Math.cos(worldModelYaw) + 1) < 1e-8);
+  assert.ok(Math.abs(Math.cos(worldModelYaw) + 1) < 1e-8);
 });
 
 test("mobile action keys map to jump, crouch, and sprint", () => {

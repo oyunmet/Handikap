@@ -8,7 +8,7 @@
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep rivals clear and anchored; size rig gear against full mount scale and verify ground clearance.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
-- [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms applied and measure posture across the full 3D body axis.
+- [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms, 3D posture, and the native +Z facing convention aligned.
 - [Skinned-mesh debug bounds](skinned-mesh-debug-bounds.md) — Compare deformed geometry centers, not source pivots; player mesh origins can sit about 9.98 m away.
 - [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.
 - [Duel boundary and cover geometry](duel-arena-boundary.md) — Tightening movement bounds can alter cover-shot paths; verify both arena limits and cover interactions.

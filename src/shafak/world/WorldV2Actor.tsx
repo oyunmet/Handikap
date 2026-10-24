@@ -154,7 +154,7 @@ export default function WorldV2Actor({
       if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
         playerFacingAngle.current = targetHeading;
       }
-      // The -Z hero front is corrected by the additive model-axis group below.
+      // The GLB's native +Z front is turned toward -Z by the model-axis group below.
       const yawDelta = THREE.MathUtils.euclideanModulo(
         targetHeading - root.rotation.y + Math.PI,
         Math.PI * 2,

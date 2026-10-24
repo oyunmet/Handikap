@@ -72,6 +72,21 @@ test("player model uses the animated Quaternius hero at the configured height an
   );
   const gltf = await new Promise((resolve, reject) =>
     new GLTFLoader().parse(arrayBuffer, "/", resolve, reject));
+  gltf.scene.updateMatrixWorld(true);
+  const faceBounds = new THREE.Box3();
+  let faceMeshCount = 0;
+  gltf.scene.traverse((node) => {
+    if (!node.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    if (!materials.some((material) => ["Eye", "Pupil", "White"].includes(material.name))) return;
+    faceBounds.union(new THREE.Box3().setFromObject(node, true));
+    faceMeshCount += 1;
+  });
+  assert.ok(faceMeshCount > 0, "the player GLB should expose its face meshes");
+  assert.ok(
+    faceBounds.getCenter(new THREE.Vector3()).z > 0.25,
+    "the source GLB's visible face is on native +Z before the model-axis correction",
+  );
   assert.deepEqual(
     gltf.animations.filter((clip) => /strafe|side.?step|run.?left|run.?right/i.test(clip.name)).map((clip) => clip.name),
     [],
