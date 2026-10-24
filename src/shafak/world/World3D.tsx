@@ -74,6 +74,7 @@ import { getNearestWorldLabelIds, type WorldLabelCandidate } from "./world-label
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { nextGateDistanceForCamera } from "./world-generation";
 import { createDuelArenaBackdropMountains } from "./duel-arena-backdrop";
+import { PLAYER_CHARACTER_TARGET_HEIGHT } from "./player-model";
 
 function createProceduralEnvironmentTexture() {
   const width = 128;
@@ -814,7 +815,8 @@ function DuelFighter({
     const state = combatStateRef.current;
     const actor = state?.[side];
     if (!state || !actor) return;
-    actorMotion.current.depth = THREE.MathUtils.clamp(actor.x / 5.2, -1, 1);
+    // actorRoot owns the simulated arena position; nested KnightActor roots stay local.
+    actorMotion.current.depth = 0;
     actorMotion.current.velocityX = actor.vx;
     actorMotion.current.velocityY = actor.vz;
     actorMotion.current.distance = motionRef.current.distance - actor.z;
@@ -908,6 +910,9 @@ function DuelFighter({
           appearance={fighterAppearance}
           castShadow
           playerCharacter={side === "player"}
+          useInGamePlayerModel={side === "player"}
+          positionedByParent
+          targetHeight={side === "player" ? PLAYER_CHARACTER_TARGET_HEIGHT : undefined}
           characterLabel={side === "player" ? "duel-player" : boss ? "duel-boss" : `duel-rival:${opponentName}`}
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}

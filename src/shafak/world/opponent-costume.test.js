@@ -91,6 +91,10 @@ test("Demir Taç uses the animated player rig with its own mounted armor and cro
   assert.ok(names.includes("demir-tac-vambrace-right"));
   assert.ok(names.includes("demir-tac-greave-left"));
   assert.equal(model.getObjectByName("demir-tac-head-gear").parent, bones.get("Head"));
+  const chestArmor = model.getObjectByName("demir-tac-chest-armor");
+  assert.ok(chestArmor.geometry instanceof THREE.ExtrudeGeometry);
+  chestArmor.geometry.computeBoundingBox();
+  assert.ok(chestArmor.geometry.boundingBox.min.z >= 0);
 
   costume.dispose();
 });

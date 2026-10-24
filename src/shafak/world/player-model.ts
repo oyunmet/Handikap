@@ -4,7 +4,7 @@ import type { ModelMaterialNameAliases } from "./opponent-model-config";
 export const PLAYER_CHARACTER_MODEL_PATH = "/models/player-hero.glb";
 
 export const PLAYER_CHARACTER_MODEL_SCALE = 1;
-export const PLAYER_CHARACTER_TARGET_HEIGHT = 1.8;
+export const PLAYER_CHARACTER_TARGET_HEIGHT = 1.7;
 export const PLAYER_CHARACTER_MODEL_FACING = Math.PI;
 export const PLAYER_CHARACTER_ROOT_BONE = "Root";
 
@@ -38,4 +38,11 @@ export const PLAYER_CHARACTER_MATERIAL_ALIASES: ModelMaterialNameAliases = {
 
 export function shouldRenderPlayerModel(playerCharacter: boolean, animationCount: number) {
   return playerCharacter && animationCount === 0;
+}
+
+export function shouldRenderProceduralPlayerModel(
+  playerCharacter: boolean,
+  useInGamePlayerModel: boolean,
+) {
+  return playerCharacter && !useInGamePlayerModel;
 }

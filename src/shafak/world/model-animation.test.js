@@ -223,6 +223,10 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
     "#c7463f",
   );
+  assert.equal(
+    getAnimatedRivalModelConfig("Demir Taç", getWorldBotProfileByArchetype("chapter-boss"))?.appearance.trim,
+    "#d7b16a",
+  );
   const ironCrown = getAnimatedRivalModelConfig(
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),

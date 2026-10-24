@@ -31,8 +31,10 @@ import {
   PLAYER_CHARACTER_MATERIAL_ALIASES,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_ROOT_BONE,
+  shouldRenderProceduralPlayerModel,
   shouldRenderPlayerModel,
 } from "./player-model";
+import { getKnightActorLocalPosition } from "./knight-actor-transform";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 import {
   createDuelWeapon,
@@ -77,6 +79,9 @@ export type KnightActorProps = {
   modelConfig?: OpponentModelConfig;
   modelAnimationState?: ModelAnimationState;
   playerCharacter?: boolean;
+  useInGamePlayerModel?: boolean;
+  positionedByParent?: boolean;
+  targetHeight?: number;
   characterLabel?: string;
 };
 
@@ -159,6 +164,7 @@ function prepareModel(
   appearance?: EquipmentVisual,
   targetHeight: number = WORLD_MODEL_SIZE_TARGETS.player.targetHeight,
   targetMaxDimension: number = WORLD_MODEL_SIZE_TARGETS.player.maxDimension,
+  preserveOriginalPlayerMaterials = false,
 ) {
   if (modelConfig?.modelRotation) model.rotation.set(...modelConfig.modelRotation);
   fitCharacterModel(
@@ -210,6 +216,7 @@ function prepareModel(
     const originalMaterials = Array.isArray(object.material) ? object.material : [object.material];
     let changed = false;
     const materials = originalMaterials.map((original) => {
+      if (playerCharacter && preserveOriginalPlayerMaterials) return original;
       if (modelConfig?.isDemirTac) return original;
       const materialName = normalizeMaterialName(original.name);
       const meshName = normalizeMaterialName(object.name);
@@ -365,6 +372,9 @@ function OptionalGlbKnight({
   modelConfig,
   castShadow = true,
   playerCharacter = false,
+  useInGamePlayerModel = false,
+  positionedByParent = false,
+  targetHeight: targetHeightOverride,
   characterLabel,
 }: KnightActorProps) {
   const { camera: activeCamera, size } = useThree();
@@ -377,7 +387,9 @@ function OptionalGlbKnight({
     ?? PLAYER_CHARACTER_ROOT_BONE;
   const animationClipMap = modelConfig?.animationClips
     ?? PLAYER_CHARACTER_ANIMATION_CLIPS;
-  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
+  const targetHeight = targetHeightOverride
+    ?? modelConfig?.targetHeight
+    ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const targetMaxDimension = modelConfig?.maxDimension ?? WORLD_MODEL_SIZE_TARGETS.player.maxDimension;
   const { model, playerRig, ownedResources } = useMemo(
     () => {
@@ -394,9 +406,20 @@ function OptionalGlbKnight({
         appearance,
         targetHeight,
         targetMaxDimension,
+        useInGamePlayerModel,
       );
     },
-    [gltf.scene, modelPath, modelConfig, castShadow, playerCharacter, appearance, targetHeight, targetMaxDimension],
+    [
+      gltf.scene,
+      modelPath,
+      modelConfig,
+      castShadow,
+      playerCharacter,
+      appearance,
+      targetHeight,
+      targetMaxDimension,
+      useInGamePlayerModel,
+    ],
   );
   const equippedHand = playerCharacter || modelConfig
     ? playerRig?.bones.Rig_RightHand
@@ -566,8 +589,11 @@ function OptionalGlbKnight({
     const motion = motionRef.current;
     const dt = Math.min(delta, 0.05);
     if (root) {
-      root.position.x = motion.depth * 5.2;
-      root.position.y = motion.jumpHeight;
+      root.position.set(...getKnightActorLocalPosition(
+        motion.depth,
+        motion.jumpHeight,
+        positionedByParent,
+      ));
       root.scale.set(1, 1, 1);
       if (facingAngle === undefined) {
         const targetYaw = motion.velocityY < -0.25
@@ -800,11 +826,15 @@ function ProceduralPlayerKnight({
   appearance,
   modelConfig,
   castShadow = true,
+  positionedByParent = false,
+  targetHeight: targetHeightOverride,
 }: KnightActorProps) {
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
   const actorGlowTexture = useMemo(() => getWorldGlowTexture(), []);
-  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
+  const targetHeight = targetHeightOverride
+    ?? modelConfig?.targetHeight
+    ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const weaponAppearance = getFallbackAppearance(appearance, modelConfig);
 
   useFrame((_frame, delta) => {
@@ -812,8 +842,11 @@ function ProceduralPlayerKnight({
     if (!root) return;
     const motion = motionRef.current;
     const dt = Math.min(Math.max(delta, 0), 0.05);
-    root.position.x = motion.depth * 5.2;
-    root.position.y = motion.jumpHeight;
+    root.position.set(...getKnightActorLocalPosition(
+      motion.depth,
+      motion.jumpHeight,
+      positionedByParent,
+    ));
     if (facingAngle === undefined) {
       const targetYaw = motion.velocityY < -0.25
         ? Math.PI + Math.atan2(motion.velocityX, Math.abs(motion.velocityY))
@@ -893,7 +926,9 @@ type BoundaryState = { failed: boolean };
 function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
   const { progress } = useProgress();
   const { modelConfig, appearance, castShadow = true } = props;
-  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
+  const targetHeight = props.targetHeight
+    ?? modelConfig?.targetHeight
+    ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   return (
     <>
       <group scale={modelConfig?.scale ?? 1}>
@@ -930,9 +965,20 @@ class ModelErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 export default function KnightActor(props: KnightActorProps) {
-  const { modelConfig, appearance, castShadow = true, playerCharacter = false } = props;
-  if (playerCharacter) return <ProceduralPlayerKnight {...props} />;
-  const targetHeight = modelConfig?.targetHeight ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
+  const {
+    modelConfig,
+    appearance,
+    castShadow = true,
+    playerCharacter = false,
+    useInGamePlayerModel = false,
+    targetHeight: targetHeightOverride,
+  } = props;
+  if (shouldRenderProceduralPlayerModel(playerCharacter, useInGamePlayerModel)) {
+    return <ProceduralPlayerKnight {...props} />;
+  }
+  const targetHeight = targetHeightOverride
+    ?? modelConfig?.targetHeight
+    ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
       <CharacterCapsule

@@ -254,6 +254,13 @@ export function getAnimatedRivalModelConfig(
   const profileAppearance = {
     ...baseConfig.appearance,
     ...profile?.appearance,
+    ...(useDemirTac
+      ? {
+          armorLight: "#a8b1b8",
+          trim: "#d7b16a",
+          cape: "#681f2c",
+        }
+      : {}),
     weaponStyle: weapon,
   };
   const appearance = profileAppearance;

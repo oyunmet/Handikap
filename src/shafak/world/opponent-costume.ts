@@ -139,6 +139,7 @@ export function attachOpponentCostume(
   const mountGroup = (
     parent: THREE.Object3D,
     position: THREE.Vector3,
+    gearScale = 1,
   ) => {
     const parentWorldScale = parent.getWorldScale(new THREE.Vector3());
     const inverseWorldScale = new THREE.Vector3(
@@ -147,7 +148,7 @@ export function attachOpponentCostume(
       1 / Math.max(0.01, Math.abs(parentWorldScale.z)),
     );
     const group = new THREE.Group();
-    group.scale.copy(inverseWorldScale);
+    group.scale.copy(inverseWorldScale).multiplyScalar(gearScale);
     group.position.set(
       position.x * inverseWorldScale.x,
       position.y * inverseWorldScale.y,
@@ -181,6 +182,7 @@ export function attachOpponentCostume(
     head === model
       ? new THREE.Vector3(0, modelConfig.targetHeight ? modelConfig.targetHeight * 0.88 : 1.55, 0)
       : new THREE.Vector3(0, 0, 0),
+    isDemirTac ? bossGearScale : 1,
   );
   if (modelConfig.isBoss) headGear.name = "demir-tac-head-gear";
 
@@ -290,22 +292,39 @@ export function attachOpponentCostume(
       torso === model
         ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 3.35) * 0.59, 0.1)
         : new THREE.Vector3(0, 0, 0.12),
+      isDemirTac ? bossGearScale : 1,
     );
     breastplate.name = isDemirTac ? "demir-tac-breastplate" : "opponent-breastplate";
     if (isDemirTac) {
+      const plateShape = new THREE.Shape();
+      plateShape.moveTo(-0.19, 0.2);
+      plateShape.lineTo(0.19, 0.2);
+      plateShape.lineTo(0.25, 0.08);
+      plateShape.lineTo(0.17, -0.16);
+      plateShape.lineTo(0, -0.25);
+      plateShape.lineTo(-0.17, -0.16);
+      plateShape.lineTo(-0.25, 0.08);
+      plateShape.closePath();
+      const plateGeometry = new THREE.ExtrudeGeometry(plateShape, {
+        depth: 0.045,
+        bevelEnabled: true,
+        bevelSegments: 1,
+        bevelSize: 0.012,
+        bevelThickness: 0.012,
+      });
+      plateGeometry.translate(0, 0, 0.014);
       const chestArmor = mesh(
         breastplate,
-        new THREE.SphereGeometry(0.29, 10, 7),
-        makeMaterial(armorColor, 0.48, 0.48),
-        new THREE.Vector3(0, 0.01, 0.04),
-        new THREE.Vector3(1.14, 1.14, 0.58),
+        plateGeometry,
+        makeMaterial(armorColor, 0.42, 0.56),
+        new THREE.Vector3(0, 0.01, 0.035),
       );
       chestArmor.name = "demir-tac-chest-armor";
       const chestRidge = mesh(
         breastplate,
         new THREE.BoxGeometry(0.05, 0.31, 0.035),
         makeMaterial("#bc4142", 0.4, 0.35),
-        new THREE.Vector3(0, -0.01, 0.208),
+        new THREE.Vector3(0, -0.01, 0.085),
       );
       chestRidge.name = "demir-tac-chest-stripe";
       for (const side of [-1, 1]) {
@@ -313,14 +332,14 @@ export function attachOpponentCostume(
           breastplate,
           new THREE.BoxGeometry(0.09, 0.23, 0.035),
           makeMaterial("#747e87", 0.45, 0.42),
-          new THREE.Vector3(side * 0.18, 0.02, 0.18),
+          new THREE.Vector3(side * 0.18, 0.02, 0.085),
           new THREE.Vector3(1, 1, 0.7),
         ).rotation.z = side * -0.16;
         mesh(
           breastplate,
           new THREE.SphereGeometry(0.025, 6, 4),
           makeMaterial("#d2b8a3", 0.36, 0.52),
-          new THREE.Vector3(side * 0.19, -0.11, 0.208),
+          new THREE.Vector3(side * 0.19, -0.11, 0.087),
         ).name = `demir-tac-chest-rivet-${side}`;
       }
       const chestSigil = mesh(
@@ -333,7 +352,7 @@ export function attachOpponentCostume(
           metalness: 0.36,
           roughness: 0.32,
         }),
-        new THREE.Vector3(0, 0.085, 0.235),
+        new THREE.Vector3(0, 0.085, 0.11),
         new THREE.Vector3(0.78, 1.18, 0.42),
       );
       chestSigil.name = "demir-tac-chest-sigil";
@@ -395,6 +414,7 @@ export function attachOpponentCostume(
       shoulder === model
         ? new THREE.Vector3(side * 0.25, (modelConfig.targetHeight ?? 1.8) * 0.75, 0)
         : new THREE.Vector3(0, -0.045, 0),
+      isDemirTac ? bossGearScale : 1,
     );
     const pad = mesh(
       shoulderGroup,
@@ -457,6 +477,7 @@ export function attachOpponentCostume(
         limb === model
           ? new THREE.Vector3(side * (isArm ? 0.16 : 0.1), (modelConfig.targetHeight ?? 3.35) * (isArm ? 0.53 : 0.24), 0)
           : new THREE.Vector3(0, -0.04, 0),
+        bossGearScale,
       );
       const baseName = isArm ? "vambrace" : "greave";
       const plate = mesh(

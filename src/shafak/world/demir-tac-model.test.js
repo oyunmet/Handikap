@@ -44,6 +44,9 @@ test("Demir Taç uses the animated player rig and keeps a distinct boss identity
   assert.equal(worldConfig.rootBoneName, "Root");
   assert.equal(worldConfig.modelFacing, Math.PI);
   assert.equal(worldConfig.modelRotation, undefined);
+  assert.equal(worldConfig.appearance.armorLight, "#a8b1b8");
+  assert.equal(worldConfig.appearance.trim, "#d7b16a");
+  assert.equal(worldConfig.appearance.cape, "#681f2c");
   assert.equal(shouldAttachOpponentCostume(worldConfig), true);
   assert.ok(loaded.scene.getObjectByName("Root"));
   assert.ok(loaded.scene.getObjectByName("Head"));

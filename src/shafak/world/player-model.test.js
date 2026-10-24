@@ -10,6 +10,7 @@ import {
   PLAYER_CHARACTER_MODEL_SCALE,
   PLAYER_CHARACTER_ROOT_BONE,
   PLAYER_CHARACTER_TARGET_HEIGHT,
+  shouldRenderProceduralPlayerModel,
   shouldRenderPlayerModel,
 } from "./player-model.ts";
 import {
@@ -48,6 +49,13 @@ test("the player GLB can use its generated rig when it contains no animation cli
   assert.equal(shouldRenderPlayerModel(false, 0), false);
 });
 
+test("duels select the same GLB hero as the road instead of the procedural stand-in", () => {
+  assert.equal(shouldRenderProceduralPlayerModel(true, false), true);
+  assert.equal(shouldRenderProceduralPlayerModel(true, true), false);
+  assert.equal(shouldRenderProceduralPlayerModel(false, true), false);
+  assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.7);
+});
+
 test("player model uses the animated Quaternius hero at the configured height and facing", async () => {
   assert.equal(
     new URL(PLAYER_CHARACTER_MODEL_PATH, "https://safak.invalid").pathname,
@@ -55,7 +63,7 @@ test("player model uses the animated Quaternius hero at the configured height an
   );
   assert.equal(PLAYER_CHARACTER_MODEL_SCALE, 1);
   assert.equal(PLAYER_CHARACTER_MODEL_FACING, Math.PI);
-  assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.8);
+  assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.7);
   assert.equal(PLAYER_CHARACTER_ROOT_BONE, "Root");
 
   const playerGlb = fs.readFileSync(playerModelUrl);
