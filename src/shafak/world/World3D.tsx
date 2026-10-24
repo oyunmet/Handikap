@@ -533,7 +533,7 @@ function CameraRig({
         combat.player,
         combat.bot,
         cameraBack,
-        touchRenderer ? 0.32 : 0.45,
+        touchRenderer ? 1.15 : 0.9,
         jumpLift,
         duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
       );
