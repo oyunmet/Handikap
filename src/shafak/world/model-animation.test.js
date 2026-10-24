@@ -176,11 +176,13 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
       assert.ok(config.animationClips.attack?.includes("Dagger_Attack"));
       assert.equal(config.isBoss, true);
     } else if (profile.name === "Demir Taç") {
-      assert.equal(config.modelPath, "/models/fantasy_knight.glb");
+      assert.equal(config.modelPath, "/models/player-hero.glb");
       assert.equal(config.targetHeight, 3.35);
-      assert.equal(config.rootBoneName, "world");
-      assert.deepEqual(config.modelRotation, [-Math.PI / 2, 0, 0]);
-      assert.deepEqual(config.animationClips, {});
+      assert.equal(config.rootBoneName, "Root");
+      assert.equal(config.modelFacing, Math.PI);
+      assert.equal(config.modelRotation, undefined);
+      assert.ok(config.animationClips.run?.includes("CharacterArmature|Run"));
+      assert.ok(config.animationClips.attack?.includes("CharacterArmature|Dagger_Attack"));
       assert.equal(config.isBoss, true);
     } else {
       const [modelPath, weapon, attackClips] = expectedModels[profile.archetype];
@@ -198,9 +200,9 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(ironCrown?.modelPath, "/models/fantasy_knight.glb");
-  assert.equal(ironCrown?.modelFacing, 0);
-  assert.deepEqual(ironCrown?.animationClips, {});
+  assert.equal(ironCrown?.modelPath, "/models/player-hero.glb");
+  assert.equal(ironCrown?.modelFacing, Math.PI);
+  assert.ok(ironCrown?.animationClips.run?.includes("CharacterArmature|Run"));
   assert.equal(ironCrown?.isDemirTac, true);
 });
 

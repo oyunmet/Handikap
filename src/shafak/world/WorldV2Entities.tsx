@@ -12,6 +12,7 @@ import { RIVAL_DIALOGUE_RANGE_METERS, type WorldInteractableRegistry } from "./w
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import type { LoadedWorldAsset } from "./world-v2-assets";
+import type { OpponentModelConfig } from "./opponent-model-config";
 import WorldV2Actor from "./WorldV2Actor";
 import { WorldV2Label } from "./WorldV2Labels";
 
@@ -297,6 +298,7 @@ function WorldV2Npc({
   rival,
   index,
   asset,
+  demirTacModelConfig,
   motionRef,
   dialoguePortal,
   focused,
@@ -310,6 +312,7 @@ function WorldV2Npc({
   rival: WorldRival;
   index: number;
   asset: LoadedWorldAsset;
+  demirTacModelConfig: OpponentModelConfig;
   motionRef: MotionRef;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   focused: boolean;
@@ -369,6 +372,7 @@ function WorldV2Npc({
         x={x}
         tint={rival.name === "Demir Taç" ? undefined : NPC_TINTS[rival.name] ?? rival.armorTint}
         localToParent
+        modelConfig={rival.name === "Demir Taç" ? demirTacModelConfig : undefined}
       />
       <group ref={anchorRef}>
         <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -418,6 +422,7 @@ export function WorldV2Entities({
   motionRef,
   asset,
   demirTacAsset,
+  demirTacModelConfig,
   dialoguePortal,
   rivals,
   pickups,
@@ -438,6 +443,7 @@ export function WorldV2Entities({
   motionRef: MotionRef;
   asset: LoadedWorldAsset | null;
   demirTacAsset: LoadedWorldAsset | null;
+  demirTacModelConfig: OpponentModelConfig;
   dialoguePortal: MutableRefObject<HTMLDivElement>;
   rivals: WorldRival[];
   pickups: WorldPickup[];
@@ -492,6 +498,7 @@ export function WorldV2Entities({
             rival={rival}
             index={index}
             asset={npcAsset}
+            demirTacModelConfig={demirTacModelConfig}
             motionRef={motionRef}
             dialoguePortal={dialoguePortal}
             focused={rival.id === focusedRivalId}

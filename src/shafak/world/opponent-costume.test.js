@@ -50,11 +50,43 @@ test("other chapter bosses still receive the shared animated-rig costume", () =>
   assert.equal(shouldAttachOpponentCostume(config), true);
 });
 
-test("Demir Taç keeps the complete bundled GLB without generated costume pieces", () => {
+test("Demir Taç uses the animated player rig with its own mounted armor and crown", () => {
   const config = getAnimatedRivalModelConfig(
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(config.modelPath, "/models/fantasy_knight.glb");
-  assert.equal(shouldAttachOpponentCostume(config), false);
+  assert.equal(config.modelPath, "/models/player-hero.glb");
+  assert.ok(config.animationClips.run?.includes("CharacterArmature|Run"));
+  assert.equal(shouldAttachOpponentCostume(config), true);
+
+  const model = new THREE.Group();
+  const bones = new Map();
+  for (const name of [
+    "Head",
+    "Torso",
+    "ShoulderL",
+    "ShoulderR",
+    "LowerArmL",
+    "LowerArmR",
+    "LowerLegL",
+    "LowerLegR",
+  ]) {
+    const bone = new THREE.Bone();
+    bone.name = name;
+    model.add(bone);
+    bones.set(name, bone);
+  }
+  const costume = attachOpponentCostume(model, config, config.appearance);
+  const names = [];
+  model.traverse((object) => names.push(object.name));
+
+  assert.ok(names.includes("demir-tac-head-gear"));
+  assert.ok(names.includes("demir-tac-crown-band"));
+  assert.ok(names.includes("demir-tac-chest-armor"));
+  assert.ok(names.includes("demir-tac-crimson-cape"));
+  assert.ok(names.includes("demir-tac-vambrace-right"));
+  assert.ok(names.includes("demir-tac-greave-left"));
+  assert.equal(model.getObjectByName("demir-tac-head-gear").parent, bones.get("Head"));
+
+  costume.dispose();
 });

@@ -13,18 +13,18 @@ export type AttachedOpponentCostume = {
 };
 
 export function shouldAttachOpponentCostume(modelConfig: OpponentModelConfig | undefined) {
-  return Boolean(modelConfig && !modelConfig.isDemirTac);
+  return Boolean(modelConfig);
 }
 
 const BONE_NAMES = {
   head: ["Head", "DEF-head", "head", "Rig_Head"],
   torso: ["Spine2", "Spine1", "Torso", "DEF-spine.003", "DEF-spine.002", "Spine", "torso", "Hips"],
-  leftShoulder: ["Shoulder.L", "LeftShoulder", "DEF-shoulder.L", "Rig_LeftShoulder"],
-  rightShoulder: ["Shoulder.R", "RightShoulder", "DEF-shoulder.R", "Rig_RightShoulder"],
-  leftForearm: ["LowerArm.L", "LeftForeArm", "LeftForearm", "DEF-forearm.L", "Rig_LeftForearm"],
-  rightForearm: ["LowerArm.R", "RightForeArm", "RightForearm", "DEF-forearm.R", "Rig_RightForearm"],
-  leftShin: ["LowerLeg.L", "LeftLeg", "LeftShin", "DEF-shin.L", "Rig_LeftShin"],
-  rightShin: ["LowerLeg.R", "RightLeg", "RightShin", "DEF-shin.R", "Rig_RightShin"],
+  leftShoulder: ["Shoulder.L", "ShoulderL", "LeftShoulder", "DEF-shoulder.L", "Rig_LeftShoulder"],
+  rightShoulder: ["Shoulder.R", "ShoulderR", "RightShoulder", "DEF-shoulder.R", "Rig_RightShoulder"],
+  leftForearm: ["LowerArm.L", "LowerArmL", "LeftForeArm", "LeftForearm", "DEF-forearm.L", "Rig_LeftForearm"],
+  rightForearm: ["LowerArm.R", "LowerArmR", "RightForeArm", "RightForearm", "DEF-forearm.R", "Rig_RightForearm"],
+  leftShin: ["LowerLeg.L", "LowerLegL", "LeftLeg", "LeftShin", "DEF-shin.L", "Rig_LeftShin"],
+  rightShin: ["LowerLeg.R", "LowerLegR", "RightLeg", "RightShin", "DEF-shin.R", "Rig_RightShin"],
 } as const;
 
 function findMount(model: THREE.Object3D, names: readonly string[]) {
@@ -109,7 +109,7 @@ export function attachOpponentCostume(
     position: THREE.Vector3,
   ) => {
     const group = new THREE.Group();
-    group.scale.setScalar(modelConfig.isBoss ? 1 : normalizedInverseScale);
+    group.scale.setScalar(normalizedInverseScale);
     group.position.copy(position);
     parent.add(group);
     mounts.push(group);

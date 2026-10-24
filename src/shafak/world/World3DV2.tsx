@@ -487,6 +487,7 @@ export default function World3DV2(props: World3DProps) {
                     motionRef={props.motionRef}
                     asset={asset}
                     demirTacAsset={demirTacAsset}
+                    demirTacModelConfig={DEMIR_TAC_WORLD_CONFIG}
                     dialoguePortal={props.dialoguePortal}
                     rivals={props.rivals}
                     pickups={props.pickups}

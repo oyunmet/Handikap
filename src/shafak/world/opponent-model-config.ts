@@ -185,7 +185,7 @@ export function getAnimatedRivalModelConfig(
   };
   const useDemirTac = name === "Demir Taç";
   const modelPath = useDemirTac
-    ? "/models/fantasy_knight.glb"
+    ? "/models/player-hero.glb"
     : isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
   const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
   const heroAnimations = {
@@ -290,12 +290,10 @@ export function getAnimatedRivalModelConfig(
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
     modelFacing: usePlayerHero ? Math.PI : baseConfig.modelFacing,
-    rootBoneName: useDemirTac
-      ? "world"
-      : useNightWatcher
-        ? baseConfig.rootBoneName
-        : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
-    modelRotation: useDemirTac ? [-Math.PI / 2, 0, 0] as const : undefined,
+    rootBoneName: useNightWatcher
+      ? baseConfig.rootBoneName
+      : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+    modelRotation: undefined,
     preserveOriginalMaterialAliases: useNightWatcher
       ? ["gold", "steel", "cape"]
       : useHuman ? ["texture"] : undefined,
@@ -305,11 +303,9 @@ export function getAnimatedRivalModelConfig(
     isDemirTac: useDemirTac,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
     tintStrength: useDemirTac ? 0 : isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
-    animationClips: useDemirTac
-      ? {}
-      : useNightWatcher
-        ? baseConfig.animationClips
-        : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+    animationClips: useNightWatcher
+      ? baseConfig.animationClips
+      : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
     weapon,
     appearance,
     materialNameAliases: useDemirTac ? demirTacMaterialNameAliases : materialNameAliases,

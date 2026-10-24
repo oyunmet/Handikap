@@ -5,10 +5,21 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
-import { isRootTranslationTrack } from "./model-animation";
+import { createPlayerLocomotionClip, isRootTranslationTrack } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
+import type { OpponentModelConfig } from "./opponent-model-config";
+import {
+  attachOpponentCostume,
+  shouldAttachOpponentCostume,
+  type AttachedOpponentCostume,
+} from "./opponent-costume";
+import {
+  createDuelWeapon,
+  disposeDuelWeapon,
+  normalizeDuelWeaponWorldSize,
+} from "./duel-weapon";
 
 export type WorldV2ActorDebugSnapshot = {
   yaw: number;
@@ -33,6 +44,7 @@ type Props = {
   tint?: string;
   animationState?: CharacterAnimationState;
   localToParent?: boolean;
+  modelConfig?: OpponentModelConfig;
 };
 
 function resolveClip(animations: THREE.AnimationClip[], state: CharacterAnimationState) {
@@ -59,6 +71,7 @@ export default function WorldV2Actor({
   tint,
   animationState = "idle",
   localToParent = false,
+  modelConfig,
 }: Props) {
   const rootRef = useRef<THREE.Group>(null);
   const model = useMemo(() => {
@@ -70,15 +83,15 @@ export default function WorldV2Actor({
     });
     return clone;
   }, [asset, tint]);
-  const animations = useMemo(
-    () => asset.animations,
-    [asset],
-  );
+  const animations = useMemo(() => asset.url === KNIGHT_CONFIG.modelPath
+    ? asset.animations.map(createPlayerLocomotionClip)
+    : asset.animations, [asset]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const actionsRef = useRef(new Map<string, THREE.AnimationAction>());
   const activeClipNameRef = useRef("");
   const debugRefreshElapsed = useRef(0);
+  const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
   const playerFacingAngle = useRef(Math.PI);
 
@@ -96,7 +109,33 @@ export default function WorldV2Actor({
     };
   }, [mixer, model]);
 
-  useFrame((_frame, delta) => {
+  useEffect(() => {
+    if (isPlayer || !modelConfig || !shouldAttachOpponentCostume(modelConfig)) return undefined;
+    const costume = attachOpponentCostume(model, modelConfig, modelConfig.appearance);
+    opponentCostumeRef.current = costume;
+    return () => {
+      if (opponentCostumeRef.current === costume) opponentCostumeRef.current = null;
+      costume.dispose();
+    };
+  }, [isPlayer, model, modelConfig]);
+
+  useEffect(() => {
+    if (isPlayer || !modelConfig?.isDemirTac) return undefined;
+    const hand = model.getObjectByName("FistR") ?? model.getObjectByName("Fist1R");
+    if (!hand) {
+      console.warn("[shafak-world] Demir Taç's animated rig has no right-hand weapon mount.");
+      return undefined;
+    }
+    const weapon = createDuelWeapon(modelConfig.appearance);
+    hand.add(weapon);
+    normalizeDuelWeaponWorldSize(weapon, 1);
+    return () => {
+      hand.remove(weapon);
+      disposeDuelWeapon(weapon);
+    };
+  }, [isPlayer, model, modelConfig]);
+
+  useFrame((frame, delta) => {
     const root = rootRef.current;
     if (!root) return;
     const motion = motionRef.current;
@@ -136,6 +175,7 @@ export default function WorldV2Actor({
       activeClipNameRef.current = clip.name;
     }
     mixer.update(Math.min(delta, 0.05));
+    opponentCostumeRef.current?.update(frame.clock.elapsedTime);
     root.userData.worldCharacterYaw = root.rotation.y;
     root.userData.worldAnimationClips = isPlayer
       ? [{ name: animationState, weight: 1 }]

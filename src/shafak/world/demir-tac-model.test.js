@@ -4,17 +4,18 @@ import test from "node:test";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { shouldAttachOpponentCostume } from "./opponent-costume.ts";
+import { attachOpponentCostume, shouldAttachOpponentCostume } from "./opponent-costume.ts";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 import {
   cloneCharacterResources,
+  disposeCharacterResources,
   fitCharacterModel,
   getCharacterBounds,
 } from "./character-model.ts";
 import { prepareWorldAsset } from "./world-v2-assets.ts";
 
-const modelPath = new URL("../../../public/models/fantasy_knight.glb", import.meta.url);
+const modelPath = new URL("../../../public/models/player-hero.glb", import.meta.url);
 
 function readGlb(path) {
   const buffer = fs.readFileSync(path);
@@ -25,23 +26,28 @@ function readGlb(path) {
   return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
 }
 
-test("Demir Taç selects the original armored knight GLB without recoloring or generated gear", () => {
+test("Demir Taç uses the animated player rig and keeps a distinct boss identity", async () => {
   const gltf = readGlb(modelPath);
   const profile = getWorldBotProfileByArchetype("chapter-boss");
   const worldConfig = getAnimatedRivalModelConfig("Demir Taç", profile, "world");
   const duelConfig = getAnimatedRivalModelConfig("Demir Taç", profile, "duel");
+  const buffer = fs.readFileSync(modelPath);
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const loaded = await new GLTFLoader().parseAsync(arrayBuffer, "");
 
-  assert.equal(worldConfig.modelPath, "/models/fantasy_knight.glb");
+  assert.equal(worldConfig.modelPath, "/models/player-hero.glb");
   assert.equal(worldConfig.isDemirTac, true);
-  assert.equal(worldConfig.rootBoneName, "world");
-  assert.deepEqual(worldConfig.modelRotation, [-Math.PI / 2, 0, 0]);
-  assert.equal(gltf.animations?.length ?? 0, 0);
-  assert.equal(gltf.skins?.length ?? 0, 0);
-  const modelParts = gltf.nodes.map((node) => node.name);
-  for (const part of ["flowing_crimson_cape", "sword_blade", "gold_chest_rim_-1", "pauldron_plate1"]) {
-    assert.ok(modelParts.includes(part), `missing bundled character part: ${part}`);
-  }
-  assert.equal(shouldAttachOpponentCostume(worldConfig), false);
+  assert.equal(worldConfig.rootBoneName, "Root");
+  assert.equal(worldConfig.modelFacing, Math.PI);
+  assert.equal(worldConfig.modelRotation, undefined);
+  assert.equal(shouldAttachOpponentCostume(worldConfig), true);
+  assert.ok(loaded.scene.getObjectByName("Root"));
+  assert.ok(loaded.scene.getObjectByName("Head"));
+  assert.ok(loaded.scene.getObjectByName("ShoulderL"));
+  assert.ok(loaded.scene.getObjectByName("LowerArmR"));
+  assert.ok(loaded.scene.getObjectByName("LowerLegR"));
+  assert.ok(loaded.animations.some((clip) => clip.name === "Run"));
+  assert.ok(worldConfig.animationClips.run?.includes("CharacterArmature|Run"));
   assert.equal(worldConfig.targetHeight, 1.95);
   assert.equal(duelConfig.targetHeight, 3.35);
   assert.equal(worldConfig.weapon, "greatsword");
@@ -57,9 +63,8 @@ test("Demir Taç's bundled cape, armor, and sword stay inside world and duel siz
 
   for (const context of ["world", "duel"]) {
     const config = getAnimatedRivalModelConfig("Demir Taç", profile, context);
-    const model = cloneSkinned(gltf.scene);
-    let dimensions;
-    let groundOffset;
+    let model = cloneSkinned(gltf.scene);
+    const resources = cloneCharacterResources(model);
     if (context === "world") {
       const asset = prepareWorldAsset(config.modelPath, {
         scene: model,
@@ -69,20 +74,25 @@ test("Demir Taç's bundled cape, armor, and sword stay inside world and duel siz
         maxDimension: config.maxDimension,
         modelRotation: config.modelRotation,
       });
-      const bounds = getCharacterBounds(asset.scene);
-      dimensions = bounds.getSize(new THREE.Vector3());
-      groundOffset = bounds.min.y;
+      model = asset.scene;
     } else {
-      cloneCharacterResources(model);
-      model.rotation.set(...config.modelRotation);
+      model.rotation.set(...(config.modelRotation ?? [0, 0, 0]));
       fitCharacterModel(model, config.targetHeight, config.modelPath, config.maxDimension);
-      const bounds = getCharacterBounds(model);
-      dimensions = bounds.getSize(new THREE.Vector3());
-      groundOffset = bounds.min.y;
     }
 
-    assert.ok(Math.abs(dimensions.y - config.targetHeight) < 0.02, `${context} height=${dimensions.y}`);
-    assert.ok(Math.max(dimensions.x, dimensions.y, dimensions.z) <= config.maxDimension + 0.01);
-    assert.ok(Math.abs(groundOffset) < 0.02, `${context} ground offset=${groundOffset}`);
+    const costume = attachOpponentCostume(model, config, config.appearance);
+    model.updateMatrixWorld(true);
+    const bounds = getCharacterBounds(model);
+    const dimensions = bounds.getSize(new THREE.Vector3());
+    try {
+      assert.ok(model.getObjectByName("demir-tac-head-gear"));
+      assert.ok(model.getObjectByName("demir-tac-crimson-cape"));
+      assert.ok(Math.max(dimensions.x, dimensions.y, dimensions.z) <= config.maxDimension + 0.03);
+      assert.ok(dimensions.y >= config.targetHeight, `${context} gear should remain visible above the fitted rig`);
+      assert.ok(Math.abs(bounds.min.y) < 0.03, `${context} ground offset=${bounds.min.y}`);
+    } finally {
+      costume.dispose();
+      disposeCharacterResources(resources);
+    }
   }
 });
