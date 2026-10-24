@@ -2374,6 +2374,20 @@
   pointer-events: none;
 }
 @media (max-width: 760px) {
+  .duel-aim-status {
+    top: auto;
+    bottom: max(236px, calc(env(safe-area-inset-bottom) + 220px));
+    left: 50%;
+    width: max-content;
+    max-width: calc(100vw - 150px);
+    padding: 5px 7px;
+    font-size: 7px;
+    line-height: 1.35;
+    letter-spacing: .07em;
+    text-align: center;
+    white-space: normal;
+    transform: translateX(-50%);
+  }
   .duel-controls--field .duel-forfeit {
     top: max(64px, calc(env(safe-area-inset-top) + 56px));
     left: max(12px, calc(env(safe-area-inset-left) + 8px));
@@ -2550,6 +2564,11 @@
   }
 }
 @media (max-height: 700px) and (orientation: landscape) and (max-width: 760px) {
+  .duel-aim-status {
+    top: auto;
+    bottom: max(156px, calc(env(safe-area-inset-bottom) + 144px));
+    max-width: min(280px, calc(100vw - 150px));
+  }
   .duel-controls--field .duel-forfeit,
   .duel-controls--field .duel-help-button {
     top: max(8px, calc(env(safe-area-inset-top) + 8px));

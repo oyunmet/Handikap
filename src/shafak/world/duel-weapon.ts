@@ -172,7 +172,11 @@ export function normalizeDuelWeaponWorldSize(root: THREE.Group, targetMaxDimensi
   const target = Number.isFinite(targetMaxDimension)
     ? THREE.MathUtils.clamp(targetMaxDimension, 0.1, 1.5)
     : 1;
-  root.scale.multiplyScalar(target / currentMaxDimension);
+  const fitScale = target / currentMaxDimension;
+  root.scale.multiplyScalar(fitScale);
+  // The grip offset is local to the geometry. Scale it with the weapon so the
+  // handle stays at the hand bone after fitting under a scaled character rig.
+  root.position.multiplyScalar(fitScale);
   root.updateWorldMatrix(true, true);
   return target;
 }
