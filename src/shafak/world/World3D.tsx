@@ -493,7 +493,7 @@ function CameraRig({
     if (cinematicIntro) cinematicStartRef.current ??= _.clock.elapsedTime;
     else cinematicStartRef.current = null;
     const scaledDelta = Math.min(delta, 0.05) * ((slowMotion && !combat) || finisherSlowMotion ? 0.24 : 1);
-    const response = 1 - Math.exp(-scaledDelta * (combat ? 5.5 : focusedRival ? 2.6 : 4.5));
+    const response = 1 - Math.exp(-scaledDelta * (combat ? 11 : focusedRival ? 2.6 : 4.5));
     let latestSkillEvent: CombatVisualEvent | undefined;
     for (let index = combatVisualEvents.length - 1; index >= 0; index -= 1) {
       if (combatVisualEvents[index].type === "skill") {
@@ -559,7 +559,9 @@ function CameraRig({
     else cameraOriginRef.set(lateral, 1.15, 0);
     cameraDirectionRef.copy(desiredRef).sub(cameraOriginRef);
     const requestedDistance = cameraDirectionRef.length();
-    if (requestedDistance > 0.05) {
+    // The duel arena is an isolated scene. World-scene occlusion hits can
+    // otherwise shorten the combat camera and push a fighter out of frame.
+    if (!combat && requestedDistance > 0.05) {
       cameraDirectionRef.multiplyScalar(1 / requestedDistance);
       cameraOccluderScanElapsedRef.current += Math.min(delta, 0.05);
       if (cameraOccluderScanElapsedRef.current >= 0.25) {

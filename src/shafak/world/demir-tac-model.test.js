@@ -71,10 +71,10 @@ test("Demir Taç uses the animated player rig and keeps a distinct boss identity
   );
   assert.equal(materials.get("eye").color.getHexString(), eyeColor);
   assert.equal(worldConfig.targetHeight, 1.95);
-  assert.equal(duelConfig.targetHeight, 3.35);
+  assert.equal(duelConfig.targetHeight, 2.15);
   assert.equal(worldConfig.weapon, "greatsword");
   assert.equal(worldConfig.maxDimension, 2.925);
-  assert.equal(duelConfig.maxDimension, 4.6);
+  assert.equal(duelConfig.maxDimension, 3.25);
 });
 
 test("Demir Taç's rig-mounted armor stays grounded and within world and duel size targets", async () => {

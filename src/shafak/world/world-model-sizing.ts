@@ -28,7 +28,7 @@ export const WORLD_MODEL_SIZE_TARGETS = {
   worldCharacter: { targetHeight: 1.8, maxDimension: 2.7 },
   worldBoss: { targetHeight: 1.95, maxDimension: 2.925 },
   duelCharacter: { targetHeight: 1.8, maxDimension: 2.7 },
-  duelBoss: { targetHeight: 3.35, maxDimension: 4.6 },
+  duelBoss: { targetHeight: 2.15, maxDimension: 3.25 },
 } as const satisfies Record<string, WorldModelSizeTarget>;
 
 export type WorldModelSizeTargetName = keyof typeof WORLD_MODEL_SIZE_TARGETS;

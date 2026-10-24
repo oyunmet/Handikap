@@ -16,7 +16,7 @@ export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
-export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.35;
+export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.65;
 
 export function getDuelCameraFramingDistance(
   player: DuelPoint,

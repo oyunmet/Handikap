@@ -13,6 +13,7 @@ import {
   getDuelJumpHeight,
   getUprightDuelRotation,
 } from "./duel-camera.ts";
+import { COMBAT_ARENA_ACTOR_LIMIT } from "./combat-engine.ts";
 import { getKnightActorRootYaw } from "../world/knight-config.ts";
 
 test("duel camera keeps a stable world heading as fighters move and cross", () => {
@@ -168,8 +169,8 @@ test("the mobile camera keeps its framing distance when both fighters reach the 
 });
 
 test("portrait duel framing fits fighters at opposite arena edges on screen", () => {
-  const player = { x: -6.5, z: DUEL_CAMERA_ARENA_CENTER_Z };
-  const opponent = { x: 6.5, z: DUEL_CAMERA_ARENA_CENTER_Z };
+  const player = { x: -COMBAT_ARENA_ACTOR_LIMIT, z: DUEL_CAMERA_ARENA_CENTER_Z };
+  const opponent = { x: COMBAT_ARENA_ACTOR_LIMIT, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const aspect = 402 / 874;
   const cameraBack = getDuelCameraFramingDistance(
     player,

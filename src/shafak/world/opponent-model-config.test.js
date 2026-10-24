@@ -76,7 +76,7 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(frostConfig.appearance.armorLight, "#c8e1e5");
   assert.equal(frostConfig.weapon, "bow");
   assert.equal(bossConfig.modelPath, "/models/player-hero.glb");
-  assert.equal(bossConfig.targetHeight, 3.35);
+  assert.equal(bossConfig.targetHeight, 2.15);
   assert.equal(worldBossConfig.targetHeight, 1.95);
   assert.equal(bossConfig.rootBoneName, "Root");
   assert.equal(bossConfig.modelFacing, Math.PI);

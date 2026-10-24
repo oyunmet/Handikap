@@ -197,14 +197,14 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     assert.ok(config.tintColor);
     if (profile.archetype === "chapter-boss" && profile.name !== "Demir Taç") {
       assert.equal(config.modelPath, "/models/player-hero.glb");
-      assert.equal(config.targetHeight, 3.35);
+      assert.equal(config.targetHeight, 2.15);
       assert.equal(config.rootBoneName, "Root");
       assert.equal(config.modelRotation, undefined);
       assert.ok(config.animationClips.attack?.includes("Dagger_Attack"));
       assert.equal(config.isBoss, true);
     } else if (profile.name === "Demir Taç") {
       assert.equal(config.modelPath, "/models/player-hero.glb");
-      assert.equal(config.targetHeight, 3.35);
+      assert.equal(config.targetHeight, 2.15);
       assert.equal(config.rootBoneName, "Root");
       assert.equal(config.modelFacing, Math.PI);
       assert.equal(config.modelRotation, undefined);
