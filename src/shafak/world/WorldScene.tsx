@@ -1916,6 +1916,11 @@ export default function WorldScene({
     input.buttons &= ~button;
     input.released |= button;
   };
+  const toggleDuelAim = () => {
+    const input = combatInputRef.current;
+    if (input.buttons & INPUT_BUTTON.aim) releaseDuelButton(INPUT_BUTTON.aim);
+    else pressDuelButton(INPUT_BUTTON.aim);
+  };
   const moveDuelPlayer = (x: number, y: number) => {
     const input = getDuelCameraRelativeInput(
       Math.max(-1, Math.min(1, x)),
@@ -2991,6 +2996,7 @@ export default function WorldScene({
             bowCloseRange={bowCloseRange}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
+            onToggleAim={toggleDuelAim}
             onMove={moveDuelPlayer}
             onSurrender={() => {
               if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);

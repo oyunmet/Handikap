@@ -26,6 +26,7 @@ type DuelControlsProps = {
   bowCloseRange: boolean;
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
+  onToggleAim: () => void;
   onMove: (x: number, y: number) => void;
   onSurrender: () => void;
   onOpenHelp: () => void;
@@ -168,6 +169,7 @@ export default function DuelControls({
   skillTwoSeconds,
   onPress,
   onRelease,
+  onToggleAim,
   onMove,
   onSurrender,
   onOpenHelp,
@@ -259,15 +261,19 @@ export default function DuelControls({
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
       <div className="duel-stance-controls" aria-label="Düello hareketleri">
-        <HeldButton
-          button={INPUT_BUTTON.aim}
-          label="NİŞAN"
-          accessibleLabel={`Hedef al: ${activeWeapon}${aiming ? ", hedef kilitli" : ""}`}
-          className={`is-stance is-aim${aiming ? " is-active" : ""}`}
-          onPress={onPress}
-          onRelease={onRelease}
-          onBlocked={showBlockedHint}
-        />
+        <button
+          className={`duel-control is-stance is-aim${aiming ? " is-active" : ""}`}
+          type="button"
+          aria-label={`Hedef al: ${activeWeapon}${aiming ? ", hedef kilitli" : ""}`}
+          aria-pressed={aiming}
+          onClick={() => {
+            if (!disabled) onToggleAim();
+          }}
+        >
+          <ControlIcon className="is-aim" />
+          <span>NİŞAN</span>
+          <kbd className="duel-control__key" aria-hidden="true">F</kbd>
+        </button>
         <button
           className="duel-control is-stance is-jump"
           type="button"

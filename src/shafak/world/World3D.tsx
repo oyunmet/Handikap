@@ -760,9 +760,11 @@ function DuelFighter({
     : side === "bot" ? Math.PI : 0;
   const speed = renderedActor ? Math.hypot(renderedActor.vx, renderedActor.vz) : 0;
   const animation = renderedActor
-    ? renderedActor.isCrouching || renderedActor.isAiming
-      ? "block"
-      : combatAnimation(renderedActor.action, speed)
+    ? ["attack", "heavyAttack", "skillOne", "skillTwo", "plunge"].includes(renderedActor.action)
+      ? combatAnimation(renderedActor.action, speed)
+      : renderedActor.isCrouching || renderedActor.isAiming
+        ? "block"
+        : combatAnimation(renderedActor.action, speed)
     : "idle";
   const opponentProfile = side === "bot" && combatRender
     ? getWorldBotProfileByArchetype(combatRender.botArchetype)
@@ -1313,20 +1315,20 @@ function DuelCombatVisual({
       {kind === "arrow" && (
         <group ref={arrowRef}>
           <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.026, 0.026, 0.74, 5]} />
-            <meshBasicMaterial color="#dfc38c" toneMapped={false} />
+            <cylinderGeometry args={[0.034, 0.034, 1.02, 6]} />
+            <meshBasicMaterial color="#ffe7a6" toneMapped={false} />
           </mesh>
-          <mesh position={[0, 0, 0.42]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.07, 0.18, 5]} />
-            <meshStandardMaterial color="#e8e2d2" metalness={0.82} roughness={0.24} emissive="#c79b54" emissiveIntensity={0.18} />
+          <mesh position={[0, 0, 0.56]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.085, 0.22, 5]} />
+            <meshStandardMaterial color="#fff2cc" metalness={0.62} roughness={0.22} emissive="#ffb94f" emissiveIntensity={0.9} toneMapped={false} />
           </mesh>
-          <mesh position={[-0.035, 0, -0.28]} rotation={[0, -0.16, -0.12]}>
-            <boxGeometry args={[0.1, 0.018, 0.14]} />
-            <meshBasicMaterial color="#8b5441" toneMapped={false} />
+          <mesh position={[-0.05, 0, -0.42]} rotation={[0, -0.16, -0.12]}>
+            <boxGeometry args={[0.14, 0.025, 0.19]} />
+            <meshBasicMaterial color="#ff8b55" toneMapped={false} />
           </mesh>
-          <mesh position={[0.035, 0, -0.28]} rotation={[0, 0.16, 0.12]}>
-            <boxGeometry args={[0.1, 0.018, 0.14]} />
-            <meshBasicMaterial color="#8b5441" toneMapped={false} />
+          <mesh position={[0.05, 0, -0.42]} rotation={[0, 0.16, 0.12]}>
+            <boxGeometry args={[0.14, 0.025, 0.19]} />
+            <meshBasicMaterial color="#ff8b55" toneMapped={false} />
           </mesh>
         </group>
       )}
