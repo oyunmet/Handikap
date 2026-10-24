@@ -1,4 +1,5 @@
 import type { EquipmentVisual, ItemRarity } from "./store-types.ts";
+import type { CombatItemId } from "./combat-items.ts";
 
 export type WeaponKind = "yakın" | "uzak";
 export type WeaponRarity = "Sıradan" | "Nadir" | "Epik" | "Efsanevi";
@@ -145,6 +146,14 @@ const weaponsById = new Map<string, WeaponDefinition>(WEAPONS.map((weapon) => [w
 
 export function getWeaponDefinition(id: string | null | undefined) {
   return id ? weaponsById.get(id) ?? null : null;
+}
+
+export function getWeaponAmmoItemId(id: string | null | undefined): CombatItemId | null {
+  const animationId = getWeaponDefinition(id)?.animationId;
+  if (animationId === "bow-shot") return "arrow_ammo";
+  if (animationId === "crossbow-shot") return "bolt_ammo";
+  if (animationId === "throw") return "throwing_blade_ammo";
+  return null;
 }
 
 export function isCoreWeapon(id: string | null | undefined): id is string {

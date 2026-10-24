@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PlayerProfile } from "../profile";
-import { COMBAT_ITEMS, type CombatItemId } from "../combat-items.ts";
+import { COMBAT_ITEMS, isCombatQuickSlotId, type CombatItemId } from "../combat-items.ts";
 import {
   EQUIPMENT_LOADOUT_KEYS,
   EQUIPMENT_SLOT_LABELS,
@@ -133,7 +133,7 @@ export default function StorePanel({
 
   const ownedIds = profile.inventory.ownedItemIds;
   const ownedSet = useMemo(() => new Set(ownedIds), [ownedIds]);
-  const ownedCombatItems = COMBAT_ITEMS.filter((item) => profile.inventory.combatItemCounts[item.id] > 0);
+  const ownedCombatItems = COMBAT_ITEMS.filter((item) => isCombatQuickSlotId(item.id) && profile.inventory.combatItemCounts[item.id] > 0);
   const visibleItems = useMemo(() => {
     if (activeTab === "inventory") {
       return items.filter((item) => item.kind === "equipment"

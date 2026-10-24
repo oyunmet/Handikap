@@ -2,7 +2,7 @@ import { getAuth } from "@clerk/express";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool, PoolClient } from "pg";
-import { isCombatItemId } from "../src/shafak/game/combat-items.ts";
+import { getCombatItem, isCombatQuickSlotId } from "../src/shafak/game/combat-items.ts";
 import {
   createDefaultPlayerProfile,
   validatePlayerProfile,
@@ -108,7 +108,7 @@ function validateCombatLoadoutBody(value: unknown): {
     Object.keys(value).length !== 2 ||
     !Array.isArray(value.quickSlots) ||
     value.quickSlots.length !== 4 ||
-    value.quickSlots.some((itemId) => itemId !== null && !isCombatItemId(itemId)) ||
+    value.quickSlots.some((itemId) => itemId !== null && !isCombatQuickSlotId(itemId)) ||
     (value.secondaryWeaponId !== null &&
       (typeof value.secondaryWeaponId !== "string" || !/^[a-z0-9_-]{1,60}$/.test(value.secondaryWeaponId)))
   ) return null;
@@ -333,7 +333,7 @@ export function createStoreApi(
         const current = profile.inventory.combatItemCounts[storeItem.reward.itemId];
         if (current + storeItem.reward.amount > 999) throw new StoreServiceError(409, "stack_limit");
         const quickSlots = [...profile.inventory.quickSlots] as PlayerProfile["inventory"]["quickSlots"];
-        if (!quickSlots.includes(storeItem.reward.itemId)) {
+        if (getCombatItem(storeItem.reward.itemId)?.effect !== "ammo" && !quickSlots.includes(storeItem.reward.itemId)) {
           const firstOpenSlot = quickSlots.findIndex((itemId) => itemId === null);
           if (firstOpenSlot >= 0) quickSlots[firstOpenSlot] = storeItem.reward.itemId;
         }

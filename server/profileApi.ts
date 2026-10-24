@@ -7,6 +7,7 @@ import {
   DEFAULT_COMBAT_ITEM_COUNTS,
   DEFAULT_COMBAT_QUICK_SLOTS,
   isCombatItemId,
+  isCombatQuickSlotId,
   normalizeCombatItemCounts,
   normalizeCombatQuickSlots,
 } from "../src/shafak/game/combat-items.ts";
@@ -217,7 +218,7 @@ function normalizeInventory(value: unknown): PlayerInventory | null {
     value.quickSlots !== undefined &&
     (!Array.isArray(value.quickSlots) ||
       value.quickSlots.length !== 4 ||
-      value.quickSlots.some((itemId) => itemId !== null && !isCombatItemId(itemId)))
+      value.quickSlots.some((itemId) => itemId !== null && !isCombatQuickSlotId(itemId)))
   ) return null;
   if (value.secondaryWeaponId !== undefined && value.secondaryWeaponId !== null && !isItemId(value.secondaryWeaponId)) return null;
   const combatItemCounts = normalizeCombatItemCounts(value.combatItemCounts);

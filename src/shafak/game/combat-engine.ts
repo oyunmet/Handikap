@@ -1,7 +1,7 @@
 import type { PlayerCombatModifiers } from "./store-types.ts";
-import type { CombatItemCounts, CombatItemId, CombatQuickSlots } from "./combat-items.ts";
+import { DEFAULT_COMBAT_ITEM_COUNTS, isCombatQuickSlotId, type CombatItemCounts, type CombatItemId, type CombatQuickSlots } from "./combat-items.ts";
 import { getStoreItem } from "./store-catalog.ts";
-import { getWeaponDefinition } from "./weapons.ts";
+import { getWeaponAmmoItemId, getWeaponDefinition } from "./weapons.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
@@ -323,14 +323,7 @@ export function createCombatState(
     weaponIds: loadout?.weaponIds ?? ["weapon_ash_sword", null],
     activeWeaponSlot: 0,
     quickSlotItemIds: loadout?.quickSlots ?? [null, null, null, null],
-    combatItemCounts: loadout?.itemCounts ?? {
-      health_potion: 0,
-      stamina_potion: 0,
-      venom_vial: 0,
-      throwing_knife: 0,
-      explosive_flask: 0,
-      smoke_bomb: 0,
-    },
+    combatItemCounts: loadout?.itemCounts ?? { ...DEFAULT_COMBAT_ITEM_COUNTS },
     weaponSwapCooldownUntilTick: 0,
     player: {
       ...makeActor(-3, COMBAT_ARENA_CENTER_Z, normalizedStats.maxHealth),
@@ -354,7 +347,7 @@ const QUICK_SLOT_BUTTONS = [
 
 function useCombatItem(state: CombatState, slotIndex: number, tick: number, events: CombatEvent[]) {
   const itemId = state.quickSlotItemIds[slotIndex];
-  if (!itemId || state.combatItemCounts[itemId] <= 0) return;
+  if (!itemId || !isCombatQuickSlotId(itemId) || state.combatItemCounts[itemId] <= 0) return;
   const player = state.player;
   if (tick < player.quickSlotCooldownUntilTick[slotIndex]) return;
 
@@ -582,8 +575,9 @@ function startAttack(
   const rangedShot = rangedWeapon
     && !rangedAtCloseRange
     && (attack === "light" || attack === "heavy");
+  const ammunitionId = side === "player" ? getWeaponAmmoItemId(weaponId) : null;
   if (rangedShot && side === "player" && !actor.isAiming) return false;
-  if (rangedShot && side === "player" && state.combatItemCounts.throwing_knife <= 0) {
+  if (rangedShot && ammunitionId && state.combatItemCounts[ammunitionId] <= 0) {
     events.push({ id: tick * 100 + 41, type: "ammoEmpty", target: "player", weaponId: weaponId ?? undefined });
     return false;
   }
@@ -601,8 +595,8 @@ function startAttack(
   actor.chargeStartedTick = -1;
   actor.attackWeaponId = weaponId;
   actor.attackIsRanged = rangedShot;
-  if (rangedShot && side === "player") {
-    state.combatItemCounts.throwing_knife = Math.max(0, state.combatItemCounts.throwing_knife - 1);
+  if (rangedShot && ammunitionId) {
+    state.combatItemCounts[ammunitionId] = Math.max(0, state.combatItemCounts[ammunitionId] - 1);
   }
   actor.attackWasPlunge = actor.jumpUntilTick > tick;
   const weaponSpeed = weaponDefinition?.speed ?? (weaponStyle === "daggers" ? 1.28

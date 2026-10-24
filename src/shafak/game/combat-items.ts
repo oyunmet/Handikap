@@ -59,6 +59,39 @@ export const COMBAT_ITEMS = [
     effect: "smoke",
     amount: 55,
   },
+  {
+    id: "arrow_ammo",
+    name: "Ok Paketi",
+    icon: "➶",
+    shortName: "OK",
+    description: "Yay için 20 ok.",
+    cooldownTicks: 0,
+    effect: "ammo",
+    amount: 20,
+    quickSlot: false,
+  },
+  {
+    id: "bolt_ammo",
+    name: "Arbalet Cıvatası",
+    icon: "⟿",
+    shortName: "CIVATA",
+    description: "Arbalet için 20 cıvata.",
+    cooldownTicks: 0,
+    effect: "ammo",
+    amount: 20,
+    quickSlot: false,
+  },
+  {
+    id: "throwing_blade_ammo",
+    name: "Fırlatma Bıçağı Paketi",
+    icon: "⌁",
+    shortName: "BIÇAK",
+    description: "Fırlatma bıçağı için 20 bıçak.",
+    cooldownTicks: 0,
+    effect: "ammo",
+    amount: 20,
+    quickSlot: false,
+  },
 ] as const;
 
 export type CombatItemId = (typeof COMBAT_ITEMS)[number]["id"];
@@ -73,6 +106,9 @@ export const DEFAULT_COMBAT_ITEM_COUNTS: CombatItemCounts = {
   throwing_knife: 2,
   explosive_flask: 1,
   smoke_bomb: 1,
+  arrow_ammo: 0,
+  bolt_ammo: 0,
+  throwing_blade_ammo: 0,
 };
 
 export const DEFAULT_COMBAT_QUICK_SLOTS: CombatQuickSlots = [
@@ -83,6 +119,9 @@ export const DEFAULT_COMBAT_QUICK_SLOTS: CombatQuickSlots = [
 ];
 
 const COMBAT_ITEM_IDS = new Set<string>(COMBAT_ITEMS.map((item) => item.id));
+const COMBAT_QUICK_SLOT_IDS = new Set<string>(
+  COMBAT_ITEMS.filter((item) => !("quickSlot" in item) || item.quickSlot !== false).map((item) => item.id),
+);
 
 export function getCombatItem(itemId: unknown): CombatItem | undefined {
   return typeof itemId === "string" ? COMBAT_ITEMS.find((item) => item.id === itemId) : undefined;
@@ -90,6 +129,10 @@ export function getCombatItem(itemId: unknown): CombatItem | undefined {
 
 export function isCombatItemId(value: unknown): value is CombatItemId {
   return typeof value === "string" && COMBAT_ITEM_IDS.has(value);
+}
+
+export function isCombatQuickSlotId(value: unknown): value is CombatItemId {
+  return typeof value === "string" && COMBAT_QUICK_SLOT_IDS.has(value);
 }
 
 export function normalizeCombatItemCounts(value: unknown): CombatItemCounts {
@@ -108,6 +151,6 @@ export function normalizeCombatItemCounts(value: unknown): CombatItemCounts {
 export function normalizeCombatQuickSlots(value: unknown, counts: CombatItemCounts): CombatQuickSlots {
   const source = Array.isArray(value) && value.length === 4 ? value : DEFAULT_COMBAT_QUICK_SLOTS;
   return source.map((itemId) => (
-    isCombatItemId(itemId) && counts[itemId] > 0 ? itemId : null
+    isCombatQuickSlotId(itemId) && counts[itemId] > 0 ? itemId : null
   )) as CombatQuickSlots;
 }

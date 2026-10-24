@@ -8,7 +8,7 @@ import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
 import { isDailySpecialAvailable, STARTER_ITEM_IDS, STORE_CATALOG } from "../game/store-catalog";
-import { getWeaponDefinition } from "../game/weapons.ts";
+import { getWeaponAmmoItemId, getWeaponDefinition } from "../game/weapons.ts";
 import { getCombatItem, type CombatItemId, type CombatQuickSlots } from "../game/combat-items.ts";
 import {
   getEquipmentLoadoutKey,
@@ -2946,17 +2946,27 @@ export default function WorldScene({
           </div>}
           {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
           {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
+          {(() => {
+            const activeWeaponId = combatRender.weaponIds[combatRender.activeWeaponSlot];
+            const ammoId = getWeaponAmmoItemId(activeWeaponId);
+            const ammoCount = ammoId ? combatRender.combatItemCounts[ammoId] : null;
+            const ammoLabel = ammoId === "arrow_ammo" ? "OK"
+              : ammoId === "bolt_ammo" ? "CIVATA"
+                : ammoId === "throwing_blade_ammo" ? "BIÇAK" : "";
+            return (
           <div className={`duel-aim-status${combatRender.player.isAiming ? " is-active" : ""}`} role="status" aria-live="polite">
             {getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"
               ? bowCloseRange
                 ? "YAKIN DÖVÜŞ · V İLE YAKIN SİLAHA GEÇ"
                 : combatRender.player.isAiming
-                  ? `HEDEF KİLİTLİ · CEPHANE ${combatRender.combatItemCounts.throwing_knife} · SALDIR`
-                  : `F İLE HEDEF KİLİTLE · CEPHANE ${combatRender.combatItemCounts.throwing_knife}`
+                  ? `HEDEF KİLİTLİ · ${ammoLabel} ${ammoCount} · SALDIR`
+                  : `F İLE HEDEF KİLİTLE · ${ammoLabel} ${ammoCount}`
               : combatRender.player.isAiming
                 ? `HEDEF KİLİTLİ · ${STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "SİLAH"} HAZIR`
                 : "NİŞAN AL · HEDEFİ KİLİTLE, SALDIRIYLA VUR"}
           </div>
+            );
+          })()}
           <DuelControls
             stamina={combatRender.player.stamina}
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
