@@ -39,6 +39,7 @@ import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 import {
   createDuelWeapon,
   disposeDuelWeapon,
+  getDuelWeaponTargetWorldDimension,
   normalizeDuelWeaponWorldSize,
 } from "./duel-weapon";
 import {
@@ -78,6 +79,7 @@ export type KnightActorProps = {
   appearance?: EquipmentVisual;
   modelConfig?: OpponentModelConfig;
   modelAnimationState?: ModelAnimationState;
+  aiming?: boolean;
   playerCharacter?: boolean;
   useInGamePlayerModel?: boolean;
   positionedByParent?: boolean;
@@ -372,6 +374,7 @@ function OptionalGlbKnight({
   modelConfig,
   castShadow = true,
   playerCharacter = false,
+  aiming = false,
   useInGamePlayerModel = false,
   positionedByParent = false,
   targetHeight: targetHeightOverride,
@@ -421,33 +424,41 @@ function OptionalGlbKnight({
       useInGamePlayerModel,
     ],
   );
-  const equippedHand = playerCharacter || modelConfig
-    ? playerRig?.bones.Rig_RightHand
-      ?? [
-        "Rig_RightHand",
-        "mixamorigRightHand",
-        "FistR",
-        "Fist.R",
-        "RightHand",
-        "RightHandBone",
-        "DEF-hand.R",
-        "DEF-handR",
-      ].map((name) => model.getObjectByName(name)).find(Boolean)
-    : undefined;
   const weaponAppearance = getFallbackAppearance(appearance, modelConfig);
+  const isBow = weaponAppearance?.weaponStyle === "bow";
+  const equippedHand = playerCharacter || modelConfig
+    ? isBow
+      ? playerRig?.bones.Rig_LeftHand
+        ?? [
+          "Rig_LeftHand",
+          "mixamorigLeftHand",
+          "FistL",
+          "Fist.L",
+          "LeftHand",
+          "LeftHandBone",
+          "DEF-hand.L",
+          "DEF-handL",
+        ].map((name) => model.getObjectByName(name)).find(Boolean)
+      : playerRig?.bones.Rig_RightHand
+        ?? [
+          "Rig_RightHand",
+          "mixamorigRightHand",
+          "FistR",
+          "Fist.R",
+          "RightHand",
+          "RightHandBone",
+          "DEF-hand.R",
+          "DEF-handR",
+        ].map((name) => model.getObjectByName(name)).find(Boolean)
+    : undefined;
   useEffect(() => {
     if (!equippedHand) return undefined;
     const weapon = createDuelWeapon(weaponAppearance);
     equippedHand.add(weapon);
-    const style = weaponAppearance?.weaponStyle ?? "sword";
-    const targetWorldDimension = style === "daggers"
-      ? 0.42
-      : style === "spear" || style === "staff"
-        ? 1.15
-        : style === "axe" || style === "mace" || style === "bow"
-          ? 0.8
-          : 1;
-    normalizeDuelWeaponWorldSize(weapon, targetWorldDimension);
+    normalizeDuelWeaponWorldSize(
+      weapon,
+      getDuelWeaponTargetWorldDimension(weaponAppearance?.weaponStyle),
+    );
     return () => {
       equippedHand.remove(weapon);
       disposeDuelWeapon(weapon);
@@ -719,6 +730,7 @@ function OptionalGlbKnight({
         motionReduced,
         frame.clock.elapsedTime,
         Boolean(selectedAction),
+        aiming,
       );
     }
     if (footSlipRef) footSlipRef.current = 0;

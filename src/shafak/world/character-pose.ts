@@ -66,6 +66,7 @@ export function poseCharacterWithoutClip(
   motionReduced: boolean,
   time: number,
   hasClip: boolean,
+  aiming = false,
 ) {
   const motionScale = motionReduced ? 0.34 : 1;
   const walkWeight = clamp01(speed / 3.2);
@@ -136,5 +137,13 @@ export function poseCharacterWithoutClip(
     rotate("leftUpperArm", 0, 0, 0.32 * actionProgress);
     rotate("rightUpperArm", 0, 0, -0.32 * actionProgress);
     rotate("chest", 0.18 * actionProgress);
+  }
+
+  if (aiming) {
+    rotate("leftUpperArm", -0.94 * motionScale, 0, -0.18 * motionScale, hasClip);
+    rotate("leftForearm", -0.34 * motionScale, 0, 0, hasClip);
+    rotate("rightUpperArm", -0.82 * motionScale, 0, 0.16 * motionScale, hasClip);
+    rotate("rightForearm", -0.52 * motionScale, 0, 0, hasClip);
+    rotate("chest", -0.025 * motionScale, 0, 0, hasClip);
   }
 }

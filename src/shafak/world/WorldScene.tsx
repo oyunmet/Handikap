@@ -1983,7 +1983,6 @@ export default function WorldScene({
     const buttonForKey: Record<string, number> = {
       j: INPUT_BUTTON.attack,
       k: INPUT_BUTTON.block,
-      l: INPUT_BUTTON.dodge,
       " ": INPUT_BUTTON.skillOne,
       q: INPUT_BUTTON.skillTwo,
       f: INPUT_BUTTON.aim,
@@ -2033,7 +2032,6 @@ export default function WorldScene({
       for (const button of [
         INPUT_BUTTON.attack,
         INPUT_BUTTON.block,
-        INPUT_BUTTON.dodge,
         INPUT_BUTTON.skillOne,
         INPUT_BUTTON.skillTwo,
         INPUT_BUTTON.aim,
@@ -2941,23 +2939,22 @@ export default function WorldScene({
           </div>}
           {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
           {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
-          {combatRender.weaponIds[combatRender.activeWeaponSlot] === "weapon_short_bow" && (
-            <div className="duel-aim-status" role="status" aria-live="polite">
-              {bowCloseRange
+          <div className={`duel-aim-status${combatRender.player.isAiming ? " is-active" : ""}`} role="status" aria-live="polite">
+            {combatRender.weaponIds[combatRender.activeWeaponSlot] === "weapon_short_bow"
+              ? bowCloseRange
                 ? "YAKIN DÖVÜŞ · AV BIÇAĞI"
                 : combatRender.player.isAiming
-                  ? "HEDEF OKU HAZIR · ATEŞ ET"
-                  : "NİŞAN AL · SALDIRIYLA OK AT"}
-            </div>
-          )}
+                  ? "HEDEF KİLİTLİ · OKU ATEŞLE"
+                  : "NİŞAN AL · SALDIRIYLA OK AT"
+              : combatRender.player.isAiming
+                ? `HEDEF KİLİTLİ · ${STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "SİLAH"} HAZIR`
+                : "NİŞAN AL · HEDEFİ KİLİTLE, SALDIRIYLA VUR"}
+          </div>
           <DuelControls
             stamina={combatRender.player.stamina}
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
-            dodgeRingSeconds={combatRender.player.action === "dodge"
-              ? Math.max(0, combatRender.player.actionUntilTick - combatRender.tick) / COMBAT_HZ
-              : 0}
             quickItems={combatRender.quickSlotItemIds.map((itemId, index) => {
               const item = getCombatItem(itemId);
               const duelDistance = Math.hypot(
@@ -3008,8 +3005,8 @@ export default function WorldScene({
                 <p>Oyun bu kısa rehber boyunca duraklar.</p>
                 <div className="duel-tutorial__rows">
                   <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
-                  <div><span aria-hidden="true">⬟</span><b>KALKAN</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
-                  <div><span aria-hidden="true">↝</span><b>KAÇ</b><i>Kısa süre hasar almazsın · geri çift basış takla, kenarda sekme</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">⬟</span><b>SİPER</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
+                  <div><span aria-hidden="true">◎</span><b>NİŞAN</b><i>Rakibi hedefe kilitler; yayla nişan alıp SALDIRI’ya basınca ok atarsın</i><strong>F</strong></div>
                   <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>

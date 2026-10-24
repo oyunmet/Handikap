@@ -16,6 +16,25 @@ function addMesh(
   return mesh;
 }
 
+export function getDuelWeaponTargetWorldDimension(style?: EquipmentVisual["weaponStyle"]) {
+  switch (style) {
+    case "daggers":
+      return 0.58;
+    case "axe":
+    case "mace":
+    case "bow":
+      return 1;
+    case "greatsword":
+      return 1.32;
+    case "spear":
+    case "staff":
+      return 1.3;
+    case "sword":
+    default:
+      return 1.12;
+  }
+}
+
 export function createDuelWeapon(appearance: EquipmentVisual = {}) {
   const root = new THREE.Group();
   root.name = "equipped-duel-weapon";
@@ -25,7 +44,7 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
     roughness: 0.24,
     metalness: 0.86,
     emissive: appearance.weaponColor ?? "#8c9aa4",
-    emissiveIntensity: 0.12,
+    emissiveIntensity: 0.28,
   });
   const leather = new THREE.MeshStandardMaterial({ color: "#4a3028", roughness: 0.82 });
   const trim = new THREE.MeshStandardMaterial({
@@ -60,6 +79,19 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
 
   root.scale.setScalar(style === "greatsword" ? 0.58 : style === "spear" || style === "staff" ? 0.54 : 0.56);
   root.rotation.z = 0.12;
+  const gripHeight: Record<NonNullable<EquipmentVisual["weaponStyle"]>, number> = {
+    sword: 0.03,
+    daggers: 0.01,
+    axe: 0.32,
+    greatsword: 0.01,
+    spear: 0.43,
+    bow: 0.42,
+    mace: 0.28,
+    staff: 0.39,
+  };
+  // Put the actual grip point at the hand bone instead of leaving the hand
+  // below the weapon's handle, which makes equipped weapons look detached.
+  root.position.y = -gripHeight[style];
 
   if (style === "daggers") {
     for (const side of [-1, 1]) {
