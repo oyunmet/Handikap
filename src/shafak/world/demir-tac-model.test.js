@@ -4,7 +4,11 @@ import test from "node:test";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { attachOpponentCostume, shouldAttachOpponentCostume } from "./opponent-costume.ts";
+import {
+  applyOpponentBasePalette,
+  attachOpponentCostume,
+  shouldAttachOpponentCostume,
+} from "./opponent-costume.ts";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 import {
@@ -48,6 +52,23 @@ test("Demir Taç uses the animated player rig and keeps a distinct boss identity
   assert.ok(loaded.scene.getObjectByName("LowerLegR"));
   assert.ok(loaded.animations.some((clip) => clip.name === "Run"));
   assert.ok(worldConfig.animationClips.run?.includes("CharacterArmature|Run"));
+  const materials = new Map();
+  loaded.scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const list = Array.isArray(object.material) ? object.material : [object.material];
+    list.forEach((material) => materials.set(material.name.toLowerCase(), material));
+  });
+  const eyeColor = materials.get("eye").color.getHexString();
+  applyOpponentBasePalette(loaded.scene, worldConfig);
+  assert.equal(
+    materials.get("shirt").color.getHexString(),
+    worldConfig.appearance.armor.slice(1),
+  );
+  assert.equal(
+    materials.get("hair").color.getHexString(),
+    worldConfig.materialPalette.hair.slice(1),
+  );
+  assert.equal(materials.get("eye").color.getHexString(), eyeColor);
   assert.equal(worldConfig.targetHeight, 1.95);
   assert.equal(duelConfig.targetHeight, 3.35);
   assert.equal(worldConfig.weapon, "greatsword");
@@ -55,7 +76,7 @@ test("Demir Taç uses the animated player rig and keeps a distinct boss identity
   assert.equal(duelConfig.maxDimension, 4.6);
 });
 
-test("Demir Taç's bundled cape, armor, and sword stay inside world and duel size targets", async () => {
+test("Demir Taç's rig-mounted armor stays grounded and within world and duel size targets", async () => {
   const buffer = fs.readFileSync(modelPath);
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const gltf = await new GLTFLoader().parseAsync(arrayBuffer, "");

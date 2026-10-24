@@ -6,7 +6,7 @@
 - [World darkness and WebGL](webgl-preview-limits.md) — Distinguish dark lighting from black frames; preserve a 3D-only recovery path and never switch the world to 2D.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
-- [World and duel visual expectations](world-duel-visual-expectations.md) — Keep world rivals anchored, combatants unobscured, and rewards and hazards easy to spot and reach.
+- [World and duel visual expectations](world-duel-visual-expectations.md) — Keep rivals clear and anchored; size rig gear against full mount scale and verify ground clearance.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
 - [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms applied while measuring; `AnimationMixer.stopAllAction()` restores the source pose.
 - [Skinned-mesh debug bounds](skinned-mesh-debug-bounds.md) — Compare deformed geometry centers, not source pivots; player mesh origins can sit about 9.98 m away.

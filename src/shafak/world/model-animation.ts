@@ -67,6 +67,15 @@ export function createPlayerLocomotionClip(clip: THREE.AnimationClip): THREE.Ani
     : clip;
 }
 
+export function prepareWorldActorClips(
+  modelPath: string,
+  clips: THREE.AnimationClip[],
+): THREE.AnimationClip[] {
+  return modelPath === KNIGHT_CONFIG.modelPath
+    ? clips.map(createPlayerLocomotionClip)
+    : clips;
+}
+
 function normalizeClipName(name: string) {
   return name.toLocaleLowerCase().replace(/[^a-z0-9]/g, "");
 }

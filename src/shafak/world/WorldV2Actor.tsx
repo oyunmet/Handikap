@@ -5,12 +5,13 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import { getKnightActorRootYaw, KNIGHT_CONFIG } from "./knight-config";
-import { createPlayerLocomotionClip, isRootTranslationTrack } from "./model-animation";
+import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import {
+  applyOpponentBasePalette,
   attachOpponentCostume,
   shouldAttachOpponentCostume,
   type AttachedOpponentCostume,
@@ -76,16 +77,18 @@ export default function WorldV2Actor({
   const rootRef = useRef<THREE.Group>(null);
   const model = useMemo(() => {
     const clone = cloneWorldCharacter(asset, tint);
+    if (modelConfig) applyOpponentBasePalette(clone, modelConfig);
     clone.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = false;
     });
     return clone;
-  }, [asset, tint]);
-  const animations = useMemo(() => asset.url === KNIGHT_CONFIG.modelPath
-    ? asset.animations.map(createPlayerLocomotionClip)
-    : asset.animations, [asset]);
+  }, [asset, modelConfig, tint]);
+  const animations = useMemo(
+    () => prepareWorldActorClips(asset.url, asset.animations),
+    [asset],
+  );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const actionsRef = useRef(new Map<string, THREE.AnimationAction>());

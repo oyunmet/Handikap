@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
-import { attachOpponentCostume, shouldAttachOpponentCostume } from "./opponent-costume.ts";
+import {
+  applyOpponentBasePalette,
+  attachOpponentCostume,
+  shouldAttachOpponentCostume,
+} from "./opponent-costume.ts";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 
@@ -89,4 +93,30 @@ test("Demir Taç uses the animated player rig with its own mounted armor and cro
   assert.equal(model.getObjectByName("demir-tac-head-gear").parent, bones.get("Head"));
 
   costume.dispose();
+});
+
+test("Demir Taç's shared player model uses a dark boss palette instead of the green player clothes", () => {
+  const config = getAnimatedRivalModelConfig(
+    "Demir Taç",
+    getWorldBotProfileByArchetype("chapter-boss"),
+  );
+  const model = new THREE.Group();
+  const materialByName = new Map();
+
+  for (const name of ["Hair", "Skin", "UnderShirt", "Shirt", "Pants", "Boots", "Detail", "Material.006", "Eye"]) {
+    const material = new THREE.MeshStandardMaterial({ color: "#22aa66" });
+    material.name = name;
+    materialByName.set(name, material);
+    model.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), material));
+  }
+
+  applyOpponentBasePalette(model, config);
+
+  assert.equal(materialByName.get("Hair").color.getHexString(), config.materialPalette.hair.slice(1));
+  assert.equal(materialByName.get("Skin").color.getHexString(), config.materialPalette.skin.slice(1));
+  assert.equal(materialByName.get("UnderShirt").color.getHexString(), config.appearance.armorDark.slice(1));
+  assert.equal(materialByName.get("Shirt").color.getHexString(), config.appearance.armor.slice(1));
+  assert.equal(materialByName.get("Detail").color.getHexString(), config.appearance.trim.slice(1));
+  assert.equal(materialByName.get("Material.006").color.getHexString(), config.appearance.cape.slice(1));
+  assert.equal(materialByName.get("Eye").color.getHexString(), "22aa66");
 });

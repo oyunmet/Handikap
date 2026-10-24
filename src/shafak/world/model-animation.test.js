@@ -7,6 +7,7 @@ import {
   getOpponentAnimationPlayback,
   isRootTranslationTrack,
   mapOpponentAnimationState,
+  prepareWorldActorClips,
   resolveMappedGlbClipName,
   resolveGlbClipName,
 } from "./model-animation.ts";
@@ -45,6 +46,25 @@ test("locomotion clips keep forward lean but remove sideways lean and body turns
   assert.ok(Math.abs(fixedRotation.y) < 1e-6);
   assert.ok(Math.abs(originalRotation.y + 0.08) < 1e-6);
   assert.ok(Math.abs(originalRotation.z - 0.16) < 1e-6, "the source clip remains unchanged");
+});
+
+test("the world actor uses upright walk and run clips for the shared player rig", () => {
+  const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, -0.08, 0.16));
+  const source = new THREE.AnimationClip("CharacterArmature|Run", 1, [
+    new THREE.QuaternionKeyframeTrack("Torso.quaternion", [0], rotation.toArray()),
+  ]);
+
+  const prepared = prepareWorldActorClips("/models/player-hero.glb", [source]);
+  const preparedRotation = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion().fromArray(prepared[0].tracks[0].values),
+    "XYZ",
+  );
+
+  assert.notEqual(prepared[0], source);
+  assert.ok(Math.abs(preparedRotation.x - 0.12) < 1e-6);
+  assert.ok(Math.abs(preparedRotation.y) < 1e-6);
+  assert.ok(Math.abs(preparedRotation.z) < 1e-6);
+  assert.equal(prepareWorldActorClips("/models/human.glb", [source])[0], source);
 });
 
 test("GLB clip names are resolved case-insensitively from one configurable map", () => {

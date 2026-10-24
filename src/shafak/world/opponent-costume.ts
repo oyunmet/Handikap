@@ -16,6 +16,35 @@ export function shouldAttachOpponentCostume(modelConfig: OpponentModelConfig | u
   return Boolean(modelConfig);
 }
 
+export function applyOpponentBasePalette(
+  model: THREE.Object3D,
+  modelConfig: OpponentModelConfig,
+) {
+  if (!modelConfig.isDemirTac) return;
+
+  const appearance = modelConfig.appearance;
+  const colors = new Map<string, string | undefined>([
+    ["hair", modelConfig.materialPalette.hair],
+    ["skin", modelConfig.materialPalette.skin],
+    ["undershirt", appearance.armorDark ?? modelConfig.materialPalette.clothing],
+    ["shirt", appearance.armor ?? modelConfig.materialPalette.clothing],
+    ["pants", appearance.armorDark ?? modelConfig.materialPalette.pants],
+    ["boots", appearance.armorDark ?? modelConfig.materialPalette.boots],
+    ["detail", appearance.trim],
+    ["material.006", appearance.cape],
+  ]);
+
+  model.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      const color = colors.get(material.name.toLowerCase());
+      const materialColor = (material as THREE.Material & { color?: THREE.Color }).color;
+      if (color && materialColor?.isColor) materialColor.set(color);
+    }
+  });
+}
+
 const BONE_NAMES = {
   head: ["Head", "DEF-head", "head", "Rig_Head"],
   torso: ["Spine2", "Spine1", "Torso", "DEF-spine.003", "DEF-spine.002", "Spine", "torso", "Hips"],
@@ -94,13 +123,16 @@ export function attachOpponentCostume(
   const capeColor = appearance?.cape ?? appearance?.armorDark ?? "#44373a";
   const armorColor = appearance?.armorLight ?? appearance?.armor ?? "#746458";
   const maskColor = appearance?.armorDark ?? "#27262b";
-  const normalizedInverseScale = 1 / Math.max(0.01, Math.abs(model.scale.x));
+  const bossGearScale = modelConfig.isBoss
+    ? Math.min(1, (modelConfig.targetHeight ?? 3.35) / 3.35)
+    : 1;
   const ownedMaterials: THREE.Material[] = [];
   const ownedGeometries: THREE.BufferGeometry[] = [];
   const mounts: THREE.Object3D[] = [];
   const capes: CapeRecord[] = [];
   const capeMeshes: THREE.Mesh[] = [];
   const isDemirTac = Boolean(modelConfig.isDemirTac);
+  model.updateWorldMatrix(true, true);
   const head = findMount(model, BONE_NAMES.head);
   const torso = findMount(model, BONE_NAMES.torso);
 
@@ -108,9 +140,19 @@ export function attachOpponentCostume(
     parent: THREE.Object3D,
     position: THREE.Vector3,
   ) => {
+    const parentWorldScale = parent.getWorldScale(new THREE.Vector3());
+    const inverseWorldScale = new THREE.Vector3(
+      1 / Math.max(0.01, Math.abs(parentWorldScale.x)),
+      1 / Math.max(0.01, Math.abs(parentWorldScale.y)),
+      1 / Math.max(0.01, Math.abs(parentWorldScale.z)),
+    );
     const group = new THREE.Group();
-    group.scale.setScalar(normalizedInverseScale);
-    group.position.copy(position);
+    group.scale.copy(inverseWorldScale);
+    group.position.set(
+      position.x * inverseWorldScale.x,
+      position.y * inverseWorldScale.y,
+      position.z * inverseWorldScale.z,
+    );
     parent.add(group);
     mounts.push(group);
     return group;
@@ -137,7 +179,7 @@ export function attachOpponentCostume(
   const headGear = mountGroup(
     head,
     head === model
-      ? new THREE.Vector3(0, modelConfig.targetHeight ? modelConfig.targetHeight * 0.88 * normalizedInverseScale : 1.55 * normalizedInverseScale, 0)
+      ? new THREE.Vector3(0, modelConfig.targetHeight ? modelConfig.targetHeight * 0.88 : 1.55, 0)
       : new THREE.Vector3(0, 0, 0),
   );
   if (modelConfig.isBoss) headGear.name = "demir-tac-head-gear";
@@ -246,7 +288,7 @@ export function attachOpponentCostume(
     const breastplate = mountGroup(
       torso,
       torso === model
-        ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 3.35) * 0.59 * normalizedInverseScale, 0.1)
+        ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 3.35) * 0.59, 0.1)
         : new THREE.Vector3(0, 0, 0.12),
     );
     breastplate.name = isDemirTac ? "demir-tac-breastplate" : "opponent-breastplate";
@@ -320,10 +362,13 @@ export function attachOpponentCostume(
   }
 
   if (style.cape) {
-    const cloth = createCapeGeometry(modelConfig.isBoss ? 0.92 : 0.76, modelConfig.isBoss ? 1.25 : 0.88);
+    const cloth = createCapeGeometry(
+      modelConfig.isBoss ? 0.92 * bossGearScale : 0.76,
+      modelConfig.isBoss ? 1.25 * bossGearScale : 0.88,
+    );
     const capeMesh = mesh(
       mountGroup(torso, torso === model
-        ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 1.8) * 0.62 * normalizedInverseScale, 0)
+        ? new THREE.Vector3(0, (modelConfig.targetHeight ?? 1.8) * 0.62, 0)
         : new THREE.Vector3(0, -0.06, -0.02)),
       cloth.geometry,
       new THREE.MeshStandardMaterial({
@@ -348,7 +393,7 @@ export function attachOpponentCostume(
     const shoulderGroup = mountGroup(
       shoulder,
       shoulder === model
-        ? new THREE.Vector3(side * 0.25 * normalizedInverseScale, (modelConfig.targetHeight ?? 1.8) * 0.75 * normalizedInverseScale, 0)
+        ? new THREE.Vector3(side * 0.25, (modelConfig.targetHeight ?? 1.8) * 0.75, 0)
         : new THREE.Vector3(0, -0.045, 0),
     );
     const pad = mesh(
@@ -410,7 +455,7 @@ export function attachOpponentCostume(
       const guard = mountGroup(
         limb,
         limb === model
-          ? new THREE.Vector3(side * (isArm ? 0.16 : 0.1) * normalizedInverseScale, (modelConfig.targetHeight ?? 3.35) * (isArm ? 0.53 : 0.24) * normalizedInverseScale, 0)
+          ? new THREE.Vector3(side * (isArm ? 0.16 : 0.1), (modelConfig.targetHeight ?? 3.35) * (isArm ? 0.53 : 0.24), 0)
           : new THREE.Vector3(0, -0.04, 0),
       );
       const baseName = isArm ? "vambrace" : "greave";
