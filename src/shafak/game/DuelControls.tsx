@@ -71,6 +71,13 @@ function HeldButton({
     pressedRef.current = false;
     onRelease(button);
   };
+  const keyHint = className.includes("attack") ? "J"
+    : className.includes("block") ? "K"
+      : className.includes("dodge") ? "L"
+        : className.includes("aim") ? "F"
+          : className.includes("fire") ? "SPACE"
+            : className.includes("lightning") ? "Q"
+              : "";
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
@@ -109,6 +116,7 @@ function HeldButton({
     >
       <ControlIcon className={className} />
       <span>{label}</span>
+      {keyHint && <kbd className="duel-control__key" aria-hidden="true">{keyHint}</kbd>}
       {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
     </button>
   );
@@ -270,6 +278,7 @@ export default function DuelControls({
         >
           <ControlIcon className="is-jump" />
           <span>ZIPLA</span>
+          <kbd className="duel-control__key" aria-hidden="true">X</kbd>
         </button>
       </div>
       {weaponNames[1] && <div className="duel-weapon-select">

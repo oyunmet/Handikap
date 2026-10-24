@@ -55,7 +55,7 @@ function CameraDrift({ reducedMotion, startedAt }: { reducedMotion: boolean; sta
 
   useFrame(() => {
     const elapsed = (performance.now() - startedAt) / 1_000;
-    const progress = reducedMotion ? 1 : smoothstep((elapsed - 4.1) / 13.4);
+    const progress = reducedMotion ? 1 : smoothstep((elapsed - 1.4) / 7.8);
     position.lerpVectors(startPosition, endPosition, progress);
     target.lerpVectors(startTarget, endTarget, progress);
     camera.position.copy(position);
@@ -105,6 +105,7 @@ function IntroWorld({
           motionReduced={reducedMotion}
           castShadow={false}
           playerCharacter
+          useInGamePlayerModel
         />
       </Canvas>
     </IntroCanvasBoundary>

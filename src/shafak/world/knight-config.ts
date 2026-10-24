@@ -10,7 +10,7 @@ export const KNIGHT_CONFIG = {
     heavyAttack: ["Dagger_Attack2", "CharacterArmature|Dagger_Attack2"],
     block: ["Attacking_Idle", "CharacterArmature|Attacking_Idle"],
     dodge: ["Roll", "CharacterArmature|Roll"],
-    jump: ["Roll", "CharacterArmature|Roll"],
+    jump: [],
     backflip: ["Roll", "CharacterArmature|Roll"],
     plunge: ["Dagger_Attack2", "CharacterArmature|Dagger_Attack2"],
     hit: ["RecieveHit", "CharacterArmature|RecieveHit", "RecieveHit_Attacking"],

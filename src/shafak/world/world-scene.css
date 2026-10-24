@@ -1396,8 +1396,11 @@
   .world-movement-actions button {
     position: relative; display: grid; width: 64px; min-height: 56px; place-content: center; gap: 3px;
     overflow: hidden; border: 1px solid rgba(238,205,145,.58); border-radius: 13px;
-    background: linear-gradient(150deg,rgba(85,62,43,.94),rgba(25,23,24,.96) 68%);
-    box-shadow: 0 5px 16px rgba(0,0,0,.4), inset 0 1px rgba(255,239,203,.16), inset 0 -1px rgba(0,0,0,.36);
+    background:
+      radial-gradient(circle at 20% 12%, rgba(255,226,169,.2), transparent 36%),
+      repeating-linear-gradient(135deg,rgba(238,203,143,.035) 0 1px,transparent 1px 7px),
+      linear-gradient(150deg,rgba(85,62,43,.97),rgba(25,23,24,.98) 68%);
+    box-shadow: 0 7px 19px rgba(0,0,0,.52), inset 0 1px rgba(255,239,203,.23), inset 0 -2px rgba(0,0,0,.52), 0 0 0 1px rgba(8,8,10,.72);
     color: #f0d9ae; cursor: pointer;
     -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
     transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease, background .14s ease;
@@ -1405,6 +1408,15 @@
   .world-movement-actions button::before {
     position: absolute; inset: 3px; border: 1px solid rgba(255,235,193,.13); border-radius: 9px;
     content: ""; pointer-events: none;
+  }
+  .world-movement-actions button::after {
+    position: absolute; top: 7px; left: 50%; width: 8px; height: 8px;
+    border: 1px solid rgba(255,226,163,.62); background: rgba(255,218,142,.13);
+    content: ""; transform: translateX(-50%) rotate(45deg); pointer-events: none;
+  }
+  .world-movement-actions button kbd {
+    position: absolute; top: 5px; right: 7px; color: rgba(248,225,190,.62);
+    font: 700 5px/1 var(--font-body,sans-serif); letter-spacing: .04em;
   }
   .world-movement-actions button svg { width: 21px; height: 21px; justify-self: center; color: #f2cb83; }
   .world-movement-actions button b { color: #f5e3c4; font-size: 8px; font-weight: 900; letter-spacing: .1em; }
@@ -1417,6 +1429,7 @@
   }
   .world-movement-actions button.is-active svg { color: #fff0c9; }
   .world-movement-actions button.is-jump { border-color: rgba(245,213,158,.76); }
+  .world-movement-actions button.is-jump { background-color: rgba(126,76,34,.9); }
   .world-hazard-hint {
     position: absolute; z-index: 7; bottom: max(235px, calc(env(safe-area-inset-bottom) + 220px));
     left: 50%; display: block; max-width: calc(100% - 148px); padding: 7px 10px;
@@ -1598,8 +1611,13 @@
 .duel-player-stamina__fill { z-index: 2; background: linear-gradient(90deg,#6da69d,#d4c277); }
 .duel-attack-warning { position: absolute; z-index: 12; top: max(66px,calc(env(safe-area-inset-top) + 60px)); left: 50%; padding: 7px 12px; border: 1px solid rgba(255,105,89,.86); border-radius: 3px; background: rgba(77,17,22,.9); color: #fff0e3; font: 900 9px var(--font-body,sans-serif); letter-spacing: .11em; text-align: center; transform: translateX(-50%); animation: duel-warning-pulse .55s ease-in-out infinite alternate; pointer-events: none; }
 .duel-controls .duel-control { border-width: 1.5px; box-shadow: 0 7px 18px rgba(0,0,0,.48), inset 0 2px 5px rgba(255,245,220,.22), inset 0 -5px 12px rgba(0,0,0,.36); transition: transform .12s ease, filter .12s ease, box-shadow .12s ease; }
-.duel-controls .duel-control::before { position: absolute; inset: 3px; z-index: 0; border: 1px solid rgba(255,232,188,.32); border-radius: inherit; background: radial-gradient(circle at 50% 36%,rgba(255,246,215,.13),transparent 48%),linear-gradient(145deg,rgba(255,246,215,.1),transparent 45%); box-shadow: inset 0 0 12px rgba(0,0,0,.24); content: ""; pointer-events: none; }
+.duel-controls .duel-control::before { position: absolute; inset: 3px; z-index: 0; border: 1px solid rgba(255,232,188,.42); border-radius: inherit; background: repeating-conic-gradient(from 8deg,rgba(255,236,196,.075) 0deg 2deg,transparent 2deg 24deg),radial-gradient(circle at 50% 36%,rgba(255,246,215,.18),transparent 48%),linear-gradient(145deg,rgba(255,246,215,.12),transparent 45%); box-shadow: inset 0 0 12px rgba(0,0,0,.28); content: ""; pointer-events: none; }
 .duel-controls .duel-control__icon { position: relative; z-index: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.75)) drop-shadow(0 0 4px rgba(255,220,157,.32)); }
+.duel-controls .duel-control__key { position: absolute; z-index: 2; top: 5px; right: 8px; min-width: 12px; padding: 2px 3px; border: 1px solid rgba(255,232,190,.36); border-radius: 3px; background: rgba(12,12,15,.58); color: rgba(255,237,202,.82); font: 800 6px/1 var(--font-body,sans-serif); letter-spacing: .04em; text-shadow: 0 1px 3px #000; }
+.duel-controls .duel-control.is-attack { background-image: radial-gradient(circle at 30% 22%,rgba(255,231,181,.42),transparent 36%),repeating-linear-gradient(135deg,rgba(255,219,176,.08) 0 1px,transparent 1px 7px),radial-gradient(circle at 32% 25%,#b55c39,#502a28 68%,#291d20); box-shadow: 0 0 0 2px rgba(70,27,25,.82),0 0 0 4px rgba(230,153,99,.18),0 10px 24px rgba(0,0,0,.56),inset 0 2px 7px rgba(255,235,200,.32),inset 0 -6px 14px rgba(18,8,8,.52); }
+.duel-controls .duel-control.is-block { background-image: radial-gradient(circle at 30% 22%,rgba(210,255,236,.34),transparent 35%),repeating-linear-gradient(45deg,rgba(202,246,234,.065) 0 1px,transparent 1px 7px),radial-gradient(circle at 32% 25%,#597878,#263b40 70%,#182429); }
+.duel-controls .duel-control.is-dodge { background-image: radial-gradient(circle at 30% 22%,rgba(237,213,255,.38),transparent 35%),repeating-linear-gradient(135deg,rgba(228,210,255,.075) 0 1px,transparent 1px 7px),radial-gradient(circle at 32% 25%,#76648a,#393047 70%,#221e2e); }
+.duel-controls .duel-control.is-active,.duel-controls .duel-control:active { transform: translateY(-2px) scale(.95); filter: brightness(1.18) saturate(1.13); box-shadow: 0 0 22px rgba(242,195,111,.4),inset 0 2px 8px rgba(255,245,220,.35),inset 0 -4px 10px rgba(0,0,0,.38); }
 .duel-controls .duel-control.is-attack { box-shadow: 0 0 0 2px rgba(228,163,96,.16),0 0 22px rgba(222,105,63,.4),0 8px 18px rgba(0,0,0,.5),inset 0 2px 5px rgba(255,245,220,.22),inset 0 -5px 12px rgba(0,0,0,.38); }
 .duel-controls .duel-control.is-attack::before { border-color: rgba(255,223,165,.68); }
 .duel-controls .duel-control.is-attack .duel-control__icon { width: 23px; height: 23px; stroke-width: 1.7; filter: drop-shadow(0 1px 2px #331a13) drop-shadow(0 0 5px rgba(255,214,152,.58)); }

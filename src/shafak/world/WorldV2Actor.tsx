@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
+import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
 import type { WorldMotion } from "./movement";
 import { KNIGHT_CONFIG } from "./knight-config";
 import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
@@ -90,6 +91,7 @@ export default function WorldV2Actor({
     [asset],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
+  const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const actionsRef = useRef(new Map<string, THREE.AnimationAction>());
   const activeClipNameRef = useRef("");
@@ -179,6 +181,19 @@ export default function WorldV2Actor({
       activeClipNameRef.current = clip.name;
     }
     mixer.update(Math.min(delta, 0.05));
+    if (isPlayer && (motion.crouching || state === "jump")) {
+      poseCharacterWithoutClip(
+        poseBones,
+        state,
+        Math.hypot(motion.velocityX, motion.velocityY),
+        motion.stepPhase,
+        0,
+        motion.crouching,
+        false,
+        frame.clock.elapsedTime,
+        Boolean(activeActionRef.current),
+      );
+    }
     opponentCostumeRef.current?.update(frame.clock.elapsedTime);
     root.userData.worldCharacterYaw = root.rotation.y;
     root.userData.worldAnimationClips = isPlayer

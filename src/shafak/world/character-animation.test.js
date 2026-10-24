@@ -6,6 +6,7 @@ import {
   getSpeakingGesturePose,
   getSpriteSheetFrame,
   resolveCharacterAnimationState,
+  resolveWorldPlayerAnimationState,
 } from "./character-animation.ts";
 
 const clip = (startFrame, frames, loop = true) => ({
@@ -44,6 +45,13 @@ test("character state mapping covers locomotion and reserved combat actions", ()
   assert.equal(resolveCharacterAnimationState("idle", "jump"), "jump");
   assert.equal(resolveCharacterAnimationState("idle", "backflip"), "backflip");
   assert.equal(resolveCharacterAnimationState("idle", "die"), "die");
+});
+
+test("world jump animation overrides locomotion but never masks an active combat action", () => {
+  assert.equal(resolveWorldPlayerAnimationState("running", 0.8), "jump");
+  assert.equal(resolveWorldPlayerAnimationState("walking", 0), "walk");
+  assert.equal(resolveWorldPlayerAnimationState("running", 0.8, "heavyAttack"), "heavyAttack");
+  assert.equal(resolveWorldPlayerAnimationState("idle", Number.NaN), "idle");
 });
 
 test("procedural weapon poses retract, then drive the hand and blade toward the opponent", () => {

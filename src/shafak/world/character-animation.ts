@@ -59,6 +59,16 @@ export function resolveCharacterAnimationState(
   return "idle";
 }
 
+export function resolveWorldPlayerAnimationState(
+  locomotion: CharacterLocomotion,
+  jumpHeight: number,
+  action: CharacterAction | null = null,
+): CharacterAnimationState {
+  if (action) return action;
+  if (Number.isFinite(jumpHeight) && jumpHeight > 0.12) return "jump";
+  return resolveCharacterAnimationState(locomotion);
+}
+
 function smoothStep(edge0: number, edge1: number, value: number) {
   const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);

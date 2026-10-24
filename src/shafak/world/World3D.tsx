@@ -1316,9 +1316,17 @@ function DuelCombatVisual({
             <cylinderGeometry args={[0.026, 0.026, 0.74, 5]} />
             <meshBasicMaterial color="#dfc38c" toneMapped={false} />
           </mesh>
-          <mesh position={[0, 0, -0.43]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh position={[0, 0, 0.42]} rotation={[Math.PI / 2, 0, 0]}>
             <coneGeometry args={[0.07, 0.18, 5]} />
-            <meshBasicMaterial color="#fff0be" toneMapped={false} />
+            <meshStandardMaterial color="#e8e2d2" metalness={0.82} roughness={0.24} emissive="#c79b54" emissiveIntensity={0.18} />
+          </mesh>
+          <mesh position={[-0.035, 0, -0.28]} rotation={[0, -0.16, -0.12]}>
+            <boxGeometry args={[0.1, 0.018, 0.14]} />
+            <meshBasicMaterial color="#8b5441" toneMapped={false} />
+          </mesh>
+          <mesh position={[0.035, 0, -0.28]} rotation={[0, 0.16, 0.12]}>
+            <boxGeometry args={[0.1, 0.018, 0.14]} />
+            <meshBasicMaterial color="#8b5441" toneMapped={false} />
           </mesh>
         </group>
       )}

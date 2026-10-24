@@ -48,7 +48,7 @@ import {
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { rollCombatLoot } from "../game/combat-loot.ts";
 import { DUEL_CAMERA_HEADING, getDuelCameraRelativeInput } from "../game/duel-camera.ts";
-import { resolveCharacterAnimationState } from "./character-animation";
+import { resolveWorldPlayerAnimationState } from "./character-animation";
 import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import StoryDialogueOverlay from "./StoryDialogueOverlay";
 import {
@@ -2770,7 +2770,13 @@ export default function WorldScene({
               ? worldEquipmentVisual
               : battleSession ? battleEquipmentVisual : travelEquipmentVisual}
             lightRadius={equipmentBonuses.lightRadius}
-            animationState={chestSlamActive ? "heavyAttack" : attackAnimation ? "attack" : resolveCharacterAnimationState(motion)}
+            animationState={
+              resolveWorldPlayerAnimationState(
+                motion,
+                motionRef.current.jumpHeight,
+                chestSlamActive ? "heavyAttack" : attackAnimation ? "attack" : null,
+              )
+            }
             rivals={battleSession ? [] : nearbyRivals}
             pickups={allPickups}
             obstacles={activeContent.obstacles}
@@ -3193,6 +3199,7 @@ export default function WorldScene({
             <path d="m13 7-3.5 3.3 3.2 1.2 2.2 3.2m-5.4-4.4-1.2 4.1-3.1 3m5.1-7.1 4.2-1 3.1 2m-7.3-1 1-3.3" />
           </svg>
           <b>KOŞ</b>
+            <kbd aria-hidden="true">SHIFT</kbd>
         </button>
         <button
           className="world-movement-action is-jump"
@@ -3204,6 +3211,7 @@ export default function WorldScene({
             <path d="M12 20V4m-6 6 6-6 6 6" />
           </svg>
           <b>ZIPLA</b>
+            <kbd aria-hidden="true">SPACE</kbd>
         </button>
         <button
           className={`world-movement-action${worldInput.isActionToggled("c") ? " is-active" : ""}`}
@@ -3216,6 +3224,7 @@ export default function WorldScene({
             <path d="M12 4v8m-6-2 6 6 6-6M5 20h14" />
           </svg>
           <b>EĞİL</b>
+            <kbd aria-hidden="true">CTRL</kbd>
         </button>
       </div>
       {nearbyHazard && !battleSession && (
