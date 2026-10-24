@@ -18,6 +18,7 @@ import {
 } from "../store-types.ts";
 import { EQUIPMENT_SETS, getDailySpecials } from "../store-catalog.ts";
 import { getItemBonuses } from "../store-utils";
+import { isCoreWeapon } from "../weapons.ts";
 import "./store-panel.css";
 
 type StorePanelProps = {
@@ -72,7 +73,7 @@ const statLabels: Record<keyof EquipmentStatBonuses, string> = {
 const rarityLabels = {
   common: "Sıradan",
   rare: "Nadir",
-  epic: "Destansı",
+  epic: "Epik",
   legendary: "Efsanevi",
 } as const;
 
@@ -136,7 +137,7 @@ export default function StorePanel({
   const visibleItems = useMemo(() => {
     if (activeTab === "inventory") {
       return items.filter((item) => item.kind === "equipment"
-        ? ownedSet.has(item.id)
+        ? ownedSet.has(item.id) && (item.slot !== "weapon" || isCoreWeapon(item.id))
         : item.reward?.type === "combat-item"
           ? profile.inventory.combatItemCounts[item.reward.itemId] > 0
           : item.reward?.type === "material" && profile.materials[item.reward.material] > 0);
@@ -145,7 +146,9 @@ export default function StorePanel({
       const dailyIds = new Set(getDailySpecials().map((item) => item.id));
       return items.filter((item) => dailyIds.has(item.id));
     }
-    return items.filter((item) => item.category === activeTab);
+    return items
+      .filter((item) => item.category === activeTab && (activeTab !== "weapons" || isCoreWeapon(item.id)))
+      .sort((left, right) => ({ common: 0, rare: 1, epic: 2, legendary: 3 }[left.rarity] - { common: 0, rare: 1, epic: 2, legendary: 3 }[right.rarity]));
   }, [activeTab, dailyOfferRevision, items, ownedSet, profile.inventory.combatItemCounts, profile.materials]);
   const selected = visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
 

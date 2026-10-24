@@ -238,7 +238,7 @@ export default function DuelControls({
   const isDagger = /av bıçağı|bıçak|dagger/i.test(activeWeapon);
   const attackLabel = isBowActive ? (bowCloseRange ? "YAKIN" : "ATEŞ") : isDagger ? "BIÇAK" : "SALDIRI";
   const attackDescription = isBowActive
-    ? bowCloseRange ? "Yayla yakın mesafe saldırısı" : "Yay ile ateş et"
+    ? bowCloseRange ? "Yakın menzil saldırısı" : "Nişan kilitliyken cephane kullanarak ateş et"
     : `${isDagger ? "Bıçakla saldır" : "Seçili silahla saldır"}: ${activeWeapon}`;
 
   return (

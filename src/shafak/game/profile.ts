@@ -3,6 +3,7 @@ import { grantLootItem } from "./store-rewards.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, DEFAULT_COMBAT_QUICK_SLOTS, normalizeCombatItemCounts, normalizeCombatQuickSlots } from "./combat-items.ts";
 import { getIstanbulDayKey, normalizeDailyLifeState } from "./daily-lives.ts";
 import type { WorldRouteChoice } from "../world/route-difficulty.ts";
+import { DEFAULT_WEAPON_ID, isCoreWeapon } from "./weapons.ts";
 
 export type PlayerProfile = {
   name: string;
@@ -239,7 +240,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
 function normalizeEquipment(value: unknown): EquipmentLoadout {
   const saved = value && typeof value === "object" ? value as Partial<EquipmentLoadout> : {};
   return {
-    weaponId: safeItemId(saved.weaponId, defaultProfile.equipment.weaponId),
+    weaponId: isCoreWeapon(saved.weaponId) ? saved.weaponId : DEFAULT_WEAPON_ID,
     offhandId: typeof saved.offhandId === "string" ? safeItemId(saved.offhandId, "") || null : null,
     helmetId: typeof saved.helmetId === "string" ? safeItemId(saved.helmetId, "") || null : null,
     armorId: safeItemId(saved.armorId, defaultProfile.equipment.armorId),
@@ -279,7 +280,7 @@ function normalizeInventory(value: unknown): PlayerInventory {
     : null;
   const secondaryWeaponId = secondaryWeapon
     && ownedItemIds.includes(secondaryWeapon)
-    && /^weapon_[a-z0-9_-]+$/.test(secondaryWeapon)
+    && isCoreWeapon(secondaryWeapon)
     ? secondaryWeapon
     : null;
   return { ownedItemIds, upgrades, newItemIds, combatItemCounts, quickSlots, secondaryWeaponId };

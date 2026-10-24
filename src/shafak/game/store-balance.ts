@@ -7,8 +7,8 @@ import type {
 } from "./store-types.ts";
 
 export const STORE_BALANCE_CONFIG = {
-  maxUpgradeLevel: 10,
-  sellReturnRate: 0.4,
+  maxUpgradeLevel: 5,
+  sellReturnRate: 0.5,
   equipmentSets: {
     "ash-guardian": {
       twoPiece: { defense: 0.04, damage: 0.035 },
@@ -35,9 +35,9 @@ export const STORE_BALANCE_CONFIG = {
       base: 1,
       perTwoLevels: 1,
     },
-    successChanceByLevel: [100, 100, 100, 100, 100, 100, 85, 70, 60, 50],
+    successChanceByLevel: [100, 100, 100, 100, 100],
     bonusesBySlot: {
-      weapon: { damage: 0.018, attackSpeed: 0.006, attackRange: 0.015, critDamage: 0.005 },
+      weapon: { damage: 0.08 },
       offhand: { health: 1, defense: 0.008 },
       helmet: { health: 1, defense: 0.008 },
       armor: { health: 1, defense: 0.008 },
@@ -71,7 +71,7 @@ export const STORE_BALANCE_CONFIG = {
   playerCombat: {
     maxHealth: { base: 150, min: 130, max: 175 },
     maxStamina: { base: 100, min: 80, max: 130 },
-    damageMultiplier: { base: 1, min: 0.82, max: 1.35 },
+    damageMultiplier: { base: 1, min: 0.82, max: 1.75 },
     defenseReduction: { min: 0, max: 0.24 },
     criticalChance: { base: 0.12, min: 0.08, max: 0.28 },
     criticalDamageMultiplier: { base: 1.5, min: 1.5, max: 2 },
@@ -89,15 +89,15 @@ export function getUpgradeCost(slot: EquipmentSlot, currentLevel: number): Upgra
   const weaponOrOffhand = slot === "weapon" || slot === "offhand";
   const balance = STORE_BALANCE_CONFIG.upgrade;
   return {
-    gold: balance.gold.base
-      + level * balance.gold.perLevel
-      + (weaponOrOffhand ? 0 : balance.gold.nonWeaponSurcharge),
-    ironShards: weaponOrOffhand
+    gold: slot === "weapon"
+      ? balance.gold.base * 2 ** level
+      : balance.gold.base + level * balance.gold.perLevel + (weaponOrOffhand ? 0 : balance.gold.nonWeaponSurcharge),
+    ironShards: slot === "weapon" ? 0 : weaponOrOffhand
       ? balance.ironShards.base + Math.floor(level / 2) * balance.ironShards.perTwoLevels
       : balance.ironShards.otherSlotBase,
-    emberCrystals: balance.emberCrystals.base
+    emberCrystals: slot === "weapon" ? 0 : balance.emberCrystals.base
       + Math.floor(level / 2) * balance.emberCrystals.perTwoLevels,
-    sealFragments: level >= balance.sealFragments.firstLevel
+    sealFragments: slot !== "weapon" && level >= balance.sealFragments.firstLevel
       ? balance.sealFragments.base
         + Math.floor((level - balance.sealFragments.firstLevel) / 2) * balance.sealFragments.perTwoLevels
       : 0,

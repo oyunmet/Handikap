@@ -21,6 +21,7 @@ import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from 
 import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
 import { getStoreItem } from "../game/store-catalog.ts";
+import { getWeaponDefinition } from "../game/weapons.ts";
 import type { EquipmentVisual } from "../game/store-types";
 import type { WorldInteractableRegistry } from "./world-interactables";
 import {
@@ -775,8 +776,17 @@ function DuelFighter({
       : undefined,
     [opponentName, opponentProfile, side],
   );
-  const activeWeaponVisual = side === "player" && combatRender
-    ? getStoreItem(combatRender.weaponIds[combatRender.activeWeaponSlot])?.visual
+  const activeWeaponId = side === "player" && combatRender
+    ? combatRender.weaponIds[combatRender.activeWeaponSlot]
+    : null;
+  const activeWeaponGap = side === "player" && combatRender
+    ? Math.hypot(combatRender.player.x - combatRender.bot.x, combatRender.player.z - combatRender.bot.z)
+    : Number.POSITIVE_INFINITY;
+  const renderWeaponId = getWeaponDefinition(activeWeaponId)?.type === "uzak" && activeWeaponGap <= 1.85
+    ? "weapon_hunting_knife"
+    : activeWeaponId;
+  const activeWeaponVisual = side === "player" && renderWeaponId
+    ? getStoreItem(renderWeaponId)?.visual
     : undefined;
   const fighterAppearance = useMemo(() => {
     if (side !== "player") return opponentProfile?.appearance;
@@ -810,7 +820,14 @@ function DuelFighter({
   const boss = side === "bot" && combatRender?.botArchetype === "chapter-boss";
   const elite = side === "bot" && Boolean(combatRender?.opponentTuning.isElite);
   const enraged = side === "bot" && Boolean(renderedActor && isCombatBotEnraged(renderedActor));
-  const combatGlow = side === "player" ? "#ffad58" : elite || boss ? "#e8b052" : "#6de0e5";
+  const selectedWeaponRarity = side === "player" && combatRender
+    ? getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.rarity
+    : undefined;
+  const combatGlow = side === "player"
+    ? selectedWeaponRarity === "Epik" ? "#ad78f2"
+      : selectedWeaponRarity === "Efsanevi" ? "#e7bd69"
+        : "#ffad58"
+    : elite || boss ? "#e8b052" : "#6de0e5";
   const duelGlowTexture = useMemo(() => getWorldGlowTexture(), []);
 
   useFrame(() => {

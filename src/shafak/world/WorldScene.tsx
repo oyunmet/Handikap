@@ -8,6 +8,7 @@ import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
 import { isDailySpecialAvailable, STARTER_ITEM_IDS, STORE_CATALOG } from "../game/store-catalog";
+import { getWeaponDefinition } from "../game/weapons.ts";
 import { getCombatItem, type CombatItemId, type CombatQuickSlots } from "../game/combat-items.ts";
 import {
   getEquipmentLoadoutKey,
@@ -975,7 +976,8 @@ export default function WorldScene({
   const combatDistance = combatRender
     ? Math.hypot(combatRender.player.x - combatRender.bot.x, combatRender.player.z - combatRender.bot.z)
     : Number.POSITIVE_INFINITY;
-  const bowCloseRange = selectedBattleWeaponId === "weapon_short_bow" && combatDistance <= 1.85;
+  const selectedWeapon = getWeaponDefinition(selectedBattleWeaponId);
+  const bowCloseRange = selectedWeapon?.type === "uzak" && combatDistance <= 1.85;
   const battleWeaponId = bowCloseRange ? "weapon_hunting_knife" : selectedBattleWeaponId;
   const battleEquipmentVisual = useMemo(() => {
     if (battleWeaponId === profile.equipment.weaponId) return equipmentVisual;
@@ -1917,9 +1919,8 @@ export default function WorldScene({
     input.released |= button;
   };
   const toggleDuelAim = () => {
-    const input = combatInputRef.current;
-    if (input.buttons & INPUT_BUTTON.aim) releaseDuelButton(INPUT_BUTTON.aim);
-    else pressDuelButton(INPUT_BUTTON.aim);
+    pressDuelButton(INPUT_BUTTON.aim);
+    releaseDuelButton(INPUT_BUTTON.aim);
   };
   const moveDuelPlayer = (x: number, y: number) => {
     const input = getDuelCameraRelativeInput(
@@ -2939,18 +2940,19 @@ export default function WorldScene({
                 {event.type === "item" && <strong>{getCombatItem(event.itemId)?.name ?? "SAVAŞ EŞYASI"}</strong>}
                 {event.type === "poison" && <strong>ZEHİR · −{event.damage ?? 0}</strong>}
                 {event.type === "weaponSwitch" && <strong>{STORE_CATALOG.find((item) => item.id === event.weaponId)?.name ?? "SİLAH DEĞİŞTİ"}</strong>}
+                {event.type === "ammoEmpty" && <strong>CEPHANE YOK · V İLE YAKIN SİLAHA GEÇ</strong>}
               </div>
             ))}
           </div>}
           {visualEffectsEnabled && combatFlash && <div className={`duel-hit-flash is-${combatFlash}`} aria-hidden="true" />}
           {visualEffectsEnabled && <div className="duel-low-health-vignette" aria-hidden="true" />}
           <div className={`duel-aim-status${combatRender.player.isAiming ? " is-active" : ""}`} role="status" aria-live="polite">
-            {combatRender.weaponIds[combatRender.activeWeaponSlot] === "weapon_short_bow"
+            {getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"
               ? bowCloseRange
-                ? "YAKIN DÖVÜŞ · AV BIÇAĞI"
+                ? "YAKIN DÖVÜŞ · V İLE YAKIN SİLAHA GEÇ"
                 : combatRender.player.isAiming
-                  ? "HEDEF KİLİTLİ · OKU ATEŞLE"
-                  : "NİŞAN AL · SALDIRIYLA OK AT"
+                  ? `HEDEF KİLİTLİ · CEPHANE ${combatRender.combatItemCounts.throwing_knife} · SALDIR`
+                  : `F İLE HEDEF KİLİTLE · CEPHANE ${combatRender.combatItemCounts.throwing_knife}`
               : combatRender.player.isAiming
                 ? `HEDEF KİLİTLİ · ${STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "SİLAH"} HAZIR`
                 : "NİŞAN AL · HEDEFİ KİLİTLE, SALDIRIYLA VUR"}
@@ -2992,7 +2994,7 @@ export default function WorldScene({
             ]}
             activeWeaponSlot={combatRender.activeWeaponSlot}
             aiming={combatRender.player.isAiming}
-            isBowActive={combatRender.weaponIds[combatRender.activeWeaponSlot] === "weapon_short_bow"}
+            isBowActive={getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"}
             bowCloseRange={bowCloseRange}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}

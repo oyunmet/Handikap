@@ -1,5 +1,6 @@
 import type { EquipmentSlot, StoreItem } from "./store-types.ts";
 import { STORE_BALANCE_CONFIG } from "./store-balance.ts";
+import { WEAPONS } from "./weapons.ts";
 
 const item = (
   id: string,
@@ -49,7 +50,7 @@ const lootItem = (
   requiredLevel,
   dropOnly: true,
   sellValue: {
-    gold: Math.floor((20 + requiredLevel * 16) * ({ common: 1, rare: 1.7, epic: 2.8, legendary: 4 }[rarity]) * 0.4),
+    gold: Math.floor((20 + requiredLevel * 16) * ({ common: 1, rare: 1.7, epic: 2.8, legendary: 4 }[rarity]) * 0.5),
     diamonds: 0,
   },
   ...(setId ? { setId } : {}),
@@ -91,22 +92,25 @@ export const EQUIPMENT_SETS = {
   },
 } as const;
 
+const coreWeaponItems: StoreItem[] = WEAPONS.map((weapon) => ({
+  id: weapon.id,
+  name: weapon.name,
+  category: "weapons",
+  kind: "equipment",
+  slot: "weapon",
+  rarity: weapon.storeRarity,
+  description: weapon.description,
+  summary: weapon.summary,
+  price: { gold: weapon.price, diamonds: 0 },
+  sellValue: { gold: Math.floor(weapon.price * 0.5), diamonds: 0 },
+  stats: { ...weapon.stats, critChance: weapon.criticalChance },
+  upgradeable: true,
+  visual: weapon.visual,
+  icon: weapon.icon,
+}));
+
 export const STORE_CATALOG: readonly StoreItem[] = [
-  item("weapon_ash_sword", "Kül Kılıcı", "weapons", "weapon", "common", "Yolcuların kullandığı dengeli, güvenilir kılıç.", "Dengeli · başlangıç silahı", { gold: 0, diamonds: 0 }, {}, true, { weaponStyle: "sword", weaponColor: "#d6dce0" }),
-  item("weapon_iron_sword", "Demir Kılıç", "weapons", "weapon", "common", "Dayanıklı demirden dövülmüş, dengeli bir yol kılıcı.", "Dengeli · kolay geliştirilebilir", { gold: 240, diamonds: 0 }, { damage: 0.035 }, true, { weaponStyle: "sword", weaponColor: "#b7b9bd" }),
-  item("weapon_steel_long_sword", "Çelik Uzun Kılıç", "weapons", "weapon", "rare", "Uzun menzilli, hafif çelik bir şövalye kılıcı.", "Menzil +0,18 m · hasar +%6", { gold: 480, diamonds: 0 }, { damage: 0.06, attackRange: 0.18 }, true, { weaponStyle: "sword", weaponColor: "#c6d7de", trailColor: "#c3e4e8" }),
-  item("weapon_ember_sword", "Alev Kılıcı", "weapons", "weapon", "epic", "Korla işlenmiş kılıç; vurduğu yerde sıcak bir iz bırakır.", "Hasar +%9 · kor izi", { gold: 0, diamonds: 6 }, { damage: 0.09, critChance: 0.025 }, true, { weaponStyle: "sword", weaponColor: "#ed9b57", trailColor: "#ff7546", auraColor: "#ff8751" }),
-  item("weapon_shadow_sword", "Gölge Kılıcı", "weapons", "weapon", "legendary", "Karanlıkta parlamayan ince kılıç; kritik darbeleri daha ağır vurur.", "Kritik +%8 · kritik hasarı +%15 · hız +%4", { gold: 0, diamonds: 10 }, { critChance: 0.08, critDamage: 0.15, attackSpeed: 0.04 }, true, { weaponStyle: "sword", weaponColor: "#a793cd", trailColor: "#9277c5", auraColor: "#8e7bc0" }),
-  item("weapon_hunting_knife", "Av Bıçağı", "weapons", "weapon", "common", "Yakın mesafede hızlı ve çevik karşı vuruşlar için hafif bir bıçak.", "Hızlı · yakın menzil · hasar −%8", { gold: 180, diamonds: 0 }, { damage: -0.08, critChance: 0.025, attackSpeed: 0.2, attackRange: -0.28 }, true, { weaponStyle: "daggers", weaponColor: "#c6d4d1", trailColor: "#c9ecdf" }),
-  item("weapon_venom_dagger", "Zehirli Hançer", "weapons", "weapon", "rare", "Çift ağızlı hançer; çevik ve ağır kritik darbeler için.", "Kritik +%5 · kritik hasarı +%10 · hız +%16", { gold: 330, diamonds: 0 }, { damage: -0.03, critChance: 0.05, critDamage: 0.1, attackSpeed: 0.16, attackRange: -0.2 }, true, { weaponStyle: "daggers", weaponColor: "#81bd90", trailColor: "#83d77d", auraColor: "#527e4e" }),
-  item("weapon_twin_daggers", "İkiz Hançerler", "weapons", "weapon", "rare", "Hızlı art arda vuruşlar için hafif bir çift hançer.", "Hız +14% · menzil −0,25 m", { gold: 0, diamonds: 3 }, { damage: -0.02, critChance: 0.035, attackSpeed: 0.14, attackRange: -0.25 }, true, { weaponStyle: "daggers", weaponColor: "#9fe5e0" }),
-  item("weapon_iron_axe", "Demir Savaş Baltası", "weapons", "weapon", "rare", "Geniş savuruşlu balta; ağır vuruşlar ve kritik darbeler için.", "Hasar +8% · hız −12%", { gold: 0, diamonds: 4 }, { damage: 0.08, critChance: 0.01, attackSpeed: -0.12, attackRange: 0.12 }, true, { weaponStyle: "axe", weaponColor: "#dba56d" }),
-  item("weapon_greatsword", "Kale Yıkan", "weapons", "weapon", "epic", "Uzun erişimli, ağır ve kuvvetli iki elli kılıç.", "Hasar +14% · menzil +0,35 m", { gold: 0, diamonds: 7 }, { damage: 0.14, attackSpeed: -0.2, attackRange: 0.35 }, true, { weaponStyle: "greatsword", weaponColor: "#eacb89" }),
-  item("weapon_road_spear", "Yol Mızrağı", "weapons", "weapon", "common", "Mesafeyi koruyup güvenli dürtme vuruşları yap.", "Menzil +0,65 m · hasar −3%", { gold: 360, diamonds: 0 }, { damage: -0.03, attackSpeed: 0.04, attackRange: 0.65 }, true, { weaponStyle: "spear", weaponColor: "#91bbb4" }),
-  item("weapon_short_bow", "Kısa Yay", "weapons", "weapon", "rare", "Nişan alarak sipere yakın güvenli mesafeden ok at. Rakip çok yaklaşırsa Av Bıçağına geç.", "Menzil 9 m · nişan alarak atış", { gold: 520, diamonds: 0 }, { damage: -0.04, attackSpeed: -0.12, attackRange: 0.55 }, true, { weaponStyle: "bow", weaponColor: "#b98a54", trailColor: "#f0cf8a" }),
-  item("weapon_forged_mace", "Demir Gürz", "weapons", "weapon", "rare", "Ağır başlı gürz; zırh delici güçlü vuruşlar için.", "Hasar +%12 · hız −%14", { gold: 620, diamonds: 0 }, { damage: 0.12, attackSpeed: -0.14 }, true, { weaponStyle: "mace", weaponColor: "#939ca4", trailColor: "#d6bd8d" }),
-  item("weapon_ember_staff", "Kor Asası", "weapons", "weapon", "epic", "Kor büyüsünü besleyen asa; Kor yeteneğini güçlendirir.", "Hasar +%5 · kor gücü +%12", { gold: 0, diamonds: 7 }, { damage: 0.05, attackSpeed: 0.03, attackRange: 0.22 }, true, { weaponStyle: "staff", weaponColor: "#c06b43", trailColor: "#ff8449", auraColor: "#ff8b4e" }),
-  item("weapon_storm_staff", "Yıldırım Asası", "weapons", "weapon", "epic", "Yıldırım büyüsünü güçlendiren, kristalli bir asa.", "Kritik +%4 · yıldırım gücü +%12", { gold: 0, diamonds: 8 }, { critChance: 0.04, attackRange: 0.28 }, true, { weaponStyle: "staff", weaponColor: "#78c6d2", trailColor: "#8de8f4", auraColor: "#8de8f4" }),
+  ...coreWeaponItems,
   item("armor_ash_guard", "Kül Muhafızı", "armor", "armor", "common", "Kül Yolu'nun eski muhafızlarından kalan sade zırh.", "Başlangıç zırhı", { gold: 0, diamonds: 0 }, {}, true, { armor: "#252832", armorLight: "#41444c", armorDark: "#15171d", trim: "#c99c52", armorStyle: "ash" }),
   item("shield_wooden", "Tahta Kalkan", "armor", "offhand", "common", "Hafif bir tahta kalkan; ilk darbeleri karşılamak için.", "Savunma +%3 · başlangıç yan eli", { gold: 160, diamonds: 0 }, { defense: 0.03, health: 2 }, true, { shieldColor: "#8a603e", shieldStyle: "round", trim: "#b99363" }),
   item("shield_iron", "Demir Kalkan", "armor", "offhand", "rare", "Metal kenarlı, sağlam demir kalkan.", "Savunma +%7 · can +4", { gold: 420, diamonds: 0 }, { defense: 0.07, health: 4, moveSpeed: -0.015 }, true, { shieldColor: "#65717a", shieldStyle: "round", trim: "#d2bd87" }),
@@ -143,6 +147,9 @@ export const STORE_CATALOG: readonly StoreItem[] = [
   supplyItem("supply_throwing_knife", "Fırlatma Bıçağı", "consumables", "common", "Uzak rakibe hasar verir; savaş çantana 1 adet eklenir.", "Savaş eşyası · 1 adet", 65, { type: "combat-item", itemId: "throwing_knife", amount: 1 }, "⌁"),
   supplyItem("supply_explosive_flask", "Patlayıcı Şişe", "consumables", "rare", "Yakın rakibe alan hasarı verir; savaş çantana 1 adet eklenir.", "Savaş eşyası · 1 adet", 90, { type: "combat-item", itemId: "explosive_flask", amount: 1 }, "✹"),
   supplyItem("supply_smoke_bomb", "Sis Bombası", "consumables", "rare", "Kısa süreli koruma sağlar; savaş çantana 1 adet eklenir.", "Savaş eşyası · 1 adet", 85, { type: "combat-item", itemId: "smoke_bomb", amount: 1 }, "◌"),
+  supplyItem("supply_arrows", "Ok Paketi", "consumables", "common", "Yay cephanesi; 20 ok.", "Cephane · 20 ok", 100, { type: "combat-item", itemId: "throwing_knife", amount: 20 }, "➶"),
+  supplyItem("supply_bolts", "Arbalet Cıvatası", "consumables", "common", "Arbalet cephanesi; 20 cıvata.", "Cephane · 20 cıvata", 130, { type: "combat-item", itemId: "throwing_knife", amount: 20 }, "⟿"),
+  supplyItem("supply_throwing_blades", "Fırlatma Bıçağı Paketi", "consumables", "common", "Fırlatma silahları için 20 bıçak.", "Cephane · 20 bıçak", 110, { type: "combat-item", itemId: "throwing_knife", amount: 20 }, "⌁"),
   supplyItem("material_iron_shard", "Demir Kırığı", "materials", "common", "Demirci geliştirmelerinde kullanılan işlenebilir metal.", "Geliştirme malzemesi · 1 adet", 50, { type: "material", material: "ironShards", amount: 1 }, "⬟"),
   supplyItem("material_ember_crystal", "Kor Kristali", "materials", "rare", "Ekipman geliştirmelerinde kullanılan sıcak kristal.", "Geliştirme malzemesi · 1 adet", 90, { type: "material", material: "emberCrystals", amount: 1 }, "◆"),
   supplyItem("material_seal_fragment", "Mühür Parçası", "materials", "epic", "Üst seviye geliştirmeleri için gereken nadir parça.", "Geliştirme malzemesi · 1 adet", 160, { type: "material", material: "sealFragments", amount: 1 }, "✦"),

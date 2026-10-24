@@ -24,6 +24,10 @@ export function getDuelWeaponTargetWorldDimension(style?: EquipmentVisual["weapo
     case "mace":
     case "bow":
       return 1;
+    case "crossbow":
+      return 0.96;
+    case "throwingKnife":
+      return 0.44;
     case "greatsword":
       return 1.32;
     case "spear":
@@ -77,7 +81,7 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
     );
   };
 
-  root.scale.setScalar(style === "greatsword" ? 0.58 : style === "spear" || style === "staff" ? 0.54 : 0.56);
+  root.scale.setScalar(style === "greatsword" ? 0.58 : style === "spear" || style === "staff" || style === "crossbow" ? 0.54 : 0.56);
   root.rotation.z = 0.12;
   const gripHeight: Record<NonNullable<EquipmentVisual["weaponStyle"]>, number> = {
     sword: 0.03,
@@ -88,6 +92,8 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
     bow: 0.42,
     mace: 0.28,
     staff: 0.39,
+    crossbow: 0.24,
+    throwingKnife: 0.02,
   };
   // Put the actual grip point at the hand bone instead of leaving the hand
   // below the weapon's handle, which makes equipped weapons look detached.
@@ -112,6 +118,17 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
     add(new THREE.TorusGeometry(0.33, 0.035, 6, 20, Math.PI * 1.55), leather, [0, 0.42, 0], [0, 0, Math.PI / 2]);
     add(new THREE.CylinderGeometry(0.012, 0.012, 0.62, 5), trim, [0, 0.42, 0]);
     add(new THREE.BoxGeometry(0.025, 0.42, 0.022), steel, [0.04, 0.42, 0]);
+  } else if (style === "crossbow") {
+    handle(0.74, 0.24);
+    add(new THREE.BoxGeometry(0.12, 0.08, 0.62), trim, [0, 0.62, 0]);
+    add(new THREE.BoxGeometry(0.075, 0.07, 0.48), steel, [0, 0.65, 0.02]);
+    add(new THREE.CylinderGeometry(0.012, 0.012, 0.74, 5), steel, [0, 0.67, 0], [Math.PI / 2, 0, 0]);
+    add(new THREE.BoxGeometry(0.055, 0.36, 0.045), leather, [0, 0.32, 0]);
+  } else if (style === "throwingKnife") {
+    add(new THREE.CylinderGeometry(0.025, 0.028, 0.18, 6), leather, [0, 0.02, 0]);
+    add(new THREE.BoxGeometry(0.07, 0.28, 0.025), steel, [0, 0.23, 0]);
+    add(new THREE.ConeGeometry(0.04, 0.12, 4), steel, [0, 0.43, 0]);
+    add(new THREE.BoxGeometry(0.15, 0.035, 0.05), trim, [0, 0.11, 0]);
   } else if (style === "staff") {
     handle(1.02, 0.39);
     add(new THREE.CylinderGeometry(0.09, 0.11, 0.055, 7), trim, [0, 0.82, 0]);

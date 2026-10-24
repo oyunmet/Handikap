@@ -705,6 +705,7 @@ function OptionalGlbKnight({
         THREE.MathUtils.clamp(staticActionElapsed.current / 0.42, 0, 1),
         motionReduced,
         frame.clock.elapsedTime,
+        weaponAppearance?.weaponStyle,
       );
     }
     if (selectedAction) {

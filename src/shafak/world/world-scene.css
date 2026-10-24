@@ -2572,7 +2572,12 @@
   .duel-controls--field .duel-control-cluster .duel-control.is-attack {
     bottom: 5px;
   }
-  .duel-controls--field .duel-aim-status { display: none; }
+  .duel-controls--field .duel-aim-status {
+    display: block;
+    top: max(168px, calc(env(safe-area-inset-top) + 158px));
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }
 @media (max-width: 390px) {
   .duel-controls--field .duel-control-cluster {

@@ -1,6 +1,7 @@
 import type { PlayerCombatModifiers } from "./store-types.ts";
 import type { CombatItemCounts, CombatItemId, CombatQuickSlots } from "./combat-items.ts";
 import { getStoreItem } from "./store-catalog.ts";
+import { getWeaponDefinition } from "./weapons.ts";
 
 export const COMBAT_HZ = 60;
 export const MAX_DUEL_TICKS = 5_400;
@@ -171,7 +172,7 @@ export type CombatInputFrame = readonly [
 
 export type CombatEvent = {
   id: number;
-  type: "hit" | "block" | "parry" | "dodge" | "backflip" | "plungeLand" | "skill" | "knockout" | "item" | "poison" | "burn" | "weaponSwitch" | "weaponTrail" | "projectile" | "coverBlock";
+  type: "hit" | "block" | "parry" | "dodge" | "backflip" | "plungeLand" | "skill" | "knockout" | "item" | "poison" | "burn" | "weaponSwitch" | "weaponTrail" | "projectile" | "coverBlock" | "ammoEmpty";
   target: CombatSide;
   attack?: CombatAttack;
   damage?: number;
@@ -207,7 +208,7 @@ export function normalizePlayerCombatModifiers(value: unknown): PlayerCombatModi
   return {
     maxHealth: clamp(finiteOr(source.maxHealth, 150), 130, 175),
     maxStamina: clamp(finiteOr(source.maxStamina, 100), 80, 130),
-    damageMultiplier: clamp(finiteOr(source.damageMultiplier, 1), 0.82, 1.35),
+  damageMultiplier: clamp(finiteOr(source.damageMultiplier, 1), 0.82, 1.75),
     defenseReduction: clamp(finiteOr(source.defenseReduction, 0), 0, 0.24),
     criticalChance: clamp(finiteOr(source.criticalChance, 0.12), 0.08, 0.28),
     criticalDamageMultiplier: clamp(finiteOr(source.criticalDamageMultiplier, 1.5), 1.5, 2),
@@ -469,7 +470,9 @@ function setAction(actor: CombatActor, action: CombatAction, tick: number, durat
 }
 
 function getWeaponStyle(weaponId: string | null): CombatWeaponStyle {
-  return getStoreItem(weaponId)?.visual.weaponStyle ?? "sword";
+  return getWeaponDefinition(weaponId)?.visual.weaponStyle
+    ?? getStoreItem(weaponId)?.visual.weaponStyle
+    ?? "sword";
 }
 
 function getBotWeaponStyle(archetype: CombatBotArchetype): CombatWeaponStyle {
@@ -569,14 +572,22 @@ function startAttack(
   if (tick < actor.staggerUntilTick || tick < actor.attackCooldownUntilTick || actor.stamina <= 0) return false;
   const target = side === "player" ? state.bot : state.player;
   const weaponId = side === "player" ? state.weaponIds[state.activeWeaponSlot] : null;
+  const weaponDefinition = getWeaponDefinition(weaponId);
   const weaponStyle = side === "player" ? getWeaponStyle(weaponId) : getBotWeaponStyle(state.botArchetype);
   const gap = distanceBetween(actor, target);
-  const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
-  const rangedShot = weaponStyle === "bow"
-    && !bowAtCloseRange
+  const rangedWeapon = side === "player"
+    ? weaponDefinition?.type === "uzak"
+    : weaponStyle === "bow";
+  const rangedAtCloseRange = rangedWeapon && gap <= 1.85;
+  const rangedShot = rangedWeapon
+    && !rangedAtCloseRange
     && (attack === "light" || attack === "heavy");
   if (rangedShot && side === "player" && !actor.isAiming) return false;
-  const closeBowAttack = bowAtCloseRange && (attack === "light" || attack === "heavy");
+  if (rangedShot && side === "player" && state.combatItemCounts.throwing_knife <= 0) {
+    events.push({ id: tick * 100 + 41, type: "ammoEmpty", target: "player", weaponId: weaponId ?? undefined });
+    return false;
+  }
+  const closeBowAttack = rangedAtCloseRange && (attack === "light" || attack === "heavy");
   const cost = attack === "light"
     ? closeBowAttack ? 8 : weaponStyle === "daggers" ? 7 : 9
     : attack === "heavy" ? weaponStyle === "axe" ? 27 : 23
@@ -590,13 +601,16 @@ function startAttack(
   actor.chargeStartedTick = -1;
   actor.attackWeaponId = weaponId;
   actor.attackIsRanged = rangedShot;
+  if (rangedShot && side === "player") {
+    state.combatItemCounts.throwing_knife = Math.max(0, state.combatItemCounts.throwing_knife - 1);
+  }
   actor.attackWasPlunge = actor.jumpUntilTick > tick;
-  const weaponSpeed = weaponStyle === "daggers" ? 1.28
+  const weaponSpeed = weaponDefinition?.speed ?? (weaponStyle === "daggers" ? 1.28
     : weaponStyle === "axe" || weaponStyle === "mace" ? 0.76
       : weaponStyle === "greatsword" ? 0.82
         : weaponStyle === "bow" ? 0.88
           : weaponStyle === "spear" ? 0.94
-            : 1;
+            : 1);
   const speed = side === "player" ? state.playerStats.attackSpeedMultiplier * weaponSpeed : 1;
   const botEnraged = side === "bot" && isCombatBotEnraged(actor);
   const botRecoveryBase = state.difficulty === "easy" ? 156 : state.difficulty === "medium" ? 108 : 78;
@@ -771,28 +785,33 @@ function applyDamage(
 ) {
   const gap = distanceBetween(attacker, target);
   const playerAttacking = attacker === state.player;
+  const weaponDefinition = playerAttacking
+    ? getWeaponDefinition(attacker.attackWeaponId ?? state.weaponIds[state.activeWeaponSlot])
+    : null;
   const weaponStyle = getAttackWeaponStyle(state, attacker);
-  const bowAtCloseRange = weaponStyle === "bow" && gap <= 1.85;
+  const bowAtCloseRange = weaponDefinition?.type === "uzak" && gap <= 1.85;
   const rangedShot = attacker.attackIsRanged;
   const closeBowAttack = bowAtCloseRange && !rangedShot;
   const botDamageScale = state.botArchetype === "rift-berserker" ? 1.18
     : state.botArchetype === "chapter-boss" ? 1.32
       : state.botArchetype === "iron-oath" || state.botArchetype === "venom-assassin" ? 0.9
         : state.botArchetype === "storm-lancer" ? 1.05 : 1;
-  const baseDamage = (attack === "light" ? 6 : attack === "heavy" ? 10 : attack === "skillOne" ? 11 : 15)
-    * (playerAttacking ? 1 : (state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72) * botDamageScale);
-  const styleReach = weaponStyle === "daggers" ? 1.95
+  const baseDamage = playerAttacking && weaponDefinition
+    ? weaponDefinition.damage * (attack === "light" ? 1 : attack === "heavy" ? 1.55 : attack === "skillOne" ? 1.35 : 1.7)
+    : (attack === "light" ? 6 : attack === "heavy" ? 10 : attack === "skillOne" ? 11 : 15)
+      * (playerAttacking ? 1 : (state.difficulty === "easy" ? 0.34 : state.difficulty === "medium" ? 0.52 : 0.72) * botDamageScale);
+  const styleReach = weaponDefinition?.range ?? (weaponStyle === "daggers" ? 1.95
     : weaponStyle === "axe" || weaponStyle === "mace" ? 2.42
       : weaponStyle === "greatsword" ? 3.12
         : weaponStyle === "spear" ? 4.35
           : weaponStyle === "bow" ? closeBowAttack ? 1.85 : 9.25
-            : attack === "light" ? 2.35 : 2.8;
+            : attack === "light" ? 2.35 : 2.8);
   const reach = rangedShot
-    ? 9.25
+    ? weaponDefinition?.range ?? 9.25
     : attack === "skillOne" ? 4.8
       : attack === "skillTwo" ? 3.7
         : styleReach + (attack === "heavy" && weaponStyle !== "spear" ? 0.38 : 0)
-    + (playerAttacking ? state.playerStats.attackRangeBonus : 0);
+    + (playerAttacking ? state.playerStats.attackRangeBonus + (attacker.isAiming && !rangedShot ? 0.18 : 0) : 0);
   if (gap > reach || target.hp <= 0) return;
 
   if (rangedShot) {
@@ -850,7 +869,9 @@ function applyDamage(
     return;
   }
 
-  const critical = random(state) < (playerAttacking ? state.playerStats.criticalChance : 0.12);
+  const critical = random(state) < (playerAttacking
+    ? Math.min(0.75, state.playerStats.criticalChance)
+    : 0.12);
   let multiplier = 1;
   if (playerAttacking && attacker.attackComboStep === 2) multiplier *= 1.1;
   if (playerAttacking && attacker.attackComboStep === 3) multiplier *= 1.25;
@@ -865,7 +886,7 @@ function applyDamage(
   const defenseMultiplier = targetSide === "player"
     ? 1 - state.playerStats.defenseReduction
     : 1 - Math.min(0.24, Math.max(0, state.opponentTuning.statMultiplier - 1) * 0.12);
-  const weaponDamage = weaponStyle === "daggers" ? 0.9
+  const weaponDamage = weaponDefinition ? 1 : weaponStyle === "daggers" ? 0.9
     : weaponStyle === "axe" || weaponStyle === "mace" ? 1.24
       : weaponStyle === "greatsword" ? 1.16
         : weaponStyle === "spear" ? 0.94
@@ -978,7 +999,13 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   const botInput = chooseBotIntent(next, tick, events);
   const buttons = input.buttons & MAX_INPUT_BUTTONS;
   const playerBlockHeld = Boolean(buttons & INPUT_BUTTON.block);
-  player.isAiming = Boolean(buttons & INPUT_BUTTON.aim);
+  if (input.pressed & INPUT_BUTTON.aim) player.isAiming = !player.isAiming;
+  if (
+    player.isAiming
+    && (bot.hp <= 0 || distanceBetween(player, bot) > (getWeaponDefinition(next.weaponIds[next.activeWeaponSlot])?.range ?? 7.5) + 1.5)
+  ) {
+    player.isAiming = false;
+  }
   player.isCrouching = Boolean(buttons & INPUT_BUTTON.crouch);
   bot.isAiming = Boolean(botInput.buttons & INPUT_BUTTON.aim);
 

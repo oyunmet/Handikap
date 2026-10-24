@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
+import type { EquipmentVisual } from "../game/store-types";
 
 export type PlayerRigBoneName =
   | "Rig_Root"
@@ -215,6 +216,7 @@ export function posePlayerRig(
   actionProgress: number,
   motionReduced: boolean,
   time: number,
+  weaponStyle?: EquipmentVisual["weaponStyle"],
 ) {
   const reducedScale = motionReduced ? 0.34 : 1;
   const walkWeight = THREE.MathUtils.clamp(speed / 3.2, 0, 1);
@@ -248,9 +250,29 @@ export function posePlayerRig(
   const action = Math.sin(actionProgress * Math.PI);
   if (state === "attack" || state === "heavyAttack" || state === "plunge") {
     const power = state === "heavyAttack" || state === "plunge" ? 1.08 : 0.78;
-    bones.Rig_RightUpperArm.rotation.set(-0.42 - action * power, 0, -0.24 + action * 0.32);
-    bones.Rig_RightForearm.rotation.x = -action * 0.62;
-    bones.Rig_Chest.rotation.y += action * 0.12;
+    if (weaponStyle === "spear") {
+      bones.Rig_RightUpperArm.rotation.set(-0.24 - action * 0.54, action * 0.16, -0.08);
+      bones.Rig_RightForearm.rotation.x = -action * 0.24;
+      bones.Rig_Chest.rotation.y += action * 0.04;
+    } else if (weaponStyle === "bow" || weaponStyle === "crossbow") {
+      bones.Rig_RightUpperArm.rotation.set(-0.34 - action * 0.2, -action * 0.12, -0.1);
+      bones.Rig_RightForearm.rotation.x = -action * 0.2;
+      bones.Rig_LeftUpperArm.rotation.set(-0.24 - action * 0.28, action * 0.1, 0.08);
+    } else if (weaponStyle === "daggers" || weaponStyle === "throwingKnife") {
+      const quickAction = Math.sin(actionProgress * Math.PI * 2) * 0.38;
+      bones.Rig_RightUpperArm.rotation.set(-0.2 - action * 0.32, 0, -0.1 + quickAction);
+      bones.Rig_RightForearm.rotation.x = -action * 0.42;
+      bones.Rig_Chest.rotation.y += quickAction * 0.1;
+    } else {
+      const wideSwing = weaponStyle === "axe" || weaponStyle === "mace" || weaponStyle === "greatsword";
+      bones.Rig_RightUpperArm.rotation.set(
+        -0.42 - action * power,
+        0,
+        -0.24 + action * (wideSwing ? 0.62 : 0.32),
+      );
+      bones.Rig_RightForearm.rotation.x = -action * (wideSwing ? 0.48 : 0.62);
+      bones.Rig_Chest.rotation.y += action * (wideSwing ? 0.28 : 0.12);
+    }
   } else if (state === "block") {
     bones.Rig_LeftUpperArm.rotation.set(-0.62, 0, -0.24);
     bones.Rig_RightUpperArm.rotation.set(-0.72, 0, 0.26);

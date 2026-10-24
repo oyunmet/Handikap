@@ -1,11 +1,13 @@
+import { useState } from "react";
 import type { StoreItem } from "../game/store-types";
+import { getWeaponDefinition, isCoreWeapon } from "../game/weapons.ts";
 
 type WeaponSlot = 0 | 1;
 
 const RARITY_LABEL: Record<StoreItem["rarity"], string> = {
   common: "Sıradan",
   rare: "Nadir",
-  epic: "Destansı",
+  epic: "Epik",
   legendary: "Efsanevi",
 };
 
@@ -18,6 +20,8 @@ const WEAPON_ICON: Record<string, string> = {
   bow: "➶",
   mace: "✥",
   staff: "ϟ",
+  crossbow: "⟿",
+  throwingKnife: "⌁",
 };
 
 function signedPercent(value = 0) {
@@ -54,13 +58,20 @@ export default function WorldWeaponPicker({
   onConfirm?: () => void;
   onClose: () => void;
 }) {
+  const [typeFilter, setTypeFilter] = useState<"all" | "yakın" | "uzak">("all");
+  const [rarityFilter, setRarityFilter] = useState<"all" | StoreItem["rarity"]>("all");
   const owned = new Set(ownedItemIds);
   const weapons = items.filter((item) =>
     item.category === "weapons"
     && item.slot === "weapon"
     && item.kind === "equipment"
+    && isCoreWeapon(item.id)
     && owned.has(item.id)
-  );
+  ).filter((item) => {
+    const definition = getWeaponDefinition(item.id);
+    return (typeFilter === "all" || definition?.type === typeFilter)
+      && (rarityFilter === "all" || item.rarity === rarityFilter);
+  });
   const selectedId = activeSlot === 0 ? primaryWeaponId : secondaryWeaponId;
 
   return (
@@ -100,6 +111,26 @@ export default function WorldWeaponPicker({
               </button>
             );
           })}
+        </div>
+        <div className="world-weapon-picker__filters" aria-label="Silah filtreleri">
+          <label>
+            <span>TÜR</span>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.currentTarget.value as typeof typeFilter)}>
+              <option value="all">Tüm türler</option>
+              <option value="yakın">Yakın</option>
+              <option value="uzak">Uzak</option>
+            </select>
+          </label>
+          <label>
+            <span>NADİRLİK</span>
+            <select value={rarityFilter} onChange={(event) => setRarityFilter(event.currentTarget.value as typeof rarityFilter)}>
+              <option value="all">Tüm nadirlikler</option>
+              <option value="common">Sıradan</option>
+              <option value="rare">Nadir</option>
+              <option value="epic">Epik</option>
+              <option value="legendary">Efsanevi</option>
+            </select>
+          </label>
         </div>
         {weapons.length ? (
           <div className="world-weapon-picker__list">
