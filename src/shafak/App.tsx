@@ -21,7 +21,9 @@ import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
 import type { CombatDifficulty } from "./game/combat-engine.ts";
+import type { StoreTab } from "./game/store-types.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
+import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import {
   AUTO_QUALITY_DOWN_FPS,
   getAutoQualityAction,
@@ -327,6 +329,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     [getToken, handleApiUnauthorized],
   );
   const [screen, setScreen] = useState<Screen>(() => getInitialScreen());
+  const [initialWorldStoreTab, setInitialWorldStoreTab] = useState<StoreTab | null>(null);
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -580,9 +583,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen("intro");
   };
 
-  const enterWorld = () => {
+  const enterWorld = (initialStoreTab: StoreTab | null = null) => {
     playFeedback();
     primeGameAudio();
+    setInitialWorldStoreTab(initialStoreTab);
     setScreen("world");
   };
 
@@ -961,6 +965,22 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   >
                     YOLCU PROFİLİ
                   </button>
+                  <div className="menu-gear-actions" aria-label="Savaş hazırlığı">
+                    {([
+                      ["inventory", "ENVANTER"],
+                      ["weapons", "MAĞAZA"],
+                      ["smithy", "DEMİRCİ"],
+                    ] as const).map(([tab, label]) => (
+                      <button
+                        key={tab}
+                        className="menu-gear-action"
+                        type="button"
+                        onClick={() => enterWorld(tab)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -969,6 +989,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <span className="footer-sigil" aria-hidden="true">✦</span>
               <span>{tr.tagline}</span>
               <span className="footer-sigil" aria-hidden="true">✦</span>
+              <small className="game-build-stamp">
+                {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
+              </small>
             </footer>
             <ProductionCredit />
           </motion.section>
@@ -1005,7 +1028,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onLoadClaimedPickups={loadClaimedPickups}
                 onClaimWorldPickups={claimWorldPickups}
                 onSaveWorldPosition={saveWorldPosition}
-                onExit={() => setScreen("menu")}
+                onExit={() => {
+                  setInitialWorldStoreTab(null);
+                  setScreen("menu");
+                }}
+                initialStoreTab={initialWorldStoreTab}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onOpenProfile={() => setProfileOpen(true)}
               />

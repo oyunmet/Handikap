@@ -44,10 +44,12 @@ type StorePanelProps = {
   onSetSecondaryWeapon(itemId: string | null): void;
   loadoutBusy: boolean;
   renderPreview(item: StoreItem): ReactNode;
+  initialTab?: StoreTab;
 };
 
 const tabs: { id: StoreTab; label: string }[] = [
   { id: "weapons", label: "SİLAHLAR" },
+  { id: "smithy", label: "DEMİRCİ" },
   { id: "armor", label: "ZIRHLAR" },
   { id: "accessories", label: "AKSESUARLAR" },
   { id: "consumables", label: "İKSİRLER" },
@@ -109,8 +111,9 @@ export default function StorePanel({
   onSetSecondaryWeapon,
   loadoutBusy,
   renderPreview,
+  initialTab = "weapons",
 }: StorePanelProps) {
-  const [activeTab, setActiveTab] = useState<StoreTab>("weapons");
+  const [activeTab, setActiveTab] = useState<StoreTab>(initialTab);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ item: StoreItem; operation: "purchase" | "sell" | "salvage" } | null>(null);
   const [ringTarget, setRingTarget] = useState<"ringOneId" | "ringTwoId">("ringOneId");
@@ -145,6 +148,16 @@ export default function StorePanel({
     if (activeTab === "specials") {
       const dailyIds = new Set(getDailySpecials().map((item) => item.id));
       return items.filter((item) => dailyIds.has(item.id));
+    }
+    if (activeTab === "smithy") {
+      return items
+        .filter((item) => item.kind === "equipment"
+          && item.slot === "weapon"
+          && item.upgradeable
+          && ownedSet.has(item.id))
+        .sort((left, right) =>
+          ({ common: 0, rare: 1, epic: 2, legendary: 3 }[left.rarity] - { common: 0, rare: 1, epic: 2, legendary: 3 }[right.rarity]),
+        );
     }
     return items
       .filter((item) => item.category === activeTab && (activeTab !== "weapons" || isCoreWeapon(item.id)))

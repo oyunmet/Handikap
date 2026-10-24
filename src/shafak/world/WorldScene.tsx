@@ -9,6 +9,7 @@ import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game
 import StorePanel from "../game/store-ui/StorePanel";
 import { isDailySpecialAvailable, STARTER_ITEM_IDS, STORE_CATALOG } from "../game/store-catalog";
 import { getWeaponAmmoItemId, getWeaponDefinition } from "../game/weapons.ts";
+import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "../build-info";
 import { getCombatItem, type CombatItemId, type CombatQuickSlots } from "../game/combat-items.ts";
 import {
   getEquipmentLoadoutKey,
@@ -23,6 +24,7 @@ import {
   type EquipmentSlot,
   type EquipmentVisual,
   type StoreItem,
+  type StoreTab,
 } from "../game/store-types";
 import { getEquipmentBonuses, getEquipmentVisual, getPlayerCombatModifiers } from "../game/store-utils";
 import type { BattleRewards, DuelSummary } from "../game/types";
@@ -156,6 +158,7 @@ type WorldSceneProps = {
   onMusicVolumeChange: (volume: number) => void;
   vibrationEnabled: boolean;
   onExit: () => void;
+  initialStoreTab?: StoreTab | null;
   onOpenSettings: () => void;
   profile: PlayerProfile;
   accountDuelEnabled: boolean;
@@ -500,6 +503,7 @@ export default function WorldScene({
   onMusicVolumeChange,
   vibrationEnabled,
   onExit,
+  initialStoreTab = null,
   onOpenSettings,
   profile,
   accountDuelEnabled,
@@ -767,7 +771,8 @@ export default function WorldScene({
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
-  const [panel, setPanel] = useState<Panel>(null);
+  const [panel, setPanel] = useState<Panel>(initialStoreTab ? "store" : null);
+  const [storeTab, setStoreTab] = useState<StoreTab>(initialStoreTab ?? "weapons");
   const [activeWorldWeaponSlot, setActiveWorldWeaponSlot] = useState<0 | 1>(0);
   const activeWorldWeaponSlotRef = useRef(activeWorldWeaponSlot);
   activeWorldWeaponSlotRef.current = activeWorldWeaponSlot;
@@ -2620,6 +2625,10 @@ export default function WorldScene({
     if (next === "store") setStoreTrialItemId(null);
     setPanel(next);
   };
+  const openStoreTab = (tab: StoreTab) => {
+    setStoreTab(tab);
+    openPanel("store");
+  };
   const closeStorePanel = () => {
     setStoreTrialItemId(null);
     setPanel(null);
@@ -3015,6 +3024,9 @@ export default function WorldScene({
             }}
             onOpenHelp={openCombatTutorial}
           />
+          <small className="game-build-stamp game-build-stamp--hud" aria-label={`Sürüm ${GAME_BUILD_MARKER}, derleme ${GAME_BUILD_DATE}`}>
+            {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
+          </small>
           {combatTutorialOpen && (
             <div className="duel-tutorial-backdrop">
               <section className="duel-tutorial" role="dialog" aria-modal="true" aria-labelledby="duel-tutorial-title">
@@ -3430,6 +3442,7 @@ export default function WorldScene({
       {panel === "store" && (
         <StorePanel
           profile={profile}
+          initialTab={storeTab}
           items={storeItems}
           isGuest={!accountDuelEnabled}
           accountReady={accountProfileReady}

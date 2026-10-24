@@ -649,6 +649,43 @@
   gap: 12px;
 }
 
+.menu-gear-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.menu-gear-action {
+  min-height: 38px;
+  padding: 0 5px;
+  border: 1px solid rgba(224, 188, 126, 0.24);
+  border-radius: 4px;
+  background: rgba(22, 20, 19, 0.56);
+  color: rgba(241, 222, 190, 0.84);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.menu-gear-action:hover {
+  border-color: rgba(246, 216, 164, 0.72);
+  color: #fff0d2;
+}
+
+.game-build-stamp {
+  color: rgba(231, 215, 189, 0.42);
+  font: 700 7px/1.4 var(--font-body, sans-serif);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+.menu-footer .game-build-stamp {
+  display: block;
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+}
+
 .menu-action {
   display: flex;
   min-height: 55px;

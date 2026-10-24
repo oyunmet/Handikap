@@ -1373,6 +1373,14 @@
   }
 }
 .world-encounter__actions { display: flex; gap: 6px; pointer-events: auto; }
+.world-encounter__prep { display: flex; flex: 1 0 100%; gap: 4px; }
+.world-encounter__prep button {
+  min-height: 31px; flex: 1; padding: 0 5px; border: 1px solid rgba(220,184,121,.32);
+  border-radius: 3px; background: rgba(24,22,20,.84); color: rgba(242,221,187,.82);
+  cursor: pointer; font-size: 7px; font-weight: 900; letter-spacing: .07em;
+}
+.world-encounter__prep button:hover { border-color: rgba(246,216,164,.7); color: #fff0d2; }
+.world-encounter__actions { flex-wrap: wrap; }
 .world-encounter__talk {
   min-height: 42px; padding: 0 13px; border: 1px solid rgba(227,195,137,.52); border-radius: 3px;
   background: rgba(42,37,34,.92); color: #f3dfb8; cursor: pointer;
@@ -1608,7 +1616,7 @@
 .duel-player-stamina__track > i { position: absolute; inset: 0 auto 0 0; display: block; height: 100%; border-radius: inherit; transition: width .12s linear; }
 .duel-player-stamina__trail { z-index: 1; background: #b58d49; box-shadow: 0 0 7px rgba(242,190,91,.62); transition: width .38s cubic-bezier(.15,.7,.2,1) !important; }
 .duel-player-stamina__fill { z-index: 2; background: linear-gradient(90deg,#6da69d,#d4c277); }
-.duel-attack-warning { position: absolute; z-index: 12; top: max(66px,calc(env(safe-area-inset-top) + 60px)); left: 50%; padding: 7px 12px; border: 1px solid rgba(255,105,89,.86); border-radius: 3px; background: rgba(77,17,22,.9); color: #fff0e3; font: 900 9px var(--font-body,sans-serif); letter-spacing: .11em; text-align: center; transform: translateX(-50%); animation: duel-warning-pulse .55s ease-in-out infinite alternate; pointer-events: none; }
+.duel-attack-warning { position: absolute; z-index: 12; top: max(140px,calc(env(safe-area-inset-top) + 132px)); left: 50%; padding: 7px 12px; border: 1px solid rgba(255,105,89,.86); border-radius: 3px; background: rgba(77,17,22,.9); color: #fff0e3; font: 900 9px var(--font-body,sans-serif); letter-spacing: .11em; text-align: center; transform: translateX(-50%); animation: duel-warning-pulse .55s ease-in-out infinite alternate; pointer-events: none; }
 .duel-controls .duel-control { border-width: 1.5px; box-shadow: 0 7px 18px rgba(0,0,0,.48), inset 0 2px 5px rgba(255,245,220,.22), inset 0 -5px 12px rgba(0,0,0,.36); transition: transform .12s ease, filter .12s ease, box-shadow .12s ease; }
 .duel-controls .duel-control::before { position: absolute; inset: 3px; z-index: 0; border: 1px solid rgba(255,232,188,.42); border-radius: inherit; background: repeating-conic-gradient(from 8deg,rgba(255,236,196,.075) 0deg 2deg,transparent 2deg 24deg),radial-gradient(circle at 50% 36%,rgba(255,246,215,.18),transparent 48%),linear-gradient(145deg,rgba(255,246,215,.12),transparent 45%); box-shadow: inset 0 0 12px rgba(0,0,0,.28); content: ""; pointer-events: none; }
 .duel-controls .duel-control__icon { position: relative; z-index: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.75)) drop-shadow(0 0 4px rgba(255,220,157,.32)); }
@@ -1652,16 +1660,17 @@
   .duel-controls .duel-control.is-block { top: 80px; left: 2px; }
   .duel-controls .duel-control.is-attack { top: 70px; right: 0; }
   .duel-attack-warning {
-    top: max(73px,calc(env(safe-area-inset-top) + 67px));
-    left: max(78px,calc(env(safe-area-inset-left) + 70px));
-    right: max(78px,calc(env(safe-area-inset-right) + 70px));
+    top: max(218px,calc(env(safe-area-inset-top) + 210px));
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: calc(100vw - 132px);
     width: auto;
-    max-width: none;
     padding: 6px 8px;
     font-size: 7px;
     letter-spacing: .06em;
-    white-space: nowrap;
-    transform: none;
+    white-space: normal;
+    transform: translateX(-50%);
   }
   .duel-help-button { top: max(120px,calc(env(safe-area-inset-top) + 110px)); }
 }
@@ -1774,7 +1783,7 @@
   .duel-controls .duel-control.is-attack { top: 84px; right: 0; width: 80px; height: 80px; }
   .duel-controls .duel-control.is-attack .duel-control__icon { width: 20px; height: 20px; }
   .duel-control-toast { right: max(10px,calc(env(safe-area-inset-right) + 9px)); bottom: max(202px,calc(env(safe-area-inset-bottom) + 185px)); }
-  .duel-attack-warning { top: max(73px,calc(env(safe-area-inset-top) + 67px)); }
+  .duel-attack-warning { top: max(218px,calc(env(safe-area-inset-top) + 210px)); }
 }
 @media (max-width: 350px) {
   .duel-controls .duel-control.is-block { top: 88px; width: 58px; height: 58px; }
@@ -2530,8 +2539,14 @@
   }
   .duel-controls--field .duel-control-cluster .duel-control.is-skill .duel-control__icon { width: 17px; height: 17px; }
   .duel-controls--field .duel-aim-status {
-    top: max(214px, calc(env(safe-area-inset-top) + 206px));
-    left: calc(50% + 20px);
+    top: auto;
+    bottom: max(250px, calc(env(safe-area-inset-bottom) + 230px));
+    left: 50%;
+    width: max-content;
+    max-width: calc(100vw - 132px);
+    text-align: center;
+    white-space: normal;
+    transform: translateX(-50%);
   }
 }
 @media (max-height: 700px) and (orientation: landscape) and (max-width: 760px) {
@@ -2573,11 +2588,17 @@
     bottom: 5px;
   }
   .duel-controls--field .duel-aim-status {
-    display: block;
-    top: max(168px, calc(env(safe-area-inset-top) + 158px));
+    top: auto;
+    bottom: max(220px, calc(env(safe-area-inset-bottom) + 200px));
     left: 50%;
     transform: translateX(-50%);
   }
+}
+.game-build-stamp--hud {
+  position: absolute;
+  z-index: 11;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(112px, calc(env(safe-area-inset-bottom) + 100px));
 }
 @media (max-width: 390px) {
   .duel-controls--field .duel-control-cluster {

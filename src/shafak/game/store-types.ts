@@ -1,7 +1,7 @@
 import type { CombatItemCounts, CombatItemId, CombatQuickSlots } from "./combat-items.ts";
 
 export type StoreCategory = "weapons" | "armor" | "accessories" | "consumables" | "materials" | "specials";
-export type StoreTab = StoreCategory | "inventory";
+export type StoreTab = StoreCategory | "inventory" | "smithy";
 export type EquipmentSlot = "weapon" | "offhand" | "helmet" | "armor" | "gloves" | "boots" | "cape" | "ring" | "effect" | "dye";
 export type ItemRarity = "common" | "rare" | "epic" | "legendary";
 export type EquipmentLoadoutKey = keyof EquipmentLoadout;
