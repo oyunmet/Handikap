@@ -110,6 +110,17 @@ export const WAR_ROOM_WEAPON_BY_ID = new Map(
   WAR_ROOM_WEAPONS.map((weapon) => [weapon.id, weapon]),
 );
 
+export const WAR_ROOM_WEAPON_MOUNTS = {
+  powder_rifle: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 0.58, muzzleDepth: 0.57 },
+  sidearm: { position: [0.015, -0.01, -0.035], rotation: [0, 0, 0], scale: 0.58, muzzleDepth: 0.31 },
+  scattergun: { position: [0.02, -0.035, -0.08], rotation: [0, 0, 0], scale: 0.5, muzzleDepth: 0.73 },
+  crossbow: { position: [0, -0.02, -0.06], rotation: [0, 0, 0], scale: 0.52, muzzleDepth: 0.46 },
+  longbow: { position: [0, -0.01, -0.045], rotation: [0, 0, 0], scale: 0.56, muzzleDepth: 0.43 },
+} as const satisfies Record<
+  WarRoomWeaponId,
+  { position: readonly [number, number, number]; rotation: readonly [number, number, number]; scale: number; muzzleDepth: number }
+>;
+
 export type WarRoomBlockerKind = "wall" | "cover" | "tower" | "platform";
 
 export type WarRoomBlocker = {

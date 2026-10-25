@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useProgress } from "@react-three/drei";
 import WarRoomScene3D from "../world/WarRoomScene3D";
+import { preloadWarRoomModels } from "../world/WarRoomModels";
 import {
   WAR_ROOM_WEAPONS,
   WAR_ROOM_WEAPON_BY_ID,
@@ -174,6 +176,13 @@ function MiniMap({ hud }: { hud: WarRoomHudSnapshot }) {
 }
 
 export default function WarRoomGame({ onExit, profile }: Props) {
+  const { active: modelsLoading, errors: modelErrors, progress: modelProgress } = useProgress();
+  const [modelsPreloadStarted, setModelsPreloadStarted] = useState(false);
+  useEffect(() => {
+    preloadWarRoomModels();
+    setModelsPreloadStarted(true);
+  }, []);
+  const modelsReady = modelsPreloadStarted && !modelsLoading && modelProgress >= 100;
   const [phase, setPhase] = useState<Phase>("briefing");
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
     () => getWarRoomLoadoutFromProfile(profile),
@@ -430,9 +439,21 @@ export default function WarRoomGame({ onExit, profile }: Props) {
             </div>
             <div className="war-room-briefing__bottom">
               <p>WASD / joystick hareket · Fare sürükle / sağ tarafı kaydır bakış · Sol tık / ATEŞ</p>
-              <button className="war-room-start" type="button" onClick={beginBattle}>
-                <span>BAŞLA</span><i aria-hidden="true">➜</i>
+              <button className="war-room-start" type="button" onClick={beginBattle} disabled={!modelsReady}>
+                <span>{modelsReady ? "BAŞLA" : `MODELLER YÜKLENİYOR %${Math.round(modelProgress)}`}</span>
+                <i aria-hidden="true">{modelsReady ? "➜" : "…"}</i>
               </button>
+              <div className="war-room-model-progress" role="progressbar" aria-label="Savaş Odası modelleri"
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(modelProgress)}>
+                <i style={{ width: `${Math.max(0, Math.min(100, modelProgress))}%` }} />
+              </div>
+              <small className="war-room-model-status" aria-live="polite">
+                {modelsReady
+                  ? modelErrors.length
+                    ? "Bazı modeller yüklenemedi; yedek görünümler hazır."
+                    : "3D modeller hazır."
+                  : "Karakterler ve savaş alanı hazırlanıyor."}
+              </small>
             </div>
           </div>
         </section>

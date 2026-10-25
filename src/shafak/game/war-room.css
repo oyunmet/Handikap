@@ -325,9 +325,39 @@
   transform: translateY(-1px);
 }
 
+.war-room-start:disabled,
+.war-room-start:disabled:hover {
+  cursor: wait;
+  filter: saturate(0.55);
+  opacity: 0.72;
+  transform: none;
+}
+
 .war-room-start i {
   font-size: 18px;
   font-style: normal;
+}
+
+.war-room-model-progress {
+  width: min(100%, 220px);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 240, 208, 0.15);
+}
+
+.war-room-model-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d88e48, #f4d18b);
+  transition: width 180ms ease-out;
+}
+
+.war-room-model-status {
+  color: rgba(255, 240, 208, 0.72);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .war-room-battle {
