@@ -763,7 +763,7 @@ function DuelFighter({
   const animation = renderedActor
     ? ["attack", "heavyAttack", "skillOne", "skillTwo", "plunge"].includes(renderedActor.action)
       ? combatAnimation(renderedActor.action, speed)
-      : renderedActor.isCrouching || renderedActor.isAiming
+      : renderedActor.isCrouching
         ? "block"
         : combatAnimation(renderedActor.action, speed)
     : "idle";

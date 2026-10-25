@@ -280,7 +280,7 @@ export default function DuelControls({
           }}
         >
           <ControlIcon className="is-aim" />
-          <span>{isBowActive && !bowCloseRange ? "NİŞAN" : "KİLİT"}</span>
+          <span>{aiming ? "KİLİT" : "NİŞAN"}</span>
           <kbd className="duel-control__key" aria-hidden="true">F</kbd>
         </button>
         <button
