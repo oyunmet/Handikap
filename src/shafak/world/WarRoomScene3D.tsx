@@ -498,6 +498,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     targetVisible: Boolean(player.targetId),
     hitMarker: player.hitMarkerUntil > now,
     headshotMarker: player.hitMarkerUntil > now && player.hitMarkerHeadshot,
+    firing: player.shotFeedbackUntil > now,
     damageVignette: player.lastDamageAt > 0 && now - player.lastDamageAt < 0.72,
     damageDirection: player.damageDirection,
     lastHitDamage: player.lastHitDamage,
@@ -585,6 +586,7 @@ function WarRoomRuntimeScene({
     player.hitMarkerUntil = 0;
     player.hitMarkerHeadshot = false;
     player.shotFlashUntil = now + 0.07;
+    player.shotFeedbackUntil = now + 0.2;
     player.recoil = Math.min(0.17, player.recoil + weapon.recoil);
 
     const pellets = weapon.pellets ?? 1;

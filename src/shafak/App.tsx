@@ -1091,7 +1091,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             transition={{ duration: motionReduced ? 0.1 : 0.24, ease: "easeOut" }}
           >
             <Suspense fallback={<div className="entry-loading">Savaş Odası hazırlanıyor…</div>}>
-              <WarRoomGame onExit={exitWarRoom} />
+              <WarRoomGame onExit={exitWarRoom} profile={profile} />
             </Suspense>
           </motion.div>
         )}

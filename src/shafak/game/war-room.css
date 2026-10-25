@@ -539,10 +539,12 @@
 .war-room-crosshair i:nth-child(2) { justify-self: start; align-self: end; border-left: 0; border-bottom: 0; }
 .war-room-crosshair i:nth-child(3) { justify-self: end; align-self: start; border-right: 0; border-top: 0; }
 .war-room-crosshair i:nth-child(4) { justify-self: start; align-self: start; border-left: 0; border-top: 0; }
-.war-room-crosshair.is-target i { border-color: #ffe2a6; }
+.war-room-crosshair.is-target i { border-color: #ff6259; box-shadow: 0 0 7px rgba(255, 66, 55, .75), 0 1px 2px #000; }
 .war-room-crosshair.is-zoomed { width: 14px; height: 14px; gap: 2px; }
+.war-room-crosshair.is-firing { width: 34px; height: 34px; gap: 10px; }
+.war-room-crosshair.is-zoomed.is-firing { width: 24px; height: 24px; gap: 6px; }
 .war-room-crosshair.is-hit i { border-color: #fff4dc; transform: rotate(45deg) scale(1.4); }
-.war-room-crosshair.is-headshot i { border-color: #ffb15c; }
+.war-room-crosshair.is-headshot i { border-color: #ff4e52; box-shadow: 0 0 8px rgba(255, 48, 59, .8); }
 
 .war-room-hit-direction {
   position: absolute;
@@ -677,6 +679,12 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 5px;
   pointer-events: auto;
+}
+
+.war-room-control.is-fire {
+  grid-column: 2 / span 2;
+  grid-row: 3;
+  min-height: 48px;
 }
 
 .war-room-control {

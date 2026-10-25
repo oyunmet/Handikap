@@ -11,14 +11,15 @@ import {
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "./war-room-engine";
+import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
+import type { PlayerProfile } from "./profile";
 import "./war-room.css";
 
-type Props = { onExit: () => void };
+type Props = { onExit: () => void; profile: PlayerProfile };
 type Phase = "briefing" | "battle" | "victory" | "defeat";
 type PointerTrack = { id: number | null; x: number; y: number; button: number };
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
-const DEFAULT_LOADOUT: [WarRoomWeaponId, WarRoomWeaponId] = ["powder_rifle", "crossbow"];
 
 function createInputState(): WarRoomInputState {
   return {
@@ -52,11 +53,12 @@ function createEmptyHud(): WarRoomHudSnapshot {
     shots: 0,
     hits: 0,
     elapsedSeconds: 0,
-    weaponId: DEFAULT_LOADOUT[0],
+    weaponId: "powder_rifle",
     magazine: 30,
     reserve: 90,
     reloading: false,
     aiming: false,
+    firing: false,
     targetVisible: false,
     hitMarker: false,
     headshotMarker: false,
@@ -171,9 +173,11 @@ function MiniMap({ hud }: { hud: WarRoomHudSnapshot }) {
   );
 }
 
-export default function WarRoomGame({ onExit }: Props) {
+export default function WarRoomGame({ onExit, profile }: Props) {
   const [phase, setPhase] = useState<Phase>("briefing");
-  const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(DEFAULT_LOADOUT);
+  const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
+    () => getWarRoomLoadoutFromProfile(profile),
+  );
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
@@ -186,7 +190,7 @@ export default function WarRoomGame({ onExit }: Props) {
     gold: number;
     totalGold: number | null;
   } | null>(null);
-  const runtimeRef = useRef<WarRoomRuntime>(createWarRoomRuntime(DEFAULT_LOADOUT));
+  const runtimeRef = useRef<WarRoomRuntime>(createWarRoomRuntime(loadout));
   const inputRef = useRef<WarRoomInputState>(createInputState());
   const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1 });
   const stickRef = useRef<HTMLDivElement>(null);
@@ -466,7 +470,7 @@ export default function WarRoomGame({ onExit }: Props) {
               <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>
               <i><em style={{ width: `${Math.max(0, (hud.bossHp / hud.bossMaxHp) * 100)}%` }} /></i>
             </div>
-            <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}`} aria-label={hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
+            <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}${hud.firing ? " is-firing" : ""}`} aria-label={hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
               <i /><i /><i /><i />
             </div>
             {hud.damageVignette && (

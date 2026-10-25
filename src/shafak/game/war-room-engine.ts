@@ -56,6 +56,7 @@ export type WarRoomRuntime = {
     reloadingWeapon: WarRoomWeaponId | null;
     chargeStartedAt: number;
     shotFlashUntil: number;
+    shotFeedbackUntil: number;
     recoil: number;
     lastDamageAt: number;
     damageDirection: number;
@@ -107,6 +108,7 @@ export type WarRoomHudSnapshot = {
   reserve: number;
   reloading: boolean;
   aiming: boolean;
+  firing: boolean;
   targetVisible: boolean;
   hitMarker: boolean;
   headshotMarker: boolean;
@@ -204,6 +206,7 @@ export function createWarRoomRuntime(
       reloadingWeapon: null,
       chargeStartedAt: 0,
       shotFlashUntil: 0,
+      shotFeedbackUntil: 0,
       recoil: 0,
       lastDamageAt: 0,
       damageDirection: 0,
