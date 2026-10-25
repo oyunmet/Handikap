@@ -12,9 +12,7 @@ export type DuelJumpState = {
 };
 
 export const DUEL_JUMP_HEIGHT = 1.12;
-// Keep the mobile duel camera behind the player's right shoulder so the
-// right-hand weapon remains visible instead of disappearing behind the torso.
-export const DUEL_CAMERA_HEADING = Math.PI * 17 / 16;
+export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
