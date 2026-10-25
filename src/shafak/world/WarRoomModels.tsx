@@ -1,15 +1,27 @@
-import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useFrame, useLoader } from "@react-three/fiber";
 import { Component, useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { createPlayerLocomotionClip, isRootTranslationTrack, resolveGlbClipName } from "./model-animation";
+import {
+  cloneCharacterResources,
+  disposeCharacterResources,
+  fitCharacterModel,
+  loadCharacter,
+  type CharacterOwnedResources,
+} from "./character-model";
+import {
+  PLAYER_CHARACTER_ANIMATION_CLIPS,
+  PLAYER_CHARACTER_MODEL_FACING,
+  PLAYER_CHARACTER_ROOT_BONE,
+} from "./player-model";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/player-hero.glb",
-  "/models/human.glb",
   "/models/war-room/wall.glb",
   "/models/war-room/tower-square.glb",
   "/models/war-room/tower-square-top.glb",
@@ -19,8 +31,25 @@ export const WAR_ROOM_MODEL_URLS = [
   "/models/war-room/rocks-large.glb",
 ] as const;
 
+const MISSING_COLORMAP_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAC6klEQVR42r2WuW4VQRQF+9uIyQjZxS72BPsthoTFNthsqfeU1X9IoWpdjqYTS9ZDGge+I53Sm6l7etqlixdWejX+dl7e3331YHN2a2t+e3tx5/3y7oeNe8xPvi73dl7s764dfFw//DQ7+jw//rJgvvbw8vqjK7PHV+dPri2eXl8+u7Hx/Cbz7/tvfhy8/Xn47tfR5u/jrdOT7W97r/8CSIQBgHSigUFiThwA0okGBgmMANKJJhcSGBjMSSeaXEhgYHQAceQCgEQ6GHjMyQVAKOlg4MEQQCjpYIiGAYw5oaSDIRoGsA4glGgAYICRDoM50QDAkEs6DEgCSCSXdBiQ4DEnkVzSYUCC1wHkkgiAaEgwQDInEQDRkGCQDkwA0YTCIB0YGOZEEwqDdGBgOoB0QgGQCwMeGOaEAiAXBtFgQAogFwbRYEiHxJxcGESDIR1SBxA9XsxJHy8B48WcuPFqK98D5dNI/p/Ip5H+/JRPIzVwtFxBzGzKp5HcmMinkTqe8mmkSzpa7vszsymfRnJjIp9GakjKp5EKMlpuC5jZlE8juTGRTyOtgZRPI92h0XKX1MymfBrJjYl8GukSpXwaac2MlrtDZrbzKHgWxZsdaXFyY9KRFqc9kx1pcdoCYxlblGa2/3EepJGlqc+9jCxNfSzZu2qq+9m7XVPdLyNLUx9LGVmaCsjeVVPNyd7tmrq9ZWRp6nKVkaWpgOxdNfW5Z+92TX2xZWRpqvtlZGkqIHtXTV2u7N2u6SrUzKu5XGVkaWrBlZGlqYD8PFBT+yc/D/5pmsVZbWr/VHFWmwrIzwPb1O3Nz4Pepivfg+xI+z3l00gNSfk0UkFGy328/dDPjrS8Uj6N9PmmfBrpDo2Wu6T90M+O9ABJ+TTSJUr5NNL3N1ruDvVD/zwKnkXxlh3pCZXyaaQ9k/JppC0wWq6B/ds0j3LrN+XTSLc05dNIi3K03B7r36Z5lHsEZkdanDqeHWlxuqRjGVszZv4BWf6KytMsO2cAAAAASUVORK5CYII=";
+
+class WarRoomStaticGLTFLoader extends GLTFLoader {
+  constructor() {
+    super();
+    // Keep Three's shared loading manager so the briefing progress bar tracks these files too.
+    this.manager.setURLModifier((url) => {
+      const normalized = decodeURIComponent(url).replace(/\\/g, "/");
+      if (/(?:^|\/)textures\/colormap\.png(?:[?#].*)?$/i.test(normalized)) {
+        return MISSING_COLORMAP_DATA_URI;
+      }
+      return url;
+    });
+  }
+}
+
 export function preloadWarRoomModels() {
-  WAR_ROOM_MODEL_URLS.forEach((url) => useGLTF.preload(url));
+  useLoader.preload(GLTFLoader, WAR_ROOM_MODEL_URLS[0], loadCharacter);
+  WAR_ROOM_MODEL_URLS.slice(1).forEach((url) => useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter));
 }
 
 type AssetBoundaryProps = {
@@ -66,7 +95,7 @@ export function WarRoomStaticModel({
   rotation = [0, 0, 0],
   targetSize,
 }: StaticModelProps) {
-  const { scene } = useGLTF(src) as GLTF;
+  const { scene } = useLoader(WarRoomStaticGLTFLoader, src, loadCharacter) as GLTF;
   const model = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((object) => {
@@ -101,56 +130,99 @@ export function WarRoomStaticModel({
   );
 }
 
-export type WarRoomAnimationState = "idle" | "run" | "attack" | "hit" | "death";
+export type WarRoomAnimationState = "idle" | "walk" | "run" | "attack" | "hit" | "death";
 
 type AnimatedActorProps = {
   src: string;
   height: number;
   tint?: string;
+  commander?: boolean;
   state: () => WarRoomAnimationState;
   modelRef?: MutableRefObject<THREE.Group | null>;
 };
 
-const CLIP_ALIASES: Record<WarRoomAnimationState, readonly string[]> = {
-  idle: ["idle", "attacking_idle", "idle_loop"],
-  run: ["run", "sprint_loop", "jog_fwd_loop", "walk"],
-  attack: ["dagger_attack", "pistol_shoot", "punch", "armatureaction"],
-  hit: ["recievehit", "hit_chest", "hit_head", "armatureaction"],
-  death: ["death", "death01"],
-};
+function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResources) {
+  const torso = model.getObjectByName("Torso")
+    ?? model.getObjectByName("Abdomen")
+    ?? model.getObjectByName("Hips")
+    ?? model;
+  model.updateMatrixWorld(true);
+  const parentScale = torso.getWorldScale(new THREE.Vector3());
+  const inverseScale = new THREE.Vector3(
+    1 / Math.max(0.01, Math.abs(parentScale.x)),
+    1 / Math.max(0.01, Math.abs(parentScale.y)),
+    1 / Math.max(0.01, Math.abs(parentScale.z)),
+  );
+  const mount = new THREE.Group();
+  mount.name = "war-room-commander-cape-mount";
+  mount.scale.copy(inverseScale);
+  mount.position.set(0, -0.025 * inverseScale.y, -0.11 * inverseScale.z);
+  torso.add(mount);
 
-function clipForState(clips: THREE.AnimationClip[], state: WarRoomAnimationState) {
-  const aliases = CLIP_ALIASES[state];
-  for (const alias of aliases) {
-    const match = clips.find((clip) => clip.name.toLowerCase().split("|").at(-1)?.replace(/[^a-z0-9]/g, "").includes(alias.replace(/[^a-z0-9]/g, "")));
-    if (match) return match;
+  const columns = 8;
+  const rows = 9;
+  const positions = new Float32Array((columns + 1) * (rows + 1) * 3);
+  const uvs = new Float32Array((columns + 1) * (rows + 1) * 2);
+  const indices: number[] = [];
+  for (let row = 0; row <= rows; row += 1) {
+    for (let column = 0; column <= columns; column += 1) {
+      const vertex = row * (columns + 1) + column;
+      const u = column / columns;
+      const v = row / rows;
+      positions[vertex * 3] = (u - 0.5) * (0.42 + v * 0.32);
+      positions[vertex * 3 + 1] = -v * 0.88;
+      positions[vertex * 3 + 2] = -0.12 - Math.sin(v * Math.PI / 2) * 0.13;
+      uvs[vertex * 2] = u;
+      uvs[vertex * 2 + 1] = 1 - v;
+      if (row < rows && column < columns) {
+        const nextRow = vertex + columns + 1;
+        indices.push(vertex, nextRow, vertex + 1, vertex + 1, nextRow, nextRow + 1);
+      }
+    }
   }
-  return clips.find((clip) => clip.name.toLowerCase().includes("idle")) ?? clips[0] ?? null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const material = new THREE.MeshStandardMaterial({
+    color: "#a5222d",
+    roughness: 0.93,
+    metalness: 0.02,
+    side: THREE.DoubleSide,
+  });
+  const cape = new THREE.Mesh(geometry, material);
+  cape.name = "war-room-commander-red-cape";
+  cape.castShadow = true;
+  mount.add(cape);
+  resources.geometries.push(geometry);
+  resources.materials.push(material);
 }
 
 export function WarRoomAnimatedActor({
   src,
   height,
   tint,
+  commander = false,
   state,
   modelRef,
 }: AnimatedActorProps) {
-  const { scene, animations } = useGLTF(src) as GLTF;
-  const model = useMemo(() => {
+  const { scene, animations } = useLoader(GLTFLoader, src, loadCharacter) as GLTF;
+  const prepared = useMemo(() => {
     const clone = cloneSkinned(scene) as THREE.Group;
+    const resources = cloneCharacterResources(clone);
     if (tint) {
       const tintColor = new THREE.Color(tint);
       clone.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
-        const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
-        const tinted = sourceMaterials.map((source) => {
-          const material = source.clone();
-          material.userData.warRoomOwnedTint = true;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((material) => {
+          const name = material.name.toLowerCase().replace(/[^a-z0-9]/g, "");
           const colored = material as THREE.Material & { color?: THREE.Color };
-          if (colored.color?.isColor) colored.color.lerp(tintColor, 0.32);
-          return material;
+          if (!colored.color?.isColor) return;
+          if (name === "shirt" || name === "undershirt") colored.color.set(tintColor);
+          else if (name === "pants") colored.color.lerp(tintColor, 0.2);
         });
-        object.material = Array.isArray(object.material) ? tinted : tinted[0];
       });
     }
     clone.traverse((object) => {
@@ -158,48 +230,51 @@ export function WarRoomAnimatedActor({
       object.castShadow = true;
       object.receiveShadow = false;
     });
-    const bounds = new THREE.Box3().setFromObject(clone);
-    const size = bounds.getSize(new THREE.Vector3());
-    if (bounds.isEmpty() || size.y < 0.0001) {
-      throw new Error(`Karakter modelinin boyu ölçülemedi: ${src}`);
-    }
-    const scale = height / size.y;
-    const center = bounds.getCenter(new THREE.Vector3());
-    clone.scale.setScalar(scale);
-    clone.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
-    return clone;
-  }, [height, scene, src, tint]);
+    fitCharacterModel(clone, height, src);
+    if (commander) attachCommanderCape(clone, resources);
+    return { model: clone, resources };
+  }, [commander, height, scene, src, tint]);
+  const model = prepared.model;
+  const animationClips = useMemo(
+    () => animations.map((clip) => {
+      const inPlaceClip = clip.clone();
+      inPlaceClip.tracks = inPlaceClip.tracks.filter(
+        (track) => !isRootTranslationTrack(track.name, PLAYER_CHARACTER_ROOT_BONE),
+      );
+      return createPlayerLocomotionClip(inPlaceClip);
+    }),
+    [animations],
+  );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeAction = useRef<THREE.AnimationAction | null>(null);
   const activeState = useRef<WarRoomAnimationState | null>(null);
-  const modelRef = useRef<THREE.Group>(model);
 
   useEffect(() => {
-    modelRef.current = model;
+    if (modelRef) modelRef.current = model;
     return () => {
-      if (modelRef.current === model) modelRef.current = null;
+      if (modelRef?.current === model) modelRef.current = null;
       mixer.stopAllAction();
       mixer.uncacheRoot(model);
       activeAction.current = null;
       activeState.current = null;
-      model.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        materials.forEach((material) => {
-          if (material.userData.warRoomOwnedTint) material.dispose();
-        });
-      });
+      disposeCharacterResources(prepared.resources);
     };
-  }, [mixer, model, modelRef]);
+  }, [mixer, model, modelRef, prepared.resources]);
 
   useFrame((_, delta) => {
     const nextState = state();
     if (nextState !== activeState.current) {
-      const clip = clipForState(animations, nextState);
+      const animationState = nextState === "death" ? "die" : nextState;
+      const clipName = resolveGlbClipName(
+        animationState,
+        animationClips.map((clip) => clip.name),
+        PLAYER_CHARACTER_ANIMATION_CLIPS,
+      );
+      const clip = animationClips.find((candidate) => candidate.name === clipName);
       if (clip) {
         const nextAction = mixer.clipAction(clip);
-        nextAction.reset().fadeIn(0.18).play();
-        activeAction.current?.fadeOut(0.18);
+        nextAction.reset().fadeIn(0.2).play();
+        activeAction.current?.fadeOut(0.2);
         activeAction.current = nextAction;
         if (nextState === "death" || nextState === "attack" || nextState === "hit") {
           nextAction.setLoop(THREE.LoopOnce, 1).clampWhenFinished = true;
@@ -212,7 +287,7 @@ export function WarRoomAnimatedActor({
   });
 
   return (
-    <group rotation={[0, Math.PI, 0]}>
+    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]}>
       <primitive object={model} dispose={null} />
     </group>
   );

@@ -4,11 +4,15 @@ import type { ReactNode } from "react";
 import * as THREE from "three";
 import {
   WAR_ROOM_BLOCKERS,
+  WAR_ROOM_CHARACTER_HEIGHT,
+  WAR_ROOM_COMMANDER_SCALE,
+  WAR_ROOM_HEADSHOT_HEIGHT_RATIO,
   WAR_ROOM_WEAPON_BY_ID,
   WAR_ROOM_WEAPON_MOUNTS,
   type WarRoomBlocker,
   type WarRoomWeaponId,
 } from "../game/war-room-data";
+import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
   getNearestWarRoomCover,
@@ -36,6 +40,18 @@ type Props = {
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
+
+const WAR_ROOM_ROAD_TEXTURES = createWorldRoadSurfaceTextures();
+const WAR_ROOM_FLOOR_MATERIAL = new THREE.MeshStandardMaterial({
+  color: "#ffffff",
+  map: WAR_ROOM_ROAD_TEXTURES.roadVariants[0].color,
+  normalMap: WAR_ROOM_ROAD_TEXTURES.roadVariants[0].normal,
+  normalScale: new THREE.Vector2(0.27, 0.27),
+  roughnessMap: WAR_ROOM_ROAD_TEXTURES.roadVariants[0].roughness,
+  roughness: 0.94,
+  metalness: 0,
+  flatShading: false,
+});
 
 function shortestLerp(from: number, to: number, speed: number, delta: number) {
   return from + shortestAngleDelta(from, to) * (1 - Math.exp(-speed * Math.min(delta, 0.05)));
@@ -128,27 +144,108 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
           src="/models/war-room/tower-square-top.glb"
           position={[blocker.x, blocker.height - 0.15, blocker.z]}
           targetSize={[blocker.width, 0.55, blocker.depth]}
-          fallback={<></>}
+          fallback={
+            <mesh position={[blocker.x, blocker.height - 0.15, blocker.z]} castShadow>
+              <boxGeometry args={[blocker.width, 0.55, blocker.depth]} />
+              <meshStandardMaterial color="#88715b" roughness={0.82} />
+            </mesh>
+          }
         />
         <StaticWarRoomAsset
           src="/models/war-room/tower-square-roof.glb"
           position={[blocker.x, blocker.height + 0.4, blocker.z]}
           targetSize={[blocker.width * 1.18, 1.3, blocker.depth * 1.18]}
-          fallback={<></>}
+          fallback={
+            <mesh position={[blocker.x, blocker.height + 1.05, blocker.z]} castShadow>
+              <coneGeometry args={[blocker.width * 0.72, 1.3, 4]} />
+              <meshStandardMaterial color="#59443d" roughness={0.88} />
+            </mesh>
+          }
         />
       </>
+    );
+  }
+  if (blocker.kind === "platform") {
+    return (
+      <StaticWarRoomAsset
+        src="/models/war-room/wall.glb"
+        position={[blocker.x, 0, blocker.z]}
+        targetSize={[blocker.width, blocker.height, blocker.depth]}
+        fallback={fallback}
+      />
     );
   }
   return fallback;
 }
 
+function WarRoomGateway({ z }: { z: number }) {
+  const pierPositions = [-2.72, 2.72] as const;
+  return (
+    <group name={`war-room-gateway:${z}`}>
+      {pierPositions.map((x) => (
+        <StaticWarRoomAsset
+          key={`pier-${x}`}
+          src="/models/war-room/wall.glb"
+          position={[x, 0, z]}
+          targetSize={[0.8, 3.05, 1.05]}
+          fallback={
+            <mesh position={[x, 1.52, z]} castShadow>
+              <boxGeometry args={[0.8, 3.05, 1.05]} />
+              <meshStandardMaterial color="#70564b" roughness={0.86} />
+            </mesh>
+          }
+        />
+      ))}
+      <StaticWarRoomAsset
+        src="/models/war-room/tower-square-top.glb"
+        position={[0, 3.05, z]}
+        targetSize={[6.25, 0.72, 1.25]}
+        fallback={
+          <mesh position={[0, 3.05, z]} castShadow>
+            <boxGeometry args={[6.25, 0.72, 1.25]} />
+            <meshStandardMaterial color="#88715b" roughness={0.82} />
+          </mesh>
+        }
+      />
+      <StaticWarRoomAsset
+        src="/models/war-room/tower-square-roof.glb"
+        position={[0, 3.45, z]}
+        targetSize={[6.55, 0.55, 1.45]}
+        fallback={
+          <mesh position={[0, 3.48, z]} castShadow>
+            <boxGeometry args={[6.55, 0.55, 1.45]} />
+            <meshStandardMaterial color="#59443d" roughness={0.88} />
+          </mesh>
+        }
+      />
+    </group>
+  );
+}
+
+function WarRoomTree({ position }: { position: readonly [number, number, number] }) {
+  return (
+    <group position={position} scale={0.9} name="war-room-procedural-tree-fallback">
+      <mesh position={[0, 0.95, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.12, 0.2, 1.9, 6]} />
+        <meshStandardMaterial color="#46372c" roughness={0.96} />
+      </mesh>
+      {[0, 1, 2].map((tier) => (
+        <mesh key={tier} position={[0, 1.45 + tier * 0.83, 0]} castShadow receiveShadow>
+          <coneGeometry args={[1.05 - tier * 0.18, 1.65, 7]} />
+          <meshStandardMaterial
+            color={tier === 0 ? "#48523d" : tier === 1 ? "#596448" : "#697252"}
+            roughness={0.94}
+            flatShading
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function FloorPaving() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => new THREE.PlaneGeometry(7.92, 7.92), []);
-  const material = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.96, metalness: 0 }),
-    [],
-  );
   const tiles = useMemo(() => {
     const result: Array<{ x: number; z: number; color: string }> = [];
     const palette = ["#7e6b58", "#796550", "#836f5b", "#75624f", "#81705d"];
@@ -179,7 +276,7 @@ function FloorPaving() {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [tiles]);
 
-  return <instancedMesh ref={meshRef} args={[geometry, material, tiles.length]} receiveShadow />;
+  return <instancedMesh ref={meshRef} args={[geometry, WAR_ROOM_FLOOR_MATERIAL, tiles.length]} receiveShadow />;
 }
 
 function WallDetails() {
@@ -228,32 +325,45 @@ function WallDetails() {
 function Battlefield() {
   return (
     <>
-      <color attach="background" args={["#98664e"]} />
-      <fog attach="fog" args={["#98664e", 45, 104]} />
-      <ambientLight intensity={0.62} color="#ffd4ad" />
-      <hemisphereLight args={["#ffd6ab", "#38251f", 1.1]} />
+      <color attach="background" args={["#eaa989"]} />
+      <fog attach="fog" args={["#c6c4c1", 26, 72]} />
+      <hemisphereLight args={["#ffe2c3", "#30252f", 2.2]} />
+      <ambientLight color="#ffdbb3" intensity={1.4} />
       <directionalLight
-        position={[-24, 32, 18]}
+        position={[-8, 14, 8]}
         color="#ffd09a"
-        intensity={3.1}
+        intensity={2.4}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
-        shadow-camera-left={-42}
-        shadow-camera-right={42}
-        shadow-camera-top={42}
-        shadow-camera-bottom={-42}
+        shadow-camera-left={-38}
+        shadow-camera-right={38}
+        shadow-camera-top={38}
+        shadow-camera-bottom={-38}
         shadow-bias={-0.0004}
       />
+      <directionalLight position={[9, 8, -7]} color="#91cde0" intensity={0.72} />
       <pointLight position={[-26, 3, -21]} color="#ff8a48" intensity={8} distance={15} />
       <pointLight position={[27, 3, 18]} color="#ff9b4f" intensity={6} distance={13} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
         <planeGeometry args={[72, 72, 1, 1]} />
-        <meshStandardMaterial color="#796653" roughness={0.96} />
+        <primitive object={WAR_ROOM_FLOOR_MATERIAL} attach="material" />
       </mesh>
       <FloorPaving />
       {WAR_ROOM_BLOCKERS.map((blocker) => (
         <WarRoomBlockerVisual key={blocker.id} blocker={blocker} />
+      ))}
+      {[4.8, 21.2].map((z) => <WarRoomGateway key={`gateway-${z}`} z={z} />)}
+      {[
+        [-30, 0, -5],
+        [31, 0, -10],
+        [-30, 0, 22],
+        [31, 0, -27],
+      ].map((position, index) => (
+        <WarRoomTree
+          key={`tree-fallback-${index}`}
+          position={position as [number, number, number]}
+        />
       ))}
       {[
         [-32, 0, -32],
@@ -318,13 +428,22 @@ function Battlefield() {
   );
 }
 
-function WeaponModel({ weaponId }: { weaponId: WarRoomWeaponId }) {
+function WeaponModel({
+  weaponId,
+  muzzleAnchorRef,
+  muzzleFlashRef,
+}: {
+  weaponId: WarRoomWeaponId;
+  muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
+  muzzleFlashRef?: MutableRefObject<THREE.Mesh | null>;
+}) {
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const crossbow = weaponId === "crossbow";
   const bow = weaponId === "longbow";
   const sidearm = weaponId === "sidearm";
   const shotgun = weaponId === "scattergun";
-  const barrelLength = sidearm ? 0.38 : shotgun ? 0.86 : crossbow || bow ? 0.55 : 0.98;
+  const muzzle = WAR_ROOM_WEAPON_MOUNTS[weaponId].muzzle;
+  const barrelLength = Math.max(0.08, Math.abs(muzzle[2] + 0.25));
   const bodyWidth = crossbow ? 0.72 : bow ? 0.15 : sidearm ? 0.25 : 0.3;
   return (
     <group name={`war-room-weapon:${weapon.id}`} position={[0, 0, 0]}>
@@ -367,16 +486,23 @@ function WeaponModel({ weaponId }: { weaponId: WarRoomWeaponId }) {
               <meshStandardMaterial color="#8f6540" roughness={0.8} />
             </mesh>
           )}
-          <mesh position={[0, 0.03, -0.25 - barrelLength * 0.48]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <mesh position={[0, 0.03, (-0.25 + muzzle[2]) / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow>
             <cylinderGeometry args={[sidearm ? 0.035 : 0.055, sidearm ? 0.045 : 0.075, barrelLength, 8]} />
             <meshStandardMaterial color="#64645c" metalness={0.68} roughness={0.34} />
           </mesh>
         </>
       )}
-      <mesh name="weapon-muzzle" position={[0, 0.03, -0.25 - barrelLength]} scale={0.08} visible={false}>
-        <sphereGeometry args={[1, 8, 6]} />
-        <meshBasicMaterial color={weapon.color} toneMapped={false} />
-      </mesh>
+      <group ref={muzzleAnchorRef} name="war-room-muzzle-anchor" position={muzzle}>
+        <mesh
+          ref={muzzleFlashRef}
+          name="war-room-muzzle-flash"
+          scale={[1.5, 0.8, 2.2]}
+          visible={false}
+        >
+          <sphereGeometry args={[0.12, 8, 6]} />
+          <meshBasicMaterial color={weapon.color} toneMapped={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -405,14 +531,16 @@ function PlayerActor({
   inputRef,
   weaponId,
   rootRef,
+  muzzleRef,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
   weaponId: WarRoomWeaponId;
   rootRef: MutableRefObject<THREE.Group | null>;
+  muzzleRef: MutableRefObject<THREE.Group | null>;
 }) {
   const recoilRef = useRef<THREE.Group>(null);
-  const muzzleRef = useRef<THREE.Mesh>(null);
+  const muzzleFlashRef = useRef<THREE.Mesh>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const mount = WAR_ROOM_WEAPON_MOUNTS[weaponId];
   useFrame((_, delta) => {
@@ -432,15 +560,29 @@ function PlayerActor({
       mountParent.add(weaponMount);
     }
     if (weaponMount) {
-      weaponMount.position.set(...(hand ? mount.position : [0.7, 1.24, -0.36]));
+      if (hand) {
+        const handScale = hand.getWorldScale(new THREE.Vector3());
+        weaponMount.position.set(
+          mount.position[0] / Math.max(0.01, Math.abs(handScale.x)),
+          mount.position[1] / Math.max(0.01, Math.abs(handScale.y)),
+          mount.position[2] / Math.max(0.01, Math.abs(handScale.z)),
+        );
+        weaponMount.scale.set(
+          mount.scale / Math.max(0.01, Math.abs(handScale.x)),
+          mount.scale / Math.max(0.01, Math.abs(handScale.y)),
+          mount.scale / Math.max(0.01, Math.abs(handScale.z)),
+        );
+      } else {
+        weaponMount.position.set(0.7, 1.24, -0.36);
+        weaponMount.scale.setScalar(1.32);
+      }
       weaponMount.rotation.set(...mount.rotation);
-      weaponMount.scale.setScalar(hand ? mount.scale : 1.32);
       const recoil = Math.max(0, player.recoil - delta * 0.36);
       player.recoil = recoil;
       weaponMount.rotation.x -= recoil * 0.72;
       weaponMount.position.z += recoil * 0.08;
     }
-    if (muzzleRef.current) muzzleRef.current.visible = player.shotFlashUntil > player.clockTime;
+    if (muzzleFlashRef.current) muzzleFlashRef.current.visible = player.shotFlashUntil > player.clockTime;
   });
   const playerAnimation = () => {
     const player = runtimeRef.current.player;
@@ -448,7 +590,10 @@ function PlayerActor({
     if (player.hp <= 0) return "death";
     if (player.clockTime - player.lastDamageAt < 0.2) return "hit";
     if (player.shotFeedbackUntil > player.clockTime) return "attack";
-    if (input.keys.size > 0 || Math.abs(input.moveX) + Math.abs(input.moveY) > 0.12) return "run";
+    const movement = Math.hypot(input.moveX, input.moveY);
+    if (input.keys.size > 0 || movement > 0.12) {
+      return player.crouched || movement < 0.72 ? "walk" : "run";
+    }
     return "idle";
   };
   return (
@@ -457,8 +602,7 @@ function PlayerActor({
         <Suspense fallback={<ProceduralPlayerFallback />}>
           <WarRoomAnimatedActor
             src="/models/player-hero.glb"
-            height={1.92}
-            tint="#566065"
+            height={WAR_ROOM_CHARACTER_HEIGHT}
             state={playerAnimation}
             modelRef={modelRef}
           />
@@ -470,12 +614,11 @@ function PlayerActor({
           <meshStandardMaterial color="#94775d" roughness={0.88} />
         </mesh>
         <group position={[0, 0.03, -0.08]}>
-          <WeaponModel weaponId={weaponId} />
-          <mesh ref={muzzleRef} name="weapon-muzzle-flash"
-            position={[0, 0.06, -mount.muzzleDepth]} visible={false}>
-            <sphereGeometry args={[0.2, 8, 6]} />
-            <meshBasicMaterial color="#ffe19a" toneMapped={false} />
-          </mesh>
+          <WeaponModel
+            weaponId={weaponId}
+            muzzleAnchorRef={muzzleRef}
+            muzzleFlashRef={muzzleFlashRef}
+          />
         </group>
       </group>
     </group>
@@ -523,6 +666,8 @@ function EnemyActor({
   const groupRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const weaponMountRef = useRef<THREE.Group>(null);
+  const muzzleAnchorRef = useRef<THREE.Group>(null);
+  const muzzleFlashRef = useRef<THREE.Mesh>(null);
   useFrame((frame, delta) => {
     const group = groupRef.current;
     if (!group) return;
@@ -543,11 +688,27 @@ function EnemyActor({
         hand.add(weaponMount);
       }
       weaponMount.visible = true;
-      weaponMount.position.set(...WAR_ROOM_WEAPON_MOUNTS.powder_rifle.position);
+      const mount = WAR_ROOM_WEAPON_MOUNTS.powder_rifle;
+      const handScale = hand.getWorldScale(new THREE.Vector3());
+      weaponMount.position.set(
+        mount.position[0] / Math.max(0.01, Math.abs(handScale.x)),
+        mount.position[1] / Math.max(0.01, Math.abs(handScale.y)),
+        mount.position[2] / Math.max(0.01, Math.abs(handScale.z)),
+      );
       weaponMount.rotation.set(...WAR_ROOM_WEAPON_MOUNTS.powder_rifle.rotation);
-      weaponMount.scale.setScalar(WAR_ROOM_WEAPON_MOUNTS.powder_rifle.scale);
+      weaponMount.scale.set(
+        mount.scale / Math.max(0.01, Math.abs(handScale.x)),
+        mount.scale / Math.max(0.01, Math.abs(handScale.y)),
+        mount.scale / Math.max(0.01, Math.abs(handScale.z)),
+      );
     } else if (weaponMount) {
       weaponMount.visible = false;
+    }
+    if (
+      muzzleFlashRef.current
+      && Number(muzzleFlashRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow
+    ) {
+      muzzleFlashRef.current.visible = false;
     }
     if (enemy.alive) {
       delete group.userData.warRoomDeathStartedAt;
@@ -582,8 +743,10 @@ function EnemyActor({
     return "idle";
   };
   const tint = enemy.commander
-    ? "#9a3932"
-    : ["#5c564d", "#424b53", "#695846", "#4d5150"][index % 4];
+    ? "#a4212e"
+    : ["#9f3430", "#8c292c", "#b74638", "#752a32"][index % 4];
+  const characterHeight = WAR_ROOM_CHARACTER_HEIGHT * (enemy.commander ? WAR_ROOM_COMMANDER_SCALE : 1);
+  const headHeight = characterHeight * WAR_ROOM_HEADSHOT_HEIGHT_RATIO;
   const fallback = <ProceduralEnemyFallback commander={enemy.commander} />;
   return (
     <group
@@ -598,7 +761,7 @@ function EnemyActor({
         <capsuleGeometry args={[enemy.commander ? 0.29 : 0.25, 0.68, 3, 7]} />
         <meshBasicMaterial transparent opacity={0} colorWrite={false} depthWrite={false} />
       </mesh>
-      <mesh position={[0, enemy.commander ? 1.63 : 1.5, 0]} name={`enemy-head:${index}`}
+      <mesh position={[0, headHeight, 0]} name={`enemy-head:${index}`}
         userData={{ enemyIndex: index, enemyHead: true, warRoomHitbox: true }}>
         <sphereGeometry args={[enemy.commander ? 0.25 : 0.21, 10, 8]} />
         <meshBasicMaterial transparent opacity={0} colorWrite={false} depthWrite={false} />
@@ -606,16 +769,21 @@ function EnemyActor({
       <WarRoomAssetBoundary fallback={fallback}>
         <Suspense fallback={fallback}>
           <WarRoomAnimatedActor
-            src={enemy.commander ? "/models/player-hero.glb" : "/models/human.glb"}
-            height={enemy.commander ? 1.98 : 1.78}
+            src="/models/player-hero.glb"
+            height={characterHeight}
             tint={tint}
+            commander={enemy.commander}
             state={enemyAnimation}
             modelRef={modelRef}
           />
         </Suspense>
       </WarRoomAssetBoundary>
       <group ref={weaponMountRef} name={`enemy-weapon:${enemy.id}`} visible={false}>
-        <WeaponModel weaponId="powder_rifle" />
+        <WeaponModel
+          weaponId="powder_rifle"
+          muzzleAnchorRef={muzzleAnchorRef}
+          muzzleFlashRef={muzzleFlashRef}
+        />
       </group>
       {enemy.commander && (
         <mesh position={[0, 2.12, 0]}>
@@ -696,6 +864,7 @@ function WarRoomRuntimeScene({
   const cameraDesired = useMemo(() => new THREE.Vector3(), []);
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
   const playerRootRef = useRef<THREE.Group | null>(null);
+  const playerMuzzleRef = useRef<THREE.Group | null>(null);
   const lastHudAtRef = useRef(0);
   const finishedRef = useRef(false);
   const linesRef = useRef<THREE.Line[]>([]);
@@ -765,11 +934,18 @@ function WarRoomRuntimeScene({
     const spread = weapon.spread + player.recoil * 0.18;
     let shotHit = false;
     let shotHeadshot = false;
-    const muzzle = new THREE.Vector3(
-      player.x + Math.cos(player.yaw) * 0.38 + Math.sin(player.yaw) * 0.25,
-      1.36 + player.jumpHeight,
-      player.z - Math.sin(player.yaw) * 0.38 + Math.cos(player.yaw) * 0.25,
-    );
+    const muzzle = new THREE.Vector3();
+    const muzzleAnchor = playerMuzzleRef.current;
+    if (muzzleAnchor) {
+      muzzleAnchor.updateWorldMatrix(true, false);
+      muzzleAnchor.getWorldPosition(muzzle);
+    } else {
+      muzzle.set(
+        player.x + Math.cos(player.yaw) * 0.38 + Math.sin(player.yaw) * 0.25,
+        1.36 + player.jumpHeight,
+        player.z - Math.sin(player.yaw) * 0.38 + Math.cos(player.yaw) * 0.25,
+      );
+    }
     const tracerEnd = new THREE.Vector3();
     const chargeMultiplier = weapon.charge ? 0.65 + charge * 0.55 : 1;
     for (let pellet = 0; pellet < pellets; pellet += 1) {
@@ -1000,6 +1176,17 @@ function WarRoomRuntimeScene({
       if (now < enemy.nextShotAt || now < player.invulnerableUntil) continue;
       enemy.nextShotAt = now + (enemy.commander ? 1.2 : 1.65) + nextWarRoomRandom(runtime) * 0.55;
       const muzzle = new THREE.Vector3(enemy.x + 0.22, enemy.commander ? 1.5 : 1.35, enemy.z - 0.48);
+      const enemyGroup = enemyGroupRefs.current[runtime.enemies.indexOf(enemy)];
+      const enemyMuzzle = enemyGroup?.getObjectByName("war-room-muzzle-anchor");
+      if (enemyMuzzle) {
+        enemyMuzzle.updateWorldMatrix(true, false);
+        enemyMuzzle.getWorldPosition(muzzle);
+      }
+      const enemyFlash = enemyGroup?.getObjectByName("war-room-muzzle-flash") as THREE.Mesh | undefined;
+      if (enemyFlash) {
+        enemyFlash.visible = true;
+        enemyFlash.userData.warRoomExpiresAt = now + 0.08;
+      }
       const target = new THREE.Vector3(player.x, player.jumpHeight + 1.15, player.z);
       addTracer(muzzle, target, "#f36e54", now);
       if (nextWarRoomRandom(runtime) > (enemy.commander ? 0.25 : 0.38)) {
@@ -1086,7 +1273,13 @@ function WarRoomRuntimeScene({
           />
         ))}
       </group>
-      <PlayerActor runtimeRef={runtimeRef} inputRef={inputRef} weaponId={activeWeapon} rootRef={playerRootRef} />
+      <PlayerActor
+        runtimeRef={runtimeRef}
+        inputRef={inputRef}
+        weaponId={activeWeapon}
+        rootRef={playerRootRef}
+        muzzleRef={playerMuzzleRef}
+      />
     </>
   );
 }

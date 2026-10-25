@@ -182,7 +182,9 @@ export default function WarRoomGame({ onExit, profile }: Props) {
     preloadWarRoomModels();
     setModelsPreloadStarted(true);
   }, []);
-  const modelsReady = modelsPreloadStarted && !modelsLoading && modelProgress >= 100;
+  const modelsReady = modelsPreloadStarted
+    && !modelsLoading
+    && (modelProgress >= 100 || modelErrors.length > 0);
   const [phase, setPhase] = useState<Phase>("briefing");
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
     () => getWarRoomLoadoutFromProfile(profile),

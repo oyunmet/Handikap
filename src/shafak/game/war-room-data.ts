@@ -1,5 +1,9 @@
 export type WarRoomWeaponId = "powder_rifle" | "sidearm" | "scattergun" | "crossbow" | "longbow";
 
+export const WAR_ROOM_CHARACTER_HEIGHT = 1.92;
+export const WAR_ROOM_COMMANDER_SCALE = 1.3;
+export const WAR_ROOM_HEADSHOT_HEIGHT_RATIO = 0.84;
+
 export type WarRoomWeapon = {
   id: WarRoomWeaponId;
   name: string;
@@ -111,14 +115,14 @@ export const WAR_ROOM_WEAPON_BY_ID = new Map(
 );
 
 export const WAR_ROOM_WEAPON_MOUNTS = {
-  powder_rifle: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 0.58, muzzleDepth: 0.57 },
-  sidearm: { position: [0.015, -0.01, -0.035], rotation: [0, 0, 0], scale: 0.58, muzzleDepth: 0.31 },
-  scattergun: { position: [0.02, -0.035, -0.08], rotation: [0, 0, 0], scale: 0.5, muzzleDepth: 0.73 },
-  crossbow: { position: [0, -0.02, -0.06], rotation: [0, 0, 0], scale: 0.52, muzzleDepth: 0.46 },
-  longbow: { position: [0, -0.01, -0.045], rotation: [0, 0, 0], scale: 0.56, muzzleDepth: 0.43 },
+  powder_rifle: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 0.58, muzzle: [0, 0.03, -1.23] },
+  sidearm: { position: [0.015, -0.01, -0.035], rotation: [0, 0, 0], scale: 0.58, muzzle: [0, 0.03, -0.63] },
+  scattergun: { position: [0.02, -0.035, -0.08], rotation: [0, 0, 0], scale: 0.5, muzzle: [0, 0.03, -1.11] },
+  crossbow: { position: [0, -0.02, -0.06], rotation: [0, 0, 0], scale: 0.52, muzzle: [0, 0.05, -0.8] },
+  longbow: { position: [0, -0.01, -0.045], rotation: [0, 0, 0], scale: 0.56, muzzle: [0, 0.02, -0.68] },
 } as const satisfies Record<
   WarRoomWeaponId,
-  { position: readonly [number, number, number]; rotation: readonly [number, number, number]; scale: number; muzzleDepth: number }
+  { position: readonly [number, number, number]; rotation: readonly [number, number, number]; scale: number; muzzle: readonly [number, number, number] }
 >;
 
 export type WarRoomBlockerKind = "wall" | "cover" | "tower" | "platform";

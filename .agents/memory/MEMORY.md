@@ -15,3 +15,4 @@
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.
 - [User-owned deployment](user-owned-deployment.md) — Make code changes only; the user handles Git pushes and Vercel deploys.
 - [Fantasy Knight GLB axis](fantasy-knight-axis.md) — Keep the static Z-up asset out of runtime; Demir Taç uses rig-mounted gear on the animated hero model.
+- [War Room GLB atlas fallback](war-room-glb-textures.md) — Castle-kit GLBs share a missing atlas; resolve only that URL and keep loads on the default manager for progress.
