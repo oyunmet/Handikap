@@ -14,6 +14,7 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
+import { setWarRoomMuted } from "./war-room-audio";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
 
@@ -186,6 +187,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
     && !modelsLoading
     && (modelProgress >= 100 || modelErrors.length > 0);
   const [phase, setPhase] = useState<Phase>("briefing");
+  const [soundMuted, setSoundMuted] = useState(false);
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
     () => getWarRoomLoadoutFromProfile(profile),
   );
@@ -381,7 +383,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v7-silah-vurus</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -488,6 +490,19 @@ export default function WarRoomGame({ onExit, profile }: Props) {
               </div>
               <MiniMap hud={hud} />
             </div>
+            <button
+              className="war-room-mute"
+              type="button"
+              aria-pressed={soundMuted}
+              aria-label={soundMuted ? "Sesi aç" : "Sesi kapat"}
+              onClick={() => {
+                const nextMuted = !soundMuted;
+                setSoundMuted(nextMuted);
+                setWarRoomMuted(nextMuted);
+              }}
+            >
+              {soundMuted ? "SES AÇ" : "SESSİZ"}
+            </button>
             <div className="war-room-commander">
               <div><span>KUŞATMA KOMUTANI</span><b>KIZIL KOMUTAN</b></div>
               <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>

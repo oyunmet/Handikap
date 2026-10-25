@@ -1,5 +1,5 @@
 import { useFrame, useLoader } from "@react-three/fiber";
-import { Component, useEffect, useMemo, useRef } from "react";
+import { Component, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
@@ -87,6 +87,7 @@ type StaticModelProps = {
   position: readonly [number, number, number];
   rotation?: readonly [number, number, number];
   targetSize: TargetSize;
+  muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
 };
 
 export function WarRoomStaticModel({
@@ -94,6 +95,7 @@ export function WarRoomStaticModel({
   position,
   rotation = [0, 0, 0],
   targetSize,
+  muzzleAnchorRef,
 }: StaticModelProps) {
   const { scene } = useLoader(WarRoomStaticGLTFLoader, src, loadCharacter) as GLTF;
   const model = useMemo(() => {
@@ -122,6 +124,27 @@ export function WarRoomStaticModel({
     );
     return clone;
   }, [scene, src, targetSize]);
+
+  useLayoutEffect(() => {
+    const anchor = muzzleAnchorRef?.current;
+    if (!anchor) return;
+    model.updateMatrixWorld(true);
+    let marker: THREE.Object3D | null = null;
+    model.traverse((object) => {
+      if (!marker && /muzzle|barrel[_ -]?end/i.test(object.name)) marker = object;
+    });
+    if (marker) {
+      marker.getWorldPosition(anchor.position);
+      return;
+    }
+    const bounds = new THREE.Box3().setFromObject(model);
+    if (bounds.isEmpty()) return;
+    anchor.position.set(
+      (bounds.min.x + bounds.max.x) / 2,
+      (bounds.min.y + bounds.max.y) / 2,
+      bounds.min.z,
+    );
+  }, [model, muzzleAnchorRef]);
 
   return (
     <group position={position} rotation={rotation}>

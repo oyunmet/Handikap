@@ -33,6 +33,17 @@ test("all five weapons expose complete, valid shooter settings", () => {
   assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "longbow")?.charge, true);
 });
 
+test("weapon GLB fallbacks are mapped and normalize rifle and pistol to their target lengths", () => {
+  const rifle = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "powder_rifle");
+  const pistol = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "sidearm");
+  assert.deepEqual(
+    WAR_ROOM_WEAPONS.map((weapon) => weapon.modelFile),
+    ["rifle.glb", "pistol.glb", "shotgun.glb", "crossbow.glb", "bow.glb"],
+  );
+  assert.ok(Math.abs(rifle.modelSize[2] * 0.58 - 1) < 0.02);
+  assert.ok(Math.abs(pistol.modelSize[2] * 0.58 - 0.25) < 0.02);
+});
+
 test("the same damage helper clamps health and applies headshot multipliers", () => {
   const target = { hp: 50, maxHp: 50 };
   assert.deepEqual(applyWarRoomDamage(target, 20, 2), { damage: 40, killed: false });

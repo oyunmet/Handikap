@@ -408,6 +408,29 @@
   justify-content: space-between;
 }
 
+.war-room-mute {
+  position: absolute;
+  top: max(112px, calc(env(safe-area-inset-top) + 100px));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 4;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(240, 207, 159, 0.35);
+  border-radius: 3px;
+  background: rgba(16, 16, 16, 0.72);
+  color: #f0dfc2;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  pointer-events: auto;
+}
+
+.war-room-mute:hover,
+.war-room-mute[aria-pressed="true"] {
+  border-color: rgba(248, 206, 144, 0.8);
+  color: #fff0d1;
+}
+
 .war-room-kill-feed {
   display: flex;
   max-width: min(45vw, 330px);

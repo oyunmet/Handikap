@@ -2,7 +2,7 @@ export type WarRoomWeaponId = "powder_rifle" | "sidearm" | "scattergun" | "cross
 
 export const WAR_ROOM_CHARACTER_HEIGHT = 1.92;
 export const WAR_ROOM_COMMANDER_SCALE = 1.3;
-export const WAR_ROOM_HEADSHOT_HEIGHT_RATIO = 0.84;
+export const WAR_ROOM_HEADSHOT_HEIGHT_RATIO = 0.8;
 
 export type WarRoomWeapon = {
   id: WarRoomWeaponId;
@@ -18,6 +18,8 @@ export type WarRoomWeapon = {
   spread: number;
   headshotMultiplier: number;
   range: number;
+  modelFile: string;
+  modelSize: readonly [number, number, number];
   automatic?: boolean;
   pellets?: number;
   charge?: boolean;
@@ -39,6 +41,8 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.008,
     headshotMultiplier: 1.8,
     range: 62,
+    modelFile: "rifle.glb",
+    modelSize: [0.25, 0.25, 1.72],
     automatic: true,
     color: "#f3c77b",
   },
@@ -56,6 +60,8 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.014,
     headshotMultiplier: 2,
     range: 42,
+    modelFile: "pistol.glb",
+    modelSize: [0.21, 0.18, 0.43],
     color: "#e4b582",
   },
   {
@@ -72,6 +78,8 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.075,
     headshotMultiplier: 1.65,
     range: 21,
+    modelFile: "shotgun.glb",
+    modelSize: [0.28, 0.27, 1.8],
     pellets: 7,
     color: "#ffbf76",
   },
@@ -89,6 +97,8 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.0025,
     headshotMultiplier: 2.25,
     range: 58,
+    modelFile: "crossbow.glb",
+    modelSize: [1.3, 0.3, 1.54],
     color: "#b7e7d1",
   },
   {
@@ -105,6 +115,8 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.012,
     headshotMultiplier: 2.1,
     range: 52,
+    modelFile: "bow.glb",
+    modelSize: [0.24, 1.5, 0.2],
     charge: true,
     color: "#b7d9ff",
   },
