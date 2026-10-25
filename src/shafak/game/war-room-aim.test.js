@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { applyWarRoomDamage, createWarRoomRuntime } from "./war-room-engine.ts";
 import { traceWarRoomRay } from "./war-room-aim.ts";
+import { segmentBlockFraction } from "./war-room-engine.ts";
 
 test("camera rays acquire all nine War Room enemy capsules and repeated hits kill them", () => {
   const targets = createWarRoomRuntime(["powder_rifle", "crossbow"]).enemies;
@@ -56,6 +57,18 @@ test("a wall or cover hit before the capsule blocks damage", () => {
   assert.equal(blocked.target, null);
   assert.equal(blocked.blocked, true);
   assert.equal(blocked.point.z, 5);
+});
+
+test("a camera ray into the real central cover hits the cover before the enemy", () => {
+  const target = { x: 1, z: -10, alive: true, commander: false };
+  const origin = { x: 1, y: 1, z: 5 };
+  const end = { x: 1, y: 1, z: -15 };
+  const blockedAt = segmentBlockFraction(origin, end);
+  assert.notEqual(blockedAt, null);
+  const hit = traceWarRoomRay(origin, { x: 0, y: 0, z: -1 }, [target], 20, blockedAt);
+  assert.equal(hit.target, null);
+  assert.equal(hit.blocked, true);
+  assert.ok(hit.point.z > target.z);
 });
 
 test("the player's own model is ignored because only enemy targets are traced", () => {

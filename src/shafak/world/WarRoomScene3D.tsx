@@ -55,11 +55,20 @@ const WAR_ROOM_FLOOR_MATERIAL = new THREE.MeshStandardMaterial({
 });
 const WAR_ROOM_EFFECT_POOL_SIZE = 72;
 const WAR_ROOM_TRACER_POOL_SIZE = 24;
+const WAR_ROOM_PROJECTILE_POOL_SIZE = 12;
 
 type WarRoomParticle = {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
   born: number; lifetime: number; size: number;
+};
+
+type WarRoomProjectile = {
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  born: number;
+  lifetime: number;
+  color: string;
 };
 
 function shortestLerp(from: number, to: number, speed: number, delta: number) {
@@ -941,6 +950,41 @@ function WarRoomRuntimeScene({
     lines.frustumCulled = false;
     return lines;
   }, [tracerState]);
+  const projectiles = useMemo<WarRoomProjectile[]>(
+    () => Array.from({ length: WAR_ROOM_PROJECTILE_POOL_SIZE }, () => ({
+      start: new THREE.Vector3(),
+      end: new THREE.Vector3(),
+      born: -1,
+      lifetime: 0,
+      color: "#ffffff",
+    })),
+    [],
+  );
+  const projectileCursor = useRef(0);
+  const projectileUp = useMemo(() => new THREE.Vector3(0, 1, 0), []);
+  const projectileDirection = useMemo(() => new THREE.Vector3(), []);
+  const projectileTip = useMemo(() => new THREE.Vector3(), []);
+  const projectileTransform = useMemo(() => new THREE.Object3D(), []);
+  const projectileShafts = useMemo(() => {
+    const mesh = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.012, 0.012, 0.48, 5),
+      new THREE.MeshStandardMaterial({ color: "#ffffff", metalness: 0.32, roughness: 0.5 }),
+      WAR_ROOM_PROJECTILE_POOL_SIZE,
+    );
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    return mesh;
+  }, []);
+  const projectileHeads = useMemo(() => {
+    const mesh = new THREE.InstancedMesh(
+      new THREE.ConeGeometry(0.036, 0.15, 5),
+      new THREE.MeshStandardMaterial({ color: "#ffffff", metalness: 0.22, roughness: 0.48 }),
+      WAR_ROOM_PROJECTILE_POOL_SIZE,
+    );
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    return mesh;
+  }, []);
 
   const spawnImpact = (
     position: THREE.Vector3,
@@ -980,6 +1024,21 @@ function WarRoomRuntimeScene({
     tracerState.expires[slot] = now + lifetime;
     tracerState.geometry.attributes.position.needsUpdate = true;
     tracerState.geometry.attributes.color.needsUpdate = true;
+  };
+
+  const addProjectile = (start: THREE.Vector3, end: THREE.Vector3, color: string, now: number) => {
+    const slot = projectileCursor.current++ % WAR_ROOM_PROJECTILE_POOL_SIZE;
+    const projectile = projectiles[slot];
+    projectile.start.copy(start);
+    projectile.end.copy(end);
+    projectile.born = now;
+    projectile.lifetime = Math.max(0.12, Math.min(0.62, start.distanceTo(end) / 48));
+    projectile.color = color;
+    const tint = new THREE.Color(color);
+    projectileShafts.setColorAt(slot, tint);
+    projectileHeads.setColorAt(slot, tint);
+    if (projectileShafts.instanceColor) projectileShafts.instanceColor.needsUpdate = true;
+    if (projectileHeads.instanceColor) projectileHeads.instanceColor.needsUpdate = true;
   };
 
   const getAimHit = (x: number, y: number, range: number) => {
@@ -1087,8 +1146,11 @@ function WarRoomRuntimeScene({
         }
       }
       if (pellet === 0 || aimedEnemy) {
-        const projectile = weaponId === "crossbow" || weaponId === "longbow";
-        addTracer(muzzle, tracerEnd, weapon.color, now, projectile ? 0.24 : 0.12);
+        if (weaponId === "crossbow" || weaponId === "longbow") {
+          addProjectile(muzzle, tracerEnd, weapon.color, now);
+        } else {
+          addTracer(muzzle, tracerEnd, weapon.color, now);
+        }
       }
     }
     if (!weapon.charge && weaponId !== "crossbow") {
@@ -1351,6 +1413,34 @@ function WarRoomRuntimeScene({
     }
     particleMesh.instanceMatrix.needsUpdate = true;
 
+    for (let slot = 0; slot < WAR_ROOM_PROJECTILE_POOL_SIZE; slot += 1) {
+      const projectile = projectiles[slot];
+      const age = now - projectile.born;
+      if (projectile.born < 0 || age >= projectile.lifetime) {
+        projectileTransform.position.set(0, -1000, 0);
+        projectileTransform.quaternion.identity();
+        projectileTransform.scale.setScalar(0);
+        projectileTransform.updateMatrix();
+        projectileShafts.setMatrixAt(slot, projectileTransform.matrix);
+        projectileHeads.setMatrixAt(slot, projectileTransform.matrix);
+        continue;
+      }
+      const progress = Math.min(1, age / projectile.lifetime);
+      projectileDirection.subVectors(projectile.end, projectile.start).normalize();
+      projectileTip.copy(projectile.start).lerp(projectile.end, progress);
+      projectileTransform.quaternion.setFromUnitVectors(projectileUp, projectileDirection);
+      projectileTransform.position.copy(projectileTip).addScaledVector(projectileDirection, -0.26);
+      projectileTransform.scale.set(1, 1, 1);
+      projectileTransform.updateMatrix();
+      projectileShafts.setMatrixAt(slot, projectileTransform.matrix);
+      projectileTransform.position.copy(projectileTip).addScaledVector(projectileDirection, -0.075);
+      projectileTransform.scale.set(1, 1, 1);
+      projectileTransform.updateMatrix();
+      projectileHeads.setMatrixAt(slot, projectileTransform.matrix);
+    }
+    projectileShafts.instanceMatrix.needsUpdate = true;
+    projectileHeads.instanceMatrix.needsUpdate = true;
+
     const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!.range;
     const desiredFov = input.aimHeld ? 48 : 70;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
@@ -1410,6 +1500,8 @@ function WarRoomRuntimeScene({
       <Battlefield />
       <primitive object={tracerLines} dispose={null} />
       <primitive object={particleMesh} dispose={null} />
+      <primitive object={projectileShafts} dispose={null} />
+      <primitive object={projectileHeads} dispose={null} />
       <group userData={{ runtime }}>
         {runtime.enemies.map((enemy, index) => (
           <EnemyActor

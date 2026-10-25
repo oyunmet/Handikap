@@ -129,20 +129,49 @@ export function WarRoomStaticModel({
     const anchor = muzzleAnchorRef?.current;
     if (!anchor) return;
     model.updateMatrixWorld(true);
+    const weaponRoot = anchor.parent;
+    weaponRoot?.updateWorldMatrix(true, false);
+    const toWeaponLocal = (worldPoint: THREE.Vector3) => (
+      weaponRoot ? weaponRoot.worldToLocal(worldPoint) : worldPoint
+    );
     let marker: THREE.Object3D | null = null;
     model.traverse((object) => {
       if (!marker && /muzzle|barrel[_ -]?end/i.test(object.name)) marker = object;
     });
-    if (marker) {
-      marker.getWorldPosition(anchor.position);
+    const muzzleMarker = marker as THREE.Object3D | null;
+    if (muzzleMarker) {
+      const markerWorldPosition = muzzleMarker.getWorldPosition(new THREE.Vector3());
+      anchor.position.copy(toWeaponLocal(markerWorldPosition));
       return;
     }
-    const bounds = new THREE.Box3().setFromObject(model);
-    if (bounds.isEmpty()) return;
+    const inverseWeaponWorld = weaponRoot
+      ? new THREE.Matrix4().copy(weaponRoot.matrixWorld).invert()
+      : new THREE.Matrix4();
+    const modelBounds = new THREE.Box3();
+    const meshBounds = new THREE.Box3();
+    const meshToWeapon = new THREE.Matrix4();
+    const corner = new THREE.Vector3();
+    model.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const geometry = object.geometry;
+      if (!geometry.boundingBox) geometry.computeBoundingBox();
+      if (!geometry.boundingBox) return;
+      meshBounds.copy(geometry.boundingBox);
+      meshToWeapon.multiplyMatrices(inverseWeaponWorld, object.matrixWorld);
+      for (let index = 0; index < 8; index += 1) {
+        corner.set(
+          index & 1 ? meshBounds.max.x : meshBounds.min.x,
+          index & 2 ? meshBounds.max.y : meshBounds.min.y,
+          index & 4 ? meshBounds.max.z : meshBounds.min.z,
+        ).applyMatrix4(meshToWeapon);
+        modelBounds.expandByPoint(corner);
+      }
+    });
+    if (modelBounds.isEmpty()) return;
     anchor.position.set(
-      (bounds.min.x + bounds.max.x) / 2,
-      (bounds.min.y + bounds.max.y) / 2,
-      bounds.min.z,
+      (modelBounds.min.x + modelBounds.max.x) / 2,
+      (modelBounds.min.y + modelBounds.max.y) / 2,
+      modelBounds.min.z,
     );
   }, [model, muzzleAnchorRef]);
 
