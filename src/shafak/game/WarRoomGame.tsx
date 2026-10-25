@@ -1,0 +1,619 @@
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import WarRoomScene3D from "../world/WarRoomScene3D";
+import {
+  WAR_ROOM_WEAPONS,
+  WAR_ROOM_WEAPON_BY_ID,
+  type WarRoomWeaponId,
+} from "./war-room-data";
+import {
+  createWarRoomRuntime,
+  type WarRoomHudSnapshot,
+  type WarRoomInputState,
+  type WarRoomRuntime,
+} from "./war-room-engine";
+import "./war-room.css";
+
+type Props = { onExit: () => void };
+type Phase = "briefing" | "battle" | "victory" | "defeat";
+type PointerTrack = { id: number | null; x: number; y: number; button: number };
+
+const GOLD_KEY = "shafak-war-room-gold-v1";
+const DEFAULT_LOADOUT: [WarRoomWeaponId, WarRoomWeaponId] = ["powder_rifle", "crossbow"];
+
+function createInputState(): WarRoomInputState {
+  return {
+    keys: new Set(),
+    moveX: 0,
+    moveY: 0,
+    yaw: 0,
+    pitch: -0.08,
+    fireHeld: false,
+    firePressed: false,
+    fireReleased: false,
+    aimHeld: false,
+    reloadPressed: false,
+    swapPressed: false,
+    jumpPressed: false,
+    dodgePressed: false,
+    crouchPressed: false,
+    paused: false,
+  };
+}
+
+function createEmptyHud(): WarRoomHudSnapshot {
+  return {
+    player: { x: 0, z: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
+    enemies: [],
+    remaining: 9,
+    bossHp: 360,
+    bossMaxHp: 360,
+    kills: 0,
+    headshots: 0,
+    shots: 0,
+    hits: 0,
+    elapsedSeconds: 0,
+    weaponId: DEFAULT_LOADOUT[0],
+    magazine: 30,
+    reserve: 90,
+    reloading: false,
+    aiming: false,
+    targetVisible: false,
+    hitMarker: false,
+    headshotMarker: false,
+    damageVignette: false,
+    damageDirection: 0,
+    lastHitDamage: 0,
+    hitMessage: "",
+    killFeed: [],
+    crouched: false,
+  };
+}
+
+function formatDuration(seconds: number) {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
+}
+
+function recordWarRoomGold(amount: number) {
+  try {
+    const prior = Number(window.localStorage.getItem(GOLD_KEY) ?? "0");
+    const total = (Number.isFinite(prior) ? Math.max(0, prior) : 0) + amount;
+    window.localStorage.setItem(GOLD_KEY, String(total));
+    return total;
+  } catch {
+    return null;
+  }
+}
+
+function ActionButton({
+  label,
+  hint,
+  className = "",
+  onDown,
+  onUp,
+  onClick,
+}: {
+  label: string;
+  hint?: string;
+  className?: string;
+  onDown?: () => void;
+  onUp?: () => void;
+  onClick?: () => void;
+}) {
+  const pointer = useRef<number | null>(null);
+  return (
+    <button
+      type="button"
+      className={`war-room-control ${className}`}
+      aria-label={label}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        pointer.current = event.pointerId;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        onDown?.();
+      }}
+      onPointerUp={(event) => {
+        if (pointer.current !== event.pointerId) return;
+        pointer.current = null;
+        onUp?.();
+        onClick?.();
+      }}
+      onPointerCancel={() => {
+        pointer.current = null;
+        onUp?.();
+      }}
+      onLostPointerCapture={() => {
+        pointer.current = null;
+        onUp?.();
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (event.detail === 0) onClick?.();
+      }}
+    >
+      <span className="war-room-control__symbol" aria-hidden="true">
+        {className.includes("fire") ? "✹"
+          : className.includes("aim") ? "⌖"
+            : className.includes("reload") ? "↻"
+              : className.includes("jump") ? "↑"
+                : className.includes("dodge") ? "⤴"
+                  : "⇄"}
+      </span>
+      <b>{label}</b>
+      {hint && <kbd>{hint}</kbd>}
+    </button>
+  );
+}
+
+function MiniMap({ hud }: { hud: WarRoomHudSnapshot }) {
+  const pointX = (x: number) => 9 + ((Math.max(-34, Math.min(34, x)) + 34) / 68) * 102;
+  const pointY = (z: number) => 9 + ((Math.max(-34, Math.min(34, z)) + 34) / 68) * 102;
+  return (
+    <svg className="war-room-minimap" viewBox="0 0 120 120" role="img" aria-label="Savaş alanı mini haritası">
+      <rect x="2" y="2" width="116" height="116" rx="14" />
+      <path d="M12 12h96v96H12zM60 12v96M12 60h96" />
+      {hud.enemies.map((enemy) => enemy.alive && (
+        <circle
+          key={enemy.id}
+          className={enemy.commander ? "is-commander" : ""}
+          cx={pointX(enemy.x)}
+          cy={pointY(enemy.z)}
+          r={enemy.commander ? 4.8 : 2.8}
+        />
+      ))}
+      <path
+        className="war-room-minimap__player"
+        d="M60 53 65 66 60 63 55 66Z"
+        transform={`translate(${pointX(hud.player.x) - 60} ${pointY(hud.player.z) - 60}) rotate(${(hud.player.yaw * 180) / Math.PI} ${pointX(hud.player.x)} ${pointY(hud.player.z)})`}
+      />
+    </svg>
+  );
+}
+
+export default function WarRoomGame({ onExit }: Props) {
+  const [phase, setPhase] = useState<Phase>("briefing");
+  const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(DEFAULT_LOADOUT);
+  const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
+  const [runKey, setRunKey] = useState(0);
+  const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [exitPrompt, setExitPrompt] = useState(false);
+  const [summary, setSummary] = useState<{
+    kills: number;
+    headshots: number;
+    accuracy: number;
+    seconds: number;
+    gold: number;
+    totalGold: number | null;
+  } | null>(null);
+  const runtimeRef = useRef<WarRoomRuntime>(createWarRoomRuntime(DEFAULT_LOADOUT));
+  const inputRef = useRef<WarRoomInputState>(createInputState());
+  const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1 });
+  const stickRef = useRef<HTMLDivElement>(null);
+  const stickPointerRef = useRef<number | null>(null);
+
+  const beginBattle = () => {
+    runtimeRef.current = createWarRoomRuntime(loadout);
+    inputRef.current = createInputState();
+    pointerRef.current.id = null;
+    setHud(createEmptyHud());
+    setExitPrompt(false);
+    setRunKey((key) => key + 1);
+    setPhase("battle");
+  };
+
+  const finishBattle = useCallback((result: "victory" | "defeat", finalHud: WarRoomHudSnapshot) => {
+    const gold = result === "victory" ? 90 + finalHud.kills * 7 + finalHud.headshots * 5 : 0;
+    const totalGold = gold > 0 ? recordWarRoomGold(gold) : null;
+    setHud(finalHud);
+    setSummary({
+      kills: finalHud.kills,
+      headshots: finalHud.headshots,
+      accuracy: finalHud.shots > 0 ? Math.round((finalHud.hits / finalHud.shots) * 100) : 0,
+      seconds: finalHud.elapsedSeconds,
+      gold,
+      totalGold,
+    });
+    setPhase(result);
+  }, []);
+
+  const pauseBattle = useCallback(() => {
+    const input = inputRef.current;
+    input.paused = true;
+    input.keys.clear();
+    input.fireHeld = false;
+    input.fireReleased = true;
+    input.aimHeld = false;
+    runtimeRef.current.player.chargeStartedAt = 0;
+    pointerRef.current.id = null;
+    setExitPrompt(true);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "battle") return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      const input = inputRef.current;
+      const key = event.key.toLowerCase();
+      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
+      if (event.repeat && ["r", "v", " ", "c", "shift"].includes(key)) return;
+      if (key === "r") input.reloadPressed = true;
+      else if (key === "v") input.swapPressed = true;
+      else if (key === " ") input.jumpPressed = true;
+      else if (key === "c") input.crouchPressed = true;
+      else if (key === "shift") input.dodgePressed = true;
+      else if (key === "escape") pauseBattle();
+      if (["w", "a", "s", "d"].includes(key)) input.keys.add(key);
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      inputRef.current.keys.delete(event.key.toLowerCase());
+    };
+    const onBlur = () => {
+      inputRef.current.keys.clear();
+      inputRef.current.fireHeld = false;
+      inputRef.current.aimHeld = false;
+      inputRef.current.fireReleased = true;
+      pointerRef.current.id = null;
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      inputRef.current.keys.clear();
+      inputRef.current.fireHeld = false;
+      inputRef.current.aimHeld = false;
+    };
+  }, [phase, pauseBattle]);
+
+  const closeMode = () => {
+    setExitPrompt(false);
+    onExit();
+  };
+
+  const setLoadoutWeapon = (id: WarRoomWeaponId) => {
+    setLoadout((current) => {
+      if (current[selectedSlot] === id) return current;
+      const next: [WarRoomWeaponId, WarRoomWeaponId] = [...current];
+      const otherSlot = selectedSlot === 0 ? 1 : 0;
+      if (current[otherSlot] === id) next[otherSlot] = current[selectedSlot];
+      next[selectedSlot] = id;
+      return next;
+    });
+  };
+
+  const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap")) return;
+    if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) return;
+    if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
+    event.preventDefault();
+    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, button: event.button };
+    if (event.pointerType === "mouse" && event.button === 0) {
+      inputRef.current.fireHeld = true;
+      inputRef.current.firePressed = true;
+    } else if (event.pointerType === "mouse" && event.button === 2) {
+      inputRef.current.aimHeld = true;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleWorldPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current.id !== event.pointerId) return;
+    const dx = event.clientX - pointerRef.current.x;
+    const dy = event.clientY - pointerRef.current.y;
+    pointerRef.current.x = event.clientX;
+    pointerRef.current.y = event.clientY;
+    const input = inputRef.current;
+    const sensitivity = input.aimHeld ? 0.0024 : 0.0041;
+    input.yaw += dx * sensitivity;
+    input.pitch = Math.max(-0.56, Math.min(0.55, input.pitch + dy * sensitivity));
+  };
+
+  const handleWorldPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current.id !== event.pointerId) return;
+    if (pointerRef.current.button === 0) {
+      inputRef.current.fireHeld = false;
+      inputRef.current.fireReleased = true;
+    } else if (pointerRef.current.button === 2) {
+      inputRef.current.aimHeld = false;
+    }
+    pointerRef.current.id = null;
+  };
+
+  const readStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const stick = stickRef.current;
+    if (!stick) return;
+    const rect = stick.getBoundingClientRect();
+    const radius = Math.max(1, rect.width * 0.37);
+    const dx = (event.clientX - (rect.left + rect.width / 2)) / radius;
+    const dy = ((rect.top + rect.height / 2) - event.clientY) / radius;
+    const length = Math.hypot(dx, dy);
+    const scale = length > 1 ? 1 / length : 1;
+    const x = Math.max(-1, Math.min(1, dx * scale));
+    const y = Math.max(-1, Math.min(1, dy * scale));
+    stick.style.setProperty("--stick-x", `${x * radius}px`);
+    stick.style.setProperty("--stick-y", `${-y * radius}px`);
+    inputRef.current.moveX = x;
+    inputRef.current.moveY = y;
+  };
+
+  const handleStickDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    stickPointerRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    readStick(event);
+  };
+  const handleStickMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stickPointerRef.current === event.pointerId) readStick(event);
+  };
+  const handleStickUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stickPointerRef.current !== event.pointerId) return;
+    stickPointerRef.current = null;
+    inputRef.current.moveX = 0;
+    inputRef.current.moveY = 0;
+    stickRef.current?.style.setProperty("--stick-x", "0px");
+    stickRef.current?.style.setProperty("--stick-y", "0px");
+  };
+
+  return (
+    <main className="war-room" data-phase={phase}>
+      {phase === "briefing" && (
+        <section className="war-room-briefing" role="dialog" aria-modal="true" aria-labelledby="war-room-title">
+          <div className="war-room-briefing__backdrop" aria-hidden="true" />
+          <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
+          <header className="war-room-heading">
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV</span>
+            <h1 id="war-room-title">SAVAŞ ODASI</h1>
+            <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
+          </header>
+          <div className="war-room-briefing__content">
+            <div className="war-room-mission-card">
+              <div className="war-room-mission-card__symbol" aria-hidden="true">✦</div>
+              <div>
+                <span>GÖREV HEDEFİ</span>
+                <strong>Komutan dâhil 9 düşmanı temizle</strong>
+                <small>Siper al, menzili koru ve komutanın işaretini takip et.</small>
+              </div>
+              <b className="war-room-enemy-count">09</b>
+            </div>
+            <div className="war-room-loadout-head">
+              <div>
+                <span className="war-room-eyebrow">SAVAŞ ÖNCESİ HAZIRLIK</span>
+                <h2>İki silah kuşan</h2>
+              </div>
+              <div className="war-room-slot-tabs" role="group" aria-label="Silah yuvası seç">
+                {([0, 1] as const).map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    className={selectedSlot === slot ? "is-selected" : ""}
+                    aria-pressed={selectedSlot === slot}
+                    onClick={() => setSelectedSlot(slot)}
+                  >
+                    {slot === 0 ? "I · ANA" : "II · YEDEK"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="war-room-weapon-grid">
+              {WAR_ROOM_WEAPONS.map((weapon) => {
+                const selected = loadout[selectedSlot] === weapon.id;
+                const otherSlot = selectedSlot === 0 ? 1 : 0;
+                const otherSlotSelected = loadout[otherSlot] === weapon.id;
+                return (
+                  <button
+                    key={weapon.id}
+                    type="button"
+                    className={`war-room-weapon-card${selected ? " is-selected" : ""}`}
+                    aria-pressed={selected}
+                    onClick={() => setLoadoutWeapon(weapon.id)}
+                  >
+                    <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>
+                    <span className="war-room-weapon-card__copy">
+                      <b>{weapon.name}</b>
+                      <small>{weapon.className} · {weapon.magazine} mermi</small>
+                    </span>
+                    <span className="war-room-weapon-card__status">
+                      {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : "SEÇ"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="war-room-briefing__bottom">
+              <p>WASD / joystick hareket · Fare sürükle / sağ tarafı kaydır bakış · Sol tık / ATEŞ</p>
+              <button className="war-room-start" type="button" onClick={beginBattle}>
+                <span>BAŞLA</span><i aria-hidden="true">➜</i>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {phase === "battle" && (
+        <div
+          className="war-room-battle"
+          onPointerDown={handleWorldPointerDown}
+          onPointerMove={handleWorldPointerMove}
+          onPointerUp={handleWorldPointerUp}
+          onPointerCancel={handleWorldPointerUp}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <WarRoomScene3D
+            key={runKey}
+            runtimeRef={runtimeRef}
+            inputRef={inputRef}
+            weaponIds={loadout}
+            onHudUpdate={setHud}
+            onFinish={finishBattle}
+          />
+          <div className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}`}>
+            <div className="war-room-hud__top">
+              <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
+                {hud.killFeed.slice(0, 3).map((feed) => <span key={feed.id}>{feed.text}</span>)}
+              </div>
+              <div className="war-room-enemies-left">
+                <span>KALAN DÜŞMAN</span><b>{String(hud.remaining).padStart(2, "0")}</b>
+              </div>
+              <MiniMap hud={hud} />
+            </div>
+            <div className="war-room-commander">
+              <div><span>KUŞATMA KOMUTANI</span><b>KIZIL KOMUTAN</b></div>
+              <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>
+              <i><em style={{ width: `${Math.max(0, (hud.bossHp / hud.bossMaxHp) * 100)}%` }} /></i>
+            </div>
+            <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}`} aria-label={hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
+              <i /><i /><i /><i />
+            </div>
+            {hud.damageVignette && (
+              <div
+                className="war-room-hit-direction"
+                style={{ transform: `translate(-50%, -50%) rotate(${(hud.damageDirection * 180) / Math.PI}deg)` }}
+                aria-hidden="true"
+              >▼</div>
+            )}
+            <div className="war-room-notice" aria-live="polite">
+              {hud.hitMessage && <span>{hud.hitMessage}</span>}
+            </div>
+            <div className="war-room-hud__bottom">
+              <div className="war-room-vitals">
+                <div className="war-room-bar-row">
+                  <span>CAN</span><b>{Math.ceil(hud.player.hp)} / {hud.player.maxHp}</b>
+                </div>
+                <i className="war-room-bar"><em className="is-health" style={{ width: `${Math.max(0, (hud.player.hp / hud.player.maxHp) * 100)}%` }} /></i>
+                <div className="war-room-bar-row">
+                  <span>DAYANIKLILIK</span><b>{Math.ceil(hud.player.stamina)}%</b>
+                </div>
+                <i className="war-room-bar"><em className="is-stamina" style={{ width: `${Math.max(0, hud.player.stamina)}%` }} /></i>
+              </div>
+              <div className="war-room-ammo">
+                <span>{WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.name ?? "Silah"}</span>
+                <strong>
+                  {hud.reloading
+                    ? "DOLDURULUYOR"
+                    : <>{hud.magazine}<small> / {hud.reserve}</small></>}
+                </strong>
+                <small>{formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR</small>
+              </div>
+              <div className="war-room-controls">
+                <ActionButton
+                  label="Nişan al"
+                  hint="SAĞ TIK"
+                  className={`is-aim${hud.aiming ? " is-active" : ""}`}
+                  onDown={() => { inputRef.current.aimHeld = true; }}
+                  onUp={() => { inputRef.current.aimHeld = false; }}
+                />
+                <ActionButton
+                  label="Yeniden doldur"
+                  hint="R"
+                  className="is-reload"
+                  onClick={() => { inputRef.current.reloadPressed = true; }}
+                />
+                <ActionButton
+                  label="Zıpla"
+                  hint="SPACE"
+                  className="is-jump"
+                  onClick={() => { inputRef.current.jumpPressed = true; }}
+                />
+                <ActionButton
+                  label="Eğil ve kaçın"
+                  hint="C / SHIFT"
+                  className={`is-dodge${hud.crouched ? " is-active" : ""}`}
+                  onDown={() => { inputRef.current.dodgePressed = true; }}
+                  onClick={() => { inputRef.current.crouchPressed = true; }}
+                />
+                <ActionButton
+                  label="Silah değiştir"
+                  hint="V"
+                  className="is-swap"
+                  onClick={() => { inputRef.current.swapPressed = true; }}
+                />
+                <ActionButton
+                  label="Ateş et"
+                  className="is-fire"
+                  onDown={() => {
+                    inputRef.current.fireHeld = true;
+                    inputRef.current.firePressed = true;
+                  }}
+                  onUp={() => {
+                    inputRef.current.fireHeld = false;
+                    inputRef.current.fireReleased = true;
+                  }}
+                />
+              </div>
+              <div
+                ref={stickRef}
+                className="war-room-stick"
+                role="application"
+                aria-label="Hareket joystick'i"
+                onPointerDown={handleStickDown}
+                onPointerMove={handleStickMove}
+                onPointerUp={handleStickUp}
+                onPointerCancel={handleStickUp}
+              >
+                <i aria-hidden="true" />
+              </div>
+            </div>
+            <button className="war-room-pause" type="button" onClick={pauseBattle}>DURAKLAT · ÇIK</button>
+          </div>
+          {hud.hitMarker && (
+            <div className={`war-room-damage-number${hud.headshotMarker ? " is-headshot" : ""}`} aria-hidden="true">
+              {hud.headshotMarker ? "KAFA" : `−${hud.lastHitDamage}`}
+            </div>
+          )}
+          {exitPrompt && (
+            <div className="war-room-confirm" role="alertdialog" aria-modal="true" aria-label="Savaş odasından çık">
+              <section>
+                <span className="war-room-eyebrow">GÖREV DURDURULACAK</span>
+                <h2>Savaştan çıkılsın mı?</h2>
+                <p>Bu karşılaşmanın ilerlemesi kaydedilmez.</p>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      inputRef.current.paused = false;
+                      setExitPrompt(false);
+                    }}
+                  >
+                    DEVAM ET
+                  </button>
+                  <button type="button" className="is-danger" onClick={closeMode}>ÇIKIŞ</button>
+                </div>
+              </section>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(phase === "victory" || phase === "defeat") && summary && (
+        <section className={`war-room-result${phase === "defeat" ? " is-defeat" : ""}`} role="dialog" aria-modal="true">
+          <div className="war-room-result__card">
+            <span className="war-room-eyebrow">TAŞ AVLUSU KUŞATMASI · GÖREV RAPORU</span>
+            <h1>{phase === "victory" ? "ZAFER" : "YENİLGİ"}</h1>
+            <p>{phase === "victory" ? "Kızıl Komutan’ın kuşatması sona erdi." : "Savaş alanı hâlâ orada. Hazırlan ve yeniden dene."}</p>
+            <div className="war-room-stat-grid">
+              <div><span>DÜŞÜRÜLEN</span><b>{summary.kills} / 9</b></div>
+              <div><span>KAFA VURUŞU</span><b>{summary.headshots}</b></div>
+              <div><span>İSABET</span><b>%{summary.accuracy}</b></div>
+              <div><span>SÜRE</span><b>{formatDuration(summary.seconds)}</b></div>
+            </div>
+            {phase === "victory" && (
+              <div className="war-room-gold-reward">
+                <span>BU MODUN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
+                {summary.totalGold !== null && <small>Savaş Odası toplamı: {summary.totalGold} altın</small>}
+              </div>
+            )}
+            <div className="war-room-result__actions">
+              <button type="button" className="war-room-start" onClick={beginBattle}>YENİDEN DENE</button>
+              <button type="button" onClick={closeMode}>ÇIK</button>
+            </div>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}

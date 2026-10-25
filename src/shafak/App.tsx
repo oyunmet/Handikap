@@ -35,8 +35,15 @@ import {
 } from "./world/graphics-quality";
 
 const WorldScene = lazy(() => import("./world/WorldScene"));
+const WarRoomGame = lazy(() => import("./game/WarRoomGame"));
 
-type Screen = "intro" | "opening" | "loading" | "menu" | "world";
+type Screen = "intro" | "opening" | "loading" | "menu" | "world" | "war-room";
+
+function resolveInitialScreen(): Screen {
+  const search = typeof window === "undefined" ? "" : window.location.search;
+  if (new URLSearchParams(search).get("mod") === "savas") return "war-room";
+  return getInitialScreen(search);
+}
 type Preferences = {
   sound: boolean;
   soundVolume: number;
@@ -328,7 +335,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ),
     [getToken, handleApiUnauthorized],
   );
-  const [screen, setScreen] = useState<Screen>(() => getInitialScreen());
+  const [screen, setScreen] = useState<Screen>(() => resolveInitialScreen());
+  const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world">("menu");
   const [initialWorldStoreTab, setInitialWorldStoreTab] = useState<StoreTab | null>(null);
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
@@ -588,6 +596,27 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     primeGameAudio();
     setInitialWorldStoreTab(initialStoreTab);
     setScreen("world");
+  };
+
+  const updateWarRoomQuery = (active: boolean) => {
+    const url = new URL(window.location.href);
+    if (active) url.searchParams.set("mod", "savas");
+    else url.searchParams.delete("mod");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  const enterWarRoom = (returnScreen: "menu" | "world" = "menu") => {
+    playFeedback();
+    primeGameAudio();
+    setWarRoomReturnScreen(returnScreen);
+    updateWarRoomQuery(true);
+    setScreen("war-room");
+  };
+
+  const exitWarRoom = () => {
+    updateWarRoomQuery(false);
+    setInitialWorldStoreTab(null);
+    setScreen(warRoomReturnScreen);
   };
 
   const loadClaimedPickups = useCallback(async (chapterId: number) => {
@@ -956,6 +985,18 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <ArrowIcon />
                   </button>
                   <button
+                    className="menu-action menu-action--war-room"
+                    type="button"
+                    onClick={() => enterWarRoom("menu")}
+                  >
+                    <span className="menu-action__icon" aria-hidden="true">✹</span>
+                    <span className="menu-action__war-room-copy">
+                      <b>SAVAŞ ODASI</b>
+                      <small>TEK KİŞİLİK NİŞAN GÖREVİ</small>
+                    </span>
+                    <span className="menu-action__war-room-arrow" aria-hidden="true">➜</span>
+                  </button>
+                  <button
                     className="menu-action menu-action--secondary"
                     type="button"
                     onClick={() => {
@@ -1028,6 +1069,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onLoadClaimedPickups={loadClaimedPickups}
                 onClaimWorldPickups={claimWorldPickups}
                 onSaveWorldPosition={saveWorldPosition}
+                onOpenWarRoom={() => enterWarRoom("world")}
                 onExit={() => {
                   setInitialWorldStoreTab(null);
                   setScreen("menu");
@@ -1036,6 +1078,20 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onOpenSettings={() => setSettingsOpen(true)}
                 onOpenProfile={() => setProfileOpen(true)}
               />
+            </Suspense>
+          </motion.div>
+        )}
+        {screen === "war-room" && (
+          <motion.div
+            key="war-room"
+            className="war-room-screen-shell"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: motionReduced ? 0.1 : 0.24, ease: "easeOut" }}
+          >
+            <Suspense fallback={<div className="entry-loading">Savaş Odası hazırlanıyor…</div>}>
+              <WarRoomGame onExit={exitWarRoom} />
             </Suspense>
           </motion.div>
         )}

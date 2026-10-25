@@ -158,6 +158,7 @@ type WorldSceneProps = {
   onMusicVolumeChange: (volume: number) => void;
   vibrationEnabled: boolean;
   onExit: () => void;
+  onOpenWarRoom?: () => void;
   initialStoreTab?: StoreTab | null;
   onOpenSettings: () => void;
   profile: PlayerProfile;
@@ -503,6 +504,7 @@ export default function WorldScene({
   onMusicVolumeChange,
   vibrationEnabled,
   onExit,
+  onOpenWarRoom,
   initialStoreTab = null,
   onOpenSettings,
   profile,
@@ -2768,6 +2770,18 @@ export default function WorldScene({
         weather={weatherMode}
         travel={travel}
       />
+      {onOpenWarRoom && (
+        <button
+          className="world-war-room-entry"
+          type="button"
+          onClick={onOpenWarRoom}
+          aria-label="Yeni oyun modu Savaş Odası'nı aç"
+        >
+          <span aria-hidden="true">✹</span>
+          <b>SAVAŞ ODASI</b>
+          <small>YENİ MOD</small>
+        </button>
+      )}
       <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
         <Suspense
           fallback={
