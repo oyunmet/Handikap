@@ -320,10 +320,12 @@ test("a short bow requires aim, uses a knife at close range, and can fire throug
 
   const aimed = createCombatState(2904, "easy");
   aimed.weaponIds[0] = "weapon_short_bow";
+  aimed.combatItemCounts.arrow_ammo = 2;
   aimed.bot.staggerUntilTick = 1_000;
-  const shot = tapCombatButton(aimed, INPUT_BUTTON.attack, INPUT_BUTTON.aim);
+  const lock = tapCombatButton(aimed, INPUT_BUTTON.aim).state;
+  const shot = tapCombatButton(lock, INPUT_BUTTON.attack);
   assert.equal(shot.state.player.attackIsRanged, true);
-  const resolved = advanceCombat(shot.state, 12, INPUT_BUTTON.aim);
+  const resolved = advanceCombat(shot.state, 12);
   assert.ok(resolved.events.some((event) => event.type === "projectile" && event.weaponId === "weapon_short_bow"));
   assert.ok(resolved.events.some((event) => event.type === "hit" && event.target === "bot"));
 
@@ -339,17 +341,39 @@ test("a short bow requires aim, uses a knife at close range, and can fire throug
   assert.ok(knifeHit.events.some((event) => event.type === "hit" && event.weaponId === "weapon_hunting_knife"));
 });
 
+test("melee target lock stays active outside weapon reach and drops when the target falls", () => {
+  const state = createCombatState(2908, "easy");
+  state.player.x = -COMBAT_ARENA_ACTOR_LIMIT;
+  state.bot.x = COMBAT_ARENA_ACTOR_LIMIT;
+  state.bot.staggerUntilTick = 1_000;
+
+  const locked = tapCombatButton(state, INPUT_BUTTON.aim).state;
+  assert.equal(locked.player.isAiming, true);
+  assert.ok(Math.hypot(locked.player.x - locked.bot.x, locked.player.z - locked.bot.z) > 5);
+
+  const held = advanceCombat(locked, 30).state;
+  assert.equal(held.player.isAiming, true);
+  const unlocked = tapCombatButton(held, INPUT_BUTTON.aim).state;
+  assert.equal(unlocked.player.isAiming, false);
+
+  unlocked.player.isAiming = true;
+  unlocked.bot.hp = 0;
+  assert.equal(stepCombat(unlocked, noInput).state.player.isAiming, false);
+});
+
 test("ranged shots are stopped by arena cover rather than damaging the rival", () => {
   const state = createCombatState(2906, "easy");
   state.weaponIds[0] = "weapon_short_bow";
+  state.combatItemCounts.arrow_ammo = 1;
   const cover = DUEL_COVERS[0];
   state.player.x = cover.x;
   state.player.z = cover.z - 3.2;
   state.bot.x = cover.x;
   state.bot.z = cover.z + 3.2;
   state.bot.staggerUntilTick = 1_000;
-  const attack = tapCombatButton(state, INPUT_BUTTON.attack, INPUT_BUTTON.aim);
-  const resolved = advanceCombat(attack.state, 12, INPUT_BUTTON.aim);
+  const lock = tapCombatButton(state, INPUT_BUTTON.aim).state;
+  const attack = tapCombatButton(lock, INPUT_BUTTON.attack);
+  const resolved = advanceCombat(attack.state, 12);
 
   assert.ok(resolved.events.some((event) => event.type === "projectile"));
   assert.ok(resolved.events.some((event) => event.type === "coverBlock"));

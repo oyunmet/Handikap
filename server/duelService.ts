@@ -140,7 +140,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function buildCombatLoadout(profile: PlayerProfileRecord): CombatLoadout {
   const primaryStats = calculatePlayerCombatModifiers(profile);
-  const secondaryId = profile.inventory.secondaryWeaponId;
+  const secondaryId = profile.inventory.secondaryWeaponId === profile.equipment.weaponId
+    ? null
+    : profile.inventory.secondaryWeaponId;
   const secondaryStats = secondaryId
     ? calculatePlayerCombatModifiers(profile, secondaryId)
     : primaryStats;

@@ -948,7 +948,9 @@ export default function WorldScene({
   const displayedIronShards = profile.materials.ironShards + sessionRewards.materials.ironShards;
   const playerCombatStats = useMemo(() => getPlayerCombatModifiers(profile, storeItems), [profile, storeItems]);
   const combatLoadout = useMemo<CombatLoadout>(() => {
-    const secondaryWeaponId = profile.inventory.secondaryWeaponId;
+    const secondaryWeaponId = profile.inventory.secondaryWeaponId === profile.equipment.weaponId
+      ? null
+      : profile.inventory.secondaryWeaponId;
     const secondaryProfile = secondaryWeaponId
       ? { ...profile, equipment: { ...profile.equipment, weaponId: secondaryWeaponId } }
       : profile;
@@ -969,7 +971,9 @@ export default function WorldScene({
   }, [activeWorldWeaponSlot, playerCombatStats, profile, storeItems]);
   const equipmentBonuses = useMemo(() => getEquipmentBonuses(profile, storeItems), [profile, storeItems]);
   const equipmentVisual = useMemo(() => getEquipmentVisual(profile, storeItems), [profile, storeItems]);
-  const activeTravelWeaponId = activeWorldWeaponSlot === 1 && profile.inventory.secondaryWeaponId
+  const activeTravelWeaponId = activeWorldWeaponSlot === 1
+    && profile.inventory.secondaryWeaponId
+    && profile.inventory.secondaryWeaponId !== profile.equipment.weaponId
     ? profile.inventory.secondaryWeaponId
     : profile.equipment.weaponId;
   const travelEquipmentVisual = useMemo(() => {
@@ -984,6 +988,12 @@ export default function WorldScene({
   const selectedWeapon = getWeaponDefinition(selectedBattleWeaponId);
   const bowCloseRange = selectedWeapon?.type === "uzak" && combatDistance <= 1.85;
   const battleWeaponId = bowCloseRange ? "weapon_hunting_knife" : selectedBattleWeaponId;
+  const combatAmmoId = combatRender
+    ? getWeaponAmmoItemId(combatRender.weaponIds[combatRender.activeWeaponSlot])
+    : null;
+  const combatAmmoCount = combatAmmoId && combatRender
+    ? combatRender.combatItemCounts[combatAmmoId] ?? 0
+    : null;
   const battleEquipmentVisual = useMemo(() => {
     if (battleWeaponId === profile.equipment.weaponId) return equipmentVisual;
     const battleProfile = { ...profile, equipment: { ...profile.equipment, weaponId: battleWeaponId } };
@@ -1330,6 +1340,10 @@ export default function WorldScene({
       return;
     }
     if (secondaryWeaponId) {
+      if (secondaryWeaponId === currentProfile.equipment.weaponId) {
+        setStoreError("İkinci silah, ana silahtan farklı olmalı.");
+        return;
+      }
       const weapon = storeItems.find((item) => item.id === secondaryWeaponId);
       if (!weapon || weapon.slot !== "weapon" || !currentProfile.inventory.ownedItemIds.includes(secondaryWeaponId)) {
         setStoreError("İkinci yuvaya yalnızca heybenizdeki bir silahı atayabilirsin.");
@@ -1360,6 +1374,8 @@ export default function WorldScene({
             ? "Bu savaş eşyasından heybenizde kalmadı."
             : code === "secondary_weapon_not_owned"
               ? "İkinci yuvaya yalnızca heybenizdeki bir silahı atayabilirsin."
+              : code === "secondary_weapon_matches_primary"
+                ? "İkinci silah, ana silahtan farklı olmalı."
               : "Savaş çantası şu an kaydedilemedi; tekrar dene.",
         });
         if (!result.profile) throw new StoreActionError("Sunucudan güncel profil alınamadı.");
@@ -2967,6 +2983,8 @@ export default function WorldScene({
             {getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"
               ? bowCloseRange
                 ? "YAKIN DÖVÜŞ · V İLE YAKIN SİLAHA GEÇ"
+                : ammoCount !== null && ammoCount <= 0
+                  ? "CEPHANE YOK · DİĞER SİLAHA GEÇ"
                 : combatRender.player.isAiming
                   ? `HEDEF KİLİTLİ · ${ammoLabel} ${ammoCount} · SALDIR`
                   : `F İLE HEDEF KİLİTLE · ${ammoLabel} ${ammoCount}`
@@ -3015,6 +3033,7 @@ export default function WorldScene({
             aiming={combatRender.player.isAiming}
             isBowActive={getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"}
             bowCloseRange={bowCloseRange}
+            ammoCount={combatAmmoCount}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onToggleAim={toggleDuelAim}
@@ -3036,7 +3055,8 @@ export default function WorldScene({
                 <div className="duel-tutorial__rows">
                   <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
                   <div><span aria-hidden="true">⬟</span><b>SİPER</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
-                  <div><span aria-hidden="true">◎</span><b>NİŞAN</b><i>Rakibi hedefe kilitler; yayla nişan alıp SALDIRI’ya basınca ok atarsın</i><strong>F</strong></div>
+                  <div><span aria-hidden="true">⚔</span><b>SİLAH</b><i>Yuva I/II'ye dokunarak seç; V ile sıradaki silaha geç</i><strong>V</strong></div>
+                  <div><span aria-hidden="true">◎</span><b>NİŞAN</b><i>Rakibi arena boyunca kilitler; yayla ok atmak için NİŞAN açık olmalı</i><strong>F</strong></div>
                   <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>

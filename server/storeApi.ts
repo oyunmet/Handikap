@@ -430,6 +430,9 @@ export function createStoreApi(
         }
       }
       if (body.secondaryWeaponId) {
+        if (body.secondaryWeaponId === profile.equipment.weaponId) {
+          throw new StoreServiceError(409, "secondary_weapon_matches_primary");
+        }
         const weapon = getStoreItem(body.secondaryWeaponId);
         if (!weapon || weapon.slot !== "weapon" || !profile.inventory.ownedItemIds.includes(weapon.id)) {
           throw new StoreServiceError(403, "secondary_weapon_not_owned");

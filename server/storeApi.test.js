@@ -350,6 +350,14 @@ test("the account combat loadout saves assigned slots and only accepts owned wea
   assert.deepEqual(pool.profile.inventory.quickSlots, ["health_potion", null, "throwing_knife", null]);
   assert.equal(pool.profile.inventory.secondaryWeaponId, "weapon_iron_axe");
 
+  const duplicatePrimary = await send("combat-loadout", {
+    quickSlots: ["health_potion", null, "throwing_knife", null],
+    secondaryWeaponId: "weapon_ash_sword",
+  });
+  assert.equal(duplicatePrimary.status, 409);
+  assert.deepEqual(await duplicatePrimary.json(), { error: "secondary_weapon_matches_primary" });
+  assert.equal(pool.profile.inventory.secondaryWeaponId, "weapon_iron_axe");
+
   const unavailable = await send("combat-loadout", {
     quickSlots: ["venom_vial", null, null, null],
     secondaryWeaponId: null,

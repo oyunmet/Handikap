@@ -8,6 +8,7 @@ export const MAX_DUEL_TICKS = 5_400;
 export const COMBAT_ARENA_CENTER_Z = -0.6;
 export const COMBAT_ARENA_RADIUS = 9;
 export const COMBAT_ARENA_ACTOR_LIMIT = 7.2;
+const DUEL_AIM_LOCK_RANGE = COMBAT_ARENA_ACTOR_LIMIT * 2 + 0.5;
 export const COMBAT_DODGE_DURATION_TICKS = Math.round(COMBAT_HZ * 0.25);
 export const COMBAT_DODGE_DISTANCE_METERS = 3;
 export const DUEL_COVERS = [
@@ -996,7 +997,7 @@ export function stepCombat(state: CombatState, input: CombatInput): { state: Com
   if (input.pressed & INPUT_BUTTON.aim) player.isAiming = !player.isAiming;
   if (
     player.isAiming
-    && (bot.hp <= 0 || distanceBetween(player, bot) > (getWeaponDefinition(next.weaponIds[next.activeWeaponSlot])?.range ?? 7.5) + 1.5)
+    && (bot.hp <= 0 || distanceBetween(player, bot) > DUEL_AIM_LOCK_RANGE)
   ) {
     player.isAiming = false;
   }

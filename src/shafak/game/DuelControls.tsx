@@ -24,6 +24,7 @@ type DuelControlsProps = {
   aiming: boolean;
   isBowActive: boolean;
   bowCloseRange: boolean;
+  ammoCount: number | null;
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   onToggleAim: () => void;
@@ -180,6 +181,7 @@ export default function DuelControls({
   aiming,
   isBowActive,
   bowCloseRange,
+  ammoCount,
 }: DuelControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickPointer = useRef<number | null>(null);
@@ -236,9 +238,16 @@ export default function DuelControls({
   };
   const activeWeapon = weaponNames[activeWeaponSlot] ?? weaponNames[0] ?? "silah";
   const isDagger = /av bıçağı|bıçak|dagger/i.test(activeWeapon);
-  const attackLabel = isBowActive ? (bowCloseRange ? "YAKIN" : "ATEŞ") : isDagger ? "BIÇAK" : "SALDIRI";
+  const ammoEmpty = isBowActive && !bowCloseRange && ammoCount !== null && ammoCount <= 0;
+  const attackLabel = isBowActive
+    ? bowCloseRange ? "BIÇAK" : ammoEmpty ? "OK YOK" : "ATEŞ"
+    : isDagger ? "BIÇAK" : "SALDIRI";
   const attackDescription = isBowActive
-    ? bowCloseRange ? "Yakın menzil saldırısı" : "Nişan kilitliyken cephane kullanarak ateş et"
+    ? bowCloseRange
+      ? "Av bıçağıyla yakın menzil saldırısı"
+      : ammoEmpty
+        ? "Ok yok. Savaş çantana ok ekle veya diğer silaha geç."
+        : "Nişan kilitliyken ok kullanarak ateş et"
     : `${isDagger ? "Bıçakla saldır" : "Seçili silahla saldır"}: ${activeWeapon}`;
 
   return (
@@ -264,14 +273,14 @@ export default function DuelControls({
         <button
           className={`duel-control is-stance is-aim${aiming ? " is-active" : ""}`}
           type="button"
-          aria-label={`Hedef al: ${activeWeapon}${aiming ? ", hedef kilitli" : ""}`}
+          aria-label={`${aiming ? "Hedef kilidini bırak" : "Rakibe kilitlen"}: ${activeWeapon}`}
           aria-pressed={aiming}
           onClick={() => {
             if (!disabled) onToggleAim();
           }}
         >
           <ControlIcon className="is-aim" />
-          <span>NİŞAN</span>
+          <span>{isBowActive && !bowCloseRange ? "NİŞAN" : "KİLİT"}</span>
           <kbd className="duel-control__key" aria-hidden="true">F</kbd>
         </button>
         <button
@@ -285,33 +294,56 @@ export default function DuelControls({
           <kbd className="duel-control__key" aria-hidden="true">X</kbd>
         </button>
       </div>
-      {weaponNames[1] && <div className="duel-weapon-select">
-        <button
-          className="duel-weapon-switch"
-          type="button"
-          aria-label={`Silah değiştir. Etkin: ${weaponNames[activeWeaponSlot] ?? weaponNames[0]}. Diğer: ${weaponNames[activeWeaponSlot === 0 ? 1 : 0]}.`}
-          aria-disabled={disabled || weaponSwapCooldownSeconds > 0}
-          disabled={disabled}
-          onClick={() => tapAction(
-            INPUT_BUTTON.weaponSwitch,
-            weaponSwapCooldownSeconds > 0
+      <div className="duel-weapon-select" role="group" aria-label="Savaş silahları">
+        <div className="duel-weapon-select__heading">
+          <b aria-hidden="true">⚔</b>
+          <span>SAVAŞ SİLAHLARI</span>
+          <small className="duel-weapon-select__prompt">V: DEĞİŞTİR</small>
+        </div>
+        <div className="duel-weapon-select__slots">
+          {([0, 1] as const).map((slot) => {
+            const weaponName = weaponNames[slot];
+            if (!weaponName) {
+              return (
+                <div
+                  key={slot}
+                  className="duel-weapon-select__empty"
+                  role="note"
+                  aria-label="II. silah yuvası boş; envanterden ikinci bir silah kuşan."
+                >
+                  <span>{slot === 0 ? "I" : "II"}</span>
+                  <small>BOŞ YUVA</small>
+                  <strong>Heybe'den farklı silah ata</strong>
+                </div>
+              );
+            }
+            const selected = activeWeaponSlot === slot;
+            const waitingForSwap = !selected && weaponSwapCooldownSeconds > 0;
+            const blockedReason = waitingForSwap
               ? `Silah değişimi için ${weaponSwapCooldownSeconds.toFixed(1)} saniye bekle.`
-              : "",
-          )}
-        >
-          <span className="duel-weapon-switch__key" aria-hidden="true">V</span>
-          <span className="duel-weapon-switch__active">
-            <small>ETKİN</small>
-            <strong>{weaponNames[activeWeaponSlot] ?? weaponNames[0]}</strong>
-          </span>
-          <b className="duel-weapon-switch__arrows" aria-hidden="true">⇄</b>
-          <span className="duel-weapon-switch__next">
-            <small>DİĞER</small>
-            <strong>{weaponNames[activeWeaponSlot === 0 ? 1 : 0]}</strong>
-          </span>
-          {weaponSwapCooldownSeconds > 0 && <i>{weaponSwapCooldownSeconds.toFixed(1)} sn</i>}
-        </button>
-      </div>}
+              : "";
+            return (
+              <button
+                key={slot}
+                className={`duel-weapon-select__slot${selected ? " is-active" : ""}${waitingForSwap ? " is-cooling" : ""}`}
+                type="button"
+                aria-label={`${slot === 0 ? "I" : "II"}. silah yuvası: ${weaponName}${selected ? ", etkin" : ", seçmek için dokun"}`}
+                aria-pressed={selected}
+                aria-disabled={disabled || waitingForSwap}
+                disabled={disabled}
+                onClick={() => {
+                  if (!selected) tapAction(INPUT_BUTTON.weaponSwitch, blockedReason);
+                }}
+              >
+                <span>{slot === 0 ? "I" : "II"}</span>
+                <small>{selected ? "ETKİN" : "DOKUN · SEÇ"}</small>
+                <strong>{weaponName}</strong>
+                <i>{selected ? "KUŞANILDI" : waitingForSwap ? `${weaponSwapCooldownSeconds.toFixed(1)} sn` : "SEÇ"}</i>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       {quickItems.some((item) => item.id) && <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
         {quickItems.map((item, index) => {
           if (!item.id) return null;
@@ -398,7 +430,7 @@ export default function DuelControls({
         </div>
         <div className="duel-control-cluster__actions">
           <HeldButton button={INPUT_BUTTON.block} label="SİPER" className="is-block" accessibleLabel="Siper al" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 1 ? "Siper almak için dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
-          <HeldButton button={INPUT_BUTTON.attack} label={attackLabel} accessibleLabel={attackDescription} className={`is-attack${isBowActive ? " is-bow" : ""}${isBowActive && bowCloseRange ? " is-close-range" : ""}${isDagger ? " is-dagger" : ""}`} onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
+          <HeldButton button={INPUT_BUTTON.attack} label={attackLabel} accessibleLabel={attackDescription} className={`is-attack${isBowActive ? " is-bow" : ""}${isBowActive && bowCloseRange ? " is-close-range" : ""}${isDagger ? " is-dagger" : ""}`} onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ammoEmpty ? "Ok yok. Diğer silaha geç veya savaş çantasına ok ekle." : ""} onBlocked={showBlockedHint} />
         </div>
       </div>
     </div>

@@ -194,6 +194,7 @@ export default function StorePanel({
     ? profile.equipment[selectedEquipmentKey] === selected?.id
     : false;
   const isSecondaryWeapon = selected?.slot === "weapon" && profile.inventory.secondaryWeaponId === selected.id;
+  const isPrimaryWeapon = selected?.slot === "weapon" && profile.equipment.weaponId === selected.id;
   const upgradeLevel = selected ? profile.inventory.upgrades[selected.id] ?? 0 : 0;
   const isBusy = selected ? busyItemId === selected.id : false;
   const upgradeCost = selected?.upgradeable && selected.slot && upgradeLevel < MAX_UPGRADE_LEVEL
@@ -601,9 +602,11 @@ export default function StorePanel({
                           className="safak-store__secondary"
                           type="button"
                           onClick={() => onSetSecondaryWeapon(isSecondaryWeapon ? null : selected.id)}
-                          disabled={!canManageProfile || loadoutBusy}
+                          disabled={!canManageProfile || loadoutBusy || (isPrimaryWeapon && !isSecondaryWeapon)}
                         >
-                          {isSecondaryWeapon ? "İKİNCİ SİLAH YUVASINDAN ÇIKAR" : "İKİNCİ SİLAH OLARAK ATA"}
+                          {isSecondaryWeapon
+                            ? "İKİNCİ SİLAH YUVASINDAN ÇIKAR"
+                            : isPrimaryWeapon ? "ANA SİLAH ZATEN KUŞANILI" : "İKİNCİ SİLAH OLARAK ATA"}
                         </button>
                       )}
                       <button
