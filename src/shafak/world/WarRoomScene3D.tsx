@@ -25,6 +25,11 @@ import {
   WAR_ROOM_COMBAT_FEEL_ENABLED,
   WAR_ROOM_POOLED_FX_ENABLED,
 } from "../game/war-room-features";
+import {
+  getWarRoomEffectCount,
+  getWarRoomQualityProfile,
+} from "../game/war-room-quality";
+import { getWorldRenderPixelRatio, type RenderQuality } from "./graphics-quality";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
@@ -58,6 +63,7 @@ type Props = {
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   bloodEffects: boolean;
+  quality: RenderQuality;
   debugMode: boolean;
   onMeleeDebugUpdate: (message: string) => void;
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
@@ -1361,6 +1367,7 @@ function WarRoomRuntimeScene({
   weaponIds,
   weaponMountOverrides,
   bloodEffects,
+  quality,
   debugMode,
   onMeleeDebugUpdate,
   onHudUpdate,
@@ -1386,6 +1393,18 @@ function WarRoomRuntimeScene({
   const cameraSideKickRef = useRef(0);
   const cameraFovKickRef = useRef(0);
   const emptyClickAtRef = useRef(0);
+  const meleePerformanceRef = useRef({
+    started: false,
+    elapsedMs: 0,
+    sampleElapsedMs: 0,
+    poolSampleElapsedMs: 0,
+    totalFrames: 0,
+    sampleFrames: 0,
+    attackCount: 0,
+    minFps: Number.POSITIVE_INFINITY,
+    peakActiveParticles: 0,
+    reported: false,
+  });
   const particles = useMemo<WarRoomParticle[]>(
     () => Array.from({ length: WAR_ROOM_EFFECT_POOL_SIZE }, () => ({
       x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, born: -1, lifetime: 0, size: 0, bounce: false,
@@ -1650,8 +1669,10 @@ function WarRoomRuntimeScene({
     size = 0.045,
     bias?: THREE.Vector3,
   ) => {
-    for (let index = 0; index < count; index += 1) {
-      const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+    const particleCount = getWarRoomEffectCount(count, quality);
+    const activePoolSize = getWarRoomQualityProfile(quality).maxActiveParticles;
+    for (let index = 0; index < particleCount; index += 1) {
+      const slot = particleCursor.current++ % activePoolSize;
       const particle = particles[slot];
       const seed = now * 997 + slot * 31 + index * 17;
       const jitterX = Math.sin(seed * 12.9898);
@@ -1673,8 +1694,10 @@ function WarRoomRuntimeScene({
   };
 
   const spawnImpactDust = (position: THREE.Vector3, now: number) => {
-    for (let index = 0; index < 3; index += 1) {
-      const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+    const particleCount = getWarRoomEffectCount(3, quality);
+    const activePoolSize = getWarRoomQualityProfile(quality).maxActiveParticles;
+    for (let index = 0; index < particleCount; index += 1) {
+      const slot = particleCursor.current++ % activePoolSize;
       const particle = particles[slot];
       const seed = now * 613 + slot * 19 + index * 11;
       particle.x = position.x;
@@ -1693,8 +1716,10 @@ function WarRoomRuntimeScene({
   };
 
   const spawnMuzzleSmoke = (position: THREE.Vector3, now: number) => {
-    for (let index = 0; index < 4; index += 1) {
-      const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+    const particleCount = getWarRoomEffectCount(4, quality);
+    const activePoolSize = getWarRoomQualityProfile(quality).maxActiveParticles;
+    for (let index = 0; index < particleCount; index += 1) {
+      const slot = particleCursor.current++ % activePoolSize;
       const particle = particles[slot];
       const seed = now * 431 + slot * 23 + index * 13;
       particle.x = position.x;
@@ -1713,7 +1738,9 @@ function WarRoomRuntimeScene({
   };
 
   const spawnCasing = (position: THREE.Vector3, now: number, yaw: number) => {
-    const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+    const activePoolSize = getWarRoomQualityProfile(quality).maxActiveParticles;
+    if (getWarRoomEffectCount(1, quality) === 0) return;
+    const slot = particleCursor.current++ % activePoolSize;
     const particle = particles[slot];
     particle.x = position.x + Math.cos(yaw) * 0.12;
     particle.y = Math.max(0.3, position.y - 0.55);
@@ -2034,6 +2061,9 @@ function WarRoomRuntimeScene({
       player.meleeComboIndex = plan.nextComboIndex;
       player.meleeComboCount = plan.heavy ? 0 : plan.comboIndex + 1;
       player.meleeComboLastAttackAt = now;
+      const performanceSample = meleePerformanceRef.current;
+      performanceSample.started = true;
+      performanceSample.attackCount += 1;
       player.meleeLastResult = plan.heavy
         ? "Ağır saldırı · hazırlık"
         : `Hafif saldırı · kombo ${plan.comboIndex + 1}/3`;
@@ -2219,6 +2249,42 @@ function WarRoomRuntimeScene({
     const delta = Math.min(rawDelta, 0.05);
     if (input.paused) return;
     const wallNow = frame.clock.elapsedTime;
+    const qualityProfile = getWarRoomQualityProfile(quality);
+    const performanceSample = meleePerformanceRef.current;
+    if (debugMode && performanceSample.started && !performanceSample.reported) {
+      const elapsed = delta * 1_000;
+      performanceSample.elapsedMs += elapsed;
+      performanceSample.sampleElapsedMs += elapsed;
+      performanceSample.poolSampleElapsedMs += elapsed;
+      performanceSample.totalFrames += 1;
+      performanceSample.sampleFrames += 1;
+      if (performanceSample.sampleElapsedMs >= 1_000) {
+        performanceSample.minFps = Math.min(
+          performanceSample.minFps,
+          performanceSample.sampleFrames * 1_000 / performanceSample.sampleElapsedMs,
+        );
+        performanceSample.sampleFrames = 0;
+        performanceSample.sampleElapsedMs = 0;
+      }
+      if (performanceSample.poolSampleElapsedMs >= 500) {
+        performanceSample.peakActiveParticles = Math.max(
+          performanceSample.peakActiveParticles,
+          countActiveWarRoomParticles(particles, player.clockTime),
+        );
+        performanceSample.poolSampleElapsedMs = 0;
+      }
+      if (performanceSample.elapsedMs >= 60_000) {
+        const averageFps = performanceSample.totalFrames * 1_000 / performanceSample.elapsedMs;
+        const continuousAttacks = performanceSample.attackCount >= 60;
+        onMeleeDebugUpdate(
+          `60 SN ÖLÇÜM · ${continuousAttacks ? "SALDIRI GİRDİSİ TAMAM" : "SALDIRI GİRDİSİ AZ"} · `
+          + `${performanceSample.attackCount} saldırı · `
+          + `${averageFps.toFixed(1)} ort / ${performanceSample.minFps.toFixed(1)} min FPS · `
+          + `FX tepe ${performanceSample.peakActiveParticles}/${qualityProfile.maxActiveParticles} · ${quality}`,
+        );
+        performanceSample.reported = true;
+      }
+    }
     if (player.meleeHitStopUntil > wallNow) return;
     player.clockTime += delta;
     const now = player.clockTime;
@@ -2505,6 +2571,14 @@ function WarRoomRuntimeScene({
     }
     for (let slot = 0; slot < WAR_ROOM_EFFECT_POOL_SIZE; slot += 1) {
       const particle = particles[slot];
+      if (slot >= qualityProfile.maxActiveParticles) {
+        particle.born = -1;
+        particleTransform.position.set(0, -1000, 0);
+        particleTransform.scale.setScalar(0);
+        particleTransform.updateMatrix();
+        particleMesh.setMatrixAt(slot, particleTransform.matrix);
+        continue;
+      }
       const age = now - particle.born;
       if (particle.born < 0 || age >= particle.lifetime) {
         particleTransform.position.set(0, -1000, 0);
@@ -2669,14 +2743,14 @@ function WarRoomRuntimeScene({
           slashLocalTip.set(0, 0.02, -0.18 - bladeLength);
           slashBase.copy(weaponMount.localToWorld(slashLocalBase));
           slashTip.copy(weaponMount.localToWorld(slashLocalTip));
-          for (let index = Math.min(slashTrailState.count, WAR_ROOM_SLASH_TRAIL_SEGMENTS); index > 0; index -= 1) {
+          for (let index = Math.min(slashTrailState.count, qualityProfile.slashTrailSegments); index > 0; index -= 1) {
             const previous = slashTrailState.samples[index - 1];
             const current = slashTrailState.samples[index];
             current.base.copy(previous.base);
             current.tip.copy(previous.tip);
             current.born = previous.born;
           }
-          slashTrailState.count = Math.min(WAR_ROOM_SLASH_TRAIL_SEGMENTS + 1, slashTrailState.count + 1);
+          slashTrailState.count = Math.min(qualityProfile.slashTrailSegments + 1, slashTrailState.count + 1);
           const newest = slashTrailState.samples[0];
           newest.base.copy(slashBase);
           newest.tip.copy(slashTip);
@@ -2775,14 +2849,20 @@ function WarRoomRuntimeScene({
 export default function WarRoomScene3D(props: Props) {
   const touchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const maxPixelRatio = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches
+    ? 1
+    : Math.min(getWorldRenderPixelRatio(quality, pixelRatio), getWarRoomQualityProfile(quality).pixelRatioCap);
+  const shadowsEnabled = typeof window !== "undefined"
+    && !window.matchMedia("(pointer: coarse)").matches
+    && quality !== "low";
   return (
     <Canvas
-      dpr={Math.min(pixelRatio, touchDevice ? 1.45 : 1.8)}
-      shadows
+      dpr={maxPixelRatio}
+      shadows={shadowsEnabled}
       camera={{ position: [0, 3, 5], fov: 70, near: 0.08, far: 150 }}
       gl={{ antialias: !touchDevice, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
       onCreated={({ gl }) => {
-        gl.shadowMap.enabled = true;
+        gl.shadowMap.enabled = shadowsEnabled;
         gl.shadowMap.type = THREE.PCFSoftShadowMap;
         gl.toneMappingExposure = 1.12;
       }}

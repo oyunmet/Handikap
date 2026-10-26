@@ -18,6 +18,7 @@ import {
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
 import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import { WAR_ROOM_BUILD_VERSION } from "./war-room-features";
+import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
@@ -29,6 +30,7 @@ type Props = {
   onInvertLookYChange: (value: boolean) => void;
   onOpenSettings: () => void;
   settingsOpen: boolean;
+  quality: RenderQuality;
 };
 type Phase = "briefing" | "battle" | "victory" | "defeat";
 type PointerTrack = { id: number | null; x: number; y: number; button: number; pointerType: WarRoomLookPointerType };
@@ -200,6 +202,7 @@ export default function WarRoomGame({
   onInvertLookYChange,
   onOpenSettings,
   settingsOpen,
+  quality,
 }: Props) {
   const { active: modelsLoading, errors: modelErrors, progress: modelProgress } = useProgress();
   const [modelsPreloadStarted, setModelsPreloadStarted] = useState(false);
@@ -573,6 +576,7 @@ export default function WarRoomGame({
             weaponIds={loadout}
             weaponMountOverrides={weaponMountOverrides}
             bloodEffects={bloodEffects}
+            quality={quality}
             debugMode={debugMode}
             onMeleeDebugUpdate={setMeleeDebugMessage}
             onHudUpdate={setHud}
