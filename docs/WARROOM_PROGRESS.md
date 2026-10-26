@@ -20,11 +20,11 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 3 — Yeni yakın dövüş silahları
 
-- **Durum:** DEVAM
-- **Yapılanlar:** Üç dosyanın mesh adı, ölçü aralığı, üçgen sayısı ve gömülü doku boyutu denetlendi: `Staff` (1.6 m, 39.200 üçgen, 2048²), `Spear` (0.7 m, 39.198 üçgen, 2048²), `Pickaxe` (yaklaşık 0.67 × 0.9 m, 9.800 üçgen, 512²). Kaynak adları ve ölçüleri asa, mızrak ve kazma tahminlerini destekliyor.
-- **Kalanlar:** Anlamlı dosya adları, optimizasyon/lazy-load, donanım kataloğu, tutuş/ölçek ayarı ve saldırı profilleri; ardından bu fazı doğrula ve commit et.
-- **Değişen dosyalar:** Henüz yok.
-- **Doğrulama sonucu:** İlk GLB metadata denetimi tamamlandı; oyun entegrasyonu doğrulanmadı.
+- **Durum:** BİTTİ
+- **Yapılanlar:** `war-room-staff.glb`, `war-room-spear.glb` ve `war-room-pickaxe.glb` analiz scriptiyle raporlandı. Üç model de 1,5 MB ve 6.000 üçgen sınırının altında; silaha göre lazy-load ve yükleme hatasında özel yedek geometri kullanılıyor. Savaş Odası'na Kül Asası (geniş savuruş), Surlu Mızrağı (uzun saplama) ve Surlu Kazması (yüksek hasar/ağır darbe) eklendi; her birinin ayrı tutuş, ölçek, model ve mağaza kaydı var. Sadece War Room kataloğunda yer alıyor.
+- **Kalanlar:** GLB'lerin gerçek iPhone/WebGL görünümü ve eldeki oranı cihazda kabul testi bekliyor.
+- **Değişen dosyalar:** `src/shafak/game/war-room-data.ts`, `src/shafak/game/store-catalog.ts`, `src/shafak/game/war-room-engine.test.js`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/world/WarRoomScene3D.tsx`, `scripts/analyze-war-room-weapons.mjs`, `package.json`, `docs/WARROOM_WEAPONS.md`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** GLB analizi, ilgili testler, `npm run build` ve `npm run typecheck` geçti. `npm test`: 330 testten 322 geçti, 8 başarısız; başarısız dosya/test başlıkları Faz 3 öncesi taban çizgisiyle aynı (önce 329/321/8). WebGL ve gerçek cihaz kabul testi doğrulanamadı.
 
 ## Faz 4 — Savaş hissi
 

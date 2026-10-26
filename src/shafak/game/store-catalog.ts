@@ -123,7 +123,9 @@ const warRoomWeaponItems: StoreItem[] = WAR_ROOM_WEAPONS
       : weapon.rarity === "Nadir" ? "rare"
         : weapon.rarity === "Epik" ? "epic" : "legendary",
     description: `Savaş Odası için ${weapon.className.toLocaleLowerCase("tr-TR")}. Hazırlık ekranında iki silah yuvasından birine seçilebilir.`,
-    summary: `${weapon.className} · ${weapon.magazine} mermi · menzil ${weapon.range} m`,
+    summary: weapon.weaponClass === "melee"
+      ? `${weapon.className} · ${weapon.damage} hasar · menzil ${weapon.range} m`
+      : `${weapon.className} · ${weapon.magazine} mermi · menzil ${weapon.range} m`,
     price: { gold: weapon.priceGold!, diamonds: 0 },
     sellValue: { gold: Math.floor(weapon.priceGold! * STORE_BALANCE_CONFIG.sellReturnRate), diamonds: 0 },
     stats: {},

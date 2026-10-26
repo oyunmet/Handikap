@@ -499,7 +499,40 @@ function WeaponModel({
   const bodyWidth = crossbow ? 0.72 : bow ? 0.15 : sidearm ? 0.25 : 0.3;
   const proceduralFallback = (
     <group>
-      {melee && shovel ? (
+      {melee && weaponId === "melee_staff" ? (
+        <>
+          <mesh position={[0, 0, -0.53]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.035, 0.045, 1.05, 8]} />
+            <meshStandardMaterial color="#76553c" roughness={0.76} />
+          </mesh>
+          <mesh position={[0, 0.04, -1.02]} castShadow>
+            <sphereGeometry args={[0.12, 8, 6]} />
+            <meshStandardMaterial color={weapon.color} metalness={0.48} roughness={0.36} emissive={weapon.color} emissiveIntensity={0.14} />
+          </mesh>
+        </>
+      ) : melee && weaponId === "melee_war_spear" ? (
+        <>
+          <mesh position={[0, 0, -0.72]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.025, 0.035, 1.42, 7]} />
+            <meshStandardMaterial color="#75533b" roughness={0.78} />
+          </mesh>
+          <mesh position={[0, 0.02, -1.43]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <coneGeometry args={[0.075, 0.3, 6]} />
+            <meshStandardMaterial color={weapon.color} metalness={0.68} roughness={0.34} />
+          </mesh>
+        </>
+      ) : melee && weaponId === "melee_pickaxe" ? (
+        <>
+          <mesh position={[0, 0, -0.42]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.035, 0.045, 0.84, 7]} />
+            <meshStandardMaterial color="#74583f" roughness={0.86} />
+          </mesh>
+          <mesh position={[0, 0.12, -0.82]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <boxGeometry args={[0.66, 0.11, 0.12]} />
+            <meshStandardMaterial color={weapon.color} metalness={0.68} roughness={0.38} />
+          </mesh>
+        </>
+      ) : melee && shovel ? (
         <>
           <mesh position={[0, 0.02, 0]} castShadow>
             <cylinderGeometry args={[0.035, 0.045, 0.78, 7]} />

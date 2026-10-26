@@ -4,6 +4,7 @@ export type WarRoomMeleeStyle = "slash" | "thrust";
 export type WarRoomWeaponId =
   | "powder_rifle" | "sidearm" | "scattergun" | "crossbow" | "longbow"
   | "melee_knife" | "melee_axe" | "melee_cudgel" | "melee_spear" | "melee_shovel"
+  | "melee_staff" | "melee_war_spear" | "melee_pickaxe"
   | `blaster_${"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r"}`;
 
 export type WarRoomWeaponMount = {
@@ -173,6 +174,30 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     damage: 62, fireInterval: 0.88, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
     modelFile: null, modelSize: [0.18, 0.92, 0.13], weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.68, color: "#a98967",
     mount: { position: [0.014, -0.018, -0.024], rotation: [0, 0, 0], scale: 1 },
+  },
+  {
+    id: "melee_staff", name: "Kül Asası", icon: "ϟ", className: "Yakın dövüş · Geniş savuruş",
+    storeItemId: "war_room_melee_staff", priceGold: 620, rarity: "Nadir",
+    damage: 39, fireInterval: 0.66, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.3,
+    modelFile: "war-room-staff.glb", normalizeLength: 1.28, sourceBounds: [0.235, 1.6, 0.193],
+    weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.54, color: "#c18fe0",
+    mount: { position: [0.01, -0.014, -0.025], rotation: [Math.PI / 2, 0, 0], scale: 1 },
+  },
+  {
+    id: "melee_war_spear", name: "Surlu Mızrağı", icon: "↗", className: "Yakın dövüş · Uzun saplama",
+    storeItemId: "war_room_melee_spear", priceGold: 780, rarity: "Epik",
+    damage: 48, fireInterval: 0.74, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 3.05,
+    modelFile: "war-room-spear.glb", normalizeLength: 1.42, sourceBounds: [0.15, 0.7, 0.112],
+    weaponClass: "melee", meleeStyle: "thrust", meleeDuration: 0.6, color: "#91bbb2",
+    mount: { position: [0.012, -0.014, -0.034], rotation: [-Math.PI / 2, 0, 0], scale: 1 },
+  },
+  {
+    id: "melee_pickaxe", name: "Surlu Kazması", icon: "⛏", className: "Yakın dövüş · Ağır darbe",
+    storeItemId: "war_room_melee_pickaxe", priceGold: 820, rarity: "Epik",
+    damage: 70, fireInterval: 1.02, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.05,
+    modelFile: "war-room-pickaxe.glb", normalizeLength: 1.02, sourceBounds: [0.667, 0.9, 0.172],
+    weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.76, color: "#c8965d",
+    mount: { position: [0.014, -0.018, -0.03], rotation: [0, 0, 0], scale: 1 },
   },
   {
     id: "blaster_a", name: "Kül Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",

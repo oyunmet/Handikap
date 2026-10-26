@@ -21,10 +21,13 @@ test("the room starts with eight guards and a durable commander", () => {
   assert.equal(runtime.player.ammo.crossbow?.magazine, 1);
 });
 
-test("five melee weapons have no ammunition state and have per-weapon attack values", () => {
-  const meleeIds = ["melee_knife", "melee_axe", "melee_cudgel", "melee_spear", "melee_shovel"];
+test("melee weapons have no ammunition state and have per-weapon attack values", () => {
+  const meleeIds = [
+    "melee_knife", "melee_axe", "melee_cudgel", "melee_spear", "melee_shovel",
+    "melee_staff", "melee_war_spear", "melee_pickaxe",
+  ];
   const runtime = createWarRoomRuntime(["melee_knife", "melee_spear"]);
-  assert.equal(meleeIds.length, 5);
+  assert.equal(meleeIds.length, 8);
   assert.equal(runtime.player.ammo.melee_knife, undefined);
   assert.equal(runtime.player.ammo.melee_spear, undefined);
   for (const id of meleeIds) {
@@ -42,7 +45,7 @@ test("five melee weapons have no ammunition state and have per-weapon attack val
 });
 
 test("all War Room weapons expose complete, valid shooter settings", () => {
-  assert.equal(WAR_ROOM_WEAPONS.length, 28);
+  assert.equal(WAR_ROOM_WEAPONS.length, 31);
   for (const weapon of WAR_ROOM_WEAPONS) {
     for (const key of ["damage", "fireInterval", "magazine", "reserve", "reloadSeconds", "recoil", "spread", "headshotMultiplier", "range"]) {
       if (weapon.weaponClass === "melee" && ["magazine", "reserve", "reloadSeconds"].includes(key)) {
@@ -72,6 +75,28 @@ test("all War Room weapons expose complete, valid shooter settings", () => {
     && weapon.mount?.muzzleEnd === -1
     && STORE_CATALOG.some((item) => item.id === weapon.storeItemId && item.warRoomWeaponId === weapon.id),
   ));
+});
+
+test("the three new War Room melee models are optimized, purchasable and mapped to hand-fit profiles", () => {
+  const expected = [
+    ["melee_staff", "war_room_melee_staff", "war-room-staff.glb", "Nadir", 620],
+    ["melee_war_spear", "war_room_melee_spear", "war-room-spear.glb", "Epik", 780],
+    ["melee_pickaxe", "war_room_melee_pickaxe", "war-room-pickaxe.glb", "Epik", 820],
+  ];
+  for (const [id, storeId, modelFile, rarity, price] of expected) {
+    const weapon = WAR_ROOM_WEAPONS.find((candidate) => candidate.id === id);
+    assert.ok(weapon, `${id} exists`);
+    assert.equal(weapon.modelFile, modelFile);
+    assert.ok(weapon.normalizeLength > 0);
+    assert.ok(weapon.mount);
+    assert.equal(weapon.rarity, rarity);
+    assert.equal(weapon.priceGold, price);
+    assert.ok(STORE_CATALOG.some((item) => item.id === storeId && item.warRoomWeaponId === id));
+  }
+  assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_war_spear")?.meleeStyle, "thrust");
+  assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_staff")?.meleeStyle, "slash");
+  assert.ok((WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_pickaxe")?.damage ?? 0) >
+    (WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_staff")?.damage ?? Infinity));
 });
 
 test("missing legacy weapon GLBs keep procedural fallbacks", () => {

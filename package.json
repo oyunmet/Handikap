@@ -8,6 +8,7 @@
     "dev:client": "vite --host 0.0.0.0 --port 5000",
     "dev:server": "tsx server/index.ts",
     "db:migrate": "tsx scripts/migrate.ts",
+    "warroom:weapons:inspect": "node scripts/analyze-war-room-weapons.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5000",
     "test": "node --import tsx --test",
