@@ -11,6 +11,7 @@ export type WarRoomWeaponMount = {
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
   scale: number;
+  gripRatio?: number;
   muzzle?: readonly [number, number, number];
   muzzleEnd?: -1 | 1;
   muzzleOffsetZ?: number;
@@ -37,6 +38,7 @@ export type WarRoomWeapon = {
   modelFile: string | null;
   modelSize?: readonly [number, number, number];
   normalizeLength?: number;
+  minimumVisualThickness?: number;
   sourceBounds?: readonly [number, number, number];
   storeItemId?: string;
   priceGold?: number;
@@ -148,56 +150,56 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
   {
     id: "melee_knife", name: "Bıçak", icon: "⚔", className: "Yakın dövüş · Hızlı",
     damage: 24, fireInterval: 0.42, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 1.8,
-    modelFile: "knife.glb", normalizeLength: 0.3, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.38, color: "#c6d4d1",
-    mount: { position: [0.018, -0.012, -0.018], rotation: [0, 0, 0], scale: 1 },
+    modelFile: "knife.glb", normalizeLength: 0.3, minimumVisualThickness: 0.028, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.38, color: "#c6d4d1",
+    mount: { position: [0.018, -0.012, -0.018], rotation: [0, 0, 0], scale: 1, gripRatio: 0.18 },
   },
   {
     id: "melee_axe", name: "Balta", icon: "🪓", className: "Yakın dövüş · Ağır",
     damage: 68, fireInterval: 0.92, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
-    modelFile: "axe.glb", normalizeLength: 0.6, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.7, color: "#c8935d",
-    mount: { position: [0.012, -0.018, -0.025], rotation: [0, 0, 0], scale: 1 },
+    modelFile: "axe.glb", normalizeLength: 0.75, minimumVisualThickness: 0.03, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.7, color: "#c8935d",
+    mount: { position: [0.012, -0.018, -0.025], rotation: [0, 0, 0], scale: 1, gripRatio: 0.16 },
   },
   {
     id: "melee_cudgel", name: "Sopa", icon: "▰", className: "Yakın dövüş · Dengeli",
     damage: 43, fireInterval: 0.64, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
-    modelFile: "cudgel.glb", normalizeLength: 0.72, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.54, color: "#966d48",
-    mount: { position: [0.015, -0.012, -0.022], rotation: [0, 0, 0], scale: 1 },
+    modelFile: "cudgel.glb", normalizeLength: 0.9, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.54, color: "#966d48",
+    mount: { position: [0.015, -0.012, -0.022], rotation: [0, 0, 0], scale: 1, gripRatio: 0.15 },
   },
   {
     id: "melee_spear", name: "Mızrak", icon: "↗", className: "Yakın dövüş · Uzun menzil",
     damage: 45, fireInterval: 0.68, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.6,
-    modelFile: "spear.glb", normalizeLength: 1.8, weaponClass: "melee", meleeStyle: "thrust", meleeDuration: 0.58, color: "#91bbb4",
-    mount: { position: [0.012, -0.012, -0.025], rotation: [-Math.PI / 2, 0, 0], scale: 1 },
+    modelFile: "spear.glb", normalizeLength: 1.9, minimumVisualThickness: 0.04, weaponClass: "melee", meleeStyle: "thrust", meleeDuration: 0.58, color: "#91bbb4",
+    mount: { position: [0.012, -0.012, -0.025], rotation: [-Math.PI / 2 + 0.08, 0, 0], scale: 1, gripRatio: 0.24 },
   },
   {
     id: "melee_shovel", name: "Kürek", icon: "⛏", className: "Yakın dövüş · Ağır",
     damage: 62, fireInterval: 0.88, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
-    modelFile: null, modelSize: [0.18, 0.92, 0.13], weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.68, color: "#a98967",
-    mount: { position: [0.014, -0.018, -0.024], rotation: [0, 0, 0], scale: 1 },
+    modelFile: null, modelSize: [0.18, 1.2, 0.13], normalizeLength: 1.2, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.68, color: "#a98967",
+    mount: { position: [0.014, -0.018, -0.024], rotation: [0, 0, 0], scale: 1, gripRatio: 0.16 },
   },
   {
     id: "melee_staff", name: "Kül Asası", icon: "ϟ", className: "Yakın dövüş · Geniş savuruş",
     storeItemId: "war_room_melee_staff", priceGold: 620, rarity: "Nadir",
     damage: 39, fireInterval: 0.66, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.3,
-    modelFile: "war-room-staff.glb", normalizeLength: 1.28, sourceBounds: [0.235, 1.6, 0.193],
+    modelFile: "war-room-staff.glb", normalizeLength: 1.5, sourceBounds: [0.235, 1.6, 0.193],
     weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.54, color: "#c18fe0",
-    mount: { position: [0.01, -0.014, -0.025], rotation: [Math.PI / 2, 0, 0], scale: 1 },
+    mount: { position: [0.01, -0.014, -0.025], rotation: [-Math.PI / 2 + 0.08, 0, 0], scale: 1, gripRatio: 0.22 },
   },
   {
     id: "melee_war_spear", name: "Surlu Mızrağı", icon: "↗", className: "Yakın dövüş · Uzun saplama",
     storeItemId: "war_room_melee_spear", priceGold: 780, rarity: "Epik",
     damage: 48, fireInterval: 0.74, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 3.05,
-    modelFile: "war-room-spear.glb", normalizeLength: 1.42, sourceBounds: [0.15, 0.7, 0.112],
+    modelFile: "war-room-spear.glb", normalizeLength: 1.9, sourceBounds: [0.15, 0.7, 0.112],
     weaponClass: "melee", meleeStyle: "thrust", meleeDuration: 0.6, color: "#91bbb2",
-    mount: { position: [0.012, -0.014, -0.034], rotation: [-Math.PI / 2, 0, 0], scale: 1 },
+    mount: { position: [0.012, -0.014, -0.034], rotation: [-Math.PI / 2 + 0.08, 0, 0], scale: 1, gripRatio: 0.24 },
   },
   {
     id: "melee_pickaxe", name: "Surlu Kazması", icon: "⛏", className: "Yakın dövüş · Ağır darbe",
     storeItemId: "war_room_melee_pickaxe", priceGold: 820, rarity: "Epik",
     damage: 70, fireInterval: 1.02, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.05,
-    modelFile: "war-room-pickaxe.glb", normalizeLength: 1.02, sourceBounds: [0.667, 0.9, 0.172],
+    modelFile: "war-room-pickaxe.glb", normalizeLength: 1, sourceBounds: [0.667, 0.9, 0.172],
     weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.76, color: "#c8965d",
-    mount: { position: [0.014, -0.018, -0.03], rotation: [0, 0, 0], scale: 1 },
+    mount: { position: [0.014, -0.018, -0.03], rotation: [0, 0, 0], scale: 1, gripRatio: 0.24 },
   },
   {
     id: "blaster_a", name: "Kül Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
