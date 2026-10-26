@@ -17,6 +17,7 @@ import {
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
 import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
+import { WAR_ROOM_BUILD_VERSION } from "./war-room-features";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
@@ -579,7 +580,7 @@ export default function WarRoomGame({
           />
           {debugMode && (
             <div className="war-room-melee-debug-result" aria-live="polite">
-              {`MELEE DEBUG · ${hud.meleePhase} · KOMBO ${hud.meleeComboCount}/3 · ${hud.meleeLastResult}`}
+              {`${WAR_ROOM_BUILD_VERSION} · MELEE DEBUG · ${hud.meleePhase} · KOMBO ${hud.meleeComboCount}/3 · ${hud.meleeLastResult}`}
               {meleeDebugMessage ? ` · ${meleeDebugMessage}` : ""}
             </div>
           )}

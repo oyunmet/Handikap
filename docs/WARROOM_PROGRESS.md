@@ -44,11 +44,11 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 6 — Ses
 
-- **Durum:** BEKLİYOR
-- **Yapılanlar:** Yok.
-- **Kalanlar:** Protokoldeki WebAudio savaş ve yüzey sesleri; mevcut sessiz ayarına uyum.
-- **Değişen dosyalar:** Yok.
-- **Doğrulama sonucu:** Henüz yapılmadı.
+- **Durum:** BİTTİ (kod); iPhone/Safari işitsel kabul testi açık.
+- **Yapılanlar:** WebAudio gürültü + osilatör katmanlı ses sentezi; hafif/ağır saldırılar ve sekiz yakın dövüş silahının her biri için ayrı savuruş profili; et, metal, taş/duvar ve toprak/taş ayak sesi profilleri. Perde varyasyonu, mesafe zayıflaması, dinleyici yönüne göre stereo pan ve sabit 4 ses kanalı kullanılıyor. Dört kanaldaki ses düğümleri ilk savaş etkileşiminde birlikte hazırlanıyor; savaş sırasında yeni WebAudio düğümü oluşturulmuyor. SESSİZ ana kontrolü tüm kanalı susturuyor; `beginBattle` ve ses açma düğmesi iOS kullanıcı etkileşimi içinde AudioContext'i devam ettiriyor. `v14-faz6` etiketi debug görünümünde.
+- **Kalanlar:** Gerçek iPhone/Safari'de sesli/sessiz geçişi, arka plan/ön plan dönüşü ve WebAudio duyum kalitesi doğrulanamadı.
+- **Değişen dosyalar:** `src/shafak/game/war-room-audio.ts`, `src/shafak/game/war-room-audio.test.js`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-features.ts`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** İlgili ses testleri 5/5 geçti; build ve typecheck geçti. `npm test`: 341 testten 333 geçti, 8 başarısız; aynı altı mağaza/ekipman, bir düello süresi ve bir envanter varsayılanı testi başarısız, War Room ses testlerinde yeni hata yok. Build büyük chunk uyarısı verdi. iPhone/Safari işitsel kabul testi doğrulanamadı.
 
 ## Faz 7 — Kalite katmanları ve performans
 

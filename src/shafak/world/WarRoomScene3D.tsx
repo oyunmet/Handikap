@@ -100,10 +100,12 @@ function getWarRoomAudioOptions(
   sourceZ: number,
   surface?: WarRoomSoundSurface,
   heavy = false,
+  weaponId?: WarRoomWeaponId,
 ): WarRoomSoundOptions {
   return {
     surface,
     heavy,
+    weaponId,
     spatial: {
       source: { x: sourceX, z: sourceZ },
       listener: { x: listener.x, z: listener.z, yaw: listener.yaw },
@@ -1876,6 +1878,21 @@ function WarRoomRuntimeScene({
     const enemy = impact.enemy;
     if (!enemy) {
       player.meleeLastResult = `Iska · ${impact.reason}`;
+      if (impact.reason === "blocked") {
+        playWarRoomSound(
+          "melee-hit",
+          0.72,
+          "rifle",
+          getWarRoomAudioOptions(
+            player,
+            impact.point.x,
+            impact.point.z,
+            "stone",
+            player.meleeAttackHeavy,
+            weaponId ?? undefined,
+          ),
+        );
+      }
       if (debugMode) {
         const missLabel: Record<WarRoomMeleeConeReason, string> = {
           hit: "hedef yok",
@@ -1926,6 +1943,7 @@ function WarRoomRuntimeScene({
         enemy.z,
         enemy.commander ? "metal" : "flesh",
         player.meleeAttackHeavy,
+        weaponId ?? undefined,
       ),
     );
     if (WAR_ROOM_POOLED_FX_ENABLED) {
@@ -2023,7 +2041,7 @@ function WarRoomRuntimeScene({
         "melee-swing",
         1,
         "rifle",
-        getWarRoomAudioOptions(player, player.x, player.z, undefined, plan.heavy),
+        getWarRoomAudioOptions(player, player.x, player.z, undefined, plan.heavy, weaponId),
       );
       player.shots += 1;
       player.lastHitDamage = 0;

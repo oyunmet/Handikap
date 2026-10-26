@@ -1,4 +1,5 @@
 import { WAR_ROOM_SYNTH_AUDIO_ENABLED } from "./war-room-features";
+import type { WarRoomWeaponId } from "./war-room-data";
 
 export type WarRoomSoundCue =
   | "shot" | "enemy-shot" | "bow" | "empty" | "reload" | "hit"
@@ -15,6 +16,7 @@ export type WarRoomSpatialSound = {
 export type WarRoomSoundOptions = {
   surface?: WarRoomSoundSurface;
   heavy?: boolean;
+  weaponId?: WarRoomWeaponId;
   spatial?: WarRoomSpatialSound;
 };
 
@@ -73,9 +75,9 @@ export function getWarRoomPitchVariation(randomValue: number) {
 
 export function getWarRoomSoundProfile(
   cue: WarRoomSoundCue,
-  options: Pick<WarRoomSoundOptions, "surface" | "heavy"> & { style?: WarRoomShotStyle } = {},
+  options: Pick<WarRoomSoundOptions, "surface" | "heavy" | "weaponId"> & { style?: WarRoomShotStyle } = {},
 ): WarRoomSoundProfile {
-  const { surface = "flesh", heavy = false, style = "rifle" } = options;
+  const { surface = "flesh", heavy = false, style = "rifle", weaponId } = options;
   if (cue === "shot" || cue === "enemy-shot") {
     const shot = {
       rifle: { duration: 0.105, cutoffStart: 1900, cutoffEnd: 360, frequencyStart: 116, frequencyEnd: 48, noiseGain: 0.07, toneGain: 0.055, toneType: "sawtooth" as OscillatorType },
@@ -89,9 +91,30 @@ export function getWarRoomSoundProfile(
     return { duration: 0.16, cutoffStart: 1800, cutoffEnd: 380, frequencyStart: 540, frequencyEnd: 190, noiseGain: 0.018, toneGain: 0.035, toneType: "triangle", pulses: 1 };
   }
   if (cue === "melee-swing") {
+    const weaponProfiles: Partial<Record<WarRoomWeaponId, Omit<WarRoomSoundProfile, "pulses">>> = {
+      melee_knife: { duration: 0.105, cutoffStart: 3900, cutoffEnd: 980, frequencyStart: 520, frequencyEnd: 190, noiseGain: 0.024, toneGain: 0.018, toneType: "sawtooth" },
+      melee_axe: { duration: 0.19, cutoffStart: 1150, cutoffEnd: 180, frequencyStart: 205, frequencyEnd: 48, noiseGain: 0.06, toneGain: 0.04, toneType: "sawtooth" },
+      melee_cudgel: { duration: 0.15, cutoffStart: 1650, cutoffEnd: 340, frequencyStart: 250, frequencyEnd: 72, noiseGain: 0.042, toneGain: 0.032, toneType: "triangle" },
+      melee_spear: { duration: 0.12, cutoffStart: 2800, cutoffEnd: 620, frequencyStart: 440, frequencyEnd: 145, noiseGain: 0.03, toneGain: 0.02, toneType: "triangle" },
+      melee_shovel: { duration: 0.18, cutoffStart: 1280, cutoffEnd: 190, frequencyStart: 190, frequencyEnd: 46, noiseGain: 0.055, toneGain: 0.036, toneType: "sawtooth" },
+      melee_staff: { duration: 0.16, cutoffStart: 2100, cutoffEnd: 420, frequencyStart: 300, frequencyEnd: 82, noiseGain: 0.046, toneGain: 0.035, toneType: "triangle" },
+      melee_war_spear: { duration: 0.135, cutoffStart: 2500, cutoffEnd: 510, frequencyStart: 390, frequencyEnd: 112, noiseGain: 0.036, toneGain: 0.026, toneType: "sawtooth" },
+      melee_pickaxe: { duration: 0.205, cutoffStart: 980, cutoffEnd: 155, frequencyStart: 175, frequencyEnd: 42, noiseGain: 0.064, toneGain: 0.042, toneType: "sawtooth" },
+    };
+    const base = weaponProfiles[weaponId ?? "melee_knife"] ?? weaponProfiles.melee_knife!;
     return heavy
-      ? { duration: 0.2, cutoffStart: 1050, cutoffEnd: 210, frequencyStart: 230, frequencyEnd: 58, noiseGain: 0.055, toneGain: 0.036, toneType: "sawtooth", pulses: 1 }
-      : { duration: 0.14, cutoffStart: 3200, cutoffEnd: 780, frequencyStart: 360, frequencyEnd: 120, noiseGain: 0.032, toneGain: 0.022, toneType: "sawtooth", pulses: 1 };
+      ? {
+        ...base,
+        duration: Math.max(base.duration, 0.2),
+        cutoffStart: Math.min(base.cutoffStart, 1050),
+        cutoffEnd: Math.min(base.cutoffEnd, 210),
+        frequencyStart: Math.min(base.frequencyStart, 230),
+        frequencyEnd: Math.min(base.frequencyEnd, 58),
+        noiseGain: base.noiseGain * 1.18,
+        toneGain: base.toneGain * 1.12,
+        pulses: 1,
+      }
+      : { ...base, pulses: 1 };
   }
   if (cue === "melee-hit" || cue === "hit") {
     if (surface === "metal") {
