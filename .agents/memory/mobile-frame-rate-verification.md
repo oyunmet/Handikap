@@ -7,6 +7,8 @@ The movement screen measured roughly 24–29 FPS during automated movement in Re
 
 On 2026-10-09, the app preview screenshot runner showed the built-in “WebGL unsupported” fallback on the debug 3D-world route, so it could not render that scene for visual inspection.
 
+War Room timed-performance sampling must use `performance.now()` rather than the R3F `useFrame` delta. R3F clamps large frame deltas, so very slow SwiftShader rendering can advance game time much more slowly than wall time; a timed input run may not generate the intended attack cadence.
+
 **Why:** The screenshot runner and development build are not a representative mobile production runtime, so this measurement cannot confirm that the 60 FPS target is met.
 
-**How to apply:** Treat 60 FPS as outstanding until measured on a target mobile device or a production-mode run. If app-preview capture cannot create a WebGL context, do not infer a scene failure from its fallback; use a WebGL-capable browser for visual verification.
+**How to apply:** Treat 60 FPS as outstanding until measured on a target mobile device or a production-mode run. Track benchmark wall time separately from game-accepted attacks and attack gaps; label headless SwiftShader results as software-renderer measurements. If app-preview capture cannot create a WebGL context, do not infer a scene failure from its fallback; use a WebGL-capable browser for visual verification.

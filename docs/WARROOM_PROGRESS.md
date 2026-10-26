@@ -60,8 +60,38 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 8 — Son kontrol ve rapor
 
-- **Durum:** BEKLİYOR
-- **Yapılanlar:** Yok.
-- **Kalanlar:** Fazların son kontrolü ve istenen doğrulama tablosu ile iPhone kontrol listesi.
-- **Değişen dosyalar:** Yok.
-- **Doğrulama sonucu:** Henüz yapılmadı.
+- **Durum:** BİTTİ (kod ve yerel doğrulama); cihaz kabulü açık.
+- **Yapılanlar:** Faz 7 `ecc308c` yerel commit olarak alındı. Dört mevcut faz bayrağının varsayılanı `true` doğrulandı. Sürüm etiketi `v14-premium-dovus` yapıldı. Son build/typecheck/test ve uygulama yeniden başlatma kontrol edildi. iPhone kontrol listesi aşağıya eklendi.
+- **Kalanlar:** Aşağıdaki iPhone/Safari/WebGL kabul maddeleri.
+- **Değişen dosyalar:** `src/shafak/game/war-room-features.ts`, `docs/WARROOM_PROGRESS.md`, `.agents/memory/mobile-frame-rate-verification.md`.
+- **Doğrulama sonucu:** Build ve typecheck geçti; build büyük chunk uyarısı verdi. `npm test`: 351 testten 343 geçti, 8 bilinen taban testi başarısız; önceki Faz 7 geçişindeki aynı 8 test, War Room kaynaklı yeni hata yok. Uygulama `Start application` iş akışında yeniden başladı. Headless SwiftShader'da `v14-premium-dovus` WebGL savaş sahnesi açıldı ve seçili Mızrak için yalnızca `spear.glb` yüklendi. Gerçek iPhone FPS, görsel kalite ve Safari sesi doğrulanamadı.
+
+### Son doğrulama tablosu
+
+| Madde | Durum (Doğrulandı / Kısmen / Doğrulanamadı) | Not |
+|---|---|---|
+| Faz 1 — Karakter yönelimi | Kısmen | Önceki oturum tamamlandı diye bildirdi; bu kopyada eski commit/dosya ayrıntısı yok. iPhone hareket kabulü açık. |
+| Faz 2 — Donanım önizlemesi | Kısmen | Kod/build/test kayıtları mevcut; gerçek cihazda sürükleme, zoom ve tam ekran kabulü açık. |
+| Faz 3 — Yakın dövüş silahları | Kısmen | Seçili Mızrak 3D sahnede yüklendi; üç yeni GLB'nin iPhone eldeki oranı doğrulanmadı. |
+| Faz 4 — Savaş hissi | Kısmen | Kod ve hedef testler mevcut; iPhone animasyon/hit geri bildirimi görsel kabulü açık. |
+| Faz 5 — Görsel efektler | Kısmen | Havuz sınırları test edildi; ölçümde isabet olmadığından gerçek efekt havuzu stresi doğrulanmadı. |
+| Faz 6 — Ses | Kısmen | Ses testleri 5/5 geçti; iPhone/Safari işitsel kabulü açık. |
+| Faz 7 — Kalite ve performans | Kısmen | 60 sn SwiftShader örneği 1,6 ort. / 1,0 en düşük FPS ve 10 saldırı verdi; kesintisiz kriteri geçmedi, telefona genellenemez. |
+| Faz bayrakları | Doğrulandı | `WAR_ROOM_COMBAT_FEEL_ENABLED`, `WAR_ROOM_POOLED_FX_ENABLED`, `WAR_ROOM_SYNTH_AUDIO_ENABLED`, `WAR_ROOM_QUALITY_ENABLED` varsayılanları `true`. |
+| WebGL sahnesi ve seçili silah yüklemesi | Doğrulandı | Headless SwiftShader sahneyi açtı; seçili Mızrak `spear.glb` isteği üretti. Donanım GPU doğrulaması değildir. |
+| `npm run build` | Doğrulandı | Başarılı; 500 kB üzeri bundle uyarısı sürüyor. |
+| `npm run typecheck` | Doğrulandı | Başarılı. |
+| `npm test` | Kısmen | 351 toplam, 343 geçti, 8 başarısız; aynı bilinen mağaza/ekipman (6), düello süresi (1) ve envanter (1) taban testleri. |
+| iPhone/Safari kabulü | Doğrulanamadı | Bu çalışma ortamında fiziksel cihaz erişimi yok. |
+
+### iPhone kontrol listesi
+
+1. Oyunu `?debug=1` ile açıp Savaş Odası'na gir; sürüm etiketinin `v14-premium-dovus` olduğunu doğrula.
+2. Joystick ile ileri/geri/yan/çapraz hareket et; yönelimi, strafe sırasında nişan ve kamera takibini kontrol et.
+3. Donanım önizlemesinde parçayı sürükle, pinch zoom yap, çift dokunarak sıfırla; paneli tam ekrana alıp kapat.
+4. Kül Asası, Surlu Mızrağı ve Surlu Kazması'nı ayrı ayrı kuşan; GLB yüklenirken yedek geometriyi, tutuşu, ölçeği ve kadrajı kontrol et.
+5. Hafif kombo ve en az 350 ms basılı ağır saldırıyı dene; tek vuruş anını, hit-stop'u, kamera tepkisini ve düşman hasar görselini kontrol et.
+6. Et/metal/taş/zemin isabetlerinde efektleri, kan ayarını, silah izini ve çatlak decal'ini gözle; havuz/decal sayaçlarının sabit üst sınırları aşmadığını kontrol et.
+7. Düşük/orta/yüksek ve otomatik kaliteyi dene; 60 sn kesintisiz saldırı sırasında debug FPS, saldırı aralıkları, FX/decal tepesi ve renderer geometri/doku sayaçlarını kaydet.
+8. Sesli/sessiz geçişini, ilk dokunuştan sonra iOS AudioContext'i, arka plan/ön plan dönüşünü ve yakın dövüş/zemin seslerini kontrol et.
+9. WebGL siyah kare, model kaybı, kontrol kilitlenmesi, belirgin ısınma veya performans düşüşü varsa adım ve cihaz bilgisiyle not al.
