@@ -233,6 +233,7 @@ type AnimatedActorProps = {
   commander?: boolean;
   state: () => WarRoomAnimationState;
   modelRef?: MutableRefObject<THREE.Group | null>;
+  afterAnimationFrame?: (model: THREE.Group) => void;
 };
 
 function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResources) {
@@ -300,6 +301,7 @@ export function WarRoomAnimatedActor({
   commander = false,
   state,
   modelRef,
+  afterAnimationFrame,
 }: AnimatedActorProps) {
   const { scene, animations } = useLoader(GLTFLoader, src, loadCharacter) as GLTF;
   const prepared = useMemo(() => {
@@ -378,6 +380,7 @@ export function WarRoomAnimatedActor({
       activeState.current = nextState;
     }
     mixer.update(Math.min(delta, 0.05));
+    afterAnimationFrame?.(model);
   });
 
   return (

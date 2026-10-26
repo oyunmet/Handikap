@@ -212,6 +212,7 @@ export default function WarRoomGame({
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [meleeDebugMessage, setMeleeDebugMessage] = useState("");
   const [exitPrompt, setExitPrompt] = useState(false);
   const [summary, setSummary] = useState<{
     kills: number;
@@ -235,6 +236,7 @@ export default function WarRoomGame({
     inputRef.current = createInputState();
     pointerRef.current.id = null;
     setHud(createEmptyHud());
+    setMeleeDebugMessage("");
     setExitPrompt(false);
     setRunKey((key) => key + 1);
     setPhase("battle");
@@ -455,7 +457,7 @@ export default function WarRoomGame({
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v12-yakin-dovus</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v13-yakin-dovus-fix</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -552,9 +554,16 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={loadout}
             weaponMountOverrides={weaponMountOverrides}
+            debugMode={debugMode}
+            onMeleeDebugUpdate={setMeleeDebugMessage}
             onHudUpdate={setHud}
             onFinish={finishBattle}
           />
+          {debugMode && (
+            <div className="war-room-melee-debug-result" aria-live="polite">
+              {meleeDebugMessage || "MELEE DEBUG · saldırı bekleniyor"}
+            </div>
+          )}
           {debugMode && phase === "battle" && (() => {
             const weaponId = hud.weaponId;
             const mount = weaponMountOverrides[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];

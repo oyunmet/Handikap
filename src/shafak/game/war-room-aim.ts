@@ -20,6 +20,88 @@ export type WarRoomAimResult<T extends WarRoomAimTarget> = {
 
 type Vector3Like = { x: number; y: number; z: number };
 
+export type WarRoomMeleeConeReason = "hit" | "range" | "angle" | "blocked" | "no-target";
+
+export type WarRoomMeleeConeResult<T extends WarRoomAimTarget> = {
+  target: T | null;
+  targetIndex: number | null;
+  distance: number;
+  reason: WarRoomMeleeConeReason;
+};
+
+/**
+ * Finds the nearest living target inside a horizontal, character-facing melee cone.
+ * The blocker callback is evaluated per candidate so cover only blocks targets
+ * behind that specific obstacle, not other enemies elsewhere in the cone.
+ */
+export function traceWarRoomMeleeCone<T extends WarRoomAimTarget>(
+  origin: Pick<Vector3Like, "x" | "z">,
+  rawForward: Pick<Vector3Like, "x" | "z">,
+  targets: readonly T[],
+  range: number,
+  halfAngleDegrees = 50,
+  isBlocked: (target: T, distance: number) => boolean = () => false,
+): WarRoomMeleeConeResult<T> {
+  const forwardLength = Math.hypot(rawForward.x, rawForward.z);
+  const forwardX = forwardLength > 1e-8 ? rawForward.x / forwardLength : 0;
+  const forwardZ = forwardLength > 1e-8 ? rawForward.z / forwardLength : -1;
+  const minDot = Math.cos((Math.max(0, Math.min(180, halfAngleDegrees)) * Math.PI) / 180);
+  let nearestTarget: T | null = null;
+  let nearestIndex: number | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  let anyLiving = false;
+  let anyInRange = false;
+  let anyInAngle = false;
+  let anyBlocked = false;
+  let nearestFailureDistance = Number.POSITIVE_INFINITY;
+
+  targets.forEach((candidate, index) => {
+    if (!candidate.alive) return;
+    anyLiving = true;
+    const dx = candidate.x - origin.x;
+    const dz = candidate.z - origin.z;
+    const centerDistance = Math.hypot(dx, dz);
+    const bodyRadius = candidate.commander ? 0.38 : 0.3;
+    const surfaceDistance = Math.max(0, centerDistance - bodyRadius);
+    if (surfaceDistance > range) {
+      nearestFailureDistance = Math.min(nearestFailureDistance, surfaceDistance);
+      return;
+    }
+    anyInRange = true;
+    if (centerDistance > 1e-8 && (dx * forwardX + dz * forwardZ) / centerDistance < minDot) {
+      nearestFailureDistance = Math.min(nearestFailureDistance, surfaceDistance);
+      return;
+    }
+    anyInAngle = true;
+    if (isBlocked(candidate, surfaceDistance)) {
+      anyBlocked = true;
+      nearestFailureDistance = Math.min(nearestFailureDistance, surfaceDistance);
+      return;
+    }
+    if (surfaceDistance < nearestDistance) {
+      nearestTarget = candidate;
+      nearestIndex = index;
+      nearestDistance = surfaceDistance;
+    }
+  });
+
+  const reason: WarRoomMeleeConeReason = nearestTarget
+    ? "hit"
+    : !anyLiving
+      ? "no-target"
+      : !anyInRange
+        ? "range"
+        : anyBlocked && anyInAngle
+          ? "blocked"
+          : "angle";
+  return {
+    target: nearestTarget,
+    targetIndex: nearestIndex,
+    distance: nearestTarget ? nearestDistance : nearestFailureDistance,
+    reason,
+  };
+}
+
 function raySphereDistance(
   origin: Vector3Like,
   direction: Vector3Like,

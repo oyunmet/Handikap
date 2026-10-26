@@ -24,6 +24,8 @@ export type WarRoomEnemy = {
   coverX: number;
   coverZ: number;
   hitUntil: number;
+  hitKnockbackX: number;
+  hitKnockbackZ: number;
 };
 
 export type WarRoomAmmo = { magazine: number; reserve: number };
@@ -60,6 +62,10 @@ export type WarRoomRuntime = {
     meleeStartedAt: number;
     meleeUntil: number;
     meleeDuration: number;
+    meleeHitAt: number;
+    meleeHitPending: boolean;
+    meleeAttackWeaponId: WarRoomWeaponId | null;
+    meleeAttackYaw: number;
     recoil: number;
     lastDamageAt: number;
     damageDirection: number;
@@ -155,6 +161,8 @@ export function createWarRoomRuntime(
       coverX: cover.x,
       coverZ: cover.z,
       hitUntil: 0,
+      hitKnockbackX: 0,
+      hitKnockbackZ: 0,
     };
   });
   enemies.push({
@@ -173,6 +181,8 @@ export function createWarRoomRuntime(
     coverX: 0,
     coverZ: -21,
     hitUntil: 0,
+    hitKnockbackX: 0,
+    hitKnockbackZ: 0,
   });
 
   const ammo: WarRoomRuntime["player"]["ammo"] = {};
@@ -215,6 +225,10 @@ export function createWarRoomRuntime(
       meleeStartedAt: -1,
       meleeUntil: 0,
       meleeDuration: 0,
+      meleeHitAt: 0,
+      meleeHitPending: false,
+      meleeAttackWeaponId: null,
+      meleeAttackYaw: 0,
       recoil: 0,
       lastDamageAt: 0,
       damageDirection: 0,

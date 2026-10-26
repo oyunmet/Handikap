@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyWarRoomDamage, createWarRoomRuntime } from "./war-room-engine.ts";
-import { traceWarRoomMeleeRay, traceWarRoomRay } from "./war-room-aim.ts";
+import { traceWarRoomMeleeCone, traceWarRoomMeleeRay, traceWarRoomRay } from "./war-room-aim.ts";
 import { segmentBlockFraction } from "./war-room-engine.ts";
 
 test("camera rays acquire all nine War Room enemy capsules and repeated hits kill them", () => {
@@ -112,4 +112,50 @@ test("melee uses a short forward sweep, respects its range, and is blocked by co
   );
   assert.equal(blocked.target, null);
   assert.equal(blocked.blocked, true);
+});
+
+test("character-facing melee cone hits the nearest target within range", () => {
+  const near = { id: "near", x: 0, z: -1.45, alive: true, commander: false };
+  const far = { id: "far", x: 0, z: -1.9, alive: true, commander: false };
+  const result = traceWarRoomMeleeCone({ x: 0, z: 0 }, { x: 0, z: -1 }, [far, near], 1.8);
+  assert.equal(result.target, near);
+  assert.equal(result.targetIndex, 1);
+  assert.equal(result.reason, "hit");
+});
+
+test("character-facing melee cone reports range and angle misses independently", () => {
+  const outsideRange = traceWarRoomMeleeCone(
+    { x: 0, z: 0 },
+    { x: 0, z: -1 },
+    [{ x: 0, z: -3.2, alive: true, commander: false }],
+    1.8,
+  );
+  assert.equal(outsideRange.target, null);
+  assert.equal(outsideRange.reason, "range");
+
+  const outsideAngle = traceWarRoomMeleeCone(
+    { x: 0, z: 0 },
+    { x: 0, z: -1 },
+    [{ x: 1.7, z: -0.8, alive: true, commander: false }],
+    2,
+  );
+  assert.equal(outsideAngle.target, null);
+  assert.equal(outsideAngle.reason, "angle");
+});
+
+test("character-facing melee cone ignores targets behind blockers", () => {
+  const origin = { x: 1, y: 1.1, z: 5 };
+  const target = { x: 1, z: -10, alive: true, commander: false };
+  const blockedFraction = segmentBlockFraction(origin, { x: target.x, y: 1.05, z: target.z }, 0.08);
+  assert.notEqual(blockedFraction, null);
+  const blocked = traceWarRoomMeleeCone(
+    { x: origin.x, z: origin.z },
+    { x: 0, z: -1 },
+    [target],
+    20,
+    50,
+    () => segmentBlockFraction(origin, { x: target.x, y: 1.05, z: target.z }, 0.08) !== null,
+  );
+  assert.equal(blocked.target, null);
+  assert.equal(blocked.reason, "blocked");
 });
