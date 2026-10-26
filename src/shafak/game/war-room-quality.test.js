@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  countOccupiedWarRoomDecals,
   countActiveWarRoomParticles,
   getWarRoomEffectCount,
+  getWarRoomPoolLimits,
+  getWarRoomPixelRatio,
   getWarRoomQualityProfile,
+  isWarRoomAttackRunContinuous,
+  WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS,
+  WAR_ROOM_PERFORMANCE_SAMPLE_MS,
 } from "./war-room-quality.ts";
 import {
   WAR_ROOM_EFFECT_POOL_LIMIT,
@@ -24,7 +30,23 @@ test("quality tiers reduce emissions, live particle cap, trail length, and DPR",
   assert.ok(medium.slashTrailSegments < high.slashTrailSegments);
   assert.ok(low.pixelRatioCap < medium.pixelRatioCap);
   assert.ok(medium.pixelRatioCap < high.pixelRatioCap);
+  assert.ok(low.touchPixelRatioCap < medium.touchPixelRatioCap);
+  assert.ok(medium.touchPixelRatioCap < high.touchPixelRatioCap);
   assert.equal(high.slashTrailSegments, WAR_ROOM_SLASH_TRAIL_SEGMENTS);
+});
+
+test("adaptive quality can lower touch-device DPR as well as desktop DPR", () => {
+  assert.equal(getWarRoomPixelRatio("high", 3, true), 1);
+  assert.equal(getWarRoomPixelRatio("balanced", 3, true), 0.9);
+  assert.equal(getWarRoomPixelRatio("low", 3, true), 0.75);
+  assert.equal(getWarRoomPixelRatio("low", 3, false), 1);
+  assert.equal(getWarRoomPixelRatio("high", 1.25, false), 1.25);
+});
+
+test("the phase flag restores the unscaled quality profile when disabled", () => {
+  assert.equal(getWarRoomQualityProfile("low", false).maxActiveParticles, getWarRoomQualityProfile("high").maxActiveParticles);
+  assert.equal(getWarRoomEffectCount(6, "low", false), 6);
+  assert.equal(getWarRoomPixelRatio("low", 3, true, false), 1);
 });
 
 test("quality-scaled particles remain within the fixed shared pool budget", () => {
@@ -55,4 +77,28 @@ test("particle pool usage counts only live fixed-pool entries", () => {
 
   assert.equal(countActiveWarRoomParticles(particles, 10), 1);
   assert.equal(countActiveWarRoomParticles(particles, 11), 0);
+});
+
+test("War Room performance and pooled geometry stay within the requested fixed limits", () => {
+  const limits = getWarRoomPoolLimits();
+  assert.equal(WAR_ROOM_PERFORMANCE_SAMPLE_MS, 60_000);
+  assert.ok(limits.particles <= 150);
+  assert.ok(limits.decals <= 30);
+  assert.ok(limits.slashTrailSegments <= 12);
+});
+
+test("continuous attack reporting rejects sparse or interrupted runs", () => {
+  assert.equal(isWarRoomAttackRunContinuous(60, 900, 1_000), true);
+  assert.equal(isWarRoomAttackRunContinuous(59, 900, 900), false);
+  assert.equal(isWarRoomAttackRunContinuous(90, WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS + 1, 900), false);
+  assert.equal(isWarRoomAttackRunContinuous(90, 900, WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS + 1), false);
+  assert.equal(isWarRoomAttackRunContinuous(90, Number.NaN, 900), false);
+});
+
+test("decal pool usage counts only occupied slots", () => {
+  assert.equal(countOccupiedWarRoomDecals([
+    { kind: null },
+    { kind: "bullet" },
+    { kind: "crack" },
+  ]), 2);
 });

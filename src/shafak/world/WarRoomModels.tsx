@@ -19,7 +19,6 @@ import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
-import { WAR_ROOM_WEAPONS } from "../game/war-room-data";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/player-hero.glb",
@@ -30,9 +29,6 @@ export const WAR_ROOM_MODEL_URLS = [
   "/models/war-room/flag-pennant.glb",
   "/models/war-room/siege-ballista.glb",
   "/models/war-room/rocks-large.glb",
-  ...new Set(WAR_ROOM_WEAPONS
-    .filter((weapon) => weapon.weaponClass && weapon.modelFile)
-    .map((weapon) => `/models/weapons/${weapon.modelFile}`)),
 ] as const;
 
 const MISSING_COLORMAP_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAC6klEQVR42r2WuW4VQRQF+9uIyQjZxS72BPsthoTFNthsqfeU1X9IoWpdjqYTS9ZDGge+I53Sm6l7etqlixdWejX+dl7e3331YHN2a2t+e3tx5/3y7oeNe8xPvi73dl7s764dfFw//DQ7+jw//rJgvvbw8vqjK7PHV+dPri2eXl8+u7Hx/Cbz7/tvfhy8/Xn47tfR5u/jrdOT7W97r/8CSIQBgHSigUFiThwA0okGBgmMANKJJhcSGBjMSSeaXEhgYHQAceQCgEQ6GHjMyQVAKOlg4MEQQCjpYIiGAYw5oaSDIRoGsA4glGgAYICRDoM50QDAkEs6DEgCSCSXdBiQ4DEnkVzSYUCC1wHkkgiAaEgwQDInEQDRkGCQDkwA0YTCIB0YGOZEEwqDdGBgOoB0QgGQCwMeGOaEAiAXBtFgQAogFwbRYEiHxJxcGESDIR1SBxA9XsxJHy8B48WcuPFqK98D5dNI/p/Ip5H+/JRPIzVwtFxBzGzKp5HcmMinkTqe8mmkSzpa7vszsymfRnJjIp9GakjKp5EKMlpuC5jZlE8juTGRTyOtgZRPI92h0XKX1MymfBrJjYl8GukSpXwaac2MlrtDZrbzKHgWxZsdaXFyY9KRFqc9kx1pcdoCYxlblGa2/3EepJGlqc+9jCxNfSzZu2qq+9m7XVPdLyNLUx9LGVmaCsjeVVPNyd7tmrq9ZWRp6nKVkaWpgOxdNfW5Z+92TX2xZWRpqvtlZGkqIHtXTV2u7N2u6SrUzKu5XGVkaWrBlZGlqYD8PFBT+yc/D/5pmsVZbWr/VHFWmwrIzwPb1O3Nz4Pepivfg+xI+z3l00gNSfk0UkFGy328/dDPjrS8Uj6N9PmmfBrpDo2Wu6T90M+O9ABJ+TTSJUr5NNL3N1ruDvVD/zwKnkXxlh3pCZXyaaQ9k/JppC0wWq6B/ds0j3LrN+XTSLc05dNIi3K03B7r36Z5lHsEZkdanDqeHWlxuqRjGVszZv4BWf6KytMsO2cAAAAASUVORK5CYII=";

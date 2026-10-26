@@ -26,10 +26,15 @@ import {
   WAR_ROOM_POOLED_FX_ENABLED,
 } from "../game/war-room-features";
 import {
+  countOccupiedWarRoomDecals,
+  countActiveWarRoomParticles,
   getWarRoomEffectCount,
+  getWarRoomPixelRatio,
   getWarRoomQualityProfile,
+  isWarRoomAttackRunContinuous,
+  WAR_ROOM_PERFORMANCE_SAMPLE_MS,
 } from "../game/war-room-quality";
-import { getWorldRenderPixelRatio, type RenderQuality } from "./graphics-quality";
+import type { RenderQuality } from "./graphics-quality";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
@@ -210,6 +215,16 @@ type WarRoomProjectile = {
   lifetime: number;
   color: string;
 };
+
+function disposeWarRoomRenderable(
+  object: THREE.Mesh | THREE.LineSegments,
+  disposeGeometry = true,
+) {
+  if (object instanceof THREE.InstancedMesh) object.dispose();
+  if (disposeGeometry) object.geometry.dispose();
+  const materials = Array.isArray(object.material) ? object.material : [object.material];
+  materials.forEach((material) => material.dispose());
+}
 
 function shortestLerp(from: number, to: number, speed: number, delta: number) {
   return from + shortestAngleDelta(from, to) * (1 - Math.exp(-speed * Math.min(delta, 0.05)));
@@ -1373,7 +1388,7 @@ function WarRoomRuntimeScene({
   onHudUpdate,
   onFinish,
 }: Props) {
-  const { camera, scene } = useThree();
+  const { camera, scene, gl } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
   const enemyGroupRefs = useRef<Array<THREE.Group | null>>([]);
   const muzzleLightRef = useRef<THREE.PointLight>(null);
@@ -1401,8 +1416,15 @@ function WarRoomRuntimeScene({
     totalFrames: 0,
     sampleFrames: 0,
     attackCount: 0,
+    lastAttackAtMs: 0,
+    startedAtMs: 0,
+    lastFrameAtMs: 0,
+    largestAttackGapMs: 0,
     minFps: Number.POSITIVE_INFINITY,
     peakActiveParticles: 0,
+    peakOccupiedDecals: 0,
+    baselineGeometries: null as number | null,
+    baselineTextures: null as number | null,
     reported: false,
   });
   const particles = useMemo<WarRoomParticle[]>(
@@ -1660,6 +1682,25 @@ function WarRoomRuntimeScene({
     mesh.frustumCulled = false;
     return mesh;
   }, []);
+  useLayoutEffect(() => () => {
+    disposeWarRoomRenderable(tracerLines);
+    disposeWarRoomRenderable(particleMesh);
+    disposeWarRoomRenderable(decalMesh);
+    disposeWarRoomRenderable(crackMesh, false);
+    disposeWarRoomRenderable(shockwaveMesh);
+    disposeWarRoomRenderable(slashTrailMesh);
+    disposeWarRoomRenderable(projectileShafts);
+    disposeWarRoomRenderable(projectileHeads);
+  }, [
+    crackMesh,
+    decalMesh,
+    particleMesh,
+    projectileHeads,
+    projectileShafts,
+    shockwaveMesh,
+    slashTrailMesh,
+    tracerLines,
+  ]);
 
   const spawnImpact = (
     position: THREE.Vector3,
@@ -2062,6 +2103,18 @@ function WarRoomRuntimeScene({
       player.meleeComboCount = plan.heavy ? 0 : plan.comboIndex + 1;
       player.meleeComboLastAttackAt = now;
       const performanceSample = meleePerformanceRef.current;
+      const attackAtMs = performance.now();
+      if (performanceSample.started) {
+        const attackGapMs = Math.max(0, attackAtMs - performanceSample.lastAttackAtMs);
+        performanceSample.largestAttackGapMs = Math.max(performanceSample.largestAttackGapMs, attackGapMs);
+      } else {
+        performanceSample.started = true;
+        performanceSample.startedAtMs = attackAtMs;
+        performanceSample.lastFrameAtMs = attackAtMs;
+        performanceSample.baselineGeometries = gl.info.memory.geometries;
+        performanceSample.baselineTextures = gl.info.memory.textures;
+      }
+      performanceSample.lastAttackAtMs = attackAtMs;
       performanceSample.started = true;
       performanceSample.attackCount += 1;
       player.meleeLastResult = plan.heavy
@@ -2252,7 +2305,10 @@ function WarRoomRuntimeScene({
     const qualityProfile = getWarRoomQualityProfile(quality);
     const performanceSample = meleePerformanceRef.current;
     if (debugMode && performanceSample.started && !performanceSample.reported) {
-      const elapsed = delta * 1_000;
+      const frameAtMs = performance.now();
+      const frameGapMs = Math.max(0, frameAtMs - performanceSample.lastFrameAtMs);
+      const elapsed = Math.min(frameGapMs, 1_000);
+      performanceSample.lastFrameAtMs = frameAtMs;
       performanceSample.elapsedMs += elapsed;
       performanceSample.sampleElapsedMs += elapsed;
       performanceSample.poolSampleElapsedMs += elapsed;
@@ -2271,16 +2327,36 @@ function WarRoomRuntimeScene({
           performanceSample.peakActiveParticles,
           countActiveWarRoomParticles(particles, player.clockTime),
         );
+        performanceSample.peakOccupiedDecals = Math.max(
+          performanceSample.peakOccupiedDecals,
+          countOccupiedWarRoomDecals(decalState),
+        );
         performanceSample.poolSampleElapsedMs = 0;
       }
-      if (performanceSample.elapsedMs >= 60_000) {
+      if (performanceSample.elapsedMs >= WAR_ROOM_PERFORMANCE_SAMPLE_MS) {
         const averageFps = performanceSample.totalFrames * 1_000 / performanceSample.elapsedMs;
-        const continuousAttacks = performanceSample.attackCount >= 60;
+        const finalAttackGapMs = Math.max(0, frameAtMs - performanceSample.lastAttackAtMs);
+        const continuousAttacks = isWarRoomAttackRunContinuous(
+          performanceSample.attackCount,
+          performanceSample.largestAttackGapMs,
+          finalAttackGapMs,
+        );
+        const geometryCount = gl.info.memory.geometries;
+        const textureCount = gl.info.memory.textures;
+        const geometryDelta = performanceSample.baselineGeometries === null
+          ? "?"
+          : `${geometryCount - performanceSample.baselineGeometries >= 0 ? "+" : ""}${geometryCount - performanceSample.baselineGeometries}`;
+        const textureDelta = performanceSample.baselineTextures === null
+          ? "?"
+          : `${textureCount - performanceSample.baselineTextures >= 0 ? "+" : ""}${textureCount - performanceSample.baselineTextures}`;
         onMeleeDebugUpdate(
-          `60 SN ÖLÇÜM · ${continuousAttacks ? "SALDIRI GİRDİSİ TAMAM" : "SALDIRI GİRDİSİ AZ"} · `
-          + `${performanceSample.attackCount} saldırı · `
+          `60 SN · ${continuousAttacks ? "KESİNTİSİZ SALDIRI OK" : "KESİNTİSİZ SALDIRI YOK"} · `
+          + `${performanceSample.attackCount} vuruş, en uzun ara ${Math.round(performanceSample.largestAttackGapMs)} ms, `
+          + `son ara ${Math.round(finalAttackGapMs)} ms · `
           + `${averageFps.toFixed(1)} ort / ${performanceSample.minFps.toFixed(1)} min FPS · `
-          + `FX tepe ${performanceSample.peakActiveParticles}/${qualityProfile.maxActiveParticles} · ${quality}`,
+          + `FX ${performanceSample.peakActiveParticles}/${qualityProfile.maxActiveParticles}, `
+          + `decal ${performanceSample.peakOccupiedDecals}/${WAR_ROOM_DECAL_POOL_SIZE} · `
+          + `GPU ${geometryCount} geo (${geometryDelta}), ${textureCount} doku (${textureDelta}) · ${quality}`,
         );
         performanceSample.reported = true;
       }
@@ -2847,11 +2923,10 @@ function WarRoomRuntimeScene({
 }
 
 export default function WarRoomScene3D(props: Props) {
+  const { quality } = props;
   const touchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-  const maxPixelRatio = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches
-    ? 1
-    : Math.min(getWorldRenderPixelRatio(quality, pixelRatio), getWarRoomQualityProfile(quality).pixelRatioCap);
+  const maxPixelRatio = getWarRoomPixelRatio(quality, pixelRatio, touchDevice);
   const shadowsEnabled = typeof window !== "undefined"
     && !window.matchMedia("(pointer: coarse)").matches
     && quality !== "low";

@@ -478,7 +478,7 @@ export default function WarRoomGame({
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v14-faz5</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · {WAR_ROOM_BUILD_VERSION}</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>

@@ -33,7 +33,7 @@ import {
   type GraphicsMode,
   type RenderQuality,
 } from "./world/graphics-quality";
-import { WAR_ROOM_ADAPTIVE_QUALITY_ENABLED } from "./game/war-room-features";
+import { WAR_ROOM_QUALITY_ENABLED } from "./game/war-room-features";
 
 const WorldScene = lazy(() => import("./world/WorldScene"));
 const WarRoomGame = lazy(() => import("./game/WarRoomGame"));
@@ -375,7 +375,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     if (
       preferences.quality !== "auto"
       || (screen !== "world" && screen !== "war-room")
-      || (screen === "war-room" && !WAR_ROOM_ADAPTIVE_QUALITY_ENABLED)
+      || (screen === "war-room" && !WAR_ROOM_QUALITY_ENABLED)
     ) return undefined;
 
     let frameId = 0;

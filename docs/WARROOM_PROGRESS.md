@@ -52,11 +52,11 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 7 — Kalite katmanları ve performans
 
-- **Durum:** BEKLİYOR
-- **Yapılanlar:** Yok.
-- **Kalanlar:** Kalite profilleri, havuz/bellek denetimi ve 60 saniyelik saldırı ölçümü.
-- **Değişen dosyalar:** Yok.
-- **Doğrulama sonucu:** Henüz yapılmadı.
+- **Durum:** BİTTİ (kod); iPhone kabul testi açık.
+- **Yapılanlar:** Elle seçilebilir düşük/orta/yüksek ve otomatik profiller; FPS düşüşünde otomatik kalite azaltma; parçacık, iz ve DPR profilleri; mobil DPR'nin düşük profilde 0,75'e ve orta profilde 0,9'a inmesi eklendi. `WAR_ROOM_QUALITY_ENABLED` bayrağı varsayılan açık; kapatılınca eski ölçeklenmemiş efekt/DPR davranışı korunuyor. Kullanılmayan silah GLB'leri briefing ön yüklemesinden çıkarıldı; briefing'de 7 arena modeli yüklendi, hiç silah GLB'si istenmedi. Savaşta kullanılan havuz nesnelerine tam temizleme eklendi; ortak çatlak geometrisi korunuyor. `?debug=1` 60 saniyelik sayaç, saldırı aralıkları, FPS, efekt/decal tepesi ve renderer geometri/doku sayılarını raporluyor. Sürüm `v14-faz7`.
+- **Kalanlar:** iPhone'da kalite profillerinin, kaynak sayaçlarının ve performansın kabul testi. 60 sn SwiftShader denemesi kesintisiz testi geçemedi; headless yazılım render'ı telefona karşılık gelmiyor.
+- **Değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-quality.ts`, `src/shafak/game/war-room-quality.test.js`, `src/shafak/world/WarRoomModels.tsx`, `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/world/war-room-model-preload.test.js`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** Build ve typecheck geçti; build büyük-bundle uyarısı verdi. `npm test`: 351 testten 343 geçti, 8 başarısız; aynı bilinen 6 mağaza/ekipman, 1 düello süresi ve 1 envanter testi, yeni War Room başarısızlığı yok. Faz 7 kalite/model hedef testleri 10/10 geçti. 60 sn SwiftShader ölçümü: 1,6 ortalama / 1,0 en düşük FPS; 10 kabul edilen saldırı, en uzun boşluk 7.419 ms; FX 0/28, decal 0/30; renderer 187 geometri (+0), 84 doku (+0). Bu ortam testi “kesintisiz saldırı yok” olarak işaretledi; sayaç sonucu doğruladı, fakat efekt havuzu stresi ve gerçek cihaz FPS'si doğrulanamadı. Replit ekran görüntüsü WebGL bağlamı oluşturamadı; SwiftShader'da WebGL sahnesi açıldı.
 
 ## Faz 8 — Son kontrol ve rapor
 
