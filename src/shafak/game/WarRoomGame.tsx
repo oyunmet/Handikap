@@ -237,6 +237,8 @@ export default function WarRoomGame({
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
   const [meleeDebugMessage, setMeleeDebugMessage] = useState("");
+  const [meleeDebugMessageUntil, setMeleeDebugMessageUntil] = useState(0);
+  const [meleeDebugActivity, setMeleeDebugActivity] = useState("");
   const [calibrationCollapsed, setCalibrationCollapsed] = useState(false);
   const [calibrationCoarseStep, setCalibrationCoarseStep] = useState(false);
   const [calibrationJson, setCalibrationJson] = useState("");
@@ -268,6 +270,8 @@ export default function WarRoomGame({
     pointerRef.current.id = null;
     setHud(createEmptyHud());
     setMeleeDebugMessage("");
+    setMeleeDebugMessageUntil(0);
+    setMeleeDebugActivity("");
     setExitPrompt(false);
     setRunKey((key) => key + 1);
     setPhase("battle");
@@ -645,7 +649,14 @@ export default function WarRoomGame({
             bloodEffects={bloodEffects}
             quality={quality}
             debugMode={debugMode}
-            onMeleeDebugUpdate={setMeleeDebugMessage}
+            onMeleeDebugUpdate={(message) => {
+              if (message.startsWith("İSABET:") || message.startsWith("ISKA:")) {
+                setMeleeDebugMessage(message);
+                setMeleeDebugMessageUntil(Date.now() + 2000);
+              } else {
+                setMeleeDebugActivity(message);
+              }
+            }}
             onHudUpdate={setHud}
             onFinish={finishBattle}
           />
@@ -653,7 +664,9 @@ export default function WarRoomGame({
             <div className="war-room-melee-debug-result" aria-live="polite">
               <span>
                 {`${WAR_ROOM_BUILD_VERSION} · MELEE DEBUG · ${hud.meleePhase} · KOMBO ${hud.meleeComboCount}/3 · ${hud.meleeLastResult}`}
-                {meleeDebugMessage ? ` · ${meleeDebugMessage}` : ""}
+                {meleeDebugMessage && Date.now() < meleeDebugMessageUntil
+                  ? ` · ${meleeDebugMessage}`
+                  : meleeDebugActivity ? ` · ${meleeDebugActivity}` : ""}
               </span>
               <span>
                 YÖN: {hud.orientation.facingCamera ? "YÜZ" : "SIRT"} · MOD: {hud.orientation.mode}

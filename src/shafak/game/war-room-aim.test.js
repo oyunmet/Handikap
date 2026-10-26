@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyWarRoomDamage, createWarRoomRuntime } from "./war-room-engine.ts";
-import { traceWarRoomMeleeCone, traceWarRoomMeleeRay, traceWarRoomRay } from "./war-room-aim.ts";
+import {
+  getWarRoomMeleeEffectiveReach,
+  traceWarRoomMeleeCone,
+  traceWarRoomMeleeRay,
+  traceWarRoomRay,
+} from "./war-room-aim.ts";
 import { segmentBlockFraction } from "./war-room-engine.ts";
 
 test("camera rays acquire all nine War Room enemy capsules and repeated hits kill them", () => {
@@ -158,4 +163,23 @@ test("character-facing melee cone ignores targets behind blockers", () => {
   );
   assert.equal(blocked.target, null);
   assert.equal(blocked.reason, "blocked");
+});
+
+test("spear reach includes the 0.4 m tolerance without changing other weapon reach", () => {
+  assert.ok(Math.abs(getWarRoomMeleeEffectiveReach("melee_spear", 2.6) - 3) < 1e-9);
+  assert.ok(Math.abs(getWarRoomMeleeEffectiveReach("melee_war_spear", 3.05, 0.12) - 3.57) < 1e-9);
+  assert.ok(Math.abs(getWarRoomMeleeEffectiveReach("melee_axe", 2, 0.12) - 2.12) < 1e-9);
+});
+
+test("melee cone misses report the nearest candidate's angle and surface distance", () => {
+  const result = traceWarRoomMeleeCone(
+    { x: 0, z: 0 },
+    { x: 0, z: -1 },
+    [{ x: 1, z: -0.8, alive: true, commander: false }],
+    3,
+    50,
+  );
+  assert.equal(result.reason, "angle");
+  assert.ok(result.angleDegrees !== null && result.angleDegrees > 50 && result.angleDegrees < 52);
+  assert.ok(result.distance > 0 && result.distance < 3);
 });

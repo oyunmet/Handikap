@@ -12,7 +12,12 @@ import {
   type WarRoomWeaponMount,
   type WarRoomWeaponId,
 } from "../game/war-room-data";
-import { traceWarRoomMeleeCone, traceWarRoomRay, type WarRoomMeleeConeReason } from "../game/war-room-aim";
+import {
+  getWarRoomMeleeEffectiveReach,
+  traceWarRoomMeleeCone,
+  traceWarRoomRay,
+  type WarRoomMeleeConeReason,
+} from "../game/war-room-aim";
 import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
@@ -93,7 +98,7 @@ const WAR_ROOM_FLOOR_MATERIAL = new THREE.MeshStandardMaterial({
 });
 const WAR_ROOM_TRACER_POOL_SIZE = 24;
 const WAR_ROOM_PROJECTILE_POOL_SIZE = 12;
-const WAR_ROOM_MELEE_HALF_ANGLE_DEGREES = 50;
+const WAR_ROOM_MELEE_HALF_ANGLE_DEGREES = 65;
 const WAR_ROOM_SHOCKWAVE_POOL_SIZE = 4;
 const WAR_ROOM_SHOCKWAVE_LIFETIME = 0.34;
 const WAR_ROOM_DECAL_COLORS = [
@@ -1943,7 +1948,14 @@ function WarRoomRuntimeScene({
         meleeOrigin.z + directionZ * Math.min(range, Number.isFinite(result.distance) ? result.distance : range),
       );
     }
-    return { enemy: result.target, point: meleeImpact, reason: result.reason };
+    return {
+      enemy: result.target,
+      point: meleeImpact,
+      reason: result.reason,
+      distance: result.distance,
+      angleDegrees: result.angleDegrees,
+      range,
+    };
   };
 
   const resolveMeleeContact = (now: number, wallNow: number) => {
@@ -1955,10 +1967,23 @@ function WarRoomRuntimeScene({
     const weapon = weaponId ? WAR_ROOM_WEAPON_BY_ID.get(weaponId) : undefined;
     if (!weapon || weapon.weaponClass !== "melee") return;
 
-    const impact = getMeleeAimHit(weapon.range + player.meleeAttackRangeBonus, player.meleeAttackYaw);
+    const meleeReach = getWarRoomMeleeEffectiveReach(
+      weapon.id,
+      weapon.range,
+      player.meleeAttackRangeBonus,
+    );
+    const impact = getMeleeAimHit(meleeReach, player.meleeAttackYaw);
     const enemy = impact.enemy;
     if (!enemy) {
-      player.meleeLastResult = `Iska · ${impact.reason}`;
+      const distance = Number.isFinite(impact.distance) ? `${impact.distance.toFixed(2)} m` : "—";
+      const missMessage = impact.reason === "range"
+        ? `ISKA: menzil dışı (mesafe ${distance}, menzil ${impact.range.toFixed(2)} m)`
+        : impact.reason === "angle"
+          ? `ISKA: açı dışı (${impact.angleDegrees?.toFixed(1) ?? "?"}°, mesafe ${distance})`
+          : impact.reason === "blocked"
+            ? `ISKA: engel (mesafe ${distance})`
+            : "ISKA: hedef yok";
+      player.meleeLastResult = missMessage;
       if (impact.reason === "blocked") {
         playWarRoomSound(
           "melee-hit",
@@ -1975,14 +2000,14 @@ function WarRoomRuntimeScene({
         );
       }
       if (debugMode) {
-        const missLabel: Record<WarRoomMeleeConeReason, string> = {
-          hit: "hedef yok",
-          range: "menzil dışı",
-          angle: "açı dışı",
-          blocked: "engel",
-          "no-target": "hedef yok",
+        const missMessages: Record<WarRoomMeleeConeReason, string> = {
+          hit: "ISKA: hedef yok",
+          range: `ISKA: menzil dışı (mesafe ${distance}, menzil ${impact.range.toFixed(2)} m)`,
+          angle: `ISKA: açı dışı (${impact.angleDegrees?.toFixed(1) ?? "?"}°, mesafe ${distance})`,
+          blocked: `ISKA: engel (mesafe ${distance})`,
+          "no-target": "ISKA: hedef yok",
         };
-        onMeleeDebugUpdate(`ISKA: ${missLabel[impact.reason]}`);
+        onMeleeDebugUpdate(missMessages[impact.reason]);
       }
       return;
     }
@@ -2046,7 +2071,7 @@ function WarRoomRuntimeScene({
         addCrackDecal(meleeOrigin, player.meleeAttackYaw, now);
       }
     }
-    if (debugMode) onMeleeDebugUpdate(`VURUŞ: ${enemy.name} −${damage.damage}`);
+    if (debugMode) onMeleeDebugUpdate(`İSABET: ${enemy.name}, −${damage.damage}`);
     if (damage.killed) {
       enemy.alive = false;
       enemy.deathYaw = player.meleeAttackYaw;
@@ -2103,7 +2128,7 @@ function WarRoomRuntimeScene({
       player.meleeDuration = duration;
       player.meleeUntil = now + duration;
       player.shotFeedbackUntil = now + duration;
-      player.meleeHitAt = now + duration * 0.45;
+      player.meleeHitAt = now + duration * 0.55;
       player.meleeHitPending = true;
       player.meleeAttackWeaponId = weaponId;
       player.meleeAttackYaw = attackYaw;

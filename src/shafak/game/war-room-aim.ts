@@ -26,8 +26,22 @@ export type WarRoomMeleeConeResult<T extends WarRoomAimTarget> = {
   target: T | null;
   targetIndex: number | null;
   distance: number;
+  angleDegrees: number | null;
   reason: WarRoomMeleeConeReason;
 };
+
+export const WAR_ROOM_SPEAR_RANGE_TOLERANCE_METERS = 0.4;
+
+export function getWarRoomMeleeEffectiveReach(
+  weaponId: string,
+  baseRange: number,
+  attackRangeBonus = 0,
+) {
+  const spearTolerance = weaponId === "melee_spear" || weaponId === "melee_war_spear"
+    ? WAR_ROOM_SPEAR_RANGE_TOLERANCE_METERS
+    : 0;
+  return Math.max(0, baseRange) + attackRangeBonus + spearTolerance;
+}
 
 /**
  * Finds the nearest living target inside a horizontal, character-facing melee cone.
@@ -54,6 +68,8 @@ export function traceWarRoomMeleeCone<T extends WarRoomAimTarget>(
   let anyInAngle = false;
   let anyBlocked = false;
   let nearestFailureDistance = Number.POSITIVE_INFINITY;
+  let nearestFailureAngleDegrees: number | null = null;
+  let nearestTargetAngleDegrees: number | null = null;
 
   targets.forEach((candidate, index) => {
     if (!candidate.alive) return;
@@ -63,25 +79,36 @@ export function traceWarRoomMeleeCone<T extends WarRoomAimTarget>(
     const centerDistance = Math.hypot(dx, dz);
     const bodyRadius = candidate.commander ? 0.38 : 0.3;
     const surfaceDistance = Math.max(0, centerDistance - bodyRadius);
+    const dot = centerDistance > 1e-8
+      ? Math.max(-1, Math.min(1, (dx * forwardX + dz * forwardZ) / centerDistance))
+      : 1;
+    const angleDegrees = Math.acos(dot) * 180 / Math.PI;
+    const recordFailure = () => {
+      if (surfaceDistance < nearestFailureDistance) {
+        nearestFailureDistance = surfaceDistance;
+        nearestFailureAngleDegrees = angleDegrees;
+      }
+    };
     if (surfaceDistance > range) {
-      nearestFailureDistance = Math.min(nearestFailureDistance, surfaceDistance);
+      recordFailure();
       return;
     }
     anyInRange = true;
-    if (centerDistance > 1e-8 && (dx * forwardX + dz * forwardZ) / centerDistance < minDot) {
-      nearestFailureDistance = Math.min(nearestFailureDistance, surfaceDistance);
+    if (dot < minDot) {
+      recordFailure();
       return;
     }
     anyInAngle = true;
     if (isBlocked(candidate, surfaceDistance)) {
       anyBlocked = true;
-      nearestFailureDistance = Math.min(nearestFailureDistance, surfaceDistance);
+      recordFailure();
       return;
     }
     if (surfaceDistance < nearestDistance) {
       nearestTarget = candidate;
       nearestIndex = index;
       nearestDistance = surfaceDistance;
+      nearestTargetAngleDegrees = angleDegrees;
     }
   });
 
@@ -98,6 +125,7 @@ export function traceWarRoomMeleeCone<T extends WarRoomAimTarget>(
     target: nearestTarget,
     targetIndex: nearestIndex,
     distance: nearestTarget ? nearestDistance : nearestFailureDistance,
+    angleDegrees: nearestTarget ? nearestTargetAngleDegrees : nearestFailureAngleDegrees,
     reason,
   };
 }

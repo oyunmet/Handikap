@@ -7,7 +7,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** DEVAM EDİYOR
 - **Kapsam:** Ekli test notlarındaki Adım 1–7: silah normalizasyonu ve canlı kalibrasyon, hareket yönü/isabet teşhisi, can yenileme, geçerli hedef filtresi ve silaha özel yakın dövüş efektleri.
 - **Kural:** Her adımın sonunda build, typecheck, testler ve yerel commit; Git push ve Vercel deploy yapılmayacak.
-- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 bekliyor · 5 bekliyor · 6 bekliyor · 7 bekliyor.
+- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 kısmen doğrulandı · 5 bekliyor · 6 bekliyor · 7 bekliyor.
 - **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; kod/test doğrulaması ile cihaz doğrulaması ayrı raporlanacak.
 
 ### Adım 1 — Silah normalizasyonu
@@ -28,6 +28,13 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** KISMEN — saf yön hesabı ve oyun entegrasyonu doğrulandı; iPhone joystick kabulü açık.
 - **Yapılanlar:** Kamera yönü korunarak beden yaw'ı ayrı hesaplanıyor. İleri/geri/yan hareket yüz/sırt yönünü dünya hareketine göre belirliyor; nişanda veya atak animasyonu bitiminden 0,8 sn sonra beden kamera yaw'ına dönüyor. Hareket başlarsa atak sonrası strafe zamanlayıcısı erkenden iptal ediliyor. `?debug=1` yön, hareket/strafe modu, joystick açısı ve beden yaw'ını gösteriyor.
 - **Doğrulama:** Yön modülünün ileri/geri/yan/strafe/boşta ve timer testleri dahil War Room hedef testleri 15/15 geçti. `npm run typecheck` ve `npm run build` başarılı. `npm test`: 359 toplam, 351 geçti, 8 başarısız; aynı mağaza/ekipman (6), duel dengesi (1) ve varsayılan envanter (1) taban testleri. iPhone joystick davranışı doğrulanamadı.
+
+### Adım 4 — İsabet teşhisi ve temas zamanı
+
+- **Durum:** KISMEN — melee testleri/teşhis kodu doğrulandı; hedef cihazda vuruş ve çizgi görünümü açık.
+- **Yapılanlar:** Temas anı animasyonun %55 ilerlemesine alındı; cooldown ile melee animasyon sürelerinin mevcut silah config'inde uyumlu olduğu korunuyor. Mızraklara saldırı menziline +0,4 m tolerans ve melee konisine ±65° uygulandı. Debug sonucu artık hedef adı/hasarı veya ıskalama türüyle mesafe/menzil/açıyı içeriyor; son sonuç en az 2 sn görünür. Sürüm `v15-kalibrasyon`.
+- **Çizgi teşhisi:** Kırmızı çizgi kaynağı büyük olasılıkla düşman mermi izi: düşman namlusundan hedef noktasına çizilip 0,08 sn kalan `#f36e54` tracer. Melee izi bununla aynı değil; silah rengini kullanıyor, saldırı etkin değilken örnek üretmiyor ve 0,22 sn içinde soluyor. Ekli notta belirtilen ekran görüntüsü burada bulunmadığından çizginin birebir bu iz olduğu görsel olarak doğrulanamadı.
+- **Doğrulama:** Melee aim, combat feel ve War Room motoru testleri 26/26 geçti; `npm run typecheck` ve `npm run build` başarılı. `npm test`: 361 toplam, 353 geçti, aynı 8 Savaş Odası dışı taban testi başarısız. iPhone/WebGL görsel kabulü doğrulanamadı.
 
 ## Faz 1 — Karakter yönelimi
 

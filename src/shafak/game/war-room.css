@@ -526,7 +526,7 @@
 
 .war-room-melee-debug-result {
   position: absolute;
-  z-index: 4;
+  z-index: 20;
   display: grid;
   gap: 3px;
   top: max(14px, env(safe-area-inset-top));
@@ -543,6 +543,7 @@
   text-align: center;
   text-shadow: 0 1px 3px #000;
   pointer-events: none;
+  overflow-wrap: anywhere;
 }
 
 .war-room-melee-debug-result > span + span {
