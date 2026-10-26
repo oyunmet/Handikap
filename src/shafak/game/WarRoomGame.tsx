@@ -5,6 +5,8 @@ import { preloadWarRoomModels } from "../world/WarRoomModels";
 import {
   WAR_ROOM_WEAPONS,
   WAR_ROOM_WEAPON_BY_ID,
+  WAR_ROOM_WEAPON_MOUNTS,
+  type WarRoomWeaponMount,
   type WarRoomWeaponId,
 } from "./war-room-data";
 import {
@@ -191,6 +193,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
     () => getWarRoomLoadoutFromProfile(profile),
   );
+  const [weaponMountOverrides, setWeaponMountOverrides] = useState<Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>>({});
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
@@ -208,6 +211,8 @@ export default function WarRoomGame({ onExit, profile }: Props) {
   const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1 });
   const stickRef = useRef<HTMLDivElement>(null);
   const stickPointerRef = useRef<number | null>(null);
+  const debugMode = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("debug") === "1";
 
   const beginBattle = () => {
     runtimeRef.current = createWarRoomRuntime(loadout);
@@ -301,9 +306,35 @@ export default function WarRoomGame({ onExit, profile }: Props) {
       return next;
     });
   };
+  const updateDebugMount = (
+    field: "position" | "rotation",
+    index: 0 | 1 | 2,
+    value: number,
+    weaponId: WarRoomWeaponId,
+  ) => {
+    setWeaponMountOverrides((current) => {
+      const base = current[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
+      const nextVector = [...base[field]] as [number, number, number];
+      nextVector[index] = value;
+      return { ...current, [weaponId]: { ...base, [field]: nextVector } };
+    });
+  };
+  const updateDebugNumber = (
+    field: "scale" | "muzzleOffsetZ",
+    value: number,
+    weaponId: WarRoomWeaponId,
+  ) => {
+    setWeaponMountOverrides((current) => ({
+      ...current,
+      [weaponId]: {
+        ...(current[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId]),
+        [field]: value,
+      },
+    }));
+  };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap")) return;
+    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug")) return;
     if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) return;
     if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
     event.preventDefault();
@@ -383,7 +414,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v7-silah-vurus</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v9-tum-silahlar</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -421,6 +452,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                 const selected = loadout[selectedSlot] === weapon.id;
                 const otherSlot = selectedSlot === 0 ? 1 : 0;
                 const otherSlotSelected = loadout[otherSlot] === weapon.id;
+                const owned = !weapon.storeItemId || profile.inventory.ownedItemIds.includes(weapon.storeItemId);
                 return (
                   <button
                     key={weapon.id}
@@ -428,14 +460,15 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                     className={`war-room-weapon-card${selected ? " is-selected" : ""}`}
                     aria-pressed={selected}
                     onClick={() => setLoadoutWeapon(weapon.id)}
+                    disabled={!owned}
                   >
                     <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>
                     <span className="war-room-weapon-card__copy">
                       <b>{weapon.name}</b>
-                      <small>{weapon.className} · {weapon.magazine} mermi</small>
+                      <small>{weapon.className} · {weapon.rarity ?? "Sıradan"} · {weapon.magazine} mermi</small>
                     </span>
                     <span className="war-room-weapon-card__status">
-                      {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : "SEÇ"}
+                      {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : owned ? "SEÇ" : "MAĞAZADA"}
                     </span>
                   </button>
                 );
@@ -477,9 +510,42 @@ export default function WarRoomGame({ onExit, profile }: Props) {
             runtimeRef={runtimeRef}
             inputRef={inputRef}
             weaponIds={loadout}
+            weaponMountOverrides={weaponMountOverrides}
             onHudUpdate={setHud}
             onFinish={finishBattle}
           />
+          {debugMode && phase === "battle" && (() => {
+            const weaponId = hud.weaponId;
+            const mount = weaponMountOverrides[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
+            const controls: Array<{ label: string; field: "position" | "rotation"; index: 0 | 1 | 2; value: number; min: number; max: number; step: number }> = [
+              { label: "El X", field: "position", index: 0, value: mount.position[0], min: -0.3, max: 0.3, step: 0.005 },
+              { label: "El Y", field: "position", index: 1, value: mount.position[1], min: -0.3, max: 0.3, step: 0.005 },
+              { label: "El Z", field: "position", index: 2, value: mount.position[2], min: -0.3, max: 0.3, step: 0.005 },
+              { label: "Yön", field: "rotation", index: 1, value: mount.rotation[1], min: -3.14, max: 3.14, step: 0.02 },
+            ];
+            return (
+              <aside className="war-room-weapon-debug" aria-label="Silah elde tutuş ayarları">
+                <b>EL AYARI · {WAR_ROOM_WEAPON_BY_ID.get(weaponId)?.name}</b>
+                {controls.map((control) => (
+                  <label key={control.label}>
+                    <span>{control.label} <output>{control.value.toFixed(3)}</output></span>
+                    <input type="range" min={control.min} max={control.max} step={control.step} value={control.value}
+                      onChange={(event) => updateDebugMount(control.field, control.index, Number(event.currentTarget.value), weaponId)} />
+                  </label>
+                ))}
+                <label>
+                  <span>Ölçek <output>{mount.scale.toFixed(2)}</output></span>
+                  <input type="range" min="0.45" max="1.3" step="0.01" value={mount.scale}
+                    onChange={(event) => updateDebugNumber("scale", Number(event.currentTarget.value), weaponId)} />
+                </label>
+                <label>
+                  <span>Namlu Z <output>{(mount.muzzleOffsetZ ?? 0).toFixed(3)}</output></span>
+                  <input type="range" min="-0.25" max="0.25" step="0.005" value={mount.muzzleOffsetZ ?? 0}
+                    onChange={(event) => updateDebugNumber("muzzleOffsetZ", Number(event.currentTarget.value), weaponId)} />
+                </label>
+              </aside>
+            );
+          })()}
           <div className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}`}>
             <div className="war-room-hud__top">
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
@@ -533,7 +599,10 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                 <i className="war-room-bar"><em className="is-stamina" style={{ width: `${Math.max(0, hud.player.stamina)}%` }} /></i>
               </div>
               <div className="war-room-ammo">
-                <span>{WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.name ?? "Silah"}</span>
+                <span>
+                  {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.name ?? "Silah"}
+                  <small>{WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.className ?? ""}</small>
+                </span>
                 <strong>
                   {hud.reloading
                     ? "DOLDURULUYOR"

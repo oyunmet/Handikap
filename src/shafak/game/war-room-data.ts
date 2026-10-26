@@ -1,4 +1,16 @@
-export type WarRoomWeaponId = "powder_rifle" | "sidearm" | "scattergun" | "crossbow" | "longbow";
+export type BlasterWeaponClass = "rifle" | "pistol" | "shotgun" | "light" | "heavy";
+export type WarRoomWeaponId =
+  | "powder_rifle" | "sidearm" | "scattergun" | "crossbow" | "longbow"
+  | `blaster_${"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r"}`;
+
+export type WarRoomWeaponMount = {
+  position: readonly [number, number, number];
+  rotation: readonly [number, number, number];
+  scale: number;
+  muzzle?: readonly [number, number, number];
+  muzzleEnd?: -1 | 1;
+  muzzleOffsetZ?: number;
+};
 
 export const WAR_ROOM_CHARACTER_HEIGHT = 1.92;
 export const WAR_ROOM_COMMANDER_SCALE = 1.3;
@@ -18,8 +30,15 @@ export type WarRoomWeapon = {
   spread: number;
   headshotMultiplier: number;
   range: number;
-  modelFile: string;
-  modelSize: readonly [number, number, number];
+  modelFile: string | null;
+  modelSize?: readonly [number, number, number];
+  normalizeLength?: number;
+  sourceBounds?: readonly [number, number, number];
+  storeItemId?: string;
+  priceGold?: number;
+  rarity?: "Sıradan" | "Nadir" | "Epik" | "Efsanevi";
+  weaponClass?: BlasterWeaponClass;
+  mount?: WarRoomWeaponMount;
   automatic?: boolean;
   pellets?: number;
   charge?: boolean;
@@ -41,7 +60,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.008,
     headshotMultiplier: 1.8,
     range: 62,
-    modelFile: "rifle.glb",
+    modelFile: null,
     modelSize: [0.25, 0.25, 1.72],
     automatic: true,
     color: "#f3c77b",
@@ -60,7 +79,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.014,
     headshotMultiplier: 2,
     range: 42,
-    modelFile: "pistol.glb",
+    modelFile: null,
     modelSize: [0.21, 0.18, 0.43],
     color: "#e4b582",
   },
@@ -78,7 +97,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.075,
     headshotMultiplier: 1.65,
     range: 21,
-    modelFile: "shotgun.glb",
+    modelFile: null,
     modelSize: [0.28, 0.27, 1.8],
     pellets: 7,
     color: "#ffbf76",
@@ -97,7 +116,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.0025,
     headshotMultiplier: 2.25,
     range: 58,
-    modelFile: "crossbow.glb",
+    modelFile: null,
     modelSize: [1.3, 0.3, 1.54],
     color: "#b7e7d1",
   },
@@ -115,10 +134,136 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     spread: 0.012,
     headshotMultiplier: 2.1,
     range: 52,
-    modelFile: "bow.glb",
+    modelFile: null,
     modelSize: [0.24, 1.5, 0.2],
     charge: true,
     color: "#b7d9ff",
+  },
+  {
+    id: "blaster_a", name: "Kül Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    rarity: "Sıradan", storeItemId: "war_room_blaster_a", priceGold: 320,
+    damage: 18, fireInterval: 0.115, magazine: 30, reserve: 90, reloadSeconds: 1.95, recoil: 0.024, spread: 0.009, headshotMultiplier: 1.8, range: 58,
+    modelFile: "blaster-a.glb", sourceBounds: [0.1838, 0.4559, 0.8], normalizeLength: 1,
+    automatic: true, color: "#83a7ae", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_b", name: "Kül Kıvılcımı", icon: "⌖", className: "Tabanca", weaponClass: "pistol",
+    rarity: "Sıradan", storeItemId: "war_room_blaster_b", priceGold: 240,
+    damage: 25, fireInterval: 0.31, magazine: 12, reserve: 60, reloadSeconds: 1.45, recoil: 0.043, spread: 0.015, headshotMultiplier: 2, range: 38,
+    modelFile: "blaster-b.glb", sourceBounds: [0.155, 0.3105, 0.4201], normalizeLength: 0.25,
+    color: "#c38d59", mount: { position: [0.015, -0.012, -0.035], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_c", name: "Kırıktaş Yarması", icon: "✣", className: "Pompalı", weaponClass: "shotgun",
+    rarity: "Nadir", storeItemId: "war_room_blaster_c", priceGold: 690,
+    damage: 8, fireInterval: 0.78, magazine: 7, reserve: 35, reloadSeconds: 2.1, recoil: 0.086, spread: 0.072, headshotMultiplier: 1.65, range: 22,
+    modelFile: "blaster-c.glb", sourceBounds: [0.165, 0.3379, 0.4754], normalizeLength: 0.62,
+    pellets: 8, color: "#cc8b52", mount: { position: [0.02, -0.025, -0.055], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_d", name: "Demir Hat Tüfeği", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    rarity: "Nadir", storeItemId: "war_room_blaster_d", priceGold: 740,
+    damage: 20, fireInterval: 0.13, magazine: 28, reserve: 84, reloadSeconds: 2, recoil: 0.029, spread: 0.008, headshotMultiplier: 1.85, range: 62,
+    modelFile: "blaster-d.glb", sourceBounds: [0.165, 0.3719, 0.9079], normalizeLength: 1,
+    automatic: true, color: "#a5b3b6", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_e", name: "Uzun Kül Tüfeği", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    rarity: "Epik", storeItemId: "war_room_blaster_e", priceGold: 1180,
+    damage: 25, fireInterval: 0.24, magazine: 18, reserve: 72, reloadSeconds: 2.3, recoil: 0.044, spread: 0.006, headshotMultiplier: 2.05, range: 82,
+    modelFile: "blaster-e.glb", sourceBounds: [0.1664, 0.405, 1.39], normalizeLength: 1,
+    color: "#c5a778", mount: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_f", name: "Kızıl Barutçu", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    rarity: "Efsanevi", storeItemId: "war_room_blaster_f", priceGold: 1780,
+    damage: 27, fireInterval: 0.26, magazine: 20, reserve: 80, reloadSeconds: 2.35, recoil: 0.048, spread: 0.006, headshotMultiplier: 2.1, range: 86,
+    modelFile: "blaster-f.glb", sourceBounds: [0.17, 0.445, 1.31], normalizeLength: 1,
+    color: "#d9775e", mount: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_g", name: "Yolcu Tüfeği", icon: "⌁", className: "Hafif tüfek", weaponClass: "rifle",
+    rarity: "Sıradan", storeItemId: "war_room_blaster_g", priceGold: 360,
+    damage: 16, fireInterval: 0.1, magazine: 34, reserve: 102, reloadSeconds: 1.8, recoil: 0.022, spread: 0.011, headshotMultiplier: 1.75, range: 54,
+    modelFile: "blaster-g.glb", sourceBounds: [0.2, 0.3579, 0.7859], normalizeLength: 1,
+    automatic: true, color: "#78ad9a", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_h", name: "İzci Hafifliği", icon: "⌁", className: "Hafif tüfek", weaponClass: "light",
+    rarity: "Nadir", storeItemId: "war_room_blaster_h", priceGold: 580,
+    damage: 15, fireInterval: 0.095, magazine: 32, reserve: 96, reloadSeconds: 1.7, recoil: 0.019, spread: 0.012, headshotMultiplier: 1.75, range: 48,
+    modelFile: "blaster-h.glb", sourceBounds: [0.165, 0.2745, 0.648], normalizeLength: 0.78,
+    automatic: true, color: "#79b8aa", mount: { position: [0.018, -0.018, -0.045], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_i", name: "Sis Kısa Tüfeği", icon: "⌁", className: "Hafif tüfek", weaponClass: "light",
+    rarity: "Sıradan", storeItemId: "war_room_blaster_i", priceGold: 390,
+    damage: 14, fireInterval: 0.09, magazine: 36, reserve: 108, reloadSeconds: 1.65, recoil: 0.018, spread: 0.014, headshotMultiplier: 1.7, range: 44,
+    modelFile: "blaster-i.glb", sourceBounds: [0.165, 0.32, 0.52], normalizeLength: 0.72,
+    automatic: true, color: "#84a9a2", mount: { position: [0.018, -0.018, -0.045], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_j", name: "Demir Namlulu", icon: "⌁", className: "Ağır tüfek", weaponClass: "heavy",
+    rarity: "Nadir", storeItemId: "war_room_blaster_j", priceGold: 720,
+    damage: 23, fireInterval: 0.21, magazine: 16, reserve: 64, reloadSeconds: 2.1, recoil: 0.042, spread: 0.007, headshotMultiplier: 1.95, range: 68,
+    modelFile: "blaster-j.glb", sourceBounds: [0.155, 0.3619, 0.61], normalizeLength: 0.82,
+    color: "#aa9c83", mount: { position: [0.02, -0.022, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_k", name: "Kül Cep Tabancası", icon: "⌖", className: "Tabanca", weaponClass: "pistol",
+    rarity: "Sıradan", storeItemId: "war_room_blaster_k", priceGold: 260,
+    damage: 23, fireInterval: 0.28, magazine: 14, reserve: 70, reloadSeconds: 1.4, recoil: 0.04, spread: 0.016, headshotMultiplier: 1.95, range: 35,
+    modelFile: "blaster-k.glb", sourceBounds: [0.155, 0.3338, 0.4604], normalizeLength: 0.25,
+    color: "#ba9164", mount: { position: [0.015, -0.012, -0.035], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_l", name: "Mühürlü Hafif Tüfek", icon: "⌁", className: "Hafif tüfek", weaponClass: "light",
+    rarity: "Epik", storeItemId: "war_room_blaster_l", priceGold: 1120,
+    damage: 17, fireInterval: 0.085, magazine: 38, reserve: 114, reloadSeconds: 1.75, recoil: 0.02, spread: 0.009, headshotMultiplier: 1.85, range: 56,
+    modelFile: "blaster-l.glb", sourceBounds: [0.2438, 0.3279, 0.5504], normalizeLength: 0.8,
+    automatic: true, color: "#87b5bd", mount: { position: [0.018, -0.018, -0.045], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_m", name: "Kızıl Ağır Tüfek", icon: "⌁", className: "Ağır tüfek", weaponClass: "heavy",
+    rarity: "Epik", storeItemId: "war_room_blaster_m", priceGold: 1240,
+    damage: 24, fireInterval: 0.23, magazine: 17, reserve: 68, reloadSeconds: 2.15, recoil: 0.046, spread: 0.006, headshotMultiplier: 2, range: 73,
+    modelFile: "blaster-m.glb", sourceBounds: [0.165, 0.3374, 0.6201], normalizeLength: 0.86,
+    color: "#c06c61", mount: { position: [0.02, -0.022, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_n", name: "Yol Hafifliği", icon: "⌁", className: "Hafif tüfek", weaponClass: "light",
+    rarity: "Sıradan", storeItemId: "war_room_blaster_n", priceGold: 410,
+    damage: 15, fireInterval: 0.1, magazine: 30, reserve: 90, reloadSeconds: 1.7, recoil: 0.021, spread: 0.012, headshotMultiplier: 1.75, range: 49,
+    modelFile: "blaster-n.glb", sourceBounds: [0.17, 0.33, 0.6401], normalizeLength: 0.76,
+    automatic: true, color: "#85aa91", mount: { position: [0.018, -0.018, -0.045], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_o", name: "Kale Yaranı", icon: "✣", className: "Pompalı", weaponClass: "shotgun",
+    rarity: "Efsanevi", storeItemId: "war_room_blaster_o", priceGold: 1820,
+    damage: 10, fireInterval: 0.9, magazine: 5, reserve: 30, reloadSeconds: 2.3, recoil: 0.1, spread: 0.08, headshotMultiplier: 1.7, range: 25,
+    modelFile: "blaster-o.glb", sourceBounds: [0.245, 0.3338, 0.48], normalizeLength: 0.68,
+    pellets: 9, color: "#d39653", mount: { position: [0.02, -0.025, -0.055], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_p", name: "Surlu Muhafız Tüfeği", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    rarity: "Nadir", storeItemId: "war_room_blaster_p", priceGold: 780,
+    damage: 19, fireInterval: 0.12, magazine: 30, reserve: 90, reloadSeconds: 1.95, recoil: 0.027, spread: 0.008, headshotMultiplier: 1.85, range: 61,
+    modelFile: "blaster-p.glb", sourceBounds: [0.16, 0.3709, 0.8621], normalizeLength: 1,
+    automatic: true, color: "#9eb2ae", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_q", name: "Kor Ağır Atıcısı", icon: "⌁", className: "Ağır tüfek", weaponClass: "heavy",
+    rarity: "Epik", storeItemId: "war_room_blaster_q", priceGold: 1280,
+    damage: 26, fireInterval: 0.3, magazine: 14, reserve: 56, reloadSeconds: 2.25, recoil: 0.052, spread: 0.005, headshotMultiplier: 2.1, range: 79,
+    modelFile: "blaster-q.glb", sourceBounds: [0.17, 0.3238, 0.7104], normalizeLength: 0.92,
+    color: "#c68e54", mount: { position: [0.02, -0.022, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
+  },
+  {
+    id: "blaster_r", name: "Gece Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    rarity: "Efsanevi", storeItemId: "war_room_blaster_r", priceGold: 1900,
+    damage: 26, fireInterval: 0.22, magazine: 24, reserve: 96, reloadSeconds: 2.05, recoil: 0.036, spread: 0.005, headshotMultiplier: 2.15, range: 82,
+    modelFile: "blaster-r.glb", sourceBounds: [0.18, 0.4009, 0.6834], normalizeLength: 0.92,
+    automatic: true, color: "#8faeaa", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
   },
 ] as const;
 
@@ -126,16 +271,22 @@ export const WAR_ROOM_WEAPON_BY_ID = new Map(
   WAR_ROOM_WEAPONS.map((weapon) => [weapon.id, weapon]),
 );
 
-export const WAR_ROOM_WEAPON_MOUNTS = {
+const legacyWeaponMounts = {
   powder_rifle: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 0.58, muzzle: [0, 0.03, -1.23] },
   sidearm: { position: [0.015, -0.01, -0.035], rotation: [0, 0, 0], scale: 0.58, muzzle: [0, 0.03, -0.63] },
   scattergun: { position: [0.02, -0.035, -0.08], rotation: [0, 0, 0], scale: 0.5, muzzle: [0, 0.03, -1.11] },
   crossbow: { position: [0, -0.02, -0.06], rotation: [0, 0, 0], scale: 0.52, muzzle: [0, 0.05, -0.8] },
   longbow: { position: [0, -0.01, -0.045], rotation: [0, 0, 0], scale: 0.56, muzzle: [0, 0.02, -0.68] },
-} as const satisfies Record<
-  WarRoomWeaponId,
-  { position: readonly [number, number, number]; rotation: readonly [number, number, number]; scale: number; muzzle: readonly [number, number, number] }
->;
+} as const;
+
+export const WAR_ROOM_WEAPON_MOUNTS = {
+  ...legacyWeaponMounts,
+  ...Object.fromEntries(
+    WAR_ROOM_WEAPONS
+      .filter((weapon) => weapon.mount)
+      .map((weapon) => [weapon.id, weapon.mount]),
+  ),
+} as Record<WarRoomWeaponId, WarRoomWeaponMount>;
 
 export type WarRoomBlockerKind = "wall" | "cover" | "tower" | "platform";
 

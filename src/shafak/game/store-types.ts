@@ -48,6 +48,7 @@ export type EquipmentVisual = {
 
 export type StoreItem = {
   id: string;
+  warRoomWeaponId?: string;
   name: string;
   category: StoreCategory;
   kind: "equipment" | "consumable" | "material";

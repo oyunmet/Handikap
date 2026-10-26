@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WAR_ROOM_WEAPONS } from "./war-room-data.ts";
+import { STORE_CATALOG } from "./store-catalog.ts";
 import {
   applyWarRoomDamage,
   createWarRoomRuntime,
@@ -20,8 +21,8 @@ test("the room starts with eight guards and a durable commander", () => {
   assert.equal(runtime.player.ammo.crossbow?.magazine, 1);
 });
 
-test("all five weapons expose complete, valid shooter settings", () => {
-  assert.equal(WAR_ROOM_WEAPONS.length, 5);
+test("all War Room weapons expose complete, valid shooter settings", () => {
+  assert.equal(WAR_ROOM_WEAPONS.length, 23);
   for (const weapon of WAR_ROOM_WEAPONS) {
     for (const key of ["damage", "fireInterval", "magazine", "reserve", "reloadSeconds", "recoil", "spread", "headshotMultiplier", "range"]) {
       assert.ok(weapon[key] > 0, `${weapon.id} must define a positive ${key}`);
@@ -31,14 +32,28 @@ test("all five weapons expose complete, valid shooter settings", () => {
   assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "sidearm")?.magazine, 12);
   assert.ok((WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "scattergun")?.pellets ?? 0) > 1);
   assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "longbow")?.charge, true);
+  const blasters = WAR_ROOM_WEAPONS.filter((weapon) => weapon.id.startsWith("blaster_"));
+  assert.equal(blasters.length, 18);
+  assert.equal(new Set(blasters.map((weapon) => weapon.modelFile)).size, 18);
+  assert.equal(new Set(blasters.map((weapon) => weapon.name)).size, 18);
+  assert.ok(blasters.every((weapon) => !/\d/.test(weapon.name)));
+  assert.ok(blasters.every((weapon) =>
+    weapon.sourceBounds?.every((dimension) => dimension > 0)
+    && weapon.normalizeLength
+    && weapon.storeItemId
+    && weapon.rarity
+    && weapon.weaponClass
+    && weapon.mount?.muzzleEnd === -1
+    && STORE_CATALOG.some((item) => item.id === weapon.storeItemId && item.warRoomWeaponId === weapon.id),
+  ));
 });
 
-test("weapon GLB fallbacks are mapped and normalize rifle and pistol to their target lengths", () => {
+test("missing legacy weapon GLBs keep procedural fallbacks", () => {
   const rifle = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "powder_rifle");
   const pistol = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "sidearm");
   assert.deepEqual(
-    WAR_ROOM_WEAPONS.map((weapon) => weapon.modelFile),
-    ["rifle.glb", "pistol.glb", "shotgun.glb", "crossbow.glb", "bow.glb"],
+    WAR_ROOM_WEAPONS.slice(0, 5).map((weapon) => weapon.modelFile),
+    [null, null, null, null, null],
   );
   assert.ok(Math.abs(rifle.modelSize[2] * 0.58 - 1) < 0.02);
   assert.ok(Math.abs(pistol.modelSize[2] * 0.58 - 0.25) < 0.02);
@@ -72,4 +87,10 @@ test("owned bows and crossbows are mapped into the room loadout", () => {
 
 test("profiles without a ranged inventory item receive the default loadout", () => {
   assert.deepEqual(getWarRoomLoadoutFromProfile(defaultProfile), ["powder_rifle", "crossbow"]);
+});
+
+test("owned Blaster Kit items are selectable in the War Room loadout", () => {
+  const profile = structuredClone(defaultProfile);
+  profile.inventory.ownedItemIds.push("war_room_blaster_a", "war_room_blaster_b");
+  assert.deepEqual(getWarRoomLoadoutFromProfile(profile), ["blaster_a", "blaster_b"]);
 });

@@ -160,7 +160,8 @@ export default function StorePanel({
         );
     }
     return items
-      .filter((item) => item.category === activeTab && (activeTab !== "weapons" || isCoreWeapon(item.id)))
+      .filter((item) => item.category === activeTab
+        && (activeTab !== "weapons" || isCoreWeapon(item.id) || Boolean(item.warRoomWeaponId)))
       .sort((left, right) => ({ common: 0, rare: 1, epic: 2, legendary: 3 }[left.rarity] - { common: 0, rare: 1, epic: 2, legendary: 3 }[right.rarity]));
   }, [activeTab, dailyOfferRevision, items, ownedSet, profile.inventory.combatItemCounts, profile.materials]);
   const selected = visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
@@ -586,7 +587,32 @@ export default function StorePanel({
                 )}
 
                 <div className="safak-store__actions">
-                  {selected.kind !== "equipment" || !selectedOwned ? (
+                  {selected.warRoomWeaponId ? (
+                    selectedOwned ? (
+                      <>
+                        <p className="safak-store__funds-warning" role="status">
+                          Bu silah Savaş Odası hazırlığında seçilebilir; normal düello donanımına takılmaz.
+                        </p>
+                        <button
+                          className="safak-store__secondary"
+                          type="button"
+                          onClick={() => setConfirming({ item: selected, operation: "sell" })}
+                          disabled={!canManageProfile || !getItemSellValue(selected).gold || loading || !!busyItemId}
+                        >
+                          SAT · {getItemSellValue(selected).gold} ALTIN
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="safak-store__primary"
+                        type="button"
+                        onClick={handlePurchase}
+                        disabled={!canManageProfile || !affordable || selected.dropOnly || selectedLevelLocked || loading || !!busyItemId}
+                      >
+                        {isBusy ? "İŞLENİYOR…" : "SATIN AL"}
+                      </button>
+                    )
+                  ) : selected.kind !== "equipment" || !selectedOwned ? (
                     <button
                       className="safak-store__primary"
                       type="button"

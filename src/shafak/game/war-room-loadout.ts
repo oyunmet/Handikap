@@ -1,7 +1,7 @@
 import { getStoreItem } from "./store-catalog";
 import type { PlayerProfile } from "./profile";
 import { getWeaponDefinition } from "./weapons";
-import type { WarRoomWeaponId } from "./war-room-data";
+import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "./war-room-data";
 
 export const DEFAULT_WAR_ROOM_LOADOUT: readonly [WarRoomWeaponId, WarRoomWeaponId] = [
   "powder_rifle",
@@ -9,6 +9,10 @@ export const DEFAULT_WAR_ROOM_LOADOUT: readonly [WarRoomWeaponId, WarRoomWeaponI
 ];
 
 function getWarRoomWeaponId(itemId: string): WarRoomWeaponId | null {
+  const roomWeaponId = getStoreItem(itemId)?.warRoomWeaponId;
+  if (roomWeaponId && WAR_ROOM_WEAPON_BY_ID.has(roomWeaponId as WarRoomWeaponId)) {
+    return roomWeaponId as WarRoomWeaponId;
+  }
   const definition = getWeaponDefinition(itemId);
   if (definition?.animationId === "bow-shot") return "longbow";
   if (definition?.animationId === "crossbow-shot") return "crossbow";

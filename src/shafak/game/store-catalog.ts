@@ -1,6 +1,7 @@
 import type { EquipmentSlot, StoreItem } from "./store-types.ts";
 import { STORE_BALANCE_CONFIG } from "./store-balance.ts";
 import { WEAPONS } from "./weapons.ts";
+import { WAR_ROOM_WEAPONS } from "./war-room-data.ts";
 
 const item = (
   id: string,
@@ -109,8 +110,31 @@ const coreWeaponItems: StoreItem[] = WEAPONS.map((weapon) => ({
   icon: weapon.icon,
 }));
 
+const warRoomWeaponItems: StoreItem[] = WAR_ROOM_WEAPONS
+  .filter((weapon) => weapon.storeItemId && weapon.weaponClass && weapon.rarity && weapon.priceGold !== undefined)
+  .map((weapon) => ({
+    id: weapon.storeItemId!,
+    warRoomWeaponId: weapon.id,
+    name: weapon.name,
+    category: "weapons",
+    kind: "equipment",
+    slot: null,
+    rarity: weapon.rarity === "Sıradan" ? "common"
+      : weapon.rarity === "Nadir" ? "rare"
+        : weapon.rarity === "Epik" ? "epic" : "legendary",
+    description: `Savaş Odası için ${weapon.className.toLocaleLowerCase("tr-TR")}. Hazırlık ekranında iki silah yuvasından birine seçilebilir.`,
+    summary: `${weapon.className} · ${weapon.magazine} mermi · menzil ${weapon.range} m`,
+    price: { gold: weapon.priceGold!, diamonds: 0 },
+    sellValue: { gold: Math.floor(weapon.priceGold! * STORE_BALANCE_CONFIG.sellReturnRate), diamonds: 0 },
+    stats: {},
+    upgradeable: false,
+    visual: { weaponColor: weapon.color },
+    icon: weapon.icon,
+  }));
+
 export const STORE_CATALOG: readonly StoreItem[] = [
   ...coreWeaponItems,
+  ...warRoomWeaponItems,
   item("armor_ash_guard", "Kül Muhafızı", "armor", "armor", "common", "Kül Yolu'nun eski muhafızlarından kalan sade zırh.", "Başlangıç zırhı", { gold: 0, diamonds: 0 }, {}, true, { armor: "#252832", armorLight: "#41444c", armorDark: "#15171d", trim: "#c99c52", armorStyle: "ash" }),
   item("shield_wooden", "Tahta Kalkan", "armor", "offhand", "common", "Hafif bir tahta kalkan; ilk darbeleri karşılamak için.", "Savunma +%3 · başlangıç yan eli", { gold: 160, diamonds: 0 }, { defense: 0.03, health: 2 }, true, { shieldColor: "#8a603e", shieldStyle: "round", trim: "#b99363" }),
   item("shield_iron", "Demir Kalkan", "armor", "offhand", "rare", "Metal kenarlı, sağlam demir kalkan.", "Savunma +%7 · can +4", { gold: 420, diamonds: 0 }, { defense: 0.07, health: 4, moveSpeed: -0.015 }, true, { shieldColor: "#65717a", shieldStyle: "round", trim: "#d2bd87" }),

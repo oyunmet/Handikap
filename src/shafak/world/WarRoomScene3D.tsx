@@ -9,6 +9,7 @@ import {
   WAR_ROOM_WEAPON_BY_ID,
   WAR_ROOM_WEAPON_MOUNTS,
   type WarRoomBlocker,
+  type WarRoomWeaponMount,
   type WarRoomWeaponId,
 } from "../game/war-room-data";
 import { traceWarRoomRay } from "../game/war-room-aim";
@@ -38,6 +39,7 @@ type Props = {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
+  weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
@@ -448,19 +450,21 @@ function Battlefield() {
 
 function WeaponModel({
   weaponId,
+  mount,
   muzzleAnchorRef,
   muzzleFlashRef,
 }: {
   weaponId: WarRoomWeaponId;
+  mount: WarRoomWeaponMount;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
   muzzleFlashRef?: MutableRefObject<THREE.Mesh | null>;
 }) {
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const crossbow = weaponId === "crossbow";
   const bow = weaponId === "longbow";
-  const sidearm = weaponId === "sidearm";
-  const shotgun = weaponId === "scattergun";
-  const muzzle = WAR_ROOM_WEAPON_MOUNTS[weaponId].muzzle;
+  const sidearm = weaponId === "sidearm" || weapon.weaponClass === "pistol";
+  const shotgun = weaponId === "scattergun" || weapon.weaponClass === "shotgun";
+  const muzzle = mount.muzzle ?? [0, 0.02, -(weapon.normalizeLength ?? weapon.modelSize?.[2] ?? 0.6) / 2] as const;
   const barrelLength = Math.max(0.08, Math.abs(muzzle[2] + 0.25));
   const bodyWidth = crossbow ? 0.72 : bow ? 0.15 : sidearm ? 0.25 : 0.3;
   const proceduralFallback = (
@@ -514,16 +518,22 @@ function WeaponModel({
   );
   return (
     <group name={`war-room-weapon:${weapon.id}`} position={[0, 0, 0]}>
-      <WarRoomAssetBoundary fallback={proceduralFallback}>
-        <Suspense fallback={proceduralFallback}>
-          <WarRoomStaticModel
-            src={`/models/weapons/${weapon.modelFile}`}
-            position={[0, 0, 0]}
-            targetSize={weapon.modelSize}
-            muzzleAnchorRef={muzzleAnchorRef}
-          />
-        </Suspense>
-      </WarRoomAssetBoundary>
+      {weapon.modelFile ? (
+        <WarRoomAssetBoundary fallback={proceduralFallback}>
+          <Suspense fallback={proceduralFallback}>
+            <WarRoomStaticModel
+              src={`/models/weapons/${weapon.modelFile}`}
+              position={[0, 0, 0]}
+              targetSize={weapon.modelSize ?? [1, 1, 1]}
+              uniformFitLength={weapon.normalizeLength}
+              muzzleEnd={mount.muzzleEnd}
+              muzzleOffsetZ={mount.muzzleOffsetZ}
+              fallbackColor={weapon.color}
+              muzzleAnchorRef={muzzleAnchorRef}
+            />
+          </Suspense>
+        </WarRoomAssetBoundary>
+      ) : proceduralFallback}
       <group ref={muzzleAnchorRef} name="war-room-muzzle-anchor" position={muzzle}>
         <mesh
           ref={muzzleFlashRef}
@@ -563,19 +573,21 @@ function PlayerActor({
   runtimeRef,
   inputRef,
   weaponId,
+  weaponMountOverrides,
   rootRef,
   muzzleRef,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
   weaponId: WarRoomWeaponId;
+  weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   rootRef: MutableRefObject<THREE.Group | null>;
   muzzleRef: MutableRefObject<THREE.Group | null>;
 }) {
   const recoilRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Mesh>(null);
   const modelRef = useRef<THREE.Group | null>(null);
-  const mount = WAR_ROOM_WEAPON_MOUNTS[weaponId];
+  const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   useFrame((_, delta) => {
     const player = runtimeRef.current.player;
     const root = rootRef.current;
@@ -661,6 +673,7 @@ function PlayerActor({
         <group position={[0, 0.03, -0.08]}>
           <WeaponModel
             weaponId={weaponId}
+            mount={mount}
             muzzleAnchorRef={muzzleRef}
             muzzleFlashRef={muzzleFlashRef}
           />
@@ -833,6 +846,7 @@ function EnemyActor({
       <group ref={weaponMountRef} name={`enemy-weapon:${enemy.id}`} visible={false}>
         <WeaponModel
           weaponId="powder_rifle"
+          mount={WAR_ROOM_WEAPON_MOUNTS.powder_rifle}
           muzzleAnchorRef={muzzleAnchorRef}
           muzzleFlashRef={muzzleFlashRef}
         />
@@ -893,6 +907,7 @@ function WarRoomRuntimeScene({
   runtimeRef,
   inputRef,
   weaponIds,
+  weaponMountOverrides,
   onHudUpdate,
   onFinish,
 }: Props) {
@@ -1516,6 +1531,7 @@ function WarRoomRuntimeScene({
         runtimeRef={runtimeRef}
         inputRef={inputRef}
         weaponId={activeWeapon}
+        weaponMountOverrides={weaponMountOverrides}
         rootRef={playerRootRef}
         muzzleRef={playerMuzzleRef}
       />

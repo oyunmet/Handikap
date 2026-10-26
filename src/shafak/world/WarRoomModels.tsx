@@ -19,6 +19,7 @@ import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
+import { WAR_ROOM_WEAPONS } from "../game/war-room-data";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/player-hero.glb",
@@ -29,6 +30,9 @@ export const WAR_ROOM_MODEL_URLS = [
   "/models/war-room/flag-pennant.glb",
   "/models/war-room/siege-ballista.glb",
   "/models/war-room/rocks-large.glb",
+  ...new Set(WAR_ROOM_WEAPONS
+    .filter((weapon) => weapon.weaponClass && weapon.modelFile)
+    .map((weapon) => `/models/weapons/${weapon.modelFile}`)),
 ] as const;
 
 const MISSING_COLORMAP_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAC6klEQVR42r2WuW4VQRQF+9uIyQjZxS72BPsthoTFNthsqfeU1X9IoWpdjqYTS9ZDGge+I53Sm6l7etqlixdWejX+dl7e3331YHN2a2t+e3tx5/3y7oeNe8xPvi73dl7s764dfFw//DQ7+jw//rJgvvbw8vqjK7PHV+dPri2eXl8+u7Hx/Cbz7/tvfhy8/Xn47tfR5u/jrdOT7W97r/8CSIQBgHSigUFiThwA0okGBgmMANKJJhcSGBjMSSeaXEhgYHQAceQCgEQ6GHjMyQVAKOlg4MEQQCjpYIiGAYw5oaSDIRoGsA4glGgAYICRDoM50QDAkEs6DEgCSCSXdBiQ4DEnkVzSYUCC1wHkkgiAaEgwQDInEQDRkGCQDkwA0YTCIB0YGOZEEwqDdGBgOoB0QgGQCwMeGOaEAiAXBtFgQAogFwbRYEiHxJxcGESDIR1SBxA9XsxJHy8B48WcuPFqK98D5dNI/p/Ip5H+/JRPIzVwtFxBzGzKp5HcmMinkTqe8mmkSzpa7vszsymfRnJjIp9GakjKp5EKMlpuC5jZlE8juTGRTyOtgZRPI92h0XKX1MymfBrJjYl8GukSpXwaac2MlrtDZrbzKHgWxZsdaXFyY9KRFqc9kx1pcdoCYxlblGa2/3EepJGlqc+9jCxNfSzZu2qq+9m7XVPdLyNLUx9LGVmaCsjeVVPNyd7tmrq9ZWRp6nKVkaWpgOxdNfW5Z+92TX2xZWRpqvtlZGkqIHtXTV2u7N2u6SrUzKu5XGVkaWrBlZGlqYD8PFBT+yc/D/5pmsVZbWr/VHFWmwrIzwPb1O3Nz4Pepivfg+xI+z3l00gNSfk0UkFGy328/dDPjrS8Uj6N9PmmfBrpDo2Wu6T90M+O9ABJ+TTSJUr5NNL3N1ruDvVD/zwKnkXxlh3pCZXyaaQ9k/JppC0wWq6B/ds0j3LrN+XTSLc05dNIi3K03B7r36Z5lHsEZkdanDqeHWlxuqRjGVszZv4BWf6KytMsO2cAAAAASUVORK5CYII=";
@@ -87,6 +91,10 @@ type StaticModelProps = {
   position: readonly [number, number, number];
   rotation?: readonly [number, number, number];
   targetSize: TargetSize;
+  uniformFitLength?: number;
+  muzzleEnd?: -1 | 1;
+  muzzleOffsetZ?: number;
+  fallbackColor?: string;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
 };
 
@@ -95,6 +103,10 @@ export function WarRoomStaticModel({
   position,
   rotation = [0, 0, 0],
   targetSize,
+  uniformFitLength,
+  muzzleEnd,
+  muzzleOffsetZ = 0,
+  fallbackColor,
   muzzleAnchorRef,
 }: StaticModelProps) {
   const { scene } = useLoader(WarRoomStaticGLTFLoader, src, loadCharacter) as GLTF;
@@ -104,6 +116,22 @@ export function WarRoomStaticModel({
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = true;
+      if (fallbackColor) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        const tintedMaterials = materials.map((material) => {
+          const cloneMaterial = material.clone();
+          if (
+            (cloneMaterial instanceof THREE.MeshStandardMaterial || cloneMaterial instanceof THREE.MeshPhysicalMaterial)
+            && !cloneMaterial.map?.image
+          ) {
+            cloneMaterial.map = null;
+            cloneMaterial.color.set(fallbackColor);
+            cloneMaterial.needsUpdate = true;
+          }
+          return cloneMaterial;
+        });
+        object.material = Array.isArray(object.material) ? tintedMaterials : tintedMaterials[0];
+      }
     });
     const bounds = new THREE.Box3().setFromObject(clone);
     const size = bounds.getSize(new THREE.Vector3());
@@ -111,19 +139,25 @@ export function WarRoomStaticModel({
       throw new Error(`Modelin ölçüleri okunamadı: ${src}`);
     }
     const center = bounds.getCenter(new THREE.Vector3());
-    const scale = new THREE.Vector3(
-      targetSize[0] / size.x,
-      targetSize[1] / size.y,
-      targetSize[2] / size.z,
-    );
-    clone.scale.multiply(scale);
-    clone.position.set(
-      -center.x * scale.x,
-      -bounds.min.y * scale.y,
-      -center.z * scale.z,
-    );
+    if (uniformFitLength) {
+      const fitScale = uniformFitLength / Math.max(size.x, size.y, size.z);
+      clone.scale.multiplyScalar(fitScale);
+      clone.position.set(-center.x * fitScale, -center.y * fitScale, -center.z * fitScale);
+    } else {
+      const scale = new THREE.Vector3(
+        targetSize[0] / size.x,
+        targetSize[1] / size.y,
+        targetSize[2] / size.z,
+      );
+      clone.scale.multiply(scale);
+      clone.position.set(
+        -center.x * scale.x,
+        -bounds.min.y * scale.y,
+        -center.z * scale.z,
+      );
+    }
     return clone;
-  }, [scene, src, targetSize]);
+  }, [fallbackColor, scene, src, targetSize, uniformFitLength]);
 
   useLayoutEffect(() => {
     const anchor = muzzleAnchorRef?.current;
@@ -168,12 +202,20 @@ export function WarRoomStaticModel({
       }
     });
     if (modelBounds.isEmpty()) return;
+    if (muzzleEnd) {
+      anchor.position.set(
+        (modelBounds.min.x + modelBounds.max.x) / 2,
+        (modelBounds.min.y + modelBounds.max.y) / 2,
+        (muzzleEnd < 0 ? modelBounds.min.z : modelBounds.max.z) + muzzleOffsetZ,
+      );
+      return;
+    }
     anchor.position.set(
       (modelBounds.min.x + modelBounds.max.x) / 2,
       (modelBounds.min.y + modelBounds.max.y) / 2,
       modelBounds.min.z,
     );
-  }, [model, muzzleAnchorRef]);
+  }, [model, muzzleAnchorRef, muzzleEnd, muzzleOffsetZ]);
 
   return (
     <group position={position} rotation={rotation}>
