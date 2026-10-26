@@ -39,7 +39,12 @@ import {
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "../game/war-room-engine";
-import { playWarRoomSound, type WarRoomShotStyle } from "../game/war-room-audio";
+import {
+  playWarRoomSound,
+  type WarRoomShotStyle,
+  type WarRoomSoundOptions,
+  type WarRoomSoundSurface,
+} from "../game/war-room-audio";
 import {
   WarRoomAnimatedActor,
   WarRoomAssetBoundary,
@@ -79,6 +84,32 @@ const WAR_ROOM_DECAL_COLORS = [
   new THREE.Color("#43392f"),
   new THREE.Color("#614837"),
 ] as const;
+
+function getWarRoomFootstepSurface(x: number, z: number): WarRoomSoundSurface {
+  const nearStone = WAR_ROOM_BLOCKERS.some((blocker) => {
+    const edgeX = Math.max(0, Math.abs(x - blocker.x) - blocker.width / 2);
+    const edgeZ = Math.max(0, Math.abs(z - blocker.z) - blocker.depth / 2);
+    return Math.hypot(edgeX, edgeZ) <= 0.9;
+  });
+  return nearStone ? "stone" : "earth";
+}
+
+function getWarRoomAudioOptions(
+  listener: { x: number; z: number; yaw: number },
+  sourceX: number,
+  sourceZ: number,
+  surface?: WarRoomSoundSurface,
+  heavy = false,
+): WarRoomSoundOptions {
+  return {
+    surface,
+    heavy,
+    spatial: {
+      source: { x: sourceX, z: sourceZ },
+      listener: { x: listener.x, z: listener.z, yaw: listener.yaw },
+    },
+  };
+}
 
 function createWarRoomMeleeDebugGeometry() {
   const segments = 28;
@@ -1540,6 +1571,7 @@ function WarRoomRuntimeScene({
   const slashLocalBase = useMemo(() => new THREE.Vector3(0, 0.02, -0.18), []);
   const slashLocalTip = useMemo(() => new THREE.Vector3(), []);
   const footDustAtRef = useRef(0);
+  const footstepAtRef = useRef(0);
   const previousJumpHeightRef = useRef(0);
   const tracerState = useMemo(() => ({
     geometry: new THREE.BufferGeometry(),
@@ -1843,7 +1875,6 @@ function WarRoomRuntimeScene({
     const impact = getMeleeAimHit(weapon.range + player.meleeAttackRangeBonus, player.meleeAttackYaw);
     const enemy = impact.enemy;
     if (!enemy) {
-      playWarRoomSound("melee-swing");
       player.meleeLastResult = `Iska · ${impact.reason}`;
       if (debugMode) {
         const missLabel: Record<WarRoomMeleeConeReason, string> = {
@@ -1885,7 +1916,18 @@ function WarRoomRuntimeScene({
       -0.025,
       Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
     );
-    playWarRoomSound("melee-hit");
+    playWarRoomSound(
+      "melee-hit",
+      1,
+      "rifle",
+      getWarRoomAudioOptions(
+        player,
+        enemy.x,
+        enemy.z,
+        enemy.commander ? "metal" : "flesh",
+        player.meleeAttackHeavy,
+      ),
+    );
     if (WAR_ROOM_POOLED_FX_ENABLED) {
       const effects = getWarRoomImpactFxProfile(
         bloodEffects,
@@ -1977,6 +2019,12 @@ function WarRoomRuntimeScene({
       player.meleeLastResult = plan.heavy
         ? "Ağır saldırı · hazırlık"
         : `Hafif saldırı · kombo ${plan.comboIndex + 1}/3`;
+      playWarRoomSound(
+        "melee-swing",
+        1,
+        "rifle",
+        getWarRoomAudioOptions(player, player.x, player.z, undefined, plan.heavy),
+      );
       player.shots += 1;
       player.lastHitDamage = 0;
       player.lastHitCritical = false;
@@ -1995,7 +2043,7 @@ function WarRoomRuntimeScene({
     const ammo = player.ammo[weaponId];
     if (!ammo || ammo.magazine <= 0) {
       if (now >= emptyClickAtRef.current) {
-        playWarRoomSound("empty");
+        playWarRoomSound("empty", 1, "rifle", getWarRoomAudioOptions(player, player.x, player.z));
         player.lastHitText = "CEPHANE BİTTİ · YENİDEN DOLDUR";
         player.hitMessageUntil = now + 1.1;
         emptyClickAtRef.current = now + 0.45;
@@ -2012,6 +2060,7 @@ function WarRoomRuntimeScene({
       weaponId === "longbow" || weaponId === "crossbow" ? "bow" : "shot",
       1,
       shotStyle,
+      getWarRoomAudioOptions(player, player.x, player.z),
     );
     ammo.magazine -= 1;
     player.shots += 1;
@@ -2232,6 +2281,20 @@ function WarRoomRuntimeScene({
       footDustAtRef.current = now + (landed ? 0.28 : 0.34);
     }
     previousJumpHeightRef.current = player.jumpHeight;
+    if (
+      player.jumpHeight <= 0.02
+      && Math.hypot(dx, dz) > 0.035
+      && now >= footstepAtRef.current
+    ) {
+      const surface = getWarRoomFootstepSurface(player.x, player.z);
+      playWarRoomSound(
+        "footstep",
+        player.crouched ? 0.38 : 0.68,
+        "rifle",
+        getWarRoomAudioOptions(player, player.x, player.z, surface),
+      );
+      footstepAtRef.current = now + (player.crouched ? 0.58 : inputLength > 0.7 ? 0.34 : 0.46);
+    }
     player.stamina = Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
     resolveMeleeContact(now, wallNow);
@@ -2243,7 +2306,7 @@ function WarRoomRuntimeScene({
       if (ammo && ammo.magazine < weapon.magazine && ammo.reserve > 0 && !player.reloadingWeapon) {
         player.reloadingWeapon = weaponId;
         player.reloadUntil = now + weapon.reloadSeconds;
-        playWarRoomSound("reload");
+        playWarRoomSound("reload", 1, "rifle", getWarRoomAudioOptions(player, player.x, player.z));
       }
       input.reloadPressed = false;
     }
@@ -2383,7 +2446,12 @@ function WarRoomRuntimeScene({
       spawnMuzzleSmoke(muzzle, now);
       spawnCasing(muzzle, now, Math.atan2(player.x - enemy.x, -(player.z - enemy.z)));
       const enemyDistance = Math.hypot(enemy.x - player.x, enemy.z - player.z);
-      playWarRoomSound("enemy-shot", Math.max(0.08, 1 - enemyDistance / 27), "rifle");
+      playWarRoomSound(
+        "enemy-shot",
+        1,
+        "rifle",
+        getWarRoomAudioOptions(player, enemy.x, enemy.z),
+      );
       const missSeed = now * 9 + runtime.enemies.indexOf(enemy) * 2.7;
       const target = new THREE.Vector3(
         player.x + Math.sin(missSeed) * 0.38,
@@ -2394,7 +2462,7 @@ function WarRoomRuntimeScene({
       if (nextWarRoomRandom(runtime) > (enemy.commander ? 0.25 : 0.38)) {
         const hit = applyWarRoomDamage(player, enemy.damage);
         if (hit.damage > 0) {
-          playWarRoomSound("hit");
+          playWarRoomSound("hit", 1, "rifle", getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"));
           player.lastDamageAt = now;
           player.invulnerableUntil = now + 0.28;
           player.damageDirection = shortestAngleDelta(

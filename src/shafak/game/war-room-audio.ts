@@ -1,143 +1,242 @@
-export type WarRoomSoundCue = "shot" | "enemy-shot" | "bow" | "empty" | "reload" | "hit" | "melee-swing" | "melee-hit";
+import { WAR_ROOM_SYNTH_AUDIO_ENABLED } from "./war-room-features";
+
+export type WarRoomSoundCue =
+  | "shot" | "enemy-shot" | "bow" | "empty" | "reload" | "hit"
+  | "melee-swing" | "melee-hit" | "footstep";
 export type WarRoomShotStyle = "rifle" | "shotgun" | "pistol";
+export type WarRoomSoundSurface = "flesh" | "metal" | "stone" | "earth";
+export const WAR_ROOM_AUDIO_VOICE_LIMIT = 4;
+
+export type WarRoomSpatialSound = {
+  source: { x: number; z: number };
+  listener: { x: number; z: number; yaw: number };
+};
+
+export type WarRoomSoundOptions = {
+  surface?: WarRoomSoundSurface;
+  heavy?: boolean;
+  spatial?: WarRoomSpatialSound;
+};
+
+type WarRoomSoundProfile = {
+  duration: number;
+  cutoffStart: number;
+  cutoffEnd: number;
+  frequencyStart: number;
+  frequencyEnd: number;
+  noiseGain: number;
+  toneGain: number;
+  toneType: OscillatorType;
+  pulses: number;
+};
+
+type WarRoomAudioVoice = {
+  busyUntil: number;
+  filter: BiquadFilterNode;
+  noiseGain: GainNode;
+  oscillator: OscillatorNode;
+  toneGain: GainNode;
+  panner: StereoPannerNode | null;
+};
 
 let muted = false;
 let audioContext: AudioContext | null = null;
-let noiseBuffer: AudioBuffer | null = null;
+let masterGain: GainNode | null = null;
+let audioVoices: WarRoomAudioVoice[] = [];
+
+export function isWarRoomMuted() {
+  return muted;
+}
+
+export function getWarRoomSpatialAudioMix(
+  sourceX: number,
+  sourceZ: number,
+  listenerX: number,
+  listenerZ: number,
+  listenerYaw: number,
+) {
+  const dx = sourceX - listenerX;
+  const dz = sourceZ - listenerZ;
+  const distance = Math.hypot(dx, dz);
+  const relativeAngle = Math.atan2(dx, -dz) - listenerYaw;
+  return {
+    distance,
+    attenuation: 1 / (1 + distance * 0.085),
+    pan: Math.max(-1, Math.min(1, Math.sin(relativeAngle))),
+  };
+}
+
+export function getWarRoomPitchVariation(randomValue: number) {
+  const normalized = Number.isFinite(randomValue) ? Math.max(0, Math.min(1, randomValue)) : 0.5;
+  return 0.94 + normalized * 0.12;
+}
+
+export function getWarRoomSoundProfile(
+  cue: WarRoomSoundCue,
+  options: Pick<WarRoomSoundOptions, "surface" | "heavy"> & { style?: WarRoomShotStyle } = {},
+): WarRoomSoundProfile {
+  const { surface = "flesh", heavy = false, style = "rifle" } = options;
+  if (cue === "shot" || cue === "enemy-shot") {
+    const shot = {
+      rifle: { duration: 0.105, cutoffStart: 1900, cutoffEnd: 360, frequencyStart: 116, frequencyEnd: 48, noiseGain: 0.07, toneGain: 0.055, toneType: "sawtooth" as OscillatorType },
+      shotgun: { duration: 0.2, cutoffStart: 1050, cutoffEnd: 220, frequencyStart: 82, frequencyEnd: 38, noiseGain: 0.12, toneGain: 0.08, toneType: "sawtooth" as OscillatorType },
+      pistol: { duration: 0.085, cutoffStart: 2600, cutoffEnd: 560, frequencyStart: 190, frequencyEnd: 68, noiseGain: 0.065, toneGain: 0.05, toneType: "square" as OscillatorType },
+    }[style];
+    const scale = cue === "enemy-shot" ? 0.72 : 1;
+    return { ...shot, noiseGain: shot.noiseGain * scale, toneGain: shot.toneGain * scale, pulses: 1 };
+  }
+  if (cue === "bow") {
+    return { duration: 0.16, cutoffStart: 1800, cutoffEnd: 380, frequencyStart: 540, frequencyEnd: 190, noiseGain: 0.018, toneGain: 0.035, toneType: "triangle", pulses: 1 };
+  }
+  if (cue === "melee-swing") {
+    return heavy
+      ? { duration: 0.2, cutoffStart: 1050, cutoffEnd: 210, frequencyStart: 230, frequencyEnd: 58, noiseGain: 0.055, toneGain: 0.036, toneType: "sawtooth", pulses: 1 }
+      : { duration: 0.14, cutoffStart: 3200, cutoffEnd: 780, frequencyStart: 360, frequencyEnd: 120, noiseGain: 0.032, toneGain: 0.022, toneType: "sawtooth", pulses: 1 };
+  }
+  if (cue === "melee-hit" || cue === "hit") {
+    if (surface === "metal") {
+      return { duration: 0.18, cutoffStart: 3600, cutoffEnd: 760, frequencyStart: 430, frequencyEnd: 96, noiseGain: 0.085, toneGain: 0.062, toneType: "triangle", pulses: 1 };
+    }
+    if (surface === "stone") {
+      return { duration: 0.14, cutoffStart: 1450, cutoffEnd: 280, frequencyStart: 170, frequencyEnd: 54, noiseGain: 0.075, toneGain: 0.05, toneType: "triangle", pulses: 1 };
+    }
+    return { duration: 0.11, cutoffStart: 720, cutoffEnd: 210, frequencyStart: 118, frequencyEnd: 48, noiseGain: 0.075, toneGain: 0.055, toneType: "triangle", pulses: 1 };
+  }
+  if (cue === "footstep") {
+    return surface === "stone"
+      ? { duration: 0.075, cutoffStart: 1500, cutoffEnd: 380, frequencyStart: 155, frequencyEnd: 76, noiseGain: 0.028, toneGain: 0.024, toneType: "triangle", pulses: 1 }
+      : { duration: 0.1, cutoffStart: 920, cutoffEnd: 240, frequencyStart: 105, frequencyEnd: 48, noiseGain: 0.032, toneGain: 0.018, toneType: "triangle", pulses: 1 };
+  }
+  if (cue === "reload") {
+    return { duration: 0.045, cutoffStart: 1800, cutoffEnd: 600, frequencyStart: 620, frequencyEnd: 410, noiseGain: 0.022, toneGain: 0.028, toneType: "triangle", pulses: 2 };
+  }
+  if (cue === "empty") {
+    return { duration: 0.09, cutoffStart: 1900, cutoffEnd: 540, frequencyStart: 410, frequencyEnd: 190, noiseGain: 0.014, toneGain: 0.026, toneType: "square", pulses: 1 };
+  }
+  return { duration: 0.14, cutoffStart: 950, cutoffEnd: 240, frequencyStart: 150, frequencyEnd: 72, noiseGain: 0.024, toneGain: 0.034, toneType: "triangle", pulses: 1 };
+}
+
+function createAudioVoices(context: AudioContext) {
+  const master = context.createGain();
+  master.gain.value = muted ? 0 : 1;
+  master.connect(context.destination);
+  masterGain = master;
+
+  const noiseBuffer = context.createBuffer(1, Math.ceil(context.sampleRate * 0.36), context.sampleRate);
+  const samples = noiseBuffer.getChannelData(0);
+  const fadeSamples = Math.max(1, Math.floor(context.sampleRate * 0.01));
+  for (let index = 0; index < samples.length; index += 1) {
+    const fade = Math.min(1, index / fadeSamples, (samples.length - index - 1) / fadeSamples);
+    samples[index] = (Math.random() * 2 - 1) * Math.max(0, fade);
+  }
+
+  audioVoices = Array.from({ length: WAR_ROOM_AUDIO_VOICE_LIMIT }, () => {
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const noiseGain = context.createGain();
+    const oscillator = context.createOscillator();
+    const toneGain = context.createGain();
+    const panner = typeof context.createStereoPanner === "function" ? context.createStereoPanner() : null;
+    const output = panner ?? context.createGain();
+
+    source.buffer = noiseBuffer;
+    source.loop = true;
+    filter.type = "lowpass";
+    noiseGain.gain.value = 0;
+    toneGain.gain.value = 0;
+    oscillator.type = "sawtooth";
+    oscillator.frequency.value = 80;
+
+    source.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(output);
+    oscillator.connect(toneGain);
+    toneGain.connect(output);
+    output.connect(master);
+    source.start();
+    oscillator.start();
+    return {
+      busyUntil: 0,
+      filter,
+      noiseGain,
+      oscillator,
+      toneGain,
+      panner,
+    };
+  });
+}
 
 function getAudioContext() {
   if (typeof window === "undefined" || !window.AudioContext) return null;
   audioContext ??= new window.AudioContext();
+  if (audioVoices.length === 0) createAudioVoices(audioContext);
   return audioContext;
 }
 
 export function resumeWarRoomAudio() {
+  if (!WAR_ROOM_SYNTH_AUDIO_ENABLED) return;
   const context = getAudioContext();
   if (context?.state === "suspended") void context.resume();
 }
 
 export function setWarRoomMuted(value: boolean) {
   muted = value;
+  if (audioContext && masterGain) {
+    masterGain.gain.setTargetAtTime(muted ? 0 : 1, audioContext.currentTime, 0.012);
+  }
   if (!muted) resumeWarRoomAudio();
 }
 
-function playNoise(context: AudioContext, now: number, duration: number, volume: number, cutoff: number) {
-  if (!noiseBuffer) {
-    noiseBuffer = context.createBuffer(1, Math.ceil(context.sampleRate * 0.2), context.sampleRate);
-    const samples = noiseBuffer.getChannelData(0);
-    for (let index = 0; index < samples.length; index += 1) {
-      samples[index] = (Math.random() * 2 - 1) * (1 - index / samples.length);
-    }
-  }
-  const source = context.createBufferSource();
-  const filter = context.createBiquadFilter();
-  const gain = context.createGain();
-  source.buffer = noiseBuffer;
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(cutoff, now);
-  gain.gain.setValueAtTime(Math.max(0.0001, volume), now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-  source.connect(filter);
-  filter.connect(gain);
-  gain.connect(context.destination);
-  source.start(now);
-  source.stop(now + duration);
+function scheduleEnvelope(gain: GainNode, at: number, duration: number, level: number) {
+  gain.gain.cancelScheduledValues(at);
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, level), at + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
 }
 
 export function playWarRoomSound(
   cue: WarRoomSoundCue,
   volume = 1,
   style: WarRoomShotStyle = "rifle",
+  options: WarRoomSoundOptions = {},
 ) {
-  if (muted) return;
+  if (muted || !WAR_ROOM_SYNTH_AUDIO_ENABLED) return;
   const context = getAudioContext();
   if (!context) return;
   if (context.state === "suspended") void context.resume();
 
   const now = context.currentTime;
   const safeVolume = Math.max(0, Math.min(1, volume));
-  if (cue === "shot" || cue === "enemy-shot") {
-    const settings = {
-      rifle: { frequency: 116, end: 48, duration: 0.105, volume: 0.07, cutoff: 1900 },
-      shotgun: { frequency: 82, end: 38, duration: 0.2, volume: 0.12, cutoff: 1050 },
-      pistol: { frequency: 190, end: 68, duration: 0.085, volume: 0.065, cutoff: 2600 },
-    }[style];
-    const soundScale = (cue === "enemy-shot" ? 0.72 : 1) * safeVolume;
-    playNoise(context, now, settings.duration, settings.volume * soundScale, settings.cutoff);
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = style === "pistol" ? "square" : "sawtooth";
-    oscillator.frequency.setValueAtTime(settings.frequency, now);
-    oscillator.frequency.exponentialRampToValueAtTime(settings.end, now + settings.duration);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(settings.volume * soundScale * 0.8, now + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + settings.duration);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + settings.duration + 0.01);
-    return;
-  }
+  if (safeVolume === 0) return;
+  const profile = getWarRoomSoundProfile(cue, { ...options, style });
+  const voice = audioVoices.find((candidate) => candidate.busyUntil <= now)
+    ?? audioVoices.reduce((earliest, candidate) => candidate.busyUntil < earliest.busyUntil ? candidate : earliest);
+  const spatial = options.spatial
+    ? getWarRoomSpatialAudioMix(
+      options.spatial.source.x,
+      options.spatial.source.z,
+      options.spatial.listener.x,
+      options.spatial.listener.z,
+      options.spatial.listener.yaw,
+    )
+    : { attenuation: 1, pan: 0 };
+  const gainScale = safeVolume * spatial.attenuation;
+  const pulseGap = profile.duration + 0.075;
+  voice.busyUntil = now + profile.duration * profile.pulses + 0.075 * (profile.pulses - 1);
+  if (voice.panner) voice.panner.pan.setTargetAtTime(spatial.pan, now, 0.008);
 
-  if (cue === "bow") {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(540, now);
-    oscillator.frequency.exponentialRampToValueAtTime(190, now + 0.16);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.035 * safeVolume, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.17);
-    return;
-  }
-
-  if (cue === "melee-swing" || cue === "melee-hit") {
-    const impact = cue === "melee-hit";
-    playNoise(
-      context,
-      now,
-      impact ? 0.11 : 0.16,
-      (impact ? 0.075 : 0.025) * safeVolume,
-      impact ? 720 : 3200,
-    );
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = impact ? "triangle" : "sawtooth";
-    oscillator.frequency.setValueAtTime(impact ? 118 : 360, now);
-    oscillator.frequency.exponentialRampToValueAtTime(impact ? 48 : 120, now + (impact ? 0.11 : 0.16));
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime((impact ? 0.055 : 0.018) * safeVolume, now + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + (impact ? 0.11 : 0.16));
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + (impact ? 0.12 : 0.17));
-    return;
-  }
-
-  const settings = {
-    empty: { frequency: 410, end: 190, duration: 0.09, volume: 0.026, type: "square" as OscillatorType },
-    reload: { frequency: 620, end: 410, duration: 0.045, volume: 0.028, type: "triangle" as OscillatorType },
-    hit: { frequency: 150, end: 72, duration: 0.14, volume: 0.034, type: "triangle" as OscillatorType },
-  }[cue];
-  const tickCount = cue === "reload" ? 2 : 1;
-  for (let tick = 0; tick < tickCount; tick += 1) {
-    const at = now + tick * 0.12;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = settings.type;
-    oscillator.frequency.setValueAtTime(settings.frequency - tick * 120, at);
-    oscillator.frequency.exponentialRampToValueAtTime(settings.end, at + settings.duration);
-    gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.exponentialRampToValueAtTime(settings.volume * safeVolume, at + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + settings.duration);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(at);
-    oscillator.stop(at + settings.duration + 0.01);
+  for (let pulse = 0; pulse < profile.pulses; pulse += 1) {
+    const at = now + pulse * pulseGap;
+    const pulseScale = pulse === 0 ? 1 : 0.78;
+    const pitchScale = getWarRoomPitchVariation(Math.random());
+    voice.filter.frequency.cancelScheduledValues(at);
+    voice.filter.frequency.setValueAtTime(profile.cutoffStart, at);
+    voice.filter.frequency.exponentialRampToValueAtTime(profile.cutoffEnd, at + profile.duration);
+    voice.oscillator.type = profile.toneType;
+    voice.oscillator.frequency.cancelScheduledValues(at);
+    voice.oscillator.frequency.setValueAtTime(profile.frequencyStart * pitchScale, at);
+    voice.oscillator.frequency.exponentialRampToValueAtTime(profile.frequencyEnd * pitchScale, at + profile.duration);
+    scheduleEnvelope(voice.noiseGain, at, profile.duration, profile.noiseGain * gainScale * pulseScale);
+    scheduleEnvelope(voice.toneGain, at, profile.duration, profile.toneGain * gainScale * pulseScale);
   }
 }

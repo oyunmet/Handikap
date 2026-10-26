@@ -16,7 +16,7 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
-import { resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
+import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
@@ -210,7 +210,7 @@ export default function WarRoomGame({
     && !modelsLoading
     && (modelProgress >= 100 || modelErrors.length > 0);
   const [phase, setPhase] = useState<Phase>("briefing");
-  const [soundMuted, setSoundMuted] = useState(false);
+  const [soundMuted, setSoundMuted] = useState(isWarRoomMuted);
   const [bloodEffects, setBloodEffects] = useState(() => {
     try {
       return window.localStorage.getItem(BLOOD_EFFECTS_KEY) !== "off";
@@ -245,6 +245,7 @@ export default function WarRoomGame({
     && new URLSearchParams(window.location.search).get("debug") === "1";
 
   const beginBattle = () => {
+    resumeWarRoomAudio();
     runtimeRef.current = createWarRoomRuntime(loadout);
     inputRef.current = createInputState();
     pointerRef.current.id = null;
