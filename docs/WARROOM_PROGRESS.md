@@ -7,7 +7,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** DEVAM EDİYOR
 - **Kapsam:** Ekli test notlarındaki Adım 1–7: silah normalizasyonu ve canlı kalibrasyon, hareket yönü/isabet teşhisi, can yenileme, geçerli hedef filtresi ve silaha özel yakın dövüş efektleri.
 - **Kural:** Her adımın sonunda build, typecheck, testler ve yerel commit; Git push ve Vercel deploy yapılmayacak.
-- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 bekliyor · 4 bekliyor · 5 bekliyor · 6 bekliyor · 7 bekliyor.
+- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 bekliyor · 5 bekliyor · 6 bekliyor · 7 bekliyor.
 - **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; kod/test doğrulaması ile cihaz doğrulaması ayrı raporlanacak.
 
 ### Adım 1 — Silah normalizasyonu
@@ -22,6 +22,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** KISMEN — kod/build doğrulandı; gerçek iPhone'da dokunma ve pano izni kabulü açık.
 - **Yapılanlar:** Savaş sırasında yalnızca `?calib=1` ile açılan, daraltılabilir ve yarı saydam panel eklendi. Etkin silah değişince panelin değerleri de değişir. Konum, derece cinsinden üç eksenli dönüş ve ölçek +/- ile ayarlanır; küçük/büyük adım arasında geçilir. JSON hem ekranda gösterilir hem pano API'si kullanılabiliyorsa kopyalanır. Clipboard izni yoksa JSON ekranda seçilebilir kalır. Kalibrasyon açıkken eski debug tutuş paneli gizlenerek üst üste binme önlendi.
 - **Doğrulama:** `npm run typecheck` ve `npm run build` başarılı. `npm test`: 355 toplam, 347 geçti, aynı 8 Savaş Odası dışı taban testi başarısız. Fiziksel iPhone/pano kabulü doğrulanamadı.
+
+### Adım 3 — Karakter yönü ve strafe
+
+- **Durum:** KISMEN — saf yön hesabı ve oyun entegrasyonu doğrulandı; iPhone joystick kabulü açık.
+- **Yapılanlar:** Kamera yönü korunarak beden yaw'ı ayrı hesaplanıyor. İleri/geri/yan hareket yüz/sırt yönünü dünya hareketine göre belirliyor; nişanda veya atak animasyonu bitiminden 0,8 sn sonra beden kamera yaw'ına dönüyor. Hareket başlarsa atak sonrası strafe zamanlayıcısı erkenden iptal ediliyor. `?debug=1` yön, hareket/strafe modu, joystick açısı ve beden yaw'ını gösteriyor.
+- **Doğrulama:** Yön modülünün ileri/geri/yan/strafe/boşta ve timer testleri dahil War Room hedef testleri 15/15 geçti. `npm run typecheck` ve `npm run build` başarılı. `npm test`: 359 toplam, 351 geçti, 8 başarısız; aynı mağaza/ekipman (6), duel dengesi (1) ve varsayılan envanter (1) taban testleri. iPhone joystick davranışı doğrulanamadı.
 
 ## Faz 1 — Karakter yönelimi
 

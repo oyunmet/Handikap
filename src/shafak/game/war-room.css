@@ -527,6 +527,8 @@
 .war-room-melee-debug-result {
   position: absolute;
   z-index: 4;
+  display: grid;
+  gap: 3px;
   top: max(14px, env(safe-area-inset-top));
   left: 50%;
   max-width: min(72vw, 320px);
@@ -541,6 +543,11 @@
   text-align: center;
   text-shadow: 0 1px 3px #000;
   pointer-events: none;
+}
+
+.war-room-melee-debug-result > span + span {
+  color: rgba(245, 226, 196, 0.9);
+  font-size: 8px;
 }
 
 .war-room-battle > canvas {

@@ -15,6 +15,11 @@ import {
 import { traceWarRoomMeleeCone, traceWarRoomRay, type WarRoomMeleeConeReason } from "../game/war-room-aim";
 import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
 import {
+  cancelWarRoomPostAttackStrafeOnMovement,
+  getWarRoomPostAttackStrafeUntil,
+  resolveWarRoomOrientation,
+} from "../game/war-room-orientation";
+import {
   getWarRoomImpactFxProfile,
   WAR_ROOM_CRACK_DECAL_LIFETIME_SECONDS,
   WAR_ROOM_DECAL_POOL_SIZE,
@@ -930,7 +935,7 @@ function PlayerActor({
     const root = rootRef.current;
     if (root) {
       root.position.set(player.x, player.jumpHeight, player.z);
-      const bodyYaw = player.meleeUntil > player.clockTime ? player.meleeAttackYaw : player.yaw;
+      const bodyYaw = player.meleeUntil > player.clockTime ? player.meleeAttackYaw : player.facingYaw;
       root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 13, delta);
       root.scale.y = player.crouched ? 0.78 : 1;
     }
@@ -1345,6 +1350,12 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
       maxHp: player.maxHp,
       stamina: player.stamina,
       maxStamina: player.maxStamina,
+    },
+    orientation: {
+      facingYaw: player.facingYaw,
+      mode: player.facingMode,
+      joystickAngleDegrees: player.joystickAngleDegrees,
+      facingCamera: player.facingCamera,
     },
     enemies: runtime.enemies.map(({ id, x, z, alive, commander }) => ({ id, x, z, alive, commander })),
     remaining: getWarRoomRemaining(runtime),
@@ -2069,6 +2080,7 @@ function WarRoomRuntimeScene({
         weapon.fireInterval,
         (weapon.meleeDuration ?? weapon.fireInterval * 0.82) * plan.durationMultiplier,
       );
+      player.strafeUntil = getWarRoomPostAttackStrafeUntil(now, duration);
       const isBlocked = (enemy: Pick<WarRoomEnemy, "x" | "z" | "alive">) => segmentBlockFraction(
         { x: player.x, y: player.jumpHeight + 1.12, z: player.z },
         { x: enemy.x, y: 1.05, z: enemy.z },
@@ -2154,6 +2166,7 @@ function WarRoomRuntimeScene({
       return;
     }
     player.nextShotAt = now + weapon.fireInterval;
+    player.strafeUntil = getWarRoomPostAttackStrafeUntil(now);
     const shotStyle: WarRoomShotStyle = weapon.weaponClass === "shotgun" || weaponId === "scattergun"
       ? "shotgun"
       : weapon.weaponClass === "pistol" || weaponId === "sidearm"
@@ -2384,6 +2397,23 @@ function WarRoomRuntimeScene({
       moveX /= inputLength;
       moveY /= inputLength;
     }
+    player.strafeUntil = cancelWarRoomPostAttackStrafeOnMovement(
+      player.strafeUntil,
+      now,
+      moveX,
+      moveY,
+    );
+    const orientation = resolveWarRoomOrientation(
+      player.yaw,
+      moveX,
+      moveY,
+      player.facingYaw,
+      input.aimHeld || now < player.strafeUntil,
+    );
+    player.facingYaw = orientation.yaw;
+    player.facingMode = orientation.mode;
+    player.joystickAngleDegrees = orientation.joystickAngleDegrees;
+    player.facingCamera = orientation.facingCamera;
 
     if (input.crouchPressed) {
       player.crouched = !player.crouched;

@@ -62,6 +62,12 @@ function createInputState(): WarRoomInputState {
 function createEmptyHud(): WarRoomHudSnapshot {
   return {
     player: { x: 0, z: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
+    orientation: {
+      facingYaw: 0,
+      mode: "HAREKET",
+      joystickAngleDegrees: null,
+      facingCamera: false,
+    },
     enemies: [],
     remaining: 9,
     bossHp: 360,
@@ -645,8 +651,17 @@ export default function WarRoomGame({
           />
           {debugMode && (
             <div className="war-room-melee-debug-result" aria-live="polite">
-              {`${WAR_ROOM_BUILD_VERSION} · MELEE DEBUG · ${hud.meleePhase} · KOMBO ${hud.meleeComboCount}/3 · ${hud.meleeLastResult}`}
-              {meleeDebugMessage ? ` · ${meleeDebugMessage}` : ""}
+              <span>
+                {`${WAR_ROOM_BUILD_VERSION} · MELEE DEBUG · ${hud.meleePhase} · KOMBO ${hud.meleeComboCount}/3 · ${hud.meleeLastResult}`}
+                {meleeDebugMessage ? ` · ${meleeDebugMessage}` : ""}
+              </span>
+              <span>
+                YÖN: {hud.orientation.facingCamera ? "YÜZ" : "SIRT"} · MOD: {hud.orientation.mode}
+                {" · JOYSTICK: "}
+                {hud.orientation.joystickAngleDegrees === null ? "—" : `${hud.orientation.joystickAngleDegrees.toFixed(0)}°`}
+                {" · KARAKTER YAW: "}
+                {`${Math.round((((hud.orientation.facingYaw * 180 / Math.PI) % 360) + 360) % 360)}°`}
+              </span>
             </div>
           )}
           {debugMode && !calibrationMode && phase === "battle" && (() => {

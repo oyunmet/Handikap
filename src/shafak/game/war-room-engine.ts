@@ -7,6 +7,7 @@ import {
   WAR_ROOM_WEAPON_BY_ID,
   type WarRoomWeaponId,
 } from "./war-room-data";
+import type { WarRoomFacingMode } from "./war-room-orientation";
 
 export type WarRoomEnemy = {
   id: string;
@@ -36,6 +37,11 @@ export type WarRoomRuntime = {
     x: number;
     z: number;
     yaw: number;
+    facingYaw: number;
+    facingMode: WarRoomFacingMode;
+    joystickAngleDegrees: number | null;
+    facingCamera: boolean;
+    strafeUntil: number;
     pitch: number;
     hp: number;
     maxHp: number;
@@ -119,6 +125,12 @@ export type WarRoomInputState = {
 
 export type WarRoomHudSnapshot = {
   player: { x: number; z: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };
+  orientation: {
+    facingYaw: number;
+    mode: WarRoomFacingMode;
+    joystickAngleDegrees: number | null;
+    facingCamera: boolean;
+  };
   enemies: Array<{ id: string; x: number; z: number; alive: boolean; commander: boolean }>;
   remaining: number;
   bossHp: number;
@@ -221,6 +233,11 @@ export function createWarRoomRuntime(
       x: 0,
       z: 24,
       yaw: 0,
+      facingYaw: 0,
+      facingMode: "HAREKET",
+      joystickAngleDegrees: null,
+      facingCamera: false,
+      strafeUntil: 0,
       pitch: -0.08,
       hp: 220,
       maxHp: 220,
