@@ -682,7 +682,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
           </div>
           {hud.hitMarker && (
             <div className={`war-room-damage-number${hud.headshotMarker ? " is-headshot" : ""}`} aria-hidden="true">
-              {hud.headshotMarker ? "KAFA" : `−${hud.lastHitDamage}`}
+              {`−${hud.lastHitDamage}`}
             </div>
           )}
           {exitPrompt && (

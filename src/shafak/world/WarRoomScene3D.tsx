@@ -578,6 +578,7 @@ function PlayerActor({
   weaponMountOverrides,
   rootRef,
   muzzleRef,
+  flashRef,
   muzzleLightRef,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
@@ -586,12 +587,14 @@ function PlayerActor({
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   rootRef: MutableRefObject<THREE.Group | null>;
   muzzleRef: MutableRefObject<THREE.Group | null>;
+  flashRef: MutableRefObject<THREE.Group | null>;
   muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
 }) {
   const recoilRef = useRef<THREE.Group>(null);
-  const muzzleFlashRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const reloadMagazineRef = useRef<THREE.Mesh>(null);
+  const previousShotFeedbackRef = useRef(0);
+  const shotgunPumpStartedAtRef = useRef(-1);
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   useFrame((_, delta) => {
     const player = runtimeRef.current.player;
@@ -623,6 +626,10 @@ function PlayerActor({
     if (weaponMount) {
       const aiming = inputRef.current.aimHeld;
       const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
+      if (player.shotFeedbackUntil > previousShotFeedbackRef.current && weapon.weaponClass === "shotgun") {
+        shotgunPumpStartedAtRef.current = player.clockTime;
+      }
+      previousShotFeedbackRef.current = player.shotFeedbackUntil;
       const shotAge = Math.max(0, 0.2 - (player.shotFeedbackUntil - player.clockTime));
       const recoilEnvelope = shotAge <= 0.06
         ? Math.min(1, shotAge / 0.06)
@@ -630,8 +637,18 @@ function PlayerActor({
       const recoilStrength = player.shotFeedbackUntil > player.clockTime
         ? Math.min(1, player.recoil / Math.max(0.02, weapon.recoil)) * recoilEnvelope
         : 0;
+      const pumpElapsed = player.clockTime - shotgunPumpStartedAtRef.current;
+      const pumpProgress = pumpElapsed >= 0 && pumpElapsed < 0.4
+        ? pumpElapsed < 0.14
+          ? pumpElapsed / 0.14
+          : 1 - (pumpElapsed - 0.14) / 0.26
+        : 0;
+      const pumpStrength = 0.5 - Math.cos(Math.PI * Math.max(0, Math.min(1, pumpProgress))) * 0.5;
       const reloadProgress = player.reloadingWeapon === weaponId
         ? Math.max(0, Math.min(1, 1 - (player.reloadUntil - player.clockTime) / weapon.reloadSeconds))
+        : 0;
+      const reloadElapsed = player.reloadingWeapon === weaponId
+        ? Math.max(0, weapon.reloadSeconds * reloadProgress)
         : 0;
       const reloadDrop = Math.sin(Math.PI * reloadProgress);
       const chargeProgress = weapon.charge && player.chargeStartedAt > 0
@@ -654,15 +671,18 @@ function PlayerActor({
         weaponMount.scale.setScalar(1.32);
       }
       weaponMount.position.y -= reloadDrop * 0.14 + chargeProgress * 0.035;
-      weaponMount.position.z += recoilStrength * 0.08 + chargeProgress * 0.1;
+      weaponMount.position.z += recoilStrength * 0.08 + pumpStrength * 0.14 + chargeProgress * 0.1;
       weaponMount.rotation.set(...mount.rotation);
-      weaponMount.rotation.x -= recoilStrength * 0.052 + reloadDrop * 0.48 + chargeProgress * 0.16;
+      weaponMount.rotation.x -= recoilStrength * 0.052 + pumpStrength * 0.06 + reloadDrop * 0.48 + chargeProgress * 0.16;
       weaponMount.rotation.z += recoilStrength * 0.018;
       if (reloadMagazineRef.current) {
-        const magazineVisible = reloadProgress > 0.2 && reloadProgress < 0.78;
+        const magazineVisible = reloadElapsed < 0.3 && player.reloadingWeapon === weaponId;
         reloadMagazineRef.current.visible = magazineVisible;
+        const magazineTravel = reloadElapsed < 0.15
+          ? 1 - Math.pow(1 - reloadElapsed / 0.15, 2)
+          : Math.pow(Math.max(0, 1 - (reloadElapsed - 0.15) / 0.15), 2);
         reloadMagazineRef.current.position.y = -0.2 - (magazineVisible
-          ? Math.sin((reloadProgress - 0.2) / 0.58 * Math.PI) * 0.16
+          ? magazineTravel * 0.16
           : 0);
       }
       if (weaponId !== "sidearm" && leftHand?.parent) {
@@ -681,8 +701,8 @@ function PlayerActor({
       applyBoneKick(rightArm, recoilStrength * 0.11 + reloadDrop * 0.14 + chargeProgress * 0.2);
       applyBoneKick(torso, -recoilStrength * 0.025);
     }
-    if (muzzleFlashRef.current && muzzleFlashRef.current.userData.warRoomExpiresAt <= player.clockTime) {
-      muzzleFlashRef.current.visible = false;
+    if (flashRef.current && flashRef.current.userData.warRoomExpiresAt <= player.clockTime) {
+      flashRef.current.visible = false;
     }
     if (muzzleLightRef.current && muzzleLightRef.current.userData.warRoomExpiresAt <= player.clockTime) {
       muzzleLightRef.current.visible = false;
@@ -723,7 +743,7 @@ function PlayerActor({
             weaponId={weaponId}
             mount={mount}
             muzzleAnchorRef={muzzleRef}
-            muzzleFlashRef={muzzleFlashRef}
+            muzzleFlashRef={flashRef}
           />
           <mesh ref={reloadMagazineRef} position={[0, -0.2, -0.22]} visible={false}>
             <boxGeometry args={[0.085, 0.18, 0.1]} />
@@ -980,10 +1000,12 @@ function WarRoomRuntimeScene({
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
   const playerRootRef = useRef<THREE.Group | null>(null);
   const playerMuzzleRef = useRef<THREE.Group | null>(null);
+  const playerMuzzleFlashRef = useRef<THREE.Group | null>(null);
   const lastHudAtRef = useRef(0);
   const finishedRef = useRef(false);
   const cameraKickRef = useRef(0);
   const cameraSideKickRef = useRef(0);
+  const emptyClickAtRef = useRef(0);
   const particles = useMemo<WarRoomParticle[]>(
     () => Array.from({ length: WAR_ROOM_EFFECT_POOL_SIZE }, () => ({
       x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, born: -1, lifetime: 0, size: 0, bounce: false,
@@ -1117,6 +1139,26 @@ function WarRoomRuntimeScene({
     if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
   };
 
+  const spawnImpactDust = (position: THREE.Vector3, now: number) => {
+    for (let index = 0; index < 3; index += 1) {
+      const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+      const particle = particles[slot];
+      const seed = now * 613 + slot * 19 + index * 11;
+      particle.x = position.x;
+      particle.y = position.y;
+      particle.z = position.z;
+      particle.vx = Math.sin(seed * 1.9) * 0.18;
+      particle.vy = 0.12 + index * 0.045;
+      particle.vz = Math.cos(seed * 1.4) * 0.18;
+      particle.born = now;
+      particle.lifetime = 0.38 + index * 0.035;
+      particle.size = 0.11 + index * 0.018;
+      particle.bounce = false;
+      particleMesh.setColorAt(slot, new THREE.Color(index % 2 ? "#8e8171" : "#b3a18b"));
+    }
+    if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
+  };
+
   const spawnMuzzleSmoke = (position: THREE.Vector3, now: number) => {
     for (let index = 0; index < 4; index += 1) {
       const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
@@ -1224,13 +1266,16 @@ function WarRoomRuntimeScene({
     const weaponId = weaponIds[player.activeSlot];
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
     const ammo = player.ammo[weaponId];
+    if (now < player.nextShotAt || player.reloadingWeapon) return;
     if (!ammo || ammo.magazine <= 0) {
-      playWarRoomSound("empty");
-      player.lastHitText = "CEPHANE BİTTİ · YENİDEN DOLDUR";
-      player.hitMessageUntil = now + 1.1;
+      if (now >= emptyClickAtRef.current) {
+        playWarRoomSound("empty");
+        player.lastHitText = "CEPHANE BİTTİ · YENİDEN DOLDUR";
+        player.hitMessageUntil = now + 1.1;
+        emptyClickAtRef.current = now + 0.45;
+      }
       return;
     }
-    if (now < player.nextShotAt || player.reloadingWeapon) return;
     player.nextShotAt = now + weapon.fireInterval;
     const shotStyle: WarRoomShotStyle = weapon.weaponClass === "shotgun" || weaponId === "scattergun"
       ? "shotgun"
@@ -1272,8 +1317,8 @@ function WarRoomRuntimeScene({
         player.z - Math.sin(player.yaw) * 0.38 + Math.cos(player.yaw) * 0.25,
       );
     }
-    if (muzzleFlashRef.current) {
-      const flash = muzzleFlashRef.current;
+    if (playerMuzzleFlashRef.current) {
+      const flash = playerMuzzleFlashRef.current;
       flash.visible = true;
       const seed = now * 91.7;
       const scale = 0.8 + (Math.sin(seed) + 1) * 0.24;
@@ -1321,10 +1366,12 @@ function WarRoomRuntimeScene({
         }
         tracerEnd.copy(aim.point);
         spawnImpact(aim.point, aim.headshot ? "#ff584f" : "#f2d7aa", now, aim.headshot ? 8 : 7, aim.headshot ? 0.075 : 0.05);
+        spawnImpactDust(aim.point, now);
       } else {
         tracerEnd.copy(aim.point);
         if (aim.blocked) {
           spawnImpact(tracerEnd, "#b99870", now, 7, 0.055);
+          spawnImpactDust(tracerEnd, now);
           if (pellet === 0) addBulletHole(tracerEnd, raycaster.ray.direction, now);
         }
       }
@@ -1738,6 +1785,7 @@ function WarRoomRuntimeScene({
         weaponMountOverrides={weaponMountOverrides}
         rootRef={playerRootRef}
         muzzleRef={playerMuzzleRef}
+        flashRef={playerMuzzleFlashRef}
         muzzleLightRef={muzzleLightRef}
       />
     </>

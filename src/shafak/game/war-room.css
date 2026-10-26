@@ -926,6 +926,8 @@
 
 .war-room-damage-number.is-headshot {
   color: #ffbf75;
+  font-size: 19px;
+  text-shadow: 0 0 12px rgba(255, 178, 80, 0.75), 0 2px 4px #000;
 }
 
 .war-room-confirm {

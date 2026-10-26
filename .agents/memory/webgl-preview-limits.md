@@ -42,3 +42,9 @@ Three.js pixel readback from a regular `WebGLRenderTarget` uses the linear worki
 **Why:** Treating linear target bytes as sRGB made the watchdog classify a valid dark world as black; the safe retry rendered the same scene probe and therefore repeated the false alarm.
 
 **How to apply:** When comparing target readback to on-screen pixels, normalize target samples to sRGB (or use explicitly calibrated linear thresholds) and retain a regression test with equivalent colors in both spaces.
+
+When Replit's screenshot browser cannot create WebGL, a separate headless Chromium run with SwiftShader can still confirm that the 3D scene renders and accepts input, but its measured FPS is not representative of a physical GPU.
+
+**Why:** The screenshot browser refused WebGL, while software-rendered headless Chromium showed the playable scene at about 3 FPS under sustained input.
+
+**How to apply:** Report scene-rendering and interaction checks separately from frame-rate results; label SwiftShader FPS as an environment limitation and confirm performance on a real device before making production claims.
