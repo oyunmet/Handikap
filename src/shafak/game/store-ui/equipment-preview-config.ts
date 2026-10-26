@@ -1,0 +1,2 @@
+export const EQUIPMENT_PREVIEW_3D_ENABLED = true;
+export const EQUIPMENT_PREVIEW_MAX_DPR = 2;

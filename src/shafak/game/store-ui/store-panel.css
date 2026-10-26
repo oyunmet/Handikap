@@ -401,13 +401,30 @@
 .safak-store__preview {
   position: relative;
   display: grid;
-  min-height: 142px;
+  width: 100%;
+  min-height: 232px;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(220, 197, 157, .11);
   background:
     radial-gradient(ellipse at 50% 78%, rgba(173, 112, 60, .18), transparent 48%),
     linear-gradient(180deg, rgba(25, 26, 29, .8), rgba(13, 14, 17, .86));
+}
+.safak-store__preview[data-rarity="rare"] {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(72, 145, 194, .22), transparent 58%),
+    linear-gradient(180deg, rgba(19, 29, 38, .92), rgba(13, 14, 17, .9));
+}
+.safak-store__preview[data-rarity="epic"] {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(151, 93, 197, .24), transparent 58%),
+    linear-gradient(180deg, rgba(32, 22, 42, .92), rgba(13, 14, 17, .9));
+}
+.safak-store__preview[data-rarity="legendary"] {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(234, 177, 66, .3), transparent 62%),
+    linear-gradient(180deg, rgba(44, 34, 18, .92), rgba(13, 14, 17, .9));
+  box-shadow: inset 0 0 70px rgba(245, 188, 71, .08);
 }
 .safak-store__preview::after {
   position: absolute;
@@ -428,10 +445,33 @@
   font-weight: 800;
   letter-spacing: .15em;
 }
+.safak-store__preview-state,
+.safak-store__preview-fullscreen {
+  position: absolute;
+  z-index: 3;
+  top: 8px;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(225, 194, 137, .3);
+  background: rgba(11, 12, 15, .72);
+  color: #e9d4a4;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.safak-store__preview-state { right: 104px; padding: 0 8px; }
+.safak-store__preview-state.is-equipped { color: #b9d3a8; border-color: rgba(156, 193, 143, .42); }
+.safak-store__preview-state.is-try { color: #f1cf82; }
+.safak-store__preview-fullscreen { right: 8px; padding: 0 9px; cursor: pointer; }
+.safak-store__preview-fullscreen:hover { background: rgba(117, 86, 43, .45); }
 .safak-store__preview-art {
   display: grid;
   width: 100%;
-  height: 142px;
+  height: 232px;
+  min-width: 0;
+  min-height: 0;
   place-items: center;
   color: var(--store-paper);
 }
@@ -489,7 +529,70 @@
   font-size: 9px;
 }
 .safak-store__upgrade-line b { max-width: 78%; color: #d4c296; font-size: 8px; line-height: 1.55; text-align: right; }
-.store-item-preview-3d { width: 100%; height: 100%; min-height: 126px; }
+.store-item-preview-3d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 232px;
+  overflow: hidden;
+  isolation: isolate;
+  touch-action: none;
+  animation: preview-item-arrive .24s ease both;
+}
+.store-item-preview-3d.is-changing { animation: preview-item-change .24s ease both; }
+.store-item-preview-3d canvas { display: block; width: 100%; height: 100%; }
+.store-item-preview-3d__vignette {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 43%, transparent 35%, rgba(5, 7, 10, .42) 100%);
+}
+.store-item-preview-3d__fallback,
+.store-item-preview-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 232px;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: #dec48b;
+  font-size: 42px;
+}
+.store-item-preview-3d__fallback small { color: #b8aa94; font-size: 10px; }
+.safak-store__preview.is-fullscreen {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(116, 88, 48, .18), transparent 60%),
+    #0b0d11;
+}
+.safak-store__preview.is-fullscreen::after { display: none; }
+.safak-store__preview.is-fullscreen .safak-store__preview-art {
+  height: 100%;
+  min-height: 0;
+  padding: 44px 0 52px;
+}
+.safak-store__preview.is-fullscreen .store-item-preview-3d { min-height: 0; }
+.safak-store__preview.is-fullscreen .safak-store__preview-label { top: 16px; left: 18px; font-size: 9px; }
+.safak-store__preview.is-fullscreen .safak-store__preview-state { top: 14px; right: 122px; }
+.safak-store__preview.is-fullscreen .safak-store__preview-fullscreen { top: 12px; right: 14px; }
+.safak-store__preview.is-fullscreen .safak-store__preview-caption { right: 16px; bottom: 14px; font-size: 11px; }
+.safak-store__preview.is-fullscreen .safak-store__try { margin-bottom: 8px; }
+.safak-store__preview.is-fullscreen .safak-store__preview-art > * { max-width: 100%; }
+.safak-store__preview.is-fullscreen .store-item-preview-3d__vignette { background: radial-gradient(ellipse at 50% 45%, transparent 42%, rgba(5, 7, 10, .5) 100%); }
+.safak-store__preview.is-fullscreen .store-item-preview-3d__fallback { min-height: 0; }
+@keyframes preview-item-arrive { from { opacity: .78; } to { opacity: 1; } }
+@keyframes preview-item-change { 0% { opacity: .45; transform: scale(.985); } 100% { opacity: 1; transform: scale(1); } }
 
 .safak-store__price {
   display: flex;
@@ -588,7 +691,7 @@
 .safak-store-confirm__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .safak-store-confirm__actions .safak-store__primary { flex: 0 1 auto; }
 
-@keyframes store-arrive { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes store-arrive { from { opacity: 0; } to { opacity: 1; } }
 @keyframes store-skeleton { to { background-position-x: -200%; } }
 
 @media (max-width: 760px) {
@@ -610,9 +713,12 @@
   .safak-store__tabs { margin-right: 16px; margin-left: 16px; }
   .safak-store__tab { min-height: 41px; padding: 0 11px; font-size: 8px !important; }
   .safak-store__content { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px; }
-  .safak-store__detail { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 0 12px; }
-  .safak-store__preview { grid-row: span 2; min-height: 155px; }
-  .safak-store__preview-art { height: 155px; }
+  .safak-store__detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .safak-store__preview { grid-row: auto; min-height: min(60svh, 520px); height: min(60svh, 520px); }
+  .safak-store__preview-art { height: 100%; min-height: 0; }
+  .store-item-preview-3d,
+  .store-item-preview-3d__fallback,
+  .store-item-preview-fallback { min-height: 0; }
   .safak-store__detail-copy { padding-top: 3px; }
   .safak-store__description { font-size: 9px; }
   .safak-store__stats,
@@ -639,8 +745,8 @@
   .safak-store__item-name { font-size: 11px; }
   .safak-store__item-summary { font-size: 8px; }
   .safak-store__detail { grid-template-columns: minmax(0, 1fr); }
-  .safak-store__preview { grid-row: auto; min-height: 126px; }
-  .safak-store__preview-art { height: 126px; }
+  .safak-store__preview { grid-row: auto; min-height: min(60svh, 520px); height: min(60svh, 520px); }
+  .safak-store__preview-art { height: 100%; min-height: 0; }
   .safak-store__detail-copy { padding: 12px 2px 6px; }
   .safak-store__stats,
   .safak-store__upgrade-line,

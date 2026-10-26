@@ -115,6 +115,7 @@ import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
 import EquipmentPreview3D from "./EquipmentPreview3D";
+import { EQUIPMENT_PREVIEW_3D_ENABLED } from "../game/store-ui/equipment-preview-config";
 import WorldAtmosphere from "./WorldAtmosphere";
 import {
   getBiomeForDistance,
@@ -3497,15 +3498,26 @@ export default function WorldScene({
           onSetSecondaryWeapon={setSecondaryWeapon}
           loadoutBusy={combatLoadoutBusy}
           onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId, storeRetryAction.equipmentKey) : undefined}
-          renderPreview={(item) => {
+          renderPreview={(item, equipmentKey, equipped) => {
             if (item.kind !== "equipment" || !item.slot) return <span>{item.icon ?? "◇"}</span>;
-            const key = slotEquipmentKey(item.slot);
+            const key = equipmentKey ?? slotEquipmentKey(item.slot);
             const previewProfile = {
               ...profile,
               equipment: { ...profile.equipment, [key]: item.id },
             };
             const previewAppearance: EquipmentVisual = getEquipmentVisual(previewProfile, storeItems);
-            return <EquipmentPreview3D appearance={previewAppearance} />;
+            if (!EQUIPMENT_PREVIEW_3D_ENABLED) {
+              return <span className="store-item-preview-fallback" aria-label={`${item.name} statik önizleme`}>{item.icon ?? "◇"}</span>;
+            }
+            return (
+              <EquipmentPreview3D
+                appearance={previewAppearance}
+                itemId={item.id}
+                itemIcon={item.icon}
+                rarity={item.rarity}
+                equipped={equipped}
+              />
+            );
           }}
         />
       )}

@@ -43,7 +43,7 @@ type StorePanelProps = {
   onAssignQuickSlot(itemId: CombatItemId, slotIndex: number): void;
   onSetSecondaryWeapon(itemId: string | null): void;
   loadoutBusy: boolean;
-  renderPreview(item: StoreItem): ReactNode;
+  renderPreview(item: StoreItem, equipmentKey: EquipmentLoadoutKey | null, equipped: boolean): ReactNode;
   initialTab?: StoreTab;
 };
 
@@ -120,6 +120,7 @@ export default function StorePanel({
   const [dailyOfferRevision, setDailyOfferRevision] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const [quickSlotChoice, setQuickSlotChoice] = useState<Record<string, number>>({});
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -221,12 +222,13 @@ export default function StorePanel({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (confirming) setConfirming(null);
+      if (previewFullscreen) setPreviewFullscreen(false);
+      else if (confirming) setConfirming(null);
       else onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [confirming, onClose]);
+  }, [confirming, onClose, previewFullscreen]);
 
   const handlePurchase = () => {
     if (!selected || selected.dropOnly || selectedLevelLocked || !canManageProfile || !affordable || busyItemId) return;
@@ -250,6 +252,7 @@ export default function StorePanel({
     setActiveTab(tab);
     setSelectedId(null);
     setConfirming(null);
+    setPreviewFullscreen(false);
   };
 
   return (
@@ -478,11 +481,26 @@ export default function StorePanel({
           <aside className="safak-store__detail" aria-label="Eşya ayrıntıları">
             {selected ? (
               <>
-                <div className="safak-store__preview">
+                <div className={`safak-store__preview${previewFullscreen ? " is-fullscreen" : ""}`} data-rarity={selected.rarity}>
                   <span className="safak-store__preview-label">DONANIM GÖRÜNÜMÜ</span>
+                  {selected.kind === "equipment" && (
+                    <>
+                      <span className={`safak-store__preview-state${isEquipped ? " is-equipped" : " is-try"}`}>
+                        {isEquipped ? "KUŞANILDI" : "DENE"}
+                      </span>
+                      <button
+                        type="button"
+                        className="safak-store__preview-fullscreen"
+                        aria-label={previewFullscreen ? "Tam ekran önizlemeyi küçült" : "Önizlemeyi tam ekranda aç"}
+                        onClick={() => setPreviewFullscreen((value) => !value)}
+                      >
+                        {previewFullscreen ? "KÜÇÜLT" : "TAM EKRAN"}
+                      </button>
+                    </>
+                  )}
                   <div className="safak-store__preview-art">
                     {selected.kind === "equipment"
-                      ? renderPreview(selected)
+                      ? renderPreview(selected, selectedEquipmentKey, isEquipped)
                       : <span className="safak-store__resource-preview" aria-hidden="true">{selected.icon ?? "◇"}</span>}
                   </div>
                   <span className="safak-store__preview-caption">{selected.name}</span>

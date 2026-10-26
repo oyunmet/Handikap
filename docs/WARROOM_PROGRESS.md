@@ -1,0 +1,67 @@
+# Savaş Odası faz ilerlemesi
+
+Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran görüntülerine göre sürdürüldü. Geçmiş commit ayrıntıları bu çalışma kopyasında bulunmadığında açıkça belirtilmiştir.
+
+## Faz 1 — Karakter yönelimi
+
+- **Durum:** BİTTİ (önceki oturumda tamamlandığı ve yerel commit alındığı ekran görüntüsünde bildirildi).
+- **Yapılanlar:** Önceki oturum raporu, joystick hareket yönü ve strafe yön hesabının/testlerinin tamamlandığını söylüyor.
+- **Kalanlar:** 3D görünüm cihaz önizlemesinde doğrulanamadı; telefonda `?debug=1` ile kabul testi bekliyor.
+- **Değişen dosyalar:** Önceki oturumun dosya listesi ve commit ayrıntıları bu çalışma kopyasında bulunmuyor.
+- **Doğrulama sonucu:** Önceki oturum build/typecheck/test ve yerel commit yaptığını bildirdi; bu kopyada yeniden çalıştırılmadı.
+
+## Faz 2 — Heybe → Donanım Görünümü
+
+- **Durum:** BİTTİ (kod); cihaz/WebGL görsel kabul testi açık.
+- **Yapılanlar:** Mobil önizleme tam genişlik ve `min(60svh, 520px)` yüksekliğinde. Aynı Canvas tam ekrana genişliyor; sürükleyerek döndürme, sınırlı çimdik yakınlaştırma, çift dokunma/double-click sıfırlama ve yavaş otomatik dönüş var. Oyuncu `KnightActor` rig'i ve el montajı kullanılıyor; seçilen parça önizlemede deneniyor, donanımlı parça ayrı etiketleniyor. Key/rim/fill ışıkları, gölge diskleri, nadirlik parıltısı, vignette ve parça değişim geçişi eklendi. Canvas görünür değilken duruyor, DPR 2 ile sınırlı, panel kapanınca unmount/dispose oluyor; WebGL fallback statik simge gösteriyor. `DENE · DÜNYADA GÖR` korunuyor.
+- **Kalanlar:** Telefonda `?debug=1` ile dönme/zoom/tam ekran ve ekipman kabul testi.
+- **Değişen dosyalar:** `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/store-ui/StorePanel.tsx`, `src/shafak/game/store-ui/store-panel.css`, `src/shafak/game/store-ui/equipment-preview-config.ts`, `src/shafak/world/EquipmentPreview3D.tsx`, `src/shafak/world/WorldScene.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı. `npm test`: 329 testten 321 geçti, 8 bilinen test başarısızlığı var; önceki protokolde belirtilen 321/8 tabanıyla aynı. Replit ekran görüntüsü donanım paneline ulaşmadı; tarayıcı WebGL bağlamı oluşturamadığı için 3D önizleme bu ortamda doğrulanamadı.
+
+## Faz 3 — Yeni yakın dövüş silahları
+
+- **Durum:** BEKLİYOR
+- **Yapılanlar:** Yok.
+- **Kalanlar:** Üç GLB'yi incele, adlandır, optimize et veya lazy-load et, donanım kataloğuna bağla.
+- **Değişen dosyalar:** Yok.
+- **Doğrulama sonucu:** Henüz yapılmadı.
+
+## Faz 4 — Savaş hissi
+
+- **Durum:** BEKLİYOR
+- **Yapılanlar:** Yok.
+- **Kalanlar:** Protokoldeki saldırı fazları, isabet geri bildirimi ve görsel düşman tepkileri.
+- **Değişen dosyalar:** Yok.
+- **Doğrulama sonucu:** Henüz yapılmadı.
+
+## Faz 5 — Görsel efektler
+
+- **Durum:** BEKLİYOR
+- **Yapılanlar:** Yok.
+- **Kalanlar:** Protokoldeki sınırlı havuzlara bağlı vuruş, ayak ve hasar efektleri.
+- **Değişen dosyalar:** Yok.
+- **Doğrulama sonucu:** Henüz yapılmadı.
+
+## Faz 6 — Ses
+
+- **Durum:** BEKLİYOR
+- **Yapılanlar:** Yok.
+- **Kalanlar:** Protokoldeki WebAudio savaş ve yüzey sesleri; mevcut sessiz ayarına uyum.
+- **Değişen dosyalar:** Yok.
+- **Doğrulama sonucu:** Henüz yapılmadı.
+
+## Faz 7 — Kalite katmanları ve performans
+
+- **Durum:** BEKLİYOR
+- **Yapılanlar:** Yok.
+- **Kalanlar:** Kalite profilleri, havuz/bellek denetimi ve 60 saniyelik saldırı ölçümü.
+- **Değişen dosyalar:** Yok.
+- **Doğrulama sonucu:** Henüz yapılmadı.
+
+## Faz 8 — Son kontrol ve rapor
+
+- **Durum:** BEKLİYOR
+- **Yapılanlar:** Yok.
+- **Kalanlar:** Fazların son kontrolü ve istenen doğrulama tablosu ile iPhone kontrol listesi.
+- **Değişen dosyalar:** Yok.
+- **Doğrulama sonucu:** Henüz yapılmadı.
