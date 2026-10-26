@@ -637,8 +637,8 @@
 .war-room-crosshair.is-zoomed { width: 14px; height: 14px; gap: 2px; }
 .war-room-crosshair.is-firing { width: 34px; height: 34px; gap: 10px; }
 .war-room-crosshair.is-zoomed.is-firing { width: 24px; height: 24px; gap: 6px; }
-.war-room-crosshair.is-hit i { border-color: #fff4dc; transform: rotate(45deg) scale(1.4); }
-.war-room-crosshair.is-headshot i { border-color: #ff4e52; box-shadow: 0 0 8px rgba(255, 48, 59, .8); }
+.war-room-crosshair.is-hit i { border-color: #ff6259; box-shadow: 0 0 8px rgba(255, 48, 59, .8); transform: rotate(45deg) scale(1.4); }
+.war-room-crosshair.is-headshot i { border-color: #ff4147; box-shadow: 0 0 10px rgba(255, 48, 59, .95); transform: rotate(45deg) scale(1.7); }
 
 .war-room-hit-direction {
   position: absolute;
@@ -763,6 +763,28 @@
 .war-room-ammo > strong small {
   color: rgba(244, 228, 204, 0.67);
   font: 500 13px/1 var(--font-body, system-ui, sans-serif);
+}
+
+.war-room-reload-progress {
+  display: block;
+  width: min(150px, 100%);
+  height: 2px;
+  overflow: hidden;
+  background: rgba(255, 238, 211, 0.2);
+}
+
+.war-room-reload-progress em {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #e3b766;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: war-room-reload-fill linear forwards;
+}
+
+@keyframes war-room-reload-fill {
+  to { transform: scaleX(1); }
 }
 
 .war-room-ammo > small {

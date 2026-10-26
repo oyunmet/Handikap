@@ -16,7 +16,7 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
-import { setWarRoomMuted } from "./war-room-audio";
+import { resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
 
@@ -338,6 +338,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
     if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) return;
     if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
     event.preventDefault();
+    resumeWarRoomAudio();
     pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, button: event.button };
     if (event.pointerType === "mouse" && event.button === 0) {
       inputRef.current.fireHeld = true;
@@ -391,6 +392,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
   const handleStickDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    resumeWarRoomAudio();
     stickPointerRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     readStick(event);
@@ -414,7 +416,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v9-tum-silahlar</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v11-ates-efekt</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -608,6 +610,12 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                     ? "DOLDURULUYOR"
                     : <>{hud.magazine}<small> / {hud.reserve}</small></>}
                 </strong>
+                {hud.reloading && (
+                  <i className="war-room-reload-progress" role="progressbar" aria-label="Şarjör dolduruluyor"
+                    aria-valuemin={0} aria-valuemax={100}>
+                    <em style={{ animationDuration: `${WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.reloadSeconds ?? 2}s` }} />
+                  </i>
+                )}
                 <small>{formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR</small>
               </div>
               <div className="war-room-controls">
@@ -647,6 +655,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                   label="Ateş et"
                   className="is-fire"
                   onDown={() => {
+                    resumeWarRoomAudio();
                     inputRef.current.fireHeld = true;
                     inputRef.current.firePressed = true;
                   }}

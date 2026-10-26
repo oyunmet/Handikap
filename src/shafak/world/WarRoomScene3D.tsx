@@ -27,7 +27,7 @@ import {
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "../game/war-room-engine";
-import { playWarRoomSound } from "../game/war-room-audio";
+import { playWarRoomSound, type WarRoomShotStyle } from "../game/war-room-audio";
 import {
   WarRoomAnimatedActor,
   WarRoomAssetBoundary,
@@ -58,11 +58,13 @@ const WAR_ROOM_FLOOR_MATERIAL = new THREE.MeshStandardMaterial({
 const WAR_ROOM_EFFECT_POOL_SIZE = 72;
 const WAR_ROOM_TRACER_POOL_SIZE = 24;
 const WAR_ROOM_PROJECTILE_POOL_SIZE = 12;
+const WAR_ROOM_DECAL_POOL_SIZE = 30;
 
 type WarRoomParticle = {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
   born: number; lifetime: number; size: number;
+  bounce: boolean;
 };
 
 type WarRoomProjectile = {
@@ -457,7 +459,7 @@ function WeaponModel({
   weaponId: WarRoomWeaponId;
   mount: WarRoomWeaponMount;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
-  muzzleFlashRef?: MutableRefObject<THREE.Mesh | null>;
+  muzzleFlashRef?: MutableRefObject<THREE.Group | null>;
 }) {
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const crossbow = weaponId === "crossbow";
@@ -535,16 +537,16 @@ function WeaponModel({
         </WarRoomAssetBoundary>
       ) : proceduralFallback}
       <group ref={muzzleAnchorRef} name="war-room-muzzle-anchor" position={muzzle}>
-        <mesh
-          ref={muzzleFlashRef}
-          name="war-room-muzzle-flash"
-          scale={[1.5, 0.8, 2.2]}
-          visible={false}
-        >
-          <sphereGeometry args={[0.12, 8, 6]} />
-          <meshBasicMaterial color={weapon.color} toneMapped={false} />
-          <pointLight color={weapon.color} intensity={2.2} distance={2.6} />
-        </mesh>
+        <group ref={muzzleFlashRef} name="war-room-muzzle-flash" visible={false}>
+          <mesh>
+            <planeGeometry args={[0.34, 0.34]} />
+            <meshBasicMaterial color="#ff8b32" transparent opacity={0.92} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+          </mesh>
+          <mesh scale={[0.52, 0.52, 1]} rotation={[0, 0, Math.PI / 4]}>
+            <planeGeometry args={[0.34, 0.34]} />
+            <meshBasicMaterial color="#fff0a3" transparent opacity={0.96} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+          </mesh>
+        </group>
       </group>
     </group>
   );
@@ -576,6 +578,7 @@ function PlayerActor({
   weaponMountOverrides,
   rootRef,
   muzzleRef,
+  muzzleLightRef,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
@@ -583,10 +586,12 @@ function PlayerActor({
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   rootRef: MutableRefObject<THREE.Group | null>;
   muzzleRef: MutableRefObject<THREE.Group | null>;
+  muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
 }) {
   const recoilRef = useRef<THREE.Group>(null);
-  const muzzleFlashRef = useRef<THREE.Mesh>(null);
+  const muzzleFlashRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
+  const reloadMagazineRef = useRef<THREE.Mesh>(null);
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   useFrame((_, delta) => {
     const player = runtimeRef.current.player;
@@ -602,6 +607,12 @@ function PlayerActor({
     const leftHand = modelRef.current && [
       "Rig_LeftHand", "mixamorigLeftHand", "FistL", "Fist.L", "LeftHand", "LeftHandBone",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
+    const rightArm = modelRef.current && [
+      "mixamorigRightForeArm", "RightForeArm", "Rig_RightForeArm", "RightArm", "mixamorigRightArm",
+    ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
+    const torso = modelRef.current && [
+      "mixamorigSpine", "Spine", "Rig_Spine", "spine",
+    ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     modelRef.current?.updateMatrixWorld(true);
     const mountParent = hand ?? root;
     const weaponMount = recoilRef.current;
@@ -611,6 +622,21 @@ function PlayerActor({
     }
     if (weaponMount) {
       const aiming = inputRef.current.aimHeld;
+      const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
+      const shotAge = Math.max(0, 0.2 - (player.shotFeedbackUntil - player.clockTime));
+      const recoilEnvelope = shotAge <= 0.06
+        ? Math.min(1, shotAge / 0.06)
+        : Math.max(0, 1 - Math.pow((shotAge - 0.06) / 0.12, 2));
+      const recoilStrength = player.shotFeedbackUntil > player.clockTime
+        ? Math.min(1, player.recoil / Math.max(0.02, weapon.recoil)) * recoilEnvelope
+        : 0;
+      const reloadProgress = player.reloadingWeapon === weaponId
+        ? Math.max(0, Math.min(1, 1 - (player.reloadUntil - player.clockTime) / weapon.reloadSeconds))
+        : 0;
+      const reloadDrop = Math.sin(Math.PI * reloadProgress);
+      const chargeProgress = weapon.charge && player.chargeStartedAt > 0
+        ? Math.max(0, Math.min(1, (player.clockTime - player.chargeStartedAt) / 0.95))
+        : 0;
       if (hand) {
         const handScale = hand.getWorldScale(new THREE.Vector3());
         weaponMount.position.set(
@@ -627,19 +653,41 @@ function PlayerActor({
         weaponMount.position.set(0.7, 1.24 + (aiming ? 0.055 : 0), -0.36 - (aiming ? 0.045 : 0));
         weaponMount.scale.setScalar(1.32);
       }
+      weaponMount.position.y -= reloadDrop * 0.14 + chargeProgress * 0.035;
+      weaponMount.position.z += recoilStrength * 0.08 + chargeProgress * 0.1;
       weaponMount.rotation.set(...mount.rotation);
-      const recoil = Math.max(0, player.recoil - delta * 0.36);
-      player.recoil = recoil;
-      weaponMount.rotation.x -= recoil * 0.72;
-      weaponMount.position.z += recoil * 0.08;
+      weaponMount.rotation.x -= recoilStrength * 0.052 + reloadDrop * 0.48 + chargeProgress * 0.16;
+      weaponMount.rotation.z += recoilStrength * 0.018;
+      if (reloadMagazineRef.current) {
+        const magazineVisible = reloadProgress > 0.2 && reloadProgress < 0.78;
+        reloadMagazineRef.current.visible = magazineVisible;
+        reloadMagazineRef.current.position.y = -0.2 - (magazineVisible
+          ? Math.sin((reloadProgress - 0.2) / 0.58 * Math.PI) * 0.16
+          : 0);
+      }
       if (weaponId !== "sidearm" && leftHand?.parent) {
         weaponMount.updateMatrixWorld(true);
         const gripWorld = weaponMount.localToWorld(new THREE.Vector3(-0.08, 0, -0.52));
         const gripLocal = leftHand.parent.worldToLocal(gripWorld);
         leftHand.position.lerp(gripLocal, Math.min(1, delta * 12));
       }
+      const applyBoneKick = (bone: THREE.Object3D | undefined | null, amount: number) => {
+        if (!bone) return;
+        const base = bone.userData.warRoomBaseRotation as [number, number, number] | undefined;
+        if (!base) bone.userData.warRoomBaseRotation = [bone.rotation.x, bone.rotation.y, bone.rotation.z];
+        const original = (bone.userData.warRoomBaseRotation ?? [0, 0, 0]) as [number, number, number];
+        bone.rotation.set(original[0] + amount, original[1], original[2]);
+      };
+      applyBoneKick(rightArm, recoilStrength * 0.11 + reloadDrop * 0.14 + chargeProgress * 0.2);
+      applyBoneKick(torso, -recoilStrength * 0.025);
     }
-    if (muzzleFlashRef.current) muzzleFlashRef.current.visible = player.shotFlashUntil > player.clockTime;
+    if (muzzleFlashRef.current && muzzleFlashRef.current.userData.warRoomExpiresAt <= player.clockTime) {
+      muzzleFlashRef.current.visible = false;
+    }
+    if (muzzleLightRef.current && muzzleLightRef.current.userData.warRoomExpiresAt <= player.clockTime) {
+      muzzleLightRef.current.visible = false;
+      muzzleLightRef.current.intensity = 0;
+    }
   });
   const playerAnimation = () => {
     const player = runtimeRef.current.player;
@@ -677,6 +725,10 @@ function PlayerActor({
             muzzleAnchorRef={muzzleRef}
             muzzleFlashRef={muzzleFlashRef}
           />
+          <mesh ref={reloadMagazineRef} position={[0, -0.2, -0.22]} visible={false}>
+            <boxGeometry args={[0.085, 0.18, 0.1]} />
+            <meshStandardMaterial color="#4a4945" roughness={0.38} metalness={0.72} />
+          </mesh>
         </group>
       </group>
     </group>
@@ -716,16 +768,18 @@ function EnemyActor({
   enemy,
   index,
   groupRefs,
+  muzzleLightRef,
 }: {
   enemy: WarRoomEnemy;
   index: number;
   groupRefs: MutableRefObject<Array<THREE.Group | null>>;
+  muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const weaponMountRef = useRef<THREE.Group>(null);
   const muzzleAnchorRef = useRef<THREE.Group>(null);
-  const muzzleFlashRef = useRef<THREE.Mesh>(null);
+  const muzzleFlashRef = useRef<THREE.Group>(null);
   useFrame((frame, delta) => {
     const group = groupRef.current;
     if (!group) return;
@@ -737,6 +791,9 @@ function EnemyActor({
       group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 7, delta);
     }
     group.position.set(enemy.x, 0, enemy.z);
+    const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.14 : 0;
+    group.position.y = hitKick * 0.035;
+    group.rotation.x = -hitKick * 0.035;
     const hand = modelRef.current && [
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
@@ -763,11 +820,12 @@ function EnemyActor({
     } else if (weaponMount) {
       weaponMount.visible = false;
     }
-    if (
-      muzzleFlashRef.current
-      && Number(muzzleFlashRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow
-    ) {
+    if (muzzleFlashRef.current && Number(muzzleFlashRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow) {
       muzzleFlashRef.current.visible = false;
+    }
+    if (muzzleLightRef.current && Number(muzzleLightRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow) {
+      muzzleLightRef.current.visible = false;
+      muzzleLightRef.current.intensity = 0;
     }
     if (enemy.alive) {
       delete group.userData.warRoomDeathStartedAt;
@@ -801,8 +859,8 @@ function EnemyActor({
           material.transparent = alpha < 1;
           material.opacity = alpha;
           if (emissive.emissive?.isColor) {
-            emissive.emissive.set(hit ? "#ff9c61" : enemy.commander ? "#7b231d" : "#51382c");
-            emissive.emissiveIntensity = hit ? 0.62 : enemy.commander ? 0.18 : 0.04;
+            emissive.emissive.set(hit ? "#ff3028" : enemy.commander ? "#7b231d" : "#51382c");
+            emissive.emissiveIntensity = hit ? 0.82 : enemy.commander ? 0.18 : 0.04;
           }
         });
       });
@@ -914,6 +972,7 @@ function WarRoomRuntimeScene({
   const { camera, scene } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
   const enemyGroupRefs = useRef<Array<THREE.Group | null>>([]);
+  const muzzleLightRef = useRef<THREE.PointLight>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
   const cameraStart = useMemo(() => new THREE.Vector3(), []);
@@ -924,9 +983,10 @@ function WarRoomRuntimeScene({
   const lastHudAtRef = useRef(0);
   const finishedRef = useRef(false);
   const cameraKickRef = useRef(0);
+  const cameraSideKickRef = useRef(0);
   const particles = useMemo<WarRoomParticle[]>(
     () => Array.from({ length: WAR_ROOM_EFFECT_POOL_SIZE }, () => ({
-      x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, born: -1, lifetime: 0, size: 0,
+      x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, born: -1, lifetime: 0, size: 0, bounce: false,
     })),
     [],
   );
@@ -942,6 +1002,32 @@ function WarRoomRuntimeScene({
     return mesh;
   }, []);
   const particleTransform = useMemo(() => new THREE.Object3D(), []);
+  const decalMesh = useMemo(() => {
+    const mesh = new THREE.InstancedMesh(
+      new THREE.CircleGeometry(0.11, 8),
+      new THREE.MeshBasicMaterial({
+        color: "#46382e",
+        transparent: true,
+        opacity: 0.72,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        side: THREE.DoubleSide,
+      }),
+      WAR_ROOM_DECAL_POOL_SIZE,
+    );
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const hidden = new THREE.Object3D();
+    hidden.scale.setScalar(0);
+    hidden.updateMatrix();
+    for (let index = 0; index < WAR_ROOM_DECAL_POOL_SIZE; index += 1) mesh.setMatrixAt(index, hidden.matrix);
+    mesh.frustumCulled = false;
+    return mesh;
+  }, []);
+  const decalCursor = useRef(0);
+  const decalTransform = useMemo(() => new THREE.Object3D(), []);
+  const decalNormal = useMemo(() => new THREE.Vector3(), []);
+  const decalForward = useMemo(() => new THREE.Vector3(0, 0, 1), []);
   const tracerState = useMemo(() => ({
     geometry: new THREE.BufferGeometry(),
     positions: new Float32Array(WAR_ROOM_TRACER_POOL_SIZE * 6),
@@ -1025,12 +1111,63 @@ function WarRoomRuntimeScene({
       particle.born = now;
       particle.lifetime = 0.16 + (Math.sin(seed * 3.7) + 1) * 0.12;
       particle.size = size * (0.65 + (Math.sin(seed * 2.1) + 1) * 0.375);
+      particle.bounce = false;
       particleMesh.setColorAt(slot, new THREE.Color(color));
     }
     if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
   };
 
-  const addTracer = (start: THREE.Vector3, end: THREE.Vector3, color: string, now: number, lifetime = 0.12) => {
+  const spawnMuzzleSmoke = (position: THREE.Vector3, now: number) => {
+    for (let index = 0; index < 4; index += 1) {
+      const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+      const particle = particles[slot];
+      const seed = now * 431 + slot * 23 + index * 13;
+      particle.x = position.x;
+      particle.y = position.y;
+      particle.z = position.z;
+      particle.vx = Math.sin(seed * 1.7) * 0.16;
+      particle.vy = 0.28 + (Math.sin(seed * 2.3) + 1) * 0.12;
+      particle.vz = Math.cos(seed * 2.1) * 0.16;
+      particle.born = now;
+      particle.lifetime = 0.34 + (index % 2) * 0.08;
+      particle.size = 0.075 + (index % 2) * 0.018;
+      particle.bounce = false;
+      particleMesh.setColorAt(slot, new THREE.Color(index % 2 ? "#8d8375" : "#b1a18c"));
+    }
+    if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
+  };
+
+  const spawnCasing = (position: THREE.Vector3, now: number, yaw: number) => {
+    const slot = particleCursor.current++ % WAR_ROOM_EFFECT_POOL_SIZE;
+    const particle = particles[slot];
+    particle.x = position.x + Math.cos(yaw) * 0.12;
+    particle.y = Math.max(0.3, position.y - 0.55);
+    particle.z = position.z + Math.sin(yaw) * 0.12;
+    particle.vx = Math.cos(yaw) * 0.42 + 0.1;
+    particle.vy = 1.05;
+    particle.vz = Math.sin(yaw) * 0.42;
+    particle.born = now;
+    particle.lifetime = 0.98;
+    particle.size = 0.032;
+    particle.bounce = true;
+    particleMesh.setColorAt(slot, new THREE.Color("#c5b698"));
+    if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
+  };
+
+  const addBulletHole = (position: THREE.Vector3, incomingDirection: THREE.Vector3, now: number) => {
+    const slot = decalCursor.current++ % WAR_ROOM_DECAL_POOL_SIZE;
+    decalNormal.copy(incomingDirection).negate().normalize();
+    decalTransform.position.copy(position).addScaledVector(decalNormal, 0.009);
+    decalTransform.quaternion.setFromUnitVectors(decalForward, decalNormal);
+    decalTransform.scale.setScalar(0.75 + (Math.sin(now * 29 + slot) + 1) * 0.16);
+    decalTransform.updateMatrix();
+    decalMesh.setMatrixAt(slot, decalTransform.matrix);
+    decalMesh.setColorAt(slot, new THREE.Color(slot % 3 ? "#43392f" : "#614837"));
+    decalMesh.instanceMatrix.needsUpdate = true;
+    if (decalMesh.instanceColor) decalMesh.instanceColor.needsUpdate = true;
+  };
+
+  const addTracer = (start: THREE.Vector3, end: THREE.Vector3, color: string, now: number, lifetime = 0.08) => {
     const slot = tracerState.cursor++ % WAR_ROOM_TRACER_POOL_SIZE;
     const offset = slot * 6;
     tracerState.positions.set([start.x, start.y, start.z, end.x, end.y, end.z], offset);
@@ -1095,16 +1232,29 @@ function WarRoomRuntimeScene({
     }
     if (now < player.nextShotAt || player.reloadingWeapon) return;
     player.nextShotAt = now + weapon.fireInterval;
-    playWarRoomSound("shot");
+    const shotStyle: WarRoomShotStyle = weapon.weaponClass === "shotgun" || weaponId === "scattergun"
+      ? "shotgun"
+      : weapon.weaponClass === "pistol" || weaponId === "sidearm"
+        ? "pistol"
+        : "rifle";
+    playWarRoomSound(
+      weaponId === "longbow" || weaponId === "crossbow" ? "bow" : "shot",
+      1,
+      shotStyle,
+    );
     ammo.magazine -= 1;
     player.shots += 1;
     player.lastHitDamage = 0;
     player.hitMarkerUntil = 0;
     player.hitMarkerHeadshot = false;
-    player.shotFlashUntil = now + 0.07;
+    player.shotFlashUntil = now + 0.06;
     player.shotFeedbackUntil = now + 0.2;
     player.recoil = Math.min(0.17, player.recoil + weapon.recoil);
-    cameraKickRef.current = Math.min(0.16, cameraKickRef.current + 0.035 + weapon.recoil * 0.5);
+    cameraKickRef.current = Math.min(0.16, cameraKickRef.current + 0.045 + weapon.recoil * 0.4);
+    cameraSideKickRef.current = Math.max(
+      -0.025,
+      Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.004),
+    );
 
     const pellets = weapon.pellets ?? 1;
     const spread = weapon.spread + player.recoil * 0.18;
@@ -1122,6 +1272,23 @@ function WarRoomRuntimeScene({
         player.z - Math.sin(player.yaw) * 0.38 + Math.cos(player.yaw) * 0.25,
       );
     }
+    if (muzzleFlashRef.current) {
+      const flash = muzzleFlashRef.current;
+      flash.visible = true;
+      const seed = now * 91.7;
+      const scale = 0.8 + (Math.sin(seed) + 1) * 0.24;
+      flash.scale.setScalar(scale);
+      flash.rotation.z = Math.sin(seed * 1.3) * 0.65;
+      flash.userData.warRoomExpiresAt = now + 0.06;
+    }
+    if (muzzleLightRef.current) {
+      muzzleLightRef.current.position.copy(muzzle);
+      muzzleLightRef.current.intensity = 2.4;
+      muzzleLightRef.current.visible = true;
+      muzzleLightRef.current.userData.warRoomExpiresAt = now + 0.06;
+    }
+    spawnMuzzleSmoke(muzzle, now);
+    if (weaponId !== "longbow" && weaponId !== "crossbow") spawnCasing(muzzle, now, player.yaw);
     const tracerEnd = new THREE.Vector3();
     const chargeMultiplier = weapon.charge ? 0.65 + charge * 0.55 : 1;
     for (let pellet = 0; pellet < pellets; pellet += 1) {
@@ -1153,11 +1320,12 @@ function WarRoomRuntimeScene({
           ].slice(0, 4);
         }
         tracerEnd.copy(aim.point);
-        spawnImpact(aim.point, aim.headshot ? "#ff584f" : "#f2d7aa", now, aim.headshot ? 12 : 7, aim.headshot ? 0.075 : 0.05);
+        spawnImpact(aim.point, aim.headshot ? "#ff584f" : "#f2d7aa", now, aim.headshot ? 8 : 7, aim.headshot ? 0.075 : 0.05);
       } else {
         tracerEnd.copy(aim.point);
         if (aim.blocked) {
           spawnImpact(tracerEnd, "#b99870", now, 7, 0.055);
+          if (pellet === 0) addBulletHole(tracerEnd, raycaster.ray.direction, now);
         }
       }
       if (pellet === 0 || aimedEnemy) {
@@ -1192,6 +1360,7 @@ function WarRoomRuntimeScene({
     if (input.paused) return;
     player.clockTime += delta;
     const now = player.clockTime;
+    player.recoil = Math.max(0, player.recoil - delta * 0.36);
     if (player.startTime === 0) player.startTime = now;
     player.yaw = input.yaw;
     player.pitch = Math.max(-0.56, Math.min(0.55, input.pitch));
@@ -1371,18 +1540,31 @@ function WarRoomRuntimeScene({
         enemyMuzzle.updateWorldMatrix(true, false);
         enemyMuzzle.getWorldPosition(muzzle);
       }
-      const enemyFlash = enemyGroup?.getObjectByName("war-room-muzzle-flash") as THREE.Mesh | undefined;
+      const enemyFlash = enemyGroup?.getObjectByName("war-room-muzzle-flash") as THREE.Group | undefined;
       if (enemyFlash) {
         enemyFlash.visible = true;
         enemyFlash.userData.warRoomExpiresAt = now + 0.08;
+        const flashScale = 0.78 + (Math.sin(now * 83 + enemy.x) + 1) * 0.18;
+        enemyFlash.scale.setScalar(flashScale);
+        enemyFlash.rotation.z = Math.sin(now * 29 + enemy.z) * 0.55;
       }
+      if (muzzleLightRef.current) {
+        muzzleLightRef.current.position.copy(muzzle);
+        muzzleLightRef.current.intensity = 2;
+        muzzleLightRef.current.visible = true;
+        muzzleLightRef.current.userData.warRoomExpiresAt = now + 0.06;
+      }
+      spawnMuzzleSmoke(muzzle, now);
+      spawnCasing(muzzle, now, Math.atan2(player.x - enemy.x, -(player.z - enemy.z)));
+      const enemyDistance = Math.hypot(enemy.x - player.x, enemy.z - player.z);
+      playWarRoomSound("enemy-shot", Math.max(0.08, 1 - enemyDistance / 27), "rifle");
       const missSeed = now * 9 + runtime.enemies.indexOf(enemy) * 2.7;
       const target = new THREE.Vector3(
         player.x + Math.sin(missSeed) * 0.38,
         player.jumpHeight + 1.15 + Math.cos(missSeed * 1.37) * 0.22,
         player.z + Math.sin(missSeed * 0.71) * 0.38,
       );
-      addTracer(muzzle, target, "#f36e54", now);
+      addTracer(muzzle, target, "#f36e54", now, 0.08);
       if (nextWarRoomRandom(runtime) > (enemy.commander ? 0.25 : 0.38)) {
         const hit = applyWarRoomDamage(player, enemy.damage);
         if (hit.damage > 0) {
@@ -1416,10 +1598,19 @@ function WarRoomRuntimeScene({
         particleTransform.position.set(0, -1000, 0);
         particleTransform.scale.setScalar(0);
       } else {
+        const groundTime = particle.bounce
+          ? (particle.vy + Math.sqrt(particle.vy * particle.vy + 8.8 * Math.max(0, particle.y - 0.025))) / 4.4
+          : Number.POSITIVE_INFINITY;
+        const afterBounce = age > groundTime ? age - groundTime : 0;
+        const impactVelocity = particle.vy - 4.4 * groundTime;
+        const reboundVelocity = Math.abs(impactVelocity) * 0.28;
+        const particleY = particle.bounce && afterBounce > 0
+          ? Math.max(0.025, 0.025 + reboundVelocity * afterBounce - afterBounce * afterBounce * 2.2)
+          : particle.y + particle.vy * age - age * age * 2.2;
         particleTransform.position.set(
-          particle.x + particle.vx * age,
-          particle.y + particle.vy * age - age * age * 2.2,
-          particle.z + particle.vz * age,
+          particle.x + particle.vx * (particle.bounce ? Math.min(age, groundTime) + afterBounce * 0.32 : age),
+          particleY,
+          particle.z + particle.vz * (particle.bounce ? Math.min(age, groundTime) + afterBounce * 0.32 : age),
         );
         particleTransform.scale.setScalar(particle.size * (1 - age / particle.lifetime));
       }
@@ -1482,7 +1673,10 @@ function WarRoomRuntimeScene({
       player.jumpHeight + (player.crouched ? 1.18 : 1.48) + cameraForwardY * 10 + cameraKickRef.current,
       player.z + cameraForwardZ * 10,
     );
+    cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current;
+    cameraLook.z += Math.sin(player.yaw) * cameraSideKickRef.current;
     cameraKickRef.current = Math.max(0, cameraKickRef.current - delta * 0.72);
+    cameraSideKickRef.current *= Math.exp(-delta * 7.5);
     if (now - player.lastDamageAt < 0.24) {
       const shake = Math.sin(now * 92) * 0.045;
       camera.position.x += shake;
@@ -1515,8 +1709,17 @@ function WarRoomRuntimeScene({
       <Battlefield />
       <primitive object={tracerLines} dispose={null} />
       <primitive object={particleMesh} dispose={null} />
+      <primitive object={decalMesh} dispose={null} />
       <primitive object={projectileShafts} dispose={null} />
       <primitive object={projectileHeads} dispose={null} />
+      <pointLight
+        ref={muzzleLightRef}
+        color="#ff9a4d"
+        intensity={0}
+        distance={3.2}
+        decay={2}
+        visible={false}
+      />
       <group userData={{ runtime }}>
         {runtime.enemies.map((enemy, index) => (
           <EnemyActor
@@ -1524,6 +1727,7 @@ function WarRoomRuntimeScene({
             enemy={enemy}
             index={index}
             groupRefs={enemyGroupRefs}
+            muzzleLightRef={muzzleLightRef}
           />
         ))}
       </group>
@@ -1534,6 +1738,7 @@ function WarRoomRuntimeScene({
         weaponMountOverrides={weaponMountOverrides}
         rootRef={playerRootRef}
         muzzleRef={playerMuzzleRef}
+        muzzleLightRef={muzzleLightRef}
       />
     </>
   );
