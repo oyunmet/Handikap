@@ -20,11 +20,11 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 3 — Yeni yakın dövüş silahları
 
-- **Durum:** BEKLİYOR
-- **Yapılanlar:** Yok.
-- **Kalanlar:** Üç GLB'yi incele, adlandır, optimize et veya lazy-load et, donanım kataloğuna bağla.
-- **Değişen dosyalar:** Yok.
-- **Doğrulama sonucu:** Henüz yapılmadı.
+- **Durum:** DEVAM
+- **Yapılanlar:** Üç dosyanın mesh adı, ölçü aralığı, üçgen sayısı ve gömülü doku boyutu denetlendi: `Staff` (1.6 m, 39.200 üçgen, 2048²), `Spear` (0.7 m, 39.198 üçgen, 2048²), `Pickaxe` (yaklaşık 0.67 × 0.9 m, 9.800 üçgen, 512²). Kaynak adları ve ölçüleri asa, mızrak ve kazma tahminlerini destekliyor.
+- **Kalanlar:** Anlamlı dosya adları, optimizasyon/lazy-load, donanım kataloğu, tutuş/ölçek ayarı ve saldırı profilleri; ardından bu fazı doğrula ve commit et.
+- **Değişen dosyalar:** Henüz yok.
+- **Doğrulama sonucu:** İlk GLB metadata denetimi tamamlandı; oyun entegrasyonu doğrulanmadı.
 
 ## Faz 4 — Savaş hissi
 
