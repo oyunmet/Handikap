@@ -17,12 +17,20 @@ import {
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
 import { resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
+import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
 
-type Props = { onExit: () => void; profile: PlayerProfile };
+type Props = {
+  onExit: () => void;
+  profile: PlayerProfile;
+  invertLookY: boolean;
+  onInvertLookYChange: (value: boolean) => void;
+  onOpenSettings: () => void;
+  settingsOpen: boolean;
+};
 type Phase = "briefing" | "battle" | "victory" | "defeat";
-type PointerTrack = { id: number | null; x: number; y: number; button: number };
+type PointerTrack = { id: number | null; x: number; y: number; button: number; pointerType: WarRoomLookPointerType };
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
 
@@ -178,7 +186,14 @@ function MiniMap({ hud }: { hud: WarRoomHudSnapshot }) {
   );
 }
 
-export default function WarRoomGame({ onExit, profile }: Props) {
+export default function WarRoomGame({
+  onExit,
+  profile,
+  invertLookY,
+  onInvertLookYChange,
+  onOpenSettings,
+  settingsOpen,
+}: Props) {
   const { active: modelsLoading, errors: modelErrors, progress: modelProgress } = useProgress();
   const [modelsPreloadStarted, setModelsPreloadStarted] = useState(false);
   useEffect(() => {
@@ -208,7 +223,8 @@ export default function WarRoomGame({ onExit, profile }: Props) {
   } | null>(null);
   const runtimeRef = useRef<WarRoomRuntime>(createWarRoomRuntime(loadout));
   const inputRef = useRef<WarRoomInputState>(createInputState());
-  const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1 });
+  const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1, pointerType: "mouse" });
+  const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
   const stickPointerRef = useRef<number | null>(null);
   const debugMode = typeof window !== "undefined"
@@ -250,6 +266,24 @@ export default function WarRoomGame({ onExit, profile }: Props) {
     pointerRef.current.id = null;
     setExitPrompt(true);
   }, []);
+
+  useEffect(() => {
+    if (!settingsOpen || phase !== "battle" || inputRef.current.paused) return;
+    inputRef.current.paused = true;
+    settingsPauseRef.current = true;
+    inputRef.current.keys.clear();
+    inputRef.current.fireHeld = false;
+    inputRef.current.fireReleased = true;
+    inputRef.current.aimHeld = false;
+    runtimeRef.current.player.chargeStartedAt = 0;
+    pointerRef.current.id = null;
+  }, [phase, settingsOpen]);
+
+  useEffect(() => {
+    if (settingsOpen || !settingsPauseRef.current) return;
+    inputRef.current.paused = false;
+    settingsPauseRef.current = false;
+  }, [settingsOpen]);
 
   useEffect(() => {
     if (phase !== "battle") return undefined;
@@ -339,7 +373,13 @@ export default function WarRoomGame({ onExit, profile }: Props) {
     if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
     event.preventDefault();
     resumeWarRoomAudio();
-    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, button: event.button };
+    pointerRef.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      button: event.button,
+      pointerType: event.pointerType === "touch" ? "touch" : event.pointerType === "pen" ? "pen" : "mouse",
+    };
     if (event.pointerType === "mouse" && event.button === 0) {
       inputRef.current.fireHeld = true;
       inputRef.current.firePressed = true;
@@ -357,8 +397,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
     pointerRef.current.y = event.clientY;
     const input = inputRef.current;
     const sensitivity = input.aimHeld ? 0.0024 : 0.0041;
-    input.yaw += dx * sensitivity;
-    input.pitch = Math.max(-0.56, Math.min(0.55, input.pitch + dy * sensitivity));
+    applyWarRoomLookDelta(input, dx, dy, sensitivity, pointerRef.current.pointerType, invertLookY);
   };
 
   const handleWorldPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -416,7 +455,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v11-ates-efekt</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v12-yakin-dovus</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -467,7 +506,7 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                     <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>
                     <span className="war-room-weapon-card__copy">
                       <b>{weapon.name}</b>
-                      <small>{weapon.className} · {weapon.rarity ?? "Sıradan"} · {weapon.magazine} mermi</small>
+                    <small>{weapon.className} · {weapon.rarity ?? "Sıradan"} · {weapon.weaponClass === "melee" ? `${weapon.range.toFixed(1)} m · sınırsız` : `${weapon.magazine} mermi`}</small>
                     </span>
                     <span className="war-room-weapon-card__status">
                       {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : owned ? "SEÇ" : "MAĞAZADA"}
@@ -571,6 +610,15 @@ export default function WarRoomGame({ onExit, profile }: Props) {
             >
               {soundMuted ? "SES AÇ" : "SESSİZ"}
             </button>
+            <button
+              className="war-room-settings"
+              type="button"
+              aria-label="Oyun ayarlarını aç"
+              title="Oyun ayarları"
+              onClick={onOpenSettings}
+            >
+              ⚙
+            </button>
             <div className="war-room-commander">
               <div><span>KUŞATMA KOMUTANI</span><b>KIZIL KOMUTAN</b></div>
               <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>
@@ -605,18 +653,28 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.name ?? "Silah"}
                   <small>{WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.className ?? ""}</small>
                 </span>
-                <strong>
-                  {hud.reloading
-                    ? "DOLDURULUYOR"
-                    : <>{hud.magazine}<small> / {hud.reserve}</small></>}
-                </strong>
-                {hud.reloading && (
+                {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? (
+                  <strong className="war-room-ammo__melee" aria-label="Sınırsız kullanım">
+                    {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon} ∞
+                  </strong>
+                ) : (
+                  <strong>
+                    {hud.reloading
+                      ? "DOLDURULUYOR"
+                      : <>{hud.magazine}<small> / {hud.reserve}</small></>}
+                  </strong>
+                )}
+                {hud.reloading && WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass !== "melee" && (
                   <i className="war-room-reload-progress" role="progressbar" aria-label="Şarjör dolduruluyor"
                     aria-valuemin={0} aria-valuemax={100}>
                     <em style={{ animationDuration: `${WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.reloadSeconds ?? 2}s` }} />
                   </i>
                 )}
-                <small>{formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR</small>
+                <small>
+                  {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
+                    ? `${formatDuration(hud.elapsedSeconds)} · ATEŞ: SALDIRI · V: DEĞİŞTİR`
+                    : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
+                </small>
               </div>
               <div className="war-room-controls">
                 <ActionButton
@@ -626,12 +684,14 @@ export default function WarRoomGame({ onExit, profile }: Props) {
                   onDown={() => { inputRef.current.aimHeld = true; }}
                   onUp={() => { inputRef.current.aimHeld = false; }}
                 />
-                <ActionButton
-                  label="Yeniden doldur"
-                  hint="R"
-                  className="is-reload"
-                  onClick={() => { inputRef.current.reloadPressed = true; }}
-                />
+                {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass !== "melee" && (
+                  <ActionButton
+                    label="Yeniden doldur"
+                    hint="R"
+                    className="is-reload"
+                    onClick={() => { inputRef.current.reloadPressed = true; }}
+                  />
+                )}
                 <ActionButton
                   label="Zıpla"
                   hint="SPACE"

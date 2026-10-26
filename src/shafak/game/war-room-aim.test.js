@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyWarRoomDamage, createWarRoomRuntime } from "./war-room-engine.ts";
-import { traceWarRoomRay } from "./war-room-aim.ts";
+import { traceWarRoomMeleeRay, traceWarRoomRay } from "./war-room-aim.ts";
 import { segmentBlockFraction } from "./war-room-engine.ts";
 
 test("camera rays acquire all nine War Room enemy capsules and repeated hits kill them", () => {
@@ -80,4 +80,36 @@ test("the player's own model is ignored because only enemy targets are traced", 
   );
   assert.equal(miss.target, null);
   assert.equal(miss.blocked, false);
+});
+
+test("melee uses a short forward sweep, respects its range, and is blocked by cover", () => {
+  const target = { x: 0, z: -1.6, y: 1, hp: 43, maxHp: 43, alive: true, commander: false };
+  const hit = traceWarRoomMeleeRay(
+    { x: 0, y: 1.1, z: 0 },
+    { x: 0, y: 0, z: -1 },
+    [target],
+    1.8,
+  );
+  assert.equal(hit.target, target);
+  assert.deepEqual(applyWarRoomDamage(hit.target, 24), { damage: 24, killed: false });
+  assert.equal(target.hp, 19);
+
+  const outOfRange = traceWarRoomMeleeRay(
+    { x: 0, y: 1.1, z: 0 },
+    { x: 0, y: 0, z: -1 },
+    [{ ...target, z: -3.5 }],
+    1.8,
+  );
+  assert.equal(outOfRange.target, null);
+  assert.equal(target.hp, 19, "a miss must not change enemy health");
+
+  const blocked = traceWarRoomMeleeRay(
+    { x: 0, y: 1.1, z: 5 },
+    { x: 0, y: 0, z: -1 },
+    [{ ...target, z: -3 }],
+    3,
+    0.5,
+  );
+  assert.equal(blocked.target, null);
+  assert.equal(blocked.blocked, true);
 });

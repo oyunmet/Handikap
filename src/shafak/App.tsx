@@ -54,6 +54,7 @@ type Preferences = {
   visualEffects: boolean;
   reduceMotion: boolean;
   performanceMonitor: boolean;
+  invertWarRoomLookY: boolean;
 };
 
 const PREFERENCES_KEY = "shafak-settings-v1";
@@ -67,6 +68,7 @@ const initialPreferences: Preferences = {
   visualEffects: true,
   reduceMotion: false,
   performanceMonitor: false,
+  invertWarRoomLookY: false,
 };
 
 function profileSyncErrorMessage(error: unknown) {
@@ -135,6 +137,10 @@ function readPreferences(): Preferences {
         typeof saved.performanceMonitor === "boolean"
           ? saved.performanceMonitor
           : initialPreferences.performanceMonitor,
+      invertWarRoomLookY:
+        typeof saved.invertWarRoomLookY === "boolean"
+          ? saved.invertWarRoomLookY
+          : initialPreferences.invertWarRoomLookY,
     };
   } catch {
     return initialPreferences;
@@ -1091,7 +1097,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             transition={{ duration: motionReduced ? 0.1 : 0.24, ease: "easeOut" }}
           >
             <Suspense fallback={<div className="entry-loading">Savaş Odası hazırlanıyor…</div>}>
-              <WarRoomGame onExit={exitWarRoom} profile={profile} />
+              <WarRoomGame
+                onExit={exitWarRoom}
+                profile={profile}
+                invertLookY={preferences.invertWarRoomLookY}
+                onInvertLookYChange={(value) => setPreference("invertWarRoomLookY", value)}
+                onOpenSettings={() => setSettingsOpen(true)}
+                settingsOpen={settingsOpen}
+              />
             </Suspense>
           </motion.div>
         )}
@@ -1190,6 +1203,12 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   description={tr.vibrationDescription}
                   checked={preferences.vibration}
                   onChange={() => togglePreference("vibration")}
+                />
+                <SettingToggle
+                  label="Y eksenini ters çevir"
+                  description="Kapalıyken parmağı yukarı kaydırmak kamerayı yukarı kaldırır."
+                  checked={preferences.invertWarRoomLookY}
+                  onChange={() => setPreference("invertWarRoomLookY", !preferences.invertWarRoomLookY)}
                 />
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">

@@ -1,6 +1,9 @@
 export type BlasterWeaponClass = "rifle" | "pistol" | "shotgun" | "light" | "heavy";
+export type WarRoomWeaponClass = BlasterWeaponClass | "melee";
+export type WarRoomMeleeStyle = "slash" | "thrust";
 export type WarRoomWeaponId =
   | "powder_rifle" | "sidearm" | "scattergun" | "crossbow" | "longbow"
+  | "melee_knife" | "melee_axe" | "melee_cudgel" | "melee_spear" | "melee_shovel"
   | `blaster_${"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r"}`;
 
 export type WarRoomWeaponMount = {
@@ -37,7 +40,9 @@ export type WarRoomWeapon = {
   storeItemId?: string;
   priceGold?: number;
   rarity?: "Sıradan" | "Nadir" | "Epik" | "Efsanevi";
-  weaponClass?: BlasterWeaponClass;
+  weaponClass?: WarRoomWeaponClass;
+  meleeStyle?: WarRoomMeleeStyle;
+  meleeDuration?: number;
   mount?: WarRoomWeaponMount;
   automatic?: boolean;
   pellets?: number;
@@ -138,6 +143,36 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     modelSize: [0.24, 1.5, 0.2],
     charge: true,
     color: "#b7d9ff",
+  },
+  {
+    id: "melee_knife", name: "Bıçak", icon: "⚔", className: "Yakın dövüş · Hızlı",
+    damage: 24, fireInterval: 0.42, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 1.8,
+    modelFile: "knife.glb", normalizeLength: 0.58, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.38, color: "#c6d4d1",
+    mount: { position: [0.02, -0.02, -0.03], rotation: [0, 0, 0], scale: 0.78 },
+  },
+  {
+    id: "melee_axe", name: "Balta", icon: "🪓", className: "Yakın dövüş · Ağır",
+    damage: 68, fireInterval: 0.92, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
+    modelFile: "axe.glb", normalizeLength: 0.88, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.72, color: "#c8935d",
+    mount: { position: [0.015, -0.035, -0.04], rotation: [0, 0, 0], scale: 0.74 },
+  },
+  {
+    id: "melee_cudgel", name: "Sopa", icon: "▰", className: "Yakın dövüş · Dengeli",
+    damage: 43, fireInterval: 0.64, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
+    modelFile: "cudgel.glb", normalizeLength: 0.92, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.54, color: "#966d48",
+    mount: { position: [0.018, -0.02, -0.045], rotation: [0, 0, 0], scale: 0.76 },
+  },
+  {
+    id: "melee_spear", name: "Mızrak", icon: "↗", className: "Yakın dövüş · Uzun menzil",
+    damage: 45, fireInterval: 0.68, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.6,
+    modelFile: "spear.glb", normalizeLength: 1.12, weaponClass: "melee", meleeStyle: "thrust", meleeDuration: 0.58, color: "#91bbb4",
+    mount: { position: [0.02, -0.02, -0.045], rotation: [-Math.PI / 2, 0, 0], scale: 0.84 },
+  },
+  {
+    id: "melee_shovel", name: "Kürek", icon: "⛏", className: "Yakın dövüş · Ağır",
+    damage: 62, fireInterval: 0.88, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
+    modelFile: null, modelSize: [0.18, 0.92, 0.13], weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.68, color: "#a98967",
+    mount: { position: [0.02, -0.025, -0.04], rotation: [0, 0, 0], scale: 0.76 },
   },
   {
     id: "blaster_a", name: "Kül Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",

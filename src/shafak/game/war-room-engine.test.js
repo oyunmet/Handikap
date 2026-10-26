@@ -21,11 +21,32 @@ test("the room starts with eight guards and a durable commander", () => {
   assert.equal(runtime.player.ammo.crossbow?.magazine, 1);
 });
 
+test("five melee weapons have no ammunition state and have per-weapon attack values", () => {
+  const meleeIds = ["melee_knife", "melee_axe", "melee_cudgel", "melee_spear", "melee_shovel"];
+  const runtime = createWarRoomRuntime(["melee_knife", "melee_spear"]);
+  assert.equal(meleeIds.length, 5);
+  assert.equal(runtime.player.ammo.melee_knife, undefined);
+  assert.equal(runtime.player.ammo.melee_spear, undefined);
+  for (const id of meleeIds) {
+    const weapon = WAR_ROOM_WEAPONS.find((candidate) => candidate.id === id);
+    assert.equal(weapon?.weaponClass, "melee");
+    assert.ok((weapon?.damage ?? 0) > 0);
+    assert.ok((weapon?.fireInterval ?? 0) > 0);
+    assert.ok((weapon?.range ?? 0) > 0);
+  }
+});
+
 test("all War Room weapons expose complete, valid shooter settings", () => {
-  assert.equal(WAR_ROOM_WEAPONS.length, 23);
+  assert.equal(WAR_ROOM_WEAPONS.length, 28);
   for (const weapon of WAR_ROOM_WEAPONS) {
     for (const key of ["damage", "fireInterval", "magazine", "reserve", "reloadSeconds", "recoil", "spread", "headshotMultiplier", "range"]) {
-      assert.ok(weapon[key] > 0, `${weapon.id} must define a positive ${key}`);
+      if (weapon.weaponClass === "melee" && ["magazine", "reserve", "reloadSeconds"].includes(key)) {
+        assert.equal(weapon[key], 0, `${weapon.id} must not have ammunition or reloading`);
+      } else if (weapon.weaponClass === "melee" && ["recoil", "spread"].includes(key)) {
+        assert.equal(weapon[key], 0, `${weapon.id} does not use firearm recoil or spread`);
+      } else {
+        assert.ok(weapon[key] > 0, `${weapon.id} must define a positive ${key}`);
+      }
     }
   }
   assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "powder_rifle")?.magazine, 30);

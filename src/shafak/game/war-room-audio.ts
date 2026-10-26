@@ -1,4 +1,4 @@
-export type WarRoomSoundCue = "shot" | "enemy-shot" | "bow" | "empty" | "reload" | "hit";
+export type WarRoomSoundCue = "shot" | "enemy-shot" | "bow" | "empty" | "reload" | "hit" | "melee-swing" | "melee-hit";
 export type WarRoomShotStyle = "rifle" | "shotgun" | "pistol";
 
 let muted = false;
@@ -92,6 +92,30 @@ export function playWarRoomSound(
     gain.connect(context.destination);
     oscillator.start(now);
     oscillator.stop(now + 0.17);
+    return;
+  }
+
+  if (cue === "melee-swing" || cue === "melee-hit") {
+    const impact = cue === "melee-hit";
+    playNoise(
+      context,
+      now,
+      impact ? 0.11 : 0.16,
+      (impact ? 0.075 : 0.025) * safeVolume,
+      impact ? 720 : 3200,
+    );
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = impact ? "triangle" : "sawtooth";
+    oscillator.frequency.setValueAtTime(impact ? 118 : 360, now);
+    oscillator.frequency.exponentialRampToValueAtTime(impact ? 48 : 120, now + (impact ? 0.11 : 0.16));
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime((impact ? 0.055 : 0.018) * safeVolume, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + (impact ? 0.11 : 0.16));
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + (impact ? 0.12 : 0.17));
     return;
   }
 

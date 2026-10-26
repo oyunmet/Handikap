@@ -84,6 +84,7 @@ export function traceWarRoomRay<T extends WarRoomAimTarget>(
   targets: readonly T[],
   range: number,
   blockedAtFraction: number | null = null,
+  targetRadiusPadding = 0,
 ): WarRoomAimResult<T> {
   const directionLength = Math.hypot(rawDirection.x, rawDirection.y, rawDirection.z);
   const direction = directionLength > 1e-8
@@ -106,14 +107,14 @@ export function traceWarRoomRay<T extends WarRoomAimTarget>(
     if (!candidate.alive) return;
     const height = WAR_ROOM_CHARACTER_HEIGHT * (candidate.commander ? 1.3 : 1);
     const headshotFloor = height * WAR_ROOM_HEADSHOT_HEIGHT_RATIO;
-    const headshotRadius = height * (1 - WAR_ROOM_HEADSHOT_HEIGHT_RATIO) / 2;
+    const headshotRadius = height * (1 - WAR_ROOM_HEADSHOT_HEIGHT_RATIO) / 2 + targetRadiusPadding;
     const headDistance = raySphereDistance(
       origin,
       direction,
       { x: candidate.x, y: headshotFloor + headshotRadius, z: candidate.z },
       headshotRadius,
     );
-    const bodyRadius = candidate.commander ? 0.29 : 0.25;
+    const bodyRadius = (candidate.commander ? 0.29 : 0.25) + targetRadiusPadding;
     const bodyDistance = rayCapsuleDistance(
       origin,
       direction,
@@ -149,4 +150,14 @@ export function traceWarRoomRay<T extends WarRoomAimTarget>(
     headshot,
     blocked,
   };
+}
+
+export function traceWarRoomMeleeRay<T extends WarRoomAimTarget>(
+  origin: Vector3Like,
+  direction: Vector3Like,
+  targets: readonly T[],
+  range: number,
+  blockedAtFraction: number | null = null,
+) {
+  return traceWarRoomRay(origin, direction, targets, range, blockedAtFraction, 0.34);
 }

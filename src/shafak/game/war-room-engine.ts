@@ -57,6 +57,9 @@ export type WarRoomRuntime = {
     chargeStartedAt: number;
     shotFlashUntil: number;
     shotFeedbackUntil: number;
+    meleeStartedAt: number;
+    meleeUntil: number;
+    meleeDuration: number;
     recoil: number;
     lastDamageAt: number;
     damageDirection: number;
@@ -175,7 +178,9 @@ export function createWarRoomRuntime(
   const ammo: WarRoomRuntime["player"]["ammo"] = {};
   for (const id of new Set(weaponIds)) {
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(id);
-    if (weapon) ammo[id] = { magazine: weapon.magazine, reserve: weapon.reserve };
+    if (weapon && weapon.weaponClass !== "melee") {
+      ammo[id] = { magazine: weapon.magazine, reserve: weapon.reserve };
+    }
   }
 
   return {
@@ -207,6 +212,9 @@ export function createWarRoomRuntime(
       chargeStartedAt: 0,
       shotFlashUntil: 0,
       shotFeedbackUntil: 0,
+      meleeStartedAt: -1,
+      meleeUntil: 0,
+      meleeDuration: 0,
       recoil: 0,
       lastDamageAt: 0,
       damageDirection: 0,
