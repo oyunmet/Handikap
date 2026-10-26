@@ -28,8 +28,8 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 4 — Savaş hissi
 
-- **Durum:** BEKLİYOR
-- **Yapılanlar:** Yok.
+- **Durum:** DEVAM
+- **Yapılanlar:** Mevcut tek vuruş zamanlaması, koni/engel kontrolü, silah animasyonu, düşman hit flash/geri tepmesi ve ölümde küçülüp solma korunacak temel olarak belirlendi. Kombo, basılı tutulan ağır saldırı, atılma/yumuşak hedef çekimi ve ölçülü vuruş durması henüz yok.
 - **Kalanlar:** Protokoldeki saldırı fazları, isabet geri bildirimi ve görsel düşman tepkileri.
 - **Değişen dosyalar:** Yok.
 - **Doğrulama sonucu:** Henüz yapılmadı.

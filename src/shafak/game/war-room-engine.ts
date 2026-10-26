@@ -26,6 +26,7 @@ export type WarRoomEnemy = {
   hitUntil: number;
   hitKnockbackX: number;
   hitKnockbackZ: number;
+  deathYaw: number;
 };
 
 export type WarRoomAmmo = { magazine: number; reserve: number };
@@ -66,6 +67,19 @@ export type WarRoomRuntime = {
     meleeHitPending: boolean;
     meleeAttackWeaponId: WarRoomWeaponId | null;
     meleeAttackYaw: number;
+    meleeInputStartedAt: number;
+    meleeInputPending: boolean;
+    meleeComboIndex: number;
+    meleeComboCount: number;
+    meleeComboLastAttackAt: number;
+    meleeAttackComboIndex: number;
+    meleeAttackHeavy: boolean;
+    meleeAttackDamageMultiplier: number;
+    meleeAttackRangeBonus: number;
+    meleeAttackHitStopSeconds: number;
+    meleeAttackStaggerSeconds: number;
+    meleeHitStopUntil: number;
+    meleeLastResult: string;
     recoil: number;
     lastDamageAt: number;
     damageDirection: number;
@@ -127,6 +141,9 @@ export type WarRoomHudSnapshot = {
   hitMessage: string;
   killFeed: Array<{ id: number; text: string }>;
   crouched: boolean;
+  meleePhase: "HAZIR" | "HAZIRLIK" | "VURUŞ" | "TOPARLAN";
+  meleeComboCount: number;
+  meleeLastResult: string;
 };
 
 export type DamageTarget = { hp: number; maxHp: number };
@@ -163,6 +180,7 @@ export function createWarRoomRuntime(
       hitUntil: 0,
       hitKnockbackX: 0,
       hitKnockbackZ: 0,
+      deathYaw: 0,
     };
   });
   enemies.push({
@@ -183,6 +201,7 @@ export function createWarRoomRuntime(
     hitUntil: 0,
     hitKnockbackX: 0,
     hitKnockbackZ: 0,
+    deathYaw: 0,
   });
 
   const ammo: WarRoomRuntime["player"]["ammo"] = {};
@@ -229,6 +248,19 @@ export function createWarRoomRuntime(
       meleeHitPending: false,
       meleeAttackWeaponId: null,
       meleeAttackYaw: 0,
+      meleeInputStartedAt: 0,
+      meleeInputPending: false,
+      meleeComboIndex: 0,
+      meleeComboCount: 0,
+      meleeComboLastAttackAt: -1,
+      meleeAttackComboIndex: 0,
+      meleeAttackHeavy: false,
+      meleeAttackDamageMultiplier: 1,
+      meleeAttackRangeBonus: 0,
+      meleeAttackHitStopSeconds: 0.05,
+      meleeAttackStaggerSeconds: 0.18,
+      meleeHitStopUntil: 0,
+      meleeLastResult: "Henüz isabet yok",
       recoil: 0,
       lastDamageAt: 0,
       damageDirection: 0,

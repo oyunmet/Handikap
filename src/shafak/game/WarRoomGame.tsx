@@ -81,6 +81,9 @@ function createEmptyHud(): WarRoomHudSnapshot {
     hitMessage: "",
     killFeed: [],
     crouched: false,
+    meleePhase: "HAZIR",
+    meleeComboCount: 0,
+    meleeLastResult: "Henüz isabet yok",
   };
 }
 
@@ -265,6 +268,7 @@ export default function WarRoomGame({
     input.fireReleased = true;
     input.aimHeld = false;
     runtimeRef.current.player.chargeStartedAt = 0;
+    runtimeRef.current.player.meleeInputPending = false;
     pointerRef.current.id = null;
     setExitPrompt(true);
   }, []);
@@ -278,6 +282,7 @@ export default function WarRoomGame({
     inputRef.current.fireReleased = true;
     inputRef.current.aimHeld = false;
     runtimeRef.current.player.chargeStartedAt = 0;
+    runtimeRef.current.player.meleeInputPending = false;
     pointerRef.current.id = null;
   }, [phase, settingsOpen]);
 
@@ -312,6 +317,7 @@ export default function WarRoomGame({
       inputRef.current.fireHeld = false;
       inputRef.current.aimHeld = false;
       inputRef.current.fireReleased = true;
+      runtimeRef.current.player.meleeInputPending = false;
       pointerRef.current.id = null;
     };
     window.addEventListener("keydown", onKeyDown);
@@ -457,7 +463,7 @@ export default function WarRoomGame({
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v14-faz3</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v14-faz4</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -561,7 +567,8 @@ export default function WarRoomGame({
           />
           {debugMode && (
             <div className="war-room-melee-debug-result" aria-live="polite">
-              {meleeDebugMessage || "MELEE DEBUG · saldırı bekleniyor"}
+              {`MELEE DEBUG · ${hud.meleePhase} · KOMBO ${hud.meleeComboCount}/3 · ${hud.meleeLastResult}`}
+              {meleeDebugMessage ? ` · ${meleeDebugMessage}` : ""}
             </div>
           )}
           {debugMode && phase === "battle" && (() => {
@@ -681,7 +688,7 @@ export default function WarRoomGame({
                 )}
                 <small>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? `${formatDuration(hud.elapsedSeconds)} · ATEŞ: SALDIRI · V: DEĞİŞTİR`
+                    ? `${formatDuration(hud.elapsedSeconds)} · DOKUNUŞ: HAFİF · BASILI TUT ≥350 ms: AĞIR`
                     : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
                 </small>
               </div>

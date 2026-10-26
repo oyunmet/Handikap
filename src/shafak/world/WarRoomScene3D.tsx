@@ -13,6 +13,8 @@ import {
   type WarRoomWeaponId,
 } from "../game/war-room-data";
 import { traceWarRoomMeleeCone, traceWarRoomRay, type WarRoomMeleeConeReason } from "../game/war-room-aim";
+import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
+import { WAR_ROOM_COMBAT_FEEL_ENABLED } from "../game/war-room-features";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
@@ -733,6 +735,8 @@ function PlayerActor({
     const active = player.meleeUntil > player.clockTime;
     const stored = model.userData.warRoomMeleePose as {
       startedAt: number;
+      heavy: boolean;
+      comboIndex: number;
       bones: Array<{ bone: THREE.Object3D; base: [number, number, number] }>;
     } | undefined;
     if (!active) {
@@ -754,6 +758,8 @@ function PlayerActor({
       ].filter((bone): bone is THREE.Object3D => Boolean(bone));
       pose = {
         startedAt: player.meleeStartedAt,
+        heavy: player.meleeAttackHeavy,
+        comboIndex: player.meleeAttackComboIndex,
         bones: candidates.map((bone) => ({
           bone,
           base: [bone.rotation.x, bone.rotation.y, bone.rotation.z],
@@ -767,9 +773,12 @@ function PlayerActor({
       0,
       Math.min(1, (player.clockTime - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)),
     );
-    const prepare = Math.max(0, Math.min(1, progress / 0.25));
-    const strikePhase = Math.max(0, Math.min(1, (progress - 0.25) / 0.5));
+    const prepareEnd = player.meleeAttackHeavy ? 0.4 : 0.28;
+    const strikeEnd = 0.72;
+    const prepare = Math.max(0, Math.min(1, progress / prepareEnd));
+    const strikePhase = Math.max(0, Math.min(1, (progress - prepareEnd) / (strikeEnd - prepareEnd)));
     const strike = Math.sin(Math.PI * strikePhase);
+    const swingDirection = [-1, 1, 0][pose.comboIndex] ?? 0;
     pose.bones.forEach(({ bone, base }) => {
       const isShoulder = /shoulder/i.test(bone.name);
       const isUpperArm = /arm/i.test(bone.name) && !/fore|lower/i.test(bone.name);
@@ -779,13 +788,13 @@ function PlayerActor({
         bone.rotation.set(
           base[0] + (isForearm ? -prepare * 0.32 + strike * 0.45 : 0),
           base[1] + (isTorso ? strike * 0.08 : 0),
-          base[2] + ((isShoulder || isUpperArm) ? -prepare * 0.28 + strike * 0.62 : 0),
+          base[2] + ((isShoulder || isUpperArm) ? -prepare * (pose.heavy ? 0.42 : 0.28) + strike * (0.62 + swingDirection * 0.08) : 0),
         );
       } else {
         bone.rotation.set(
           base[0] + (isForearm ? prepare * 0.22 - strike * 0.5 : 0),
           base[1] + (isTorso ? strike * 0.08 : 0),
-          base[2] + ((isShoulder || isUpperArm) ? -prepare * 0.45 + strike * 0.78 : 0),
+          base[2] + ((isShoulder || isUpperArm) ? -prepare * (pose.heavy ? 0.66 : 0.45) + strike * (0.72 + swingDirection * 0.18) : 0),
         );
       }
     });
@@ -841,13 +850,17 @@ function PlayerActor({
       const meleeProgress = weapon.weaponClass === "melee" && player.meleeUntil > player.clockTime
         ? Math.max(0, Math.min(1, (player.clockTime - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
         : 0;
-      const meleePrepare = Math.max(0, Math.min(1, meleeProgress / 0.28));
-      const meleeStrikePhase = Math.max(0, Math.min(1, (meleeProgress - 0.28) / 0.44));
+      const prepareEnd = player.meleeAttackHeavy ? 0.4 : 0.28;
+      const strikeEnd = 0.72;
+      const meleePrepare = Math.max(0, Math.min(1, meleeProgress / prepareEnd));
+      const meleeStrikePhase = Math.max(0, Math.min(1, (meleeProgress - prepareEnd) / (strikeEnd - prepareEnd)));
       const meleeStrike = Math.sin(Math.PI * meleeStrikePhase);
-      const meleeRecover = Math.max(0, Math.min(1, (meleeProgress - 0.72) / 0.28));
-      const meleeLift = meleeProgress < 0.28
+      const meleeRecover = Math.max(0, Math.min(1, (meleeProgress - strikeEnd) / (1 - strikeEnd)));
+      const meleeLift = meleeProgress < prepareEnd
         ? meleePrepare
         : Math.max(0, 1 - meleeRecover);
+      const swingDirection = [-1, 1, 0][player.meleeAttackComboIndex] ?? 0;
+      const heavyScale = player.meleeAttackHeavy ? 1.22 : 1;
       const pumpElapsed = player.clockTime - shotgunPumpStartedAtRef.current;
       const pumpProgress = pumpElapsed >= 0 && pumpElapsed < 0.4
         ? pumpElapsed < 0.14
@@ -892,16 +905,16 @@ function PlayerActor({
       weaponMount.rotation.x -= recoilStrength * 0.052 + pumpStrength * 0.06 + reloadDrop * 0.48 + chargeProgress * 0.16;
       weaponMount.rotation.z += recoilStrength * 0.018;
       if (melee) {
-        weaponMount.position.y += meleeLift * 0.08;
+        weaponMount.position.y += meleeLift * (player.meleeAttackHeavy ? 0.14 : 0.08);
         if (weapon.meleeStyle === "thrust") {
-          weaponMount.position.z += meleePrepare * 0.12 - meleeStrike * 0.58;
-          weaponMount.rotation.x += -meleePrepare * 0.22 + meleeStrike * 0.34;
+          weaponMount.position.z += meleePrepare * 0.12 - meleeStrike * (0.58 * heavyScale);
+          weaponMount.rotation.x += -meleePrepare * 0.22 + meleeStrike * (0.34 * heavyScale);
         } else {
-          weaponMount.position.x += meleeStrike * 0.16;
+          weaponMount.position.x += meleeStrike * (0.12 + swingDirection * 0.045);
           weaponMount.position.z -= meleeStrike * 0.11;
-          weaponMount.rotation.x += -meleeLift * 0.28 + meleeStrike * 0.48;
+          weaponMount.rotation.x += -meleeLift * (player.meleeAttackHeavy ? 0.42 : 0.28) + meleeStrike * (0.48 * heavyScale);
           weaponMount.rotation.z += meleeLift * 0.18
-            - meleeStrike * (weaponId === "melee_axe" || weaponId === "melee_shovel" ? 1.08 : 0.82);
+            - meleeStrike * ((weaponId === "melee_axe" || weaponId === "melee_shovel" || weaponId === "melee_pickaxe" ? 1.08 : 0.82) + swingDirection * 0.22);
         }
       }
       if (reloadMagazineRef.current) {
@@ -1050,13 +1063,18 @@ function EnemyActor({
       group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 7, delta);
     }
     const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.2 : 0;
+    if (enemy.alive) delete group.userData.warRoomDeathStartedAt;
+    else if (group.userData.warRoomDeathStartedAt == null) group.userData.warRoomDeathStartedAt = gameNow;
+    const deathAt = Number(group.userData.warRoomDeathStartedAt ?? gameNow);
+    const deathProgress = enemy.alive ? 0 : Math.min(1, (gameNow - deathAt) / 2);
     group.position.set(
       enemy.x + enemy.hitKnockbackX * hitKick,
       0,
       enemy.z + enemy.hitKnockbackZ * hitKick,
     );
     group.position.y = hitKick * 0.035;
-    group.rotation.x = -hitKick * 0.035;
+    group.rotation.x = enemy.alive ? -hitKick * 0.035 : -Math.cos(enemy.deathYaw) * Math.min(1, deathProgress * 1.3);
+    group.rotation.z = enemy.alive ? 0 : -Math.sin(enemy.deathYaw) * Math.min(1, deathProgress * 1.3);
     const hand = modelRef.current && [
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
@@ -1090,17 +1108,8 @@ function EnemyActor({
       muzzleLightRef.current.visible = false;
       muzzleLightRef.current.intensity = 0;
     }
-    if (enemy.alive) {
-      delete group.userData.warRoomDeathStartedAt;
-      group.visible = true;
-      group.scale.y = 1;
-    } else {
-      const deathAt = Number(group.userData.warRoomDeathStartedAt ?? gameNow);
-      group.userData.warRoomDeathStartedAt = deathAt;
-      const deathProgress = Math.min(1, (gameNow - deathAt) / 2);
-      group.visible = deathProgress < 1;
-      group.scale.y = Math.max(0.025, 1 - deathProgress);
-    }
+    group.visible = enemy.alive || deathProgress < 1;
+    group.scale.y = enemy.alive ? 1 : Math.max(0.025, 1 - deathProgress);
     if (modelRef.current && !modelRef.current.userData.warRoomOwnedMaterials) {
       modelRef.current.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
@@ -1112,7 +1121,6 @@ function EnemyActor({
     }
     if (modelRef.current) {
       const hit = enemy.hitUntil > gameNow;
-      const deathAt = Number(group.userData.warRoomDeathStartedAt ?? gameNow);
       const alpha = enemy.alive ? 1 : Math.max(0, 1 - (gameNow - deathAt) / 2);
       modelRef.current.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
@@ -1187,6 +1195,14 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
   const weaponId = weaponIds[player.activeSlot];
   const ammo = player.ammo[weaponId];
   const boss = runtime.enemies.find((enemy) => enemy.commander)!;
+  const meleeProgress = player.meleeUntil > now
+    ? Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
+    : 0;
+  const meleePhase = player.meleeUntil <= now
+    ? "HAZIR"
+    : meleeProgress < (player.meleeAttackHeavy ? 0.4 : 0.28)
+      ? "HAZIRLIK"
+      : meleeProgress < 0.72 ? "VURUŞ" : "TOPARLAN";
   return {
     player: {
       x: player.x,
@@ -1221,6 +1237,9 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     hitMessage: player.hitMessageUntil > now ? player.lastHitText : "",
     killFeed: player.killFeed,
     crouched: player.crouched,
+    meleePhase,
+    meleeComboCount: player.meleeComboCount,
+    meleeLastResult: player.meleeLastResult,
   };
 }
 
@@ -1252,6 +1271,7 @@ function WarRoomRuntimeScene({
   const finishedRef = useRef(false);
   const cameraKickRef = useRef(0);
   const cameraSideKickRef = useRef(0);
+  const cameraFovKickRef = useRef(0);
   const emptyClickAtRef = useRef(0);
   const particles = useMemo<WarRoomParticle[]>(
     () => Array.from({ length: WAR_ROOM_EFFECT_POOL_SIZE }, () => ({
@@ -1540,7 +1560,7 @@ function WarRoomRuntimeScene({
     return { enemy: result.target, point: meleeImpact, reason: result.reason };
   };
 
-  const resolveMeleeContact = (now: number) => {
+  const resolveMeleeContact = (now: number, wallNow: number) => {
     const runtime = runtimeRef.current;
     const player = runtime.player;
     if (!player.meleeHitPending || now < player.meleeHitAt) return;
@@ -1549,10 +1569,11 @@ function WarRoomRuntimeScene({
     const weapon = weaponId ? WAR_ROOM_WEAPON_BY_ID.get(weaponId) : undefined;
     if (!weapon || weapon.weaponClass !== "melee") return;
 
-    const impact = getMeleeAimHit(weapon.range, player.meleeAttackYaw);
+    const impact = getMeleeAimHit(weapon.range + player.meleeAttackRangeBonus, player.meleeAttackYaw);
     const enemy = impact.enemy;
     if (!enemy) {
       playWarRoomSound("melee-swing");
+      player.meleeLastResult = `Iska · ${impact.reason}`;
       if (debugMode) {
         const missLabel: Record<WarRoomMeleeConeReason, string> = {
           hit: "hedef yok",
@@ -1566,8 +1587,8 @@ function WarRoomRuntimeScene({
       return;
     }
 
-    const damage = applyWarRoomDamage(enemy, weapon.damage);
-    enemy.hitUntil = now + 0.2;
+    const damage = applyWarRoomDamage(enemy, weapon.damage, player.meleeAttackDamageMultiplier);
+    enemy.hitUntil = now + player.meleeAttackStaggerSeconds;
     const knockbackLength = Math.max(0.001, Math.hypot(enemy.x - player.x, enemy.z - player.z));
     enemy.hitKnockbackX = ((enemy.x - player.x) / knockbackLength) * 0.24;
     enemy.hitKnockbackZ = ((enemy.z - player.z) / knockbackLength) * 0.24;
@@ -1577,7 +1598,16 @@ function WarRoomRuntimeScene({
     player.hitMessageUntil = now + 0.82;
     player.hitMarkerUntil = now + 0.24;
     player.hitMarkerHeadshot = false;
-    cameraKickRef.current = Math.max(cameraKickRef.current, 0.034);
+    player.meleeHitStopUntil = Math.max(
+      player.meleeHitStopUntil,
+      wallNow + player.meleeAttackHitStopSeconds,
+    );
+    player.meleeLastResult = `${player.meleeAttackHeavy ? "Ağır" : "Hafif"} isabet · −${damage.damage}`;
+    cameraKickRef.current = Math.max(cameraKickRef.current, player.meleeAttackHeavy ? 0.052 : 0.034);
+    cameraFovKickRef.current = Math.min(
+      4.2,
+      cameraFovKickRef.current + (player.meleeAttackHeavy ? 3.8 : 2.2),
+    );
     cameraSideKickRef.current = Math.max(
       -0.025,
       Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
@@ -1588,9 +1618,10 @@ function WarRoomRuntimeScene({
       spawnImpact(impact.point, "#f2c16e", now, 4, 0.035);
     }
     spawnImpactDust(impact.point, now);
-    if (debugMode) onMeleeDebugUpdate(`İSABET: ${enemy.name} −${damage.damage}`);
+    if (debugMode) onMeleeDebugUpdate(`VURUŞ: ${enemy.name} −${damage.damage}`);
     if (damage.killed) {
       enemy.alive = false;
+      enemy.deathYaw = player.meleeAttackYaw;
       player.kills += 1;
       player.killFeed = [
         { id: now * 1000 + player.kills, text: `Yolcu  →  ${enemy.name}` },
@@ -1599,14 +1630,45 @@ function WarRoomRuntimeScene({
     }
   };
 
-  const fireWeapon = (now: number, charge = 1) => {
+  const fireWeapon = (now: number, charge = 1, meleeHoldSeconds = 0) => {
     const runtime = runtimeRef.current;
     const player = runtime.player;
     const weaponId = weaponIds[player.activeSlot];
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
     if (now < player.nextShotAt || player.reloadingWeapon) return;
     if (weapon.weaponClass === "melee") {
-      const duration = Math.min(weapon.fireInterval, weapon.meleeDuration ?? weapon.fireInterval * 0.82);
+      const comboExpired = player.meleeComboLastAttackAt < 0
+        || now - player.meleeComboLastAttackAt > 1.15;
+      if (comboExpired) {
+        player.meleeComboIndex = 0;
+        player.meleeComboCount = 0;
+      }
+      const plan = getWarRoomMeleeAttackPlan(
+        meleeHoldSeconds,
+        player.meleeComboIndex,
+        WAR_ROOM_COMBAT_FEEL_ENABLED,
+      );
+      const duration = Math.min(
+        weapon.fireInterval,
+        (weapon.meleeDuration ?? weapon.fireInterval * 0.82) * plan.durationMultiplier,
+      );
+      const isBlocked = (enemy: Pick<WarRoomEnemy, "x" | "z" | "alive">) => segmentBlockFraction(
+        { x: player.x, y: player.jumpHeight + 1.12, z: player.z },
+        { x: enemy.x, y: 1.05, z: enemy.z },
+        0.08,
+      ) !== null;
+      const attackYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
+        ? getWarRoomMeleeAssistYaw(player.x, player.z, player.yaw, runtime.enemies, weapon.range, isBlocked)
+        : player.yaw;
+      const lunged = moveWarRoomEntity(
+        player.x,
+        player.z,
+        Math.sin(attackYaw) * plan.lungeMeters,
+        -Math.cos(attackYaw) * plan.lungeMeters,
+      );
+      player.x = lunged.x;
+      player.z = lunged.z;
+      player.stamina = Math.max(0, player.stamina - plan.staminaCost);
       player.nextShotAt = now + weapon.fireInterval;
       player.meleeStartedAt = now;
       player.meleeDuration = duration;
@@ -1615,16 +1677,31 @@ function WarRoomRuntimeScene({
       player.meleeHitAt = now + duration * 0.45;
       player.meleeHitPending = true;
       player.meleeAttackWeaponId = weaponId;
-      player.meleeAttackYaw = player.yaw;
+      player.meleeAttackYaw = attackYaw;
+      player.meleeAttackComboIndex = plan.comboIndex;
+      player.meleeAttackHeavy = plan.heavy;
+      player.meleeAttackDamageMultiplier = plan.damageMultiplier;
+      player.meleeAttackRangeBonus = plan.heavy ? 0.12 : 0;
+      player.meleeAttackHitStopSeconds = plan.hitStopSeconds;
+      player.meleeAttackStaggerSeconds = plan.staggerSeconds;
+      player.meleeComboIndex = plan.nextComboIndex;
+      player.meleeComboCount = plan.heavy ? 0 : plan.comboIndex + 1;
+      player.meleeComboLastAttackAt = now;
+      player.meleeLastResult = plan.heavy
+        ? "Ağır saldırı · hazırlık"
+        : `Hafif saldırı · kombo ${plan.comboIndex + 1}/3`;
       player.shots += 1;
       player.lastHitDamage = 0;
       player.hitMarkerUntil = 0;
       player.hitMarkerHeadshot = false;
-      cameraKickRef.current = Math.max(cameraKickRef.current, 0.014);
+      cameraKickRef.current = Math.max(cameraKickRef.current, plan.heavy ? 0.028 : 0.014);
       cameraSideKickRef.current = Math.max(
         -0.02,
         Math.min(0.02, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
       );
+      if (debugMode) {
+        onMeleeDebugUpdate(`${plan.heavy ? "AĞIR" : "HAZIRLIK"} · KOMBO ${plan.heavy ? 0 : plan.comboIndex + 1}/3`);
+      }
       return;
     }
     const ammo = player.ammo[weaponId];
@@ -1718,6 +1795,10 @@ function WarRoomRuntimeScene({
         player.hitMarkerHeadshot = aim.headshot;
         if (damage.killed) {
           aimedEnemy.alive = false;
+          aimedEnemy.deathYaw = Math.atan2(
+            aimedEnemy.x - player.x,
+            -(aimedEnemy.z - player.z),
+          );
           player.kills += 1;
           if (aim.headshot) player.headshots += 1;
           player.killFeed = [
@@ -1766,6 +1847,8 @@ function WarRoomRuntimeScene({
     const input = inputRef.current;
     const delta = Math.min(rawDelta, 0.05);
     if (input.paused) return;
+    const wallNow = frame.clock.elapsedTime;
+    if (player.meleeHitStopUntil > wallNow) return;
     player.clockTime += delta;
     const now = player.clockTime;
     player.recoil = Math.max(0, player.recoil - delta * 0.36);
@@ -1795,6 +1878,9 @@ function WarRoomRuntimeScene({
       player.activeSlot = player.activeSlot === 0 ? 1 : 0;
       player.reloadingWeapon = null;
       player.reloadUntil = 0;
+      player.meleeInputPending = false;
+      player.meleeComboIndex = 0;
+      player.meleeComboCount = 0;
       input.swapPressed = false;
     }
     if (input.jumpPressed) {
@@ -1831,7 +1917,7 @@ function WarRoomRuntimeScene({
     if (player.jumpHeight === 0) player.jumpVelocity = 0;
     player.stamina = Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
-    resolveMeleeContact(now);
+    resolveMeleeContact(now, wallNow);
 
     const weaponId = weaponIds[player.activeSlot];
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
@@ -1856,14 +1942,25 @@ function WarRoomRuntimeScene({
       player.reloadUntil = 0;
     }
 
-    if (weapon.charge && input.firePressed) player.chargeStartedAt = now || 0.0001;
-    if (weapon.charge && input.fireReleased && player.chargeStartedAt > 0) {
+    if (weapon.weaponClass === "melee") {
+      if (input.firePressed && !player.meleeInputPending) {
+        player.meleeInputStartedAt = now;
+        player.meleeInputPending = true;
+      }
+      if (input.fireReleased && player.meleeInputPending) {
+        const holdSeconds = Math.max(0, now - player.meleeInputStartedAt);
+        player.meleeInputPending = false;
+        player.meleeInputStartedAt = 0;
+        fireWeapon(now, 1, holdSeconds);
+      }
+    } else if (weapon.charge && input.firePressed) player.chargeStartedAt = now || 0.0001;
+    else if (weapon.charge && input.fireReleased && player.chargeStartedAt > 0) {
       const charge = Math.max(0.15, Math.min(1, (now - player.chargeStartedAt) / 0.95));
       fireWeapon(now, charge);
       player.chargeStartedAt = 0;
-    } else if (!weapon.charge && (
+    } else if (weapon.weaponClass !== "melee" && !weapon.charge && (
       input.firePressed
-      || ((weapon.automatic || weapon.weaponClass === "melee") && input.fireHeld)
+      || (weapon.automatic && input.fireHeld)
     )) {
       fireWeapon(now);
     }
@@ -2060,7 +2157,8 @@ function WarRoomRuntimeScene({
     projectileHeads.instanceMatrix.needsUpdate = true;
 
     const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!.range;
-    const desiredFov = input.aimHeld ? 48 : 70;
+    cameraFovKickRef.current *= Math.exp(-12 * delta);
+    const desiredFov = (input.aimHeld ? 48 : 70) + cameraFovKickRef.current;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
     perspective.updateProjectionMatrix();
     const cameraForwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
