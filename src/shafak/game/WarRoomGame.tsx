@@ -34,6 +34,7 @@ type Props = {
 };
 type Phase = "briefing" | "battle" | "victory" | "defeat";
 type PointerTrack = { id: number | null; x: number; y: number; button: number; pointerType: WarRoomLookPointerType };
+type CalibrationField = "position" | "rotation" | "scale";
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
 const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
@@ -230,6 +231,10 @@ export default function WarRoomGame({
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
   const [meleeDebugMessage, setMeleeDebugMessage] = useState("");
+  const [calibrationCollapsed, setCalibrationCollapsed] = useState(false);
+  const [calibrationCoarseStep, setCalibrationCoarseStep] = useState(false);
+  const [calibrationJson, setCalibrationJson] = useState("");
+  const [calibrationCopyStatus, setCalibrationCopyStatus] = useState("");
   const [exitPrompt, setExitPrompt] = useState(false);
   const [summary, setSummary] = useState<{
     kills: number;
@@ -247,6 +252,8 @@ export default function WarRoomGame({
   const stickPointerRef = useRef<number | null>(null);
   const debugMode = typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("debug") === "1";
+  const calibrationMode = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("calib") === "1";
 
   const beginBattle = () => {
     resumeWarRoomAudio();
@@ -389,9 +396,63 @@ export default function WarRoomGame({
       },
     }));
   };
+  const updateCalibrationValue = (
+    weaponId: WarRoomWeaponId,
+    field: CalibrationField,
+    index: 0 | 1 | 2 | null,
+    delta: number,
+  ) => {
+    setWeaponMountOverrides((current) => {
+      const base = current[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
+      if (field === "scale") {
+        return {
+          ...current,
+          [weaponId]: {
+            ...base,
+            scale: Math.max(0.1, Math.min(2, Math.round((base.scale + delta) * 1000) / 1000)),
+          },
+        };
+      }
+
+      const vector = [...base[field]] as [number, number, number];
+      const change = field === "rotation" ? delta * Math.PI / 180 : delta;
+      const next = vector[index ?? 0] + change;
+      vector[index ?? 0] = field === "rotation"
+        ? Math.atan2(Math.sin(next), Math.cos(next))
+        : Math.max(-1.5, Math.min(1.5, Math.round(next * 10000) / 10000));
+      return { ...current, [weaponId]: { ...base, [field]: vector } };
+    });
+  };
+  useEffect(() => {
+    setCalibrationJson("");
+    setCalibrationCopyStatus("");
+  }, [hud.weaponId]);
+  const copyCalibrationMount = async (weaponId: WarRoomWeaponId) => {
+    const mount = weaponMountOverrides[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
+    const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+    const json = JSON.stringify({
+      id: weaponId,
+      name: weapon?.name,
+      mount: {
+        position: mount.position.map((value) => Number(value.toFixed(6))),
+        rotation: mount.rotation.map((value) => Number(value.toFixed(6))),
+        scale: Number(mount.scale.toFixed(4)),
+        ...(mount.gripRatio === undefined ? {} : { gripRatio: mount.gripRatio }),
+      },
+      rotationDegrees: mount.rotation.map((value) => Number((value * 180 / Math.PI).toFixed(2))),
+    }, null, 2);
+    setCalibrationJson(json);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(json);
+      setCalibrationCopyStatus("Panoya kopyalandı.");
+    } catch {
+      setCalibrationCopyStatus("Panoya erişilemiyor; JSON'u aşağıdan seçip kopyalayın.");
+    }
+  };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug")) return;
+    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug,.war-room-calibration-panel")) return;
     if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) return;
     if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
     event.preventDefault();
@@ -588,7 +649,7 @@ export default function WarRoomGame({
               {meleeDebugMessage ? ` · ${meleeDebugMessage}` : ""}
             </div>
           )}
-          {debugMode && phase === "battle" && (() => {
+          {debugMode && !calibrationMode && phase === "battle" && (() => {
             const weaponId = hud.weaponId;
             const mount = weaponMountOverrides[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
             const controls: Array<{ label: string; field: "position" | "rotation"; index: 0 | 1 | 2; value: number; min: number; max: number; step: number }> = [
@@ -617,6 +678,91 @@ export default function WarRoomGame({
                   <input type="range" min="-0.25" max="0.25" step="0.005" value={mount.muzzleOffsetZ ?? 0}
                     onChange={(event) => updateDebugNumber("muzzleOffsetZ", Number(event.currentTarget.value), weaponId)} />
                 </label>
+              </aside>
+            );
+          })()}
+          {calibrationMode && phase === "battle" && (() => {
+            const weaponId = hud.weaponId;
+            const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+            const mount = weaponMountOverrides[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
+            const positionStep = calibrationCoarseStep ? 0.05 : 0.01;
+            const rotationStep = calibrationCoarseStep ? 5 : 1;
+            const controls = [
+              ...(["x", "y", "z"] as const).map((axis, index) => ({
+                id: `position-${axis}`,
+                label: `KONUM ${axis.toUpperCase()}`,
+                field: "position" as const,
+                index: index as 0 | 1 | 2,
+                value: mount.position[index],
+                step: positionStep,
+                unit: "m",
+                digits: 3,
+              })),
+              ...(["x", "y", "z"] as const).map((axis, index) => ({
+                id: `rotation-${axis}`,
+                label: `DÖNÜŞ ${axis.toUpperCase()}`,
+                field: "rotation" as const,
+                index: index as 0 | 1 | 2,
+                value: mount.rotation[index] * 180 / Math.PI,
+                step: rotationStep,
+                unit: "°",
+                digits: 0,
+              })),
+              {
+                id: "scale",
+                label: "ÖLÇEK",
+                field: "scale" as const,
+                index: null,
+                value: mount.scale,
+                step: calibrationCoarseStep ? 0.05 : 0.01,
+                unit: "×",
+                digits: 2,
+              },
+            ];
+            return (
+              <aside className={`war-room-calibration-panel${calibrationCollapsed ? " is-collapsed" : ""}`}
+                aria-label="Silah kalibrasyon paneli">
+                <header className="war-room-calibration-panel__header">
+                  <span>
+                    <small>CANLI SİLAH KALİBRASYONU</small>
+                    <strong>{weapon?.name ?? weaponId}</strong>
+                  </span>
+                  <button type="button" aria-label={calibrationCollapsed ? "Kalibrasyonu genişlet" : "Kalibrasyonu daralt"}
+                    aria-expanded={!calibrationCollapsed}
+                    onClick={() => setCalibrationCollapsed((collapsed) => !collapsed)}>
+                    {calibrationCollapsed ? "+" : "−"}
+                  </button>
+                </header>
+                {!calibrationCollapsed && (
+                  <>
+                    <button className="war-room-calibration-panel__step" type="button"
+                      onClick={() => setCalibrationCoarseStep((coarse) => !coarse)}>
+                      ADIM: {calibrationCoarseStep ? "BÜYÜK · 0,05 m / 5°" : "KÜÇÜK · 0,01 m / 1°"}
+                    </button>
+                    <div className="war-room-calibration-panel__controls">
+                      {controls.map((control) => (
+                        <div className="war-room-calibration-panel__row" key={control.id}>
+                          <span>{control.label}</span>
+                          <button type="button" aria-label={`${control.label} azalt`}
+                            onClick={() => updateCalibrationValue(weaponId, control.field, control.index, -control.step)}>
+                            −
+                          </button>
+                          <output>{control.value.toFixed(control.digits)} {control.unit}</output>
+                          <button type="button" aria-label={`${control.label} artır`}
+                            onClick={() => updateCalibrationValue(weaponId, control.field, control.index, control.step)}>
+                            +
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="war-room-calibration-panel__copy" type="button"
+                      onClick={() => void copyCalibrationMount(weaponId)}>
+                      KOPYALA · JSON
+                    </button>
+                    {calibrationCopyStatus && <small className="war-room-calibration-panel__status" aria-live="polite">{calibrationCopyStatus}</small>}
+                    {calibrationJson && <pre className="war-room-calibration-panel__json" aria-label="Kopyalanan silah ayarları">{calibrationJson}</pre>}
+                  </>
+                )}
               </aside>
             );
           })()}
