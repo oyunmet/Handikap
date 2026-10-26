@@ -14,7 +14,16 @@ import {
 } from "../game/war-room-data";
 import { traceWarRoomMeleeCone, traceWarRoomRay, type WarRoomMeleeConeReason } from "../game/war-room-aim";
 import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
-import { WAR_ROOM_COMBAT_FEEL_ENABLED } from "../game/war-room-features";
+import {
+  getWarRoomImpactFxProfile,
+  WAR_ROOM_DECAL_POOL_SIZE,
+  WAR_ROOM_EFFECT_POOL_SIZE,
+  WAR_ROOM_SLASH_TRAIL_SEGMENTS,
+} from "../game/war-room-fx";
+import {
+  WAR_ROOM_COMBAT_FEEL_ENABLED,
+  WAR_ROOM_POOLED_MELEE_FX_ENABLED,
+} from "../game/war-room-features";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
@@ -42,6 +51,7 @@ type Props = {
   inputRef: MutableRefObject<WarRoomInputState>;
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
+  bloodEffects: boolean;
   debugMode: boolean;
   onMeleeDebugUpdate: (message: string) => void;
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
@@ -59,11 +69,11 @@ const WAR_ROOM_FLOOR_MATERIAL = new THREE.MeshStandardMaterial({
   metalness: 0,
   flatShading: false,
 });
-const WAR_ROOM_EFFECT_POOL_SIZE = 72;
 const WAR_ROOM_TRACER_POOL_SIZE = 24;
 const WAR_ROOM_PROJECTILE_POOL_SIZE = 12;
-const WAR_ROOM_DECAL_POOL_SIZE = 30;
 const WAR_ROOM_MELEE_HALF_ANGLE_DEGREES = 50;
+const WAR_ROOM_SHOCKWAVE_POOL_SIZE = 4;
+const WAR_ROOM_SHOCKWAVE_LIFETIME = 0.34;
 
 function createWarRoomMeleeDebugGeometry() {
   const segments = 28;
@@ -88,11 +98,56 @@ function createWarRoomMeleeDebugGeometry() {
 
 const WAR_ROOM_MELEE_DEBUG_GEOMETRY = createWarRoomMeleeDebugGeometry();
 
+function createWarRoomCrackGeometry() {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  for (let ray = 0; ray < 8; ray += 1) {
+    let previousX = 0;
+    let previousY = 0;
+    const baseAngle = (ray / 8) * Math.PI * 2;
+    for (let segment = 0; segment < 4; segment += 1) {
+      const angle = baseAngle + (segment % 2 === 0 ? 0.12 : -0.16);
+      const radius = 0.11 + segment * 0.075;
+      const nextX = Math.cos(angle) * radius;
+      const nextY = Math.sin(angle) * radius;
+      const dx = nextX - previousX;
+      const dy = nextY - previousY;
+      const length = Math.max(0.001, Math.hypot(dx, dy));
+      const halfWidth = 0.009 - segment * 0.0015;
+      const offsetX = (-dy / length) * halfWidth;
+      const offsetY = (dx / length) * halfWidth;
+      const first = vertices.length / 3;
+      vertices.push(
+        previousX - offsetX, previousY - offsetY, 0,
+        previousX + offsetX, previousY + offsetY, 0,
+        nextX + offsetX, nextY + offsetY, 0,
+        nextX - offsetX, nextY - offsetY, 0,
+      );
+      indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+      previousX = nextX;
+      previousY = nextY;
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+const WAR_ROOM_CRACK_GEOMETRY = createWarRoomCrackGeometry();
+
 type WarRoomParticle = {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
   born: number; lifetime: number; size: number;
   bounce: boolean;
+};
+
+type WarRoomSlashSample = {
+  base: THREE.Vector3;
+  tip: THREE.Vector3;
+  born: number;
 };
 
 type WarRoomProjectile = {
@@ -1248,6 +1303,7 @@ function WarRoomRuntimeScene({
   inputRef,
   weaponIds,
   weaponMountOverrides,
+  bloodEffects,
   debugMode,
   onMeleeDebugUpdate,
   onHudUpdate,
@@ -1313,10 +1369,130 @@ function WarRoomRuntimeScene({
     mesh.frustumCulled = false;
     return mesh;
   }, []);
+  const crackMesh = useMemo(() => {
+    const mesh = new THREE.InstancedMesh(
+      WAR_ROOM_CRACK_GEOMETRY,
+      new THREE.MeshBasicMaterial({
+        color: "#ffffff",
+        transparent: true,
+        opacity: 0.82,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        vertexColors: false,
+      }),
+      WAR_ROOM_DECAL_POOL_SIZE,
+    );
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const hidden = new THREE.Object3D();
+    hidden.scale.setScalar(0);
+    hidden.updateMatrix();
+    for (let index = 0; index < WAR_ROOM_DECAL_POOL_SIZE; index += 1) mesh.setMatrixAt(index, hidden.matrix);
+    mesh.frustumCulled = false;
+    return mesh;
+  }, []);
   const decalCursor = useRef(0);
   const decalTransform = useMemo(() => new THREE.Object3D(), []);
   const decalNormal = useMemo(() => new THREE.Vector3(), []);
   const decalForward = useMemo(() => new THREE.Vector3(0, 0, 1), []);
+  const crackTint = useMemo(() => new THREE.Color(), []);
+  const hiddenDecalTransform = useMemo(() => {
+    const object = new THREE.Object3D();
+    object.scale.setScalar(0);
+    object.updateMatrix();
+    return object;
+  }, []);
+  const shockwaves = useMemo(
+    () => Array.from({ length: WAR_ROOM_SHOCKWAVE_POOL_SIZE }, () => ({
+      x: 0,
+      z: 0,
+      born: -1,
+      yaw: 0,
+    })),
+    [],
+  );
+  const shockwaveCursor = useRef(0);
+  const shockwaveTransform = useMemo(() => new THREE.Object3D(), []);
+  const shockwaveTint = useMemo(() => new THREE.Color(), []);
+  const shockwaveMesh = useMemo(() => {
+    const mesh = new THREE.InstancedMesh(
+      new THREE.RingGeometry(0.45, 0.53, 24),
+      new THREE.MeshBasicMaterial({
+        color: "#f8b960",
+        transparent: true,
+        opacity: 0.78,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+      WAR_ROOM_SHOCKWAVE_POOL_SIZE,
+    );
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const hidden = new THREE.Object3D();
+    hidden.scale.setScalar(0);
+    hidden.updateMatrix();
+    for (let index = 0; index < WAR_ROOM_SHOCKWAVE_POOL_SIZE; index += 1) mesh.setMatrixAt(index, hidden.matrix);
+    mesh.frustumCulled = false;
+    return mesh;
+  }, []);
+  const slashTrailState = useMemo(() => {
+    const positions = new Float32Array((WAR_ROOM_SLASH_TRAIL_SEGMENTS + 1) * 2 * 3);
+    const colors = new Float32Array(positions.length);
+    const indices: number[] = [];
+    for (let segment = 0; segment < WAR_ROOM_SLASH_TRAIL_SEGMENTS; segment += 1) {
+      const first = segment * 2;
+      const next = first + 2;
+      indices.push(first, first + 1, next, first + 1, next + 1, next);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage),
+    );
+    geometry.setAttribute(
+      "color",
+      new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage),
+    );
+    geometry.setIndex(indices);
+    return {
+      geometry,
+      positions,
+      colors,
+      samples: Array.from({ length: WAR_ROOM_SLASH_TRAIL_SEGMENTS + 1 }, () => ({
+        base: new THREE.Vector3(),
+        tip: new THREE.Vector3(),
+        born: -1,
+      } satisfies WarRoomSlashSample)),
+      count: 0,
+      attackStartedAt: -1,
+      tint: new THREE.Color("#ffffff"),
+    };
+  }, []);
+  const slashTrailMesh = useMemo(() => {
+    const mesh = new THREE.Mesh(
+      slashTrailState.geometry,
+      new THREE.MeshBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.78,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      }),
+    );
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 5;
+    return mesh;
+  }, [slashTrailState]);
+  const slashBase = useMemo(() => new THREE.Vector3(), []);
+  const slashTip = useMemo(() => new THREE.Vector3(), []);
+  const slashLocalBase = useMemo(() => new THREE.Vector3(0, 0.02, -0.18), []);
+  const slashLocalTip = useMemo(() => new THREE.Vector3(), []);
+  const footDustAtRef = useRef(0);
+  const previousJumpHeightRef = useRef(0);
   const tracerState = useMemo(() => ({
     geometry: new THREE.BufferGeometry(),
     positions: new Float32Array(WAR_ROOM_TRACER_POOL_SIZE * 6),
@@ -1465,6 +1641,7 @@ function WarRoomRuntimeScene({
 
   const addBulletHole = (position: THREE.Vector3, incomingDirection: THREE.Vector3, now: number) => {
     const slot = decalCursor.current++ % WAR_ROOM_DECAL_POOL_SIZE;
+    crackMesh.setMatrixAt(slot, hiddenDecalTransform.matrix);
     decalNormal.copy(incomingDirection).negate().normalize();
     decalTransform.position.copy(position).addScaledVector(decalNormal, 0.009);
     decalTransform.quaternion.setFromUnitVectors(decalForward, decalNormal);
@@ -1474,6 +1651,34 @@ function WarRoomRuntimeScene({
     decalMesh.setColorAt(slot, new THREE.Color(slot % 3 ? "#43392f" : "#614837"));
     decalMesh.instanceMatrix.needsUpdate = true;
     if (decalMesh.instanceColor) decalMesh.instanceColor.needsUpdate = true;
+    crackMesh.instanceMatrix.needsUpdate = true;
+  };
+
+  const addCrackDecal = (position: THREE.Vector3, yaw: number, now: number) => {
+    const slot = decalCursor.current++ % WAR_ROOM_DECAL_POOL_SIZE;
+    decalMesh.setMatrixAt(slot, hiddenDecalTransform.matrix);
+    decalTransform.position.set(position.x, 0.018, position.z);
+    decalTransform.rotation.set(-Math.PI / 2, 0, yaw);
+    decalTransform.scale.setScalar(1.35 + (Math.sin(now * 17 + slot) + 1) * 0.12);
+    decalTransform.updateMatrix();
+    crackMesh.setMatrixAt(slot, decalTransform.matrix);
+    crackTint.set(slot % 2 ? "#372a24" : "#4b352a");
+    crackMesh.setColorAt(slot, crackTint);
+    crackMesh.instanceMatrix.needsUpdate = true;
+    if (crackMesh.instanceColor) crackMesh.instanceColor.needsUpdate = true;
+    decalMesh.instanceMatrix.needsUpdate = true;
+  };
+
+  const spawnShockwave = (position: THREE.Vector3, yaw: number, now: number) => {
+    const slot = shockwaveCursor.current++ % WAR_ROOM_SHOCKWAVE_POOL_SIZE;
+    const shockwave = shockwaves[slot];
+    shockwave.x = position.x;
+    shockwave.z = position.z;
+    shockwave.yaw = yaw;
+    shockwave.born = now;
+    shockwaveTint.set("#ffd27e");
+    shockwaveMesh.setColorAt(slot, shockwaveTint);
+    if (shockwaveMesh.instanceColor) shockwaveMesh.instanceColor.needsUpdate = true;
   };
 
   const addTracer = (start: THREE.Vector3, end: THREE.Vector3, color: string, now: number, lifetime = 0.08) => {
@@ -1597,7 +1802,7 @@ function WarRoomRuntimeScene({
     player.lastHitText = `${enemy.name} · −${damage.damage} CAN`;
     player.hitMessageUntil = now + 0.82;
     player.hitMarkerUntil = now + 0.24;
-    player.hitMarkerHeadshot = false;
+    player.hitMarkerHeadshot = player.meleeAttackHeavy;
     player.meleeHitStopUntil = Math.max(
       player.meleeHitStopUntil,
       wallNow + player.meleeAttackHitStopSeconds,
@@ -1613,11 +1818,21 @@ function WarRoomRuntimeScene({
       Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
     );
     playWarRoomSound("melee-hit");
-    spawnImpact(impact.point, "#c93643", now, 7, 0.06);
-    if (weaponId !== "melee_knife" && weaponId !== "melee_spear") {
-      spawnImpact(impact.point, "#f2c16e", now, 4, 0.035);
+    if (WAR_ROOM_POOLED_MELEE_FX_ENABLED) {
+      const effects = getWarRoomImpactFxProfile(bloodEffects, player.meleeAttackHeavy);
+      if (effects.bloodParticles > 0) {
+        spawnImpact(impact.point, "#b82e3b", now, effects.bloodParticles, 0.045);
+      }
+      if (effects.sparkParticles > 0) {
+        spawnImpact(impact.point, "#f2c16e", now, effects.sparkParticles, 0.035);
+      }
+      spawnImpactDust(impact.point, now);
+      if (effects.shockwave) {
+        meleeOrigin.set(impact.point.x, 0, impact.point.z);
+        spawnShockwave(meleeOrigin, player.meleeAttackYaw, now);
+        addCrackDecal(meleeOrigin, player.meleeAttackYaw, now);
+      }
     }
-    spawnImpactDust(impact.point, now);
     if (debugMode) onMeleeDebugUpdate(`VURUŞ: ${enemy.name} −${damage.damage}`);
     if (damage.killed) {
       enemy.alive = false;
@@ -1915,6 +2130,19 @@ function WarRoomRuntimeScene({
     player.jumpVelocity -= 14 * delta;
     player.jumpHeight = Math.max(0, player.jumpHeight + player.jumpVelocity * delta);
     if (player.jumpHeight === 0) player.jumpVelocity = 0;
+    const landed = previousJumpHeightRef.current > 0.08 && player.jumpHeight <= 0.001;
+    if (
+      WAR_ROOM_POOLED_MELEE_FX_ENABLED
+      && (landed || (
+        player.jumpHeight <= 0.02
+        && Math.hypot(dx, dz) > 0.035
+        && now >= footDustAtRef.current
+      ))
+    ) {
+      spawnImpactDust(meleeOrigin.set(player.x, 0.025, player.z), now);
+      footDustAtRef.current = now + (landed ? 0.28 : 0.34);
+    }
+    previousJumpHeightRef.current = player.jumpHeight;
     player.stamina = Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
     resolveMeleeContact(now, wallNow);
@@ -2128,6 +2356,26 @@ function WarRoomRuntimeScene({
     }
     particleMesh.instanceMatrix.needsUpdate = true;
 
+    for (let slot = 0; slot < WAR_ROOM_SHOCKWAVE_POOL_SIZE; slot += 1) {
+      const shockwave = shockwaves[slot];
+      const age = now - shockwave.born;
+      if (shockwave.born < 0 || age >= WAR_ROOM_SHOCKWAVE_LIFETIME) {
+        shockwaveTransform.position.set(0, -1000, 0);
+        shockwaveTransform.scale.setScalar(0);
+      } else {
+        const progress = age / WAR_ROOM_SHOCKWAVE_LIFETIME;
+        shockwaveTransform.position.set(shockwave.x, 0.035, shockwave.z);
+        shockwaveTransform.rotation.set(-Math.PI / 2, 0, shockwave.yaw);
+        shockwaveTransform.scale.setScalar(0.3 + progress * 2.1);
+        shockwaveTint.setRGB(1, 0.73 * (1 - progress), 0.34 * (1 - progress));
+        shockwaveMesh.setColorAt(slot, shockwaveTint);
+      }
+      shockwaveTransform.updateMatrix();
+      shockwaveMesh.setMatrixAt(slot, shockwaveTransform.matrix);
+    }
+    shockwaveMesh.instanceMatrix.needsUpdate = true;
+    if (shockwaveMesh.instanceColor) shockwaveMesh.instanceColor.needsUpdate = true;
+
     for (let slot = 0; slot < WAR_ROOM_PROJECTILE_POOL_SIZE; slot += 1) {
       const projectile = projectiles[slot];
       const age = now - projectile.born;
@@ -2203,6 +2451,70 @@ function WarRoomRuntimeScene({
     }
     camera.lookAt(cameraLook);
     scene.updateMatrixWorld(true);
+
+    const trailWeaponId = player.meleeAttackWeaponId ?? weaponIds[player.activeSlot];
+    const trailWeapon = WAR_ROOM_WEAPON_BY_ID.get(trailWeaponId);
+    const meleeActive = WAR_ROOM_POOLED_MELEE_FX_ENABLED
+      && trailWeapon?.weaponClass === "melee"
+      && player.meleeUntil > now;
+    if (meleeActive && trailWeapon) {
+      if (slashTrailState.attackStartedAt !== player.meleeStartedAt) {
+        slashTrailState.attackStartedAt = player.meleeStartedAt;
+        slashTrailState.count = 0;
+        slashTrailState.tint.set(trailWeapon.color);
+      }
+      const progress = Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)));
+      const prepareEnd = player.meleeAttackHeavy ? 0.4 : 0.28;
+      if (progress >= prepareEnd && progress <= 0.82) {
+        const weaponMount = playerRootRef.current?.getObjectByName("war-room-weapon-mount");
+        if (weaponMount) {
+          weaponMount.updateWorldMatrix(true, false);
+          const bladeLength = Math.max(0.42, Math.min(1.35, trailWeapon.normalizeLength ?? trailWeapon.range * 0.56));
+          slashLocalBase.set(0, 0.02, -0.18);
+          slashLocalTip.set(0, 0.02, -0.18 - bladeLength);
+          slashBase.copy(weaponMount.localToWorld(slashLocalBase));
+          slashTip.copy(weaponMount.localToWorld(slashLocalTip));
+          for (let index = Math.min(slashTrailState.count, WAR_ROOM_SLASH_TRAIL_SEGMENTS); index > 0; index -= 1) {
+            const previous = slashTrailState.samples[index - 1];
+            const current = slashTrailState.samples[index];
+            current.base.copy(previous.base);
+            current.tip.copy(previous.tip);
+            current.born = previous.born;
+          }
+          slashTrailState.count = Math.min(WAR_ROOM_SLASH_TRAIL_SEGMENTS + 1, slashTrailState.count + 1);
+          const newest = slashTrailState.samples[0];
+          newest.base.copy(slashBase);
+          newest.tip.copy(slashTip);
+          newest.born = now;
+        }
+      }
+    }
+    while (
+      slashTrailState.count > 0
+      && now - slashTrailState.samples[slashTrailState.count - 1].born >= 0.22
+    ) {
+      slashTrailState.count -= 1;
+    }
+    const trailAttribute = slashTrailState.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const trailColorAttribute = slashTrailState.geometry.getAttribute("color") as THREE.BufferAttribute;
+    for (let row = 0; row < slashTrailState.count; row += 1) {
+      const sample = slashTrailState.samples[slashTrailState.count - 1 - row];
+      const ageAlpha = Math.max(0, 1 - (now - sample.born) / 0.22);
+      const offset = row * 6;
+      slashTrailState.positions.set(
+        [sample.base.x, sample.base.y, sample.base.z, sample.tip.x, sample.tip.y, sample.tip.z],
+        offset,
+      );
+      for (let vertex = 0; vertex < 2; vertex += 1) {
+        const colorOffset = offset + vertex * 3;
+        slashTrailState.colors[colorOffset] = slashTrailState.tint.r * ageAlpha;
+        slashTrailState.colors[colorOffset + 1] = slashTrailState.tint.g * ageAlpha;
+        slashTrailState.colors[colorOffset + 2] = slashTrailState.tint.b * ageAlpha;
+      }
+    }
+    trailAttribute.needsUpdate = true;
+    trailColorAttribute.needsUpdate = true;
+    slashTrailState.geometry.setDrawRange(0, Math.max(0, slashTrailState.count - 1) * 6);
 
     const aim = getAimHit(0, 0, aimDistance);
     player.targetId = aim?.enemy?.id ?? null;

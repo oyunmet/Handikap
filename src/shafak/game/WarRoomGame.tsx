@@ -33,6 +33,7 @@ type Phase = "briefing" | "battle" | "victory" | "defeat";
 type PointerTrack = { id: number | null; x: number; y: number; button: number; pointerType: WarRoomLookPointerType };
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
+const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
 
 function createInputState(): WarRoomInputState {
   return {
@@ -208,6 +209,13 @@ export default function WarRoomGame({
     && (modelProgress >= 100 || modelErrors.length > 0);
   const [phase, setPhase] = useState<Phase>("briefing");
   const [soundMuted, setSoundMuted] = useState(false);
+  const [bloodEffects, setBloodEffects] = useState(() => {
+    try {
+      return window.localStorage.getItem(BLOOD_EFFECTS_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  });
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
     () => getWarRoomLoadoutFromProfile(profile),
   );
@@ -560,6 +568,7 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={loadout}
             weaponMountOverrides={weaponMountOverrides}
+            bloodEffects={bloodEffects}
             debugMode={debugMode}
             onMeleeDebugUpdate={setMeleeDebugMessage}
             onHudUpdate={setHud}
@@ -625,6 +634,23 @@ export default function WarRoomGame({
               }}
             >
               {soundMuted ? "SES AÇ" : "SESSİZ"}
+            </button>
+            <button
+              className="war-room-blood"
+              type="button"
+              aria-pressed={!bloodEffects}
+              aria-label={bloodEffects ? "Kan efektlerini kapat" : "Hafif kan efektlerini aç"}
+              onClick={() => {
+                const nextEnabled = !bloodEffects;
+                setBloodEffects(nextEnabled);
+                try {
+                  window.localStorage.setItem(BLOOD_EFFECTS_KEY, nextEnabled ? "light" : "off");
+                } catch {
+                  // Keep the in-session toggle usable when browser storage is unavailable.
+                }
+              }}
+            >
+              KAN: {bloodEffects ? "HAFİF" : "KAPALI"}
             </button>
             <button
               className="war-room-settings"
