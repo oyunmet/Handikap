@@ -1958,7 +1958,7 @@ function WarRoomRuntimeScene({
       const charge = Math.max(0.15, Math.min(1, (now - player.chargeStartedAt) / 0.95));
       fireWeapon(now, charge);
       player.chargeStartedAt = 0;
-    } else if (weapon.weaponClass !== "melee" && !weapon.charge && (
+    } else if (!weapon.charge && (
       input.firePressed
       || (weapon.automatic && input.fireHeld)
     )) {

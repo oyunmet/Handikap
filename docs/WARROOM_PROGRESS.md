@@ -28,15 +28,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 4 — Savaş hissi
 
-- **Durum:** DEVAM
-- **Yapılanlar:** Mevcut tek vuruş zamanlaması, koni/engel kontrolü, silah animasyonu, düşman hit flash/geri tepmesi ve ölümde küçülüp solma korunacak temel olarak belirlendi. Kombo, basılı tutulan ağır saldırı, atılma/yumuşak hedef çekimi ve ölçülü vuruş durması henüz yok.
-- **Kalanlar:** Protokoldeki saldırı fazları, isabet geri bildirimi ve görsel düşman tepkileri.
-- **Değişen dosyalar:** Yok.
-- **Doğrulama sonucu:** Henüz yapılmadı.
+- **Durum:** BİTTİ (kod); cihaz/WebGL görsel kabul testi açık.
+- **Yapılanlar:** Çalışma kopyasında bulunan üç adımlı farklı savuruşlu kombo, 350 ms basılı tutmayla ağır saldırı, tek vuruş anı kontrolü, mevcut koni/engel testi, 0,34–0,48 m engel denetimli ileri atılma, 25° ile sınırlı yakın hedef yardımı, 50/90 ms hit-stop, kamera/FOV geri bildirimi, 0,24 sn ile sınırlı yalnız görsel sendeleme, yönlü geri tepme ve ölümde yatıp solma korundu. Faz 4 kapatma bayrağı ve saldırı debug alanı mevcut. Plan/yardımcı fonksiyon testleri eklendi; TS tür hatası düzeltildi.
+- **Kalanlar:** Hit geri bildiriminin ve animasyonların iPhone/WebGL üzerinde `?debug=1` ile görsel kabul testi.
+- **Değişen dosyalar:** `src/shafak/game/war-room-combat-feel.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** Build ve typecheck geçti. `npm test`: 334 testten 326 geçti, 8 başarısızlık; aynı 6 mağaza/ekipman ve 2 duel taban testi, Savaş Odası testleri dahil yeni başarısızlık yok. Build büyük-bundle uyarısı verdi. WebGL/cihaz kabulü doğrulanamadı.
 
 ## Faz 5 — Görsel efektler
 
-- **Durum:** BEKLİYOR
+- **Durum:** DEVAM
 - **Yapılanlar:** Yok.
 - **Kalanlar:** Protokoldeki sınırlı havuzlara bağlı vuruş, ayak ve hasar efektleri.
 - **Değişen dosyalar:** Yok.
