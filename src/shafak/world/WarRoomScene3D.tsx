@@ -715,9 +715,9 @@ function PlayerActor({
         .find((bone): bone is THREE.Object3D => Boolean(bone));
       const candidates = [
         findBone(["mixamorigRightShoulder", "RightShoulder", "Rig_RightShoulder", "Shoulder.R"]),
-        findBone(["mixamorigRightArm", "RightArm", "Rig_RightArm", "RightUpperArm", "Arm.R"]),
-        findBone(["mixamorigRightForeArm", "RightForeArm", "Rig_RightForeArm", "RightLowerArm", "ForeArm.R"]),
-        findBone(["mixamorigSpine", "Spine", "Rig_Spine", "spine"]),
+        findBone(["mixamorigRightArm", "RightArm", "Rig_RightArm", "RightUpperArm", "UpperArm.R", "Arm.R"]),
+        findBone(["mixamorigRightForeArm", "RightForeArm", "Rig_RightForeArm", "RightLowerArm", "LowerArm.R", "ForeArm.R"]),
+        findBone(["mixamorigSpine", "Spine", "Rig_Spine", "spine", "Torso"]),
       ].filter((bone): bone is THREE.Object3D => Boolean(bone));
       pose = {
         startedAt: player.meleeStartedAt,
@@ -741,7 +741,7 @@ function PlayerActor({
       const isShoulder = /shoulder/i.test(bone.name);
       const isUpperArm = /arm/i.test(bone.name) && !/fore|lower/i.test(bone.name);
       const isForearm = /fore|lower/i.test(bone.name);
-      const isTorso = /spine/i.test(bone.name);
+      const isTorso = /spine|torso/i.test(bone.name);
       if (weapon?.meleeStyle === "thrust") {
         bone.rotation.set(
           base[0] + (isForearm ? -prepare * 0.32 + strike * 0.45 : 0),
@@ -773,14 +773,14 @@ function PlayerActor({
       "Rig_LeftHand", "mixamorigLeftHand", "FistL", "Fist.L", "LeftHand", "LeftHandBone",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const rightUpperArm = modelRef.current && [
-      "mixamorigRightArm", "RightArm", "Rig_RightArm", "RightUpperArm", "Arm.R",
+      "mixamorigRightArm", "RightArm", "Rig_RightArm", "RightUpperArm", "UpperArm.R", "Arm.R",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const rightForeArm = modelRef.current && [
-      "mixamorigRightForeArm", "RightForeArm", "Rig_RightForeArm", "RightLowerArm", "ForeArm.R",
+      "mixamorigRightForeArm", "RightForeArm", "Rig_RightForeArm", "RightLowerArm", "LowerArm.R", "ForeArm.R",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const rightArm = rightForeArm ?? rightUpperArm;
     const torso = modelRef.current && [
-      "mixamorigSpine", "Spine", "Rig_Spine", "spine",
+      "mixamorigSpine", "Spine", "Rig_Spine", "spine", "Torso",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     modelRef.current?.updateMatrixWorld(true);
     const mountParent = hand ?? root;
