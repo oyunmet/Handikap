@@ -2,6 +2,21 @@
 
 Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran görüntülerine göre sürdürüldü. Geçmiş commit ayrıntıları bu çalışma kopyasında bulunmadığında açıkça belirtilmiştir.
 
+## Düzeltme turu — iPhone testinde görülen sorunlar
+
+- **Durum:** DEVAM EDİYOR
+- **Kapsam:** Ekli test notlarındaki Adım 1–7: silah normalizasyonu ve canlı kalibrasyon, hareket yönü/isabet teşhisi, can yenileme, geçerli hedef filtresi ve silaha özel yakın dövüş efektleri.
+- **Kural:** Her adımın sonunda build, typecheck, testler ve yerel commit; Git push ve Vercel deploy yapılmayacak.
+- **Adım durumu:** 1 kısmen doğrulandı · 2 bekliyor · 3 bekliyor · 4 bekliyor · 5 bekliyor · 6 bekliyor · 7 bekliyor.
+- **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; kod/test doğrulaması ile cihaz doğrulaması ayrı raporlanacak.
+
+### Adım 1 — Silah normalizasyonu
+
+- **Durum:** KISMEN — normalizasyon ve tutuş kod/testleri doğrulandı; iPhone'daki gerçek model görünümü doğrulanamadı.
+- **Yapılanlar:** GLB sınır kutusu yükleme anında ölçülüyor, en uzun eksen hedef uzunluğa göre normalize ediliyor ve config'teki `gripRatio` el kemiği kökenine taşınıyor. Minimum görsel kalınlık yalnızca eksene dik boyutlara uygulanıyor. İstenen melee uzunlukları bıçak 0,30 m, balta 0,75 m, sopa 0,90 m, kürek 1,20 m, mızrak 1,90 m, asa 1,50 m ve kazma 1,00 m olarak test ediliyor.
+- **Mesh incelemesi:** İncelenen yedi melee GLB'nin her birinde bir mesh ve bir primitive var; ayrı bir kopya/siyah silindir mesh'i bulunmadı. Görseldeki silindir bu mesh'in içindeyse bağımsızca gizlenemez; ekli notta bahsedilen görüntü bu çalışma kopyasına eklenmediği için bunun ekrandaki parça olduğuna dair kesin teşhis yapılamadı.
+- **Doğrulama:** `npm run typecheck` ve `npm run build` başarılı; War Room motoru ve silah-fit testleri 15/15 geçti. Tüm testler 355 toplam, 347 geçti, 8 başarısız; bunlar altı mağaza/ekipman, bir duel dengesi ve bir varsayılan envanter testi. Tam iPhone/WebGL görsel kabulü doğrulanamadı.
+
 ## Faz 1 — Karakter yönelimi
 
 - **Durum:** BİTTİ (önceki oturumda tamamlandığı ve yerel commit alındığı ekran görüntüsünde bildirildi).

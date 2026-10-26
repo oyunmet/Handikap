@@ -743,6 +743,8 @@ function WeaponModel({
               position={[0, 0, 0]}
               targetSize={weapon.modelSize ?? [1, 1, 1]}
               uniformFitLength={weapon.normalizeLength}
+              gripRatio={mount.gripRatio}
+              minimumVisualThickness={weapon.minimumVisualThickness}
               muzzleEnd={mount.muzzleEnd}
               muzzleOffsetZ={mount.muzzleOffsetZ}
               fallbackColor={weapon.color}

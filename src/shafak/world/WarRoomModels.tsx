@@ -19,6 +19,7 @@ import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
+import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/player-hero.glb",
@@ -88,6 +89,8 @@ type StaticModelProps = {
   rotation?: readonly [number, number, number];
   targetSize: TargetSize;
   uniformFitLength?: number;
+  gripRatio?: number;
+  minimumVisualThickness?: number;
   muzzleEnd?: -1 | 1;
   muzzleOffsetZ?: number;
   fallbackColor?: string;
@@ -100,6 +103,8 @@ export function WarRoomStaticModel({
   rotation = [0, 0, 0],
   targetSize,
   uniformFitLength,
+  gripRatio,
+  minimumVisualThickness,
   muzzleEnd,
   muzzleOffsetZ = 0,
   fallbackColor,
@@ -135,7 +140,17 @@ export function WarRoomStaticModel({
       throw new Error(`Modelin ölçüleri okunamadı: ${src}`);
     }
     const center = bounds.getCenter(new THREE.Vector3());
-    if (uniformFitLength) {
+    if (uniformFitLength && gripRatio !== undefined) {
+      const fit = fitWarRoomWeapon(
+        [bounds.min.x, bounds.min.y, bounds.min.z],
+        [bounds.max.x, bounds.max.y, bounds.max.z],
+        uniformFitLength,
+        gripRatio,
+        minimumVisualThickness,
+      );
+      clone.scale.multiply(new THREE.Vector3(...fit.scale));
+      clone.position.set(...fit.offset);
+    } else if (uniformFitLength) {
       const fitScale = uniformFitLength / Math.max(size.x, size.y, size.z);
       clone.scale.multiplyScalar(fitScale);
       clone.position.set(-center.x * fitScale, -center.y * fitScale, -center.z * fitScale);
@@ -153,7 +168,7 @@ export function WarRoomStaticModel({
       );
     }
     return clone;
-  }, [fallbackColor, scene, src, targetSize, uniformFitLength]);
+  }, [fallbackColor, gripRatio, minimumVisualThickness, scene, src, targetSize, uniformFitLength]);
 
   useLayoutEffect(() => {
     const anchor = muzzleAnchorRef?.current;

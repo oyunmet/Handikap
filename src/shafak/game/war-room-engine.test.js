@@ -40,8 +40,8 @@ test("melee weapons have no ammunition state and have per-weapon attack values",
     assert.ok(weapon?.mount, `${id} needs its own hand mount settings`);
   }
   assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_knife")?.normalizeLength, 0.3);
-  assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_axe")?.normalizeLength, 0.6);
-  assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_spear")?.normalizeLength, 1.8);
+  assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_axe")?.normalizeLength, 0.75);
+  assert.equal(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_spear")?.normalizeLength, 1.9);
 });
 
 test("all War Room weapons expose complete, valid shooter settings", () => {
