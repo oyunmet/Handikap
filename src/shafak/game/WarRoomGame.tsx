@@ -76,6 +76,8 @@ function createEmptyHud(): WarRoomHudSnapshot {
     targetVisible: false,
     hitMarker: false,
     headshotMarker: false,
+    damageNumberCritical: false,
+    damageEventId: 0,
     damageVignette: false,
     damageDirection: 0,
     lastHitDamage: 0,
@@ -471,7 +473,7 @@ export default function WarRoomGame({
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
           <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
           <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v14-faz4</span>
+            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · v14-faz5</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
             <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
           </header>
@@ -783,7 +785,11 @@ export default function WarRoomGame({
             <button className="war-room-pause" type="button" onClick={pauseBattle}>DURAKLAT · ÇIK</button>
           </div>
           {hud.hitMarker && (
-            <div className={`war-room-damage-number${hud.headshotMarker ? " is-headshot" : ""}`} aria-hidden="true">
+            <div
+              key={hud.damageEventId}
+              className={`war-room-damage-number${hud.damageNumberCritical ? " is-critical" : ""}`}
+              aria-hidden="true"
+            >
               {`−${hud.lastHitDamage}`}
             </div>
           )}

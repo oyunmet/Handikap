@@ -36,11 +36,11 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Faz 5 — Görsel efektler
 
-- **Durum:** DEVAM
-- **Yapılanlar:** Yok.
-- **Kalanlar:** Protokoldeki sınırlı havuzlara bağlı vuruş, ayak ve hasar efektleri.
-- **Değişen dosyalar:** Yok.
-- **Doğrulama sonucu:** Henüz yapılmadı.
+- **Durum:** BİTTİ (kod); iPhone/WebGL görsel kabul testi açık.
+- **Yapılanlar:** 72 parçacıklı ortak havuz (150 üst sınırın altında), 30 decal yuvası ve 10 segmentli additive silah izi korunup tek bayrakla (`WAR_ROOM_POOLED_FX_ENABLED`) kapatılabilir hale getirildi. Kan ayarı hafif varsayılanıyla korunuyor; kapalıyken et isabetinde kan yerine kıvılcım, komutan/metal isabetinde kıvılcım, engel isabetinde toz üretiliyor. Ağır vuruş şok dalgası ve kısa ömürlü çatlak decal kullanıyor. Kritik ve normal hasar sayıları ayrı stillerle, animasyonlu ve mevcut CAN bildiriminden ayrık gösteriliyor. Koşu/iniş tozu, hasar vinyeti ve efsanevi silah aurası mevcut. Havuz renk tamponları savaş başında hazırlanıyor.
+- **Kalanlar:** İz, isabet/çatlak efektleri ve aura için gerçek iPhone/WebGL görsel kabulü. Replit önizlemesinde WebGL bağlamı oluşturulamadığından bu ortamda görsel efektler çalıştırılarak doğrulanamadı.
+- **Değişen dosyalar:** `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-fx.ts`, `src/shafak/game/war-room-fx.test.js`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı. `npm test`: 336 testten 328 geçti, 8 başarısız; başarısızlar War Room dışı: 6 mağaza/eşya testi, 1 düello süresi testi, 1 envanter varsayılanı testi. War Room FX testleri dahil bu fazdaki testlerde yeni hata yok. Ekran görüntüsü savaş arayüzüne ulaşmadı; tarayıcı WebGL bağlamı oluşturamadığı için görsel kabul doğrulanamadı.
 
 ## Faz 6 — Ses
 
