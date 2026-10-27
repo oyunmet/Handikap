@@ -48,9 +48,22 @@ import {
   WAR_ROOM_CAMERA_FACING_ENABLED,
   WAR_ROOM_CAMERA_OCCLUSION_ENABLED,
   WAR_ROOM_COMBAT_FEEL_ENABLED,
+  WAR_ROOM_COMMANDER_TELEGRAPH_ENABLED,
+  WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED,
   WAR_ROOM_POOLED_FX_ENABLED,
+  WAR_ROOM_REACTION_FEEDBACK_ENABLED,
   WAR_ROOM_WEAPON_PRESENTATION_ENABLED,
 } from "../game/war-room-features";
+import {
+  getWarRoomCommanderTelegraphProgress,
+  getWarRoomDeathFadeProgress,
+  getWarRoomHitRimIntensity,
+  getWarRoomVisualKnockbackDistance,
+  WAR_ROOM_COMMANDER_TELEGRAPH_SECONDS,
+  WAR_ROOM_ENEMY_DEATH_FADE_SECONDS,
+  WAR_ROOM_ENEMY_HIT_FLASH_SECONDS,
+  WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS,
+} from "../game/war-room-reactions";
 import {
   countOccupiedWarRoomDecals,
   countActiveWarRoomParticles,
@@ -122,6 +135,56 @@ const WAR_ROOM_DECAL_COLORS = [
   new THREE.Color("#9b5042"),
   new THREE.Color("#bf7252"),
 ] as const;
+const WAR_ROOM_COMMANDER_WARNING_GEOMETRY = new THREE.RingGeometry(
+  0.54,
+  1.12,
+  24,
+  1,
+  -Math.PI / 3,
+  (Math.PI * 2) / 3,
+);
+const WAR_ROOM_COMMANDER_WARNING_MATERIAL = new THREE.MeshBasicMaterial({
+  color: "#ff3028",
+  transparent: true,
+  opacity: 0.62,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+  toneMapped: false,
+});
+
+function installWarRoomHitRim(material: THREE.Material) {
+  if (
+    !(material instanceof THREE.MeshStandardMaterial)
+    && !(material instanceof THREE.MeshPhysicalMaterial)
+  ) return;
+  const rimUniform = { value: 0 };
+  const previousCompile = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    previousCompile.call(material, shader, renderer);
+    shader.uniforms.warRoomHitRim = rimUniform;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWarRoomViewNormal;")
+      .replace(
+        "#include <beginnormal_vertex>",
+        "#include <beginnormal_vertex>\nvWarRoomViewNormal = normalize(normalMatrix * objectNormal);",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nuniform float warRoomHitRim;\nvarying vec3 vWarRoomViewNormal;",
+      )
+      .replace(
+        "#include <emissivemap_fragment>",
+        `#include <emissivemap_fragment>
+         float warRoomFacing = abs(dot(normalize(vWarRoomViewNormal), normalize(vViewPosition)));
+         float warRoomRim = pow(1.0 - warRoomFacing, 2.4);
+         totalEmissiveRadiance += vec3(1.0, 0.11, 0.025) * warRoomRim * warRoomHitRim;`,
+      );
+  };
+  material.customProgramCacheKey = () => "war-room-hit-rim-v1";
+  material.userData.warRoomHitRim = rimUniform;
+}
 
 function getWarRoomFootstepSurface(x: number, z: number): WarRoomSoundSurface {
   const nearStone = WAR_ROOM_BLOCKERS.some((blocker) => {
@@ -1317,6 +1380,7 @@ function EnemyActor({
   const groupRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const weaponMountRef = useRef<THREE.Group>(null);
+  const attackWarningRef = useRef<THREE.Group>(null);
   const muzzleAnchorRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Group>(null);
   useFrame((frame, delta) => {
@@ -1325,15 +1389,32 @@ function EnemyActor({
     const runtime = group.parent?.userData.runtime as WarRoomRuntime | undefined;
     const player = runtime?.player;
     const gameNow = runtime?.player.clockTime ?? frame.clock.elapsedTime;
+    const warningProgress = getWarRoomCommanderTelegraphProgress(
+      enemy.commander && enemy.mode === "fire",
+      gameNow,
+      enemy.nextShotAt,
+    );
+    if (attackWarningRef.current) {
+      attackWarningRef.current.visible = WAR_ROOM_COMMANDER_TELEGRAPH_ENABLED
+        && enemy.alive
+        && warningProgress !== null;
+      if (warningProgress !== null) {
+        attackWarningRef.current.scale.setScalar(0.82 + warningProgress * 0.18);
+      }
+    }
     if (player) {
       const targetYaw = Math.atan2(player.x - enemy.x, -(player.z - enemy.z));
       group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 7, delta);
     }
     const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.2 : 0;
     if (enemy.alive) delete group.userData.warRoomDeathStartedAt;
-    else if (group.userData.warRoomDeathStartedAt == null) group.userData.warRoomDeathStartedAt = gameNow;
-    const deathAt = Number(group.userData.warRoomDeathStartedAt ?? gameNow);
-    const deathProgress = enemy.alive ? 0 : Math.min(1, (gameNow - deathAt) / 2);
+    else if (group.userData.warRoomDeathStartedAt == null) {
+      group.userData.warRoomDeathStartedAt = frame.clock.elapsedTime;
+    }
+    const deathAt = Number(group.userData.warRoomDeathStartedAt ?? frame.clock.elapsedTime);
+    const deathProgress = enemy.alive
+      ? 0
+      : getWarRoomDeathFadeProgress(frame.clock.elapsedTime, deathAt);
     group.position.set(
       enemy.x + enemy.hitKnockbackX * hitKick,
       0,
@@ -1376,29 +1457,36 @@ function EnemyActor({
       muzzleLightRef.current.intensity = 0;
     }
     group.visible = enemy.alive || deathProgress < 1;
-    group.scale.y = enemy.alive ? 1 : Math.max(0.025, 1 - deathProgress);
+    const kneeDip = enemy.alive && enemy.hitKneeUntil > gameNow ? 0.82 : 1;
+    group.scale.y = enemy.alive ? kneeDip : Math.max(0.025, 1 - deathProgress);
     if (modelRef.current && !modelRef.current.userData.warRoomOwnedMaterials) {
       modelRef.current.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.material = Array.isArray(object.material)
           ? object.material.map((material) => material.clone())
           : object.material.clone();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach(installWarRoomHitRim);
       });
       modelRef.current.userData.warRoomOwnedMaterials = true;
     }
     if (modelRef.current) {
-      const hit = enemy.hitUntil > gameNow;
-      const alpha = enemy.alive ? 1 : Math.max(0, 1 - (gameNow - deathAt) / 2);
+      const hitRim = WAR_ROOM_REACTION_FEEDBACK_ENABLED
+        ? getWarRoomHitRimIntensity(gameNow, enemy.hitFlashUntil)
+        : 0;
+      const alpha = enemy.alive ? 1 : Math.max(0, 1 - deathProgress);
       modelRef.current.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         materials.forEach((material) => {
           const emissive = material as THREE.Material & { emissive?: THREE.Color; emissiveIntensity?: number };
+          const rim = material.userData.warRoomHitRim as { value: number } | undefined;
+          if (rim) rim.value = hitRim;
           material.transparent = alpha < 1;
           material.opacity = alpha;
           if (emissive.emissive?.isColor) {
-            emissive.emissive.set(hit ? "#ff3028" : enemy.commander ? "#7b231d" : "#51382c");
-            emissive.emissiveIntensity = hit ? 0.82 : enemy.commander ? 0.18 : 0.04;
+            emissive.emissive.set(enemy.commander ? "#7b231d" : "#51382c");
+            emissive.emissiveIntensity = enemy.commander ? 0.18 : 0.04;
           }
         });
       });
@@ -1439,6 +1527,20 @@ function EnemyActor({
           />
         </Suspense>
       </WarRoomAssetBoundary>
+      <group
+        ref={attackWarningRef}
+        name={`commander-warning:${enemy.id}`}
+        visible={false}
+        userData={{ warRoomCameraIgnore: true }}
+      >
+        <mesh
+          geometry={WAR_ROOM_COMMANDER_WARNING_GEOMETRY}
+          material={WAR_ROOM_COMMANDER_WARNING_MATERIAL}
+          position={[0, 0.025, 0]}
+          rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+          dispose={null}
+        />
+      </group>
       <group ref={weaponMountRef} name={`enemy-weapon:${enemy.id}`} visible={false}>
         <WeaponModel
           weaponId="powder_rifle"
@@ -1638,6 +1740,7 @@ function WarRoomRuntimeScene({
   const playerMuzzleFlashRef = useRef<THREE.Group | null>(null);
   const lastHudAtRef = useRef(0);
   const finishedRef = useRef(false);
+  const victoryCinematicStartedAtRef = useRef<number | null>(null);
   const cameraKickRef = useRef(0);
   const cameraSideKickRef = useRef(0);
   const cameraFovKickRef = useRef(0);
@@ -2284,9 +2387,18 @@ function WarRoomRuntimeScene({
 
     const damage = applyWarRoomDamage(enemy, weapon.damage, player.meleeAttackDamageMultiplier);
     enemy.hitUntil = now + player.meleeAttackStaggerSeconds;
+    enemy.hitFlashUntil = WAR_ROOM_REACTION_FEEDBACK_ENABLED
+      ? now + WAR_ROOM_ENEMY_HIT_FLASH_SECONDS
+      : 0;
+    enemy.hitKneeUntil = WAR_ROOM_REACTION_FEEDBACK_ENABLED && player.meleeAttackHeavy
+      ? now + Math.min(0.38, player.meleeAttackStaggerSeconds)
+      : 0;
     const knockbackLength = Math.max(0.001, Math.hypot(enemy.x - player.x, enemy.z - player.z));
-    enemy.hitKnockbackX = ((enemy.x - player.x) / knockbackLength) * 0.24;
-    enemy.hitKnockbackZ = ((enemy.z - player.z) / knockbackLength) * 0.24;
+    const visualKnockback = WAR_ROOM_REACTION_FEEDBACK_ENABLED
+      ? getWarRoomVisualKnockbackDistance(weaponId ?? "melee_knife", player.meleeAttackHeavy)
+      : 0;
+    enemy.hitKnockbackX = ((enemy.x - player.x) / knockbackLength) * visualKnockback;
+    enemy.hitKnockbackZ = ((enemy.z - player.z) / knockbackLength) * visualKnockback;
     player.hits += 1;
     player.lastHitDamage = damage.damage;
     player.damageEventId += 1;
@@ -2581,6 +2693,14 @@ function WarRoomRuntimeScene({
           aim.headshot ? weapon.headshotMultiplier : 1,
         );
         aimedEnemy.hitUntil = now + 0.14;
+        aimedEnemy.hitFlashUntil = WAR_ROOM_REACTION_FEEDBACK_ENABLED
+          ? now + WAR_ROOM_ENEMY_HIT_FLASH_SECONDS
+          : 0;
+        aimedEnemy.hitKneeUntil = 0;
+        const knockbackLength = Math.max(0.001, Math.hypot(aimedEnemy.x - player.x, aimedEnemy.z - player.z));
+        const bulletKnockback = WAR_ROOM_REACTION_FEEDBACK_ENABLED ? 0.3 : 0;
+        aimedEnemy.hitKnockbackX = ((aimedEnemy.x - player.x) / knockbackLength) * bulletKnockback;
+        aimedEnemy.hitKnockbackZ = ((aimedEnemy.z - player.z) / knockbackLength) * bulletKnockback;
         shotHit = true;
         shotHeadshot ||= aim.headshot;
         player.lastHitDamage += damage.damage;
@@ -2683,9 +2803,24 @@ function WarRoomRuntimeScene({
     const runtime = runtimeRef.current;
     const player = runtime.player;
     const input = inputRef.current;
-    const delta = Math.min(rawDelta, 0.05);
     if (input.paused) return;
     const wallNow = frame.clock.elapsedTime;
+    if (
+      WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
+      && runtime.enemies.length > 0
+      && getWarRoomRemaining(runtime) === 0
+      && victoryCinematicStartedAtRef.current === null
+    ) {
+      victoryCinematicStartedAtRef.current = wallNow;
+    }
+    const cinematicStartedAt = victoryCinematicStartedAtRef.current;
+    const cinematicElapsed = cinematicStartedAt === null ? 0 : wallNow - cinematicStartedAt;
+    const delta = Math.min(rawDelta, 0.05)
+      * (WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
+        && cinematicStartedAt !== null
+        && cinematicElapsed < WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS
+        ? 0.25
+        : 1);
     const qualityProfile = getWarRoomQualityProfile(quality);
     const performanceSample = meleePerformanceRef.current;
     if (debugMode && performanceSample.started && !performanceSample.reported) {
@@ -3065,6 +3200,12 @@ function WarRoomRuntimeScene({
           player.lastDamageAt = now;
           player.lastCombatAt = now;
           player.invulnerableUntil = now + 0.28;
+          cameraKickRef.current = Math.max(cameraKickRef.current, 0.09);
+          cameraFovKickRef.current = Math.min(cameraFovKickRef.current + 1.8, 4.2);
+          cameraSideKickRef.current = Math.max(
+            -0.035,
+            Math.min(0.035, cameraSideKickRef.current + Math.sign(player.damageDirection || 1) * 0.018),
+          );
           player.damageDirection = shortestAngleDelta(
             player.yaw,
             Math.atan2(enemy.x - player.x, -(enemy.z - player.z)),
@@ -3197,7 +3338,10 @@ function WarRoomRuntimeScene({
     const cameraForwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
     const cameraForwardY = Math.sin(player.pitch);
     const cameraForwardZ = -Math.cos(player.yaw) * Math.cos(player.pitch);
-    const cameraBack = input.aimHeld ? 2.8 : 4.05;
+    const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
+      ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
+      : 0;
+    const cameraBack = (input.aimHeld ? 2.8 : 4.05) * (1 - victoryZoom * 0.18);
     const shoulder = input.aimHeld ? 1.02 : 0.92;
     cameraStart.set(player.x, player.jumpHeight + (player.crouched ? 1.2 : 1.55), player.z);
     cameraDesired.set(
@@ -3409,7 +3553,12 @@ function WarRoomRuntimeScene({
     if (!finishedRef.current && player.hp <= 0) {
       finishedRef.current = true;
       onFinish("defeat", snapshot);
-    } else if (!finishedRef.current && getWarRoomRemaining(runtime) === 0) {
+    } else if (
+      !finishedRef.current
+      && getWarRoomRemaining(runtime) === 0
+      && (!WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
+        || (cinematicStartedAt !== null && cinematicElapsed >= WAR_ROOM_ENEMY_DEATH_FADE_SECONDS))
+    ) {
       finishedRef.current = true;
       onFinish("victory", snapshot);
     }

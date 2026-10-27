@@ -26,6 +26,8 @@ export type WarRoomEnemy = {
   coverX: number;
   coverZ: number;
   hitUntil: number;
+  hitFlashUntil: number;
+  hitKneeUntil: number;
   hitKnockbackX: number;
   hitKnockbackZ: number;
   deathYaw: number;
@@ -208,6 +210,8 @@ export function createWarRoomRuntime(
       coverX: cover.x,
       coverZ: cover.z,
       hitUntil: 0,
+      hitFlashUntil: 0,
+      hitKneeUntil: 0,
       hitKnockbackX: 0,
       hitKnockbackZ: 0,
       deathYaw: 0,
@@ -229,6 +233,8 @@ export function createWarRoomRuntime(
     coverX: 0,
     coverZ: -21,
     hitUntil: 0,
+    hitFlashUntil: 0,
+    hitKneeUntil: 0,
     hitKnockbackX: 0,
     hitKnockbackZ: 0,
     deathYaw: 0,
@@ -343,6 +349,8 @@ export function createWarRoomTrainingRuntime(
     coverX: 0,
     coverZ: 22.5,
     hitUntil: 0,
+    hitFlashUntil: 0,
+    hitKneeUntil: 0,
     hitKnockbackX: 0,
     hitKnockbackZ: 0,
     deathYaw: 0,

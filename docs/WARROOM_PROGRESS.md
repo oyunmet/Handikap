@@ -58,12 +58,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 3 — v16 iPhone bulguları
 
-- **Durum:** DEVAM EDİYOR — Faz A–C tamamlandı; Faz D–F sıralı bekliyor.
+- **Durum:** DEVAM EDİYOR — Faz A–D tamamlandı; Faz E–F sıralı bekliyor.
 - **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
 - **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
 - **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
 - **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
-- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — TAMAMLANDI · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
 
 ### Faz A — Kamera ve karakter yönelimi
 
@@ -91,6 +91,16 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Değişen dosyalar:** `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/WarRoomWeaponIcon.tsx`, `src/shafak/game/war-room-lab.ts`, `src/shafak/game/war-room-lab.test.js`, `src/shafak/game/war-room-weapon-icons.ts`, `src/shafak/game/war-room-weapon-icons.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama:** `npm run typecheck` ve `npm run build` geçti; GLB ikon rendereri ayrı ~16 kB gzip'lik chunk olarak kaldı. `npm test`: 394 testten 386 geçti; 8 bilinen War Room dışı hata değişmedi (6 mağaza, 1 düello süresi, 1 envanter). Laboratuvar sıralama/boy ve ikon yedeği testleri geçti. SVGRenderer gerçek GLB çizimi tarayıcıda henüz görsel olarak doğrulanmadı; iPhone/Safari kabulü bekliyor.
 - **Kalanlar:** iPhone'da bütün silah GLB'lerinin eldeki duruşunu, her test saldırısını ve gerçek modelden üretilen ikonları kontrol et.
+
+### Faz D — Vuruş hissi ve düşman tepkileri
+
+- **Durum:** KISMEN — kod, saf fonksiyon testleri, build/typecheck ve mevcut efekt havuz sınırları doğrulandı; 3D görünüm iPhone/WebGL'de bekliyor.
+- **Kök neden:** `WarRoomScene3D.tsx:2390–2400` melee darbelerinde tüm silahlara sabit 0,24 m görsel geri tepme veriyordu; `:1468–1488` düşman modelinin tamamını düz turuncuya yakıp ölüm solmasını iki oyun saniyesine bağlıyordu. Son düşman öldüğünde zafer aynı frame'de açıldığından düşme animasyonu gösterilemiyor; oyuncu hasarında vinyet/yön oku/ses vardı ancak kamera tekmesi yoktu. Düşman saldırı döngüsünde (`:3158`) ön uyarı görseli bulunmuyordu.
+- **Yapılanlar:** Düşman geri tepmesi melee silah boyuna göre 0,3–1,0 m arasında hesaplanıyor ve yalnızca sahne grubunu oynatıyor; ağır melee için ≤0,38 sn görsel diz çökme eklendi. Tüm rig malzemelerine bir kez rim shader hazırlanıyor, isabet kenar ışığı 90 ms sürüyor. Ölüm yönlü yatış/solma 1,5 gerçek saniyeye alındı; son düşman için 0,8 sn %25 zaman ölçeği ve kamera yaklaşması sonrası zafer gösteriliyor. Oyuncu hasarı mevcut yön göstergesi/vinyete/sese ek olarak kamera tekmesi veriyor. Mevcut komutan ateş döngüsünün son 0,45 saniyesinde kırmızı zemin yayı gösteriliyor; atış saati, isabet oranı ve düşman AI kararları değiştirilmedi. Hasar sayıları büyütülüp koyu kenarlık/pop stili eklendi. Yeni davranışların bayrakları varsayılan açık.
+- **Hasar/iyileşme notu:** Düşman başına hasar kodda normal nöbetçi **9**, Kızıl Komutan **13** CAN. Kullanıcının görüntüsündeki **−43**, bu tek atış tablosundaki bir değer değil; bunun birikimli mi yoksa başka ekrandan mı geldiği bu kod akışında doğrulanamadı. Pasif yenilenme, öldürme iyileştirmesi ve şifa noktaları için birim testleri geçti; değerler Tur 2 Adım 5 bölümünde kayıtlı, bu fazda değiştirilmedi.
+- **Değişen dosyalar:** `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-reactions.ts`, `src/shafak/game/war-room-reactions.test.js`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** `npm run typecheck` ve `npm run build` geçti. `npm test`: 397 testten 389 geçti; 8 bilinen War Room dışı hata (6 mağaza, 1 düello süresi, 1 envanter) değişmedi. Faz D hedef testleri 33/33 geçti; mevcut FX testleri 4/4 ve iyileşme testleri 11/11. Headless önizlemede shader/WebGL görünümü ve gerçek iPhone testi **doğrulanamadı**.
+- **Kalanlar:** Gerçek iPhone'da rim shader, uyarı yayı, geri tepme, ölme solması ve zafer yakınlaşmasını görsel olarak kontrol et.
 
 ## Faz 1 — Karakter yönelimi
 

@@ -1198,18 +1198,21 @@
   top: calc(50% - 72px);
   left: 50%;
   color: #fff;
-  font-size: 11px;
+  font-size: 18px;
   font-weight: 900;
-  letter-spacing: 0.12em;
-  text-shadow: 0 1px 5px #000, 0 0 8px rgba(235, 235, 235, 0.5);
+  letter-spacing: 0.04em;
+  -webkit-text-stroke: 1.25px #16120f;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 6px #000, 0 0 10px rgba(255, 255, 255, 0.62);
   pointer-events: none;
   animation: war-room-damage-float 620ms ease-out both;
 }
 
 .war-room-damage-number.is-critical {
-  color: #ffbf75;
-  font-size: 19px;
-  text-shadow: 0 0 12px rgba(255, 178, 80, 0.75), 0 2px 4px #000;
+  color: #ffdd5c;
+  font-size: 25px;
+  -webkit-text-stroke-width: 1.7px;
+  text-shadow: 0 0 14px rgba(255, 198, 51, 0.88), 0 2px 5px #000;
 }
 
 @keyframes war-room-damage-float {
