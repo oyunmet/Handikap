@@ -136,7 +136,11 @@ test("the mobile camera keeps a normalized player below 35% of portrait screen h
 
 test("rigged Quaternius bone names support procedural jump, block, and crouch poses", () => {
   const model = new THREE.Group();
-  const names = ["Hips", "Torso", "UpperArmL", "LowerArmL", "UpperArmR", "LowerArmR", "UpperLegL", "LowerLegL"];
+  const names = [
+    "Hips", "Spine", "Torso", "Head",
+    "UpperArmL", "LowerArmL", "UpperArmR", "LowerArmR",
+    "UpperLegL", "LowerLegL", "UpperLegR", "LowerLegR", "FootL", "FootR",
+  ];
   for (const name of names) {
     const bone = new THREE.Bone();
     bone.name = name;
@@ -152,4 +156,10 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   poseCharacterWithoutClip(bones, "walk", 2, 1, 0, true, false, 1, true);
   assert.ok(bones.leftThigh.rotation.x > 0);
   assert.ok(bones.leftShin.rotation.x < 0);
+  assert.ok(bones.spine.rotation.x > 0);
+  assert.ok(bones.chest.rotation.x > 0);
+  assert.ok(bones.head.rotation.x < 0);
+  assert.ok(bones.leftUpperArm.rotation.x < 0);
+  assert.ok(bones.leftForearm.rotation.x < 0);
+  assert.ok(bones.leftFoot.rotation.x > 0);
 });

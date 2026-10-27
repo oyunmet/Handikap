@@ -58,21 +58,30 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 3 — v16 iPhone bulguları
 
-- **Durum:** DEVAM EDİYOR — Faz A tamamlandı; Faz B başlıyor, Faz C–F sıralı bekliyor.
+- **Durum:** DEVAM EDİYOR — Faz A–B tamamlandı; Faz C başlıyor, Faz D–F sıralı bekliyor.
 - **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
 - **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
 - **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
 - **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
-- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — SIRADA · C silah/laboratuvar — BEKLİYOR · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — SIRADA · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
 
 ### Faz A — Kamera ve karakter yönelimi
 
 - **Durum:** KISMEN — yön hesabı, engel testi ve kod doğrulandı; iPhone görsel kabulü bekliyor.
-- **Kök neden:** `WarRoomScene3D.tsx` önce gövde yönü hedefini anında güncelliyor, görsel kökü ise yavaşça izliyordu; melee nişan yardımı da oyuncunun gövde yönü yerine kamera yaw'ını taban alıyordu. Kamera kesişimi yalnızca mantıksal siper kutularını kontrol ediyordu; sahnedeki ağaç/GLB prop sınırlarını ve fade yardımcılarını kullanmıyordu. Kamera testinde, yakın engel önünde güvenli mesafenin 1,2 m altına inmesi gerektiği halde test aksini bekliyordu.
+- **Kök neden:** `WarRoomScene3D.tsx:1009, 2398, 3177–3230`: gövde yaw'ı yumuşak güncellenmiyor, melee yardımı kamera yaw'ını temel alıyor, kamera çarpışması sahne prop sınırlarını/fade yardımcılarını kullanmıyordu. Yakın engelde güvenli mesafenin 1,2 m altına inmesi gerekebildiği halde eski kamera testi bunun tersini bekliyordu.
 - **Yapılanlar:** Gövde yaw'ı en kısa açısal yoldan yumuşakça güncelleniyor; `?debug=1` testi ±180° sarımını ve 120 ms içindeki yetişmeyi kapsıyor. Hareket yönü seçeneği korunuyor, locomotion yönüne göre gövde eğimi uygulanıyor; melee saldırısı ve nişan yardımı gövde yönünü temel alıyor. Kamera 0,28 m swept-sphere ile siper ve sahneye etiketlenmiş statik prop AABB'lerini test ediyor; yakın engelde çarpışmadan önce yaklaşabiliyor, uzaktaki engelde 1,2 m tercihini koruyor. Kesişen etiketli prop 0,25 sn içinde yarı saydamlaşıyor; `?debug=1` kamera mesafesi ve engel kimliğini gösteriyor. Kamera/yönelim bayrakları mevcut ve varsayılan açık.
 - **Değişen dosyalar:** `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/game/war-room-camera.test.js`, `src/shafak/game/war-room-orientation.test.js`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama:** Build ve typecheck başarılı. Tüm testler 385 toplam, 377 geçti, 8 başarısız; aynı bilinen mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban testleri. Yeni kamera/yönelim testleri geçti. Replit önizlemesinde WebGL oluşturulamadığı için 3D fade ve gerçek iPhone davranışı **doğrulanamadı**.
 - **Kalanlar:** iPhone'da karakter dönüş gecikmesi, saldırı yönü, engel yaklaşımı/fade ve debug satırını kontrol et.
+
+### Faz B — Kül Yolu dokunmatik hareketleri
+
+- **Durum:** KISMEN — çoklu dokunma, hareket/engel mantığı, poz, build ve testler doğrulandı; iPhone etkileşimi bekliyor.
+- **Kök neden:** `WorldScene.tsx:3251–3325` butonları yalnızca `onClick` ile çalıştırıyordu; `useWorldInput.ts:101–125` içindeki pointer basma/bırakma yordamları kullanılmıyordu ve aynı anda basılan aksiyonlar pointerId ile ayrı tutulmuyordu. `world-content.ts:587–588` engeller zaten çömelme/zıplama durumunu kabul ediyordu; eksik olan mobil girişin o durumu güvenilir biçimde üretip göndermesiydi. Çömelme pozu `character-pose.ts:101–108` yalnız hafif diz/göğüs dönüşü uyguluyor, başı dik tutup kolları öne taşımıyordu.
+- **Yapılanlar:** Koş/zıpla/eğil butonlarına bağımsız pointerId basma, bırakma, iptal ve capture kaybı işlendi; joystick başka bir parmakla aynı anda çalışabiliyor. Koş/eğil basılı tutulur, klavyeyle erişilebilir aç/kapat davranışı korunur, zıplama mevcut jump arc'ı kullanır. `WORLD_TOUCH_ACTIONS_ENABLED` ve `WORLD_BUILD_VERSION` bayrakları eklendi; varsayılan sürüm `v16-faz-b`. Basılı buton ışığı, diken/low-bar yaklaşınca zıpla/eğil nabzı ve kısa ses ipucu eklendi. Çömelmede oyuncu gövdesi yaklaşık %28 ölçeklenir; dizler bükülür, gövde öne eğilir, baş denge için ters yönde döner ve kollar öne gelir. Mevcut hız, zıplama eşiği ve ceza süre/değerleri değiştirilmedi. Testler bağımsız pointer, aynı eylemde çoklu pointer, girişten sprint/çömelme durumu, mevcut engel durum testleri ve poz kemiklerini kapsıyor.
+- **Değişen dosyalar:** `src/shafak/world/world-touch-actions.ts`, `src/shafak/world/world-touch-actions.test.js`, `src/shafak/world/world-features.ts`, `src/shafak/world/world-features.test.js`, `src/shafak/world/useWorldInput.ts`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/world-scene.css`, `src/shafak/world/WorldV2Actor.tsx`, `src/shafak/world/character-pose.ts`, `src/shafak/world/character-model.test.js`, `src/shafak/audio/howler.ts`, `src/shafak/game/war-room-features.ts`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** `npm run build` ve `npm run typecheck` başarılı. `npm test`: 389 toplam, 381 geçti, 8 bilinen başarısız test aynı (6 mağaza/ekipman, 1 düello süresi, 1 varsayılan envanter). Dokunma, hareket, çarpışma ve karakter testleri geçti. Replit önizlemesinde WebGL/gerçek iPhone dokunma davranışı **doğrulanamadı**.
+- **Kalanlar:** iPhone'da joystick + her aksiyonu farklı parmaklarla basılı tut; diken üzerinden zıplama, kiriş altında eğilme, ses ve buton nabzını kontrol et.
 
 ## Faz 1 — Karakter yönelimi
 

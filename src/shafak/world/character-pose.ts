@@ -100,11 +100,19 @@ export function poseCharacterWithoutClip(
 
   if (crouching) {
     const crouch = motionScale;
-    rotate("leftThigh", 0.48 * crouch, 0, 0, hasClip);
-    rotate("rightThigh", 0.48 * crouch, 0, 0, hasClip);
-    rotate("leftShin", -0.78 * crouch, 0, 0, hasClip);
-    rotate("rightShin", -0.78 * crouch, 0, 0, hasClip);
-    rotate("chest", 0.13 * crouch, 0, 0, hasClip);
+    rotate("leftThigh", 0.62 * crouch, 0, 0, hasClip);
+    rotate("rightThigh", 0.62 * crouch, 0, 0, hasClip);
+    rotate("leftShin", -1.02 * crouch, 0, 0, hasClip);
+    rotate("rightShin", -1.02 * crouch, 0, 0, hasClip);
+    rotate("leftFoot", 0.3 * crouch, 0, 0, hasClip);
+    rotate("rightFoot", 0.3 * crouch, 0, 0, hasClip);
+    rotate("spine", 0.18 * crouch, 0, 0, hasClip);
+    rotate("chest", 0.3 * crouch, 0, 0, hasClip);
+    rotate("head", -0.3 * crouch, 0, 0, hasClip);
+    rotate("leftUpperArm", -0.28 * crouch, 0, -0.1 * crouch, hasClip);
+    rotate("rightUpperArm", -0.28 * crouch, 0, 0.1 * crouch, hasClip);
+    rotate("leftForearm", -0.42 * crouch, 0, 0, hasClip);
+    rotate("rightForearm", -0.42 * crouch, 0, 0, hasClip);
   }
 
   if (state === "jump") {

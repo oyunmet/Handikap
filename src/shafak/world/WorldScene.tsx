@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
+import { WORLD_BUILD_VERSION, WORLD_TOUCH_ACTIONS_ENABLED } from "./world-features";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
 import WorldWeaponPicker from "./WorldWeaponPicker";
@@ -2744,6 +2745,7 @@ export default function WorldScene({
     <main
       ref={sceneRef}
       className="world-scene"
+      data-build-version={WORLD_BUILD_VERSION}
       data-world-renderer="rebuilt"
       data-battle={battleSession?.phase ?? "none"}
       data-story-open={storyDialogue ? "true" : "false"}
@@ -3250,11 +3252,25 @@ export default function WorldScene({
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">
         <button
-          className={`world-movement-action${worldInput.isActionToggled("shift") ? " is-active" : ""}`}
+          className={`world-movement-action${worldInput.isActionActive("shift") ? " is-active" : ""}`}
           type="button"
           aria-label="Koş"
-          aria-pressed={worldInput.isActionToggled("shift")}
-          onClick={() => worldInput.toggleAction("shift")}
+          aria-pressed={worldInput.isActionActive("shift")}
+          onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerDown(event, "shift")
+            : undefined}
+          onPointerUp={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "shift")
+            : undefined}
+          onPointerCancel={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "shift")
+            : undefined}
+          onLostPointerCapture={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "shift")
+            : undefined}
+          onClick={(event) => {
+            if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.toggleAction("shift");
+          }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="15.5" cy="4.5" r="1.7" />
@@ -3264,10 +3280,24 @@ export default function WorldScene({
             <kbd aria-hidden="true">SHIFT</kbd>
         </button>
         <button
-          className="world-movement-action is-jump"
+          className={`world-movement-action is-jump${WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "spike-trap" ? " is-hinted" : ""}`}
           type="button"
           aria-label="Zıpla"
-          onClick={() => worldInput.triggerAction("space")}
+          onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerDown(event, "space")
+            : undefined}
+          onPointerUp={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "space")
+            : undefined}
+          onPointerCancel={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "space")
+            : undefined}
+          onLostPointerCapture={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "space")
+            : undefined}
+          onClick={(event) => {
+            if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.triggerAction("space");
+          }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 20V4m-6 6 6-6 6 6" />
@@ -3276,11 +3306,25 @@ export default function WorldScene({
             <kbd aria-hidden="true">SPACE</kbd>
         </button>
         <button
-          className={`world-movement-action${worldInput.isActionToggled("c") ? " is-active" : ""}`}
+          className={`world-movement-action${worldInput.isActionActive("c") ? " is-active" : ""}${WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "low-bar" ? " is-hinted" : ""}`}
           type="button"
           aria-label="Eğil"
-          aria-pressed={worldInput.isActionToggled("c")}
-          onClick={() => worldInput.toggleAction("c")}
+          aria-pressed={worldInput.isActionActive("c")}
+          onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerDown(event, "c")
+            : undefined}
+          onPointerUp={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "c")
+            : undefined}
+          onPointerCancel={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "c")
+            : undefined}
+          onLostPointerCapture={WORLD_TOUCH_ACTIONS_ENABLED
+            ? (event) => worldInput.onActionPointerUp(event, "c")
+            : undefined}
+          onClick={(event) => {
+            if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.toggleAction("c");
+          }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 4v8m-6-2 6 6 6-6M5 20h14" />

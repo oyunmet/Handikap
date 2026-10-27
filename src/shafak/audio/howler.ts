@@ -213,7 +213,7 @@ export function playUiChime() {
 }
 
 type GameCue = "victory" | "defeat";
-type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph" | "block" | "fire" | "lightning" | "impact" | "death" | "potion" | "arrow";
+type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph" | "block" | "fire" | "lightning" | "impact" | "death" | "potion" | "arrow" | "movement";
 type FootstepOptions = { running: boolean; surface: "stone" | "dirt"; enabled: boolean };
 
 const cueNotes: Record<GameCue, number[]> = {
@@ -266,6 +266,7 @@ const worldCueNotes: Record<WorldCue, number[]> = {
   death: [294, 220, 146],
   potion: [420, 630, 840],
   arrow: [760, 520],
+  movement: [430, 570],
 };
 
 export function playWorldCue(cue: WorldCue) {
@@ -276,13 +277,21 @@ export function playWorldCue(cue: WorldCue) {
     if (!context || !bus) return;
     resumeGameAudio(context);
     const notes = worldCueNotes[cue];
-    const spacing = cue === "attack" || cue === "impact" || cue === "arrow" ? 0.035 : cue === "telegraph" ? 0.04 : 0.055;
-    const duration = cue === "attack" || cue === "impact" || cue === "arrow" ? 0.11 : cue === "telegraph" ? 0.13 : 0.16;
+    const spacing = cue === "attack" || cue === "impact" || cue === "arrow" || cue === "movement"
+      ? 0.035
+      : cue === "telegraph" ? 0.04 : 0.055;
+    const duration = cue === "attack" || cue === "impact" || cue === "arrow" || cue === "movement"
+      ? 0.095
+      : cue === "telegraph" ? 0.13 : 0.16;
     notes.forEach((frequency, index) => {
       const start = context.currentTime + index * spacing;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = cue === "lightning" ? "square" : cue === "attack" || cue === "telegraph" || cue === "impact" || cue === "arrow" ? "triangle" : "sine";
+      oscillator.type = cue === "lightning"
+        ? "square"
+        : cue === "attack" || cue === "telegraph" || cue === "impact" || cue === "arrow" || cue === "movement"
+          ? "triangle"
+          : "sine";
       oscillator.frequency.setValueAtTime(frequency, start);
       if (cue === "attack") oscillator.frequency.exponentialRampToValueAtTime(Math.max(42, frequency * 0.48), start + duration);
       if (cue === "telegraph") oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.72, start + duration);

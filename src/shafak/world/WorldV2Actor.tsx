@@ -153,6 +153,16 @@ export default function WorldV2Actor({
 
     if (isPlayer) {
       root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
+      const standingScaleY = typeof root.userData.worldStandingScaleY === "number"
+        ? root.userData.worldStandingScaleY as number
+        : root.scale.y;
+      root.userData.worldStandingScaleY = standingScaleY;
+      root.scale.y = THREE.MathUtils.damp(
+        root.scale.y,
+        standingScaleY * (motion.crouching ? 0.72 : 1),
+        18,
+        Math.min(delta, 0.05),
+      );
       if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
         playerFacingAngle.current = targetHeading;
       }

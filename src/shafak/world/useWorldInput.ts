@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  endWorldTouchAction,
+  startWorldTouchAction,
+  syncWorldTouchActionKey,
+  type WorldTouchAction,
+} from "./world-touch-actions";
+import { playWorldCue } from "../audio/howler";
 
 type Vector = { x: number; y: number };
 
@@ -21,6 +28,7 @@ export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
   const joystickPointerId = useRef<number | null>(null);
+  const actionPointersRef = useRef(new Map<WorldTouchAction, Set<number>>());
   const tapTimer = useRef<number | undefined>(undefined);
   const actionTimersRef = useRef(new Map<string, number>());
   const toggledActionsRef = useRef(new Set<"shift" | "c">());
@@ -77,39 +85,6 @@ export default function useWorldInput(wake: () => void) {
     }
   }, []);
 
-  const onActionPointerDown = useCallback((
-    event: ReactPointerEvent<HTMLButtonElement>,
-    key: "shift" | "space" | "c",
-  ) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    heldKeys.current.add(key);
-    wake();
-  }, [wake]);
-  const onActionPointerUp = useCallback((
-    event: ReactPointerEvent<HTMLButtonElement>,
-    key: "shift" | "space" | "c",
-  ) => {
-    heldKeys.current.delete(key);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }, []);
-
-  const toggleAction = useCallback((key: "shift" | "c") => {
-    const next = new Set(toggledActionsRef.current);
-    if (next.has(key)) {
-      next.delete(key);
-      heldKeys.current.delete(key);
-    } else {
-      next.add(key);
-      heldKeys.current.add(key);
-    }
-    toggledActionsRef.current = next;
-    setToggledActions(next);
-    wake();
-  }, [wake]);
-
   const triggerAction = useCallback((key: "space") => {
     const previousTimer = actionTimersRef.current.get(key);
     if (previousTimer) window.clearTimeout(previousTimer);
@@ -123,12 +98,55 @@ export default function useWorldInput(wake: () => void) {
     actionTimersRef.current.set(key, timer);
   }, [wake]);
 
+  const onActionPointerDown = useCallback((
+    event: ReactPointerEvent<HTMLButtonElement>,
+    key: WorldTouchAction,
+  ) => {
+    event.preventDefault();
+    if (!startWorldTouchAction(actionPointersRef.current, key, event.pointerId)) return;
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
+    if (key === "space") triggerAction(key);
+    else syncWorldTouchActionKey(heldKeys.current, actionPointersRef.current, key);
+    playWorldCue("movement");
+    wake();
+  }, [triggerAction, wake]);
+  const onActionPointerUp = useCallback((
+    event: ReactPointerEvent<HTMLButtonElement>,
+    key: WorldTouchAction,
+  ) => {
+    const result = endWorldTouchAction(actionPointersRef.current, key, event.pointerId);
+    if (!result.released) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (key !== "space") {
+      syncWorldTouchActionKey(
+        heldKeys.current,
+        actionPointersRef.current,
+        key,
+        toggledActionsRef.current.has(key),
+      );
+    }
+  }, []);
+
+  const toggleAction = useCallback((key: "shift" | "c") => {
+    const next = new Set(toggledActionsRef.current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    toggledActionsRef.current = next;
+    setToggledActions(next);
+    syncWorldTouchActionKey(heldKeys.current, actionPointersRef.current, key, next.has(key));
+    playWorldCue("movement");
+    wake();
+  }, [wake]);
+
   const clearActions = useCallback(() => {
     actionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     actionTimersRef.current.clear();
     heldKeys.current.clear();
     joystick.current = { x: 0, y: 0 };
     joystickPointerId.current = null;
+    actionPointersRef.current.clear();
     toggledActionsRef.current.clear();
     setToggledActions(new Set());
   }, []);
@@ -176,7 +194,8 @@ export default function useWorldInput(wake: () => void) {
     onActionPointerUp,
     toggleAction,
     triggerAction,
-    isActionToggled: (key: "shift" | "c") => toggledActions.has(key),
+    isActionActive: (key: "shift" | "c") =>
+      toggledActions.has(key) || Boolean(actionPointersRef.current.get(key)?.size),
     clearActions,
   };
 }
