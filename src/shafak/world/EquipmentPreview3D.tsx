@@ -123,6 +123,8 @@ export default function EquipmentPreview3D({
             castShadow={false}
             appearance={appearance}
             playerCharacter
+            useInGamePlayerModel
+            preserveOriginalPlayerMaterials={false}
           />
         </group>
         <OrbitControls

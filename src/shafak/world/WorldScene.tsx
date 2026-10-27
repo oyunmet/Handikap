@@ -3499,7 +3499,19 @@ export default function WorldScene({
           loadoutBusy={combatLoadoutBusy}
           onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId, storeRetryAction.equipmentKey) : undefined}
           renderPreview={(item, equipmentKey, equipped) => {
-            if (item.kind !== "equipment" || !item.slot) return <span>{item.icon ?? "◇"}</span>;
+            if (item.kind !== "equipment") return <span>{item.icon ?? "◇"}</span>;
+            if (!item.slot) {
+              return (
+                <div
+                  className="store-item-preview-static"
+                  role="img"
+                  aria-label={`${item.name} ürün önizlemesi`}
+                >
+                  <span>{item.icon ?? "◇"}</span>
+                  <small>{item.warRoomWeaponId ? "SAVAŞ ODASI SİLAHI" : "ÜRÜN ÖNİZLEMESİ"}</small>
+                </div>
+              );
+            }
             const key = equipmentKey ?? slotEquipmentKey(item.slot);
             const previewProfile = {
               ...profile,

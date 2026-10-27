@@ -561,6 +561,35 @@
   font-size: 42px;
 }
 .store-item-preview-3d__fallback small { color: #b8aa94; font-size: 10px; }
+.store-item-preview-static {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 232px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #d8bd83;
+  background: radial-gradient(ellipse at 50% 42%, rgba(150, 112, 57, .2), transparent 62%);
+}
+.store-item-preview-static > span {
+  display: grid;
+  width: clamp(76px, 22vw, 112px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgba(222, 190, 126, .34);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(203, 163, 93, .18), rgba(10, 12, 16, .76) 72%);
+  box-shadow: 0 0 36px rgba(205, 157, 75, .12), inset 0 0 20px rgba(205, 157, 75, .08);
+  font: 400 clamp(42px, 12vw, 60px)/1 var(--font-display, Georgia, serif);
+}
+.store-item-preview-static > small {
+  color: #b8aa94;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
 .safak-store__preview.is-fullscreen {
   position: fixed;
   z-index: 80;
@@ -591,6 +620,7 @@
 .safak-store__preview.is-fullscreen .safak-store__preview-art > * { max-width: 100%; }
 .safak-store__preview.is-fullscreen .store-item-preview-3d__vignette { background: radial-gradient(ellipse at 50% 45%, transparent 42%, rgba(5, 7, 10, .5) 100%); }
 .safak-store__preview.is-fullscreen .store-item-preview-3d__fallback { min-height: 0; }
+.safak-store__preview.is-fullscreen .store-item-preview-static { min-height: 0; }
 @keyframes preview-item-arrive { from { opacity: .78; } to { opacity: 1; } }
 @keyframes preview-item-change { 0% { opacity: .45; transform: scale(.985); } 100% { opacity: 1; transform: scale(1); } }
 

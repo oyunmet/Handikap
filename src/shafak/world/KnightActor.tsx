@@ -82,6 +82,7 @@ export type KnightActorProps = {
   aiming?: boolean;
   playerCharacter?: boolean;
   useInGamePlayerModel?: boolean;
+  preserveOriginalPlayerMaterials?: boolean;
   positionedByParent?: boolean;
   targetHeight?: number;
   characterLabel?: string;
@@ -376,6 +377,7 @@ function OptionalGlbKnight({
   playerCharacter = false,
   aiming = false,
   useInGamePlayerModel = false,
+  preserveOriginalPlayerMaterials = useInGamePlayerModel,
   positionedByParent = false,
   targetHeight: targetHeightOverride,
   characterLabel,
@@ -409,7 +411,7 @@ function OptionalGlbKnight({
         appearance,
         targetHeight,
         targetMaxDimension,
-        useInGamePlayerModel,
+        preserveOriginalPlayerMaterials,
       );
     },
     [
@@ -422,6 +424,7 @@ function OptionalGlbKnight({
       targetHeight,
       targetMaxDimension,
       useInGamePlayerModel,
+      preserveOriginalPlayerMaterials,
     ],
   );
   const weaponAppearance = getFallbackAppearance(appearance, modelConfig);

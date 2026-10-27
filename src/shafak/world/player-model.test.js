@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import {
+  PLAYER_CHARACTER_MATERIAL_ALIASES,
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_MODEL_SCALE,
@@ -54,6 +55,24 @@ test("duels select the same GLB hero as the road instead of the procedural stand
   assert.equal(shouldRenderProceduralPlayerModel(true, true), false);
   assert.equal(shouldRenderProceduralPlayerModel(false, true), false);
   assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.7);
+});
+
+test("player equipment color aliases match materials in the game hero GLB", () => {
+  const normalize = (name) => name.toLocaleLowerCase().replace(/[^a-z0-9ğüşöçıİ]/gi, "");
+  const materialNames = new Set(
+    readGlbJson(fs.readFileSync(playerModelUrl)).materials.map((material) => normalize(material.name)),
+  );
+  const matches = (role, materialName) => PLAYER_CHARACTER_MATERIAL_ALIASES[role]
+    .some((alias) => normalize(alias) === normalize(materialName));
+
+  for (const [role, materialName] of [
+    ["armor", "Shirt"],
+    ["armorDark", "UnderShirt"],
+    ["accent", "Detail"],
+  ]) {
+    assert.ok(materialNames.has(normalize(materialName)));
+    assert.ok(matches(role, materialName), `${role} should map to ${materialName}`);
+  }
 });
 
 test("player model uses the animated Quaternius hero at the configured height and facing", async () => {
