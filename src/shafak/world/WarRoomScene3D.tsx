@@ -1642,6 +1642,7 @@ function WarRoomRuntimeScene({
       z: 0,
       born: -1,
       yaw: 0,
+      color: "#ffd27e",
     })),
     [],
   );
@@ -1841,7 +1842,7 @@ function WarRoomRuntimeScene({
       particle.vy = (bias?.y ?? 0.25) + jitterY;
       particle.vz = (bias?.z ?? 0) + jitterZ * 1.4;
       particle.born = now;
-      particle.lifetime = 0.16 + (Math.sin(seed * 3.7) + 1) * 0.12;
+      particle.lifetime = 0.3 + (Math.sin(seed * 3.7) + 1) * 0.12;
       particle.size = size * (0.65 + (Math.sin(seed * 2.1) + 1) * 0.375);
       particle.bounce = false;
       particleMesh.setColorAt(slot, new THREE.Color(color));
@@ -1849,8 +1850,13 @@ function WarRoomRuntimeScene({
     if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
   };
 
-  const spawnImpactDust = (position: THREE.Vector3, now: number) => {
-    const particleCount = getWarRoomEffectCount(3, quality);
+  const spawnImpactDust = (
+    position: THREE.Vector3,
+    now: number,
+    count = 3,
+    color = "#b3a18b",
+  ) => {
+    const particleCount = getWarRoomEffectCount(count, quality);
     const activePoolSize = getWarRoomQualityProfile(quality).maxActiveParticles;
     for (let index = 0; index < particleCount; index += 1) {
       const slot = particleCursor.current++ % activePoolSize;
@@ -1864,9 +1870,37 @@ function WarRoomRuntimeScene({
       particle.vz = Math.cos(seed * 1.4) * 0.18;
       particle.born = now;
       particle.lifetime = 0.38 + index * 0.035;
-      particle.size = 0.11 + index * 0.018;
+      particle.size = 0.1 + index * 0.012;
       particle.bounce = false;
-      particleMesh.setColorAt(slot, new THREE.Color(index % 2 ? "#8e8171" : "#b3a18b"));
+      particleMesh.setColorAt(slot, new THREE.Color(color));
+    }
+    if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
+  };
+
+  const spawnImpactDustRing = (
+    position: THREE.Vector3,
+    now: number,
+    color: string,
+    count = 12,
+  ) => {
+    const particleCount = getWarRoomEffectCount(count, quality);
+    const activePoolSize = getWarRoomQualityProfile(quality).maxActiveParticles;
+    for (let index = 0; index < particleCount; index += 1) {
+      const slot = particleCursor.current++ % activePoolSize;
+      const particle = particles[slot];
+      const angle = (index / Math.max(1, particleCount)) * Math.PI * 2;
+      const speed = 0.3 + (index % 3) * 0.08;
+      particle.x = position.x + Math.cos(angle) * 0.055;
+      particle.y = Math.max(0.035, position.y);
+      particle.z = position.z + Math.sin(angle) * 0.055;
+      particle.vx = Math.cos(angle) * speed;
+      particle.vy = 0.2 + (index % 2) * 0.06;
+      particle.vz = Math.sin(angle) * speed;
+      particle.born = now;
+      particle.lifetime = 0.4 + (index % 4) * 0.025;
+      particle.size = 0.075 + (index % 3) * 0.012;
+      particle.bounce = false;
+      particleMesh.setColorAt(slot, new THREE.Color(color));
     }
     if (particleMesh.instanceColor) particleMesh.instanceColor.needsUpdate = true;
   };
@@ -1952,14 +1986,20 @@ function WarRoomRuntimeScene({
     decalMesh.instanceMatrix.needsUpdate = true;
   };
 
-  const spawnShockwave = (position: THREE.Vector3, yaw: number, now: number) => {
+  const spawnShockwave = (
+    position: THREE.Vector3,
+    yaw: number,
+    now: number,
+    color = "#ffd27e",
+  ) => {
     const slot = shockwaveCursor.current++ % WAR_ROOM_SHOCKWAVE_POOL_SIZE;
     const shockwave = shockwaves[slot];
     shockwave.x = position.x;
     shockwave.z = position.z;
     shockwave.yaw = yaw;
     shockwave.born = now;
-    shockwaveTint.set("#ffd27e");
+    shockwave.color = color;
+    shockwaveTint.set(shockwave.color);
     shockwaveMesh.setColorAt(slot, shockwaveTint);
     if (shockwaveMesh.instanceColor) shockwaveMesh.instanceColor.needsUpdate = true;
   };
@@ -2092,21 +2132,6 @@ function WarRoomRuntimeScene({
             ? `ISKA: engel (mesafe ${distance})`
             : "ISKA: hedef yok";
       player.meleeLastResult = missMessage;
-      if (impact.reason === "blocked") {
-        playWarRoomSound(
-          "melee-hit",
-          0.72,
-          "rifle",
-          getWarRoomAudioOptions(
-            player,
-            impact.point.x,
-            impact.point.z,
-            "stone",
-            player.meleeAttackHeavy,
-            weaponId ?? undefined,
-          ),
-        );
-      }
       if (debugMode) {
         const missMessages: Record<WarRoomMeleeConeReason, string> = {
           hit: "ISKA: hedef yok",
@@ -2147,6 +2172,7 @@ function WarRoomRuntimeScene({
       -0.025,
       Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
     );
+    const impactSurface = enemy.commander ? "metal" : "flesh";
     playWarRoomSound(
       "melee-hit",
       1,
@@ -2155,31 +2181,75 @@ function WarRoomRuntimeScene({
         player,
         enemy.x,
         enemy.z,
-        enemy.commander ? "metal" : "flesh",
+        impactSurface,
         player.meleeAttackHeavy,
         weaponId ?? undefined,
       ),
     );
+    const effects = getWarRoomImpactFxProfile(
+      bloodEffects,
+      player.meleeAttackHeavy,
+      impactSurface,
+      weaponId ?? "melee_knife",
+    );
     if (WAR_ROOM_POOLED_FX_ENABLED) {
-      const effects = getWarRoomImpactFxProfile(
-        bloodEffects,
-        player.meleeAttackHeavy,
-        enemy.commander ? "metal" : "flesh",
-      );
       if (effects.bloodParticles > 0) {
         spawnImpact(impact.point, "#b82e3b", now, effects.bloodParticles, 0.045);
       }
-      if (effects.sparkParticles > 0) {
-        spawnImpact(impact.point, "#f2c16e", now, effects.sparkParticles, 0.035);
+      if (effects.exitSplashParticles > 0) {
+        const thrustX = Math.sin(player.meleeAttackYaw);
+        const thrustZ = -Math.cos(player.meleeAttackYaw);
+        const splashPoint = impact.point.clone().add(
+          new THREE.Vector3(thrustX * 0.18, 0, thrustZ * 0.18),
+        );
+        const splashColor = effects.bloodParticles > 0 ? "#b82e3b" : effects.flashColor;
+        spawnImpact(
+          splashPoint,
+          splashColor,
+          now,
+          effects.exitSplashParticles,
+          0.04,
+          new THREE.Vector3(thrustX * 0.55, 0.16, thrustZ * 0.55),
+        );
       }
-      spawnImpactDust(meleeOrigin.set(impact.point.x, 0.025, impact.point.z), now);
+      if (effects.sparkParticles > 0) {
+        spawnImpact(impact.point, effects.sparkColor, now, effects.sparkParticles, 0.05);
+      }
+      if (effects.flashParticles > 0) {
+        spawnImpact(
+          impact.point,
+          effects.flashColor,
+          now,
+          effects.flashParticles,
+          0.07,
+          new THREE.Vector3(0, 0.18, 0),
+        );
+      }
+      meleeOrigin.set(impact.point.x, 0.045, impact.point.z);
+      if (effects.dustParticles > 0) {
+        if (effects.dustRing) {
+          spawnImpactDustRing(meleeOrigin, now, effects.dustColor, effects.dustParticles + 5);
+        } else {
+          spawnImpactDust(meleeOrigin, now, effects.dustParticles, effects.dustColor);
+        }
+      }
       if (effects.shockwave) {
+        meleeOrigin.set(impact.point.x, 0.035, impact.point.z);
+        spawnShockwave(meleeOrigin, player.meleeAttackYaw, now, effects.flashColor);
+      }
+      if (effects.crackDecal) {
         meleeOrigin.set(impact.point.x, 0, impact.point.z);
-        spawnShockwave(meleeOrigin, player.meleeAttackYaw, now);
         addCrackDecal(meleeOrigin, player.meleeAttackYaw, now);
       }
     }
-    if (debugMode) onMeleeDebugUpdate(`İSABET: ${enemy.name}, −${damage.damage}`);
+    if (debugMode) {
+      const activeParticles = countActiveWarRoomParticles(particles, now);
+      const poolLimit = getWarRoomQualityProfile(quality).maxActiveParticles;
+      const visualReport = WAR_ROOM_POOLED_FX_ENABLED
+        ? `EFEKT: ${effects.impactType} · İZ: ${effects.trailStyle} · HAVUZ: ${activeParticles}/${poolLimit}`
+        : "EFEKT: kapalı";
+      onMeleeDebugUpdate(`İSABET: ${enemy.name}, −${damage.damage} · ${visualReport}`);
+    }
     if (damage.killed) {
       enemy.alive = false;
       enemy.deathYaw = player.meleeAttackYaw;
@@ -2403,12 +2473,39 @@ function WarRoomRuntimeScene({
             bloodEffects,
             false,
             aimedEnemy.commander ? "metal" : "flesh",
+            weaponId,
           );
           if (effects.bloodParticles > 0) {
             spawnImpact(aim.point, "#b82e3b", now, effects.bloodParticles, 0.045);
           }
           if (effects.sparkParticles > 0) {
-            spawnImpact(aim.point, "#f2c16e", now, effects.sparkParticles, 0.035);
+            spawnImpact(aim.point, effects.sparkColor, now, effects.sparkParticles, 0.05);
+          }
+          if (effects.flashParticles > 0) {
+            spawnImpact(
+              aim.point,
+              effects.flashColor,
+              now,
+              effects.flashParticles,
+              0.06,
+              new THREE.Vector3(0, 0.14, 0),
+            );
+          }
+          if (effects.dustParticles > 0) {
+            spawnImpactDust(
+              meleeOrigin.set(aim.point.x, 0.045, aim.point.z),
+              now,
+              effects.dustParticles,
+              effects.dustColor,
+            );
+          }
+          if (debugMode) {
+            const activeParticles = countActiveWarRoomParticles(particles, now);
+            const poolLimit = getWarRoomQualityProfile(quality).maxActiveParticles;
+            onMeleeDebugUpdate(
+              `İSABET: ${aimedEnemy.name}, −${damage.damage} · EFEKT: ${effects.impactType}`
+              + ` · HAVUZ: ${activeParticles}/${poolLimit}`,
+            );
           }
         }
       } else {
@@ -2904,7 +3001,7 @@ function WarRoomRuntimeScene({
         shockwaveTransform.position.set(shockwave.x, 0.035, shockwave.z);
         shockwaveTransform.rotation.set(-Math.PI / 2, 0, shockwave.yaw);
         shockwaveTransform.scale.setScalar(0.3 + progress * 2.1);
-        shockwaveTint.setRGB(1, 0.73 * (1 - progress), 0.34 * (1 - progress));
+        shockwaveTint.set(shockwave.color).multiplyScalar(1 - progress);
         shockwaveMesh.setColorAt(slot, shockwaveTint);
       }
       shockwaveTransform.updateMatrix();
@@ -2998,7 +3095,15 @@ function WarRoomRuntimeScene({
       if (slashTrailState.attackStartedAt !== player.meleeStartedAt) {
         slashTrailState.attackStartedAt = player.meleeStartedAt;
         slashTrailState.count = 0;
-        slashTrailState.tint.set(trailWeapon.color);
+        const trailProfile = getWarRoomImpactFxProfile(
+          false,
+          player.meleeAttackHeavy,
+          "flesh",
+          trailWeaponId,
+        );
+        slashTrailState.tint
+          .set(trailProfile.trailColor)
+          .multiplyScalar(trailProfile.trailIntensity);
       }
       const progress = Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)));
       const prepareEnd = player.meleeAttackHeavy ? 0.4 : 0.28;

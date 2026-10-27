@@ -7,7 +7,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** DEVAM EDİYOR
 - **Kapsam:** Ekli test notlarındaki Adım 1–7: silah normalizasyonu ve canlı kalibrasyon, hareket yönü/isabet teşhisi, can yenileme, geçerli hedef filtresi ve silaha özel yakın dövüş efektleri.
 - **Kural:** Her adımın sonunda build, typecheck, testler ve yerel commit; Git push ve Vercel deploy yapılmayacak.
-- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 kısmen doğrulandı · 5 kısmen doğrulandı · 6 kısmen doğrulandı · 7 bekliyor.
+- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 kısmen doğrulandı · 5 kısmen doğrulandı · 6 kısmen doğrulandı · 7 kısmen doğrulandı.
 - **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; kod/test doğrulaması ile cihaz doğrulaması ayrı raporlanacak.
 
 ### Adım 1 — Silah normalizasyonu
@@ -47,6 +47,14 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** KISMEN — hedef filtresi, aim assist ve gösterge kod/testleri doğrulandı; iPhone nişan kabulü açık.
 - **Yapılanlar:** Melee hedefi yalnız yaşayan düşman listesinden, silah menzilinde ve ±65° konide, duvar/cover kontrolünü geçerek seçiliyor. En yakın geçerli rakip aim assist alıyor; ölü düşman/engel/menzil/açı nedenleri debug satırında, seçili rakip adı ise hedef halkasıyla gösteriliyor. Geçerli hedef yoksa mevcut saldırı hareketi havaya savruluyor; pickup/prop/spawn/oyuncu hedef listesine dahil değil. Ateşli silahın mermi ve hasar çözümlemesi değiştirilmedi.
 - **Doğrulama:** Aim, assist ve War Room motoru hedef testleri 28/28 geçti; `npm run typecheck` ve `npm run build` başarılı. `npm test`: 373 toplam, 365 geçti, aynı 8 Savaş Odası dışı taban testi başarısız. iPhone hedef göstergesi doğrulanamadı.
+
+### Adım 7 — Silaha ve yüzeye özel efektler
+
+- **Durum:** KISMEN — kod, birim test, typecheck ve build doğrulandı; iPhone/WebGL görsel kabulü açık.
+- **Neden:** Önceki etki profili tanımlanmış olsa da melee isabeti onu silah kimliği olmadan çağırıyordu; böylece silah efektleri bıçak varsayılanına düşüyordu. Profildeki renk ve parlama değerleri de sahnede kullanılmıyor, her melee vuruşuna ortak toz ve ağır vuruşlarda ortak çatlak uygulanıyordu. Bloklu ıskada ayrıca isabet sesi çalıyordu.
+- **Yapılanlar:** Bıçak/balta için kesik, sopa/asa/kürek için ezici savuruş, mızraklar için saplama ve kazma için maden profilleri ayrıldı. Melee isabeti doğru silah ve hedef yüzeyiyle profilleniyor; flaş, renkli kıvılcım, silaha göre toz/halkası ve yalnız ilgili ağır silahlarda şok dalgası/çatlak üretiyor. Sopa ve asa kan/kesik üretmiyor; kan ayarı yalnızca kan parçacıklarını değiştiriyor. Metal hedef kıvılcım/metal sesini, taş yüzey toz profilini kullanıyor. Iskalada yalnızca silaha özel saldırı izi ve savuruş sesi var. `?debug=1` son isabet efektini ve parçacık havuzu doluluğunu gösteriyor. Ateşli silahların hasar, mermi, hedef ve denge hesapları değiştirilmedi; yalnız görsel profil kullanımı düzenlendi. Ortak efekt havuzu (72/150 parçacık üst sınırı) ve 30 decal sınırı korundu.
+- **Sürüm:** `v15-kalibrasyon-ek`.
+- **Doğrulama:** `npm run typecheck` ve `npm run build` başarılı; build 500 kB üstü bundle uyarısı verdi. `npm test`: 375 toplam, 367 geçti, 8 başarısız; bilinen Savaş Odası dışı taban testleri (6 mağaza, 1 düello süresi, 1 varsayılan envanter), Adım 7 FX testleri geçti. `Start application` çalıştı ve giriş/intro ekranı açıldı; önizleme tarayıcısı WebGL bağlamı oluşturamadığı için savaş ve efekt görünümü doğrulanamadı. Gerçek iPhone/Safari kabulü de doğrulanamadı.
 
 ## Faz 1 — Karakter yönelimi
 
@@ -132,12 +140,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ### iPhone kontrol listesi
 
-1. Oyunu `?debug=1` ile açıp Savaş Odası'na gir; sürüm etiketinin `v14-premium-dovus` olduğunu doğrula.
+1. Oyunu `?debug=1` ile açıp Savaş Odası'na gir; sürüm etiketinin `v15-kalibrasyon-ek` olduğunu doğrula.
 2. Joystick ile ileri/geri/yan/çapraz hareket et; yönelimi, strafe sırasında nişan ve kamera takibini kontrol et.
 3. Donanım önizlemesinde parçayı sürükle, pinch zoom yap, çift dokunarak sıfırla; paneli tam ekrana alıp kapat.
 4. Kül Asası, Surlu Mızrağı ve Surlu Kazması'nı ayrı ayrı kuşan; GLB yüklenirken yedek geometriyi, tutuşu, ölçeği ve kadrajı kontrol et.
 5. Hafif kombo ve en az 350 ms basılı ağır saldırıyı dene; tek vuruş anını, hit-stop'u, kamera tepkisini ve düşman hasar görselini kontrol et.
-6. Et/metal/taş/zemin isabetlerinde efektleri, kan ayarını, silah izini ve çatlak decal'ini gözle; havuz/decal sayaçlarının sabit üst sınırları aşmadığını kontrol et.
+6. Bıçak, balta, sopa, asa, mızrak, kazma ve küreği dene; kan kapalıyken de kıvılcım/toz/flaşları, her isabet türünü, ıskada yalnızca savuruş izini ve havuz/decal üst sınırlarını kontrol et.
 7. Düşük/orta/yüksek ve otomatik kaliteyi dene; 60 sn kesintisiz saldırı sırasında debug FPS, saldırı aralıkları, FX/decal tepesi ve renderer geometri/doku sayaçlarını kaydet.
 8. Sesli/sessiz geçişini, ilk dokunuştan sonra iOS AudioContext'i, arka plan/ön plan dönüşünü ve yakın dövüş/zemin seslerini kontrol et.
 9. WebGL siyah kare, model kaybı, kontrol kilitlenmesi, belirgin ısınma veya performans düşüşü varsa adım ve cihaz bilgisiyle not al.
