@@ -658,6 +658,30 @@
   justify-content: space-between;
 }
 
+.war-room-room-indicator {
+  display: flex;
+  min-width: 55px;
+  align-items: baseline;
+  gap: 4px;
+  padding: 7px 8px;
+  border: 1px solid rgba(241, 223, 197, 0.24);
+  background: rgba(20, 19, 18, 0.78);
+  color: #f3d59f;
+  text-shadow: 0 1px 3px #000;
+}
+
+.war-room-room-indicator span,
+.war-room-room-indicator small {
+  color: rgba(242, 227, 207, 0.68);
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.war-room-room-indicator b {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 15px;
+}
+
 .war-room-mute {
   position: absolute;
   top: max(112px, calc(env(safe-area-inset-top) + 100px));
@@ -1292,6 +1316,50 @@
   text-align: center;
 }
 
+.war-room-next-room {
+  position: relative;
+  display: flex;
+  min-height: 74px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  margin: 14px 0 18px;
+  padding: 12px 76px 12px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(240, 207, 159, 0.3);
+  background: rgba(17, 17, 17, 0.56);
+  text-align: left;
+}
+
+.war-room-next-room > span {
+  color: rgba(237, 218, 190, 0.62);
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.war-room-next-room > strong {
+  color: #f0d1a0;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 18px;
+}
+
+.war-room-next-room > small {
+  color: rgba(237, 218, 190, 0.76);
+  font-size: 8px;
+}
+
+.war-room-next-room__swatch {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 238, 204, 0.52);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.35);
+}
+
 .war-room-result.is-defeat .war-room-result__card {
   border-color: rgba(181, 70, 57, 0.48);
 }
@@ -1356,6 +1424,7 @@
 
 .war-room-result__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 9px;
 }

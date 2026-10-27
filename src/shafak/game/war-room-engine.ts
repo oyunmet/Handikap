@@ -2,18 +2,21 @@ import {
   WAR_ROOM_BLOCKERS,
   WAR_ROOM_COMMANDER,
   WAR_ROOM_COVER_SPOTS,
-  WAR_ROOM_ENEMY_SPAWNS,
   WAR_ROOM_HALF_SIZE,
   WAR_ROOM_WEAPON_BY_ID,
+  type WarRoomBlocker,
   type WarRoomWeaponId,
 } from "./war-room-data";
 import type { WarRoomFacingMode, WarRoomFacingSetting } from "./war-room-orientation";
 import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
+import { getWarRoomRoom, type WarRoomRoom } from "./war-room-rooms";
 
 export type WarRoomEnemy = {
   id: string;
   name: string;
   commander: boolean;
+  weaponId: WarRoomWeaponId;
+  color: string;
   x: number;
   z: number;
   hp: number;
@@ -36,6 +39,7 @@ export type WarRoomEnemy = {
 export type WarRoomAmmo = { magazine: number; reserve: number };
 
 export type WarRoomRuntime = {
+  room: WarRoomRoom;
   player: {
     x: number;
     z: number;
@@ -194,14 +198,21 @@ export function shortestAngleDelta(from: number, to: number) {
 export function createWarRoomRuntime(
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId],
   now = 0,
+  roomNumber = 1,
 ): WarRoomRuntime {
-  const enemies: WarRoomEnemy[] = WAR_ROOM_ENEMY_SPAWNS.map((spawn, index) => {
-    const cover = WAR_ROOM_COVER_SPOTS[index % WAR_ROOM_COVER_SPOTS.length];
+  const room = getWarRoomRoom(roomNumber);
+  const enemies: WarRoomEnemy[] = room.enemySpawns
+    .slice(0, room.enemyCount - 1)
+    .map((spawn, index) => {
+    const cover = room.coverSpots[index % room.coverSpots.length];
     return {
       ...spawn,
+      name: room.enemyNames[index % room.enemyNames.length],
       commander: false,
-      hp: 90,
-      maxHp: 90,
+      weaponId: room.enemyWeapons[index % room.enemyWeapons.length],
+      color: room.enemyColor,
+      hp: 90 * room.enemyHpMultiplier,
+      maxHp: 90 * room.enemyHpMultiplier,
       damage: 9,
       alive: true,
       mode: "approach",
@@ -219,12 +230,14 @@ export function createWarRoomRuntime(
   });
   enemies.push({
     id: WAR_ROOM_COMMANDER.id,
-    name: WAR_ROOM_COMMANDER.name,
+    name: room.commanderName,
     commander: true,
-    x: WAR_ROOM_COMMANDER.x,
-    z: WAR_ROOM_COMMANDER.z,
-    hp: WAR_ROOM_COMMANDER.hp,
-    maxHp: WAR_ROOM_COMMANDER.hp,
+    weaponId: room.commanderWeapon,
+    color: room.commanderColor,
+    x: room.commanderPosition.x,
+    z: room.commanderPosition.z,
+    hp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
+    maxHp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
     damage: WAR_ROOM_COMMANDER.damage,
     alive: true,
     mode: "approach",
@@ -249,6 +262,7 @@ export function createWarRoomRuntime(
   }
 
   return {
+    room,
     player: {
       x: 0,
       z: 24,
@@ -337,6 +351,8 @@ export function createWarRoomTrainingRuntime(
     id: "training-dummy",
     name: "Eğitim Mankeni",
     commander: false,
+    weaponId: "powder_rifle",
+    color: "#92715a",
     x: 0,
     z: 22.5,
     hp: 1_000_000,
@@ -359,26 +375,38 @@ export function createWarRoomTrainingRuntime(
   return runtime;
 }
 
-function circleHitsBlocker(x: number, z: number, radius: number, blocker: typeof WAR_ROOM_BLOCKERS[number]) {
+function circleHitsBlocker(x: number, z: number, radius: number, blocker: WarRoomBlocker) {
   const closestX = Math.max(blocker.x - blocker.width / 2, Math.min(blocker.x + blocker.width / 2, x));
   const closestZ = Math.max(blocker.z - blocker.depth / 2, Math.min(blocker.z + blocker.depth / 2, z));
   return (x - closestX) ** 2 + (z - closestZ) ** 2 < radius ** 2;
 }
 
-export function moveWarRoomEntity(x: number, z: number, dx: number, dz: number, radius = 0.38) {
+export function moveWarRoomEntity(
+  x: number,
+  z: number,
+  dx: number,
+  dz: number,
+  radius = 0.38,
+  blockers: readonly WarRoomBlocker[] = WAR_ROOM_BLOCKERS,
+) {
   const limit = WAR_ROOM_HALF_SIZE - radius - 1;
   let nextX = Math.max(-limit, Math.min(limit, x + dx));
   let nextZ = Math.max(-limit, Math.min(limit, z + dz));
-  if (WAR_ROOM_BLOCKERS.some((blocker) => circleHitsBlocker(nextX, z, radius, blocker))) nextX = x;
-  if (WAR_ROOM_BLOCKERS.some((blocker) => circleHitsBlocker(nextX, nextZ, radius, blocker))) nextZ = z;
+  if (blockers.some((blocker) => circleHitsBlocker(nextX, z, radius, blocker))) nextX = x;
+  if (blockers.some((blocker) => circleHitsBlocker(nextX, nextZ, radius, blocker))) nextZ = z;
   return { x: nextX, z: nextZ };
 }
 
 export type WarRoomPoint3 = { x: number; y: number; z: number };
 
-export function segmentBlockFraction(start: WarRoomPoint3, end: WarRoomPoint3, padding = 0) {
+export function segmentBlockFraction(
+  start: WarRoomPoint3,
+  end: WarRoomPoint3,
+  padding = 0,
+  blockers: readonly WarRoomBlocker[] = WAR_ROOM_BLOCKERS,
+) {
   let nearest = Number.POSITIVE_INFINITY;
-  for (const blocker of WAR_ROOM_BLOCKERS) {
+  for (const blocker of blockers) {
     const bounds = [
       [blocker.x - blocker.width / 2 - padding, blocker.x + blocker.width / 2 + padding],
       [0, blocker.height + padding],
@@ -414,8 +442,12 @@ export function segmentBlockFraction(start: WarRoomPoint3, end: WarRoomPoint3, p
   return Number.isFinite(nearest) ? nearest : null;
 }
 
-export function getNearestWarRoomCover(x: number, z: number) {
-  return WAR_ROOM_COVER_SPOTS
+export function getNearestWarRoomCover(
+  x: number,
+  z: number,
+  coverSpots: readonly { x: number; z: number }[] = WAR_ROOM_COVER_SPOTS,
+) {
+  return coverSpots
     .map((cover) => ({ ...cover, distance: Math.hypot(cover.x - x, cover.z - z) }))
     .sort((left, right) => left.distance - right.distance)[0];
 }

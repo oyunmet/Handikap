@@ -20,6 +20,7 @@ import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
 import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import {
   WAR_ROOM_BUILD_VERSION,
+  WAR_ROOM_ROOM_CHAIN_ENABLED,
   WAR_ROOM_WEAPON_ICONS_ENABLED,
   WAR_ROOM_WEAPON_LAB_ENABLED,
 } from "./war-room-features";
@@ -32,6 +33,15 @@ import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
 import type { PlayerProfile } from "./profile";
+import {
+  getWarRoomProgressAfterVictory,
+  getWarRoomRoom,
+  getWarRoomRoomCarryHp,
+  getWarRoomRoomRewardMultiplier,
+  normalizeWarRoomSavedProgress,
+  type WarRoomRoom,
+  type WarRoomSavedProgress,
+} from "./war-room-rooms";
 import "./war-room.css";
 
 type Props = {
@@ -49,6 +59,7 @@ type PointerTrack = { id: number | null; x: number; y: number; button: number; p
 type CalibrationField = "position" | "rotation" | "scale";
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
+const ROOM_PROGRESS_KEY = "shafak-war-room-room-progress-v1";
 const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
 
 function createInputState(facingSetting: WarRoomFacingSetting): WarRoomInputState {
@@ -132,6 +143,23 @@ function recordWarRoomGold(amount: number) {
     return total;
   } catch {
     return null;
+  }
+}
+
+function readWarRoomRoomProgress(): WarRoomSavedProgress {
+  try {
+    const serialized = window.localStorage.getItem(ROOM_PROGRESS_KEY);
+    return normalizeWarRoomSavedProgress(serialized ? JSON.parse(serialized) : null);
+  } catch {
+    return normalizeWarRoomSavedProgress(null);
+  }
+}
+
+function writeWarRoomRoomProgress(progress: WarRoomSavedProgress) {
+  try {
+    window.localStorage.setItem(ROOM_PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // Keep the current session's counter available even if storage is disabled.
   }
 }
 
@@ -280,6 +308,9 @@ export default function WarRoomGame({
   const [calibrationJson, setCalibrationJson] = useState("");
   const [calibrationCopyStatus, setCalibrationCopyStatus] = useState("");
   const [exitPrompt, setExitPrompt] = useState(false);
+  const [roomNumber, setRoomNumber] = useState(1);
+  const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
+  const roomProgressRef = useRef(roomProgress);
   const [summary, setSummary] = useState<{
     kills: number;
     headshots: number;
@@ -287,10 +318,16 @@ export default function WarRoomGame({
     seconds: number;
     gold: number;
     totalGold: number | null;
+    roomNumber: number;
+    roomName: string;
+    commanderTitle: string;
+    enemyCount: number;
+    nextRoom: WarRoomRoom | null;
   } | null>(null);
   const runtimeRef = useRef<WarRoomRuntime>(
-    weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout),
+    weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout, 0, 1),
   );
+  const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
   const inputRef = useRef<WarRoomInputState>(createInputState(facingSetting));
   const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1, pointerType: "mouse" });
   const settingsPauseRef = useRef(false);
@@ -298,12 +335,19 @@ export default function WarRoomGame({
   const stickPointerRef = useRef<number | null>(null);
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
+  const currentRoom = runtimeRef.current.room;
 
-  const beginBattle = () => {
+  const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
     resumeWarRoomAudio();
     runtimeRef.current = weaponLabMode
       ? createWarRoomTrainingRuntime(loadout)
-      : createWarRoomRuntime(loadout);
+      : preparedRuntime ?? createWarRoomRuntime(
+        loadout,
+        0,
+        WAR_ROOM_ROOM_CHAIN_ENABLED ? targetRoomNumber : 1,
+      );
+    setRoomNumber(runtimeRef.current.room.number);
+    preparedNextRoomRef.current = null;
     inputRef.current = createInputState(facingSetting);
     pointerRef.current.id = null;
     setHud(createEmptyHud());
@@ -311,13 +355,38 @@ export default function WarRoomGame({
     setMeleeDebugMessageUntil(0);
     setMeleeDebugActivity("");
     setExitPrompt(false);
+    setSummary(null);
     setRunKey((key) => key + 1);
     setPhase("battle");
   };
 
   const finishBattle = useCallback((result: "victory" | "defeat", finalHud: WarRoomHudSnapshot) => {
-    const gold = result === "victory" ? 90 + finalHud.kills * 7 + finalHud.headshots * 5 : 0;
+    const completedRoom = runtimeRef.current.room;
+    const nextRoom = result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED
+      ? getWarRoomRoom(completedRoom.number + 1)
+      : null;
+    const baseReward = 90 + finalHud.kills * 7 + finalHud.headshots * 5;
+    const gold = result === "victory"
+      ? Math.round(baseReward * (
+        WAR_ROOM_ROOM_CHAIN_ENABLED ? getWarRoomRoomRewardMultiplier(completedRoom.number) : 1
+      ))
+      : 0;
     const totalGold = gold > 0 ? recordWarRoomGold(gold) : null;
+    if (result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED) {
+      const updatedProgress = getWarRoomProgressAfterVictory(
+        roomProgressRef.current,
+        completedRoom.number,
+        gold,
+      );
+      roomProgressRef.current = updatedProgress;
+      setRoomProgress(updatedProgress);
+      writeWarRoomRoomProgress(updatedProgress);
+      const prepared = createWarRoomRuntime(loadout, 0, completedRoom.number + 1);
+      prepared.player.hp = getWarRoomRoomCarryHp(finalHud.player.hp, finalHud.player.maxHp);
+      preparedNextRoomRef.current = prepared;
+    } else {
+      preparedNextRoomRef.current = null;
+    }
     setHud(finalHud);
     setSummary({
       kills: finalHud.kills,
@@ -326,9 +395,14 @@ export default function WarRoomGame({
       seconds: finalHud.elapsedSeconds,
       gold,
       totalGold,
+      roomNumber: completedRoom.number,
+      roomName: completedRoom.name,
+      commanderTitle: completedRoom.commanderTitle,
+      enemyCount: completedRoom.enemyCount,
+      nextRoom,
     });
     setPhase(result);
-  }, []);
+  }, [loadout]);
 
   useEffect(() => {
     inputRef.current.facingSetting = facingSetting;
@@ -605,17 +679,17 @@ export default function WarRoomGame({
           <header className="war-room-heading">
             <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · {WAR_ROOM_BUILD_VERSION}</span>
             <h1 id="war-room-title">SAVAŞ ODASI</h1>
-            <p>Taş Avlu Kuşatması · Kızıl Komutan ve sekiz muhafızla karşılaş.</p>
+            <p>{currentRoom.name} · {currentRoom.commanderName} ve {currentRoom.enemyCount - 1} muhafızla karşılaş.</p>
           </header>
           <div className="war-room-briefing__content">
             <div className="war-room-mission-card">
               <div className="war-room-mission-card__symbol" aria-hidden="true">✦</div>
               <div>
                 <span>GÖREV HEDEFİ</span>
-                <strong>Komutan dâhil 9 düşmanı temizle</strong>
-                <small>Siper al, menzili koru ve komutanın işaretini takip et.</small>
+                <strong>Komutan dâhil {currentRoom.enemyCount} düşmanı temizle</strong>
+                <small>{currentRoom.commanderTitle} · {currentRoom.layoutName} · Siper al ve komutanın işaretini takip et.</small>
               </div>
-              <b className="war-room-enemy-count">09</b>
+              <b className="war-room-enemy-count">{String(currentRoom.enemyCount).padStart(2, "0")}</b>
             </div>
             <div className="war-room-loadout-head">
               <div>
@@ -667,7 +741,7 @@ export default function WarRoomGame({
             </div>
             <div className="war-room-briefing__bottom">
               <p>WASD / joystick hareket · Fare sürükle / sağ tarafı kaydır bakış · Sol tık / ATEŞ</p>
-              <button className="war-room-start" type="button" onClick={beginBattle} disabled={!modelsReady}>
+              <button className="war-room-start" type="button" onClick={() => beginBattle()} disabled={!modelsReady}>
                 <span>{modelsReady ? "BAŞLA" : `MODELLER YÜKLENİYOR %${Math.round(modelProgress)}`}</span>
                 <i aria-hidden="true">{modelsReady ? "➜" : "…"}</i>
               </button>
@@ -879,6 +953,11 @@ export default function WarRoomGame({
           })()}
           <div className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}`}>
             <div className="war-room-hud__top">
+              {WAR_ROOM_ROOM_CHAIN_ENABLED && (
+                <div className="war-room-room-indicator" aria-label={`Oda ${currentRoom.number} / sonsuz`}>
+                  <span>ODA</span><b>{currentRoom.number}</b><small>/ ∞</small>
+                </div>
+              )}
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
                 {hud.killFeed.slice(0, 3).map((feed) => <span key={feed.id}>{feed.text}</span>)}
               </div>
@@ -927,7 +1006,7 @@ export default function WarRoomGame({
               ⚙
             </button>
             <div className="war-room-commander">
-              <div><span>KUŞATMA KOMUTANI</span><b>KIZIL KOMUTAN</b></div>
+              <div><span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span><b>{currentRoom.commanderName.toLocaleUpperCase("tr-TR")}</b></div>
               <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>
               <i><em style={{ width: `${Math.max(0, (hud.bossHp / hud.bossMaxHp) * 100)}%` }} /></i>
             </div>
@@ -1087,24 +1166,61 @@ export default function WarRoomGame({
       {(phase === "victory" || phase === "defeat") && summary && (
         <section className={`war-room-result${phase === "defeat" ? " is-defeat" : ""}`} role="dialog" aria-modal="true">
           <div className="war-room-result__card">
-            <span className="war-room-eyebrow">TAŞ AVLUSU KUŞATMASI · GÖREV RAPORU</span>
+            <span className="war-room-eyebrow">{summary.roomName.toLocaleUpperCase("tr-TR")} · ODA {summary.roomNumber} · GÖREV RAPORU</span>
             <h1>{phase === "victory" ? "ZAFER" : "YENİLGİ"}</h1>
-            <p>{phase === "victory" ? "Kızıl Komutan’ın kuşatması sona erdi." : "Savaş alanı hâlâ orada. Hazırlan ve yeniden dene."}</p>
+            <p>{phase === "victory"
+              ? `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
+              : `${summary.roomName} düşmedi. Bu odadan yeniden başlayabilir veya zinciri baştan alabilirsin.`}</p>
             <div className="war-room-stat-grid">
-              <div><span>DÜŞÜRÜLEN</span><b>{summary.kills} / 9</b></div>
+              <div><span>DÜŞÜRÜLEN</span><b>{summary.kills} / {summary.enemyCount}</b></div>
               <div><span>KAFA VURUŞU</span><b>{summary.headshots}</b></div>
               <div><span>İSABET</span><b>%{summary.accuracy}</b></div>
               <div><span>SÜRE</span><b>{formatDuration(summary.seconds)}</b></div>
             </div>
+            {phase === "victory" && summary.nextRoom && (
+              <div className="war-room-next-room" aria-label="Sonraki oda önizlemesi">
+                <span>SONRAKİ ODA · {summary.nextRoom.number} / ∞</span>
+                <strong>{summary.nextRoom.name}</strong>
+                <small>{summary.nextRoom.layoutName} · {summary.nextRoom.enemyCount} düşman · {summary.nextRoom.commanderName}</small>
+                <i
+                  className="war-room-next-room__swatch"
+                  style={{
+                    background: `linear-gradient(135deg, ${summary.nextRoom.theme.sky}, ${summary.nextRoom.theme.floorTint})`,
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+            )}
             {phase === "victory" && (
               <div className="war-room-gold-reward">
                 <span>BU MODUN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
                 {summary.totalGold !== null && <small>Savaş Odası toplamı: {summary.totalGold} altın</small>}
+                {WAR_ROOM_ROOM_CHAIN_ENABLED && (
+                  <small>Oda ödülleri toplamı: {roomProgress.totalRoomRewards} altın · En yüksek oda: {roomProgress.highestRoom}</small>
+                )}
               </div>
             )}
             <div className="war-room-result__actions">
-              <button type="button" className="war-room-start" onClick={beginBattle}>YENİDEN DENE</button>
-              <button type="button" onClick={closeMode}>ÇIK</button>
+              {phase === "victory" && summary.nextRoom && (
+                <button
+                  type="button"
+                  className="war-room-start"
+                  onClick={() => beginBattle(summary.nextRoom!.number, preparedNextRoomRef.current ?? undefined)}
+                >
+                  SONRAKİ ODA
+                </button>
+              )}
+              <button
+                type="button"
+                className={phase === "victory" ? "" : "war-room-start"}
+                onClick={() => beginBattle(summary.roomNumber)}
+              >
+                {phase === "victory" ? "YENİDEN DENE" : "BU ODAYI TEKRAR DENE"}
+              </button>
+              {phase === "defeat" && (
+                <button type="button" onClick={() => beginBattle(1)}>BAŞTAN</button>
+              )}
+              {phase === "victory" && <button type="button" onClick={closeMode}>ÇIK</button>}
             </div>
           </div>
         </section>

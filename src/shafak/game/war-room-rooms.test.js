@@ -10,11 +10,23 @@ import {
   normalizeWarRoomSavedProgress,
   WAR_ROOM_MAX_ROOM_ENEMIES,
 } from "./war-room-rooms.ts";
+import { createWarRoomRuntime, segmentBlockFraction } from "./war-room-engine.ts";
+import {
+  WAR_ROOM_BUILD_VERSION,
+  WAR_ROOM_ROOM_BUFFS_ENABLED,
+  WAR_ROOM_ROOM_CHAIN_ENABLED,
+} from "./war-room-features.ts";
 
 function overlapsBlocker(point, blocker, radius = 1.1) {
   return Math.abs(point.x - blocker.x) < blocker.width / 2 + radius
     && Math.abs(point.z - blocker.z) < blocker.depth / 2 + radius;
 }
+
+test("room-chain rollout is enabled with optional buffs disabled", () => {
+  assert.equal(WAR_ROOM_ROOM_CHAIN_ENABLED, true);
+  assert.equal(WAR_ROOM_ROOM_BUFFS_ENABLED, false);
+  assert.equal(WAR_ROOM_BUILD_VERSION, "v16-oda-zinciri");
+});
 
 test("the first six rooms have distinct names, layouts, themes, rosters and enemy counts", () => {
   const rooms = Array.from({ length: 6 }, (_, index) => getWarRoomRoom(index + 1));
@@ -42,6 +54,41 @@ test("rooms beyond six cycle themes, add enemies, and scale health without chang
   assert.equal(seventh.enemyHpMultiplier, 1.1);
   assert.equal(thirteenth.enemyCount, 11);
   assert.equal(thirteenth.enemyHpMultiplier, 1.2);
+});
+
+test("room runtime uses the selected roster, visuals, spawn map, and existing damage values", () => {
+  const room = getWarRoomRoom(2);
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, room.number);
+  const commander = runtime.enemies.find((enemy) => enemy.commander);
+  const guards = runtime.enemies.filter((enemy) => !enemy.commander);
+  const movedWall = room.blockers.find((blocker) => blocker.id === "central-wall-west");
+
+  assert.equal(runtime.room.id, room.id);
+  assert.equal(runtime.enemies.length, room.enemyCount);
+  assert.equal(guards.length, room.enemyCount - 1);
+  assert.equal(commander?.name, room.commanderName);
+  assert.equal(commander?.weaponId, room.commanderWeapon);
+  assert.equal(commander?.damage, 13);
+  assert.ok(commander?.x === room.commanderPosition.x && commander.z === room.commanderPosition.z);
+  assert.ok(guards.every((enemy) => enemy.damage === 9));
+  assert.ok(guards.every((enemy) => enemy.color === room.enemyColor));
+  assert.ok(guards.every((enemy) => room.enemyWeapons.includes(enemy.weaponId)));
+  assert.ok(guards.every((enemy) => room.enemyNames.includes(enemy.name)));
+  assert.ok(guards.every((enemy) => room.enemySpawns.some((spawn) => spawn.id === enemy.id)));
+  assert.ok(movedWall);
+  assert.notEqual(
+    segmentBlockFraction(
+      { x: -17, y: 1, z: 7 },
+      { x: -5, y: 1, z: 7 },
+      0,
+      room.blockers,
+    ),
+    null,
+  );
+  assert.equal(
+    segmentBlockFraction({ x: -17, y: 1, z: 7 }, { x: -5, y: 1, z: 7 }),
+    null,
+  );
 });
 
 test("room rewards apply the requested multiplier cap and carry forty percent health", () => {

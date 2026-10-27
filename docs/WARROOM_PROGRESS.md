@@ -58,12 +58,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 3 — v16 iPhone bulguları
 
-- **Durum:** DEVAM EDİYOR — Faz A–D tamamlandı; Faz E–F sıralı bekliyor.
+- **Durum:** DEVAM EDİYOR — Faz A–E tamamlandı; Faz F son kontrolü bekliyor.
 - **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
 - **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
 - **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
 - **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
-- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — TAMAMLANDI · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — TAMAMLANDI · E oda zinciri — TAMAMLANDI · F son kontrol — BEKLİYOR.
 
 ### Faz A — Kamera ve karakter yönelimi
 
@@ -101,6 +101,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Değişen dosyalar:** `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-reactions.ts`, `src/shafak/game/war-room-reactions.test.js`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama:** `npm run typecheck` ve `npm run build` geçti. `npm test`: 397 testten 389 geçti; 8 bilinen War Room dışı hata (6 mağaza, 1 düello süresi, 1 envanter) değişmedi. Faz D hedef testleri 33/33 geçti; mevcut FX testleri 4/4 ve iyileşme testleri 11/11. Headless önizlemede shader/WebGL görünümü ve gerçek iPhone testi **doğrulanamadı**.
 - **Kalanlar:** Gerçek iPhone'da rim shader, uyarı yayı, geri tepme, ölme solması ve zafer yakınlaşmasını görsel olarak kontrol et.
+
+### Faz E — Savaş Odası oda zinciri
+
+- **Durum:** KISMEN — oda akışı, tema/yerleşim verisi, build/typecheck ve birim testleri doğrulandı; gerçek iPhone/WebGL görsel kabulü açık.
+- **Kök neden:** Altı oda için tema, yerleşim ve düşman tanımları `src/shafak/game/war-room-rooms.ts` içinde bulunuyordu ancak savaş başlatma/sonuç akışı bunları kullanmayıp tek sabit runtime ve dokuz düşman gösteriyordu. `WarRoomScene3D.tsx` da temel harita engellerini, zemini ve ışığı doğrudan kullanıyordu; dolayısıyla oda tanımı HUD, düşman görseli, çarpışma ve sahneye ulaşmıyordu. İlk oda kesişim testinde ayrıca `war-room-data.ts` içindeki guard-05 yükseltilmiş platforma, guard-08 ise 5. ve 6. odadaki siperlere denk geldi.
+- **Yapılanlar:** Başlangıç ekranı, oda numarası/HUD, komutan adı-unvanı, oda düşman sayısı ve zafer özeti dinamikleştirildi. Altı farklı tema ve döndürülen blocker/cover/spawn düzeni oyunun sahnesine, çarpışma, kamera, atış, melee, düşman hareketi ve ayak sesi yüzeyine bağlandı; düşman rengi/silah görünümü oda tanımlarından geliyor. Zaferde mevcut Savaş Odası altın ödülüne oda çarpanı uygulanıyor, ayrı yerel oda ilerlemesi (en yüksek oda ve toplam oda ödülü) saklanıyor, sonraki runtime zafer ekranı açılırken hazırlanıyor ve HP'nin %40'ı taşınıyor. Yenilgide mevcut odada tekrar deneme veya oda 1'den başlama seçenekleri var. Sahne unmount olduğunda pooled renderable, geometri ve materyal temizliği test edilen yardımcı üzerinden yapılıyor; ortak çatlak geometrisi korunuyor. Oda zinciri varsayılan açık (`WAR_ROOM_ROOM_CHAIN_ENABLED`), isteğe bağlı buff'lar kapalı (`WAR_ROOM_ROOM_BUFFS_ENABLED`); vuruş hasarı ve düşman AI kararları değiştirilmedi. Guard-05/08 güvenli noktalara taşındı, ek spawn koordinatlarının tipi açıkça belirtildi.
+- **Değişen dosyalar:** `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-data.ts`, `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-rooms.ts`, `src/shafak/game/war-room-rooms.test.js`, `src/shafak/game/war-room-dispose.ts`, `src/shafak/game/war-room-dispose.test.js`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** `npm run typecheck` geçti. `npm run build` geçti; var olan 500 kB üstü bundle uyarısı devam ediyor. `npm test`: 405 testten 397 geçti; 8 başarısızlık aynı bilinen Savaş Odası dışı taban hataları (mağaza/ekipman 6, düello süresi 1, varsayılan envanter 1). Oda sırası/ölçek/ödül/ilerleme, blocker çakışması, hasar değerlerinin sabit kalması ve sahne kaynak temizliği testleri geçti. Uygulama önizlemesi ve gerçek cihaz kabulü Faz F'de tekrar kontrol edilecek.
+- **Kalanlar:** iPhone/Safari'de oda 2+ geçişi, yeni tema/yerleşim, düşman silahları ve renkleri, yenilgi seçenekleri, %40 HP aktarımı ve sonuç ekranı görünümü doğrulanmalı. İsteğe bağlı buff bayrağını açmak bu fazın kapsamında değil.
 
 ## Faz 1 — Karakter yönelimi
 

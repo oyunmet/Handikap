@@ -408,10 +408,10 @@ export const WAR_ROOM_ENEMY_SPAWNS = [
   { id: "guard-02", name: "Barutçu", x: -17, z: -29 },
   { id: "guard-03", name: "Siperci", x: -7, z: -27 },
   { id: "guard-04", name: "Arbaletçi", x: 9, z: -28 },
-  { id: "guard-05", name: "Kule Gözcüsü", x: 25, z: -20 },
+  { id: "guard-05", name: "Kule Gözcüsü", x: 31, z: 31 },
   { id: "guard-06", name: "Sancaktar", x: 27, z: -7 },
   { id: "guard-07", name: "Kılıçlı", x: -25, z: -3 },
-  { id: "guard-08", name: "Öncü", x: 19, z: 2 },
+  { id: "guard-08", name: "Öncü", x: -31, z: 31 },
 ] as const;
 
 export const WAR_ROOM_COMMANDER = {

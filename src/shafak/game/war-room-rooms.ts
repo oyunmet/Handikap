@@ -219,7 +219,7 @@ function intersectsBlocker(x: number, z: number, blocker: WarRoomBlocker, radius
 }
 
 function getAdditionalSpawnSites() {
-  const chosen = WAR_ROOM_ENEMY_SPAWNS.map(({ x, z }) => ({ x, z }));
+  const chosen: Array<{ x: number; z: number }> = WAR_ROOM_ENEMY_SPAWNS.map(({ x, z }) => ({ x, z }));
   const candidates: Array<{ x: number; z: number }> = [];
   for (let z = -31; z <= 31; z += 2) {
     for (let x = -31; x <= 31; x += 2) {

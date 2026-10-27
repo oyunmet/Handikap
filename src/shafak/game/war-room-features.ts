@@ -12,4 +12,4 @@ export const WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED = true;
 export const WAR_ROOM_COMMANDER_TELEGRAPH_ENABLED = true;
 export const WAR_ROOM_ROOM_CHAIN_ENABLED = true;
 export const WAR_ROOM_ROOM_BUFFS_ENABLED = false;
-export const WAR_ROOM_BUILD_VERSION = "v16-faz-e";
+export const WAR_ROOM_BUILD_VERSION = "v16-oda-zinciri";

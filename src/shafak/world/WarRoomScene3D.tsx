@@ -12,6 +12,7 @@ import {
   type WarRoomWeaponMount,
   type WarRoomWeaponId,
 } from "../game/war-room-data";
+import type { WarRoomRoom } from "../game/war-room-rooms";
 import {
   getWarRoomMeleeEffectiveReach,
   traceWarRoomMeleeCone,
@@ -73,6 +74,7 @@ import {
   isWarRoomAttackRunContinuous,
   WAR_ROOM_PERFORMANCE_SAMPLE_MS,
 } from "../game/war-room-quality";
+import { disposeWarRoomSceneResources } from "../game/war-room-dispose";
 import type { RenderQuality } from "./graphics-quality";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
@@ -186,8 +188,12 @@ function installWarRoomHitRim(material: THREE.Material) {
   material.userData.warRoomHitRim = rimUniform;
 }
 
-function getWarRoomFootstepSurface(x: number, z: number): WarRoomSoundSurface {
-  const nearStone = WAR_ROOM_BLOCKERS.some((blocker) => {
+function getWarRoomFootstepSurface(
+  x: number,
+  z: number,
+  blockers: readonly Pick<WarRoomRoom["blockers"][number], "x" | "z" | "width" | "depth">[] = WAR_ROOM_BLOCKERS,
+): WarRoomSoundSurface {
+  const nearStone = blockers.some((blocker) => {
     const edgeX = Math.max(0, Math.abs(x - blocker.x) - blocker.width / 2);
     const edgeZ = Math.max(0, Math.abs(z - blocker.z) - blocker.depth / 2);
     return Math.hypot(edgeX, edgeZ) <= 0.9;
@@ -348,16 +354,6 @@ function setWarRoomCameraOccluderFade(
   });
 }
 
-function disposeWarRoomRenderable(
-  object: THREE.Mesh | THREE.LineSegments,
-  disposeGeometry = true,
-) {
-  if (object instanceof THREE.InstancedMesh) object.dispose();
-  if (disposeGeometry) object.geometry.dispose();
-  const materials = Array.isArray(object.material) ? object.material : [object.material];
-  materials.forEach((material) => material.dispose());
-}
-
 function shortestLerp(from: number, to: number, speed: number, delta: number) {
   return from + shortestAngleDelta(from, to) * (1 - Math.exp(-speed * Math.min(delta, 0.05)));
 }
@@ -482,21 +478,31 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
   return fallback;
 }
 
-function WarRoomGateway({ z }: { z: number }) {
+function WarRoomGateway({
+  id,
+  position,
+  rotationY,
+}: {
+  id: string;
+  position: readonly [number, number];
+  rotationY: number;
+}) {
   const pierPositions = [-2.72, 2.72] as const;
   return (
     <group
-      name={`war-room-camera-occluder:gateway:${z}`}
-      userData={{ warRoomCameraOccluderId: `gateway:${z}` }}
+      position={[position[0], 0, position[1]]}
+      rotation={[0, rotationY, 0]}
+      name={`war-room-camera-occluder:gateway:${id}`}
+      userData={{ warRoomCameraOccluderId: `gateway:${id}` }}
     >
       {pierPositions.map((x) => (
         <StaticWarRoomAsset
           key={`pier-${x}`}
           src="/models/war-room/wall.glb"
-          position={[x, 0, z]}
+          position={[x, 0, 0]}
           targetSize={[0.8, 3.05, 1.05]}
           fallback={
-            <mesh position={[x, 1.52, z]} castShadow>
+            <mesh position={[x, 1.52, 0]} castShadow>
               <boxGeometry args={[0.8, 3.05, 1.05]} />
               <meshStandardMaterial color="#70564b" roughness={0.86} />
             </mesh>
@@ -505,10 +511,10 @@ function WarRoomGateway({ z }: { z: number }) {
       ))}
       <StaticWarRoomAsset
         src="/models/war-room/tower-square-top.glb"
-        position={[0, 3.05, z]}
+        position={[0, 3.05, 0]}
         targetSize={[6.25, 0.72, 1.25]}
         fallback={
-          <mesh position={[0, 3.05, z]} castShadow>
+          <mesh position={[0, 3.05, 0]} castShadow>
             <boxGeometry args={[6.25, 0.72, 1.25]} />
             <meshStandardMaterial color="#88715b" roughness={0.82} />
           </mesh>
@@ -516,10 +522,10 @@ function WarRoomGateway({ z }: { z: number }) {
       />
       <StaticWarRoomAsset
         src="/models/war-room/tower-square-roof.glb"
-        position={[0, 3.45, z]}
+        position={[0, 3.45, 0]}
         targetSize={[6.55, 0.55, 1.45]}
         fallback={
-          <mesh position={[0, 3.48, z]} castShadow>
+          <mesh position={[0, 3.48, 0]} castShadow>
             <boxGeometry args={[6.55, 0.55, 1.45]} />
             <meshStandardMaterial color="#59443d" roughness={0.88} />
           </mesh>
@@ -556,12 +562,11 @@ function WarRoomTree({ position }: { position: readonly [number, number, number]
   );
 }
 
-function FloorPaving() {
+function FloorPaving({ palette }: { palette: WarRoomRoom["theme"]["tiles"] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => new THREE.PlaneGeometry(7.92, 7.92), []);
   const tiles = useMemo(() => {
     const result: Array<{ x: number; z: number; color: string }> = [];
-    const palette = ["#7e6b58", "#796550", "#836f5b", "#75624f", "#81705d"];
     for (let row = 0; row < 9; row += 1) {
       for (let column = 0; column < 9; column += 1) {
         result.push({
@@ -572,7 +577,7 @@ function FloorPaving() {
       }
     }
     return result;
-  }, []);
+  }, [palette]);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -592,14 +597,14 @@ function FloorPaving() {
   return <instancedMesh ref={meshRef} args={[geometry, WAR_ROOM_FLOOR_MATERIAL, tiles.length]} receiveShadow />;
 }
 
-function WallDetails() {
+function WallDetails({ blockers }: { blockers: readonly WarRoomRoom["blockers"][number][] }) {
   const openingsRef = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
   const material = useMemo(
     () => new THREE.MeshStandardMaterial({ color: "#392e28", roughness: 0.93, metalness: 0 }),
     [],
   );
-  const openings = useMemo(() => WAR_ROOM_BLOCKERS.flatMap((blocker) => {
+  const openings = useMemo(() => blockers.flatMap((blocker) => {
     if (blocker.kind !== "wall" || blocker.height < 3) return [];
     const alongX = blocker.width >= blocker.depth;
     const length = alongX ? blocker.width : blocker.depth;
@@ -614,7 +619,7 @@ function WallDetails() {
         rotationY: alongX ? 0 : Math.PI / 2,
       }));
     }).flat();
-  }), []);
+  }), [blockers]);
 
   useLayoutEffect(() => {
     const mesh = openingsRef.current;
@@ -635,16 +640,30 @@ function WallDetails() {
   );
 }
 
-function Battlefield() {
+function rotateWarRoomScenePoint(x: number, z: number, quarterTurns: number) {
+  switch (quarterTurns % 4) {
+    case 1: return { x: z, z: -x };
+    case 2: return { x: -x, z: -z };
+    case 3: return { x: -z, z: x };
+    default: return { x, z };
+  }
+}
+
+function Battlefield({ room }: { room: WarRoomRoom }) {
+  const { theme } = room;
+  const quarterRotation = room.quarterTurns * Math.PI / 2;
+  useLayoutEffect(() => {
+    WAR_ROOM_FLOOR_MATERIAL.color.set(theme.floorTint);
+  }, [theme.floorTint]);
   return (
     <>
-      <color attach="background" args={["#eaa989"]} />
-      <fog attach="fog" args={["#c6c4c1", 26, 72]} />
-      <hemisphereLight args={["#ffe2c3", "#30252f", 2.2]} />
-      <ambientLight color="#ffdbb3" intensity={1.4} />
+      <color attach="background" args={[theme.sky]} />
+      <fog attach="fog" args={[theme.fog, theme.fogNear, theme.fogFar]} />
+      <hemisphereLight args={[theme.skyLight, theme.groundLight, 2.2]} />
+      <ambientLight color={theme.ambient} intensity={1.4} />
       <directionalLight
         position={[-8, 14, 8]}
-        color="#ffd09a"
+        color={theme.keyLight}
         intensity={2.4}
         castShadow
         shadow-mapSize-width={1024}
@@ -655,70 +674,104 @@ function Battlefield() {
         shadow-camera-bottom={-38}
         shadow-bias={-0.0004}
       />
-      <directionalLight position={[9, 8, -7]} color="#91cde0" intensity={0.72} />
-      <pointLight position={[-26, 3, -21]} color="#ff8a48" intensity={8} distance={15} />
-      <pointLight position={[27, 3, 18]} color="#ff9b4f" intensity={6} distance={13} />
+      <directionalLight position={[9, 8, -7]} color={theme.fillLight} intensity={0.72} />
+      <pointLight position={[-26, 3, -21]} color={theme.emberLight} intensity={8} distance={15} />
+      <pointLight position={[27, 3, 18]} color={theme.emberLight} intensity={6} distance={13} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
         <planeGeometry args={[72, 72, 1, 1]} />
         <primitive object={WAR_ROOM_FLOOR_MATERIAL} attach="material" />
       </mesh>
-      <FloorPaving />
-      {WAR_ROOM_BLOCKERS.map((blocker) => (
+      <FloorPaving palette={theme.tiles} />
+      {room.blockers.map((blocker) => (
         <WarRoomBlockerVisual key={blocker.id} blocker={blocker} />
       ))}
-      {[4.8, 21.2].map((z) => <WarRoomGateway key={`gateway-${z}`} z={z} />)}
+      <WallDetails blockers={room.blockers} />
+      {[4.8, 21.2].map((z, index) => {
+        const point = rotateWarRoomScenePoint(0, z, room.quarterTurns);
+        return (
+          <WarRoomGateway
+            key={`gateway-${index}`}
+            id={`room-${room.number}-${index}`}
+            position={[point.x, point.z]}
+            rotationY={quarterRotation}
+          />
+        );
+      })}
       {[
         [-30, 0, -5],
         [31, 0, -10],
         [-30, 0, 22],
         [31, 0, -27],
       ].map((position, index) => (
-        <WarRoomTree
-          key={`tree-fallback-${index}`}
-          position={position as [number, number, number]}
-        />
+        (() => {
+          const point = rotateWarRoomScenePoint(position[0], position[2], room.quarterTurns);
+          return (
+            <WarRoomTree
+              key={`tree-fallback-${index}`}
+              position={[point.x, position[1], point.z]}
+            />
+          );
+        })()
       ))}
       {[
         [-32, 0, -32],
         [32, 0, -32],
         [-32, 0, 32],
         [32, 0, 32],
-      ].map((position, index) => (
-        <StaticWarRoomAsset
-          key={`war-room-flag-${index}`}
-          src="/models/war-room/flag-pennant.glb"
-          position={position as [number, number, number]}
-          targetSize={[0.85, 3.8, 0.85]}
-          fallback={
-            <group position={[position[0], 0, position[2]]}>
-              <mesh position={[0, 1.9, 0]} castShadow>
-                <cylinderGeometry args={[0.055, 0.075, 3.8, 6]} />
-                <meshStandardMaterial color="#47352d" />
-              </mesh>
-            </group>
-          }
-        />
-      ))}
+      ].map((position, index) => {
+        const point = rotateWarRoomScenePoint(position[0], position[2], room.quarterTurns);
+        const transformedPosition: [number, number, number] = [point.x, position[1], point.z];
+        return (
+          <StaticWarRoomAsset
+            key={`war-room-flag-${index}`}
+            src="/models/war-room/flag-pennant.glb"
+            position={transformedPosition}
+            rotation={[0, quarterRotation, 0]}
+            targetSize={[0.85, 3.8, 0.85]}
+            fallback={
+              <group position={transformedPosition} rotation={[0, quarterRotation, 0]}>
+                <mesh position={[0, 1.9, 0]} castShadow>
+                  <cylinderGeometry args={[0.055, 0.075, 3.8, 6]} />
+                  <meshStandardMaterial color="#47352d" />
+                </mesh>
+              </group>
+            }
+          />
+        );
+      })}
       {[
         { position: [-19, 0, 16] as [number, number, number], rotation: [0, Math.PI / 4, 0] as [number, number, number] },
         { position: [19, 0, -16] as [number, number, number], rotation: [0, -Math.PI / 3, 0] as [number, number, number] },
-      ].map((siege, index) => (
-        <StaticWarRoomAsset
-          key={`war-room-ballista-${index}`}
-          src="/models/war-room/siege-ballista.glb"
-          position={siege.position}
-          rotation={siege.rotation}
-          targetSize={[2.8, 1.65, 2.1]}
-          fallback={
-            <group position={siege.position} rotation={siege.rotation}>
-              <mesh position={[0, 0.7, 0]} castShadow>
-                <boxGeometry args={[0.35, 1.3, 1.4]} />
-                <meshStandardMaterial color="#664b35" />
-              </mesh>
-            </group>
-          }
-        />
-      ))}
+      ].map((siege, index) => {
+        const point = rotateWarRoomScenePoint(
+          siege.position[0],
+          siege.position[2],
+          room.quarterTurns,
+        );
+        const position: [number, number, number] = [point.x, siege.position[1], point.z];
+        const rotation: [number, number, number] = [
+          siege.rotation[0],
+          siege.rotation[1] + quarterRotation,
+          siege.rotation[2],
+        ];
+        return (
+          <StaticWarRoomAsset
+            key={`war-room-ballista-${index}`}
+            src="/models/war-room/siege-ballista.glb"
+            position={position}
+            rotation={rotation}
+            targetSize={[2.8, 1.65, 2.1]}
+            fallback={
+              <group position={position} rotation={rotation}>
+                <mesh position={[0, 0.7, 0]} castShadow>
+                  <boxGeometry args={[0.35, 1.3, 1.4]} />
+                  <meshStandardMaterial color="#664b35" />
+                </mesh>
+              </group>
+            }
+          />
+        );
+      })}
       {Array.from({ length: 8 }, (_, index) => {
         const angle = index * Math.PI / 4;
         const x = Math.cos(angle) * 32;
@@ -1337,20 +1390,20 @@ function PlayerActor({
   );
 }
 
-function ProceduralEnemyFallback({ commander }: { commander: boolean }) {
+function ProceduralEnemyFallback({ commander, color }: { commander: boolean; color: string }) {
   return (
     <group>
       <mesh position={[0, 0.76, 0]} castShadow>
         <capsuleGeometry args={[commander ? 0.27 : 0.24, commander ? 0.75 : 0.58, 3, 7]} />
-        <meshStandardMaterial color={commander ? "#843630" : "#504847"} metalness={0.3} roughness={0.75} />
+        <meshStandardMaterial color={color} metalness={0.3} roughness={0.75} />
       </mesh>
       <mesh position={[0, 1.53, 0]} castShadow>
         <sphereGeometry args={[commander ? 0.24 : 0.2, 10, 8]} />
-        <meshStandardMaterial color={commander ? "#9f4c3d" : "#90735d"} roughness={0.88} />
+        <meshStandardMaterial color={color} roughness={0.88} />
       </mesh>
       <mesh position={[0, 1.12, -0.18]} castShadow>
         <boxGeometry args={commander ? [0.42, 0.5, 0.06] : [0.32, 0.42, 0.045]} />
-        <meshStandardMaterial color={commander ? "#c13d34" : "#866044"} roughness={0.86} />
+        <meshStandardMaterial color={color} roughness={0.86} />
       </mesh>
       <group position={[0.34, 1.0, -0.28]}>
         <mesh position={[0, 0, -0.26]} castShadow>
@@ -1433,14 +1486,14 @@ function EnemyActor({
         hand.add(weaponMount);
       }
       weaponMount.visible = true;
-      const mount = WAR_ROOM_WEAPON_MOUNTS.powder_rifle;
+      const mount = WAR_ROOM_WEAPON_MOUNTS[enemy.weaponId];
       const handScale = hand.getWorldScale(new THREE.Vector3());
       weaponMount.position.set(
         mount.position[0] / Math.max(0.01, Math.abs(handScale.x)),
         mount.position[1] / Math.max(0.01, Math.abs(handScale.y)),
         mount.position[2] / Math.max(0.01, Math.abs(handScale.z)),
       );
-      weaponMount.rotation.set(...WAR_ROOM_WEAPON_MOUNTS.powder_rifle.rotation);
+      weaponMount.rotation.set(...mount.rotation);
       weaponMount.scale.set(
         mount.scale / Math.max(0.01, Math.abs(handScale.x)),
         mount.scale / Math.max(0.01, Math.abs(handScale.y)),
@@ -1501,11 +1554,9 @@ function EnemyActor({
     if (enemy.mode === "fire") return "attack";
     return "idle";
   };
-  const tint = enemy.commander
-    ? "#a4212e"
-    : ["#9f3430", "#8c292c", "#b74638", "#752a32"][index % 4];
+  const tint = enemy.color;
   const characterHeight = WAR_ROOM_CHARACTER_HEIGHT * (enemy.commander ? WAR_ROOM_COMMANDER_SCALE : 1);
-  const fallback = <ProceduralEnemyFallback commander={enemy.commander} />;
+  const fallback = <ProceduralEnemyFallback commander={enemy.commander} color={enemy.color} />;
   return (
     <group
       ref={(node) => {
@@ -1543,8 +1594,8 @@ function EnemyActor({
       </group>
       <group ref={weaponMountRef} name={`enemy-weapon:${enemy.id}`} visible={false}>
         <WeaponModel
-          weaponId="powder_rifle"
-          mount={WAR_ROOM_WEAPON_MOUNTS.powder_rifle}
+          weaponId={enemy.weaponId}
+          mount={WAR_ROOM_WEAPON_MOUNTS[enemy.weaponId]}
           muzzleAnchorRef={muzzleAnchorRef}
           muzzleFlashRef={muzzleFlashRef}
         />
@@ -1735,6 +1786,7 @@ function WarRoomRuntimeScene({
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
   const meleeOrigin = useMemo(() => new THREE.Vector3(), []);
   const meleeImpact = useMemo(() => new THREE.Vector3(), []);
+  const room = runtimeRef.current.room;
   const playerRootRef = useRef<THREE.Group | null>(null);
   const playerMuzzleRef = useRef<THREE.Group | null>(null);
   const playerMuzzleFlashRef = useRef<THREE.Group | null>(null);
@@ -1745,7 +1797,7 @@ function WarRoomRuntimeScene({
   const cameraSideKickRef = useRef(0);
   const cameraFovKickRef = useRef(0);
   const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
-    () => WAR_ROOM_BLOCKERS.map((blocker) => ({
+    () => room.blockers.map((blocker) => ({
       id: blocker.id,
       minX: blocker.x - blocker.width / 2,
       minY: -0.15,
@@ -1754,7 +1806,7 @@ function WarRoomRuntimeScene({
       maxY: blocker.height + (blocker.kind === "tower" ? 2.2 : 0.15),
       maxZ: blocker.z + blocker.depth / 2,
     })),
-    [],
+    [room],
   );
   const cameraOccludersRef = useRef<CameraOccluderEntry[]>([]);
   const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
@@ -2039,14 +2091,16 @@ function WarRoomRuntimeScene({
     return mesh;
   }, []);
   useLayoutEffect(() => () => {
-    disposeWarRoomRenderable(tracerLines);
-    disposeWarRoomRenderable(particleMesh);
-    disposeWarRoomRenderable(decalMesh);
-    disposeWarRoomRenderable(crackMesh, false);
-    disposeWarRoomRenderable(shockwaveMesh);
-    disposeWarRoomRenderable(slashTrailMesh);
-    disposeWarRoomRenderable(projectileShafts);
-    disposeWarRoomRenderable(projectileHeads);
+    disposeWarRoomSceneResources([
+      { object: tracerLines },
+      { object: particleMesh },
+      { object: decalMesh },
+      { object: crackMesh, disposeGeometry: false },
+      { object: shockwaveMesh },
+      { object: slashTrailMesh },
+      { object: projectileShafts },
+      { object: projectileHeads },
+    ]);
   }, [
     crackMesh,
     decalMesh,
@@ -2278,6 +2332,8 @@ function WarRoomRuntimeScene({
     const blockedAt = segmentBlockFraction(
       { x: origin.x, y: origin.y, z: origin.z },
       { x: rayEnd.x, y: rayEnd.y, z: rayEnd.z },
+      0,
+      runtimeRef.current.room.blockers,
     );
     const result = traceWarRoomRay(
       { x: origin.x, y: origin.y, z: origin.z },
@@ -2300,6 +2356,7 @@ function WarRoomRuntimeScene({
       { x: player.x, y: player.jumpHeight + (player.crouched ? 1.05 : 1.12), z: player.z },
       { x: enemy.x, y: enemy.commander ? 1.35 : 1.05, z: enemy.z },
       0.08,
+      runtimeRef.current.room.blockers,
     ) !== null
   );
 
@@ -2546,6 +2603,8 @@ function WarRoomRuntimeScene({
         player.z,
         Math.sin(attackYaw) * plan.lungeMeters,
         -Math.cos(attackYaw) * plan.lungeMeters,
+        0.38,
+        runtime.room.blockers,
       );
       player.x = lunged.x;
       player.z = lunged.z;
@@ -2975,7 +3034,7 @@ function WarRoomRuntimeScene({
       dx += player.dodgeX * 11 * Math.min(delta, remaining);
       dz += player.dodgeZ * 11 * Math.min(delta, remaining);
     }
-    const nextPosition = moveWarRoomEntity(player.x, player.z, dx, dz);
+    const nextPosition = moveWarRoomEntity(player.x, player.z, dx, dz, 0.38, runtime.room.blockers);
     player.x = nextPosition.x;
     player.z = nextPosition.z;
     const pickup = collectWarRoomHealingPoint(
@@ -3020,7 +3079,7 @@ function WarRoomRuntimeScene({
       && Math.hypot(dx, dz) > 0.035
       && now >= footstepAtRef.current
     ) {
-      const surface = getWarRoomFootstepSurface(player.x, player.z);
+      const surface = getWarRoomFootstepSurface(player.x, player.z, runtime.room.blockers);
       playWarRoomSound(
         "footstep",
         player.crouched ? 0.38 : 0.68,
@@ -3091,7 +3150,7 @@ function WarRoomRuntimeScene({
       const gap = Math.hypot(enemy.x - player.x, enemy.z - player.z);
       const enemyEye = { x: enemy.x, y: enemy.commander ? 1.65 : 1.45, z: enemy.z };
       const playerEye = { x: player.x, y: player.jumpHeight + (player.crouched ? 1.1 : 1.4), z: player.z };
-      const lineBlocked = segmentBlockFraction(enemyEye, playerEye) !== null;
+      const lineBlocked = segmentBlockFraction(enemyEye, playerEye, 0, runtime.room.blockers) !== null;
       enemy.mode = player.hp / player.maxHp < 0.33
         ? "cover"
         : !lineBlocked && gap <= (enemy.commander ? 22 : 17)
@@ -3104,7 +3163,7 @@ function WarRoomRuntimeScene({
         let targetZ = player.z;
         if (enemy.mode === "cover") {
           if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
-            const cover = getNearestWarRoomCover(enemy.x, enemy.z);
+            const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
             if (cover) {
               enemy.coverX = cover.x;
               enemy.coverZ = cover.z;
@@ -3130,7 +3189,14 @@ function WarRoomRuntimeScene({
               moveZEnemy += (separationZ / separation) * 1.5 * updateInterval;
             }
           }
-          const moved = moveWarRoomEntity(enemy.x, enemy.z, moveXEnemy, moveZEnemy, 0.35);
+          const moved = moveWarRoomEntity(
+            enemy.x,
+            enemy.z,
+            moveXEnemy,
+            moveZEnemy,
+            0.35,
+            runtime.room.blockers,
+          );
           enemy.x = moved.x;
           enemy.z = moved.z;
         }
@@ -3147,6 +3213,8 @@ function WarRoomRuntimeScene({
         const blocked = segmentBlockFraction(
           { x: enemy.x, y: enemy.commander ? 1.6 : 1.4, z: enemy.z },
           { x: player.x, y: player.jumpHeight + 1.3, z: player.z },
+          0,
+          runtime.room.blockers,
         );
         return blocked === null;
       })
@@ -3568,7 +3636,7 @@ function WarRoomRuntimeScene({
   const activeWeapon = weaponIds[runtime.player.activeSlot];
   return (
     <>
-      <Battlefield />
+      <Battlefield room={runtime.room} />
       {RESTORE_CONFIG.enabled && runtime.healingPoints.map((point) => (
         <WarRoomHealingPointMarker
           key={point.id}
