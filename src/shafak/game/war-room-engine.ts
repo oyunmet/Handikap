@@ -322,6 +322,35 @@ export function createWarRoomRuntime(
   };
 }
 
+export function createWarRoomTrainingRuntime(
+  weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId],
+  now = 0,
+): WarRoomRuntime {
+  const runtime = createWarRoomRuntime(weaponIds, now);
+  runtime.enemies.splice(0, runtime.enemies.length, {
+    id: "training-dummy",
+    name: "Eğitim Mankeni",
+    commander: false,
+    x: 0,
+    z: 22.5,
+    hp: 1_000_000,
+    maxHp: 1_000_000,
+    damage: 0,
+    alive: true,
+    mode: "cover",
+    brainAt: Number.POSITIVE_INFINITY,
+    nextShotAt: Number.POSITIVE_INFINITY,
+    coverX: 0,
+    coverZ: 22.5,
+    hitUntil: 0,
+    hitKnockbackX: 0,
+    hitKnockbackZ: 0,
+    deathYaw: 0,
+  });
+  runtime.healingPoints.length = 0;
+  return runtime;
+}
+
 function circleHitsBlocker(x: number, z: number, radius: number, blocker: typeof WAR_ROOM_BLOCKERS[number]) {
   const closestX = Math.max(blocker.x - blocker.width / 2, Math.min(blocker.x + blocker.width / 2, x));
   const closestZ = Math.max(blocker.z - blocker.depth / 2, Math.min(blocker.z + blocker.depth / 2, z));

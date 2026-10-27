@@ -94,6 +94,7 @@ type StaticModelProps = {
   muzzleEnd?: -1 | 1;
   muzzleOffsetZ?: number;
   fallbackColor?: string;
+  emissiveBoost?: number;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
 };
 
@@ -108,6 +109,7 @@ export function WarRoomStaticModel({
   muzzleEnd,
   muzzleOffsetZ = 0,
   fallbackColor,
+  emissiveBoost = 0,
   muzzleAnchorRef,
 }: StaticModelProps) {
   const { scene } = useLoader(WarRoomStaticGLTFLoader, src, loadCharacter) as GLTF;
@@ -121,6 +123,13 @@ export function WarRoomStaticModel({
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         const tintedMaterials = materials.map((material) => {
           const cloneMaterial = material.clone();
+          if (cloneMaterial instanceof THREE.MeshStandardMaterial || cloneMaterial instanceof THREE.MeshPhysicalMaterial) {
+            if (cloneMaterial.map) cloneMaterial.map.colorSpace = THREE.SRGBColorSpace;
+            if (emissiveBoost > 0) {
+              cloneMaterial.emissive.set(fallbackColor ?? "#b8a88d");
+              cloneMaterial.emissiveIntensity = emissiveBoost;
+            }
+          }
           if (
             (cloneMaterial instanceof THREE.MeshStandardMaterial || cloneMaterial instanceof THREE.MeshPhysicalMaterial)
             && !cloneMaterial.map?.image
@@ -168,7 +177,7 @@ export function WarRoomStaticModel({
       );
     }
     return clone;
-  }, [fallbackColor, gripRatio, minimumVisualThickness, scene, src, targetSize, uniformFitLength]);
+  }, [emissiveBoost, fallbackColor, gripRatio, minimumVisualThickness, scene, src, targetSize, uniformFitLength]);
 
   useLayoutEffect(() => {
     const anchor = muzzleAnchorRef?.current;

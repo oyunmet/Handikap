@@ -49,6 +49,7 @@ import {
   WAR_ROOM_CAMERA_OCCLUSION_ENABLED,
   WAR_ROOM_COMBAT_FEEL_ENABLED,
   WAR_ROOM_POOLED_FX_ENABLED,
+  WAR_ROOM_WEAPON_PRESENTATION_ENABLED,
 } from "../game/war-room-features";
 import {
   countOccupiedWarRoomDecals,
@@ -93,6 +94,7 @@ type Props = {
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   bloodEffects: boolean;
+  trainingMode: boolean;
   quality: RenderQuality;
   debugMode: boolean;
   onMeleeDebugUpdate: (message: string) => void;
@@ -117,8 +119,8 @@ const WAR_ROOM_MELEE_HALF_ANGLE_DEGREES = 65;
 const WAR_ROOM_SHOCKWAVE_POOL_SIZE = 4;
 const WAR_ROOM_SHOCKWAVE_LIFETIME = 0.34;
 const WAR_ROOM_DECAL_COLORS = [
-  new THREE.Color("#43392f"),
-  new THREE.Color("#614837"),
+  new THREE.Color("#9b5042"),
+  new THREE.Color("#bf7252"),
 ] as const;
 
 function getWarRoomFootstepSurface(x: number, z: number): WarRoomSoundSurface {
@@ -823,6 +825,7 @@ function WeaponModel({
               muzzleEnd={mount.muzzleEnd}
               muzzleOffsetZ={mount.muzzleOffsetZ}
               fallbackColor={weapon.color}
+              emissiveBoost={WAR_ROOM_WEAPON_PRESENTATION_ENABLED ? 0.12 : 0}
               muzzleAnchorRef={muzzleAnchorRef}
             />
           </Suspense>
@@ -1004,8 +1007,20 @@ function PlayerActor({
     const player = runtimeRef.current.player;
     const root = rootRef.current;
     if (root) {
-      root.position.set(player.x, player.jumpHeight, player.z);
       const bodyYaw = player.meleeUntil > player.clockTime ? player.meleeAttackYaw : player.facingYaw;
+      const attackProgress = player.meleeUntil > player.clockTime
+        ? Math.max(0, Math.min(1, (player.clockTime - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
+        : 0;
+      const heavyStep = WAR_ROOM_WEAPON_PRESENTATION_ENABLED
+        && player.meleeAttackHeavy
+        && player.meleeUntil > player.clockTime
+        ? Math.sin(Math.PI * attackProgress) * 0.16
+        : 0;
+      root.position.set(
+        player.x + Math.sin(bodyYaw) * heavyStep,
+        player.jumpHeight,
+        player.z - Math.cos(bodyYaw) * heavyStep,
+      );
       root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 45, delta);
       root.scale.y = player.crouched ? 0.78 : 1;
     }
@@ -1036,7 +1051,7 @@ function PlayerActor({
       const aiming = inputRef.current.aimHeld;
       const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
       const melee = weapon.weaponClass === "melee";
-      weaponMount.visible = true;
+      weaponMount.visible = enemy.id !== "training-dummy";
       if (player.shotFeedbackUntil > previousShotFeedbackRef.current && weapon.weaponClass === "shotgun") {
         shotgunPumpStartedAtRef.current = player.clockTime;
       }
@@ -1106,6 +1121,12 @@ function PlayerActor({
       weaponMount.rotation.x -= recoilStrength * 0.052 + pumpStrength * 0.06 + reloadDrop * 0.48 + chargeProgress * 0.16;
       weaponMount.rotation.z += recoilStrength * 0.018;
       if (melee) {
+        const idleBreath = WAR_ROOM_WEAPON_PRESENTATION_ENABLED && player.meleeUntil <= player.clockTime
+          ? Math.sin(player.clockTime * 1.8) * 0.012
+          : 0;
+        weaponMount.position.y += idleBreath;
+        weaponMount.position.x += idleBreath * 0.35;
+        weaponMount.rotation.z += idleBreath * 0.9;
         weaponMount.position.y += meleeLift * (player.meleeAttackHeavy ? 0.14 : 0.08);
         if (weapon.meleeStyle === "thrust") {
           weaponMount.position.z += meleePrepare * 0.12 - meleeStrike * (0.58 * heavyScale);
@@ -1116,6 +1137,15 @@ function PlayerActor({
           weaponMount.rotation.x += -meleeLift * (player.meleeAttackHeavy ? 0.42 : 0.28) + meleeStrike * (0.48 * heavyScale);
           weaponMount.rotation.z += meleeLift * 0.18
             - meleeStrike * ((weaponId === "melee_axe" || weaponId === "melee_shovel" || weaponId === "melee_pickaxe" ? 1.08 : 0.82) + swingDirection * 0.22);
+          if (
+            WAR_ROOM_WEAPON_PRESENTATION_ENABLED
+            && player.meleeAttackHeavy
+            && ["melee_axe", "melee_shovel", "melee_pickaxe"].includes(weaponId)
+          ) {
+            weaponMount.position.y += meleePrepare * 0.16;
+            weaponMount.rotation.x -= meleePrepare * 0.48;
+            weaponMount.rotation.x += meleeStrike * 0.32;
+          }
         }
       }
       if (reloadMagazineRef.current) {
@@ -1584,6 +1614,7 @@ function WarRoomRuntimeScene({
   weaponIds,
   weaponMountOverrides,
   bloodEffects,
+  trainingMode,
   quality,
   debugMode,
   onMeleeDebugUpdate,
@@ -1672,9 +1703,9 @@ function WarRoomRuntimeScene({
     const mesh = new THREE.InstancedMesh(
       new THREE.CircleGeometry(0.11, 8),
       new THREE.MeshBasicMaterial({
-        color: "#46382e",
+        color: "#ffffff",
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.42,
         depthWrite: false,
         polygonOffset: true,
         polygonOffsetFactor: -2,
@@ -1699,7 +1730,7 @@ function WarRoomRuntimeScene({
       new THREE.MeshBasicMaterial({
         color: "#ffffff",
         transparent: true,
-        opacity: 0.82,
+        opacity: 0.58,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -1709,7 +1740,7 @@ function WarRoomRuntimeScene({
       WAR_ROOM_DECAL_POOL_SIZE,
     );
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    const initialCrackColor = new THREE.Color("#46382e");
+    const initialCrackColor = new THREE.Color("#9b684d");
     for (let index = 0; index < WAR_ROOM_DECAL_POOL_SIZE; index += 1) {
       mesh.setColorAt(index, initialCrackColor);
     }
@@ -2085,7 +2116,7 @@ function WarRoomRuntimeScene({
     decalTransform.scale.setScalar(decal.scale);
     decalTransform.updateMatrix();
     crackMesh.setMatrixAt(slot, decalTransform.matrix);
-    crackTint.set(slot % 2 ? "#372a24" : "#4b352a");
+    crackTint.set(slot % 2 ? "#865740" : "#ad7652");
     crackMesh.setColorAt(slot, crackTint);
     crackMesh.instanceMatrix.needsUpdate = true;
     if (crackMesh.instanceColor) crackMesh.instanceColor.needsUpdate = true;
@@ -2915,7 +2946,7 @@ function WarRoomRuntimeScene({
     input.firePressed = false;
     input.fireReleased = false;
 
-    for (let index = 0; index < runtime.enemies.length; index += 1) {
+    if (!trainingMode) for (let index = 0; index < runtime.enemies.length; index += 1) {
       const enemy = runtime.enemies[index];
       const group = enemyGroupRefs.current[index];
       if (!enemy.alive) {
@@ -2975,7 +3006,7 @@ function WarRoomRuntimeScene({
       }
     }
 
-    const attackCandidates = runtime.enemies
+    const attackCandidates = trainingMode ? [] : runtime.enemies
       .filter((enemy) => {
         if (!enemy.alive || Math.hypot(enemy.x - player.x, enemy.z - player.z) > 24) return false;
         const blocked = segmentBlockFraction(
@@ -3293,9 +3324,11 @@ function WarRoomRuntimeScene({
         const weaponMount = playerRootRef.current?.getObjectByName("war-room-weapon-mount");
         if (weaponMount) {
           weaponMount.updateWorldMatrix(true, false);
-          const bladeLength = Math.max(0.42, Math.min(1.35, trailWeapon.normalizeLength ?? trailWeapon.range * 0.56));
-          slashLocalBase.set(0, 0.02, -0.18);
-          slashLocalTip.set(0, 0.02, -0.18 - bladeLength);
+          const bladeLength = Math.max(0.3, Math.min(0.82, (trailWeapon.normalizeLength ?? trailWeapon.range * 0.56) * 0.72));
+          const trailHalfWidth = Math.max(0.07, Math.min(0.13, bladeLength * 0.16));
+          const bladeTipZ = -Math.max(0.36, Math.min(0.88, bladeLength));
+          slashLocalBase.set(-trailHalfWidth, 0.02, bladeTipZ);
+          slashLocalTip.set(trailHalfWidth, 0.02, bladeTipZ);
           slashBase.copy(weaponMount.localToWorld(slashLocalBase));
           slashTip.copy(weaponMount.localToWorld(slashLocalTip));
           for (let index = Math.min(slashTrailState.count, qualityProfile.slashTrailSegments); index > 0; index -= 1) {
@@ -3312,10 +3345,12 @@ function WarRoomRuntimeScene({
           newest.born = now;
         }
       }
+    } else {
+      slashTrailState.count = 0;
     }
     while (
       slashTrailState.count > 0
-      && now - slashTrailState.samples[slashTrailState.count - 1].born >= 0.22
+      && now - slashTrailState.samples[slashTrailState.count - 1].born >= 0.12
     ) {
       slashTrailState.count -= 1;
     }
@@ -3323,7 +3358,7 @@ function WarRoomRuntimeScene({
     const trailColorAttribute = slashTrailState.geometry.getAttribute("color") as THREE.BufferAttribute;
     for (let row = 0; row < slashTrailState.count; row += 1) {
       const sample = slashTrailState.samples[slashTrailState.count - 1 - row];
-      const ageAlpha = Math.max(0, 1 - (now - sample.born) / 0.22);
+      const ageAlpha = Math.max(0, 1 - (now - sample.born) / 0.12);
       const offset = row * 6;
       slashTrailState.positions.set(
         [sample.base.x, sample.base.y, sample.base.z, sample.tip.x, sample.tip.y, sample.tip.z],

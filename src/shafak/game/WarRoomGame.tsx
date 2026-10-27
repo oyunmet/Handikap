@@ -11,13 +11,23 @@ import {
 } from "./war-room-data";
 import {
   createWarRoomRuntime,
+  createWarRoomTrainingRuntime,
   type WarRoomHudSnapshot,
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
 import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
-import { WAR_ROOM_BUILD_VERSION } from "./war-room-features";
+import {
+  WAR_ROOM_BUILD_VERSION,
+  WAR_ROOM_WEAPON_ICONS_ENABLED,
+  WAR_ROOM_WEAPON_LAB_ENABLED,
+} from "./war-room-features";
+import {
+  getNextWarRoomLabWeaponIndex,
+  getWarRoomLabWeaponLength,
+} from "./war-room-lab";
+import { getWarRoomWeaponIconDataUrl } from "./war-room-weapon-icons";
 import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
@@ -239,7 +249,11 @@ export default function WarRoomGame({
   const modelsReady = modelsPreloadStarted
     && !modelsLoading
     && (modelProgress >= 100 || modelErrors.length > 0);
-  const [phase, setPhase] = useState<Phase>("briefing");
+  const searchParams = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+  const weaponLabMode = WAR_ROOM_WEAPON_LAB_ENABLED && searchParams?.get("lab") === "1";
+  const [phase, setPhase] = useState<Phase>(() => weaponLabMode ? "battle" : "briefing");
   const [soundMuted, setSoundMuted] = useState(isWarRoomMuted);
   const [bloodEffects, setBloodEffects] = useState(() => {
     try {
@@ -249,16 +263,19 @@ export default function WarRoomGame({
     }
   });
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
-    () => getWarRoomLoadoutFromProfile(profile),
+    () => weaponLabMode
+      ? [WAR_ROOM_WEAPONS[0].id, WAR_ROOM_WEAPONS[0].id]
+      : getWarRoomLoadoutFromProfile(profile),
   );
   const [weaponMountOverrides, setWeaponMountOverrides] = useState<Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>>({});
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
+  const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
   const [meleeDebugMessage, setMeleeDebugMessage] = useState("");
   const [meleeDebugMessageUntil, setMeleeDebugMessageUntil] = useState(0);
   const [meleeDebugActivity, setMeleeDebugActivity] = useState("");
-  const [calibrationCollapsed, setCalibrationCollapsed] = useState(false);
+  const [calibrationCollapsed, setCalibrationCollapsed] = useState(weaponLabMode);
   const [calibrationCoarseStep, setCalibrationCoarseStep] = useState(false);
   const [calibrationJson, setCalibrationJson] = useState("");
   const [calibrationCopyStatus, setCalibrationCopyStatus] = useState("");
@@ -271,20 +288,22 @@ export default function WarRoomGame({
     gold: number;
     totalGold: number | null;
   } | null>(null);
-  const runtimeRef = useRef<WarRoomRuntime>(createWarRoomRuntime(loadout));
+  const runtimeRef = useRef<WarRoomRuntime>(
+    weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout),
+  );
   const inputRef = useRef<WarRoomInputState>(createInputState(facingSetting));
   const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1, pointerType: "mouse" });
   const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
   const stickPointerRef = useRef<number | null>(null);
-  const debugMode = typeof window !== "undefined"
-    && new URLSearchParams(window.location.search).get("debug") === "1";
-  const calibrationMode = typeof window !== "undefined"
-    && new URLSearchParams(window.location.search).get("calib") === "1";
+  const debugMode = searchParams?.get("debug") === "1";
+  const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
 
   const beginBattle = () => {
     resumeWarRoomAudio();
-    runtimeRef.current = createWarRoomRuntime(loadout);
+    runtimeRef.current = weaponLabMode
+      ? createWarRoomTrainingRuntime(loadout)
+      : createWarRoomRuntime(loadout);
     inputRef.current = createInputState(facingSetting);
     pointerRef.current.id = null;
     setHud(createEmptyHud());
@@ -402,6 +421,18 @@ export default function WarRoomGame({
       next[selectedSlot] = id;
       return next;
     });
+  };
+  const advanceWeaponLab = () => {
+    const nextIndex = getNextWarRoomLabWeaponIndex(labWeaponIndex);
+    const nextWeaponId = WAR_ROOM_WEAPONS[nextIndex].id;
+    const nextLoadout: [WarRoomWeaponId, WarRoomWeaponId] = [nextWeaponId, nextWeaponId];
+    setLabWeaponIndex(nextIndex);
+    setLoadout(nextLoadout);
+    setSelectedSlot(0);
+    runtimeRef.current = createWarRoomTrainingRuntime(nextLoadout);
+    inputRef.current = createInputState(facingSetting);
+    setHud(createEmptyHud());
+    setRunKey((key) => key + 1);
   };
   const updateDebugMount = (
     field: "position" | "rotation",
@@ -620,7 +651,9 @@ export default function WarRoomGame({
                     onClick={() => setLoadoutWeapon(weapon.id)}
                     disabled={!owned}
                   >
-                    <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>
+                    {WAR_ROOM_WEAPON_ICONS_ENABLED
+                      ? <img className="war-room-weapon-card__icon" src={getWarRoomWeaponIconDataUrl(weapon.id)} alt="" aria-hidden="true" />
+                      : <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>}
                     <span className="war-room-weapon-card__copy">
                       <b>{weapon.name}</b>
                     <small>{weapon.className} · {weapon.rarity ?? "Sıradan"} · {weapon.weaponClass === "melee" ? `${weapon.range.toFixed(1)} m · sınırsız` : `${weapon.magazine} mermi`}</small>
@@ -670,6 +703,7 @@ export default function WarRoomGame({
             weaponIds={loadout}
             weaponMountOverrides={weaponMountOverrides}
             bloodEffects={bloodEffects}
+            trainingMode={weaponLabMode}
             quality={quality}
             debugMode={debugMode}
             onMeleeDebugUpdate={(message) => {
@@ -683,6 +717,22 @@ export default function WarRoomGame({
             onHudUpdate={setHud}
             onFinish={finishBattle}
           />
+          {weaponLabMode && (() => {
+            const weapon = WAR_ROOM_WEAPONS[labWeaponIndex];
+            const measuredLength = getWarRoomLabWeaponLength(weapon);
+            return (
+              <aside className="war-room-weapon-lab" aria-label="Silah test laboratuvarı">
+                <small>SİLAH LAB · {labWeaponIndex + 1}/{WAR_ROOM_WEAPONS.length}</small>
+                <strong>{weapon.name}</strong>
+                <span>ÖLÇÜLEN UZUNLUK · {measuredLength.toFixed(2)} m</span>
+                <span>{weapon.weaponClass === "melee"
+                  ? "DURUŞ · 3 HAFİF KOMBO · BASILI AĞIR · İSABET EFEKTİ · MANKEN"
+                  : "DURUŞ · ATEŞ · İSABET EFEKTİ · MANKEN"}
+                </span>
+                <button type="button" onClick={advanceWeaponLab}>SONRAKİ SİLAH · TEK DOKUNUŞ</button>
+              </aside>
+            );
+          })()}
           {debugMode && (
             <div className="war-room-melee-debug-result" aria-live="polite">
               <span>
@@ -781,7 +831,7 @@ export default function WarRoomGame({
               },
             ];
             return (
-              <aside className={`war-room-calibration-panel${calibrationCollapsed ? " is-collapsed" : ""}`}
+              <aside className={`war-room-calibration-panel${calibrationCollapsed ? " is-collapsed" : ""}${weaponLabMode ? " is-lab" : ""}`}
                 aria-label="Silah kalibrasyon paneli">
                 <header className="war-room-calibration-panel__header">
                   <span>
@@ -914,7 +964,9 @@ export default function WarRoomGame({
                 </span>
                 {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? (
                   <strong className="war-room-ammo__melee" aria-label="Sınırsız kullanım">
-                    {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon} ∞
+                    {WAR_ROOM_WEAPON_ICONS_ENABLED
+                      ? <img className="war-room-ammo__weapon-icon" src={getWarRoomWeaponIconDataUrl(hud.weaponId)} alt="" aria-hidden="true" />
+                      : WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon} ∞
                   </strong>
                 ) : (
                   <strong>
