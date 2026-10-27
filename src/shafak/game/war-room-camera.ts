@@ -1,0 +1,108 @@
+export type WarRoomCameraPoint = { x: number; y: number; z: number };
+
+export type WarRoomCameraBounds = {
+  id: string;
+  minX: number;
+  minY: number;
+  minZ: number;
+  maxX: number;
+  maxY: number;
+  maxZ: number;
+};
+
+export type WarRoomCameraSweep = {
+  blocked: boolean;
+  blockerId: string | null;
+  hitDistance: number | null;
+  safeDistance: number;
+};
+
+function expandedBounds(bounds: WarRoomCameraBounds, radius: number) {
+  return {
+    minX: bounds.minX - radius,
+    minY: bounds.minY - radius,
+    minZ: bounds.minZ - radius,
+    maxX: bounds.maxX + radius,
+    maxY: bounds.maxY + radius,
+    maxZ: bounds.maxZ + radius,
+  };
+}
+
+export function isWarRoomCameraPointClear(
+  point: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  radius = 0.22,
+) {
+  return bounds.every((obstacle) => {
+    const box = expandedBounds(obstacle, radius);
+    return point.x < box.minX || point.x > box.maxX
+      || point.y < box.minY || point.y > box.maxY
+      || point.z < box.minZ || point.z > box.maxZ;
+  });
+}
+
+function getSegmentBoxEntry(
+  start: WarRoomCameraPoint,
+  end: WarRoomCameraPoint,
+  bounds: WarRoomCameraBounds,
+  radius: number,
+) {
+  const box = expandedBounds(bounds, radius);
+  let entry = 0;
+  let exit = 1;
+  for (const axis of ["x", "y", "z"] as const) {
+    const delta = end[axis] - start[axis];
+    if (Math.abs(delta) < 1e-9) {
+      if (start[axis] < box[`min${axis.toUpperCase()}` as "minX" | "minY" | "minZ"]
+        || start[axis] > box[`max${axis.toUpperCase()}` as "maxX" | "maxY" | "maxZ"]) return null;
+      continue;
+    }
+    const min = box[`min${axis.toUpperCase()}` as "minX" | "minY" | "minZ"];
+    const max = box[`max${axis.toUpperCase()}` as "maxX" | "maxY" | "maxZ"];
+    const first = (min - start[axis]) / delta;
+    const second = (max - start[axis]) / delta;
+    entry = Math.max(entry, Math.min(first, second));
+    exit = Math.min(exit, Math.max(first, second));
+    if (entry > exit) return null;
+  }
+  return exit < 0 || entry > 1 ? null : Math.max(0, entry);
+}
+
+export function resolveWarRoomCameraSweep(
+  start: WarRoomCameraPoint,
+  end: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  radius = 0.22,
+  minimumDistance = 1.2,
+  clearance = 0.08,
+): WarRoomCameraSweep {
+  const distance = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
+  if (distance < 1e-8) {
+    return { blocked: false, blockerId: null, hitDistance: null, safeDistance: distance };
+  }
+
+  let nearest: { id: string; distance: number } | null = null;
+  for (const obstacle of bounds) {
+    const fraction = getSegmentBoxEntry(start, end, obstacle, radius);
+    if (fraction === null) continue;
+    const hitDistance = fraction * distance;
+    if (nearest && hitDistance >= nearest.distance) continue;
+    nearest = { id: obstacle.id, distance: hitDistance };
+  }
+
+  if (!nearest) {
+    return { blocked: false, blockerId: null, hitDistance: null, safeDistance: distance };
+  }
+
+  const beforeImpact = Math.max(0.2, nearest.distance - clearance);
+  return {
+    blocked: true,
+    blockerId: nearest.id,
+    hitDistance: nearest.distance,
+    // Keep the requested 1.2 m minimum unless the obstacle itself is closer;
+    // in that case stop before the expanded box rather than placing the camera inside it.
+    safeDistance: nearest.distance <= minimumDistance + clearance
+      ? beforeImpact
+      : Math.max(minimumDistance, beforeImpact),
+  };
+}

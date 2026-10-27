@@ -29,8 +29,15 @@ import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomPostAttackStrafeUntil,
+  resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
+  stepWarRoomYaw,
 } from "../game/war-room-orientation";
+import {
+  isWarRoomCameraPointClear,
+  resolveWarRoomCameraSweep,
+  type WarRoomCameraBounds,
+} from "../game/war-room-camera";
 import {
   getWarRoomImpactFxProfile,
   WAR_ROOM_CRACK_DECAL_LIFETIME_SECONDS,
@@ -39,6 +46,8 @@ import {
   WAR_ROOM_SLASH_TRAIL_SEGMENTS,
 } from "../game/war-room-fx";
 import {
+  WAR_ROOM_CAMERA_FACING_ENABLED,
+  WAR_ROOM_CAMERA_OCCLUSION_ENABLED,
   WAR_ROOM_COMBAT_FEEL_ENABLED,
   WAR_ROOM_POOLED_FX_ENABLED,
 } from "../game/war-room-features";
@@ -233,6 +242,48 @@ type WarRoomProjectile = {
   color: string;
 };
 
+type CameraOccluderEntry = {
+  id: string;
+  object: THREE.Object3D;
+  bounds: THREE.Box3;
+};
+
+type CameraMaterialSnapshot = {
+  opacity: number;
+  transparent: boolean;
+  depthWrite: boolean;
+};
+
+function setWarRoomCameraOccluderFade(
+  object: THREE.Object3D,
+  progress: number,
+  originals: WeakMap<THREE.Material, CameraMaterialSnapshot>,
+) {
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material) => {
+      let original = originals.get(material);
+      if (!original) {
+        original = {
+          opacity: material.opacity,
+          transparent: material.transparent,
+          depthWrite: material.depthWrite,
+        };
+        originals.set(material, original);
+      }
+      const nextTransparent = original.transparent || progress > 0;
+      const nextOpacity = original.opacity * (1 - progress * 0.55);
+      const changedTransparency = material.transparent !== nextTransparent
+        || material.depthWrite !== (progress > 0 ? false : original.depthWrite);
+      material.opacity = nextOpacity;
+      material.transparent = nextTransparent;
+      material.depthWrite = progress > 0 ? false : original.depthWrite;
+      if (changedTransparency) material.needsUpdate = true;
+    });
+  });
+}
+
 function disposeWarRoomRenderable(
   object: THREE.Mesh | THREE.LineSegments,
   disposeGeometry = true,
@@ -267,12 +318,18 @@ function StaticWarRoomAsset({
   rotation?: readonly [number, number, number];
   fallback: ReactNode;
 }) {
+  const cameraOccluderId = `asset:${src}:${position.join(":")}`;
   return (
-    <WarRoomAssetBoundary fallback={fallback}>
-      <Suspense fallback={fallback}>
-        <WarRoomStaticModel src={src} position={position} targetSize={targetSize} rotation={rotation} />
-      </Suspense>
-    </WarRoomAssetBoundary>
+    <group
+      name={`war-room-camera-occluder:${cameraOccluderId}`}
+      userData={{ warRoomCameraOccluderId: cameraOccluderId }}
+    >
+      <WarRoomAssetBoundary fallback={fallback}>
+        <Suspense fallback={fallback}>
+          <WarRoomStaticModel src={src} position={position} targetSize={targetSize} rotation={rotation} />
+        </Suspense>
+      </WarRoomAssetBoundary>
+    </group>
   );
 }
 
@@ -371,7 +428,10 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
 function WarRoomGateway({ z }: { z: number }) {
   const pierPositions = [-2.72, 2.72] as const;
   return (
-    <group name={`war-room-gateway:${z}`}>
+    <group
+      name={`war-room-camera-occluder:gateway:${z}`}
+      userData={{ warRoomCameraOccluderId: `gateway:${z}` }}
+    >
       {pierPositions.map((x) => (
         <StaticWarRoomAsset
           key={`pier-${x}`}
@@ -413,8 +473,14 @@ function WarRoomGateway({ z }: { z: number }) {
 }
 
 function WarRoomTree({ position }: { position: readonly [number, number, number] }) {
+  const cameraOccluderId = `tree:${position[0]}:${position[2]}`;
   return (
-    <group position={position} scale={0.9} name="war-room-procedural-tree-fallback">
+    <group
+      position={position}
+      scale={0.9}
+      name={`war-room-camera-occluder:${cameraOccluderId}`}
+      userData={{ warRoomCameraOccluderId: cameraOccluderId }}
+    >
       <mesh position={[0, 0.95, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.12, 0.2, 1.9, 6]} />
         <meshStandardMaterial color="#46372c" roughness={0.96} />
@@ -1102,14 +1168,30 @@ function PlayerActor({
   const playerAnimation = () => {
     const player = runtimeRef.current.player;
     const input = inputRef.current;
+    const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
+    const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
     if (player.hp <= 0) return "death";
     if (player.clockTime - player.lastDamageAt < 0.2) return "hit";
     if (player.shotFeedbackUntil > player.clockTime || player.meleeUntil > player.clockTime) return "attack";
-    const movement = Math.hypot(input.moveX, input.moveY);
-    if (input.keys.size > 0 || movement > 0.12) {
+    const movement = Math.hypot(moveX, moveY);
+    if (movement > 0.12) {
       return player.crouched || movement < 0.72 ? "walk" : "run";
     }
+    const root = rootRef.current;
+    if (root && Math.abs(Math.atan2(
+      Math.sin(player.facingYaw - root.rotation.y),
+      Math.cos(player.facingYaw - root.rotation.y),
+    )) > Math.PI / 4) return "walk";
     return "idle";
+  };
+  const playerPlaybackScale = () => {
+    const player = runtimeRef.current.player;
+    const input = inputRef.current;
+    const animation = playerAnimation();
+    if (animation !== "walk" && animation !== "run") return 1;
+    const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
+    const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
+    return resolveWarRoomLocomotion(moveX, moveY, player.yaw, player.facingYaw).playbackScale;
   };
   return (
     <group ref={rootRef} name="war-room-player">
@@ -1119,6 +1201,7 @@ function PlayerActor({
             src="/models/player-hero.glb"
             height={WAR_ROOM_CHARACTER_HEIGHT}
             state={playerAnimation}
+            playbackScale={playerPlaybackScale}
             modelRef={modelRef}
             afterAnimationFrame={applyMeleePoseAfterAnimation}
           />
@@ -1511,6 +1594,7 @@ function WarRoomRuntimeScene({
   const ndc = useMemo(() => new THREE.Vector2(), []);
   const cameraStart = useMemo(() => new THREE.Vector3(), []);
   const cameraDesired = useMemo(() => new THREE.Vector3(), []);
+  const cameraDirection = useMemo(() => new THREE.Vector3(), []);
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
   const meleeOrigin = useMemo(() => new THREE.Vector3(), []);
   const meleeImpact = useMemo(() => new THREE.Vector3(), []);
@@ -1522,6 +1606,24 @@ function WarRoomRuntimeScene({
   const cameraKickRef = useRef(0);
   const cameraSideKickRef = useRef(0);
   const cameraFovKickRef = useRef(0);
+  const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
+    () => WAR_ROOM_BLOCKERS.map((blocker) => ({
+      id: blocker.id,
+      minX: blocker.x - blocker.width / 2,
+      minY: -0.15,
+      minZ: blocker.z - blocker.depth / 2,
+      maxX: blocker.x + blocker.width / 2,
+      maxY: blocker.height + (blocker.kind === "tower" ? 2.2 : 0.15),
+      maxZ: blocker.z + blocker.depth / 2,
+    })),
+    [],
+  );
+  const cameraOccludersRef = useRef<CameraOccluderEntry[]>([]);
+  const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
+  const cameraBoundsRefreshRef = useRef(0);
+  const cameraFadeByIdRef = useRef(new Map<string, number>());
+  const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
+  const cameraDebugAtRef = useRef(0);
   const emptyClickAtRef = useRef(0);
   const meleePerformanceRef = useRef({
     started: false,
@@ -2644,6 +2746,7 @@ function WarRoomRuntimeScene({
       moveY,
       player.facingYaw,
       input.aimHeld || now < player.strafeUntil,
+      WAR_ROOM_CAMERA_FACING_ENABLED ? input.facingSetting : "movement",
     );
     player.facingYaw = orientation.yaw;
     player.facingMode = orientation.mode;

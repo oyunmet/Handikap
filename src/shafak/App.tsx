@@ -56,6 +56,7 @@ type Preferences = {
   reduceMotion: boolean;
   performanceMonitor: boolean;
   invertWarRoomLookY: boolean;
+  warRoomFacing: "camera" | "movement";
 };
 
 const PREFERENCES_KEY = "shafak-settings-v1";
@@ -70,6 +71,7 @@ const initialPreferences: Preferences = {
   reduceMotion: false,
   performanceMonitor: false,
   invertWarRoomLookY: false,
+  warRoomFacing: "camera",
 };
 
 function profileSyncErrorMessage(error: unknown) {
@@ -142,6 +144,7 @@ function readPreferences(): Preferences {
         typeof saved.invertWarRoomLookY === "boolean"
           ? saved.invertWarRoomLookY
           : initialPreferences.invertWarRoomLookY,
+      warRoomFacing: saved.warRoomFacing === "movement" ? "movement" : "camera",
     };
   } catch {
     return initialPreferences;
@@ -1107,6 +1110,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 profile={profile}
                 invertLookY={preferences.invertWarRoomLookY}
                 onInvertLookYChange={(value) => setPreference("invertWarRoomLookY", value)}
+                facingSetting={preferences.warRoomFacing}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
                 quality={activeQuality}
@@ -1216,6 +1220,28 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   checked={preferences.invertWarRoomLookY}
                   onChange={() => setPreference("invertWarRoomLookY", !preferences.invertWarRoomLookY)}
                 />
+                <div className="setting-row setting-row--quality">
+                  <span className="setting-row__copy">
+                    <strong>Savaş Odası yönelimi</strong>
+                    <small>Kamera yönünü izle veya hareket yönüne dön.</small>
+                  </span>
+                  <div className="quality-switch" role="group" aria-label="Savaş Odası yönelimi">
+                    {([
+                      ["camera", "Kamera"],
+                      ["movement", "Hareket"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        className={preferences.warRoomFacing === value ? "is-selected" : ""}
+                        key={value}
+                        type="button"
+                        aria-pressed={preferences.warRoomFacing === value}
+                        onClick={() => setPreference("warRoomFacing", value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
                     <strong>{tr.graphics}</strong>

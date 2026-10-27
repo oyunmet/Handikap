@@ -243,6 +243,7 @@ type AnimatedActorProps = {
   tint?: string;
   commander?: boolean;
   state: () => WarRoomAnimationState;
+  playbackScale?: () => number;
   modelRef?: MutableRefObject<THREE.Group | null>;
   afterAnimationFrame?: (model: THREE.Group) => void;
 };
@@ -311,6 +312,7 @@ export function WarRoomAnimatedActor({
   tint,
   commander = false,
   state,
+  playbackScale,
   modelRef,
   afterAnimationFrame,
 }: AnimatedActorProps) {
@@ -355,6 +357,7 @@ export function WarRoomAnimatedActor({
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeAction = useRef<THREE.AnimationAction | null>(null);
   const activeState = useRef<WarRoomAnimationState | null>(null);
+  const previousPlaybackSign = useRef(1);
 
   useEffect(() => {
     if (modelRef) modelRef.current = model;
@@ -390,6 +393,15 @@ export function WarRoomAnimatedActor({
       }
       activeState.current = nextState;
     }
+    const requestedPlaybackScale = playbackScale?.() ?? 1;
+    const playbackSign = requestedPlaybackScale < 0 ? -1 : 1;
+    if (activeAction.current) {
+      if (playbackSign !== previousPlaybackSign.current) {
+        activeAction.current.time = playbackSign < 0 ? activeAction.current.getClip().duration : 0;
+      }
+      activeAction.current.timeScale = requestedPlaybackScale;
+    }
+    previousPlaybackSign.current = playbackSign;
     mixer.update(Math.min(delta, 0.05));
     afterAnimationFrame?.(model);
   });

@@ -20,6 +20,7 @@ import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-
 import { WAR_ROOM_BUILD_VERSION } from "./war-room-features";
 import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
+import type { WarRoomFacingSetting } from "./war-room-orientation";
 import type { PlayerProfile } from "./profile";
 import "./war-room.css";
 
@@ -28,6 +29,7 @@ type Props = {
   profile: PlayerProfile;
   invertLookY: boolean;
   onInvertLookYChange: (value: boolean) => void;
+  facingSetting: WarRoomFacingSetting;
   onOpenSettings: () => void;
   settingsOpen: boolean;
   quality: RenderQuality;
@@ -39,13 +41,14 @@ type CalibrationField = "position" | "rotation" | "scale";
 const GOLD_KEY = "shafak-war-room-gold-v1";
 const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
 
-function createInputState(): WarRoomInputState {
+function createInputState(facingSetting: WarRoomFacingSetting): WarRoomInputState {
   return {
     keys: new Set(),
     moveX: 0,
     moveY: 0,
     yaw: 0,
     pitch: -0.08,
+    facingSetting,
     fireHeld: false,
     firePressed: false,
     fireReleased: false,
@@ -222,6 +225,7 @@ export default function WarRoomGame({
   profile,
   invertLookY,
   onInvertLookYChange,
+  facingSetting,
   onOpenSettings,
   settingsOpen,
   quality,
@@ -268,7 +272,7 @@ export default function WarRoomGame({
     totalGold: number | null;
   } | null>(null);
   const runtimeRef = useRef<WarRoomRuntime>(createWarRoomRuntime(loadout));
-  const inputRef = useRef<WarRoomInputState>(createInputState());
+  const inputRef = useRef<WarRoomInputState>(createInputState(facingSetting));
   const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1, pointerType: "mouse" });
   const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
@@ -281,7 +285,7 @@ export default function WarRoomGame({
   const beginBattle = () => {
     resumeWarRoomAudio();
     runtimeRef.current = createWarRoomRuntime(loadout);
-    inputRef.current = createInputState();
+    inputRef.current = createInputState(facingSetting);
     pointerRef.current.id = null;
     setHud(createEmptyHud());
     setMeleeDebugMessage("");
@@ -306,6 +310,10 @@ export default function WarRoomGame({
     });
     setPhase(result);
   }, []);
+
+  useEffect(() => {
+    inputRef.current.facingSetting = facingSetting;
+  }, [facingSetting]);
 
   const pauseBattle = useCallback(() => {
     const input = inputRef.current;

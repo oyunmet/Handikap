@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomPostAttackStrafeUntil,
+  resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
+  stepWarRoomYaw,
 } from "./war-room-orientation.ts";
 
 function closeAngle(actual, expected) {
@@ -11,38 +13,62 @@ function closeAngle(actual, expected) {
   assert.ok(Math.abs(difference) < 1e-8, `expected ${actual} to be close to ${expected}`);
 }
 
-test("backward joystick movement faces the player toward the camera", () => {
-  const result = resolveWarRoomOrientation(0, 0, -1, 0, false);
+test("movement-facing mode turns toward backward joystick input", () => {
+  const result = resolveWarRoomOrientation(0, 0, -1, 0, false, "movement");
   closeAngle(result.yaw, Math.PI);
   assert.equal(result.facingCamera, true);
   assert.equal(result.mode, "HAREKET");
   assert.equal(result.joystickAngleDegrees, 180);
 });
 
-test("forward and lateral joystick movement face their corresponding world directions", () => {
-  const forward = resolveWarRoomOrientation(0, 0, 1, Math.PI, false);
+test("movement-facing mode turns toward forward and lateral world directions", () => {
+  const forward = resolveWarRoomOrientation(0, 0, 1, Math.PI, false, "movement");
   closeAngle(forward.yaw, 0);
   assert.equal(forward.facingCamera, false);
   assert.equal(forward.joystickAngleDegrees, 0);
 
-  const right = resolveWarRoomOrientation(0, 1, 0, 0, false);
+  const right = resolveWarRoomOrientation(0, 1, 0, 0, false, "movement");
   closeAngle(right.yaw, Math.PI / 2);
   assert.equal(right.joystickAngleDegrees, 90);
 
-  const left = resolveWarRoomOrientation(0, -1, 0, 0, false);
+  const left = resolveWarRoomOrientation(0, -1, 0, 0, false, "movement");
   closeAngle(left.yaw, -Math.PI / 2);
   assert.equal(left.joystickAngleDegrees, -90);
 });
 
-test("strafe mode faces the camera and idle movement keeps its last body direction", () => {
+test("camera-facing mode tracks idle camera yaw while aim keeps strafe behavior", () => {
   const strafing = resolveWarRoomOrientation(0.4, 0, -1, 0, true);
   closeAngle(strafing.yaw, 0.4);
   assert.equal(strafing.mode, "STRAFE");
 
   const idle = resolveWarRoomOrientation(0, 0, 0, Math.PI, false);
-  closeAngle(idle.yaw, Math.PI);
+  closeAngle(idle.yaw, 0);
+  assert.equal(idle.mode, "KAMERA");
   assert.equal(idle.joystickAngleDegrees, null);
-  assert.equal(idle.facingCamera, true);
+  assert.equal(idle.facingCamera, false);
+
+  const movementIdle = resolveWarRoomOrientation(0, 0, 0, Math.PI, false, "movement");
+  closeAngle(movementIdle.yaw, Math.PI);
+  assert.equal(movementIdle.mode, "HAREKET");
+  assert.equal(movementIdle.facingCamera, true);
+});
+
+test("locomotion resolves forward, backward, and sideways directions in body space", () => {
+  assert.equal(resolveWarRoomLocomotion(0, 1, 0, 0).direction, "forward");
+  const backward = resolveWarRoomLocomotion(0, -1, 0, 0);
+  assert.equal(backward.direction, "backward");
+  assert.equal(backward.playbackScale, -1);
+  assert.equal(resolveWarRoomLocomotion(1, 0, 0, 0).direction, "right");
+  assert.equal(resolveWarRoomLocomotion(-1, 0, 0, 0).direction, "left");
+  assert.equal(resolveWarRoomLocomotion(0, 0, 0, 0).direction, "idle");
+});
+
+test("body rotation takes the short path across the ±180° boundary", () => {
+  const from = Math.PI - 0.04;
+  const to = -Math.PI + 0.04;
+  const step = stepWarRoomYaw(from, to, 0.05);
+  assert.ok(step > from, "the body should turn forward through 180°");
+  assert.ok(Math.abs(Math.atan2(Math.sin(to - step), Math.cos(to - step))) < 0.012);
 });
 
 test("post-attack strafe ends 0.8 seconds after the attack animation", () => {

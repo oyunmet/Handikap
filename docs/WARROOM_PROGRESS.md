@@ -56,6 +56,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Sürüm:** `v15-kalibrasyon-ek`.
 - **Doğrulama:** `npm run typecheck` ve `npm run build` başarılı; build 500 kB üstü bundle uyarısı verdi. `npm test`: 375 toplam, 367 geçti, 8 başarısız; bilinen Savaş Odası dışı taban testleri (6 mağaza, 1 düello süresi, 1 varsayılan envanter), Adım 7 FX testleri geçti. `Start application` çalıştı ve giriş/intro ekranı açıldı; önizleme tarayıcısı WebGL bağlamı oluşturamadığı için savaş ve efekt görünümü doğrulanamadı. Gerçek iPhone/Safari kabulü de doğrulanamadı.
 
+## Tur 3 — v16 iPhone bulguları
+
+- **Durum:** DEVAM EDİYOR — Faz A başlıyor; Faz B–F sıralı bekliyor.
+- **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
+- **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
+- **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
+- **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
+- **Fazlar:** A kamera/yönelim — SIRADA · B Kül Yolu kontrolleri — BEKLİYOR · C silah/laboratuvar — BEKLİYOR · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+
 ## Faz 1 — Karakter yönelimi
 
 - **Durum:** BİTTİ (önceki oturumda tamamlandığı ve yerel commit alındığı ekran görüntüsünde bildirildi).

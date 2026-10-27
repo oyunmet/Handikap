@@ -7,7 +7,7 @@ import {
   WAR_ROOM_WEAPON_BY_ID,
   type WarRoomWeaponId,
 } from "./war-room-data";
-import type { WarRoomFacingMode } from "./war-room-orientation";
+import type { WarRoomFacingMode, WarRoomFacingSetting } from "./war-room-orientation";
 import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
 
 export type WarRoomEnemy = {
@@ -118,6 +118,7 @@ export type WarRoomInputState = {
   moveY: number;
   yaw: number;
   pitch: number;
+  facingSetting: WarRoomFacingSetting;
   fireHeld: boolean;
   firePressed: boolean;
   fireReleased: boolean;
