@@ -58,12 +58,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 3 — v16 iPhone bulguları
 
-- **Durum:** DEVAM EDİYOR — Faz A–E tamamlandı; Faz F son kontrolü bekliyor.
+- **Durum:** DEVAM EDİYOR — Faz A–F kod doğrulaması tamamlandı; gerçek iPhone kabulü bekliyor.
 - **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
 - **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
 - **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
 - **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
-- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — TAMAMLANDI · E oda zinciri — TAMAMLANDI · F son kontrol — BEKLİYOR.
+- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — TAMAMLANDI · E oda zinciri — TAMAMLANDI · F son kontrol — KISMEN (iPhone kabulü bekliyor).
 
 ### Faz A — Kamera ve karakter yönelimi
 
@@ -110,6 +110,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Değişen dosyalar:** `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-data.ts`, `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-rooms.ts`, `src/shafak/game/war-room-rooms.test.js`, `src/shafak/game/war-room-dispose.ts`, `src/shafak/game/war-room-dispose.test.js`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama:** `npm run typecheck` geçti. `npm run build` geçti; var olan 500 kB üstü bundle uyarısı devam ediyor. `npm test`: 405 testten 397 geçti; 8 başarısızlık aynı bilinen Savaş Odası dışı taban hataları (mağaza/ekipman 6, düello süresi 1, varsayılan envanter 1). Oda sırası/ölçek/ödül/ilerleme, blocker çakışması, hasar değerlerinin sabit kalması ve sahne kaynak temizliği testleri geçti. Uygulama önizlemesi ve gerçek cihaz kabulü Faz F'de tekrar kontrol edilecek.
 - **Kalanlar:** iPhone/Safari'de oda 2+ geçişi, yeni tema/yerleşim, düşman silahları ve renkleri, yenilgi seçenekleri, %40 HP aktarımı ve sonuç ekranı görünümü doğrulanmalı. İsteğe bağlı buff bayrağını açmak bu fazın kapsamında değil.
+
+### Faz F — Son kontrol ve cihaz kabul listesi
+
+- **Durum:** KISMEN — bayraklar, derleme, tür kontrolü ve test tabanı doğrulandı; gerçek iPhone/Safari görsel ve dokunma kabulü yapılamadı.
+- **Kök neden / gözlem:** `Start application` iş akışı temiz başladı ve giriş/intro sayfası önizlemede göründü. Tarayıcı konsolu `THREE.WebGLRenderer: A WebGL context could not be created` ve `BindToCurrentSequence failed` verdi; ekran görüntüsü etkileşim kuramadığından Savaş Odası'na geçilemedi. Bu nedenle siyah/karanlık 3D sahne veya oda geçişi hakkında görsel bir sonuç çıkarılmadı; hata bu önizleme ortamındaki WebGL başlatma sınırı olarak kaydedildi, oyun hatası olduğu doğrulanmadı.
+- **Yapılanlar:** Son bayrak kontrolünde oda zinciri açık, isteğe bağlı oda buff'ları kapalı ve sürüm `v16-oda-zinciri`. Oda sırası, hasar değerleri, ilerleme/ödül ve kaynak temizliği birim testleriyle kontrol edildi. Bu fazda oyun kodu değişmedi.
+- **Değişen dosyalar:** `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** Uygulama iş akışı `RUNNING`, giriş/intro önizlemesi yüklendi. `npm run typecheck` başarılı. `npm run build` başarılı; Vite mevcut 500 kB üzeri chunk uyarısını yazdı. `npm test`: 405 testten 397 geçti; 8 taban başarısızlığı aynı kaldı: altı mağaza/ekipman testi, kolay düello süresi testi ve varsayılan envanter testi. Hiçbir yeni Savaş Odası testi başarısız olmadı.
+- **iPhone/Safari kabul listesi:** (1) karakter yaw'ı ve saldırı yönü; (2) kamera engel açıklığı ve örtü saydamlaşması; (3) Kül Yolu'nda joystick ile aynı anda koş/zıpla/eğil; (4) silah laboratuvarında her silahın elde duruşu ve ikonları; (5) siyah darbe izi/iz efekti, hit-stop ve düşman ölüm tepkisi; (6) sonraki oda, tema/yerleşim, düşman görünümü, yenilgide tekrar/baştan seçenekleri, HP aktarımı ve yerel oda kaydı.
 
 ## Faz 1 — Karakter yönelimi
 
