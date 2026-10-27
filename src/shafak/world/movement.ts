@@ -1,3 +1,12 @@
+import {
+  advanceWorldMovementMachine,
+  createWorldMovementMachine,
+  markWorldMovementLanded,
+  type WorldActionState,
+  type WorldMovementMachine,
+  type WorldMovementState,
+} from "./world-movement-machine.ts";
+
 export type WorldMotion = {
   velocityX: number;
   velocityY: number;
@@ -5,6 +14,8 @@ export type WorldMotion = {
   jumpVelocity: number;
   jumpHeld: boolean;
   crouching: boolean;
+  movementMachine: WorldMovementMachine;
+  movementState: WorldMovementState;
   depth: number;
   distance: number;
   originDistance: number;
@@ -21,9 +32,7 @@ export type WorldMotion = {
 export type WorldInput = {
   x: number;
   y: number;
-  sprint: boolean;
-  jump: boolean;
-  crouch: boolean;
+  actions: WorldActionState;
   analogMagnitude: number;
 };
 
@@ -69,6 +78,8 @@ export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
     jumpVelocity: 0,
     jumpHeld: false,
     crouching: false,
+    movementMachine: createWorldMovementMachine(),
+    movementState: "YERDE_DURUYOR",
     depth: clamp(finiteOrZero(depth), -WORLD_PLAYER_DEPTH_LIMIT, WORLD_PLAYER_DEPTH_LIMIT),
     distance: initialDistance,
     originDistance: getWorldOriginDistance(initialDistance),
@@ -86,6 +97,7 @@ export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
 export function readWorldInput(
   keys: ReadonlySet<string>,
   analog: { x: number; y: number },
+  actions: WorldActionState = readWorldActions(keys),
 ): WorldInput {
   const keyX = Number(keys.has("arrowright") || keys.has("d"))
     - Number(keys.has("arrowleft") || keys.has("a"));
@@ -104,10 +116,19 @@ export function readWorldInput(
   return {
     x: x * scale,
     y: y * scale,
-    sprint: keys.has("shift"),
-    jump: keys.has("space"),
-    crouch: keys.has("control") || keys.has("c"),
+    actions,
     analogMagnitude: hasKeyboardDirection ? 0 : clamp(magnitude, 0, 1),
+  };
+}
+
+export function readWorldActions(
+  keys: ReadonlySet<string>,
+  jumpPressed = false,
+): WorldActionState {
+  return {
+    sprint: keys.has("shift"),
+    jumpPressed,
+    crouch: keys.has("control") || keys.has("c"),
   };
 }
 
@@ -124,15 +145,32 @@ export function stepWorldMotion(
   const analogRun = smoothstep(0.58, 1, clamp(input.analogMagnitude, 0, 1));
   let jumpVelocity = state.jumpVelocity;
   let jumpHeight = state.jumpHeight;
-  const jumpPressed = input.jump && !state.jumpHeld;
-  if (jumpPressed && !input.crouch && jumpHeight <= 0.001) jumpVelocity = 7.2;
+  let movementMachine = advanceWorldMovementMachine(
+    state.movementMachine,
+    input.actions,
+    {
+      grounded: jumpHeight <= 0.001,
+      verticalVelocity: jumpVelocity,
+      speed: Math.hypot(state.velocityX, state.velocityY),
+      deltaSeconds: dt,
+    },
+  );
+  if (movementMachine.launchJump) jumpVelocity = 7.2;
   if (jumpVelocity !== 0 || jumpHeight > 0) {
     jumpVelocity -= 19.5 * dt;
     jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
     if (jumpHeight === 0) jumpVelocity = 0;
   }
-  const crouching = input.crouch && jumpHeight <= 0.05;
-  const runBlend = crouching ? 0 : input.sprint ? 1 : analogRun;
+  const landed = state.jumpHeight > 0 && jumpHeight <= 0;
+  if (landed) movementMachine = markWorldMovementLanded(movementMachine);
+  else if (jumpHeight > 0 && movementMachine.jumpPreparationSeconds <= 0) {
+    movementMachine = {
+      ...movementMachine,
+      state: jumpVelocity >= 0 ? "HAVADA_YUKARI" : "HAVADA_AŞAĞI",
+    };
+  }
+  const crouching = movementMachine.crouching && jumpHeight <= 0.05;
+  const runBlend = crouching ? 0 : input.actions.sprint ? 1 : analogRun;
   const targetSpeed = magnitude * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * runBlend)
     * (crouching ? 0.56 : 1)
     * clamp(finiteOrZero(speedMultiplier) || 1, 0.88, 1.14);
@@ -183,8 +221,10 @@ export function stepWorldMotion(
   frame.velocityY = velocityY;
   frame.jumpHeight = jumpHeight;
   frame.jumpVelocity = jumpVelocity;
-  frame.jumpHeld = input.jump;
+  frame.jumpHeld = input.actions.jumpPressed;
   frame.crouching = crouching;
+  frame.movementMachine = movementMachine;
+  frame.movementState = movementMachine.state;
   frame.depth = depth;
   frame.distance = distance;
   frame.originDistance = originDistance;
@@ -223,6 +263,8 @@ export function interpolateWorldMotion(
   target.jumpVelocity = current.jumpVelocity;
   target.jumpHeld = current.jumpHeld;
   target.crouching = current.crouching;
+  target.movementMachine = current.movementMachine;
+  target.movementState = current.movementState;
   target.depth = lerp(previous.depth, current.depth);
   target.distance = lerp(previous.distance, current.distance);
   target.originDistance = current.originDistance;

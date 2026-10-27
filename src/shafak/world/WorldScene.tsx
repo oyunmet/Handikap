@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
-import { WORLD_BUILD_VERSION, WORLD_TOUCH_ACTIONS_ENABLED } from "./world-features";
+import { WORLD_TOUCH_ACTIONS_ENABLED } from "./world-features";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
 import WorldWeaponPicker from "./WorldWeaponPicker";
@@ -519,6 +519,10 @@ export default function WorldScene({
   onSaveWorldPosition,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
+  const [movementDebugEnabled] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1",
+  );
+  const [movementDebugTick, setMovementDebugTick] = useState(0);
   const npcDialoguePortalRef = useRef<HTMLDivElement>(null!);
   const profileRef = useRef(profile);
   const [dailyClockTick, setDailyClockTick] = useState(() => Date.now());
@@ -1022,6 +1026,11 @@ export default function WorldScene({
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
   const worldInput = useWorldInput(wake);
+  useEffect(() => {
+    if (!movementDebugEnabled) return undefined;
+    const timer = window.setInterval(() => setMovementDebugTick(Date.now()), 120);
+    return () => window.clearInterval(timer);
+  }, [movementDebugEnabled]);
   const showStoryDialogue = useCallback((dialogue: StoryDialogue) => {
     storyDialogueRef.current = dialogue;
     worldInput.clearActions();
@@ -2098,7 +2107,12 @@ export default function WorldScene({
     let lastProgressSave = 0;
     const lastFiniteMotion = { ...motionRef.current };
     const fixedStep = 1 / 60;
-    const stoppedInput = { x: 0, y: 0, sprint: false, jump: false, crouch: false, analogMagnitude: 0 };
+    const stoppedInput = {
+      x: 0,
+      y: 0,
+      actions: { sprint: false, jumpPressed: false, crouch: false },
+      analogMagnitude: 0,
+    };
     const frameScratch = stepWorldMotion(
       motionRef.current,
       stoppedInput,
@@ -2129,9 +2143,13 @@ export default function WorldScene({
       const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
       previous = now;
       accumulator = Math.min(accumulator + dt, fixedStep * 6);
-      const liveInput = pendingWeaponRival
+      let liveInput = pendingWeaponRival
         ? stoppedInput
-        : readWorldInput(worldInput.heldKeys.current, worldInput.joystick.current);
+        : readWorldInput(
+            worldInput.heldKeys.current,
+            worldInput.joystick.current,
+            worldInput.readActions(),
+          );
       const worldPausedForStory = Boolean(storyDialogueRef.current) || Boolean(pendingWeaponRival);
       let frameState: WorldMotionFrame = stepWorldMotion(
         motionRef.current,
@@ -2305,7 +2323,14 @@ export default function WorldScene({
         }
         const simulationStep = fixedStep;
         if (chestSlamRef.current) {
-          stepInput = { x: 0, y: 0, sprint: false, jump: false, crouch: false, analogMagnitude: 0 };
+          stepInput = stoppedInput;
+        } else if (stepInput.actions.jumpPressed) {
+          stepInput = {
+            ...stepInput,
+            actions: { ...stepInput.actions, jumpPressed: false },
+          };
+          liveInput = stepInput;
+          worldInput.consumeJumpPress();
         }
         Object.assign(previousMotion, motionRef.current);
         let nextFrame = stepWorldMotion(
@@ -2611,7 +2636,20 @@ export default function WorldScene({
       window.cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [audioOn, combatDifficulty, motionReduced, pendingWeaponRival, playerCombatStats.moveSpeedMultiplier, queuePickupClaims, vibrationOn, visualEffectsEnabled, worldInput.heldKeys, worldInput.joystick]);
+  }, [
+    audioOn,
+    combatDifficulty,
+    motionReduced,
+    pendingWeaponRival,
+    playerCombatStats.moveSpeedMultiplier,
+    queuePickupClaims,
+    vibrationOn,
+    visualEffectsEnabled,
+    worldInput.consumeJumpPress,
+    worldInput.heldKeys,
+    worldInput.joystick,
+    worldInput.readActions,
+  ]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -2745,7 +2783,7 @@ export default function WorldScene({
     <main
       ref={sceneRef}
       className="world-scene"
-      data-build-version={WORLD_BUILD_VERSION}
+      data-build-version={GAME_BUILD_MARKER}
       data-world-renderer="rebuilt"
       data-battle={battleSession?.phase ?? "none"}
       data-story-open={storyDialogue ? "true" : "false"}
@@ -3333,6 +3371,36 @@ export default function WorldScene({
             <kbd aria-hidden="true">CTRL</kbd>
         </button>
       </div>
+      {movementDebugEnabled && (
+        <aside
+          className="world-movement-debug"
+          aria-label="Kül Yolu hareket ve dokunmatik tanılaması"
+          data-input-revision={worldInput.inputRevision}
+          data-debug-tick={movementDebugTick}
+        >
+          {(() => {
+            const actions = worldInput.readActions();
+            const position = motionRef.current;
+            const obstacleCheck = !nearbyHazard
+              ? "Engel yakınında değil"
+              : nearbyHazard.kind === "spike-trap"
+                ? position.jumpHeight >= WORLD_JUMP_CLEARANCE_METERS ? "Diken: geçiş açık" : "Diken: zıplama gerekli"
+                : nearbyHazard.kind === "low-bar"
+                  ? position.crouching ? "Kiriş: geçiş açık" : "Kiriş: eğilme gerekli"
+                  : position.jumpHeight >= WORLD_JUMP_CLEARANCE_METERS ? "Kaya: zıplama açık" : "Kaya: yana kaç";
+            return (
+              <>
+                <b>HAREKET GİRDİSİ</b>
+                <span>Koş {actions.sprint ? "AÇIK" : "kapalı"} · zıpla {actions.jumpPressed ? "BASILI" : "kapalı"} · eğil {actions.crouch ? "AÇIK" : "kapalı"}</span>
+                <span>Durum: {position.movementState} · hız {Math.hypot(position.velocityX, position.velocityY).toFixed(2)} m/sn</span>
+                <span>Engel: {nearbyHazard?.kind ?? "yok"} · {obstacleCheck}</span>
+                <span>Joystick: {worldInput.joystick.current.x.toFixed(2)}, {worldInput.joystick.current.y.toFixed(2)} · etkin pointer: {worldInput.activePointerCount()}</span>
+                <span>Tampon: {(position.movementMachine.jumpBufferSeconds * 1000).toFixed(0)} ms · kenar: {(position.movementMachine.coyoteSeconds * 1000).toFixed(0)} ms</span>
+              </>
+            );
+          })()}
+        </aside>
+      )}
       {nearbyHazard && !battleSession && (
         <div className="world-hazard-hint" role="status">
           {nearbyHazard.kind === "spike-trap"

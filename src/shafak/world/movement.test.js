@@ -4,6 +4,7 @@ import {
   createWorldMotion,
   getWorldOriginDistance,
   interpolateWorldMotion,
+  readWorldActions,
   readWorldInput,
   stepWorldMotion,
   WORLD_PLAYER_DEPTH_LIMIT,
@@ -51,10 +52,9 @@ test("forward running with sub-deadzone thumb drift keeps the runner facing stra
 });
 
 test("mobile action keys map to jump, crouch, and sprint", () => {
-  const input = readWorldInput(new Set(["space", "c", "shift"]), { x: 0, y: 1 });
-  assert.equal(input.jump, true);
-  assert.equal(input.crouch, true);
-  assert.equal(input.sprint, true);
+  const keys = new Set(["c", "shift"]);
+  const input = readWorldInput(keys, { x: 0, y: 1 }, readWorldActions(keys, true));
+  assert.deepEqual(input.actions, { sprint: true, jumpPressed: true, crouch: true });
 });
 
 test("sprint accelerates faster than walking and jump/crouch change motion", () => {
@@ -62,11 +62,18 @@ test("sprint accelerates faster than walking and jump/crouch change motion", () 
   const running = readWorldInput(new Set(["w", "shift"]), { x: 0, y: 0 });
   const walkFrame = stepWorldMotion(createWorldMotion(), walking, 1 / 30);
   const runFrame = stepWorldMotion(createWorldMotion(), running, 1 / 30);
-  const jumpFrame = stepWorldMotion(
+  let jumpFrame = stepWorldMotion(
     createWorldMotion(),
-    readWorldInput(new Set(["space"]), { x: 0, y: 0 }),
+    readWorldInput(new Set(), { x: 0, y: 0 }, readWorldActions(new Set(), true)),
     1 / 60,
   );
+  for (let index = 0; index < 5; index += 1) {
+    jumpFrame = stepWorldMotion(
+      jumpFrame,
+      readWorldInput(new Set(), { x: 0, y: 0 }),
+      1 / 60,
+    );
+  }
   const crouchFrame = stepWorldMotion(
     createWorldMotion(),
     readWorldInput(new Set(["c", "w"]), { x: 0, y: 0 }),

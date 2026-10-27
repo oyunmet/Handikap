@@ -213,3 +213,18 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 7. Düşük/orta/yüksek ve otomatik kaliteyi dene; 60 sn kesintisiz saldırı sırasında debug FPS, saldırı aralıkları, FX/decal tepesi ve renderer geometri/doku sayaçlarını kaydet.
 8. Sesli/sessiz geçişini, ilk dokunuştan sonra iOS AudioContext'i, arka plan/ön plan dönüşünü ve yakın dövüş/zemin seslerini kontrol et.
 9. WebGL siyah kare, model kaybı, kontrol kilitlenmesi, belirgin ısınma veya performans düşüşü varsa adım ve cihaz bilgisiyle not al.
+
+## Tur 4 — iPhone hareketi, butonlar, animasyon, gökyüzü ve savaş HUD'u
+
+- **Durum:** DEVAM EDİYOR — Faz 1 tamamlandı; Faz 2–6 sırada.
+- **Kapsam:** `attached_assets` içindeki Tur 4 notu. Kül Yolu giriş/durum makinesi, ortak oyun butonları, hareket pozları, gün/gece, savaş efektleri ve son kabul raporu.
+- **Kurallar:** Fazlar sırayla ve bağımsız commit edilir; her faz sonunda build, typecheck ve testler çalıştırılır. Push/deploy yok. Ekonomi, kayıtlar, düşman AI, hasar/ceza değerleri, silahlar ve oyun dengesi değiştirilmez. Savaş efekt havuzu/decal sınırları korunur; frame içinde yeni Three.js geometri/materyal/ışık yaratılmaz.
+- **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; WebGL görsel sonuçları cihazda ayrıca kontrol edilmeli.
+
+### Faz 1 — Kül Yolu girdi ve hareket durumu
+
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); iPhone dokunma kabulü açık.
+- **Kök neden:** `useWorldInput.ts` ve `world-touch-actions.test.js` `world-touch-actions.ts` modülünü içe aktarıyordu fakat kaynak dosya depoda yoktu. Bu nedenle typecheck `TS2307`, Vite build `UNRESOLVED_IMPORT`, dokunmatik davranışın uygulama içinde denenmesi de mümkün değildi. Ayrıca zıplama, sabit süreli tutuş darbesiyle temsil edildiğinden sabit-adım simülasyonunda zamanlama durumu açık değildi.
+- **Yapılanlar:** Pointer kimliğine göre bağımsız basılı eylem kümeleri ve pointer sayacı eklendi; joystick ile KOŞ/ZIPLA/EĞİL aynı anda kullanılabiliyor. Pointer capture hataları güvenli biçimde tolere ediliyor. Klavye Shift/Space/Ctrl ve C eşlemesi korundu. Hareket simülasyonu artık yalnız `{ sprint, jumpPressed, crouch }` eylem durumunu okuyor. Saf FSM; zıplama tamponu 120 ms, kenar toleransı 100 ms, hazırlık/iniş, yürüyüş/sprint, eğilme ve koşu sonrası 0,6 sn kayma durumlarını yönetiyor. Mevcut 7,2 ilk zıplama hızı, 19,5 yerçekimi, 6,8 koşu hızı ve tuzak ceza süre/değerleri değişmedi. Diken/taş zıplama açıklığı ve alçak kiriş eğilme çarpışması korundu. `?debug=1` hareket eylemlerini, FSM durumunu, engel açıklığını, joystick'i ve etkin pointer sayısını gösteriyor. iOS sayfa kaydırma/çift dokunma yakınlaştırması/uzun basma menüsü oyun sahnesi ve kontrollerinde kapatıldı. Sürüm tek kaynak `GAME_BUILD_MARKER` üzerinden `v17-faz-1`.
+- **Değişen dosyalar:** `src/shafak/build-info.ts`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/movement.ts`, `src/shafak/world/movement.test.js`, `src/shafak/world/useWorldInput.ts`, `src/shafak/world/world-features.ts`, `src/shafak/world/world-movement-machine.ts`, `src/shafak/world/world-movement-machine.test.js`, `src/shafak/world/world-scene.css`, `src/shafak/world/world-touch-actions.ts`, `src/shafak/world/world-touch-actions.test.js`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** Hareket/durum makinesi/dokunma/engel hedef testleri 41/41 geçti; typecheck ve build başarılı. Tam test paketi 412 testten 404 geçti; bilinen Savaş Odası dışı taban başarısızlıkları 6 mağaza/ekipman, 1 düello süresi ve 1 envanter varsayılanı testi. Eksik dokunma modülü kaynaklı test hatası giderildi. Build 500 kB üzeri bundle uyarısı verdi. Fiziksel iPhone/Safari kabulü doğrulanamadı.

@@ -1,2 +1,2 @@
-export const GAME_BUILD_MARKER = "v13-yakin-dovus-fix";
-export const GAME_BUILD_DATE = "25.10.2026";
+export const GAME_BUILD_MARKER = "v17-faz-1";
+export const GAME_BUILD_DATE = "27.10.2026";
