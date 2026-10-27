@@ -15,11 +15,13 @@ test("weapon lab cycles every weapon once in catalog order", () => {
   }
   assert.deepEqual(visited, WAR_ROOM_WEAPONS.map((weapon) => weapon.id));
   assert.equal(getNextWarRoomLabWeaponIndex(index), 0);
+  assert.equal(getNextWarRoomLabWeaponIndex(-1), 0);
 });
 
-test("weapon lab reports configured fit length rather than weapon combat range", () => {
-  const shovel = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_shovel");
-  const pistol = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "blaster_b");
-  assert.equal(getWarRoomLabWeaponLength(shovel), 1.2);
-  assert.equal(getWarRoomLabWeaponLength(pistol), 0.25);
+test("weapon lab reports a positive fitted length for every weapon", () => {
+  for (const weapon of WAR_ROOM_WEAPONS) {
+    assert.ok(getWarRoomLabWeaponLength(weapon) > 0, `${weapon.id} should have a measurable length`);
+  }
+  assert.equal(getWarRoomLabWeaponLength(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_shovel")), 1.2);
+  assert.equal(getWarRoomLabWeaponLength(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "blaster_b")), 0.25);
 });

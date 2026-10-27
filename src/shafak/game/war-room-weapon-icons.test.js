@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WAR_ROOM_WEAPONS } from "./war-room-data.ts";
-import { getWarRoomWeaponIconDataUrl } from "./war-room-weapon-icons.ts";
+import {
+  getWarRoomRenderedWeaponIconDataUrl,
+  getWarRoomWeaponIconDataUrl,
+} from "./war-room-weapon-icons.ts";
 
 test("every weapon gets a cached, weapon-colored silhouette icon", () => {
   const urls = WAR_ROOM_WEAPONS.map((weapon) => getWarRoomWeaponIconDataUrl(weapon.id));
@@ -15,4 +18,11 @@ test("every weapon gets a cached, weapon-colored silhouette icon", () => {
     getWarRoomWeaponIconDataUrl("melee_cudgel"),
     getWarRoomWeaponIconDataUrl("melee_spear"),
   );
+});
+
+test("model icons keep their cached SVG fallback when rendering is unavailable", async () => {
+  for (const weapon of WAR_ROOM_WEAPONS) {
+    const icon = await getWarRoomRenderedWeaponIconDataUrl(weapon.id);
+    assert.ok(icon.startsWith("data:image/svg+xml;charset=UTF-8,"));
+  }
 });

@@ -1051,7 +1051,7 @@ function PlayerActor({
       const aiming = inputRef.current.aimHeld;
       const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
       const melee = weapon.weaponClass === "melee";
-      weaponMount.visible = enemy.id !== "training-dummy";
+      weaponMount.visible = true;
       if (player.shotFeedbackUntil > previousShotFeedbackRef.current && weapon.weaponClass === "shotgun") {
         shotgunPumpStartedAtRef.current = player.clockTime;
       }

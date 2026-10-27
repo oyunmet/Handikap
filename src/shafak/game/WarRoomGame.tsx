@@ -27,7 +27,7 @@ import {
   getNextWarRoomLabWeaponIndex,
   getWarRoomLabWeaponLength,
 } from "./war-room-lab";
-import { getWarRoomWeaponIconDataUrl } from "./war-room-weapon-icons";
+import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
 import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
@@ -652,7 +652,7 @@ export default function WarRoomGame({
                     disabled={!owned}
                   >
                     {WAR_ROOM_WEAPON_ICONS_ENABLED
-                      ? <img className="war-room-weapon-card__icon" src={getWarRoomWeaponIconDataUrl(weapon.id)} alt="" aria-hidden="true" />
+                      ? <WarRoomWeaponIcon className="war-room-weapon-card__icon" weaponId={weapon.id} />
                       : <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>}
                     <span className="war-room-weapon-card__copy">
                       <b>{weapon.name}</b>
@@ -965,7 +965,7 @@ export default function WarRoomGame({
                 {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? (
                   <strong className="war-room-ammo__melee" aria-label="Sınırsız kullanım">
                     {WAR_ROOM_WEAPON_ICONS_ENABLED
-                      ? <img className="war-room-ammo__weapon-icon" src={getWarRoomWeaponIconDataUrl(hud.weaponId)} alt="" aria-hidden="true" />
+                      ? <WarRoomWeaponIcon className="war-room-ammo__weapon-icon" weaponId={hud.weaponId} />
                       : WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon} ∞
                   </strong>
                 ) : (

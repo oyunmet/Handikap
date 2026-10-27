@@ -58,12 +58,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 3 — v16 iPhone bulguları
 
-- **Durum:** DEVAM EDİYOR — Faz A–B tamamlandı; Faz C başlıyor, Faz D–F sıralı bekliyor.
+- **Durum:** DEVAM EDİYOR — Faz A–C tamamlandı; Faz D–F sıralı bekliyor.
 - **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
 - **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
 - **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
 - **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
-- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — SIRADA · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — TAMAMLANDI · C silah/laboratuvar — TAMAMLANDI · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
 
 ### Faz A — Kamera ve karakter yönelimi
 
@@ -82,6 +82,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Değişen dosyalar:** `src/shafak/world/world-touch-actions.ts`, `src/shafak/world/world-touch-actions.test.js`, `src/shafak/world/world-features.ts`, `src/shafak/world/world-features.test.js`, `src/shafak/world/useWorldInput.ts`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/world-scene.css`, `src/shafak/world/WorldV2Actor.tsx`, `src/shafak/world/character-pose.ts`, `src/shafak/world/character-model.test.js`, `src/shafak/audio/howler.ts`, `src/shafak/game/war-room-features.ts`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama:** `npm run build` ve `npm run typecheck` başarılı. `npm test`: 389 toplam, 381 geçti, 8 bilinen başarısız test aynı (6 mağaza/ekipman, 1 düello süresi, 1 varsayılan envanter). Dokunma, hareket, çarpışma ve karakter testleri geçti. Replit önizlemesinde WebGL/gerçek iPhone dokunma davranışı **doğrulanamadı**.
 - **Kalanlar:** iPhone'da joystick + her aksiyonu farklı parmaklarla basılı tut; diken üzerinden zıplama, kiriş altında eğilme, ses ve buton nabzını kontrol et.
+
+### Faz C — Silahlar ve laboratuvar
+
+- **Durum:** KISMEN — laboratuvar akışı, silah görünümü, ikon üretimi, test/build/typecheck doğrulandı; cihazdaki GLB görünümü bekliyor.
+- **Kök neden:** `WarRoomScene3D.tsx:1054` oyuncu silah montajının görünürlüğünü yanlışlıkla oyuncu bileşeninde bulunmayan `enemy` değişkenine bağlıyordu. Bu hem typecheck'i durduruyor hem de manken laboratuvarındaki silahı görünmez yapıyordu. İkonlar önceden yalnızca katalog şekillerinden SVG üretiyordu; gerçek model önizlemesi yoktu.
+- **Yapılanlar:** `?lab=1` mevcut `?calib=1` ayar paneliyle birlikte çalışır; tüm katalog silahları tek dokunuşla döngüye girer, manken üzerinde sınanır ve ölçülen boy gösterilir. Görünür ikonlar GLB modelinden tek sefer SVG olarak çizilip önbelleğe alınır; ekran dışındaki silahlar yaklaşınca yüklenir. Prosedürel silahlar için ikon modeli ve render başarısızlığı/tarayıcı dışı ortamlar için hafif SVG yedeği bulunur. Mevcut melee duruş/kombo/ağır saldırı animasyonları ve silah/surface FX profilleri korundu; silah hasarı ve denge değerleri değiştirilmedi. Mevcut renkli decal havuzu (30), kısa/ince/yalnız saldırıda çizilen melee izi ve sRGB/emissive silah materyalleri korundu.
+- **Değişen dosyalar:** `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/WarRoomWeaponIcon.tsx`, `src/shafak/game/war-room-lab.ts`, `src/shafak/game/war-room-lab.test.js`, `src/shafak/game/war-room-weapon-icons.ts`, `src/shafak/game/war-room-weapon-icons.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** `npm run typecheck` ve `npm run build` geçti; GLB ikon rendereri ayrı ~16 kB gzip'lik chunk olarak kaldı. `npm test`: 394 testten 386 geçti; 8 bilinen War Room dışı hata değişmedi (6 mağaza, 1 düello süresi, 1 envanter). Laboratuvar sıralama/boy ve ikon yedeği testleri geçti. SVGRenderer gerçek GLB çizimi tarayıcıda henüz görsel olarak doğrulanmadı; iPhone/Safari kabulü bekliyor.
+- **Kalanlar:** iPhone'da bütün silah GLB'lerinin eldeki duruşunu, her test saldırısını ve gerçek modelden üretilen ikonları kontrol et.
 
 ## Faz 1 — Karakter yönelimi
 

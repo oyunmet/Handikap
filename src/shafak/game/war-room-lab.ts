@@ -3,7 +3,9 @@ import { WAR_ROOM_WEAPONS } from "./war-room-data";
 export type WarRoomLabWeapon = (typeof WAR_ROOM_WEAPONS)[number];
 
 export function getNextWarRoomLabWeaponIndex(index: number) {
-  return (Math.trunc(index) + 1 + WAR_ROOM_WEAPONS.length) % WAR_ROOM_WEAPONS.length;
+  const length = WAR_ROOM_WEAPONS.length;
+  const current = ((Math.trunc(index) % length) + length) % length;
+  return (current + 1) % length;
 }
 
 export function getWarRoomLabWeaponLength(weapon: WarRoomLabWeapon) {
