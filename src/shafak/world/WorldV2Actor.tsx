@@ -3,7 +3,12 @@ import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
-import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
+import {
+  captureCharacterPoseBaseline,
+  findCharacterPoseBones,
+  poseCharacterWithoutClip,
+  restoreCharacterPoseBaseline,
+} from "./character-pose";
 import type { WorldMotion } from "./movement";
 import { KNIGHT_CONFIG } from "./knight-config";
 import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
@@ -76,6 +81,12 @@ export default function WorldV2Actor({
   modelConfig,
 }: Props) {
   const rootRef = useRef<THREE.Group>(null);
+  const shadowRef = useRef<THREE.Mesh>(null);
+  const shadowMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const impactRingRef = useRef<THREE.Mesh>(null);
+  const impactRingMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const previousMovementStateRef = useRef<WorldMotion["movementState"] | null>(null);
+  const impactRingSecondsRef = useRef(0);
   const model = useMemo(() => {
     const clone = cloneWorldCharacter(asset, tint);
     if (modelConfig) applyOpponentBasePalette(clone, modelConfig);
@@ -92,6 +103,7 @@ export default function WorldV2Actor({
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);
+  const poseBaseline = useMemo(() => captureCharacterPoseBaseline(poseBones), [poseBones]);
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const actionsRef = useRef(new Map<string, THREE.AnimationAction>());
   const activeClipNameRef = useRef("");
@@ -144,6 +156,28 @@ export default function WorldV2Actor({
     const root = rootRef.current;
     if (!root) return;
     const motion = motionRef.current;
+    const movementState = motion.movementState;
+    const previousMovementState = previousMovementStateRef.current;
+    if (
+      isPlayer
+      && previousMovementState !== movementState
+      && (movementState === "HAVADA_YUKARI" || movementState === "İNİŞ")
+    ) {
+      impactRingSecondsRef.current = movementState === "İNİŞ" ? 0.28 : 0.2;
+    }
+    previousMovementStateRef.current = movementState;
+    impactRingSecondsRef.current = Math.max(0, impactRingSecondsRef.current - Math.min(delta, 0.05));
+    const impactRingProgress = 1 - impactRingSecondsRef.current / 0.28;
+    if (impactRingRef.current && impactRingMaterialRef.current) {
+      impactRingRef.current.visible = impactRingSecondsRef.current > 0;
+      impactRingRef.current.scale.setScalar(1 + impactRingProgress * 1.8);
+      impactRingMaterialRef.current.opacity = Math.max(0, impactRingSecondsRef.current / 0.28) * 0.56;
+    }
+    const jumpHeight = isPlayer ? Math.max(0, motion.jumpHeight) : 0;
+    if (shadowRef.current && shadowMaterialRef.current && isPlayer) {
+      shadowRef.current.scale.set(0.54 + jumpHeight * 0.14, 0.78 + jumpHeight * 0.14, 1);
+      shadowMaterialRef.current.opacity = Math.max(0.08, 0.42 - jumpHeight * 0.22);
+    }
     playerPosition.set(motion.depth * 5.2, 0, -(motion.distance - motion.cameraX));
     const targetHeading = getWorldV2Heading(
       motion.velocityX,
@@ -190,8 +224,9 @@ export default function WorldV2Actor({
       activeActionRef.current = nextAction;
       activeClipNameRef.current = clip.name;
     }
+    if (isPlayer) restoreCharacterPoseBaseline(poseBones, poseBaseline);
     mixer.update(Math.min(delta, 0.05));
-    if (isPlayer && (motion.crouching || state === "jump")) {
+    if (isPlayer) {
       poseCharacterWithoutClip(
         poseBones,
         state,
@@ -202,6 +237,12 @@ export default function WorldV2Actor({
         false,
         frame.clock.elapsedTime,
         Boolean(activeActionRef.current),
+        false,
+        {
+          movementState,
+          jumpHeight: motion.jumpHeight,
+          jumpVelocity: motion.jumpVelocity,
+        },
       );
     }
     opponentCostumeRef.current?.update(frame.clock.elapsedTime);
@@ -275,14 +316,40 @@ export default function WorldV2Actor({
         <primitive object={model} dispose={null} />
       </group>
       <mesh
+        ref={shadowRef}
         name={isPlayer ? "player-contact-shadow" : "npc-contact-shadow"}
         position={[0, 0.025, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         scale={[0.54, 0.78, 1]}
       >
         <circleGeometry args={[1, 20]} />
-        <meshBasicMaterial color="#171512" transparent opacity={isPlayer ? 0.42 : 0.34} depthWrite={false} />
+        <meshBasicMaterial
+          ref={shadowMaterialRef}
+          color="#171512"
+          transparent
+          opacity={isPlayer ? 0.42 : 0.34}
+          depthWrite={false}
+        />
       </mesh>
+      {isPlayer && (
+        <mesh
+          ref={impactRingRef}
+          name="player-jump-landing-ring"
+          position={[0, 0.035, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          visible={false}
+          renderOrder={2}
+        >
+          <ringGeometry args={[0.2, 0.34, 20]} />
+          <meshBasicMaterial
+            ref={impactRingMaterialRef}
+            color="#e4bc73"
+            transparent
+            opacity={0}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
     </group>
   );
 }

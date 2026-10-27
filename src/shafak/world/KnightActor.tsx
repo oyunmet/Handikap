@@ -59,7 +59,12 @@ import {
   shouldAttachOpponentCostume,
   type AttachedOpponentCostume,
 } from "./opponent-costume";
-import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose";
+import {
+  captureCharacterPoseBaseline,
+  findCharacterPoseBones,
+  poseCharacterWithoutClip,
+  restoreCharacterPoseBaseline,
+} from "./character-pose";
 import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
@@ -507,6 +512,7 @@ function OptionalGlbKnight({
     return () => cancelAnimationFrame(frameId);
   }, [model, modelPath, playerCharacter, targetHeight]);
   const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);
+  const poseBaseline = useMemo(() => captureCharacterPoseBaseline(poseBones), [poseBones]);
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const animationClips = useMemo(() => {
     if (!rootBoneName && !playerCharacter) return gltf.animations;
@@ -719,6 +725,7 @@ function OptionalGlbKnight({
           ? THREE.MathUtils.clamp(speed / 2.2, 0.72, 1.2)
           : 1;
     }
+    if (playerCharacter && poseBones) restoreCharacterPoseBaseline(poseBones, poseBaseline);
     mixer.update(dt * (motionReduced ? 0.35 : 1) * animationTimeScale);
     if (
       poseBones
@@ -735,6 +742,13 @@ function OptionalGlbKnight({
         frame.clock.elapsedTime,
         Boolean(selectedAction),
         aiming,
+        playerCharacter
+          ? {
+              movementState: motion.movementState,
+              jumpHeight: motion.jumpHeight,
+              jumpVelocity: motion.jumpVelocity,
+            }
+          : undefined,
       );
     }
     if (footSlipRef) footSlipRef.current = 0;
