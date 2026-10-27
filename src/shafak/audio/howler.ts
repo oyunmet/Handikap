@@ -6,6 +6,9 @@ let soundVolume = 0.78;
 let gameAudioContext: AudioContext | null = null;
 let gameAudioGain: GainNode | null = null;
 let footstepNoiseBuffer: AudioBuffer | null = null;
+let buttonClickContext: AudioContext | null = null;
+let buttonClickOscillator: OscillatorNode | null = null;
+let buttonClickGain: GainNode | null = null;
 
 const uiChime = new Howl({
   src: ["/shafak-ui-chime.wav"],
@@ -40,6 +43,9 @@ function getGameAudioContext() {
   if (gameAudioContext?.state === "closed") {
     gameAudioContext = null;
     gameAudioGain = null;
+    buttonClickContext = null;
+    buttonClickOscillator = null;
+    buttonClickGain = null;
   }
   if (gameAudioContext) return gameAudioContext;
   try {
@@ -63,6 +69,35 @@ export function primeGameAudio() {
   if (!soundEnabled || typeof window === "undefined") return;
   const context = getGameAudioContext();
   if (context) resumeGameAudio(context);
+}
+
+export function playGameButtonClick() {
+  if (!soundEnabled || typeof window === "undefined" || !window.AudioContext) return;
+  try {
+    const context = getGameAudioContext();
+    const bus = gameAudioGain;
+    if (!context || !bus) return;
+    resumeGameAudio(context);
+    if (buttonClickContext !== context || !buttonClickOscillator || !buttonClickGain) {
+      buttonClickContext = context;
+      buttonClickOscillator = context.createOscillator();
+      buttonClickGain = context.createGain();
+      buttonClickOscillator.type = "triangle";
+      buttonClickOscillator.frequency.value = 168;
+      buttonClickGain.gain.value = 0.0001;
+      buttonClickOscillator.connect(buttonClickGain).connect(bus);
+      buttonClickOscillator.start();
+    }
+    const now = context.currentTime;
+    buttonClickGain.gain.cancelScheduledValues(now);
+    buttonClickGain.gain.setValueAtTime(0.0001, now);
+    buttonClickGain.gain.exponentialRampToValueAtTime(0.075, now + 0.008);
+    buttonClickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
+    buttonClickOscillator.frequency.setValueAtTime(168, now);
+    buttonClickOscillator.frequency.exponentialRampToValueAtTime(112, now + 0.055);
+  } catch {
+    // Optional button feedback must never block an input action.
+  }
 }
 
 export function createIntroAmbience() {

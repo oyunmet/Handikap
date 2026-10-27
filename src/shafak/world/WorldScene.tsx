@@ -4,6 +4,7 @@ import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { WORLD_TOUCH_ACTIONS_ENABLED } from "./world-features";
 import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
 import DuelControls from "../game/DuelControls";
+import GameButton from "../game/GameButton";
 import WorldWeaponPicker from "./WorldWeaponPicker";
 import DuelResults from "../game/DuelResults";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
@@ -3289,11 +3290,17 @@ export default function WorldScene({
       ><span className="world-joystick__nub" /></div>
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">
-        <button
+        <GameButton
           className={`world-movement-action${worldInput.isActionActive("shift") ? " is-active" : ""}`}
           type="button"
           aria-label="Koş"
           aria-pressed={worldInput.isActionActive("shift")}
+          label="KOŞ"
+          icon="run"
+          tone="gold"
+          faceSize={80}
+          hint="SHIFT"
+          pressed={worldInput.isActionActive("shift")}
           onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
             ? (event) => worldInput.onActionPointerDown(event, "shift")
             : undefined}
@@ -3309,18 +3316,18 @@ export default function WorldScene({
           onClick={(event) => {
             if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.toggleAction("shift");
           }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="15.5" cy="4.5" r="1.7" />
-            <path d="m13 7-3.5 3.3 3.2 1.2 2.2 3.2m-5.4-4.4-1.2 4.1-3.1 3m5.1-7.1 4.2-1 3.1 2m-7.3-1 1-3.3" />
-          </svg>
-          <b>KOŞ</b>
-            <kbd aria-hidden="true">SHIFT</kbd>
-        </button>
-        <button
+        />
+        <GameButton
           className={`world-movement-action is-jump${WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "spike-trap" ? " is-hinted" : ""}`}
           type="button"
           aria-label="Zıpla"
+          label="ZIPLA"
+          icon="jump"
+          tone="copper"
+          faceSize={84}
+          hint="SPACE"
+          attention={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "spike-trap"}
+          badge={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "spike-trap" ? "ZIPLA!" : undefined}
           onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
             ? (event) => worldInput.onActionPointerDown(event, "space")
             : undefined}
@@ -3336,18 +3343,20 @@ export default function WorldScene({
           onClick={(event) => {
             if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.triggerAction("space");
           }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 20V4m-6 6 6-6 6 6" />
-          </svg>
-          <b>ZIPLA</b>
-            <kbd aria-hidden="true">SPACE</kbd>
-        </button>
-        <button
+        />
+        <GameButton
           className={`world-movement-action${worldInput.isActionActive("c") ? " is-active" : ""}${WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "low-bar" ? " is-hinted" : ""}`}
           type="button"
           aria-label="Eğil"
           aria-pressed={worldInput.isActionActive("c")}
+          label="EĞİL"
+          icon="crouch"
+          tone="ash"
+          faceSize={76}
+          hint="CTRL"
+          pressed={worldInput.isActionActive("c")}
+          attention={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "low-bar"}
+          badge={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "low-bar" ? "EĞİL!" : undefined}
           onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
             ? (event) => worldInput.onActionPointerDown(event, "c")
             : undefined}
@@ -3363,13 +3372,7 @@ export default function WorldScene({
           onClick={(event) => {
             if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.toggleAction("c");
           }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 4v8m-6-2 6 6 6-6M5 20h14" />
-          </svg>
-          <b>EĞİL</b>
-            <kbd aria-hidden="true">CTRL</kbd>
-        </button>
+        />
       </div>
       {movementDebugEnabled && (
         <aside

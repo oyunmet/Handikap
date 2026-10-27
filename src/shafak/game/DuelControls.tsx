@@ -1,5 +1,6 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { INPUT_BUTTON } from "./combat-engine";
+import GameButton, { type GameButtonIcon } from "./GameButton";
 
 type QuickItem = {
   id: string | null;
@@ -78,6 +79,18 @@ function HeldButton({
         : className.includes("fire") ? "SPACE"
           : className.includes("lightning") ? "Q"
             : "";
+  const icon: GameButtonIcon = className.includes("attack") ? "attack"
+    : className.includes("block") ? "shield"
+      : className.includes("aim") ? "aim"
+        : className.includes("jump") ? "jump"
+          : className.includes("fire") ? "fire"
+            : className.includes("dodge") ? "dodge"
+              : "lightning";
+  const tone = className.includes("block") ? "teal"
+    : className.includes("lightning") ? "sky"
+      : className.includes("fire") ? "copper"
+        : className.includes("attack") ? "copper"
+          : "gold";
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
@@ -100,12 +113,20 @@ function HeldButton({
   };
 
   return (
-    <button
+    <GameButton
       className={`duel-control ${className}${cooldown > 0 || disabledReason ? " is-unavailable" : ""}`}
       type="button"
       aria-label={accessibleLabel ?? label}
       aria-disabled={cooldown > 0 || !!disabledReason}
       style={{ "--duel-cooldown": `${Math.min(100, Math.max(0, ringSeconds / 6 * 100))}%` } as CSSProperties}
+      label={label}
+      icon={icon}
+      tone={tone}
+      faceSize={className.includes("attack") ? 82 : className.includes("skill") ? 56 : 64}
+      hitAreaSize={className.includes("attack") ? 96 : className.includes("skill") ? 68 : 76}
+      hint={keyHint}
+      pressed={pressedRef.current}
+      cooldownPercent={ringSeconds / 6 * 100}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerCancel={release}
@@ -114,32 +135,8 @@ function HeldButton({
       onKeyUp={onKeyUp}
       onBlur={release}
     >
-      <ControlIcon className={className} />
-      <span>{label}</span>
-      {keyHint && <kbd className="duel-control__key" aria-hidden="true">{keyHint}</kbd>}
-      {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
-    </button>
-  );
-}
-
-function ControlIcon({ className }: { className: string }) {
-  const path = className.includes("attack")
-    ? "M4 4 20 20m-2-1 3-2m-3 3-2 3M20 4 4 20m2-2-3-2m3 3 2 3"
-    : className.includes("aim")
-      ? "M12 3v3m0 12v3M3 12h3m12 0h3M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 2v4m-2-2h4"
-    : className.includes("jump")
-      ? "M12 20V5m-6 6 6-6 6 6M5 20h14"
-    : className.includes("block")
-      ? "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z"
-      : className.includes("dodge")
-        ? "M4 15c3-6 6-6 9-2s5 4 7-2M5 7l-2 2 2 2M19 15l2-2-2-2"
-        : className.includes("fire")
-          ? "M12 3c1 4-3 5-1 8 1-2 3-3 4-5 4 5 4 9 1 12-3 3-9 1-9-4 0-4 3-6 5-11Z"
-          : "M13 2 5 13h6l-1 9 9-12h-6l1-8Z";
-  return (
-    <svg className="duel-control__icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={path} />
-    </svg>
+      {cooldown > 0 && <small className="duel-control__cooldown-label">{cooldown.toFixed(1)}</small>}
+    </GameButton>
   );
 }
 
@@ -270,29 +267,33 @@ export default function DuelControls({
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
       <div className="duel-stance-controls" aria-label="Düello hareketleri">
-        <button
+        <GameButton
           className={`duel-control is-stance is-aim${aiming ? " is-active" : ""}`}
           type="button"
           aria-label={`${aiming ? "Hedef kilidini bırak" : "Rakibe kilitlen"}: ${activeWeapon}`}
           aria-pressed={aiming}
+          label={aiming ? "KİLİT" : "NİŞAN"}
+          icon="aim"
+          tone="teal"
+          faceSize={56}
+          hitAreaSize={68}
+          hint="F"
           onClick={() => {
             if (!disabled) onToggleAim();
           }}
-        >
-          <ControlIcon className="is-aim" />
-          <span>{aiming ? "KİLİT" : "NİŞAN"}</span>
-          <kbd className="duel-control__key" aria-hidden="true">F</kbd>
-        </button>
-        <button
+        />
+        <GameButton
           className="duel-control is-stance is-jump"
           type="button"
           aria-label="Zıpla ve havada saldırıyla yere vur"
+          label="ZIPLA"
+          icon="jump"
+          tone="copper"
+          faceSize={56}
+          hitAreaSize={68}
+          hint="X"
           onClick={() => tapAction(INPUT_BUTTON.jump, stamina < 12 ? "Zıplamak için 12 dayanıklılık gerekli." : "")}
-        >
-          <ControlIcon className="is-jump" />
-          <span>ZIPLA</span>
-          <kbd className="duel-control__key" aria-hidden="true">X</kbd>
-        </button>
+        />
       </div>
       <div className="duel-weapon-select" role="group" aria-label="Savaş silahları">
         <div className="duel-weapon-select__heading">

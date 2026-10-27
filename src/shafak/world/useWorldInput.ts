@@ -6,7 +6,6 @@ import {
   syncWorldTouchActionKey,
   type WorldTouchAction,
 } from "./world-touch-actions";
-import { playWorldCue } from "../audio/howler";
 import type { WorldActionState } from "./world-movement-machine";
 
 type Vector = { x: number; y: number };
@@ -107,7 +106,6 @@ export default function useWorldInput(wake: () => void) {
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
     if (key === "space") triggerAction(key);
     else syncWorldTouchActionKey(heldKeys.current, actionPointersRef.current, key);
-    playWorldCue("movement");
     wake();
     publishInputChange();
   }, [publishInputChange, triggerAction, wake]);
@@ -140,7 +138,6 @@ export default function useWorldInput(wake: () => void) {
     toggledActionsRef.current = next;
     setToggledActions(next);
     syncWorldTouchActionKey(heldKeys.current, actionPointersRef.current, key, next.has(key));
-    playWorldCue("movement");
     wake();
     publishInputChange();
   }, [publishInputChange, wake]);
