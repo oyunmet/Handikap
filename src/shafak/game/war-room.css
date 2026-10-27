@@ -737,6 +737,17 @@
   stroke-width: 1.8;
 }
 
+.war-room-minimap circle.is-heal-point {
+  fill: #71f3a1;
+  stroke: #103b29;
+  stroke-width: 1.5;
+}
+
+.war-room-minimap circle.is-heal-point.is-depleted {
+  fill: #7f9586;
+  opacity: 0.55;
+}
+
 .war-room-minimap__player {
   fill: #e6f2e2;
   stroke: #13271e;
@@ -911,7 +922,18 @@
 .war-room-bar:last-child { margin-bottom: 0; }
 .war-room-bar em { display: block; height: 100%; transition: width 130ms linear; }
 .war-room-bar .is-health { background: linear-gradient(90deg, #a83d2b, #e58a56); }
+.war-room-bar.is-regenerating .is-health {
+  background: linear-gradient(90deg, #48b978, #c1ffd0, #48b978);
+  background-size: 200% 100%;
+  box-shadow: 0 0 8px rgba(103, 255, 164, 0.82);
+  animation: war-room-health-regen 1.15s ease-in-out infinite alternate;
+}
 .war-room-bar .is-stamina { background: linear-gradient(90deg, #887044, #e1bd73); }
+
+@keyframes war-room-health-regen {
+  from { background-position: 0 0; filter: brightness(0.86); }
+  to { background-position: 100% 0; filter: brightness(1.18); }
+}
 
 .war-room-ammo {
   position: absolute;

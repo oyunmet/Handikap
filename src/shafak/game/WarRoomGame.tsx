@@ -69,6 +69,10 @@ function createEmptyHud(): WarRoomHudSnapshot {
       facingCamera: false,
     },
     enemies: [],
+    healingPoints: [],
+    regenerationActive: false,
+    regenerationWaitSeconds: 0,
+    regenerationAtCap: false,
     remaining: 9,
     bossHp: 360,
     bossMaxHp: 360,
@@ -191,6 +195,15 @@ function MiniMap({ hud }: { hud: WarRoomHudSnapshot }) {
           cx={pointX(enemy.x)}
           cy={pointY(enemy.z)}
           r={enemy.commander ? 4.8 : 2.8}
+        />
+      ))}
+      {hud.healingPoints.map((point) => (
+        <circle
+          key={`heal-${point.id}`}
+          className={`is-heal-point${point.available ? "" : " is-depleted"}`}
+          cx={pointX(point.x)}
+          cy={pointY(point.z)}
+          r={3.2}
         />
       ))}
       <path
@@ -674,6 +687,12 @@ export default function WarRoomGame({
                 {hud.orientation.joystickAngleDegrees === null ? "—" : `${hud.orientation.joystickAngleDegrees.toFixed(0)}°`}
                 {" · KARAKTER YAW: "}
                 {`${Math.round((((hud.orientation.facingYaw * 180 / Math.PI) % 360) + 360) % 360)}°`}
+                {" · YENİLENME: "}
+                {hud.regenerationActive
+                  ? "AKTİF"
+                  : hud.regenerationWaitSeconds > 0
+                    ? `BEKLİYOR (${hud.regenerationWaitSeconds.toFixed(1)} sn)`
+                    : hud.regenerationAtCap ? "SINIRDA" : "KAPALI"}
               </span>
             </div>
           )}
@@ -866,7 +885,9 @@ export default function WarRoomGame({
                 <div className="war-room-bar-row">
                   <span>CAN</span><b>{Math.ceil(hud.player.hp)} / {hud.player.maxHp}</b>
                 </div>
-                <i className="war-room-bar"><em className="is-health" style={{ width: `${Math.max(0, (hud.player.hp / hud.player.maxHp) * 100)}%` }} /></i>
+                <i className={`war-room-bar${hud.regenerationActive ? " is-regenerating" : ""}`}>
+                  <em className="is-health" style={{ width: `${Math.max(0, (hud.player.hp / hud.player.maxHp) * 100)}%` }} />
+                </i>
                 <div className="war-room-bar-row">
                   <span>DAYANIKLILIK</span><b>{Math.ceil(hud.player.stamina)}%</b>
                 </div>

@@ -8,6 +8,7 @@ import {
   type WarRoomWeaponId,
 } from "./war-room-data";
 import type { WarRoomFacingMode } from "./war-room-orientation";
+import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
 
 export type WarRoomEnemy = {
   id: string;
@@ -88,6 +89,9 @@ export type WarRoomRuntime = {
     meleeLastResult: string;
     recoil: number;
     lastDamageAt: number;
+    lastCombatAt: number;
+    regenerationActive: boolean;
+    regenerationWaitSeconds: number;
     damageDirection: number;
     hitMarkerUntil: number;
     hitMarkerHeadshot: boolean;
@@ -103,6 +107,7 @@ export type WarRoomRuntime = {
     startTime: number;
   };
   enemies: WarRoomEnemy[];
+  healingPoints: WarRoomHealingPoint[];
 };
 
 export type WarRoomInputState = {
@@ -132,6 +137,10 @@ export type WarRoomHudSnapshot = {
     facingCamera: boolean;
   };
   enemies: Array<{ id: string; x: number; z: number; alive: boolean; commander: boolean }>;
+  healingPoints: Array<{ id: string; x: number; z: number; available: boolean }>;
+  regenerationActive: boolean;
+  regenerationWaitSeconds: number;
+  regenerationAtCap: boolean;
   remaining: number;
   bossHp: number;
   bossMaxHp: number;
@@ -284,6 +293,9 @@ export function createWarRoomRuntime(
       meleeLastResult: "Henüz isabet yok",
       recoil: 0,
       lastDamageAt: 0,
+      lastCombatAt: 0,
+      regenerationActive: false,
+      regenerationWaitSeconds: 0,
       damageDirection: 0,
       hitMarkerUntil: 0,
       hitMarkerHeadshot: false,
@@ -299,6 +311,7 @@ export function createWarRoomRuntime(
       startTime: now,
     },
     enemies,
+    healingPoints: createWarRoomHealingPoints(now),
   };
 }
 

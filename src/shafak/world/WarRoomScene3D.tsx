@@ -18,6 +18,13 @@ import {
   traceWarRoomRay,
   type WarRoomMeleeConeReason,
 } from "../game/war-room-aim";
+import {
+  RESTORE_CONFIG,
+  advanceWarRoomPassiveRegen,
+  applyWarRoomKillHeal,
+  collectWarRoomHealingPoint,
+  type WarRoomHealingPoint,
+} from "../game/war-room-restore";
 import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
@@ -1333,6 +1340,52 @@ function EnemyActor({
   );
 }
 
+function WarRoomHealingPointMarker({
+  point,
+  readNow,
+}: {
+  point: WarRoomHealingPoint;
+  readNow: () => number;
+}) {
+  const markerRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const now = readNow();
+    if (!markerRef.current) return;
+    markerRef.current.visible = point.availableAt <= now;
+    markerRef.current.position.y = 0.72 + Math.sin(now * 2.2 + point.x) * 0.055;
+    markerRef.current.rotation.y = now * 0.72;
+  });
+  return (
+    <group ref={markerRef} position={[point.x, 0.72, point.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.65, 0]}>
+        <ringGeometry args={[0.4, 0.56, 24]} />
+        <meshBasicMaterial
+          color="#62f29c"
+          transparent
+          opacity={0.62}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh position={[0, 0.08, 0]}>
+        <octahedronGeometry args={[0.23, 0]} />
+        <meshStandardMaterial
+          color="#b5ffd0"
+          emissive="#36e87d"
+          emissiveIntensity={1.4}
+          roughness={0.22}
+          metalness={0.05}
+        />
+      </mesh>
+      <mesh position={[0, -0.19, 0]} scale={[0.34, 0.075, 0.19]}>
+        <sphereGeometry args={[1, 12, 8]} />
+        <meshBasicMaterial color="#73f6a8" transparent opacity={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
 function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId], input: WarRoomInputState): WarRoomHudSnapshot {
   const player = runtime.player;
   const weaponId = weaponIds[player.activeSlot];
@@ -1363,6 +1416,16 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
       facingCamera: player.facingCamera,
     },
     enemies: runtime.enemies.map(({ id, x, z, alive, commander }) => ({ id, x, z, alive, commander })),
+    healingPoints: RESTORE_CONFIG.enabled ? runtime.healingPoints.map(({ id, x, z, availableAt }) => ({
+      id,
+      x,
+      z,
+      available: availableAt <= now,
+    })) : [],
+    regenerationActive: player.regenerationActive,
+    regenerationWaitSeconds: player.regenerationWaitSeconds,
+    regenerationAtCap: RESTORE_CONFIG.enabled
+      && player.hp >= player.maxHp * RESTORE_CONFIG.passive.maxHealthRatio,
     remaining: getWarRoomRemaining(runtime),
     bossHp: boss.hp,
     bossMaxHp: boss.maxHp,
@@ -1958,6 +2021,13 @@ function WarRoomRuntimeScene({
     };
   };
 
+  const applyKillRecovery = (player: WarRoomRuntime["player"], commander: boolean, now: number) => {
+    const healed = applyWarRoomKillHeal(player, commander, RESTORE_CONFIG);
+    if (healed <= 0) return;
+    player.lastHitText = `+${Math.round(healed)} CAN`;
+    player.hitMessageUntil = now + 1.35;
+  };
+
   const resolveMeleeContact = (now: number, wallNow: number) => {
     const runtime = runtimeRef.current;
     const player = runtime.player;
@@ -2076,6 +2146,7 @@ function WarRoomRuntimeScene({
       enemy.alive = false;
       enemy.deathYaw = player.meleeAttackYaw;
       player.kills += 1;
+      applyKillRecovery(player, enemy.commander, now);
       player.killFeed = [
         { id: now * 1000 + player.kills, text: `Yolcu  →  ${enemy.name}` },
         ...player.killFeed,
@@ -2090,6 +2161,7 @@ function WarRoomRuntimeScene({
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
     if (now < player.nextShotAt || player.reloadingWeapon) return;
     if (weapon.weaponClass === "melee") {
+      player.lastCombatAt = now;
       const comboExpired = player.meleeComboLastAttackAt < 0
         || now - player.meleeComboLastAttackAt > 1.15;
       if (comboExpired) {
@@ -2205,6 +2277,7 @@ function WarRoomRuntimeScene({
     );
     ammo.magazine -= 1;
     player.shots += 1;
+    player.lastCombatAt = now;
     player.lastHitDamage = 0;
     player.lastHitCritical = false;
     player.hitMarkerUntil = 0;
@@ -2281,6 +2354,7 @@ function WarRoomRuntimeScene({
             -(aimedEnemy.z - player.z),
           );
           player.kills += 1;
+          applyKillRecovery(player, aimedEnemy.commander, now);
           if (aim.headshot) player.headshots += 1;
           player.killFeed = [
             { id: now * 1000 + player.kills, text: `Yolcu  →  ${aimedEnemy.name}${aim.headshot ? " · KAFA" : ""}` },
@@ -2404,6 +2478,9 @@ function WarRoomRuntimeScene({
     if (player.meleeHitStopUntil > wallNow) return;
     player.clockTime += delta;
     const now = player.clockTime;
+    const restoration = advanceWarRoomPassiveRegen(player, now, delta, RESTORE_CONFIG);
+    player.regenerationActive = restoration.active;
+    player.regenerationWaitSeconds = restoration.secondsUntilReady;
     player.recoil = Math.max(0, player.recoil - delta * 0.36);
     if (player.startTime === 0) player.startTime = now;
     player.yaw = input.yaw;
@@ -2482,6 +2559,27 @@ function WarRoomRuntimeScene({
     const nextPosition = moveWarRoomEntity(player.x, player.z, dx, dz);
     player.x = nextPosition.x;
     player.z = nextPosition.z;
+    const pickup = collectWarRoomHealingPoint(
+      runtime.healingPoints,
+      player,
+      player.x,
+      player.z,
+      now,
+      RESTORE_CONFIG,
+    );
+    if (pickup.point && pickup.healed > 0) {
+      player.lastHitText = `+${Math.round(pickup.healed)} CAN`;
+      player.hitMessageUntil = now + 1.35;
+      playWarRoomSound(
+        "healing-pickup",
+        0.9,
+        "pistol",
+        getWarRoomAudioOptions(player, pickup.point.x, pickup.point.z),
+      );
+      if (WAR_ROOM_POOLED_FX_ENABLED) {
+        spawnImpact(new THREE.Vector3(pickup.point.x, 0.82, pickup.point.z), "#74f5a6", now, 12, 0.06);
+      }
+    }
     player.jumpVelocity -= 14 * delta;
     player.jumpHeight = Math.max(0, player.jumpHeight + player.jumpVelocity * delta);
     if (player.jumpHeight === 0) player.jumpVelocity = 0;
@@ -2681,6 +2779,7 @@ function WarRoomRuntimeScene({
         if (hit.damage > 0) {
           playWarRoomSound("hit", 1, "rifle", getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"));
           player.lastDamageAt = now;
+          player.lastCombatAt = now;
           player.invulnerableUntil = now + 0.28;
           player.damageDirection = shortestAngleDelta(
             player.yaw,
@@ -2940,6 +3039,13 @@ function WarRoomRuntimeScene({
   return (
     <>
       <Battlefield />
+      {RESTORE_CONFIG.enabled && runtime.healingPoints.map((point) => (
+        <WarRoomHealingPointMarker
+          key={point.id}
+          point={point}
+          readNow={() => runtimeRef.current.player.clockTime}
+        />
+      ))}
       <primitive object={tracerLines} dispose={null} />
       <primitive object={particleMesh} dispose={null} />
       <primitive object={decalMesh} dispose={null} />
