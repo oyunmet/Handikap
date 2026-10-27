@@ -1386,6 +1386,38 @@ function WarRoomHealingPointMarker({
   );
 }
 
+function WarRoomTargetMarker({
+  enemy,
+  readTargetId,
+  readNow,
+}: {
+  enemy: WarRoomEnemy;
+  readTargetId: () => string | null;
+  readNow: () => number;
+}) {
+  const markerRef = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const marker = markerRef.current;
+    if (!marker) return;
+    marker.visible = enemy.alive && readTargetId() === enemy.id;
+    marker.position.set(enemy.x, 0.04, enemy.z);
+    marker.rotation.set(-Math.PI / 2, readNow() * 0.55, 0);
+  });
+  return (
+    <mesh ref={markerRef} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
+      <ringGeometry args={[0.48, 0.62, 32]} />
+      <meshBasicMaterial
+        color={enemy.commander ? "#ffd173" : "#73f0a1"}
+        transparent
+        opacity={0.9}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
 function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId], input: WarRoomInputState): WarRoomHudSnapshot {
   const player = runtime.player;
   const weaponId = weaponIds[player.activeSlot];
@@ -1433,6 +1465,8 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     headshots: player.headshots,
     shots: player.shots,
     hits: player.hits,
+    targetName: player.targetName,
+    targetReason: player.targetReason,
     elapsedSeconds: Math.max(0, now - player.startTime),
     weaponId,
     magazine: ammo?.magazine ?? 0,
@@ -1981,6 +2015,14 @@ function WarRoomRuntimeScene({
     };
   };
 
+  const isMeleeTargetBlocked = (player: WarRoomRuntime["player"], enemy: WarRoomEnemy) => (
+    segmentBlockFraction(
+      { x: player.x, y: player.jumpHeight + (player.crouched ? 1.05 : 1.12), z: player.z },
+      { x: enemy.x, y: enemy.commander ? 1.35 : 1.05, z: enemy.z },
+      0.08,
+    ) !== null
+  );
+
   const getMeleeAimHit = (range: number, attackYaw: number) => {
     const player = runtimeRef.current.player;
     meleeOrigin.set(
@@ -1996,11 +2038,7 @@ function WarRoomRuntimeScene({
       runtimeRef.current.enemies,
       range,
       WAR_ROOM_MELEE_HALF_ANGLE_DEGREES,
-      (enemy) => segmentBlockFraction(
-        { x: meleeOrigin.x, y: meleeOrigin.y, z: meleeOrigin.z },
-        { x: enemy.x, y: enemy.commander ? 1.35 : 1.05, z: enemy.z },
-        0.08,
-      ) !== null,
+      (enemy) => isMeleeTargetBlocked(player, enemy),
     );
     if (result.target) {
       meleeImpact.set(result.target.x, result.target.commander ? 1.35 : 1.05, result.target.z);
@@ -2178,13 +2216,11 @@ function WarRoomRuntimeScene({
         (weapon.meleeDuration ?? weapon.fireInterval * 0.82) * plan.durationMultiplier,
       );
       player.strafeUntil = getWarRoomPostAttackStrafeUntil(now, duration);
-      const isBlocked = (enemy: Pick<WarRoomEnemy, "x" | "z" | "alive">) => segmentBlockFraction(
-        { x: player.x, y: player.jumpHeight + 1.12, z: player.z },
-        { x: enemy.x, y: 1.05, z: enemy.z },
-        0.08,
-      ) !== null;
+      const attackRangeBonus = plan.heavy ? 0.12 : 0;
+      const attackReach = getWarRoomMeleeEffectiveReach(weapon.id, weapon.range, attackRangeBonus);
+      const isBlocked = (enemy: WarRoomEnemy) => isMeleeTargetBlocked(player, enemy);
       const attackYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
-        ? getWarRoomMeleeAssistYaw(player.x, player.z, player.yaw, runtime.enemies, weapon.range, isBlocked)
+        ? getWarRoomMeleeAssistYaw(player.x, player.z, player.yaw, runtime.enemies, attackReach, isBlocked)
         : player.yaw;
       const lunged = moveWarRoomEntity(
         player.x,
@@ -2207,7 +2243,7 @@ function WarRoomRuntimeScene({
       player.meleeAttackComboIndex = plan.comboIndex;
       player.meleeAttackHeavy = plan.heavy;
       player.meleeAttackDamageMultiplier = plan.damageMultiplier;
-      player.meleeAttackRangeBonus = plan.heavy ? 0.12 : 0;
+      player.meleeAttackRangeBonus = attackRangeBonus;
       player.meleeAttackHitStopSeconds = plan.hitStopSeconds;
       player.meleeAttackStaggerSeconds = plan.staggerSeconds;
       player.meleeComboIndex = plan.nextComboIndex;
@@ -3017,8 +3053,31 @@ function WarRoomRuntimeScene({
     trailColorAttribute.needsUpdate = true;
     slashTrailState.geometry.setDrawRange(0, Math.max(0, slashTrailState.count - 1) * 6);
 
-    const aim = getAimHit(0, 0, aimDistance);
-    player.targetId = aim?.enemy?.id ?? null;
+    const activeWeapon = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!;
+    if (activeWeapon.weaponClass === "melee") {
+      const attackBonus = player.meleeUntil > now ? player.meleeAttackRangeBonus : 0;
+      const meleeReach = getWarRoomMeleeEffectiveReach(activeWeapon.id, activeWeapon.range, attackBonus);
+      const baseYaw = player.meleeUntil > now ? player.meleeAttackYaw : player.yaw;
+      const targetYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
+        ? getWarRoomMeleeAssistYaw(
+          player.x,
+          player.z,
+          baseYaw,
+          runtime.enemies,
+          meleeReach,
+          (enemy) => isMeleeTargetBlocked(player, enemy),
+        )
+        : baseYaw;
+      const meleeTarget = getMeleeAimHit(meleeReach, targetYaw);
+      player.targetId = meleeTarget.enemy?.id ?? null;
+      player.targetName = meleeTarget.enemy?.name ?? null;
+      player.targetReason = meleeTarget.enemy ? "hit" : meleeTarget.reason;
+    } else {
+      const aim = getAimHit(0, 0, aimDistance);
+      player.targetId = aim.enemy?.id ?? null;
+      player.targetName = aim.enemy?.name ?? null;
+      player.targetReason = aim.enemy ? "hit" : aim.blocked ? "blocked" : "no-target";
+    }
 
     if (now - lastHudAtRef.current >= 0.1) {
       lastHudAtRef.current = now;
@@ -3043,6 +3102,14 @@ function WarRoomRuntimeScene({
         <WarRoomHealingPointMarker
           key={point.id}
           point={point}
+          readNow={() => runtimeRef.current.player.clockTime}
+        />
+      ))}
+      {runtime.enemies.map((enemy) => (
+        <WarRoomTargetMarker
+          key={`target-${enemy.id}`}
+          enemy={enemy}
+          readTargetId={() => runtimeRef.current.player.targetId}
           readNow={() => runtimeRef.current.player.clockTime}
         />
       ))}

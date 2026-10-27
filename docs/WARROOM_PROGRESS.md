@@ -7,7 +7,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** DEVAM EDİYOR
 - **Kapsam:** Ekli test notlarındaki Adım 1–7: silah normalizasyonu ve canlı kalibrasyon, hareket yönü/isabet teşhisi, can yenileme, geçerli hedef filtresi ve silaha özel yakın dövüş efektleri.
 - **Kural:** Her adımın sonunda build, typecheck, testler ve yerel commit; Git push ve Vercel deploy yapılmayacak.
-- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 kısmen doğrulandı · 5 kısmen doğrulandı · 6 bekliyor · 7 bekliyor.
+- **Adım durumu:** 1 kısmen doğrulandı · 2 kısmen doğrulandı · 3 kısmen doğrulandı · 4 kısmen doğrulandı · 5 kısmen doğrulandı · 6 kısmen doğrulandı · 7 bekliyor.
 - **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; kod/test doğrulaması ile cihaz doğrulaması ayrı raporlanacak.
 
 ### Adım 1 — Silah normalizasyonu
@@ -41,6 +41,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Durum:** KISMEN — kurallar, oyun/HUD bağlantısı ve birim testleri doğrulandı; iPhone etkileşimi açık.
 - **Yapılanlar:** Varsayılanı açık tek `RESTORE_CONFIG` ile pasif yenilenme 6 sn hasarsız/çatışmasız süreden sonra 2 CAN/sn ve %60 tavanla çalışıyor. Normal öldürme en az 6 veya maksimum CAN'ın %5'i; komutan öldürme %15 CAN veriyor. Dört sabit şifa noktası oyuncuya %25 CAN sağlıyor, 45 sn sonra yenileniyor; dolu CAN'da nokta tüketilmiyor. Yalnız oyuncu topluyor; düşman CAN/AI davranışı değiştirilmedi. Minimap işaretleri, yeşil yenilenme barı, `+X CAN` bildirimi, pickup efekti/sesi ve debug yenilenme durumu eklendi.
 - **Doğrulama:** Restore/engine/audio hedef testleri 26/26 geçti; `npm run typecheck` ve `npm run build` başarılı. `npm test`: 371 toplam, 363 geçti, aynı 8 Savaş Odası dışı taban testi başarısız. Fiziksel iPhone etkileşimi doğrulanamadı.
+
+### Adım 6 — Yalnız geçerli melee hedefleri
+
+- **Durum:** KISMEN — hedef filtresi, aim assist ve gösterge kod/testleri doğrulandı; iPhone nişan kabulü açık.
+- **Yapılanlar:** Melee hedefi yalnız yaşayan düşman listesinden, silah menzilinde ve ±65° konide, duvar/cover kontrolünü geçerek seçiliyor. En yakın geçerli rakip aim assist alıyor; ölü düşman/engel/menzil/açı nedenleri debug satırında, seçili rakip adı ise hedef halkasıyla gösteriliyor. Geçerli hedef yoksa mevcut saldırı hareketi havaya savruluyor; pickup/prop/spawn/oyuncu hedef listesine dahil değil. Ateşli silahın mermi ve hasar çözümlemesi değiştirilmedi.
+- **Doğrulama:** Aim, assist ve War Room motoru hedef testleri 28/28 geçti; `npm run typecheck` ve `npm run build` başarılı. `npm test`: 373 toplam, 365 geçti, aynı 8 Savaş Odası dışı taban testi başarısız. iPhone hedef göstergesi doğrulanamadı.
 
 ## Faz 1 — Karakter yönelimi
 

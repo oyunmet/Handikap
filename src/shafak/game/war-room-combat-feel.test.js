@@ -59,3 +59,25 @@ test("aim assist ignores dead, blocked, distant, and out-of-angle targets", () =
   assert.ok(yaw > 0);
   assert.ok(yaw <= WAR_ROOM_MELEE_ASSIST_RADIANS);
 });
+
+test("melee aim assist selects the nearest visible target inside its reach and 65-degree cone", () => {
+  const blocked = { x: 0.1, z: -0.7, alive: true };
+  const outOfRange = { x: 0, z: -1.8, alive: true };
+  const valid = { x: 1.4, z: -0.8, alive: true };
+  const yaw = getWarRoomMeleeAssistYaw(
+    0,
+    0,
+    0,
+    [
+      blocked,
+      { x: 0, z: -0.4, alive: false },
+      outOfRange,
+      { x: 1.8, z: -0.1, alive: true },
+      valid,
+    ],
+    1.4,
+    (enemy) => enemy === blocked,
+  );
+
+  assert.ok(Math.abs(yaw - Math.atan2(valid.x, -valid.z)) < 1e-9);
+});

@@ -103,6 +103,8 @@ export type WarRoomRuntime = {
     clockTime: number;
     killFeed: Array<{ id: number; text: string }>;
     targetId: string | null;
+    targetName: string | null;
+    targetReason: string;
     rngState: number;
     startTime: number;
   };
@@ -156,6 +158,8 @@ export type WarRoomHudSnapshot = {
   aiming: boolean;
   firing: boolean;
   targetVisible: boolean;
+  targetName: string | null;
+  targetReason: string;
   hitMarker: boolean;
   headshotMarker: boolean;
   damageNumberCritical: boolean;
@@ -307,6 +311,8 @@ export function createWarRoomRuntime(
       clockTime: now,
       killFeed: [],
       targetId: null,
+      targetName: null,
+      targetReason: "no-target",
       rngState: 0x6d2b79f5,
       startTime: now,
     },

@@ -1,8 +1,10 @@
 import type { WarRoomEnemy } from "./war-room-engine";
 
 export const WAR_ROOM_HEAVY_ATTACK_HOLD_SECONDS = 0.35;
-export const WAR_ROOM_MELEE_ASSIST_RADIANS = (25 * Math.PI) / 180;
+export const WAR_ROOM_MELEE_ASSIST_RADIANS = (65 * Math.PI) / 180;
 export const WAR_ROOM_COMBO_RESET_SECONDS = 1.15;
+type WarRoomMeleeAssistTarget = Pick<WarRoomEnemy, "x" | "z" | "alive">
+  & Partial<Pick<WarRoomEnemy, "commander">>;
 
 export type WarRoomMeleeAttackPlan = {
   heavy: boolean;
@@ -36,22 +38,23 @@ export function getWarRoomMeleeAttackPlan(
   };
 }
 
-export function getWarRoomMeleeAssistYaw(
+export function getWarRoomMeleeAssistYaw<T extends WarRoomMeleeAssistTarget>(
   x: number,
   z: number,
   yaw: number,
-  enemies: readonly Pick<WarRoomEnemy, "x" | "z" | "alive">[],
+  enemies: readonly T[],
   range: number,
-  isBlocked: (enemy: Pick<WarRoomEnemy, "x" | "z" | "alive">) => boolean = () => false,
+  isBlocked: (enemy: T) => boolean = () => false,
 ) {
   const candidates = enemies
     .filter((enemy) => enemy.alive && !isBlocked(enemy))
     .map((enemy) => {
-      const distance = Math.hypot(enemy.x - x, enemy.z - z);
+      const centerDistance = Math.hypot(enemy.x - x, enemy.z - z);
+      const distance = Math.max(0, centerDistance - (enemy.commander ? 0.38 : 0.3));
       const targetYaw = Math.atan2(enemy.x - x, -(enemy.z - z));
       return { distance, delta: Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw)) };
     })
-    .filter((candidate) => candidate.distance <= range + 0.65
+    .filter((candidate) => candidate.distance <= range
       && Math.abs(candidate.delta) <= WAR_ROOM_MELEE_ASSIST_RADIANS)
     .sort((left, right) => left.distance - right.distance);
   const target = candidates[0];

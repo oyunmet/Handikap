@@ -148,6 +148,27 @@ test("character-facing melee cone reports range and angle misses independently",
   assert.equal(outsideAngle.reason, "angle");
 });
 
+test("melee targeting skips nearby corpses and does not invent a target when only dead enemies remain", () => {
+  const corpse = { id: "corpse", x: 0, z: -0.65, alive: false, commander: false };
+  const livingEnemy = { id: "living", x: 0, z: -1.45, alive: true, commander: false };
+  const result = traceWarRoomMeleeCone(
+    { x: 0, z: 0 },
+    { x: 0, z: -1 },
+    [corpse, livingEnemy],
+    1.8,
+  );
+  assert.equal(result.target, livingEnemy);
+
+  const noTarget = traceWarRoomMeleeCone(
+    { x: 0, z: 0 },
+    { x: 0, z: -1 },
+    [corpse],
+    1.8,
+  );
+  assert.equal(noTarget.target, null);
+  assert.equal(noTarget.reason, "no-target");
+});
+
 test("character-facing melee cone ignores targets behind blockers", () => {
   const origin = { x: 1, y: 1.1, z: 5 };
   const target = { x: 1, z: -10, alive: true, commander: false };

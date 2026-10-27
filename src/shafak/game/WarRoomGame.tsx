@@ -88,6 +88,8 @@ function createEmptyHud(): WarRoomHudSnapshot {
     aiming: false,
     firing: false,
     targetVisible: false,
+    targetName: null,
+    targetReason: "no-target",
     hitMarker: false,
     headshotMarker: false,
     damageNumberCritical: false,
@@ -693,6 +695,10 @@ export default function WarRoomGame({
                   : hud.regenerationWaitSeconds > 0
                     ? `BEKLİYOR (${hud.regenerationWaitSeconds.toFixed(1)} sn)`
                     : hud.regenerationAtCap ? "SINIRDA" : "KAPALI"}
+                {" · HEDEF: "}
+                {hud.targetName ?? "—"}
+                {" · FİLTRE: "}
+                {hud.targetReason}
               </span>
             </div>
           )}
