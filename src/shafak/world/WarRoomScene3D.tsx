@@ -34,7 +34,6 @@ import {
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
-  isWarRoomCameraPointClear,
   resolveWarRoomCameraSweep,
   type WarRoomCameraBounds,
 } from "../game/war-room-camera";
@@ -296,13 +295,6 @@ function disposeWarRoomRenderable(
 
 function shortestLerp(from: number, to: number, speed: number, delta: number) {
   return from + shortestAngleDelta(from, to) * (1 - Math.exp(-speed * Math.min(delta, 0.05)));
-}
-
-function boxSegment(start: THREE.Vector3, end: THREE.Vector3) {
-  return segmentBlockFraction(
-    { x: start.x, y: start.y, z: start.z },
-    { x: end.x, y: end.y, z: end.z },
-  );
 }
 
 function StaticWarRoomAsset({
@@ -1014,7 +1006,7 @@ function PlayerActor({
     if (root) {
       root.position.set(player.x, player.jumpHeight, player.z);
       const bodyYaw = player.meleeUntil > player.clockTime ? player.meleeAttackYaw : player.facingYaw;
-      root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 13, delta);
+      root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 45, delta);
       root.scale.y = player.crouched ? 0.78 : 1;
     }
     const hand = modelRef.current && [
@@ -1155,7 +1147,19 @@ function PlayerActor({
         bone.rotation.set(original[0] + x, original[1] + y, original[2] + z);
       };
       applyBoneOffset(rightArm, recoilStrength * 0.11 + reloadDrop * 0.14 + chargeProgress * 0.2, 0, 0);
-      applyBoneOffset(torso, -recoilStrength * 0.025, 0, 0);
+      const moveX = inputRef.current.moveX
+        + (inputRef.current.keys.has("d") ? 1 : 0)
+        - (inputRef.current.keys.has("a") ? 1 : 0);
+      const moveY = inputRef.current.moveY
+        + (inputRef.current.keys.has("w") ? 1 : 0)
+        - (inputRef.current.keys.has("s") ? 1 : 0);
+      const locomotion = resolveWarRoomLocomotion(moveX, moveY, player.yaw, player.facingYaw);
+      applyBoneOffset(
+        torso,
+        -recoilStrength * 0.025 + locomotion.leanForward,
+        locomotion.leanSide,
+        0,
+      );
     }
     if (flashRef.current && flashRef.current.userData.warRoomExpiresAt <= player.clockTime) {
       flashRef.current.visible = false;
@@ -2392,8 +2396,8 @@ function WarRoomRuntimeScene({
       const attackReach = getWarRoomMeleeEffectiveReach(weapon.id, weapon.range, attackRangeBonus);
       const isBlocked = (enemy: WarRoomEnemy) => isMeleeTargetBlocked(player, enemy);
       const attackYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
-        ? getWarRoomMeleeAssistYaw(player.x, player.z, player.yaw, runtime.enemies, attackReach, isBlocked)
-        : player.yaw;
+        ? getWarRoomMeleeAssistYaw(player.x, player.z, player.facingYaw, runtime.enemies, attackReach, isBlocked)
+        : player.facingYaw;
       const lunged = moveWarRoomEntity(
         player.x,
         player.z,
@@ -2748,7 +2752,20 @@ function WarRoomRuntimeScene({
       input.aimHeld || now < player.strafeUntil,
       WAR_ROOM_CAMERA_FACING_ENABLED ? input.facingSetting : "movement",
     );
-    player.facingYaw = orientation.yaw;
+    const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!;
+    const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
+      && orientationWeapon.weaponClass === "melee"
+      && input.aimHeld
+      ? getWarRoomMeleeAssistYaw(
+        player.x,
+        player.z,
+        orientation.yaw,
+        runtime.enemies,
+        orientationWeapon.range,
+        (enemy) => isMeleeTargetBlocked(player, enemy),
+      )
+      : orientation.yaw;
+    player.facingYaw = stepWarRoomYaw(player.facingYaw, assistedYaw, delta, 55);
     player.facingMode = orientation.mode;
     player.joystickAngleDegrees = orientation.joystickAngleDegrees;
     player.facingCamera = orientation.facingCamera;
@@ -3157,10 +3174,72 @@ function WarRoomRuntimeScene({
       cameraStart.y + 0.35 - cameraForwardY * cameraBack,
       player.z - cameraForwardZ * cameraBack + Math.sin(player.yaw) * shoulder,
     );
-    const cameraCollision = boxSegment(cameraStart, cameraDesired);
-    const safeFraction = cameraCollision ?? 1;
-    if (safeFraction < 1) {
-      cameraDesired.lerpVectors(cameraStart, cameraDesired, Math.max(0.12, safeFraction - 0.08));
+    if (scene && now - cameraBoundsRefreshRef.current >= 0.25) {
+      scene.updateMatrixWorld(true);
+      const occluders: CameraOccluderEntry[] = [];
+      scene.traverse((object) => {
+        const id = object.userData.warRoomCameraOccluderId;
+        if (typeof id !== "string" || id.startsWith("gateway:")) return;
+        const bounds = new THREE.Box3().setFromObject(object);
+        if (bounds.isEmpty()) return;
+        occluders.push({ id, object, bounds });
+      });
+      cameraOccludersRef.current = occluders;
+      cameraBoundsRef.current = [
+        ...logicalCameraBounds,
+        ...occluders.map(({ id, bounds }) => ({
+          id,
+          minX: bounds.min.x,
+          minY: bounds.min.y,
+          minZ: bounds.min.z,
+          maxX: bounds.max.x,
+          maxY: bounds.max.y,
+          maxZ: bounds.max.z,
+        })),
+      ];
+      cameraBoundsRefreshRef.current = now;
+    }
+    const desiredCameraDistance = cameraStart.distanceTo(cameraDesired);
+    const cameraSweep = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
+      ? resolveWarRoomCameraSweep(
+        { x: cameraStart.x, y: cameraStart.y, z: cameraStart.z },
+        { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
+        cameraBoundsRef.current,
+        0.28,
+        1.2,
+        0.08,
+      )
+      : null;
+    const blockerId = cameraSweep?.blocked ? cameraSweep.blockerId : null;
+    if (cameraSweep?.blocked && desiredCameraDistance > 1e-8) {
+      cameraDesired.lerpVectors(
+        cameraStart,
+        cameraDesired,
+        Math.min(1, cameraSweep.safeDistance / desiredCameraDistance),
+      );
+    }
+    if (WAR_ROOM_CAMERA_OCCLUSION_ENABLED) {
+      for (const occluder of cameraOccludersRef.current) {
+        const previous = cameraFadeByIdRef.current.get(occluder.id) ?? 0;
+        const target = occluder.id === blockerId ? 1 : 0;
+        const next = target > previous
+          ? Math.min(target, previous + delta / 0.25)
+          : Math.max(target, previous - delta / 0.25);
+        if (Math.abs(next - previous) < 0.002) continue;
+        cameraFadeByIdRef.current.set(occluder.id, next);
+        setWarRoomCameraOccluderFade(
+          occluder.object,
+          next,
+          cameraMaterialOriginalsRef.current,
+        );
+      }
+      if (debugMode && now - cameraDebugAtRef.current >= 0.25) {
+        cameraDebugAtRef.current = now;
+        const distance = cameraSweep?.blocked ? cameraSweep.safeDistance : desiredCameraDistance;
+        onMeleeDebugUpdate(
+          `KAMERA ${distance.toFixed(2)} m · ENGEL ${blockerId ?? "yok"}`,
+        );
+      }
     }
     camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * delta));
     cameraLook.set(

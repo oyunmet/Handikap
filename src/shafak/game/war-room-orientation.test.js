@@ -71,6 +71,16 @@ test("body rotation takes the short path across the ±180° boundary", () => {
   assert.ok(Math.abs(Math.atan2(Math.sin(to - step), Math.cos(to - step))) < 0.012);
 });
 
+test("camera-facing body rotation catches up within 120 ms across the wrap boundary", () => {
+  let yaw = Math.PI - 0.2;
+  const target = -Math.PI + 0.2;
+  for (let elapsed = 0; elapsed < 0.12; elapsed += 1 / 60) {
+    yaw = stepWarRoomYaw(yaw, target, 1 / 60, 55);
+  }
+  const remaining = Math.abs(Math.atan2(Math.sin(target - yaw), Math.cos(target - yaw)));
+  assert.ok(remaining < 0.01, `body should be within 0.01 radians; remaining ${remaining}`);
+});
+
 test("post-attack strafe ends 0.8 seconds after the attack animation", () => {
   assert.ok(Math.abs(getWarRoomPostAttackStrafeUntil(4, 0.6) - 5.4) < 1e-9);
   assert.ok(Math.abs(getWarRoomPostAttackStrafeUntil(4) - 4.8) < 1e-9);

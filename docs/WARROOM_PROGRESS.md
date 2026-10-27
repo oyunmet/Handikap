@@ -58,12 +58,21 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 3 — v16 iPhone bulguları
 
-- **Durum:** DEVAM EDİYOR — Faz A başlıyor; Faz B–F sıralı bekliyor.
+- **Durum:** DEVAM EDİYOR — Faz A tamamlandı; Faz B başlıyor, Faz C–F sıralı bekliyor.
 - **Kapsam:** `attached_assets` içindeki v15 test notu ve IMG_8020–IMG_8029 ekran görüntüleri. Kamera/karakter yönelimi ve engel açıklığı; Kül Yolu dokunmatik koş/zıpla/eğil; silah laboratuvarı ve silah görünümü; vuruş/hasar/ölüm tepkileri; Savaş Odası oda zinciri.
 - **Kurallar:** Faz başında bu kayıt okunur; her fazın sonunda sonuç, kök neden, kalanlar, değişen dosyalar ve doğrulama eklenir. Fazlar sıralı ve bağımsız commit edilir. Mevcut 367/375 tabanı korunur; 8 bilinen Savaş Odası dışı test hatası dışındaki yeni hata fazı geri aldırır. Push/deploy yapılmaz.
 - **Kısıtlar:** Ateşli silah hasar/mermi/denge, düşman AI kararları, mağaza/ekonomi ve kalıcı ilerleme değiştirilmeyecek. Yeni savaş özellikleri kapatılabilir bayraklarla gelir. Savaşta parçacık ≤150, decal ≤30; yeni geometri/materyal oluşturulmaz.
 - **Cihaz kabulü:** Ekli iPhone ekranları bulgu kanıtı olarak kullanılır; Replit önizlemesinde WebGL açılamadığından yeni 3D görsel sonuçlar ancak gerçek iPhone/Safari'de doğrulanabilir.
-- **Fazlar:** A kamera/yönelim — SIRADA · B Kül Yolu kontrolleri — BEKLİYOR · C silah/laboratuvar — BEKLİYOR · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+- **Fazlar:** A kamera/yönelim — TAMAMLANDI · B Kül Yolu kontrolleri — SIRADA · C silah/laboratuvar — BEKLİYOR · D vuruş tepkileri — BEKLİYOR · E oda zinciri — BEKLİYOR · F son kontrol — BEKLİYOR.
+
+### Faz A — Kamera ve karakter yönelimi
+
+- **Durum:** KISMEN — yön hesabı, engel testi ve kod doğrulandı; iPhone görsel kabulü bekliyor.
+- **Kök neden:** `WarRoomScene3D.tsx` önce gövde yönü hedefini anında güncelliyor, görsel kökü ise yavaşça izliyordu; melee nişan yardımı da oyuncunun gövde yönü yerine kamera yaw'ını taban alıyordu. Kamera kesişimi yalnızca mantıksal siper kutularını kontrol ediyordu; sahnedeki ağaç/GLB prop sınırlarını ve fade yardımcılarını kullanmıyordu. Kamera testinde, yakın engel önünde güvenli mesafenin 1,2 m altına inmesi gerektiği halde test aksini bekliyordu.
+- **Yapılanlar:** Gövde yaw'ı en kısa açısal yoldan yumuşakça güncelleniyor; `?debug=1` testi ±180° sarımını ve 120 ms içindeki yetişmeyi kapsıyor. Hareket yönü seçeneği korunuyor, locomotion yönüne göre gövde eğimi uygulanıyor; melee saldırısı ve nişan yardımı gövde yönünü temel alıyor. Kamera 0,28 m swept-sphere ile siper ve sahneye etiketlenmiş statik prop AABB'lerini test ediyor; yakın engelde çarpışmadan önce yaklaşabiliyor, uzaktaki engelde 1,2 m tercihini koruyor. Kesişen etiketli prop 0,25 sn içinde yarı saydamlaşıyor; `?debug=1` kamera mesafesi ve engel kimliğini gösteriyor. Kamera/yönelim bayrakları mevcut ve varsayılan açık.
+- **Değişen dosyalar:** `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/game/war-room-camera.test.js`, `src/shafak/game/war-room-orientation.test.js`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** Build ve typecheck başarılı. Tüm testler 385 toplam, 377 geçti, 8 başarısız; aynı bilinen mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban testleri. Yeni kamera/yönelim testleri geçti. Replit önizlemesinde WebGL oluşturulamadığı için 3D fade ve gerçek iPhone davranışı **doğrulanamadı**.
+- **Kalanlar:** iPhone'da karakter dönüş gecikmesi, saldırı yönü, engel yaklaşımı/fade ve debug satırını kontrol et.
 
 ## Faz 1 — Karakter yönelimi
 

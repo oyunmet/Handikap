@@ -15,7 +15,7 @@ const wall = {
   maxZ: -1.3,
 };
 
-test("camera sweep shortens the path before a directly blocking wall", () => {
+test("camera sweep stops outside a directly blocking wall even inside the preferred distance", () => {
   const result = resolveWarRoomCameraSweep(
     { x: 0, y: 1.5, z: 0 },
     { x: 0, y: 1.5, z: -4 },
@@ -23,6 +23,22 @@ test("camera sweep shortens the path before a directly blocking wall", () => {
   );
   assert.equal(result.blocked, true);
   assert.equal(result.blockerId, "wall");
+  assert.ok(result.safeDistance < 1.2);
+  assert.ok(result.safeDistance < result.hitDistance);
+  assert.equal(
+    isWarRoomCameraPointClear({ x: 0, y: 1.5, z: -result.safeDistance }, [wall]),
+    true,
+  );
+});
+
+test("camera keeps its preferred minimum distance when the blocker is farther away", () => {
+  const farWall = { ...wall, minZ: -4.3, maxZ: -3.3 };
+  const result = resolveWarRoomCameraSweep(
+    { x: 0, y: 1.5, z: 0 },
+    { x: 0, y: 1.5, z: -5 },
+    [farWall],
+  );
+  assert.equal(result.blocked, true);
   assert.ok(result.safeDistance >= 1.2);
   assert.ok(result.safeDistance < result.hitDistance);
 });
