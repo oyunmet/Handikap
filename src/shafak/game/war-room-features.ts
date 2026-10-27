@@ -10,4 +10,6 @@ export const WAR_ROOM_WEAPON_ICONS_ENABLED = true;
 export const WAR_ROOM_REACTION_FEEDBACK_ENABLED = true;
 export const WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED = true;
 export const WAR_ROOM_COMMANDER_TELEGRAPH_ENABLED = true;
-export const WAR_ROOM_BUILD_VERSION = "v16-faz-d";
+export const WAR_ROOM_ROOM_CHAIN_ENABLED = true;
+export const WAR_ROOM_ROOM_BUFFS_ENABLED = false;
+export const WAR_ROOM_BUILD_VERSION = "v16-faz-e";
