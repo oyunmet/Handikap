@@ -78,6 +78,9 @@ type Props = {
   lookSensitivityY: number;
   aimSensitivityMultiplier: number;
   joystickMode: "dynamic" | "fixed";
+  cameraMode: "first-person" | "third-person";
+  shoulderSide: "left" | "right";
+  shoulderOffset: number;
   onOpenSettings: () => void;
   settingsOpen: boolean;
   controlsEditorOpen: boolean;
@@ -392,6 +395,9 @@ export default function WarRoomGame({
   lookSensitivityY,
   aimSensitivityMultiplier,
   joystickMode,
+  cameraMode,
+  shoulderSide,
+  shoulderOffset,
   onOpenSettings,
   settingsOpen,
   controlsEditorOpen,
@@ -1085,6 +1091,9 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={loadout}
             weaponMountOverrides={weaponMountOverrides}
+            cameraMode={cameraMode}
+            shoulderSide={shoulderSide}
+            shoulderOffset={shoulderOffset}
             bloodEffects={bloodEffects}
             trainingMode={weaponLabMode}
             quality={quality}

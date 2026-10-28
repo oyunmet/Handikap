@@ -106,3 +106,34 @@ export function resolveWarRoomCameraSweep(
       : Math.max(minimumDistance, beforeImpact),
   };
 }
+
+export type WarRoomCameraMode = "first-person" | "third-person";
+export type WarRoomShoulderSide = "left" | "right";
+
+export function getWarRoomCameraRig({
+  mode,
+  aiming,
+  shoulderOffset,
+  shoulderSide,
+  victoryZoom = 0,
+}: {
+  mode: WarRoomCameraMode;
+  aiming: boolean;
+  shoulderOffset: number;
+  shoulderSide: WarRoomShoulderSide;
+  victoryZoom?: number;
+}) {
+  if (mode === "first-person") return { back: 0, shoulder: 0 };
+
+  const offset = Number.isFinite(shoulderOffset)
+    ? Math.max(0, Math.min(1.5, shoulderOffset))
+    : 0.92;
+  const zoom = Number.isFinite(victoryZoom)
+    ? Math.max(0, Math.min(1, victoryZoom))
+    : 0;
+  const back = (aiming ? 2.8 : 4.05) * (1 - zoom * 0.18);
+  const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
+    * (shoulderSide === "left" ? -1 : 1);
+
+  return { back, shoulder };
+}

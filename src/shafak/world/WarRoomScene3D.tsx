@@ -35,8 +35,11 @@ import {
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
+  getWarRoomCameraRig,
   resolveWarRoomCameraSweep,
   type WarRoomCameraBounds,
+  type WarRoomCameraMode,
+  type WarRoomShoulderSide,
 } from "../game/war-room-camera";
 import {
   getWarRoomImpactFxProfile,
@@ -109,6 +112,9 @@ type Props = {
   inputRef: MutableRefObject<WarRoomInputState>;
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
+  cameraMode: WarRoomCameraMode;
+  shoulderSide: WarRoomShoulderSide;
+  shoulderOffset: number;
   bloodEffects: boolean;
   trainingMode: boolean;
   quality: RenderQuality;
@@ -1820,6 +1826,9 @@ function WarRoomRuntimeScene({
   inputRef,
   weaponIds,
   weaponMountOverrides,
+  cameraMode,
+  shoulderSide,
+  shoulderOffset,
   bloodEffects,
   trainingMode,
   quality,
@@ -3478,7 +3487,8 @@ function WarRoomRuntimeScene({
 
     const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!.range;
     cameraFovKickRef.current *= Math.exp(-12 * delta);
-    const desiredFov = (input.aimHeld ? 48 : player.sprinting ? 76 : 70) + cameraFovKickRef.current;
+    const desiredFov = (input.aimHeld ? 48 : cameraMode === "first-person" ? 82 : player.sprinting ? 76 : 70)
+      + cameraFovKickRef.current;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
     perspective.updateProjectionMatrix();
     const cameraForwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
@@ -3487,12 +3497,17 @@ function WarRoomRuntimeScene({
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
       : 0;
-    const cameraBack = (input.aimHeld ? 2.8 : 4.05) * (1 - victoryZoom * 0.18);
-    const shoulder = input.aimHeld ? 1.02 : 0.92;
+    const { back: cameraBack, shoulder } = getWarRoomCameraRig({
+      mode: cameraMode,
+      aiming: input.aimHeld,
+      shoulderOffset,
+      shoulderSide,
+      victoryZoom,
+    });
     cameraStart.set(player.x, player.jumpHeight + (player.prone ? 0.65 : player.crouched ? 1.2 : 1.55), player.z);
     cameraDesired.set(
       player.x - cameraForwardX * cameraBack + Math.cos(player.yaw) * shoulder,
-      cameraStart.y + 0.35 - cameraForwardY * cameraBack,
+      cameraStart.y + (cameraMode === "first-person" ? 0 : 0.35) - cameraForwardY * cameraBack,
       player.z - cameraForwardZ * cameraBack + Math.sin(player.yaw) * shoulder,
     );
     if (scene && now - cameraBoundsRefreshRef.current >= 0.25) {
@@ -3563,6 +3578,22 @@ function WarRoomRuntimeScene({
       }
     }
     camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * delta));
+    const playerCameraDistance = camera.position.distanceTo(cameraStart);
+    const playerFadeTarget = cameraMode === "third-person"
+      ? Math.max(0, Math.min(1, (1.35 - playerCameraDistance) / 0.85))
+      : 0;
+    const previousPlayerFade = cameraFadeByIdRef.current.get("player:camera-clearance") ?? 0;
+    if (Math.abs(playerFadeTarget - previousPlayerFade) >= 0.002 && playerRootRef.current) {
+      cameraFadeByIdRef.current.set("player:camera-clearance", playerFadeTarget);
+      setWarRoomCameraOccluderFade(
+        playerRootRef.current,
+        playerFadeTarget,
+        cameraMaterialOriginalsRef.current,
+      );
+    }
+    if (playerRootRef.current) {
+      playerRootRef.current.visible = cameraMode === "third-person" && playerCameraDistance > 0.42;
+    }
     cameraLook.set(
       player.x + cameraForwardX * 10,
       player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48) + cameraForwardY * 10 + cameraKickRef.current,

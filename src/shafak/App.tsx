@@ -69,6 +69,9 @@ type Preferences = {
   warRoomLookSensitivityY: number;
   warRoomAimSensitivityMultiplier: number;
   warRoomJoystickMode: "dynamic" | "fixed";
+  warRoomCameraMode: "first-person" | "third-person";
+  warRoomShoulderSide: "left" | "right";
+  warRoomShoulderOffset: number;
   warRoomFacing: "camera" | "movement";
   timeOfDay: TimeOfDayMode;
 };
@@ -89,6 +92,9 @@ const initialPreferences: Preferences = {
   warRoomLookSensitivityY: 0.0041,
   warRoomAimSensitivityMultiplier: 0.585,
   warRoomJoystickMode: "dynamic",
+  warRoomCameraMode: "first-person",
+  warRoomShoulderSide: "right",
+  warRoomShoulderOffset: 0.92,
   warRoomFacing: "camera",
   timeOfDay: "auto",
 };
@@ -173,6 +179,11 @@ function readPreferences(): Preferences {
         ? Math.max(0.3, Math.min(1.2, saved.warRoomAimSensitivityMultiplier))
         : initialPreferences.warRoomAimSensitivityMultiplier,
       warRoomJoystickMode: saved.warRoomJoystickMode === "fixed" ? "fixed" : "dynamic",
+      warRoomCameraMode: saved.warRoomCameraMode === "third-person" ? "third-person" : "first-person",
+      warRoomShoulderSide: saved.warRoomShoulderSide === "left" ? "left" : "right",
+      warRoomShoulderOffset: typeof saved.warRoomShoulderOffset === "number"
+        ? Math.max(0.2, Math.min(1.5, saved.warRoomShoulderOffset))
+        : initialPreferences.warRoomShoulderOffset,
       warRoomFacing: saved.warRoomFacing === "movement" ? "movement" : "camera",
       timeOfDay: saved.timeOfDay === "day" || saved.timeOfDay === "sunset" || saved.timeOfDay === "night"
         ? saved.timeOfDay
@@ -1220,6 +1231,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 lookSensitivityY={preferences.warRoomLookSensitivityY}
                 aimSensitivityMultiplier={preferences.warRoomAimSensitivityMultiplier}
                 joystickMode={preferences.warRoomJoystickMode}
+                cameraMode={preferences.warRoomCameraMode}
+                shoulderSide={preferences.warRoomShoulderSide}
+                shoulderOffset={preferences.warRoomShoulderOffset}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
                 controlsEditorOpen={warRoomControlsEditorOpen}
@@ -1373,6 +1387,65 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                         ))}
                       </div>
                     </div>
+                    <div className="setting-row setting-row--quality">
+                      <span className="setting-row__copy">
+                        <strong>Kamera görünümü</strong>
+                        <small>Birinci şahıs varsayılan; omuz kamerası isteğe bağlı.</small>
+                      </span>
+                      <div className="quality-switch" role="group" aria-label="Savaş Odası kamera görünümü">
+                        {([
+                          ["first-person", "Birinci şahıs"],
+                          ["third-person", "Omuz kamerası"],
+                        ] as const).map(([value, label]) => (
+                          <button
+                            className={preferences.warRoomCameraMode === value ? "is-selected" : ""}
+                            key={value}
+                            type="button"
+                            aria-pressed={preferences.warRoomCameraMode === value}
+                            onClick={() => setPreference("warRoomCameraMode", value)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {preferences.warRoomCameraMode === "third-person" && (
+                      <>
+                        <div className="setting-row setting-row--quality">
+                          <span className="setting-row__copy">
+                            <strong>Omuz tarafı</strong>
+                            <small>Üçüncü şahıs kamerasının karakter yanındaki konumu.</small>
+                          </span>
+                          <div className="quality-switch" role="group" aria-label="Omuz tarafı">
+                            {([
+                              ["left", "Sol"],
+                              ["right", "Sağ"],
+                            ] as const).map(([value, label]) => (
+                              <button
+                                className={preferences.warRoomShoulderSide === value ? "is-selected" : ""}
+                                key={value}
+                                type="button"
+                                aria-pressed={preferences.warRoomShoulderSide === value}
+                                onClick={() => setPreference("warRoomShoulderSide", value)}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <SettingRange
+                          id="war-room-camera-shoulder-offset"
+                          label="Omuz mesafesi"
+                          description="Kameranın karakterden yana uzaklığı."
+                          value={preferences.warRoomShoulderOffset}
+                          min={0.2}
+                          max={1.5}
+                          step={0.05}
+                          formatValue={(value) => `${value.toFixed(2)} m`}
+                          onChange={(value) => setPreference("warRoomShoulderOffset", value)}
+                        />
+                      </>
+                    )}
                     <SettingRange
                       id="war-room-look-sensitivity-x"
                       label="Bakış hassasiyeti · yatay"
