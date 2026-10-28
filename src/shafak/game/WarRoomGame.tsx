@@ -44,6 +44,7 @@ import {
 } from "./war-room-rooms";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
 import "./war-room.css";
+import "./war-room-layout.css";
 
 type Props = {
   onExit: () => void;
@@ -1113,6 +1114,31 @@ export default function WarRoomGame({
                     ? `${formatDuration(hud.elapsedSeconds)} · DOKUNUŞ: HAFİF · BASILI TUT ≥350 ms: AĞIR`
                     : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
                 </small>
+              </div>
+              <div className="war-room-weapon-select" role="group" aria-label="Silah seçimi">
+                {loadout.map((weaponId, slot) => {
+                  const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+                  const active = hud.weaponId === weaponId;
+                  return (
+                    <button
+                      key={`${slot}-${weaponId}`}
+                      type="button"
+                      className={`war-room-weapon-slot${active ? " is-active" : ""}`}
+                      aria-label={`${slot + 1}. silah: ${weapon?.name ?? "Silah"}${active ? ", seçili" : ""}`}
+                      aria-pressed={active}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (!active) inputRef.current.swapPressed = true;
+                      }}
+                    >
+                      <span className="war-room-weapon-slot__key">{slot + 1}</span>
+                      <span className="war-room-weapon-slot__icon" aria-hidden="true">
+                        {weapon?.icon ?? "—"}
+                      </span>
+                      <span className="war-room-weapon-slot__name">{weapon?.name ?? "Silah"}</span>
+                    </button>
+                  );
+                })}
               </div>
               <div className="war-room-controls">
                 <ActionButton

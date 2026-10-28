@@ -410,6 +410,90 @@ function BlockerFallback({ blocker }: { blocker: WarRoomBlocker }) {
   );
 }
 
+function WarRoomHouse({ blocker }: { blocker: WarRoomBlocker }) {
+  const wallHeight = Math.min(blocker.height * 0.62, 6.1);
+  const front = -blocker.depth / 2 - 0.08;
+  const roofAngle = 0.38;
+  const windowMaterial = (
+    <meshStandardMaterial
+      color="#26303a"
+      emissive="#b8753d"
+      emissiveIntensity={0.16}
+      roughness={0.46}
+      metalness={0.08}
+    />
+  );
+
+  return (
+    <group
+      position={[blocker.x, 0, blocker.z]}
+      rotation={[0, blocker.id === "east-tower" ? Math.PI : 0, 0]}
+      userData={{ warRoomCameraOccluderId: blocker.id }}
+    >
+      <mesh position={[0, wallHeight / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[blocker.width, wallHeight, blocker.depth]} />
+        <meshStandardMaterial color="#817568" roughness={0.92} />
+      </mesh>
+      <mesh position={[0, 2.8, front]} castShadow receiveShadow>
+        <boxGeometry args={[blocker.width * 0.83, 5.6, 0.09]} />
+        <meshStandardMaterial color="#594b43" roughness={0.86} />
+      </mesh>
+      <mesh position={[0, wallHeight * 0.48, front - 0.08]} castShadow>
+        <boxGeometry args={[0.92, 2.1, 0.12]} />
+        <meshStandardMaterial color="#332923" roughness={0.84} />
+      </mesh>
+      <mesh position={[0.28, wallHeight * 0.48, front - 0.15]}>
+        <sphereGeometry args={[0.045, 6, 5]} />
+        <meshStandardMaterial color="#d7a454" metalness={0.56} roughness={0.32} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <group key={`house-window-${side}`}>
+          <mesh position={[side * blocker.width * 0.25, wallHeight * 0.43, front - 0.1]}>
+            <boxGeometry args={[1.12, 0.88, 0.08]} />
+            {windowMaterial}
+          </mesh>
+          <mesh position={[side * blocker.width * 0.25, wallHeight * 0.76, front - 0.1]}>
+            <boxGeometry args={[1.02, 0.74, 0.08]} />
+            {windowMaterial}
+          </mesh>
+        </group>
+      ))}
+      {[-1, 1].map((side) => (
+        <mesh
+          key={`house-timber-${side}`}
+          position={[side * (blocker.width * 0.43), wallHeight / 2, front - 0.12]}
+          castShadow
+        >
+          <boxGeometry args={[0.16, wallHeight, 0.16]} />
+          <meshStandardMaterial color="#44352d" roughness={0.84} />
+        </mesh>
+      ))}
+      <mesh position={[0, wallHeight + 0.1, 0]} castShadow receiveShadow>
+        <boxGeometry args={[blocker.width + 0.48, 0.3, blocker.depth + 0.48]} />
+        <meshStandardMaterial color="#53443b" roughness={0.9} />
+      </mesh>
+      <mesh
+        position={[0, wallHeight + 0.38, -blocker.depth * 0.22]}
+        rotation={[-roofAngle, 0, 0]}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[blocker.width + 0.56, 0.2, blocker.depth * 0.58]} />
+        <meshStandardMaterial color="#493833" roughness={0.9} />
+      </mesh>
+      <mesh
+        position={[0, wallHeight + 0.38, blocker.depth * 0.22]}
+        rotation={[roofAngle, 0, 0]}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[blocker.width + 0.56, 0.2, blocker.depth * 0.58]} />
+        <meshStandardMaterial color="#493833" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
 function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
   const fallback = <BlockerFallback blocker={blocker} />;
   if (blocker.kind === "wall") {
@@ -433,38 +517,7 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
     );
   }
   if (blocker.kind === "tower") {
-    return (
-      <>
-        <StaticWarRoomAsset
-          src="/models/war-room/tower-square.glb"
-          position={[blocker.x, 0, blocker.z]}
-          targetSize={[blocker.width, blocker.height, blocker.depth]}
-          fallback={fallback}
-        />
-        <StaticWarRoomAsset
-          src="/models/war-room/tower-square-top.glb"
-          position={[blocker.x, blocker.height - 0.15, blocker.z]}
-          targetSize={[blocker.width, 0.55, blocker.depth]}
-          fallback={
-            <mesh position={[blocker.x, blocker.height - 0.15, blocker.z]} castShadow>
-              <boxGeometry args={[blocker.width, 0.55, blocker.depth]} />
-              <meshStandardMaterial color="#88715b" roughness={0.82} />
-            </mesh>
-          }
-        />
-        <StaticWarRoomAsset
-          src="/models/war-room/tower-square-roof.glb"
-          position={[blocker.x, blocker.height + 0.4, blocker.z]}
-          targetSize={[blocker.width * 1.18, 1.3, blocker.depth * 1.18]}
-          fallback={
-            <mesh position={[blocker.x, blocker.height + 1.05, blocker.z]} castShadow>
-              <coneGeometry args={[blocker.width * 0.72, 1.3, 4]} />
-              <meshStandardMaterial color="#59443d" roughness={0.88} />
-            </mesh>
-          }
-        />
-      </>
-    );
+    return <WarRoomHouse blocker={blocker} />;
   }
   if (blocker.kind === "platform") {
     return (

@@ -1,0 +1,120 @@
+@media (orientation: landscape) and (max-width: 960px) {
+  .world-topbar {
+    top: max(7px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
+    align-items: center;
+    gap: 6px;
+  }
+
+  .world-profile { gap: 6px; padding: 4px 7px; border-radius: 4px; }
+  .world-profile__crest { width: 28px; height: 30px; font-size: 11px; }
+  .world-profile__identity { gap: 1px; }
+  .world-profile__name { font-size: 9px; }
+  .world-profile__demo { font-size: 6px; }
+  .world-profile__level { gap: 1px; margin-left: 3px; padding-left: 6px; font-size: 6px; }
+  .world-profile__level b { font-size: 11px; }
+  .world-currency { gap: 4px; padding: 4px 6px; font-size: 8px; }
+  .world-material-hud { gap: 6px; padding: 4px 6px; font-size: 7px; }
+  .world-time-control { min-height: 30px; gap: 4px; padding: 3px 5px; font-size: 6px; }
+  .world-time-control__switch { width: 34px; height: 19px; }
+  .world-time-control__switch span { width: 11px; height: 11px; }
+  .world-time-control__switch.is-sunset span { transform: translateX(8px); }
+  .world-time-control__switch.is-night span { transform: translateX(17px); }
+
+  .world-progress {
+    top: max(50px, calc(env(safe-area-inset-top) + 44px));
+    left: max(10px, env(safe-area-inset-left));
+    width: min(270px, 36vw);
+    padding: 6px 8px;
+    border-radius: 5px;
+  }
+
+  .world-progress__body { gap: 6px; }
+  .world-progress__map { width: 34px; height: 34px; flex-basis: 34px; }
+  .world-progress__map > b { font-size: 7px; }
+  .world-progress__heading span { font-size: 6px; }
+  .world-progress__heading b { font-size: 7px; }
+  .world-progress__track { margin: 4px 0 3px; }
+  .world-progress__distance { font-size: 5px; }
+  .world-daily-lives { min-height: 20px; gap: 5px; margin-top: 4px; padding-top: 3px; font-size: 6px; }
+  .world-daily-lives__hearts { font-size: 10px; }
+  .world-daily-lives__label { font-size: 5px; }
+
+  .world-controls {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(7px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    align-items: flex-end;
+    gap: 5px;
+  }
+
+  .world-navigation { gap: 5px; }
+  .world-exit { height: 34px; gap: 5px; padding: 0 8px; font-size: 7px; }
+  .world-exit svg { width: 12px; height: 12px; }
+  .world-status { gap: 2px; padding: 5px 7px; }
+  .world-status__label { font-size: 5px; }
+  .world-status__value { font-size: 8px; }
+  .world-actions { gap: 4px; }
+  .world-action { min-width: 40px; min-height: 38px; gap: 2px; padding: 4px; font-size: 6px; }
+
+  .world-joystick {
+    bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
+    left: max(12px, env(safe-area-inset-left));
+    display: block;
+    width: clamp(78px, 12vw, 96px);
+    height: clamp(78px, 12vw, 96px);
+  }
+
+  .world-joystick__nub { width: 34px; height: 34px; }
+
+  .world-movement-actions {
+    position: absolute;
+    z-index: 8;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 70px));
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    touch-action: none;
+  }
+
+  .world-movement-actions .game-button {
+    position: relative;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    --game-button-face: 48px !important;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .world-movement-actions .game-button .game-button__label { font-size: 6px; }
+  .world-movement-actions .game-button .game-button__icon { justify-self: center; }
+  .world-hazard-hint { bottom: max(124px, calc(env(safe-area-inset-bottom) + 116px)); }
+}
+
+@media (orientation: landscape) and (max-width: 600px) {
+  .world-progress { width: min(230px, 40vw); padding: 5px 6px; }
+  .world-progress__map { width: 28px; height: 28px; flex-basis: 28px; }
+  .world-daily-lives { min-height: 17px; }
+  .world-material-hud { gap: 4px; font-size: 6px; }
+  .world-joystick {
+    bottom: max(67px, calc(env(safe-area-inset-bottom) + 62px));
+    width: clamp(72px, 13vw, 84px);
+    height: clamp(72px, 13vw, 84px);
+  }
+  .world-joystick__nub { width: 30px; height: 30px; }
+  .world-movement-actions { bottom: max(66px, calc(env(safe-area-inset-bottom) + 60px)); }
+  .world-movement-actions .game-button {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+    --game-button-face: 43px !important;
+  }
+  .world-controls { bottom: max(6px, env(safe-area-inset-bottom)); }
+}

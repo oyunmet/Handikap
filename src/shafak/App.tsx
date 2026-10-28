@@ -38,6 +38,9 @@ import {
   type TimeOfDayMode,
 } from "./world/time-of-day";
 import { WAR_ROOM_QUALITY_ENABLED } from "./game/war-room-features";
+import LandscapeOrientationHint, { requestLandscapeOrientation } from "./LandscapeOrientationHint";
+import "./gameplay-layout.css";
+import "./lobby-layout.css";
 
 const WorldScene = lazy(() => import("./world/WorldScene"));
 const WarRoomGame = lazy(() => import("./game/WarRoomGame"));
@@ -46,7 +49,9 @@ type Screen = "intro" | "opening" | "loading" | "menu" | "world" | "war-room";
 
 function resolveInitialScreen(): Screen {
   const search = typeof window === "undefined" ? "" : window.location.search;
-  if (new URLSearchParams(search).get("mod") === "savas") return "war-room";
+  const query = new URLSearchParams(search);
+  if (query.get("debug") === "1" && query.get("scene") === "menu") return "menu";
+  if (query.get("mod") === "savas") return "war-room";
   return getInitialScreen(search);
 }
 type Preferences = {
@@ -603,6 +608,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const begin = () => {
+    requestLandscapeOrientation();
     playFeedback();
     setProgress(0);
     setTipIndex(0);
@@ -619,6 +625,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const enterWorld = (initialStoreTab: StoreTab | null = null) => {
+    requestLandscapeOrientation();
     playFeedback();
     primeGameAudio();
     setInitialWorldStoreTab(initialStoreTab);
@@ -633,6 +640,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const enterWarRoom = (returnScreen: "menu" | "world" = "menu") => {
+    requestLandscapeOrientation();
     playFeedback();
     primeGameAudio();
     setWarRoomReturnScreen(returnScreen);
@@ -796,6 +804,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ref={sceneRef}
       aria-label={tr.brand}
     >
+      <LandscapeOrientationHint />
       {homeAtmosphere && (
         <>
           <div className="scene-backdrop" aria-hidden="true">
@@ -940,6 +949,21 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   <small>SAVAŞÇILARI</small>
                 </span>
               </button>
+              <div className="menu-player-status" aria-label={`${profile.name}, seviye ${profile.level}`}>
+                <span className="menu-player-status__level" aria-hidden="true">
+                  <i>✦</i><b>{profile.level}</b>
+                </span>
+                <span className="menu-player-status__name">
+                  <strong>{profile.name}</strong>
+                  <small>SEVİYE {profile.level}</small>
+                </span>
+                <span className="menu-resource-chip" aria-label={`${profile.gold} altın`}>
+                  <i aria-hidden="true">◉</i>{profile.gold.toLocaleString("tr-TR")}
+                </span>
+                <span className="menu-resource-chip" aria-label={`${profile.diamonds} elmas`}>
+                  <i aria-hidden="true">◇</i>{profile.diamonds.toLocaleString("tr-TR")}
+                </span>
+              </div>
               <div className="menu-tools">
                 <button
                   className={`icon-control${preferences.sound ? "" : " is-off"}`}
@@ -1012,18 +1036,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <ArrowIcon />
                   </button>
                   <button
-                    className="menu-action menu-action--war-room"
-                    type="button"
-                    onClick={() => enterWarRoom("menu")}
-                  >
-                    <span className="menu-action__icon" aria-hidden="true">✹</span>
-                    <span className="menu-action__war-room-copy">
-                      <b>SAVAŞ ODASI</b>
-                      <small>TEK KİŞİLİK NİŞAN GÖREVİ</small>
-                    </span>
-                    <span className="menu-action__war-room-arrow" aria-hidden="true">➜</span>
-                  </button>
-                  <button
                     className="menu-action menu-action--secondary"
                     type="button"
                     onClick={() => {
@@ -1051,6 +1063,19 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   </div>
                 </div>
               </motion.div>
+              <button
+                className="menu-action menu-action--war-room"
+                type="button"
+                onClick={() => enterWarRoom("menu")}
+              >
+                <span className="menu-action__icon" aria-hidden="true">✹</span>
+                <span className="menu-action__war-room-copy">
+                  <small>GÖREV MODU</small>
+                  <b>SAVAŞ ODASI</b>
+                  <small>TEK KİŞİLİK NİŞAN GÖREVİ</small>
+                </span>
+                <span className="menu-action__war-room-arrow" aria-hidden="true">➜</span>
+              </button>
             </div>
 
             <footer className="menu-footer">

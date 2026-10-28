@@ -1,0 +1,649 @@
+.landscape-orientation-hint {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: none;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(110, 75, 46, .24), transparent 48%),
+    rgba(8, 10, 16, .97);
+  color: #f0e2c9;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.landscape-orientation-hint__icon {
+  display: grid;
+  width: 70px;
+  height: 70px;
+  place-items: center;
+  border: 1px solid rgba(212, 177, 111, .36);
+  border-radius: 50%;
+  background: rgba(18, 20, 27, .7);
+  color: #e0bd79;
+}
+
+.landscape-orientation-hint__icon svg {
+  width: 44px;
+  height: 44px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.landscape-orientation-hint strong {
+  font: 800 11px/1.4 var(--font-body, Manrope, sans-serif);
+  letter-spacing: .18em;
+}
+
+.landscape-orientation-hint > span:last-child {
+  color: rgba(235, 223, 201, .68);
+  font: 500 12px/1.6 var(--font-body, Manrope, sans-serif);
+}
+
+.war-room-weapon-select { display: none; }
+
+.menu-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(8px, 2vw, 22px);
+}
+
+.menu-player-status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: center;
+  gap: clamp(6px, 1.2vw, 13px);
+  padding: 6px 10px;
+  border: 1px solid rgba(222, 192, 139, .24);
+  border-radius: 4px;
+  background: rgba(10, 12, 17, .56);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  color: #f0e3cc;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(10px);
+}
+
+.menu-player-status__level {
+  display: grid;
+  width: 33px;
+  height: 33px;
+  flex: none;
+  place-content: center;
+  border: 1px solid rgba(220, 186, 119, .55);
+  border-radius: 50%;
+  background: rgba(98, 66, 36, .46);
+  color: #f2d796;
+  text-align: center;
+}
+
+.menu-player-status__level i {
+  font-size: 7px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.menu-player-status__level b {
+  font: 800 10px/1.2 var(--font-body, Manrope, sans-serif);
+}
+
+.menu-player-status__name {
+  display: grid;
+  min-width: 58px;
+  gap: 2px;
+}
+
+.menu-player-status__name strong {
+  overflow: hidden;
+  max-width: 130px;
+  color: #f2ead9;
+  font: 700 10px/1.2 var(--font-body, Manrope, sans-serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-player-status__name small {
+  color: rgba(231, 211, 178, .62);
+  font: 800 7px/1.2 var(--font-body, Manrope, sans-serif);
+  letter-spacing: .11em;
+}
+
+.menu-resource-chip {
+  display: flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid rgba(220, 189, 132, .17);
+  border-radius: 3px;
+  background: rgba(4, 6, 10, .34);
+  color: #f4e6c9;
+  font: 800 9px/1 var(--font-body, Manrope, sans-serif);
+}
+
+.menu-resource-chip i {
+  color: #e3bd73;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.menu-content {
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 18px 0 34px;
+}
+
+.menu-copy {
+  width: min(49%, 600px);
+  padding: 0 2px;
+}
+
+.menu-copy h1 {
+  max-width: 520px;
+  font-size: clamp(36px, 5vw, 66px);
+  line-height: 1.02;
+}
+
+.menu-copy > p {
+  max-width: 400px;
+  margin: 12px 0 20px;
+}
+
+.menu-actions {
+  display: grid;
+  width: min(100%, 520px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.menu-action--primary,
+.menu-action--war-room {
+  min-height: 56px;
+  padding-inline: 12px;
+}
+
+.menu-action--secondary {
+  grid-column: 1;
+  min-height: 42px;
+  padding-inline: 10px;
+}
+
+.menu-gear-actions {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.menu-gear-action {
+  min-width: 0;
+  min-height: 42px;
+  padding-inline: 5px;
+  font-size: 7px;
+  letter-spacing: .08em;
+}
+
+@media (orientation: portrait) and (max-width: 760px) {
+  .landscape-orientation-hint { display: grid; }
+}
+
+@media (orientation: landscape) and (max-width: 960px) {
+  .screen--menu {
+    padding:
+      max(9px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+    background:
+      linear-gradient(90deg, rgba(6, 7, 11, .8), rgba(6, 7, 11, .3) 58%, rgba(6, 7, 11, .1)),
+      linear-gradient(0deg, rgba(5, 6, 9, .62), transparent 48%);
+  }
+
+  .menu-header { min-height: 42px; gap: 8px; }
+  .menu-player-status { gap: 5px; padding: 4px 6px; }
+  .menu-player-status__level { width: 28px; height: 28px; }
+  .menu-player-status__name strong { max-width: 88px; font-size: 8px; }
+  .menu-player-status__name small { font-size: 6px; }
+  .menu-resource-chip { min-height: 22px; gap: 3px; padding-inline: 5px; font-size: 8px; }
+  .menu-content { align-items: center; padding: 2px 0 5px; }
+  .menu-copy { width: min(58%, 490px); padding-left: 2px; }
+  .menu-divider { margin-bottom: 7px; font-size: 7px; }
+  .menu-copy h1 { max-width: 360px; font-size: clamp(27px, 5vw, 42px); }
+  .menu-copy > p { max-width: 310px; margin: 7px 0 10px; font-size: 9px; line-height: 1.5; }
+  .menu-actions { width: min(100%, 440px); gap: 6px; }
+  .menu-action--primary,
+  .menu-action--war-room { min-height: 43px; padding-inline: 8px; font-size: 8px; }
+  .menu-action__icon { width: 27px; height: 27px; }
+  .menu-action--war-room small { font-size: 6px; }
+  .menu-action--secondary,
+  .menu-gear-action { min-height: 34px; font-size: 7px; }
+  .menu-footer { display: none; }
+  .scene-character {
+    right: -3%;
+    bottom: -5%;
+    width: 54vw;
+    height: 92dvh;
+    min-height: 0;
+    opacity: .94;
+  }
+  .scene-character img {
+    right: 0;
+    max-width: 58vw;
+    height: 100%;
+    object-fit: contain;
+    object-position: bottom right;
+  }
+
+  .world-topbar {
+    top: max(7px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
+    align-items: center;
+    gap: 6px;
+  }
+
+  .world-profile {
+    gap: 6px;
+    padding: 4px 7px;
+    border-radius: 4px;
+  }
+
+  .world-profile__crest { width: 28px; height: 30px; font-size: 11px; }
+  .world-profile__identity { gap: 1px; }
+  .world-profile__name { font-size: 9px; }
+  .world-profile__demo { font-size: 6px; }
+  .world-profile__level { gap: 1px; margin-left: 3px; padding-left: 6px; font-size: 6px; }
+  .world-profile__level b { font-size: 11px; }
+  .world-currency { gap: 4px; padding: 4px 6px; font-size: 8px; }
+  .world-material-hud { gap: 6px; padding: 4px 6px; font-size: 7px; }
+  .world-time-control { min-height: 30px; gap: 4px; padding: 3px 5px; font-size: 6px; }
+  .world-time-control__switch { width: 34px; height: 19px; }
+  .world-time-control__switch span { width: 11px; height: 11px; }
+  .world-time-control__switch.is-sunset span { transform: translateX(8px); }
+  .world-time-control__switch.is-night span { transform: translateX(17px); }
+
+  .world-progress {
+    top: max(50px, calc(env(safe-area-inset-top) + 44px));
+    left: max(10px, env(safe-area-inset-left));
+    width: min(270px, 36vw);
+    padding: 6px 8px;
+    border-radius: 5px;
+  }
+
+  .world-progress__body { gap: 6px; }
+  .world-progress__map { width: 34px; height: 34px; flex-basis: 34px; }
+  .world-progress__map > b { font-size: 7px; }
+  .world-progress__heading span { font-size: 6px; }
+  .world-progress__heading b { font-size: 7px; }
+  .world-progress__track { margin: 4px 0 3px; }
+  .world-progress__distance { font-size: 5px; }
+  .world-daily-lives { min-height: 20px; gap: 5px; margin-top: 4px; padding-top: 3px; font-size: 6px; }
+  .world-daily-lives__hearts { font-size: 10px; }
+  .world-daily-lives__label { font-size: 5px; }
+
+  .world-controls {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(7px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    align-items: flex-end;
+    gap: 5px;
+  }
+
+  .world-navigation { gap: 5px; }
+  .world-exit { height: 34px; gap: 5px; padding: 0 8px; font-size: 7px; }
+  .world-exit svg { width: 12px; height: 12px; }
+  .world-status { gap: 2px; padding: 5px 7px; }
+  .world-status__label { font-size: 5px; }
+  .world-status__value { font-size: 8px; }
+  .world-actions { gap: 4px; }
+  .world-action { min-width: 40px; min-height: 38px; gap: 2px; padding: 4px; font-size: 6px; }
+
+  .world-joystick {
+    bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
+    left: max(12px, env(safe-area-inset-left));
+    display: block;
+    width: clamp(78px, 12vw, 96px);
+    height: clamp(78px, 12vw, 96px);
+  }
+
+  .world-joystick__nub { width: 34px; height: 34px; }
+
+  .world-movement-actions {
+    position: absolute;
+    z-index: 8;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 70px));
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    touch-action: none;
+  }
+
+  .world-movement-actions .game-button {
+    position: relative;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    --game-button-face: 48px !important;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .world-movement-actions .game-button .game-button__label { font-size: 6px; }
+  .world-movement-actions .game-button .game-button__icon { justify-self: center; }
+  .world-hazard-hint { bottom: max(124px, calc(env(safe-area-inset-bottom) + 116px)); }
+}
+
+@media (orientation: landscape) and (max-width: 600px) {
+  .menu-player-status__name { display: none; }
+  .menu-player-status { gap: 4px; padding: 3px 4px; }
+  .menu-player-status__level { width: 25px; height: 25px; }
+  .menu-resource-chip { padding-inline: 4px; font-size: 7px; }
+  .menu-copy { width: min(63%, 400px); }
+  .menu-copy h1 { font-size: clamp(23px, 5vw, 33px); }
+  .menu-copy > p { max-width: 260px; font-size: 8px; }
+  .menu-actions { gap: 5px; }
+  .menu-action--primary,
+  .menu-action--war-room { min-height: 38px; font-size: 7px; }
+  .menu-action--secondary,
+  .menu-gear-action { min-height: 29px; font-size: 6px; }
+  .menu-header { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .menu-tools { gap: 3px; }
+  .icon-control { width: 30px; height: 30px; }
+  .icon-control svg { width: 14px; height: 14px; }
+  .mini-brand { gap: 5px; }
+  .mini-brand .crest { width: 27px; height: 27px; }
+  .scene-character { right: -7%; width: 51vw; }
+
+  .world-progress {
+    width: min(230px, 40vw);
+    padding: 5px 6px;
+  }
+  .world-progress__map { width: 28px; height: 28px; flex-basis: 28px; }
+  .world-daily-lives { min-height: 17px; }
+  .world-material-hud { gap: 4px; font-size: 6px; }
+  .world-joystick {
+    bottom: max(67px, calc(env(safe-area-inset-bottom) + 62px));
+    width: clamp(72px, 13vw, 84px);
+    height: clamp(72px, 13vw, 84px);
+  }
+  .world-joystick__nub { width: 30px; height: 30px; }
+  .world-movement-actions { bottom: max(66px, calc(env(safe-area-inset-bottom) + 60px)); }
+  .world-movement-actions .game-button {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+    --game-button-face: 43px !important;
+  }
+  .world-controls { bottom: max(6px, env(safe-area-inset-bottom)); }
+}
+
+@media (orientation: landscape) and (max-height: 420px) and (max-width: 960px) {
+  .war-room-hud__top {
+    position: absolute;
+    inset: max(7px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) auto max(8px, env(safe-area-inset-left));
+    height: 82px;
+    display: block;
+    pointer-events: none;
+  }
+
+  .war-room-room-indicator { position: absolute; top: 0; left: 0; }
+  .war-room-kill-feed { position: absolute; top: 39px; left: 0; max-width: min(180px, 24vw); }
+  .war-room-enemies-left { top: 0; left: 50%; transform: translateX(-50%); }
+  .war-room-minimap {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 72px;
+    height: 72px;
+  }
+
+  .war-room-settings,
+  .war-room-mute,
+  .war-room-blood {
+    top: max(80px, calc(env(safe-area-inset-top) + 74px));
+    min-height: 27px;
+    padding: 0 6px;
+    font-size: 6px;
+  }
+
+  .war-room-settings { right: max(8px, env(safe-area-inset-right)); width: 28px; }
+  .war-room-mute { right: max(40px, calc(env(safe-area-inset-right) + 34px)); }
+  .war-room-blood { right: max(87px, calc(env(safe-area-inset-right) + 80px)); }
+
+  .war-room-commander {
+    top: max(112px, calc(env(safe-area-inset-top) + 105px));
+    left: 50%;
+    width: min(310px, 36vw);
+    transform: translateX(-50%);
+  }
+
+  .war-room-boss-phase { top: max(145px, calc(env(safe-area-inset-top) + 138px)); }
+
+  .war-room-vitals {
+    bottom: max(106px, calc(env(safe-area-inset-bottom) + 100px));
+    left: max(12px, env(safe-area-inset-left));
+    width: clamp(116px, 17vw, 150px);
+    padding: 6px 7px;
+  }
+
+  .war-room-bar-row { margin-bottom: 3px; }
+  .war-room-bar-row span,
+  .war-room-bar-row b { font-size: 6px; }
+  .war-room-bar { height: 4px; margin-bottom: 5px; }
+
+  .war-room-stick {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: clamp(76px, 12vw, 90px);
+    height: clamp(76px, 12vw, 90px);
+  }
+
+  .war-room-stick i { width: 31px; height: 31px; }
+  .war-room-ammo {
+    right: auto;
+    bottom: max(70px, calc(env(safe-area-inset-bottom) + 64px));
+    left: 50%;
+    min-width: 130px;
+    align-items: center;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  .war-room-ammo > span { font-size: 7px; }
+  .war-room-ammo > span small,
+  .war-room-ammo > small { font-size: 6px; }
+  .war-room-ammo > strong { font-size: 20px; }
+  .war-room-ammo > strong small { font-size: 11px; }
+  .war-room-reload-progress { width: 112px; }
+
+  .war-room-weapon-select {
+    position: absolute;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 50%;
+    display: flex;
+    gap: 5px;
+    transform: translateX(-50%);
+    pointer-events: auto;
+  }
+
+  .war-room-weapon-slot {
+    display: grid;
+    width: clamp(56px, 8vw, 72px);
+    min-height: 42px;
+    grid-template-columns: 16px 1fr;
+    grid-template-rows: 1fr auto;
+    align-items: center;
+    gap: 0 4px;
+    padding: 4px 5px;
+    border: 1px solid rgba(236, 218, 189, .26);
+    border-radius: 4px;
+    background: rgba(15, 17, 21, .78);
+    color: #eadcc4;
+    text-align: left;
+  }
+
+  .war-room-weapon-slot.is-active {
+    border-color: rgba(234, 194, 121, .82);
+    background: linear-gradient(145deg, rgba(110, 76, 43, .86), rgba(31, 26, 23, .9));
+    box-shadow: 0 0 12px rgba(226, 173, 91, .2);
+  }
+
+  .war-room-weapon-slot__key {
+    grid-row: 1 / span 2;
+    color: #d9b872;
+    font: 800 8px/1 var(--font-body, sans-serif);
+  }
+
+  .war-room-weapon-slot__icon {
+    display: grid;
+    min-width: 0;
+    height: 18px;
+    place-items: center;
+    color: #f1d19b;
+  }
+
+  .war-room-weapon-slot__icon svg { width: 30px; height: 16px; object-fit: contain; }
+  .war-room-weapon-slot__name {
+    overflow: hidden;
+    color: rgba(245, 231, 211, .8);
+    font: 800 5px/1.15 var(--font-body, sans-serif);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .war-room-controls {
+    right: max(9px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    display: block;
+    width: 124px;
+    height: 138px;
+  }
+
+  .war-room-control {
+    position: absolute;
+    display: flex;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    gap: 0;
+    padding: 2px;
+    border: 1px solid rgba(244, 223, 193, .42);
+    border-radius: 50%;
+    background: rgba(22, 24, 29, .76);
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-control__symbol { font-size: 16px; }
+  .war-room-control b { font-size: 5px; letter-spacing: 0; }
+  .war-room-control.is-aim { top: 5px; left: 5px; }
+  .war-room-control.is-reload { top: 0; left: 58px; }
+  .war-room-control.is-jump { top: 48px; left: 58px; }
+  .war-room-control.is-dodge { top: 75px; left: 8px; }
+  .war-room-control.is-swap { display: none; }
+  .war-room-control.is-fire {
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: 60px;
+    min-width: 60px;
+    height: 60px;
+    min-height: 60px;
+    border-color: rgba(251, 178, 116, .7);
+    background: linear-gradient(145deg, rgba(156, 76, 49, .82), rgba(66, 35, 29, .86));
+  }
+
+  .war-room-control.is-fire .war-room-control__symbol { font-size: 22px; }
+  .war-room-pause {
+    top: max(7px, env(safe-area-inset-top));
+    right: auto;
+    bottom: auto;
+    left: max(84px, calc(env(safe-area-inset-left) + 76px));
+    min-height: 26px;
+    padding: 0 7px;
+    font-size: 6px;
+  }
+
+  .war-room-briefing {
+    display: grid;
+    grid-template-columns: minmax(200px, .62fr) minmax(0, 1.38fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    overflow: hidden;
+    padding:
+      max(42px, calc(env(safe-area-inset-top) + 34px))
+      max(14px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .war-room-exit {
+    top: max(7px, env(safe-area-inset-top));
+    right: max(9px, env(safe-area-inset-right));
+    min-height: 27px;
+    font-size: 6px;
+  }
+
+  .war-room-heading {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    width: 100%;
+    padding: 0;
+    text-align: left;
+  }
+
+  .war-room-heading h1 { margin: 8px 0; font-size: clamp(27px, 4vw, 38px); }
+  .war-room-heading p { max-width: 230px; font-size: 9px; line-height: 1.45; }
+  .war-room-eyebrow { font-size: 7px; letter-spacing: .14em; }
+
+  .war-room-briefing__content {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    max-width: none;
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 0 2px 2px;
+  }
+
+  .war-room-mission-card { gap: 8px; padding: 8px 10px; }
+  .war-room-mission-card__symbol { width: 28px; height: 28px; font-size: 13px; }
+  .war-room-mission-card strong { font-size: 10px; }
+  .war-room-mission-card small { font-size: 7px; }
+  .war-room-loadout-head { margin: 12px 0 7px; }
+  .war-room-loadout-head h2 { margin: 3px 0 0; font-size: 15px; }
+  .war-room-slot-tabs button { min-height: 28px; padding: 0 8px; font-size: 7px; }
+  .war-room-weapon-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .war-room-weapon-card { min-height: 48px; padding: 6px; }
+  .war-room-weapon-card__icon { width: 30px; height: 20px; }
+  .war-room-weapon-card__copy b { font-size: 7px; }
+  .war-room-weapon-card__copy small,
+  .war-room-weapon-card__status { font-size: 5px; }
+  .war-room-briefing__bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(88px, 140px);
+    align-items: center;
+    gap: 5px 10px;
+    margin-top: 9px;
+  }
+
+  .war-room-briefing__bottom p { display: none; }
+  .war-room-start { min-height: 36px; padding: 0 9px; font-size: 8px; }
+  .war-room-model-progress { grid-column: 1; width: 100%; }
+  .war-room-model-status { grid-column: 1; font-size: 6px; }
+}

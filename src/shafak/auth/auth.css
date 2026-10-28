@@ -100,3 +100,124 @@
 @media (max-width: 520px) {
   .auth-page { padding-inline: 16px; }
 }
+
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+  align-items: center;
+  justify-content: stretch;
+  gap: clamp(30px, 7vw, 112px);
+  min-height: 100dvh;
+  overflow: auto;
+  padding: 90px clamp(24px, 8vw, 132px) 34px;
+  background: #080b12;
+}
+
+.auth-page__backdrop {
+  position: fixed;
+  opacity: 1;
+  background:
+    linear-gradient(90deg, rgba(7, 10, 17, .18) 0%, rgba(7, 10, 17, .58) 47%, #080b12 100%),
+    linear-gradient(0deg, rgba(7, 10, 17, .7), rgba(7, 10, 17, .18)),
+    url("/shafak-warrior.png") 27% 42% / cover no-repeat;
+}
+
+.auth-page__pitch {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  justify-self: start;
+  padding: 16px 0;
+}
+
+.auth-page__pitch > span {
+  color: #d4b16f;
+  font: 800 9px/1.4 Manrope, sans-serif;
+  letter-spacing: .2em;
+}
+
+.auth-page__pitch h1 {
+  margin: 20px 0 14px;
+  color: #f1e2c8;
+  font: 600 clamp(38px, 5vw, 65px)/1.06 Cinzel, Georgia, serif;
+  letter-spacing: .015em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .38);
+}
+
+.auth-page__pitch p {
+  max-width: 360px;
+  margin: 0;
+  color: rgba(235, 223, 201, .72);
+  font: 400 13px/1.75 Manrope, sans-serif;
+}
+
+.auth-page__modes {
+  margin-top: 38px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(212, 177, 111, .24);
+  color: rgba(234, 219, 192, .58);
+  font: 800 8px/1.4 Manrope, sans-serif;
+  letter-spacing: .12em;
+}
+
+.auth-page__modes i {
+  margin: 0 9px;
+  color: #d4b16f;
+  font-style: normal;
+}
+
+.auth-page__form {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  justify-self: end;
+}
+
+.auth-page__error {
+  margin: 0 0 12px;
+  color: #e27f69;
+  font: 600 12px/1.5 Manrope, sans-serif;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    justify-items: center;
+    gap: 20px;
+    padding: 86px 18px 24px;
+  }
+
+  .auth-page__pitch {
+    width: min(100%, 430px);
+    padding: 0;
+  }
+
+  .auth-page__pitch h1 {
+    margin: 10px 0 8px;
+    font-size: clamp(30px, 8vw, 44px);
+  }
+
+  .auth-page__pitch p { font-size: 11px; }
+  .auth-page__modes { display: none; }
+  .auth-page__form { width: min(100%, 430px); }
+  .auth-page__backdrop {
+    background:
+      linear-gradient(180deg, rgba(7, 10, 17, .45), #080b12 82%),
+      url("/shafak-warrior.png") 60% 22% / cover no-repeat;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+    align-content: center;
+    gap: 20px;
+    padding: max(60px, env(safe-area-inset-top)) 24px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .auth-page__pitch h1 { margin: 8px 0; font-size: clamp(26px, 5vw, 38px); }
+  .auth-page__pitch p { font-size: 10px; }
+  .auth-page__form { max-height: calc(100dvh - 76px); overflow: auto; }
+}

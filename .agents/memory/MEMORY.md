@@ -9,6 +9,7 @@
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep rivals clear and anchored; size rig gear against full mount scale and verify ground clearance.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
 - [Day/night mode expectations](world-time-of-day.md) — Keep the automatic cycle alongside manual day/night choices and preserve readable night lighting.
+- [Vite lazy-route CSS order](vite-lazy-css-order.md) — Import page-specific responsive overrides after the lazy page's base CSS.
 - [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms, 3D posture, and the native +Z facing convention aligned.
 - [Skinned-mesh debug bounds](skinned-mesh-debug-bounds.md) — Compare deformed geometry centers, not source pivots; player mesh origins can sit about 9.98 m away.
 - [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.

@@ -1,0 +1,86 @@
+.screen--menu .menu-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(14px, 3vw, 38px);
+}
+
+.screen--menu .menu-copy {
+  width: min(49%, 600px);
+  flex: 0 1 600px;
+}
+
+.screen--menu .menu-actions {
+  display: grid;
+  width: min(100%, 520px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.screen--menu .menu-action--primary {
+  grid-column: 1 / -1;
+}
+
+.screen--menu .menu-action--secondary { grid-column: 1; }
+.screen--menu .menu-gear-actions { grid-column: 2; }
+
+.screen--menu .menu-action--war-room {
+  display: grid;
+  width: min(26vw, 240px);
+  min-width: 180px;
+  min-height: 88px;
+  flex: none;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+}
+
+.screen--menu .menu-action__war-room-copy {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.screen--menu .menu-action__war-room-copy small { font-size: 7px; }
+
+@media (orientation: landscape) and (max-width: 960px) {
+  .screen--menu .menu-content { gap: 14px; padding: 2px 0 5px; }
+  .screen--menu .menu-copy { width: min(40%, 340px); flex-basis: 340px; }
+  .screen--menu .menu-actions { width: min(100%, 350px); }
+  .screen--menu .menu-action--war-room {
+    width: min(26vw, 220px);
+    min-width: 180px;
+    min-height: 76px;
+    gap: 7px;
+    padding: 8px;
+    font-size: 8px;
+  }
+
+  .screen--menu .menu-action--primary { min-height: 43px; padding-inline: 8px; font-size: 8px; }
+  .screen--menu .menu-action__icon { width: 27px; height: 27px; }
+  .screen--menu .menu-action__war-room-copy small { font-size: 6px; }
+  .scene-character {
+    left: 41vw;
+    right: auto;
+    width: 30vw;
+    height: 100dvh;
+    min-height: 0;
+  }
+  .scene-character img {
+    right: 0;
+    bottom: 0;
+    height: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 600px) {
+  .screen--menu .menu-copy { width: 44%; flex-basis: 44%; }
+  .screen--menu .menu-action--war-room { width: 150px; min-width: 150px; }
+  .screen--menu .menu-actions { gap: 5px; }
+  .screen--menu .menu-action--primary { min-height: 38px; font-size: 7px; }
+  .screen--menu .menu-action--secondary,
+  .screen--menu .menu-gear-action { min-height: 29px; font-size: 6px; }
+  .scene-character { left: 45vw; width: 25vw; height: 82dvh; opacity: .72; }
+  .scene-character img { height: 100%; }
+}

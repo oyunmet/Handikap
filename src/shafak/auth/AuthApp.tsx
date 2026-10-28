@@ -169,17 +169,27 @@ function SignInPage() {
         <img src={`${basePath}/logo.svg`} alt="" />
         <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
       </Link>
-      {new URLSearchParams(window.location.search).get("auth_error") === "session" && (
-        <p role="alert" style={{ color: "#e27f69", textAlign: "center" }}>
-          Oturum doğrulanamadı. Lütfen yeniden giriş yap.
-        </p>
-      )}
-      <SignIn
-        routing="path"
-        path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        forceRedirectUrl={`${basePath}/user-portal`}
-      />
+      <section className="auth-page__pitch">
+        <span>ŞAFAK SAVAŞÇILARI · YOLCULUK</span>
+        <h1>Yolculuğuna<br />devam et.</h1>
+        <p>Karakterin, ekipmanın ve ilerlemen seni bekliyor.</p>
+        <div className="auth-page__modes" aria-hidden="true">
+          <span>KEŞİF <i>·</i> SAVAŞ ODASI <i>·</i> YOLCU PROFİLİ</span>
+        </div>
+      </section>
+      <div className="auth-page__form">
+        {new URLSearchParams(window.location.search).get("auth_error") === "session" && (
+          <p role="alert" className="auth-page__error">
+            Oturum doğrulanamadı. Lütfen yeniden giriş yap.
+          </p>
+        )}
+        <SignIn
+          routing="path"
+          path={`${basePath}/sign-in`}
+          signUpUrl={`${basePath}/sign-up`}
+          forceRedirectUrl={`${basePath}/user-portal`}
+        />
+      </div>
     </main>
   );
 }
@@ -192,12 +202,22 @@ function SignUpPage() {
         <img src={`${basePath}/logo.svg`} alt="" />
         <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
       </Link>
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        forceRedirectUrl={`${basePath}/user-portal`}
-      />
+      <section className="auth-page__pitch">
+        <span>ŞAFAK SAVAŞÇILARI · YOLCULUK</span>
+        <h1>Yeni bir yol<br />aç.</h1>
+        <p>Hesabını oluştur, maceranı kaldığın yerden sürdür.</p>
+        <div className="auth-page__modes" aria-hidden="true">
+          <span>KEŞİF <i>·</i> SAVAŞ ODASI <i>·</i> YOLCU PROFİLİ</span>
+        </div>
+      </section>
+      <div className="auth-page__form">
+        <SignUp
+          routing="path"
+          path={`${basePath}/sign-up`}
+          signInUrl={`${basePath}/sign-in`}
+          forceRedirectUrl={`${basePath}/user-portal`}
+        />
+      </div>
     </main>
   );
 }
