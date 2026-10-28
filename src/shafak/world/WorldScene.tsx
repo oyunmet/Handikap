@@ -142,6 +142,7 @@ import { createLatestAsyncSaveQueue } from "./latest-async-save-queue.ts";
 const World3D = lazy(() => import("./World3DRouter"));
 import "./world-scene.css";
 import "./world-scene-layout.css";
+import "../game/world-duel-responsive.css";
 
 type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequest;

@@ -1,0 +1,593 @@
+/* Mobile combat HUD: deliberate safe-area spacing for both phone orientations. */
+@media (orientation: portrait) and (max-width: 760px) {
+  .war-room-hud__top {
+    inset:
+      max(9px, env(safe-area-inset-top))
+      max(10px, env(safe-area-inset-right))
+      auto
+      max(10px, env(safe-area-inset-left));
+    height: 82px;
+    min-height: 0;
+    pointer-events: none;
+  }
+
+  .war-room-room-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 54px;
+    padding: 6px 7px;
+    border-radius: 8px;
+  }
+
+  .war-room-enemies-left {
+    top: 0;
+    left: 50%;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    transform: translateX(-50%);
+  }
+
+  .war-room-enemies-left span {
+    font-size: 6px;
+  }
+
+  .war-room-enemies-left b {
+    font-size: 16px;
+  }
+
+  .war-room-minimap {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+  }
+
+  .war-room-kill-feed {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    max-width: min(132px, 35vw);
+    gap: 3px;
+    padding-top: 0;
+  }
+
+  .war-room-kill-feed span {
+    padding: 4px 6px;
+    font-size: 6px;
+  }
+
+  .war-room-settings,
+  .war-room-mute,
+  .war-room-blood {
+    top: max(88px, calc(env(safe-area-inset-top) + 80px));
+    min-height: 28px;
+    padding: 0 7px;
+    border-radius: 8px;
+    font-size: 6px;
+  }
+
+  .war-room-settings {
+    right: max(164px, calc(env(safe-area-inset-right) + 156px));
+    width: 30px;
+    height: 28px;
+    font-size: 15px;
+  }
+
+  .war-room-blood {
+    right: max(66px, calc(env(safe-area-inset-right) + 58px));
+  }
+
+  .war-room-mute {
+    right: max(10px, env(safe-area-inset-right));
+  }
+
+  .war-room-commander {
+    top: max(132px, calc(env(safe-area-inset-top) + 124px));
+    left: 50%;
+    width: min(310px, calc(100vw - 42px));
+    transform: translateX(-50%);
+  }
+
+  .war-room-boss-phase {
+    top: max(190px, calc(env(safe-area-inset-top) + 182px));
+  }
+
+  .war-room-pause {
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    right: auto;
+    bottom: auto;
+    left: max(10px, env(safe-area-inset-left));
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    font-size: 7px;
+  }
+
+  .war-room-vitals {
+    bottom: max(132px, calc(env(safe-area-inset-bottom) + 124px));
+    left: max(12px, env(safe-area-inset-left));
+    width: min(148px, 40vw);
+    padding: 8px 9px;
+    border: 1px solid rgba(225, 193, 145, .32);
+    border-radius: 10px;
+    background: linear-gradient(145deg, rgba(27, 25, 23, .88), rgba(17, 18, 19, .78));
+    backdrop-filter: blur(10px);
+  }
+
+  .war-room-bar-row {
+    margin-bottom: 4px;
+  }
+
+  .war-room-bar-row span,
+  .war-room-bar-row b {
+    font-size: 7px;
+  }
+
+  .war-room-bar {
+    height: 4px;
+    margin-bottom: 6px;
+    border-radius: 3px;
+  }
+
+  .war-room-ammo {
+    right: auto;
+    bottom: max(198px, calc(env(safe-area-inset-bottom) + 190px));
+    left: max(12px, env(safe-area-inset-left));
+    min-width: min(148px, 40vw);
+    align-items: start;
+    text-align: left;
+  }
+
+  .war-room-ammo > span {
+    max-width: 148px;
+    font-size: 7px;
+  }
+
+  .war-room-ammo > strong {
+    font-size: 23px;
+  }
+
+  .war-room-ammo > small,
+  .war-room-ammo > span small {
+    font-size: 6px;
+  }
+
+  .war-room-reload-progress {
+    width: min(138px, 38vw);
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) {
+    position: absolute;
+    right: auto;
+    bottom: max(11px, calc(env(safe-area-inset-bottom) + 5px));
+    left: 50%;
+    display: flex;
+    gap: 5px;
+    transform: translateX(-50%);
+    pointer-events: auto;
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot {
+    width: clamp(58px, 17vw, 66px);
+    min-height: 48px;
+    grid-template-columns: 15px 1fr;
+    grid-template-rows: 1fr auto;
+    gap: 0 4px;
+    padding: 4px 5px;
+    border: 1px solid rgba(226, 192, 139, .42);
+    border-radius: 9px;
+    background: linear-gradient(145deg, rgba(37, 34, 30, .96), rgba(18, 19, 20, .94));
+    box-shadow: 0 5px 14px rgba(0, 0, 0, .3), inset 0 1px rgba(255, 241, 217, .08);
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot.is-active {
+    border-color: rgba(235, 194, 121, .9);
+    background: linear-gradient(145deg, rgba(112, 78, 44, .96), rgba(34, 28, 24, .98));
+    box-shadow: inset 0 0 0 1px rgba(255, 222, 166, .1), 0 4px 14px rgba(0, 0, 0, .3);
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__key {
+    color: #e6c783;
+    font-size: 8px;
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__icon {
+    height: 18px;
+    font-size: 14px;
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
+    font-size: 6px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(102px, calc(env(safe-area-inset-bottom) + 94px));
+    display: grid;
+    width: min(154px, 42vw);
+    height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, 54px) 66px;
+    gap: 5px;
+    padding: 6px;
+    border: 1px solid rgba(209, 177, 127, .28);
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(17, 18, 19, .72), rgba(16, 16, 17, .55));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 239, 214, .06);
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button {
+    position: relative;
+    inset: auto;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    aspect-ratio: auto;
+    border-radius: 12px;
+    touch-action: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::before {
+    inset: 1px;
+    border: 1px solid rgba(220, 191, 148, .42);
+    border-radius: 11px;
+    background:
+      linear-gradient(145deg, rgba(255, 231, 184, .08), transparent 50%),
+      linear-gradient(155deg, rgba(56, 48, 39, .96), rgba(24, 24, 24, .98));
+    box-shadow: inset 0 1px rgba(255, 239, 216, .12), 0 3px 9px rgba(0, 0, 0, .34);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::after {
+    inset: 3px;
+    border: 1px solid rgba(244, 224, 193, .1);
+    border-radius: 9px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__glyph {
+    width: 19px;
+    height: 19px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__label {
+    max-width: calc(100% - 4px);
+    color: #f0e2c8;
+    font-size: 7px;
+    letter-spacing: .045em;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__hint {
+    display: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(1) { grid-area: 1 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(2) { grid-area: 1 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(3) { grid-area: 2 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(4) { grid-area: 2 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(5) { grid-area: 3 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(6) { grid-area: 3 / 2; }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire {
+    position: relative;
+    inset: auto;
+    grid-area: 4 / 1 / 5 / 3;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 66px !important;
+    min-height: 66px !important;
+    border-radius: 14px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire::before {
+    border-color: rgba(222, 151, 92, .8);
+    border-radius: 13px;
+    background:
+      linear-gradient(145deg, rgba(255, 222, 165, .16), transparent 48%),
+      linear-gradient(155deg, #74452f, #3f2921 72%, #241d19);
+    box-shadow: inset 0 1px rgba(255, 239, 216, .16), 0 5px 14px rgba(0, 0, 0, .38);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire .shafak-hud-button__glyph {
+    width: 24px;
+    height: 24px;
+  }
+
+  .war-room-stick:not(.is-custom-layout) {
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: clamp(92px, 25vw, 104px);
+    height: clamp(92px, 25vw, 104px);
+    border-color: rgba(218, 190, 151, .46);
+    background:
+      radial-gradient(circle, rgba(144, 112, 75, .18) 0 34%, transparent 35%),
+      radial-gradient(circle, rgba(19, 20, 20, .88), rgba(20, 19, 18, .58) 72%, rgba(8, 10, 11, .3));
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .32), inset 0 1px rgba(255, 236, 199, .12);
+  }
+
+  .war-room-stick:not(.is-custom-layout) i {
+    width: 38px;
+    height: 38px;
+    border-color: rgba(236, 207, 158, .72);
+    background: radial-gradient(circle at 34% 28%, #a98a60, #514536 70%, #292725);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 242, 215, .3);
+  }
+
+  .war-room-notice {
+    top: 52%;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) and (max-width: 960px) {
+  .war-room-hud__top {
+    inset:
+      max(7px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      auto
+      max(8px, env(safe-area-inset-left));
+    height: 78px;
+    min-height: 0;
+    pointer-events: none;
+  }
+
+  .war-room-room-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 6px 7px;
+    border-radius: 7px;
+  }
+
+  .war-room-enemies-left {
+    top: 0;
+    left: 50%;
+    gap: 6px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    transform: translateX(-50%);
+  }
+
+  .war-room-enemies-left span { font-size: 6px; }
+  .war-room-enemies-left b { font-size: 16px; }
+
+  .war-room-minimap {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 68px;
+    height: 68px;
+    border-radius: 10px;
+  }
+
+  .war-room-kill-feed {
+    position: absolute;
+    top: 37px;
+    left: 0;
+    max-width: min(150px, 22vw);
+    padding-top: 0;
+  }
+
+  .war-room-settings,
+  .war-room-mute,
+  .war-room-blood {
+    top: max(76px, calc(env(safe-area-inset-top) + 68px));
+    min-height: 26px;
+    padding: 0 6px;
+    border-radius: 7px;
+    font-size: 6px;
+  }
+
+  .war-room-settings {
+    right: max(152px, calc(env(safe-area-inset-right) + 144px));
+    width: 27px;
+    height: 26px;
+    font-size: 14px;
+  }
+
+  .war-room-blood { right: max(58px, calc(env(safe-area-inset-right) + 52px)); }
+  .war-room-mute { right: max(8px, env(safe-area-inset-right)); }
+
+  .war-room-pause {
+    top: max(7px, env(safe-area-inset-top));
+    right: auto;
+    bottom: auto;
+    left: max(76px, calc(env(safe-area-inset-left) + 68px));
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 7px;
+    font-size: 6px;
+  }
+
+  .war-room-commander {
+    top: max(108px, calc(env(safe-area-inset-top) + 100px));
+    left: 50%;
+    width: min(300px, 38vw);
+    transform: translateX(-50%);
+  }
+
+  .war-room-boss-phase {
+    top: max(144px, calc(env(safe-area-inset-top) + 136px));
+  }
+
+  .war-room-vitals {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(108px, calc(env(safe-area-inset-left) + 100px));
+    width: clamp(132px, 18vw, 162px);
+    padding: 7px 8px;
+    border: 1px solid rgba(225, 193, 145, .3);
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(27, 25, 23, .86), rgba(17, 18, 19, .76));
+  }
+
+  .war-room-bar-row {
+    margin-bottom: 3px;
+  }
+
+  .war-room-bar-row span,
+  .war-room-bar-row b {
+    font-size: 6px;
+  }
+
+  .war-room-bar {
+    height: 4px;
+    margin-bottom: 5px;
+  }
+
+  .war-room-ammo {
+    right: auto;
+    bottom: max(74px, calc(env(safe-area-inset-bottom) + 66px));
+    left: 50%;
+    min-width: 146px;
+    align-items: center;
+    text-align: center;
+    transform: translateX(-50%);
+  }
+
+  .war-room-ammo > span { font-size: 7px; }
+  .war-room-ammo > strong { font-size: 21px; }
+  .war-room-ammo > strong small { font-size: 11px; }
+  .war-room-ammo > small,
+  .war-room-ammo > span small { font-size: 6px; }
+  .war-room-reload-progress { width: 120px; }
+
+  .war-room-weapon-select:not(.is-custom-layout) {
+    position: absolute;
+    right: auto;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 50%;
+    display: flex;
+    gap: 5px;
+    transform: translateX(-50%);
+    pointer-events: auto;
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot {
+    width: clamp(58px, 8vw, 70px);
+    min-height: 44px;
+    grid-template-columns: 15px 1fr;
+    padding: 4px 5px;
+    border: 1px solid rgba(226, 192, 139, .4);
+    border-radius: 7px;
+    background: linear-gradient(145deg, rgba(37, 34, 30, .96), rgba(18, 19, 20, .94));
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot.is-active {
+    border-color: rgba(235, 194, 121, .88);
+    background: linear-gradient(145deg, rgba(112, 78, 44, .96), rgba(34, 28, 24, .98));
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
+    font-size: 6px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) {
+    right: max(9px, env(safe-area-inset-right));
+    bottom: max(9px, env(safe-area-inset-bottom));
+    display: grid;
+    width: 188px;
+    height: auto;
+    grid-template-columns: 52px 52px 72px;
+    grid-template-rows: repeat(3, 47px);
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid rgba(209, 177, 127, .27);
+    border-radius: 13px;
+    background: linear-gradient(145deg, rgba(17, 18, 19, .66), rgba(16, 16, 17, .5));
+    box-shadow: 0 7px 20px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 239, 214, .05);
+    backdrop-filter: blur(7px);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button {
+    position: relative;
+    inset: auto;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 47px !important;
+    min-height: 47px !important;
+    aspect-ratio: auto;
+    border-radius: 10px;
+    touch-action: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::before {
+    inset: 1px;
+    border: 1px solid rgba(220, 191, 148, .4);
+    border-radius: 9px;
+    background:
+      linear-gradient(145deg, rgba(255, 231, 184, .08), transparent 50%),
+      linear-gradient(155deg, rgba(56, 48, 39, .96), rgba(24, 24, 24, .98));
+    box-shadow: inset 0 1px rgba(255, 239, 216, .12), 0 3px 8px rgba(0, 0, 0, .34);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::after {
+    inset: 3px;
+    border: 1px solid rgba(244, 224, 193, .1);
+    border-radius: 7px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__glyph {
+    width: 17px;
+    height: 17px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__label {
+    max-width: calc(100% - 2px);
+    font-size: 6px;
+    letter-spacing: .02em;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__hint {
+    display: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(1) { grid-area: 1 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(2) { grid-area: 1 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(3) { grid-area: 2 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(4) { grid-area: 2 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(5) { grid-area: 3 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(6) { grid-area: 3 / 2; }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire {
+    position: relative;
+    inset: auto;
+    grid-area: 1 / 3 / 3 / 4;
+    width: 72px !important;
+    min-width: 72px !important;
+    height: 98px !important;
+    min-height: 98px !important;
+    border-radius: 22px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire::before {
+    border-color: rgba(222, 151, 92, .8);
+    border-radius: 20px;
+    background:
+      linear-gradient(145deg, rgba(255, 222, 165, .16), transparent 48%),
+      linear-gradient(155deg, #74452f, #3f2921 72%, #241d19);
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button.is-fire .shafak-hud-button__glyph {
+    width: 24px;
+    height: 24px;
+  }
+
+  .war-room-stick:not(.is-custom-layout) {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    width: min(23vh, 86px);
+    height: min(23vh, 86px);
+  }
+
+  .war-room-stick:not(.is-custom-layout) i {
+    width: 32px;
+    height: 32px;
+  }
+
+  .war-room-notice {
+    top: 61%;
+  }
+}

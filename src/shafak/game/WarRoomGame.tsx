@@ -68,6 +68,7 @@ import {
 } from "./war-room-controls";
 import "./war-room.css";
 import "./war-room-layout.css";
+import "./war-room-responsive.css";
 
 type Props = {
   onExit: () => void;
@@ -107,11 +108,6 @@ function getWarRoomControlStorage(): Storage | null {
 
 function readSavedControlLayout() {
   return loadWarRoomControlLayout(getWarRoomControlStorage());
-}
-
-function isWarRoomPortraitPhone() {
-  return typeof window !== "undefined"
-    && window.matchMedia("(orientation: portrait) and (max-width: 760px)").matches;
 }
 
 function hasKeyboardPointer() {
@@ -482,12 +478,10 @@ export default function WarRoomGame({
     () => createDefaultWarRoomControlLayout(),
   );
   const [keyboardHintsVisible, setKeyboardHintsVisible] = useState(hasKeyboardPointer);
-  const [portraitPhone, setPortraitPhone] = useState(isWarRoomPortraitPhone);
   const [dynamicStickActive, setDynamicStickActive] = useState(false);
   const [sprintLockActive, setSprintLockActive] = useState(false);
   const crouchTapAtRef = useRef<number | null>(null);
   const roomProgressRef = useRef(roomProgress);
-  const orientationPauseRef = useRef(false);
   useEffect(() => {
     if (phase !== "battle") {
       previousBossPhaseRef.current = null;
@@ -653,49 +647,10 @@ export default function WarRoomGame({
   }, [controlsEditorOpen, phase, settingsOpen]);
 
   useEffect(() => {
-    if (settingsOpen || controlsEditorOpen || portraitPhone || exitPrompt || !settingsPauseRef.current) return;
+    if (settingsOpen || controlsEditorOpen || exitPrompt || !settingsPauseRef.current) return;
     inputRef.current.paused = false;
     settingsPauseRef.current = false;
-  }, [controlsEditorOpen, exitPrompt, portraitPhone, settingsOpen]);
-
-  useEffect(() => {
-    const updateOrientation = () => setPortraitPhone(isWarRoomPortraitPhone());
-    window.addEventListener("resize", updateOrientation);
-    window.addEventListener("orientationchange", updateOrientation);
-    return () => {
-      window.removeEventListener("resize", updateOrientation);
-      window.removeEventListener("orientationchange", updateOrientation);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "battle") {
-      orientationPauseRef.current = false;
-      return;
-    }
-    const input = inputRef.current;
-    if (portraitPhone) {
-      if (!input.paused) {
-        input.paused = true;
-        input.keys.clear();
-        input.fireHeld = false;
-        input.fireReleased = true;
-        input.aimHeld = false;
-        runtimeRef.current.player.chargeStartedAt = 0;
-        runtimeRef.current.player.meleeInputPending = false;
-        pointerRef.current.clear();
-        stickPointerRef.current = null;
-        dynamicStickOriginRef.current = null;
-        setDynamicStickActive(false);
-      }
-      orientationPauseRef.current = true;
-      return;
-    }
-    if (orientationPauseRef.current) {
-      if (!settingsOpen && !controlsEditorOpen && !exitPrompt) input.paused = false;
-      orientationPauseRef.current = false;
-    }
-  }, [controlsEditorOpen, exitPrompt, phase, portraitPhone, settingsOpen]);
+  }, [controlsEditorOpen, exitPrompt, settingsOpen]);
 
   useEffect(() => {
     if (controlsEditorOpen) setControlLayoutDraft(savedControlLayout.layout);

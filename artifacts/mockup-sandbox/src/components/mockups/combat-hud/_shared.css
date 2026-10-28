@@ -1,0 +1,429 @@
+.combat-demo {
+  --sand: #e8d7b8;
+  --brass: #c9a56f;
+  --rust: #ad5d3e;
+  --teal: #74a69d;
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--sand);
+  background: #343b3b;
+  font-family: "Barlow Condensed", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.combat-demo :where(button) { font-family: inherit; }
+.combat-demo__world,
+.war-hud__world {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(226, 174, 144, .92) 0%, #c88f78 34%, #677475 35%, #384343 61%, #282e30 100%);
+}
+.combat-demo__world::before,
+.war-hud__world::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 0 17%, rgba(16, 19, 20, .16) 57%, rgba(10, 12, 13, .58) 100%),
+    linear-gradient(180deg, rgba(19, 20, 20, .02) 30%, rgba(15, 18, 19, .28));
+}
+.combat-demo__ground,
+.war-hud__ground {
+  position: absolute;
+  top: 38%;
+  left: -42%;
+  width: 184%;
+  height: 110%;
+  border-top: 3px solid rgba(202, 213, 203, .6);
+  background-color: #52605f;
+  background-image:
+    linear-gradient(28deg, transparent 48%, rgba(201, 208, 194, .36) 49%, transparent 51%),
+    linear-gradient(150deg, transparent 47%, rgba(19, 25, 26, .42) 48%, transparent 50%),
+    repeating-linear-gradient(0deg, rgba(224, 218, 198, .12) 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(90deg, rgba(18, 24, 25, .36) 0 2px, transparent 2px 64px),
+    linear-gradient(145deg, #73807b, #394343 65%, #272d2f);
+  transform: perspective(420px) rotateX(47deg);
+  transform-origin: top center;
+}
+.combat-demo__horizon {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  width: 100%;
+  height: 16%;
+  background:
+    linear-gradient(90deg, transparent 0 9%, #3e4847 9% 15%, transparent 15% 24%, #485251 24% 29%, transparent 29% 75%, #3d4847 75% 82%, transparent 82%),
+    linear-gradient(0deg, #3d4847 0 25%, transparent 26%);
+  clip-path: polygon(0 42%, 16% 36%, 25% 48%, 37% 27%, 51% 38%, 66% 24%, 80% 44%, 100% 29%, 100% 100%, 0 100%);
+  opacity: .84;
+}
+.combat-demo__ruin {
+  position: absolute;
+  top: 35%;
+  width: 16%;
+  height: 19%;
+  background: linear-gradient(115deg, #3a4240, #252d2d);
+  clip-path: polygon(8% 12%, 70% 0, 100% 100%, 0 88%);
+  opacity: .76;
+}
+.combat-demo__ruin--left { left: 12%; transform: rotate(-7deg); }
+.combat-demo__ruin--right { right: 11%; transform: scaleX(-1) rotate(-5deg); }
+.combat-demo__fighter {
+  position: absolute;
+  top: 39%;
+  width: clamp(34px, 8vw, 82px);
+  height: clamp(110px, 26vh, 260px);
+  background: linear-gradient(90deg, #171b1c 0 24%, #373936 24% 70%, #161a1a 71%);
+  clip-path: polygon(36% 0, 65% 3%, 72% 18%, 100% 40%, 82% 49%, 67% 35%, 72% 73%, 91% 100%, 53% 100%, 44% 73%, 30% 100%, 0 100%, 24% 66%, 21% 33%, 11% 24%, 23% 17%);
+  filter: drop-shadow(0 14px 18px rgba(0,0,0,.4));
+  opacity: .75;
+}
+.combat-demo__fighter--player { left: 34%; transform: scale(.72); }
+.combat-demo__fighter--enemy { right: 33%; transform: scale(.85); }
+.duel-preview__hud {
+  position: absolute;
+  z-index: 8;
+  top: max(9px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  display: grid;
+  width: calc(100% - max(20px, env(safe-area-inset-left) + env(safe-area-inset-right)));
+  grid-template-columns: minmax(0, 1fr) 55px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(232, 213, 179, .38);
+  border-radius: 5px;
+  background: linear-gradient(110deg, rgba(25, 28, 28, .88), rgba(18, 20, 21, .7));
+  box-shadow: 0 8px 24px #1118, inset 0 1px #fff2;
+  backdrop-filter: blur(8px);
+}
+.duel-preview__combatant { display: grid; gap: 4px; min-width: 0; }
+.duel-preview__combatant > span { overflow: hidden; color: #ead0a0; font-size: clamp(8px, 2.2vw, 11px); font-weight: 800; letter-spacing: .13em; text-overflow: ellipsis; white-space: nowrap; }
+.duel-preview__combatant.is-enemy { text-align: right; }
+.duel-preview__combatant i, .duel-preview__combatant i > b { display: block; height: 5px; }
+.duel-preview__combatant i { overflow: hidden; background: rgba(0, 0, 0, .65); }
+.duel-preview__combatant i > b { background: linear-gradient(90deg, #b8743f, #e2b978); }
+.duel-preview__combatant.is-enemy i > b { margin-left: auto; background: linear-gradient(90deg, #a23c34, #d46851); }
+.duel-preview__combatant small { color: #c0b8aa; font: 8px/1 "DM Mono", monospace; letter-spacing: .08em; }
+.duel-preview__combatant small b { color: #efe2c9; font-weight: 500; }
+.duel-preview__center { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.duel-preview__center strong { color: #e9cb91; font: 700 17px/1 Georgia, serif; }
+.duel-preview__center span,.duel-preview__center small { color: #c5a078; font: 6px/1.1 "DM Mono", monospace; letter-spacing: .12em; white-space: nowrap; }
+.duel-preview__center small { color: #a77a69; }
+.duel-preview__stamina { position: absolute; z-index: 8; top: max(76px, calc(env(safe-area-inset-top) + 70px)); left: max(14px, env(safe-area-inset-left)); display: grid; width: 120px; gap: 4px; color: #b6c6ba; font: 7px/1 "DM Mono", monospace; letter-spacing: .12em; }
+.duel-preview__stamina span { display: flex; justify-content: space-between; }
+.duel-preview__stamina b { color: #e3d6bd; font-weight: 500; }
+.duel-preview__stamina i,.duel-preview__stamina i > b { display: block; height: 4px; }
+.duel-preview__stamina i { overflow: hidden; background: #101516b8; }
+.duel-preview__stamina i > b { width: 47%; background: linear-gradient(90deg,#558e83,#b8c584); }
+.combat-demo__aim { position: absolute; z-index: 2; top: 50%; left: 50%; display: grid; width: 24px; height: 24px; grid-template: 1fr 1fr / 1fr 1fr; gap: 6px; transform: translate(-50%,-50%); opacity: .76; }
+.combat-demo__aim i { width: 6px; height: 6px; border: 1px solid rgba(255,239,215,.9); }
+.combat-demo__aim i:nth-child(1) { justify-self:end; align-self:end; border-right:0; border-bottom:0; }
+.combat-demo__aim i:nth-child(2) { justify-self:start; align-self:end; border-left:0; border-bottom:0; }
+.combat-demo__aim i:nth-child(3) { justify-self:end; align-self:start; border-right:0; border-top:0; }
+.combat-demo__aim i:nth-child(4) { justify-self:start; align-self:start; border-left:0; border-top:0; }
+.combat-demo__source { position:absolute; z-index:4; top:50%; left:50%; display:flex; gap:9px; margin-top:28px; color:#c9c2b0a3; font:6px/1 "DM Mono",monospace; letter-spacing:.13em; transform:translateX(-50%); white-space:nowrap; }
+.combat-demo__source span { color:#e6cf9a; }
+.combat-demo--refined .duel-preview__hud { border-color:rgba(203,177,132,.28); border-radius:4px; background:linear-gradient(105deg,rgba(18,22,22,.9),rgba(25,26,25,.78)); }
+.combat-demo--refined .duel-preview__center strong { color:#d7b77c; }
+.combat-demo--refined .duel-preview__stamina { color:#a9c0b5; }
+
+/* Production extract sizing: keep all touch surfaces clear at either handset aspect ratio. */
+.combat-demo--current .duel-controls,
+.combat-demo--refined .duel-controls { inset:0; }
+.combat-demo--current .duel-controls .duel-control-hint { display:none; }
+.combat-demo--current .duel-controls .duel-stick-caption,
+.combat-demo--refined .duel-controls .duel-stick-caption { display:block; }
+.combat-demo--refined .duel-controls--refined .duel-weapon-select { top:auto; bottom:max(205px,calc(env(safe-area-inset-bottom) + 195px)); }
+.combat-demo--refined .duel-controls--refined .duel-quickbar { top:max(160px,calc(env(safe-area-inset-top) + 150px)); }
+.combat-demo--refined .duel-controls--refined .duel-stance-controls { top:max(145px,calc(env(safe-area-inset-top) + 135px)); }
+.combat-demo--current .duel-controls .duel-weapon-select { top:max(66px,calc(env(safe-area-inset-top) + 58px)); }
+.combat-demo--current .duel-controls .duel-quickbar { top:max(122px,calc(env(safe-area-inset-top) + 114px)); }
+.combat-demo--current .duel-controls .duel-stance-controls { top:max(182px,calc(env(safe-area-inset-top) + 172px)); }
+.combat-demo--current .duel-controls .duel-forfeit { top:max(90px,calc(env(safe-area-inset-top) + 82px)); }
+.combat-demo--current .duel-controls .duel-help-button { top:max(90px,calc(env(safe-area-inset-top) + 82px)); }
+.combat-demo--current .duel-controls .duel-weapon-select__heading { margin-bottom:2px; }
+.combat-demo--current .duel-controls .duel-stick { bottom:max(20px,calc(env(safe-area-inset-bottom) + 10px)); }
+.combat-demo--current .duel-controls .duel-control-cluster { bottom:max(20px,calc(env(safe-area-inset-bottom) + 10px)); }
+
+.war-hud {
+  --hud-line: rgba(229, 208, 173, .3);
+  --hud-panel: rgba(23, 22, 20, .82);
+  --hud-copy: #ebdfc9;
+  --hud-muted: #b4a997;
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--hud-copy);
+  background: #c99077;
+  font-family: "Barlow Condensed", sans-serif;
+}
+.war-hud__world { background: linear-gradient(180deg,#d99477 0%,#efb08c 34%,#8a6042 35%,#553922 67%,#34291f 100%); }
+.war-hud__world::before { background: radial-gradient(ellipse at center 50%, transparent 0 25%,rgba(24,18,13,.1) 63%,rgba(13,13,12,.52) 100%),linear-gradient(180deg,rgba(58,28,17,.04),rgba(18,17,14,.4)); }
+.war-hud__ridge { position:absolute; top:25%; left:-5%; width:110%; height:24%; background:linear-gradient(125deg,#4e3827,#382c21 55%,#6d4b33); clip-path:polygon(0 0,28% 4%,46% 72%,59% 70%,73% 36%,100% 0,100% 100%,0 100%); opacity:.92; }
+.war-hud__ground { top:39%; left:-38%; width:176%; height:120%; border-color:#c7955f; background-color:#593a25; background-image:linear-gradient(17deg,transparent 49%,rgba(232,190,129,.3) 50%,transparent 51%),repeating-linear-gradient(0deg,rgba(231,198,149,.16) 0 1px,transparent 1px 27px),repeating-linear-gradient(90deg,rgba(23,16,11,.55) 0 2px,transparent 2px 50px),linear-gradient(130deg,#765031,#3d2b1f 68%); }
+.war-hud__wall { position:absolute; top:28%; width:28%; height:29%; background:linear-gradient(100deg,#765037,#3e2b20); opacity:.88; }
+.war-hud__wall--left { left:-5%; clip-path:polygon(0 0,71% 16%,100% 100%,0 88%); }
+.war-hud__wall--right { right:-7%; clip-path:polygon(33% 18%,100% 0,100% 100%,0 89%); }
+.war-hud__distant-keep { position:absolute; top:31%; left:35%; width:30%; height:18%; background:linear-gradient(#76553a,#453323); clip-path:polygon(0 26%,16% 26%,16% 8%,23% 8%,23% 26%,43% 26%,43% 0,51% 0,51% 26%,72% 26%,72% 9%,80% 9%,80% 26%,100% 26%,100% 100%,0 100%); opacity:.82; }
+.war-hud__top { position:absolute; z-index:5; top:max(8px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right)); height:104px; pointer-events:none; }
+.war-hud__room { position:absolute; top:0; left:0; display:flex; align-items:baseline; gap:4px; padding:7px 9px; border:1px solid var(--hud-line); background:var(--hud-panel); }
+.war-hud__room span,.war-hud__room small { color:#c8b895; font:700 7px/1 "DM Mono",monospace; }
+.war-hud__room b { color:#e1bf7e; font:700 17px/1 Georgia,serif; }
+.war-hud__feed { position:absolute; top:45px; left:0; display:grid; gap:5px; }
+.war-hud__feed span { max-width:180px; padding:5px 8px; border-left:2px solid #d1a267; background:rgba(24,20,17,.72); color:#eee1cc; font-size:8px; font-weight:700; letter-spacing:.04em; }
+.war-hud__remaining { position:absolute; top:0; left:50%; display:flex; align-items:center; gap:8px; padding:7px 11px; border:1px solid rgba(234,218,190,.24); background:rgba(20,19,18,.72); transform:translateX(-50%); }
+.war-hud__remaining span { color:#d1c3ad; font:700 7px/1 "DM Mono",monospace; letter-spacing:.1em; white-space:nowrap; }
+.war-hud__remaining b { color:#e2c186; font:700 19px/1 Georgia,serif; }
+.war-hud__map { position:absolute; top:0; right:0; width:82px; height:82px; padding:5px; border:1px solid rgba(255,225,182,.48); border-radius:8px; background:rgba(30,27,24,.84); box-shadow:0 3px 14px #0005; }
+.war-hud__map-art { width:100%; height:100%; fill:none; stroke:rgba(224,203,174,.43); stroke-width:2; }
+.war-hud__map-art circle { fill:#dc6047; stroke:#2e1c15; stroke-width:2; }
+.war-hud__map-art .is-player { fill:#e3e6d3; stroke:#24332d; }
+.war-hud__map-art .is-commander { fill:#f2c676; stroke:#8c3326; stroke-width:2.5; }
+.war-hud__map small { position:absolute; right:6px; bottom:5px; color:#d6c7ad; font:5px/1 "DM Mono",monospace; letter-spacing:.1em; }
+.war-hud__top-actions { position:absolute; z-index:6; top:max(88px,calc(env(safe-area-inset-top) + 80px)); right:max(10px,env(safe-area-inset-right)); display:flex; gap:5px; align-items:center; }
+.war-hud__top-actions button,.war-hud__pause { min-height:32px; padding:0 9px; border:1px solid rgba(239,209,159,.4); border-radius:3px; background:rgba(21,20,19,.78); color:#ebdec8; font:800 7px/1 "DM Mono",monospace; letter-spacing:.08em; }
+.war-hud__top-actions .war-hud__settings { display:grid; width:34px; height:34px; padding:7px; place-items:center; }
+.war-hud__settings svg { width:18px; height:18px; fill:none; stroke:#e8d6b7; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
+.war-hud__commander { position:absolute; z-index:4; top:max(138px,calc(env(safe-area-inset-top) + 128px)); left:50%; display:grid; width:min(360px,64vw); grid-template-columns:1fr auto; gap:7px 10px; padding:9px 11px; border:1px solid rgba(224,192,142,.58); background:linear-gradient(130deg,rgba(28,23,21,.94),rgba(16,17,18,.88)); box-shadow:0 9px 24px #0005,inset 0 0 0 1px #fff1; transform:translateX(-50%); }
+.war-hud__commander-title { display:flex; flex-direction:column; gap:4px; }
+.war-hud__commander-title small { color:#b8a68d; font:7px/1 "DM Mono",monospace; letter-spacing:.14em; }
+.war-hud__commander-title b { color:#ebdcc1; font-size:11px; letter-spacing:.12em; }
+.war-hud__boss-phase { display:flex; align-items:center; gap:8px; }
+.war-hud__boss-phase small { padding:4px 6px; border:1px solid #dbb87562; color:#e6c37d; font:700 7px/1 "DM Mono",monospace; }
+.war-hud__boss-phase b { color:#ebc685; font:700 10px/1 "DM Mono",monospace; white-space:nowrap; }
+.war-hud__commander > i { grid-column:1/-1; height:5px; overflow:hidden; background:#0a0c0c; }
+.war-hud__commander > i em { display:block; width:100%; height:100%; background:linear-gradient(90deg,#792d27,#c84d3e 72%,#f08a59); }
+.war-hud__crosshair { position:absolute; z-index:2; top:50%; left:50%; display:grid; width:22px; height:22px; grid-template:1fr 1fr / 1fr 1fr; gap:5px; opacity:.92; transform:translate(-50%,-50%); }
+.war-hud__crosshair i { width:6px; height:6px; border:1.5px solid #f8efe0; }
+.war-hud__crosshair i:nth-child(1) { justify-self:end; align-self:end; border-right:0; border-bottom:0; }
+.war-hud__crosshair i:nth-child(2) { justify-self:start; align-self:end; border-left:0; border-bottom:0; }
+.war-hud__crosshair i:nth-child(3) { justify-self:end; align-self:start; border-right:0; border-top:0; }
+.war-hud__crosshair i:nth-child(4) { justify-self:start; align-self:start; border-left:0; border-top:0; }
+.war-hud__crosshair.is-aiming { width:14px; height:14px; gap:2px; }
+.war-hud__notice { position:absolute; z-index:2; top:60%; left:50%; padding:5px 9px; border:1px solid #e1bc7c44; background:#1a1713a8; color:#f0ce8c; font-size:9px; font-weight:700; transform:translateX(-50%); white-space:nowrap; }
+.war-hud__vitals { position:absolute; z-index:4; bottom:max(18px,env(safe-area-inset-bottom)); left:max(12px,env(safe-area-inset-left)); width:158px; padding:9px 10px; border:1px solid rgba(242,222,192,.24); background:rgba(20,19,18,.77); }
+.war-hud__stat { margin-bottom:8px; }
+.war-hud__stat:last-child { margin:0; }
+.war-hud__stat > div { display:flex; justify-content:space-between; gap:6px; margin-bottom:4px; }
+.war-hud__stat span,.war-hud__stat b { color:#ddd0bb; font:700 8px/1 "DM Mono",monospace; letter-spacing:.07em; }
+.war-hud__stat b { color:#f2e8d7; letter-spacing:0; }
+.war-hud__stat > i { display:block; height:5px; overflow:hidden; background:#090b0b; }
+.war-hud__stat > i em { display:block; height:100%; }
+.war-hud__stat--health > i em { background:linear-gradient(90deg,#aa4532,#e58a59); }
+.war-hud__stat--stamina > i em { background:linear-gradient(90deg,#947346,#e1c27c); }
+.war-hud__weapon { position:absolute; z-index:4; right:max(12px,env(safe-area-inset-right)); bottom:max(150px,calc(env(safe-area-inset-bottom) + 142px)); display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:150px; text-align:right; text-shadow:0 2px 4px #000; }
+.war-hud__weapon > span { color:#eee1ca; font-size:9px; font-weight:800; letter-spacing:.12em; }
+.war-hud__weapon > span small { display:block; margin-top:2px; color:#ccbda6; font:6px/1 "DM Mono",monospace; letter-spacing:.1em; }
+.war-hud__weapon > b { color:#fff0d8; font:700 27px/1 Georgia,serif; }
+.war-hud__weapon > b small { color:#cfc0a8; font:13px/1 "DM Mono",monospace; }
+.war-hud__weapon > i { color:#cfc2ac; font:6px/1 "DM Mono",monospace; font-style:normal; letter-spacing:.08em; }
+.war-hud__weapon-slots { position:absolute; z-index:6; left:50%; bottom:max(12px,env(safe-area-inset-bottom)); display:flex; gap:6px; transform:translateX(-50%); }
+.war-hud__weapon-slots button { display:grid; width:76px; min-height:46px; grid-template-columns:15px 1fr; grid-template-rows:1fr auto; align-items:center; gap:1px 5px; padding:4px 6px; border:1px solid rgba(236,218,189,.32); border-radius:4px; background:rgba(15,17,20,.84); color:#ddd0b8; text-align:left; }
+.war-hud__weapon-slots button.is-active { border-color:#e6c27d; background:linear-gradient(145deg,#6c4c2d,#211b17); }
+.war-hud__weapon-slots button small { grid-row:1/3; color:#dfc17e; font:700 8px/1 "DM Mono",monospace; }
+.war-hud__weapon-slots button b { color:#efd49e; font-size:13px; line-height:1; }
+.war-hud__weapon-slots button span { overflow:hidden; color:#d5c8b1; font:700 6px/1 "DM Mono",monospace; text-overflow:ellipsis; white-space:nowrap; }
+.war-hud__stick { position:absolute; z-index:5; bottom:max(18px,env(safe-area-inset-bottom)); left:max(18px,env(safe-area-inset-left)); display:grid; width:100px; height:100px; place-items:center; border:1px solid rgba(245,223,194,.4); border-radius:50%; background:radial-gradient(circle,rgba(156,120,79,.12) 0 34%,transparent 35%),rgba(23,22,20,.44); box-shadow:inset 0 0 0 10px #fff1; touch-action:none; }
+.war-hud__stick::before,.war-hud__stick::after { position:absolute; content:""; background:#eedabd2c; }
+.war-hud__stick::before { width:1px; height:70%; }
+.war-hud__stick::after { width:70%; height:1px; }
+.war-hud__stick span { z-index:1; display:grid; width:37px; height:37px; place-items:center; border:1px solid #f2d4a0a6; border-radius:50%; background:radial-gradient(circle at 35% 30%,#b38c5a,#49382a); color:#f1d9ad; box-shadow:0 3px 8px #0007; }
+.war-hud__controls { position:absolute; z-index:6; right:max(12px,env(safe-area-inset-right)); bottom:max(10px,env(safe-area-inset-bottom)); display:grid; width:170px; grid-template-columns:repeat(3,1fr); gap:5px; }
+.war-hud__control { display:flex; min-width:0; min-height:49px; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:3px; border:1px solid rgba(242,220,187,.38); border-radius:4px; background:rgba(31,29,27,.83); color:#eee0c8; box-shadow:0 3px 8px #0005,inset 0 1px #fff2; touch-action:none; }
+.war-hud__control .war-hud__symbol { color:#e9c47e; font-size:17px; line-height:1; }
+.war-hud__control b { font-size:7px; font-weight:800; letter-spacing:.06em; }
+.war-hud__control small { color:#bfad91; font:6px/1 "DM Mono",monospace; }
+.war-hud__control.is-fire { grid-column:2/span 2; grid-row:3; min-height:53px; border-color:#e3a46a; background:linear-gradient(145deg,#9d553a,#512d25); }
+.war-hud__control.is-fire .war-hud__symbol { font-size:23px; color:#ffdc9a; }
+.war-hud__control.is-active { border-color:#e9cc91; background:linear-gradient(145deg,#826141,#2f2923); }
+.war-hud__pause { position:absolute; z-index:7; top:max(9px,env(safe-area-inset-top)); left:50%; min-height:30px; transform:translateX(-50%); }
+.war-hud__paused { position:absolute; z-index:10; inset:0; display:grid; align-content:center; justify-items:center; gap:8px; background:rgba(13,15,15,.68); backdrop-filter:blur(3px); text-align:center; }
+.war-hud__paused span { color:#e8c681; font:700 10px/1 "DM Mono",monospace; letter-spacing:.18em; }
+.war-hud__paused b { color:#f2e6d2; font-size:22px; letter-spacing:.08em; }
+.war-hud__settings-sheet { position:absolute; z-index:11; top:50%; left:50%; display:grid; gap:10px; min-width:230px; padding:20px; border:1px solid rgba(215,184,135,.55); background:rgba(20,23,23,.96); box-shadow:0 18px 60px #0009; transform:translate(-50%,-50%); text-align:center; }
+.war-hud__settings-sheet span { color:#dcb876; font:700 8px/1 "DM Mono",monospace; letter-spacing:.18em; }
+.war-hud__settings-sheet b { color:#eee2cd; font-size:16px; }
+.war-hud__settings-sheet button { min-height:38px; border:1px solid rgba(215,184,135,.45); background:#352e25; color:#ebdbc0; font:700 8px/1 "DM Mono",monospace; letter-spacing:.12em; }
+
+.war-hud--refined { --hud-line:rgba(213,183,134,.29); --hud-panel:rgba(18,22,22,.84); }
+.war-hud--refined .war-hud__top { top:max(12px,env(safe-area-inset-top)); left:max(14px,env(safe-area-inset-left)); right:max(14px,env(safe-area-inset-right)); }
+.war-hud--refined .war-hud__room { border-radius:2px; background:linear-gradient(115deg,rgba(23,25,24,.9),rgba(33,29,25,.74)); }
+.war-hud--refined .war-hud__remaining { top:1px; padding:8px 14px; border-color:rgba(230,210,177,.24); }
+.war-hud--refined .war-hud__remaining b { font-size:20px; }
+.war-hud--refined .war-hud__map { width:88px; height:88px; border-radius:4px; background:rgba(18,23,23,.88); }
+.war-hud--refined .war-hud__feed span { border-left-color:#b8915b; background:rgba(19,23,22,.72); }
+.war-hud--refined .war-hud__commander { top:max(128px,calc(env(safe-area-inset-top) + 118px)); width:min(348px,54vw); padding:10px 13px; border-color:rgba(207,174,124,.52); }
+.war-hud--refined .war-hud__vitals { bottom:max(22px,env(safe-area-inset-bottom)); width:171px; padding:10px 12px; border-color:rgba(205,178,135,.28); background:linear-gradient(120deg,rgba(19,24,24,.86),rgba(30,27,23,.72)); }
+.war-hud--refined .war-hud__stat > i { height:6px; }
+.war-hud--refined .war-hud__stick { left:max(20px,env(safe-area-inset-left)); bottom:max(22px,env(safe-area-inset-bottom)); width:108px; height:108px; border-color:rgba(206,180,139,.48); background:radial-gradient(circle,rgba(167,132,88,.13) 0 34%,transparent 35%),rgba(18,22,22,.48); }
+.war-hud--refined .war-hud__controls { width:188px; right:max(16px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); gap:6px; }
+.war-hud--refined .war-hud__control { min-height:52px; border-radius:5px; background:linear-gradient(145deg,rgba(52,48,41,.94),rgba(23,26,26,.94)); }
+.war-hud--refined .war-hud__control.is-fire { min-height:58px; border-color:#e0a269; background:linear-gradient(145deg,#a25a3e,#4c2b25); }
+.war-hud--refined .war-hud__control.is-aim .war-hud__symbol { color:#9bc2b3; }
+.war-hud--refined .war-hud__weapon { bottom:max(172px,calc(env(safe-area-inset-bottom) + 164px)); right:max(18px,env(safe-area-inset-right)); }
+.war-hud--refined .war-hud__weapon-slots { bottom:max(16px,env(safe-area-inset-bottom)); }
+.war-hud--refined .war-hud__weapon-slots button { min-height:49px; border-color:rgba(206,180,139,.38); border-radius:3px; }
+.war-hud--refined .war-hud__pause { top:max(12px,env(safe-area-inset-top)); border-color:rgba(213,184,136,.36); }
+.war-hud--refined .war-hud__top-actions { top:max(112px,calc(env(safe-area-inset-top) + 102px)); }
+.war-hud--refined .war-hud__notice { border-radius:2px; background:rgba(19,21,19,.76); }
+.war-hud--refined .war-hud__control b { display:block; font-size:6px; }
+
+/* Portrait composition: discrete upper utility lane, left inventory rail and right stance rail. */
+@media (orientation: portrait) {
+  .combat-demo--current .duel-controls .duel-weapon-select,
+  .combat-demo--refined .duel-controls--refined .duel-weapon-select {
+    top: max(105px, calc(env(safe-area-inset-top) + 97px));
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: min(300px, calc(100vw - 84px));
+    transform: translateX(-50%);
+  }
+  .combat-demo--current .duel-controls .duel-quickbar,
+  .combat-demo--refined .duel-controls--refined .duel-quickbar {
+    top: max(244px, calc(env(safe-area-inset-top) + 236px));
+    left: max(13px, env(safe-area-inset-left));
+    width: 118px;
+    grid-template-columns: repeat(2, 56px);
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    gap: 6px;
+    transform: none;
+  }
+  .combat-demo--current .duel-controls .duel-stance-controls,
+  .combat-demo--refined .duel-controls--refined .duel-stance-controls {
+    top: max(244px, calc(env(safe-area-inset-top) + 236px));
+    right: max(13px, env(safe-area-inset-right));
+    left: auto;
+    gap: 7px;
+  }
+  .combat-demo--current .duel-controls .duel-forfeit,
+  .combat-demo--refined .duel-controls--refined .duel-forfeit {
+    top: max(184px, calc(env(safe-area-inset-top) + 176px));
+    right: max(13px, env(safe-area-inset-right));
+  }
+  .combat-demo--current .duel-controls .duel-help-button,
+  .combat-demo--refined .duel-controls--refined .duel-help-button {
+    top: max(184px, calc(env(safe-area-inset-top) + 176px));
+    right: auto;
+    left: max(13px, env(safe-area-inset-left));
+  }
+  .war-hud__vitals,
+  .war-hud--refined .war-hud__vitals {
+    top: calc(100dvh - 102px);
+    bottom: auto;
+    z-index: 12;
+  }
+  .war-hud__stick,
+  .war-hud--refined .war-hud__stick {
+    top: calc(100dvh - 136px);
+    bottom: auto;
+    z-index: 12;
+  }
+  .war-hud__controls,
+  .war-hud--refined .war-hud__controls {
+    top: calc(100dvh - 188px);
+    bottom: auto;
+    z-index: 13;
+  }
+  .war-hud__weapon,
+  .war-hud--refined .war-hud__weapon {
+    top: calc(100dvh - 242px);
+    bottom: auto;
+    z-index: 12;
+  }
+  .war-hud__weapon-slots,
+  .war-hud--refined .war-hud__weapon-slots {
+    top: calc(100dvh - 211px);
+    bottom: auto;
+    left: max(12px, env(safe-area-inset-left));
+    transform: none;
+    z-index: 13;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .duel-preview__hud { top:max(7px,env(safe-area-inset-top)); width:calc(100% - max(20px,env(safe-area-inset-left) + env(safe-area-inset-right))); padding:6px 9px; }
+  .duel-preview__stamina { top:max(62px,calc(env(safe-area-inset-top) + 55px)); }
+  .combat-demo--current .duel-controls .duel-weapon-select { top:auto; right:auto; bottom:max(8px,env(safe-area-inset-bottom)); left:50%; width:220px; transform:translateX(-50%); }
+  .combat-demo--current .duel-controls .duel-quickbar { top:max(68px,calc(env(safe-area-inset-top) + 62px)); left:max(10px,env(safe-area-inset-left)); width:118px; grid-template-columns:repeat(2,56px); }
+  .combat-demo--current .duel-controls .duel-stance-controls { top:max(190px,calc(env(safe-area-inset-top) + 180px)); }
+  .combat-demo--current .duel-controls .duel-control-cluster { right:max(12px,env(safe-area-inset-right)); bottom:max(10px,env(safe-area-inset-bottom)); width:208px; height:140px; }
+  .combat-demo--current .duel-controls .duel-control.is-attack { top:55px; }
+  .combat-demo--current .duel-controls .duel-control.is-block { top:67px; }
+  .combat-demo--current .duel-controls .duel-forfeit,.combat-demo--current .duel-controls .duel-help-button { top:max(66px,calc(env(safe-area-inset-top) + 58px)); }
+  .combat-demo--refined .duel-controls--refined .duel-control-cluster { bottom:max(10px,env(safe-area-inset-bottom)); height:148px; }
+  .combat-demo--refined .duel-controls--refined .duel-weapon-select { right:auto; bottom:max(8px,env(safe-area-inset-bottom)); left:50%; width:220px; transform:translateX(-50%); }
+  .combat-demo--refined .duel-controls--refined .duel-quickbar { top:max(68px,calc(env(safe-area-inset-top) + 62px)); }
+  .combat-demo--refined .duel-controls--refined .duel-stance-controls { top:max(184px,calc(env(safe-area-inset-top) + 174px)); }
+  .combat-demo--refined .duel-controls--refined .duel-forfeit,.combat-demo--refined .duel-controls--refined .duel-help-button { top:max(66px,calc(env(safe-area-inset-top) + 58px)); }
+  .war-hud__top { height:78px; }
+  .war-hud__feed { top:39px; max-width:170px; }
+  .war-hud__map,.war-hud--refined .war-hud__map { width:68px; height:68px; }
+  .war-hud__top-actions { top:max(80px,calc(env(safe-area-inset-top) + 72px)); }
+  .war-hud__top-actions button { min-height:26px; padding-inline:7px; font-size:6px; }
+  .war-hud__top-actions .war-hud__settings { width:28px; height:28px; }
+  .war-hud__commander,.war-hud--refined .war-hud__commander { top:max(82px,calc(env(safe-area-inset-top) + 74px)); width:min(300px,36vw); padding:7px 9px; }
+  .war-hud__commander-title b { font-size:9px; }
+  .war-hud__boss-phase b { font-size:8px; }
+  .war-hud__vitals,.war-hud--refined .war-hud__vitals { bottom:max(103px,calc(env(safe-area-inset-bottom) + 96px)); left:max(12px,env(safe-area-inset-left)); width:clamp(118px,17vw,150px); padding:6px 8px; }
+  .war-hud__stat { margin-bottom:5px; }
+  .war-hud__stat span,.war-hud__stat b { font-size:6px; }
+  .war-hud__stat > i,.war-hud--refined .war-hud__stat > i { height:4px; }
+  .war-hud__stick,.war-hud--refined .war-hud__stick { left:max(12px,env(safe-area-inset-left)); bottom:max(9px,env(safe-area-inset-bottom)); width:80px; height:80px; }
+  .war-hud__stick span { width:30px; height:30px; }
+  .war-hud__weapon,.war-hud--refined .war-hud__weapon { right:auto; bottom:max(71px,calc(env(safe-area-inset-bottom) + 65px)); left:50%; min-width:120px; align-items:center; transform:translateX(-50%); }
+  .war-hud__weapon > span { font-size:7px; }
+  .war-hud__weapon > b { font-size:20px; }
+  .war-hud__weapon > i { font-size:5px; }
+  .war-hud__weapon-slots,.war-hud--refined .war-hud__weapon-slots { bottom:max(6px,env(safe-area-inset-bottom)); }
+  .war-hud__weapon-slots button { width:64px; min-height:39px; }
+  .war-hud__controls,.war-hud--refined .war-hud__controls { right:max(9px,env(safe-area-inset-right)); bottom:max(8px,env(safe-area-inset-bottom)); display:block; width:172px; height:174px; }
+  .war-hud__control,.war-hud--refined .war-hud__control { position:absolute; width:62px; min-width:62px; min-height:62px; height:62px; border-radius:50%; }
+  .war-hud__control .war-hud__symbol { font-size:16px; }
+  .war-hud__control b,.war-hud__control small { display:none; }
+  .war-hud__control.is-aim { top:0; left:0; }
+  .war-hud__control.is-reload { top:0; left:68px; }
+  .war-hud__control.is-jump { top:68px; left:68px; }
+  .war-hud__control.is-crouch { top:78px; left:0; }
+  .war-hud__control.is-sprint { top:96px; left:68px; width:54px; min-width:54px; min-height:54px; height:54px; }
+  .war-hud__control.is-swap { display:none; }
+  .war-hud__control.is-fire,.war-hud--refined .war-hud__control.is-fire { right:0; bottom:0; left:auto; width:86px; min-width:86px; min-height:86px; height:86px; border-radius:50%; }
+  .war-hud__pause,.war-hud--refined .war-hud__pause { top:max(8px,env(safe-area-inset-top)); left:max(80px,calc(env(safe-area-inset-left) + 72px)); min-height:25px; font-size:6px; transform:none; }
+  .war-hud__notice { top:70%; }
+}
+@media (max-width: 380px) and (orientation: portrait) {
+  .duel-preview__hud { grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr); gap:5px; padding-inline:7px; }
+  .duel-preview__center span { font-size:5px; }
+  .war-hud__map,.war-hud--refined .war-hud__map { width:70px; height:70px; }
+  .war-hud__top-actions { top:max(80px,calc(env(safe-area-inset-top) + 72px)); gap:3px; }
+  .war-hud__top-actions button { min-height:28px; padding:0 6px; font-size:6px; }
+  .war-hud__commander,.war-hud--refined .war-hud__commander { width:calc(100% - 74px); top:max(144px,calc(env(safe-area-inset-top) + 134px)); }
+  .war-hud__vitals,.war-hud--refined .war-hud__vitals { width:118px; padding:7px; }
+  .war-hud__stick,.war-hud--refined .war-hud__stick { width:82px; height:82px; }
+  .war-hud__controls,.war-hud--refined .war-hud__controls { width:146px; }
+  .war-hud__control { min-height:43px; }
+  .war-hud__weapon { right:8px; bottom:max(152px,calc(env(safe-area-inset-bottom) + 144px)); min-width:0; }
+  .war-hud__weapon > span { font-size:7px; }
+  .war-hud__weapon > b { font-size:20px; }
+  .war-hud__pause,.war-hud--refined .war-hud__pause { left:50%; transform:translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .combat-demo *, .war-hud * { scroll-behavior:auto !important; }
+}
+.war-hud.is-portrait .war-hud__vitals,
+.war-hud.is-portrait.war-hud--refined .war-hud__vitals { position:absolute !important; top:calc(100% - 102px) !important; bottom:auto !important; z-index:20 !important; }
+.war-hud.is-portrait .war-hud__stick { position:absolute !important; top:calc(100% - 136px) !important; bottom:auto !important; z-index:20 !important; }
+.war-hud.is-portrait .war-hud__controls { position:absolute !important; top:calc(100% - 188px) !important; bottom:auto !important; z-index:21 !important; }
+.war-hud.is-portrait .war-hud__weapon { position:absolute !important; top:calc(100% - 242px) !important; bottom:auto !important; z-index:20 !important; }
+.war-hud.is-portrait .war-hud__weapon-slots { position:absolute !important; top:calc(100% - 211px) !important; bottom:auto !important; left:max(12px,env(safe-area-inset-left)) !important; transform:none !important; z-index:21 !important; }
