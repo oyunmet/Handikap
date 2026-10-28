@@ -729,7 +729,15 @@ function OptionalGlbKnight({
     mixer.update(dt * (motionReduced ? 0.35 : 1) * animationTimeScale);
     if (
       poseBones
-      && (!selectedAction || playerCharacter && (state === "block" || state === "jump" || motion.crouching))
+      && (
+        !selectedAction
+        || playerCharacter && (
+          state === "block"
+          || state === "jump"
+          || motion.crouching
+          || motion.movementState !== "YERDE_DURUYOR"
+        )
+      )
     ) {
       poseCharacterWithoutClip(
         poseBones,

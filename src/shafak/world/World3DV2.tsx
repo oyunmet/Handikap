@@ -61,8 +61,10 @@ function readQueryFlag(name: string) {
 
 function WorldV2Camera({
   motionRef,
+  motionReduced,
 }: {
   motionRef: MotionRef;
+  motionReduced: boolean;
 }) {
   const { camera, scene } = useThree();
   const raycaster = useMemo(() => {
@@ -74,6 +76,11 @@ function WorldV2Camera({
   const desired = useMemo(() => new THREE.Vector3(), []);
   const target = useMemo(() => new THREE.Vector3(), []);
   const direction = useMemo(() => new THREE.Vector3(), []);
+  const presentationOffset = useMemo(() => new THREE.Vector3(), []);
+  const previousMovementState = useRef<WorldMotion["movementState"] | null>(null);
+  const jumpPeakHeight = useRef(0);
+  const landingPulseSeconds = useRef(0);
+  const landingPulseStrength = useRef(0);
 
   useEffect(() => {
     camera.near = WORLD_V2_CONFIG.camera.near;
@@ -84,12 +91,29 @@ function WorldV2Camera({
 
   useFrame((_state, delta) => {
     const motion = motionRef.current;
+    const dt = Math.min(delta, 0.05);
+    camera.position.sub(presentationOffset);
+    presentationOffset.set(0, 0, 0);
+    const crouchDrop = motion.crouching ? (motion.movementState === "KAYIYOR" ? 0.32 : 0.24) : 0;
+    if (motion.movementState === "HAVADA_YUKARI" || motion.movementState === "HAVADA_AŞAĞI") {
+      jumpPeakHeight.current = Math.max(jumpPeakHeight.current, motion.jumpHeight);
+    }
+    if (
+      motion.movementState === "İNİŞ"
+      && previousMovementState.current !== "İNİŞ"
+    ) {
+      landingPulseStrength.current = THREE.MathUtils.clamp(jumpPeakHeight.current * 0.085, 0.035, 0.16);
+      landingPulseSeconds.current = 0.24;
+      jumpPeakHeight.current = 0;
+    }
+    previousMovementState.current = motion.movementState;
+    landingPulseSeconds.current = Math.max(0, landingPulseSeconds.current - dt);
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
-    origin.set(playerX, motion.jumpHeight + 1.05, playerZ);
+    origin.set(playerX, motion.jumpHeight + 1.05 - crouchDrop * 0.5, playerZ);
     desired.set(
       playerX,
-      motion.jumpHeight + WORLD_V2_CONFIG.camera.height,
+      motion.jumpHeight + WORLD_V2_CONFIG.camera.height - crouchDrop,
       playerZ + WORLD_V2_CONFIG.camera.distanceBehind,
     );
     direction.copy(desired).sub(origin);
@@ -106,10 +130,27 @@ function WorldV2Camera({
         );
       const safePosition = resolveCameraCollision(origin, desired, hit?.distance);
       if (hit) camera.position.copy(safePosition);
-      else camera.position.lerp(safePosition, 1 - Math.exp(-WORLD_V2_CONFIG.camera.followSpeed * Math.min(delta, 0.05)));
+      else camera.position.lerp(safePosition, 1 - Math.exp(-WORLD_V2_CONFIG.camera.followSpeed * dt));
     }
-    target.set(playerX, motion.jumpHeight + WORLD_V2_CONFIG.camera.targetHeight, playerZ);
+    target.set(playerX, motion.jumpHeight + WORLD_V2_CONFIG.camera.targetHeight - crouchDrop * 0.72, playerZ);
     camera.lookAt(target);
+    const pulseProgress = 1 - landingPulseSeconds.current / 0.24;
+    const pulseEnvelope = Math.sin(Math.PI * pulseProgress) * landingPulseStrength.current;
+    const cameraShake = motionReduced ? 0 : pulseEnvelope;
+    presentationOffset.set(
+      Math.sin(_state.clock.elapsedTime * 86) * cameraShake * 0.16,
+      -pulseEnvelope,
+      0,
+    );
+    camera.position.add(presentationOffset);
+    if (camera instanceof THREE.PerspectiveCamera) {
+      const targetFov = !motionReduced && motion.movementState === "SPRINT" ? 76 : 70;
+      const nextFov = THREE.MathUtils.damp(camera.fov, targetFov, 5, dt);
+      if (Math.abs(nextFov - camera.fov) > 0.015) {
+        camera.fov = nextFov;
+        camera.updateProjectionMatrix();
+      }
+    }
   });
   return null;
 }
@@ -463,7 +504,7 @@ export default function World3DV2(props: World3DProps) {
                 showProps={!noProps}
                 quality={props.quality}
               />
-              <WorldV2Camera motionRef={props.motionRef} />
+              <WorldV2Camera motionRef={props.motionRef} motionReduced={props.motionReduced} />
               <WorldV2RouteGates
                 motionRef={props.motionRef}
                 unlockedThroughChapter={props.unlockedThroughChapter}

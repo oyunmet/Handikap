@@ -97,6 +97,7 @@ export function getWorldLocomotionPoseAngles(
     const lean = state === "SPRINT" ? THREE.MathUtils.degToRad(20) : THREE.MathUtils.degToRad(12);
     set("spine", lean * 0.45);
     set("chest", lean * 0.55);
+    if (state === "SPRINT") set("head", -0.025);
   } else if (state === "ZIPLAMA_HAZIRLIK") {
     set("leftThigh", 0.25); set("rightThigh", 0.25);
     set("leftShin", -0.42); set("rightShin", -0.42);
@@ -215,21 +216,99 @@ export function poseCharacterWithoutClip(
     rotate("head", -Math.sin(time * 1.35) * 0.006 * motionScale);
   }
 
+  const applyLocomotionPose = (movementState: WorldMovementState) => {
+    const add = hasClip;
+    if (movementState === "KOŞUYOR" || movementState === "SPRINT") {
+      const lean = THREE.MathUtils.degToRad(movementState === "SPRINT" ? 20 : 12) * motionScale;
+      rotate("spine", lean * 0.45, 0, 0, add);
+      rotate("chest", lean * 0.55, 0, 0, add);
+      if (movementState === "SPRINT") rotate("head", -0.025 * motionScale, 0, 0, add);
+    } else if (movementState === "ZIPLAMA_HAZIRLIK") {
+      rotate("leftThigh", 0.25 * motionScale, 0, 0, add);
+      rotate("rightThigh", 0.25 * motionScale, 0, 0, add);
+      rotate("leftShin", -0.42 * motionScale, 0, 0, add);
+      rotate("rightShin", -0.42 * motionScale, 0, 0, add);
+      rotate("leftFoot", 0.14 * motionScale, 0, 0, add);
+      rotate("rightFoot", 0.14 * motionScale, 0, 0, add);
+      rotate("spine", 0.05 * motionScale, 0, 0, add);
+      rotate("chest", 0.08 * motionScale, 0, 0, add);
+      rotate("head", -0.13 * motionScale, 0, 0, add);
+      rotate("leftUpperArm", -0.12 * motionScale, 0, 0, add);
+      rotate("rightUpperArm", -0.12 * motionScale, 0, 0, add);
+      rotate("leftForearm", -0.18 * motionScale, 0, 0, add);
+      rotate("rightForearm", -0.18 * motionScale, 0, 0, add);
+    } else if (movementState === "HAVADA_YUKARI" || movementState === "HAVADA_AŞAĞI") {
+      const falling = movementState === "HAVADA_AŞAĞI";
+      rotate("leftThigh", (falling ? -0.24 : -0.3) * motionScale, 0, 0, add);
+      rotate("rightThigh", (falling ? -0.2 : -0.24) * motionScale, 0, 0, add);
+      rotate("leftShin", (falling ? 0.28 : 0.32) * motionScale, 0, 0, add);
+      rotate("rightShin", (falling ? 0.3 : 0.36) * motionScale, 0, 0, add);
+      const armRaise = (falling ? -0.92 : -0.78) * motionScale;
+      rotate("leftUpperArm", armRaise, 0, (falling ? -0.1 : -0.17) * motionScale, add);
+      rotate("rightUpperArm", armRaise, 0, (falling ? 0.1 : 0.17) * motionScale, add);
+      rotate("leftForearm", (falling ? -0.16 : -0.12) * motionScale, 0, 0, add);
+      rotate("rightForearm", (falling ? -0.16 : -0.12) * motionScale, 0, 0, add);
+      rotate("chest", (falling ? -0.035 : -0.07) * motionScale, 0, 0, add);
+      rotate("head", (falling ? 0.02 : 0.04) * motionScale, 0, 0, add);
+    } else if (movementState === "İNİŞ") {
+      rotate("leftThigh", 0.36 * motionScale, 0, 0, add);
+      rotate("rightThigh", 0.36 * motionScale, 0, 0, add);
+      rotate("leftShin", -0.6 * motionScale, 0, 0, add);
+      rotate("rightShin", -0.6 * motionScale, 0, 0, add);
+      rotate("leftFoot", 0.2 * motionScale, 0, 0, add);
+      rotate("rightFoot", 0.2 * motionScale, 0, 0, add);
+      rotate("spine", 0.06 * motionScale, 0, 0, add);
+      rotate("chest", 0.11 * motionScale, 0, 0, add);
+      rotate("head", -0.17 * motionScale, 0, 0, add);
+      rotate("leftUpperArm", -0.24 * motionScale, 0, 0, add);
+      rotate("rightUpperArm", -0.24 * motionScale, 0, 0, add);
+      rotate("leftForearm", -0.38 * motionScale, 0, 0, add);
+      rotate("rightForearm", -0.38 * motionScale, 0, 0, add);
+    } else if (movementState === "EĞİLİYOR") {
+      rotate("leftThigh", 0.34 * motionScale, 0, 0, add);
+      rotate("rightThigh", 0.34 * motionScale, 0, 0, add);
+      rotate("leftShin", -0.58 * motionScale, 0, 0, add);
+      rotate("rightShin", -0.58 * motionScale, 0, 0, add);
+      rotate("leftFoot", 0.18 * motionScale, 0, 0, add);
+      rotate("rightFoot", 0.18 * motionScale, 0, 0, add);
+      rotate("spine", 0.075 * motionScale, 0, 0, add);
+      rotate("chest", 0.12 * motionScale, 0, 0, add);
+      rotate("head", -0.195 * motionScale, 0, 0, add);
+      rotate("leftUpperArm", -0.23 * motionScale, 0, -0.07 * motionScale, add);
+      rotate("rightUpperArm", -0.23 * motionScale, 0, 0.07 * motionScale, add);
+      rotate("leftForearm", -0.34 * motionScale, 0, 0, add);
+      rotate("rightForearm", -0.34 * motionScale, 0, 0, add);
+    } else if (movementState === "KAYIYOR") {
+      rotate("leftThigh", 0.42 * motionScale, 0, 0, add);
+      rotate("rightThigh", 0.12 * motionScale, 0, 0, add);
+      rotate("leftShin", -0.24 * motionScale, 0, 0, add);
+      rotate("rightShin", -0.56 * motionScale, 0, 0, add);
+      rotate("leftFoot", 0.12 * motionScale, 0, 0, add);
+      rotate("rightFoot", 0.18 * motionScale, 0, 0, add);
+      rotate("spine", -0.055 * motionScale, 0, 0, add);
+      rotate("chest", -0.1 * motionScale, 0, 0, add);
+      rotate("head", 0.15 * motionScale, 0, 0, add);
+      rotate("leftUpperArm", -0.18 * motionScale, 0, -0.12 * motionScale, add);
+      rotate("rightUpperArm", -0.18 * motionScale, 0, 0.12 * motionScale, add);
+      rotate("leftForearm", -0.28 * motionScale, 0, 0, add);
+      rotate("rightForearm", -0.28 * motionScale, 0, 0, add);
+    }
+  };
+
   if (locomotion) {
-    const offsets = getWorldLocomotionPoseAngles(locomotion.movementState, phase);
-    for (const [name, [x, y, z]] of Object.entries(offsets) as [CharacterPoseBoneName, readonly [number, number, number]][]) {
-      rotate(name, x * motionScale, y * motionScale, z * motionScale, hasClip);
-    }
+    applyLocomotionPose(locomotion.movementState);
   } else if (crouching) {
-    const offsets = getWorldLocomotionPoseAngles("EĞİLİYOR", phase);
-    for (const [name, [x, y, z]] of Object.entries(offsets) as [CharacterPoseBoneName, readonly [number, number, number]][]) {
-      rotate(name, x * motionScale, y * motionScale, z * motionScale, hasClip);
-    }
+    applyLocomotionPose("EĞİLİYOR");
   }
 
   if (
     state === "jump"
-    && (!locomotion || !["ZIPLAMA_HAZIRLIK", "HAVADA_YUKARI", "HAVADA_AŞAĞI", "İNİŞ"].includes(locomotion.movementState))
+    && (!locomotion || (
+      locomotion.movementState !== "ZIPLAMA_HAZIRLIK"
+      && locomotion.movementState !== "HAVADA_YUKARI"
+      && locomotion.movementState !== "HAVADA_AŞAĞI"
+      && locomotion.movementState !== "İNİŞ"
+    ))
   ) {
     rotate("leftThigh", -0.42 * motionScale, 0, 0, hasClip);
     rotate("rightThigh", -0.22 * motionScale, 0, 0, hasClip);

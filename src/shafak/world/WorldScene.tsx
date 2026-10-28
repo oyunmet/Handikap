@@ -186,7 +186,14 @@ function readDuelWeaponSelectionPreference() {
     return false;
   }
 }
-type StepBurst = { id: number; x: number; running: boolean; expires: number };
+type StepBurst = {
+  id: number;
+  x: number;
+  running: boolean;
+  sprinting: boolean;
+  kind: "step" | "takeoff" | "landing" | "slide";
+  expires: number;
+};
 type PickupFlight = { id: number; kind: WorldPickup["kind"]; amount: number };
 type BattlePhase = "sweep" | "vs" | "countdown" | "fight" | "settling" | "settlement-error" | "result" | "error";
 type BattleSession = {
@@ -656,6 +663,8 @@ export default function WorldScene({
   const motionRef = useRef(createWorldMotion(worldProgress.distance, worldProgress.depth));
   const renderMotionRef = useRef<WorldMotion | null>(null);
   const previousMotionRef = useRef<WorldMotion | null>(null);
+  const nextStepBurstIdRef = useRef(0);
+  const perfectedObstacleIdsRef = useRef(new Set<string>());
   if (!renderMotionRef.current) renderMotionRef.current = { ...motionRef.current };
   if (!previousMotionRef.current) previousMotionRef.current = { ...motionRef.current };
   const interactableRegistryRef = useRef<WorldInteractableRegistry<WorldObstacle | WorldRival> | null>(null);
@@ -813,6 +822,12 @@ export default function WorldScene({
   const currentChapterId = Math.max(0, Math.floor(travel / WORLD_GATE_INTERVAL_METERS));
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
+  const [perfectPassSequence, setPerfectPassSequence] = useState(0);
+  useEffect(() => {
+    if (perfectPassSequence === 0) return undefined;
+    const timeout = window.setTimeout(() => setPerfectPassSequence(0), 920);
+    return () => window.clearTimeout(timeout);
+  }, [perfectPassSequence]);
   const [collectedPickupIds, setCollectedPickupIds] = useState<Set<string>>(() => new Set());
   const [brokenObstacleIds, setBrokenObstacleIds] = useState<Set<string>>(() => readBrokenObstacleIds(userId));
   const [sessionRewards, setSessionRewards] = useState({ gold: 0, diamonds: 0, materials: { emberCrystals: 0, sealFragments: 0, ironShards: 0 } });
@@ -2161,6 +2176,10 @@ export default function WorldScene({
         getWeatherHandlingMultiplier(weatherModeRef.current),
       );
       let footsteps = 0;
+      let takeoffBurstCount = 0;
+      let landingBurstCount = 0;
+      let slideBurstCount = 0;
+      let perfectPassCount = 0;
       newlyCollected.clear();
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
@@ -2334,6 +2353,7 @@ export default function WorldScene({
           worldInput.consumeJumpPress();
         }
         Object.assign(previousMotion, motionRef.current);
+        const previousMovementState = previousMotion.movementState;
         let nextFrame = stepWorldMotion(
           motionRef.current,
           stepInput,
@@ -2503,6 +2523,19 @@ export default function WorldScene({
           }
         }
 
+        if (previousMovementState !== nextFrame.movementState) {
+          if (nextFrame.movementState === "HAVADA_YUKARI") {
+            takeoffBurstCount += 1;
+            playWorldCue("jump");
+          } else if (nextFrame.movementState === "İNİŞ") {
+            landingBurstCount += 1;
+            playWorldCue("impact");
+          } else if (nextFrame.movementState === "KAYIYOR") {
+            slideBurstCount += 1;
+            playWorldCue("slide");
+          }
+        }
+
         for (const obstacle of obstacles) {
           const fallingRock = obstacle.kind === "falling-rock-trap";
           if (!fallingRock && obstacle.kind !== "spike-trap") continue;
@@ -2528,6 +2561,28 @@ export default function WorldScene({
           } else if (cooldown !== undefined && cooldown >= 0 && simulationTimeRef.current >= cooldown) {
             trapCooldownRef.current.set(obstacle.id, -1);
           }
+        }
+
+        for (const obstacle of obstacles) {
+          const action = obstacle.kind === "low-bar"
+            ? "crouch"
+            : obstacle.kind === "spike-trap" || obstacle.kind === "falling-rock-trap"
+              ? "jump"
+              : null;
+          if (!action || perfectedObstacleIdsRef.current.has(obstacle.id)) continue;
+          const passLine = obstacle.distance + 1.1;
+          if (!(previousMotion.distance < passLine && nextFrame.distance >= passLine)) continue;
+          if (Math.abs(obstacle.x - nextFrame.depth * 5.2) > obstacle.width / 2 + 0.35) continue;
+          const passedCorrectly = action === "crouch"
+            ? nextFrame.crouching
+            : nextFrame.jumpHeight >= WORLD_JUMP_CLEARANCE_METERS;
+          if (!passedCorrectly) continue;
+          perfectedObstacleIdsRef.current.add(obstacle.id);
+          if (perfectedObstacleIdsRef.current.size > 256) {
+            const oldestId = perfectedObstacleIdsRef.current.values().next().value;
+            if (oldestId) perfectedObstacleIdsRef.current.delete(oldestId);
+          }
+          perfectPassCount += 1;
         }
 
         for (const pickup of worldContent.pickups) {
@@ -2573,6 +2628,29 @@ export default function WorldScene({
       }
       if (hasCollectedThisFrame) setCollectedPickupIds(new Set(collectedRef.current));
       for (const [chapterId, ids] of newlyCollected) queuePickupClaims(chapterId, ids);
+      if (perfectPassCount > 0) setPerfectPassSequence((sequence) => sequence + perfectPassCount);
+      if (takeoffBurstCount + landingBurstCount + slideBurstCount > 0) {
+        const movementBursts: StepBurst[] = [];
+        const addBurst = (kind: StepBurst["kind"], count: number) => {
+          for (let index = 0; index < count; index += 1) {
+            movementBursts.push({
+              id: ++nextStepBurstIdRef.current,
+              x: frameState.cameraLead,
+              running: true,
+              sprinting: false,
+              kind,
+              expires: now + 720,
+            });
+          }
+        };
+        addBurst("takeoff", takeoffBurstCount);
+        addBurst("landing", landingBurstCount);
+        addBurst("slide", slideBurstCount);
+        setStepBursts((current) => [
+          ...current.filter((burst) => burst.expires > now),
+          ...movementBursts,
+        ].slice(-10));
+      }
 
       const root = sceneRef.current;
       if (root && now - lastVisualUpdate >= 1000 / 20) {
@@ -2580,6 +2658,7 @@ export default function WorldScene({
         const distance = frameState.distance;
         root.style.setProperty("--ws-travel", `${distance}m`);
         root.style.setProperty("--ws-depth-bottom", `${frameState.depth * 32}px`);
+        root.dataset.runState = frameState.movementState;
       }
       if (frameState.motion !== lastMotionRef.current) {
         lastMotionRef.current = frameState.motion;
@@ -2587,17 +2666,21 @@ export default function WorldScene({
       }
       if (footsteps > 0) {
         const count = Math.min(footsteps, 2);
-        const firstId = frameState.stepCount - count + 1;
+        const firstId = nextStepBurstIdRef.current + 1;
+        nextStepBurstIdRef.current += count;
         const running = frameState.motion === "running";
+        const sprinting = frameState.movementState === "SPRINT";
         setStepBursts((current) => [
           ...current.filter((burst) => burst.expires > now),
           ...Array.from({ length: count }, (_, index) => ({
             id: firstId + index,
             x: frameState.cameraLead,
             running,
+            sprinting,
+            kind: "step" as const,
             expires: now + 720,
           })),
-        ].slice(-16));
+        ].slice(-10));
         for (let index = 0; index < count; index += 1) {
           playFootstep({ running, surface: "stone", enabled: audioOn });
           if (vibrationOn && "vibrate" in navigator) {
@@ -2799,6 +2882,7 @@ export default function WorldScene({
       data-postfx={visualEffectsEnabled}
       data-finisher={visualEffectsEnabled && battleSession?.phase === "settling"}
       data-motion={motion}
+      data-run-state={motionRef.current.movementState}
       style={{
         "--biome-sky": scenePalette.skyTint,
         "--biome-horizon": scenePalette.horizon,
@@ -2915,10 +2999,18 @@ export default function WorldScene({
         <div className="world-npc-dialogue-layer" ref={npcDialoguePortalRef} />
         <div className="world-step-bursts" aria-hidden="true">
           {stepBursts.map((burst) => {
-            const particleCount = burst.running ? 7 : 4;
+            const particleCount = burst.kind === "landing"
+              ? 12
+              : burst.kind === "takeoff"
+                ? 10
+                : burst.kind === "slide"
+                  ? 8
+                  : burst.sprinting
+                    ? 9
+                    : burst.running ? 7 : 4;
             return (
               <span
-                className={`world-step-burst${burst.running ? " is-running" : ""}`}
+                className={`world-step-burst is-${burst.kind}${burst.running ? " is-running" : ""}${burst.sprinting ? " is-sprinting" : ""}`}
                 key={burst.id}
                 style={{
                   "--burst-x": `${burst.x}px`,
@@ -2944,6 +3036,11 @@ export default function WorldScene({
             );
           })}
         </div>
+        {perfectPassSequence > 0 && (
+          <div className="world-perfect-pass" key={perfectPassSequence} aria-hidden="true">
+            MÜKEMMEL!
+          </div>
+        )}
         <div className="world-vignette" />
       </div>
       {battleSession?.phase === "fight" && combatRender && (

@@ -8,7 +8,13 @@ import {
   inspectCharacterSceneGraph,
   prepareCharacterSkinnedMeshes,
 } from "./character-model.ts";
-import { findCharacterPoseBones, poseCharacterWithoutClip } from "./character-pose.ts";
+import {
+  captureCharacterPoseBaseline,
+  findCharacterPoseBones,
+  getWorldLocomotionPoseAngles,
+  poseCharacterWithoutClip,
+  restoreCharacterPoseBaseline,
+} from "./character-pose.ts";
 
 test("character models fit the requested height with their lowest point on the floor", () => {
   const model = new THREE.Group();
@@ -147,12 +153,15 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
     model.add(bone);
   }
   const bones = findCharacterPoseBones(model);
+  const baseline = captureCharacterPoseBaseline(bones);
   poseCharacterWithoutClip(bones, "jump", 0, 0, 0.5, false, false, 1, false);
   assert.notEqual(bones.leftUpperArm.rotation.x, 0);
   assert.notEqual(bones.leftThigh.rotation.x, 0);
 
+  restoreCharacterPoseBaseline(bones, baseline);
   poseCharacterWithoutClip(bones, "block", 0, 0, 0.5, false, false, 1, true);
   assert.ok(bones.leftForearm.rotation.x < 0);
+  restoreCharacterPoseBaseline(bones, baseline);
   poseCharacterWithoutClip(bones, "walk", 2, 1, 0, true, false, 1, true);
   assert.ok(bones.leftThigh.rotation.x > 0);
   assert.ok(bones.leftShin.rotation.x < 0);
@@ -162,4 +171,79 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   assert.ok(bones.leftUpperArm.rotation.x < 0);
   assert.ok(bones.leftForearm.rotation.x < 0);
   assert.ok(bones.leftFoot.rotation.x > 0);
+});
+
+test("player-hero GLB rig aliases resolve the real torso and limb bones", () => {
+  const model = new THREE.Group();
+  const names = [
+    "Hips", "Abdomen", "Torso", "Head",
+    "UpperArm.L", "LowerArm.L", "UpperArm.R", "LowerArm.R",
+    "UpperLeg.L", "LowerLeg.L", "UpperLeg.R", "LowerLeg.R", "Foot.L", "Foot.R",
+  ];
+  for (const name of names) {
+    const bone = new THREE.Bone();
+    bone.name = name;
+    model.add(bone);
+  }
+
+  const bones = findCharacterPoseBones(model);
+  assert.equal(bones.spine?.name, "Abdomen");
+  assert.equal(bones.chest?.name, "Torso");
+  assert.equal(bones.leftUpperArm?.name, "UpperArm.L");
+  assert.equal(bones.rightShin?.name, "LowerLeg.R");
+  assert.equal(bones.leftFoot?.name, "Foot.L");
+});
+
+test("locomotion poses keep crouch upright and use the requested run and sprint lean", () => {
+  const crouch = getWorldLocomotionPoseAngles("EĞİLİYOR", 0);
+  const run = getWorldLocomotionPoseAngles("KOŞUYOR", 0);
+  const sprint = getWorldLocomotionPoseAngles("SPRINT", 0);
+
+  assert.ok(Math.abs((crouch.spine?.[0] ?? 0) + (crouch.chest?.[0] ?? 0)) < 0.22);
+  assert.ok(Math.abs(run.spine?.[0] + run.chest?.[0] - THREE.MathUtils.degToRad(12)) < 1e-9);
+  assert.ok(Math.abs(sprint.spine?.[0] + sprint.chest?.[0] - THREE.MathUtils.degToRad(20)) < 1e-9);
+
+  const states = [
+    "YERDE_DURUYOR", "KOŞUYOR", "SPRINT", "ZIPLAMA_HAZIRLIK",
+    "HAVADA_YUKARI", "HAVADA_AŞAĞI", "İNİŞ", "EĞİLİYOR", "KAYIYOR",
+  ];
+  for (const state of states) {
+    const pose = getWorldLocomotionPoseAngles(state, 1.7);
+    for (const angles of Object.values(pose)) {
+      assert.ok(angles.every((angle) => Number.isFinite(angle) && Math.abs(angle) <= 1.28));
+    }
+  }
+});
+
+test("restoring the animation baseline prevents additive crouch poses from accumulating", () => {
+  const model = new THREE.Group();
+  for (const name of ["Hips", "Abdomen", "Torso", "Head", "UpperLeg.L", "LowerLeg.L"]) {
+    const bone = new THREE.Bone();
+    bone.name = name;
+    model.add(bone);
+  }
+  const bones = findCharacterPoseBones(model);
+  const baseline = captureCharacterPoseBaseline(bones);
+  const expected = getWorldLocomotionPoseAngles("EĞİLİYOR", 0);
+
+  for (let index = 0; index < 60; index += 1) {
+    restoreCharacterPoseBaseline(bones, baseline);
+    poseCharacterWithoutClip(
+      bones,
+      "run",
+      4,
+      0,
+      0,
+      true,
+      false,
+      index / 60,
+      true,
+      false,
+      { movementState: "EĞİLİYOR" },
+    );
+  }
+
+  assert.ok(Math.abs(bones.chest.rotation.x - (expected.chest?.[0] ?? 0)) < 1e-9);
+  assert.ok(Math.abs(bones.leftThigh.rotation.x - (expected.leftThigh?.[0] ?? 0)) < 1e-9);
+  assert.ok(Math.abs(bones.head.rotation.x - (expected.head?.[0] ?? 0)) < 1e-9);
 });

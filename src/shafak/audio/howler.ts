@@ -248,7 +248,7 @@ export function playUiChime() {
 }
 
 type GameCue = "victory" | "defeat";
-type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph" | "block" | "fire" | "lightning" | "impact" | "death" | "potion" | "arrow" | "movement";
+type WorldCue = "gold" | "crystal" | "seal" | "attack" | "battle" | "telegraph" | "block" | "fire" | "lightning" | "impact" | "death" | "potion" | "arrow" | "movement" | "jump" | "slide";
 type FootstepOptions = { running: boolean; surface: "stone" | "dirt"; enabled: boolean };
 
 const cueNotes: Record<GameCue, number[]> = {
@@ -302,6 +302,8 @@ const worldCueNotes: Record<WorldCue, number[]> = {
   potion: [420, 630, 840],
   arrow: [760, 520],
   movement: [430, 570],
+  jump: [360, 540],
+  slide: [154, 108],
 };
 
 export function playWorldCue(cue: WorldCue) {
