@@ -216,7 +216,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 4 — iPhone hareketi, butonlar, animasyon, gökyüzü ve savaş HUD'u
 
-- **Durum:** DEVAM EDİYOR — Faz 1–5 tamamlandı; Faz 6 son kabul kontrolünde.
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); iPhone/Safari ve WebGL görsel kabulü cihazda açık.
 - **Kapsam:** `attached_assets` içindeki Tur 4 notu. Kül Yolu giriş/durum makinesi, ortak oyun butonları, hareket pozları, gün/gece, savaş efektleri ve son kabul raporu.
 - **Kurallar:** Fazlar sırayla ve bağımsız commit edilir; her faz sonunda build, typecheck ve testler çalıştırılır. Push/deploy yok. Ekonomi, kayıtlar, düşman AI, hasar/ceza değerleri, silahlar ve oyun dengesi değiştirilmez. Savaş efekt havuzu/decal sınırları korunur; frame içinde yeni Three.js geometri/materyal/ışık yaratılmaz.
 - **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; WebGL görsel sonuçları cihazda ayrıca kontrol edilmeli.
@@ -260,3 +260,22 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Yapılanlar:** Kalkan, karakteri tüm çevresinden saran ölçekli shader kubbesi, kayan altıgen deseni ve iki sabit halka olarak düzenlendi. Blok/parry olayında öne bakan genişleyen darbe halkası eklendi; düello animasyon/kontrol kuralları değişmedi. Yıldırım dalları korunup hedef zeminine genişleyen halka, en çok %1,5 opaklıklı kısa ekran parlaması ve 0,24 sn ile sınırlı küçük kamera darbesi eklendi; azaltılmış hareket ayarında darbe/ışık kısıtlanıyor. Kor isabetleri, 30 öğelik sabit InstancedMesh havuzunda 2,6 sn içinde kararıp küçülen zemin izi bırakıyor. Boss HUD çerçevesi/HP gradyanı belirginleştirildi; can %66 ve %33 eşiklerini geçtiğinde yalnızca görsel olan Faz II/III bildirimi çıkıyor. “YENİ MOD” rozeti üç saniyede gizleniyor, Savaş Odası düğmesi kalıyor. Faz 2 ortak `GameButton` bileşeni düello SALDIRI/SİPER/YILDIRIM/KOR/NİŞAN/ZIPLA kontrollerinde korunuyor. Ana efekt bütçesi 138/150 parçacık; yeni parçacık, ışık, frame sırasında geometri/materyal üretimi, oyun dengesi veya savaş kuralı eklenmedi. Sürüm işareti `v17-faz-5`.
 - **Değişen dosyalar:** `src/shafak/build-info.ts`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/boss-hud.ts`, `src/shafak/game/boss-hud.test.js`, `src/shafak/game/war-room.css`, `src/shafak/world/World3D.tsx`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/duel-vfx.ts`, `src/shafak/world/duel-vfx.test.js`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı; mevcut büyük Three.js chunk uyarısı sürüyor. `npm test`: 421 toplam, 413 geçti, 8 başarısız. Sekiz hata önceki mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban hatalarıyla aynı; yeni boss-fazı ve efekt-havuzu testleri geçti. Fiziksel iPhone/Safari ve WebGL efekt görünümü doğrulanamadı.
+
+### Faz 6 — Son kontrol ve iPhone kabul matrisi
+
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); aşağıdaki cihaz/WebGL kontrolleri fiziksel iPhone'da yapılmalı.
+- **Son sürüm işareti:** Tek `GAME_BUILD_MARKER` kaynağı `v17-gokyuzu-butonlar`; Savaş Odası etiketi aynı değeri kullanıyor.
+- **Yerel doğrulama:** `npm run typecheck` ve `npm run build` başarılı. `npm test`: 421 toplam, 413 geçti, 8 bilinen taban hatası kaldı (mağaza/ekipman 6, düello süresi 1, envanter varsayılanı 1); yeni test hatası yok. Build'in mevcut büyük Three.js chunk uyarısı sürüyor.
+- **Önizleme:** Uygulama sunucusu başladı ve giriş ekranı yüklendi; önizleme tarayıcısı WebGL bağlamı oluşturamadığından 3D sahne görsel kabulü yapılamadı. 2D yedek sahne eklenmedi.
+- **Korunan sınırlar:** Kül Yolu ve Savaş Odası 3D sahneleri, ekonomi/mağaza, kalıcı kayıtlar, düşman AI, hasar/ceza, silahlar ve denge değerleri değiştirilmedi. Düello efekt bütçesi 138/150; kor izi havuzu en çok 30. Frame döngüsünde geometri/materyal/ışık oluşturulmuyor; mobil DPR üst sınırı 2.
+
+| Kontrol | Yerel kod/test sonucu | iPhone/Safari/WebGL kabulü |
+| --- | --- | --- |
+| Joystick ile aynı anda koşu, zıplama ve eğilme | Pointer durumları ve hareket testleri mevcut; Faz 1 hareket testleri 41/41 geçti. | Gerçek cihazda denenmedi. |
+| Eğilme pozunda kahramanın dik durması | Faz 3 gerçek oyuncu rig kemikleri ve animasyon taban pozu bağlandı; kod/build doğrulandı. | Rig pozu cihazda görsel doğrulanmadı. |
+| Diken, taş ve alçak kirişlerden geçiş | Engel açıklığı/çarpışma ve durum makinesi testleri mevcut. | Dokunmatik zamanlama cihazda denenmedi. |
+| Gün/gece geçişi ve ayarlardaki seçim | Ortak saf faz/ışık testleri geçti; ayar ve localStorage aynı tercihi kullanıyor. | WebGL gökyüzü/ışık görünümü cihazda doğrulanmadı. |
+| Siper kalkanının karakteri sarması ve darbe hissi | Kubbe, halka ve darbe efektleri build/typecheck'ten geçti. | WebGL görünümü ve gerçek performans doğrulanmadı. |
+| Ortak savaş butonlarının basılı/soğuma geri bildirimi | Kül Yolu ve düello kontrolleri ortak `GameButton` kullanıyor. | Dokunma alanı ve basma hissi iPhone'da denenmedi. |
+| Yıldırım, kor izi ve boss fazı bildirimi | Faz eşiği ve 30 decal havuzu test edildi; yeni testler geçti. | Görsel yoğunluk/okunabilirlik WebGL'de doğrulanmadı. |
+| Sürüm ve kaynak sınırları | Tek marker, 138/150 parçacık, 30 decal ve DPR≤2 koddan doğrulandı. | Fiziksel cihaz frame-rate ölçümü yapılmadı. |
