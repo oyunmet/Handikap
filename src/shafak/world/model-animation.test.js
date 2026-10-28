@@ -50,7 +50,8 @@ test("locomotion clips remove fixed body lean while keeping animated movement", 
   assert.deepEqual([...clip.tracks[0].values], originalTrackValues);
   const hipsTrack = upright.tracks.find((candidate) => candidate.name === "Hips.quaternion");
   assert.ok(hipsTrack, "the baked Hips bind-pose tilt needs a neutral track");
-  assert.deepEqual([...hipsTrack.values], [0, 0, 0, 1]);
+  assert.deepEqual([...hipsTrack.times], [0, 1]);
+  assert.deepEqual([...hipsTrack.values], [0, 0, 0, 1, 0, 0, 0, 1]);
 });
 
 test("the world actor uses upright walk and run clips for the shared player rig", () => {

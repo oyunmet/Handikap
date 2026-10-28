@@ -164,14 +164,14 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   assert.ok(bones.leftForearm.rotation.x < 0);
   restoreCharacterPoseBaseline(bones, baseline);
   poseCharacterWithoutClip(bones, "walk", 2, 1, 0, true, false, 1, true, false, undefined, baseline);
-  assert.ok(bones.leftThigh.rotation.x > 0);
-  assert.ok(bones.leftShin.rotation.x < 0);
+  assert.ok(bones.leftThigh.rotation.x < 0);
+  assert.ok(bones.leftShin.rotation.x > 0);
   assert.ok(bones.spine.rotation.x > 0);
   assert.ok(bones.chest.rotation.x > 0);
   assert.ok(bones.head.rotation.x < 0);
   assert.ok(bones.leftUpperArm.rotation.x < 0);
   assert.ok(bones.leftForearm.rotation.x < 0);
-  assert.ok(bones.leftFoot.rotation.x > 0);
+  assert.ok(bones.leftFoot.rotation.x < 0);
   assert.ok(bones.pelvis.position.y < baseline.get("pelvis").position.y);
 });
 
@@ -276,10 +276,14 @@ test("crouch lowers the shared Body bone by a fixed world distance at GLB scales
 
 test("locomotion poses keep crouch upright and use the requested run and sprint lean", () => {
   const crouch = getWorldLocomotionPoseAngles("EĞİLİYOR", 0);
+  const walk = getWorldLocomotionPoseAngles("KOŞUYOR", 0, "walk");
   const run = getWorldLocomotionPoseAngles("KOŞUYOR", 0);
   const sprint = getWorldLocomotionPoseAngles("SPRINT", 0);
 
-  assert.ok(Math.abs((crouch.spine?.[0] ?? 0) + (crouch.chest?.[0] ?? 0)) < 0.22);
+  assert.ok(Math.abs((crouch.spine?.[0] ?? 0) + (crouch.chest?.[0] ?? 0) - 0.45) < 1e-9);
+  assert.ok((crouch.leftThigh?.[0] ?? 0) < -0.75);
+  assert.ok((crouch.leftShin?.[0] ?? 0) > 1.2);
+  assert.ok(Math.abs((walk.spine?.[0] ?? 0) + (walk.chest?.[0] ?? 0)) < 1e-9);
   assert.ok(Math.abs(run.spine?.[0] + run.chest?.[0] - THREE.MathUtils.degToRad(12)) < 1e-9);
   assert.ok(Math.abs(sprint.spine?.[0] + sprint.chest?.[0] - THREE.MathUtils.degToRad(20)) < 1e-9);
 

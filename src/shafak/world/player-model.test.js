@@ -17,10 +17,12 @@ import {
 import {
   createPlayerLocomotionClip,
   isRootTranslationTrack,
+  prepareWorldActorClips,
   resolveMappedGlbClipName,
 } from "./model-animation.ts";
 import { PLAYER_CHARACTER_ANIMATION_CLIPS } from "./player-model.ts";
 import {
+  WORLD_CROUCH_PELVIS_DROP_METERS,
   captureCharacterPoseBaseline,
   findCharacterPoseBones,
   poseCharacterWithoutClip,
@@ -37,6 +39,7 @@ import {
 } from "./character-model.ts";
 import { getTravelCameraSettings } from "./camera-settings.ts";
 import { createDuelWeapon, normalizeDuelWeaponWorldSize } from "./duel-weapon.ts";
+import { fitObjectToTarget, getPreciseWorldBounds } from "./world-v2-sizing.ts";
 
 const playerModelUrl = new URL(`../../../public${PLAYER_CHARACTER_MODEL_PATH}`, import.meta.url);
 
@@ -399,7 +402,7 @@ test("player model uses the animated Quaternius hero at the configured height an
   });
 });
 
-test("crouching lowers the shared player pelvis by 10 cm in world space", async () => {
+test("world walking stays upright after restoring the fitted GLB baseline each frame", async () => {
   const playerGlb = fs.readFileSync(playerModelUrl);
   const arrayBuffer = playerGlb.buffer.slice(
     playerGlb.byteOffset,
@@ -408,36 +411,127 @@ test("crouching lowers the shared player pelvis by 10 cm in world space", async 
   const gltf = await new Promise((resolve, reject) => {
     new GLTFLoader().parse(arrayBuffer, "/", resolve, reject);
   });
-  const model = cloneSkinned(gltf.scene);
-  fitCharacterModel(model, PLAYER_CHARACTER_TARGET_HEIGHT);
-  const bones = findCharacterPoseBones(model);
-  assert.equal(bones.pelvis?.name, "Body");
-  const baseline = captureCharacterPoseBaseline(bones);
+  const idleClip = gltf.animations.find((clip) => clip.name === "Idle");
+  assert.ok(idleClip);
+  const initialMixer = new THREE.AnimationMixer(gltf.scene);
+  initialMixer.clipAction(idleClip).play();
+  initialMixer.setTime(0);
+  initialMixer.update(0);
+  fitObjectToTarget(gltf.scene, { targetHeight: PLAYER_CHARACTER_TARGET_HEIGHT });
 
-  model.updateWorldMatrix(true, true);
-  const standingY = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
-  poseCharacterWithoutClip(
-    bones,
-    "idle",
-    0,
-    0,
-    0,
-    true,
-    false,
-    0,
-    true,
-    false,
-    { movementState: "EĞİLİYOR" },
-    baseline,
-  );
-  model.updateWorldMatrix(true, true);
-  const crouchingY = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
+  const model = cloneSkinned(gltf.scene);
+  const bones = findCharacterPoseBones(model);
+  const baseline = captureCharacterPoseBaseline(bones);
+  const walkClip = prepareWorldActorClips(PLAYER_CHARACTER_MODEL_PATH, gltf.animations)
+    .find((clip) => clip.name === "Walk");
+  assert.ok(walkClip);
+  const mixer = new THREE.AnimationMixer(model);
+  const action = mixer.clipAction(walkClip);
+  action.reset().fadeIn(0.16).play();
+  const hips = model.getObjectByName("Hips");
+  const head = model.getObjectByName("Head");
+  assert.ok(hips && head);
+  let maximumSideLean = 0;
+  let maximumBodyLean = 0;
+
+  for (let frame = 0; frame < 120; frame += 1) {
+    restoreCharacterPoseBaseline(bones, baseline);
+    mixer.update(1 / 60);
+    poseCharacterWithoutClip(
+      bones,
+      "walk",
+      2,
+      frame * 0.08,
+      0,
+      false,
+      false,
+      frame / 60,
+      true,
+      false,
+      { movementState: "KOŞUYOR" },
+      baseline,
+    );
+    model.updateMatrixWorld(true);
+    const bodyAxis = head.getWorldPosition(new THREE.Vector3())
+      .sub(hips.getWorldPosition(new THREE.Vector3()));
+    maximumSideLean = Math.max(
+      maximumSideLean,
+      Math.atan2(Math.abs(bodyAxis.x), bodyAxis.y),
+    );
+    maximumBodyLean = Math.max(
+      maximumBodyLean,
+      Math.atan2(Math.hypot(bodyAxis.x, bodyAxis.z), bodyAxis.y),
+    );
+  }
 
   assert.ok(
-    Math.abs(standingY - crouchingY - 0.1) < 0.003,
-    `crouch should lower the shared pelvis by 10cm, got ${(standingY - crouchingY).toFixed(3)}m`,
+    THREE.MathUtils.radToDeg(maximumSideLean) < 2,
+    `straight walking should stay level side-to-side, got ${THREE.MathUtils.radToDeg(maximumSideLean).toFixed(1)}°`,
   );
-  restoreCharacterPoseBaseline(bones, baseline);
-  model.updateWorldMatrix(true, true);
-  assert.ok(Math.abs(bones.pelvis.getWorldPosition(new THREE.Vector3()).y - standingY) < 0.001);
+  assert.ok(
+    THREE.MathUtils.radToDeg(maximumBodyLean) < 10,
+    `walking should not add a strong body lean, got ${THREE.MathUtils.radToDeg(maximumBodyLean).toFixed(1)}°`,
+  );
+});
+
+test("world crouching uses a balanced squat and clears the low road beam", async () => {
+  const playerGlb = fs.readFileSync(playerModelUrl);
+  const arrayBuffer = playerGlb.buffer.slice(
+    playerGlb.byteOffset,
+    playerGlb.byteOffset + playerGlb.byteLength,
+  );
+  const gltf = await new Promise((resolve, reject) => {
+    new GLTFLoader().parse(arrayBuffer, "/", resolve, reject);
+  });
+  const idleClip = gltf.animations.find((clip) => clip.name === "Idle");
+  assert.ok(idleClip);
+  const initialMixer = new THREE.AnimationMixer(gltf.scene);
+  initialMixer.clipAction(idleClip).play();
+  initialMixer.setTime(0);
+  initialMixer.update(0);
+  fitObjectToTarget(gltf.scene, { targetHeight: PLAYER_CHARACTER_TARGET_HEIGHT });
+  const body = gltf.scene.getObjectByName("Body");
+  assert.ok(body);
+  const standingBodyY = body.getWorldPosition(new THREE.Vector3()).y;
+  const idleWorldClip = prepareWorldActorClips(PLAYER_CHARACTER_MODEL_PATH, gltf.animations)
+    .find((clip) => clip.name === "Idle");
+  assert.ok(idleWorldClip);
+
+  for (const motionReduced of [false, true]) {
+    const model = cloneSkinned(gltf.scene);
+    const bones = findCharacterPoseBones(model);
+    assert.equal(bones.pelvis?.name, "Body");
+    const baseline = captureCharacterPoseBaseline(bones);
+    const mixer = new THREE.AnimationMixer(model);
+    mixer.clipAction(idleWorldClip).play();
+
+    for (let frame = 0; frame < 30; frame += 1) {
+      restoreCharacterPoseBaseline(bones, baseline);
+      mixer.update(1 / 60);
+      poseCharacterWithoutClip(
+        bones,
+        "idle",
+        0,
+        0,
+        0,
+        true,
+        motionReduced,
+        frame / 60,
+        true,
+        false,
+        { movementState: "EĞİLİYOR" },
+        baseline,
+      );
+    }
+    model.updateWorldMatrix(true, true);
+
+    const crouchingBodyY = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
+    const bounds = getPreciseWorldBounds(model);
+    assert.ok(
+      Math.abs(standingBodyY - crouchingBodyY - WORLD_CROUCH_PELVIS_DROP_METERS) < 0.003,
+      `the crouch should lower the pelvis by ${WORLD_CROUCH_PELVIS_DROP_METERS}m`,
+    );
+    assert.ok(bounds.min.y >= -0.025, `crouch should keep the feet on the floor, got ${bounds.min.y.toFixed(3)}m`);
+    assert.ok(bounds.max.y <= 1.4, `crouch should clear the 1.4m beam, got ${bounds.max.y.toFixed(3)}m`);
+  }
 });

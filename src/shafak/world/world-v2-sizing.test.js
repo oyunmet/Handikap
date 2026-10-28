@@ -22,19 +22,27 @@ test("animation-aware fitting puts a normal GLB at the configured player/NPC hei
   assert.ok(Math.abs(fittedHeight(source, WORLD_V2_CONFIG.player.targetHeight) - 1.7) < 0.01);
 });
 
-test("loadAsset applies animation frame zero before returning a fitted GLB", async () => {
+test("loadAsset prefers the idle animation frame when fitting a GLB", async () => {
   const scene = new THREE.Group();
   const animatedMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1, 0.5), new THREE.MeshBasicMaterial());
   animatedMesh.name = "AnimatedMesh";
   scene.add(animatedMesh);
-  const firstFrameScale = new THREE.VectorKeyframeTrack(
+  const attackFrameScale = new THREE.VectorKeyframeTrack(
+    "AnimatedMesh.scale",
+    [0, 1],
+    [3, 3, 3, 4, 4, 4],
+  );
+  const idleFrameScale = new THREE.VectorKeyframeTrack(
     "AnimatedMesh.scale",
     [0, 1],
     [2, 2, 2, 3, 3, 3],
   );
   const gltf = {
     scene,
-    animations: [new THREE.AnimationClip("first-frame-test", 1, [firstFrameScale])],
+    animations: [
+      new THREE.AnimationClip("Attacking_Idle", 1, [attackFrameScale]),
+      new THREE.AnimationClip("CharacterArmature|Idle", 1, [idleFrameScale]),
+    ],
   };
 
   clearWorldV2AssetCacheForTests();
@@ -42,7 +50,8 @@ test("loadAsset applies animation frame zero before returning a fitted GLB", asy
     loadAsync: async () => gltf,
   });
   assert.ok(Math.abs(prepared.dimensions.y - WORLD_V2_CONFIG.player.targetHeight) < 0.01);
-  assert.ok(Math.abs(scene.scale.y - 0.85) < 0.01, "the pre-fit source was measured at animation frame zero");
+  assert.ok(Math.abs(scene.scale.y - 0.85) < 0.01, "the stable idle frame should be measured before fitting");
+  assert.ok(Math.abs(animatedMesh.scale.y - 2) < 0.01, "a preceding attack clip must not become the bind pose");
   clearWorldV2AssetCacheForTests();
 });
 

@@ -37,12 +37,14 @@ export function isRootTranslationTrack(trackName: string, rootBoneName: string):
 
 export function createUprightLocomotionClip(clip: THREE.AnimationClip): THREE.AnimationClip {
   const uprightClip = clip.clone();
+  const neutralTrackEnd = Math.max(uprightClip.duration, 1 / 60);
   const rotation = new THREE.Quaternion();
   const euler = new THREE.Euler();
   const uprightBones = new Set(["body", "hips", "abdomen", "torso", "neck", "head"]);
   const animatedBones = new Set<string>();
 
-  for (const track of uprightClip.tracks) {
+  for (let trackIndex = 0; trackIndex < uprightClip.tracks.length; trackIndex += 1) {
+    const track = uprightClip.tracks[trackIndex];
     const pathSegments = track.name.split(/[.[\]]+/).filter(Boolean);
     const boneName = pathSegments.at(-2)?.toLocaleLowerCase();
     if (
@@ -76,6 +78,18 @@ export function createUprightLocomotionClip(clip: THREE.AnimationClip): THREE.An
       );
       rotation.setFromEuler(euler).toArray(track.values, index * 4);
     });
+
+    // A one-key track only overrides the source pose at time zero. Keep a
+    // neutralized bind-pose rotation active after the mixer restores its
+    // baseline on subsequent frames.
+    if (track.times.length === 1) {
+      const value = [...track.values.slice(0, 4)];
+      uprightClip.tracks[trackIndex] = new THREE.QuaternionKeyframeTrack(
+        track.name,
+        [0, neutralTrackEnd],
+        [...value, ...value],
+      );
+    }
   }
 
   // The source GLB bakes a forward tilt into several unanimated spine bones,
@@ -86,8 +100,8 @@ export function createUprightLocomotionClip(clip: THREE.AnimationClip): THREE.An
     const trackBoneName = boneName[0].toLocaleUpperCase() + boneName.slice(1);
     uprightClip.tracks.push(new THREE.QuaternionKeyframeTrack(
       `${trackBoneName}.quaternion`,
-      [0],
-      [0, 0, 0, 1],
+      [0, neutralTrackEnd],
+      [0, 0, 0, 1, 0, 0, 0, 1],
     ));
   }
 

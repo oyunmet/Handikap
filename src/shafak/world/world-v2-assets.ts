@@ -22,7 +22,9 @@ const assetCache = new Map<string, Promise<LoadedWorldAsset>>();
 const characterResources = new WeakMap<THREE.Object3D, CharacterOwnedResources>();
 
 function prepareFirstAnimationFrame(gltf: GLTF) {
-  const firstClip = gltf.animations[0];
+  const idleClip = gltf.animations.find((clip) =>
+    clip.name.split("|").at(-1)?.trim().toLowerCase() === "idle");
+  const firstClip = idleClip ?? gltf.animations[0];
   if (!firstClip) return;
   const mixer = new THREE.AnimationMixer(gltf.scene);
   mixer.clipAction(firstClip).play();

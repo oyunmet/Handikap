@@ -60,7 +60,7 @@ const POSE_LIMITS: Record<CharacterPoseBoneName, number> = {
 };
 
 const worldPosePosition = new THREE.Vector3();
-export const WORLD_CROUCH_PELVIS_DROP_METERS = 0.1;
+export const WORLD_CROUCH_PELVIS_DROP_METERS = 0.22;
 export const WORLD_SLIDE_PELVIS_DROP_METERS = 0.14;
 
 export type CharacterPoseBaseline = ReadonlyMap<
@@ -92,6 +92,7 @@ export function restoreCharacterPoseBaseline(
 export function getWorldLocomotionPoseAngles(
   state: WorldMovementState,
   phase: number,
+  animationState: CharacterAnimationState = "run",
 ): CharacterPoseAngles {
   const pose: CharacterPoseAngles = {};
   const set = (name: CharacterPoseBoneName, x: number, y = 0, z = 0) => {
@@ -107,7 +108,9 @@ export function getWorldLocomotionPoseAngles(
   const liftRight = Math.max(0, Math.sin(phase - Math.PI / 2));
 
   if (state === "KOŞUYOR" || state === "SPRINT") {
-    const lean = state === "SPRINT" ? THREE.MathUtils.degToRad(20) : THREE.MathUtils.degToRad(12);
+    const lean = state === "SPRINT"
+      ? THREE.MathUtils.degToRad(20)
+      : animationState === "walk" ? 0 : THREE.MathUtils.degToRad(12);
     set("spine", lean * 0.45);
     set("chest", lean * 0.55);
     if (state === "SPRINT") set("head", -0.025);
@@ -138,10 +141,11 @@ export function getWorldLocomotionPoseAngles(
     set("leftUpperArm", -0.24); set("rightUpperArm", -0.24);
     set("leftForearm", -0.38); set("rightForearm", -0.38);
   } else if (state === "EĞİLİYOR") {
-    set("leftThigh", 0.34); set("rightThigh", 0.34);
-    set("leftShin", -0.58); set("rightShin", -0.58);
-    set("leftFoot", 0.18); set("rightFoot", 0.18);
-    set("spine", 0.075); set("chest", 0.12); set("head", -0.195);
+    set("hips", 0.2);
+    set("leftThigh", -0.8); set("rightThigh", -0.8);
+    set("leftShin", 1.28); set("rightShin", 1.28);
+    set("leftFoot", -0.55); set("rightFoot", -0.55);
+    set("spine", 0.3); set("chest", 0.15); set("head", -0.25);
     set("leftUpperArm", -0.23, 0, -0.07); set("rightUpperArm", -0.23, 0, 0.07);
     set("leftForearm", -0.34); set("rightForearm", -0.34);
   } else if (state === "KAYIYOR") {
@@ -153,7 +157,7 @@ export function getWorldLocomotionPoseAngles(
     set("leftForearm", -0.28); set("rightForearm", -0.28);
   }
 
-  if (state === "KOŞUYOR" || state === "SPRINT") {
+  if ((state === "KOŞUYOR" && animationState !== "walk") || state === "SPRINT") {
     set("leftThigh", -gait * 0.5); set("rightThigh", gait * 0.5);
     set("leftShin", liftLeft * 0.28); set("rightShin", liftRight * 0.28);
     set("leftUpperArm", gait * 0.32); set("rightUpperArm", -gait * 0.32);
@@ -237,9 +241,12 @@ export function poseCharacterWithoutClip(
   const applyLocomotionPose = (movementState: WorldMovementState) => {
     const add = hasClip;
     if (movementState === "KOŞUYOR" || movementState === "SPRINT") {
-      const lean = THREE.MathUtils.degToRad(movementState === "SPRINT" ? 20 : 12) * motionScale;
-      rotate("spine", lean * 0.45, 0, 0, add);
-      rotate("chest", lean * 0.55, 0, 0, add);
+      const lean = movementState === "SPRINT"
+        ? THREE.MathUtils.degToRad(20)
+        : state === "walk" ? 0 : THREE.MathUtils.degToRad(12);
+      const scaledLean = lean * motionScale;
+      rotate("spine", scaledLean * 0.45, 0, 0, add);
+      rotate("chest", scaledLean * 0.55, 0, 0, add);
       if (movementState === "SPRINT") rotate("head", -0.025 * motionScale, 0, 0, add);
     } else if (movementState === "ZIPLAMA_HAZIRLIK") {
       rotate("leftThigh", 0.25 * motionScale, 0, 0, add);
@@ -283,19 +290,13 @@ export function poseCharacterWithoutClip(
       rotate("leftForearm", -0.38 * motionScale, 0, 0, add);
       rotate("rightForearm", -0.38 * motionScale, 0, 0, add);
     } else if (movementState === "EĞİLİYOR") {
-      rotate("leftThigh", 0.34 * motionScale, 0, 0, add);
-      rotate("rightThigh", 0.34 * motionScale, 0, 0, add);
-      rotate("leftShin", -0.58 * motionScale, 0, 0, add);
-      rotate("rightShin", -0.58 * motionScale, 0, 0, add);
-      rotate("leftFoot", 0.18 * motionScale, 0, 0, add);
-      rotate("rightFoot", 0.18 * motionScale, 0, 0, add);
-      rotate("spine", 0.075 * motionScale, 0, 0, add);
-      rotate("chest", 0.12 * motionScale, 0, 0, add);
-      rotate("head", -0.195 * motionScale, 0, 0, add);
-      rotate("leftUpperArm", -0.23 * motionScale, 0, -0.07 * motionScale, add);
-      rotate("rightUpperArm", -0.23 * motionScale, 0, 0.07 * motionScale, add);
-      rotate("leftForearm", -0.34 * motionScale, 0, 0, add);
-      rotate("rightForearm", -0.34 * motionScale, 0, 0, add);
+      const crouchPose = getWorldLocomotionPoseAngles(movementState, phase, state);
+      for (const [name, angles] of Object.entries(crouchPose) as [
+        CharacterPoseBoneName,
+        readonly [number, number, number],
+      ][]) {
+        rotate(name, angles[0], angles[1], angles[2], add);
+      }
     } else if (movementState === "KAYIYOR") {
       rotate("leftThigh", 0.42 * motionScale, 0, 0, add);
       rotate("rightThigh", 0.12 * motionScale, 0, 0, add);
@@ -330,12 +331,12 @@ export function poseCharacterWithoutClip(
     if (parent) {
       parent.updateWorldMatrix(true, false);
       worldPosePosition.copy(pelvisBaseline.position).applyMatrix4(parent.matrixWorld);
-      worldPosePosition.y -= pelvisDrop * motionScale;
+      worldPosePosition.y -= pelvisDrop * (lowPoseState === "EĞİLİYOR" ? 1 : motionScale);
       parent.worldToLocal(worldPosePosition);
       pelvis.position.copy(worldPosePosition);
     } else {
       pelvis.position.copy(pelvisBaseline.position);
-      pelvis.position.y -= pelvisDrop * motionScale;
+      pelvis.position.y -= pelvisDrop * (lowPoseState === "EĞİLİYOR" ? 1 : motionScale);
     }
   }
 
