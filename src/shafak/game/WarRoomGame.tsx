@@ -17,7 +17,8 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
-import { isWarRoomMuted, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
+import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
+import { advanceWarRoomKillStreak, isWarRoomLowHealth } from "./war-room-feedback";
 import {
   WAR_ROOM_BUILD_VERSION,
   WAR_ROOM_ROOM_CHAIN_ENABLED,
@@ -438,6 +439,28 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [killConfirmation, setKillConfirmation] = useState<{ id: number; streak: number } | null>(null);
+  const previousKillCountRef = useRef(0);
+  const killStreakRef = useRef({ count: 0, at: 0 });
+  useEffect(() => {
+    if (hud.kills < previousKillCountRef.current) {
+      previousKillCountRef.current = hud.kills;
+      killStreakRef.current = { count: 0, at: 0 };
+      setKillConfirmation(null);
+      return;
+    }
+    if (hud.kills > previousKillCountRef.current) {
+      killStreakRef.current = advanceWarRoomKillStreak(killStreakRef.current, performance.now());
+      setKillConfirmation({ id: hud.kills, streak: killStreakRef.current.count });
+      playWarRoomSound("kill", 0.72);
+    }
+    previousKillCountRef.current = hud.kills;
+  }, [hud.kills]);
+  useEffect(() => {
+    if (!killConfirmation) return undefined;
+    const timeout = window.setTimeout(() => setKillConfirmation(null), 1_350);
+    return () => window.clearTimeout(timeout);
+  }, [killConfirmation?.id]);
   const bossHudPhase = getBossHudPhase(hud.bossHp, hud.bossMaxHp);
   const [bossPhaseAnnouncement, setBossPhaseAnnouncement] = useState<BossHudPhase | null>(null);
   const previousBossPhaseRef = useRef<number | null>(null);
@@ -1273,7 +1296,7 @@ export default function WarRoomGame({
             );
           })()}
           <div
-            className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}`}
+            className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}${isWarRoomLowHealth(hud.player.hp, hud.player.maxHp) ? " is-low-health" : ""}`}
             data-boss-phase={bossHudPhase}
           >
             <div className="war-room-hud__top">
@@ -1349,6 +1372,12 @@ export default function WarRoomGame({
             <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}${hud.firing ? " is-firing" : ""}`} aria-label={hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
               <i /><i /><i /><i />
             </div>
+            {killConfirmation && (
+              <div className="war-room-kill-confirmation" key={killConfirmation.id} role="status" aria-live="polite">
+                <strong>ELENDİ</strong>
+                {killConfirmation.streak > 1 && <span>×{killConfirmation.streak} SERİ</span>}
+              </div>
+            )}
             {hud.damageVignette && (
               <div
                 className="war-room-hit-direction"

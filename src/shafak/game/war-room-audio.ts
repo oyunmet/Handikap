@@ -3,6 +3,7 @@ import type { WarRoomWeaponId } from "./war-room-data";
 
 export type WarRoomSoundCue =
   | "shot" | "enemy-shot" | "bow" | "empty" | "reload" | "hit"
+  | "critical-hit" | "kill" | "heartbeat"
   | "melee-swing" | "melee-hit" | "footstep" | "healing-pickup";
 export type WarRoomShotStyle = "rifle" | "shotgun" | "pistol";
 export type WarRoomSoundSurface = "flesh" | "metal" | "stone" | "earth";
@@ -124,6 +125,15 @@ export function getWarRoomSoundProfile(
       return { duration: 0.14, cutoffStart: 1450, cutoffEnd: 280, frequencyStart: 170, frequencyEnd: 54, noiseGain: 0.075, toneGain: 0.05, toneType: "triangle", pulses: 1 };
     }
     return { duration: 0.11, cutoffStart: 720, cutoffEnd: 210, frequencyStart: 118, frequencyEnd: 48, noiseGain: 0.075, toneGain: 0.055, toneType: "triangle", pulses: 1 };
+  }
+  if (cue === "critical-hit") {
+    return { duration: 0.16, cutoffStart: 4200, cutoffEnd: 1550, frequencyStart: 1040, frequencyEnd: 1460, noiseGain: 0.012, toneGain: 0.058, toneType: "sine", pulses: 2 };
+  }
+  if (cue === "kill") {
+    return { duration: 0.2, cutoffStart: 2600, cutoffEnd: 920, frequencyStart: 560, frequencyEnd: 1120, noiseGain: 0.018, toneGain: 0.052, toneType: "triangle", pulses: 2 };
+  }
+  if (cue === "heartbeat") {
+    return { duration: 0.13, cutoffStart: 360, cutoffEnd: 210, frequencyStart: 68, frequencyEnd: 48, noiseGain: 0.008, toneGain: 0.045, toneType: "sine", pulses: 1 };
   }
   if (cue === "footstep") {
     return surface === "stone"

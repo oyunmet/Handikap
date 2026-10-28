@@ -47,6 +47,16 @@ test("impact and footstep sound profiles vary by surface", () => {
   assert.notEqual(stoneFootstep.cutoffStart, earthFootstep.cutoffStart);
 });
 
+test("critical hits, kills, and low-health beats have distinct feedback cues", () => {
+  const regular = getWarRoomSoundProfile("hit", { surface: "flesh" });
+  const critical = getWarRoomSoundProfile("critical-hit");
+  const kill = getWarRoomSoundProfile("kill");
+  const heartbeat = getWarRoomSoundProfile("heartbeat");
+  assert.notDeepEqual(critical, regular);
+  assert.notDeepEqual(kill, critical);
+  assert.ok(heartbeat.frequencyStart < regular.frequencyStart);
+});
+
 test("spatial sound attenuates with distance and pans toward the source", () => {
   const nearbyRight = getWarRoomSpatialAudioMix(3, 0, 0, 0, 0);
   const distantRight = getWarRoomSpatialAudioMix(18, 0, 0, 0, 0);

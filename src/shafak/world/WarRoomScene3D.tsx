@@ -101,6 +101,7 @@ import {
   type WarRoomSoundOptions,
   type WarRoomSoundSurface,
 } from "../game/war-room-audio";
+import { isWarRoomLowHealth } from "../game/war-room-feedback";
 import {
   WarRoomAnimatedActor,
   WarRoomAssetBoundary,
@@ -1943,6 +1944,7 @@ function WarRoomRuntimeScene({
   const cameraKickRef = useRef(0);
   const cameraSideKickRef = useRef(0);
   const cameraFovKickRef = useRef(0);
+  const lowHealthBeatAtRef = useRef(0);
   const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
     () => room.blockers.map((blocker) => ({
       id: blocker.id,
@@ -3002,6 +3004,12 @@ function WarRoomRuntimeScene({
     if (shotHit) {
       player.hits += 1;
       if (shotHeadshot && !player.killFeed.some((entry) => entry.id === now * 1000 + player.kills)) player.headshots += 1;
+      playWarRoomSound(
+        shotHeadshot ? "critical-hit" : "hit",
+        shotHeadshot ? 0.82 : 0.46,
+        shotStyle,
+        getWarRoomAudioOptions(player, player.x, player.z, "flesh"),
+      );
     }
   };
 
@@ -3089,6 +3097,14 @@ function WarRoomRuntimeScene({
     if (player.meleeHitStopUntil > wallNow) return;
     player.clockTime += delta;
     const now = player.clockTime;
+    if (isWarRoomLowHealth(player.hp, player.maxHp)) {
+      if (now >= lowHealthBeatAtRef.current) {
+        playWarRoomSound("heartbeat", 0.22, "rifle", getWarRoomAudioOptions(player, player.x, player.z, "flesh"));
+        lowHealthBeatAtRef.current = now + 0.88;
+      }
+    } else {
+      lowHealthBeatAtRef.current = 0;
+    }
     const restoration = advanceWarRoomPassiveRegen(player, now, delta, RESTORE_CONFIG);
     player.regenerationActive = restoration.active;
     player.regenerationWaitSeconds = restoration.secondsUntilReady;

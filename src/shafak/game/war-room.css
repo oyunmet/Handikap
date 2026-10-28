@@ -644,9 +644,69 @@
   animation: war-room-hit-vignette 450ms ease-out both;
 }
 
+.war-room-hud.is-low-health::after {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 27%, rgba(113, 20, 16, 0.08) 61%, rgba(143, 23, 18, 0.4) 100%);
+  content: "";
+  pointer-events: none;
+  animation: war-room-low-health-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes war-room-low-health-pulse {
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 0.9; }
+}
+
 @keyframes war-room-hit-vignette {
   from { opacity: 0.95; }
   to { opacity: 0.55; }
+}
+
+.war-room-kill-confirmation {
+  position: absolute;
+  top: 41%;
+  left: 50%;
+  display: grid;
+  gap: 2px;
+  min-width: 96px;
+  padding: 7px 15px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(220, 178, 107, 0.52);
+  background: linear-gradient(90deg, transparent, rgba(24, 19, 14, 0.75) 18%, rgba(24, 19, 14, 0.75) 82%, transparent);
+  color: #f1d39a;
+  font-family: var(--font-display, Georgia, serif);
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  animation: war-room-kill-confirmation 1.35s ease-out both;
+}
+
+.war-room-kill-confirmation strong {
+  font-size: clamp(15px, 2.2vw, 22px);
+}
+
+.war-room-kill-confirmation span {
+  color: #e4a35b;
+  font: 800 9px/1.2 var(--font-body, system-ui, sans-serif);
+}
+
+@keyframes war-room-kill-confirmation {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(0.92); }
+  16%, 76% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -8px) scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .war-room-hud.is-low-health::after {
+    animation: none;
+    opacity: 0.55;
+  }
+
+  .war-room-kill-confirmation {
+    animation-duration: 0.01ms;
+  }
 }
 
 .war-room-hud__top {
