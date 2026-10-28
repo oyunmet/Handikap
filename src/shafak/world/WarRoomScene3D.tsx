@@ -96,6 +96,7 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
+  getWarRoomMeleeImpactCues,
   playWarRoomSound,
   type WarRoomShotStyle,
   type WarRoomSoundOptions,
@@ -2608,7 +2609,7 @@ function WarRoomRuntimeScene({
     player.hits += 1;
     player.lastHitDamage = damage.damage;
     player.damageEventId += 1;
-    player.lastHitCritical = false;
+    player.lastHitCritical = player.meleeAttackHeavy;
     player.lastHitText = `${enemy.name} · −${damage.damage} CAN`;
     player.hitMessageUntil = now + 0.82;
     player.hitMarkerUntil = now + 0.24;
@@ -2628,19 +2629,21 @@ function WarRoomRuntimeScene({
       Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
     );
     const impactSurface = enemy.commander ? "metal" : "flesh";
-    playWarRoomSound(
-      "melee-hit",
-      1,
-      "rifle",
-      getWarRoomAudioOptions(
-        player,
-        enemy.x,
-        enemy.z,
-        impactSurface,
-        player.meleeAttackHeavy,
-        weaponId ?? undefined,
-      ),
-    );
+    for (const cue of getWarRoomMeleeImpactCues(player.meleeAttackHeavy)) {
+      playWarRoomSound(
+        cue,
+        cue === "critical-hit" ? 0.42 : 1,
+        "rifle",
+        getWarRoomAudioOptions(
+          player,
+          enemy.x,
+          enemy.z,
+          impactSurface,
+          player.meleeAttackHeavy,
+          weaponId ?? undefined,
+        ),
+      );
+    }
     const effects = getWarRoomImpactFxProfile(
       bloodEffects,
       player.meleeAttackHeavy,

@@ -14,12 +14,16 @@ export function advanceWarRoomKillStreak(
   previous: WarRoomKillStreakState,
   now: number,
 ): WarRoomKillStreakState {
-  const continues = Number.isFinite(now)
+  const previousCount = Number.isFinite(previous.count)
+    ? Math.max(0, Math.floor(previous.count))
+    : 0;
+  const continues = previousCount > 0
+    && Number.isFinite(now)
     && Number.isFinite(previous.at)
     && now >= previous.at
     && now - previous.at <= WAR_ROOM_MULTI_KILL_WINDOW_MS;
   return {
-    count: continues ? Math.max(1, Math.floor(previous.count)) + 1 : 1,
+    count: continues ? previousCount + 1 : 1,
     at: Number.isFinite(now) ? now : previous.at,
   };
 }

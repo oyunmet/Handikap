@@ -9,6 +9,10 @@ export type WarRoomShotStyle = "rifle" | "shotgun" | "pistol";
 export type WarRoomSoundSurface = "flesh" | "metal" | "stone" | "earth";
 export const WAR_ROOM_AUDIO_VOICE_LIMIT = 4;
 
+export function getWarRoomMeleeImpactCues(heavy: boolean): WarRoomSoundCue[] {
+  return heavy ? ["melee-hit", "critical-hit"] : ["melee-hit"];
+}
+
 export type WarRoomSpatialSound = {
   source: { x: number; z: number };
   listener: { x: number; z: number; yaw: number };

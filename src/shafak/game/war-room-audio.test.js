@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getWarRoomMeleeImpactCues,
   getWarRoomSoundProfile,
   getWarRoomPitchVariation,
   getWarRoomSpatialAudioMix,
@@ -55,6 +56,11 @@ test("critical hits, kills, and low-health beats have distinct feedback cues", (
   assert.notDeepEqual(critical, regular);
   assert.notDeepEqual(kill, critical);
   assert.ok(heartbeat.frequencyStart < regular.frequencyStart);
+});
+
+test("heavy melee hits keep their weapon impact and add a critical accent", () => {
+  assert.deepEqual(getWarRoomMeleeImpactCues(false), ["melee-hit"]);
+  assert.deepEqual(getWarRoomMeleeImpactCues(true), ["melee-hit", "critical-hit"]);
 });
 
 test("spatial sound attenuates with distance and pans toward the source", () => {
