@@ -1449,12 +1449,21 @@
 @media (max-width: 760px) {
   .world-movement-actions {
     position: absolute; z-index: 8; right: max(12px, env(safe-area-inset-right));
-    bottom: max(106px, calc(env(safe-area-inset-bottom) + 96px));
-    display: flex; flex-direction: column; gap: 7px; touch-action: none;
+    bottom: max(100px, calc(env(safe-area-inset-bottom) + 84px));
+    display: flex; flex-direction: column; gap: clamp(2px, .7vh, 6px); touch-action: none;
   }
   .world-movement-actions .game-button {
     position: relative; flex: none; overflow: visible; border: 0; background: transparent;
     box-shadow: none; pointer-events: auto;
+    width: clamp(76px, 20vw, 88px) !important;
+    height: clamp(76px, 20vw, 88px) !important;
+    min-width: clamp(76px, 20vw, 88px) !important;
+    min-height: clamp(76px, 20vw, 88px) !important;
+    --game-button-face: clamp(60px, 17vw, 76px) !important;
+  }
+  .world-joystick {
+    width: clamp(96px, 25vw, 116px) !important;
+    height: clamp(96px, 25vw, 116px) !important;
   }
   .world-movement-actions .game-button::before,
   .world-movement-actions .game-button::after { content: none; }

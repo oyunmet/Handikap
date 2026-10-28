@@ -7,4 +7,4 @@ Keep the mobile travel camera outside the swept volume of road obstacles; moving
 
 **Why:** The running camera offset and movement camera lag can place the camera behind a central obstacle while the player has already passed it. Stopping changes that offset and can make the scene appear to recover.
 
-**How to apply:** When changing mobile camera offsets or obstacle placement, test camera world position against the full depth of nearby road obstacles at running speed and at rest. Do not assume that moving tall props off the center lane fixes motion-linked black screens.
+**How to apply:** When changing mobile camera offsets or obstacle placement, test camera world position against the full depth of nearby road obstacles at rest, while running, and while the follow heading turns forward, sideways, and backward. Do not assume that moving tall props off the center lane fixes motion-linked black screens.

@@ -3,8 +3,10 @@ import test from "node:test";
 import {
   countWorldTouchPointers,
   endWorldTouchAction,
+  isWorldTouchTap,
   startWorldTouchAction,
   syncWorldTouchActionKey,
+  toggleWorldTouchActionState,
 } from "./world-touch-actions.ts";
 import { readWorldActions, readWorldInput } from "./movement.ts";
 
@@ -81,4 +83,16 @@ test("a jump pointer produces one action press without cancelling simultaneous h
     jumpPressed: false,
     crouch: false,
   });
+});
+
+test("short sprint and crouch presses can be toggled while long holds remain momentary", () => {
+  assert.equal(isWorldTouchTap(120), true);
+  assert.equal(isWorldTouchTap(220), true);
+  assert.equal(isWorldTouchTap(221), false);
+  assert.equal(isWorldTouchTap(Number.NaN), false);
+
+  let toggled = toggleWorldTouchActionState(new Set(), "shift");
+  assert.equal(toggled.has("shift"), true);
+  toggled = toggleWorldTouchActionState(toggled, "shift");
+  assert.equal(toggled.has("shift"), false);
 });

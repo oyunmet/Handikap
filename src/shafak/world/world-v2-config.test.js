@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config.ts";
+import {
+  getWorldV2CameraOffset,
+  getWorldV2Heading,
+  getWorldV2YawDelta,
+  WORLD_V2_CONFIG,
+} from "./world-v2-config.ts";
 
 test("world-v2 headings keep the player's corrected GLB front aligned with movement", () => {
   const forwardYaw = getWorldV2Heading(0, 1);
@@ -24,4 +29,21 @@ test("world-v2 headings keep the player's corrected GLB front aligned with movem
 
   const backward = heroForward(getWorldV2Heading(0, -1));
   assert.ok(backward.z > 0.99, "backward movement turns the hero toward the camera");
+});
+
+test("follow camera stays behind the corrected GLB front in all four movement directions", () => {
+  const distance = WORLD_V2_CONFIG.camera.distanceBehind;
+  for (const [velocityX, velocityY] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
+    const rootYaw = getWorldV2Heading(velocityX, velocityY);
+    const heroYaw = rootYaw + WORLD_V2_CONFIG.modelFacing;
+    const front = { x: Math.sin(heroYaw), z: Math.cos(heroYaw) };
+    const camera = getWorldV2CameraOffset(rootYaw, distance);
+    assert.ok(front.x * camera.x + front.z * camera.z < -distance + 1e-6);
+  }
+});
+
+test("actor yaw turns toward its movement heading without another half-turn", () => {
+  assert.equal(getWorldV2YawDelta(0, 0), 0);
+  assert.ok(Math.abs(getWorldV2YawDelta(0, 0.5) + 0.5) < 1e-9);
+  assert.ok(Math.abs(getWorldV2YawDelta(Math.PI / 2, 0) - Math.PI / 2) < 1e-9);
 });

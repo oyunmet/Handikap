@@ -15,7 +15,7 @@ import { KNIGHT_CONFIG } from "./knight-config";
 import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
-import { getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
+import { getWorldV2Heading, getWorldV2YawDelta, WORLD_V2_CONFIG } from "./world-v2-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import {
   applyOpponentBasePalette,
@@ -155,7 +155,7 @@ export default function WorldV2Actor({
   const debugRefreshElapsed = useRef(0);
   const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
-  const playerFacingAngle = useRef(Math.PI);
+  const playerFacingAngle = useRef(0);
 
   useEffect(() => {
     activeActionRef.current = null;
@@ -287,11 +287,8 @@ export default function WorldV2Actor({
       if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
         playerFacingAngle.current = targetHeading;
       }
-      // The GLB's native +Z front is turned toward -Z by the model-axis group below.
-      const yawDelta = THREE.MathUtils.euclideanModulo(
-        targetHeading - root.rotation.y + Math.PI,
-        Math.PI * 2,
-      ) - Math.PI;
+      // The model-axis group below applies the single native +Z to -Z correction.
+      const yawDelta = getWorldV2YawDelta(targetHeading, root.rotation.y);
       root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
     } else {
       const actorZ = -(distance - motion.cameraX);

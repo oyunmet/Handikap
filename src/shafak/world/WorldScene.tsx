@@ -3400,7 +3400,8 @@ export default function WorldScene({
           label="KOŞ"
           icon="run"
           tone="gold"
-          faceSize={80}
+          faceSize={72}
+          hitAreaSize={88}
           hint="SHIFT"
           pressed={worldInput.isActionActive("shift")}
           onPointerDown={WORLD_TOUCH_ACTIONS_ENABLED
@@ -3410,10 +3411,10 @@ export default function WorldScene({
             ? (event) => worldInput.onActionPointerUp(event, "shift")
             : undefined}
           onPointerCancel={WORLD_TOUCH_ACTIONS_ENABLED
-            ? (event) => worldInput.onActionPointerUp(event, "shift")
+            ? (event) => worldInput.onActionPointerCancel(event, "shift")
             : undefined}
           onLostPointerCapture={WORLD_TOUCH_ACTIONS_ENABLED
-            ? (event) => worldInput.onActionPointerUp(event, "shift")
+            ? (event) => worldInput.onActionPointerCancel(event, "shift")
             : undefined}
           onClick={(event) => {
             if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.toggleAction("shift");
@@ -3426,7 +3427,8 @@ export default function WorldScene({
           label="ZIPLA"
           icon="jump"
           tone="copper"
-          faceSize={84}
+          faceSize={76}
+          hitAreaSize={88}
           hint="SPACE"
           attention={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "spike-trap"}
           badge={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "spike-trap" ? "ZIPLA!" : undefined}
@@ -3437,10 +3439,10 @@ export default function WorldScene({
             ? (event) => worldInput.onActionPointerUp(event, "space")
             : undefined}
           onPointerCancel={WORLD_TOUCH_ACTIONS_ENABLED
-            ? (event) => worldInput.onActionPointerUp(event, "space")
+            ? (event) => worldInput.onActionPointerCancel(event, "space")
             : undefined}
           onLostPointerCapture={WORLD_TOUCH_ACTIONS_ENABLED
-            ? (event) => worldInput.onActionPointerUp(event, "space")
+            ? (event) => worldInput.onActionPointerCancel(event, "space")
             : undefined}
           onClick={(event) => {
             if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.triggerAction("space");
@@ -3454,7 +3456,8 @@ export default function WorldScene({
           label="EĞİL"
           icon="crouch"
           tone="ash"
-          faceSize={76}
+          faceSize={68}
+          hitAreaSize={88}
           hint="CTRL"
           pressed={worldInput.isActionActive("c")}
           attention={WORLD_TOUCH_ACTIONS_ENABLED && nearbyHazard?.kind === "low-bar"}
@@ -3466,10 +3469,10 @@ export default function WorldScene({
             ? (event) => worldInput.onActionPointerUp(event, "c")
             : undefined}
           onPointerCancel={WORLD_TOUCH_ACTIONS_ENABLED
-            ? (event) => worldInput.onActionPointerUp(event, "c")
+            ? (event) => worldInput.onActionPointerCancel(event, "c")
             : undefined}
           onLostPointerCapture={WORLD_TOUCH_ACTIONS_ENABLED
-            ? (event) => worldInput.onActionPointerUp(event, "c")
+            ? (event) => worldInput.onActionPointerCancel(event, "c")
             : undefined}
           onClick={(event) => {
             if (!WORLD_TOUCH_ACTIONS_ENABLED || event.detail === 0) worldInput.toggleAction("c");

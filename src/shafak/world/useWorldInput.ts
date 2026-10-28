@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import {
   countWorldTouchPointers,
   endWorldTouchAction,
+  isWorldTouchTap,
   startWorldTouchAction,
   syncWorldTouchActionKey,
+  toggleWorldTouchActionState,
   type WorldTouchAction,
 } from "./world-touch-actions";
 import type { WorldActionState } from "./world-movement-machine";
@@ -30,6 +32,7 @@ export default function useWorldInput(wake: () => void) {
   const joystick = useRef<Vector>({ x: 0, y: 0 });
   const joystickPointerId = useRef<number | null>(null);
   const actionPointersRef = useRef(new Map<WorldTouchAction, Set<number>>());
+  const actionPointerStartedAtRef = useRef(new Map<number, number>());
   const tapTimer = useRef<number | undefined>(undefined);
   const jumpPressPendingRef = useRef(false);
   const toggledActionsRef = useRef(new Set<"shift" | "c">());
@@ -103,16 +106,20 @@ export default function useWorldInput(wake: () => void) {
   ) => {
     event.preventDefault();
     if (!startWorldTouchAction(actionPointersRef.current, key, event.pointerId)) return;
+    actionPointerStartedAtRef.current.set(event.pointerId, performance.now());
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
     if (key === "space") triggerAction(key);
     else syncWorldTouchActionKey(heldKeys.current, actionPointersRef.current, key);
     wake();
     publishInputChange();
   }, [publishInputChange, triggerAction, wake]);
-  const onActionPointerUp = useCallback((
+  const finishActionPointer = useCallback((
     event: ReactPointerEvent<HTMLButtonElement>,
     key: WorldTouchAction,
+    toggleQuickTap: boolean,
   ) => {
+    const startedAt = actionPointerStartedAtRef.current.get(event.pointerId);
+    actionPointerStartedAtRef.current.delete(event.pointerId);
     const result = endWorldTouchAction(actionPointersRef.current, key, event.pointerId);
     if (!result.released) return;
     try {
@@ -121,6 +128,16 @@ export default function useWorldInput(wake: () => void) {
       }
     } catch { /* A cancelled touch may already have released capture. */ }
     if (key !== "space") {
+      if (
+        toggleQuickTap
+        && !result.stillPressed
+        && startedAt !== undefined
+        && isWorldTouchTap(performance.now() - startedAt)
+      ) {
+        const next = toggleWorldTouchActionState(toggledActionsRef.current, key);
+        toggledActionsRef.current = next;
+        setToggledActions(next);
+      }
       syncWorldTouchActionKey(
         heldKeys.current,
         actionPointersRef.current,
@@ -130,11 +147,17 @@ export default function useWorldInput(wake: () => void) {
     }
     publishInputChange();
   }, [publishInputChange]);
+  const onActionPointerUp = useCallback((
+    event: ReactPointerEvent<HTMLButtonElement>,
+    key: WorldTouchAction,
+  ) => finishActionPointer(event, key, true), [finishActionPointer]);
+  const onActionPointerCancel = useCallback((
+    event: ReactPointerEvent<HTMLButtonElement>,
+    key: WorldTouchAction,
+  ) => finishActionPointer(event, key, false), [finishActionPointer]);
 
   const toggleAction = useCallback((key: "shift" | "c") => {
-    const next = new Set(toggledActionsRef.current);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
+    const next = toggleWorldTouchActionState(toggledActionsRef.current, key);
     toggledActionsRef.current = next;
     setToggledActions(next);
     syncWorldTouchActionKey(heldKeys.current, actionPointersRef.current, key, next.has(key));
@@ -147,6 +170,7 @@ export default function useWorldInput(wake: () => void) {
     joystick.current = { x: 0, y: 0 };
     joystickPointerId.current = null;
     actionPointersRef.current.clear();
+    actionPointerStartedAtRef.current.clear();
     jumpPressPendingRef.current = false;
     toggledActionsRef.current.clear();
     setToggledActions(new Set());
@@ -207,6 +231,7 @@ export default function useWorldInput(wake: () => void) {
     onJoystickPointerCancel: releaseJoystick,
     onActionPointerDown,
     onActionPointerUp,
+    onActionPointerCancel,
     toggleAction,
     triggerAction,
     readActions,

@@ -2,6 +2,24 @@ export type WorldTouchAction = "shift" | "space" | "c";
 
 export type WorldTouchPointers = Map<WorldTouchAction, Set<number>>;
 
+export const WORLD_TOUCH_TAP_TOGGLE_LIMIT_MS = 220;
+
+export function isWorldTouchTap(durationMs: number) {
+  return Number.isFinite(durationMs)
+    && durationMs >= 0
+    && durationMs <= WORLD_TOUCH_TAP_TOGGLE_LIMIT_MS;
+}
+
+export function toggleWorldTouchActionState(
+  toggled: ReadonlySet<"shift" | "c">,
+  action: "shift" | "c",
+) {
+  const next = new Set(toggled);
+  if (next.has(action)) next.delete(action);
+  else next.add(action);
+  return next;
+}
+
 export function startWorldTouchAction(
   pointers: WorldTouchPointers,
   action: WorldTouchAction,

@@ -17,7 +17,7 @@ import {
   WorldV2WeatherPoints,
 } from "./WorldV2Environment";
 import WorldRoadEnvironmentLayer from "./WorldRoadEnvironment";
-import { WORLD_V2_CONFIG } from "./world-v2-config";
+import { getWorldV2CameraOffset, getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
 import { loadAsset } from "./world-v2-assets";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import type { WorldV2AssetTarget } from "./world-v2-config";
@@ -78,6 +78,7 @@ function WorldV2Camera({
   const target = useMemo(() => new THREE.Vector3(), []);
   const direction = useMemo(() => new THREE.Vector3(), []);
   const presentationOffset = useMemo(() => new THREE.Vector3(), []);
+  const cameraHeading = useRef(0);
   const previousMovementState = useRef<WorldMotion["movementState"] | null>(null);
   const jumpPeakHeight = useRef(0);
   const landingPulseSeconds = useRef(0);
@@ -111,11 +112,25 @@ function WorldV2Camera({
     landingPulseSeconds.current = Math.max(0, landingPulseSeconds.current - dt);
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
+    const targetHeading = getWorldV2Heading(
+      motion.velocityX,
+      motion.velocityY,
+      cameraHeading.current,
+    );
+    const headingDelta = Math.atan2(
+      Math.sin(targetHeading - cameraHeading.current),
+      Math.cos(targetHeading - cameraHeading.current),
+    );
+    cameraHeading.current += headingDelta * (1 - Math.exp(-9 * dt));
+    const cameraOffset = getWorldV2CameraOffset(
+      cameraHeading.current,
+      WORLD_V2_CONFIG.camera.distanceBehind,
+    );
     origin.set(playerX, motion.jumpHeight + 1.05 - crouchDrop * 0.5, playerZ);
     desired.set(
-      playerX,
+      playerX + cameraOffset.x,
       motion.jumpHeight + WORLD_V2_CONFIG.camera.height - crouchDrop,
-      playerZ + WORLD_V2_CONFIG.camera.distanceBehind,
+      playerZ + cameraOffset.z,
     );
     direction.copy(desired).sub(origin);
     const desiredDistance = direction.length();
