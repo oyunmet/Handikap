@@ -71,6 +71,7 @@ type Props = {
   onExit: () => void;
   profile: PlayerProfile;
   vibrationEnabled: boolean;
+  motionReduced: boolean;
   invertLookY: boolean;
   onInvertLookYChange: (value: boolean) => void;
   facingSetting: WarRoomFacingSetting;
@@ -388,6 +389,7 @@ export default function WarRoomGame({
   onExit,
   profile,
   vibrationEnabled,
+  motionReduced,
   invertLookY,
   onInvertLookYChange,
   facingSetting,
@@ -1092,6 +1094,7 @@ export default function WarRoomGame({
             weaponIds={loadout}
             weaponMountOverrides={weaponMountOverrides}
             cameraMode={cameraMode}
+            motionReduced={motionReduced}
             shoulderSide={shoulderSide}
             shoulderOffset={shoulderOffset}
             bloodEffects={bloodEffects}

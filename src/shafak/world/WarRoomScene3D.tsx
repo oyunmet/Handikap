@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, createPortal, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import type { ReactNode } from "react";
 import * as THREE from "three";
@@ -41,6 +41,7 @@ import {
   type WarRoomCameraMode,
   type WarRoomShoulderSide,
 } from "../game/war-room-camera";
+import { getWarRoomViewModelConfig, getWarRoomViewModelPose } from "../game/war-room-viewmodel";
 import {
   getWarRoomImpactFxProfile,
   WAR_ROOM_CRACK_DECAL_LIFETIME_SECONDS,
@@ -113,6 +114,7 @@ type Props = {
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   cameraMode: WarRoomCameraMode;
+  motionReduced: boolean;
   shoulderSide: WarRoomShoulderSide;
   shoulderOffset: number;
   bloodEffects: boolean;
@@ -1023,6 +1025,87 @@ function WeaponModel({
   );
 }
 
+function FirstPersonWeaponViewModel({
+  runtimeRef,
+  inputRef,
+  weaponId,
+  weaponMountOverrides,
+  cameraMode,
+  motionReduced,
+}: {
+  runtimeRef: MutableRefObject<WarRoomRuntime>;
+  inputRef: MutableRefObject<WarRoomInputState>;
+  weaponId: WarRoomWeaponId;
+  weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
+  cameraMode: WarRoomCameraMode;
+  motionReduced: boolean;
+}) {
+  const { camera } = useThree();
+  const weaponRootRef = useRef<THREE.Group>(null);
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
+  const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
+  const viewConfig = getWarRoomViewModelConfig(weaponId, weapon.weaponClass === "melee");
+
+  useFrame(() => {
+    const group = weaponRootRef.current;
+    if (!group) return;
+    const player = runtimeRef.current.player;
+    const input = inputRef.current;
+    const clock = player.clockTime;
+    const shotAge = Math.max(0, 0.2 - (player.shotFeedbackUntil - clock));
+    const recoilEnvelope = shotAge <= 0.06
+      ? Math.min(1, shotAge / 0.06)
+      : Math.max(0, 1 - Math.pow((shotAge - 0.06) / 0.12, 2));
+    const recoil = player.shotFeedbackUntil > clock
+      ? Math.min(1, player.recoil / Math.max(0.02, weapon.recoil)) * recoilEnvelope
+      : 0;
+    const reloadProgress = player.reloadingWeapon === weaponId
+      ? Math.max(0, Math.min(1, 1 - (player.reloadUntil - clock) / weapon.reloadSeconds))
+      : 0;
+    const chargeProgress = weapon.charge && player.chargeStartedAt > 0
+      ? Math.max(0, Math.min(1, (clock - player.chargeStartedAt) / 0.95))
+      : 0;
+    const meleeProgress = weapon.weaponClass === "melee" && player.meleeUntil > clock
+      ? Math.max(0, Math.min(1, (clock - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
+      : null;
+    const pose = getWarRoomViewModelPose({
+      time: clock,
+      movement: Math.hypot(input.moveX, input.moveY),
+      aiming: input.aimHeld,
+      recoil,
+      reloadProgress,
+      chargeProgress,
+      meleeProgress,
+      meleeStyle: weapon.meleeStyle ?? "slash",
+      comboIndex: player.meleeAttackComboIndex,
+      motionReduced,
+    });
+    group.visible = cameraMode === "first-person";
+    group.position.set(
+      viewConfig.position[0] + pose.position[0],
+      viewConfig.position[1] + pose.position[1],
+      viewConfig.position[2] + pose.position[2],
+    );
+    group.rotation.set(
+      mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
+      mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
+      mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
+    );
+  });
+
+  return createPortal(
+    <group
+      ref={weaponRootRef}
+      name="war-room-first-person-weapon"
+      visible={cameraMode === "first-person"}
+      scale={viewConfig.scale}
+    >
+      <WeaponModel weaponId={weaponId} mount={mount} />
+    </group>,
+    camera,
+  );
+}
+
 function MeleeDebugCone({
   runtimeRef,
   weaponId,
@@ -1827,6 +1910,7 @@ function WarRoomRuntimeScene({
   weaponIds,
   weaponMountOverrides,
   cameraMode,
+  motionReduced,
   shoulderSide,
   shoulderOffset,
   bloodEffects,
@@ -3486,9 +3570,10 @@ function WarRoomRuntimeScene({
     projectileHeads.instanceMatrix.needsUpdate = true;
 
     const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!.range;
+    const cameraMotionScale = motionReduced ? 0 : 1;
     cameraFovKickRef.current *= Math.exp(-12 * delta);
     const desiredFov = (input.aimHeld ? 48 : cameraMode === "first-person" ? 82 : player.sprinting ? 76 : 70)
-      + cameraFovKickRef.current;
+      + cameraFovKickRef.current * cameraMotionScale;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
     perspective.updateProjectionMatrix();
     const cameraForwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
@@ -3596,11 +3681,12 @@ function WarRoomRuntimeScene({
     }
     cameraLook.set(
       player.x + cameraForwardX * 10,
-      player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48) + cameraForwardY * 10 + cameraKickRef.current,
+      player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48)
+        + cameraForwardY * 10 + cameraKickRef.current * cameraMotionScale,
       player.z + cameraForwardZ * 10,
     );
-    cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current;
-    cameraLook.z += Math.sin(player.yaw) * cameraSideKickRef.current;
+    cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
+    cameraLook.z += Math.sin(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
     cameraKickRef.current = Math.max(0, cameraKickRef.current - delta * 0.72);
     cameraSideKickRef.current *= Math.exp(-delta * 7.5);
     if (now - player.lastDamageAt < 0.24) {
@@ -3795,6 +3881,14 @@ function WarRoomRuntimeScene({
         muzzleRef={playerMuzzleRef}
         flashRef={playerMuzzleFlashRef}
         muzzleLightRef={muzzleLightRef}
+      />
+      <FirstPersonWeaponViewModel
+        runtimeRef={runtimeRef}
+        inputRef={inputRef}
+        weaponId={activeWeapon}
+        weaponMountOverrides={weaponMountOverrides}
+        cameraMode={cameraMode}
+        motionReduced={motionReduced}
       />
       <MeleeDebugCone runtimeRef={runtimeRef} weaponId={activeWeapon} enabled={debugMode} />
     </>

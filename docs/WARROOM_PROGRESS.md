@@ -310,3 +310,12 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı. Tam paket 441 testten 433 geçti; aynı sekiz bilinen War Room dışı taban hatası kaldı.
 - **Cihaz kabulü:** WebGL ve fiziksel iPhone/Safari ekranı henüz doğrulanmadı; tarayıcı WebGL bağlamı açamıyor, sahne `<Canvas>` üzerinden çalışıyor.
 - **Sürüm ve sınırlar:** `v18-faz-3` · sahne geometrisi/malzeme eklenmedi · push/deploy yapılmadı.
+
+### Faz 4 — Birinci şahıs silah görünümü ve kamera hareketi
+
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); iPhone/WebGL görsel kabulü doğrulanamadı.
+- **Yapılanlar:** Kalıcı kamera tercihi ve birinci şahıs varsayılanı korundu; birinci şahısta gövde gizliyken seçili silah kameraya bağlı ayrı görünümde kalıyor. Tüfek, tabanca, pompalı, yay, arbalet ve yakın dövüş silahlarına ayrı görünüm boyutu/konum/dönüş profilleri eklendi. Hareket salınımı, nişanda merkeze geçiş, ateş geri tepmesi, doldurma/şarj hareketi ve yakın dövüşte yay/saplama hareketi saf poz hesabından üretiliyor. Var olan “Hareketi azalt” tercihi silah salınımı ile kamera/FOV darbelerini kapatıyor. Üçüncü şahıs gövde, omuz ve engel kamerası akışı değiştirilmedi; hasar, silah dengesi ve düşman kararları değiştirilmedi. Sürüm `v18-faz-4`.
+- **Değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/build-info.ts`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-camera.test.js`, `src/shafak/game/war-room-viewmodel.ts`, `src/shafak/game/war-room-viewmodel.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** Typecheck ve build başarılı. Tam test paketi 449 testten 441 geçti; aynı 8 bilinen mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban hatası kaldı. Kamera ve yeni görünüm testleri 13/13 geçti. Kamera zoom testindeki yalnızca kayan nokta hassasiyetine bağlı eşitlik kontrolü toleranslı hale getirildi. Build büyük Three.js parça uyarısı verdi.
+- **Cihaz kabulü:** Birinci şahıs silah yerleşimi, melee savuruşu ve gerçek FPS iPhone/Safari üzerinde doğrulanamadı; WebGL önizlemesi bu tarayıcı ortamında bağlam oluşturamıyor.
+- **Sürüm ve sınırlar:** `v18-faz-4` · frame başına geometri/malzeme üretimi yok · üçüncü şahıs kamerası korunuyor · push/deploy yapılmadı.
