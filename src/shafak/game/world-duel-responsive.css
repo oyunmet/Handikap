@@ -1,5 +1,7 @@
 /* Touch-first duel HUD layouts. Keep the center of the arena readable. */
-@media (orientation: portrait) and (max-width: 760px) {
+@media
+  (orientation: portrait) and (max-width: 760px),
+  (orientation: portrait) and (pointer: coarse) {
   .duel-controls--field .duel-stick {
     bottom: max(154px, calc(env(safe-area-inset-bottom) + 146px));
     left: max(14px, calc(env(safe-area-inset-left) + 8px));
@@ -102,6 +104,15 @@
     min-height: 56px;
   }
 
+  .duel-controls--field .duel-weapon-select__slot small,
+  .duel-controls--field .duel-weapon-select__slot i {
+    font-size: 7px;
+  }
+
+  .duel-controls--field .duel-weapon-select__slot strong {
+    font-size: 9px;
+  }
+
   .duel-controls--field .duel-quickbar {
     top: auto;
     right: auto;
@@ -109,14 +120,15 @@
     left: 50%;
     width: max-content;
     max-width: calc(100vw - 24px);
-    grid-template-columns: repeat(4, minmax(38px, 44px));
+    grid-template-columns: repeat(4, minmax(44px, 44px));
     gap: 5px;
     transform: translateX(-50%);
   }
 
   .duel-controls--field .duel-quickslot {
-    min-width: 38px;
-    min-height: 44px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 48px;
     padding-inline: 2px;
     border-radius: 8px;
   }
@@ -129,7 +141,7 @@
   .duel-controls--field .duel-quickslot__name {
     max-width: 40px;
     overflow: hidden;
-    font-size: 6px;
+    font-size: 7px;
     text-overflow: ellipsis;
   }
 
@@ -170,7 +182,9 @@
   }
 }
 
-@media (orientation: landscape) and (max-height: 620px) and (max-width: 960px) {
+@media
+  (orientation: landscape) and (max-height: 620px) and (max-width: 960px),
+  (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
   .duel-hud {
     top: max(8px, env(safe-area-inset-top));
     width: calc(100% - max(20px, env(safe-area-inset-left) + env(safe-area-inset-right)));
@@ -290,14 +304,15 @@
     left: 50%;
     width: max-content;
     max-width: min(200px, 28vw);
-    grid-template-columns: repeat(4, minmax(32px, 40px));
+    grid-template-columns: repeat(4, minmax(44px, 44px));
     gap: 4px;
     transform: translateX(-50%);
   }
 
   .duel-controls--field .duel-quickslot {
-    min-width: 32px;
-    min-height: 40px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 48px;
     padding-inline: 1px;
   }
 
@@ -308,7 +323,7 @@
 
   .duel-controls--field .duel-quickslot__name {
     max-width: 36px;
-    font-size: 5px;
+    font-size: 7px;
   }
 
   .duel-controls--field .duel-forfeit,
@@ -343,7 +358,9 @@
   }
 }
 
-@media (orientation: landscape) and (max-height: 360px) and (max-width: 960px) {
+@media
+  (orientation: landscape) and (max-height: 360px) and (max-width: 960px),
+  (orientation: landscape) and (max-height: 360px) and (pointer: coarse) {
   .duel-controls--field .duel-stick {
     width: min(21vh, 76px);
     height: min(21vh, 76px);

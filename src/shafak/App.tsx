@@ -38,7 +38,6 @@ import {
   type TimeOfDayMode,
 } from "./world/time-of-day";
 import { WAR_ROOM_QUALITY_ENABLED } from "./game/war-room-features";
-import LandscapeOrientationHint, { requestLandscapeOrientation } from "./LandscapeOrientationHint";
 import "./gameplay-layout.css";
 import "./lobby-layout.css";
 
@@ -461,6 +460,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const activeQuality = resolveRenderQuality(preferences.quality, automaticQuality);
 
   useEffect(() => {
+    try {
+      window.screen.orientation?.unlock();
+    } catch {
+      // Older mobile browsers can expose orientation APIs without supporting unlock.
+    }
+  }, []);
+
+  useEffect(() => {
     setCurrentTimeOfDayMode(preferences.timeOfDay);
   }, [preferences.timeOfDay]);
 
@@ -684,7 +691,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const begin = () => {
-    requestLandscapeOrientation();
     playFeedback();
     setProgress(0);
     setTipIndex(0);
@@ -701,7 +707,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const enterWorld = (initialStoreTab: StoreTab | null = null) => {
-    requestLandscapeOrientation();
     playFeedback();
     primeGameAudio();
     setInitialWorldStoreTab(initialStoreTab);
@@ -716,7 +721,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   const enterWarRoom = (returnScreen: "menu" | "world" = "menu") => {
-    requestLandscapeOrientation();
     playFeedback();
     primeGameAudio();
     setWarRoomControlsEditorOpen(false);
@@ -881,7 +885,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ref={sceneRef}
       aria-label={tr.brand}
     >
-      <LandscapeOrientationHint warRoom={screen === "war-room"} />
       {homeAtmosphere && (
         <>
           <div className="scene-backdrop" aria-hidden="true">

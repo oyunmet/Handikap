@@ -1,5 +1,7 @@
 /* Mobile combat HUD: deliberate safe-area spacing for both phone orientations. */
-@media (orientation: portrait) and (max-width: 760px) {
+@media
+  (orientation: portrait) and (max-width: 760px),
+  (orientation: portrait) and (pointer: coarse) {
   .war-room-hud__top {
     inset:
       max(9px, env(safe-area-inset-top))
@@ -51,7 +53,9 @@
     top: 40px;
     left: 0;
     max-width: min(132px, 35vw);
+    max-height: 34px;
     gap: 3px;
+    overflow: hidden;
     padding-top: 0;
   }
 
@@ -97,7 +101,7 @@
   }
 
   .war-room-pause {
-    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    top: max(80px, calc(env(safe-area-inset-top) + 72px));
     right: auto;
     bottom: auto;
     left: max(10px, env(safe-area-inset-left));
@@ -250,14 +254,14 @@
   }
 
   .war-room-controls:not(.is-custom-layout) .shafak-hud-button__glyph {
-    width: 19px;
-    height: 19px;
+    width: 20px;
+    height: 20px;
   }
 
   .war-room-controls:not(.is-custom-layout) .shafak-hud-button__label {
     max-width: calc(100% - 4px);
     color: #f0e2c8;
-    font-size: 7px;
+    font-size: 8px;
     letter-spacing: .045em;
   }
 
@@ -322,7 +326,9 @@
   }
 }
 
-@media (orientation: landscape) and (max-height: 620px) and (max-width: 960px) {
+@media
+  (orientation: landscape) and (max-height: 620px) and (max-width: 960px),
+  (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
   .war-room-hud__top {
     inset:
       max(7px, env(safe-area-inset-top))
@@ -368,6 +374,8 @@
     top: 37px;
     left: 0;
     max-width: min(150px, 22vw);
+    max-height: 30px;
+    overflow: hidden;
     padding-top: 0;
   }
 
@@ -530,14 +538,14 @@
   }
 
   .war-room-controls:not(.is-custom-layout) .shafak-hud-button__glyph {
-    width: 17px;
-    height: 17px;
+    width: 19px;
+    height: 19px;
   }
 
   .war-room-controls:not(.is-custom-layout) .shafak-hud-button__label {
     max-width: calc(100% - 2px);
-    font-size: 6px;
-    letter-spacing: .02em;
+    font-size: 7px;
+    letter-spacing: .025em;
   }
 
   .war-room-controls:not(.is-custom-layout) .shafak-hud-button__hint {
