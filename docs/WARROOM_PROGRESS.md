@@ -319,3 +319,40 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Doğrulama sonucu:** Typecheck ve build başarılı. Tam test paketi 449 testten 441 geçti; aynı 8 bilinen mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban hatası kaldı. Kamera ve yeni görünüm testleri 13/13 geçti. Kamera zoom testindeki yalnızca kayan nokta hassasiyetine bağlı eşitlik kontrolü toleranslı hale getirildi. Build büyük Three.js parça uyarısı verdi.
 - **Cihaz kabulü:** Birinci şahıs silah yerleşimi, melee savuruşu ve gerçek FPS iPhone/Safari üzerinde doğrulanamadı; WebGL önizlemesi bu tarayıcı ortamında bağlam oluşturamıyor.
 - **Sürüm ve sınırlar:** `v18-faz-4` · frame başına geometri/malzeme üretimi yok · üçüncü şahıs kamerası korunuyor · push/deploy yapılmadı.
+
+### Faz 5 — Kritik vuruş ve öldürme geri bildirimi
+
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); iPhone/Safari görsel ve işitsel kabulü açık.
+- **Kök neden:** Ağır yakın dövüş vuruşu nişangâhta kritik gibi işaretlenmesine rağmen kritik ses vurgusu çalmıyor ve hasar sayısı kritik renge geçmiyordu. Seri öldürme sayacı başlangıçtaki sıfır sayıyı seri kabul ettiği için ilk öldürmeyi `×2` gösterebiliyordu.
+- **Yapılanlar:** Ağır yakın dövüş isabeti silaha/yüzeye özel darbe sesini korurken daha düşük seviyede kritik ses vurgusu da çalıyor; hasar sayısı kritik vuruş işaretiyle aynı durumu kullanıyor. İlk öldürme artık tek sayıdan başlıyor; 3 saniyelik pencere içinde sonraki öldürmeler seri sayısını artırıyor. Mevcut öldürme bandı/sesi, kritik ateşli isabet sesi, düşük-can vinyeti/nabzı ve havuzlu efektlere dokunulmadı. Hasar dengesi, ekonomi, kayıtlar, düşman AI ve 3D geometri değiştirilmedi.
+- **Değişen dosyalar:** `src/shafak/game/war-room-audio.ts`, `src/shafak/game/war-room-audio.test.js`, `src/shafak/game/war-room-feedback.ts`, `src/shafak/game/war-room-quality.ts`, `src/shafak/game/war-room-quality.test.js`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/build-info.ts`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama:** Hedef ses/geri bildirim testleri 9/9 geçti; `npm run typecheck` ve `npm run build` başarılı. `npm test`: 453 toplam, 445 geçti, 8 başarısız; önceki tabanla aynı Savaş Odası dışı hatalar (6 mağaza/ekipman, 1 düello süresi, 1 envanter varsayılanı). Build mevcut 500 kB üzeri bundle uyarısını verdi.
+- **Cihaz kabulü:** Tarayıcı önizlemesi WebGL bağlamı oluşturamadığından savaş sahnesinin görsel kabulü ve ağır vuruş/kritik/öldürme seslerinin iPhone/Safari'de işitilmesi doğrulanamadı.
+- **Sürüm ve sınırlar:** Bu fazın ara işareti `v18-faz-5` · efekt havuzları ve parçacık bütçesi korunuyor · push/deploy yapılmadı.
+
+### Faz 6 — Harita temaları ve FPS tanısı
+
+- **Durum:** KISMEN — altı harita düzeni, temalar ve kod tarafı tanı aracı doğrulandı; gerçek draw-call ölçümü ve cihaz FPS kabulü bekliyor.
+- **Yapılanlar:** Mevcut altı oda adı/düzeni/ışık teması ve `TimeOfDaySky` döngüsü korundu. `?debug=1` savaş paneli yaklaşık 250 ms aralıkla son tamamlanan karedeki harita adını, draw-call değerini, 150 çağrı bütçe durumunu ve FPS'yi gösteriyor. 60 saniyelik performans raporuna harita ve draw-call değeri de eklendi. Yeni geometri/materyal/ışık yaratılmadı.
+- **Doğrulama:** Oda ve kalite/performans hedef testleri ses/geri bildirim testleriyle birlikte 25/25 geçti. Oda testleri altı ayrı düzen/tema ve oda zincirini kapsıyor. Tür kontrolü/build başarılı. Debug ekranının gerçek draw-call sayısı ve ≤150 sınırı bu önizlemede ölçülemedi.
+- **Kalanlar:** WebGL oluşturabilen tarayıcı veya iPhone'da `?debug=1` ile her harita için draw-call sayısını, 60 FPS hedefini ve gün/gece okunabilirliğini ölç.
+- **Sürüm ve sınırlar:** Ara işareti `v18-faz-6` · mobil DPR/efekt kalite katmanları korunuyor · push/deploy yapılmadı.
+
+### Faz 7 — Son doğrulama ve cihaz kontrol raporu
+
+- **Durum:** KISMEN — kod, test ve build raporu tamamlandı; fiziksel iPhone/Safari kabulü yapılamadı.
+- **Doğrulama:** `npm run typecheck` ve `npm run build` başarılı; build mevcut 500 kB üzeri parça uyarısını verdi. Hedef ses/geri bildirim/kalite/oda testleri 25/25 geçti. `npm test`: 454 toplam, 446 geçti, 8 başarısız; bilinen Savaş Odası dışı hatalar aynı: 6 mağaza/ekipman, 1 düello süresi ve 1 varsayılan envanter testi. Uygulama iş akışı çalışıyor ve dikey görünümde yatay çevirme uyarısı açılıyor.
+- **Önizleme sınırı:** Savaş sahnesi `src/shafak/world/WarRoomScene3D.tsx:3939–3948` aralığında `<Canvas>` ile başlıyor; Replit ekran görüntüsü tarayıcısı `THREE.WebGLRenderer: A WebGL context could not be created` / `BindToCurrentSequence failed` hatası verdi. Bu nedenle savaş sahnesi, draw-call bütçesi, gerçek cihaz FPS'si, görsel efektler ve ses **doğrulanamadı**.
+
+| Madde | Durum | Kök neden (dosya:satır) | Not |
+| --- | --- | --- | --- |
+| Faz 1 — Güvenli alan, düzenleyici, portre uyarısı | Kısmen | `App.css:895–896`, `WarRoomControlsEditor.tsx:70–106`, `LandscapeOrientationHint.tsx:12` | Kod ve ayar testleri mevcut; portre uyarısı önizlemede göründü, yatay cihaz yerleşimi denenmedi. |
+| Faz 2 — Çoklu dokunma ve kontrol düzeni | Kısmen | `war-room-input.ts:21–46`, `WarRoomGame.tsx:883–976`, `war-room-look.ts:7` | Pointer/joystick/bakış kodu ve testleri mevcut; aynı anda çoklu dokunma gerçek telefonda doğrulanmadı. |
+| Faz 3 — Özgün dokunmatik HUD | Kısmen | `HudButton.tsx:184–227`, `hud-button.css:1–80` | Bileşen ve etkileşim testleri mevcut; savaş sahnesi WebGL olmadığı için görsel kabul yapılamadı. |
+| Faz 4 — Birinci şahıs ve kamera hareketi | Kısmen | `war-room-viewmodel.ts:53`, `WarRoomScene3D.tsx:1089–1106, 3607–3627` | Saf görünüm/poz testleri geçti; silah yerleşimi ve melee animasyonu cihazda görünmedi. |
+| Faz 5 — Ateş, isabet, hasar, öldürme, doldurma geri bildirimi | Kısmen | `WarRoomScene3D.tsx:2618–2650, 2919–3014`, `war-room-feedback.ts:13–28` | Ağır melee kritik sesi ve hasar rengi düzeltildi; seri sayacının ilk öldürme hatası giderildi. Mobil görsel/işitsel kabul açık. |
+| Faz 6 — Özgün oda düzenleri ve performans | Kısmen | `war-room-rooms.ts:67–194`, `WarRoomScene3D.tsx:3866, 3939–3948`, `war-room-quality.ts:19–39` | Altı oda ve gün/gece gökyüzü mevcut; `?debug=1` harita/draw-call/FPS bilgisi veriyor. Gerçek çağrı sayısı ve 60 FPS ölçülmedi. |
+| Faz 7 — Build, tür kontrolü, test ve cihaz kabulü | Kısmen | `WarRoomScene3D.tsx:3939–3948` | Build/typecheck geçti; 8 bilinen Savaş Odası dışı test hatası sürüyor. WebGL/iPhone kabulü yapılamadı. |
+
+- **Telefonda denenecekler:** (1) yatay HUD'da buton çakışması; (2) joystick + ateş + bakış aynı anda; (3) kontrol düzenini kaydetme/yükleme/sıfırlama; (4) 1. şahıs silahı ve melee savuruşu; (5) namlu/iz/isabet/doldurma efektleri; (6) kritik isabet, hasar yönü, düşük-can nabzı ve ELENDİ/seri sesi; (7) altı harita, gün/gece ve `?debug=1` draw-call/FPS ölçümü.
+- **Son sürüm işareti:** `v18-fps-hud`.
