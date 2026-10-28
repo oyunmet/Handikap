@@ -33,6 +33,10 @@ import {
   type GraphicsMode,
   type RenderQuality,
 } from "./world/graphics-quality";
+import {
+  setCurrentTimeOfDayMode,
+  type TimeOfDayMode,
+} from "./world/time-of-day";
 import { WAR_ROOM_QUALITY_ENABLED } from "./game/war-room-features";
 
 const WorldScene = lazy(() => import("./world/WorldScene"));
@@ -57,6 +61,7 @@ type Preferences = {
   performanceMonitor: boolean;
   invertWarRoomLookY: boolean;
   warRoomFacing: "camera" | "movement";
+  timeOfDay: TimeOfDayMode;
 };
 
 const PREFERENCES_KEY = "shafak-settings-v1";
@@ -72,6 +77,7 @@ const initialPreferences: Preferences = {
   performanceMonitor: false,
   invertWarRoomLookY: false,
   warRoomFacing: "camera",
+  timeOfDay: "auto",
 };
 
 function profileSyncErrorMessage(error: unknown) {
@@ -145,6 +151,9 @@ function readPreferences(): Preferences {
           ? saved.invertWarRoomLookY
           : initialPreferences.invertWarRoomLookY,
       warRoomFacing: saved.warRoomFacing === "movement" ? "movement" : "camera",
+      timeOfDay: saved.timeOfDay === "day" || saved.timeOfDay === "sunset" || saved.timeOfDay === "night"
+        ? saved.timeOfDay
+        : "auto",
     };
   } catch {
     return initialPreferences;
@@ -369,6 +378,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     return limitedCores || limitedMemory ? "low" : "balanced";
   });
   const activeQuality = resolveRenderQuality(preferences.quality, automaticQuality);
+
+  useEffect(() => {
+    setCurrentTimeOfDayMode(preferences.timeOfDay);
+  }, [preferences.timeOfDay]);
 
   useEffect(() => {
     authRedirectedRef.current = false;
@@ -1236,6 +1249,30 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                         type="button"
                         aria-pressed={preferences.warRoomFacing === value}
                         onClick={() => setPreference("warRoomFacing", value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="setting-row setting-row--quality">
+                  <span className="setting-row__copy">
+                    <strong>Gökyüzü saati</strong>
+                    <small>Kül Yolu ve Savaş Odası için ışık ve gökyüzü.</small>
+                  </span>
+                  <div className="quality-switch time-of-day-switch" role="group" aria-label="Gökyüzü saati">
+                    {([
+                      ["auto", "Otomatik"],
+                      ["day", "Gündüz"],
+                      ["sunset", "Gün batımı"],
+                      ["night", "Gece"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        className={preferences.timeOfDay === value ? "is-selected" : ""}
+                        key={value}
+                        type="button"
+                        aria-pressed={preferences.timeOfDay === value}
+                        onClick={() => setPreference("timeOfDay", value)}
                       >
                         {label}
                       </button>
