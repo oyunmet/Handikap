@@ -29,6 +29,8 @@ import {
   getWarRoomLabWeaponLength,
 } from "./war-room-lab";
 import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
+import { HudButton, HudIcon, type HudButtonIconKey } from "./HudButton";
+import { playGameButtonClick } from "../audio/howler";
 import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
@@ -68,6 +70,7 @@ import "./war-room-layout.css";
 type Props = {
   onExit: () => void;
   profile: PlayerProfile;
+  vibrationEnabled: boolean;
   invertLookY: boolean;
   onInvertLookYChange: (value: boolean) => void;
   facingSetting: WarRoomFacingSetting;
@@ -242,8 +245,10 @@ function ActionButton({
   hint,
   className = "",
   showHint = false,
+  vibrationEnabled = false,
   style,
   icon,
+  title,
   onDown,
   onUp,
   onClick,
@@ -255,8 +260,10 @@ function ActionButton({
   hint?: string;
   className?: string;
   showHint?: boolean;
+  vibrationEnabled?: boolean;
   style?: CSSProperties;
-  icon?: string;
+  icon?: HudButtonIconKey;
+  title?: string;
   onDown?: () => void;
   onUp?: () => void;
   onClick?: () => void;
@@ -265,19 +272,44 @@ function ActionButton({
   onPointerEnd?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }) {
   const pointer = useRef<number | null>(null);
+  const [held, setHeld] = useState(false);
+  const actionIcon: HudButtonIconKey = icon ?? (
+    className.includes("fire") ? "fire"
+      : className.includes("aim") ? "aim"
+        : className.includes("melee-heavy") ? "melee-heavy"
+          : className.includes("melee-light") ? "knife"
+            : className.includes("reload") ? "reload"
+              : className.includes("jump") ? "jump"
+                : className.includes("dodge") ? "crouch"
+                  : className.includes("sprint") ? "sprint"
+                    : className.includes("swap") ? "swap"
+                      : "weapon"
+  );
+  const playFeedback = () => {
+    if (!isWarRoomMuted()) playGameButtonClick();
+    if (vibrationEnabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate(8); } catch { /* Haptics are optional. */ }
+    }
+  };
   return (
-    <button
+    <HudButton
       type="button"
+      icon={actionIcon}
+      label={label}
+      title={title}
+      keyboardHint={showHint ? hint : undefined}
+      held={held}
       className={`war-room-control${showHint && hint ? " has-keyboard-hint" : ""} ${className}`}
-      aria-label={label}
       style={style}
       onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
         pointer.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
+        setHeld(true);
         onPointerStart?.(event);
         onDown?.();
+        playFeedback();
       }}
       onPointerMove={(event) => {
         if (pointer.current === event.pointerId) onPointerMove?.(event);
@@ -285,6 +317,7 @@ function ActionButton({
       onPointerUp={(event) => {
         if (pointer.current !== event.pointerId) return;
         pointer.current = null;
+        setHeld(false);
         onPointerEnd?.(event);
         onUp?.();
         onClick?.();
@@ -292,32 +325,25 @@ function ActionButton({
       onPointerCancel={(event) => {
         if (pointer.current !== event.pointerId) return;
         pointer.current = null;
+        setHeld(false);
         onPointerEnd?.(event);
         onUp?.();
       }}
       onLostPointerCapture={(event) => {
         if (pointer.current !== event.pointerId) return;
         pointer.current = null;
+        setHeld(false);
         onPointerEnd?.(event);
         onUp?.();
       }}
       onClick={(event) => {
         event.stopPropagation();
-        if (event.detail === 0) onClick?.();
+        if (event.detail === 0) {
+          onClick?.();
+          playFeedback();
+        }
       }}
-    >
-      <span className="war-room-control__symbol" aria-hidden="true">
-        {icon ?? (className.includes("fire") ? "✹"
-          : className.includes("aim") ? "⌖"
-            : className.includes("reload") ? "↻"
-              : className.includes("jump") ? "↑"
-                : className.includes("dodge") ? "⤴"
-                  : className.includes("sprint") ? "»"
-                    : "⇄")}
-      </span>
-      <b>{label}</b>
-      {showHint && hint && <kbd>{hint}</kbd>}
-    </button>
+    />
   );
 }
 
@@ -358,6 +384,7 @@ function MiniMap({ hud }: { hud: WarRoomHudSnapshot }) {
 export default function WarRoomGame({
   onExit,
   profile,
+  vibrationEnabled,
   invertLookY,
   onInvertLookYChange,
   facingSetting,
@@ -1338,6 +1365,12 @@ export default function WarRoomGame({
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.name ?? "Silah"}
                   <small>{WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.className ?? ""}</small>
                 </span>
+                {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass !== "melee" && (
+                  <HudIcon
+                    icon={hud.reloading ? "magazine" : "ammo"}
+                    className="war-room-ammo__icon"
+                  />
+                )}
                 {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? (
                   <strong className="war-room-ammo__melee" aria-label="Sınırsız kullanım">
                     {WAR_ROOM_WEAPON_ICONS_ENABLED
@@ -1396,9 +1429,10 @@ export default function WarRoomGame({
               </div>
               <div className={`war-room-controls${controlLayoutEnabled ? " is-custom-layout" : ""}`}>
                 <ActionButton
-                  label="Nişan al"
+                  label="Nişan"
                   hint="SAĞ TIK"
                   showHint={keyboardHintsVisible}
+                  vibrationEnabled={vibrationEnabled}
                   className={`is-aim${hud.aiming ? " is-active" : ""}`}
                   style={controlLayoutEnabled ? getControlPlacementStyle("aim", savedControlLayout.layout) : undefined}
                   onPointerStart={handleActionLookStart}
@@ -1409,10 +1443,12 @@ export default function WarRoomGame({
                 />
                 {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? (
                   <ActionButton
-                    label="Hafif saldırı"
+                    label="Hafif"
+                    title="Hafif saldırı"
                     hint="DOKUN"
                     showHint={keyboardHintsVisible}
-                    icon="↗"
+                    vibrationEnabled={vibrationEnabled}
+                    icon="knife"
                     className="is-reload is-melee-light"
                     style={controlLayoutEnabled ? getControlPlacementStyle("reload", savedControlLayout.layout) : undefined}
                     onClick={() => {
@@ -1422,9 +1458,10 @@ export default function WarRoomGame({
                   />
                 ) : (
                   <ActionButton
-                    label="Yeniden doldur"
+                    label="Doldur"
                     hint="R"
                     showHint={keyboardHintsVisible}
+                    vibrationEnabled={vibrationEnabled}
                     className="is-reload"
                     style={controlLayoutEnabled ? getControlPlacementStyle("reload", savedControlLayout.layout) : undefined}
                     onClick={() => pressWarRoomAction(inputRef.current, "reload")}
@@ -1434,6 +1471,7 @@ export default function WarRoomGame({
                   label="Zıpla"
                   hint="SPACE"
                   showHint={keyboardHintsVisible}
+                  vibrationEnabled={vibrationEnabled}
                   className="is-jump"
                   style={controlLayoutEnabled ? getControlPlacementStyle("jump", savedControlLayout.layout) : undefined}
                   onClick={() => pressWarRoomAction(inputRef.current, "jump")}
@@ -1442,6 +1480,8 @@ export default function WarRoomGame({
                   label="Çömel"
                   hint="C"
                   showHint={keyboardHintsVisible}
+                  vibrationEnabled={vibrationEnabled}
+                  title="Çift dokunuş: yat"
                   className={`is-dodge${hud.crouched ? " is-active" : ""}`}
                   style={controlLayoutEnabled ? getControlPlacementStyle("dodge", savedControlLayout.layout) : undefined}
                   onClick={() => {
@@ -1456,9 +1496,10 @@ export default function WarRoomGame({
                   }}
                 />
                 <ActionButton
-                  label="Koşu kilidi"
+                  label="Koşu"
                   hint="X"
                   showHint={keyboardHintsVisible}
+                  vibrationEnabled={vibrationEnabled}
                   className={`is-sprint-lock${sprintLockActive ? " is-active" : ""}`}
                   style={controlLayoutEnabled ? getControlPlacementStyle("sprint-lock", savedControlLayout.layout) : undefined}
                   onClick={() => {
@@ -1470,15 +1511,15 @@ export default function WarRoomGame({
                   label="Silah değiştir"
                   hint="V"
                   showHint={keyboardHintsVisible}
+                  vibrationEnabled={vibrationEnabled}
                   className="is-swap"
                   style={controlLayoutEnabled ? getControlPlacementStyle("swap", savedControlLayout.layout) : undefined}
                   onClick={() => pressWarRoomAction(inputRef.current, "swap")}
                 />
                 <ActionButton
-                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Saldırı" : "Ateş et"}
-                  icon={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon
-                    : undefined}
+                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Ağır" : "Ateş"}
+                  icon={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "melee-heavy" : undefined}
+                  vibrationEnabled={vibrationEnabled}
                   className="is-fire"
                   style={controlLayoutEnabled ? getControlPlacementStyle("fire", savedControlLayout.layout) : undefined}
                   onPointerStart={handleActionLookStart}
@@ -1502,6 +1543,7 @@ export default function WarRoomGame({
                 onPointerUp={handleStickUp}
                 onPointerCancel={handleStickUp}
               >
+                <HudIcon icon="move" className="war-room-stick__move-icon" />
                 <i aria-hidden="true" />
               </div>
               </div>

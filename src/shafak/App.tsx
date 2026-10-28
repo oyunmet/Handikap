@@ -1212,6 +1212,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <WarRoomGame
                 onExit={exitWarRoom}
                 profile={profile}
+                vibrationEnabled={preferences.vibration}
                 invertLookY={preferences.invertWarRoomLookY}
                 onInvertLookYChange={(value) => setPreference("invertWarRoomLookY", value)}
                 facingSetting={preferences.warRoomFacing}

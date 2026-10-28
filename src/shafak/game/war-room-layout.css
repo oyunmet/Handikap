@@ -315,6 +315,136 @@
   pointer-events: none;
 }
 
+.war-room-controls .shafak-hud-button {
+  width: 82px;
+  min-width: 82px;
+  min-height: 82px;
+  height: 82px;
+  aspect-ratio: 1;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+}
+
+.war-room-controls .shafak-hud-button::before {
+  inset: 8px;
+  border: 1px solid rgba(209, 138, 85, 0.72);
+  border-radius: 50%;
+  background:
+    linear-gradient(145deg, rgba(255, 231, 184, 0.11), transparent 48%),
+    linear-gradient(155deg, #383029 0%, #211e1b 58%, #171615 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 232, 195, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.42),
+    0 3px 9px rgba(11, 9, 8, 0.42);
+}
+
+.war-room-controls .shafak-hud-button::after {
+  inset: 2px;
+  border-radius: 50%;
+}
+
+.war-room-controls .shafak-hud-button__glyph {
+  width: 25px;
+  height: 25px;
+}
+
+.war-room-controls .shafak-hud-button__label {
+  max-width: 70px;
+  color: #f3e3c5;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+}
+
+.war-room-controls .shafak-hud-button__hint {
+  top: 10px;
+  right: 11px;
+}
+
+.war-room-controls .shafak-hud-button.is-fire {
+  width: 108px;
+  min-width: 108px;
+  min-height: 108px;
+  height: 108px;
+}
+
+.war-room-controls .shafak-hud-button.is-fire::before {
+  border-color: rgba(209, 138, 85, 0.92);
+  background:
+    linear-gradient(145deg, rgba(255, 222, 165, 0.13), transparent 50%),
+    linear-gradient(155deg, #663d2d 0%, #42291f 57%, #241b17 100%);
+}
+
+.war-room-controls .shafak-hud-button.is-fire .shafak-hud-button__glyph {
+  width: 30px;
+  height: 30px;
+  color: #f2cf87;
+}
+
+.war-room-controls .shafak-hud-button.is-fire .shafak-hud-button__label {
+  color: #f5dca9;
+  font-size: 9px;
+}
+
+.war-room-controls .shafak-hud-button.is-sprint-lock {
+  width: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  height: 72px;
+}
+
+.war-room-controls .shafak-hud-button.is-sprint-lock::before {
+  inset: 8px;
+}
+
+.war-room-controls .shafak-hud-button.is-sprint-lock .shafak-hud-button__glyph {
+  width: 22px;
+  height: 22px;
+}
+
+.war-room-stick__move-icon {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 25px;
+  height: 25px;
+  transform: translate(-50%, -50%);
+  color: rgba(234, 206, 157, 0.44);
+  pointer-events: none;
+}
+
+.war-room-stick i {
+  z-index: 2;
+}
+
+.war-room-ammo__icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 3px auto 0;
+  color: rgba(234, 206, 157, 0.76);
+}
+
+@media (max-width: 920px) and (orientation: landscape) {
+  .war-room-controls .shafak-hud-button {
+    width: 82px;
+    min-width: 82px;
+    min-height: 82px;
+    height: 82px;
+  }
+
+  .war-room-controls .shafak-hud-button.is-fire {
+    width: 108px;
+    min-width: 108px;
+    min-height: 108px;
+    height: 108px;
+  }
+}
+
 .war-room-weapon-select.is-custom-layout {
   position: absolute;
   display: flex;

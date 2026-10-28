@@ -299,4 +299,14 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/build-info.ts`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-controls.ts`, `src/shafak/game/war-room-controls.test.js`, `src/shafak/game/war-room-input.ts`, `src/shafak/game/war-room-input.test.js`, `src/shafak/game/war-room-look.ts`, `src/shafak/game/war-room-look.test.js`, `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room.css`, `src/shafak/game/war-room-layout.css`, `src/shafak/world/WarRoomScene3D.tsx`, `docs/WARROOM_PROGRESS.md`.
 - **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı; mevcut 500 kB üzeri chunk uyarısı sürüyor. Tam paket 441 testten 433 geçti; sekiz başarısızlık bilinen, Savaş Odası dışı taban hataları (6 mağaza, 1 kolay düello süresi, 1 varsayılan envanter). Yeni giriş, joystick, bakış ve düzen testleri geçti.
 - **Cihaz kabulü:** Önizleme WebGL bağlamı oluşturamadı; gerçek iPhone/Safari'de joystick+ateş+bakış, sprint, silah seçimi, düzen kaydetme ve portre uyarısı **doğrulanamadı**.
+- **Yerel commit:** `e84a8d8` — `Implement War Room touch controls and input`
 - **Sürüm ve sınırlar:** `v18-faz-2` · push/deploy yapılmadı.
+
+### Faz 3 — Türkçe simgeli dokunmatik HUD
+
+- **Durum:** TAMAMLANDI (yerel build, typecheck ve test).
+- **Yapılanlar:** Savaş düğmeleri ortak erişilebilir `HudButton` bileşenine taşındı. Düğmeler özgün çizgi SVG simgeleri, Türkçe etiket ve isteğe bağlı klavye ipucu kullanıyor; ateş düğmesinin görünür yüzü 92 px, diğerleri 66 px ve tıklama alanı yüzeyden 16 px daha geniş. Basılı durumda görünür geri bildirim ve kısa ripple/glow, dört saniyelik isteğe bağlı çevresel bekleme halkası, azaltılmış hareket desteği, ses ve kullanıcının titreşim ayarına bağlı haptik eklendi. Mermi, şarjör ve joystick için aynı SVG ikon sistemi kullanılıyor. Yakın dövüşte ana düğme AĞIR, ikincil düğme HAFİF saldırı.
+- **Değişen dosyalar:** `src/shafak/game/HudButton.tsx`, `src/shafak/game/hud-button.css`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-layout.css`, `src/shafak/App.tsx`, `src/shafak/build-info.ts`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı. Tam paket 441 testten 433 geçti; aynı sekiz bilinen War Room dışı taban hatası kaldı.
+- **Cihaz kabulü:** WebGL ve fiziksel iPhone/Safari ekranı henüz doğrulanmadı; tarayıcı WebGL bağlamı açamıyor, sahne `<Canvas>` üzerinden çalışıyor.
+- **Sürüm ve sınırlar:** `v18-faz-3` · sahne geometrisi/malzeme eklenmedi · push/deploy yapılmadı.
