@@ -42,6 +42,7 @@ import {
   type WarRoomRoom,
   type WarRoomSavedProgress,
 } from "./war-room-rooms";
+import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
 import "./war-room.css";
 
 type Props = {
@@ -300,6 +301,10 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const bossHudPhase = getBossHudPhase(hud.bossHp, hud.bossMaxHp);
+  const [bossPhaseAnnouncement, setBossPhaseAnnouncement] = useState<BossHudPhase | null>(null);
+  const previousBossPhaseRef = useRef<number | null>(null);
+  const bossPhaseAnnouncementTimerRef = useRef<number | null>(null);
   const [meleeDebugMessage, setMeleeDebugMessage] = useState("");
   const [meleeDebugMessageUntil, setMeleeDebugMessageUntil] = useState(0);
   const [meleeDebugActivity, setMeleeDebugActivity] = useState("");
@@ -311,6 +316,34 @@ export default function WarRoomGame({
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
   const roomProgressRef = useRef(roomProgress);
+  useEffect(() => {
+    if (phase !== "battle") {
+      previousBossPhaseRef.current = null;
+      setBossPhaseAnnouncement(null);
+      if (bossPhaseAnnouncementTimerRef.current !== null) {
+        window.clearTimeout(bossPhaseAnnouncementTimerRef.current);
+        bossPhaseAnnouncementTimerRef.current = null;
+      }
+      return;
+    }
+    const previousPhase = previousBossPhaseRef.current;
+    if (previousPhase !== null && bossHudPhase > previousPhase) {
+      setBossPhaseAnnouncement(bossHudPhase);
+      if (bossPhaseAnnouncementTimerRef.current !== null) {
+        window.clearTimeout(bossPhaseAnnouncementTimerRef.current);
+      }
+      bossPhaseAnnouncementTimerRef.current = window.setTimeout(() => {
+        setBossPhaseAnnouncement(null);
+        bossPhaseAnnouncementTimerRef.current = null;
+      }, 1_500);
+    }
+    previousBossPhaseRef.current = bossHudPhase;
+  }, [bossHudPhase, phase]);
+  useEffect(() => () => {
+    if (bossPhaseAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(bossPhaseAnnouncementTimerRef.current);
+    }
+  }, []);
   const [summary, setSummary] = useState<{
     kills: number;
     headshots: number;
@@ -951,7 +984,10 @@ export default function WarRoomGame({
               </aside>
             );
           })()}
-          <div className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}`}>
+          <div
+            className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}`}
+            data-boss-phase={bossHudPhase}
+          >
             <div className="war-room-hud__top">
               {WAR_ROOM_ROOM_CHAIN_ENABLED && (
                 <div className="war-room-room-indicator" aria-label={`Oda ${currentRoom.number} / sonsuz`}>
@@ -1005,11 +1041,23 @@ export default function WarRoomGame({
             >
               ⚙
             </button>
-            <div className="war-room-commander">
-              <div><span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span><b>{currentRoom.commanderName.toLocaleUpperCase("tr-TR")}</b></div>
-              <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>
+            <div className="war-room-commander" data-boss-phase={bossHudPhase}>
+              <div className="war-room-commander__identity">
+                <span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span>
+                <b>{currentRoom.commanderName.toLocaleUpperCase("tr-TR")}</b>
+              </div>
+              <div className="war-room-commander__health">
+                <small>FAZ {getBossHudPhaseRoman(bossHudPhase)}</small>
+                <strong>{Math.ceil(hud.bossHp)} / {hud.bossMaxHp}</strong>
+              </div>
               <i><em style={{ width: `${Math.max(0, (hud.bossHp / hud.bossMaxHp) * 100)}%` }} /></i>
             </div>
+            {bossPhaseAnnouncement !== null && (
+              <div className="war-room-boss-phase" role="status" aria-live="polite">
+                <small>KOMUTAN</small>
+                <b>FAZ {getBossHudPhaseRoman(bossPhaseAnnouncement)}</b>
+              </div>
+            )}
             <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}${hud.firing ? " is-firing" : ""}`} aria-label={hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
               <i /><i /><i /><i />
             </div>

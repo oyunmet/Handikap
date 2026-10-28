@@ -6,6 +6,7 @@ import {
   DUEL_HIT_SPARK_COUNT,
   LIGHTNING_BOLT_COUNT,
   LIGHTNING_SEGMENT_COUNT,
+  MAX_DUEL_BURN_DECALS,
   MAX_ACTIVE_DUEL_PARTICLES,
   MAX_ACTIVE_DUEL_VFX,
   MAX_DUEL_VFX_EVENT_PARTICLES,
@@ -29,6 +30,7 @@ test("each combat event selects its matching readable arena effect", () => {
 });
 
 test("bounded duel effects, arena ash, hit sparks, and finisher ash stay below 150 mobile particles", () => {
+  assert.equal(MAX_DUEL_BURN_DECALS, 30);
   assert.equal(
     MAX_DUEL_VFX_EVENT_PARTICLES,
     Math.max(LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT, DUEL_HIT_SPARK_COUNT),

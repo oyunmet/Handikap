@@ -61,6 +61,7 @@ import {
   LIGHTNING_BOLT_COUNT,
   LIGHTNING_SEGMENT_COUNT,
   MAX_ACTIVE_DUEL_VFX,
+  MAX_DUEL_BURN_DECALS,
   type DuelVfxKind,
 } from "./duel-vfx";
 import {
@@ -641,6 +642,18 @@ function CameraRig({
         WORLD_ROAD_WIDTH * 0.5,
       );
     }
+    const lightningShake = combat
+      && visualEffectsEnabled
+      && !motionReduced
+      && skillPulseRef.current.attack === "skillTwo"
+      && skillAge < 0.24
+      ? (1 - skillAge / 0.24) * 0.035
+      : 0;
+    if (lightningShake > 0) {
+      const time = _.clock.elapsedTime;
+      camera.position.x += Math.sin(time * 91) * lightningShake;
+      camera.position.y += Math.cos(time * 79) * lightningShake * 0.62;
+    }
     camera.up.set(0, 1, 0);
     camera.lookAt(targetRef);
     camera.rotation.z = 0;
@@ -685,6 +698,51 @@ function combatAnimation(action: CombatAction, speed: number) {
   return speed > 0.28 ? "walk" as const : "idle" as const;
 }
 
+const SHIELD_DOME_VERTEX_SHADER = `
+  varying vec3 vShieldPosition;
+  varying vec3 vShieldNormal;
+  varying vec3 vShieldViewDirection;
+  void main() {
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    vShieldPosition = position;
+    vShieldNormal = normalize(normalMatrix * normal);
+    vShieldViewDirection = normalize(-viewPosition.xyz);
+    gl_Position = projectionMatrix * viewPosition;
+  }
+`;
+
+const SHIELD_DOME_FRAGMENT_SHADER = `
+  precision mediump float;
+  uniform vec3 uColor;
+  uniform float uTime;
+  uniform float uPulse;
+  varying vec3 vShieldPosition;
+  varying vec3 vShieldNormal;
+  varying vec3 vShieldViewDirection;
+
+  float hexLines(vec2 point) {
+    vec2 period = vec2(1.0, 1.7320508);
+    vec2 halfPeriod = period * 0.5;
+    vec2 a = mod(point, period) - halfPeriod;
+    vec2 b = mod(point - halfPeriod, period) - halfPeriod;
+    vec2 cell = dot(a, a) < dot(b, b) ? a : b;
+    float boundary = max(abs(cell.x) * 1.1547005, abs(cell.x) * 0.5773503 + abs(cell.y));
+    return 1.0 - smoothstep(0.015, 0.055, abs(boundary - 0.5));
+  }
+
+  void main() {
+    float facing = max(dot(normalize(vShieldNormal), normalize(vShieldViewDirection)), 0.0);
+    float fresnel = pow(1.0 - facing, 2.2);
+    vec2 patternPoint = vec2(vShieldPosition.x + vShieldPosition.z, vShieldPosition.y - vShieldPosition.z) * 7.0;
+    patternPoint += vec2(uTime * 0.16, -uTime * 0.12);
+    float hex = hexLines(patternPoint);
+    float pulse = 0.84 + 0.16 * sin(uTime * 6.0);
+    vec3 color = mix(uColor, vec3(1.0, 0.86, 0.58), hex * 0.42);
+    float alpha = clamp((0.08 + fresnel * 0.42 + hex * 0.16) * uPulse * pulse, 0.0, 0.78);
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
 function DuelGuardShield({
   side,
   facingAngle,
@@ -696,6 +754,22 @@ function DuelGuardShield({
 }) {
   const shieldRef = useRef<THREE.Group>(null);
   const tint = side === "player" ? "#f2ca7c" : "#83d8e8";
+  const domeMaterial = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(tint) },
+      uTime: { value: 0 },
+      uPulse: { value: 1 },
+    },
+    vertexShader: SHIELD_DOME_VERTEX_SHADER,
+    fragmentShader: SHIELD_DOME_FRAGMENT_SHADER,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  }), [tint]);
+
+  useEffect(() => () => domeMaterial.dispose(), [domeMaterial]);
   useFrame((_frame, delta) => {
     const shield = shieldRef.current;
     if (!shield) return;
@@ -704,25 +778,21 @@ function DuelGuardShield({
     const nextScale = THREE.MathUtils.damp(shield.scale.x, held ? 1 : 0, 22, Math.min(delta, 0.05));
     shield.scale.setScalar(nextScale);
     shield.visible = held || nextScale > 0.025;
+    domeMaterial.uniforms.uTime.value = _frame.clock.elapsedTime;
+    domeMaterial.uniforms.uPulse.value = held ? 1 : nextScale;
   });
   return (
     <group ref={shieldRef} position={[0, 0, 0]} rotation={[0, facingAngle, 0]} scale={0}>
-      <mesh position={[0, 1.02, -0.68]} scale={[0.78, 1.08, 0.16]} castShadow={false}>
-        <dodecahedronGeometry args={[0.56, 1]} />
-        <meshStandardMaterial
-          color={tint}
-          emissive={tint}
-          emissiveIntensity={0.6}
-          transparent
-          opacity={0.48}
-          metalness={0.38}
-          roughness={0.3}
-          depthWrite={false}
-        />
+      <mesh position={[0, 1.06, -0.02]} scale={[1.08, 1.36, 1.02]} castShadow={false} material={domeMaterial}>
+        <sphereGeometry args={[0.78, 24, 18]} />
       </mesh>
-      <mesh position={[0, 1.02, -0.84]} rotation={[0, Math.PI, 0]}>
-        <torusGeometry args={[0.48, 0.035, 8, 32]} />
+      <mesh position={[0, 0.48, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.68, 0.018, 6, 32]} />
         <meshBasicMaterial color={tint} transparent opacity={0.78} toneMapped={false} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 1.63, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.49, 0.016, 6, 32]} />
+        <meshBasicMaterial color={tint} transparent opacity={0.62} toneMapped={false} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -1076,6 +1146,11 @@ function DuelCombatVisual({
   const lightningMaterialRef = useRef<THREE.LineBasicMaterial>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
   const shieldMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const shieldRippleRef = useRef<THREE.Mesh>(null);
+  const shieldRippleMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const lightningImpactRingRef = useRef<THREE.Mesh>(null);
+  const lightningImpactRingMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const lightningFlashRef = useRef<HTMLDivElement>(null);
   const afterimageRef = useRef<THREE.Group>(null);
   const afterimageMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
@@ -1195,15 +1270,35 @@ function DuelCombatVisual({
       lightningMaterialRef.current.opacity = fade * (motionReduced ? 0.8 : 0.72 + Math.sin(frame.clock.elapsedTime * 58) * 0.2);
     }
 
+    if (kind === "lightning" && lightningImpactRingRef.current && lightningImpactRingMaterialRef.current) {
+      lightningImpactRingRef.current.position.set(event.destinationX ?? opponent.x, 0.07, event.destinationZ ?? opponent.z);
+      lightningImpactRingRef.current.scale.setScalar(0.42 + age * 2.2);
+      lightningImpactRingMaterialRef.current.opacity = fade * 0.72;
+    }
+
+    if (kind === "lightning" && lightningFlashRef.current) {
+      const flash = Math.max(0, 1 - age * 6.25) * (motionReduced ? 0.006 : 0.015);
+      lightningFlashRef.current.style.opacity = String(flash);
+    }
+
     if ((kind === "shield" || kind === "coverBlock") && shieldRef.current && shieldMaterialRef.current) {
       const defender = state[event.target];
+      const facing = Math.atan2(opponent.x - defender.x, opponent.z - defender.z);
       shieldRef.current.position.set(
         kind === "coverBlock" ? (defender.x + opponent.x) * 0.5 : defender.x,
         1.02,
         kind === "coverBlock" ? (defender.z + opponent.z) * 0.5 : defender.z - 0.1,
       );
-      shieldRef.current.scale.set(0.7 + age * 0.34, 1.02 + age * 0.22, 0.54 + age * 0.22);
+      shieldRef.current.scale.set(1.02 + age * 0.18, 1.34 + age * 0.22, 0.96 + age * 0.16);
       shieldMaterialRef.current.opacity = fade * (event.type === "parry" ? 0.34 : kind === "coverBlock" ? 0.48 : 0.2);
+      if (shieldRippleRef.current && shieldRippleMaterialRef.current) {
+        const rippleX = defender.x + Math.sin(facing) * 0.74;
+        const rippleZ = defender.z + Math.cos(facing) * 0.74;
+        shieldRippleRef.current.position.set(rippleX, 1.06, rippleZ);
+        shieldRippleRef.current.rotation.set(0, facing, 0);
+        shieldRippleRef.current.scale.setScalar(0.42 + age * 1.35);
+        shieldRippleMaterialRef.current.opacity = fade * (event.type === "parry" ? 0.9 : 0.62);
+      }
     }
 
     if (kind === "afterimage" && afterimageRef.current && afterimageMaterialRef.current) {
@@ -1292,16 +1387,43 @@ function DuelCombatVisual({
         </group>
       )}
       {kind === "lightning" && (
-        <lineSegments geometry={lightningGeometry} frustumCulled={false}>
-          <lineBasicMaterial
-            ref={lightningMaterialRef}
-            color="#a8f3ff"
-            transparent
-            opacity={0.9}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </lineSegments>
+        <>
+          <lineSegments geometry={lightningGeometry} frustumCulled={false}>
+            <lineBasicMaterial
+              ref={lightningMaterialRef}
+              color="#a8f3ff"
+              transparent
+              opacity={0.9}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </lineSegments>
+          <mesh ref={lightningImpactRingRef} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.18, 0.32, 28]} />
+            <meshBasicMaterial
+              ref={lightningImpactRingMaterialRef}
+              color="#b8f7ff"
+              transparent
+              opacity={0.72}
+              toneMapped={false}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          <Html fullscreen>
+            <div
+              ref={lightningFlashRef}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(221, 248, 255, 0.9)",
+                opacity: 0,
+                pointerEvents: "none",
+              }}
+            />
+          </Html>
+        </>
       )}
       {(kind === "weaponTrail" || kind === "plunge") && (
         <mesh ref={weaponTrailRef} rotation={[Math.PI / 2, 0, 0]}>
@@ -1351,17 +1473,31 @@ function DuelCombatVisual({
         </group>
       )}
       {kind === "shield" && (
-        <mesh ref={shieldRef}>
-          <icosahedronGeometry args={[0.72, 1]} />
-          <meshBasicMaterial
-            ref={shieldMaterialRef}
-            color={event.type === "parry" ? "#ffe8a0" : "#7ae7ff"}
-            wireframe
-            transparent
-            opacity={0.28}
-            depthWrite={false}
-          />
-        </mesh>
+        <>
+          <mesh ref={shieldRef}>
+            <sphereGeometry args={[0.78, 18, 14]} />
+            <meshBasicMaterial
+              ref={shieldMaterialRef}
+              color={event.type === "parry" ? "#ffe8a0" : "#7ae7ff"}
+              wireframe
+              transparent
+              opacity={0.28}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh ref={shieldRippleRef}>
+            <ringGeometry args={[0.18, 0.28, 24]} />
+            <meshBasicMaterial
+              ref={shieldRippleMaterialRef}
+              color={event.type === "parry" ? "#fff0b5" : "#a9f1ff"}
+              transparent
+              opacity={0.72}
+              toneMapped={false}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </>
       )}
       {kind === "afterimage" && (
         <group ref={afterimageRef}>
@@ -1905,6 +2041,89 @@ function DuelArenaAtmosphere({ theme }: { theme: DuelArenaTheme }) {
   return null;
 }
 
+type DuelFireDecalSlot = {
+  eventId: number;
+  startedAt: number;
+  x: number;
+  z: number;
+};
+
+function DuelFireDecals({
+  combatVisualEvents,
+  combatStateRef,
+}: {
+  combatVisualEvents: CombatVisualEvent[];
+  combatStateRef: MutableRefObject<CombatState | null>;
+}) {
+  const slots = useMemo<DuelFireDecalSlot[]>(
+    () => Array.from({ length: MAX_DUEL_BURN_DECALS }, () => ({ eventId: -1, startedAt: 0, x: 0, z: 0 })),
+    [],
+  );
+  const nextSlotRef = useRef(0);
+  const transform = useMemo(() => new THREE.Object3D(), []);
+  const warmColor = useMemo(() => new THREE.Color("#e85327"), []);
+  const cooledColor = useMemo(() => new THREE.Color("#241817"), []);
+  const colorScratch = useMemo(() => new THREE.Color(), []);
+  const mesh = useMemo(() => {
+    const geometry = new THREE.CircleGeometry(0.64, 20);
+    const material = new THREE.MeshBasicMaterial({
+      color: "#ffffff",
+      transparent: true,
+      opacity: 0.56,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+    const instance = new THREE.InstancedMesh(geometry, material, MAX_DUEL_BURN_DECALS);
+    instance.frustumCulled = false;
+    instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    return instance;
+  }, []);
+
+  useEffect(() => () => {
+    mesh.geometry.dispose();
+    if (Array.isArray(mesh.material)) mesh.material.forEach((material) => material.dispose());
+    else mesh.material.dispose();
+    mesh.dispose();
+  }, [mesh]);
+
+  useFrame(() => {
+    const now = performance.now();
+    const state = combatStateRef.current;
+    for (const event of combatVisualEvents) {
+      if (event.type !== "skill" || event.attack !== "skillOne") continue;
+      if (slots.some((slot) => slot.eventId === event.id)) continue;
+      const target = state?.[event.target];
+      const slotIndex = nextSlotRef.current;
+      nextSlotRef.current = (slotIndex + 1) % MAX_DUEL_BURN_DECALS;
+      slots[slotIndex] = {
+        eventId: event.id,
+        startedAt: event.expiresAt - 900,
+        x: event.destinationX ?? target?.x ?? 0,
+        z: event.destinationZ ?? target?.z ?? -0.6,
+      };
+    }
+
+    for (let index = 0; index < slots.length; index += 1) {
+      const slot = slots[index];
+      const age = slot.eventId < 0 ? 1 : THREE.MathUtils.clamp((now - slot.startedAt) / 2_600, 0, 1);
+      const fade = 1 - age;
+      const size = Math.max(0, (0.6 + age * 0.24) * fade);
+      transform.position.set(slot.x, 0.075, slot.z);
+      transform.rotation.set(-Math.PI / 2, 0, 0);
+      transform.scale.set(size, size, size);
+      transform.updateMatrix();
+      mesh.setMatrixAt(index, transform.matrix);
+      mesh.setColorAt(index, colorScratch.copy(warmColor).lerp(cooledColor, age * 0.78));
+      if (age >= 1) slot.eventId = -1;
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+
+  return <primitive object={mesh} dispose={null} />;
+}
+
 function DuelArena({
   opponentName,
   motionRef,
@@ -1924,6 +2143,9 @@ function DuelArena({
       <DuelArenaAtmosphere theme={theme} />
       <DuelArenaStonework theme={theme} />
       <DuelArenaBackdrop theme={theme} />
+      {visualEffectsEnabled && (
+        <DuelFireDecals combatVisualEvents={combatVisualEvents} combatStateRef={combatStateRef} />
+      )}
       {visualEffectsEnabled && <DuelAshField />}
       <directionalLight position={[0, 8, -10]} color={theme.accent} intensity={0.85} />
       <mesh position={[0, 0.018, -0.6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>

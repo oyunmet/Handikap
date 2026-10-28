@@ -790,6 +790,11 @@ export default function WorldScene({
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
   const [panel, setPanel] = useState<Panel>(initialStoreTab ? "store" : null);
+  const [showWarRoomNewBadge, setShowWarRoomNewBadge] = useState(true);
+  useEffect(() => {
+    const badgeTimer = window.setTimeout(() => setShowWarRoomNewBadge(false), 3_000);
+    return () => window.clearTimeout(badgeTimer);
+  }, []);
   const [storeTab, setStoreTab] = useState<StoreTab>(initialStoreTab ?? "weapons");
   const [activeWorldWeaponSlot, setActiveWorldWeaponSlot] = useState<0 | 1>(0);
   const activeWorldWeaponSlotRef = useRef(activeWorldWeaponSlot);
@@ -2905,7 +2910,7 @@ export default function WorldScene({
         >
           <span aria-hidden="true">✹</span>
           <b>SAVAŞ ODASI</b>
-          <small>YENİ MOD</small>
+          {showWarRoomNewBadge && <small>YENİ MOD</small>}
         </button>
       )}
       <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
