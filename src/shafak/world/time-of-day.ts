@@ -5,7 +5,13 @@ export const TIME_OF_DAY_SETTING_EVENT = "shafak-time-of-day-change";
 export const TIME_OF_DAY_STAR_COUNT = 120;
 const TIME_OF_DAY_STORAGE_KEY = "shafak-world-time-of-day";
 
-let currentMode: TimeOfDayMode = "day";
+let currentMode: TimeOfDayMode = "auto";
+
+export function getNextTimeOfDayMode(mode: TimeOfDayMode): TimeOfDayMode {
+  if (mode === "auto") return "day";
+  if (mode === "day") return "night";
+  return "auto";
+}
 
 export function normalizeTimeOfDayMode(value: unknown): TimeOfDayMode {
   return value === "day" || value === "sunset" || value === "night" ? value : "auto";
@@ -71,9 +77,9 @@ export function getTimeOfDayLightingState(phase: number) {
     night: 1 - daylight,
     altitude,
     lightScale: {
-      directional: 0.58 + daylight * 0.42,
-      hemisphere: 0.74 + daylight * 0.26,
-      ambient: 0.7 + daylight * 0.3,
+      directional: 0.8 + daylight * 0.2,
+      hemisphere: 0.9 + daylight * 0.1,
+      ambient: 0.92 + daylight * 0.08,
     },
     sunDirection: {
       x: Math.cos(angle) * horizonDistance,

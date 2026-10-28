@@ -695,7 +695,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
       material.roughness = weather === "storm" ? 0.68 : weather === "rain" ? 0.76 : 0.98;
       material.metalness = weather === "storm" ? 0.025 : weather === "rain" ? 0.012 : 0;
     });
-    materials.ember.emissiveIntensity = ashWeather ? 1.85 : 1.45;
+    materials.ember.emissiveIntensity = 1.45;
   };
 
   updatePalette(0, "clear");

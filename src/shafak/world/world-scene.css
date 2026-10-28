@@ -663,8 +663,20 @@
 .world-time-control__switch.is-day {
   background: rgba(102,78,35,.7);
 }
+.world-time-control__switch.is-auto {
+  background: linear-gradient(110deg, rgba(102,78,35,.68), rgba(34,52,76,.82));
+}
 .world-time-control__switch.is-day span {
   transform: translateX(0); background: #f5d57d; color: #49351c;
+}
+.world-time-control__switch.is-auto span {
+  transform: translateX(0); background: #f0d18b; color: #3f4650;
+}
+.world-time-control__switch.is-sunset {
+  background: rgba(103,57,47,.82);
+}
+.world-time-control__switch.is-sunset span {
+  transform: translateX(12px); background: #ffc18c; color: #543228;
 }
 .world-time-control__switch.is-night {
   background: rgba(28,44,70,.86);
@@ -1269,6 +1281,7 @@
   .world-time-control > span { display: none; }
   .world-time-control__switch { width: 32px; height: 20px; }
   .world-time-control__switch.is-night span { transform: translateX(13px); }
+  .world-time-control__switch.is-sunset span { transform: translateX(5px); }
   .world-progress {
     top: calc(max(14px, env(safe-area-inset-top)) + 42px);
     left: max(14px, env(safe-area-inset-left));

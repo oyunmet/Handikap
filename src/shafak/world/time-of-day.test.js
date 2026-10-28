@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   TIME_OF_DAY_CYCLE_MS,
   TIME_OF_DAY_STAR_COUNT,
+  getNextTimeOfDayMode,
   getCurrentTimeOfDayMode,
   getTimeOfDayDaylight,
   getTimeOfDayLightingState,
@@ -34,6 +35,13 @@ test("manual sky modes select stable phases and URL overrides take precedence", 
   assert.equal(resolveTimeOfDayMode("", "sunset"), "sunset");
 });
 
+test("the time control cycles between the automatic clock, day, and night", () => {
+  assert.equal(getNextTimeOfDayMode("auto"), "day");
+  assert.equal(getNextTimeOfDayMode("day"), "night");
+  assert.equal(getNextTimeOfDayMode("night"), "auto");
+  assert.equal(getNextTimeOfDayMode("sunset"), "auto");
+});
+
 test("daylight and twilight are smooth through sunset and sunrise", () => {
   assert.ok(getTimeOfDayDaylight(0) > 0.99);
   assert.ok(getTimeOfDayDaylight(0.5) < 0.01);
@@ -60,13 +68,13 @@ test("shared lighting state keeps the sun direction normalized and fog finite", 
   assert.ok(getTimeOfDayLightingState(Number.NaN).sunDirection.y > 0);
 });
 
-test("daytime is the default and night keeps a readable minimum light level", () => {
-  assert.equal(getCurrentTimeOfDayMode(), "day");
+test("automatic time is the default and night keeps a readable minimum light level", () => {
+  assert.equal(getCurrentTimeOfDayMode(), "auto");
   const night = getTimeOfDayLightingState(getTimeOfDayPhase(0, "night"));
   const day = getTimeOfDayLightingState(getTimeOfDayPhase(0, "day"));
-  assert.ok(night.lightScale.directional >= 0.58);
-  assert.ok(night.lightScale.hemisphere >= 0.74);
-  assert.ok(night.lightScale.ambient >= 0.7);
+  assert.ok(night.lightScale.directional >= 0.8);
+  assert.ok(night.lightScale.hemisphere >= 0.9);
+  assert.ok(night.lightScale.ambient >= 0.92);
   assert.ok(day.lightScale.directional > 0.98);
   assert.ok(day.lightScale.hemisphere > 0.98);
   assert.ok(day.lightScale.ambient > 0.98);

@@ -60,6 +60,8 @@ const POSE_LIMITS: Record<CharacterPoseBoneName, number> = {
 };
 
 const worldPosePosition = new THREE.Vector3();
+export const WORLD_CROUCH_PELVIS_DROP_METERS = 0.1;
+export const WORLD_SLIDE_PELVIS_DROP_METERS = 0.14;
 
 export type CharacterPoseBaseline = ReadonlyMap<
   CharacterPoseBoneName,
@@ -321,7 +323,9 @@ export function poseCharacterWithoutClip(
   const pelvis = bones.pelvis;
   const pelvisBaseline = baseline?.get("pelvis");
   if (pelvis && pelvisBaseline && (lowPoseState === "EĞİLİYOR" || lowPoseState === "KAYIYOR")) {
-    const pelvisDrop = lowPoseState === "KAYIYOR" ? 0.14 : 0.1;
+    const pelvisDrop = lowPoseState === "KAYIYOR"
+      ? WORLD_SLIDE_PELVIS_DROP_METERS
+      : WORLD_CROUCH_PELVIS_DROP_METERS;
     const parent = pelvis.parent;
     if (parent) {
       parent.updateWorldMatrix(true, false);

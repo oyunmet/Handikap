@@ -14,6 +14,7 @@ import {
   getWorldLocomotionPoseAngles,
   poseCharacterWithoutClip,
   restoreCharacterPoseBaseline,
+  WORLD_CROUCH_PELVIS_DROP_METERS,
 } from "./character-pose.ts";
 
 test("character models fit the requested height with their lowest point on the floor", () => {
@@ -228,6 +229,49 @@ test("player-hero GLB rig aliases resolve the real torso and limb bones", () => 
   assert.equal(bones.leftUpperArm?.name, "UpperArm.L");
   assert.equal(bones.rightShin?.name, "LowerLeg.R");
   assert.equal(bones.leftFoot?.name, "Foot.L");
+});
+
+test("crouch lowers the shared Body bone by a fixed world distance at GLB scales", () => {
+  for (const fittedScale of [0.008, 0.02]) {
+    const fittedModel = new THREE.Group();
+    fittedModel.scale.setScalar(fittedScale);
+    const armature = new THREE.Group();
+    armature.scale.setScalar(100);
+    fittedModel.add(armature);
+    const root = new THREE.Bone();
+    root.name = "Root";
+    const body = new THREE.Bone();
+    body.name = "Body";
+    body.position.y = 0.011;
+    root.add(body);
+    armature.add(root);
+    fittedModel.updateMatrixWorld(true);
+
+    const bones = findCharacterPoseBones(fittedModel);
+    const baseline = captureCharacterPoseBaseline(bones);
+    const standingBodyY = body.getWorldPosition(new THREE.Vector3()).y;
+    const standingRootY = root.getWorldPosition(new THREE.Vector3()).y;
+    poseCharacterWithoutClip(
+      bones,
+      "idle",
+      0,
+      0,
+      0,
+      true,
+      false,
+      0,
+      true,
+      false,
+      { movementState: "EĞİLİYOR" },
+      baseline,
+    );
+    fittedModel.updateMatrixWorld(true);
+
+    const crouchedBodyY = body.getWorldPosition(new THREE.Vector3()).y;
+    const crouchedRootY = root.getWorldPosition(new THREE.Vector3()).y;
+    assert.ok(Math.abs(standingBodyY - crouchedBodyY - WORLD_CROUCH_PELVIS_DROP_METERS) < 1e-6);
+    assert.ok(Math.abs(crouchedRootY - standingRootY) < 1e-6);
+  }
 });
 
 test("locomotion poses keep crouch upright and use the requested run and sprint lean", () => {

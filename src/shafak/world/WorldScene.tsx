@@ -125,7 +125,12 @@ import {
   WORLD_BIOME_PALETTES,
   type WeatherMode,
 } from "./world-biomes";
-import { getCurrentTimeOfDayMode, setCurrentTimeOfDayMode } from "./time-of-day";
+import {
+  getCurrentTimeOfDayMode,
+  getNextTimeOfDayMode,
+  setCurrentTimeOfDayMode,
+  type TimeOfDayMode,
+} from "./time-of-day";
 import {
   getRivalDialoguePrompt,
   readBrokenObstacleIds,
@@ -812,9 +817,19 @@ export default function WorldScene({
   } | null>(null);
   const weatherMode: WeatherMode = "clear";
   const weatherModeRef = useRef(weatherMode);
-  const [timeOfDayMode, setTimeOfDayMode] = useState<"day" | "night">(
-    () => getCurrentTimeOfDayMode() === "night" ? "night" : "day",
-  );
+  const [timeOfDayMode, setTimeOfDayMode] = useState<TimeOfDayMode>(getCurrentTimeOfDayMode);
+  const timeOfDayLabels: Record<TimeOfDayMode, string> = {
+    auto: "OTOMATİK",
+    day: "GÜNDÜZ",
+    sunset: "GÜN BATIMI",
+    night: "GECE",
+  };
+  const timeOfDayIcons: Record<TimeOfDayMode, string> = {
+    auto: "↻",
+    day: "☀",
+    sunset: "◒",
+    night: "☾",
+  };
   const airEnabled = weatherMode !== "clear";
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
@@ -3257,19 +3272,19 @@ export default function WorldScene({
             )}
           </div>
           <div className="world-time-control">
-            <span>{timeOfDayMode === "night" ? "GECE" : "GÜNDÜZ"}</span>
+            <span>{timeOfDayLabels[timeOfDayMode]}</span>
             <button
               className={`world-time-control__switch is-${timeOfDayMode}`}
               type="button"
-              aria-label={timeOfDayMode === "night" ? "Gündüz moduna geç" : "Gece moduna geç"}
-              aria-pressed={timeOfDayMode === "night"}
+              aria-label={`Zaman modu ${timeOfDayLabels[timeOfDayMode]}. Sonraki mod: ${timeOfDayLabels[getNextTimeOfDayMode(timeOfDayMode)]}`}
+              title={`Zaman modu: ${timeOfDayLabels[timeOfDayMode]}`}
               onClick={() => {
                 wake();
-                const nextMode = timeOfDayMode === "night" ? "day" : "night";
+                const nextMode = getNextTimeOfDayMode(timeOfDayMode);
                 setCurrentTimeOfDayMode(nextMode);
                 setTimeOfDayMode(nextMode);
               }}
-            ><span aria-hidden="true">{timeOfDayMode === "night" ? "☾" : "☀"}</span></button>
+            ><span aria-hidden="true">{timeOfDayIcons[timeOfDayMode]}</span></button>
           </div>
         </div>
       </header>
