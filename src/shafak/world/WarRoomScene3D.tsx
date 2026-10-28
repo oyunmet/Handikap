@@ -73,10 +73,13 @@ import {
   countOccupiedWarRoomDecals,
   countActiveWarRoomParticles,
   getWarRoomEffectCount,
+  getWarRoomFrameStats,
   getWarRoomPixelRatio,
   getWarRoomQualityProfile,
   isWarRoomAttackRunContinuous,
+  WAR_ROOM_DRAW_CALL_BUDGET,
   WAR_ROOM_PERFORMANCE_SAMPLE_MS,
+  type WarRoomFrameStats,
 } from "../game/war-room-quality";
 import { disposeWarRoomSceneResources } from "../game/war-room-dispose";
 import type { RenderQuality } from "./graphics-quality";
@@ -124,6 +127,7 @@ type Props = {
   quality: RenderQuality;
   debugMode: boolean;
   onMeleeDebugUpdate: (message: string) => void;
+  onRenderStats: (stats: WarRoomFrameStats) => void;
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
@@ -1920,6 +1924,7 @@ function WarRoomRuntimeScene({
   quality,
   debugMode,
   onMeleeDebugUpdate,
+  onRenderStats,
   onHudUpdate,
   onFinish,
 }: Props) {
@@ -1946,6 +1951,7 @@ function WarRoomRuntimeScene({
   const cameraSideKickRef = useRef(0);
   const cameraFovKickRef = useRef(0);
   const lowHealthBeatAtRef = useRef(0);
+  const renderStatsAtRef = useRef(0);
   const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
     () => room.blockers.map((blocker) => ({
       id: blocker.id,
@@ -3022,6 +3028,12 @@ function WarRoomRuntimeScene({
     const input = inputRef.current;
     if (input.paused) return;
     const wallNow = frame.clock.elapsedTime;
+    const renderStatsNow = performance.now();
+    if (debugMode && renderStatsNow - renderStatsAtRef.current >= 250) {
+      renderStatsAtRef.current = renderStatsNow;
+      // R3F's automatic render completed the preceding frame before this sample.
+      onRenderStats(getWarRoomFrameStats(gl.info.render.calls, rawDelta));
+    }
     if (
       WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
       && runtime.enemies.length > 0
@@ -3090,6 +3102,7 @@ function WarRoomRuntimeScene({
           + `${performanceSample.attackCount} vuruş, en uzun ara ${Math.round(performanceSample.largestAttackGapMs)} ms, `
           + `son ara ${Math.round(finalAttackGapMs)} ms · `
           + `${averageFps.toFixed(1)} ort / ${performanceSample.minFps.toFixed(1)} min FPS · `
+          + `HARİTA ${runtime.room.layoutName} · ÇAĞRI ${gl.info.render.calls}/${WAR_ROOM_DRAW_CALL_BUDGET} · `
           + `FX ${performanceSample.peakActiveParticles}/${qualityProfile.maxActiveParticles}, `
           + `decal ${performanceSample.peakOccupiedDecals}/${WAR_ROOM_DECAL_POOL_SIZE} · `
           + `GPU ${geometryCount} geo (${geometryDelta}), ${textureCount} doku (${textureDelta}) · ${quality}`,

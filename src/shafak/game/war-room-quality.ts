@@ -18,6 +18,25 @@ export type WarRoomQualityProfile = {
 
 export const WAR_ROOM_PERFORMANCE_SAMPLE_MS = 60_000;
 export const WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS = 1_500;
+export const WAR_ROOM_DRAW_CALL_BUDGET = 150;
+
+export type WarRoomFrameStats = {
+  drawCalls: number;
+  fps: number;
+};
+
+export function getWarRoomFrameStats(drawCalls: number, deltaSeconds: number): WarRoomFrameStats {
+  return {
+    drawCalls: Number.isFinite(drawCalls) ? Math.max(0, Math.floor(drawCalls)) : 0,
+    fps: Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? 1 / deltaSeconds : 0,
+  };
+}
+
+export function isWithinWarRoomDrawCallBudget(drawCalls: number) {
+  return Number.isFinite(drawCalls)
+    && drawCalls >= 0
+    && drawCalls <= WAR_ROOM_DRAW_CALL_BUDGET;
+}
 
 const WAR_ROOM_QUALITY_PROFILES: Record<RenderQuality, WarRoomQualityProfile> = {
   low: {

@@ -33,6 +33,7 @@ import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
 import { HudButton, HudIcon, type HudButtonIconKey } from "./HudButton";
 import { playGameButtonClick } from "../audio/howler";
 import type { RenderQuality } from "../world/graphics-quality";
+import { isWithinWarRoomDrawCallBudget, WAR_ROOM_DRAW_CALL_BUDGET, type WarRoomFrameStats } from "./war-room-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
 import {
@@ -439,6 +440,7 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [debugRenderStats, setDebugRenderStats] = useState<WarRoomFrameStats>({ drawCalls: 0, fps: 0 });
   const [killConfirmation, setKillConfirmation] = useState<{ id: number; streak: number } | null>(null);
   const previousKillCountRef = useRef(0);
   const killStreakRef = useRef({ count: 0, at: 0 });
@@ -1124,6 +1126,7 @@ export default function WarRoomGame({
             trainingMode={weaponLabMode}
             quality={quality}
             debugMode={debugMode}
+            onRenderStats={setDebugRenderStats}
             onMeleeDebugUpdate={(message) => {
               if (message.startsWith("İSABET:") || message.startsWith("ISKA:")) {
                 setMeleeDebugMessage(message);
@@ -1175,6 +1178,11 @@ export default function WarRoomGame({
                 {hud.targetName ?? "—"}
                 {" · FİLTRE: "}
                 {hud.targetReason}
+              </span>
+              <span>
+                HARİTA: {currentRoom.name} · ÇİZİM: {debugRenderStats.drawCalls}/{WAR_ROOM_DRAW_CALL_BUDGET}
+                {" · BÜTÇE: "}{isWithinWarRoomDrawCallBudget(debugRenderStats.drawCalls) ? "OK" : "AŞILDI"}
+                {" · FPS: "}{debugRenderStats.fps.toFixed(0)}
               </span>
             </div>
           )}

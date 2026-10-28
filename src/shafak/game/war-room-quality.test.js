@@ -4,6 +4,8 @@ import {
   countOccupiedWarRoomDecals,
   countActiveWarRoomParticles,
   getWarRoomEffectCount,
+  getWarRoomFrameStats,
+  isWithinWarRoomDrawCallBudget,
   getWarRoomPoolLimits,
   getWarRoomPixelRatio,
   getWarRoomQualityProfile,
@@ -93,6 +95,15 @@ test("continuous attack reporting rejects sparse or interrupted runs", () => {
   assert.equal(isWarRoomAttackRunContinuous(90, WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS + 1, 900), false);
   assert.equal(isWarRoomAttackRunContinuous(90, 900, WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS + 1), false);
   assert.equal(isWarRoomAttackRunContinuous(90, Number.NaN, 900), false);
+});
+
+test("debug frame stats report draw calls and unclamped frame rate safely", () => {
+  assert.deepEqual(getWarRoomFrameStats(143, 1 / 60), { drawCalls: 143, fps: 60 });
+  assert.deepEqual(getWarRoomFrameStats(Number.NaN, 0), { drawCalls: 0, fps: 0 });
+  assert.deepEqual(getWarRoomFrameStats(-4, -1), { drawCalls: 0, fps: 0 });
+  assert.equal(isWithinWarRoomDrawCallBudget(150), true);
+  assert.equal(isWithinWarRoomDrawCallBudget(151), false);
+  assert.equal(isWithinWarRoomDrawCallBudget(Number.NaN), false);
 });
 
 test("decal pool usage counts only occupied slots", () => {
