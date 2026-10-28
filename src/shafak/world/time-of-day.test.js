@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   TIME_OF_DAY_CYCLE_MS,
   TIME_OF_DAY_STAR_COUNT,
+  getCurrentTimeOfDayMode,
   getTimeOfDayDaylight,
   getTimeOfDayLightingState,
   getTimeOfDayModeOverride,
@@ -10,6 +11,7 @@ import {
   getTimeOfDaySunAltitude,
   getTimeOfDayTwilight,
   resolveTimeOfDayMode,
+  setCurrentTimeOfDayMode,
 } from "./time-of-day.ts";
 
 test("automatic sky cycles through day, sunset, night, and dawn in six minutes", () => {
@@ -56,4 +58,19 @@ test("shared lighting state keeps the sun direction normalized and fog finite", 
   }
   assert.ok(getTimeOfDayLightingState(0.5).sunDirection.y < 0);
   assert.ok(getTimeOfDayLightingState(Number.NaN).sunDirection.y > 0);
+});
+
+test("daytime is the default and night keeps a readable minimum light level", () => {
+  assert.equal(getCurrentTimeOfDayMode(), "day");
+  const night = getTimeOfDayLightingState(getTimeOfDayPhase(0, "night"));
+  const day = getTimeOfDayLightingState(getTimeOfDayPhase(0, "day"));
+  assert.ok(night.lightScale.directional >= 0.58);
+  assert.ok(night.lightScale.hemisphere >= 0.74);
+  assert.ok(night.lightScale.ambient >= 0.7);
+  assert.ok(day.lightScale.directional > 0.98);
+  assert.ok(day.lightScale.hemisphere > 0.98);
+  assert.ok(day.lightScale.ambient > 0.98);
+  assert.equal(setCurrentTimeOfDayMode("night"), "night");
+  assert.equal(getCurrentTimeOfDayMode(), "night");
+  setCurrentTimeOfDayMode("day");
 });

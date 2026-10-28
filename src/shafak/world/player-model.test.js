@@ -20,7 +20,12 @@ import {
   resolveMappedGlbClipName,
 } from "./model-animation.ts";
 import { PLAYER_CHARACTER_ANIMATION_CLIPS } from "./player-model.ts";
-import { findCharacterPoseBones } from "./character-pose.ts";
+import {
+  captureCharacterPoseBaseline,
+  findCharacterPoseBones,
+  poseCharacterWithoutClip,
+  restoreCharacterPoseBaseline,
+} from "./character-pose.ts";
 import {
   fitCharacterModel,
   getCharacterBounds,
@@ -392,4 +397,47 @@ test("player model uses the animated Quaternius hero at the configured height an
     devParts: devParts.length,
     screenHeightPercent: coverageByMode,
   });
+});
+
+test("crouching lowers the shared player pelvis by 10 cm in world space", async () => {
+  const playerGlb = fs.readFileSync(playerModelUrl);
+  const arrayBuffer = playerGlb.buffer.slice(
+    playerGlb.byteOffset,
+    playerGlb.byteOffset + playerGlb.byteLength,
+  );
+  const gltf = await new Promise((resolve, reject) => {
+    new GLTFLoader().parse(arrayBuffer, "/", resolve, reject);
+  });
+  const model = cloneSkinned(gltf.scene);
+  fitCharacterModel(model, PLAYER_CHARACTER_TARGET_HEIGHT);
+  const bones = findCharacterPoseBones(model);
+  assert.equal(bones.pelvis?.name, "Body");
+  const baseline = captureCharacterPoseBaseline(bones);
+
+  model.updateWorldMatrix(true, true);
+  const standingY = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
+  poseCharacterWithoutClip(
+    bones,
+    "idle",
+    0,
+    0,
+    0,
+    true,
+    false,
+    0,
+    true,
+    false,
+    { movementState: "EĞİLİYOR" },
+    baseline,
+  );
+  model.updateWorldMatrix(true, true);
+  const crouchingY = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
+
+  assert.ok(
+    Math.abs(standingY - crouchingY - 0.1) < 0.003,
+    `crouch should lower the shared pelvis by 10cm, got ${(standingY - crouchingY).toFixed(3)}m`,
+  );
+  restoreCharacterPoseBaseline(bones, baseline);
+  model.updateWorldMatrix(true, true);
+  assert.ok(Math.abs(bones.pelvis.getWorldPosition(new THREE.Vector3()).y - standingY) < 0.001);
 });

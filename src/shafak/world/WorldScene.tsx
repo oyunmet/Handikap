@@ -122,10 +122,10 @@ import WorldAtmosphere from "./WorldAtmosphere";
 import {
   getBiomeForDistance,
   getWeatherHandlingMultiplier,
-  nextWeatherMode,
   WORLD_BIOME_PALETTES,
   type WeatherMode,
 } from "./world-biomes";
+import { getCurrentTimeOfDayMode, setCurrentTimeOfDayMode } from "./time-of-day";
 import {
   getRivalDialoguePrompt,
   readBrokenObstacleIds,
@@ -136,14 +136,6 @@ import { createLatestAsyncSaveQueue } from "./latest-async-save-queue.ts";
 
 const World3D = lazy(() => import("./World3DRouter"));
 import "./world-scene.css";
-
-const WEATHER_LABELS: Record<WeatherMode, string> = {
-  clear: "Açık",
-  ash: "Kül",
-  rain: "Yağmur",
-  storm: "Fırtına",
-  fog: "Sis",
-};
 
 type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequest;
@@ -818,9 +810,11 @@ export default function WorldScene({
     itemId: string;
     equipmentKey?: EquipmentLoadoutKey;
   } | null>(null);
-  const [weatherMode, setWeatherMode] = useState<WeatherMode>("ash");
+  const weatherMode: WeatherMode = "clear";
   const weatherModeRef = useRef(weatherMode);
-  weatherModeRef.current = weatherMode;
+  const [timeOfDayMode, setTimeOfDayMode] = useState<"day" | "night">(
+    () => getCurrentTimeOfDayMode() === "night" ? "night" : "day",
+  );
   const airEnabled = weatherMode !== "clear";
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
@@ -2886,6 +2880,7 @@ export default function WorldScene({
       data-reduced={motionReduced}
       data-air={airEnabled}
       data-weather={weatherMode}
+      data-time-of-day={timeOfDayMode}
       data-biome={sceneBiome}
       data-postfx={visualEffectsEnabled}
       data-finisher={visualEffectsEnabled && battleSession?.phase === "settling"}
@@ -3261,14 +3256,20 @@ export default function WorldScene({
               <small>OTURUM</small>
             )}
           </div>
-          <div className="world-weather">
-            <span>{worldText.weather}: {WEATHER_LABELS[weatherMode]}</span>
+          <div className="world-time-control">
+            <span>{timeOfDayMode === "night" ? "GECE" : "GÜNDÜZ"}</span>
             <button
-              className={`world-weather__switch is-${weatherMode}`}
+              className={`world-time-control__switch is-${timeOfDayMode}`}
               type="button"
-              aria-label={`Hava: ${WEATHER_LABELS[weatherMode]}. Sonraki hava durumuna geç`}
-              onClick={() => { wake(); setWeatherMode(nextWeatherMode); }}
-            ><span /></button>
+              aria-label={timeOfDayMode === "night" ? "Gündüz moduna geç" : "Gece moduna geç"}
+              aria-pressed={timeOfDayMode === "night"}
+              onClick={() => {
+                wake();
+                const nextMode = timeOfDayMode === "night" ? "day" : "night";
+                setCurrentTimeOfDayMode(nextMode);
+                setTimeOfDayMode(nextMode);
+              }}
+            ><span aria-hidden="true">{timeOfDayMode === "night" ? "☾" : "☀"}</span></button>
           </div>
         </div>
       </header>

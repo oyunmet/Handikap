@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import type { WorldMotion } from "./movement";
-import { getBiomeTransition, getWorldDaylight, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
+import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./world-biomes";
 import {
   createWorldRoadEnvironment,
   positionWorldRoadEnvironment,
@@ -47,12 +47,6 @@ export default function WorldRoadEnvironmentLayer({
   }, [weather]);
   const lastSkyDistance = useRef(Number.NaN);
   const lastSkyWeather = useRef<WeatherMode | null>(null);
-  const lastLightingDistance = useRef(Number.NaN);
-  const hemisphereRef = useRef<THREE.HemisphereLight>(null);
-  const sunRef = useRef<THREE.DirectionalLight>(null);
-  const coolTarget = useMemo(() => new THREE.Color(), []);
-  const groundTarget = useMemo(() => new THREE.Color(), []);
-  const sunTarget = useMemo(() => new THREE.Color(), []);
   const skyPixels = skyTexture.image.data as Uint8Array;
 
   useEffect(() => {
@@ -96,39 +90,21 @@ export default function WorldRoadEnvironmentLayer({
       const from = WORLD_BIOME_PALETTES[transition.from];
       const to = WORLD_BIOME_PALETTES[transition.to];
       const fogColor = new THREE.Color(from.horizon).lerp(new THREE.Color(to.horizon), transition.mix);
-      if (weather === "ash") fogColor.lerp(new THREE.Color("#a1968a"), 0.28);
       const fog = scene.fog;
       if (fog instanceof THREE.Fog) fog.color.copy(fogColor);
       lastSkyDistance.current = distance;
       lastSkyWeather.current = weather;
     }
-
-    if (Math.abs(distance - lastLightingDistance.current) >= 0.75) {
-      lastLightingDistance.current = distance;
-      const daylight = getWorldDaylight(distance);
-      const hemisphere = hemisphereRef.current;
-      const sun = sunRef.current;
-      if (!hemisphere || !sun) return;
-      const transition = getBiomeTransition(distance);
-      const from = WORLD_BIOME_PALETTES[transition.from];
-      const to = WORLD_BIOME_PALETTES[transition.to];
-      hemisphere.color.set(from.coolLight).lerp(coolTarget.set(to.coolLight), transition.mix);
-      hemisphere.groundColor.set(from.ground).lerp(groundTarget.set(to.ground), transition.mix);
-      hemisphere.intensity = 0.9 + daylight * 0.42;
-      sun.color.set(from.torch).lerp(sunTarget.set(to.torch), transition.mix);
-      sun.intensity = 0.52 + daylight * 0.76;
-    }
   });
 
   return (
     <>
-      <hemisphereLight ref={hemisphereRef} args={["#a3c9df", "#857c6d", 1.12]} />
-      <ambientLight color="#fff0dc" intensity={0.34} />
+      <hemisphereLight args={["#a3c9df", "#857c6d", 1.35]} />
+      <ambientLight color="#fff0dc" intensity={0.52} />
       <directionalLight
-        ref={sunRef}
         position={[-8, 14, 5]}
-        color="#f4a45e"
-        intensity={0.96}
+        color="#fff1dc"
+        intensity={1.45}
         castShadow
         shadow-mapSize={[768, 768]}
         shadow-camera-near={0.5}
@@ -138,7 +114,7 @@ export default function WorldRoadEnvironmentLayer({
         shadow-camera-top={13}
         shadow-camera-bottom={-8}
       />
-      <directionalLight position={[7, 8, -9]} color="#a3c9df" intensity={0.42} />
+      <directionalLight position={[7, 8, -9]} color="#a3c9df" intensity={0.5} />
       <primitive object={environment.root} dispose={null} />
     </>
   );

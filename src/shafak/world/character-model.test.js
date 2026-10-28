@@ -143,7 +143,7 @@ test("the mobile camera keeps a normalized player below 35% of portrait screen h
 test("rigged Quaternius bone names support procedural jump, block, and crouch poses", () => {
   const model = new THREE.Group();
   const names = [
-    "Hips", "Spine", "Torso", "Head",
+    "Hips", "Body", "Spine", "Torso", "Head",
     "UpperArmL", "LowerArmL", "UpperArmR", "LowerArmR",
     "UpperLegL", "LowerLegL", "UpperLegR", "LowerLegR", "FootL", "FootR",
   ];
@@ -171,7 +171,7 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   assert.ok(bones.leftUpperArm.rotation.x < 0);
   assert.ok(bones.leftForearm.rotation.x < 0);
   assert.ok(bones.leftFoot.rotation.x > 0);
-  assert.ok(bones.hips.position.y < baseline.get("hips").position.y);
+  assert.ok(bones.pelvis.position.y < baseline.get("pelvis").position.y);
 });
 
 test("procedural jump bends preserve non-zero GLB rest rotations on the legs", () => {
@@ -211,7 +211,7 @@ test("procedural jump bends preserve non-zero GLB rest rotations on the legs", (
 test("player-hero GLB rig aliases resolve the real torso and limb bones", () => {
   const model = new THREE.Group();
   const names = [
-    "Hips", "Abdomen", "Torso", "Head",
+    "Hips", "Body", "Abdomen", "Torso", "Head",
     "UpperArm.L", "LowerArm.L", "UpperArm.R", "LowerArm.R",
     "UpperLeg.L", "LowerLeg.L", "UpperLeg.R", "LowerLeg.R", "Foot.L", "Foot.R",
   ];
@@ -222,6 +222,7 @@ test("player-hero GLB rig aliases resolve the real torso and limb bones", () => 
   }
 
   const bones = findCharacterPoseBones(model);
+  assert.equal(bones.pelvis?.name, "Body");
   assert.equal(bones.spine?.name, "Abdomen");
   assert.equal(bones.chest?.name, "Torso");
   assert.equal(bones.leftUpperArm?.name, "UpperArm.L");

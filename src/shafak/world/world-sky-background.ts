@@ -51,17 +51,11 @@ export function paintWorldSkyGradient(
   const middle = new THREE.Color(from.middle).lerp(new THREE.Color(to.middle), mix);
   const zenith = new THREE.Color(from.zenith).lerp(new THREE.Color(to.zenith), mix);
   const cloud = new THREE.Color(from.cloud).lerp(new THREE.Color(to.cloud), mix);
-  if (weather === "ash") {
-    horizon.lerp(new THREE.Color("#9d8b7c"), 0.44);
-    middle.lerp(new THREE.Color("#737779"), 0.52);
-    zenith.lerp(new THREE.Color("#41484d"), 0.34);
-    cloud.lerp(new THREE.Color("#aa9688"), 0.46);
-  }
   const clouds = getCloudCoverage(width, height);
   const color = new THREE.Color();
   const rowBase = new THREE.Color();
   const srgbColor = new THREE.Color();
-  const warmHorizon = new THREE.Color(weather === "ash" ? "#e7b28f" : "#ffe0b4");
+  const warmHorizon = new THREE.Color("#ffe0b4");
   const sunCore = new THREE.Color("#fff0c8");
   const sunHalo = new THREE.Color("#ffd18e");
   const sunLongitude = Math.PI * 0.48;
@@ -90,7 +84,7 @@ export function paintWorldSkyGradient(
         .lerp(warmHorizon, horizonGlow)
         .lerp(sunHalo, sunGlow)
         .lerp(sunCore, sunDisc * 0.82)
-        .lerp(cloud, clouds[y * width + x] * (weather === "ash" ? 0.32 : 0.25));
+        .lerp(cloud, clouds[y * width + x] * 0.25);
       srgbColor.copy(color).convertLinearToSRGB();
       const offset = (y * width + x) * 4;
       pixels[offset] = Math.round(THREE.MathUtils.clamp(srgbColor.r, 0, 1) * 255);

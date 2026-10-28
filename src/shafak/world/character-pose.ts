@@ -4,6 +4,7 @@ import type { WorldMovementState } from "./world-movement-machine";
 
 export type CharacterPoseBoneName =
   | "hips"
+  | "pelvis"
   | "spine"
   | "chest"
   | "head"
@@ -22,6 +23,7 @@ export type CharacterPoseBones = Partial<Record<CharacterPoseBoneName, THREE.Bon
 
 const BONE_ALIASES: Record<CharacterPoseBoneName, readonly string[]> = {
   hips: ["Rig_Hips", "Hips", "DEF-hips"],
+  pelvis: ["Body", "Pelvis", "Rig_Body"],
   spine: ["Rig_Spine", "Spine", "Spine1", "DEF-spine.001", "Abdomen"],
   chest: ["Rig_Chest", "Spine2", "Torso", "DEF-spine.003"],
   head: ["Rig_Head", "Head", "DEF-head"],
@@ -41,6 +43,7 @@ const normalizeBoneName = (name: string) => name.toLowerCase().replace(/[^a-z0-9
 const clamp01 = (value: number) => THREE.MathUtils.clamp(value, 0, 1);
 const POSE_LIMITS: Record<CharacterPoseBoneName, number> = {
   hips: 0.62,
+  pelvis: 0.62,
   spine: 0.52,
   chest: 0.52,
   head: 0.48,
@@ -55,6 +58,8 @@ const POSE_LIMITS: Record<CharacterPoseBoneName, number> = {
   rightShin: 1.28,
   rightFoot: 0.76,
 };
+
+const worldPosePosition = new THREE.Vector3();
 
 export type CharacterPoseBaseline = ReadonlyMap<
   CharacterPoseBoneName,
@@ -313,11 +318,21 @@ export function poseCharacterWithoutClip(
   }
 
   const lowPoseState = locomotion?.movementState ?? (crouching ? "EĞİLİYOR" : "YERDE_DURUYOR");
-  const hips = bones.hips;
-  const hipsBaseline = baseline?.get("hips");
-  if (hips && hipsBaseline && (lowPoseState === "EĞİLİYOR" || lowPoseState === "KAYIYOR")) {
+  const pelvis = bones.pelvis;
+  const pelvisBaseline = baseline?.get("pelvis");
+  if (pelvis && pelvisBaseline && (lowPoseState === "EĞİLİYOR" || lowPoseState === "KAYIYOR")) {
     const pelvisDrop = lowPoseState === "KAYIYOR" ? 0.14 : 0.1;
-    hips.position.y = hipsBaseline.position.y - pelvisDrop * motionScale;
+    const parent = pelvis.parent;
+    if (parent) {
+      parent.updateWorldMatrix(true, false);
+      worldPosePosition.copy(pelvisBaseline.position).applyMatrix4(parent.matrixWorld);
+      worldPosePosition.y -= pelvisDrop * motionScale;
+      parent.worldToLocal(worldPosePosition);
+      pelvis.position.copy(worldPosePosition);
+    } else {
+      pelvis.position.copy(pelvisBaseline.position);
+      pelvis.position.y -= pelvisDrop * motionScale;
+    }
   }
 
   if (

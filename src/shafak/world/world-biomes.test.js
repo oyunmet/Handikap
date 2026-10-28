@@ -4,11 +4,8 @@ import {
   BIOME_SPAN_METERS,
   BIOME_TRANSITION_METERS,
   getBiomeForDistance,
-  getWorldDaylight,
   getWeatherHandlingMultiplier,
   getBiomeTransition,
-  nextWeatherMode,
-  WORLD_DAY_CYCLE_METERS,
 } from "./world-biomes.ts";
 import { createWorldChunk } from "./world-generation.ts";
 
@@ -39,29 +36,11 @@ test("biome palettes blend smoothly across the first chunk after each biome gate
   });
 });
 
-test("weather control cycles through clear, ash, rain, storm, and fog", () => {
-  const cycle = ["clear", "ash", "rain", "storm", "fog"];
-  for (let index = 0; index < cycle.length; index += 1) {
-    assert.equal(nextWeatherMode(cycle[index]), cycle[(index + 1) % cycle.length]);
-  }
-});
-
 test("rain and storms reduce steering response while other weather keeps normal handling", () => {
   assert.equal(getWeatherHandlingMultiplier("clear"), 1);
-  assert.equal(getWeatherHandlingMultiplier("ash"), 1);
   assert.equal(getWeatherHandlingMultiplier("fog"), 1);
   assert.equal(getWeatherHandlingMultiplier("rain"), 0.9);
   assert.equal(getWeatherHandlingMultiplier("storm"), 0.76);
-});
-
-test("daylight transitions smoothly between daytime and night across the world cycle", () => {
-  assert.equal(getWorldDaylight(0), 1);
-  assert.equal(getWorldDaylight(WORLD_DAY_CYCLE_METERS / 2), 0.18);
-  assert.ok(getWorldDaylight(WORLD_DAY_CYCLE_METERS / 4) > 0.5);
-  assert.ok(Math.abs(
-    getWorldDaylight(WORLD_DAY_CYCLE_METERS - 1) - getWorldDaylight(0),
-  ) < 0.001);
-  assert.equal(getWorldDaylight(Number.NaN), 1);
 });
 
 test("generated scenic batches contain road props and marsh flora, not fake gems", () => {

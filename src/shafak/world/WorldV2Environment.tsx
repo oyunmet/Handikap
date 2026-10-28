@@ -203,9 +203,9 @@ export function WorldV2WeatherPoints({
   const geometry = useMemo(() => createWeatherPoints(count), [count]);
   const color = weather === "storm" || weather === "rain"
     ? "#c6d8e6"
-    : weather === "fog" ? "#d4c9c0" : weather === "ash" ? "#ff9b55" : "#e7b27f";
+    : weather === "fog" ? "#d4c9c0" : "#e7b27f";
   useEffect(() => () => geometry.dispose(), [geometry]);
-  useFrame((frame) => {
+  useFrame(() => {
     const motion = motionRef.current;
     if (!pointsRef.current) return;
     pointsRef.current.position.set(
@@ -213,11 +213,7 @@ export function WorldV2WeatherPoints({
       0,
       -(motion.distance - motion.cameraX),
     );
-    if (weather === "ash") {
-      pointsRef.current.rotation.z = Math.sin(frame.clock.elapsedTime * 0.14) * 0.012;
-    } else {
-      pointsRef.current.rotation.z = 0;
-    }
+    pointsRef.current.rotation.z = 0;
     pointsRef.current.visible = enabled && weather !== "clear";
   });
   return (
@@ -227,7 +223,7 @@ export function WorldV2WeatherPoints({
         size={0.07}
         sizeAttenuation
         transparent
-        opacity={weather === "fog" ? 0.24 : weather === "ash" ? 0.5 : 0.42}
+        opacity={weather === "fog" ? 0.24 : 0.42}
         depthWrite={false}
       />
     </points>

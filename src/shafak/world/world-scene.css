@@ -153,11 +153,6 @@
 }
 .world-motion-filters { position: absolute; width: 0; height: 0; overflow: hidden; }
 .world-atmosphere { position: absolute; z-index: 3; inset: 0; overflow: hidden; pointer-events: none; }
-.world-atmosphere__night {
-  position: absolute; inset: 0; opacity: var(--night-opacity, 0);
-  background: linear-gradient(180deg, rgba(13,22,46,.36), rgba(21,29,51,.18) 62%, rgba(12,18,33,.3));
-  mix-blend-mode: multiply; transition: opacity 1.2s linear;
-}
 .world-atmosphere::before {
   position: absolute; inset: 25% -20% 26%; content: "";
   background: radial-gradient(ellipse at 35% 52%, rgba(192,150,127,.12), transparent 42%),
@@ -647,7 +642,7 @@
   border: 1.5px solid #a6eee2; background: rgba(80,203,189,.18);
   box-shadow: 0 0 8px rgba(83,219,205,.35);
 }
-.world-weather {
+.world-time-control {
   display: flex; align-items: center; gap: 8px; padding: 7px 9px;
   border: 1px solid rgba(231,210,172,.24); border-radius: 3px;
   background: rgba(20,20,24,.7); box-shadow: inset 0 1px rgba(255,255,255,.06);
@@ -655,20 +650,28 @@
   font-size: 8px; letter-spacing: .11em; text-transform: uppercase;
   backdrop-filter: blur(12px) saturate(1.1);
 }
-.world-weather__switch {
+.world-time-control__switch {
   position: relative; width: 44px; height: 22px; padding: 3px;
   border: 1px solid rgba(229,204,161,.34); border-radius: 99px;
   background: rgba(20,22,27,.82); cursor: pointer;
 }
-.world-weather__switch span {
+.world-time-control__switch span {
   display: block; width: 13px; height: 13px; border-radius: 50%;
-  background: #e8c37d; transition: transform .2s ease;
+  font: 700 9px/13px Arial, sans-serif; text-align: center;
+  transition: transform .2s ease, background-color .2s ease;
 }
-.world-weather__switch.is-clear span { transform: translateX(0); background: #e8d294; }
-.world-weather__switch.is-ash span { transform: translateX(6px); background: #dda773; }
-.world-weather__switch.is-rain span { transform: translateX(12px); background: #a6dff4; }
-.world-weather__switch.is-storm span { transform: translateX(18px); background: #bacdf0; }
-.world-weather__switch.is-fog span { transform: translateX(23px); background: #ccd5d8; }
+.world-time-control__switch.is-day {
+  background: rgba(102,78,35,.7);
+}
+.world-time-control__switch.is-day span {
+  transform: translateX(0); background: #f5d57d; color: #49351c;
+}
+.world-time-control__switch.is-night {
+  background: rgba(28,44,70,.86);
+}
+.world-time-control__switch.is-night span {
+  transform: translateX(25px); background: #c4d9f5; color: #26344c;
+}
 .world-controls {
   position: absolute; z-index: 5; right: clamp(14px, 3vw, 42px); bottom: max(20px, env(safe-area-inset-bottom));
   left: clamp(14px, 3vw, 42px); display: flex; align-items: flex-end; justify-content: space-between; gap: 14px;
@@ -1254,7 +1257,7 @@
   .world-resource-hud {
     align-items: center;
   }
-  .world-weather {
+  .world-time-control {
     min-width: 38px;
     min-height: 29px;
     justify-content: center;
@@ -1263,12 +1266,9 @@
     background: rgba(20,20,24,.5);
     backdrop-filter: blur(7px);
   }
-  .world-weather > span { display: none; }
-  .world-weather__switch { width: 32px; height: 20px; }
-  .world-weather__switch.is-ash span { transform: translateX(4px); }
-  .world-weather__switch.is-rain span { transform: translateX(8px); }
-  .world-weather__switch.is-storm span { transform: translateX(12px); }
-  .world-weather__switch.is-fog span { transform: translateX(15px); }
+  .world-time-control > span { display: none; }
+  .world-time-control__switch { width: 32px; height: 20px; }
+  .world-time-control__switch.is-night span { transform: translateX(13px); }
   .world-progress {
     top: calc(max(14px, env(safe-area-inset-top)) + 42px);
     left: max(14px, env(safe-area-inset-left));
@@ -1403,12 +1403,9 @@
   .world-profile__name { font-size: 8px; }
   .world-currency { gap: 3px; padding: 0 5px; font-size: 8px; }
   .world-material-hud { gap: 5px; padding: 4px 5px; font-size: 7px; }
-  .world-weather { min-width: 34px; padding: 2px; }
-  .world-weather__switch { width: 29px; }
-  .world-weather__switch.is-ash span { transform: translateX(3px); }
-  .world-weather__switch.is-rain span { transform: translateX(6px); }
-  .world-weather__switch.is-storm span { transform: translateX(9px); }
-  .world-weather__switch.is-fog span { transform: translateX(12px); }
+  .world-time-control { min-width: 34px; padding: 2px; }
+  .world-time-control__switch { width: 29px; }
+  .world-time-control__switch.is-night span { transform: translateX(10px); }
   .world-status { display: none; }
   .world-joystick { left: max(14px, calc(env(safe-area-inset-left) + 8px)); width: 116px; height: 116px; }
 }
@@ -1499,7 +1496,7 @@
 
 .world-scene:not([data-battle="none"]) .world-topbar,
 .world-scene:not([data-battle="none"]) .world-progress,
-.world-scene:not([data-battle="none"]) .world-weather,
+.world-scene:not([data-battle="none"]) .world-time-control,
 .world-scene:not([data-battle="none"]) .world-joystick,
 .world-scene:not([data-battle="none"]) .world-mobile-hint,
 .world-scene:not([data-battle="none"]) .world-encounter,

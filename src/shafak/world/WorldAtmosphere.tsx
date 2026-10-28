@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import type { WeatherMode } from "./world-biomes";
-import { getWorldDaylight } from "./world-biomes";
 
 type Props = {
   quality: "high" | "balanced" | "low";
@@ -11,8 +10,7 @@ type Props = {
 
 export default function WorldAtmosphere({ quality, motionReduced, weather, travel }: Props) {
   const count = quality === "high" ? 24 : quality === "balanced" ? 15 : 5;
-  const ashCount = weather === "ash" ? count : weather === "fog" ? Math.ceil(count / 3) : 0;
-  const daylight = getWorldDaylight(travel);
+  const ambientMoteCount = weather === "fog" ? Math.ceil(count / 3) : 0;
   return (
     <div
       className="world-atmosphere"
@@ -21,13 +19,11 @@ export default function WorldAtmosphere({ quality, motionReduced, weather, trave
       data-reduced={motionReduced}
       style={{
         "--air-parallax": `${-travel * .018}px`,
-          "--night-opacity": `${((1 - daylight) * 0.045).toFixed(3)}`,
         "--world-wind-duration": weather === "clear" ? "24s" : weather === "fog" ? "32s" : "10s",
       } as CSSProperties}
       aria-hidden="true"
     >
-      <i className="world-atmosphere__night" />
-      {Array.from({ length: ashCount }, (_, index) => (
+      {Array.from({ length: ambientMoteCount }, (_, index) => (
         <i
           className={`world-atmosphere__mote${index % 4 === 0 ? " is-warm" : ""}`}
           key={index}
@@ -35,9 +31,9 @@ export default function WorldAtmosphere({ quality, motionReduced, weather, trave
             "--mote-x": `${(index * 73 + 13) % 100}%`,
             "--mote-y": `${(index * 47 + 19) % 88}%`,
             "--mote-size": `${index % 5 === 0 ? 3 : 2}px`,
-            "--mote-duration": `${(weather === "fog" ? 16 : 5.5) + (index % 7) * (weather === "fog" ? 2.3 : 1.05)}s`,
+            "--mote-duration": `${16 + (index % 7) * 2.3}s`,
             "--mote-delay": `${-((index * 7) % 19)}s`,
-            "--mote-drift": `${((index % 5) - 2) * (weather === "fog" ? 18 : 46)}px`,
+            "--mote-drift": `${((index % 5) - 2) * 18}px`,
             "--mote-lift": `${36 + (index % 4) * 17}px`,
           } as CSSProperties}
         />

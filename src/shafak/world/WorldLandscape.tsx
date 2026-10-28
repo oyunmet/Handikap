@@ -764,11 +764,11 @@ function WeatherParticles({
         <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
       </bufferGeometry>
       <pointsMaterial
-        color={weather === "ash" ? "#f2e7d8" : weather === "storm" ? "#c6dcf5" : weather === "rain" ? "#b4d9f0" : weather === "fog" ? "#d4c9c0" : "#ffca8a"}
-        size={weather === "ash" ? 0.058 : weather === "storm" ? 0.11 : weather === "rain" ? 0.09 : 0.1}
+        color={weather === "storm" ? "#c6dcf5" : weather === "rain" ? "#b4d9f0" : weather === "fog" ? "#d4c9c0" : "#ffca8a"}
+        size={weather === "storm" ? 0.11 : weather === "rain" ? 0.09 : 0.1}
         sizeAttenuation
         transparent
-        opacity={weather === "ash" ? 0.5 : weather === "fog" ? 0.34 : weather === "storm" ? 0.76 : 0.66}
+        opacity={weather === "fog" ? 0.34 : weather === "storm" ? 0.76 : 0.66}
         depthWrite={false}
       />
     </points>

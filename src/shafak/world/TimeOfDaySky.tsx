@@ -37,8 +37,8 @@ const SKY_FRAGMENT_SHADER = `
     float dawn = max(0.0, 1.0 - abs(phase - 0.75) / 0.12);
     float twilight = max(sunset, dawn);
 
-    vec3 nightZenith = vec3(0.018, 0.035, 0.082);
-    vec3 nightHorizon = vec3(0.075, 0.12, 0.21);
+    vec3 nightZenith = vec3(0.035, 0.06, 0.13);
+    vec3 nightHorizon = vec3(0.11, 0.17, 0.27);
     vec3 dayZenith = vec3(0.12, 0.35, 0.62);
     vec3 dayHorizon = vec3(0.58, 0.72, 0.82);
     vec3 twilightZenith = vec3(0.23, 0.17, 0.34);
@@ -224,7 +224,7 @@ export default function TimeOfDaySky({ quality }: Props) {
         groundColor?: THREE.Color;
       };
       if (light instanceof THREE.DirectionalLight) {
-        light.intensity = snapshot.intensity * (0.28 + daylight * 0.72);
+        light.intensity = snapshot.intensity * lighting.lightScale.directional;
         if (snapshot.color) {
           light.color.copy(snapshot.color).lerp(twilightTint, twilight * 0.22);
         }
@@ -232,16 +232,16 @@ export default function TimeOfDaySky({ quality }: Props) {
           primarySunPositionAssigned = true;
           light.position.set(
             lighting.sunDirection.x * snapshot.positionRadius,
-            lighting.sunDirection.y * snapshot.position.length(),
+            Math.max(0.25, Math.abs(lighting.sunDirection.y)) * snapshot.position.length(),
             lighting.sunDirection.z * snapshot.positionRadius,
           );
         }
       } else if (light instanceof THREE.HemisphereLight) {
-        light.intensity = snapshot.intensity * (0.35 + daylight * 0.65);
+        light.intensity = snapshot.intensity * lighting.lightScale.hemisphere;
         if (snapshot.color) light.color.copy(snapshot.color).lerp(nightTint, night * 0.42);
         if (snapshot.groundColor) light.groundColor.copy(snapshot.groundColor).lerp(nightFog, night * 0.24);
       } else if (light instanceof THREE.AmbientLight) {
-        light.intensity = snapshot.intensity * (0.38 + daylight * 0.62);
+        light.intensity = snapshot.intensity * lighting.lightScale.ambient;
         if (snapshot.color) light.color.copy(snapshot.color).lerp(nightTint, night * 0.22);
       } else if (light instanceof THREE.PointLight) {
         light.intensity = snapshot.intensity * (1 + night * 0.14);

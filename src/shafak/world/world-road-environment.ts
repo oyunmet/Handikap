@@ -29,14 +29,6 @@ const ASH_SURFACE_COLORS = {
   ground: "#a69b8c",
   road: "#bec7c7",
 } as const;
-const ASH_WEATHER_TINTS = {
-  road: new THREE.Color("#7d8585"),
-  ground: new THREE.Color("#4f504e"),
-  shoulder: new THREE.Color("#66635e"),
-  stone: new THREE.Color("#817a71"),
-  foliage: new THREE.Color("#635e55"),
-};
-
 function seededRandom(seed: number) {
   let state = seed >>> 0;
   return () => {
@@ -675,30 +667,21 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
     if (Math.abs(distance - lastPaletteDistance) < 0.65 && weather === lastWeather) return;
     lastPaletteDistance = distance;
     lastWeather = weather;
-    const ashWeather = weather === "ash";
     materials.road.forEach((material) => {
       material.color.copy(colorForBiome(distance, "road"))
         .lerp(new THREE.Color("#c5cbca"), 0.4)
         .multiplyScalar(1.08);
-      if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.road, 0.24);
     });
     materials.roadBed.color.copy(colorForBiome(distance, "road"))
       .multiplyScalar(0.28);
     materials.ground.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.79);
-    if (ashWeather) materials.ground.color.lerp(ASH_WEATHER_TINTS.ground, 0.32);
     materials.shoulder.forEach((material) => {
       material.color.copy(colorForBiome(distance, "ground")).multiplyScalar(0.98);
-      if (ashWeather) material.color.lerp(ASH_WEATHER_TINTS.shoulder, 0.34);
     });
     materials.curb.color.copy(colorForBiome(distance, "stone")).multiplyScalar(0.88);
     materials.stone.color.copy(colorForBiome(distance, "stone"));
-    if (ashWeather) {
-      materials.curb.color.lerp(ASH_WEATHER_TINTS.stone, 0.22);
-      materials.stone.color.lerp(ASH_WEATHER_TINTS.stone, 0.22);
-    }
     materials.bark.color.copy(colorForBiome(distance, "bark"));
     materials.foliage.color.copy(colorForBiome(distance, "foliage"));
-    if (ashWeather) materials.foliage.color.lerp(ASH_WEATHER_TINTS.foliage, 0.38);
     materials.rock.color.copy(colorForBiome(distance, "stone")).multiplyScalar(0.93);
     materials.grass.color.copy(colorForBiome(distance, "foliage")).lerp(colorForBiome(distance, "ground"), 0.34);
     materials.farMountain.color.copy(colorForBiome(distance, "far"));

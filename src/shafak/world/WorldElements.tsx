@@ -537,7 +537,7 @@ function HorizonFogBank({ motionRef, weather }: { motionRef: MotionRef; weather:
     const to = ROAD_PALETTE_COLORS[transition.to].fog;
     HORIZON_FOG_MATERIAL.uniforms.uColor.value.lerpColors(from, to, transition.mix);
     HORIZON_FOG_MATERIAL.uniforms.uOpacity.value =
-      weather === "fog" ? 0.7 : weather === "storm" ? 0.38 : weather === "rain" ? 0.28 : weather === "ash" ? 0.2 : 0.08;
+      weather === "fog" ? 0.7 : weather === "storm" ? 0.38 : weather === "rain" ? 0.28 : 0.08;
   });
   return (
     <mesh
@@ -1173,7 +1173,7 @@ export function WorldChunks({
           scale={[18, 5, 34]}
           size={quality === "high" ? 2.3 : quality === "balanced" ? 1.8 : 1.4}
           speed={motionReduced ? 0 : 0.42}
-          color={weather === "storm" ? "#c3dafa" : weather === "rain" ? "#a5dcf5" : weather === "fog" ? "#c7d4d9" : weather === "ash" ? "#e5a566" : "#e5a566"}
+          color={weather === "storm" ? "#c3dafa" : weather === "rain" ? "#a5dcf5" : weather === "fog" ? "#c7d4d9" : "#e5a566"}
           opacity={0.48}
           noise={0.8}
         />

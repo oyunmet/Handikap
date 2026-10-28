@@ -3,8 +3,9 @@ export type TimeOfDayMode = "auto" | "day" | "sunset" | "night";
 export const TIME_OF_DAY_CYCLE_MS = 6 * 60 * 1_000;
 export const TIME_OF_DAY_SETTING_EVENT = "shafak-time-of-day-change";
 export const TIME_OF_DAY_STAR_COUNT = 120;
+const TIME_OF_DAY_STORAGE_KEY = "shafak-world-time-of-day";
 
-let currentMode: TimeOfDayMode = "auto";
+let currentMode: TimeOfDayMode = "day";
 
 export function normalizeTimeOfDayMode(value: unknown): TimeOfDayMode {
   return value === "day" || value === "sunset" || value === "night" ? value : "auto";
@@ -69,6 +70,11 @@ export function getTimeOfDayLightingState(phase: number) {
     twilight,
     night: 1 - daylight,
     altitude,
+    lightScale: {
+      directional: 0.58 + daylight * 0.42,
+      hemisphere: 0.74 + daylight * 0.26,
+      ambient: 0.7 + daylight * 0.3,
+    },
     sunDirection: {
       x: Math.cos(angle) * horizonDistance,
       y: altitude,
@@ -83,12 +89,25 @@ export function getTimeOfDayLightingState(phase: number) {
 }
 
 export function getCurrentTimeOfDayMode(): TimeOfDayMode {
+  if (typeof window !== "undefined") {
+    try {
+      const savedMode = window.localStorage.getItem(TIME_OF_DAY_STORAGE_KEY);
+      if (savedMode) currentMode = normalizeTimeOfDayMode(savedMode);
+    } catch {
+      // The active mode still works for this session when storage is unavailable.
+    }
+  }
   return currentMode;
 }
 
 export function setCurrentTimeOfDayMode(value: unknown): TimeOfDayMode {
   currentMode = normalizeTimeOfDayMode(value);
   if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(TIME_OF_DAY_STORAGE_KEY, currentMode);
+    } catch {
+      // Keep the in-memory setting and notify the scene even if it cannot persist.
+    }
     window.dispatchEvent(new CustomEvent(TIME_OF_DAY_SETTING_EVENT, { detail: currentMode }));
   }
   return currentMode;
