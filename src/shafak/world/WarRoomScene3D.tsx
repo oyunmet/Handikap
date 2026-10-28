@@ -1188,11 +1188,11 @@ function PlayerActor({
         : 0;
       root.position.set(
         player.x + Math.sin(bodyYaw) * heavyStep,
-        player.jumpHeight,
+        player.jumpHeight - (player.prone ? 0.34 : 0),
         player.z - Math.cos(bodyYaw) * heavyStep,
       );
       root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 45, delta);
-      root.scale.y = player.crouched ? 0.78 : 1;
+      root.scale.y = player.prone ? 0.5 : player.crouched ? 0.78 : 1;
     }
     const hand = modelRef.current && [
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
@@ -3049,9 +3049,27 @@ function WarRoomRuntimeScene({
     player.joystickAngleDegrees = orientation.joystickAngleDegrees;
     player.facingCamera = orientation.facingCamera;
 
+    if (input.pronePressed) {
+      player.prone = !player.prone;
+      player.crouched = player.prone;
+      input.pronePressed = false;
+    }
     if (input.crouchPressed) {
+      player.prone = false;
       player.crouched = !player.crouched;
       input.crouchPressed = false;
+    }
+    if (input.weaponSlotPressed !== null) {
+      const requestedSlot = input.weaponSlotPressed;
+      if (requestedSlot >= 0 && requestedSlot < weaponIds.length && requestedSlot !== player.activeSlot) {
+        player.activeSlot = requestedSlot as 0 | 1;
+        player.reloadingWeapon = null;
+        player.reloadUntil = 0;
+        player.meleeInputPending = false;
+        player.meleeComboIndex = 0;
+        player.meleeComboCount = 0;
+      }
+      input.weaponSlotPressed = null;
     }
     if (input.swapPressed) {
       player.activeSlot = player.activeSlot === 0 ? 1 : 0;
@@ -3080,7 +3098,11 @@ function WarRoomRuntimeScene({
       input.dodgePressed = false;
     }
 
-    const speed = player.crouched ? 3.05 : 6.1;
+    const sprintRequested = !player.crouched
+      && (input.sprintLocked || (moveY >= 0.93 && Math.abs(moveX) <= 0.34))
+      && inputLength >= 0.28;
+    player.sprinting = sprintRequested && player.stamina > 0;
+    const speed = player.prone ? 1.25 : player.crouched ? 3.05 : player.sprinting ? 8.2 : 6.1;
     let dx = (rightX * moveX + forwardX * moveY) * speed * delta;
     let dz = (rightZ * moveX + forwardZ * moveY) * speed * delta;
     if (now < player.dodgeUntil) {
@@ -3142,7 +3164,9 @@ function WarRoomRuntimeScene({
       );
       footstepAtRef.current = now + (player.crouched ? 0.58 : inputLength > 0.7 ? 0.34 : 0.46);
     }
-    player.stamina = Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
+    player.stamina = player.sprinting
+      ? Math.max(0, player.stamina - delta * 10)
+      : Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
     resolveMeleeContact(now, wallNow);
 
@@ -3454,7 +3478,7 @@ function WarRoomRuntimeScene({
 
     const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!.range;
     cameraFovKickRef.current *= Math.exp(-12 * delta);
-    const desiredFov = (input.aimHeld ? 48 : 70) + cameraFovKickRef.current;
+    const desiredFov = (input.aimHeld ? 48 : player.sprinting ? 76 : 70) + cameraFovKickRef.current;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
     perspective.updateProjectionMatrix();
     const cameraForwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
@@ -3465,7 +3489,7 @@ function WarRoomRuntimeScene({
       : 0;
     const cameraBack = (input.aimHeld ? 2.8 : 4.05) * (1 - victoryZoom * 0.18);
     const shoulder = input.aimHeld ? 1.02 : 0.92;
-    cameraStart.set(player.x, player.jumpHeight + (player.crouched ? 1.2 : 1.55), player.z);
+    cameraStart.set(player.x, player.jumpHeight + (player.prone ? 0.65 : player.crouched ? 1.2 : 1.55), player.z);
     cameraDesired.set(
       player.x - cameraForwardX * cameraBack + Math.cos(player.yaw) * shoulder,
       cameraStart.y + 0.35 - cameraForwardY * cameraBack,
@@ -3541,7 +3565,7 @@ function WarRoomRuntimeScene({
     camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * delta));
     cameraLook.set(
       player.x + cameraForwardX * 10,
-      player.jumpHeight + (player.crouched ? 1.18 : 1.48) + cameraForwardY * 10 + cameraKickRef.current,
+      player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48) + cameraForwardY * 10 + cameraKickRef.current,
       player.z + cameraForwardZ * 10,
     );
     cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current;

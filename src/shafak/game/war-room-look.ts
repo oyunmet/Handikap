@@ -8,12 +8,14 @@ export function applyWarRoomLookDelta(
   input: WarRoomLookInput,
   dx: number,
   dy: number,
-  sensitivity: number,
+  sensitivity: number | { x: number; y: number },
   pointerType: WarRoomLookPointerType,
   invertTouchY = false,
 ) {
-  input.yaw += dx * sensitivity;
+  const sensitivityX = typeof sensitivity === "number" ? sensitivity : sensitivity.x;
+  const sensitivityY = typeof sensitivity === "number" ? sensitivity : sensitivity.y;
+  input.yaw += dx * sensitivityX;
   const touchPitchSign = invertTouchY ? 1 : -1;
-  const pitchDelta = dy * sensitivity * (pointerType === "touch" ? touchPitchSign : 1);
+  const pitchDelta = dy * sensitivityY * (pointerType === "touch" ? touchPitchSign : 1);
   input.pitch = Math.max(WAR_ROOM_PITCH_MIN, Math.min(WAR_ROOM_PITCH_MAX, input.pitch + pitchDelta));
 }

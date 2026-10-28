@@ -123,17 +123,17 @@
     right: max(9px, env(safe-area-inset-right));
     bottom: max(8px, env(safe-area-inset-bottom));
     display: block;
-    width: 124px;
-    height: 138px;
+    width: 170px;
+    height: 174px;
   }
 
   .war-room-control {
     position: absolute;
     display: flex;
-    width: 42px;
-    min-width: 42px;
-    height: 42px;
-    min-height: 42px;
+    width: 66px;
+    min-width: 66px;
+    height: 66px;
+    min-height: 66px;
     gap: 0;
     padding: 2px;
     border: 1px solid rgba(244, 223, 193, .42);
@@ -144,24 +144,25 @@
 
   .war-room-control__symbol { font-size: 16px; }
   .war-room-control b { display: none; }
-  .war-room-control.is-aim { top: 5px; left: 5px; }
-  .war-room-control.is-reload { top: 0; left: 58px; }
-  .war-room-control.is-jump { top: 48px; left: 58px; }
-  .war-room-control.is-dodge { top: 75px; left: 8px; }
+  .war-room-control.is-aim { top: 0; left: 0; }
+  .war-room-control.is-reload { top: 0; left: 72px; }
+  .war-room-control.is-jump { top: 72px; left: 72px; }
+  .war-room-control.is-dodge { top: 88px; left: 0; }
+  .war-room-control.is-sprint-lock { top: 94px; left: 72px; width: 56px; min-width: 56px; height: 56px; min-height: 56px; }
   .war-room-control.is-swap { display: none; }
   .war-room-control.is-fire {
     right: 0;
     bottom: 0;
     left: auto;
-    width: 60px;
-    min-width: 60px;
-    height: 60px;
-    min-height: 60px;
+    width: 92px;
+    min-width: 92px;
+    height: 92px;
+    min-height: 92px;
     border-color: rgba(251, 178, 116, .7);
     background: linear-gradient(145deg, rgba(156, 76, 49, .82), rgba(66, 35, 29, .86));
   }
 
-  .war-room-control.is-fire .war-room-control__symbol { font-size: 22px; }
+  .war-room-control.is-fire .war-room-control__symbol { font-size: 28px; }
   .war-room-pause {
     top: max(7px, env(safe-area-inset-top));
     right: auto;
@@ -297,6 +298,21 @@
 .war-room-stick.is-custom-layout {
   position: absolute;
   pointer-events: auto;
+}
+
+.war-room-stick.is-dynamic {
+  display: none;
+}
+
+.war-room-stick.is-dynamic.is-active {
+  position: absolute;
+  inset: auto;
+  display: grid;
+  left: var(--dynamic-stick-x, 0px);
+  top: var(--dynamic-stick-y, 0px);
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .war-room-weapon-select.is-custom-layout {

@@ -767,12 +767,18 @@
   width: fit-content;
   padding: 5px 8px;
   border-left: 2px solid #dfac68;
+  animation: war-room-kill-feed-fade 4s ease-out both;
   background: rgba(22, 19, 17, 0.68);
   color: #f0e3d0;
   font-size: 8px;
   font-weight: 750;
   letter-spacing: 0.05em;
   text-shadow: 0 1px 3px #000;
+}
+
+@keyframes war-room-kill-feed-fade {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .war-room-enemies-left {

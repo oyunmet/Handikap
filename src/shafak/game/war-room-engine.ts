@@ -61,6 +61,8 @@ export type WarRoomRuntime = {
     dodgeZ: number;
     invulnerableUntil: number;
     crouched: boolean;
+    prone: boolean;
+    sprinting: boolean;
     ammo: Partial<Record<WarRoomWeaponId, WarRoomAmmo>>;
     activeSlot: 0 | 1;
     kills: number;
@@ -134,6 +136,9 @@ export type WarRoomInputState = {
   jumpPressed: boolean;
   dodgePressed: boolean;
   crouchPressed: boolean;
+  sprintLocked: boolean;
+  weaponSlotPressed: number | null;
+  pronePressed: boolean;
   paused: boolean;
 };
 
@@ -284,6 +289,8 @@ export function createWarRoomRuntime(
       dodgeZ: 0,
       invulnerableUntil: 0,
       crouched: false,
+      prone: false,
+      sprinting: false,
       ammo,
       activeSlot: 0,
       kills: 0,

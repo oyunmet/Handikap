@@ -32,6 +32,16 @@ import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
 import type { RenderQuality } from "../world/graphics-quality";
 import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
+import {
+  beginWarRoomPointer,
+  endWarRoomPointer,
+  moveWarRoomPointer,
+  pressWarRoomAction,
+  releaseWarRoomAction,
+  resolveWarRoomStanceTap,
+  setWarRoomMoveVector,
+  type WarRoomPointerPosition,
+} from "./war-room-input";
 import type { PlayerProfile } from "./profile";
 import {
   getWarRoomProgressAfterVictory,
@@ -61,6 +71,10 @@ type Props = {
   invertLookY: boolean;
   onInvertLookYChange: (value: boolean) => void;
   facingSetting: WarRoomFacingSetting;
+  lookSensitivityX: number;
+  lookSensitivityY: number;
+  aimSensitivityMultiplier: number;
+  joystickMode: "dynamic" | "fixed";
   onOpenSettings: () => void;
   settingsOpen: boolean;
   controlsEditorOpen: boolean;
@@ -68,7 +82,6 @@ type Props = {
   quality: RenderQuality;
 };
 type Phase = "briefing" | "battle" | "victory" | "defeat";
-type PointerTrack = { id: number | null; x: number; y: number; button: number; pointerType: WarRoomLookPointerType };
 type CalibrationField = "position" | "rotation" | "scale";
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
@@ -137,6 +150,9 @@ function createInputState(facingSetting: WarRoomFacingSetting): WarRoomInputStat
     jumpPressed: false,
     dodgePressed: false,
     crouchPressed: false,
+    sprintLocked: false,
+    weaponSlotPressed: null,
+    pronePressed: false,
     paused: false,
   };
 }
@@ -227,18 +243,26 @@ function ActionButton({
   className = "",
   showHint = false,
   style,
+  icon,
   onDown,
   onUp,
   onClick,
+  onPointerStart,
+  onPointerMove,
+  onPointerEnd,
 }: {
   label: string;
   hint?: string;
   className?: string;
   showHint?: boolean;
   style?: CSSProperties;
+  icon?: string;
   onDown?: () => void;
   onUp?: () => void;
   onClick?: () => void;
+  onPointerStart?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onPointerMove?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onPointerEnd?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }) {
   const pointer = useRef<number | null>(null);
   return (
@@ -252,20 +276,29 @@ function ActionButton({
         event.stopPropagation();
         pointer.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
+        onPointerStart?.(event);
         onDown?.();
+      }}
+      onPointerMove={(event) => {
+        if (pointer.current === event.pointerId) onPointerMove?.(event);
       }}
       onPointerUp={(event) => {
         if (pointer.current !== event.pointerId) return;
         pointer.current = null;
+        onPointerEnd?.(event);
         onUp?.();
         onClick?.();
       }}
-      onPointerCancel={() => {
+      onPointerCancel={(event) => {
+        if (pointer.current !== event.pointerId) return;
         pointer.current = null;
+        onPointerEnd?.(event);
         onUp?.();
       }}
-      onLostPointerCapture={() => {
+      onLostPointerCapture={(event) => {
+        if (pointer.current !== event.pointerId) return;
         pointer.current = null;
+        onPointerEnd?.(event);
         onUp?.();
       }}
       onClick={(event) => {
@@ -274,12 +307,13 @@ function ActionButton({
       }}
     >
       <span className="war-room-control__symbol" aria-hidden="true">
-        {className.includes("fire") ? "✹"
+        {icon ?? (className.includes("fire") ? "✹"
           : className.includes("aim") ? "⌖"
             : className.includes("reload") ? "↻"
               : className.includes("jump") ? "↑"
                 : className.includes("dodge") ? "⤴"
-                  : "⇄"}
+                  : className.includes("sprint") ? "»"
+                    : "⇄")}
       </span>
       <b>{label}</b>
       {showHint && hint && <kbd>{hint}</kbd>}
@@ -327,6 +361,10 @@ export default function WarRoomGame({
   invertLookY,
   onInvertLookYChange,
   facingSetting,
+  lookSensitivityX,
+  lookSensitivityY,
+  aimSensitivityMultiplier,
+  joystickMode,
   onOpenSettings,
   settingsOpen,
   controlsEditorOpen,
@@ -385,6 +423,9 @@ export default function WarRoomGame({
   );
   const [keyboardHintsVisible, setKeyboardHintsVisible] = useState(hasKeyboardPointer);
   const [portraitPhone, setPortraitPhone] = useState(isWarRoomPortraitPhone);
+  const [dynamicStickActive, setDynamicStickActive] = useState(false);
+  const [sprintLockActive, setSprintLockActive] = useState(false);
+  const crouchTapAtRef = useRef<number | null>(null);
   const roomProgressRef = useRef(roomProgress);
   const orientationPauseRef = useRef(false);
   useEffect(() => {
@@ -433,10 +474,11 @@ export default function WarRoomGame({
   );
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
   const inputRef = useRef<WarRoomInputState>(createInputState(facingSetting));
-  const pointerRef = useRef<PointerTrack>({ id: null, x: 0, y: 0, button: -1, pointerType: "mouse" });
+  const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
   const stickPointerRef = useRef<number | null>(null);
+  const dynamicStickOriginRef = useRef<{ x: number; y: number } | null>(null);
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
@@ -454,7 +496,12 @@ export default function WarRoomGame({
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
     inputRef.current = createInputState(facingSetting);
-    pointerRef.current.id = null;
+    pointerRef.current.clear();
+    stickPointerRef.current = null;
+    dynamicStickOriginRef.current = null;
+    crouchTapAtRef.current = null;
+    setDynamicStickActive(false);
+    setSprintLockActive(false);
     setHud(createEmptyHud());
     setMeleeDebugMessage("");
     setMeleeDebugMessageUntil(0);
@@ -522,7 +569,10 @@ export default function WarRoomGame({
     input.aimHeld = false;
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
-    pointerRef.current.id = null;
+    pointerRef.current.clear();
+    stickPointerRef.current = null;
+    dynamicStickOriginRef.current = null;
+    setDynamicStickActive(false);
     setExitPrompt(true);
   }, []);
 
@@ -536,7 +586,10 @@ export default function WarRoomGame({
     inputRef.current.aimHeld = false;
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
-    pointerRef.current.id = null;
+    pointerRef.current.clear();
+    stickPointerRef.current = null;
+    dynamicStickOriginRef.current = null;
+    setDynamicStickActive(false);
   }, [controlsEditorOpen, phase, settingsOpen]);
 
   useEffect(() => {
@@ -570,7 +623,10 @@ export default function WarRoomGame({
         input.aimHeld = false;
         runtimeRef.current.player.chargeStartedAt = 0;
         runtimeRef.current.player.meleeInputPending = false;
-        pointerRef.current.id = null;
+        pointerRef.current.clear();
+        stickPointerRef.current = null;
+        dynamicStickOriginRef.current = null;
+        setDynamicStickActive(false);
       }
       orientationPauseRef.current = true;
       return;
@@ -607,16 +663,20 @@ export default function WarRoomGame({
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const input = inputRef.current;
       const key = event.key.toLowerCase();
-      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift"].includes(key)) {
+      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift", "x"].includes(key)) {
         setKeyboardHintsVisible(true);
       }
       if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
-      if (event.repeat && ["r", "v", " ", "c", "shift"].includes(key)) return;
-      if (key === "r") input.reloadPressed = true;
-      else if (key === "v") input.swapPressed = true;
-      else if (key === " ") input.jumpPressed = true;
-      else if (key === "c") input.crouchPressed = true;
-      else if (key === "shift") input.dodgePressed = true;
+      if (event.repeat && ["r", "v", " ", "c", "shift", "x"].includes(key)) return;
+      if (key === "r") pressWarRoomAction(input, "reload");
+      else if (key === "v") pressWarRoomAction(input, "swap");
+      else if (key === " ") pressWarRoomAction(input, "jump");
+      else if (key === "c") pressWarRoomAction(input, "crouch");
+      else if (key === "shift") pressWarRoomAction(input, "dodge");
+      else if (key === "x") {
+        pressWarRoomAction(input, "sprint-lock");
+        setSprintLockActive(input.sprintLocked);
+      }
       else if (key === "escape") pauseBattle();
       if (["w", "a", "s", "d"].includes(key)) input.keys.add(key);
     };
@@ -629,7 +689,10 @@ export default function WarRoomGame({
       inputRef.current.aimHeld = false;
       inputRef.current.fireReleased = true;
       runtimeRef.current.player.meleeInputPending = false;
-      pointerRef.current.id = null;
+      pointerRef.current.clear();
+      stickPointerRef.current = null;
+      dynamicStickOriginRef.current = null;
+      setDynamicStickActive(false);
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -752,48 +815,105 @@ export default function WarRoomGame({
     }
   };
 
-  const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug,.war-room-calibration-panel")) return;
-    if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) return;
-    if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
-    event.preventDefault();
-    resumeWarRoomAudio();
-    pointerRef.current = {
-      id: event.pointerId,
+  const pointerTypeForEvent = (event: ReactPointerEvent<HTMLElement>): WarRoomLookPointerType => (
+    event.pointerType === "touch" ? "touch" : event.pointerType === "pen" ? "pen" : "mouse"
+  );
+
+  const handleActionLookStart = (event: ReactPointerEvent<HTMLElement>) => {
+    beginWarRoomPointer(pointerRef.current, event.pointerId, {
       x: event.clientX,
       y: event.clientY,
       button: event.button,
-      pointerType: event.pointerType === "touch" ? "touch" : event.pointerType === "pen" ? "pen" : "mouse",
-    };
+      pointerType: pointerTypeForEvent(event),
+    });
+  };
+
+  const handleActionLookEnd = (event: ReactPointerEvent<HTMLElement>) => {
+    endWarRoomPointer(pointerRef.current, event.pointerId);
+  };
+
+  const readDynamicStick = (event: ReactPointerEvent<HTMLElement>) => {
+    const stick = stickRef.current;
+    const origin = dynamicStickOriginRef.current;
+    const stage = event.currentTarget.closest(".war-room-battle");
+    if (!stick || !origin || !stage) return;
+    const bounds = stage.getBoundingClientRect();
+    const radius = 48;
+    const dx = (event.clientX - origin.x) / radius;
+    const dy = (origin.y - event.clientY) / radius;
+    const length = Math.hypot(dx, dy);
+    const scale = length > 1 ? 1 / length : 1;
+    const x = Math.max(-1, Math.min(1, dx * scale));
+    const y = Math.max(-1, Math.min(1, dy * scale));
+    stick.style.setProperty("--dynamic-stick-x", `${origin.x - bounds.left}px`);
+    stick.style.setProperty("--dynamic-stick-y", `${origin.y - bounds.top}px`);
+    stick.style.setProperty("--stick-x", `${x * radius}px`);
+    stick.style.setProperty("--stick-y", `${-y * radius}px`);
+    setWarRoomMoveVector(inputRef.current, x, y);
+  };
+
+  const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug,.war-room-calibration-panel")) return;
+    if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) {
+      if (joystickMode !== "dynamic" || stickPointerRef.current !== null) return;
+      event.preventDefault();
+      resumeWarRoomAudio();
+      stickPointerRef.current = event.pointerId;
+      dynamicStickOriginRef.current = { x: event.clientX, y: event.clientY };
+      setDynamicStickActive(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      readDynamicStick(event);
+      return;
+    }
+    if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
+    event.preventDefault();
+    resumeWarRoomAudio();
+    beginWarRoomPointer(pointerRef.current, event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+      button: event.button,
+      pointerType: pointerTypeForEvent(event),
+    });
     if (event.pointerType === "mouse" && event.button === 0) {
-      inputRef.current.fireHeld = true;
-      inputRef.current.firePressed = true;
+      pressWarRoomAction(inputRef.current, "fire");
     } else if (event.pointerType === "mouse" && event.button === 2) {
-      inputRef.current.aimHeld = true;
+      pressWarRoomAction(inputRef.current, "aim");
     }
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handleWorldPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerRef.current.id !== event.pointerId) return;
-    const dx = event.clientX - pointerRef.current.x;
-    const dy = event.clientY - pointerRef.current.y;
-    pointerRef.current.x = event.clientX;
-    pointerRef.current.y = event.clientY;
+  const handleWorldPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    if (stickPointerRef.current === event.pointerId && dynamicStickOriginRef.current) {
+      readDynamicStick(event);
+      return;
+    }
+    const pointer = pointerRef.current.get(event.pointerId);
+    if (!pointer) return;
+    const delta = moveWarRoomPointer(pointerRef.current, event.pointerId, event.clientX, event.clientY);
+    if (!delta) return;
     const input = inputRef.current;
-    const sensitivity = input.aimHeld ? 0.0024 : 0.0041;
-    applyWarRoomLookDelta(input, dx, dy, sensitivity, pointerRef.current.pointerType, invertLookY);
+    const aimScale = input.aimHeld ? aimSensitivityMultiplier : 1;
+    applyWarRoomLookDelta(input, delta.dx, delta.dy, {
+      x: lookSensitivityX * aimScale,
+      y: lookSensitivityY * aimScale,
+    }, pointer.pointerType, invertLookY);
   };
 
-  const handleWorldPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerRef.current.id !== event.pointerId) return;
-    if (pointerRef.current.button === 0) {
-      inputRef.current.fireHeld = false;
-      inputRef.current.fireReleased = true;
-    } else if (pointerRef.current.button === 2) {
-      inputRef.current.aimHeld = false;
+  const handleWorldPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    if (stickPointerRef.current === event.pointerId) {
+      stickPointerRef.current = null;
+      dynamicStickOriginRef.current = null;
+      setDynamicStickActive(false);
+      setWarRoomMoveVector(inputRef.current, 0, 0);
+      stickRef.current?.style.setProperty("--stick-x", "0px");
+      stickRef.current?.style.setProperty("--stick-y", "0px");
+      return;
     }
-    pointerRef.current.id = null;
+    const pointer = pointerRef.current.get(event.pointerId);
+    if (!pointer) return;
+    if (pointer.button === 0) releaseWarRoomAction(inputRef.current, "fire");
+    else if (pointer.button === 2) releaseWarRoomAction(inputRef.current, "aim");
+    endWarRoomPointer(pointerRef.current, event.pointerId);
   };
 
   const readStick = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -809,11 +929,11 @@ export default function WarRoomGame({
     const y = Math.max(-1, Math.min(1, dy * scale));
     stick.style.setProperty("--stick-x", `${x * radius}px`);
     stick.style.setProperty("--stick-y", `${-y * radius}px`);
-    inputRef.current.moveX = x;
-    inputRef.current.moveY = y;
+    setWarRoomMoveVector(inputRef.current, x, y);
   };
 
   const handleStickDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stickPointerRef.current !== null) return;
     event.preventDefault();
     event.stopPropagation();
     resumeWarRoomAudio();
@@ -827,8 +947,7 @@ export default function WarRoomGame({
   const handleStickUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (stickPointerRef.current !== event.pointerId) return;
     stickPointerRef.current = null;
-    inputRef.current.moveX = 0;
-    inputRef.current.moveY = 0;
+    setWarRoomMoveVector(inputRef.current, 0, 0);
     stickRef.current?.style.setProperty("--stick-x", "0px");
     stickRef.current?.style.setProperty("--stick-y", "0px");
   };
@@ -1125,7 +1244,7 @@ export default function WarRoomGame({
                 </div>
               )}
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
-                {hud.killFeed.slice(0, 3).map((feed) => <span key={feed.id}>{feed.text}</span>)}
+                {hud.killFeed.slice(0, 4).map((feed) => <span key={feed.id}>{feed.text}</span>)}
               </div>
               <div className="war-room-enemies-left">
                 <span>KALAN DÜŞMAN</span><b>{String(hud.remaining).padStart(2, "0")}</b>
@@ -1263,7 +1382,7 @@ export default function WarRoomGame({
                       aria-pressed={active}
                       onClick={(event) => {
                         event.stopPropagation();
-                        if (!active) inputRef.current.swapPressed = true;
+                        if (!active) pressWarRoomAction(inputRef.current, "weapon-slot", slot);
                       }}
                     >
                       <span className="war-room-weapon-slot__key">{slot + 1}</span>
@@ -1282,17 +1401,33 @@ export default function WarRoomGame({
                   showHint={keyboardHintsVisible}
                   className={`is-aim${hud.aiming ? " is-active" : ""}`}
                   style={controlLayoutEnabled ? getControlPlacementStyle("aim", savedControlLayout.layout) : undefined}
-                  onDown={() => { inputRef.current.aimHeld = true; }}
-                  onUp={() => { inputRef.current.aimHeld = false; }}
+                  onPointerStart={handleActionLookStart}
+                  onPointerMove={handleWorldPointerMove}
+                  onPointerEnd={handleActionLookEnd}
+                  onDown={() => pressWarRoomAction(inputRef.current, "aim")}
+                  onUp={() => releaseWarRoomAction(inputRef.current, "aim")}
                 />
-                {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass !== "melee" && (
+                {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? (
+                  <ActionButton
+                    label="Hafif saldırı"
+                    hint="DOKUN"
+                    showHint={keyboardHintsVisible}
+                    icon="↗"
+                    className="is-reload is-melee-light"
+                    style={controlLayoutEnabled ? getControlPlacementStyle("reload", savedControlLayout.layout) : undefined}
+                    onClick={() => {
+                      inputRef.current.firePressed = true;
+                      inputRef.current.fireReleased = true;
+                    }}
+                  />
+                ) : (
                   <ActionButton
                     label="Yeniden doldur"
                     hint="R"
                     showHint={keyboardHintsVisible}
                     className="is-reload"
                     style={controlLayoutEnabled ? getControlPlacementStyle("reload", savedControlLayout.layout) : undefined}
-                    onClick={() => { inputRef.current.reloadPressed = true; }}
+                    onClick={() => pressWarRoomAction(inputRef.current, "reload")}
                   />
                 )}
                 <ActionButton
@@ -1301,16 +1436,35 @@ export default function WarRoomGame({
                   showHint={keyboardHintsVisible}
                   className="is-jump"
                   style={controlLayoutEnabled ? getControlPlacementStyle("jump", savedControlLayout.layout) : undefined}
-                  onClick={() => { inputRef.current.jumpPressed = true; }}
+                  onClick={() => pressWarRoomAction(inputRef.current, "jump")}
                 />
                 <ActionButton
-                  label="Eğil ve kaçın"
-                  hint="C / SHIFT"
+                  label="Çömel"
+                  hint="C"
                   showHint={keyboardHintsVisible}
                   className={`is-dodge${hud.crouched ? " is-active" : ""}`}
                   style={controlLayoutEnabled ? getControlPlacementStyle("dodge", savedControlLayout.layout) : undefined}
-                  onDown={() => { inputRef.current.dodgePressed = true; }}
-                  onClick={() => { inputRef.current.crouchPressed = true; }}
+                  onClick={() => {
+                    const result = resolveWarRoomStanceTap(crouchTapAtRef.current, performance.now());
+                    crouchTapAtRef.current = result.nextTapAt;
+                    if (result.action === "prone") {
+                      inputRef.current.crouchPressed = false;
+                      inputRef.current.pronePressed = true;
+                    } else {
+                      inputRef.current.crouchPressed = true;
+                    }
+                  }}
+                />
+                <ActionButton
+                  label="Koşu kilidi"
+                  hint="X"
+                  showHint={keyboardHintsVisible}
+                  className={`is-sprint-lock${sprintLockActive ? " is-active" : ""}`}
+                  style={controlLayoutEnabled ? getControlPlacementStyle("sprint-lock", savedControlLayout.layout) : undefined}
+                  onClick={() => {
+                    pressWarRoomAction(inputRef.current, "sprint-lock");
+                    setSprintLockActive(inputRef.current.sprintLocked);
+                  }}
                 />
                 <ActionButton
                   label="Silah değiştir"
@@ -1318,30 +1472,32 @@ export default function WarRoomGame({
                   showHint={keyboardHintsVisible}
                   className="is-swap"
                   style={controlLayoutEnabled ? getControlPlacementStyle("swap", savedControlLayout.layout) : undefined}
-                  onClick={() => { inputRef.current.swapPressed = true; }}
+                  onClick={() => pressWarRoomAction(inputRef.current, "swap")}
                 />
                 <ActionButton
-                  label="Ateş et"
+                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Saldırı" : "Ateş et"}
+                  icon={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
+                    ? WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon
+                    : undefined}
                   className="is-fire"
                   style={controlLayoutEnabled ? getControlPlacementStyle("fire", savedControlLayout.layout) : undefined}
+                  onPointerStart={handleActionLookStart}
+                  onPointerMove={handleWorldPointerMove}
+                  onPointerEnd={handleActionLookEnd}
                   onDown={() => {
                     resumeWarRoomAudio();
-                    inputRef.current.fireHeld = true;
-                    inputRef.current.firePressed = true;
+                    pressWarRoomAction(inputRef.current, "fire");
                   }}
-                  onUp={() => {
-                    inputRef.current.fireHeld = false;
-                    inputRef.current.fireReleased = true;
-                  }}
+                  onUp={() => releaseWarRoomAction(inputRef.current, "fire")}
                 />
               </div>
               <div
                 ref={stickRef}
-                className={`war-room-stick${controlLayoutEnabled ? " is-custom-layout" : ""}`}
+                className={`war-room-stick${joystickMode === "dynamic" ? " is-dynamic" : ""}${dynamicStickActive ? " is-active" : ""}${controlLayoutEnabled && joystickMode === "fixed" ? " is-custom-layout" : ""}`}
                 role="application"
                 aria-label="Hareket joystick'i"
-                style={controlLayoutEnabled ? getControlPlacementStyle("move-stick", savedControlLayout.layout) : undefined}
-                onPointerDown={handleStickDown}
+                style={controlLayoutEnabled && joystickMode === "fixed" ? getControlPlacementStyle("move-stick", savedControlLayout.layout) : undefined}
+                onPointerDown={joystickMode === "fixed" ? handleStickDown : undefined}
                 onPointerMove={handleStickMove}
                 onPointerUp={handleStickUp}
                 onPointerCancel={handleStickUp}

@@ -16,7 +16,7 @@ import {
 test("War Room control catalog contains all movable touch controls", () => {
   assert.deepEqual(
     CONTROLS_CONFIG.map(({ id }) => id),
-    ["move-stick", "aim", "reload", "jump", "dodge", "swap", "fire", "weapon-select"],
+    ["move-stick", "aim", "reload", "jump", "dodge", "sprint-lock", "swap", "fire", "weapon-select"],
   );
 });
 

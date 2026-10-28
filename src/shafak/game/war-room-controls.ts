@@ -4,6 +4,7 @@ export type WarRoomControlId =
   | "reload"
   | "jump"
   | "dodge"
+  | "sprint-lock"
   | "swap"
   | "fire"
   | "weapon-select";
@@ -21,7 +22,7 @@ export type WarRoomControlDefinition = {
   id: WarRoomControlId;
   label: string;
   symbol: string;
-  action: "move" | "aim" | "reload" | "jump" | "crouch" | "swap" | "fire" | "select-weapon";
+  action: "move" | "aim" | "reload" | "jump" | "crouch" | "dodge" | "sprint-lock" | "swap" | "fire" | "select-weapon";
   width: number;
   height: number;
   defaultX: number;
@@ -29,13 +30,14 @@ export type WarRoomControlDefinition = {
 };
 
 export const CONTROLS_CONFIG: readonly WarRoomControlDefinition[] = [
-  { id: "move-stick", label: "HAREKET", symbol: "◉", action: "move", width: 88, height: 88, defaultX: 0.08, defaultY: 0.82 },
-  { id: "aim", label: "NİŞAN", symbol: "⌖", action: "aim", width: 42, height: 42, defaultX: 0.82, defaultY: 0.64 },
-  { id: "reload", label: "DOLDUR", symbol: "↻", action: "reload", width: 42, height: 42, defaultX: 0.94, defaultY: 0.56 },
-  { id: "jump", label: "ZIPLA", symbol: "↑", action: "jump", width: 42, height: 42, defaultX: 0.94, defaultY: 0.75 },
-  { id: "dodge", label: "EĞİL", symbol: "⤴", action: "crouch", width: 42, height: 42, defaultX: 0.82, defaultY: 0.84 },
-  { id: "swap", label: "DEĞİŞTİR", symbol: "⇄", action: "swap", width: 42, height: 42, defaultX: 0.73, defaultY: 0.86 },
-  { id: "fire", label: "ATEŞ", symbol: "✹", action: "fire", width: 60, height: 60, defaultX: 0.91, defaultY: 0.84 },
+  { id: "move-stick", label: "HAREKET", symbol: "◉", action: "move", width: 96, height: 96, defaultX: 0.1, defaultY: 0.82 },
+  { id: "aim", label: "NİŞAN", symbol: "⌖", action: "aim", width: 66, height: 66, defaultX: 0.78, defaultY: 0.63 },
+  { id: "reload", label: "DOLDUR", symbol: "↻", action: "reload", width: 66, height: 66, defaultX: 0.9, defaultY: 0.53 },
+  { id: "jump", label: "ZIPLA", symbol: "↑", action: "jump", width: 66, height: 66, defaultX: 0.91, defaultY: 0.72 },
+  { id: "dodge", label: "EĞİL", symbol: "⌄", action: "crouch", width: 66, height: 66, defaultX: 0.77, defaultY: 0.83 },
+  { id: "sprint-lock", label: "KOŞU", symbol: "»", action: "sprint-lock", width: 60, height: 60, defaultX: 0.88, defaultY: 0.39 },
+  { id: "swap", label: "DEĞİŞTİR", symbol: "⇄", action: "swap", width: 66, height: 66, defaultX: 0.65, defaultY: 0.83 },
+  { id: "fire", label: "ATEŞ", symbol: "✹", action: "fire", width: 92, height: 92, defaultX: 0.91, defaultY: 0.88 },
   { id: "weapon-select", label: "SİLAH ÇUBUĞU", symbol: "Ⅰ Ⅱ", action: "select-weapon", width: 150, height: 42, defaultX: 0.5, defaultY: 0.9 },
 ];
 

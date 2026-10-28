@@ -65,6 +65,10 @@ type Preferences = {
   reduceMotion: boolean;
   performanceMonitor: boolean;
   invertWarRoomLookY: boolean;
+  warRoomLookSensitivityX: number;
+  warRoomLookSensitivityY: number;
+  warRoomAimSensitivityMultiplier: number;
+  warRoomJoystickMode: "dynamic" | "fixed";
   warRoomFacing: "camera" | "movement";
   timeOfDay: TimeOfDayMode;
 };
@@ -81,6 +85,10 @@ const initialPreferences: Preferences = {
   reduceMotion: false,
   performanceMonitor: false,
   invertWarRoomLookY: false,
+  warRoomLookSensitivityX: 0.0041,
+  warRoomLookSensitivityY: 0.0041,
+  warRoomAimSensitivityMultiplier: 0.585,
+  warRoomJoystickMode: "dynamic",
   warRoomFacing: "camera",
   timeOfDay: "auto",
 };
@@ -155,6 +163,16 @@ function readPreferences(): Preferences {
         typeof saved.invertWarRoomLookY === "boolean"
           ? saved.invertWarRoomLookY
           : initialPreferences.invertWarRoomLookY,
+      warRoomLookSensitivityX: typeof saved.warRoomLookSensitivityX === "number"
+        ? Math.max(0.001, Math.min(0.01, saved.warRoomLookSensitivityX))
+        : initialPreferences.warRoomLookSensitivityX,
+      warRoomLookSensitivityY: typeof saved.warRoomLookSensitivityY === "number"
+        ? Math.max(0.001, Math.min(0.01, saved.warRoomLookSensitivityY))
+        : initialPreferences.warRoomLookSensitivityY,
+      warRoomAimSensitivityMultiplier: typeof saved.warRoomAimSensitivityMultiplier === "number"
+        ? Math.max(0.3, Math.min(1.2, saved.warRoomAimSensitivityMultiplier))
+        : initialPreferences.warRoomAimSensitivityMultiplier,
+      warRoomJoystickMode: saved.warRoomJoystickMode === "fixed" ? "fixed" : "dynamic",
       warRoomFacing: saved.warRoomFacing === "movement" ? "movement" : "camera",
       timeOfDay: saved.timeOfDay === "day" || saved.timeOfDay === "sunset" || saved.timeOfDay === "night"
         ? saved.timeOfDay
@@ -199,6 +217,52 @@ function VolumeSetting({
           onChange={(event) => onChange(Number(event.currentTarget.value) / 100)}
         />
         <output htmlFor={id}>{percent}%</output>
+      </div>
+    </div>
+  );
+}
+
+function SettingRange({
+  id,
+  label,
+  description,
+  value,
+  min,
+  max,
+  step,
+  formatValue,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  formatValue: (value: number) => string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="setting-row setting-row--volume">
+      <span className="setting-row__copy">
+        <strong id={`${id}-label`}>{label}</strong>
+        <small>{description}</small>
+      </span>
+      <div className="setting-volume">
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          aria-label={label}
+          aria-labelledby={`${id}-label`}
+          aria-valuetext={formatValue(value)}
+          onChange={(event) => onChange(Number(event.currentTarget.value))}
+        />
+        <output htmlFor={id}>{formatValue(value)}</output>
       </div>
     </div>
   );
@@ -1151,6 +1215,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 invertLookY={preferences.invertWarRoomLookY}
                 onInvertLookYChange={(value) => setPreference("invertWarRoomLookY", value)}
                 facingSetting={preferences.warRoomFacing}
+                lookSensitivityX={preferences.warRoomLookSensitivityX}
+                lookSensitivityY={preferences.warRoomLookSensitivityY}
+                aimSensitivityMultiplier={preferences.warRoomAimSensitivityMultiplier}
+                joystickMode={preferences.warRoomJoystickMode}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
                 controlsEditorOpen={warRoomControlsEditorOpen}
@@ -1280,6 +1348,65 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   checked={preferences.invertWarRoomLookY}
                   onChange={() => setPreference("invertWarRoomLookY", !preferences.invertWarRoomLookY)}
                 />
+                {screen === "war-room" && (
+                  <>
+                    <div className="setting-row setting-row--quality">
+                      <span className="setting-row__copy">
+                        <strong>Savaş Odası joystick'i</strong>
+                        <small>Dinamik mod sol alanda dokunulan yerde belirir.</small>
+                      </span>
+                      <div className="quality-switch" role="group" aria-label="Savaş Odası joystick modu">
+                        {([
+                          ["dynamic", "Dinamik"],
+                          ["fixed", "Sabit"],
+                        ] as const).map(([value, label]) => (
+                          <button
+                            className={preferences.warRoomJoystickMode === value ? "is-selected" : ""}
+                            key={value}
+                            type="button"
+                            aria-pressed={preferences.warRoomJoystickMode === value}
+                            onClick={() => setPreference("warRoomJoystickMode", value)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <SettingRange
+                      id="war-room-look-sensitivity-x"
+                      label="Bakış hassasiyeti · yatay"
+                      description="Yatay kamera sürükleme hızı."
+                      value={preferences.warRoomLookSensitivityX}
+                      min={0.001}
+                      max={0.01}
+                      step={0.0005}
+                      formatValue={(value) => `×${(value * 1000).toFixed(1)}`}
+                      onChange={(value) => setPreference("warRoomLookSensitivityX", value)}
+                    />
+                    <SettingRange
+                      id="war-room-look-sensitivity-y"
+                      label="Bakış hassasiyeti · dikey"
+                      description="Dikey kamera sürükleme hızı."
+                      value={preferences.warRoomLookSensitivityY}
+                      min={0.001}
+                      max={0.01}
+                      step={0.0005}
+                      formatValue={(value) => `×${(value * 1000).toFixed(1)}`}
+                      onChange={(value) => setPreference("warRoomLookSensitivityY", value)}
+                    />
+                    <SettingRange
+                      id="war-room-aim-sensitivity"
+                      label="Nişan hassasiyeti çarpanı"
+                      description="Nişan sırasında kamera hassasiyetini azalt."
+                      value={preferences.warRoomAimSensitivityMultiplier}
+                      min={0.3}
+                      max={1.2}
+                      step={0.05}
+                      formatValue={(value) => `×${value.toFixed(2)}`}
+                      onChange={(value) => setPreference("warRoomAimSensitivityMultiplier", value)}
+                    />
+                  </>
+                )}
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
                     <strong>Savaş Odası yönelimi</strong>
