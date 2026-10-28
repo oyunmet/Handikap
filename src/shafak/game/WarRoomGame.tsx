@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
 import WarRoomScene3D from "../world/WarRoomScene3D";
 import { preloadWarRoomModels } from "../world/WarRoomModels";
@@ -43,6 +43,15 @@ import {
   type WarRoomSavedProgress,
 } from "./war-room-rooms";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
+import WarRoomControlsEditor from "./WarRoomControlsEditor";
+import {
+  CONTROLS_CONFIG,
+  createDefaultWarRoomControlLayout,
+  loadWarRoomControlLayout,
+  saveWarRoomControlLayout,
+  type WarRoomControlId,
+  type WarRoomControlLayout,
+} from "./war-room-controls";
 import "./war-room.css";
 import "./war-room-layout.css";
 
@@ -54,6 +63,8 @@ type Props = {
   facingSetting: WarRoomFacingSetting;
   onOpenSettings: () => void;
   settingsOpen: boolean;
+  controlsEditorOpen: boolean;
+  onCloseControlsEditor: () => void;
   quality: RenderQuality;
 };
 type Phase = "briefing" | "battle" | "victory" | "defeat";
@@ -63,6 +74,51 @@ type CalibrationField = "position" | "rotation" | "scale";
 const GOLD_KEY = "shafak-war-room-gold-v1";
 const ROOM_PROGRESS_KEY = "shafak-war-room-room-progress-v1";
 const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
+
+function getWarRoomControlStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readSavedControlLayout() {
+  return loadWarRoomControlLayout(getWarRoomControlStorage());
+}
+
+function isWarRoomPortraitPhone() {
+  return typeof window !== "undefined"
+    && window.matchMedia("(orientation: portrait) and (max-width: 760px)").matches;
+}
+
+function hasKeyboardPointer() {
+  return typeof window !== "undefined"
+    && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function getControlPlacementStyle(
+  id: WarRoomControlId,
+  layout: WarRoomControlLayout,
+): CSSProperties {
+  const definition = CONTROLS_CONFIG.find((control) => control.id === id);
+  const position = layout[id];
+  if (!definition) return {};
+  const width = definition.width * position.size / 100;
+  const height = definition.height * position.size / 100;
+  return {
+    top: `${position.y * 100}%`,
+    left: `${position.x * 100}%`,
+    right: "auto",
+    bottom: "auto",
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    height: `${height}px`,
+    minHeight: `${height}px`,
+    opacity: position.opacity,
+    transform: "translate(-50%, -50%)",
+  };
+}
 
 function createInputState(facingSetting: WarRoomFacingSetting): WarRoomInputState {
   return {
@@ -169,6 +225,8 @@ function ActionButton({
   label,
   hint,
   className = "",
+  showHint = false,
+  style,
   onDown,
   onUp,
   onClick,
@@ -176,6 +234,8 @@ function ActionButton({
   label: string;
   hint?: string;
   className?: string;
+  showHint?: boolean;
+  style?: CSSProperties;
   onDown?: () => void;
   onUp?: () => void;
   onClick?: () => void;
@@ -184,8 +244,9 @@ function ActionButton({
   return (
     <button
       type="button"
-      className={`war-room-control ${className}`}
+      className={`war-room-control${showHint && hint ? " has-keyboard-hint" : ""} ${className}`}
       aria-label={label}
+      style={style}
       onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -221,7 +282,7 @@ function ActionButton({
                   : "⇄"}
       </span>
       <b>{label}</b>
-      {hint && <kbd>{hint}</kbd>}
+      {showHint && hint && <kbd>{hint}</kbd>}
     </button>
   );
 }
@@ -268,6 +329,8 @@ export default function WarRoomGame({
   facingSetting,
   onOpenSettings,
   settingsOpen,
+  controlsEditorOpen,
+  onCloseControlsEditor,
   quality,
 }: Props) {
   const { active: modelsLoading, errors: modelErrors, progress: modelProgress } = useProgress();
@@ -316,7 +379,14 @@ export default function WarRoomGame({
   const [exitPrompt, setExitPrompt] = useState(false);
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
+  const [savedControlLayout, setSavedControlLayout] = useState(readSavedControlLayout);
+  const [controlLayoutDraft, setControlLayoutDraft] = useState<WarRoomControlLayout>(
+    () => createDefaultWarRoomControlLayout(),
+  );
+  const [keyboardHintsVisible, setKeyboardHintsVisible] = useState(hasKeyboardPointer);
+  const [portraitPhone, setPortraitPhone] = useState(isWarRoomPortraitPhone);
   const roomProgressRef = useRef(roomProgress);
+  const orientationPauseRef = useRef(false);
   useEffect(() => {
     if (phase !== "battle") {
       previousBossPhaseRef.current = null;
@@ -370,6 +440,7 @@ export default function WarRoomGame({
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
+  const controlLayoutEnabled = savedControlLayout.customized;
 
   const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
     resumeWarRoomAudio();
@@ -456,7 +527,7 @@ export default function WarRoomGame({
   }, []);
 
   useEffect(() => {
-    if (!settingsOpen || phase !== "battle" || inputRef.current.paused) return;
+    if (!(settingsOpen || controlsEditorOpen) || phase !== "battle" || inputRef.current.paused) return;
     inputRef.current.paused = true;
     settingsPauseRef.current = true;
     inputRef.current.keys.clear();
@@ -466,13 +537,68 @@ export default function WarRoomGame({
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
     pointerRef.current.id = null;
-  }, [phase, settingsOpen]);
+  }, [controlsEditorOpen, phase, settingsOpen]);
 
   useEffect(() => {
-    if (settingsOpen || !settingsPauseRef.current) return;
+    if (settingsOpen || controlsEditorOpen || portraitPhone || exitPrompt || !settingsPauseRef.current) return;
     inputRef.current.paused = false;
     settingsPauseRef.current = false;
-  }, [settingsOpen]);
+  }, [controlsEditorOpen, exitPrompt, portraitPhone, settingsOpen]);
+
+  useEffect(() => {
+    const updateOrientation = () => setPortraitPhone(isWarRoomPortraitPhone());
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "battle") {
+      orientationPauseRef.current = false;
+      return;
+    }
+    const input = inputRef.current;
+    if (portraitPhone) {
+      if (!input.paused) {
+        input.paused = true;
+        input.keys.clear();
+        input.fireHeld = false;
+        input.fireReleased = true;
+        input.aimHeld = false;
+        runtimeRef.current.player.chargeStartedAt = 0;
+        runtimeRef.current.player.meleeInputPending = false;
+        pointerRef.current.id = null;
+      }
+      orientationPauseRef.current = true;
+      return;
+    }
+    if (orientationPauseRef.current) {
+      if (!settingsOpen && !controlsEditorOpen && !exitPrompt) input.paused = false;
+      orientationPauseRef.current = false;
+    }
+  }, [controlsEditorOpen, exitPrompt, phase, portraitPhone, settingsOpen]);
+
+  useEffect(() => {
+    if (controlsEditorOpen) setControlLayoutDraft(savedControlLayout.layout);
+  }, [controlsEditorOpen, savedControlLayout.layout]);
+
+  const saveControlLayoutDraft = () => {
+    if (!saveWarRoomControlLayout(getWarRoomControlStorage(), controlLayoutDraft)) return false;
+    setSavedControlLayout({ layout: controlLayoutDraft, customized: true });
+    onCloseControlsEditor();
+    return true;
+  };
+
+  const handleRootPointerType = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") {
+      setKeyboardHintsVisible(false);
+    } else if (hasKeyboardPointer()) {
+      setKeyboardHintsVisible(true);
+    }
+  };
 
   useEffect(() => {
     if (phase !== "battle") return undefined;
@@ -481,6 +607,9 @@ export default function WarRoomGame({
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const input = inputRef.current;
       const key = event.key.toLowerCase();
+      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift"].includes(key)) {
+        setKeyboardHintsVisible(true);
+      }
       if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
       if (event.repeat && ["r", "v", " ", "c", "shift"].includes(key)) return;
       if (key === "r") input.reloadPressed = true;
@@ -705,7 +834,7 @@ export default function WarRoomGame({
   };
 
   return (
-    <main className="war-room" data-phase={phase}>
+    <main className="war-room" data-phase={phase} onPointerDownCapture={handleRootPointerType}>
       {phase === "briefing" && (
         <section className="war-room-briefing" role="dialog" aria-modal="true" aria-labelledby="war-room-title">
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
@@ -1069,8 +1198,8 @@ export default function WarRoomGame({
                 aria-hidden="true"
               >▼</div>
             )}
-            <div className="war-room-notice" aria-live="polite">
-              {hud.hitMessage && <span>{hud.hitMessage}</span>}
+              <div className="war-room-notice" aria-live="polite">
+                {hud.hitMessage && <span key={hud.hitMessage}>{hud.hitMessage}</span>}
             </div>
             <div className="war-room-hud__bottom">
               <div className="war-room-vitals">
@@ -1115,7 +1244,13 @@ export default function WarRoomGame({
                     : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
                 </small>
               </div>
-              <div className="war-room-weapon-select" role="group" aria-label="Silah seçimi">
+              <div className={`war-room-touch-layout${controlLayoutEnabled ? " is-custom-layout" : ""}`}>
+              <div
+                className={`war-room-weapon-select${controlLayoutEnabled ? " is-custom-layout" : ""}`}
+                role="group"
+                aria-label="Silah seçimi"
+                style={controlLayoutEnabled ? getControlPlacementStyle("weapon-select", savedControlLayout.layout) : undefined}
+              >
                 {loadout.map((weaponId, slot) => {
                   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
                   const active = hud.weaponId === weaponId;
@@ -1140,11 +1275,13 @@ export default function WarRoomGame({
                   );
                 })}
               </div>
-              <div className="war-room-controls">
+              <div className={`war-room-controls${controlLayoutEnabled ? " is-custom-layout" : ""}`}>
                 <ActionButton
                   label="Nişan al"
                   hint="SAĞ TIK"
+                  showHint={keyboardHintsVisible}
                   className={`is-aim${hud.aiming ? " is-active" : ""}`}
+                  style={controlLayoutEnabled ? getControlPlacementStyle("aim", savedControlLayout.layout) : undefined}
                   onDown={() => { inputRef.current.aimHeld = true; }}
                   onUp={() => { inputRef.current.aimHeld = false; }}
                 />
@@ -1152,32 +1289,41 @@ export default function WarRoomGame({
                   <ActionButton
                     label="Yeniden doldur"
                     hint="R"
+                    showHint={keyboardHintsVisible}
                     className="is-reload"
+                    style={controlLayoutEnabled ? getControlPlacementStyle("reload", savedControlLayout.layout) : undefined}
                     onClick={() => { inputRef.current.reloadPressed = true; }}
                   />
                 )}
                 <ActionButton
                   label="Zıpla"
                   hint="SPACE"
+                  showHint={keyboardHintsVisible}
                   className="is-jump"
+                  style={controlLayoutEnabled ? getControlPlacementStyle("jump", savedControlLayout.layout) : undefined}
                   onClick={() => { inputRef.current.jumpPressed = true; }}
                 />
                 <ActionButton
                   label="Eğil ve kaçın"
                   hint="C / SHIFT"
+                  showHint={keyboardHintsVisible}
                   className={`is-dodge${hud.crouched ? " is-active" : ""}`}
+                  style={controlLayoutEnabled ? getControlPlacementStyle("dodge", savedControlLayout.layout) : undefined}
                   onDown={() => { inputRef.current.dodgePressed = true; }}
                   onClick={() => { inputRef.current.crouchPressed = true; }}
                 />
                 <ActionButton
                   label="Silah değiştir"
                   hint="V"
+                  showHint={keyboardHintsVisible}
                   className="is-swap"
+                  style={controlLayoutEnabled ? getControlPlacementStyle("swap", savedControlLayout.layout) : undefined}
                   onClick={() => { inputRef.current.swapPressed = true; }}
                 />
                 <ActionButton
                   label="Ateş et"
                   className="is-fire"
+                  style={controlLayoutEnabled ? getControlPlacementStyle("fire", savedControlLayout.layout) : undefined}
                   onDown={() => {
                     resumeWarRoomAudio();
                     inputRef.current.fireHeld = true;
@@ -1191,15 +1337,17 @@ export default function WarRoomGame({
               </div>
               <div
                 ref={stickRef}
-                className="war-room-stick"
+                className={`war-room-stick${controlLayoutEnabled ? " is-custom-layout" : ""}`}
                 role="application"
                 aria-label="Hareket joystick'i"
+                style={controlLayoutEnabled ? getControlPlacementStyle("move-stick", savedControlLayout.layout) : undefined}
                 onPointerDown={handleStickDown}
                 onPointerMove={handleStickMove}
                 onPointerUp={handleStickUp}
                 onPointerCancel={handleStickUp}
               >
                 <i aria-hidden="true" />
+              </div>
               </div>
             </div>
             <button className="war-room-pause" type="button" onClick={pauseBattle}>DURAKLAT · ÇIK</button>
@@ -1298,6 +1446,14 @@ export default function WarRoomGame({
             </div>
           </div>
         </section>
+      )}
+      {controlsEditorOpen && (
+        <WarRoomControlsEditor
+          layout={controlLayoutDraft}
+          onChange={setControlLayoutDraft}
+          onSave={saveControlLayoutDraft}
+          onCancel={onCloseControlsEditor}
+        />
       )}
     </main>
   );

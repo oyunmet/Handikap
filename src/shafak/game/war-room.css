@@ -651,7 +651,11 @@
 
 .war-room-hud__top {
   position: absolute;
-  inset: max(10px, env(safe-area-inset-top)) 12px auto;
+  inset:
+    max(10px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    auto
+    max(12px, env(safe-area-inset-left));
   display: flex;
   min-height: 98px;
   align-items: start;
@@ -1020,21 +1024,32 @@
 
 .war-room-notice {
   position: absolute;
-  top: 58%;
+  top: max(82px, calc(env(safe-area-inset-top) + 74px));
   left: 50%;
+  z-index: 5;
   width: max-content;
-  max-width: 80vw;
+  max-width: min(72vw, 360px);
   transform: translateX(-50%);
+  pointer-events: none;
+  text-align: center;
 }
 
 .war-room-notice span {
-  padding: 5px 9px;
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px solid rgba(237, 190, 123, 0.34);
   background: rgba(20, 17, 15, 0.65);
   color: #f5d79f;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-shadow: 0 1px 3px #000;
+  animation: war-room-notice-fade 3s ease-out both;
+}
+
+@keyframes war-room-notice-fade {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .war-room-hud__bottom {
@@ -1228,6 +1243,10 @@
 
 .war-room-control kbd {
   display: none;
+}
+
+.war-room-control.has-keyboard-hint kbd {
+  display: block;
 }
 
 .war-room-control.is-fire {

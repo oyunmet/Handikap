@@ -279,3 +279,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 | Ortak savaş butonlarının basılı/soğuma geri bildirimi | Kül Yolu ve düello kontrolleri ortak `GameButton` kullanıyor. | Dokunma alanı ve basma hissi iPhone'da denenmedi. |
 | Yıldırım, kor izi ve boss fazı bildirimi | Faz eşiği ve 30 decal havuzu test edildi; yeni testler geçti. | Görsel yoğunluk/okunabilirlik WebGL'de doğrulanmadı. |
 | Sürüm ve kaynak sınırları | Tek marker, 138/150 parçacık, 30 decal ve DPR≤2 koddan doğrulandı. | Fiziksel cihaz frame-rate ölçümü yapılmadı. |
+
+## Tur 5 — Savaş Odası mobil FPS kontrol uyarlaması
+
+### Faz 1 — Güvenli alan HUD'u ve kontrol düzenleyici
+
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); savaş HUD'unun WebGL/gerçek iPhone görünümü açık.
+- **Kök neden:** Savaş Odası dokunmatik HUD'u sabit breakpoint konumlarına bağlıydı; güvenli alanlara göre sürükleyip yerleştirme veya kalıcı kullanıcı düzeni yoktu. Kısayol etiketleri giriş aygıtına göre değil ekran ölçüsüne göre açılıyordu. Yön uyarısı da Savaş Odası'na özel değildi.
+- **Yapılanlar:** Düğme ve joystick yerleşimleri için güvenli alanla eşleşen sürükleme sahnesi eklendi; boyut %70–140, saydamlık %20–100, sıfırlama ve localStorage kaydı destekleniyor. Düzen, notch/home-indicator boşluklarına göre sınırlandırılıyor. Klavye rozetleri ince işaretçi/klavye kullanımında görünür, dokunmatik kullanımda gizli. Savaş Odası bildirimi üst-orta güvenli bölgede ve 3 saniyelik; portrede “Lütfen telefonu yatay çevirin” uyarısı gösteriliyor. Ayarlar'a “Kontrolleri düzenle” kısayolu eklendi. 3D sahneye, parçacıklara, geometriye, malzemelere, ekonomi/mağaza, kayıtlar, hasar, düşman AI veya Kül Yolu'na dokunulmadı. Sürüm işareti `v18-faz-1`.
+- **Değişen dosyalar:** `src/shafak/App.css`, `src/shafak/App.tsx`, `src/shafak/LandscapeOrientationHint.tsx`, `src/shafak/build-info.ts`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/WarRoomControlsEditor.tsx`, `src/shafak/game/war-room-controls.ts`, `src/shafak/game/war-room-controls.test.js`, `src/shafak/game/war-room.css`, `src/shafak/game/war-room-layout.css`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı. `npm test`: 436 toplam, 428 geçti, 8 başarısız; sekiz hata önceki mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban hatalarıyla aynı. Yedi yeni kontrol yerleşimi testi geçti. Build mevcut büyük Three.js/chunk uyarısını koruyor.
+- **Önizleme:** Yatay hazırlık ekranı ve portre yön uyarısı görüntülendi. Savaş HUD'u WebGL bağlamı oluşturulamadığı için önizlemede görsel doğrulanamadı: ekran görüntüsü tarayıcısı `Could not create a WebGL context` / `BindToCurrentSequence failed` hatası verdi; sahne `src/shafak/world/WarRoomScene3D.tsx:3758–3763` satırlarında `<Canvas>` ile başlıyor. 2D yedek sahne eklenmedi; fiziksel iPhone/Safari kabulü yapılmadı.
+- **Sürüm ve sınırlar:** `v18-faz-1` · yeni 3D parçacık/geometri/malzeme yok · mobil DPR üst sınırı 2 olarak kaldı · push yapılmadı.

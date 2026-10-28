@@ -1000,6 +1000,25 @@
   line-height: 1.5;
 }
 
+.setting-action--war-room-controls {
+  min-width: 82px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid rgba(218, 178, 111, 0.35);
+  border-radius: 4px;
+  background: rgba(155, 105, 52, 0.2);
+  color: #efcf94;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.setting-action--war-room-controls:hover {
+  border-color: rgba(218, 178, 111, 0.7);
+  background: rgba(155, 105, 52, 0.34);
+}
+
 .setting-row--volume {
   align-items: flex-start;
   flex-direction: column;

@@ -9,7 +9,7 @@ export function requestLandscapeOrientation() {
   }
 }
 
-export default function LandscapeOrientationHint() {
+export default function LandscapeOrientationHint({ warRoom = false }: { warRoom?: boolean }) {
   return (
     <div className="landscape-orientation-hint" role="status" aria-live="polite">
       <span className="landscape-orientation-hint__icon" aria-hidden="true">
@@ -21,8 +21,12 @@ export default function LandscapeOrientationHint() {
           <path d="m19 48-3-6 7-1" />
         </svg>
       </span>
-      <strong>OYUNU YATAY OYNAYIN</strong>
-      <span>Devam etmek için telefonunu yatay çevir.</span>
+      <strong>{warRoom ? "Lütfen telefonu yatay çevirin" : "OYUNU YATAY OYNAYIN"}</strong>
+      <span>
+        {warRoom
+          ? "Savaş Odası yatay ekran için tasarlandı."
+          : "Devam etmek için telefonunu yatay çevir."}
+      </span>
     </div>
   );
 }

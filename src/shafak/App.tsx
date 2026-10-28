@@ -365,6 +365,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
   const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
   const [profileSyncOwner, setProfileSyncOwner] = useState("");
@@ -643,6 +644,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     requestLandscapeOrientation();
     playFeedback();
     primeGameAudio();
+    setWarRoomControlsEditorOpen(false);
     setWarRoomReturnScreen(returnScreen);
     updateWarRoomQuery(true);
     setScreen("war-room");
@@ -804,7 +806,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       ref={sceneRef}
       aria-label={tr.brand}
     >
-      <LandscapeOrientationHint />
+      <LandscapeOrientationHint warRoom={screen === "war-room"} />
       {homeAtmosphere && (
         <>
           <div className="scene-backdrop" aria-hidden="true">
@@ -1151,6 +1153,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 facingSetting={preferences.warRoomFacing}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
+                controlsEditorOpen={warRoomControlsEditorOpen}
+                onCloseControlsEditor={() => setWarRoomControlsEditorOpen(false)}
                 quality={activeQuality}
               />
             </Suspense>
@@ -1226,6 +1230,24 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               </div>
 
               <div className="settings-list">
+                {screen === "war-room" && (
+                  <div className="setting-row">
+                    <span className="setting-row__copy">
+                      <strong>Savaş Odası kontrolleri</strong>
+                      <small>Dokunmatik düğmeleri taşı, boyutunu ve saydamlığını ayarla.</small>
+                    </span>
+                    <button
+                      className="setting-action--war-room-controls"
+                      type="button"
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setWarRoomControlsEditorOpen(true);
+                      }}
+                    >
+                      DÜZENLE
+                    </button>
+                  </div>
+                )}
                 <SettingToggle
                   label={tr.sound}
                   description={tr.soundDescription}
