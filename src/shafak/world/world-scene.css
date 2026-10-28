@@ -1203,7 +1203,7 @@
   22% { opacity: .8; }
   100% { opacity: 0; transform: translate3d(-30vw, 0, 0) rotate(-12deg); }
 }
-@media (min-width: 761px) and (pointer: fine) {
+@media (min-width: 961px) and (pointer: fine) {
   .world-joystick { display: none !important; }
 }
 @media (max-width: 760px) {
