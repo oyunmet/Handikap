@@ -3,12 +3,20 @@ import test from "node:test";
 import {
   countWorldTouchPointers,
   endWorldTouchAction,
+  isWorldJoystickSprinting,
   isWorldTouchTap,
   startWorldTouchAction,
   syncWorldTouchActionKey,
   toggleWorldTouchActionState,
 } from "./world-touch-actions.ts";
 import { readWorldActions, readWorldInput } from "./movement.ts";
+
+test("pushing the travel joystick to its outer ring enables sprint", () => {
+  assert.equal(isWorldJoystickSprinting({ x: 0, y: 0.89 }), false);
+  assert.equal(isWorldJoystickSprinting({ x: 0, y: 0.9 }), true);
+  assert.equal(isWorldJoystickSprinting({ x: -0.92, y: 0.2 }), true);
+  assert.equal(isWorldJoystickSprinting({ x: Number.NaN, y: 0 }), false);
+});
 
 test("independent touch pointers keep sprint and jump active separately", () => {
   const pointers = new Map();

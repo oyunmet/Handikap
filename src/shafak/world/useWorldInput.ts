@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import {
   countWorldTouchPointers,
   endWorldTouchAction,
+  isWorldJoystickSprinting,
   isWorldTouchTap,
   startWorldTouchAction,
   syncWorldTouchActionKey,
@@ -178,7 +179,7 @@ export default function useWorldInput(wake: () => void) {
   }, [publishInputChange]);
 
   const readActions = useCallback((): WorldActionState => ({
-    sprint: heldKeys.current.has("shift"),
+    sprint: heldKeys.current.has("shift") || isWorldJoystickSprinting(joystick.current),
     jumpPressed: jumpPressPendingRef.current,
     crouch: heldKeys.current.has("control") || heldKeys.current.has("c"),
   }), []);

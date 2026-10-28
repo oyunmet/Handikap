@@ -3405,6 +3405,7 @@ export default function WorldScene({
         className="world-joystick"
         role="application"
         aria-label={worldText.controls}
+        aria-description="Hareketi yönlendir; hızlanmak için joystick'i dış halkaya it."
         onPointerDown={worldInput.onJoystickPointerDown}
         onPointerMove={worldInput.onJoystickPointerMove}
         onPointerUp={worldInput.onJoystickPointerUp}
@@ -3413,9 +3414,9 @@ export default function WorldScene({
       <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
       <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">
         <GameButton
-          className={`world-movement-action${worldInput.isActionActive("shift") ? " is-active" : ""}`}
+          className={`world-movement-action is-sprint${worldInput.isActionActive("shift") ? " is-active" : ""}`}
           type="button"
-          aria-label="Koş"
+          aria-label="Koş; joystick'i dış halkaya iterek hızlan"
           aria-pressed={worldInput.isActionActive("shift")}
           label="KOŞ"
           icon="run"

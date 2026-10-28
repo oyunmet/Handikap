@@ -92,7 +92,9 @@
     box-shadow: none;
   }
 
-  .world-movement-actions .game-button .game-button__label { font-size: 6px; }
+  .world-movement-actions .game-button.is-sprint { display: none; }
+  .world-movement-actions .game-button .game-button__label { font-size: 7px; }
+  .world-movement-actions .game-button .game-button__hint { display: none; }
   .world-movement-actions .game-button .game-button__icon { justify-self: center; }
   .world-hazard-hint { bottom: max(124px, calc(env(safe-area-inset-bottom) + 116px)); }
 }

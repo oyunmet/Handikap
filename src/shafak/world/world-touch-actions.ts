@@ -3,6 +3,13 @@ export type WorldTouchAction = "shift" | "space" | "c";
 export type WorldTouchPointers = Map<WorldTouchAction, Set<number>>;
 
 export const WORLD_TOUCH_TAP_TOGGLE_LIMIT_MS = 220;
+export const WORLD_JOYSTICK_SPRINT_THRESHOLD = 0.9;
+
+export function isWorldJoystickSprinting(joystick: { x: number; y: number }) {
+  const x = Number.isFinite(joystick.x) ? joystick.x : 0;
+  const y = Number.isFinite(joystick.y) ? joystick.y : 0;
+  return Math.hypot(x, y) >= WORLD_JOYSTICK_SPRINT_THRESHOLD;
+}
 
 export function isWorldTouchTap(durationMs: number) {
   return Number.isFinite(durationMs)
