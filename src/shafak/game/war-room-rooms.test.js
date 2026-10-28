@@ -10,6 +10,7 @@ import {
   normalizeWarRoomSavedProgress,
   WAR_ROOM_MAX_ROOM_ENEMIES,
 } from "./war-room-rooms.ts";
+import { GAME_BUILD_MARKER } from "../build-info.ts";
 import { createWarRoomRuntime, segmentBlockFraction } from "./war-room-engine.ts";
 import {
   WAR_ROOM_BUILD_VERSION,
@@ -25,7 +26,7 @@ function overlapsBlocker(point, blocker, radius = 1.1) {
 test("room-chain rollout is enabled with optional buffs disabled", () => {
   assert.equal(WAR_ROOM_ROOM_CHAIN_ENABLED, true);
   assert.equal(WAR_ROOM_ROOM_BUFFS_ENABLED, false);
-  assert.equal(WAR_ROOM_BUILD_VERSION, "v16-oda-zinciri");
+  assert.equal(WAR_ROOM_BUILD_VERSION, GAME_BUILD_MARKER);
 });
 
 test("the first six rooms have distinct names, layouts, themes, rosters and enemy counts", () => {

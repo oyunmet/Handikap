@@ -6,11 +6,11 @@ import {
   getCurrentTimeOfDayMode,
   getTimeOfDayDaylight,
   getTimeOfDayLabel,
+  getTimeOfDayLightingState,
   getTimeOfDayPhase,
-  getTimeOfDaySunAltitude,
-  getTimeOfDayTwilight,
   resolveTimeOfDayMode,
   subscribeToTimeOfDayMode,
+  TIME_OF_DAY_STAR_COUNT,
   type TimeOfDayMode,
 } from "./time-of-day";
 import type { RenderQuality } from "./graphics-quality";
@@ -52,7 +52,8 @@ const SKY_FRAGMENT_SHADER = `
 
     float angle = phase * 2.0 * PI;
     float altitude = sin(angle + PI * 0.5);
-    vec3 sunDirection = normalize(vec3(cos(angle), altitude, sin(angle)));
+    float horizonDistance = sqrt(max(0.0, 1.0 - altitude * altitude));
+    vec3 sunDirection = normalize(vec3(cos(angle) * horizonDistance, altitude, sin(angle) * horizonDistance));
     float sunDot = dot(direction, sunDirection);
     float sunDisc = smoothstep(0.99945, 0.9998, sunDot) * daylight;
     float sunHalo = (1.0 - smoothstep(0.91, 0.9994, sunDot)) * daylight * 0.17;
@@ -147,13 +148,13 @@ export default function TimeOfDaySky({ quality }: Props) {
   }), [phaseUniform, starEnabledUniform]);
   const starGeometry = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(180 * 3);
+    const positions = new Float32Array(TIME_OF_DAY_STAR_COUNT * 3);
     let seed = 0x5afac;
     const random = () => {
       seed = (seed * 1_664_525 + 1_013_904_223) >>> 0;
       return seed / 0x1_0000_0000;
     };
-    for (let index = 0; index < 180; index += 1) {
+    for (let index = 0; index < TIME_OF_DAY_STAR_COUNT; index += 1) {
       const y = random() * 1.82 - 0.91;
       const angle = random() * Math.PI * 2;
       const horizontal = Math.sqrt(1 - y * y);
@@ -209,16 +210,12 @@ export default function TimeOfDaySky({ quality }: Props) {
 
   useFrame((frame) => {
     const mode = modeRef.current;
-    const phase = getTimeOfDayPhase(Date.now(), mode);
-    const daylight = getTimeOfDayDaylight(phase);
-    const twilight = getTimeOfDayTwilight(phase);
-    const night = 1 - daylight;
-    const altitude = getTimeOfDaySunAltitude(phase);
+    const lighting = getTimeOfDayLightingState(getTimeOfDayPhase(Date.now(), mode));
+    const { phase, daylight, twilight, night, altitude } = lighting;
     phaseUniform.value = phase;
     if (skyRef.current) skyRef.current.position.copy(camera.position);
     if (starsRef.current) starsRef.current.position.copy(camera.position);
 
-    const angle = phase * Math.PI * 2;
     let primarySunPositionAssigned = false;
     for (const snapshot of lightSnapshotsRef.current) {
       const light = snapshot.light as THREE.Light & {
@@ -234,9 +231,9 @@ export default function TimeOfDaySky({ quality }: Props) {
         if (snapshot.position && !primarySunPositionAssigned) {
           primarySunPositionAssigned = true;
           light.position.set(
-            Math.cos(angle) * snapshot.positionRadius,
-            Math.max(2.5, Math.abs(altitude) * snapshot.position.length()),
-            Math.sin(angle) * snapshot.positionRadius,
+            lighting.sunDirection.x * snapshot.positionRadius,
+            lighting.sunDirection.y * snapshot.position.length(),
+            lighting.sunDirection.z * snapshot.positionRadius,
           );
         }
       } else if (light instanceof THREE.HemisphereLight) {
@@ -251,11 +248,7 @@ export default function TimeOfDaySky({ quality }: Props) {
       }
     }
     if (scene.fog) {
-      scene.fog.color.setRGB(
-        0.13 + daylight * 0.48 + twilight * 0.2,
-        0.2 + daylight * 0.38 + twilight * 0.12,
-        0.32 + daylight * 0.28 - twilight * 0.04,
-      );
+      scene.fog.color.setRGB(lighting.fogColor.r, lighting.fogColor.g, lighting.fogColor.b);
       if (scene.fog instanceof THREE.Fog) {
         scene.fog.near = quality === "low" ? 155 : 180;
         scene.fog.far = quality === "low" ? 370 : 440;

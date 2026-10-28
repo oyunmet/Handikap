@@ -28,6 +28,7 @@ import {
 } from "./world-v2-camera";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
+import TimeOfDaySky from "./TimeOfDaySky";
 import { WorldV2LabelManager } from "./WorldV2Labels";
 import { getWorldRenderPixelRatio, shouldEnableWorldShadows } from "./graphics-quality";
 import { inspectWorldCharacterGroups } from "./world-character-debug";
@@ -498,6 +499,7 @@ export default function World3DV2(props: World3DProps) {
             }
           >
             <Suspense fallback={null}>
+              <TimeOfDaySky quality={props.quality} />
               <WorldRoadEnvironmentLayer
                 motionRef={props.motionRef}
                 weather={props.weatherMode}

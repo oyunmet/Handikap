@@ -2,6 +2,7 @@ export type TimeOfDayMode = "auto" | "day" | "sunset" | "night";
 
 export const TIME_OF_DAY_CYCLE_MS = 6 * 60 * 1_000;
 export const TIME_OF_DAY_SETTING_EVENT = "shafak-time-of-day-change";
+export const TIME_OF_DAY_STAR_COUNT = 120;
 
 let currentMode: TimeOfDayMode = "auto";
 
@@ -53,6 +54,32 @@ export function getTimeOfDayLabel(phase: number): "GÜNDÜZ" | "GÜN BATIMI" | "
   if (wrapped < 0.5) return "GÜN BATIMI";
   if (wrapped < 0.75) return "GECE";
   return "ŞAFAK";
+}
+
+export function getTimeOfDayLightingState(phase: number) {
+  const wrapped = ((Number.isFinite(phase) ? phase : 0) % 1 + 1) % 1;
+  const daylight = getTimeOfDayDaylight(wrapped);
+  const twilight = getTimeOfDayTwilight(wrapped);
+  const altitude = getTimeOfDaySunAltitude(wrapped);
+  const angle = wrapped * Math.PI * 2;
+  const horizonDistance = Math.sqrt(Math.max(0, 1 - altitude * altitude));
+  return {
+    phase: wrapped,
+    daylight,
+    twilight,
+    night: 1 - daylight,
+    altitude,
+    sunDirection: {
+      x: Math.cos(angle) * horizonDistance,
+      y: altitude,
+      z: Math.sin(angle) * horizonDistance,
+    },
+    fogColor: {
+      r: 0.13 + daylight * 0.48 + twilight * 0.2,
+      g: 0.2 + daylight * 0.38 + twilight * 0.12,
+      b: 0.32 + daylight * 0.28 - twilight * 0.04,
+    },
+  };
 }
 
 export function getCurrentTimeOfDayMode(): TimeOfDayMode {

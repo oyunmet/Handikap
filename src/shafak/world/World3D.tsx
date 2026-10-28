@@ -16,6 +16,7 @@ import type { WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
 import WorldLandscape from "./WorldLandscape";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
+import TimeOfDaySky from "./TimeOfDaySky";
 import { WorldAssetProgress } from "./WorldModel";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
@@ -2391,6 +2392,7 @@ function SceneContents({
           <directionalLight position={[9, 8, -7]} color="#91cde0" intensity={0.72} />
         </group>
       )}
+      <TimeOfDaySky quality={quality} />
       {!combatActive && <WorldRoadEntities
         motionRef={motionRef}
         dialoguePortal={dialoguePortal}

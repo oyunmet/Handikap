@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   TIME_OF_DAY_CYCLE_MS,
+  TIME_OF_DAY_STAR_COUNT,
   getTimeOfDayDaylight,
+  getTimeOfDayLightingState,
   getTimeOfDayModeOverride,
   getTimeOfDayPhase,
   getTimeOfDaySunAltitude,
@@ -38,4 +40,20 @@ test("daylight and twilight are smooth through sunset and sunrise", () => {
   assert.ok(getTimeOfDayTwilight(0.75) > 0.99);
   assert.equal(getTimeOfDaySunAltitude(0), 1);
   assert.equal(getTimeOfDaySunAltitude(0.5), -1);
+});
+
+test("shared lighting state keeps the sun direction normalized and fog finite", () => {
+  assert.equal(TIME_OF_DAY_STAR_COUNT, 120);
+  for (const phase of [0, 0.25, 0.5, 0.75, 1]) {
+    const state = getTimeOfDayLightingState(phase);
+    const length = Math.hypot(
+      state.sunDirection.x,
+      state.sunDirection.y,
+      state.sunDirection.z,
+    );
+    assert.ok(Math.abs(length - 1) < 1e-9);
+    assert.ok(Object.values(state.fogColor).every(Number.isFinite));
+  }
+  assert.ok(getTimeOfDayLightingState(0.5).sunDirection.y < 0);
+  assert.ok(getTimeOfDayLightingState(Number.NaN).sunDirection.y > 0);
 });

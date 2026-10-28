@@ -76,6 +76,7 @@ import {
 } from "../game/war-room-quality";
 import { disposeWarRoomSceneResources } from "../game/war-room-dispose";
 import type { RenderQuality } from "./graphics-quality";
+import TimeOfDaySky from "./TimeOfDaySky";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
@@ -3636,6 +3637,7 @@ function WarRoomRuntimeScene({
   const activeWeapon = weaponIds[runtime.player.activeSlot];
   return (
     <>
+      <TimeOfDaySky quality={quality} />
       <Battlefield room={runtime.room} />
       {RESTORE_CONFIG.enabled && runtime.healingPoints.map((point) => (
         <WarRoomHealingPointMarker

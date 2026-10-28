@@ -216,7 +216,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ## Tur 4 — iPhone hareketi, butonlar, animasyon, gökyüzü ve savaş HUD'u
 
-- **Durum:** DEVAM EDİYOR — Faz 1 tamamlandı; Faz 2–6 sırada.
+- **Durum:** DEVAM EDİYOR — Faz 1–4 tamamlandı; Faz 5–6 sırada.
 - **Kapsam:** `attached_assets` içindeki Tur 4 notu. Kül Yolu giriş/durum makinesi, ortak oyun butonları, hareket pozları, gün/gece, savaş efektleri ve son kabul raporu.
 - **Kurallar:** Fazlar sırayla ve bağımsız commit edilir; her faz sonunda build, typecheck ve testler çalıştırılır. Push/deploy yok. Ekonomi, kayıtlar, düşman AI, hasar/ceza değerleri, silahlar ve oyun dengesi değiştirilmez. Savaş efekt havuzu/decal sınırları korunur; frame içinde yeni Three.js geometri/materyal/ışık yaratılmaz.
 - **Cihaz kabulü:** Gerçek iPhone/Safari testi bu çalışma ortamında yapılamaz; WebGL görsel sonuçları cihazda ayrıca kontrol edilmeli.
@@ -247,4 +247,8 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 ### Faz 4 — Ortak gün/gece ve gökyüzü
 
-- **Durum:** DEVAM EDİYOR.
+- **Durum:** TAMAMLANDI (kod ve yerel doğrulama); iPhone/WebGL görsel kabulü doğrulanamadı.
+- **Kök neden:** Zaman seçimi ve gökyüzü bileşeni daha önce eklenmişti ancak Kül Yolu'nun iki 3D yolu ve Savaş Odası sahnesine bağlanmamıştı. Dünya ışığı ve sis de bu ortak zaman durumundan beslenmiyordu. Yıldız noktası sayısı 180 ile belirtilen mobil ek parçacık sınırını aşıyordu; Savaş Odası sürüm etiketi de ayrı ve eski bir sabit kullanıyordu.
+- **Yapılanlar:** Tek `TimeOfDaySky` bileşeni Kül Yolu V2/duel sahnelerine ve Savaş Odası'na bağlandı. 6 dakikalık otomatik döngü, ayar/localStorage seçimi ve `?time=gece` test override'ı ortak kaldı. Gün ışığı, gün batımı, yönlü ana ışık ve sis renkleri saf `time-of-day` hesabından geliyor; ışık sayısı sabit. Gökyüzü tek kubbe shader'ı ve tek güncellenen faz uniform'u kullanıyor; düşük kalitede bulut/yıldız katmanı kapanıyor. Yıldız noktaları 120 ile sınırlandı. Ortak `GAME_BUILD_MARKER` artık Savaş Odası sürümünü de sağlıyor: `v17-faz-4`. Mobil DPR üst sınırı mevcut kalite katmanında 2 olarak doğrulandı.
+- **Değişen dosyalar:** `src/shafak/build-info.ts`, `src/shafak/game/war-room-features.ts`, `src/shafak/game/war-room-rooms.test.js`, `src/shafak/world/TimeOfDaySky.tsx`, `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/world/World3D.tsx`, `src/shafak/world/World3DV2.tsx`, `src/shafak/world/time-of-day.ts`, `src/shafak/world/time-of-day.test.js`, `docs/WARROOM_PROGRESS.md`.
+- **Doğrulama sonucu:** `npm run typecheck` ve `npm run build` başarılı; mevcut 500 kB üstü Three.js chunk uyarısı sürüyor. `npm test`: 419 toplam, 411 geçti, 8 başarısız. Sekiz başarısızlık bu fazdan önceki bilinen mağaza/ekipman (6), düello süresi (1) ve envanter varsayılanı (1) taban testleri; yeni zaman/sürüm testleri geçti. Gerçek iPhone/Safari ve WebGL görsel kabulü doğrulanamadı.
