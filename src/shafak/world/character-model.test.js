@@ -162,7 +162,7 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   poseCharacterWithoutClip(bones, "block", 0, 0, 0.5, false, false, 1, true);
   assert.ok(bones.leftForearm.rotation.x < 0);
   restoreCharacterPoseBaseline(bones, baseline);
-  poseCharacterWithoutClip(bones, "walk", 2, 1, 0, true, false, 1, true);
+  poseCharacterWithoutClip(bones, "walk", 2, 1, 0, true, false, 1, true, false, undefined, baseline);
   assert.ok(bones.leftThigh.rotation.x > 0);
   assert.ok(bones.leftShin.rotation.x < 0);
   assert.ok(bones.spine.rotation.x > 0);
@@ -171,6 +171,41 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   assert.ok(bones.leftUpperArm.rotation.x < 0);
   assert.ok(bones.leftForearm.rotation.x < 0);
   assert.ok(bones.leftFoot.rotation.x > 0);
+  assert.ok(bones.hips.position.y < baseline.get("hips").position.y);
+});
+
+test("procedural jump bends preserve non-zero GLB rest rotations on the legs", () => {
+  const model = new THREE.Group();
+  const thigh = new THREE.Bone();
+  thigh.name = "UpperLeg.L";
+  thigh.rotation.x = 2.89;
+  const shin = new THREE.Bone();
+  shin.name = "LowerLeg.L";
+  shin.rotation.x = 0.52;
+  model.add(thigh, shin);
+
+  const bones = findCharacterPoseBones(model);
+  const baseline = captureCharacterPoseBaseline(bones);
+  for (const hasClip of [true, false]) {
+    restoreCharacterPoseBaseline(bones, baseline);
+    poseCharacterWithoutClip(
+      bones,
+      "idle",
+      0,
+      0,
+      0,
+      false,
+      false,
+      0,
+      hasClip,
+      false,
+      { movementState: "HAVADA_YUKARI" },
+      baseline,
+    );
+
+    assert.ok(Math.abs(bones.leftThigh.rotation.x - 2.59) < 1e-9);
+    assert.ok(Math.abs(bones.leftShin.rotation.x - 0.84) < 1e-9);
+  }
 });
 
 test("player-hero GLB rig aliases resolve the real torso and limb bones", () => {
@@ -240,6 +275,7 @@ test("restoring the animation baseline prevents additive crouch poses from accum
       true,
       false,
       { movementState: "EĞİLİYOR" },
+      baseline,
     );
   }
 

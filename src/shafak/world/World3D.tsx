@@ -2325,7 +2325,7 @@ function WorldCharacterFrameDebug({
     const yaw = player?.yaw;
     outputRef.current.textContent = [
       `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
-      `Joystick deadzone: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
+      `Joystick dönme / ileri: ${format(processedJoystick.turn)}, ${format(processedJoystick.forward)}`,
       `Karakter yaw: ${yaw === null || yaw === undefined ? "—" : `${format(yaw)} rad / ${format(THREE.MathUtils.radToDeg(yaw))}°`}`,
       `Kamera-oyuncu: ${format(cameraPosition.distanceTo(playerPosition))} m`,
       `Kamera-boss: ${cameraBossDistance === null ? "—" : `${format(cameraBossDistance)} m`}`,

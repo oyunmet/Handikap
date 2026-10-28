@@ -17,7 +17,7 @@ import {
   WorldV2WeatherPoints,
 } from "./WorldV2Environment";
 import WorldRoadEnvironmentLayer from "./WorldRoadEnvironment";
-import { getWorldV2CameraOffset, getWorldV2Heading, WORLD_V2_CONFIG } from "./world-v2-config";
+import { getWorldV2CameraOffset, WORLD_V2_CONFIG } from "./world-v2-config";
 import { loadAsset } from "./world-v2-assets";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import type { WorldV2AssetTarget } from "./world-v2-config";
@@ -96,7 +96,6 @@ function WorldV2Camera({
     const dt = Math.min(delta, 0.05);
     camera.position.sub(presentationOffset);
     presentationOffset.set(0, 0, 0);
-    const crouchDrop = motion.crouching ? (motion.movementState === "KAYIYOR" ? 0.32 : 0.24) : 0;
     if (motion.movementState === "HAVADA_YUKARI" || motion.movementState === "HAVADA_AŞAĞI") {
       jumpPeakHeight.current = Math.max(jumpPeakHeight.current, motion.jumpHeight);
     }
@@ -112,11 +111,7 @@ function WorldV2Camera({
     landingPulseSeconds.current = Math.max(0, landingPulseSeconds.current - dt);
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
-    const targetHeading = getWorldV2Heading(
-      motion.velocityX,
-      motion.velocityY,
-      cameraHeading.current,
-    );
+    const targetHeading = motion.cameraHeading;
     const headingDelta = Math.atan2(
       Math.sin(targetHeading - cameraHeading.current),
       Math.cos(targetHeading - cameraHeading.current),
@@ -126,10 +121,10 @@ function WorldV2Camera({
       cameraHeading.current,
       WORLD_V2_CONFIG.camera.distanceBehind,
     );
-    origin.set(playerX, motion.jumpHeight + 1.05 - crouchDrop * 0.5, playerZ);
+    origin.set(playerX, motion.jumpHeight + 1.05, playerZ);
     desired.set(
       playerX + cameraOffset.x,
-      motion.jumpHeight + WORLD_V2_CONFIG.camera.height - crouchDrop,
+      motion.jumpHeight + WORLD_V2_CONFIG.camera.height,
       playerZ + cameraOffset.z,
     );
     direction.copy(desired).sub(origin);
@@ -148,7 +143,7 @@ function WorldV2Camera({
       if (hit) camera.position.copy(safePosition);
       else camera.position.lerp(safePosition, 1 - Math.exp(-WORLD_V2_CONFIG.camera.followSpeed * dt));
     }
-    target.set(playerX, motion.jumpHeight + WORLD_V2_CONFIG.camera.targetHeight - crouchDrop * 0.72, playerZ);
+    target.set(playerX, motion.jumpHeight + WORLD_V2_CONFIG.camera.targetHeight, playerZ);
     camera.lookAt(target);
     const pulseProgress = 1 - landingPulseSeconds.current / 0.24;
     const pulseEnvelope = Math.sin(Math.PI * pulseProgress) * landingPulseStrength.current;
@@ -311,7 +306,7 @@ function WorldV2FrameDebug({
     const visibleHeadingText = actorDebug ? formatDegrees(actorDebug.visibleHeading) : empty;
     outputRef.current.textContent = [
       `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
-      `Joystick deadzone |x|<${format(WORLD_JOYSTICK_X_DEADZONE)}: ${format(processedJoystick.x)}, ${format(processedJoystick.y)}`,
+      `Joystick dönüş / ileri: ${format(processedJoystick.turn)}, ${format(processedJoystick.forward)} (deadzone ${format(WORLD_JOYSTICK_X_DEADZONE)})`,
       `Hız X / ileri: ${format(motion.velocityX)}, ${format(motion.velocityY)} m/sn`,
       `Kamera yaw: ${formatDegrees(cameraYaw)}`,
       `Hedef yaw / gövde yaw / net model yönü: ${targetYawText} / ${bodyYawText} / ${visibleHeadingText}`,

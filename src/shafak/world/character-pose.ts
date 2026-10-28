@@ -56,14 +56,17 @@ const POSE_LIMITS: Record<CharacterPoseBoneName, number> = {
   rightFoot: 0.76,
 };
 
-export type CharacterPoseBaseline = ReadonlyMap<CharacterPoseBoneName, THREE.Euler>;
+export type CharacterPoseBaseline = ReadonlyMap<
+  CharacterPoseBoneName,
+  { rotation: THREE.Euler; position: THREE.Vector3 }
+>;
 export type CharacterPoseAngles = Partial<Record<CharacterPoseBoneName, readonly [number, number, number]>>;
 
 export function captureCharacterPoseBaseline(bones: CharacterPoseBones): CharacterPoseBaseline {
   return new Map(
     Object.entries(bones)
       .filter((entry): entry is [CharacterPoseBoneName, THREE.Bone] => Boolean(entry[1]))
-      .map(([name, bone]) => [name, bone.rotation.clone()]),
+      .map(([name, bone]) => [name, { rotation: bone.rotation.clone(), position: bone.position.clone() }]),
   );
 }
 
@@ -71,8 +74,11 @@ export function restoreCharacterPoseBaseline(
   bones: CharacterPoseBones,
   baseline: CharacterPoseBaseline,
 ) {
-  for (const [name, rotation] of baseline) {
-    bones[name]?.rotation.copy(rotation);
+  for (const [name, transform] of baseline) {
+    const bone = bones[name];
+    if (!bone) continue;
+    bone.rotation.copy(transform.rotation);
+    bone.position.copy(transform.position);
   }
 }
 
@@ -181,6 +187,7 @@ export function poseCharacterWithoutClip(
     jumpHeight?: number;
     jumpVelocity?: number;
   },
+  baseline?: CharacterPoseBaseline,
 ) {
   const motionScale = motionReduced ? 0.34 : 1;
   const walkWeight = clamp01(speed / 3.2);
@@ -190,10 +197,14 @@ export function poseCharacterWithoutClip(
     const bone = bones[name];
     if (!bone) return;
     const limit = POSE_LIMITS[name];
+    const offsetX = THREE.MathUtils.clamp(x, -limit, limit);
+    const offsetY = THREE.MathUtils.clamp(y, -limit, limit);
+    const offsetZ = THREE.MathUtils.clamp(z, -limit, limit);
+    const baselineRotation = baseline?.get(name)?.rotation;
     bone.rotation.set(
-      THREE.MathUtils.clamp(add ? bone.rotation.x + x : x, -limit, limit),
-      THREE.MathUtils.clamp(add ? bone.rotation.y + y : y, -limit, limit),
-      THREE.MathUtils.clamp(add ? bone.rotation.z + z : z, -limit, limit),
+      add ? bone.rotation.x + offsetX : (baselineRotation?.x ?? 0) + offsetX,
+      add ? bone.rotation.y + offsetY : (baselineRotation?.y ?? 0) + offsetY,
+      add ? bone.rotation.z + offsetZ : (baselineRotation?.z ?? 0) + offsetZ,
     );
   };
 
@@ -299,6 +310,14 @@ export function poseCharacterWithoutClip(
     applyLocomotionPose(locomotion.movementState);
   } else if (crouching) {
     applyLocomotionPose("EĞİLİYOR");
+  }
+
+  const lowPoseState = locomotion?.movementState ?? (crouching ? "EĞİLİYOR" : "YERDE_DURUYOR");
+  const hips = bones.hips;
+  const hipsBaseline = baseline?.get("hips");
+  if (hips && hipsBaseline && (lowPoseState === "EĞİLİYOR" || lowPoseState === "KAYIYOR")) {
+    const pelvisDrop = lowPoseState === "KAYIYOR" ? 0.14 : 0.1;
+    hips.position.y = hipsBaseline.position.y - pelvisDrop * motionScale;
   }
 
   if (

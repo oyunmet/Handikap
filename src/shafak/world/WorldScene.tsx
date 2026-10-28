@@ -2129,8 +2129,9 @@ export default function WorldScene({
     const lastFiniteMotion = { ...motionRef.current };
     const fixedStep = 1 / 60;
     const stoppedInput = {
-      x: 0,
-      y: 0,
+      turn: 0,
+      strafe: 0,
+      forward: 0,
       actions: { sprint: false, jumpPressed: false, crouch: false },
       analogMagnitude: 0,
     };
@@ -2155,6 +2156,7 @@ export default function WorldScene({
         || !Number.isFinite(currentMotion.velocityY)
         || !Number.isFinite(currentMotion.depth)
         || !Number.isFinite(currentMotion.distance)
+        || !Number.isFinite(currentMotion.cameraHeading)
         || !Number.isFinite(currentMotion.cameraX)
         || !Number.isFinite(currentMotion.stepPhase)
         || !Number.isFinite(currentMotion.zoom)
@@ -2341,8 +2343,9 @@ export default function WorldScene({
         if (trapSlowdownActive) {
           stepInput = {
             ...stepInput,
-            x: stepInput.x * 0.38,
-            y: stepInput.y * 0.38,
+            turn: stepInput.turn * 0.38,
+            strafe: stepInput.strafe * 0.38,
+            forward: stepInput.forward * 0.38,
             analogMagnitude: stepInput.analogMagnitude * 0.38,
           };
         }

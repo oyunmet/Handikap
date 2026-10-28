@@ -15,7 +15,7 @@ import { KNIGHT_CONFIG } from "./knight-config";
 import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
-import { getWorldV2Heading, getWorldV2YawDelta, WORLD_V2_CONFIG } from "./world-v2-config";
+import { getWorldV2YawDelta, WORLD_V2_CONFIG } from "./world-v2-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import {
   applyOpponentBasePalette,
@@ -155,7 +155,6 @@ export default function WorldV2Actor({
   const debugRefreshElapsed = useRef(0);
   const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
-  const playerFacingAngle = useRef(0);
 
   useEffect(() => {
     activeActionRef.current = null;
@@ -245,11 +244,7 @@ export default function WorldV2Actor({
       shadowMaterialRef.current.opacity = Math.max(0.08, 0.42 - jumpHeight * 0.22);
     }
     playerPosition.set(motion.depth * 5.2, 0, -(motion.distance - motion.cameraX));
-    const targetHeading = getWorldV2Heading(
-      motion.velocityX,
-      motion.velocityY,
-      playerFacingAngle.current,
-    );
+    const targetHeading = motion.cameraHeading;
 
     if (isPlayer) {
       root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
@@ -266,11 +261,11 @@ export default function WorldV2Actor({
       root.userData.worldStandingScaleX = standingScaleX;
       root.userData.worldStandingScaleZ = standingScaleZ;
       const jumpScaleY = movementState === "ZIPLAMA_HAZIRLIK"
-        ? 0.94
+        ? 0.96
         : movementState === "HAVADA_YUKARI"
-          ? 1.06
+          ? 1.04
           : movementState === "İNİŞ"
-            ? 0.92
+            ? 0.96
             : 1;
       const jumpScaleXZ = jumpScaleY > 1
         ? 1 - (jumpScaleY - 1) * 0.45
@@ -278,15 +273,12 @@ export default function WorldV2Actor({
       const deltaSeconds = Math.min(delta, 0.05);
       root.scale.y = THREE.MathUtils.damp(
         root.scale.y,
-        standingScaleY * (motion.crouching ? 0.72 : 1) * jumpScaleY,
+        standingScaleY * jumpScaleY,
         18,
         deltaSeconds,
       );
       root.scale.x = THREE.MathUtils.damp(root.scale.x, standingScaleX * jumpScaleXZ, 18, deltaSeconds);
       root.scale.z = THREE.MathUtils.damp(root.scale.z, standingScaleZ * jumpScaleXZ, 18, deltaSeconds);
-      if (Math.hypot(motion.velocityX, motion.velocityY) >= 0.12) {
-        playerFacingAngle.current = targetHeading;
-      }
       // The model-axis group below applies the single native +Z to -Z correction.
       const yawDelta = getWorldV2YawDelta(targetHeading, root.rotation.y);
       root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
@@ -298,7 +290,13 @@ export default function WorldV2Actor({
       root.rotation.y = Math.atan2(directionX, directionZ);
     }
 
-    const state = isPlayer ? animationState : "idle";
+    const proceduralPoseState = movementState === "ZIPLAMA_HAZIRLIK"
+      || movementState === "HAVADA_YUKARI"
+      || movementState === "HAVADA_AŞAĞI"
+      || movementState === "İNİŞ";
+    const state = isPlayer
+      ? (motion.crouching || proceduralPoseState ? "idle" : animationState)
+      : "idle";
     const clip = resolveClip(animations, state);
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
@@ -335,6 +333,7 @@ export default function WorldV2Actor({
           jumpHeight: motion.jumpHeight,
           jumpVelocity: motion.jumpVelocity,
         },
+        poseBaseline,
       );
     }
     opponentCostumeRef.current?.update(frame.clock.elapsedTime);
