@@ -6,6 +6,7 @@ import {
   WAR_ROOM_ENEMY_SPAWNS,
   type WarRoomBlocker,
   type WarRoomBuilding,
+  type WarRoomLootChest,
   type WarRoomWeaponId,
 } from "./war-room-data";
 
@@ -58,6 +59,7 @@ export type WarRoomRoom = Omit<WarRoomRoomDefinition, "enemyCount"> & {
   coverSpots: readonly { x: number; z: number }[];
   enemySpawns: readonly WarRoomSpawn[];
   commanderPosition: { x: number; z: number };
+  lootChests: readonly WarRoomLootChest[];
 };
 
 export type WarRoomSavedProgress = {
@@ -221,12 +223,110 @@ function intersectsBlocker(x: number, z: number, blocker: WarRoomBlocker, radius
     && Math.abs(z - blocker.z) < blocker.depth / 2 + radius;
 }
 
+export function getWarRoomBuildingLocalPoint(
+  building: WarRoomBuilding,
+  x: number,
+  z: number,
+) {
+  const dx = x - building.x;
+  const dz = z - building.z;
+  const cosine = Math.cos(building.rotationY);
+  const sine = Math.sin(building.rotationY);
+  return {
+    x: cosine * dx - sine * dz,
+    z: sine * dx + cosine * dz,
+  };
+}
+
+export function getWarRoomStairProfile(building: WarRoomBuilding) {
+  return {
+    x: building.stairSide * (building.width / 2 - 1.12),
+    startZ: -building.depth / 2 + 0.82,
+    endZ: building.depth / 2 - 0.86,
+    halfWidth: 0.82,
+  };
+}
+
+export function getWarRoomFloorHeight(
+  x: number,
+  z: number,
+  previousHeight: number,
+  buildings: readonly WarRoomBuilding[],
+) {
+  for (const building of buildings) {
+    const local = getWarRoomBuildingLocalPoint(building, x, z);
+    const inside = Math.abs(local.x) < building.width / 2 - 0.28
+      && Math.abs(local.z) < building.depth / 2 - 0.28;
+    if (!inside) continue;
+    const stairs = getWarRoomStairProfile(building);
+    if (
+      Math.abs(local.x - stairs.x) <= stairs.halfWidth
+      && local.z >= stairs.startZ
+      && local.z <= stairs.endZ
+    ) {
+      const progress = (local.z - stairs.startZ) / (stairs.endZ - stairs.startZ);
+      return building.storyHeight * Math.max(0, Math.min(1, progress));
+    }
+    return previousHeight >= building.storyHeight * 0.62 ? building.storyHeight : 0;
+  }
+  return 0;
+}
+
+function getRoomLootChests(
+  buildings: readonly WarRoomBuilding[],
+  roomNumber: number,
+): WarRoomLootChest[] {
+  const weaponPool: readonly WarRoomWeaponId[] = [
+    "powder_rifle",
+    "sidearm",
+    "scattergun",
+    "crossbow",
+    "longbow",
+  ];
+  return buildings.flatMap((building) => {
+    const localZ = building.depth / 2 - 0.68;
+    const cosine = Math.cos(building.rotationY);
+    const sine = Math.sin(building.rotationY);
+    const x = building.x + sine * localZ;
+    const z = building.z + cosine * localZ;
+    const weaponId = weaponPool[(building.style + roomNumber - 1) % weaponPool.length];
+    return [
+      {
+        id: `loot-${building.id}-ground`,
+        buildingId: building.id,
+        x,
+        z,
+        floor: 0 as const,
+        floorHeight: 0,
+        kind: "ammo" as const,
+        weaponId,
+        ammo: 34 + (building.style % 3) * 8,
+      },
+      {
+        id: `loot-${building.id}-upper`,
+        buildingId: building.id,
+        x,
+        z,
+        floor: 1 as const,
+        floorHeight: building.storyHeight,
+        kind: "weapon" as const,
+        weaponId,
+        ammo: 42 + (building.style % 3) * 8,
+      },
+    ];
+  });
+}
+
 function getAdditionalSpawnSites() {
   const chosen: Array<{ x: number; z: number }> = WAR_ROOM_ENEMY_SPAWNS.map(({ x, z }) => ({ x, z }));
   const candidates: Array<{ x: number; z: number }> = [];
   for (let z = -31; z <= 31; z += 2) {
     for (let x = -31; x <= 31; x += 2) {
-      if (Math.hypot(x, z - 24) < 12 || Math.hypot(x, z + 31) < 9) continue;
+      if (Math.hypot(x, z - 20) < 12 || Math.hypot(x, z + 15) < 9) continue;
+      if (WAR_ROOM_BUILDINGS.some((building) => (
+        Math.abs(x - building.x) < building.width / 2 + 1
+        && Math.abs(z - building.z) < building.depth / 2 + 1
+      ))) continue;
       if (WAR_ROOM_BLOCKERS.some((blocker) => intersectsBlocker(x, z, blocker, 1.1))) continue;
       if (chosen.some((point) => Math.hypot(x - point.x, z - point.z) < 7.5)) continue;
       candidates.push({ x, z });
@@ -274,7 +374,8 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       z: point.z,
       width: swapDimensions ? blocker.depth : blocker.width,
       depth: swapDimensions ? blocker.width : blocker.depth,
-      rotationY: definition.quarterTurns * Math.PI / 2,
+      rotationY: building.rotationY + definition.quarterTurns * Math.PI / 2,
+      style: (building.style + safeNumber - 1) % 8,
     };
   });
   const buildings = WAR_ROOM_BUILDINGS.map((building) => {
@@ -304,6 +405,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
     ...transformPoint(spawn.x, spawn.z, definition),
   }));
   const commanderPosition = transformPoint(WAR_ROOM_COMMANDER.x, WAR_ROOM_COMMANDER.z, definition);
+  const lootChests = getRoomLootChests(buildings, safeNumber);
   const baseEnemyCount = Math.min(
     WAR_ROOM_MAX_ROOM_ENEMIES,
     definition.enemyCount + cycle,
@@ -319,6 +421,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
     coverSpots,
     enemySpawns,
     commanderPosition,
+    lootChests,
   };
 }
 

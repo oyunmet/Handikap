@@ -158,13 +158,14 @@ function createInputState(facingSetting: WarRoomFacingSetting): WarRoomInputStat
     sprintLocked: false,
     weaponSlotPressed: null,
     pronePressed: false,
+    lootHeld: false,
     paused: false,
   };
 }
 
 function createEmptyHud(): WarRoomHudSnapshot {
   return {
-    player: { x: 0, z: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
+    player: { x: 0, z: 0, floorHeight: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
     orientation: {
       facingYaw: 0,
       mode: "HAREKET",
@@ -185,6 +186,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     hits: 0,
     elapsedSeconds: 0,
     weaponId: "powder_rifle",
+    weaponSlots: ["powder_rifle", "crossbow"],
     magazine: 30,
     reserve: 90,
     reloading: false,
@@ -207,6 +209,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     meleePhase: "HAZIR",
     meleeComboCount: 0,
     meleeLastResult: "Henüz isabet yok",
+    nearbyLootChest: null,
   };
 }
 
@@ -703,7 +706,7 @@ export default function WarRoomGame({
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const input = inputRef.current;
       const key = event.key.toLowerCase();
-      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift", "x"].includes(key)) {
+      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift", "x", "f"].includes(key)) {
         setKeyboardHintsVisible(true);
       }
       if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
@@ -717,17 +720,20 @@ export default function WarRoomGame({
         pressWarRoomAction(input, "sprint-lock");
         setSprintLockActive(input.sprintLocked);
       }
+      else if (key === "f") input.lootHeld = true;
       else if (key === "escape") pauseBattle();
       if (["w", "a", "s", "d"].includes(key)) input.keys.add(key);
     };
     const onKeyUp = (event: KeyboardEvent) => {
       inputRef.current.keys.delete(event.key.toLowerCase());
+      if (event.key.toLowerCase() === "f") inputRef.current.lootHeld = false;
     };
     const onBlur = () => {
       inputRef.current.keys.clear();
       inputRef.current.fireHeld = false;
       inputRef.current.aimHeld = false;
       inputRef.current.fireReleased = true;
+      inputRef.current.lootHeld = false;
       runtimeRef.current.player.meleeInputPending = false;
       pointerRef.current.clear();
       stickPointerRef.current = null;
@@ -1104,7 +1110,7 @@ export default function WarRoomGame({
             key={runKey}
             runtimeRef={runtimeRef}
             inputRef={inputRef}
-            weaponIds={loadout}
+            weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
             cameraMode={cameraMode}
             motionReduced={motionReduced}
@@ -1442,7 +1448,7 @@ export default function WarRoomGame({
                 aria-label="Silah seçimi"
                 style={controlLayoutEnabled ? getControlPlacementStyle("weapon-select", savedControlLayout.layout) : undefined}
               >
-                {loadout.map((weaponId, slot) => {
+                {hud.weaponSlots.map((weaponId, slot) => {
                   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
                   const active = hud.weaponId === weaponId;
                   return (
@@ -1593,6 +1599,36 @@ export default function WarRoomGame({
             </div>
             <button className="war-room-pause" type="button" onClick={pauseBattle}>DURAKLAT · ÇIK</button>
           </div>
+          {hud.nearbyLootChest && (
+            <button
+              className={`war-room-loot-action${hud.nearbyLootChest.progress > 0 ? " is-opening" : ""}`}
+              type="button"
+              aria-label={`Sandığı ara: ${hud.nearbyLootChest.contents}`}
+              onContextMenu={(event) => event.preventDefault()}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                inputRef.current.lootHeld = true;
+              }}
+              onPointerUp={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                inputRef.current.lootHeld = false;
+              }}
+              onPointerCancel={() => {
+                inputRef.current.lootHeld = false;
+              }}
+              onLostPointerCapture={() => {
+                inputRef.current.lootHeld = false;
+              }}
+            >
+              <span>{hud.nearbyLootChest.progress > 0 ? "AÇILIYOR" : "SANDIĞI ARA"}</span>
+              <strong>{hud.nearbyLootChest.contents}</strong>
+              <small>{hud.nearbyLootChest.progress > 0
+                ? `%${Math.round(hud.nearbyLootChest.progress * 100)}`
+                : keyboardHintsVisible ? "F TUŞUNA BASILI TUT" : "BASILI TUT"}</small>
+            </button>
+          )}
           {damagePopup && (
             <div
               key={damagePopup.id}

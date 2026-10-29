@@ -5,6 +5,7 @@ import {
   WAR_ROOM_HALF_SIZE,
   WAR_ROOM_WEAPON_BY_ID,
   type WarRoomBlocker,
+  type WarRoomLootChest,
   type WarRoomWeaponId,
 } from "./war-room-data";
 import type { WarRoomFacingMode, WarRoomFacingSetting } from "./war-room-orientation";
@@ -19,6 +20,7 @@ export type WarRoomEnemy = {
   color: string;
   x: number;
   z: number;
+  floorHeight?: number;
   hp: number;
   maxHp: number;
   damage: number;
@@ -53,6 +55,7 @@ export type WarRoomRuntime = {
   player: {
     x: number;
     z: number;
+    floorHeight: number;
     yaw: number;
     facingYaw: number;
     facingMode: WarRoomFacingMode;
@@ -73,7 +76,11 @@ export type WarRoomRuntime = {
     crouched: boolean;
     prone: boolean;
     sprinting: boolean;
+    weaponSlots: [WarRoomWeaponId, WarRoomWeaponId];
     ammo: Partial<Record<WarRoomWeaponId, WarRoomAmmo>>;
+    lootChestId: string | null;
+    lootStartedAt: number;
+    lootProgress: number;
     activeSlot: 0 | 1;
     kills: number;
     headshots: number;
@@ -129,6 +136,7 @@ export type WarRoomRuntime = {
   };
   enemies: WarRoomEnemy[];
   healingPoints: WarRoomHealingPoint[];
+  lootChests: Array<WarRoomLootChest & { opened: boolean }>;
 };
 
 export type WarRoomInputState = {
@@ -150,11 +158,12 @@ export type WarRoomInputState = {
   sprintLocked: boolean;
   weaponSlotPressed: number | null;
   pronePressed: boolean;
+  lootHeld: boolean;
   paused: boolean;
 };
 
 export type WarRoomHudSnapshot = {
-  player: { x: number; z: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };
+  player: { x: number; z: number; floorHeight: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };
   orientation: {
     facingYaw: number;
     mode: WarRoomFacingMode;
@@ -175,6 +184,7 @@ export type WarRoomHudSnapshot = {
   hits: number;
   elapsedSeconds: number;
   weaponId: WarRoomWeaponId;
+  weaponSlots: readonly [WarRoomWeaponId, WarRoomWeaponId];
   magazine: number;
   reserve: number;
   reloading: boolean;
@@ -197,6 +207,7 @@ export type WarRoomHudSnapshot = {
   meleePhase: "HAZIR" | "HAZIRLIK" | "VURUŞ" | "TOPARLAN";
   meleeComboCount: number;
   meleeLastResult: string;
+  nearbyLootChest: { id: string; label: string; contents: string; progress: number } | null;
 };
 
 export type DamageTarget = { hp: number; maxHp: number };
@@ -228,6 +239,7 @@ export function createWarRoomRuntime(
       commander: false,
       weaponId: room.enemyWeapons[index % room.enemyWeapons.length],
       color: room.enemyColor,
+      floorHeight: 0,
       hp: 90 * room.enemyHpMultiplier,
       maxHp: 90 * room.enemyHpMultiplier,
       damage: 9,
@@ -253,6 +265,7 @@ export function createWarRoomRuntime(
     color: room.commanderColor,
     x: room.commanderPosition.x,
     z: room.commanderPosition.z,
+    floorHeight: 0,
     hp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
     maxHp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
     damage: WAR_ROOM_COMMANDER.damage,
@@ -280,9 +293,11 @@ export function createWarRoomRuntime(
 
   return {
     room,
+    lootChests: room.lootChests.map((chest) => ({ ...chest, opened: false })),
     player: {
       x: 0,
-      z: 24,
+      z: 20,
+      floorHeight: 0,
       yaw: 0,
       facingYaw: 0,
       facingMode: "HAREKET",
@@ -303,7 +318,11 @@ export function createWarRoomRuntime(
       crouched: false,
       prone: false,
       sprinting: false,
+      weaponSlots: [...weaponIds],
       ammo,
+      lootChestId: null,
+      lootStartedAt: 0,
+      lootProgress: 0,
       activeSlot: 0,
       kills: 0,
       headshots: 0,
@@ -395,7 +414,16 @@ export function createWarRoomTrainingRuntime(
   return runtime;
 }
 
-function circleHitsBlocker(x: number, z: number, radius: number, blocker: WarRoomBlocker) {
+function circleHitsBlocker(
+  x: number,
+  z: number,
+  radius: number,
+  blocker: WarRoomBlocker,
+  floorHeight = 0,
+) {
+  const baseY = blocker.baseY ?? 0;
+  const bodyHeight = 1.8;
+  if (floorHeight >= baseY + blocker.height || floorHeight + bodyHeight <= baseY) return false;
   const closestX = Math.max(blocker.x - blocker.width / 2, Math.min(blocker.x + blocker.width / 2, x));
   const closestZ = Math.max(blocker.z - blocker.depth / 2, Math.min(blocker.z + blocker.depth / 2, z));
   return (x - closestX) ** 2 + (z - closestZ) ** 2 < radius ** 2;
@@ -408,12 +436,13 @@ export function moveWarRoomEntity(
   dz: number,
   radius = 0.38,
   blockers: readonly WarRoomBlocker[] = WAR_ROOM_BLOCKERS,
+  floorHeight = 0,
 ) {
   const limit = WAR_ROOM_HALF_SIZE - radius - 1;
   let nextX = Math.max(-limit, Math.min(limit, x + dx));
   let nextZ = Math.max(-limit, Math.min(limit, z + dz));
-  if (blockers.some((blocker) => circleHitsBlocker(nextX, z, radius, blocker))) nextX = x;
-  if (blockers.some((blocker) => circleHitsBlocker(nextX, nextZ, radius, blocker))) nextZ = z;
+  if (blockers.some((blocker) => circleHitsBlocker(nextX, z, radius, blocker, floorHeight))) nextX = x;
+  if (blockers.some((blocker) => circleHitsBlocker(nextX, nextZ, radius, blocker, floorHeight))) nextZ = z;
   return { x: nextX, z: nextZ };
 }
 
@@ -429,7 +458,7 @@ export function segmentBlockFraction(
   for (const blocker of blockers) {
     const bounds = [
       [blocker.x - blocker.width / 2 - padding, blocker.x + blocker.width / 2 + padding],
-      [0, blocker.height + padding],
+      [blocker.baseY ?? 0, (blocker.baseY ?? 0) + blocker.height + padding],
       [blocker.z - blocker.depth / 2 - padding, blocker.z + blocker.depth / 2 + padding],
     ] as const;
     const origins = [start.x, start.y, start.z];
@@ -474,6 +503,51 @@ export function getNearestWarRoomCover(
 
 export function getWarRoomRemaining(runtime: WarRoomRuntime) {
   return runtime.enemies.filter((enemy) => enemy.alive).length;
+}
+
+export function applyWarRoomLootChest(
+  player: WarRoomRuntime["player"],
+  chest: WarRoomLootChest,
+) {
+  if (chest.kind === "weapon") {
+    const existingSlot = player.weaponSlots.indexOf(chest.weaponId);
+    const slot = existingSlot >= 0
+      ? existingSlot
+      : player.activeSlot === 0 ? 1 : 0;
+    player.weaponSlots[slot] = chest.weaponId;
+    player.activeSlot = slot as 0 | 1;
+    const weapon = WAR_ROOM_WEAPON_BY_ID.get(chest.weaponId)!;
+    player.ammo[chest.weaponId] = {
+      magazine: weapon.magazine,
+      reserve: Math.min(weapon.reserve * 2, chest.ammo),
+    };
+    return `${weapon.name} alındı · ${chest.ammo} mermi`;
+  }
+
+  let slot = player.activeSlot;
+  let weaponId = player.weaponSlots[slot];
+  let weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
+  if (weapon.weaponClass === "melee") {
+    const otherSlot = slot === 0 ? 1 : 0;
+    const otherId = player.weaponSlots[otherSlot];
+    const otherWeapon = WAR_ROOM_WEAPON_BY_ID.get(otherId)!;
+    if (otherWeapon.weaponClass !== "melee") {
+      slot = otherSlot;
+      weaponId = otherId;
+      weapon = otherWeapon;
+    } else {
+      slot = otherSlot;
+      weaponId = "sidearm";
+      weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
+      player.weaponSlots[slot] = weaponId;
+      player.ammo[weaponId] = { magazine: weapon.magazine, reserve: 0 };
+    }
+    player.activeSlot = slot as 0 | 1;
+  }
+  const ammo = player.ammo[weaponId] ?? { magazine: weapon.magazine, reserve: 0 };
+  const reserve = Math.min(weapon.reserve * 2, ammo.reserve + chest.ammo);
+  player.ammo[weaponId] = { ...ammo, reserve };
+  return `+${reserve - ammo.reserve} mermi · ${weapon.name}`;
 }
 
 export function nextWarRoomRandom(runtime: WarRoomRuntime) {
