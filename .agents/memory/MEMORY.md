@@ -19,3 +19,4 @@
 - [Fantasy Knight GLB axis](fantasy-knight-axis.md) — Keep the static Z-up asset out of runtime; Demir Taç uses rig-mounted gear on the animated hero model.
 - [War Room GLB atlas fallback](war-room-glb-textures.md) — Castle-kit GLBs share a missing atlas; resolve only that URL and keep loads on the default manager for progress.
 - [War Room blaster ownership](war-room-blaster-inventory.md) — Blasters may share store ownership, but stay exclusive to War Room loadouts unless cross-mode use is explicitly requested.
+- [War Room enterable buildings](war-room-enterable-buildings.md) — Keep visible door openings, movement collision, and shot-blocking geometry aligned across rotated rooms.

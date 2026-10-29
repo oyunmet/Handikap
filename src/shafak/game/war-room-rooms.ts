@@ -1,9 +1,11 @@
 import {
   WAR_ROOM_BLOCKERS,
+  WAR_ROOM_BUILDINGS,
   WAR_ROOM_COMMANDER,
   WAR_ROOM_COVER_SPOTS,
   WAR_ROOM_ENEMY_SPAWNS,
   type WarRoomBlocker,
+  type WarRoomBuilding,
   type WarRoomWeaponId,
 } from "./war-room-data";
 
@@ -52,6 +54,7 @@ export type WarRoomRoom = Omit<WarRoomRoomDefinition, "enemyCount"> & {
   enemyCount: number;
   enemyHpMultiplier: number;
   blockers: readonly (WarRoomBlocker & { rotationY: number })[];
+  buildings: readonly WarRoomBuilding[];
   coverSpots: readonly { x: number; z: number }[];
   enemySpawns: readonly WarRoomSpawn[];
   commanderPosition: { x: number; z: number };
@@ -262,7 +265,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       blocker.x,
       blocker.z,
       definition,
-      blocker.kind === "cover",
+      blocker.kind === "cover" && !blocker.id.startsWith("hideout-crate-"),
     );
     const swapDimensions = definition.quarterTurns % 2 === 1;
     return {
@@ -271,6 +274,17 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       z: point.z,
       width: swapDimensions ? blocker.depth : blocker.width,
       depth: swapDimensions ? blocker.width : blocker.depth,
+      rotationY: definition.quarterTurns * Math.PI / 2,
+    };
+  });
+  const buildings = WAR_ROOM_BUILDINGS.map((building) => {
+    const point = transformPoint(building.x, building.z, definition);
+    const swapDimensions = definition.quarterTurns % 2 === 1;
+    return {
+      ...building,
+      ...point,
+      width: swapDimensions ? building.depth : building.width,
+      depth: swapDimensions ? building.width : building.depth,
       rotationY: definition.quarterTurns * Math.PI / 2,
     };
   });
@@ -301,6 +315,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
     enemyCount: baseEnemyCount,
     enemyHpMultiplier: 1 + cycle * 0.1,
     blockers,
+    buildings,
     coverSpots,
     enemySpawns,
     commanderPosition,

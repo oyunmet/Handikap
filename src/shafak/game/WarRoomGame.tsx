@@ -1135,7 +1135,7 @@ export default function WarRoomGame({
                 <strong>{weapon.name}</strong>
                 <span>ÖLÇÜLEN UZUNLUK · {measuredLength.toFixed(2)} m</span>
                 <span>{weapon.weaponClass === "melee"
-                  ? "DURUŞ · 3 HAFİF KOMBO · BASILI GÜÇLÜ · İSABET EFEKTİ · MANKEN"
+                  ? "DURUŞ · 3 HAFİF KOMBO · BASILI TUT: YÜKLÜ SALDIRI · İSABET EFEKTİ · MANKEN"
                   : "DURUŞ · ATEŞ · İSABET EFEKTİ · MANKEN"}
                 </span>
                 <button type="button" onClick={advanceWeaponLab}>SONRAKİ SİLAH · TEK DOKUNUŞ</button>
@@ -1431,7 +1431,7 @@ export default function WarRoomGame({
                 )}
                 <small>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? `${formatDuration(hud.elapsedSeconds)} · Dokun: hafif vuruş · Basılı tut: güçlü vuruş`
+                    ? `${formatDuration(hud.elapsedSeconds)} · Kısa bas: saldır · Basılı tut: yüklü saldır`
                     : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
                 </small>
               </div>
@@ -1557,9 +1557,9 @@ export default function WarRoomGame({
                   onClick={() => pressWarRoomAction(inputRef.current, "swap")}
                 />
                 <ActionButton
-                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Güçlü" : "Ateş"}
+                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Saldır" : "Ateş"}
                   title={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? "Basılı tut: güçlü vuruş"
+                    ? "Yakın dövüş saldırısı"
                     : "Ateş et"}
                   icon={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "melee-heavy" : undefined}
                   vibrationEnabled={vibrationEnabled}

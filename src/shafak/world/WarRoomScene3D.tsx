@@ -516,6 +516,121 @@ function WarRoomHouse({ blocker }: { blocker: WarRoomBlocker }) {
   );
 }
 
+function WarRoomBuildingShell({ building }: { building: WarRoomRoom["buildings"][number] }) {
+  const front = -building.depth / 2;
+  const roofAngle = 0.38;
+  const windowPositions = [-1, 1].map((side) => side * building.width * 0.29);
+
+  return (
+    <group
+      position={[building.x, 0, building.z]}
+      rotation={[0, building.rotationY, 0]}
+    >
+      <mesh position={[0, -0.045, 0]} receiveShadow>
+        <boxGeometry args={[building.width - 0.48, 0.15, building.depth - 0.48]} />
+        <meshStandardMaterial color="#9a836b" roughness={0.96} />
+      </mesh>
+      <mesh position={[0, 0.035, 0]} receiveShadow>
+        <boxGeometry args={[building.width - 0.9, 0.035, building.depth - 0.9]} />
+        <meshStandardMaterial color="#b19b7f" roughness={0.94} />
+      </mesh>
+      <mesh position={[0, 0.064, 0]} receiveShadow>
+        <boxGeometry args={[1.9, 0.025, 2.8]} />
+        <meshStandardMaterial color="#785444" roughness={0.96} />
+      </mesh>
+      {[-building.doorWidth / 2, building.doorWidth / 2].map((x) => (
+        <mesh key={`door-post-${x}`} position={[x, building.wallHeight / 2, front - 0.16]} castShadow>
+          <boxGeometry args={[0.2, building.wallHeight, 0.26]} />
+          <meshStandardMaterial color="#564337" roughness={0.88} />
+        </mesh>
+      ))}
+      <mesh position={[0, building.wallHeight - 0.16, front - 0.16]} castShadow>
+        <boxGeometry args={[building.doorWidth + 0.2, 0.3, 0.27]} />
+        <meshStandardMaterial color="#564337" roughness={0.88} />
+      </mesh>
+      {windowPositions.map((x) => (
+        <group key={`front-window-${x}`} position={[x, building.wallHeight * 0.56, front - 0.25]}>
+          <mesh>
+            <boxGeometry args={[1.1, 0.9, 0.09]} />
+            <meshStandardMaterial color="#293039" emissive="#b8753d" emissiveIntensity={0.18} roughness={0.5} />
+          </mesh>
+          {[-0.59, 0.59].map((frameX) => (
+            <mesh key={frameX} position={[frameX, 0, 0.055]}>
+              <boxGeometry args={[0.09, 1.08, 0.08]} />
+              <meshStandardMaterial color="#4e3b30" roughness={0.86} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0, 0.055]}>
+            <boxGeometry args={[0.07, 0.88, 0.08]} />
+            <meshStandardMaterial color="#4e3b30" roughness={0.86} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 3.05, 0]} castShadow>
+        <boxGeometry args={[0.12, 0.13, 0.12]} />
+        <meshStandardMaterial color="#564337" roughness={0.8} />
+      </mesh>
+      <mesh position={[0, 2.82, 0]}>
+        <sphereGeometry args={[0.16, 7, 5]} />
+        <meshStandardMaterial color="#edbd73" emissive="#fa9a47" emissiveIntensity={1.15} roughness={0.35} />
+      </mesh>
+      <pointLight position={[0, 2.7, 0]} color="#ffad66" intensity={2.2} distance={8} />
+      <group
+        name={`war-room-camera-occluder:roof:${building.id}`}
+        userData={{ warRoomCameraOccluderId: `roof:${building.id}` }}
+      >
+        <mesh
+          position={[0, building.wallHeight + 0.38, -building.depth * 0.22]}
+          rotation={[-roofAngle, 0, 0]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[building.width + 0.56, 0.2, building.depth * 0.58]} />
+          <meshStandardMaterial color="#59413a" roughness={0.91} />
+        </mesh>
+        <mesh
+          position={[0, building.wallHeight + 0.38, building.depth * 0.22]}
+          rotation={[roofAngle, 0, 0]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[building.width + 0.56, 0.2, building.depth * 0.58]} />
+          <meshStandardMaterial color="#59413a" roughness={0.91} />
+        </mesh>
+        <mesh position={[0, building.wallHeight + 0.12, 0]} castShadow>
+          <boxGeometry args={[building.width + 0.45, 0.3, building.depth + 0.45]} />
+          <meshStandardMaterial color="#463730" roughness={0.93} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function WarRoomHideoutCrate({ blocker }: { blocker: WarRoomBlocker }) {
+  const { width, height, depth } = blocker;
+  return (
+    <group
+      position={[blocker.x, 0, blocker.z]}
+      userData={{ warRoomCameraOccluderId: blocker.id }}
+    >
+      <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[width, height, depth]} />
+        <meshStandardMaterial color="#76543b" roughness={0.92} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[0, height * 0.28, side * (depth / 2 + 0.015)]} castShadow>
+          <boxGeometry args={[width * 0.86, 0.1, 0.04]} />
+          <meshStandardMaterial color="#a27a50" roughness={0.88} />
+        </mesh>
+      ))}
+      <mesh position={[0, height * 0.72, depth / 2 + 0.016]} castShadow>
+        <boxGeometry args={[width * 0.9, 0.1, 0.04]} />
+        <meshStandardMaterial color="#a27a50" roughness={0.88} />
+      </mesh>
+    </group>
+  );
+}
+
 function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
   const fallback = <BlockerFallback blocker={blocker} />;
   if (blocker.kind === "wall") {
@@ -529,6 +644,9 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
     );
   }
   if (blocker.kind === "cover") {
+    if (blocker.id.startsWith("hideout-crate-")) {
+      return <WarRoomHideoutCrate blocker={blocker} />;
+    }
     return (
       <StaticWarRoomAsset
         src="/models/war-room/rocks-large.glb"
@@ -762,6 +880,9 @@ function Battlefield({ room }: { room: WarRoomRoom }) {
         <WarRoomBlockerVisual key={blocker.id} blocker={blocker} />
       ))}
       <WallDetails blockers={room.blockers} />
+      {room.buildings.map((building) => (
+        <WarRoomBuildingShell key={building.id} building={building} />
+      ))}
       {[4.8, 21.2].map((z, index) => {
         const point = rotateWarRoomScenePoint(0, z, room.quarterTurns);
         return (

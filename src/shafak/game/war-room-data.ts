@@ -363,15 +363,99 @@ export type WarRoomBlocker = {
   color: string;
 };
 
+export type WarRoomBuilding = {
+  id: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  wallHeight: number;
+  doorWidth: number;
+  rotationY: number;
+};
+
 export const WAR_ROOM_HALF_SIZE = 36;
+
+export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
+  {
+    id: "west-barracks",
+    x: -26,
+    z: -25,
+    width: 8,
+    depth: 8,
+    wallHeight: 4.6,
+    doorWidth: 2.4,
+    rotationY: 0,
+  },
+  {
+    id: "east-guardhouse",
+    x: 27,
+    z: 20,
+    width: 7,
+    depth: 8,
+    wallHeight: 4.5,
+    doorWidth: 2.2,
+    rotationY: 0,
+  },
+];
+
+function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[] {
+  const thickness = 0.42;
+  const frontSegmentWidth = (building.width - building.doorWidth) / 2;
+  const frontOffset = building.doorWidth / 2 + frontSegmentWidth / 2;
+  const frontZ = building.z - building.depth / 2;
+  const backZ = building.z + building.depth / 2;
+  const walls = [
+    {
+      id: `${building.id}-front-left`,
+      x: building.x - frontOffset,
+      z: frontZ,
+      width: frontSegmentWidth,
+      depth: thickness,
+    },
+    {
+      id: `${building.id}-front-right`,
+      x: building.x + frontOffset,
+      z: frontZ,
+      width: frontSegmentWidth,
+      depth: thickness,
+    },
+    {
+      id: `${building.id}-back`,
+      x: building.x,
+      z: backZ,
+      width: building.width,
+      depth: thickness,
+    },
+    {
+      id: `${building.id}-west`,
+      x: building.x - building.width / 2,
+      z: building.z,
+      width: thickness,
+      depth: building.depth,
+    },
+    {
+      id: `${building.id}-east`,
+      x: building.x + building.width / 2,
+      z: building.z,
+      width: thickness,
+      depth: building.depth,
+    },
+  ];
+  return walls.map((wall) => ({
+    ...wall,
+    kind: "wall",
+    height: building.wallHeight,
+    color: "#897968",
+  }));
+}
 
 export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "outer-west", kind: "wall", x: -35, z: 0, width: 2, depth: 70, height: 5.5, color: "#665047" },
   { id: "outer-east", kind: "wall", x: 35, z: 0, width: 2, depth: 70, height: 5.5, color: "#665047" },
   { id: "outer-north", kind: "wall", x: 0, z: -35, width: 70, depth: 2, height: 5.5, color: "#715648" },
   { id: "outer-south", kind: "wall", x: 0, z: 35, width: 70, depth: 2, height: 5.5, color: "#715648" },
-  { id: "west-tower", kind: "tower", x: -26, z: -25, width: 8, depth: 8, height: 10, color: "#65504a" },
-  { id: "east-tower", kind: "tower", x: 27, z: 20, width: 7, depth: 8, height: 8, color: "#765746" },
+  ...WAR_ROOM_BUILDINGS.flatMap(createBuildingWallBlockers),
   { id: "north-barricade-left", kind: "wall", x: -16, z: -23, width: 12, depth: 1.4, height: 4.2, color: "#776050" },
   { id: "north-barricade-right", kind: "wall", x: 15, z: -24, width: 13, depth: 1.4, height: 4.2, color: "#776050" },
   { id: "central-wall-west", kind: "wall", x: -7, z: -8, width: 1.4, depth: 12, height: 4.4, color: "#69534a" },
@@ -390,6 +474,10 @@ export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "crate-row-two", kind: "cover", x: 9, z: 24, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
   { id: "barrel-west", kind: "cover", x: -21, z: 20, width: 1.35, depth: 1.35, height: 1.45, color: "#76543b" },
   { id: "barrel-east", kind: "cover", x: 21, z: 13, width: 1.35, depth: 1.35, height: 1.45, color: "#76543b" },
+  { id: "hideout-crate-west-one", kind: "cover", x: -27.5, z: -25.2, width: 1.2, depth: 1.35, height: 1.55, color: "#76543b" },
+  { id: "hideout-crate-west-two", kind: "cover", x: -24.5, z: -23.8, width: 1.2, depth: 1.35, height: 1.55, color: "#76543b" },
+  { id: "hideout-crate-east-one", kind: "cover", x: 25.55, z: 20, width: 1.2, depth: 1.35, height: 1.55, color: "#76543b" },
+  { id: "hideout-crate-east-two", kind: "cover", x: 28.45, z: 21.4, width: 1.2, depth: 1.35, height: 1.55, color: "#76543b" },
 ];
 
 export const WAR_ROOM_COVER_SPOTS = [

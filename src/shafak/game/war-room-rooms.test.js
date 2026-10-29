@@ -11,7 +11,7 @@ import {
   WAR_ROOM_MAX_ROOM_ENEMIES,
 } from "./war-room-rooms.ts";
 import { GAME_BUILD_MARKER } from "../build-info.ts";
-import { createWarRoomRuntime, segmentBlockFraction } from "./war-room-engine.ts";
+import { createWarRoomRuntime, moveWarRoomEntity, segmentBlockFraction } from "./war-room-engine.ts";
 import {
   WAR_ROOM_BUILD_VERSION,
   WAR_ROOM_ROOM_BUFFS_ENABLED,
@@ -43,6 +43,69 @@ test("the first six rooms have distinct names, layouts, themes, rosters and enem
     )));
     assert.ok(room.blockers.length === WAR_ROOM_BLOCKERS.length);
   }
+});
+
+test("each rotated barracks has a traversable doorway and interior crates stop shots", () => {
+  const toWorld = (building, localX, localZ) => {
+    const cosine = Math.cos(building.rotationY);
+    const sine = Math.sin(building.rotationY);
+    return {
+      x: building.x + cosine * localX + sine * localZ,
+      z: building.z - sine * localX + cosine * localZ,
+    };
+  };
+
+  for (let roomNumber = 1; roomNumber <= 6; roomNumber += 1) {
+    const room = getWarRoomRoom(roomNumber);
+    assert.equal(room.buildings.length, 2);
+    for (const building of room.buildings) {
+      const frontDistance = building.depth / 2 + 1.4;
+      const front = toWorld(building, 0, -frontDistance);
+      const forwardX = -Math.sin(building.rotationY);
+      const forwardZ = -Math.cos(building.rotationY);
+      let position = front;
+      const steps = Math.ceil(frontDistance / 0.3) + 1;
+      for (let index = 0; index < steps; index += 1) {
+        position = moveWarRoomEntity(
+          position.x,
+          position.z,
+          -forwardX * 0.3,
+          -forwardZ * 0.3,
+          0.38,
+          room.blockers,
+        );
+      }
+      assert.ok(Math.hypot(position.x - building.x, position.z - building.z) < 0.8);
+
+      const side = building.id.startsWith("west-") ? "west" : "east";
+      const houseCrates = room.blockers.filter(({ id }) => id.startsWith(`hideout-crate-${side}-`));
+      assert.equal(houseCrates.length, 2);
+      for (const crate of houseCrates) {
+        const dx = crate.x - building.x;
+        const dz = crate.z - building.z;
+        const localX = Math.cos(building.rotationY) * dx - Math.sin(building.rotationY) * dz;
+        const localZ = Math.sin(building.rotationY) * dx + Math.cos(building.rotationY) * dz;
+        assert.ok(Math.abs(localX) + crate.width / 2 < building.width / 2 - 0.4);
+        assert.ok(Math.abs(localZ) + crate.depth / 2 < building.depth / 2 - 0.4);
+      }
+    }
+  }
+
+  const room = getWarRoomRoom(1);
+  const building = room.buildings.find(({ id }) => id === "west-barracks");
+  const crate = room.blockers.find(({ id }) => id === "hideout-crate-west-one");
+  assert.ok(building);
+  assert.ok(crate);
+  const shotStart = toWorld(building, -0.55, -(building.depth / 2 + 3));
+  assert.notEqual(
+    segmentBlockFraction(
+      { ...shotStart, y: 1.3 },
+      { x: crate.x, y: 1.3, z: crate.z },
+      0,
+      room.blockers,
+    ),
+    null,
+  );
 });
 
 test("rooms beyond six cycle themes, add enemies, and scale health without changing damage data", () => {
