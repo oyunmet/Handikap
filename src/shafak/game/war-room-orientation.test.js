@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
+  getWarRoomActorYawToTarget,
   getWarRoomPostAttackStrafeUntil,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
@@ -69,6 +70,11 @@ test("body rotation takes the short path across the ±180° boundary", () => {
   const step = stepWarRoomYaw(from, to, 0.05);
   assert.ok(step > from, "the body should turn forward through 180°");
   assert.ok(Math.abs(Math.atan2(Math.sin(to - step), Math.cos(to - step))) < 0.012);
+});
+
+test("enemy model yaw compensates for its built-in facing offset", () => {
+  closeAngle(getWarRoomActorYawToTarget(0, 0, 0, -5, Math.PI) + Math.PI, 0);
+  closeAngle(getWarRoomActorYawToTarget(0, 0, 5, 0, Math.PI) + Math.PI, Math.PI / 2);
 });
 
 test("camera-facing body rotation catches up within 120 ms across the wrap boundary", () => {

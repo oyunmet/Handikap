@@ -3,7 +3,7 @@ import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "./war-room-data";
 export const WAR_ROOM_ENEMY_DEATH_FADE_SECONDS = 1.5;
 export const WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS = 0.8;
 export const WAR_ROOM_COMMANDER_TELEGRAPH_SECONDS = 0.45;
-export const WAR_ROOM_ENEMY_HIT_FLASH_SECONDS = 0.09;
+export const WAR_ROOM_ENEMY_HIT_FLASH_SECONDS = 0.24;
 
 export function getWarRoomVisualKnockbackDistance(weaponId: WarRoomWeaponId, heavy: boolean) {
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);

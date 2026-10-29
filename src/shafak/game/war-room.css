@@ -1416,10 +1416,30 @@
   text-shadow: 0 0 14px rgba(255, 198, 51, 0.88), 0 2px 5px #000;
 }
 
+.war-room-damage-number.is-received {
+  top: calc(50% + 40px);
+  padding: 5px 9px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 126, 105, .65);
+  border-radius: 99px;
+  background: rgba(43, 12, 11, .78);
+  color: #ff8878;
+  font-size: 14px;
+  letter-spacing: .08em;
+  text-shadow: 0 0 10px rgba(255, 73, 59, .75), 0 2px 4px #000;
+  animation: war-room-damage-taken 620ms ease-out both;
+}
+
 @keyframes war-room-damage-float {
   0% { opacity: 0; transform: translate(-50%, 10px) scale(0.76); }
   18% { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -22px) scale(1.08); }
+}
+
+@keyframes war-room-damage-taken {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(.78); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -8px) scale(1); }
 }
 
 .war-room-confirm {

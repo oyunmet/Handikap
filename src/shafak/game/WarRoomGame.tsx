@@ -196,6 +196,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     hitMarker: false,
     headshotMarker: false,
     damageNumberCritical: false,
+    lastHitSource: null,
     damageEventId: 0,
     damageVignette: false,
     damageDirection: 0,
@@ -437,6 +438,12 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [damagePopup, setDamagePopup] = useState<{
+    id: number;
+    damage: number;
+    critical: boolean;
+    source: "dealt" | "received";
+  } | null>(null);
   const [debugRenderStats, setDebugRenderStats] = useState<WarRoomFrameStats>({ drawCalls: 0, fps: 0 });
   const [killConfirmation, setKillConfirmation] = useState<{ id: number; streak: number } | null>(null);
   const previousKillCountRef = useRef(0);
@@ -460,6 +467,23 @@ export default function WarRoomGame({
     const timeout = window.setTimeout(() => setKillConfirmation(null), 1_350);
     return () => window.clearTimeout(timeout);
   }, [killConfirmation?.id]);
+  useEffect(() => {
+    if (hud.damageEventId <= 0 || hud.lastHitDamage <= 0 || !hud.lastHitSource) {
+      setDamagePopup(null);
+      return undefined;
+    }
+    const popup = {
+      id: hud.damageEventId,
+      damage: hud.lastHitDamage,
+      critical: hud.damageNumberCritical,
+      source: hud.lastHitSource,
+    };
+    setDamagePopup(popup);
+    const timeout = window.setTimeout(() => {
+      setDamagePopup((current) => current?.id === popup.id ? null : current);
+    }, 680);
+    return () => window.clearTimeout(timeout);
+  }, [hud.damageEventId]);
   const bossHudPhase = getBossHudPhase(hud.bossHp, hud.bossMaxHp);
   const [bossPhaseAnnouncement, setBossPhaseAnnouncement] = useState<BossHudPhase | null>(null);
   const previousBossPhaseRef = useRef<number | null>(null);
@@ -1111,7 +1135,7 @@ export default function WarRoomGame({
                 <strong>{weapon.name}</strong>
                 <span>ÖLÇÜLEN UZUNLUK · {measuredLength.toFixed(2)} m</span>
                 <span>{weapon.weaponClass === "melee"
-                  ? "DURUŞ · 3 HAFİF KOMBO · BASILI AĞIR · İSABET EFEKTİ · MANKEN"
+                  ? "DURUŞ · 3 HAFİF KOMBO · BASILI GÜÇLÜ · İSABET EFEKTİ · MANKEN"
                   : "DURUŞ · ATEŞ · İSABET EFEKTİ · MANKEN"}
                 </span>
                 <button type="button" onClick={advanceWeaponLab}>SONRAKİ SİLAH · TEK DOKUNUŞ</button>
@@ -1407,7 +1431,7 @@ export default function WarRoomGame({
                 )}
                 <small>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? `${formatDuration(hud.elapsedSeconds)} · DOKUNUŞ: HAFİF · BASILI TUT ≥350 ms: AĞIR`
+                    ? `${formatDuration(hud.elapsedSeconds)} · Dokun: hafif vuruş · Basılı tut: güçlü vuruş`
                     : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
                 </small>
               </div>
@@ -1523,7 +1547,8 @@ export default function WarRoomGame({
                   }}
                 />
                 <ActionButton
-                  label="Silah değiştir"
+                  label="Değiştir"
+                  title="Silahı değiştir"
                   hint="V"
                   showHint={keyboardHintsVisible}
                   vibrationEnabled={vibrationEnabled}
@@ -1532,7 +1557,10 @@ export default function WarRoomGame({
                   onClick={() => pressWarRoomAction(inputRef.current, "swap")}
                 />
                 <ActionButton
-                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Ağır" : "Ateş"}
+                  label={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "Güçlü" : "Ateş"}
+                  title={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
+                    ? "Basılı tut: güçlü vuruş"
+                    : "Ateş et"}
                   icon={WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee" ? "melee-heavy" : undefined}
                   vibrationEnabled={vibrationEnabled}
                   className="is-fire"
@@ -1565,13 +1593,15 @@ export default function WarRoomGame({
             </div>
             <button className="war-room-pause" type="button" onClick={pauseBattle}>DURAKLAT · ÇIK</button>
           </div>
-          {hud.hitMarker && (
+          {damagePopup && (
             <div
-              key={hud.damageEventId}
-              className={`war-room-damage-number${hud.damageNumberCritical ? " is-critical" : ""}`}
+              key={damagePopup.id}
+              className={`war-room-damage-number${damagePopup.critical ? " is-critical" : ""}${damagePopup.source === "received" ? " is-received" : ""}`}
               aria-hidden="true"
             >
-              {`−${hud.lastHitDamage}`}
+              {damagePopup.source === "received"
+                ? `−${damagePopup.damage} CAN`
+                : `−${damagePopup.damage}`}
             </div>
           )}
           {exitPrompt && (

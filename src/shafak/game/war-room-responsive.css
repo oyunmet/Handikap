@@ -1022,3 +1022,142 @@
     animation: none;
   }
 }
+
+@media (orientation: portrait) and (max-width: 760px) and (pointer: coarse) {
+  .war-room-controls:not(.is-custom-layout) {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
+    display: grid;
+    width: 142px;
+    height: 170px;
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: 44px 44px 72px;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button {
+    position: relative;
+    inset: auto;
+    display: inline-flex;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 3px 2px;
+    border: 1px solid rgba(221, 190, 139, .48);
+    border-radius: 50%;
+    background: rgba(12, 14, 16, .72);
+    box-shadow: 0 3px 9px rgba(0, 0, 0, .3);
+    backdrop-filter: blur(7px);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::before {
+    inset: 2px;
+    border-radius: 50%;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__glyph {
+    width: 18px;
+    height: 18px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__label {
+    max-width: calc(100% - 2px);
+    font-size: 6px;
+    letter-spacing: .02em;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(1) { grid-area: 1 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(2) { grid-area: 1 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(3) { grid-area: 1 / 3; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(4) { grid-area: 2 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(5) { grid-area: 2 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(6) {
+    display: inline-flex;
+    grid-area: 2 / 3;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire {
+    position: relative;
+    inset: auto;
+    display: inline-flex;
+    width: 70px !important;
+    min-width: 70px !important;
+    height: 70px !important;
+    min-height: 70px !important;
+    grid-area: 3 / 1 / 4 / 4;
+    justify-self: center;
+    align-self: center;
+    padding: 8px 5px;
+    border-radius: 50%;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire::before {
+    inset: 3px;
+    border-radius: 50%;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire .shafak-hud-button__glyph {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
+  .war-room-controls:not(.is-custom-layout) {
+    right: max(9px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    display: grid;
+    width: 142px;
+    height: 154px;
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: 44px 44px 62px;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button {
+    position: relative;
+    inset: auto;
+    display: inline-flex;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 3px 2px;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(1) { grid-area: 1 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(2) { grid-area: 1 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(3) { grid-area: 1 / 3; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(4) { grid-area: 2 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(5) { grid-area: 2 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(6) {
+    display: inline-flex;
+    grid-area: 2 / 3;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire {
+    position: relative;
+    inset: auto;
+    display: inline-flex;
+    width: 58px !important;
+    min-width: 58px !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    grid-area: 3 / 1 / 4 / 4;
+    justify-self: center;
+    align-self: center;
+  }
+}

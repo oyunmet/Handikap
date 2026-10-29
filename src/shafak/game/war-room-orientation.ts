@@ -84,6 +84,16 @@ export function stepWarRoomYaw(from: number, to: number, deltaSeconds: number, s
   return from + delta * (1 - Math.exp(-speed * Math.min(Math.max(0, deltaSeconds), 0.05)));
 }
 
+export function getWarRoomActorYawToTarget(
+  actorX: number,
+  actorZ: number,
+  targetX: number,
+  targetZ: number,
+  modelFacingYaw = 0,
+) {
+  return Math.atan2(targetX - actorX, -(targetZ - actorZ)) - modelFacingYaw;
+}
+
 export function getWarRoomPostAttackStrafeUntil(now: number, attackDuration = 0) {
   return now + Math.max(0, attackDuration) + 0.8;
 }

@@ -32,6 +32,7 @@ import {
   getWarRoomPostAttackStrafeUntil,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
+  getWarRoomActorYawToTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
@@ -112,6 +113,7 @@ import {
   type WarRoomSoundSurface,
 } from "../game/war-room-audio";
 import { isWarRoomLowHealth } from "../game/war-room-feedback";
+import { PLAYER_CHARACTER_MODEL_FACING } from "./player-model";
 import {
   WarRoomAnimatedActor,
   WarRoomAssetBoundary,
@@ -1037,6 +1039,53 @@ function WeaponModel({
   );
 }
 
+function FirstPersonArms() {
+  const sleeve = <meshStandardMaterial color="#373b3b" roughness={0.86} flatShading />;
+  const cuff = <meshStandardMaterial color="#9b7950" roughness={0.54} metalness={0.42} flatShading />;
+  const hand = <meshStandardMaterial color="#b98a66" roughness={0.9} flatShading />;
+
+  return (
+    <group name="war-room-first-person-arms">
+      <group position={[0.38, -0.48, -0.12]} rotation={[0.04, 0.1, 0.58]}>
+        <mesh castShadow={false}>
+          <capsuleGeometry args={[0.12, 0.52, 3, 7]} />
+          {sleeve}
+        </mesh>
+        <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, 0]} castShadow={false}>
+          <boxGeometry args={[0.25, 0.075, 0.24]} />
+          {cuff}
+        </mesh>
+        <mesh position={[-0.14, 0.27, -0.16]} castShadow={false}>
+          <sphereGeometry args={[0.115, 8, 6]} />
+          {hand}
+        </mesh>
+        <mesh position={[-0.2, 0.3, -0.22]} rotation={[0, 0, -0.4]} castShadow={false}>
+          <capsuleGeometry args={[0.043, 0.1, 2, 5]} />
+          {hand}
+        </mesh>
+      </group>
+      <group position={[-0.32, -0.45, -0.4]} rotation={[0.02, -0.08, -0.58]}>
+        <mesh castShadow={false}>
+          <capsuleGeometry args={[0.115, 0.5, 3, 7]} />
+          {sleeve}
+        </mesh>
+        <mesh position={[0, 0.19, -0.015]} castShadow={false}>
+          <boxGeometry args={[0.24, 0.075, 0.23]} />
+          {cuff}
+        </mesh>
+        <mesh position={[0.1, 0.27, -0.18]} castShadow={false}>
+          <sphereGeometry args={[0.11, 8, 6]} />
+          {hand}
+        </mesh>
+        <mesh position={[0.17, 0.3, -0.24]} rotation={[0, 0, 0.35]} castShadow={false}>
+          <capsuleGeometry args={[0.042, 0.1, 2, 5]} />
+          {hand}
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 function FirstPersonWeaponViewModel({
   runtimeRef,
   inputRef,
@@ -1115,6 +1164,7 @@ function FirstPersonWeaponViewModel({
       visible={cameraMode === "first-person"}
       scale={viewConfig.scale}
     >
+      <FirstPersonArms />
       <WeaponModel weaponId={weaponId} mount={mount} />
     </group>,
     camera,
@@ -1614,8 +1664,14 @@ function EnemyActor({
       }
     }
     if (player) {
-      const targetYaw = Math.atan2(player.x - enemy.x, -(player.z - enemy.z));
-      group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 7, delta);
+      const targetYaw = getWarRoomActorYawToTarget(
+        enemy.x,
+        enemy.z,
+        player.x,
+        player.z,
+        PLAYER_CHARACTER_MODEL_FACING,
+      );
+      group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 12, delta);
     }
     const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.2 : 0;
     if (enemy.alive) delete group.userData.warRoomDeathStartedAt;
@@ -1905,6 +1961,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     hitMarker: player.hitMarkerUntil > now,
     headshotMarker: player.hitMarkerUntil > now && player.hitMarkerHeadshot,
     damageNumberCritical: player.lastHitCritical,
+    lastHitSource: player.lastHitSource,
     damageEventId: player.damageEventId,
     firing: player.shotFeedbackUntil > now,
     damageVignette: player.lastDamageAt > 0 && now - player.lastDamageAt < 0.72,
@@ -2623,6 +2680,7 @@ function WarRoomRuntimeScene({
     enemy.hitKnockbackZ = ((enemy.z - player.z) / knockbackLength) * visualKnockback;
     player.hits += 1;
     player.lastHitDamage = damage.damage;
+    player.lastHitSource = "dealt";
     player.damageEventId += 1;
     player.lastHitCritical = player.meleeAttackHeavy;
     player.lastHitText = `${enemy.name} · −${damage.damage} CAN`;
@@ -2633,7 +2691,7 @@ function WarRoomRuntimeScene({
       player.meleeHitStopUntil,
       wallNow + player.meleeAttackHitStopSeconds,
     );
-    player.meleeLastResult = `${player.meleeAttackHeavy ? "Ağır" : "Hafif"} isabet · −${damage.damage}`;
+    player.meleeLastResult = `${player.meleeAttackHeavy ? "Güçlü" : "Hafif"} isabet · −${damage.damage}`;
     cameraKickRef.current = Math.max(cameraKickRef.current, player.meleeAttackHeavy ? 0.052 : 0.034);
     cameraFovKickRef.current = Math.min(
       4.2,
@@ -2810,7 +2868,7 @@ function WarRoomRuntimeScene({
       performanceSample.started = true;
       performanceSample.attackCount += 1;
       player.meleeLastResult = plan.heavy
-        ? "Ağır saldırı · hazırlık"
+        ? "Güçlü saldırı · hazırlık"
         : `Hafif saldırı · kombo ${plan.comboIndex + 1}/3`;
       playWarRoomSound(
         "melee-swing",
@@ -2829,7 +2887,7 @@ function WarRoomRuntimeScene({
         Math.min(0.02, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.012),
       );
       if (debugMode) {
-        onMeleeDebugUpdate(`${plan.heavy ? "AĞIR" : "HAZIRLIK"} · KOMBO ${plan.heavy ? 0 : plan.comboIndex + 1}/3`);
+        onMeleeDebugUpdate(`${plan.heavy ? "GÜÇLÜ" : "HAZIRLIK"} · KOMBO ${plan.heavy ? 0 : plan.comboIndex + 1}/3`);
       }
       return;
     }
@@ -2918,7 +2976,7 @@ function WarRoomRuntimeScene({
           weapon.damage * chargeMultiplier,
           aim.headshot ? weapon.headshotMultiplier : 1,
         );
-        aimedEnemy.hitUntil = now + 0.14;
+        aimedEnemy.hitUntil = now + 0.22;
         aimedEnemy.hitFlashUntil = WAR_ROOM_REACTION_FEEDBACK_ENABLED
           ? now + WAR_ROOM_ENEMY_HIT_FLASH_SECONDS
           : 0;
@@ -2930,6 +2988,7 @@ function WarRoomRuntimeScene({
         shotHit = true;
         shotHeadshot ||= aim.headshot;
         player.lastHitDamage += damage.damage;
+        player.lastHitSource = "dealt";
         player.damageEventId += 1;
         player.lastHitCritical ||= aim.headshot;
         player.lastHitText = `${aimedEnemy.name} · −${damage.damage}${aim.headshot ? " · KAFA" : ""}`;
@@ -3493,6 +3552,9 @@ function WarRoomRuntimeScene({
           player.lastHitText = `−${hit.damage} CAN · ${enemy.name}`;
           player.hitMessageUntil = now + 1;
           player.lastHitDamage = hit.damage;
+          player.lastHitSource = "received";
+          player.lastHitCritical = false;
+          player.damageEventId += 1;
         }
       }
     }

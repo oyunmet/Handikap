@@ -114,6 +114,7 @@ export type WarRoomRuntime = {
     hitMarkerUntil: number;
     hitMarkerHeadshot: boolean;
     lastHitCritical: boolean;
+    lastHitSource: "dealt" | "received" | null;
     damageEventId: number;
     lastHitDamage: number;
     hitMessageUntil: number;
@@ -185,6 +186,7 @@ export type WarRoomHudSnapshot = {
   hitMarker: boolean;
   headshotMarker: boolean;
   damageNumberCritical: boolean;
+  lastHitSource: "dealt" | "received" | null;
   damageEventId: number;
   damageVignette: boolean;
   damageDirection: number;
@@ -342,6 +344,7 @@ export function createWarRoomRuntime(
       hitMarkerUntil: 0,
       hitMarkerHeadshot: false,
       lastHitCritical: false,
+      lastHitSource: null,
       damageEventId: 0,
       lastHitDamage: 0,
       hitMessageUntil: 0,
