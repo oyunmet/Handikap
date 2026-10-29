@@ -16,6 +16,7 @@ import {
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "./war-room-engine";
+import { createWarRoomLeaderboard, type WarRoomLeaderboardEntry } from "./war-room-leaderboard";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import { advanceWarRoomKillStreak, isWarRoomLowHealth } from "./war-room-feedback";
@@ -550,6 +551,7 @@ export default function WarRoomGame({
     commanderTitle: string;
     enemyCount: number;
     nextRoom: WarRoomRoom | null;
+    leaderboard: WarRoomLeaderboardEntry[];
   } | null>(null);
   const runtimeRef = useRef<WarRoomRuntime>(
     weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout, 0, 1),
@@ -634,9 +636,16 @@ export default function WarRoomGame({
       commanderTitle: completedRoom.commanderTitle,
       enemyCount: completedRoom.enemyCount,
       nextRoom,
+      leaderboard: createWarRoomLeaderboard(
+        profile.name,
+        result,
+        finalHud.kills,
+        finalHud.headshots,
+        runtimeRef.current.enemies,
+      ),
     });
     setPhase(result);
-  }, [loadout]);
+  }, [loadout, profile.name]);
 
   useEffect(() => {
     inputRef.current.facingSetting = facingSetting;
@@ -1678,6 +1687,24 @@ export default function WarRoomGame({
               <div><span>İSABET</span><b>%{summary.accuracy}</b></div>
               <div><span>SÜRE</span><b>{formatDuration(summary.seconds)}</b></div>
             </div>
+            <section className="war-room-leaderboard" aria-label="Maç liderlik tablosu">
+              <header>
+                <span>MAÇ LİDERLİK TABLOSU</span>
+                <small>{summary.leaderboard.length} karakter</small>
+              </header>
+              <ol>
+                {summary.leaderboard.map((entry) => (
+                  <li key={entry.id}>
+                    <span className="war-room-leaderboard__rank">{entry.rank}</span>
+                    <span className="war-room-leaderboard__identity">
+                      <strong>{entry.name}</strong>
+                      <small>{entry.role} · {entry.status}</small>
+                    </span>
+                    <b>{entry.score.toLocaleString("tr-TR")}</b>
+                  </li>
+                ))}
+              </ol>
+            </section>
             {phase === "victory" && summary.nextRoom && (
               <div className="war-room-next-room" aria-label="Sonraki oda önizlemesi">
                 <span>SONRAKİ ODA · {summary.nextRoom.number} / ∞</span>

@@ -24,6 +24,7 @@ export type WarRoomEnemy = {
   hp: number;
   maxHp: number;
   damage: number;
+  score: number;
   alive: boolean;
   mode: "approach" | "fire" | "cover";
   brainAt: number;
@@ -243,6 +244,7 @@ export function createWarRoomRuntime(
       hp: 90 * room.enemyHpMultiplier,
       maxHp: 90 * room.enemyHpMultiplier,
       damage: 9,
+      score: 0,
       alive: true,
       mode: "approach",
       brainAt: 0,
@@ -269,6 +271,7 @@ export function createWarRoomRuntime(
     hp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
     maxHp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
     damage: WAR_ROOM_COMMANDER.damage,
+    score: 0,
     alive: true,
     mode: "approach",
     brainAt: 0,
@@ -397,6 +400,7 @@ export function createWarRoomTrainingRuntime(
     hp: 1_000_000,
     maxHp: 1_000_000,
     damage: 0,
+    score: 0,
     alive: true,
     mode: "cover",
     brainAt: Number.POSITIVE_INFINITY,
@@ -421,6 +425,7 @@ function circleHitsBlocker(
   blocker: WarRoomBlocker,
   floorHeight = 0,
 ) {
+  if (blocker.kind === "platform") return false;
   const baseY = blocker.baseY ?? 0;
   const bodyHeight = 1.8;
   if (floorHeight >= baseY + blocker.height || floorHeight + bodyHeight <= baseY) return false;
@@ -503,6 +508,33 @@ export function getNearestWarRoomCover(
 
 export function getWarRoomRemaining(runtime: WarRoomRuntime) {
   return runtime.enemies.filter((enemy) => enemy.alive).length;
+}
+
+export function getNearbyWarRoomLootChest(
+  runtime: WarRoomRuntime,
+  maxDistance = 2.35,
+) {
+  const { player } = runtime;
+  const chest = runtime.lootChests
+    .filter((candidate) => (
+      !candidate.opened
+      && Math.abs(candidate.floorHeight - player.floorHeight) <= 0.9
+      && Math.hypot(candidate.x - player.x, candidate.z - player.z) <= maxDistance
+    ))
+    .sort((left, right) => (
+      Math.hypot(left.x - player.x, left.z - player.z)
+      - Math.hypot(right.x - player.x, right.z - player.z)
+    ))[0];
+  if (!chest) return null;
+
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(chest.weaponId);
+  return {
+    chest,
+    label: chest.kind === "weapon" ? "Silah sandığı" : "Cephane sandığı",
+    contents: chest.kind === "weapon"
+      ? `${weapon?.name ?? "Silah"} · ${chest.ammo} mermi`
+      : `+${chest.ammo} mermi · ${WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])?.name ?? "aktif silah"}`,
+  };
 }
 
 export function applyWarRoomLootChest(

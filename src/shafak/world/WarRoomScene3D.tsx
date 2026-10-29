@@ -12,7 +12,12 @@ import {
   type WarRoomWeaponMount,
   type WarRoomWeaponId,
 } from "../game/war-room-data";
-import type { WarRoomRoom } from "../game/war-room-rooms";
+import {
+  getWarRoomFloorHeight,
+  type WarRoomRoom,
+} from "../game/war-room-rooms";
+import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
+import { WarRoomBuildingShell, WarRoomStaircase } from "./WarRoomArchitecture";
 import {
   getWarRoomMeleeEffectiveReach,
   traceWarRoomMeleeCone,
@@ -93,6 +98,8 @@ import TimeOfDaySky from "./TimeOfDaySky";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
+  applyWarRoomLootChest,
+  getNearbyWarRoomLootChest,
   getNearestWarRoomCover,
   getWarRoomCommanderHealth,
   getWarRoomRemaining,
@@ -412,7 +419,11 @@ function StaticWarRoomAsset({
 function BlockerFallback({ blocker }: { blocker: WarRoomBlocker }) {
   return (
     <group>
-      <mesh position={[blocker.x, blocker.height / 2, blocker.z]} castShadow receiveShadow>
+      <mesh
+        position={[blocker.x, (blocker.baseY ?? 0) + blocker.height / 2, blocker.z]}
+        castShadow
+        receiveShadow
+      >
         <boxGeometry args={[blocker.width, blocker.height, blocker.depth]} />
         <meshStandardMaterial color={blocker.color} roughness={blocker.kind === "cover" ? 0.9 : 0.78} />
       </mesh>
@@ -516,96 +527,6 @@ function WarRoomHouse({ blocker }: { blocker: WarRoomBlocker }) {
   );
 }
 
-function WarRoomBuildingShell({ building }: { building: WarRoomRoom["buildings"][number] }) {
-  const front = -building.depth / 2;
-  const roofAngle = 0.38;
-  const windowPositions = [-1, 1].map((side) => side * building.width * 0.29);
-
-  return (
-    <group
-      position={[building.x, 0, building.z]}
-      rotation={[0, building.rotationY, 0]}
-    >
-      <mesh position={[0, -0.045, 0]} receiveShadow>
-        <boxGeometry args={[building.width - 0.48, 0.15, building.depth - 0.48]} />
-        <meshStandardMaterial color="#9a836b" roughness={0.96} />
-      </mesh>
-      <mesh position={[0, 0.035, 0]} receiveShadow>
-        <boxGeometry args={[building.width - 0.9, 0.035, building.depth - 0.9]} />
-        <meshStandardMaterial color="#b19b7f" roughness={0.94} />
-      </mesh>
-      <mesh position={[0, 0.064, 0]} receiveShadow>
-        <boxGeometry args={[1.9, 0.025, 2.8]} />
-        <meshStandardMaterial color="#785444" roughness={0.96} />
-      </mesh>
-      {[-building.doorWidth / 2, building.doorWidth / 2].map((x) => (
-        <mesh key={`door-post-${x}`} position={[x, building.wallHeight / 2, front - 0.16]} castShadow>
-          <boxGeometry args={[0.2, building.wallHeight, 0.26]} />
-          <meshStandardMaterial color="#564337" roughness={0.88} />
-        </mesh>
-      ))}
-      <mesh position={[0, building.wallHeight - 0.16, front - 0.16]} castShadow>
-        <boxGeometry args={[building.doorWidth + 0.2, 0.3, 0.27]} />
-        <meshStandardMaterial color="#564337" roughness={0.88} />
-      </mesh>
-      {windowPositions.map((x) => (
-        <group key={`front-window-${x}`} position={[x, building.wallHeight * 0.56, front - 0.25]}>
-          <mesh>
-            <boxGeometry args={[1.1, 0.9, 0.09]} />
-            <meshStandardMaterial color="#293039" emissive="#b8753d" emissiveIntensity={0.18} roughness={0.5} />
-          </mesh>
-          {[-0.59, 0.59].map((frameX) => (
-            <mesh key={frameX} position={[frameX, 0, 0.055]}>
-              <boxGeometry args={[0.09, 1.08, 0.08]} />
-              <meshStandardMaterial color="#4e3b30" roughness={0.86} />
-            </mesh>
-          ))}
-          <mesh position={[0, 0, 0.055]}>
-            <boxGeometry args={[0.07, 0.88, 0.08]} />
-            <meshStandardMaterial color="#4e3b30" roughness={0.86} />
-          </mesh>
-        </group>
-      ))}
-      <mesh position={[0, 3.05, 0]} castShadow>
-        <boxGeometry args={[0.12, 0.13, 0.12]} />
-        <meshStandardMaterial color="#564337" roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 2.82, 0]}>
-        <sphereGeometry args={[0.16, 7, 5]} />
-        <meshStandardMaterial color="#edbd73" emissive="#fa9a47" emissiveIntensity={1.15} roughness={0.35} />
-      </mesh>
-      <pointLight position={[0, 2.7, 0]} color="#ffad66" intensity={2.2} distance={8} />
-      <group
-        name={`war-room-camera-occluder:roof:${building.id}`}
-        userData={{ warRoomCameraOccluderId: `roof:${building.id}` }}
-      >
-        <mesh
-          position={[0, building.wallHeight + 0.38, -building.depth * 0.22]}
-          rotation={[-roofAngle, 0, 0]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[building.width + 0.56, 0.2, building.depth * 0.58]} />
-          <meshStandardMaterial color="#59413a" roughness={0.91} />
-        </mesh>
-        <mesh
-          position={[0, building.wallHeight + 0.38, building.depth * 0.22]}
-          rotation={[roofAngle, 0, 0]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[building.width + 0.56, 0.2, building.depth * 0.58]} />
-          <meshStandardMaterial color="#59413a" roughness={0.91} />
-        </mesh>
-        <mesh position={[0, building.wallHeight + 0.12, 0]} castShadow>
-          <boxGeometry args={[building.width + 0.45, 0.3, building.depth + 0.45]} />
-          <meshStandardMaterial color="#463730" roughness={0.93} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
 function WarRoomHideoutCrate({ blocker }: { blocker: WarRoomBlocker }) {
   const { width, height, depth } = blocker;
   return (
@@ -637,7 +558,7 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
     return (
       <StaticWarRoomAsset
         src="/models/war-room/wall.glb"
-        position={[blocker.x, 0, blocker.z]}
+        position={[blocker.x, blocker.baseY ?? 0, blocker.z]}
         targetSize={[blocker.width, blocker.height, blocker.depth]}
         fallback={fallback}
       />
@@ -661,12 +582,14 @@ function WarRoomBlockerVisual({ blocker }: { blocker: WarRoomBlocker }) {
   }
   if (blocker.kind === "platform") {
     return (
-      <StaticWarRoomAsset
-        src="/models/war-room/wall.glb"
-        position={[blocker.x, 0, blocker.z]}
-        targetSize={[blocker.width, blocker.height, blocker.depth]}
-        fallback={fallback}
-      />
+      <mesh
+        position={[blocker.x, (blocker.baseY ?? 0) + blocker.height / 2, blocker.z]}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[blocker.width, blocker.height, blocker.depth]} />
+        <meshStandardMaterial color={blocker.color} roughness={0.92} />
+      </mesh>
     );
   }
   return fallback;
@@ -791,6 +714,116 @@ function FloorPaving({ palette }: { palette: WarRoomRoom["theme"]["tiles"] }) {
   return <instancedMesh ref={meshRef} args={[geometry, WAR_ROOM_FLOOR_MATERIAL, tiles.length]} receiveShadow />;
 }
 
+function WarRoomLootChestField({ runtime }: { runtime: WarRoomRuntime }) {
+  const bodyRef = useRef<THREE.InstancedMesh>(null);
+  const lidRef = useRef<THREE.InstancedMesh>(null);
+  const latchRef = useRef<THREE.InstancedMesh>(null);
+  const transform = useMemo(() => new THREE.Object3D(), []);
+  const scratchColor = useMemo(() => new THREE.Color(), []);
+  const previousOpenedRef = useRef<boolean[]>([]);
+  const bodyGeometry = useMemo(() => new THREE.BoxGeometry(0.82, 0.36, 0.58), []);
+  const lidGeometry = useMemo(() => new THREE.BoxGeometry(0.84, 0.11, 0.6), []);
+  const latchGeometry = useMemo(() => new THREE.BoxGeometry(0.11, 0.14, 0.07), []);
+  const bodyMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 }),
+    [],
+  );
+  const lidMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.84 }),
+    [],
+  );
+  const latchMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#d2a35a", metalness: 0.62, roughness: 0.32 }),
+    [],
+  );
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    const lid = lidRef.current;
+    const latch = latchRef.current;
+    if (!body || !lid || !latch) return;
+
+    runtime.lootChests.forEach((chest, index) => {
+      const bodyColor = chest.kind === "weapon" ? "#76553a" : "#674a34";
+      const lidColor = chest.kind === "weapon" ? "#a47a48" : "#8a6643";
+      body.setColorAt(index, scratchColor.set(bodyColor));
+      lid.setColorAt(index, scratchColor.set(lidColor));
+
+      transform.position.set(chest.x, chest.floorHeight + 0.2, chest.z);
+      transform.rotation.set(0, 0, 0);
+      transform.updateMatrix();
+      body.setMatrixAt(index, transform.matrix);
+
+      transform.position.set(chest.x, chest.floorHeight + 0.435, chest.z);
+      transform.rotation.set(chest.opened ? -0.82 : 0, 0, 0);
+      transform.updateMatrix();
+      lid.setMatrixAt(index, transform.matrix);
+
+      transform.position.set(chest.x, chest.floorHeight + 0.24, chest.z - 0.3);
+      transform.rotation.set(0, 0, 0);
+      transform.scale.setScalar(chest.opened ? 0 : 1);
+      transform.updateMatrix();
+      latch.setMatrixAt(index, transform.matrix);
+      transform.scale.setScalar(1);
+      previousOpenedRef.current[index] = chest.opened;
+    });
+    body.instanceMatrix.needsUpdate = true;
+    lid.instanceMatrix.needsUpdate = true;
+    latch.instanceMatrix.needsUpdate = true;
+    if (body.instanceColor) body.instanceColor.needsUpdate = true;
+    if (lid.instanceColor) lid.instanceColor.needsUpdate = true;
+  }, [runtime, scratchColor, transform]);
+
+  useFrame(() => {
+    const lid = lidRef.current;
+    const latch = latchRef.current;
+    if (!lid || !latch) return;
+    let lidChanged = false;
+    let latchChanged = false;
+    runtime.lootChests.forEach((chest, index) => {
+      if (previousOpenedRef.current[index] === chest.opened) return;
+      transform.position.set(chest.x, chest.floorHeight + 0.435, chest.z);
+      transform.rotation.set(chest.opened ? -0.82 : 0, 0, 0);
+      transform.updateMatrix();
+      lid.setMatrixAt(index, transform.matrix);
+      lidChanged = true;
+
+      transform.position.set(chest.x, chest.floorHeight + 0.24, chest.z - 0.3);
+      transform.rotation.set(0, 0, 0);
+      transform.scale.setScalar(chest.opened ? 0 : 1);
+      transform.updateMatrix();
+      latch.setMatrixAt(index, transform.matrix);
+      transform.scale.setScalar(1);
+      latchChanged = true;
+      previousOpenedRef.current[index] = chest.opened;
+    });
+    if (lidChanged) lid.instanceMatrix.needsUpdate = true;
+    if (latchChanged) latch.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <>
+      <instancedMesh
+        ref={bodyRef}
+        args={[bodyGeometry, bodyMaterial, runtime.lootChests.length]}
+        castShadow
+        receiveShadow
+      />
+      <instancedMesh
+        ref={lidRef}
+        args={[lidGeometry, lidMaterial, runtime.lootChests.length]}
+        castShadow
+        receiveShadow
+      />
+      <instancedMesh
+        ref={latchRef}
+        args={[latchGeometry, latchMaterial, runtime.lootChests.length]}
+        castShadow
+      />
+    </>
+  );
+}
+
 function WallDetails({ blockers }: { blockers: readonly WarRoomRoom["blockers"][number][] }) {
   const openingsRef = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
@@ -805,7 +838,7 @@ function WallDetails({ blockers }: { blockers: readonly WarRoomRoom["blockers"][
     const count = Math.min(14, Math.max(2, Math.floor(length / 5)));
     return Array.from({ length: count }, (_, index) => {
       const positionAlong = -length / 2 + ((index + 1) / (count + 1)) * length;
-      const centerY = Math.min(blocker.height * 0.55, 2.55);
+      const centerY = (blocker.baseY ?? 0) + Math.min(blocker.height * 0.55, 2.55);
       return [-1, 1].map((face) => ({
         x: blocker.x + (alongX ? positionAlong : face * (blocker.width / 2 + 0.035)),
         y: centerY,
@@ -843,9 +876,14 @@ function rotateWarRoomScenePoint(x: number, z: number, quarterTurns: number) {
   }
 }
 
-function Battlefield({ room }: { room: WarRoomRoom }) {
+function Battlefield({ runtime }: { runtime: WarRoomRuntime }) {
+  const { room } = runtime;
   const { theme } = room;
   const quarterRotation = room.quarterTurns * Math.PI / 2;
+  const visualBlockers = room.blockers.filter((blocker) => (
+    !room.buildings.some((building) => blocker.id.startsWith(`${building.id}-`))
+    || blocker.id.includes("partition")
+  ));
   useLayoutEffect(() => {
     WAR_ROOM_FLOOR_MATERIAL.color.set(theme.floorTint);
   }, [theme.floorTint]);
@@ -876,13 +914,17 @@ function Battlefield({ room }: { room: WarRoomRoom }) {
         <primitive object={WAR_ROOM_FLOOR_MATERIAL} attach="material" />
       </mesh>
       <FloorPaving palette={theme.tiles} />
-      {room.blockers.map((blocker) => (
+      {visualBlockers.map((blocker) => (
         <WarRoomBlockerVisual key={blocker.id} blocker={blocker} />
       ))}
-      <WallDetails blockers={room.blockers} />
+      <WallDetails blockers={visualBlockers} />
       {room.buildings.map((building) => (
-        <WarRoomBuildingShell key={building.id} building={building} />
+        <group key={building.id}>
+          <WarRoomBuildingShell building={building} />
+          <WarRoomStaircase building={building} />
+        </group>
       ))}
+      <WarRoomLootChestField runtime={runtime} />
       {[4.8, 21.2].map((z, index) => {
         const point = rotateWarRoomScenePoint(0, z, room.quarterTurns);
         return (
@@ -1308,7 +1350,7 @@ function MeleeDebugCone({
     if (!group) return;
     const player = runtimeRef.current.player;
     const attackActive = player.meleeUntil > player.clockTime;
-    group.position.set(player.x, player.jumpHeight + 0.025, player.z);
+    group.position.set(player.x, player.floorHeight + player.jumpHeight + 0.025, player.z);
     group.rotation.y = attackActive ? player.meleeAttackYaw : player.yaw;
     group.scale.setScalar(weapon.range);
     group.visible = enabled && weapon.weaponClass === "melee";
@@ -2023,11 +2065,12 @@ function WarRoomTargetMarker({
   );
 }
 
-function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId], input: WarRoomInputState): WarRoomHudSnapshot {
+function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomInputState): WarRoomHudSnapshot {
   const player = runtime.player;
-  const weaponId = weaponIds[player.activeSlot];
+  const weaponId = player.weaponSlots[player.activeSlot];
   const ammo = player.ammo[weaponId];
   const bossHealth = getWarRoomCommanderHealth(runtime.enemies);
+  const nearbyChest = getNearbyWarRoomLootChest(runtime);
   const meleeProgress = player.meleeUntil > now
     ? Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
     : 0;
@@ -2040,12 +2083,14 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     player: {
       x: player.x,
       z: player.z,
+      floorHeight: player.floorHeight,
       yaw: player.yaw,
       hp: player.hp,
       maxHp: player.maxHp,
       stamina: player.stamina,
       maxStamina: player.maxStamina,
     },
+    weaponSlots: [...player.weaponSlots],
     orientation: {
       facingYaw: player.facingYaw,
       mode: player.facingMode,
@@ -2094,6 +2139,14 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     meleePhase,
     meleeComboCount: player.meleeComboCount,
     meleeLastResult: player.meleeLastResult,
+    nearbyLootChest: nearbyChest
+      ? {
+        id: nearbyChest.chest.id,
+        label: nearbyChest.label,
+        contents: nearbyChest.contents,
+        progress: player.lootChestId === nearbyChest.chest.id ? player.lootProgress : 0,
+      }
+      : null,
   };
 }
 
@@ -2917,7 +2970,7 @@ function WarRoomRuntimeScene({
   const fireWeapon = (now: number, charge = 1, meleeHoldSeconds = 0) => {
     const runtime = runtimeRef.current;
     const player = runtime.player;
-    const weaponId = weaponIds[player.activeSlot];
+    const weaponId = player.weaponSlots[player.activeSlot];
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
     if (now < player.nextShotAt || player.reloadingWeapon) return;
     if (weapon.weaponClass === "melee") {
@@ -3345,7 +3398,7 @@ function WarRoomRuntimeScene({
       input.aimHeld || now < player.strafeUntil,
       WAR_ROOM_CAMERA_FACING_ENABLED ? input.facingSetting : "movement",
     );
-    const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!;
+    const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
       && orientationWeapon.weaponClass === "melee"
       && input.aimHeld
@@ -3424,9 +3477,53 @@ function WarRoomRuntimeScene({
       dx += player.dodgeX * 11 * Math.min(delta, remaining);
       dz += player.dodgeZ * 11 * Math.min(delta, remaining);
     }
-    const nextPosition = moveWarRoomEntity(player.x, player.z, dx, dz, 0.38, runtime.room.blockers);
+    const nextPosition = moveWarRoomEntity(
+      player.x,
+      player.z,
+      dx,
+      dz,
+      0.38,
+      runtime.room.blockers,
+      player.floorHeight,
+    );
     player.x = nextPosition.x;
     player.z = nextPosition.z;
+    player.floorHeight = getWarRoomFloorHeight(
+      player.x,
+      player.z,
+      player.floorHeight,
+      runtime.room.buildings,
+    );
+    const nearbyLoot = getNearbyWarRoomLootChest(runtime);
+    if (!input.lootHeld || !nearbyLoot) {
+      player.lootChestId = null;
+      player.lootStartedAt = 0;
+      player.lootProgress = 0;
+    } else {
+      const chest = nearbyLoot.chest;
+      if (player.lootChestId !== chest.id) {
+        player.lootChestId = chest.id;
+        player.lootStartedAt = now;
+        player.lootProgress = 0;
+      } else {
+        player.lootProgress = Math.min(1, (now - player.lootStartedAt) / 1.8);
+      }
+      if (player.lootProgress >= 1) {
+        player.lastHitText = applyWarRoomLootChest(player, chest);
+        player.hitMessageUntil = now + 1.6;
+        chest.opened = true;
+        player.lootChestId = null;
+        player.lootStartedAt = 0;
+        player.lootProgress = 0;
+        input.lootHeld = false;
+        playWarRoomSound(
+          "healing-pickup",
+          0.95,
+          "pistol",
+          getWarRoomAudioOptions(player, chest.x, chest.z),
+        );
+      }
+    }
     const pickup = collectWarRoomHealingPoint(
       runtime.healingPoints,
       player,
@@ -3484,7 +3581,7 @@ function WarRoomRuntimeScene({
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
     resolveMeleeContact(now, wallNow);
 
-    const weaponId = weaponIds[player.activeSlot];
+    const weaponId = player.weaponSlots[player.activeSlot];
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
     if (input.reloadPressed) {
       const ammo = player.ammo[weaponId];
@@ -3532,6 +3629,13 @@ function WarRoomRuntimeScene({
     input.firePressed = false;
     input.fireReleased = false;
 
+    const activeLootChest = player.lootChestId
+      ? runtime.lootChests.find((chest) => chest.id === player.lootChestId && !chest.opened)
+      : undefined;
+    const lootBuilding = activeLootChest
+      ? runtime.room.buildings.find((building) => building.id === activeLootChest.buildingId)
+      : undefined;
+    const activeLootChase = Boolean(activeLootChest && lootBuilding);
     if (!trainingMode) for (let index = 0; index < runtime.enemies.length; index += 1) {
       const enemy = runtime.enemies[index];
       const group = enemyGroupRefs.current[index];
@@ -3539,21 +3643,34 @@ function WarRoomRuntimeScene({
         if (group) group.visible = false;
         continue;
       }
+      enemy.floorHeight = getWarRoomFloorHeight(
+        enemy.x,
+        enemy.z,
+        enemy.floorHeight ?? 0,
+        runtime.room.buildings,
+      );
       const gap = Math.hypot(enemy.x - player.x, enemy.z - player.z);
-      const enemyEye = { x: enemy.x, y: enemy.commander ? 1.65 : 1.45, z: enemy.z };
-      const playerEye = { x: player.x, y: player.jumpHeight + (player.crouched ? 1.1 : 1.4), z: player.z };
+      const enemyEye = { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.65 : 1.45), z: enemy.z };
+      const playerEye = {
+        x: player.x,
+        y: player.floorHeight + player.jumpHeight + (player.crouched ? 1.1 : 1.4),
+        z: player.z,
+      };
       const lineBlocked = segmentBlockFraction(enemyEye, playerEye, 0, runtime.room.blockers) !== null;
-      enemy.mode = player.hp / player.maxHp < 0.33
-        ? "cover"
-        : !lineBlocked && gap <= (enemy.commander ? 22 : 17)
-          ? "fire"
-          : lineBlocked && gap < 26 ? "cover" : "approach";
-      const updateInterval = gap > 38 ? 0.55 : 0.12;
+      enemy.mode = activeLootChase
+        ? "approach"
+        : player.hp / player.maxHp < 0.33
+          ? "cover"
+          : !lineBlocked && gap <= (enemy.commander ? 22 : 17)
+            ? "fire"
+            : lineBlocked && gap < 26 ? "cover" : "approach";
+      const updateInterval = activeLootChase ? 0.12 : gap > 38 ? 0.55 : 0.12;
       if (now >= enemy.brainAt) {
         enemy.brainAt = now + updateInterval;
-        let targetX = player.x;
-        let targetZ = player.z;
-        if (enemy.mode === "cover") {
+        let target = activeLootChase && lootBuilding
+          ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
+          : { x: player.x, z: player.z };
+        if (!activeLootChase && enemy.mode === "cover") {
           if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
             const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
             if (cover) {
@@ -3561,13 +3678,14 @@ function WarRoomRuntimeScene({
               enemy.coverZ = cover.z;
             }
           }
-          targetX = enemy.coverX;
-          targetZ = enemy.coverZ;
+          target = { x: enemy.coverX, z: enemy.coverZ };
         }
-        const holdDistance = enemy.commander ? 12.5 : 10.5;
-        const shouldMove = enemy.mode !== "fire" && Math.hypot(targetX - enemy.x, targetZ - enemy.z) > (enemy.mode === "cover" ? 1.2 : holdDistance);
+        const holdDistance = activeLootChase ? 0.8 : enemy.commander ? 12.5 : 10.5;
+        const shouldMove = enemy.mode !== "fire"
+          && Math.hypot(target.x - enemy.x, target.z - enemy.z)
+            > (enemy.mode === "cover" ? 1.2 : holdDistance);
         if (shouldMove) {
-          const targetYaw = Math.atan2(targetX - enemy.x, -(targetZ - enemy.z));
+          const targetYaw = Math.atan2(target.x - enemy.x, -(target.z - enemy.z));
           const moveSpeed = enemy.commander ? 2.55 : enemy.mode === "cover" ? 3.25 : 3.7;
           let moveXEnemy = Math.sin(targetYaw) * moveSpeed * updateInterval;
           let moveZEnemy = -Math.cos(targetYaw) * moveSpeed * updateInterval;
@@ -3588,13 +3706,20 @@ function WarRoomRuntimeScene({
             moveZEnemy,
             0.35,
             runtime.room.blockers,
+            enemy.floorHeight ?? 0,
           );
           enemy.x = moved.x;
           enemy.z = moved.z;
+          enemy.floorHeight = getWarRoomFloorHeight(
+            enemy.x,
+            enemy.z,
+            enemy.floorHeight ?? 0,
+            runtime.room.buildings,
+          );
         }
       }
       if (group) {
-        group.position.set(enemy.x, 0, enemy.z);
+        group.position.set(enemy.x, enemy.floorHeight ?? 0, enemy.z);
         group.visible = true;
       }
     }
@@ -3602,9 +3727,10 @@ function WarRoomRuntimeScene({
     const attackCandidates = trainingMode ? [] : runtime.enemies
       .filter((enemy) => {
         if (!enemy.alive || Math.hypot(enemy.x - player.x, enemy.z - player.z) > 24) return false;
+        if (Math.abs((enemy.floorHeight ?? 0) - player.floorHeight) > 1.25) return false;
         const blocked = segmentBlockFraction(
-          { x: enemy.x, y: enemy.commander ? 1.6 : 1.4, z: enemy.z },
-          { x: player.x, y: player.jumpHeight + 1.3, z: player.z },
+          { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.6 : 1.4), z: enemy.z },
+          { x: player.x, y: player.floorHeight + player.jumpHeight + 1.3, z: player.z },
           0,
           runtime.room.blockers,
         );
@@ -3616,7 +3742,11 @@ function WarRoomRuntimeScene({
     for (const enemy of attackCandidates) {
       if (now < enemy.nextShotAt || now < player.invulnerableUntil) continue;
       enemy.nextShotAt = now + (enemy.commander ? 1.2 : 1.65) + nextWarRoomRandom(runtime) * 0.55;
-      const muzzle = new THREE.Vector3(enemy.x + 0.22, enemy.commander ? 1.5 : 1.35, enemy.z - 0.48);
+      const muzzle = new THREE.Vector3(
+        enemy.x + 0.22,
+        (enemy.floorHeight ?? 0) + (enemy.commander ? 1.5 : 1.35),
+        enemy.z - 0.48,
+      );
       const enemyGroup = enemyGroupRefs.current[runtime.enemies.indexOf(enemy)];
       const enemyMuzzle = enemyGroup?.getObjectByName("war-room-muzzle-anchor");
       if (enemyMuzzle) {
@@ -3649,13 +3779,14 @@ function WarRoomRuntimeScene({
       const missSeed = now * 9 + runtime.enemies.indexOf(enemy) * 2.7;
       const target = new THREE.Vector3(
         player.x + Math.sin(missSeed) * 0.38,
-        player.jumpHeight + 1.15 + Math.cos(missSeed * 1.37) * 0.22,
+        player.floorHeight + player.jumpHeight + 1.15 + Math.cos(missSeed * 1.37) * 0.22,
         player.z + Math.sin(missSeed * 0.71) * 0.38,
       );
       addTracer(muzzle, target, "#f36e54", now, 0.08);
       if (nextWarRoomRandom(runtime) > (enemy.commander ? 0.25 : 0.38)) {
         const hit = applyWarRoomDamage(player, enemy.damage);
         if (hit.damage > 0) {
+          enemy.score += hit.damage;
           playWarRoomSound("hit", 1, "rifle", getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"));
           player.lastDamageAt = now;
           player.lastCombatAt = now;
@@ -3793,7 +3924,7 @@ function WarRoomRuntimeScene({
     projectileShafts.instanceMatrix.needsUpdate = true;
     projectileHeads.instanceMatrix.needsUpdate = true;
 
-    const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!.range;
+    const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!.range;
     const cameraMotionScale = motionReduced ? 0 : 1;
     cameraFovKickRef.current *= Math.exp(-12 * delta);
     const desiredFov = (input.aimHeld ? 48 : cameraMode === "first-person" ? 82 : player.sprinting ? 76 : 70)
@@ -3813,7 +3944,11 @@ function WarRoomRuntimeScene({
       shoulderSide,
       victoryZoom,
     });
-    cameraStart.set(player.x, player.jumpHeight + (player.prone ? 0.65 : player.crouched ? 1.2 : 1.55), player.z);
+    cameraStart.set(
+      player.x,
+      player.floorHeight + player.jumpHeight + (player.prone ? 0.65 : player.crouched ? 1.2 : 1.55),
+      player.z,
+    );
     cameraDesired.set(
       player.x - cameraForwardX * cameraBack + Math.cos(player.yaw) * shoulder,
       cameraStart.y + (cameraMode === "first-person" ? 0 : 0.35) - cameraForwardY * cameraBack,
@@ -3905,7 +4040,7 @@ function WarRoomRuntimeScene({
     }
     cameraLook.set(
       player.x + cameraForwardX * 10,
-      player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48)
+      player.floorHeight + player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48)
         + cameraForwardY * 10 + cameraKickRef.current * cameraMotionScale,
       player.z + cameraForwardZ * 10,
     );
@@ -3930,7 +4065,7 @@ function WarRoomRuntimeScene({
     camera.lookAt(cameraLook);
     scene.updateMatrixWorld(true);
 
-    const trailWeaponId = player.meleeAttackWeaponId ?? weaponIds[player.activeSlot];
+    const trailWeaponId = player.meleeAttackWeaponId ?? player.weaponSlots[player.activeSlot];
     const trailWeapon = WAR_ROOM_WEAPON_BY_ID.get(trailWeaponId);
     const meleeActive = WAR_ROOM_POOLED_FX_ENABLED
       && trailWeapon?.weaponClass === "melee"
@@ -4006,7 +4141,7 @@ function WarRoomRuntimeScene({
     trailColorAttribute.needsUpdate = true;
     slashTrailState.geometry.setDrawRange(0, Math.max(0, slashTrailState.count - 1) * 6);
 
-    const activeWeapon = WAR_ROOM_WEAPON_BY_ID.get(weaponIds[player.activeSlot])!;
+    const activeWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     if (activeWeapon.weaponClass === "melee") {
       const attackBonus = player.meleeUntil > now ? player.meleeAttackRangeBonus : 0;
       const meleeReach = getWarRoomMeleeEffectiveReach(activeWeapon.id, activeWeapon.range, attackBonus);
@@ -4034,9 +4169,9 @@ function WarRoomRuntimeScene({
 
     if (now - lastHudAtRef.current >= 0.1) {
       lastHudAtRef.current = now;
-      onHudUpdate(buildHudSnapshot(runtime, now, weaponIds, input));
+      onHudUpdate(buildHudSnapshot(runtime, now, input));
     }
-    const snapshot = buildHudSnapshot(runtime, now, weaponIds, input);
+    const snapshot = buildHudSnapshot(runtime, now, input);
     if (!finishedRef.current && player.hp <= 0) {
       finishedRef.current = true;
       onFinish("defeat", snapshot);
@@ -4052,11 +4187,11 @@ function WarRoomRuntimeScene({
   });
 
   const runtime = runtimeRef.current;
-  const activeWeapon = weaponIds[runtime.player.activeSlot];
+  const activeWeapon = runtime.player.weaponSlots[runtime.player.activeSlot];
   return (
     <>
       <TimeOfDaySky quality={quality} />
-      <Battlefield room={runtime.room} />
+      <Battlefield runtime={runtime} />
       {RESTORE_CONFIG.enabled && runtime.healingPoints.map((point) => (
         <WarRoomHealingPointMarker
           key={point.id}

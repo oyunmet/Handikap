@@ -238,6 +238,19 @@ export function getWarRoomBuildingLocalPoint(
   };
 }
 
+export function getWarRoomBuildingWorldPoint(
+  building: WarRoomBuilding,
+  localX: number,
+  localZ: number,
+) {
+  const cosine = Math.cos(building.rotationY);
+  const sine = Math.sin(building.rotationY);
+  return {
+    x: building.x + cosine * localX + sine * localZ,
+    z: building.z - sine * localX + cosine * localZ,
+  };
+}
+
 export function getWarRoomStairProfile(building: WarRoomBuilding) {
   return {
     x: building.stairSide * (building.width / 2 - 1.12),
@@ -284,36 +297,35 @@ function getRoomLootChests(
     "longbow",
   ];
   return buildings.flatMap((building) => {
-    const localZ = building.depth / 2 - 0.68;
-    const cosine = Math.cos(building.rotationY);
-    const sine = Math.sin(building.rotationY);
-    const x = building.x + sine * localZ;
-    const z = building.z + cosine * localZ;
     const weaponId = weaponPool[(building.style + roomNumber - 1) % weaponPool.length];
-    return [
-      {
-        id: `loot-${building.id}-ground`,
-        buildingId: building.id,
-        x,
-        z,
-        floor: 0 as const,
-        floorHeight: 0,
-        kind: "ammo" as const,
-        weaponId,
-        ammo: 34 + (building.style % 3) * 8,
-      },
-      {
-        id: `loot-${building.id}-upper`,
-        buildingId: building.id,
-        x,
-        z,
-        floor: 1 as const,
-        floorHeight: building.storyHeight,
-        kind: "weapon" as const,
-        weaponId,
-        ammo: 42 + (building.style % 3) * 8,
-      },
-    ];
+    const ammoWeaponId = weaponPool[(building.style + roomNumber) % weaponPool.length];
+    return ([0, 1] as const).flatMap((floor) => {
+      const floorHeight = floor === 0 ? 0 : building.storyHeight;
+      const ammoPoint = getWarRoomBuildingWorldPoint(building, -1.12, 0.35);
+      const weaponPoint = getWarRoomBuildingWorldPoint(building, 1.12, 0.35);
+      return [
+        {
+          id: `loot-${building.id}-floor-${floor}-ammo`,
+          buildingId: building.id,
+          ...ammoPoint,
+          floor,
+          floorHeight,
+          kind: "ammo" as const,
+          weaponId: ammoWeaponId,
+          ammo: 34 + (building.style % 3) * 8,
+        },
+        {
+          id: `loot-${building.id}-floor-${floor}-weapon`,
+          buildingId: building.id,
+          ...weaponPoint,
+          floor,
+          floorHeight,
+          kind: "weapon" as const,
+          weaponId,
+          ammo: 42 + (building.style % 3) * 8,
+        },
+      ];
+    });
   });
 }
 
@@ -374,8 +386,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       z: point.z,
       width: swapDimensions ? blocker.depth : blocker.width,
       depth: swapDimensions ? blocker.width : blocker.depth,
-      rotationY: building.rotationY + definition.quarterTurns * Math.PI / 2,
-      style: (building.style + safeNumber - 1) % 8,
+      rotationY: definition.quarterTurns * Math.PI / 2,
     };
   });
   const buildings = WAR_ROOM_BUILDINGS.map((building) => {
@@ -387,6 +398,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       width: swapDimensions ? building.depth : building.width,
       depth: swapDimensions ? building.width : building.depth,
       rotationY: definition.quarterTurns * Math.PI / 2,
+      style: (building.style + safeNumber - 1) % 8,
     };
   });
   const coverSpots = WAR_ROOM_COVER_SPOTS.map((spot) => (

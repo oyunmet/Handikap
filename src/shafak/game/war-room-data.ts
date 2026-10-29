@@ -507,7 +507,32 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
   const backZ = building.z + building.depth / 2;
   const partitionZ = building.z + building.depth / 2 - 1.72;
   const secretOpening = 1.35;
-  const partitionSegmentWidth = (building.width - secretOpening) / 2;
+  const stairOpening = 1.9;
+  const stairX = building.stairSide * (building.width / 2 - 1.12);
+  const partitionGaps = [
+    [-secretOpening / 2, secretOpening / 2] as const,
+    [stairX - stairOpening / 2, stairX + stairOpening / 2] as const,
+  ].sort((left, right) => left[0] - right[0]);
+  const partitionSegments: Array<{ id: string; x: number; width: number }> = [];
+  let partitionCursor = -building.width / 2;
+  partitionGaps.forEach(([gapStart, gapEnd], index) => {
+    if (gapStart > partitionCursor) {
+      const width = gapStart - partitionCursor;
+      partitionSegments.push({
+        id: `partition-${index}-left`,
+        x: (partitionCursor + gapStart) / 2,
+        width,
+      });
+    }
+    partitionCursor = Math.max(partitionCursor, gapEnd);
+  });
+  if (partitionCursor < building.width / 2) {
+    partitionSegments.push({
+      id: "partition-right",
+      x: (partitionCursor + building.width / 2) / 2,
+      width: building.width / 2 - partitionCursor,
+    });
+  }
   const floorWalls = (floor: 0 | 1): WarRoomBlocker[] => {
     const baseY = floor === 0 ? 0 : building.storyHeight;
     const height = floor === 0 ? building.storyHeight : building.upperWallHeight;
@@ -547,20 +572,13 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
         width: thickness,
         depth: building.depth,
       },
-      {
-        id: `${building.id}-floor-${floor}-secret-left`,
-        x: building.x - (secretOpening / 2 + partitionSegmentWidth / 2),
+      ...partitionSegments.map((segment) => ({
+        id: `${building.id}-floor-${floor}-${segment.id}`,
+        x: building.x + segment.x,
         z: partitionZ,
-        width: partitionSegmentWidth,
+        width: segment.width,
         depth: thickness,
-      },
-      {
-        id: `${building.id}-floor-${floor}-secret-right`,
-        x: building.x + (secretOpening / 2 + partitionSegmentWidth / 2),
-        z: partitionZ,
-        width: partitionSegmentWidth,
-        depth: thickness,
-      },
+      })),
     ];
     return walls.map((wall) => ({
       ...wall,
@@ -587,12 +605,52 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
   ];
 }
 
+function createBuildingUpperFloorBlockers(building: WarRoomBuilding): WarRoomBlocker[] {
+  const inset = 0.18;
+  const stairProfileX = building.stairSide * (building.width / 2 - 1.12);
+  const stairOpeningHalfWidth = 0.92;
+  const localLeft = -building.width / 2 + inset;
+  const localRight = building.width / 2 - inset;
+  const localFront = -building.depth / 2 + inset;
+  const localBack = building.depth / 2 - inset;
+  const stairLeft = Math.max(localLeft, stairProfileX - stairOpeningHalfWidth);
+  const stairRight = Math.min(localRight, stairProfileX + stairOpeningHalfWidth);
+  const floorHeight = building.storyHeight;
+  const floorThickness = 0.16;
+  const panels: Array<{ id: string; x: number; z: number; width: number; depth: number }> = [];
+  const addPanel = (id: string, left: number, right: number, front: number, back: number) => {
+    if (right - left < 0.24 || back - front < 0.24) return;
+    panels.push({
+      id,
+      x: building.x + (left + right) / 2,
+      z: building.z + (front + back) / 2,
+      width: right - left,
+      depth: back - front,
+    });
+  };
+
+  addPanel("upper-floor-left", localLeft, stairLeft, localFront, localBack);
+  addPanel("upper-floor-right", stairRight, localRight, localFront, localBack);
+  addPanel("upper-floor-front", stairLeft, stairRight, localFront, -building.depth / 2 + 0.82);
+  addPanel("upper-floor-rear", stairLeft, stairRight, building.depth / 2 - 0.86, localBack);
+
+  return panels.map((panel) => ({
+    ...panel,
+    id: `${building.id}-${panel.id}`,
+    kind: "platform",
+    baseY: floorHeight - floorThickness,
+    height: floorThickness,
+    color: "#9b876e",
+  }));
+}
+
 export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "outer-west", kind: "wall", x: -35, z: 0, width: 2, depth: 70, height: 5.5, color: "#665047" },
   { id: "outer-east", kind: "wall", x: 35, z: 0, width: 2, depth: 70, height: 5.5, color: "#665047" },
   { id: "outer-north", kind: "wall", x: 0, z: -35, width: 70, depth: 2, height: 5.5, color: "#715648" },
   { id: "outer-south", kind: "wall", x: 0, z: 35, width: 70, depth: 2, height: 5.5, color: "#715648" },
   ...WAR_ROOM_BUILDINGS.flatMap(createBuildingWallBlockers),
+  ...WAR_ROOM_BUILDINGS.flatMap(createBuildingUpperFloorBlockers),
   { id: "north-barricade-left", kind: "wall", x: -16, z: -23, width: 12, depth: 1.4, height: 4.2, color: "#776050" },
   { id: "north-barricade-right", kind: "wall", x: 15, z: -24, width: 13, depth: 1.4, height: 4.2, color: "#776050" },
   { id: "central-wall-west", kind: "wall", x: -7, z: -8, width: 1.4, depth: 12, height: 4.4, color: "#69534a" },

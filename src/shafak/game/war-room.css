@@ -1503,6 +1503,8 @@
 
 .war-room-result {
   justify-content: center;
+  overflow-y: auto;
+  padding: 18px 12px;
   background:
     radial-gradient(ellipse at 50% 35%, rgba(170, 97, 48, 0.38), transparent 45%),
     rgba(20, 18, 16, 0.94);
@@ -1510,7 +1512,94 @@
 
 .war-room-result__card {
   width: min(100%, 510px);
+  margin: auto;
   text-align: center;
+}
+
+.war-room-leaderboard {
+  margin: 16px 0 18px;
+  border: 1px solid rgba(233, 183, 117, 0.24);
+  background: rgba(12, 12, 12, 0.42);
+  text-align: left;
+}
+
+.war-room-leaderboard > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(233, 183, 117, 0.2);
+  color: #e8c492;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+}
+
+.war-room-leaderboard > header small {
+  color: rgba(241, 224, 198, 0.58);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.war-room-leaderboard ol {
+  max-height: clamp(155px, 25vh, 245px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-color: rgba(223, 179, 117, 0.4) transparent;
+  scrollbar-width: thin;
+}
+
+.war-room-leaderboard li {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 12px;
+  border-bottom: 1px solid rgba(236, 222, 201, 0.08);
+}
+
+.war-room-leaderboard li:last-child {
+  border-bottom: 0;
+}
+
+.war-room-leaderboard__rank {
+  color: rgba(232, 218, 195, 0.55);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.war-room-leaderboard__identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.war-room-leaderboard__identity strong {
+  overflow: hidden;
+  color: #f0e3cf;
+  font-size: 10px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.war-room-leaderboard__identity small {
+  color: rgba(232, 218, 195, 0.53);
+  font-size: 7px;
+  letter-spacing: 0.06em;
+}
+
+.war-room-leaderboard li > b {
+  color: #e9c286;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .war-room-next-room {
