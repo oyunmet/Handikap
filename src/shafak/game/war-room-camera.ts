@@ -28,6 +28,12 @@ function expandedBounds(bounds: WarRoomCameraBounds, radius: number) {
   };
 }
 
+function containsPoint(bounds: ReturnType<typeof expandedBounds>, point: WarRoomCameraPoint) {
+  return point.x >= bounds.minX && point.x <= bounds.maxX
+    && point.y >= bounds.minY && point.y <= bounds.maxY
+    && point.z >= bounds.minZ && point.z <= bounds.maxZ;
+}
+
 export function isWarRoomCameraPointClear(
   point: WarRoomCameraPoint,
   bounds: readonly WarRoomCameraBounds[],
@@ -81,17 +87,30 @@ export function resolveWarRoomCameraSweep(
     return { blocked: false, blockerId: null, hitDistance: null, safeDistance: distance };
   }
 
-  let nearest: { id: string; distance: number } | null = null;
+  let nearest: { id: string; distance: number; startsInside: boolean } | null = null;
   for (const obstacle of bounds) {
+    const startsInside = containsPoint(expandedBounds(obstacle, radius), start);
     const fraction = getSegmentBoxEntry(start, end, obstacle, radius);
     if (fraction === null) continue;
     const hitDistance = fraction * distance;
     if (nearest && hitDistance >= nearest.distance) continue;
-    nearest = { id: obstacle.id, distance: hitDistance };
+    nearest = { id: obstacle.id, distance: hitDistance, startsInside };
   }
 
   if (!nearest) {
     return { blocked: false, blockerId: null, hitDistance: null, safeDistance: distance };
+  }
+
+  // The camera can begin within the expanded wall bounds when the player is
+  // close to a wall. Clamp-to-zero pushes the camera into the player; instead
+  // keep the shoulder distance and let the matching wall fade out.
+  if (nearest.startsInside) {
+    return {
+      blocked: true,
+      blockerId: nearest.id,
+      hitDistance: 0,
+      safeDistance: distance,
+    };
   }
 
   const beforeImpact = Math.max(0.2, nearest.distance - clearance);
@@ -131,7 +150,7 @@ export function getWarRoomCameraRig({
   const zoom = Number.isFinite(victoryZoom)
     ? Math.max(0, Math.min(1, victoryZoom))
     : 0;
-  const back = (aiming ? 2.8 : 4.05) * (1 - zoom * 0.18);
+  const back = (aiming ? 3.8 : 5.1) * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
     * (shoulderSide === "left" ? -1 : 1);
 

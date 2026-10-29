@@ -742,6 +742,12 @@
   justify-content: space-between;
 }
 
+.war-room-location-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .war-room-room-indicator {
   display: flex;
   min-width: 55px;
@@ -764,6 +770,27 @@
 .war-room-room-indicator b {
   font-family: var(--font-display, Georgia, serif);
   font-size: 15px;
+}
+
+.war-room-floor-indicator {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(226, 184, 126, 0.35);
+  background: rgba(20, 19, 18, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 230, 0.04);
+  color: #e8cba3;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-shadow: 0 1px 3px #000;
+}
+
+.war-room-floor-indicator.is-stair {
+  border-color: rgba(255, 206, 122, 0.72);
+  color: #ffdf9e;
+  box-shadow: 0 0 12px rgba(255, 173, 76, 0.16), inset 0 0 0 1px rgba(255, 247, 230, 0.06);
 }
 
 .war-room-mute {
@@ -1563,6 +1590,13 @@
   border-bottom: 1px solid rgba(236, 222, 201, 0.08);
 }
 
+.war-room-leaderboard li.is-player {
+  position: relative;
+  border-bottom-color: rgba(249, 198, 113, 0.38);
+  background: linear-gradient(90deg, rgba(148, 96, 37, 0.35), rgba(87, 57, 29, 0.17));
+  box-shadow: inset 3px 0 #f2bf72, inset 0 1px rgba(255, 235, 193, 0.1);
+}
+
 .war-room-leaderboard li:last-child {
   border-bottom: 0;
 }
@@ -1582,12 +1616,35 @@
 }
 
 .war-room-leaderboard__identity strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   overflow: hidden;
   color: #f0e3cf;
   font-size: 10px;
   font-weight: 750;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.war-room-leaderboard__identity strong > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.war-room-leaderboard__identity strong > em {
+  flex: 0 0 auto;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 211, 136, 0.42);
+  border-radius: 3px;
+  background: rgba(255, 198, 108, 0.14);
+  color: #ffd58e;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.09em;
 }
 
 .war-room-leaderboard__identity small {

@@ -1507,7 +1507,7 @@ function PlayerActor({
         : 0;
       root.position.set(
         player.x + Math.sin(bodyYaw) * heavyStep,
-        player.jumpHeight - (player.prone ? 0.34 : 0),
+        player.floorHeight + player.jumpHeight - (player.prone ? 0.34 : 0),
         player.z - Math.cos(bodyYaw) * heavyStep,
       );
       root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 45, delta);
@@ -1804,6 +1804,7 @@ function EnemyActor({
   muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const hitPulseRef = useRef<THREE.Mesh>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const weaponMountRef = useRef<THREE.Group>(null);
   const attackWarningRef = useRef<THREE.Group>(null);
@@ -1836,7 +1837,7 @@ function EnemyActor({
         player.z,
         PLAYER_CHARACTER_MODEL_FACING,
       );
-      group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 12, delta);
+      group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 24, delta);
     }
     const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.2 : 0;
     if (enemy.alive) delete group.userData.warRoomDeathStartedAt;
@@ -1849,10 +1850,9 @@ function EnemyActor({
       : getWarRoomDeathFadeProgress(frame.clock.elapsedTime, deathAt);
     group.position.set(
       enemy.x + enemy.hitKnockbackX * hitKick,
-      0,
+      (enemy.floorHeight ?? 0) + hitKick * 0.035,
       enemy.z + enemy.hitKnockbackZ * hitKick,
     );
-    group.position.y = hitKick * 0.035;
     group.rotation.x = enemy.alive ? -hitKick * 0.035 : -Math.cos(enemy.deathYaw) * Math.min(1, deathProgress * 1.3);
     group.rotation.z = enemy.alive ? 0 : -Math.sin(enemy.deathYaw) * Math.min(1, deathProgress * 1.3);
     const hand = modelRef.current && [
@@ -1923,6 +1923,16 @@ function EnemyActor({
         });
       });
     }
+    if (hitPulseRef.current) {
+      const intensity = enemy.alive
+        ? Math.max(0, Math.min(1, (enemy.hitFlashUntil - gameNow) / WAR_ROOM_ENEMY_HIT_FLASH_SECONDS))
+        : 0;
+      hitPulseRef.current.visible = intensity > 0;
+      hitPulseRef.current.scale.setScalar(0.62 + (1 - intensity) * 0.72);
+      const material = hitPulseRef.current.material as THREE.MeshBasicMaterial;
+      material.color.set(enemy.commander ? "#ff786b" : "#ffd27a");
+      material.opacity = intensity * 0.82;
+    }
   });
   const enemyAnimation = (): WarRoomAnimationState => {
     const runtime = groupRef.current?.parent?.userData.runtime as WarRoomRuntime | undefined;
@@ -1979,6 +1989,23 @@ function EnemyActor({
           muzzleFlashRef={muzzleFlashRef}
         />
       </group>
+      <mesh
+        ref={hitPulseRef}
+        position={[0, enemy.commander ? 1.34 : 1.05, -0.34]}
+        visible={false}
+        renderOrder={5}
+      >
+        <torusGeometry args={[0.28, 0.045, 8, 28]} />
+        <meshBasicMaterial
+          color="#ffd27a"
+          transparent
+          opacity={0}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
       {enemy.commander && (
         <mesh position={[0, 2.12, 0]}>
           <coneGeometry args={[0.2, 0.36, 5]} />
@@ -2750,9 +2777,18 @@ function WarRoomRuntimeScene({
   };
 
   const isMeleeTargetBlocked = (player: WarRoomRuntime["player"], enemy: WarRoomEnemy) => (
-    segmentBlockFraction(
-      { x: player.x, y: player.jumpHeight + (player.crouched ? 1.05 : 1.12), z: player.z },
-      { x: enemy.x, y: enemy.commander ? 1.35 : 1.05, z: enemy.z },
+    Math.abs((enemy.floorHeight ?? 0) - player.floorHeight) > 1.05
+    || segmentBlockFraction(
+      {
+        x: player.x,
+        y: player.floorHeight + player.jumpHeight + (player.crouched ? 1.05 : 1.12),
+        z: player.z,
+      },
+      {
+        x: enemy.x,
+        y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.35 : 1.05),
+        z: enemy.z,
+      },
       0.08,
       runtimeRef.current.room.blockers,
     ) !== null
@@ -2762,7 +2798,7 @@ function WarRoomRuntimeScene({
     const player = runtimeRef.current.player;
     meleeOrigin.set(
       player.x,
-      player.jumpHeight + (player.crouched ? 1.05 : 1.12),
+      player.floorHeight + player.jumpHeight + (player.crouched ? 1.05 : 1.12),
       player.z,
     );
     const directionX = Math.sin(attackYaw);
@@ -2776,7 +2812,11 @@ function WarRoomRuntimeScene({
       (enemy) => isMeleeTargetBlocked(player, enemy),
     );
     if (result.target) {
-      meleeImpact.set(result.target.x, result.target.commander ? 1.35 : 1.05, result.target.z);
+      meleeImpact.set(
+        result.target.x,
+        (result.target.floorHeight ?? player.floorHeight) + (result.target.commander ? 1.35 : 1.05),
+        result.target.z,
+      );
     } else {
       meleeImpact.set(
         meleeOrigin.x + directionX * Math.min(range, Number.isFinite(result.distance) ? result.distance : range),
@@ -2932,7 +2972,8 @@ function WarRoomRuntimeScene({
           new THREE.Vector3(0, 0.18, 0),
         );
       }
-      meleeOrigin.set(impact.point.x, 0.045, impact.point.z);
+      const impactFloorHeight = enemy.floorHeight ?? player.floorHeight;
+      meleeOrigin.set(impact.point.x, impactFloorHeight + 0.045, impact.point.z);
       if (effects.dustParticles > 0) {
         if (effects.dustRing) {
           spawnImpactDustRing(meleeOrigin, now, effects.dustColor, effects.dustParticles + 5);
@@ -2941,11 +2982,11 @@ function WarRoomRuntimeScene({
         }
       }
       if (effects.shockwave) {
-        meleeOrigin.set(impact.point.x, 0.035, impact.point.z);
+        meleeOrigin.set(impact.point.x, impactFloorHeight + 0.035, impact.point.z);
         spawnShockwave(meleeOrigin, player.meleeAttackYaw, now, effects.flashColor);
       }
       if (effects.crackDecal) {
-        meleeOrigin.set(impact.point.x, 0, impact.point.z);
+        meleeOrigin.set(impact.point.x, impactFloorHeight, impact.point.z);
         addCrackDecal(meleeOrigin, player.meleeAttackYaw, now);
       }
     }
@@ -3118,7 +3159,7 @@ function WarRoomRuntimeScene({
     } else {
       muzzle.set(
         player.x + Math.cos(player.yaw) * 0.38 + Math.sin(player.yaw) * 0.25,
-        1.36 + player.jumpHeight,
+        player.floorHeight + 1.36 + player.jumpHeight,
         player.z - Math.sin(player.yaw) * 0.38 + Math.cos(player.yaw) * 0.25,
       );
     }
@@ -3211,7 +3252,7 @@ function WarRoomRuntimeScene({
           }
           if (effects.dustParticles > 0) {
             spawnImpactDust(
-              meleeOrigin.set(aim.point.x, 0.045, aim.point.z),
+              meleeOrigin.set(aim.point.x, aim.point.y, aim.point.z),
               now,
               effects.dustParticles,
               effects.dustColor,

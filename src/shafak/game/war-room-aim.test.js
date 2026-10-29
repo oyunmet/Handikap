@@ -50,6 +50,25 @@ test("the upper twenty percent is the headshot region", () => {
   assert.equal(body.headshot, false);
 });
 
+test("aim traces an enemy at its elevated floor instead of the ground floor", () => {
+  const target = { x: 0, z: 0, alive: true, commander: false, floorHeight: 3 };
+  const groundRay = traceWarRoomRay(
+    { x: 0, y: 1.2, z: 3 },
+    { x: 0, y: 0, z: -1 },
+    [target],
+    10,
+  );
+  const upperFloorRay = traceWarRoomRay(
+    { x: 0, y: 4.1, z: 3 },
+    { x: 0, y: 0, z: -1 },
+    [target],
+    10,
+  );
+  assert.equal(groundRay.target, null);
+  assert.equal(upperFloorRay.target, target);
+  assert.equal(upperFloorRay.headshot, false);
+});
+
 test("a wall or cover hit before the capsule blocks damage", () => {
   const target = { x: 0, z: 0, alive: true, commander: false };
   const blocked = traceWarRoomRay(

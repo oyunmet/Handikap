@@ -17,6 +17,7 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { createWarRoomLeaderboard, type WarRoomLeaderboardEntry } from "./war-room-leaderboard";
+import { getWarRoomBuildingLocalPoint } from "./war-room-rooms";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import { advanceWarRoomKillStreak, isWarRoomLowHealth } from "./war-room-feedback";
@@ -566,6 +567,21 @@ export default function WarRoomGame({
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
+  const floorBuilding = currentRoom.buildings.find((building) => {
+    const local = getWarRoomBuildingLocalPoint(building, hud.player.x, hud.player.z);
+    return Math.abs(local.x) < building.width / 2 - 0.28
+      && Math.abs(local.z) < building.depth / 2 - 0.28;
+  });
+  const floorProgress = floorBuilding
+    ? Math.max(0, Math.min(1, hud.player.floorHeight / floorBuilding.storyHeight))
+    : 0;
+  const floorLabel = !floorBuilding
+    ? null
+    : floorProgress >= 0.78
+      ? "ÜST KAT"
+      : floorProgress > 0.05
+        ? "MERDİVEN ↑"
+        : "ALT KAT";
   const controlLayoutEnabled = savedControlLayout.customized;
 
   const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
@@ -1311,11 +1327,22 @@ export default function WarRoomGame({
             data-boss-phase={bossHudPhase}
           >
             <div className="war-room-hud__top">
-              {WAR_ROOM_ROOM_CHAIN_ENABLED && (
-                <div className="war-room-room-indicator" aria-label={`Oda ${currentRoom.number} / sonsuz`}>
-                  <span>ODA</span><b>{currentRoom.number}</b><small>/ ∞</small>
-                </div>
-              )}
+              <div className="war-room-location-status">
+                {WAR_ROOM_ROOM_CHAIN_ENABLED && (
+                  <div className="war-room-room-indicator" aria-label={`Oda ${currentRoom.number} / sonsuz`}>
+                    <span>ODA</span><b>{currentRoom.number}</b><small>/ ∞</small>
+                  </div>
+                )}
+                {floorLabel && (
+                  <div
+                    className={`war-room-floor-indicator${floorLabel === "MERDİVEN ↑" ? " is-stair" : ""}`}
+                    aria-live="polite"
+                    aria-label={`Bulunduğun kat: ${floorLabel}`}
+                  >
+                    {floorLabel}
+                  </div>
+                )}
+              </div>
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
                 {hud.killFeed.slice(0, 4).map((feed) => <span key={feed.id}>{feed.text}</span>)}
               </div>
@@ -1694,10 +1721,17 @@ export default function WarRoomGame({
               </header>
               <ol>
                 {summary.leaderboard.map((entry) => (
-                  <li key={entry.id}>
+                  <li
+                    key={entry.id}
+                    className={entry.id === "player" ? "is-player" : undefined}
+                    aria-current={entry.id === "player" ? "true" : undefined}
+                  >
                     <span className="war-room-leaderboard__rank">{entry.rank}</span>
                     <span className="war-room-leaderboard__identity">
-                      <strong>{entry.name}</strong>
+                      <strong>
+                        <span>{entry.name}</span>
+                        {entry.id === "player" && <em>SEN</em>}
+                      </strong>
                       <small>{entry.role} · {entry.status}</small>
                     </span>
                     <b>{entry.score.toLocaleString("tr-TR")}</b>

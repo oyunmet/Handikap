@@ -5,6 +5,7 @@ export type WarRoomAimTarget = {
   z: number;
   alive: boolean;
   commander: boolean;
+  floorHeight?: number;
 };
 
 export type WarRoomAimPoint = { x: number; y: number; z: number };
@@ -216,12 +217,15 @@ export function traceWarRoomRay<T extends WarRoomAimTarget>(
   targets.forEach((candidate, index) => {
     if (!candidate.alive) return;
     const height = WAR_ROOM_CHARACTER_HEIGHT * (candidate.commander ? 1.3 : 1);
+    const floorHeight = Number.isFinite(candidate.floorHeight)
+      ? Math.max(0, candidate.floorHeight ?? 0)
+      : 0;
     const headshotFloor = height * WAR_ROOM_HEADSHOT_HEIGHT_RATIO;
     const headshotRadius = height * (1 - WAR_ROOM_HEADSHOT_HEIGHT_RATIO) / 2 + targetRadiusPadding;
     const headDistance = raySphereDistance(
       origin,
       direction,
-      { x: candidate.x, y: headshotFloor + headshotRadius, z: candidate.z },
+      { x: candidate.x, y: floorHeight + headshotFloor + headshotRadius, z: candidate.z },
       headshotRadius,
     );
     const bodyRadius = (candidate.commander ? 0.29 : 0.25) + targetRadiusPadding;
@@ -230,8 +234,8 @@ export function traceWarRoomRay<T extends WarRoomAimTarget>(
       direction,
       candidate.x,
       candidate.z,
-      bodyRadius,
-      headshotFloor - bodyRadius,
+      floorHeight + bodyRadius,
+      floorHeight + headshotFloor - bodyRadius,
       bodyRadius,
     );
     const hitsHead = headDistance !== null && headDistance <= range;

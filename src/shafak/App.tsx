@@ -91,7 +91,7 @@ const initialPreferences: Preferences = {
   warRoomLookSensitivityY: 0.0041,
   warRoomAimSensitivityMultiplier: 0.585,
   warRoomJoystickMode: "dynamic",
-  warRoomCameraMode: "first-person",
+  warRoomCameraMode: "third-person",
   warRoomShoulderSide: "right",
   warRoomShoulderOffset: 0.92,
   warRoomFacing: "camera",
