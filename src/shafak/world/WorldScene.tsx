@@ -2916,7 +2916,7 @@ export default function WorldScene({
         weather={weatherMode}
         travel={travel}
       />
-      {onOpenWarRoom && (
+      {onOpenWarRoom && panel === null && (
         <button
           className="world-war-room-entry"
           type="button"
@@ -3741,7 +3741,34 @@ export default function WorldScene({
           loadoutBusy={combatLoadoutBusy}
           onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId, storeRetryAction.equipmentKey) : undefined}
           renderPreview={(item, equipmentKey, equipped) => {
-            if (item.kind !== "equipment") return <span>{item.icon ?? "◇"}</span>;
+            if (item.kind !== "equipment") {
+              return (
+                <div className="store-item-preview-static" role="img" aria-label={`${item.name} ürün önizlemesi`}>
+                  <span>{item.icon ?? "◇"}</span>
+                  <small>{item.category.toLocaleUpperCase("tr-TR")}</small>
+                </div>
+              );
+            }
+            if (item.warRoomWeaponId) {
+              if (!EQUIPMENT_PREVIEW_3D_ENABLED) {
+                return (
+                  <div className="store-item-preview-static" role="img" aria-label={`${item.name} ürün önizlemesi`}>
+                    <span>{item.icon ?? "◇"}</span>
+                    <small>SAVAŞ ODASI SİLAHI</small>
+                  </div>
+                );
+              }
+              return (
+                <EquipmentPreview3D
+                  appearance={getEquipmentVisual(profile, storeItems)}
+                  itemId={item.id}
+                  itemIcon={item.icon}
+                  rarity={item.rarity}
+                  equipped={equipped}
+                  warRoomWeaponId={item.warRoomWeaponId}
+                />
+              );
+            }
             if (!item.slot) {
               return (
                 <div
@@ -3761,7 +3788,12 @@ export default function WorldScene({
             };
             const previewAppearance: EquipmentVisual = getEquipmentVisual(previewProfile, storeItems);
             if (!EQUIPMENT_PREVIEW_3D_ENABLED) {
-              return <span className="store-item-preview-fallback" aria-label={`${item.name} statik önizleme`}>{item.icon ?? "◇"}</span>;
+              return (
+                <div className="store-item-preview-static" role="img" aria-label={`${item.name} statik önizleme`}>
+                  <span>{item.icon ?? "◇"}</span>
+                  <small>{item.slot.toLocaleUpperCase("tr-TR")}</small>
+                </div>
+              );
             }
             return (
               <EquipmentPreview3D

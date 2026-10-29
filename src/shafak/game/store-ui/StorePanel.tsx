@@ -58,6 +58,31 @@ const tabs: { id: StoreTab; label: string }[] = [
   { id: "inventory", label: "ENVANTER" },
 ];
 
+function StoreItemPreviewFallback({ item }: { item: StoreItem }) {
+  const typeLabel = item.warRoomWeaponId
+    ? "SAVAŞ ODASI SİLAHI"
+    : item.kind === "consumable"
+      ? "TÜKETİLEBİLİR"
+      : item.kind === "material"
+        ? "MALZEME"
+        : item.slot?.toLocaleUpperCase("tr-TR") ?? "EKİPMAN";
+
+  return (
+    <div
+      className="store-item-preview-fallback-card"
+      data-category={item.category}
+      role="img"
+      aria-label={`${item.name} · ${typeLabel} önizlemesi`}
+    >
+      <span className="store-item-preview-fallback-card__icon" aria-hidden="true">
+        {item.icon ?? "◇"}
+      </span>
+      <b>{item.name}</b>
+      <small>{typeLabel}</small>
+    </div>
+  );
+}
+
 const statLabels: Record<keyof EquipmentStatBonuses, string> = {
   health: "Can",
   damage: "Hasar",
@@ -484,7 +509,7 @@ export default function StorePanel({
                 <div className={`safak-store__preview${previewFullscreen ? " is-fullscreen" : ""}`} data-rarity={selected.rarity}>
                   <span className="safak-store__preview-label">DONANIM GÖRÜNÜMÜ</span>
                   {selected.kind === "equipment" && (
-                    <>
+                    <div className="safak-store__preview-actions">
                       <span className={`safak-store__preview-state${isEquipped ? " is-equipped" : " is-try"}`}>
                         {isEquipped ? "KUŞANILDI" : "DENE"}
                       </span>
@@ -496,12 +521,12 @@ export default function StorePanel({
                       >
                         {previewFullscreen ? "KÜÇÜLT" : "TAM EKRAN"}
                       </button>
-                    </>
+                    </div>
                   )}
                   <div className="safak-store__preview-art">
                     {selected.kind === "equipment"
-                      ? renderPreview(selected, selectedEquipmentKey, isEquipped)
-                      : <span className="safak-store__resource-preview" aria-hidden="true">{selected.icon ?? "◇"}</span>}
+                      ? renderPreview(selected, selectedEquipmentKey, isEquipped) ?? <StoreItemPreviewFallback item={selected} />
+                      : <StoreItemPreviewFallback item={selected} />}
                   </div>
                   <span className="safak-store__preview-caption">{selected.name}</span>
                   <button

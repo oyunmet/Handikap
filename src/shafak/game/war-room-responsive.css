@@ -599,3 +599,426 @@
     top: 61%;
   }
 }
+
+@media
+  (orientation: landscape) and (max-height: 620px) and (max-width: 960px),
+  (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
+  .war-room-hud-settings {
+    position: absolute;
+    z-index: 6;
+    top: max(79px, calc(env(safe-area-inset-top) + 71px));
+    right: max(8px, env(safe-area-inset-right));
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    pointer-events: auto;
+  }
+
+  .war-room-hud-settings > .war-room-settings,
+  .war-room-hud-settings > .war-room-blood,
+  .war-room-hud-settings > .war-room-mute {
+    position: static;
+    inset: auto;
+    display: inline-flex;
+    width: auto;
+    min-width: 0;
+    min-height: 26px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    transform: none;
+    border: 1px solid rgba(224, 190, 132, .34);
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(37, 34, 31, .88), rgba(17, 18, 19, .84));
+    box-shadow: inset 0 1px rgba(255, 239, 216, .1), 0 3px 9px rgba(0, 0, 0, .24);
+    color: #eee0c2;
+    font-size: 6px;
+    letter-spacing: .045em;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+  }
+
+  .war-room-hud-settings > .war-room-settings {
+    width: 28px;
+    font-size: 13px;
+  }
+
+  .war-room-hud-settings > .war-room-blood { min-width: 74px; }
+  .war-room-hud-settings > .war-room-mute { min-width: 48px; }
+
+  .war-room-commander {
+    top: max(39px, calc(env(safe-area-inset-top) + 32px));
+    left: 50%;
+    display: grid;
+    width: min(360px, 40vw);
+    min-width: 0;
+    max-width: 40vw;
+    height: 36px;
+    grid-template-columns: minmax(0, 1fr) minmax(55px, 1.2fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 0;
+    padding: 4px 8px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(222, 185, 123, .42);
+    border-radius: 8px;
+    background:
+      linear-gradient(145deg, rgba(44, 37, 31, .94), rgba(18, 18, 19, .94));
+    box-shadow: inset 0 1px rgba(255, 239, 216, .12), 0 5px 16px rgba(0, 0, 0, .28);
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-commander__identity {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .war-room-commander__identity span { display: none; }
+
+  .war-room-commander__identity b {
+    display: block;
+    overflow: hidden;
+    font-size: clamp(7px, 1vw, 9px);
+    letter-spacing: .08em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .war-room-commander__health {
+    display: flex;
+    min-width: 0;
+    grid-column: 3;
+    grid-row: 1;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    white-space: nowrap;
+  }
+
+  .war-room-commander__health small {
+    font-size: 6px;
+    letter-spacing: .08em;
+  }
+
+  .war-room-commander__health strong {
+    font-size: 7px;
+    letter-spacing: .02em;
+  }
+
+  .war-room-commander > i {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    display: block;
+    width: 100%;
+    height: 4px;
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    border-radius: 99px;
+    background: rgba(243, 224, 192, .14);
+  }
+
+  .war-room-commander > i em {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #a84337, #e2604b 62%, #efa36b);
+    box-shadow: 0 0 7px rgba(233, 91, 65, .42);
+  }
+
+  .war-room-boss-phase {
+    top: max(82px, calc(env(safe-area-inset-top) + 74px));
+  }
+
+  .war-room-notice {
+    top: max(108px, calc(env(safe-area-inset-top) + 100px));
+    right: auto;
+    left: max(12px, env(safe-area-inset-left));
+    width: min(210px, 30vw);
+    transform: none;
+    text-align: left;
+    pointer-events: none;
+  }
+
+  .war-room-notice span {
+    display: inline-block;
+    max-width: 100%;
+    padding: 5px 8px;
+    overflow: hidden;
+    border: 1px solid rgba(232, 198, 147, .28);
+    border-radius: 8px;
+    background: rgba(20, 18, 17, .82);
+    color: #f2dfbc;
+    font-size: 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-vitals {
+    border-color: rgba(223, 190, 139, .32);
+    border-radius: 11px;
+    background:
+      linear-gradient(145deg, rgba(41, 35, 30, .9), rgba(13, 15, 17, .86));
+    box-shadow: inset 0 1px rgba(255, 240, 216, .1), 0 5px 14px rgba(0, 0, 0, .3);
+    backdrop-filter: blur(9px);
+  }
+
+  .war-room-bar {
+    height: 5px;
+    overflow: hidden;
+    border: 1px solid rgba(240, 225, 200, .12);
+    border-radius: 99px;
+    background: linear-gradient(90deg, #1c1d1d, #302d29);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .55);
+  }
+
+  .war-room-bar em {
+    border-radius: inherit;
+    transition: width 180ms ease-out;
+  }
+
+  .war-room-bar em.is-health {
+    background: linear-gradient(90deg, #a94032, #f17e57 72%, #ffb57d);
+    box-shadow: 0 0 7px rgba(235, 102, 71, .35);
+  }
+
+  .war-room-bar em.is-stamina {
+    background: linear-gradient(90deg, #7b673f, #d2ac60 72%, #f0d18a);
+    box-shadow: 0 0 6px rgba(218, 180, 98, .28);
+  }
+
+  .war-room-vitals.is-damaged {
+    animation: war-room-damage-flash 260ms ease-out;
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot {
+    min-height: 46px;
+    border-color: rgba(224, 190, 132, .3);
+    border-radius: 10px;
+    background:
+      linear-gradient(145deg, rgba(39, 35, 31, .9), rgba(16, 17, 18, .88));
+    box-shadow: inset 0 1px rgba(255, 239, 216, .1), 0 4px 10px rgba(0, 0, 0, .26);
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot.is-active {
+    border-color: rgba(245, 207, 128, .95);
+    background:
+      linear-gradient(145deg, rgba(103, 77, 43, .95), rgba(34, 28, 23, .96));
+    box-shadow: inset 0 1px rgba(255, 234, 187, .2), 0 0 12px rgba(218, 175, 93, .2);
+  }
+
+  .war-room-controls:not(.is-custom-layout) {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    display: grid;
+    width: 194px;
+    height: 146px;
+    grid-template-columns: 46px 46px 92px;
+    grid-template-rows: repeat(3, 46px);
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button {
+    position: relative;
+    inset: auto;
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    aspect-ratio: 1;
+    padding: 5px 3px 4px;
+    border: 1px solid rgba(221, 190, 139, .5);
+    border-radius: 50%;
+    background: rgba(12, 14, 16, .78);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .38), inset 0 1px rgba(255, 238, 207, .14);
+    backdrop-filter: blur(10px);
+    transition: transform 110ms ease-out, box-shadow 140ms ease-out, border-color 140ms ease-out;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::before {
+    inset: 2px;
+    border: 1px solid rgba(227, 199, 150, .22);
+    border-radius: 50%;
+    background:
+      linear-gradient(145deg, rgba(255, 234, 194, .12), transparent 55%),
+      linear-gradient(155deg, rgba(51, 45, 37, .88), rgba(17, 18, 19, .96));
+    box-shadow: inset 0 1px rgba(255, 242, 221, .1);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button::after {
+    inset: -4px;
+    border: 0;
+    border-radius: 50%;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__glyph {
+    width: 20px;
+    height: 20px;
+    color: #e6c47a;
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__label {
+    max-width: calc(100% - 2px);
+    font-size: 6px;
+    letter-spacing: .03em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+  }
+
+  .war-room-controls:not(.is-custom-layout) .shafak-hud-button__hint { display: none; }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(1) { grid-area: 1 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(2) { grid-area: 1 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(3) { grid-area: 2 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(4) { grid-area: 2 / 2; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(5) { grid-area: 3 / 1; }
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button:nth-child(6) { display: none; }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-active:not(.is-fire) {
+    border-color: rgba(246, 211, 139, .94);
+    background: rgba(74, 57, 34, .9);
+    box-shadow: 0 0 11px rgba(227, 185, 104, .32), inset 0 1px rgba(255, 242, 214, .23);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-reloading {
+    border-color: rgba(128, 182, 197, .82);
+    box-shadow: 0 0 10px rgba(99, 167, 190, .28), inset 0 1px rgba(220, 244, 255, .18);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire {
+    position: relative;
+    inset: auto;
+    display: inline-flex;
+    width: 92px !important;
+    min-width: 92px !important;
+    height: 92px !important;
+    min-height: 92px !important;
+    grid-area: 2 / 3 / 4 / 4;
+    align-self: center;
+    justify-self: center;
+    padding: 10px 6px 8px;
+    border: 1px solid rgba(250, 135, 81, .86);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 24%, rgba(255, 220, 172, .34), transparent 36%),
+      linear-gradient(145deg, #bd633e, #833d2d 58%, #49271f);
+    box-shadow:
+      0 0 0 4px rgba(204, 86, 52, .12),
+      0 0 21px rgba(229, 92, 55, .32),
+      inset 0 1px rgba(255, 238, 209, .37),
+      inset 0 -5px 12px rgba(27, 13, 10, .45);
+    animation: war-room-fire-glow 2.8s ease-in-out infinite;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire::before {
+    inset: 4px;
+    border: 1px solid rgba(255, 222, 179, .42);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 232, 198, .22), transparent 44%),
+      linear-gradient(155deg, rgba(188, 87, 55, .6), rgba(75, 39, 29, .84));
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire .shafak-hud-button__glyph {
+    width: 30px;
+    height: 30px;
+    color: #ffe0a2;
+    filter: drop-shadow(0 0 6px rgba(255, 195, 120, .55));
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire .shafak-hud-button__label {
+    color: #fff0d2;
+    font-size: 7px;
+    letter-spacing: .08em;
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button[data-held="true"] {
+    transform: scale(.92);
+    border-color: #ffe2a6;
+    box-shadow: 0 0 17px rgba(246, 197, 115, .42), inset 0 1px rgba(255, 246, 225, .32);
+  }
+
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire[data-held="true"] {
+    transform: scale(.92);
+    border-color: #ffd494;
+    box-shadow:
+      0 0 0 5px rgba(244, 129, 67, .2),
+      0 0 26px rgba(247, 118, 64, .65),
+      inset 0 1px rgba(255, 238, 209, .42);
+    animation: none;
+  }
+
+  .war-room-stick:not(.is-custom-layout) {
+    width: min(23vh, 86px);
+    height: min(23vh, 86px);
+    border: 1px solid rgba(226, 194, 140, .46);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 38% 32%, rgba(250, 222, 176, .14), transparent 48%),
+      rgba(14, 16, 17, .56);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 238, 207, .12);
+    backdrop-filter: blur(9px);
+  }
+
+  .war-room-stick:not(.is-custom-layout)::before,
+  .war-room-stick:not(.is-custom-layout)::after {
+    background: rgba(231, 201, 151, .22);
+  }
+
+  .war-room-stick:not(.is-custom-layout) i {
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(249, 223, 179, .78);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 246, 222, .35), transparent 48%),
+      linear-gradient(145deg, #97805c, #554736 72%, #342e27);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 242, 215, .3);
+  }
+
+  .war-room-stick.is-active:not(.is-custom-layout) i {
+    border-color: #ffe2a2;
+    box-shadow: 0 0 12px rgba(233, 196, 122, .42), inset 0 1px rgba(255, 242, 215, .4);
+  }
+}
+
+@keyframes war-room-fire-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 4px rgba(204, 86, 52, .12),
+      0 0 18px rgba(229, 92, 55, .26),
+      inset 0 1px rgba(255, 238, 209, .37),
+      inset 0 -5px 12px rgba(27, 13, 10, .45);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(204, 86, 52, .17),
+      0 0 25px rgba(241, 103, 61, .4),
+      inset 0 1px rgba(255, 238, 209, .44),
+      inset 0 -5px 12px rgba(27, 13, 10, .45);
+  }
+}
+
+@keyframes war-room-damage-flash {
+  0%, 100% { border-color: rgba(223, 190, 139, .32); }
+  45% { border-color: rgba(247, 103, 73, .9); box-shadow: 0 0 14px rgba(232, 85, 61, .35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .war-room-controls:not(.is-custom-layout) > .shafak-hud-button.is-fire,
+  .war-room-vitals.is-damaged {
+    animation: none;
+  }
+}

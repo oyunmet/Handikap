@@ -1276,45 +1276,47 @@ export default function WarRoomGame({
               </div>
               <MiniMap hud={hud} />
             </div>
-            <button
-              className="war-room-mute"
-              type="button"
-              aria-pressed={soundMuted}
-              aria-label={soundMuted ? "Sesi aç" : "Sesi kapat"}
-              onClick={() => {
-                const nextMuted = !soundMuted;
-                setSoundMuted(nextMuted);
-                setWarRoomMuted(nextMuted);
-              }}
-            >
-              {soundMuted ? "SES AÇ" : "SESSİZ"}
-            </button>
-            <button
-              className="war-room-blood"
-              type="button"
-              aria-pressed={!bloodEffects}
-              aria-label={bloodEffects ? "Kan efektlerini kapat" : "Hafif kan efektlerini aç"}
-              onClick={() => {
-                const nextEnabled = !bloodEffects;
-                setBloodEffects(nextEnabled);
-                try {
-                  window.localStorage.setItem(BLOOD_EFFECTS_KEY, nextEnabled ? "light" : "off");
-                } catch {
-                  // Keep the in-session toggle usable when browser storage is unavailable.
-                }
-              }}
-            >
-              KAN: {bloodEffects ? "HAFİF" : "KAPALI"}
-            </button>
-            <button
-              className="war-room-settings"
-              type="button"
-              aria-label="Oyun ayarlarını aç"
-              title="Oyun ayarları"
-              onClick={onOpenSettings}
-            >
-              ⚙
-            </button>
+            <div className="war-room-hud-settings" role="group" aria-label="Oyun seçenekleri">
+              <button
+                className="war-room-settings"
+                type="button"
+                aria-label="Oyun ayarlarını aç"
+                title="Oyun ayarları"
+                onClick={onOpenSettings}
+              >
+                ⚙
+              </button>
+              <button
+                className="war-room-blood"
+                type="button"
+                aria-pressed={bloodEffects}
+                aria-label={bloodEffects ? "Kan efektlerini kapat" : "Hafif kan efektlerini aç"}
+                onClick={() => {
+                  const nextEnabled = !bloodEffects;
+                  setBloodEffects(nextEnabled);
+                  try {
+                    window.localStorage.setItem(BLOOD_EFFECTS_KEY, nextEnabled ? "light" : "off");
+                  } catch {
+                    // Keep the in-session toggle usable when browser storage is unavailable.
+                  }
+                }}
+              >
+                KAN: {bloodEffects ? "HAFİF" : "KAPALI"}
+              </button>
+              <button
+                className="war-room-mute"
+                type="button"
+                aria-pressed={soundMuted}
+                aria-label={soundMuted ? "Sesi aç" : "Sesi kapat"}
+                onClick={() => {
+                  const nextMuted = !soundMuted;
+                  setSoundMuted(nextMuted);
+                  setWarRoomMuted(nextMuted);
+                }}
+              >
+                {soundMuted ? "SES AÇ" : "SESSİZ"}
+              </button>
+            </div>
             <div className="war-room-commander" data-boss-phase={bossHudPhase}>
               <div className="war-room-commander__identity">
                 <span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span>
@@ -1352,7 +1354,7 @@ export default function WarRoomGame({
                 {hud.hitMessage && <span key={hud.hitMessage}>{hud.hitMessage}</span>}
             </div>
             <div className="war-room-hud__bottom">
-              <div className="war-room-vitals">
+              <div className={`war-room-vitals${hud.damageVignette ? " is-damaged" : ""}`}>
                 <div className="war-room-bar-row">
                   <span>CAN</span><b>{Math.ceil(hud.player.hp)} / {hud.player.maxHp}</b>
                 </div>
@@ -1466,7 +1468,7 @@ export default function WarRoomGame({
                     hint="R"
                     showHint={keyboardHintsVisible}
                     vibrationEnabled={vibrationEnabled}
-                    className="is-reload"
+                    className={`is-reload${hud.reloading ? " is-active is-reloading" : ""}`}
                     style={controlLayoutEnabled ? getControlPlacementStyle("reload", savedControlLayout.layout) : undefined}
                     onClick={() => pressWarRoomAction(inputRef.current, "reload")}
                   />
