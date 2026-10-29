@@ -47,6 +47,26 @@ export function isWarRoomCameraPointClear(
   });
 }
 
+export type WarRoomCameraPlacement = WarRoomCameraSweep & {
+  position: WarRoomCameraPoint;
+  usedAlternate: boolean;
+};
+
+function pointAlongSegment(
+  start: WarRoomCameraPoint,
+  end: WarRoomCameraPoint,
+  distance: number,
+): WarRoomCameraPoint {
+  const segmentLength = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
+  if (segmentLength < 1e-8) return { ...start };
+  const fraction = Math.max(0, Math.min(1, distance / segmentLength));
+  return {
+    x: start.x + (end.x - start.x) * fraction,
+    y: start.y + (end.y - start.y) * fraction,
+    z: start.z + (end.z - start.z) * fraction,
+  };
+}
+
 function getSegmentBoxEntry(
   start: WarRoomCameraPoint,
   end: WarRoomCameraPoint,
@@ -126,6 +146,99 @@ export function resolveWarRoomCameraSweep(
   };
 }
 
+/**
+ * Finds a collision-free shoulder-camera path before shortening the view.
+ * A close wall may force a small fallback distance, but lateral and elevated
+ * candidates are tried first so ordinary corridors retain third-person scale.
+ */
+export function resolveWarRoomCameraPlacement(
+  start: WarRoomCameraPoint,
+  end: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  radius = 0.28,
+  minimumDistance = 2.5,
+  clearance = 0.08,
+): WarRoomCameraPlacement {
+  const directionX = end.x - start.x;
+  const directionZ = end.z - start.z;
+  const horizontalLength = Math.hypot(directionX, directionZ);
+  const rightX = horizontalLength > 1e-8 ? directionZ / horizontalLength : 1;
+  const rightZ = horizontalLength > 1e-8 ? -directionX / horizontalLength : 0;
+  const offsets = [
+    [0, 0, 0],
+    [rightX * 0.72, 0, rightZ * 0.72],
+    [-rightX * 0.72, 0, -rightZ * 0.72],
+    [rightX * 1.3, 0, rightZ * 1.3],
+    [-rightX * 1.3, 0, -rightZ * 1.3],
+    [0, 0.55, 0],
+    [0, 0.95, 0],
+    [rightX * 0.72, 0.55, rightZ * 0.72],
+    [-rightX * 0.72, 0.55, -rightZ * 0.72],
+  ] as const;
+  const candidates = offsets.map(([offsetX, offsetY, offsetZ]) => ({
+    x: end.x + offsetX,
+    y: end.y + offsetY,
+    z: end.z + offsetZ,
+    usedAlternate: offsetX !== 0 || offsetY !== 0 || offsetZ !== 0,
+  }));
+  for (const angle of [-Math.PI / 6, Math.PI / 6, -Math.PI / 3, Math.PI / 3, -Math.PI / 2, Math.PI / 2, Math.PI]) {
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
+    candidates.push({
+      x: start.x + directionX * cosine + directionZ * sine,
+      y: end.y,
+      z: start.z - directionX * sine + directionZ * cosine,
+      usedAlternate: true,
+    });
+  }
+
+  let bestFallback: WarRoomCameraPlacement | null = null;
+  for (const candidate of candidates) {
+    const sweep = resolveWarRoomCameraSweep(
+      start,
+      candidate,
+      bounds,
+      radius,
+      minimumDistance,
+      clearance,
+    );
+    const position = pointAlongSegment(start, candidate, sweep.safeDistance);
+    const pointClear = isWarRoomCameraPointClear(position, bounds, radius);
+    const placement = {
+      ...sweep,
+      position,
+      usedAlternate: candidate.usedAlternate,
+    };
+    if (
+      pointClear
+      && (!sweep.blocked || sweep.safeDistance >= minimumDistance)
+    ) {
+      return placement;
+    }
+    if (
+      pointClear
+      && (!bestFallback || sweep.safeDistance > bestFallback.safeDistance)
+    ) {
+      bestFallback = placement;
+    }
+  }
+
+  if (bestFallback) return bestFallback;
+  const primarySweep = resolveWarRoomCameraSweep(
+    start,
+    end,
+    bounds,
+    radius,
+    minimumDistance,
+    clearance,
+  );
+  return {
+    ...primarySweep,
+    position: pointAlongSegment(start, end, primarySweep.safeDistance),
+    usedAlternate: false,
+  };
+}
+
 export type WarRoomCameraMode = "first-person" | "third-person";
 export type WarRoomShoulderSide = "left" | "right";
 
@@ -146,11 +259,11 @@ export function getWarRoomCameraRig({
 
   const offset = Number.isFinite(shoulderOffset)
     ? Math.max(0, Math.min(1.5, shoulderOffset))
-    : 0.92;
+    : 0.6;
   const zoom = Number.isFinite(victoryZoom)
     ? Math.max(0, Math.min(1, victoryZoom))
     : 0;
-  const back = (aiming ? 2.75 : 3.65) * (1 - zoom * 0.18);
+  const back = (aiming ? 3.65 : 4.8) * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
     * (shoulderSide === "left" ? -1 : 1);
 

@@ -1,5 +1,18 @@
 export type WarRoomFacingMode = "KAMERA" | "HAREKET" | "STRAFE";
 export type WarRoomFacingSetting = "camera" | "movement";
+export const WAR_ROOM_ENEMY_FIRE_ALIGNMENT_RADIANS = Math.PI / 12;
+
+export function getWarRoomYawError(currentYaw: number, targetYaw: number) {
+  return Math.atan2(Math.sin(targetYaw - currentYaw), Math.cos(targetYaw - currentYaw));
+}
+
+export function isWarRoomFacingTarget(
+  currentYaw: number,
+  targetYaw: number,
+  tolerance = WAR_ROOM_ENEMY_FIRE_ALIGNMENT_RADIANS,
+) {
+  return Math.abs(getWarRoomYawError(currentYaw, targetYaw)) <= tolerance + 1e-9;
+}
 
 export type WarRoomOrientation = {
   yaw: number;

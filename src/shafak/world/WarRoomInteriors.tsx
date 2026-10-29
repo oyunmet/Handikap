@@ -438,6 +438,194 @@ function StoragePiece({
   );
 }
 
+function TrestleTable({
+  position,
+  wood,
+  metal,
+}: {
+  position: readonly [number, number, number];
+  wood: string;
+  metal: string;
+}) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.82, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.42, 0.15, 0.82]} />
+        <meshStandardMaterial color={wood} roughness={0.82} />
+      </mesh>
+      <mesh position={[0, 0.71, 0]} castShadow>
+        <boxGeometry args={[1.2, 0.1, 0.62]} />
+        <meshStandardMaterial color={wood} roughness={0.86} />
+      </mesh>
+      {[-0.5, 0.5].map((x) => (
+        <group key={`table-trestle-${x}`}>
+          <mesh position={[x, 0.39, 0]} castShadow>
+            <boxGeometry args={[0.12, 0.66, 0.62]} />
+            <meshStandardMaterial color={wood} roughness={0.84} />
+          </mesh>
+          <mesh position={[x, 0.1, 0]} castShadow>
+            <boxGeometry args={[0.72, 0.1, 0.7]} />
+            <meshStandardMaterial color={wood} roughness={0.88} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.84, -0.22]}>
+        <boxGeometry args={[1.08, 0.018, 0.025]} />
+        <meshStandardMaterial color={metal} roughness={0.72} metalness={0.14} />
+      </mesh>
+      <mesh position={[0, 0.91, 0.08]} rotation={[0.04, 0.08, 0.02]} castShadow>
+        <boxGeometry args={[0.38, 0.025, 0.29]} />
+        <meshStandardMaterial color="#c7b48f" roughness={0.96} />
+      </mesh>
+      <mesh position={[0.44, 0.94, 0.16]} castShadow>
+        <cylinderGeometry args={[0.075, 0.085, 0.1, 8]} />
+        <meshStandardMaterial color="#9b6a42" roughness={0.83} />
+      </mesh>
+    </group>
+  );
+}
+
+function CarvedBench({
+  position,
+  rotation = 0,
+  wood,
+  accent,
+}: {
+  position: readonly [number, number, number];
+  rotation?: number;
+  wood: string;
+  accent: string;
+}) {
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <mesh position={[0, 0.48, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.42, 0.14, 0.42]} />
+        <meshStandardMaterial color={wood} roughness={0.82} />
+      </mesh>
+      {[-0.54, 0.54].map((x) => (
+        <mesh key={`bench-leg-${x}`} position={[x, 0.25, 0]} castShadow>
+          <boxGeometry args={[0.12, 0.48, 0.34]} />
+          <meshStandardMaterial color={wood} roughness={0.85} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.76, -0.13]} castShadow>
+        <boxGeometry args={[1.34, 0.48, 0.11]} />
+        <meshStandardMaterial color={wood} roughness={0.84} />
+      </mesh>
+      <mesh position={[0, 0.76, -0.065]}>
+        <boxGeometry args={[0.9, 0.055, 0.018]} />
+        <meshStandardMaterial color={accent} roughness={0.78} metalness={0.08} />
+      </mesh>
+    </group>
+  );
+}
+
+function StoneHearth({
+  position,
+  stone,
+  timber,
+}: {
+  position: readonly [number, number, number];
+  stone: string;
+  timber: string;
+}) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.48, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.48, 0.94, 0.62]} />
+        <meshStandardMaterial color={stone} roughness={0.96} />
+      </mesh>
+      <mesh position={[0, 0.42, -0.307]}>
+        <boxGeometry args={[0.78, 0.54, 0.035]} />
+        <meshStandardMaterial color="#181817" roughness={0.97} />
+      </mesh>
+      <mesh position={[0, 0.83, -0.35]} castShadow>
+        <boxGeometry args={[1.72, 0.15, 0.76]} />
+        <meshStandardMaterial color={timber} roughness={0.86} />
+      </mesh>
+      {[-0.2, 0.08].map((x, index) => (
+        <mesh
+          key={`hearth-flame-${index}`}
+          position={[x, 0.32 + index * 0.08, -0.34]}
+          rotation={[0, 0, index % 2 ? -0.13 : 0.15]}
+        >
+          <coneGeometry args={[0.11, 0.36 + index * 0.06, 6]} />
+          <meshBasicMaterial
+            color={index % 2 ? "#ff8e3b" : "#ffd16f"}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+      {[-0.26, 0.26].map((x) => (
+        <mesh key={`hearth-log-${x}`} position={[x, 0.13, -0.35]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.045, 0.05, 0.55, 7]} />
+          <meshStandardMaterial color="#47362b" roughness={0.94} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function ClayStorage({
+  position,
+  clay,
+  trim,
+}: {
+  position: readonly [number, number, number];
+  clay: string;
+  trim: string;
+}) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.34, 0]} castShadow receiveShadow>
+        <sphereGeometry args={[0.32, 10, 7]} />
+        <meshStandardMaterial color={clay} roughness={0.91} />
+      </mesh>
+      <mesh position={[0, 0.62, 0]} castShadow>
+        <cylinderGeometry args={[0.12, 0.17, 0.2, 9]} />
+        <meshStandardMaterial color={clay} roughness={0.9} />
+      </mesh>
+      <mesh position={[0, 0.73, 0]}>
+        <torusGeometry args={[0.13, 0.035, 6, 10]} />
+        <meshStandardMaterial color={trim} roughness={0.75} />
+      </mesh>
+      <mesh position={[0, 0.48, 0.264]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.16, 0.018, 5, 12]} />
+        <meshStandardMaterial color={trim} roughness={0.82} />
+      </mesh>
+    </group>
+  );
+}
+
+function SmallBarrel({
+  position,
+  wood,
+  metal,
+}: {
+  position: readonly [number, number, number];
+  wood: string;
+  metal: string;
+}) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.42, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.37, 0.31, 0.82, 10]} />
+        <meshStandardMaterial color={wood} roughness={0.9} />
+      </mesh>
+      {[0.14, 0.7].map((y) => (
+        <mesh key={`barrel-hoop-${y}`} position={[0, y, 0]}>
+          <torusGeometry args={[0.34, 0.035, 6, 12]} />
+          <meshStandardMaterial color={metal} roughness={0.62} metalness={0.3} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.84, 0]}>
+        <cylinderGeometry args={[0.32, 0.32, 0.055, 10]} />
+        <meshStandardMaterial color={wood} roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
 export function WarRoomHouseInterior({ building }: { building: WarRoomBuilding }) {
   const style = getWarRoomInteriorStyle(building.style);
   const livingSide = -building.stairSide;
@@ -460,31 +648,41 @@ export function WarRoomHouseInterior({ building }: { building: WarRoomBuilding }
         accent={style.rugAccent}
         pattern={building.style}
       />
-      <Sofa
+      <CarvedBench
         position={[sofaX, 0.08, -0.05]}
         rotation={style.sofaAngle}
         wood={style.wood}
-        upholstery={style.upholstery}
-        cushion={style.cushion}
         accent={style.rugAccent}
       />
-      <TVAndConsole
+      <StoneHearth
         position={[tvX, 0.02, building.depth / 2 - 0.67]}
+        stone={style.metal}
+        timber={style.wood}
+      />
+      <TrestleTable
+        position={[sofaX, 0.08, 0.82]}
         wood={style.wood}
         metal={style.metal}
-        seed={style.screenSeed}
       />
-      <mesh position={[sofaX, 0.28, 0.95]} castShadow>
-        <boxGeometry args={[0.82, 0.1, 0.54]} />
-        <meshStandardMaterial color={style.wood} roughness={0.76} />
-      </mesh>
-      <mesh position={[sofaX, 0.36, 0.95]}>
-        <boxGeometry args={[0.74, 0.08, 0.46]} />
-        <meshStandardMaterial color={style.rugAccent} roughness={0.84} />
-      </mesh>
+      <CarvedBench
+        position={[sofaX + livingSide * 0.12, 0.08, 1.58]}
+        rotation={Math.PI}
+        wood={style.wood}
+        accent={style.rugAccent}
+      />
       <StoragePiece
         kind={style.accessory}
         position={[accessoryX, 0.02, accessoryZ]}
+        wood={style.wood}
+        metal={style.metal}
+      />
+      <ClayStorage
+        position={[livingSide * (building.width / 2 - 0.55), 0.02, building.depth / 2 - 1.05]}
+        clay="#9b6542"
+        trim={style.rugAccent}
+      />
+      <SmallBarrel
+        position={[livingSide * (building.width / 2 - 0.58), 0.02, -building.depth / 2 + 1.05]}
         wood={style.wood}
         metal={style.metal}
       />
@@ -515,6 +713,15 @@ export function WarRoomHouseInterior({ building }: { building: WarRoomBuilding }
         position={[0.1, building.storyHeight + 0.08, -building.depth / 2 + 0.78]}
         wood={style.wood}
         metal={style.metal}
+      />
+      <ClayStorage
+        position={[
+          -livingSide * (building.width / 2 - 0.54),
+          building.storyHeight + 0.08,
+          building.depth / 2 - 0.72,
+        ]}
+        clay="#8b583a"
+        trim={style.rugAccent}
       />
     </group>
   );

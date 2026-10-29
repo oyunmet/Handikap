@@ -93,7 +93,7 @@ const initialPreferences: Preferences = {
   warRoomJoystickMode: "dynamic",
   warRoomCameraMode: "third-person",
   warRoomShoulderSide: "right",
-  warRoomShoulderOffset: 0.92,
+  warRoomShoulderOffset: 0.6,
   warRoomFacing: "camera",
   timeOfDay: "auto",
 };
@@ -178,7 +178,9 @@ function readPreferences(): Preferences {
         ? Math.max(0.3, Math.min(1.2, saved.warRoomAimSensitivityMultiplier))
         : initialPreferences.warRoomAimSensitivityMultiplier,
       warRoomJoystickMode: saved.warRoomJoystickMode === "fixed" ? "fixed" : "dynamic",
-      warRoomCameraMode: saved.warRoomCameraMode === "third-person" ? "third-person" : "first-person",
+      // Older saves omitted this setting. Keep them in the supported,
+      // always-visible shoulder camera instead of silently selecting first person.
+      warRoomCameraMode: "third-person",
       warRoomShoulderSide: saved.warRoomShoulderSide === "left" ? "left" : "right",
       warRoomShoulderOffset: typeof saved.warRoomShoulderOffset === "number"
         ? Math.max(0.2, Math.min(1.5, saved.warRoomShoulderOffset))
@@ -1394,28 +1396,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Kamera görünümü</strong>
-                        <small>Birinci şahıs varsayılan; omuz kamerası isteğe bağlı.</small>
+                        <small>Üçüncü şahıs omuz kamerası; karakter daima görünür.</small>
                       </span>
-                      <div className="quality-switch" role="group" aria-label="Savaş Odası kamera görünümü">
-                        {([
-                          ["first-person", "Birinci şahıs"],
-                          ["third-person", "Omuz kamerası"],
-                        ] as const).map(([value, label]) => (
-                          <button
-                            className={preferences.warRoomCameraMode === value ? "is-selected" : ""}
-                            key={value}
-                            type="button"
-                            aria-pressed={preferences.warRoomCameraMode === value}
-                            onClick={() => setPreference("warRoomCameraMode", value)}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
-                    {preferences.warRoomCameraMode === "third-person" && (
-                      <>
-                        <div className="setting-row setting-row--quality">
+                    <>
+                      <div className="setting-row setting-row--quality">
                           <span className="setting-row__copy">
                             <strong>Omuz tarafı</strong>
                             <small>Üçüncü şahıs kamerasının karakter yanındaki konumu.</small>
@@ -1436,8 +1421,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                               </button>
                             ))}
                           </div>
-                        </div>
-                        <SettingRange
+                      </div>
+                      <SettingRange
                           id="war-room-camera-shoulder-offset"
                           label="Omuz mesafesi"
                           description="Kameranın karakterden yana uzaklığı."
@@ -1447,9 +1432,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                           step={0.05}
                           formatValue={(value) => `${value.toFixed(2)} m`}
                           onChange={(value) => setPreference("warRoomShoulderOffset", value)}
-                        />
-                      </>
-                    )}
+                      />
+                    </>
                     <SettingRange
                       id="war-room-look-sensitivity-x"
                       label="Bakış hassasiyeti · yatay"

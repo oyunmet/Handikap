@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
+  resolveWarRoomCameraPlacement,
   resolveWarRoomCameraSweep,
 } from "./war-room-camera.ts";
 
@@ -105,6 +106,19 @@ test("camera sweep eases to the requested full distance when the path is clear",
   assert.equal(result.safeDistance, 4);
 });
 
+test("third-person placement shifts around a nearby wall before shortening the camera", () => {
+  const result = resolveWarRoomCameraPlacement(
+    { x: 0, y: 1.5, z: 0 },
+    { x: 0, y: 1.85, z: -4.8 },
+    [wall],
+  );
+
+  assert.equal(result.blocked, false);
+  assert.equal(result.usedAlternate, true);
+  assert.ok(Math.hypot(result.position.x, result.position.y - 1.5, result.position.z) >= 2.5);
+  assert.equal(isWarRoomCameraPointClear(result.position, [wall], 0.28), true);
+});
+
 test("first person camera stays at the eye without a third-person shoulder", () => {
   assert.deepEqual(getWarRoomCameraRig({
     mode: "first-person",
@@ -114,7 +128,7 @@ test("first person camera stays at the eye without a third-person shoulder", () 
   }), { back: 0, shoulder: 0 });
 });
 
-test("third-person shoulder offset is adjustable on either side", () => {
+test("third-person camera defaults to a five-meter shoulder view and supports either side", () => {
   const right = getWarRoomCameraRig({
     mode: "third-person",
     aiming: false,
@@ -127,8 +141,14 @@ test("third-person shoulder offset is adjustable on either side", () => {
     shoulderOffset: 0.7,
     shoulderSide: "left",
   });
-  assert.deepEqual(right, { back: 3.65, shoulder: 0.7 });
-  assert.deepEqual(left, { back: 3.65, shoulder: -0.7 });
+  assert.deepEqual(right, { back: 4.8, shoulder: 0.7 });
+  assert.deepEqual(left, { back: 4.8, shoulder: -0.7 });
+  assert.deepEqual(getWarRoomCameraRig({
+    mode: "third-person",
+    aiming: false,
+    shoulderOffset: 0.6,
+    shoulderSide: "right",
+  }), { back: 4.8, shoulder: 0.6 });
 });
 
 test("third-person aiming tightens the camera, and offsets remain bounded", () => {
@@ -137,7 +157,7 @@ test("third-person aiming tightens the camera, and offsets remain bounded", () =
     aiming: true,
     shoulderOffset: 4,
     shoulderSide: "right",
-  }), { back: 2.75, shoulder: 1.6 });
+  }), { back: 3.65, shoulder: 1.6 });
   const victoryZoom = getWarRoomCameraRig({
     mode: "third-person",
     aiming: false,
@@ -145,6 +165,6 @@ test("third-person aiming tightens the camera, and offsets remain bounded", () =
     shoulderSide: "right",
     victoryZoom: 1,
   });
-  assert.ok(Math.abs(victoryZoom.back - 3.65 * 0.82) < 1e-12);
+  assert.ok(Math.abs(victoryZoom.back - 4.8 * 0.82) < 1e-12);
   assert.equal(victoryZoom.shoulder, 0);
 });

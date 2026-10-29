@@ -39,11 +39,13 @@ import {
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
+  isWarRoomFacingTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
   getWarRoomCameraRig,
-  resolveWarRoomCameraSweep,
+  isWarRoomCameraPointClear,
+  resolveWarRoomCameraPlacement,
   type WarRoomCameraBounds,
   type WarRoomCameraMode,
   type WarRoomShoulderSide,
@@ -3770,7 +3772,11 @@ function WarRoomRuntimeScene({
 
     const attackCandidates = trainingMode ? [] : runtime.enemies
       .filter((enemy) => {
-        if (!enemy.alive || Math.hypot(enemy.x - player.x, enemy.z - player.z) > 24) return false;
+        if (
+          !enemy.alive
+          || enemy.mode !== "fire"
+          || Math.hypot(enemy.x - player.x, enemy.z - player.z) > 24
+        ) return false;
         if (Math.abs((enemy.floorHeight ?? 0) - player.floorHeight) > 1.25) return false;
         const blocked = segmentBlockFraction(
           { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.6 : 1.4), z: enemy.z },
@@ -3785,13 +3791,24 @@ function WarRoomRuntimeScene({
 
     for (const enemy of attackCandidates) {
       if (now < enemy.nextShotAt || now < player.invulnerableUntil) continue;
+      const enemyIndex = runtime.enemies.indexOf(enemy);
+      const enemyGroup = enemyGroupRefs.current[enemyIndex];
+      const targetYaw = getWarRoomActorYawToTarget(
+        enemy.x,
+        enemy.z,
+        player.x,
+        player.z,
+        PLAYER_CHARACTER_MODEL_FACING,
+      );
+      const actorYaw = enemyGroup?.rotation.y ?? targetYaw;
+      if (!isWarRoomFacingTarget(actorYaw, targetYaw)) continue;
+      const enemyFacingYaw = actorYaw + PLAYER_CHARACTER_MODEL_FACING;
       enemy.nextShotAt = now + (enemy.commander ? 1.2 : 1.65) + nextWarRoomRandom(runtime) * 0.55;
       const muzzle = new THREE.Vector3(
         enemy.x + 0.22,
         (enemy.floorHeight ?? 0) + (enemy.commander ? 1.5 : 1.35),
         enemy.z - 0.48,
       );
-      const enemyGroup = enemyGroupRefs.current[runtime.enemies.indexOf(enemy)];
       const enemyMuzzle = enemyGroup?.getObjectByName("war-room-muzzle-anchor");
       if (enemyMuzzle) {
         enemyMuzzle.updateWorldMatrix(true, false);
@@ -3812,7 +3829,7 @@ function WarRoomRuntimeScene({
         muzzleLightRef.current.userData.warRoomExpiresAt = now + 0.06;
       }
       spawnMuzzleSmoke(muzzle, now);
-      spawnCasing(muzzle, now, Math.atan2(player.x - enemy.x, -(player.z - enemy.z)));
+      spawnCasing(muzzle, now, enemyFacingYaw);
       const enemyDistance = Math.hypot(enemy.x - player.x, enemy.z - player.z);
       playWarRoomSound(
         "enemy-shot",
@@ -3821,11 +3838,24 @@ function WarRoomRuntimeScene({
         getWarRoomAudioOptions(player, enemy.x, enemy.z),
       );
       const missSeed = now * 9 + runtime.enemies.indexOf(enemy) * 2.7;
-      const target = new THREE.Vector3(
-        player.x + Math.sin(missSeed) * 0.38,
-        player.floorHeight + player.jumpHeight + 1.15 + Math.cos(missSeed * 1.37) * 0.22,
-        player.z + Math.sin(missSeed * 0.71) * 0.38,
+      const shotDirection = new THREE.Vector3(
+        Math.sin(enemyFacingYaw),
+        0,
+        -Math.cos(enemyFacingYaw),
       );
+      const playerAimPoint = new THREE.Vector3(
+        player.x,
+        player.floorHeight + player.jumpHeight + 1.15,
+        player.z,
+      );
+      const shotDistance = Math.max(1, playerAimPoint.sub(muzzle).dot(shotDirection));
+      const target = muzzle.clone()
+        .addScaledVector(shotDirection, shotDistance)
+        .add(new THREE.Vector3(
+          Math.sin(missSeed) * 0.38,
+          Math.cos(missSeed * 1.37) * 0.22,
+          Math.sin(missSeed * 0.71) * 0.38,
+        ));
       addTracer(muzzle, target, "#f36e54", now, 0.08);
       if (nextWarRoomRandom(runtime) > (enemy.commander ? 0.25 : 0.38)) {
         const hit = applyWarRoomDamage(player, enemy.damage);
@@ -4023,23 +4053,23 @@ function WarRoomRuntimeScene({
       ];
       cameraBoundsRefreshRef.current = now;
     }
-    const desiredCameraDistance = cameraStart.distanceTo(cameraDesired);
-    const cameraSweep = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
-      ? resolveWarRoomCameraSweep(
+    const requestedCameraDistance = cameraStart.distanceTo(cameraDesired);
+    const cameraPlacement = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
+      ? resolveWarRoomCameraPlacement(
         { x: cameraStart.x, y: cameraStart.y, z: cameraStart.z },
         { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
         cameraBoundsRef.current,
         0.28,
-        1.2,
+        2.5,
         0.08,
       )
       : null;
-    const blockerId = cameraSweep?.blocked ? cameraSweep.blockerId : null;
-    if (cameraSweep?.blocked && desiredCameraDistance > 1e-8) {
-      cameraDesired.lerpVectors(
-        cameraStart,
-        cameraDesired,
-        Math.min(1, cameraSweep.safeDistance / desiredCameraDistance),
+    const blockerId = cameraPlacement?.blocked ? cameraPlacement.blockerId : null;
+    if (cameraPlacement) {
+      cameraDesired.set(
+        cameraPlacement.position.x,
+        cameraPlacement.position.y,
+        cameraPlacement.position.z,
       );
     }
     if (WAR_ROOM_CAMERA_OCCLUSION_ENABLED) {
@@ -4059,28 +4089,38 @@ function WarRoomRuntimeScene({
       }
       if (debugMode && now - cameraDebugAtRef.current >= 0.25) {
         cameraDebugAtRef.current = now;
-        const distance = cameraSweep?.blocked ? cameraSweep.safeDistance : desiredCameraDistance;
+        const distance = cameraPlacement?.safeDistance ?? requestedCameraDistance;
         onMeleeDebugUpdate(
           `KAMERA ${distance.toFixed(2)} m · ENGEL ${blockerId ?? "yok"}`,
         );
       }
     }
     camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * delta));
-    const playerCameraDistance = camera.position.distanceTo(cameraStart);
-    const playerFadeTarget = cameraMode === "third-person"
-      ? Math.max(0, Math.min(1, (1.35 - playerCameraDistance) / 0.85))
-      : 0;
-    const previousPlayerFade = cameraFadeByIdRef.current.get("player:camera-clearance") ?? 0;
-    if (Math.abs(playerFadeTarget - previousPlayerFade) >= 0.002 && playerRootRef.current) {
-      cameraFadeByIdRef.current.set("player:camera-clearance", playerFadeTarget);
-      setWarRoomCameraOccluderFade(
-        playerRootRef.current,
-        playerFadeTarget,
-        cameraMaterialOriginalsRef.current,
-      );
+    if (
+      cameraPlacement
+      && !isWarRoomCameraPointClear(
+        { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        cameraBoundsRef.current,
+        0.28,
+      )
+      && isWarRoomCameraPointClear(
+        { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
+        cameraBoundsRef.current,
+        0.28,
+      )
+    ) {
+      camera.position.copy(cameraDesired);
+    }
+    if (
+      cameraMode === "third-person"
+      && cameraPlacement
+      && cameraPlacement.safeDistance >= 2.5
+      && camera.position.distanceTo(cameraStart) < 2.5
+    ) {
+      camera.position.copy(cameraDesired);
     }
     if (playerRootRef.current) {
-      playerRootRef.current.visible = cameraMode === "third-person" && playerCameraDistance > 0.42;
+      playerRootRef.current.visible = true;
     }
     const cameraLookAhead = cameraMode === "third-person"
       ? input.aimHeld ? 4.2 : 5.2

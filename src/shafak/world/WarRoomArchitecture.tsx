@@ -1,3 +1,5 @@
+import { useLayoutEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import { DoubleSide, Shape } from "three";
 import type { WarRoomBuilding } from "../game/war-room-data";
 
@@ -76,10 +78,22 @@ function HouseWindow({
         <meshStandardMaterial color={palette.timber} roughness={0.82} />
       </mesh>
       {shuttered && [-1, 1].map((side) => (
-        <mesh key={`shutter-${side}`} position={[side * (width / 2 + 0.18), 0, 0.02]}>
-          <boxGeometry args={[0.2, height * 0.88, 0.12]} />
-          <meshStandardMaterial color={palette.timber} roughness={0.9} />
-        </mesh>
+        <group key={`shutter-${side}`} position={[side * (width / 2 + 0.18), 0, 0.02]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.2, height * 0.88, 0.12]} />
+            <meshStandardMaterial color={palette.timber} roughness={0.9} />
+          </mesh>
+          {[-0.24, 0, 0.24].map((slat) => (
+            <mesh key={`shutter-slat-${slat}`} position={[0, slat, 0.068]}>
+              <boxGeometry args={[0.22, 0.045, 0.025]} />
+              <meshStandardMaterial color={palette.accent} roughness={0.92} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0, 0.082]}>
+            <boxGeometry args={[0.045, height * 0.72, 0.03]} />
+            <meshStandardMaterial color={palette.timber} roughness={0.86} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
@@ -101,6 +115,74 @@ function GableShape({ width, rise, y, z, wall, timber }: { width: number; rise: 
         <boxGeometry args={[0.14, rise * 0.7, 0.1]} />
         <meshStandardMaterial color={timber} roughness={0.82} />
       </mesh>
+    </group>
+  );
+}
+
+function RoofTileField({
+  width,
+  run,
+  color,
+  seed,
+  position,
+  rotation,
+}: {
+  width: number;
+  run: number;
+  color: string;
+  seed: number;
+  position: readonly [number, number, number];
+  rotation: readonly [number, number, number];
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const columns = Math.max(4, Math.ceil(width / 0.76));
+  const rows = Math.max(5, Math.ceil(run / 0.48));
+  const tiles = useMemo(() => {
+    const columnWidth = width / columns;
+    const rowDepth = run / rows;
+    return Array.from({ length: columns * rows }, (_, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      return {
+        x: -width / 2 + (column + 0.5) * columnWidth,
+        z: -run / 2 + (row + 0.5) * rowDepth,
+        width: columnWidth - 0.035,
+        depth: rowDepth - 0.03,
+        variation: Math.sin((index + 1) * 17.13 + seed * 31.7) * 0.055,
+      };
+    });
+  }, [columns, rows, run, seed, width]);
+  const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
+  const material = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.94, metalness: 0 }),
+    [],
+  );
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const transform = new THREE.Object3D();
+    const tileColor = new THREE.Color(color);
+    tiles.forEach((tile, index) => {
+      transform.position.set(tile.x, 0.13, tile.z);
+      transform.scale.set(tile.width, 0.085, tile.depth);
+      transform.updateMatrix();
+      mesh.setMatrixAt(index, transform.matrix);
+      tileColor.set(color).offsetHSL(0, 0, tile.variation);
+      mesh.setColorAt(index, tileColor);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [color, tiles]);
+
+  return (
+    <group position={position} rotation={rotation}>
+      <instancedMesh
+        ref={meshRef}
+        args={[geometry, material, tiles.length]}
+        castShadow
+        receiveShadow
+      />
     </group>
   );
 }
@@ -360,6 +442,14 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           <boxGeometry args={[width + 0.72, 0.18, roofHalfLength]} />
           <meshStandardMaterial color={palette.roof} roughness={0.92} />
         </mesh>
+        <RoofTileField
+          width={width + 0.72}
+          run={roofHalfLength}
+          color={palette.roofEdge}
+          seed={building.style * 7 + 1}
+          position={[0, roofBaseY + roofRise / 2, -depth / 4 - 0.16]}
+          rotation={[-roofAngle, 0, 0]}
+        />
         <mesh
           position={[0, roofBaseY + roofRise / 2, depth / 4 + 0.16]}
           rotation={[roofAngle, 0, 0]}
@@ -369,6 +459,14 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           <boxGeometry args={[width + 0.72, 0.18, roofHalfLength]} />
           <meshStandardMaterial color={palette.roof} roughness={0.92} />
         </mesh>
+        <RoofTileField
+          width={width + 0.72}
+          run={roofHalfLength}
+          color={palette.roof}
+          seed={building.style * 7 + 2}
+          position={[0, roofBaseY + roofRise / 2, depth / 4 + 0.16]}
+          rotation={[roofAngle, 0, 0]}
+        />
         <mesh position={[0, roofBaseY + roofRise + 0.04, 0]} castShadow>
           <boxGeometry args={[width + 0.82, 0.2, 0.28]} />
           <meshStandardMaterial color={palette.roofEdge} roughness={0.9} />
@@ -408,14 +506,23 @@ export function WarRoomStaircase({ building }: BuildingProps) {
       {Array.from({ length: stepCount }, (_, index) => {
         const stepTop = risePerStep * (index + 1);
         const stepZ = startZ + stepRun * (index + 0.5);
+        const riserZ = startZ + stepRun * (index + 1) - 0.035;
         return (
           <group key={`stair-step-${index}`}>
-            <mesh position={[stairX, stepTop / 2, stepZ]} castShadow receiveShadow>
-              <boxGeometry args={[halfWidth * 2, stepTop, stepRun + 0.025]} />
-              <meshStandardMaterial color={stairMaterial} roughness={0.94} />
+            <mesh position={[stairX, stepTop - 0.065, stepZ]} castShadow receiveShadow>
+              <boxGeometry args={[halfWidth * 2, 0.13, stepRun + 0.045]} />
+              <meshStandardMaterial color={stairMaterial} roughness={0.9} />
             </mesh>
-            <mesh position={[stairX, stepTop + 0.012, stepZ]} receiveShadow>
-              <boxGeometry args={[halfWidth * 2 - 0.06, 0.035, stepRun + 0.035]} />
+            <mesh
+              position={[stairX, stepTop - risePerStep / 2 - 0.02, riserZ]}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[halfWidth * 2 - 0.04, risePerStep + 0.045, 0.07]} />
+              <meshStandardMaterial color={palette.foundation} roughness={0.94} />
+            </mesh>
+            <mesh position={[stairX, stepTop + 0.004, stepZ]} receiveShadow>
+              <boxGeometry args={[halfWidth * 2 - 0.06, 0.018, stepRun + 0.018]} />
               <meshStandardMaterial color={palette.accent} roughness={0.86} />
             </mesh>
           </group>

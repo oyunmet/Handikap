@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomActorYawToTarget,
+  getWarRoomYawError,
+  isWarRoomFacingTarget,
   getWarRoomPostAttackStrafeUntil,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
@@ -75,6 +77,13 @@ test("body rotation takes the short path across the ±180° boundary", () => {
 test("enemy model yaw compensates for its built-in facing offset", () => {
   closeAngle(getWarRoomActorYawToTarget(0, 0, 0, -5, Math.PI) + Math.PI, 0);
   closeAngle(getWarRoomActorYawToTarget(0, 0, 5, 0, Math.PI) + Math.PI, Math.PI / 2);
+});
+
+test("enemy fire waits until the model faces the target within fifteen degrees", () => {
+  const targetYaw = Math.PI - 0.04;
+  assert.equal(isWarRoomFacingTarget(-Math.PI + 0.04, targetYaw), true);
+  assert.ok(Math.abs(Math.abs(getWarRoomYawError(-Math.PI + 0.04, targetYaw)) - 0.08) < 1e-8);
+  assert.equal(isWarRoomFacingTarget(targetYaw + Math.PI / 12 + 0.01, targetYaw), false);
 });
 
 test("camera-facing body rotation catches up within 120 ms across the wrap boundary", () => {
