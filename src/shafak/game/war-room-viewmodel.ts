@@ -24,6 +24,15 @@ export type WarRoomViewModelConfig = {
   rotation: readonly [number, number, number];
 };
 
+export function getWarRoomViewModelHorizontalFactor(aspect: number) {
+  const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1.75;
+  return Math.max(0.2, Math.min(1, safeAspect / 1.75));
+}
+
+export function getWarRoomViewModelScaleFactor(aspect: number) {
+  return 0.84 + getWarRoomViewModelHorizontalFactor(aspect) * 0.16;
+}
+
 const RIFLE_VIEW_MODEL: WarRoomViewModelConfig = {
   scale: 0.56, position: [0, 0, 0], rotation: [0, 0, 0],
 };
@@ -50,7 +59,8 @@ export function getWarRoomViewModelConfig(weaponId: string, melee: boolean): War
     : RIFLE_VIEW_MODEL);
 }
 
-export function getWarRoomViewModelPose(state: WarRoomViewModelState): WarRoomViewModelPose {
+export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1.75): WarRoomViewModelPose {
+  const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
   const movement = clamp01(state.movement);
   const aim = state.aiming ? 1 : 0;
   const recoil = clamp01(state.recoil) * (state.motionReduced ? 0 : 1);
@@ -89,7 +99,7 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState): WarRoomVi
 
   return {
     position: [
-      0.42 + (0.06 - 0.42) * aim + swingX + recoil * 0.025,
+      (0.42 + (0.06 - 0.42) * aim + swingX + recoil * 0.025) * horizontalFactor,
       -0.31 + (0.06 + 0.31) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025,
       -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08,
     ],

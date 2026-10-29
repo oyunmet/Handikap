@@ -16,7 +16,7 @@ import {
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "./war-room-engine";
-import { getWarRoomLoadoutFromProfile } from "./war-room-loadout";
+import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import { advanceWarRoomKillStreak, isWarRoomLowHealth } from "./war-room-feedback";
 import {
@@ -431,6 +431,7 @@ export default function WarRoomGame({
       ? [WAR_ROOM_WEAPONS[0].id, WAR_ROOM_WEAPONS[0].id]
       : getWarRoomLoadoutFromProfile(profile),
   );
+  const [loadoutNotice, setLoadoutNotice] = useState("");
   const [weaponMountOverrides, setWeaponMountOverrides] = useState<Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>>({});
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
@@ -728,6 +729,12 @@ export default function WarRoomGame({
   };
 
   const setLoadoutWeapon = (id: WarRoomWeaponId) => {
+    if (!isWarRoomWeaponOwned(id, profile.inventory.ownedItemIds)) {
+      const weaponName = WAR_ROOM_WEAPON_BY_ID.get(id)?.name ?? "Bu silah";
+      setLoadoutNotice(`${weaponName} henüz satın alınmadı. Mağazadaki Silahlar bölümünden aldıktan sonra burada seçebilirsin.`);
+      return;
+    }
+    setLoadoutNotice("");
     setLoadout((current) => {
       if (current[selectedSlot] === id) return current;
       const next: [WarRoomWeaponId, WarRoomWeaponId] = [...current];
@@ -1012,15 +1019,16 @@ export default function WarRoomGame({
                 const selected = loadout[selectedSlot] === weapon.id;
                 const otherSlot = selectedSlot === 0 ? 1 : 0;
                 const otherSlotSelected = loadout[otherSlot] === weapon.id;
-                const owned = !weapon.storeItemId || profile.inventory.ownedItemIds.includes(weapon.storeItemId);
+                const owned = isWarRoomWeaponOwned(weapon.id, profile.inventory.ownedItemIds);
                 return (
                   <button
                     key={weapon.id}
                     type="button"
                     className={`war-room-weapon-card${selected ? " is-selected" : ""}`}
                     aria-pressed={selected}
+                    aria-disabled={!owned}
+                    title={!owned ? "Satın alınmadı; seçmek için mağazadan al." : undefined}
                     onClick={() => setLoadoutWeapon(weapon.id)}
-                    disabled={!owned}
                   >
                     {WAR_ROOM_WEAPON_ICONS_ENABLED
                       ? <WarRoomWeaponIcon className="war-room-weapon-card__icon" weaponId={weapon.id} />
@@ -1030,12 +1038,13 @@ export default function WarRoomGame({
                     <small>{weapon.className} · {weapon.rarity ?? "Sıradan"} · {weapon.weaponClass === "melee" ? `${weapon.range.toFixed(1)} m · sınırsız` : `${weapon.magazine} mermi`}</small>
                     </span>
                     <span className="war-room-weapon-card__status">
-                      {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : owned ? "SEÇ" : "MAĞAZADA"}
+                      {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : owned ? "SEÇ" : "SATIN AL"}
                     </span>
                   </button>
                 );
               })}
             </div>
+            {loadoutNotice && <p className="war-room-loadout-notice" role="status" aria-live="polite">{loadoutNotice}</p>}
             <div className="war-room-briefing__bottom">
               <p>WASD / joystick hareket · Fare sürükle / sağ tarafı kaydır bakış · Sol tık / ATEŞ</p>
               <button className="war-room-start" type="button" onClick={() => beginBattle()} disabled={!modelsReady}>

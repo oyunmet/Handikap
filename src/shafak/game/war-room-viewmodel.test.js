@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getWarRoomViewModelConfig, getWarRoomViewModelPose } from "./war-room-viewmodel.ts";
+import {
+  getWarRoomViewModelConfig,
+  getWarRoomViewModelHorizontalFactor,
+  getWarRoomViewModelPose,
+  getWarRoomViewModelScaleFactor,
+} from "./war-room-viewmodel.ts";
 
 test("first-person view model moves to the sight line while aiming", () => {
   const relaxed = getWarRoomViewModelPose({
@@ -13,6 +18,19 @@ test("first-person view model moves to the sight line while aiming", () => {
   });
   assert.ok(Math.abs(aimed.position[0]) < Math.abs(relaxed.position[0]));
   assert.ok(aimed.position[1] > relaxed.position[1]);
+});
+
+test("portrait view keeps the weapon inside a narrower camera frame", () => {
+  const state = {
+    time: 0, movement: 0, aiming: false, recoil: 0, reloadProgress: 0, chargeProgress: 0,
+    meleeProgress: null, meleeStyle: "slash", comboIndex: 0, motionReduced: false,
+  };
+  const landscape = getWarRoomViewModelPose(state, 1.75);
+  const portrait = getWarRoomViewModelPose(state, 0.46);
+  assert.ok(portrait.position[0] < landscape.position[0] * 0.3);
+  assert.ok(getWarRoomViewModelHorizontalFactor(0.46) < 0.3);
+  assert.ok(getWarRoomViewModelScaleFactor(0.46) < 1);
+  assert.equal(getWarRoomViewModelHorizontalFactor(1.75), 1);
 });
 
 test("reduced motion removes idle, locomotion, and firing sway", () => {

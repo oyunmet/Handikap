@@ -8,6 +8,11 @@ export const DEFAULT_WAR_ROOM_LOADOUT: readonly [WarRoomWeaponId, WarRoomWeaponI
   "crossbow",
 ];
 
+export function isWarRoomWeaponOwned(weaponId: WarRoomWeaponId, ownedItemIds: readonly string[]) {
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+  return Boolean(weapon && (!weapon.storeItemId || ownedItemIds.includes(weapon.storeItemId)));
+}
+
 function getWarRoomWeaponId(itemId: string): WarRoomWeaponId | null {
   const roomWeaponId = getStoreItem(itemId)?.warRoomWeaponId;
   if (roomWeaponId && WAR_ROOM_WEAPON_BY_ID.has(roomWeaponId as WarRoomWeaponId)) {

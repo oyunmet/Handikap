@@ -19,6 +19,8 @@ import {
 import { EQUIPMENT_SETS, getDailySpecials } from "../store-catalog.ts";
 import { getItemBonuses } from "../store-utils";
 import { isCoreWeapon } from "../weapons.ts";
+import { WarRoomWeaponIcon } from "../WarRoomWeaponIcon";
+import type { WarRoomWeaponId } from "../war-room-data";
 import "./store-panel.css";
 
 type StorePanelProps = {
@@ -166,7 +168,7 @@ export default function StorePanel({
   const visibleItems = useMemo(() => {
     if (activeTab === "inventory") {
       return items.filter((item) => item.kind === "equipment"
-        ? ownedSet.has(item.id) && (item.slot !== "weapon" || isCoreWeapon(item.id))
+        ? ownedSet.has(item.id) && (item.warRoomWeaponId !== undefined || item.slot !== "weapon" || isCoreWeapon(item.id))
         : item.reward?.type === "combat-item"
           ? profile.inventory.combatItemCounts[item.reward.itemId] > 0
           : item.reward?.type === "material" && profile.materials[item.reward.material] > 0);
@@ -478,14 +480,36 @@ export default function StorePanel({
                         <span className={`safak-store__rarity rarity-${item.rarity}`}>{rarityLabels[item.rarity]}</span>
                         {isNew && <span className="safak-store__new">YENİ</span>}
                       </span>
-                      <span className="safak-store__item-name">{item.name}</span>
-                      <span className="safak-store__item-summary">{item.summary}</span>
-                      <span className="safak-store__item-price">
-                        {item.dropOnly && <span>RAKİPTEN DÜŞER</span>}
-                        {!item.dropOnly && levelLocked && <span>SEVİYE {item.requiredLevel}</span>}
-                        {!item.dropOnly && !levelLocked && item.price.gold > 0 && <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(item.price.gold)}</span>}
-                        {!item.dropOnly && !levelLocked && item.price.diamonds > 0 && <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(item.price.diamonds)}</span>}
-                        {!item.dropOnly && !levelLocked && item.price.gold === 0 && item.price.diamonds === 0 && <span>BAŞLANGIÇ EŞYASI</span>}
+                      <span className="safak-store__item-main">
+                        <span className="safak-store__item-art" aria-hidden="true">
+                          {item.warRoomWeaponId
+                            ? <WarRoomWeaponIcon
+                              className="safak-store__item-art-image"
+                              weaponId={item.warRoomWeaponId as WarRoomWeaponId}
+                            />
+                            : <span>{item.icon ?? (
+                              item.visual.weaponStyle === "axe" ? "⚒"
+                                : item.visual.weaponStyle === "spear" || item.visual.weaponStyle === "bow" ? "➶"
+                                  : item.visual.weaponStyle === "mace" ? "✣"
+                                    : item.visual.weaponStyle === "crossbow" ? "⌖"
+                                      : item.visual.weaponStyle ? "⚔"
+                                        : item.visual.helmetColor ? "♙"
+                                          : item.visual.shieldColor ? "◈"
+                                            : item.visual.ringColor ? "◉"
+                                              : item.kind === "consumable" ? "✦" : "◇"
+                            )}</span>}
+                        </span>
+                        <span className="safak-store__item-copy">
+                          <span className="safak-store__item-name">{item.name}</span>
+                          <span className="safak-store__item-summary">{item.summary}</span>
+                          <span className="safak-store__item-price">
+                            {item.dropOnly && <span>RAKİPTEN DÜŞER</span>}
+                            {!item.dropOnly && levelLocked && <span>SEVİYE {item.requiredLevel}</span>}
+                            {!item.dropOnly && !levelLocked && item.price.gold > 0 && <span><i className="safak-store__coin" aria-hidden="true" />{numberFormat.format(item.price.gold)}</span>}
+                            {!item.dropOnly && !levelLocked && item.price.diamonds > 0 && <span><i className="safak-store__diamond" aria-hidden="true" />{numberFormat.format(item.price.diamonds)}</span>}
+                            {!item.dropOnly && !levelLocked && item.price.gold === 0 && item.price.diamonds === 0 && <span>BAŞLANGIÇ EŞYASI</span>}
+                          </span>
+                        </span>
                       </span>
                       <span className={`safak-store__item-status${equipped ? " status-equipped" : owned ? " status-owned" : " status-locked"}`}>
                         {levelLocked ? `SEVİYE ${item.requiredLevel}` : equipped ? "KUŞANILDI" : item.kind !== "equipment" && owned ? `${resourceCount} ADET` : owned ? "HEYBEDE" : item.dropOnly ? "GANİMET" : "KİLİTLİ"}

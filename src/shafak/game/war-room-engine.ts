@@ -36,6 +36,16 @@ export type WarRoomEnemy = {
   deathYaw: number;
 };
 
+export function getWarRoomCommanderHealth(
+  enemies: readonly Pick<WarRoomEnemy, "commander" | "hp" | "maxHp">[],
+) {
+  const commander = enemies.find((enemy) => enemy.commander);
+  return {
+    hp: commander && Number.isFinite(commander.hp) ? Math.max(0, commander.hp) : 0,
+    maxHp: commander && Number.isFinite(commander.maxHp) ? Math.max(1, commander.maxHp) : 1,
+  };
+}
+
 export type WarRoomAmmo = { magazine: number; reserve: number };
 
 export type WarRoomRuntime = {

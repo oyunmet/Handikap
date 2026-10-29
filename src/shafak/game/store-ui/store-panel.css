@@ -283,7 +283,7 @@
 .safak-store__item {
   position: relative;
   display: flex;
-  min-height: 123px;
+  min-height: 132px;
   flex-direction: column;
   align-items: flex-start;
   padding: 12px 13px 11px;
@@ -317,6 +317,29 @@
 .safak-store__item.is-equipped { box-shadow: inset 0 0 0 1px rgba(141, 169, 141, .12); }
 
 .safak-store__item-topline { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; }
+.safak-store__item-main {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+}
+.safak-store__item-art {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(221, 187, 122, .23);
+  border-radius: 4px;
+  background: radial-gradient(circle at 50% 38%, rgba(195, 151, 79, .16), rgba(12, 14, 17, .82) 75%);
+  color: #e5c583;
+  font: 22px/1 var(--font-display, Georgia, serif);
+}
+.safak-store__item-art-image { display: block; width: 100%; height: 100%; padding: 4px; object-fit: contain; }
+.safak-store__item-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .safak-store__rarity {
   display: inline-block;
   color: #a8a092;
@@ -336,7 +359,7 @@
 }
 .safak-store__item-name {
   max-width: 100%;
-  margin-top: 12px;
+  margin-top: 0;
   overflow: hidden;
   color: #f1e4ce;
   font: 600 13px/1.25 var(--font-display, "Cinzel", Georgia, serif);
@@ -791,7 +814,8 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: auto;
+  min-height: 12px;
+  margin-top: 4px;
   color: #d8c79f;
   font-size: 8px;
   font-variant-numeric: tabular-nums;

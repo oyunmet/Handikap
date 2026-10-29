@@ -41,7 +41,12 @@ import {
   type WarRoomCameraMode,
   type WarRoomShoulderSide,
 } from "../game/war-room-camera";
-import { getWarRoomViewModelConfig, getWarRoomViewModelPose } from "../game/war-room-viewmodel";
+import {
+  getWarRoomViewModelConfig,
+  getWarRoomViewModelHorizontalFactor,
+  getWarRoomViewModelPose,
+  getWarRoomViewModelScaleFactor,
+} from "../game/war-room-viewmodel";
 import {
   getWarRoomImpactFxProfile,
   WAR_ROOM_CRACK_DECAL_LIFETIME_SECONDS,
@@ -88,6 +93,7 @@ import { createWorldRoadSurfaceTextures } from "./world-road-textures";
 import {
   applyWarRoomDamage,
   getNearestWarRoomCover,
+  getWarRoomCommanderHealth,
   getWarRoomRemaining,
   moveWarRoomEntity,
   nextWarRoomRandom,
@@ -1046,7 +1052,7 @@ function FirstPersonWeaponViewModel({
   cameraMode: WarRoomCameraMode;
   motionReduced: boolean;
 }) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const weaponRootRef = useRef<THREE.Group>(null);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
@@ -1074,6 +1080,8 @@ function FirstPersonWeaponViewModel({
     const meleeProgress = weapon.weaponClass === "melee" && player.meleeUntil > clock
       ? Math.max(0, Math.min(1, (clock - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
       : null;
+    const aspect = size.height > 0 ? size.width / size.height : 1.75;
+    const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
     const pose = getWarRoomViewModelPose({
       time: clock,
       movement: Math.hypot(input.moveX, input.moveY),
@@ -1085,10 +1093,11 @@ function FirstPersonWeaponViewModel({
       meleeStyle: weapon.meleeStyle ?? "slash",
       comboIndex: player.meleeAttackComboIndex,
       motionReduced,
-    });
+    }, aspect);
     group.visible = cameraMode === "first-person";
+    group.scale.setScalar(viewConfig.scale * getWarRoomViewModelScaleFactor(aspect));
     group.position.set(
-      viewConfig.position[0] + pose.position[0],
+      viewConfig.position[0] * horizontalFactor + pose.position[0],
       viewConfig.position[1] + pose.position[1],
       viewConfig.position[2] + pose.position[2],
     );
@@ -1841,7 +1850,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
   const player = runtime.player;
   const weaponId = weaponIds[player.activeSlot];
   const ammo = player.ammo[weaponId];
-  const boss = runtime.enemies.find((enemy) => enemy.commander)!;
+  const bossHealth = getWarRoomCommanderHealth(runtime.enemies);
   const meleeProgress = player.meleeUntil > now
     ? Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
     : 0;
@@ -1878,8 +1887,8 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, weaponIds: reado
     regenerationAtCap: RESTORE_CONFIG.enabled
       && player.hp >= player.maxHp * RESTORE_CONFIG.passive.maxHealthRatio,
     remaining: getWarRoomRemaining(runtime),
-    bossHp: boss.hp,
-    bossMaxHp: boss.maxHp,
+    bossHp: bossHealth.hp,
+    bossMaxHp: bossHealth.maxHp,
     kills: player.kills,
     headshots: player.headshots,
     shots: player.shots,

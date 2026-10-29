@@ -246,6 +246,26 @@
   box-shadow: inset 0 0 0 1px rgba(231, 179, 109, 0.12);
 }
 
+.war-room-weapon-card[aria-disabled="true"] {
+  border-style: dashed;
+  border-color: rgba(235, 177, 108, 0.3);
+}
+
+.war-room-weapon-card[aria-disabled="true"] .war-room-weapon-card__status {
+  color: #e1ad70;
+}
+
+.war-room-loadout-notice {
+  margin: 9px 0 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(210, 143, 93, 0.38);
+  border-left: 3px solid #d08d57;
+  background: rgba(91, 43, 31, 0.25);
+  color: #e7c09a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .war-room-weapon-card__icon {
   display: grid;
   width: 36px;
