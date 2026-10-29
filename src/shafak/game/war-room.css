@@ -1101,6 +1101,21 @@
   transition: width 120ms ease, height 120ms ease, gap 120ms ease;
 }
 
+.war-room-crosshair::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #fff0cf;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(255, 195, 99, .9);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(.35);
+}
+
 .war-room-crosshair i {
   width: 5px;
   height: 5px;
@@ -1118,6 +1133,24 @@
 .war-room-crosshair.is-zoomed.is-firing { width: 24px; height: 24px; gap: 6px; }
 .war-room-crosshair.is-hit i { border-color: #ff6259; box-shadow: 0 0 8px rgba(255, 48, 59, .8); transform: rotate(45deg) scale(1.4); }
 .war-room-crosshair.is-headshot i { border-color: #ff4147; box-shadow: 0 0 10px rgba(255, 48, 59, .95); transform: rotate(45deg) scale(1.7); }
+.war-room-crosshair.is-hit::before {
+  border-color: #ffcb73;
+  animation: war-room-impact-ring 260ms ease-out both;
+}
+.war-room-crosshair.is-headshot::before {
+  border-color: #ff5157;
+  box-shadow: 0 0 16px rgba(255, 48, 59, .95);
+}
+
+@keyframes war-room-impact-ring {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.35); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .war-room-crosshair.is-hit::before { animation-duration: 1ms; }
+}
 
 .war-room-hit-direction {
   position: absolute;

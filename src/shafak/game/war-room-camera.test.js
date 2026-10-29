@@ -127,8 +127,8 @@ test("third-person shoulder offset is adjustable on either side", () => {
     shoulderOffset: 0.7,
     shoulderSide: "left",
   });
-  assert.deepEqual(right, { back: 5.1, shoulder: 0.7 });
-  assert.deepEqual(left, { back: 5.1, shoulder: -0.7 });
+  assert.deepEqual(right, { back: 3.65, shoulder: 0.7 });
+  assert.deepEqual(left, { back: 3.65, shoulder: -0.7 });
 });
 
 test("third-person aiming tightens the camera, and offsets remain bounded", () => {
@@ -137,7 +137,7 @@ test("third-person aiming tightens the camera, and offsets remain bounded", () =
     aiming: true,
     shoulderOffset: 4,
     shoulderSide: "right",
-  }), { back: 3.8, shoulder: 1.6 });
+  }), { back: 2.75, shoulder: 1.6 });
   const victoryZoom = getWarRoomCameraRig({
     mode: "third-person",
     aiming: false,
@@ -145,6 +145,6 @@ test("third-person aiming tightens the camera, and offsets remain bounded", () =
     shoulderSide: "right",
     victoryZoom: 1,
   });
-  assert.ok(Math.abs(victoryZoom.back - 5.1 * 0.82) < 1e-12);
+  assert.ok(Math.abs(victoryZoom.back - 3.65 * 0.82) < 1e-12);
   assert.equal(victoryZoom.shoulder, 0);
 });

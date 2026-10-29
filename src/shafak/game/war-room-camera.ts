@@ -150,7 +150,7 @@ export function getWarRoomCameraRig({
   const zoom = Number.isFinite(victoryZoom)
     ? Math.max(0, Math.min(1, victoryZoom))
     : 0;
-  const back = (aiming ? 3.8 : 5.1) * (1 - zoom * 0.18);
+  const back = (aiming ? 2.75 : 3.65) * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
     * (shoulderSide === "left" ? -1 : 1);
 

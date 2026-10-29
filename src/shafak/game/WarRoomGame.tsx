@@ -1409,7 +1409,7 @@ export default function WarRoomGame({
                 <b>FAZ {getBossHudPhaseRoman(bossPhaseAnnouncement)}</b>
               </div>
             )}
-            <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}${hud.firing ? " is-firing" : ""}`} aria-label={hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
+            <div className={`war-room-crosshair${hud.targetVisible ? " is-target" : ""}${hud.hitMarker ? " is-hit" : ""}${hud.headshotMarker ? " is-headshot" : ""}${hud.aiming ? " is-zoomed" : ""}${hud.firing ? " is-firing" : ""}`} aria-label={hud.hitMarker ? "İsabet" : hud.targetVisible ? "Hedef nişangâhta" : "Nişangâh"}>
               <i /><i /><i /><i />
             </div>
             {killConfirmation && (

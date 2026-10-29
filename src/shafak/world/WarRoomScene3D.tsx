@@ -1585,15 +1585,16 @@ function PlayerActor({
         : 0;
       if (hand) {
         const handScale = hand.getWorldScale(new THREE.Vector3());
+        const readabilityScale = melee ? 1.2 : 1.12;
         weaponMount.position.set(
-          mount.position[0] / Math.max(0.01, Math.abs(handScale.x)),
+          (mount.position[0] + 0.035) / Math.max(0.01, Math.abs(handScale.x)),
           (mount.position[1] + (aiming ? 0.055 : 0)) / Math.max(0.01, Math.abs(handScale.y)),
           (mount.position[2] - (aiming ? 0.045 : 0)) / Math.max(0.01, Math.abs(handScale.z)),
         );
         weaponMount.scale.set(
-          mount.scale / Math.max(0.01, Math.abs(handScale.x)),
-          mount.scale / Math.max(0.01, Math.abs(handScale.y)),
-          mount.scale / Math.max(0.01, Math.abs(handScale.z)),
+          (mount.scale * readabilityScale) / Math.max(0.01, Math.abs(handScale.x)),
+          (mount.scale * readabilityScale) / Math.max(0.01, Math.abs(handScale.y)),
+          (mount.scale * readabilityScale) / Math.max(0.01, Math.abs(handScale.z)),
         );
       } else {
         if (melee) {
@@ -1928,10 +1929,10 @@ function EnemyActor({
         ? Math.max(0, Math.min(1, (enemy.hitFlashUntil - gameNow) / WAR_ROOM_ENEMY_HIT_FLASH_SECONDS))
         : 0;
       hitPulseRef.current.visible = intensity > 0;
-      hitPulseRef.current.scale.setScalar(0.62 + (1 - intensity) * 0.72);
+      hitPulseRef.current.scale.setScalar(0.9 + (1 - intensity) * 0.8);
       const material = hitPulseRef.current.material as THREE.MeshBasicMaterial;
       material.color.set(enemy.commander ? "#ff786b" : "#ffd27a");
-      material.opacity = intensity * 0.82;
+      material.opacity = intensity * 0.96;
     }
   });
   const enemyAnimation = (): WarRoomAnimationState => {
@@ -1991,11 +1992,11 @@ function EnemyActor({
       </group>
       <mesh
         ref={hitPulseRef}
-        position={[0, enemy.commander ? 1.34 : 1.05, -0.34]}
+        position={[0, enemy.commander ? 1.42 : 1.12, -0.48]}
         visible={false}
         renderOrder={5}
       >
-        <torusGeometry args={[0.28, 0.045, 8, 28]} />
+        <torusGeometry args={[0.42, 0.065, 8, 32]} />
         <meshBasicMaterial
           color="#ffd27a"
           transparent
@@ -2561,8 +2562,8 @@ function WarRoomRuntimeScene({
       particle.vy = (bias?.y ?? 0.25) + jitterY;
       particle.vz = (bias?.z ?? 0) + jitterZ * 1.4;
       particle.born = now;
-      particle.lifetime = 0.3 + (Math.sin(seed * 3.7) + 1) * 0.12;
-      particle.size = size * (0.65 + (Math.sin(seed * 2.1) + 1) * 0.375);
+      particle.lifetime = 0.42 + (Math.sin(seed * 3.7) + 1) * 0.14;
+      particle.size = size * 1.35 * (0.65 + (Math.sin(seed * 2.1) + 1) * 0.375);
       particle.bounce = false;
       particleMesh.setColorAt(slot, new THREE.Color(color));
     }
@@ -4081,11 +4082,14 @@ function WarRoomRuntimeScene({
     if (playerRootRef.current) {
       playerRootRef.current.visible = cameraMode === "third-person" && playerCameraDistance > 0.42;
     }
+    const cameraLookAhead = cameraMode === "third-person"
+      ? input.aimHeld ? 4.2 : 5.2
+      : 10;
     cameraLook.set(
-      player.x + cameraForwardX * 10,
+      player.x + cameraForwardX * cameraLookAhead,
       player.floorHeight + player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48)
-        + cameraForwardY * 10 + cameraKickRef.current * cameraMotionScale,
-      player.z + cameraForwardZ * 10,
+        + cameraForwardY * cameraLookAhead + cameraKickRef.current * cameraMotionScale,
+      player.z + cameraForwardZ * cameraLookAhead,
     );
     cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
     cameraLook.z += Math.sin(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
@@ -4125,7 +4129,7 @@ function WarRoomRuntimeScene({
         );
         slashTrailState.tint
           .set(trailProfile.trailColor)
-          .multiplyScalar(trailProfile.trailIntensity);
+          .multiplyScalar(Math.max(1, trailProfile.trailIntensity));
       }
       const progress = Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)));
       const prepareEnd = player.meleeAttackHeavy ? 0.4 : 0.28;
@@ -4134,7 +4138,7 @@ function WarRoomRuntimeScene({
         if (weaponMount) {
           weaponMount.updateWorldMatrix(true, false);
           const bladeLength = Math.max(0.3, Math.min(0.82, (trailWeapon.normalizeLength ?? trailWeapon.range * 0.56) * 0.72));
-          const trailHalfWidth = Math.max(0.07, Math.min(0.13, bladeLength * 0.16));
+          const trailHalfWidth = Math.max(0.11, Math.min(0.2, bladeLength * 0.24));
           const bladeTipZ = -Math.max(0.36, Math.min(0.88, bladeLength));
           slashLocalBase.set(-trailHalfWidth, 0.02, bladeTipZ);
           slashLocalTip.set(trailHalfWidth, 0.02, bladeTipZ);
@@ -4159,7 +4163,7 @@ function WarRoomRuntimeScene({
     }
     while (
       slashTrailState.count > 0
-      && now - slashTrailState.samples[slashTrailState.count - 1].born >= 0.12
+      && now - slashTrailState.samples[slashTrailState.count - 1].born >= 0.22
     ) {
       slashTrailState.count -= 1;
     }
