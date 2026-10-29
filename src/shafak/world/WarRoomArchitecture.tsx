@@ -155,7 +155,13 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
 
       {/* Ground front: separated jambs leave the full doorway clear. */}
       {[-1, 1].map((side) => (
-        <mesh key={`front-ground-${side}`} position={[side * (building.doorWidth / 2 + doorLeftWidth / 2), groundHeight / 2, frontZ]}>
+        <mesh
+          key={`front-ground-${side}`}
+          position={[side * (building.doorWidth / 2 + doorLeftWidth / 2), groundHeight / 2, frontZ]}
+          userData={{
+            warRoomCameraOccluderId: `${building.id}-floor-0-front-${side < 0 ? "left" : "right"}`,
+          }}
+        >
           <boxGeometry args={[doorLeftWidth, groundHeight, wallThickness]} />
           <meshStandardMaterial color={palette.wall} roughness={0.94} />
         </mesh>
@@ -172,12 +178,21 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
       ))}
 
       {/* Solid back and side walls on the lower storey. */}
-      <mesh position={[0, groundHeight / 2, backZ]}>
+      <mesh
+        position={[0, groundHeight / 2, backZ]}
+        userData={{ warRoomCameraOccluderId: `${building.id}-floor-0-back` }}
+      >
         <boxGeometry args={[width, groundHeight, wallThickness]} />
         <meshStandardMaterial color={palette.wall} roughness={0.94} />
       </mesh>
       {[-1, 1].map((side) => (
-        <mesh key={`ground-side-${side}`} position={[side * (width / 2), groundHeight / 2, 0]}>
+        <mesh
+          key={`ground-side-${side}`}
+          position={[side * (width / 2), groundHeight / 2, 0]}
+          userData={{
+            warRoomCameraOccluderId: `${building.id}-floor-0-${side < 0 ? "west" : "east"}`,
+          }}
+        >
           <boxGeometry args={[wallThickness, groundHeight, depth]} />
           <meshStandardMaterial color={palette.wall} roughness={0.94} />
         </mesh>
@@ -202,26 +217,58 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
       </mesh>
 
       {/* Upper front wall and rear wall, whose doorway receives the stair landing. */}
-      <mesh position={[0, groundHeight + upperHeight / 2, frontZ]}>
-        <boxGeometry args={[width, upperHeight, wallThickness]} />
+      {[-1, 1].map((side) => (
+        <mesh
+          key={`upper-front-${side}`}
+          position={[
+            side * (building.doorWidth / 2 + doorLeftWidth / 2),
+            groundHeight + upperHeight / 2,
+            frontZ,
+          ]}
+          userData={{
+            warRoomCameraOccluderId: `${building.id}-floor-1-front-${side < 0 ? "left" : "right"}`,
+          }}
+        >
+          <boxGeometry args={[doorLeftWidth, upperHeight, wallThickness]} />
+          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+        </mesh>
+      ))}
+      <mesh
+        position={[0, groundHeight + upperHeight / 2, frontZ]}
+        userData={{ warRoomCameraOccluderId: `${building.id}-upper-front-center` }}
+      >
+        <boxGeometry args={[building.doorWidth, upperHeight, wallThickness]} />
         <meshStandardMaterial color={palette.wall} roughness={0.94} />
       </mesh>
       {[-1, 1].map((side) => {
         const span = side < 0 ? openingLeft + width / 2 : width / 2 - openingRight;
         const centerX = side < 0 ? (-width / 2 + openingLeft) / 2 : (openingRight + width / 2) / 2;
         return span > 0.04 ? (
-          <mesh key={`upper-rear-${side}`} position={[centerX, groundHeight + upperHeight / 2, backZ]}>
+          <mesh
+            key={`upper-rear-${side}`}
+            position={[centerX, groundHeight + upperHeight / 2, backZ]}
+            userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-back` }}
+          >
             <boxGeometry args={[span, upperHeight, wallThickness]} />
             <meshStandardMaterial color={palette.wall} roughness={0.94} />
           </mesh>
         ) : null;
       })}
-      <mesh position={[(openingLeft + openingRight) / 2, groundHeight + rearOpeningHeight + (upperHeight - rearOpeningHeight) / 2, backZ]}>
+      <mesh
+        position={[(openingLeft + openingRight) / 2, groundHeight + rearOpeningHeight + (upperHeight - rearOpeningHeight) / 2, backZ]}
+        userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-back` }}
+      >
         <boxGeometry args={[openingActualWidth, upperHeight - rearOpeningHeight, wallThickness]} />
         <meshStandardMaterial color={palette.wall} roughness={0.94} />
       </mesh>
       {[-1, 1].map((side) => (
-        <mesh key={`upper-side-${side}`} position={[side * (width / 2), groundHeight + upperHeight / 2, 0]}>
+        <mesh
+          key={`upper-side-${side}`}
+          position={[side * (width / 2), groundHeight + upperHeight / 2, 0]}
+          userData={{
+            warRoomCameraOccluderId: `${building.id}-floor-1-${side < 0 ? "west" : "east"}`,
+          }}
+        >
           <boxGeometry args={[wallThickness, upperHeight, depth]} />
           <meshStandardMaterial color={palette.wall} roughness={0.94} />
         </mesh>

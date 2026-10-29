@@ -18,6 +18,7 @@ import {
 } from "../game/war-room-rooms";
 import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
 import { WarRoomBuildingShell, WarRoomStaircase } from "./WarRoomArchitecture";
+import { WarRoomHouseInterior } from "./WarRoomInteriors";
 import {
   getWarRoomMeleeEffectiveReach,
   traceWarRoomMeleeCone,
@@ -922,6 +923,7 @@ function Battlefield({ runtime }: { runtime: WarRoomRuntime }) {
         <group key={building.id}>
           <WarRoomBuildingShell building={building} />
           <WarRoomStaircase building={building} />
+          <WarRoomHouseInterior building={building} />
         </group>
       ))}
       <WarRoomLootChestField runtime={runtime} />
