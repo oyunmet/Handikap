@@ -136,9 +136,10 @@ test("indoor camera targets remain within the rotated house and do not route aro
   assert.equal(clamped.y, 1.8);
 
   const houseWall = { ...wall, id: "house-wall", minZ: -2.4, maxZ: -1.7 };
+  const cameraInterior = { x: 0, z: 0, width: 8, depth: 8, rotationY: 0 };
   const start = { x: 0, y: 1.5, z: 0 };
   const end = { x: 0, y: 1.5, z: -3 };
-  const result = resolveWarRoomInteriorCameraPlacement(start, end, [houseWall]);
+  const result = resolveWarRoomInteriorCameraPlacement(start, end, [houseWall], cameraInterior);
   assert.equal(result.usedAlternate, false);
   assert.ok(result.position.z > houseWall.maxZ);
   assert.ok(result.safeDistance < 3);
