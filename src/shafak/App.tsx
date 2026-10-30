@@ -75,7 +75,8 @@ type Preferences = {
   timeOfDay: TimeOfDayMode;
 };
 
-const PREFERENCES_KEY = "shafak-settings-v1";
+const PREFERENCES_KEY = "shafak-settings-v2";
+const LEGACY_PREFERENCES_KEY = "shafak-settings-v1";
 const initialPreferences: Preferences = {
   sound: true,
   soundVolume: DEFAULT_SOUND_VOLUME,
@@ -94,7 +95,7 @@ const initialPreferences: Preferences = {
   warRoomCameraMode: "third-person",
   warRoomShoulderSide: "right",
   warRoomShoulderOffset: 0.6,
-  warRoomFacing: "camera",
+  warRoomFacing: "movement",
   timeOfDay: "auto",
 };
 
@@ -126,7 +127,11 @@ function profileSyncErrorMessage(error: unknown) {
 
 function readPreferences(): Preferences {
   try {
-    const saved = JSON.parse(localStorage.getItem(PREFERENCES_KEY) ?? "null") as
+    const currentPreferences = localStorage.getItem(PREFERENCES_KEY);
+    const hasCurrentPreferences = currentPreferences !== null;
+    const saved = JSON.parse(
+      currentPreferences ?? localStorage.getItem(LEGACY_PREFERENCES_KEY) ?? "null",
+    ) as
       | Partial<Preferences>
       | null;
     if (!saved) {
@@ -185,7 +190,11 @@ function readPreferences(): Preferences {
       warRoomShoulderOffset: typeof saved.warRoomShoulderOffset === "number"
         ? Math.max(0.2, Math.min(1.5, saved.warRoomShoulderOffset))
         : initialPreferences.warRoomShoulderOffset,
-      warRoomFacing: saved.warRoomFacing === "movement" ? "movement" : "camera",
+      // Older saves defaulted to camera-facing, which kept the player strafing
+      // even when the player expected left/right movement to turn the character.
+      warRoomFacing: hasCurrentPreferences && saved.warRoomFacing === "camera"
+        ? "camera"
+        : "movement",
       timeOfDay: saved.timeOfDay === "day" || saved.timeOfDay === "sunset" || saved.timeOfDay === "night"
         ? saved.timeOfDay
         : "auto",

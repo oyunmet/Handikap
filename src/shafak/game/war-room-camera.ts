@@ -138,19 +138,13 @@ export function resolveWarRoomInteriorCameraPlacement(
   bounds: readonly WarRoomCameraBounds[],
   interior: WarRoomInteriorCameraBounds,
   radius = 0.28,
-  minimumDistance = 1.2,
   clearance = 0.08,
 ): WarRoomCameraPlacement {
   const candidate = clampWarRoomCameraToInterior(end, interior, radius + 0.24);
-  const sweep = resolveWarRoomCameraSweep(start, candidate, bounds, radius, minimumDistance, clearance);
-  const distance = Math.hypot(candidate.x - start.x, candidate.y - start.y, candidate.z - start.z);
-  const placedDistance = sweep.blocked
-    ? Math.max(sweep.safeDistance, Math.min(distance, minimumDistance))
-    : distance;
+  const sweep = resolveWarRoomCameraSweep(start, candidate, bounds, radius, 0, clearance);
   return {
     ...sweep,
-    safeDistance: placedDistance,
-    position: pointAlongSegment(start, candidate, placedDistance),
+    position: pointAlongSegment(start, candidate, sweep.safeDistance),
     usedAlternate: false,
   };
 }
@@ -352,12 +346,14 @@ export function getWarRoomCameraRig({
   aiming,
   shoulderOffset,
   shoulderSide,
+  indoors = false,
   victoryZoom = 0,
 }: {
   mode: WarRoomCameraMode;
   aiming: boolean;
   shoulderOffset: number;
   shoulderSide: WarRoomShoulderSide;
+  indoors?: boolean;
   victoryZoom?: number;
 }) {
   if (mode === "first-person") return { back: 0, shoulder: 0 };
@@ -368,7 +364,10 @@ export function getWarRoomCameraRig({
   const zoom = Number.isFinite(victoryZoom)
     ? Math.max(0, Math.min(1, victoryZoom))
     : 0;
-  const back = (aiming ? 3.65 : 4.8) * (1 - zoom * 0.18);
+  const baseBack = indoors
+    ? aiming ? 2.4 : 2.8
+    : aiming ? 3.65 : 4.8;
+  const back = baseBack * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
     * (shoulderSide === "left" ? -1 : 1);
 

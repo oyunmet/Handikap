@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clampWarRoomCameraToInterior,
+  getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
@@ -161,6 +162,29 @@ test("camera never moves to the side or front when the whole rear path is blocke
   assert.ok(rearProjection > 0, "camera must stay in the player's rear hemisphere");
 });
 
+test("rear camera stays behind the player's facing direction at every quarter turn", () => {
+  for (const yaw of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+    const frame = getWarRoomRearCameraFrame(
+      { x: 2, y: 0, z: -3 },
+      yaw,
+      0,
+      2.8,
+      0.6,
+      1.55,
+      1.1,
+      1.24,
+    );
+    const forwardX = Math.sin(yaw);
+    const forwardZ = -Math.cos(yaw);
+    const cameraOffsetX = frame.position.x - 2;
+    const cameraOffsetZ = frame.position.z + 3;
+    assert.ok(
+      cameraOffsetX * forwardX + cameraOffsetZ * forwardZ < 0,
+      `camera must remain behind the player at yaw ${yaw}`,
+    );
+  }
+});
+
 test("indoor camera targets remain within the rotated house and do not route around its walls", () => {
   const interior = { x: 4, z: -3, width: 8, depth: 6, rotationY: Math.PI / 2 };
   const clamped = clampWarRoomCameraToInterior(
@@ -185,14 +209,14 @@ test("indoor camera targets remain within the rotated house and do not route aro
     [houseWall],
     cameraInterior,
     0.28,
-    1.5,
     0.08,
   );
   assert.equal(result.blockerId, "house-wall");
-  assert.ok(result.safeDistance >= 1.5);
+  assert.ok(result.safeDistance < 1.42, "camera must stop before the expanded wall");
   assert.equal(result.usedAlternate, false);
-  assert.ok(result.position.z > houseWall.maxZ);
-  assert.ok(result.safeDistance < 3);
+  assert.ok(result.position.z > houseWall.maxZ + 0.28);
+  assert.ok(result.safeDistance < 1.5);
+  assert.equal(isWarRoomCameraPointClear(result.position, [houseWall], 0.28), true);
 });
 
 test("indoor camera stays inside when the room edge cannot fit the full rear distance", () => {
@@ -205,7 +229,6 @@ test("indoor camera stays inside when the room edge cannot fit the full rear dis
     [],
     interior,
     0.28,
-    1.5,
     0.08,
   );
 
@@ -245,6 +268,23 @@ test("third-person camera defaults to a five-meter shoulder view and supports ei
     shoulderOffset: 0.6,
     shoulderSide: "right",
   }), { back: 4.8, shoulder: 0.6 });
+});
+
+test("indoor camera keeps a wider rear view while staying closer than outdoors", () => {
+  assert.deepEqual(getWarRoomCameraRig({
+    mode: "third-person",
+    aiming: false,
+    shoulderOffset: 0.6,
+    shoulderSide: "right",
+    indoors: true,
+  }), { back: 2.8, shoulder: 0.6 });
+  assert.deepEqual(getWarRoomCameraRig({
+    mode: "third-person",
+    aiming: true,
+    shoulderOffset: 0.6,
+    shoulderSide: "right",
+    indoors: true,
+  }), { back: 2.4, shoulder: 0.7 });
 });
 
 test("third-person aiming tightens the camera, and offsets remain bounded", () => {

@@ -69,7 +69,6 @@ import {
   WAR_ROOM_SLASH_TRAIL_SEGMENTS,
 } from "../game/war-room-fx";
 import {
-  WAR_ROOM_CAMERA_FACING_ENABLED,
   WAR_ROOM_CAMERA_OCCLUSION_ENABLED,
   WAR_ROOM_COMBAT_FEEL_ENABLED,
   WAR_ROOM_COMMANDER_TELEGRAPH_ENABLED,
@@ -3521,7 +3520,7 @@ function WarRoomRuntimeScene({
       moveY,
       player.facingYaw,
       input.aimHeld || now < player.strafeUntil,
-      WAR_ROOM_CAMERA_FACING_ENABLED ? "camera" : "movement",
+      input.facingSetting,
     );
     const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
@@ -4164,11 +4163,9 @@ function WarRoomRuntimeScene({
       aiming: input.aimHeld,
       shoulderOffset,
       shoulderSide,
+      indoors: Boolean(indoorBuilding),
       victoryZoom,
     });
-    const cameraBack = indoorBuilding
-      ? Math.min(baseCameraBack, input.aimHeld ? 2.4 : 2)
-      : baseCameraBack;
     const playerBodyPoint = {
       x: player.x,
       y: player.floorHeight + player.jumpHeight + 0.75,
@@ -4236,7 +4233,7 @@ function WarRoomRuntimeScene({
     const focusHeight = player.prone ? 0.78 : player.crouched ? 1.02 : 1.24;
     const focusAhead = input.aimHeld
       ? indoorBuilding ? 1.7 : 3.2
-      : indoorBuilding ? 0.8 : 2.8;
+      : indoorBuilding ? 1.1 : 2.8;
     cameraStart.set(
       player.x,
       player.floorHeight + player.jumpHeight + cameraHeight,
@@ -4246,7 +4243,7 @@ function WarRoomRuntimeScene({
       { x: player.x, y: player.floorHeight + player.jumpHeight, z: player.z },
       cameraYaw,
       cameraPitch,
-      cameraBack,
+      baseCameraBack,
       shoulder,
       cameraHeight,
       focusAhead,
@@ -4296,7 +4293,6 @@ function WarRoomRuntimeScene({
           cameraBoundsRef.current,
           indoorBuilding,
           0.28,
-          1.5,
           0.08,
         )
         : resolveWarRoomCameraPlacement(
