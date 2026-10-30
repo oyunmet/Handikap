@@ -41,11 +41,9 @@ import { playGameButtonClick } from "../audio/howler";
 import type { RenderQuality } from "../world/graphics-quality";
 import { isWithinWarRoomDrawCallBudget, WAR_ROOM_DRAW_CALL_BUDGET, type WarRoomFrameStats } from "./war-room-quality";
 import type { WarRoomLookPointerType } from "./war-room-look";
-import type { WarRoomFacingSetting } from "./war-room-orientation";
 import {
   beginWarRoomPointer,
   endWarRoomPointer,
-  moveWarRoomPointer,
   pressWarRoomAction,
   releaseWarRoomAction,
   resolveWarRoomStanceTap,
@@ -82,12 +80,6 @@ type Props = {
   profile: PlayerProfile;
   vibrationEnabled: boolean;
   motionReduced: boolean;
-  invertLookY: boolean;
-  onInvertLookYChange: (value: boolean) => void;
-  facingSetting: WarRoomFacingSetting;
-  lookSensitivityX: number;
-  lookSensitivityY: number;
-  aimSensitivityMultiplier: number;
   joystickMode: "dynamic" | "fixed";
   shoulderSide: "left" | "right";
   shoulderOffset: number;
@@ -144,14 +136,13 @@ function getControlPlacementStyle(
   };
 }
 
-function createInputState(facingSetting: WarRoomFacingSetting): WarRoomInputState {
+function createInputState(): WarRoomInputState {
   return {
     keys: new Set(),
     moveX: 0,
     moveY: 0,
     yaw: 0,
     pitch: -0.08,
-    facingSetting,
     fireHeld: false,
     firePressed: false,
     fireReleased: false,
@@ -398,12 +389,6 @@ export default function WarRoomGame({
   profile,
   vibrationEnabled,
   motionReduced,
-  invertLookY,
-  onInvertLookYChange,
-  facingSetting,
-  lookSensitivityX,
-  lookSensitivityY,
-  aimSensitivityMultiplier,
   joystickMode,
   shoulderSide,
   shoulderOffset,
@@ -561,7 +546,7 @@ export default function WarRoomGame({
     weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout, 0, 1),
   );
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
-  const inputRef = useRef<WarRoomInputState>(createInputState(facingSetting));
+  const inputRef = useRef<WarRoomInputState>(createInputState());
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
@@ -598,7 +583,7 @@ export default function WarRoomGame({
       );
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
-    inputRef.current = createInputState(facingSetting);
+    inputRef.current = createInputState();
     pointerRef.current.clear();
     stickPointerRef.current = null;
     dynamicStickOriginRef.current = null;
@@ -665,10 +650,6 @@ export default function WarRoomGame({
     });
     setPhase(result);
   }, [loadout, profile.name]);
-
-  useEffect(() => {
-    inputRef.current.facingSetting = facingSetting;
-  }, [facingSetting]);
 
   const pauseBattle = useCallback(() => {
     const input = inputRef.current;
@@ -810,7 +791,7 @@ export default function WarRoomGame({
     setLoadout(nextLoadout);
     setSelectedSlot(0);
     runtimeRef.current = createWarRoomTrainingRuntime(nextLoadout);
-    inputRef.current = createInputState(facingSetting);
+    inputRef.current = createInputState();
     setHud(createEmptyHud());
     setRunKey((key) => key + 1);
   };
@@ -899,7 +880,7 @@ export default function WarRoomGame({
     event.pointerType === "touch" ? "touch" : event.pointerType === "pen" ? "pen" : "mouse"
   );
 
-  const handleActionLookStart = (event: ReactPointerEvent<HTMLElement>) => {
+  const handleActionPointerStart = (event: ReactPointerEvent<HTMLElement>) => {
     beginWarRoomPointer(pointerRef.current, event.pointerId, {
       x: event.clientX,
       y: event.clientY,
@@ -908,7 +889,7 @@ export default function WarRoomGame({
     });
   };
 
-  const handleActionLookEnd = (event: ReactPointerEvent<HTMLElement>) => {
+  const handleActionPointerEnd = (event: ReactPointerEvent<HTMLElement>) => {
     endWarRoomPointer(pointerRef.current, event.pointerId);
   };
 
@@ -930,6 +911,11 @@ export default function WarRoomGame({
     stick.style.setProperty("--stick-x", `${x * radius}px`);
     stick.style.setProperty("--stick-y", `${-y * radius}px`);
     setWarRoomMoveVector(inputRef.current, x, y);
+  };
+
+  const handleWorldPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (stickPointerRef.current !== event.pointerId) return;
+    readDynamicStick(event);
   };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -969,15 +955,6 @@ export default function WarRoomGame({
       pressWarRoomAction(inputRef.current, "aim");
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleWorldPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
-    if (stickPointerRef.current === event.pointerId && dynamicStickOriginRef.current) {
-      readDynamicStick(event);
-      return;
-    }
-    if (!pointerRef.current.has(event.pointerId)) return;
-    moveWarRoomPointer(pointerRef.current, event.pointerId, event.clientX, event.clientY);
   };
 
   const handleWorldPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
@@ -1130,10 +1107,10 @@ export default function WarRoomGame({
         <div
           className="war-room-battle"
           onPointerDown={handleWorldPointerDown}
-          onPointerMove={handleWorldPointerMove}
           onPointerUp={handleWorldPointerUp}
           onPointerCancel={handleWorldPointerUp}
           onContextMenu={(event) => event.preventDefault()}
+          onPointerMove={handleWorldPointerMove}
         >
           <WarRoomScene3D
             key={runKey}
@@ -1528,9 +1505,8 @@ export default function WarRoomGame({
                   vibrationEnabled={vibrationEnabled}
                   className={`is-aim${hud.aiming ? " is-active" : ""}`}
                   style={controlLayoutEnabled ? getControlPlacementStyle("aim", savedControlLayout.layout) : undefined}
-                  onPointerStart={handleActionLookStart}
-                  onPointerMove={handleWorldPointerMove}
-                  onPointerEnd={handleActionLookEnd}
+                  onPointerStart={handleActionPointerStart}
+                  onPointerEnd={handleActionPointerEnd}
                   onDown={() => pressWarRoomAction(inputRef.current, "aim")}
                   onUp={() => releaseWarRoomAction(inputRef.current, "aim")}
                 />
@@ -1619,9 +1595,8 @@ export default function WarRoomGame({
                   vibrationEnabled={vibrationEnabled}
                   className="is-fire"
                   style={controlLayoutEnabled ? getControlPlacementStyle("fire", savedControlLayout.layout) : undefined}
-                  onPointerStart={handleActionLookStart}
-                  onPointerMove={handleWorldPointerMove}
-                  onPointerEnd={handleActionLookEnd}
+                  onPointerStart={handleActionPointerStart}
+                  onPointerEnd={handleActionPointerEnd}
                   onDown={() => {
                     resumeWarRoomAudio();
                     pressWarRoomAction(inputRef.current, "fire");

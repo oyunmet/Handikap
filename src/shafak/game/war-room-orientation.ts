@@ -21,6 +21,15 @@ export type WarRoomOrientation = {
   facingCamera: boolean;
 };
 
+// Gameplay yaw and the corrected hero GLB's Three.js root yaw use opposite signs.
+export function getWarRoomPlayerRootYaw(facingYaw: number) {
+  return -facingYaw;
+}
+
+export function getWarRoomFacingYawFromRootYaw(rootYaw: number) {
+  return -rootYaw;
+}
+
 export function resolveWarRoomOrientation(
   cameraYaw: number,
   moveX: number,

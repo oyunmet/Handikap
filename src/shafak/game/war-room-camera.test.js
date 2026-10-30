@@ -11,6 +11,10 @@ import {
   resolveWarRoomCameraPlacement,
   resolveWarRoomCameraSweep,
 } from "./war-room-camera.ts";
+import {
+  getWarRoomFacingYawFromRootYaw,
+  getWarRoomPlayerRootYaw,
+} from "./war-room-orientation.ts";
 
 const wall = {
   id: "wall",
@@ -125,25 +129,22 @@ test("camera sweep eases to the requested full distance when the path is clear",
   assert.equal(result.safeDistance, 4);
 });
 
-test("third-person placement shifts around a nearby wall before shortening the camera", () => {
+test("third-person placement stays on the rear line and shortens before a nearby wall", () => {
   const result = resolveWarRoomCameraPlacement(
     { x: 0, y: 1.5, z: 0 },
     { x: 0, y: 1.85, z: -4.8 },
     [wall],
   );
 
-  assert.equal(result.blocked, false);
-  assert.equal(result.usedAlternate, true);
-  assert.ok(Math.hypot(result.position.x, result.position.y - 1.5, result.position.z) >= 2.5);
+  assert.equal(result.blocked, true);
+  assert.equal(result.usedAlternate, false);
+  assert.equal(result.position.x, 0);
+  assert.ok(result.position.z > wall.maxZ + 0.28);
   assert.equal(isWarRoomCameraPointClear(result.position, [wall], 0.28), true);
-  const rearX = 0;
-  const rearZ = -4.8;
-  const cameraX = result.position.x;
-  const cameraZ = result.position.z;
-  assert.ok(cameraX * rearX + cameraZ * rearZ > 0, "camera alternatives must remain behind the player");
+  assert.ok(result.position.z < 0, "the camera remains behind the player");
 });
 
-test("camera never moves to the side or front when the whole rear path is blocked", () => {
+test("camera stays directly behind the player when its rear path is blocked", () => {
   const start = { x: 0, y: 1.5, z: 0 };
   const end = { x: 0, y: 1.5, z: -4.8 };
   const rearWall = {
@@ -156,11 +157,11 @@ test("camera never moves to the side or front when the whole rear path is blocke
     maxZ: -1,
   };
   const result = resolveWarRoomCameraPlacement(start, end, [rearWall]);
-  const rearProjection = (result.position.x - start.x) * (end.x - start.x)
-    + (result.position.z - start.z) * (end.z - start.z);
-
   assert.equal(result.blocked, true);
-  assert.ok(rearProjection > 0, "camera must stay in the player's rear hemisphere");
+  assert.equal(result.usedAlternate, false);
+  assert.equal(result.position.x, start.x);
+  assert.equal(result.position.y, end.y);
+  assert.ok(result.position.z < start.z, "camera must stay directly behind the player");
 });
 
 test("rear camera stays behind the player's facing direction at every quarter turn", () => {
@@ -184,6 +185,31 @@ test("rear camera stays behind the player's facing direction at every quarter tu
       `camera must remain behind the player at yaw ${yaw}`,
     );
   }
+});
+
+test("rear camera stays behind the rendered hero after a lateral turn", () => {
+  const facingYaw = Math.PI / 2;
+  const rootYaw = getWarRoomPlayerRootYaw(facingYaw);
+  const cameraYaw = getWarRoomFacingYawFromRootYaw(rootYaw);
+  const frame = getWarRoomRearCameraFrame(
+    { x: 2, y: 0, z: -3 },
+    cameraYaw,
+    0,
+    2.8,
+    0.6,
+    1.55,
+    0,
+    1.24,
+  );
+  const renderedForwardX = -Math.sin(rootYaw);
+  const renderedForwardZ = -Math.cos(rootYaw);
+  const cameraOffsetX = frame.position.x - 2;
+  const cameraOffsetZ = frame.position.z + 3;
+
+  assert.ok(
+    cameraOffsetX * renderedForwardX + cameraOffsetZ * renderedForwardZ < 0,
+    "camera must stay behind the hero's visible forward direction",
+  );
 });
 
 test("indoor camera targets remain within the rotated house and do not route around its walls", () => {

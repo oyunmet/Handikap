@@ -63,20 +63,16 @@ type Preferences = {
   visualEffects: boolean;
   reduceMotion: boolean;
   performanceMonitor: boolean;
-  invertWarRoomLookY: boolean;
-  warRoomLookSensitivityX: number;
-  warRoomLookSensitivityY: number;
-  warRoomAimSensitivityMultiplier: number;
   warRoomJoystickMode: "dynamic" | "fixed";
   warRoomCameraMode: "first-person" | "third-person";
   warRoomShoulderSide: "left" | "right";
   warRoomShoulderOffset: number;
-  warRoomFacing: "camera" | "movement";
   timeOfDay: TimeOfDayMode;
 };
 
-const PREFERENCES_KEY = "shafak-settings-v2";
-const LEGACY_PREFERENCES_KEY = "shafak-settings-v1";
+const PREFERENCES_KEY = "shafak-settings-v3";
+const LEGACY_PREFERENCES_V2_KEY = "shafak-settings-v2";
+const LEGACY_PREFERENCES_V1_KEY = "shafak-settings-v1";
 const initialPreferences: Preferences = {
   sound: true,
   soundVolume: DEFAULT_SOUND_VOLUME,
@@ -87,15 +83,10 @@ const initialPreferences: Preferences = {
   visualEffects: true,
   reduceMotion: false,
   performanceMonitor: false,
-  invertWarRoomLookY: false,
-  warRoomLookSensitivityX: 0.0041,
-  warRoomLookSensitivityY: 0.0041,
-  warRoomAimSensitivityMultiplier: 0.585,
-  warRoomJoystickMode: "dynamic",
+  warRoomJoystickMode: "fixed",
   warRoomCameraMode: "third-person",
   warRoomShoulderSide: "right",
   warRoomShoulderOffset: 0.6,
-  warRoomFacing: "movement",
   timeOfDay: "auto",
 };
 
@@ -128,9 +119,12 @@ function profileSyncErrorMessage(error: unknown) {
 function readPreferences(): Preferences {
   try {
     const currentPreferences = localStorage.getItem(PREFERENCES_KEY);
-    const hasCurrentPreferences = currentPreferences !== null;
+    const legacyPreferences = currentPreferences === null
+      ? localStorage.getItem(LEGACY_PREFERENCES_V2_KEY) ??
+        localStorage.getItem(LEGACY_PREFERENCES_V1_KEY)
+      : null;
     const saved = JSON.parse(
-      currentPreferences ?? localStorage.getItem(LEGACY_PREFERENCES_KEY) ?? "null",
+      currentPreferences ?? legacyPreferences ?? "null",
     ) as
       | Partial<Preferences>
       | null;
@@ -169,20 +163,12 @@ function readPreferences(): Preferences {
         typeof saved.performanceMonitor === "boolean"
           ? saved.performanceMonitor
           : initialPreferences.performanceMonitor,
-      invertWarRoomLookY:
-        typeof saved.invertWarRoomLookY === "boolean"
-          ? saved.invertWarRoomLookY
-          : initialPreferences.invertWarRoomLookY,
-      warRoomLookSensitivityX: typeof saved.warRoomLookSensitivityX === "number"
-        ? Math.max(0.001, Math.min(0.01, saved.warRoomLookSensitivityX))
-        : initialPreferences.warRoomLookSensitivityX,
-      warRoomLookSensitivityY: typeof saved.warRoomLookSensitivityY === "number"
-        ? Math.max(0.001, Math.min(0.01, saved.warRoomLookSensitivityY))
-        : initialPreferences.warRoomLookSensitivityY,
-      warRoomAimSensitivityMultiplier: typeof saved.warRoomAimSensitivityMultiplier === "number"
-        ? Math.max(0.3, Math.min(1.2, saved.warRoomAimSensitivityMultiplier))
-        : initialPreferences.warRoomAimSensitivityMultiplier,
-      warRoomJoystickMode: saved.warRoomJoystickMode === "fixed" ? "fixed" : "dynamic",
+      // Preserve a deliberate v3 choice. Older saves are migrated to fixed so
+      // a previous dynamic setting cannot unexpectedly relocate the stick.
+      warRoomJoystickMode:
+        currentPreferences !== null && saved.warRoomJoystickMode === "dynamic"
+          ? "dynamic"
+          : "fixed",
       // Older saves omitted this setting. Keep them in the supported,
       // always-visible shoulder camera instead of silently selecting first person.
       warRoomCameraMode: "third-person",
@@ -190,11 +176,6 @@ function readPreferences(): Preferences {
       warRoomShoulderOffset: typeof saved.warRoomShoulderOffset === "number"
         ? Math.max(0.2, Math.min(1.5, saved.warRoomShoulderOffset))
         : initialPreferences.warRoomShoulderOffset,
-      // Older saves defaulted to camera-facing, which kept the player strafing
-      // even when the player expected left/right movement to turn the character.
-      warRoomFacing: hasCurrentPreferences && saved.warRoomFacing === "camera"
-        ? "camera"
-        : "movement",
       timeOfDay: saved.timeOfDay === "day" || saved.timeOfDay === "sunset" || saved.timeOfDay === "night"
         ? saved.timeOfDay
         : "auto",
@@ -1239,12 +1220,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 profile={profile}
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
-                invertLookY={preferences.invertWarRoomLookY}
-                onInvertLookYChange={(value) => setPreference("invertWarRoomLookY", value)}
-                facingSetting={preferences.warRoomFacing}
-                lookSensitivityX={preferences.warRoomLookSensitivityX}
-                lookSensitivityY={preferences.warRoomLookSensitivityY}
-                aimSensitivityMultiplier={preferences.warRoomAimSensitivityMultiplier}
                 joystickMode={preferences.warRoomJoystickMode}
                 shoulderSide={preferences.warRoomShoulderSide}
                 shoulderOffset={preferences.warRoomShoulderOffset}
@@ -1371,18 +1346,12 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   checked={preferences.vibration}
                   onChange={() => togglePreference("vibration")}
                 />
-                <SettingToggle
-                  label="Y eksenini ters çevir"
-                  description="Kapalıyken parmağı yukarı kaydırmak kamerayı yukarı kaldırır."
-                  checked={preferences.invertWarRoomLookY}
-                  onChange={() => setPreference("invertWarRoomLookY", !preferences.invertWarRoomLookY)}
-                />
                 {screen === "war-room" && (
                   <>
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Savaş Odası joystick'i</strong>
-                        <small>Dinamik mod sol alanda dokunulan yerde belirir.</small>
+                        <small>Sabit mod sol altta kalır; dinamik mod yalnızca seçildiğinde dokunulan yerde belirir.</small>
                       </span>
                       <div className="quality-switch" role="group" aria-label="Savaş Odası joystick modu">
                         {([
@@ -1442,63 +1411,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                           onChange={(value) => setPreference("warRoomShoulderOffset", value)}
                       />
                     </>
-                    <SettingRange
-                      id="war-room-look-sensitivity-x"
-                      label="Bakış hassasiyeti · yatay"
-                      description="Yatay kamera sürükleme hızı."
-                      value={preferences.warRoomLookSensitivityX}
-                      min={0.001}
-                      max={0.01}
-                      step={0.0005}
-                      formatValue={(value) => `×${(value * 1000).toFixed(1)}`}
-                      onChange={(value) => setPreference("warRoomLookSensitivityX", value)}
-                    />
-                    <SettingRange
-                      id="war-room-look-sensitivity-y"
-                      label="Bakış hassasiyeti · dikey"
-                      description="Dikey kamera sürükleme hızı."
-                      value={preferences.warRoomLookSensitivityY}
-                      min={0.001}
-                      max={0.01}
-                      step={0.0005}
-                      formatValue={(value) => `×${(value * 1000).toFixed(1)}`}
-                      onChange={(value) => setPreference("warRoomLookSensitivityY", value)}
-                    />
-                    <SettingRange
-                      id="war-room-aim-sensitivity"
-                      label="Nişan hassasiyeti çarpanı"
-                      description="Nişan sırasında kamera hassasiyetini azalt."
-                      value={preferences.warRoomAimSensitivityMultiplier}
-                      min={0.3}
-                      max={1.2}
-                      step={0.05}
-                      formatValue={(value) => `×${value.toFixed(2)}`}
-                      onChange={(value) => setPreference("warRoomAimSensitivityMultiplier", value)}
-                    />
                   </>
                 )}
-                <div className="setting-row setting-row--quality">
-                  <span className="setting-row__copy">
-                    <strong>Savaş Odası yönelimi</strong>
-                    <small>Kamera yönünü izle veya hareket yönüne dön.</small>
-                  </span>
-                  <div className="quality-switch" role="group" aria-label="Savaş Odası yönelimi">
-                    {([
-                      ["camera", "Kamera"],
-                      ["movement", "Hareket"],
-                    ] as const).map(([value, label]) => (
-                      <button
-                        className={preferences.warRoomFacing === value ? "is-selected" : ""}
-                        key={value}
-                        type="button"
-                        aria-pressed={preferences.warRoomFacing === value}
-                        onClick={() => setPreference("warRoomFacing", value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
                     <strong>Gökyüzü saati</strong>

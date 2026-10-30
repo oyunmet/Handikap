@@ -3,6 +3,8 @@ export type WarRoomPlayerAnimationState =
   | "walk"
   | "run"
   | "crouch"
+  | "turn-left"
+  | "turn-right"
   | "jump"
   | "attack"
   | "hit"

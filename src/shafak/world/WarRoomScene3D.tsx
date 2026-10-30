@@ -38,6 +38,8 @@ import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomPostAttackStrafeUntil,
   getWarRoomYawError,
+  getWarRoomFacingYawFromRootYaw,
+  getWarRoomPlayerRootYaw,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
@@ -1566,7 +1568,7 @@ function PlayerActor({
         player.floorHeight + player.jumpHeight - (player.prone ? 0.34 : 0),
         player.z - Math.cos(bodyYaw) * heavyStep,
       );
-      root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 10, delta);
+      root.rotation.y = shortestLerp(root.rotation.y, getWarRoomPlayerRootYaw(bodyYaw), 10, delta);
       root.scale.y = player.prone ? 0.5 : player.crouched ? 0.78 : 1;
     }
     const hand = modelRef.current && [
@@ -1758,7 +1760,9 @@ function PlayerActor({
     const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
     const root = rootRef.current;
-    const turnError = root ? getWarRoomYawError(root.rotation.y, player.facingYaw) : 0;
+    const turnError = root
+      ? getWarRoomYawError(getWarRoomFacingYawFromRootYaw(root.rotation.y), player.facingYaw)
+      : 0;
     const turnDirection = Math.abs(turnError) > 0.1
       ? turnError > 0 ? "right" as const : "left" as const
       : null;
@@ -4173,7 +4177,9 @@ function WarRoomRuntimeScene({
       perspective.fov = 70;
       perspective.updateProjectionMatrix();
     }
-    const cameraYaw = playerRootRef.current?.rotation.y ?? player.facingYaw;
+    const cameraYaw = playerRootRef.current
+      ? getWarRoomFacingYawFromRootYaw(playerRootRef.current.rotation.y)
+      : player.facingYaw;
     const cameraPitch = WAR_ROOM_FIXED_CAMERA_PITCH;
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)

@@ -316,20 +316,26 @@ function createWarRoomPoseClips(model: THREE.Group) {
     { boneName: "UpperArm.R", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
   ]);
   const turnLeft = createWarRoomPoseClip(model, "turn-left", [0, 0.12, 0.24, 0.36, 0.48], [
-    { boneName: "Hips", rotations: [[0, 0, 0], [0.02, 0.08, -0.04], [0, 0.12, 0], [0.02, -0.04, 0.04], [0, 0, 0]] },
-    { boneName: "Spine", rotations: [[0, 0, 0], [-0.01, -0.06, 0.04], [0, -0.1, 0.02], [-0.01, 0.04, -0.04], [0, 0, 0]] },
-    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [-0.08, 0, -0.1], [-0.12, 0, -0.18], [-0.06, 0, 0.05], [0, 0, 0]] },
-    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [0.05, 0, 0.08], [0.08, 0, 0.14], [0.04, 0, -0.04], [0, 0, 0]] },
-    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [-0.18, 0, 0.06], [0.1, 0, 0.1], [-0.05, 0, 0], [0, 0, 0]] },
-    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [0.08, 0, -0.04], [-0.12, 0, -0.08], [0.04, 0, 0], [0, 0, 0]] },
+    { boneName: "Hips", rotations: [[0, 0, 0], [0.03, 0.2, -0.07], [0, 0.34, 0], [0.02, -0.08, 0.07], [0, 0, 0]] },
+    { boneName: "Abdomen", rotations: [[0, 0, 0], [0, -0.08, 0.025], [0, -0.16, 0], [0, 0.04, -0.025], [0, 0, 0]] },
+    { boneName: "Torso", rotations: [[0, 0, 0], [-0.025, -0.1, 0.08], [-0.04, -0.2, 0.04], [0, 0.08, -0.07], [0, 0, 0]] },
+    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [-0.14, 0, -0.14], [-0.2, 0, -0.24], [-0.08, 0, 0.08], [0, 0, 0]] },
+    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [0.1, 0, 0.1], [0.16, 0, 0.2], [0.06, 0, -0.08], [0, 0, 0]] },
+    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [-0.28, 0, 0.1], [0.16, 0, 0.16], [-0.08, 0, 0], [0, 0, 0]] },
+    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [0.14, 0, -0.08], [-0.2, 0, -0.14], [0.06, 0, 0], [0, 0, 0]] },
+    { boneName: "LowerLeg.L", rotations: [[0, 0, 0], [0.1, 0, 0], [-0.14, 0, 0], [0.04, 0, 0], [0, 0, 0]] },
+    { boneName: "LowerLeg.R", rotations: [[0, 0, 0], [-0.08, 0, 0], [0.12, 0, 0], [-0.03, 0, 0], [0, 0, 0]] },
   ]);
   const turnRight = createWarRoomPoseClip(model, "turn-right", [0, 0.12, 0.24, 0.36, 0.48], [
-    { boneName: "Hips", rotations: [[0, 0, 0], [0.02, -0.08, 0.04], [0, -0.12, 0], [0.02, 0.04, -0.04], [0, 0, 0]] },
-    { boneName: "Spine", rotations: [[0, 0, 0], [-0.01, 0.06, -0.04], [0, 0.1, -0.02], [-0.01, -0.04, 0.04], [0, 0, 0]] },
-    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [0.05, 0, -0.08], [0.08, 0, -0.14], [0.04, 0, 0.04], [0, 0, 0]] },
-    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [-0.08, 0, 0.1], [-0.12, 0, 0.18], [-0.06, 0, -0.05], [0, 0, 0]] },
-    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [0.08, 0, 0.04], [-0.12, 0, 0.08], [0.04, 0, 0], [0, 0, 0]] },
-    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [-0.18, 0, -0.06], [0.1, 0, -0.1], [-0.05, 0, 0], [0, 0, 0]] },
+    { boneName: "Hips", rotations: [[0, 0, 0], [0.03, -0.2, 0.07], [0, -0.34, 0], [0.02, 0.08, -0.07], [0, 0, 0]] },
+    { boneName: "Abdomen", rotations: [[0, 0, 0], [0, 0.08, -0.025], [0, 0.16, 0], [0, -0.04, 0.025], [0, 0, 0]] },
+    { boneName: "Torso", rotations: [[0, 0, 0], [-0.025, 0.1, -0.08], [-0.04, 0.2, -0.04], [0, -0.08, 0.07], [0, 0, 0]] },
+    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [0.1, 0, -0.1], [0.16, 0, -0.2], [0.06, 0, 0.08], [0, 0, 0]] },
+    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [-0.14, 0, 0.14], [-0.2, 0, 0.24], [-0.08, 0, -0.08], [0, 0, 0]] },
+    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [0.14, 0, 0.08], [-0.2, 0, 0.14], [0.06, 0, 0], [0, 0, 0]] },
+    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [-0.28, 0, -0.1], [0.16, 0, -0.16], [-0.08, 0, 0], [0, 0, 0]] },
+    { boneName: "LowerLeg.L", rotations: [[0, 0, 0], [-0.08, 0, 0], [0.12, 0, 0], [-0.03, 0, 0], [0, 0, 0]] },
+    { boneName: "LowerLeg.R", rotations: [[0, 0, 0], [0.1, 0, 0], [-0.14, 0, 0], [0.04, 0, 0], [0, 0, 0]] },
   ]);
   return [crouch, jump, turnLeft, turnRight].filter((clip): clip is THREE.AnimationClip => clip !== null);
 }
@@ -468,6 +474,8 @@ export function WarRoomAnimatedActor({
         ? "die"
         : nextState === "crouch"
           ? "idle"
+          : nextState === "turn-left" || nextState === "turn-right"
+            ? "idle"
           : nextState;
       const clip = animationClips.find((candidate) => candidate.name === nextState)
         ?? animationClips.find((candidate) => candidate.name === resolveGlbClipName(

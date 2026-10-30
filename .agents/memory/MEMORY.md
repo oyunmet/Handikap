@@ -6,7 +6,8 @@
 - [World darkness and WebGL](webgl-preview-limits.md) — Distinguish dark lighting from black frames; preserve a 3D-only recovery path and never switch the world to 2D.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
-- [War Room camera framing](war-room-camera-framing.md) — Keep movement-facing rear third-person; shorten indoor framing safely rather than letting the camera enter walls.
+- [War Room camera framing](war-room-camera-framing.md) — Keep a movement-facing rear view, ignore screen-look drags, and shorten blocked rear paths safely.
+- [War Room mobile controls](war-room-mobile-controls.md) — Keep the fixed movement stick at lower-left; move status and weapon details away from the thumb area.
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep rivals clear and anchored; size rig gear against full mount scale and verify ground clearance.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
 - [Day/night mode expectations](world-time-of-day.md) — Keep the automatic cycle alongside manual day/night choices and preserve readable night lighting.

@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomActorYawToTarget,
+  getWarRoomFacingYawFromRootYaw,
+  getWarRoomPlayerRootYaw,
   getWarRoomYawError,
   isWarRoomFacingTarget,
   getWarRoomPostAttackStrafeUntil,
@@ -15,6 +17,18 @@ function closeAngle(actual, expected) {
   const difference = Math.atan2(Math.sin(actual - expected), Math.cos(actual - expected));
   assert.ok(Math.abs(difference) < 1e-8, `expected ${actual} to be close to ${expected}`);
 }
+
+test("rendered player facing stays aligned with the logical movement heading", () => {
+  const facingYaw = Math.PI / 2;
+  const rootYaw = getWarRoomPlayerRootYaw(facingYaw);
+  const renderedForwardX = -Math.sin(rootYaw);
+  const renderedForwardZ = -Math.cos(rootYaw);
+
+  closeAngle(rootYaw, -Math.PI / 2);
+  closeAngle(getWarRoomFacingYawFromRootYaw(rootYaw), facingYaw);
+  assert.ok(renderedForwardX > 0.999);
+  assert.ok(Math.abs(renderedForwardZ) < 1e-8);
+});
 
 test("movement-facing mode turns toward backward joystick input", () => {
   const result = resolveWarRoomOrientation(0, 0, -1, 0, false, "movement");

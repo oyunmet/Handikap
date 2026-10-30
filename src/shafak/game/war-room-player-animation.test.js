@@ -17,6 +17,7 @@ const baseInput = {
   movement: 0,
   sprinting: false,
 };
+const input = (overrides) => ({ ...baseInput, ...overrides });
 
 test("player animation priority preserves death, hit, and attack reactions", () => {
   assert.equal(resolveWarRoomPlayerAnimationState({ ...baseInput, hp: 0, jumpHeight: 1 }), "death");

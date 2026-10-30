@@ -254,9 +254,8 @@ export function resolveWarRoomCameraSweep(
 }
 
 /**
- * Finds a collision-free shoulder-camera path before shortening the view.
- * A close wall may force a small fallback distance, but lateral and elevated
- * candidates are tried first so ordinary corridors retain third-person scale.
+ * Keeps the camera on the player's rear-facing line. Nearby geometry shortens
+ * that line instead of moving the camera around the player.
  */
 export function resolveWarRoomCameraPlacement(
   start: WarRoomCameraPoint,
@@ -266,74 +265,7 @@ export function resolveWarRoomCameraPlacement(
   minimumDistance = 2.5,
   clearance = 0.08,
 ): WarRoomCameraPlacement {
-  const directionX = end.x - start.x;
-  const directionZ = end.z - start.z;
-  const horizontalLength = Math.hypot(directionX, directionZ);
-  const rightX = horizontalLength > 1e-8 ? directionZ / horizontalLength : 1;
-  const rightZ = horizontalLength > 1e-8 ? -directionX / horizontalLength : 0;
-  const offsets = [
-    [0, 0, 0],
-    [rightX * 0.72, 0, rightZ * 0.72],
-    [-rightX * 0.72, 0, -rightZ * 0.72],
-    [rightX * 1.3, 0, rightZ * 1.3],
-    [-rightX * 1.3, 0, -rightZ * 1.3],
-    [0, 0.55, 0],
-    [0, 0.95, 0],
-    [rightX * 0.72, 0.55, rightZ * 0.72],
-    [-rightX * 0.72, 0.55, -rightZ * 0.72],
-  ] as const;
-  const candidates = offsets.map(([offsetX, offsetY, offsetZ]) => ({
-    x: end.x + offsetX,
-    y: end.y + offsetY,
-    z: end.z + offsetZ,
-    usedAlternate: offsetX !== 0 || offsetY !== 0 || offsetZ !== 0,
-  }));
-  // Keep every alternate on the rear half of the player's facing direction.
-  // Side/front angles can make the player face the camera in tight interiors.
-  for (const angle of [-Math.PI / 6, Math.PI / 6, -Math.PI / 3, Math.PI / 3]) {
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    candidates.push({
-      x: start.x + directionX * cosine + directionZ * sine,
-      y: end.y,
-      z: start.z - directionX * sine + directionZ * cosine,
-      usedAlternate: true,
-    });
-  }
-
-  let bestFallback: WarRoomCameraPlacement | null = null;
-  for (const candidate of candidates) {
-    const sweep = resolveWarRoomCameraSweep(
-      start,
-      candidate,
-      bounds,
-      radius,
-      minimumDistance,
-      clearance,
-    );
-    const position = pointAlongSegment(start, candidate, sweep.safeDistance);
-    const pointClear = isWarRoomCameraPointClear(position, bounds, radius);
-    const placement = {
-      ...sweep,
-      position,
-      usedAlternate: candidate.usedAlternate,
-    };
-    if (
-      pointClear
-      && (!sweep.blocked || sweep.safeDistance >= minimumDistance)
-    ) {
-      return placement;
-    }
-    if (
-      pointClear
-      && (!bestFallback || sweep.safeDistance > bestFallback.safeDistance)
-    ) {
-      bestFallback = placement;
-    }
-  }
-
-  if (bestFallback) return bestFallback;
-  const primarySweep = resolveWarRoomCameraSweep(
+  const sweep = resolveWarRoomCameraSweep(
     start,
     end,
     bounds,
@@ -342,8 +274,8 @@ export function resolveWarRoomCameraPlacement(
     clearance,
   );
   return {
-    ...primarySweep,
-    position: pointAlongSegment(start, end, primarySweep.safeDistance),
+    ...sweep,
+    position: pointAlongSegment(start, end, sweep.safeDistance),
     usedAlternate: false,
   };
 }
