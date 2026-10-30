@@ -144,9 +144,13 @@ export function resolveWarRoomInteriorCameraPlacement(
   const candidate = clampWarRoomCameraToInterior(end, interior, radius + 0.24);
   const sweep = resolveWarRoomCameraSweep(start, candidate, bounds, radius, minimumDistance, clearance);
   const distance = Math.hypot(candidate.x - start.x, candidate.y - start.y, candidate.z - start.z);
+  const placedDistance = sweep.blocked
+    ? Math.max(sweep.safeDistance, Math.min(distance, minimumDistance))
+    : distance;
   return {
     ...sweep,
-    position: pointAlongSegment(start, candidate, Math.min(sweep.safeDistance, distance)),
+    safeDistance: placedDistance,
+    position: pointAlongSegment(start, candidate, placedDistance),
     usedAlternate: false,
   };
 }
@@ -176,6 +180,21 @@ function getSegmentBoxEntry(
     if (entry > exit) return null;
   }
   return exit < 0 || entry > 1 ? null : Math.max(0, entry);
+}
+
+export function getWarRoomCameraBlockerIds(
+  start: WarRoomCameraPoint,
+  end: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  radius = 0.28,
+) {
+  const blockers = new Set<string>();
+  for (const obstacle of bounds) {
+    if (getSegmentBoxEntry(start, end, obstacle, radius) !== null) {
+      blockers.add(obstacle.id);
+    }
+  }
+  return blockers;
 }
 
 export function resolveWarRoomCameraSweep(
@@ -265,7 +284,9 @@ export function resolveWarRoomCameraPlacement(
     z: end.z + offsetZ,
     usedAlternate: offsetX !== 0 || offsetY !== 0 || offsetZ !== 0,
   }));
-  for (const angle of [-Math.PI / 6, Math.PI / 6, -Math.PI / 3, Math.PI / 3, -Math.PI / 2, Math.PI / 2, Math.PI]) {
+  // Keep every alternate on the rear half of the player's facing direction.
+  // Side/front angles can make the player face the camera in tight interiors.
+  for (const angle of [-Math.PI / 6, Math.PI / 6, -Math.PI / 3, Math.PI / 3]) {
     const cosine = Math.cos(angle);
     const sine = Math.sin(angle);
     candidates.push({

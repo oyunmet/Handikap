@@ -46,6 +46,7 @@ import {
 import {
   clampWarRoomCameraToInterior,
   getWarRoomRearCameraFrame,
+  getWarRoomCameraBlockerIds,
   getWarRoomCameraRig,
   isWarRoomCameraPointClear,
   resolveWarRoomInteriorCameraPlacement,
@@ -4132,18 +4133,23 @@ function WarRoomRuntimeScene({
     projectileHeads.instanceMatrix.needsUpdate = true;
 
     const aimDistance = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!.range;
-    const cameraMotionScale = motionReduced ? 0 : 1;
-    cameraFovKickRef.current *= Math.exp(-12 * delta);
-    const desiredFov = (input.aimHeld ? 48 : cameraMode === "first-person" ? 82 : player.sprinting ? 76 : 70)
-      + cameraFovKickRef.current * cameraMotionScale;
-    perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
-    perspective.updateProjectionMatrix();
     const indoorBuilding = room.buildings.find((building) => {
       const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
       return Math.abs(localPlayer.x) <= building.width / 2
         && Math.abs(localPlayer.z) <= building.depth / 2;
     });
-    const cameraYaw = player.facingYaw;
+    const cameraMotionScale = motionReduced ? 0 : 1;
+    cameraFovKickRef.current *= Math.exp(-12 * delta);
+    const desiredFov = (input.aimHeld
+      ? indoorBuilding ? 58 : 48
+      : cameraMode === "first-person" ? 82 : player.sprinting ? 76 : 70)
+      + cameraFovKickRef.current * cameraMotionScale;
+    perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
+    perspective.updateProjectionMatrix();
+    const bodyYaw = player.meleeUntil > player.clockTime
+      ? player.meleeAttackYaw
+      : player.facingYaw;
+    const cameraYaw = playerRootRef.current?.rotation.y ?? bodyYaw;
     const cameraPitch = indoorBuilding && !input.aimHeld
       ? Math.max(-0.18, Math.min(0.18, player.pitch))
       : player.pitch;
@@ -4161,7 +4167,7 @@ function WarRoomRuntimeScene({
       victoryZoom,
     });
     const cameraBack = indoorBuilding
-      ? Math.min(baseCameraBack, input.aimHeld ? 3.3 : 2.8)
+      ? Math.min(baseCameraBack, input.aimHeld ? 2.4 : 2)
       : baseCameraBack;
     const playerBodyPoint = {
       x: player.x,
@@ -4228,7 +4234,9 @@ function WarRoomRuntimeScene({
     }
     const cameraHeight = player.prone ? 0.65 : player.crouched ? 1.2 : 1.55;
     const focusHeight = player.prone ? 0.78 : player.crouched ? 1.02 : 1.24;
-    const focusAhead = input.aimHeld ? 3.2 : indoorBuilding ? 0.8 : 2.8;
+    const focusAhead = input.aimHeld
+      ? indoorBuilding ? 1.7 : 3.2
+      : indoorBuilding ? 0.8 : 2.8;
     cameraStart.set(
       player.x,
       player.floorHeight + player.jumpHeight + cameraHeight,
@@ -4245,7 +4253,7 @@ function WarRoomRuntimeScene({
       focusHeight,
     );
     cameraDesired.set(cameraFrame.position.x, cameraFrame.position.y, cameraFrame.position.z);
-    if (indoorBuilding) {
+    if (indoorBuilding && !WAR_ROOM_CAMERA_OCCLUSION_ENABLED) {
       const indoorTarget = clampWarRoomCameraToInterior(
         { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
         indoorBuilding,
@@ -4288,7 +4296,7 @@ function WarRoomRuntimeScene({
           cameraBoundsRef.current,
           indoorBuilding,
           0.28,
-          1.2,
+          1.5,
           0.08,
         )
         : resolveWarRoomCameraPlacement(
@@ -4308,10 +4316,19 @@ function WarRoomRuntimeScene({
         cameraPlacement.position.z,
       );
     }
+    const cameraFadeIds = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
+      ? getWarRoomCameraBlockerIds(
+        cameraStartPoint,
+        { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
+        cameraBoundsRef.current,
+        0.28,
+      )
+      : new Set<string>();
+    if (blockerId) cameraFadeIds.add(blockerId);
     if (WAR_ROOM_CAMERA_OCCLUSION_ENABLED) {
       for (const occluder of cameraOccludersRef.current) {
         const previous = cameraFadeByIdRef.current.get(occluder.id) ?? 0;
-        const target = occluder.id === blockerId ? 1 : 0;
+        const target = cameraFadeIds.has(occluder.id) ? 1 : 0;
         const next = target > previous
           ? Math.min(target, previous + delta / 0.25)
           : Math.max(target, previous - delta / 0.25);

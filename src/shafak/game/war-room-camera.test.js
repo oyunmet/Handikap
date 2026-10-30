@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clampWarRoomCameraToInterior,
+  getWarRoomCameraBlockerIds,
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
   resolveWarRoomInteriorCameraPlacement,
@@ -97,6 +98,20 @@ test("camera point checks use the same swept-sphere clearance", () => {
   assert.equal(isWarRoomCameraPointClear({ x: 0.1, y: 1.5, z: -1.8 }, [wall]), false);
 });
 
+test("camera fades every wall crossed between the player and its rear position", () => {
+  const blockers = getWarRoomCameraBlockerIds(
+    { x: 0, y: 1.5, z: 0 },
+    { x: 0, y: 1.5, z: -5 },
+    [
+      { id: "near-wall", minX: -1, minY: 0, minZ: -1.8, maxX: 1, maxY: 3, maxZ: -1.4 },
+      { id: "far-wall", minX: -1, minY: 0, minZ: -3.8, maxX: 1, maxY: 3, maxZ: -3.4 },
+      { id: "off-camera", minX: 2, minY: 0, minZ: -3, maxX: 3, maxY: 3, maxZ: -2 },
+    ],
+  );
+
+  assert.deepEqual([...blockers], ["near-wall", "far-wall"]);
+});
+
 test("camera sweep eases to the requested full distance when the path is clear", () => {
   const result = resolveWarRoomCameraSweep(
     { x: 0, y: 1.5, z: 0 },
@@ -119,6 +134,31 @@ test("third-person placement shifts around a nearby wall before shortening the c
   assert.equal(result.usedAlternate, true);
   assert.ok(Math.hypot(result.position.x, result.position.y - 1.5, result.position.z) >= 2.5);
   assert.equal(isWarRoomCameraPointClear(result.position, [wall], 0.28), true);
+  const rearX = 0;
+  const rearZ = -4.8;
+  const cameraX = result.position.x;
+  const cameraZ = result.position.z;
+  assert.ok(cameraX * rearX + cameraZ * rearZ > 0, "camera alternatives must remain behind the player");
+});
+
+test("camera never moves to the side or front when the whole rear path is blocked", () => {
+  const start = { x: 0, y: 1.5, z: 0 };
+  const end = { x: 0, y: 1.5, z: -4.8 };
+  const rearWall = {
+    id: "rear-wall",
+    minX: -5,
+    minY: 0,
+    minZ: -5,
+    maxX: 5,
+    maxY: 4,
+    maxZ: -1,
+  };
+  const result = resolveWarRoomCameraPlacement(start, end, [rearWall]);
+  const rearProjection = (result.position.x - start.x) * (end.x - start.x)
+    + (result.position.z - start.z) * (end.z - start.z);
+
+  assert.equal(result.blocked, true);
+  assert.ok(rearProjection > 0, "camera must stay in the player's rear hemisphere");
 });
 
 test("indoor camera targets remain within the rotated house and do not route around its walls", () => {
@@ -139,10 +179,40 @@ test("indoor camera targets remain within the rotated house and do not route aro
   const cameraInterior = { x: 0, z: 0, width: 8, depth: 8, rotationY: 0 };
   const start = { x: 0, y: 1.5, z: 0 };
   const end = { x: 0, y: 1.5, z: -3 };
-  const result = resolveWarRoomInteriorCameraPlacement(start, end, [houseWall], cameraInterior);
+  const result = resolveWarRoomInteriorCameraPlacement(
+    start,
+    end,
+    [houseWall],
+    cameraInterior,
+    0.28,
+    1.5,
+    0.08,
+  );
+  assert.equal(result.blockerId, "house-wall");
+  assert.ok(result.safeDistance >= 1.5);
   assert.equal(result.usedAlternate, false);
   assert.ok(result.position.z > houseWall.maxZ);
   assert.ok(result.safeDistance < 3);
+});
+
+test("indoor camera stays inside when the room edge cannot fit the full rear distance", () => {
+  const interior = { x: 0, z: 0, width: 8, depth: 8, rotationY: 0 };
+  const start = { x: 0, y: 1.5, z: -2 };
+  const end = { x: 0, y: 1.5, z: -4 };
+  const result = resolveWarRoomInteriorCameraPlacement(
+    start,
+    end,
+    [],
+    interior,
+    0.28,
+    1.5,
+    0.08,
+  );
+
+  assert.equal(result.blocked, false);
+  assert.ok(result.safeDistance > 1.4 && result.safeDistance < 1.5);
+  assert.ok(result.position.z > -3.52, "camera stays inside the room boundary");
+  assert.equal(result.usedAlternate, false);
 });
 
 test("first person camera stays at the eye without a third-person shoulder", () => {
