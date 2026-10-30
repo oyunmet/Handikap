@@ -128,6 +128,16 @@ export function getWarRoomRearCameraFrame(
   };
 }
 
+export function getWarRoomCameraRaySafeDistance(
+  desiredDistance: number,
+  hitDistance: number | null,
+  clearance = 0.2,
+) {
+  if (!Number.isFinite(desiredDistance) || desiredDistance <= 0) return 0;
+  if (hitDistance === null || !Number.isFinite(hitDistance)) return desiredDistance;
+  return Math.max(0.2, Math.min(desiredDistance, hitDistance - Math.max(0, clearance)));
+}
+
 /**
  * Indoor views stay on the direct shoulder-camera segment. Searching lateral
  * alternatives here can put the camera outside a house through its walls.
@@ -366,7 +376,7 @@ export function getWarRoomCameraRig({
     : 0;
   const baseBack = indoors
     ? aiming ? 2.4 : 2.8
-    : aiming ? 3.65 : 4.8;
+    : 3.5;
   const back = baseBack * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
     * (shoulderSide === "left" ? -1 : 1);

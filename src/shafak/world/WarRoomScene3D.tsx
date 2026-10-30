@@ -43,10 +43,16 @@ import {
   isWarRoomFacingTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
+import { getWarRoomCameraAngles } from "../game/war-room-look";
+import {
+  getWarRoomPlayerAnimationPlaybackScale,
+  resolveWarRoomPlayerAnimationState,
+} from "../game/war-room-player-animation";
 import {
   clampWarRoomCameraToInterior,
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
+  getWarRoomCameraRaySafeDistance,
   getWarRoomCameraRig,
   isWarRoomCameraPointClear,
   resolveWarRoomInteriorCameraPlacement,
@@ -1749,28 +1755,36 @@ function PlayerActor({
     const input = inputRef.current;
     const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    if (player.hp <= 0) return "death";
-    if (player.clockTime - player.lastDamageAt < 0.2) return "hit";
-    if (player.shotFeedbackUntil > player.clockTime || player.meleeUntil > player.clockTime) return "attack";
-    const movement = Math.hypot(moveX, moveY);
-    if (movement > 0.12) {
-      return player.crouched || movement < 0.72 ? "walk" : "run";
-    }
     const root = rootRef.current;
-    if (root && Math.abs(Math.atan2(
+    const turningInPlace = root && Math.abs(Math.atan2(
       Math.sin(player.facingYaw - root.rotation.y),
       Math.cos(player.facingYaw - root.rotation.y),
-    )) > Math.PI / 4) return "walk";
-    return "idle";
+    )) > Math.PI / 4;
+    return resolveWarRoomPlayerAnimationState({
+      hp: player.hp,
+      damageAge: player.clockTime - player.lastDamageAt,
+      shotFeedbackUntil: player.shotFeedbackUntil,
+      meleeUntil: player.meleeUntil,
+      clockTime: player.clockTime,
+      jumpHeight: player.jumpHeight,
+      crouched: player.crouched,
+      prone: player.prone,
+      movement: Math.max(Math.hypot(moveX, moveY), turningInPlace ? 0.13 : 0),
+      sprinting: player.sprinting,
+    });
   };
   const playerPlaybackScale = () => {
     const player = runtimeRef.current.player;
     const input = inputRef.current;
     const animation = playerAnimation();
-    if (animation !== "walk" && animation !== "run") return 1;
     const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    return resolveWarRoomLocomotion(moveX, moveY, player.yaw, player.facingYaw).playbackScale;
+    const direction = resolveWarRoomLocomotion(moveX, moveY, player.yaw, player.facingYaw).direction;
+    const movementSpeed = player.prone ? 1.25
+      : player.crouched ? 3.05
+        : player.sprinting ? 8.2
+          : 6.1;
+    return getWarRoomPlayerAnimationPlaybackScale(animation, direction, movementSpeed);
   };
   return (
     <group ref={rootRef} name="war-room-player">
@@ -2277,11 +2291,14 @@ function WarRoomRuntimeScene({
   const enemyGroupRefs = useRef<Array<THREE.Group | null>>([]);
   const muzzleLightRef = useRef<THREE.PointLight>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const cameraRaycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
   const cameraStart = useMemo(() => new THREE.Vector3(), []);
   const cameraDesired = useMemo(() => new THREE.Vector3(), []);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
+  const cameraRayOrigin = useMemo(() => new THREE.Vector3(), []);
+  const cameraUnobstructed = useMemo(() => new THREE.Vector3(), []);
   const meleeOrigin = useMemo(() => new THREE.Vector3(), []);
   const meleeImpact = useMemo(() => new THREE.Vector3(), []);
   const room = runtimeRef.current.room;
@@ -2309,10 +2326,13 @@ function WarRoomRuntimeScene({
     [room],
   );
   const cameraOccludersRef = useRef<CameraOccluderEntry[]>([]);
+  const cameraRaycastMeshesRef = useRef<THREE.Object3D[]>([]);
+  const cameraRaycastOwnerByObjectRef = useRef(new WeakMap<THREE.Object3D, string>());
   const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
   const cameraBoundsRefreshRef = useRef(0);
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
+  const playerMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
   const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
   const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
@@ -3492,8 +3512,9 @@ function WarRoomRuntimeScene({
     player.regenerationWaitSeconds = restoration.secondsUntilReady;
     player.recoil = Math.max(0, player.recoil - delta * 0.36);
     if (player.startTime === 0) player.startTime = now;
-    player.yaw = input.yaw;
-    player.pitch = Math.max(-0.56, Math.min(0.55, input.pitch));
+    const cameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
+    player.yaw = cameraAngles.yaw;
+    player.pitch = cameraAngles.pitch;
 
     const forwardX = Math.sin(player.yaw);
     const forwardZ = -Math.cos(player.yaw);
@@ -4145,13 +4166,8 @@ function WarRoomRuntimeScene({
       + cameraFovKickRef.current * cameraMotionScale;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
     perspective.updateProjectionMatrix();
-    const bodyYaw = player.meleeUntil > player.clockTime
-      ? player.meleeAttackYaw
-      : player.facingYaw;
-    const cameraYaw = playerRootRef.current?.rotation.y ?? bodyYaw;
-    const cameraPitch = indoorBuilding && !input.aimHeld
-      ? Math.max(-0.18, Math.min(0.18, player.pitch))
-      : player.pitch;
+    const cameraYaw = cameraAngles.yaw;
+    const cameraPitch = cameraAngles.pitch;
     const cameraForwardX = Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const cameraForwardY = Math.sin(cameraPitch);
     const cameraForwardZ = -Math.cos(cameraYaw) * Math.cos(cameraPitch);
@@ -4230,10 +4246,10 @@ function WarRoomRuntimeScene({
       }
     }
     const cameraHeight = player.prone ? 0.65 : player.crouched ? 1.2 : 1.55;
-    const focusHeight = player.prone ? 0.78 : player.crouched ? 1.02 : 1.24;
+    const focusHeight = player.prone ? 0.78 : player.crouched ? 1.02 : 1.5;
     const focusAhead = input.aimHeld
       ? indoorBuilding ? 1.7 : 3.2
-      : indoorBuilding ? 1.1 : 2.8;
+      : 0;
     cameraStart.set(
       player.x,
       player.floorHeight + player.jumpHeight + cameraHeight,
@@ -4260,14 +4276,23 @@ function WarRoomRuntimeScene({
     if (scene && now - cameraBoundsRefreshRef.current >= 0.25) {
       scene.updateMatrixWorld(true);
       const occluders: CameraOccluderEntry[] = [];
+      const raycastMeshes: THREE.Object3D[] = [];
+      const raycastOwners = new WeakMap<THREE.Object3D, string>();
       scene.traverse((object) => {
         const id = object.userData.warRoomCameraOccluderId;
         if (typeof id !== "string" || id.startsWith("gateway:")) return;
         const bounds = new THREE.Box3().setFromObject(object);
         if (bounds.isEmpty()) return;
         occluders.push({ id, object, bounds });
+        object.traverse((child) => {
+          if (!(child instanceof THREE.Mesh) || !child.visible) return;
+          raycastMeshes.push(child);
+          raycastOwners.set(child, id);
+        });
       });
       cameraOccludersRef.current = occluders;
+      cameraRaycastMeshesRef.current = raycastMeshes;
+      cameraRaycastOwnerByObjectRef.current = raycastOwners;
       cameraBoundsRef.current = [
         ...logicalCameraBounds,
         ...occluders.map(({ id, bounds }) => ({
@@ -4282,6 +4307,7 @@ function WarRoomRuntimeScene({
       ];
       cameraBoundsRefreshRef.current = now;
     }
+    cameraUnobstructed.copy(cameraDesired);
     const requestedCameraDistance = cameraStart.distanceTo(cameraDesired);
     const cameraStartPoint = { x: cameraStart.x, y: cameraStart.y, z: cameraStart.z };
     const cameraEndPoint = { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z };
@@ -4304,13 +4330,40 @@ function WarRoomRuntimeScene({
           0.08,
         )
       : null;
-    const blockerId = cameraPlacement?.blocked ? cameraPlacement.blockerId : null;
+    let blockerId = cameraPlacement?.blocked ? cameraPlacement.blockerId : null;
     if (cameraPlacement) {
       cameraDesired.set(
         cameraPlacement.position.x,
         cameraPlacement.position.y,
         cameraPlacement.position.z,
       );
+    }
+    if (cameraMode === "third-person" && cameraRaycastMeshesRef.current.length > 0) {
+      cameraRayOrigin.set(
+        cameraFrame.lookAt.x,
+        cameraFrame.lookAt.y,
+        cameraFrame.lookAt.z,
+      );
+      cameraDirection.subVectors(cameraUnobstructed, cameraRayOrigin);
+      const rayLength = cameraDirection.length();
+      if (rayLength > 0.001) {
+        cameraDirection.divideScalar(rayLength);
+        cameraRaycaster.set(cameraRayOrigin, cameraDirection);
+        cameraRaycaster.near = 0;
+        cameraRaycaster.far = rayLength;
+        const rayHit = cameraRaycaster
+          .intersectObjects(cameraRaycastMeshesRef.current, false)
+          .find((hit) => cameraRaycastOwnerByObjectRef.current.has(hit.object));
+        if (rayHit) {
+          const safeDistance = getWarRoomCameraRaySafeDistance(
+            rayLength,
+            rayHit.distance,
+            0.2,
+          );
+          cameraDesired.copy(cameraRayOrigin).addScaledVector(cameraDirection, safeDistance);
+          blockerId = cameraRaycastOwnerByObjectRef.current.get(rayHit.object) ?? blockerId;
+        }
+      }
     }
     const cameraFadeIds = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
       ? getWarRoomCameraBlockerIds(
@@ -4338,7 +4391,7 @@ function WarRoomRuntimeScene({
       }
       if (debugMode && now - cameraDebugAtRef.current >= 0.25) {
         cameraDebugAtRef.current = now;
-        const distance = cameraPlacement?.safeDistance ?? requestedCameraDistance;
+        const distance = cameraStart.distanceTo(cameraDesired) || requestedCameraDistance;
         onMeleeDebugUpdate(
           `KAMERA ${distance.toFixed(2)} m · ENGEL ${blockerId ?? "yok"}`,
         );
@@ -4368,8 +4421,15 @@ function WarRoomRuntimeScene({
     ) {
       camera.position.copy(cameraDesired);
     }
+    const cameraPlayerDistance = camera.position.distanceTo(cameraStart);
+    const playerFade = Math.max(0, Math.min(1, (1.5 - cameraPlayerDistance) / 0.7));
     if (playerRootRef.current) {
-      playerRootRef.current.visible = true;
+      playerRootRef.current.visible = cameraPlayerDistance >= 0.8;
+      setWarRoomCameraOccluderFade(
+        playerRootRef.current,
+        playerFade,
+        playerMaterialOriginalsRef.current,
+      );
     }
     cameraLook.set(
       cameraFrame.lookAt.x,

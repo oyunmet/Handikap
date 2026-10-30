@@ -244,7 +244,15 @@ export function WarRoomStaticModel({
   );
 }
 
-export type WarRoomAnimationState = "idle" | "walk" | "run" | "attack" | "hit" | "death";
+export type WarRoomAnimationState =
+  | "idle"
+  | "walk"
+  | "run"
+  | "crouch"
+  | "jump"
+  | "attack"
+  | "hit"
+  | "death";
 
 type AnimatedActorProps = {
   src: string;
@@ -256,6 +264,57 @@ type AnimatedActorProps = {
   modelRef?: MutableRefObject<THREE.Group | null>;
   afterAnimationFrame?: (model: THREE.Group) => void;
 };
+
+function createWarRoomPoseClip(
+  model: THREE.Group,
+  name: string,
+  times: readonly number[],
+  poses: readonly {
+    boneName: string;
+    rotations: readonly (readonly [number, number, number])[];
+  }[],
+) {
+  const tracks: THREE.KeyframeTrack[] = [];
+  for (const pose of poses) {
+    const bone = model.getObjectByName(pose.boneName);
+    if (!bone || pose.rotations.length !== times.length) continue;
+    const values: number[] = [];
+    pose.rotations.forEach(([x, y, z]) => {
+      const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
+      bone.quaternion.clone().multiply(offset).toArray(values, values.length);
+    });
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${bone.name}.quaternion`,
+      times,
+      values,
+    ));
+  }
+  return tracks.length > 0
+    ? new THREE.AnimationClip(name, times[times.length - 1], tracks)
+    : null;
+}
+
+function createWarRoomPoseClips(model: THREE.Group) {
+  const crouch = createWarRoomPoseClip(model, "crouch", [0, 0.4, 0.8], [
+    { boneName: "Hips", rotations: [[0.16, 0, 0], [0.17, 0, 0], [0.16, 0, 0]] },
+    { boneName: "UpperLeg.L", rotations: [[-0.42, 0, 0], [-0.48, 0, 0], [-0.42, 0, 0]] },
+    { boneName: "UpperLeg.R", rotations: [[-0.48, 0, 0], [-0.42, 0, 0], [-0.48, 0, 0]] },
+    { boneName: "LowerLeg.L", rotations: [[0.82, 0, 0], [0.72, 0, 0], [0.82, 0, 0]] },
+    { boneName: "LowerLeg.R", rotations: [[0.72, 0, 0], [0.82, 0, 0], [0.72, 0, 0]] },
+    { boneName: "Spine", rotations: [[-0.12, 0, 0], [-0.12, 0, 0], [-0.12, 0, 0]] },
+    { boneName: "UpperArm.L", rotations: [[-0.18, 0, 0], [-0.2, 0, 0], [-0.18, 0, 0]] },
+    { boneName: "UpperArm.R", rotations: [[-0.18, 0, 0], [-0.2, 0, 0], [-0.18, 0, 0]] },
+  ]);
+  const jump = createWarRoomPoseClip(model, "jump", [0, 0.08, 0.22, 0.38], [
+    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0]] },
+    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0]] },
+    { boneName: "LowerLeg.L", rotations: [[0, 0, 0], [0.78, 0, 0], [0.78, 0, 0], [0.78, 0, 0]] },
+    { boneName: "LowerLeg.R", rotations: [[0, 0, 0], [0.78, 0, 0], [0.78, 0, 0], [0.78, 0, 0]] },
+    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
+    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
+  ]);
+  return [crouch, jump].filter((clip): clip is THREE.AnimationClip => clip !== null);
+}
 
 function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResources) {
   const torso = model.getObjectByName("Torso")
@@ -353,15 +412,19 @@ export function WarRoomAnimatedActor({
     return { model: clone, resources };
   }, [commander, height, scene, src, tint]);
   const model = prepared.model;
+  const poseClips = useMemo(() => createWarRoomPoseClips(model), [model]);
   const animationClips = useMemo(
-    () => animations.map((clip) => {
-      const inPlaceClip = clip.clone();
-      inPlaceClip.tracks = inPlaceClip.tracks.filter(
-        (track) => !isRootTranslationTrack(track.name, PLAYER_CHARACTER_ROOT_BONE),
-      );
-      return createPlayerLocomotionClip(inPlaceClip);
-    }),
-    [animations],
+    () => [
+      ...animations.map((clip) => {
+        const inPlaceClip = clip.clone();
+        inPlaceClip.tracks = inPlaceClip.tracks.filter(
+          (track) => !isRootTranslationTrack(track.name, PLAYER_CHARACTER_ROOT_BONE),
+        );
+        return createPlayerLocomotionClip(inPlaceClip);
+      }),
+      ...poseClips,
+    ],
+    [animations, poseClips],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const activeAction = useRef<THREE.AnimationAction | null>(null);
@@ -383,19 +446,32 @@ export function WarRoomAnimatedActor({
   useFrame((_, delta) => {
     const nextState = state();
     if (nextState !== activeState.current) {
-      const animationState = nextState === "death" ? "die" : nextState;
-      const clipName = resolveGlbClipName(
-        animationState,
-        animationClips.map((clip) => clip.name),
-        PLAYER_CHARACTER_ANIMATION_CLIPS,
-      );
-      const clip = animationClips.find((candidate) => candidate.name === clipName);
+      const animationState = nextState === "death"
+        ? "die"
+        : nextState === "crouch"
+          ? "idle"
+          : nextState;
+      const clip = animationClips.find((candidate) => candidate.name === nextState)
+        ?? animationClips.find((candidate) => candidate.name === resolveGlbClipName(
+          animationState,
+          animationClips.map((item) => item.name),
+          PLAYER_CHARACTER_ANIMATION_CLIPS,
+        ));
       if (clip) {
         const nextAction = mixer.clipAction(clip);
-        nextAction.reset().fadeIn(0.2).play();
-        activeAction.current?.fadeOut(0.2);
+        nextAction.reset().setEffectiveWeight(1).play();
+        if (activeAction.current) {
+          activeAction.current.crossFadeTo(nextAction, 0.18, false);
+        } else {
+          nextAction.fadeIn(0.18);
+        }
         activeAction.current = nextAction;
-        if (nextState === "death" || nextState === "attack" || nextState === "hit") {
+        if (
+          nextState === "death"
+          || nextState === "attack"
+          || nextState === "hit"
+          || nextState === "jump"
+        ) {
           nextAction.setLoop(THREE.LoopOnce, 1).clampWhenFinished = true;
         }
         else nextAction.setLoop(THREE.LoopRepeat, Infinity);
