@@ -169,9 +169,9 @@
 
   .war-room-vitals {
     top: max(236px, calc(env(safe-area-inset-top) + 228px));
-    right: auto;
+    right: max(12px, env(safe-area-inset-right));
     bottom: auto;
-    left: max(12px, env(safe-area-inset-left));
+    left: auto;
     width: min(156px, 43vw);
     padding: 8px 9px;
     border: 1px solid rgba(225, 193, 145, .32);
@@ -196,14 +196,14 @@
   }
 
   .war-room-ammo {
-    right: auto;
+    right: max(12px, env(safe-area-inset-right));
     top: max(310px, calc(env(safe-area-inset-top) + 302px));
     bottom: auto;
-    left: max(12px, env(safe-area-inset-left));
+    left: auto;
     display: flex;
     width: min(156px, 43vw);
     min-width: 0;
-    align-items: flex-start;
+    align-items: flex-end;
     gap: 3px;
     padding: 8px 9px;
     border: 1px solid rgba(225, 193, 145, .32);
