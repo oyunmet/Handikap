@@ -4138,19 +4138,31 @@ function WarRoomRuntimeScene({
       + cameraFovKickRef.current * cameraMotionScale;
     perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
     perspective.updateProjectionMatrix();
-    const cameraForwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
-    const cameraForwardY = Math.sin(player.pitch);
-    const cameraForwardZ = -Math.cos(player.yaw) * Math.cos(player.pitch);
+    const indoorBuilding = room.buildings.find((building) => {
+      const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
+      return Math.abs(localPlayer.x) <= building.width / 2
+        && Math.abs(localPlayer.z) <= building.depth / 2;
+    });
+    const cameraYaw = player.facingYaw;
+    const cameraPitch = indoorBuilding && !input.aimHeld
+      ? Math.max(-0.18, Math.min(0.18, player.pitch))
+      : player.pitch;
+    const cameraForwardX = Math.sin(cameraYaw) * Math.cos(cameraPitch);
+    const cameraForwardY = Math.sin(cameraPitch);
+    const cameraForwardZ = -Math.cos(cameraYaw) * Math.cos(cameraPitch);
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
       : 0;
-    const { back: cameraBack, shoulder } = getWarRoomCameraRig({
+    const { back: baseCameraBack, shoulder } = getWarRoomCameraRig({
       mode: cameraMode,
       aiming: input.aimHeld,
       shoulderOffset,
       shoulderSide,
       victoryZoom,
     });
+    const cameraBack = indoorBuilding
+      ? Math.min(baseCameraBack, input.aimHeld ? 3.3 : 2.8)
+      : baseCameraBack;
     const playerBodyPoint = {
       x: player.x,
       y: player.floorHeight + player.jumpHeight + 0.75,
@@ -4214,21 +4226,25 @@ function WarRoomRuntimeScene({
         };
       }
     }
+    const cameraHeight = player.prone ? 0.65 : player.crouched ? 1.2 : 1.55;
+    const focusHeight = player.prone ? 0.78 : player.crouched ? 1.02 : 1.24;
+    const focusAhead = input.aimHeld ? 3.2 : indoorBuilding ? 0.8 : 2.8;
     cameraStart.set(
       player.x,
-      player.floorHeight + player.jumpHeight + (player.prone ? 0.65 : player.crouched ? 1.2 : 1.55),
+      player.floorHeight + player.jumpHeight + cameraHeight,
       player.z,
     );
-    cameraDesired.set(
-      player.x - cameraForwardX * cameraBack + Math.cos(player.yaw) * shoulder,
-      cameraStart.y + (cameraMode === "first-person" ? 0 : 0.35) - cameraForwardY * cameraBack,
-      player.z - cameraForwardZ * cameraBack + Math.sin(player.yaw) * shoulder,
+    const cameraFrame = getWarRoomRearCameraFrame(
+      { x: player.x, y: player.floorHeight + player.jumpHeight, z: player.z },
+      cameraYaw,
+      cameraPitch,
+      cameraBack,
+      shoulder,
+      cameraHeight,
+      focusAhead,
+      focusHeight,
     );
-    const indoorBuilding = room.buildings.find((building) => {
-      const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
-      return Math.abs(localPlayer.x) <= building.width / 2
-        && Math.abs(localPlayer.z) <= building.depth / 2;
-    });
+    cameraDesired.set(cameraFrame.position.x, cameraFrame.position.y, cameraFrame.position.z);
     if (indoorBuilding) {
       const indoorTarget = clampWarRoomCameraToInterior(
         { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
@@ -4270,6 +4286,7 @@ function WarRoomRuntimeScene({
           cameraStartPoint,
           cameraEndPoint,
           cameraBoundsRef.current,
+          indoorBuilding,
           0.28,
           1.2,
           0.08,
@@ -4341,14 +4358,10 @@ function WarRoomRuntimeScene({
     if (playerRootRef.current) {
       playerRootRef.current.visible = true;
     }
-    const cameraLookAhead = cameraMode === "third-person"
-      ? input.aimHeld ? 4.2 : 5.2
-      : 10;
     cameraLook.set(
-      player.x + cameraForwardX * cameraLookAhead,
-      player.floorHeight + player.jumpHeight + (player.prone ? 0.72 : player.crouched ? 1.18 : 1.48)
-        + cameraForwardY * cameraLookAhead + cameraKickRef.current * cameraMotionScale,
-      player.z + cameraForwardZ * cameraLookAhead,
+      cameraFrame.lookAt.x,
+      cameraFrame.lookAt.y + cameraKickRef.current * cameraMotionScale,
+      cameraFrame.lookAt.z,
     );
     if (indoorBuilding) {
       const indoorLook = clampWarRoomCameraToInterior(
@@ -4358,8 +4371,8 @@ function WarRoomRuntimeScene({
       );
       cameraLook.set(indoorLook.x, indoorLook.y, indoorLook.z);
     }
-    cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
-    cameraLook.z += Math.sin(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
+    cameraLook.x += Math.cos(cameraYaw) * cameraSideKickRef.current * cameraMotionScale;
+    cameraLook.z += Math.sin(cameraYaw) * cameraSideKickRef.current * cameraMotionScale;
     cameraKickRef.current = Math.max(0, cameraKickRef.current - delta * 0.72);
     cameraSideKickRef.current *= Math.exp(-delta * 7.5);
     if (now - player.lastDamageAt < 0.24) {
