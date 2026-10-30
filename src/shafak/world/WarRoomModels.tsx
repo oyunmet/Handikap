@@ -250,6 +250,8 @@ export type WarRoomAnimationState =
   | "run"
   | "crouch"
   | "jump"
+  | "turn-left"
+  | "turn-right"
   | "attack"
   | "hit"
   | "death";
@@ -313,7 +315,23 @@ function createWarRoomPoseClips(model: THREE.Group) {
     { boneName: "UpperArm.L", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
     { boneName: "UpperArm.R", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
   ]);
-  return [crouch, jump].filter((clip): clip is THREE.AnimationClip => clip !== null);
+  const turnLeft = createWarRoomPoseClip(model, "turn-left", [0, 0.12, 0.24, 0.36, 0.48], [
+    { boneName: "Hips", rotations: [[0, 0, 0], [0.02, 0.08, -0.04], [0, 0.12, 0], [0.02, -0.04, 0.04], [0, 0, 0]] },
+    { boneName: "Spine", rotations: [[0, 0, 0], [-0.01, -0.06, 0.04], [0, -0.1, 0.02], [-0.01, 0.04, -0.04], [0, 0, 0]] },
+    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [-0.08, 0, -0.1], [-0.12, 0, -0.18], [-0.06, 0, 0.05], [0, 0, 0]] },
+    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [0.05, 0, 0.08], [0.08, 0, 0.14], [0.04, 0, -0.04], [0, 0, 0]] },
+    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [-0.18, 0, 0.06], [0.1, 0, 0.1], [-0.05, 0, 0], [0, 0, 0]] },
+    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [0.08, 0, -0.04], [-0.12, 0, -0.08], [0.04, 0, 0], [0, 0, 0]] },
+  ]);
+  const turnRight = createWarRoomPoseClip(model, "turn-right", [0, 0.12, 0.24, 0.36, 0.48], [
+    { boneName: "Hips", rotations: [[0, 0, 0], [0.02, -0.08, 0.04], [0, -0.12, 0], [0.02, 0.04, -0.04], [0, 0, 0]] },
+    { boneName: "Spine", rotations: [[0, 0, 0], [-0.01, 0.06, -0.04], [0, 0.1, -0.02], [-0.01, -0.04, 0.04], [0, 0, 0]] },
+    { boneName: "UpperArm.L", rotations: [[0, 0, 0], [0.05, 0, -0.08], [0.08, 0, -0.14], [0.04, 0, 0.04], [0, 0, 0]] },
+    { boneName: "UpperArm.R", rotations: [[0, 0, 0], [-0.08, 0, 0.1], [-0.12, 0, 0.18], [-0.06, 0, -0.05], [0, 0, 0]] },
+    { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [0.08, 0, 0.04], [-0.12, 0, 0.08], [0.04, 0, 0], [0, 0, 0]] },
+    { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [-0.18, 0, -0.06], [0.1, 0, -0.1], [-0.05, 0, 0], [0, 0, 0]] },
+  ]);
+  return [crouch, jump, turnLeft, turnRight].filter((clip): clip is THREE.AnimationClip => clip !== null);
 }
 
 function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResources) {

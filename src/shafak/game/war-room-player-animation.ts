@@ -19,6 +19,7 @@ export type WarRoomPlayerAnimationInput = {
   prone: boolean;
   movement: number;
   sprinting: boolean;
+  turnDirection?: "left" | "right" | null;
 };
 
 export function resolveWarRoomPlayerAnimationState({
@@ -32,11 +33,13 @@ export function resolveWarRoomPlayerAnimationState({
   prone,
   movement,
   sprinting,
+  turnDirection,
 }: WarRoomPlayerAnimationInput): WarRoomPlayerAnimationState {
   if (hp <= 0) return "death";
   if (damageAge >= 0 && damageAge < 0.2) return "hit";
   if (shotFeedbackUntil > clockTime || meleeUntil > clockTime) return "attack";
   if (jumpHeight > 0.12) return "jump";
+  if (turnDirection) return turnDirection === "left" ? "turn-left" : "turn-right";
   if (crouched || prone) return "crouch";
   if (movement <= 0.12) return "idle";
   return sprinting || movement >= 0.7 ? "run" : "walk";

@@ -40,7 +40,7 @@ import { HudButton, HudIcon, type HudButtonIconKey } from "./HudButton";
 import { playGameButtonClick } from "../audio/howler";
 import type { RenderQuality } from "../world/graphics-quality";
 import { isWithinWarRoomDrawCallBudget, WAR_ROOM_DRAW_CALL_BUDGET, type WarRoomFrameStats } from "./war-room-quality";
-import { applyWarRoomLookDelta, type WarRoomLookPointerType } from "./war-room-look";
+import type { WarRoomLookPointerType } from "./war-room-look";
 import type { WarRoomFacingSetting } from "./war-room-orientation";
 import {
   beginWarRoomPointer,
@@ -976,16 +976,8 @@ export default function WarRoomGame({
       readDynamicStick(event);
       return;
     }
-    const pointer = pointerRef.current.get(event.pointerId);
-    if (!pointer) return;
-    const delta = moveWarRoomPointer(pointerRef.current, event.pointerId, event.clientX, event.clientY);
-    if (!delta) return;
-    const input = inputRef.current;
-    const aimScale = input.aimHeld ? aimSensitivityMultiplier : 1;
-    applyWarRoomLookDelta(input, delta.dx, delta.dy, {
-      x: lookSensitivityX * aimScale,
-      y: lookSensitivityY * aimScale,
-    }, pointer.pointerType, invertLookY);
+    if (!pointerRef.current.has(event.pointerId)) return;
+    moveWarRoomPointer(pointerRef.current, event.pointerId, event.clientX, event.clientY);
   };
 
   const handleWorldPointerUp = (event: ReactPointerEvent<HTMLElement>) => {

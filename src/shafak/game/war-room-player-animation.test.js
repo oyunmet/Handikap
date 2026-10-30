@@ -39,6 +39,16 @@ test("player animation selects jump, crouch, idle, walk, and run from live movem
   assert.equal(resolveWarRoomPlayerAnimationState({ ...baseInput, movement: 0.3, sprinting: true }), "run");
 });
 
+test("player turns use directional body-turn animations before the walk cycle", () => {
+  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "left", movement: 0.8 })), "turn-left");
+  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "right", movement: 0.8 })), "turn-right");
+  assert.equal(resolveWarRoomPlayerAnimationState(input({
+    hp: 0,
+    turnDirection: "left",
+    movement: 0.8,
+  })), "death");
+});
+
 test("locomotion playback scales to movement speed and reverses for backward travel", () => {
   assert.equal(getWarRoomPlayerAnimationPlaybackScale("walk", "forward", 6.1), 1);
   assert.equal(getWarRoomPlayerAnimationPlaybackScale("run", "forward", 6.1), 6.1 / 8.2);

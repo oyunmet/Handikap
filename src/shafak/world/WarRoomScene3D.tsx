@@ -37,13 +37,13 @@ import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomPostAttackStrafeUntil,
+  getWarRoomYawError,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
   isWarRoomFacingTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
-import { getWarRoomCameraAngles } from "../game/war-room-look";
 import {
   getWarRoomPlayerAnimationPlaybackScale,
   resolveWarRoomPlayerAnimationState,
@@ -159,6 +159,8 @@ type Props = {
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
+
+const WAR_ROOM_FIXED_CAMERA_PITCH = -0.12;
 
 type WarRoomHandMountPose = {
   position: THREE.Vector3;
@@ -1564,7 +1566,7 @@ function PlayerActor({
         player.floorHeight + player.jumpHeight - (player.prone ? 0.34 : 0),
         player.z - Math.cos(bodyYaw) * heavyStep,
       );
-      root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 45, delta);
+      root.rotation.y = shortestLerp(root.rotation.y, bodyYaw, 10, delta);
       root.scale.y = player.prone ? 0.5 : player.crouched ? 0.78 : 1;
     }
     const hand = modelRef.current && [
@@ -1756,10 +1758,10 @@ function PlayerActor({
     const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
     const root = rootRef.current;
-    const turningInPlace = root && Math.abs(Math.atan2(
-      Math.sin(player.facingYaw - root.rotation.y),
-      Math.cos(player.facingYaw - root.rotation.y),
-    )) > Math.PI / 4;
+    const turnError = root ? getWarRoomYawError(root.rotation.y, player.facingYaw) : 0;
+    const turnDirection = Math.abs(turnError) > 0.1
+      ? turnError > 0 ? "right" as const : "left" as const
+      : null;
     return resolveWarRoomPlayerAnimationState({
       hp: player.hp,
       damageAge: player.clockTime - player.lastDamageAt,
@@ -1769,8 +1771,9 @@ function PlayerActor({
       jumpHeight: player.jumpHeight,
       crouched: player.crouched,
       prone: player.prone,
-      movement: Math.max(Math.hypot(moveX, moveY), turningInPlace ? 0.13 : 0),
+      movement: Math.hypot(moveX, moveY),
       sprinting: player.sprinting,
+      turnDirection,
     });
   };
   const playerPlaybackScale = () => {
@@ -2332,8 +2335,8 @@ function WarRoomRuntimeScene({
   const cameraBoundsRefreshRef = useRef(0);
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
-  const playerMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
+  const movementHeadingRef = useRef<number | null>(null);
   const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
   const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
   const emptyClickAtRef = useRef(0);
@@ -3512,14 +3515,6 @@ function WarRoomRuntimeScene({
     player.regenerationWaitSeconds = restoration.secondsUntilReady;
     player.recoil = Math.max(0, player.recoil - delta * 0.36);
     if (player.startTime === 0) player.startTime = now;
-    const cameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
-    player.yaw = cameraAngles.yaw;
-    player.pitch = cameraAngles.pitch;
-
-    const forwardX = Math.sin(player.yaw);
-    const forwardZ = -Math.cos(player.yaw);
-    const rightX = Math.cos(player.yaw);
-    const rightZ = Math.sin(player.yaw);
     const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
     let moveX = input.moveX + keyX;
@@ -3535,13 +3530,28 @@ function WarRoomRuntimeScene({
       moveX,
       moveY,
     );
+    const strafeActive = input.aimHeld || now < player.strafeUntil;
+    if (
+      inputLength < 0.06
+      || strafeActive
+      || movementHeadingRef.current === null
+    ) {
+      movementHeadingRef.current = player.facingYaw;
+    }
+    const movementYaw = movementHeadingRef.current ?? player.facingYaw;
+    player.yaw = player.facingYaw;
+    player.pitch = WAR_ROOM_FIXED_CAMERA_PITCH;
+    const forwardX = Math.sin(movementYaw);
+    const forwardZ = -Math.cos(movementYaw);
+    const rightX = Math.cos(movementYaw);
+    const rightZ = Math.sin(movementYaw);
     const orientation = resolveWarRoomOrientation(
-      player.yaw,
+      movementYaw,
       moveX,
       moveY,
       player.facingYaw,
-      input.aimHeld || now < player.strafeUntil,
-      input.facingSetting,
+      strafeActive,
+      "movement",
     );
     const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
@@ -3557,6 +3567,7 @@ function WarRoomRuntimeScene({
       )
       : orientation.yaw;
     player.facingYaw = stepWarRoomYaw(player.facingYaw, assistedYaw, delta, 55);
+    player.yaw = player.facingYaw;
     player.facingMode = orientation.mode;
     player.joystickAngleDegrees = orientation.joystickAngleDegrees;
     player.facingCamera = orientation.facingCamera;
@@ -4158,29 +4169,22 @@ function WarRoomRuntimeScene({
       return Math.abs(localPlayer.x) <= building.width / 2
         && Math.abs(localPlayer.z) <= building.depth / 2;
     });
-    const cameraMotionScale = motionReduced ? 0 : 1;
-    cameraFovKickRef.current *= Math.exp(-12 * delta);
-    const desiredFov = (input.aimHeld
-      ? indoorBuilding ? 58 : 48
-      : cameraMode === "first-person" ? 82 : player.sprinting ? 76 : 70)
-      + cameraFovKickRef.current * cameraMotionScale;
-    perspective.fov += (desiredFov - perspective.fov) * (1 - Math.exp(-9 * delta));
-    perspective.updateProjectionMatrix();
-    const cameraYaw = cameraAngles.yaw;
-    const cameraPitch = cameraAngles.pitch;
-    const cameraForwardX = Math.sin(cameraYaw) * Math.cos(cameraPitch);
-    const cameraForwardY = Math.sin(cameraPitch);
-    const cameraForwardZ = -Math.cos(cameraYaw) * Math.cos(cameraPitch);
+    if (perspective.fov !== 70) {
+      perspective.fov = 70;
+      perspective.updateProjectionMatrix();
+    }
+    const cameraYaw = playerRootRef.current?.rotation.y ?? player.facingYaw;
+    const cameraPitch = WAR_ROOM_FIXED_CAMERA_PITCH;
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
       : 0;
     const { back: baseCameraBack, shoulder } = getWarRoomCameraRig({
-      mode: cameraMode,
-      aiming: input.aimHeld,
+      mode: "third-person",
+      aiming: false,
       shoulderOffset,
       shoulderSide,
       indoors: Boolean(indoorBuilding),
-      victoryZoom,
+      victoryZoom: 0,
     });
     const playerBodyPoint = {
       x: player.x,
@@ -4245,11 +4249,9 @@ function WarRoomRuntimeScene({
         };
       }
     }
-    const cameraHeight = player.prone ? 0.65 : player.crouched ? 1.2 : 1.55;
-    const focusHeight = player.prone ? 0.78 : player.crouched ? 1.02 : 1.5;
-    const focusAhead = input.aimHeld
-      ? indoorBuilding ? 1.7 : 3.2
-      : 0;
+    const cameraHeight = 1.55;
+    const focusHeight = 1.5;
+    const focusAhead = 0;
     cameraStart.set(
       player.x,
       player.floorHeight + player.jumpHeight + cameraHeight,
@@ -4397,7 +4399,7 @@ function WarRoomRuntimeScene({
         );
       }
     }
-    camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * delta));
+    camera.position.copy(cameraDesired);
     if (
       cameraPlacement
       && !isWarRoomCameraPointClear(
@@ -4421,19 +4423,12 @@ function WarRoomRuntimeScene({
     ) {
       camera.position.copy(cameraDesired);
     }
-    const cameraPlayerDistance = camera.position.distanceTo(cameraStart);
-    const playerFade = Math.max(0, Math.min(1, (1.5 - cameraPlayerDistance) / 0.7));
     if (playerRootRef.current) {
-      playerRootRef.current.visible = cameraPlayerDistance >= 0.8;
-      setWarRoomCameraOccluderFade(
-        playerRootRef.current,
-        playerFade,
-        playerMaterialOriginalsRef.current,
-      );
+      playerRootRef.current.visible = true;
     }
     cameraLook.set(
       cameraFrame.lookAt.x,
-      cameraFrame.lookAt.y + cameraKickRef.current * cameraMotionScale,
+      cameraFrame.lookAt.y,
       cameraFrame.lookAt.z,
     );
     if (indoorBuilding) {
@@ -4443,24 +4438,6 @@ function WarRoomRuntimeScene({
         0.2,
       );
       cameraLook.set(indoorLook.x, indoorLook.y, indoorLook.z);
-    }
-    cameraLook.x += Math.cos(cameraYaw) * cameraSideKickRef.current * cameraMotionScale;
-    cameraLook.z += Math.sin(cameraYaw) * cameraSideKickRef.current * cameraMotionScale;
-    cameraKickRef.current = Math.max(0, cameraKickRef.current - delta * 0.72);
-    cameraSideKickRef.current *= Math.exp(-delta * 7.5);
-    if (now - player.lastDamageAt < 0.24) {
-      const shake = Math.sin(now * 92) * 0.045;
-      camera.position.x += shake;
-      camera.position.y += Math.cos(now * 78) * 0.028;
-    }
-    if (player.meleeUntil > now) {
-      const meleeProgress = Math.max(
-        0,
-        Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)),
-      );
-      const shakeEnvelope = Math.sin(Math.PI * meleeProgress);
-      camera.position.x += Math.sin(now * 74) * 0.012 * shakeEnvelope;
-      camera.position.y += Math.cos(now * 83) * 0.008 * shakeEnvelope;
     }
     camera.lookAt(cameraLook);
     scene.updateMatrixWorld(true);
