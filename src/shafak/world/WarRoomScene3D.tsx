@@ -45,6 +45,7 @@ import {
 } from "../game/war-room-orientation";
 import {
   clampWarRoomCameraToInterior,
+  getWarRoomRearCameraFrame,
   getWarRoomCameraRig,
   isWarRoomCameraPointClear,
   resolveWarRoomInteriorCameraPlacement,
@@ -415,7 +416,7 @@ function setWarRoomCameraOccluderFade(
         originals.set(material, original);
       }
       const nextTransparent = original.transparent || progress > 0;
-      const nextOpacity = original.opacity * (1 - progress * 0.55);
+  const nextOpacity = original.opacity * (1 - progress * 0.9);
       const changedTransparency = material.transparent !== nextTransparent
         || material.depthWrite !== (progress > 0 ? false : original.depthWrite);
       material.opacity = nextOpacity;
@@ -3519,7 +3520,7 @@ function WarRoomRuntimeScene({
       moveY,
       player.facingYaw,
       input.aimHeld || now < player.strafeUntil,
-      WAR_ROOM_CAMERA_FACING_ENABLED ? input.facingSetting : "movement",
+      WAR_ROOM_CAMERA_FACING_ENABLED ? "camera" : "movement",
     );
     const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED

@@ -99,6 +99,35 @@ export function clampWarRoomCameraToInterior(
   };
 }
 
+export function getWarRoomRearCameraFrame(
+  feet: WarRoomCameraPoint,
+  bodyYaw: number,
+  pitch: number,
+  back: number,
+  shoulder: number,
+  cameraHeight: number,
+  focusAhead: number,
+  focusHeight: number,
+) {
+  const forwardX = Math.sin(bodyYaw) * Math.cos(pitch);
+  const forwardY = Math.sin(pitch);
+  const forwardZ = -Math.cos(bodyYaw) * Math.cos(pitch);
+  const rightX = Math.cos(bodyYaw);
+  const rightZ = Math.sin(bodyYaw);
+  return {
+    position: {
+      x: feet.x - forwardX * back + rightX * shoulder,
+      y: feet.y + cameraHeight + 0.35 - forwardY * back,
+      z: feet.z - forwardZ * back + rightZ * shoulder,
+    },
+    lookAt: {
+      x: feet.x + forwardX * focusAhead,
+      y: feet.y + focusHeight + forwardY * focusAhead,
+      z: feet.z + forwardZ * focusAhead,
+    },
+  };
+}
+
 /**
  * Indoor views stay on the direct shoulder-camera segment. Searching lateral
  * alternatives here can put the camera outside a house through its walls.
@@ -107,18 +136,56 @@ export function resolveWarRoomInteriorCameraPlacement(
   start: WarRoomCameraPoint,
   end: WarRoomCameraPoint,
   bounds: readonly WarRoomCameraBounds[],
+  interior: WarRoomInteriorCameraBounds,
   radius = 0.28,
   minimumDistance = 1.2,
   clearance = 0.08,
 ): WarRoomCameraPlacement {
+  const directionX = end.x - start.x;
+  const directionZ = end.z - start.z;
+  const horizontalLength = Math.hypot(directionX, directionZ);
+  const rightX = horizontalLength > 1e-8 ? directionZ / horizontalLength : 1;
+  const rightZ = horizontalLength > 1e-8 ? -directionX / horizontalLength : 0;
+  const offsets = [
+    [0, 0, 0],
+    [rightX * 0.65, 0, rightZ * 0.65],
+    [-rightX * 0.65, 0, -rightZ * 0.65],
+    [rightX * 1.15, 0, rightZ * 1.15],
+    [-rightX * 1.15, 0, -rightZ * 1.15],
+    [rightX * 0.65, 0.35, rightZ * 0.65],
+    [-rightX * 0.65, 0.35, -rightZ * 0.65],
+  ] as const;
+  let bestFallback: WarRoomCameraPlacement | null = null;
+
+  for (const [offsetX, offsetY, offsetZ] of offsets) {
+    const candidate = clampWarRoomCameraToInterior({
+      x: end.x + offsetX,
+      y: end.y + offsetY,
+      z: end.z + offsetZ,
+    }, interior, radius + 0.24);
+    const sweep = resolveWarRoomCameraSweep(start, candidate, bounds, radius, minimumDistance, clearance);
+    const distance = Math.hypot(candidate.x - start.x, candidate.y - start.y, candidate.z - start.z);
+    const position = pointAlongSegment(start, candidate, Math.min(sweep.safeDistance, distance));
+    const pointClear = isWarRoomCameraPointClear(position, bounds, radius);
+    if (!pointClear) continue;
+
+    const placement = {
+      ...sweep,
+      position,
+      usedAlternate: offsetX !== 0 || offsetY !== 0 || offsetZ !== 0,
+    };
+    if (!sweep.blocked) return placement;
+    if (!bestFallback || placement.safeDistance > bestFallback.safeDistance) {
+      bestFallback = placement;
+    }
+  }
+
+  if (bestFallback) return bestFallback;
   const sweep = resolveWarRoomCameraSweep(start, end, bounds, radius, minimumDistance, clearance);
+  const distance = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
   return {
     ...sweep,
-    position: pointAlongSegment(
-      start,
-      end,
-      Math.min(sweep.safeDistance, Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z)),
-    ),
+    position: pointAlongSegment(start, end, Math.min(sweep.safeDistance, distance)),
     usedAlternate: false,
   };
 }
