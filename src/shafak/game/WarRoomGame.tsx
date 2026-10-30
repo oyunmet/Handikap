@@ -20,7 +20,11 @@ import { createWarRoomLeaderboard, type WarRoomLeaderboardEntry } from "./war-ro
 import { getWarRoomBuildingLocalPoint } from "./war-room-rooms";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
-import { advanceWarRoomKillStreak, isWarRoomLowHealth } from "./war-room-feedback";
+import {
+  advanceWarRoomKillStreak,
+  getWarRoomHealthBand,
+  isWarRoomLowHealth,
+} from "./war-room-feedback";
 import {
   WAR_ROOM_BUILD_VERSION,
   WAR_ROOM_ROOM_CHAIN_ENABLED,
@@ -63,6 +67,7 @@ import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
   CONTROLS_CONFIG,
   createDefaultWarRoomControlLayout,
+  isWarRoomDynamicStickStartAllowed,
   loadWarRoomControlLayout,
   saveWarRoomControlLayout,
   type WarRoomControlId,
@@ -84,7 +89,6 @@ type Props = {
   lookSensitivityY: number;
   aimSensitivityMultiplier: number;
   joystickMode: "dynamic" | "fixed";
-  cameraMode: "first-person" | "third-person";
   shoulderSide: "left" | "right";
   shoulderOffset: number;
   onOpenSettings: () => void;
@@ -401,7 +405,6 @@ export default function WarRoomGame({
   lookSensitivityY,
   aimSensitivityMultiplier,
   joystickMode,
-  cameraMode,
   shoulderSide,
   shoulderOffset,
   onOpenSettings,
@@ -523,7 +526,7 @@ export default function WarRoomGame({
       return;
     }
     const previousPhase = previousBossPhaseRef.current;
-    if (previousPhase !== null && bossHudPhase > previousPhase) {
+    if (previousPhase !== null && bossHudPhase > previousPhase && hud.bossHp > 0) {
       setBossPhaseAnnouncement(bossHudPhase);
       if (bossPhaseAnnouncementTimerRef.current !== null) {
         window.clearTimeout(bossPhaseAnnouncementTimerRef.current);
@@ -534,7 +537,7 @@ export default function WarRoomGame({
       }, 1_500);
     }
     previousBossPhaseRef.current = bossHudPhase;
-  }, [bossHudPhase, phase]);
+  }, [bossHudPhase, hud.bossHp, phase]);
   useEffect(() => () => {
     if (bossPhaseAnnouncementTimerRef.current !== null) {
       window.clearTimeout(bossPhaseAnnouncementTimerRef.current);
@@ -745,13 +748,13 @@ export default function WarRoomGame({
         pressWarRoomAction(input, "sprint-lock");
         setSprintLockActive(input.sprintLocked);
       }
-      else if (key === "f") input.lootHeld = true;
+      else if (key === "f" || key === "e") input.lootHeld = true;
       else if (key === "escape") pauseBattle();
       if (["w", "a", "s", "d"].includes(key)) input.keys.add(key);
     };
     const onKeyUp = (event: KeyboardEvent) => {
       inputRef.current.keys.delete(event.key.toLowerCase());
-      if (event.key.toLowerCase() === "f") inputRef.current.lootHeld = false;
+      if (["f", "e"].includes(event.key.toLowerCase())) inputRef.current.lootHeld = false;
     };
     const onBlur = () => {
       inputRef.current.keys.clear();
@@ -932,7 +935,16 @@ export default function WarRoomGame({
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug,.war-room-calibration-panel")) return;
     if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) {
-      if (joystickMode !== "dynamic" || stickPointerRef.current !== null) return;
+      if (
+        joystickMode !== "dynamic"
+        || stickPointerRef.current !== null
+        || !isWarRoomDynamicStickStartAllowed(
+          event.clientX,
+          event.clientY,
+          window.innerWidth,
+          window.innerHeight,
+        )
+      ) return;
       event.preventDefault();
       resumeWarRoomAudio();
       stickPointerRef.current = event.pointerId;
@@ -1137,7 +1149,7 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
-            cameraMode={cameraMode}
+            cameraMode="third-person"
             motionReduced={motionReduced}
             shoulderSide={shoulderSide}
             shoulderOffset={shoulderOffset}
@@ -1392,6 +1404,7 @@ export default function WarRoomGame({
                 {soundMuted ? "SES AÇ" : "SESSİZ"}
               </button>
             </div>
+            {hud.bossHp > 0 && hud.bossMaxHp > 0 && (
             <div className="war-room-commander" data-boss-phase={bossHudPhase}>
               <div className="war-room-commander__identity">
                 <span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span>
@@ -1403,6 +1416,7 @@ export default function WarRoomGame({
               </div>
               <i><em style={{ width: `${Math.max(0, (hud.bossHp / hud.bossMaxHp) * 100)}%` }} /></i>
             </div>
+            )}
             {bossPhaseAnnouncement !== null && (
               <div className="war-room-boss-phase" role="status" aria-live="polite">
                 <small>KOMUTAN</small>
@@ -1426,15 +1440,21 @@ export default function WarRoomGame({
               >▼</div>
             )}
               <div className="war-room-notice" aria-live="polite">
-                {hud.hitMessage && <span key={hud.hitMessage}>{hud.hitMessage}</span>}
+                {hud.hitMessage && hud.lastHitSource === null && (
+                  <span key={hud.hitMessage}>{hud.hitMessage}</span>
+                )}
             </div>
             <div className="war-room-hud__bottom">
               <div className={`war-room-vitals${hud.damageVignette ? " is-damaged" : ""}`}>
                 <div className="war-room-bar-row">
-                  <span>CAN</span><b>{Math.ceil(hud.player.hp)} / {hud.player.maxHp}</b>
+                  <span>CAN{hud.regenerationActive ? " · YENİLENİYOR" : ""}</span>
+                  <b>{Math.ceil(hud.player.hp)} / {hud.player.maxHp}</b>
                 </div>
                 <i className={`war-room-bar${hud.regenerationActive ? " is-regenerating" : ""}`}>
-                  <em className="is-health" style={{ width: `${Math.max(0, (hud.player.hp / hud.player.maxHp) * 100)}%` }} />
+                    <em
+                      className={`is-health ${getWarRoomHealthBand(hud.player.hp, hud.player.maxHp)}`}
+                      style={{ width: `${Math.max(0, (hud.player.hp / hud.player.maxHp) * 100)}%` }}
+                    />
                 </i>
                 <div className="war-room-bar-row">
                   <span>DAYANIKLILIK</span><b>{Math.ceil(hud.player.stamina)}%</b>
@@ -1473,8 +1493,8 @@ export default function WarRoomGame({
                 )}
                 <small>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? `${formatDuration(hud.elapsedSeconds)} · Kısa bas: saldır · Basılı tut: yüklü saldır`
-                    : `${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
+                    ? `SÜRE ${formatDuration(hud.elapsedSeconds)} · Kısa bas: saldır · Basılı tut: yüklü saldır`
+                    : `SÜRE ${formatDuration(hud.elapsedSeconds)} · V: DEĞİŞTİR`}
                 </small>
               </div>
               <div className={`war-room-touch-layout${controlLayoutEnabled ? " is-custom-layout" : ""}`}>
@@ -1644,6 +1664,7 @@ export default function WarRoomGame({
               onPointerDown={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                event.currentTarget.setPointerCapture(event.pointerId);
                 inputRef.current.lootHeld = true;
               }}
               onPointerUp={(event) => {
@@ -1662,7 +1683,7 @@ export default function WarRoomGame({
               <strong>{hud.nearbyLootChest.contents}</strong>
               <small>{hud.nearbyLootChest.progress > 0
                 ? `%${Math.round(hud.nearbyLootChest.progress * 100)}`
-                : keyboardHintsVisible ? "F TUŞUNA BASILI TUT" : "BASILI TUT"}</small>
+                : keyboardHintsVisible ? "F / E TUŞUNA BASILI TUT" : "BASILI TUT"}</small>
             </button>
           )}
           {damagePopup && (

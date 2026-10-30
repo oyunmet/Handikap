@@ -2,10 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   advanceWarRoomKillStreak,
+  getWarRoomHealthBand,
   isWarRoomLowHealth,
   WAR_ROOM_MULTI_KILL_WINDOW_MS,
   WAR_ROOM_LOW_HEALTH_RATIO,
 } from "./war-room-feedback.ts";
+
+test("health bar color follows stable high, medium, and low health bands", () => {
+  assert.equal(getWarRoomHealthBand(80, 100), "is-high");
+  assert.equal(getWarRoomHealthBand(50, 100), "is-medium");
+  assert.equal(getWarRoomHealthBand(20, 100), "is-low");
+  assert.equal(getWarRoomHealthBand(0, 0), "is-low");
+});
 
 test("low-health feedback starts at one quarter health and rejects invalid maxima", () => {
   assert.equal(isWarRoomLowHealth(25, 100), true);

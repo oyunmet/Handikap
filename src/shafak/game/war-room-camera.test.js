@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  clampWarRoomCameraToInterior,
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
+  resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   resolveWarRoomCameraSweep,
 } from "./war-room-camera.ts";
@@ -117,6 +119,29 @@ test("third-person placement shifts around a nearby wall before shortening the c
   assert.equal(result.usedAlternate, true);
   assert.ok(Math.hypot(result.position.x, result.position.y - 1.5, result.position.z) >= 2.5);
   assert.equal(isWarRoomCameraPointClear(result.position, [wall], 0.28), true);
+});
+
+test("indoor camera targets remain within the rotated house and do not route around its walls", () => {
+  const interior = { x: 4, z: -3, width: 8, depth: 6, rotationY: Math.PI / 2 };
+  const clamped = clampWarRoomCameraToInterior(
+    { x: 14, y: 1.8, z: -4 },
+    interior,
+  );
+  const localX = Math.cos(interior.rotationY) * (clamped.x - interior.x)
+    - Math.sin(interior.rotationY) * (clamped.z - interior.z);
+  const localZ = Math.sin(interior.rotationY) * (clamped.x - interior.x)
+    + Math.cos(interior.rotationY) * (clamped.z - interior.z);
+  assert.ok(Math.abs(localX) <= interior.width / 2 - 0.62 + 1e-8);
+  assert.ok(Math.abs(localZ) <= interior.depth / 2 - 0.62 + 1e-8);
+  assert.equal(clamped.y, 1.8);
+
+  const houseWall = { ...wall, id: "house-wall", minZ: -2.4, maxZ: -1.7 };
+  const start = { x: 0, y: 1.5, z: 0 };
+  const end = { x: 0, y: 1.5, z: -3 };
+  const result = resolveWarRoomInteriorCameraPlacement(start, end, [houseWall]);
+  assert.equal(result.usedAlternate, false);
+  assert.ok(result.position.z > houseWall.maxZ);
+  assert.ok(result.safeDistance < 3);
 });
 
 test("first person camera stays at the eye without a third-person shoulder", () => {

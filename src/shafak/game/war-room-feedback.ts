@@ -1,6 +1,14 @@
 export const WAR_ROOM_LOW_HEALTH_RATIO = 0.25;
 export const WAR_ROOM_MULTI_KILL_WINDOW_MS = 3_000;
 
+export type WarRoomHealthBand = "is-high" | "is-medium" | "is-low";
+
+export function getWarRoomHealthBand(hp: number, maxHp: number): WarRoomHealthBand {
+  if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || maxHp <= 0) return "is-low";
+  const ratio = Math.max(0, Math.min(1, hp / maxHp));
+  return ratio <= 0.3 ? "is-low" : ratio <= 0.6 ? "is-medium" : "is-high";
+}
+
 export function isWarRoomLowHealth(hp: number, maxHp: number) {
   return Number.isFinite(hp)
     && Number.isFinite(maxHp)

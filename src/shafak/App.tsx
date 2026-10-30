@@ -1237,7 +1237,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 lookSensitivityY={preferences.warRoomLookSensitivityY}
                 aimSensitivityMultiplier={preferences.warRoomAimSensitivityMultiplier}
                 joystickMode={preferences.warRoomJoystickMode}
-                cameraMode={preferences.warRoomCameraMode}
                 shoulderSide={preferences.warRoomShoulderSide}
                 shoulderOffset={preferences.warRoomShoulderOffset}
                 onOpenSettings={() => setSettingsOpen(true)}

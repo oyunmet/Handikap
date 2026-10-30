@@ -14,6 +14,7 @@ import {
 } from "../game/war-room-data";
 import {
   getWarRoomFloorHeight,
+  getWarRoomBuildingLocalPoint,
   type WarRoomRoom,
 } from "../game/war-room-rooms";
 import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
@@ -43,8 +44,10 @@ import {
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
+  clampWarRoomCameraToInterior,
   getWarRoomCameraRig,
   isWarRoomCameraPointClear,
+  resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   type WarRoomCameraBounds,
   type WarRoomCameraMode,
@@ -149,6 +152,42 @@ type Props = {
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
+
+type WarRoomHandMountPose = {
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  scale: THREE.Vector3;
+};
+
+function getWarRoomHandMountPose(
+  root: THREE.Group,
+  hand: THREE.Object3D,
+  mount: WarRoomWeaponMount,
+): WarRoomHandMountPose {
+  root.updateWorldMatrix(true, true);
+  hand.updateWorldMatrix(true, false);
+
+  const position = new THREE.Vector3(...mount.position)
+    .applyMatrix4(root.matrixWorld)
+    .applyMatrix4(new THREE.Matrix4().copy(hand.matrixWorld).invert());
+  const rootWorldRotation = root.getWorldQuaternion(new THREE.Quaternion());
+  const handWorldRotation = hand.getWorldQuaternion(new THREE.Quaternion()).invert();
+  const weaponWorldRotation = rootWorldRotation.multiply(
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(...mount.rotation)),
+  );
+  const quaternion = handWorldRotation.multiply(weaponWorldRotation);
+  const handScale = hand.getWorldScale(new THREE.Vector3());
+
+  return {
+    position,
+    quaternion,
+    scale: new THREE.Vector3(
+      mount.scale / Math.max(0.01, Math.abs(handScale.x)),
+      mount.scale / Math.max(0.01, Math.abs(handScale.y)),
+      mount.scale / Math.max(0.01, Math.abs(handScale.z)),
+    ),
+  };
+}
 
 const WAR_ROOM_ROAD_TEXTURES = createWorldRoadSurfaceTextures();
 const WAR_ROOM_FLOOR_MATERIAL = new THREE.MeshStandardMaterial({
@@ -1419,6 +1458,12 @@ function PlayerActor({
 }) {
   const recoilRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
+  const handMountPoseRef = useRef<{
+    hand: THREE.Object3D;
+    mount: WarRoomWeaponMount;
+    weaponId: WarRoomWeaponId;
+    pose: WarRoomHandMountPose;
+  } | null>(null);
   const reloadMagazineRef = useRef<THREE.Mesh>(null);
   const previousShotFeedbackRef = useRef(0);
   const shotgunPumpStartedAtRef = useRef(-1);
@@ -1585,19 +1630,31 @@ function PlayerActor({
       const chargeProgress = weapon.charge && player.chargeStartedAt > 0
         ? Math.max(0, Math.min(1, (player.clockTime - player.chargeStartedAt) / 0.95))
         : 0;
-      if (hand) {
+      if (hand && root) {
+        let cachedPose = handMountPoseRef.current;
+        if (
+          !cachedPose
+          || cachedPose.hand !== hand
+          || cachedPose.mount !== mount
+          || cachedPose.weaponId !== weaponId
+        ) {
+          cachedPose = {
+            hand,
+            mount,
+            weaponId,
+            pose: getWarRoomHandMountPose(root, hand, mount),
+          };
+          handMountPoseRef.current = cachedPose;
+        }
+        weaponMount.position.copy(cachedPose.pose.position);
+        weaponMount.quaternion.copy(cachedPose.pose.quaternion);
+        weaponMount.scale.copy(cachedPose.pose.scale);
         const handScale = hand.getWorldScale(new THREE.Vector3());
         const readabilityScale = melee ? 1.2 : 1.12;
-        weaponMount.position.set(
-          (mount.position[0] + 0.035) / Math.max(0.01, Math.abs(handScale.x)),
-          (mount.position[1] + (aiming ? 0.055 : 0)) / Math.max(0.01, Math.abs(handScale.y)),
-          (mount.position[2] - (aiming ? 0.045 : 0)) / Math.max(0.01, Math.abs(handScale.z)),
-        );
-        weaponMount.scale.set(
-          (mount.scale * readabilityScale) / Math.max(0.01, Math.abs(handScale.x)),
-          (mount.scale * readabilityScale) / Math.max(0.01, Math.abs(handScale.y)),
-          (mount.scale * readabilityScale) / Math.max(0.01, Math.abs(handScale.z)),
-        );
+        weaponMount.scale.multiplyScalar(readabilityScale);
+        weaponMount.position.x += 0.035 / Math.max(0.01, Math.abs(handScale.x));
+        weaponMount.position.y += (aiming ? 0.055 : 0) / Math.max(0.01, Math.abs(handScale.y));
+        weaponMount.position.z -= (aiming ? 0.045 : 0) / Math.max(0.01, Math.abs(handScale.z));
       } else {
         if (melee) {
           weaponMount.position.set(0.34, 1.1, -0.26);
@@ -1606,10 +1663,10 @@ function PlayerActor({
           weaponMount.position.set(0.7, 1.24 + (aiming ? 0.055 : 0), -0.36 - (aiming ? 0.045 : 0));
           weaponMount.scale.setScalar(1.32);
         }
+        weaponMount.rotation.set(...mount.rotation);
       }
       weaponMount.position.y -= reloadDrop * 0.14 + chargeProgress * 0.035;
       weaponMount.position.z += recoilStrength * 0.08 + pumpStrength * 0.14 + chargeProgress * 0.1;
-      weaponMount.rotation.set(...mount.rotation);
       weaponMount.rotation.x -= recoilStrength * 0.052 + pumpStrength * 0.06 + reloadDrop * 0.48 + chargeProgress * 0.16;
       weaponMount.rotation.z += recoilStrength * 0.018;
       if (melee) {
@@ -1619,13 +1676,9 @@ function PlayerActor({
         weaponMount.position.y += idleBreath;
         weaponMount.position.x += idleBreath * 0.35;
         weaponMount.rotation.z += idleBreath * 0.9;
-        weaponMount.position.y += meleeLift * (player.meleeAttackHeavy ? 0.14 : 0.08);
         if (weapon.meleeStyle === "thrust") {
-          weaponMount.position.z += meleePrepare * 0.12 - meleeStrike * (0.58 * heavyScale);
           weaponMount.rotation.x += -meleePrepare * 0.22 + meleeStrike * (0.34 * heavyScale);
         } else {
-          weaponMount.position.x += meleeStrike * (0.12 + swingDirection * 0.045);
-          weaponMount.position.z -= meleeStrike * 0.11;
           weaponMount.rotation.x += -meleeLift * (player.meleeAttackHeavy ? 0.42 : 0.28) + meleeStrike * (0.48 * heavyScale);
           weaponMount.rotation.z += meleeLift * 0.18
             - meleeStrike * ((weaponId === "melee_axe" || weaponId === "melee_shovel" || weaponId === "melee_pickaxe" ? 1.08 : 0.82) + swingDirection * 0.22);
@@ -1634,7 +1687,6 @@ function PlayerActor({
             && player.meleeAttackHeavy
             && ["melee_axe", "melee_shovel", "melee_pickaxe"].includes(weaponId)
           ) {
-            weaponMount.position.y += meleePrepare * 0.16;
             weaponMount.rotation.x -= meleePrepare * 0.48;
             weaponMount.rotation.x += meleeStrike * 0.32;
           }
@@ -1810,6 +1862,12 @@ function EnemyActor({
   const hitPulseRef = useRef<THREE.Mesh>(null);
   const modelRef = useRef<THREE.Group | null>(null);
   const weaponMountRef = useRef<THREE.Group>(null);
+  const handMountPoseRef = useRef<{
+    hand: THREE.Object3D;
+    mount: WarRoomWeaponMount;
+    weaponId: WarRoomWeaponId;
+    pose: WarRoomHandMountPose;
+  } | null>(null);
   const attackWarningRef = useRef<THREE.Group>(null);
   const muzzleAnchorRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Group>(null);
@@ -1862,25 +1920,32 @@ function EnemyActor({
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const weaponMount = weaponMountRef.current;
-    if (hand && weaponMount) {
+    const root = groupRef.current;
+    if (hand && weaponMount && root) {
       if (weaponMount.parent !== hand) {
         weaponMount.parent?.remove(weaponMount);
         hand.add(weaponMount);
       }
       weaponMount.visible = true;
       const mount = WAR_ROOM_WEAPON_MOUNTS[enemy.weaponId];
-      const handScale = hand.getWorldScale(new THREE.Vector3());
-      weaponMount.position.set(
-        mount.position[0] / Math.max(0.01, Math.abs(handScale.x)),
-        mount.position[1] / Math.max(0.01, Math.abs(handScale.y)),
-        mount.position[2] / Math.max(0.01, Math.abs(handScale.z)),
-      );
-      weaponMount.rotation.set(...mount.rotation);
-      weaponMount.scale.set(
-        mount.scale / Math.max(0.01, Math.abs(handScale.x)),
-        mount.scale / Math.max(0.01, Math.abs(handScale.y)),
-        mount.scale / Math.max(0.01, Math.abs(handScale.z)),
-      );
+      let cachedPose = handMountPoseRef.current;
+      if (
+        !cachedPose
+        || cachedPose.hand !== hand
+        || cachedPose.mount !== mount
+        || cachedPose.weaponId !== enemy.weaponId
+      ) {
+        cachedPose = {
+          hand,
+          mount,
+          weaponId: enemy.weaponId,
+          pose: getWarRoomHandMountPose(root, hand, mount),
+        };
+        handMountPoseRef.current = cachedPose;
+      }
+      weaponMount.position.copy(cachedPose.pose.position);
+      weaponMount.quaternion.copy(cachedPose.pose.quaternion);
+      weaponMount.scale.copy(cachedPose.pose.scale);
     } else if (weaponMount) {
       weaponMount.visible = false;
     }
@@ -2010,10 +2075,16 @@ function EnemyActor({
         />
       </mesh>
       {enemy.commander && (
-        <mesh position={[0, 2.12, 0]}>
-          <coneGeometry args={[0.2, 0.36, 5]} />
-          <meshBasicMaterial color="#ff433a" toneMapped={false} />
-        </mesh>
+        <group position={[0, 2.08, 0]} name="commander-crest">
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.16, 0.025, 6, 16]} />
+            <meshBasicMaterial color="#ffd173" toneMapped={false} />
+          </mesh>
+          <mesh position={[0, 0.16, 0]}>
+            <coneGeometry args={[0.19, 0.34, 5]} />
+            <meshBasicMaterial color="#ff433a" toneMapped={false} />
+          </mesh>
+        </group>
       )}
     </group>
   );
@@ -2242,6 +2313,8 @@ function WarRoomRuntimeScene({
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
+  const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
+  const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
   const emptyClickAtRef = useRef(0);
   const meleePerformanceRef = useRef({
     started: false,
@@ -2840,6 +2913,8 @@ function WarRoomRuntimeScene({
   const applyKillRecovery = (player: WarRoomRuntime["player"], commander: boolean, now: number) => {
     const healed = applyWarRoomKillHeal(player, commander, RESTORE_CONFIG);
     if (healed <= 0) return;
+    player.lastHitSource = null;
+    player.lastHitDamage = 0;
     player.lastHitText = `+${Math.round(healed)} CAN`;
     player.hitMessageUntil = now + 1.35;
   };
@@ -2944,7 +3019,7 @@ function WarRoomRuntimeScene({
     );
     if (WAR_ROOM_POOLED_FX_ENABLED) {
       if (effects.bloodParticles > 0) {
-        spawnImpact(impact.point, "#b82e3b", now, effects.bloodParticles, 0.045);
+        spawnImpact(impact.point, "#d33d50", now, effects.bloodParticles, 0.045);
       }
       if (effects.exitSplashParticles > 0) {
         const thrustX = Math.sin(player.meleeAttackYaw);
@@ -3115,6 +3190,8 @@ function WarRoomRuntimeScene({
     if (!ammo || ammo.magazine <= 0) {
       if (now >= emptyClickAtRef.current) {
         playWarRoomSound("empty", 1, "rifle", getWarRoomAudioOptions(player, player.x, player.z));
+        player.lastHitSource = null;
+        player.lastHitDamage = 0;
         player.lastHitText = "CEPHANE BİTTİ · YENİDEN DOLDUR";
         player.hitMessageUntil = now + 1.1;
         emptyClickAtRef.current = now + 0.45;
@@ -3238,7 +3315,7 @@ function WarRoomRuntimeScene({
             weaponId,
           );
           if (effects.bloodParticles > 0) {
-            spawnImpact(aim.point, "#b82e3b", now, effects.bloodParticles, 0.045);
+        spawnImpact(aim.point, "#d33d50", now, effects.bloodParticles, 0.045);
           }
           if (effects.sparkParticles > 0) {
             spawnImpact(aim.point, effects.sparkColor, now, effects.sparkParticles, 0.05);
@@ -3556,6 +3633,8 @@ function WarRoomRuntimeScene({
       }
       if (player.lootProgress >= 1) {
         player.lastHitText = applyWarRoomLootChest(player, chest);
+        player.lastHitSource = null;
+        player.lastHitDamage = 0;
         player.hitMessageUntil = now + 1.6;
         chest.opened = true;
         player.lootChestId = null;
@@ -3579,6 +3658,8 @@ function WarRoomRuntimeScene({
       RESTORE_CONFIG,
     );
     if (pickup.point && pickup.healed > 0) {
+      player.lastHitSource = null;
+      player.lastHitDamage = 0;
       player.lastHitText = `+${Math.round(pickup.healed)} CAN`;
       player.hitMessageUntil = now + 1.35;
       playWarRoomSound(
@@ -3764,6 +3845,56 @@ function WarRoomRuntimeScene({
           );
         }
       }
+      const playerVerticalGap = Math.abs(
+        (enemy.floorHeight ?? 0) - (player.floorHeight + player.jumpHeight),
+      );
+      const minimumActorGap = enemy.commander ? 1.2 : 0.88;
+      const actorGap = Math.hypot(enemy.x - player.x, enemy.z - player.z);
+      if (playerVerticalGap < 1.25 && actorGap < minimumActorGap) {
+        const fallbackAngle = (index % 4) * (Math.PI / 2);
+        const awayX = actorGap > 0.001 ? (enemy.x - player.x) / actorGap : Math.cos(fallbackAngle);
+        const awayZ = actorGap > 0.001 ? (enemy.z - player.z) / actorGap : Math.sin(fallbackAngle);
+        const overlap = minimumActorGap - actorGap;
+        const enemyPush = overlap * 0.65;
+        const enemySeparated = moveWarRoomEntity(
+          enemy.x,
+          enemy.z,
+          awayX * enemyPush,
+          awayZ * enemyPush,
+          0.35,
+          runtime.room.blockers,
+          enemy.floorHeight ?? 0,
+        );
+        enemy.x = enemySeparated.x;
+        enemy.z = enemySeparated.z;
+        enemy.floorHeight = getWarRoomFloorHeight(
+          enemy.x,
+          enemy.z,
+          enemy.floorHeight ?? 0,
+          runtime.room.buildings,
+        );
+
+        const remainingOverlap = minimumActorGap - Math.hypot(enemy.x - player.x, enemy.z - player.z);
+        if (remainingOverlap > 0.001) {
+          const playerSeparated = moveWarRoomEntity(
+            player.x,
+            player.z,
+            -awayX * remainingOverlap,
+            -awayZ * remainingOverlap,
+            0.4,
+            runtime.room.blockers,
+            player.floorHeight,
+          );
+          player.x = playerSeparated.x;
+          player.z = playerSeparated.z;
+          player.floorHeight = getWarRoomFloorHeight(
+            player.x,
+            player.z,
+            player.floorHeight,
+            runtime.room.buildings,
+          );
+        }
+      }
       if (group) {
         group.position.set(enemy.x, enemy.floorHeight ?? 0, enemy.z);
         group.visible = true;
@@ -3800,9 +3931,10 @@ function WarRoomRuntimeScene({
         player.z,
         PLAYER_CHARACTER_MODEL_FACING,
       );
-      const actorYaw = enemyGroup?.rotation.y ?? targetYaw;
-      if (!isWarRoomFacingTarget(actorYaw, targetYaw)) continue;
-      const enemyFacingYaw = actorYaw + PLAYER_CHARACTER_MODEL_FACING;
+        const actorYaw = enemyGroup?.rotation.y ?? targetYaw;
+      if (!enemyGroup || !isWarRoomFacingTarget(actorYaw, targetYaw)) continue;
+      enemyGroup.rotation.y = targetYaw;
+      const enemyFacingYaw = targetYaw + PLAYER_CHARACTER_MODEL_FACING;
       enemy.nextShotAt = now + (enemy.commander ? 1.2 : 1.65) + nextWarRoomRandom(runtime) * 0.55;
       const muzzle = new THREE.Vector3(
         enemy.x + 0.22,
@@ -4018,6 +4150,69 @@ function WarRoomRuntimeScene({
       shoulderSide,
       victoryZoom,
     });
+    const playerBodyPoint = {
+      x: player.x,
+      y: player.floorHeight + player.jumpHeight + 0.75,
+      z: player.z,
+    };
+    if (now - lastPlayerSafetyCheckAtRef.current >= 0.15) {
+      lastPlayerSafetyCheckAtRef.current = now;
+      if (!isWarRoomCameraPointClear(playerBodyPoint, cameraBoundsRef.current, 0.05)) {
+        let recovered = false;
+        const savedPosition = lastSafePlayerPositionRef.current;
+        if (
+          savedPosition
+          && isWarRoomCameraPointClear(
+            { x: savedPosition.x, y: savedPosition.floorHeight + 0.75, z: savedPosition.z },
+            cameraBoundsRef.current,
+            0.05,
+          )
+        ) {
+          player.x = savedPosition.x;
+          player.z = savedPosition.z;
+          player.floorHeight = savedPosition.floorHeight;
+          player.jumpHeight = 0;
+          player.jumpVelocity = 0;
+          recovered = true;
+        }
+        for (let radius = 0.5; !recovered && radius <= 3; radius += 0.5) {
+          for (let step = 0; step < 12; step += 1) {
+            const angle = (step / 12) * Math.PI * 2;
+            const candidateX = player.x + Math.cos(angle) * radius;
+            const candidateZ = player.z + Math.sin(angle) * radius;
+            const candidateFloor = getWarRoomFloorHeight(
+              candidateX,
+              candidateZ,
+              player.floorHeight,
+              room.buildings,
+            );
+            if (!isWarRoomCameraPointClear(
+              { x: candidateX, y: candidateFloor + 0.75, z: candidateZ },
+              cameraBoundsRef.current,
+              0.05,
+            )) continue;
+            player.x = candidateX;
+            player.z = candidateZ;
+            player.floorHeight = candidateFloor;
+            player.jumpHeight = 0;
+            player.jumpVelocity = 0;
+            recovered = true;
+            break;
+          }
+        }
+      }
+      if (isWarRoomCameraPointClear(
+        { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
+        cameraBoundsRef.current,
+        0.05,
+      )) {
+        lastSafePlayerPositionRef.current = {
+          x: player.x,
+          z: player.z,
+          floorHeight: player.floorHeight,
+        };
+      }
+    }
     cameraStart.set(
       player.x,
       player.floorHeight + player.jumpHeight + (player.prone ? 0.65 : player.crouched ? 1.2 : 1.55),
@@ -4028,6 +4223,18 @@ function WarRoomRuntimeScene({
       cameraStart.y + (cameraMode === "first-person" ? 0 : 0.35) - cameraForwardY * cameraBack,
       player.z - cameraForwardZ * cameraBack + Math.sin(player.yaw) * shoulder,
     );
+    const indoorBuilding = room.buildings.find((building) => {
+      const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
+      return Math.abs(localPlayer.x) <= building.width / 2
+        && Math.abs(localPlayer.z) <= building.depth / 2;
+    });
+    if (indoorBuilding) {
+      const indoorTarget = clampWarRoomCameraToInterior(
+        { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
+        indoorBuilding,
+      );
+      cameraDesired.set(indoorTarget.x, indoorTarget.y, indoorTarget.z);
+    }
     if (scene && now - cameraBoundsRefreshRef.current >= 0.25) {
       scene.updateMatrixWorld(true);
       const occluders: CameraOccluderEntry[] = [];
@@ -4054,15 +4261,26 @@ function WarRoomRuntimeScene({
       cameraBoundsRefreshRef.current = now;
     }
     const requestedCameraDistance = cameraStart.distanceTo(cameraDesired);
+    const cameraStartPoint = { x: cameraStart.x, y: cameraStart.y, z: cameraStart.z };
+    const cameraEndPoint = { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z };
     const cameraPlacement = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
-      ? resolveWarRoomCameraPlacement(
-        { x: cameraStart.x, y: cameraStart.y, z: cameraStart.z },
-        { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
-        cameraBoundsRef.current,
-        0.28,
-        2.5,
-        0.08,
-      )
+      ? indoorBuilding
+        ? resolveWarRoomInteriorCameraPlacement(
+          cameraStartPoint,
+          cameraEndPoint,
+          cameraBoundsRef.current,
+          0.28,
+          1.2,
+          0.08,
+        )
+        : resolveWarRoomCameraPlacement(
+          cameraStartPoint,
+          cameraEndPoint,
+          cameraBoundsRef.current,
+          0.28,
+          2.5,
+          0.08,
+        )
       : null;
     const blockerId = cameraPlacement?.blocked ? cameraPlacement.blockerId : null;
     if (cameraPlacement) {
@@ -4131,6 +4349,14 @@ function WarRoomRuntimeScene({
         + cameraForwardY * cameraLookAhead + cameraKickRef.current * cameraMotionScale,
       player.z + cameraForwardZ * cameraLookAhead,
     );
+    if (indoorBuilding) {
+      const indoorLook = clampWarRoomCameraToInterior(
+        { x: cameraLook.x, y: cameraLook.y, z: cameraLook.z },
+        indoorBuilding,
+        0.2,
+      );
+      cameraLook.set(indoorLook.x, indoorLook.y, indoorLook.z);
+    }
     cameraLook.x += Math.cos(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
     cameraLook.z += Math.sin(player.yaw) * cameraSideKickRef.current * cameraMotionScale;
     cameraKickRef.current = Math.max(0, cameraKickRef.current - delta * 0.72);

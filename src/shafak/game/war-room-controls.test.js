@@ -6,12 +6,21 @@ import {
   clearWarRoomControlLayout,
   createDefaultWarRoomControlLayout,
   fitWarRoomControlLayoutToStage,
+  isWarRoomDynamicStickStartAllowed,
   loadWarRoomControlLayout,
   moveWarRoomControl,
   normalizeWarRoomControlLayout,
   resizeWarRoomControl,
   saveWarRoomControlLayout,
 } from "./war-room-controls.ts";
+
+test("dynamic joystick touch starts stay above portrait health HUD at common iPhone sizes", () => {
+  for (const [width, height] of [[390, 844], [360, 780]]) {
+    assert.equal(isWarRoomDynamicStickStartAllowed(52, height - 290, width, height), true);
+    assert.equal(isWarRoomDynamicStickStartAllowed(52, height - 210, width, height), false);
+    assert.equal(isWarRoomDynamicStickStartAllowed(52, height - 40, width, height), false);
+  }
+});
 
 test("War Room control catalog contains all movable touch controls", () => {
   assert.deepEqual(

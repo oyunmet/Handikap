@@ -62,6 +62,20 @@ export function createDefaultWarRoomControlLayout(): WarRoomControlLayout {
   ])) as WarRoomControlLayout;
 }
 
+export function isWarRoomDynamicStickStartAllowed(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return false;
+  const landscape = height < 500;
+  const minY = landscape ? height * 0.18 : height * 0.38;
+  const maxY = landscape ? height - 126 : height - 270;
+  const maxX = landscape ? Math.min(width * 0.46, 96) : width * 0.46;
+  return x >= 12 && x <= maxX && y >= minY && y <= maxY;
+}
+
 export function normalizeWarRoomControlLayout(value: unknown): WarRoomControlLayout {
   const defaults = createDefaultWarRoomControlLayout();
   if (!isRecord(value)) return defaults;

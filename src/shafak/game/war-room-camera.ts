@@ -52,6 +52,14 @@ export type WarRoomCameraPlacement = WarRoomCameraSweep & {
   usedAlternate: boolean;
 };
 
+export type WarRoomInteriorCameraBounds = {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  rotationY: number;
+};
+
 function pointAlongSegment(
   start: WarRoomCameraPoint,
   end: WarRoomCameraPoint,
@@ -64,6 +72,54 @@ function pointAlongSegment(
     x: start.x + (end.x - start.x) * fraction,
     y: start.y + (end.y - start.y) * fraction,
     z: start.z + (end.z - start.z) * fraction,
+  };
+}
+
+export function clampWarRoomCameraToInterior(
+  point: WarRoomCameraPoint,
+  interior: WarRoomInteriorCameraBounds,
+  clearance = 0.62,
+): WarRoomCameraPoint {
+  const cosine = Math.cos(interior.rotationY);
+  const sine = Math.sin(interior.rotationY);
+  const dx = point.x - interior.x;
+  const dz = point.z - interior.z;
+  const localX = Math.max(
+    -Math.max(0, interior.width / 2 - clearance),
+    Math.min(Math.max(0, interior.width / 2 - clearance), cosine * dx - sine * dz),
+  );
+  const localZ = Math.max(
+    -Math.max(0, interior.depth / 2 - clearance),
+    Math.min(Math.max(0, interior.depth / 2 - clearance), sine * dx + cosine * dz),
+  );
+  return {
+    x: interior.x + cosine * localX + sine * localZ,
+    y: point.y,
+    z: interior.z - sine * localX + cosine * localZ,
+  };
+}
+
+/**
+ * Indoor views stay on the direct shoulder-camera segment. Searching lateral
+ * alternatives here can put the camera outside a house through its walls.
+ */
+export function resolveWarRoomInteriorCameraPlacement(
+  start: WarRoomCameraPoint,
+  end: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  radius = 0.28,
+  minimumDistance = 1.2,
+  clearance = 0.08,
+): WarRoomCameraPlacement {
+  const sweep = resolveWarRoomCameraSweep(start, end, bounds, radius, minimumDistance, clearance);
+  return {
+    ...sweep,
+    position: pointAlongSegment(
+      start,
+      end,
+      Math.min(sweep.safeDistance, Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z)),
+    ),
+    usedAlternate: false,
   };
 }
 
