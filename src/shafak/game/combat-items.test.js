@@ -31,7 +31,9 @@ function tap(button) {
 }
 
 test("combat inventory defaults provide four usable quick slots and normalize old saves", () => {
-  assert.equal(COMBAT_ITEMS.length, 6);
+  assert.equal(COMBAT_ITEMS.length, 9);
+  assert.equal(COMBAT_ITEMS.filter((item) => item.quickSlot !== false).length, 6);
+  assert.equal(DEFAULT_COMBAT_QUICK_SLOTS.length, 4);
   assert.deepEqual(normalizeCombatItemCounts(undefined), DEFAULT_COMBAT_ITEM_COUNTS);
   assert.deepEqual(normalizeCombatQuickSlots(undefined, DEFAULT_COMBAT_ITEM_COUNTS), DEFAULT_COMBAT_QUICK_SLOTS);
   assert.equal(normalizeCombatItemCounts({ health_potion: -4 }).health_potion, 0);

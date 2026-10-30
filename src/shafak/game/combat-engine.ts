@@ -308,7 +308,7 @@ export function createCombatState(
     opponentTuning.progressPercent,
     opponentTuning.isElite,
   );
-  const botBaseHealth = difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 130;
+  const botBaseHealth = difficulty === "hard" ? 160 : difficulty === "medium" ? 145 : 200;
   const botHealth = Math.round(botBaseHealth * tuning.statMultiplier * (botArchetype === "chapter-boss" ? 1.7 : 1));
   return {
     tick: 0,

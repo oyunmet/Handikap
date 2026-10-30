@@ -43,7 +43,7 @@ export const RESTORE_CONFIG: WarRoomRestoreConfig = {
   },
   healingPoints: [
     { id: "heal-west", x: -20, z: -5 },
-    { id: "heal-east", x: 20, z: -5 },
+    { id: "heal-east", x: 21.5, z: -5 },
     { id: "heal-south-west", x: -11, z: 17 },
     { id: "heal-south-east", x: 11, z: 17 },
   ],

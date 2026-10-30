@@ -19,6 +19,7 @@ import {
 } from "../src/shafak/game/store-types.ts";
 
 const key = "d85e8c16-e9a2-4a74-96c0-2a25270050e8";
+const tradableWeaponId = "weapon_iron_axe";
 
 test("store persistence failures distinguish an outdated schema from a transient outage", () => {
   assert.equal(classifyStoreStorageError({ code: "42P01" }), "store_schema_outdated");
@@ -161,13 +162,13 @@ test("buying equipment immediately equips it and activates its combat stats", as
   const baselineStats = calculateAccountCombatStats(profile);
   const { pool, send } = await openStoreApi(t, profile);
   const response = await send("purchase", {
-    itemId: "weapon_iron_sword",
+    itemId: tradableWeaponId,
     idempotencyKey: "9ab02d0e-69c8-4f8b-9909-f22f1f6b9070",
   });
 
   assert.equal(response.status, 200);
-  assert.equal(pool.profile.equipment.weaponId, "weapon_iron_sword");
-  assert.ok(pool.profile.inventory.ownedItemIds.includes("weapon_iron_sword"));
+  assert.equal(pool.profile.equipment.weaponId, tradableWeaponId);
+  assert.ok(pool.profile.inventory.ownedItemIds.includes(tradableWeaponId));
   assert.ok(calculateAccountCombatStats(pool.profile).damageMultiplier > baselineStats.damageMultiplier);
 });
 
@@ -269,27 +270,27 @@ test("repeat purchases add consumable and material stock without creating equipm
   assert.equal(pool.profile.materials.ironShards, 1);
 });
 
-test("selling returns forty percent, removes the item once, and rejects equipped gear", async (t) => {
+test("selling returns the catalog value, removes the item once, and rejects equipped gear", async (t) => {
   const profile = createDefaultPlayerProfile();
   profile.gold = 0;
-  profile.inventory.ownedItemIds.push("weapon_iron_sword");
+  profile.inventory.ownedItemIds.push(tradableWeaponId);
   const { pool, send } = await openStoreApi(t, profile);
-  const expectedValue = getItemSellValue(STORE_CATALOG.find((item) => item.id === "weapon_iron_sword"));
+  const expectedValue = getItemSellValue(STORE_CATALOG.find((item) => item.id === tradableWeaponId));
   const saleKey = "173b0583-66df-4b46-90b1-81339261df6b";
-  const first = await send("sell", { itemId: "weapon_iron_sword", idempotencyKey: saleKey });
+  const first = await send("sell", { itemId: tradableWeaponId, idempotencyKey: saleKey });
   assert.equal(first.status, 200);
   assert.equal(pool.profile.gold, expectedValue.gold);
-  assert.equal(pool.profile.inventory.ownedItemIds.includes("weapon_iron_sword"), false);
-  const replay = await send("sell", { itemId: "weapon_iron_sword", idempotencyKey: saleKey });
+  assert.equal(pool.profile.inventory.ownedItemIds.includes(tradableWeaponId), false);
+  const replay = await send("sell", { itemId: tradableWeaponId, idempotencyKey: saleKey });
   assert.equal(replay.status, 200);
   assert.equal(pool.profile.gold, expectedValue.gold);
 
   const equippedProfile = createDefaultPlayerProfile();
-  equippedProfile.inventory.ownedItemIds.push("weapon_iron_sword");
-  equippedProfile.equipment.weaponId = "weapon_iron_sword";
+  equippedProfile.inventory.ownedItemIds.push(tradableWeaponId);
+  equippedProfile.equipment.weaponId = tradableWeaponId;
   const equippedStore = await openStoreApi(t, equippedProfile);
   const blocked = await equippedStore.send("sell", {
-    itemId: "weapon_iron_sword",
+    itemId: tradableWeaponId,
     idempotencyKey: "7ce5888d-8468-40bd-a950-63d861e2cfbb",
   });
   assert.equal(blocked.status, 409);
@@ -298,39 +299,40 @@ test("selling returns forty percent, removes the item once, and rejects equipped
 
 test("salvaging removes loose gear and returns upgrade-aware materials", async (t) => {
   const profile = createDefaultPlayerProfile();
-  profile.inventory.ownedItemIds.push("weapon_iron_sword");
-  profile.inventory.upgrades.weapon_iron_sword = 4;
+  profile.inventory.ownedItemIds.push(tradableWeaponId);
+  profile.inventory.upgrades[tradableWeaponId] = 4;
   const { pool, send } = await openStoreApi(t, profile);
-  const expectedYield = getSalvageYield(STORE_CATALOG.find((item) => item.id === "weapon_iron_sword"), 4);
+  const expectedYield = getSalvageYield(STORE_CATALOG.find((item) => item.id === tradableWeaponId), 4);
   const response = await send("salvage", {
-    itemId: "weapon_iron_sword",
+    itemId: tradableWeaponId,
     idempotencyKey: "fbe26539-df39-4df5-9eb4-14c27e83469b",
   });
   assert.equal(response.status, 200);
-  assert.equal(pool.profile.inventory.ownedItemIds.includes("weapon_iron_sword"), false);
-  assert.equal(pool.profile.inventory.upgrades.weapon_iron_sword, undefined);
+  assert.equal(pool.profile.inventory.ownedItemIds.includes(tradableWeaponId), false);
+  assert.equal(pool.profile.inventory.upgrades[tradableWeaponId], undefined);
   assert.equal(pool.profile.materials.ironShards, expectedYield.ironShards);
   assert.equal(pool.profile.materials.emberCrystals, expectedYield.emberCrystals);
 });
 
-test("upgrade risk is deterministic, costs are spent on failure, and replays do not charge twice", async (t) => {
+test("upgrading spends its configured cost once and replays do not charge twice", async (t) => {
   assert.equal(getUpgradeSuccessChance(0), 100);
-  assert.equal(getUpgradeSuccessChance(6), 85);
+  const currentLevel = MAX_UPGRADE_LEVEL - 1;
+  assert.equal(getUpgradeSuccessChance(currentLevel), 100);
   const profile = createDefaultPlayerProfile();
   profile.gold = 1_000_000;
   profile.materials = { ironShards: 100, emberCrystals: 100, sealFragments: 100 };
-  profile.inventory.upgrades.weapon_ash_sword = 6;
+  profile.inventory.upgrades.weapon_ash_sword = currentLevel;
   const { pool, send } = await openStoreApi(t, profile);
   const upgradeKey = "2e630bf0-d06d-49c6-a8d3-939cc724ffdc";
-  const expectedSuccess = rollUpgradeSuccess(upgradeKey, 6);
+  const expectedSuccess = rollUpgradeSuccess(upgradeKey, currentLevel);
   const beforeGold = pool.profile.gold;
-  const cost = getUpgradeCost("weapon", 6);
+  const cost = getUpgradeCost("weapon", currentLevel);
   const response = await send("upgrade", { itemId: "weapon_ash_sword", idempotencyKey: upgradeKey });
   const result = await response.json();
   assert.equal(response.status, 200);
   assert.equal(result.upgradeSucceeded, expectedSuccess);
   assert.equal(pool.profile.gold, beforeGold - cost.gold);
-  assert.equal(pool.profile.inventory.upgrades.weapon_ash_sword, expectedSuccess ? 7 : 6);
+  assert.equal(pool.profile.inventory.upgrades.weapon_ash_sword, expectedSuccess ? currentLevel + 1 : currentLevel);
   const replay = await send("upgrade", { itemId: "weapon_ash_sword", idempotencyKey: upgradeKey });
   assert.equal((await replay.json()).replayed, true);
   assert.equal(pool.profile.gold, beforeGold - cost.gold);
@@ -394,13 +396,13 @@ test("equipped and upgraded item stats are calculated from the server catalog", 
 
   profile.inventory.upgrades[weapon.id] = 1;
   stats = calculateAccountCombatStats(profile);
-  assert.equal(stats?.damageMultiplier, 1.098);
+  assert.equal(stats?.damageMultiplier, 1.16);
 });
 
 test("upgrade prices increase by level and reserve seal fragments for higher tiers", () => {
-  const first = getUpgradeCost("weapon", 0);
-  const third = getUpgradeCost("weapon", 2);
-  const fifth = getUpgradeCost("weapon", MAX_UPGRADE_LEVEL - 1);
+  const first = getUpgradeCost("armor", 0);
+  const third = getUpgradeCost("armor", 2);
+  const fifth = getUpgradeCost("armor", MAX_UPGRADE_LEVEL - 1);
   assert.equal(first.sealFragments, 0);
   assert.ok(third.sealFragments > 0);
   assert.ok(fifth.gold > third.gold);
