@@ -6,6 +6,7 @@ import {
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
   getWarRoomYawError,
+  getWarRoomWorldMovement,
   isWarRoomFacingTarget,
   getWarRoomPostAttackStrafeUntil,
   resolveWarRoomLocomotion,
@@ -51,6 +52,22 @@ test("movement-facing mode turns toward forward and lateral world directions", (
   const left = resolveWarRoomOrientation(0, -1, 0, 0, false, "movement");
   closeAngle(left.yaw, -Math.PI / 2);
   assert.equal(left.joystickAngleDegrees, -90);
+});
+
+test("screen-forward and backward stay camera-relative after the player turns around", () => {
+  const forward = getWarRoomWorldMovement(0, 1, 0);
+  const backward = getWarRoomWorldMovement(0, -1, 0);
+  assert.ok(Math.abs(forward.x) < 1e-8);
+  assert.ok(Math.abs(forward.z + 1) < 1e-8);
+  assert.ok(Math.abs(backward.x) < 1e-8);
+  assert.ok(Math.abs(backward.z - 1) < 1e-8);
+
+  const forwardWhileFacingCamera = resolveWarRoomOrientation(0, 0, 1, Math.PI, false, "movement");
+  const backwardWhileFacingAway = resolveWarRoomOrientation(0, 0, -1, 0, false, "movement");
+  closeAngle(forwardWhileFacingCamera.yaw, 0);
+  closeAngle(backwardWhileFacingAway.yaw, Math.PI);
+  assert.equal(forwardWhileFacingCamera.facingCamera, false);
+  assert.equal(backwardWhileFacingAway.facingCamera, true);
 });
 
 test("camera-facing mode tracks idle camera yaw while aim keeps strafe behavior", () => {

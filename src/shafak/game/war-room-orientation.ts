@@ -30,6 +30,13 @@ export function getWarRoomFacingYawFromRootYaw(rootYaw: number) {
   return -rootYaw;
 }
 
+export function getWarRoomWorldMovement(moveX: number, moveY: number, cameraYaw: number) {
+  return {
+    x: Math.sin(cameraYaw) * moveY + Math.cos(cameraYaw) * moveX,
+    z: -Math.cos(cameraYaw) * moveY + Math.sin(cameraYaw) * moveX,
+  };
+}
+
 export function resolveWarRoomOrientation(
   cameraYaw: number,
   moveX: number,
@@ -51,8 +58,7 @@ export function resolveWarRoomOrientation(
     yaw = cameraYaw;
     mode = "KAMERA";
   } else if (moving) {
-    const worldX = Math.sin(cameraYaw) * moveY + Math.cos(cameraYaw) * moveX;
-    const worldZ = -Math.cos(cameraYaw) * moveY + Math.sin(cameraYaw) * moveX;
+    const { x: worldX, z: worldZ } = getWarRoomWorldMovement(moveX, moveY, cameraYaw);
     yaw = Math.atan2(worldX, -worldZ);
   }
 
@@ -76,8 +82,7 @@ export function resolveWarRoomLocomotion(
   bodyYaw: number,
   movementThreshold = 0.12,
 ) {
-  const worldX = Math.sin(cameraYaw) * moveY + Math.cos(cameraYaw) * moveX;
-  const worldZ = -Math.cos(cameraYaw) * moveY + Math.sin(cameraYaw) * moveX;
+  const { x: worldX, z: worldZ } = getWarRoomWorldMovement(moveX, moveY, cameraYaw);
   const bodyForwardX = Math.sin(bodyYaw);
   const bodyForwardZ = -Math.cos(bodyYaw);
   const bodyRightX = Math.cos(bodyYaw);

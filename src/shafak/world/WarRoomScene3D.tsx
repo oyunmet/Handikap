@@ -40,6 +40,7 @@ import {
   getWarRoomYawError,
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
+  getWarRoomWorldMovement,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
@@ -1451,6 +1452,7 @@ function ProceduralPlayerFallback() {
 function PlayerActor({
   runtimeRef,
   inputRef,
+  cameraHeadingRef,
   weaponId,
   weaponMountOverrides,
   rootRef,
@@ -1460,6 +1462,7 @@ function PlayerActor({
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
+  cameraHeadingRef: MutableRefObject<number | null>;
   weaponId: WarRoomWeaponId;
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   rootRef: MutableRefObject<THREE.Group | null>;
@@ -1738,7 +1741,12 @@ function PlayerActor({
       const moveY = inputRef.current.moveY
         + (inputRef.current.keys.has("w") ? 1 : 0)
         - (inputRef.current.keys.has("s") ? 1 : 0);
-      const locomotion = resolveWarRoomLocomotion(moveX, moveY, player.yaw, player.facingYaw);
+      const locomotion = resolveWarRoomLocomotion(
+        moveX,
+        moveY,
+        cameraHeadingRef.current ?? player.facingYaw,
+        player.facingYaw,
+      );
       applyBoneOffset(
         torso,
         -recoilStrength * 0.025 + locomotion.leanForward,
@@ -1786,7 +1794,12 @@ function PlayerActor({
     const animation = playerAnimation();
     const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    const direction = resolveWarRoomLocomotion(moveX, moveY, player.yaw, player.facingYaw).direction;
+    const direction = resolveWarRoomLocomotion(
+      moveX,
+      moveY,
+      cameraHeadingRef.current ?? player.facingYaw,
+      player.facingYaw,
+    ).direction;
     const movementSpeed = player.prone ? 1.25
       : player.crouched ? 3.05
         : player.sprinting ? 8.2
@@ -2340,7 +2353,7 @@ function WarRoomRuntimeScene({
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
-  const movementHeadingRef = useRef<number | null>(null);
+  const cameraHeadingRef = useRef<number | null>(null);
   const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
   const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
   const emptyClickAtRef = useRef(0);
@@ -3535,14 +3548,10 @@ function WarRoomRuntimeScene({
       moveY,
     );
     const strafeActive = input.aimHeld || now < player.strafeUntil;
-    if (
-      inputLength < 0.06
-      || strafeActive
-      || movementHeadingRef.current === null
-    ) {
-      movementHeadingRef.current = player.facingYaw;
-    }
-    const movementYaw = movementHeadingRef.current ?? player.facingYaw;
+    // Keep the camera/control heading independent from body turns so joystick
+    // up/down remain screen-relative while the player faces backward or sideways.
+    if (cameraHeadingRef.current === null) cameraHeadingRef.current = player.facingYaw;
+    const movementYaw = cameraHeadingRef.current ?? player.facingYaw;
     player.yaw = player.facingYaw;
     player.pitch = WAR_ROOM_FIXED_CAMERA_PITCH;
     const forwardX = Math.sin(movementYaw);
@@ -3630,8 +3639,9 @@ function WarRoomRuntimeScene({
       && inputLength >= 0.28;
     player.sprinting = sprintRequested && player.stamina > 0;
     const speed = player.prone ? 1.25 : player.crouched ? 3.05 : player.sprinting ? 8.2 : 6.1;
-    let dx = (rightX * moveX + forwardX * moveY) * speed * delta;
-    let dz = (rightZ * moveX + forwardZ * moveY) * speed * delta;
+    const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementYaw);
+    let dx = worldMovement.x * speed * delta;
+    let dz = worldMovement.z * speed * delta;
     if (now < player.dodgeUntil) {
       const remaining = Math.max(0, player.dodgeUntil - now);
       dx += player.dodgeX * 11 * Math.min(delta, remaining);
@@ -4177,9 +4187,7 @@ function WarRoomRuntimeScene({
       perspective.fov = 70;
       perspective.updateProjectionMatrix();
     }
-    const cameraYaw = playerRootRef.current
-      ? getWarRoomFacingYawFromRootYaw(playerRootRef.current.rotation.y)
-      : player.facingYaw;
+    const cameraYaw = cameraHeadingRef.current ?? player.facingYaw;
     const cameraPitch = WAR_ROOM_FIXED_CAMERA_PITCH;
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
@@ -4617,6 +4625,7 @@ function WarRoomRuntimeScene({
       <PlayerActor
         runtimeRef={runtimeRef}
         inputRef={inputRef}
+        cameraHeadingRef={cameraHeadingRef}
         weaponId={activeWeapon}
         weaponMountOverrides={weaponMountOverrides}
         rootRef={playerRootRef}
