@@ -41,10 +41,12 @@ export function resolveWarRoomPlayerAnimationState({
   if (damageAge >= 0 && damageAge < 0.2) return "hit";
   if (shotFeedbackUntil > clockTime || meleeUntil > clockTime) return "attack";
   if (jumpHeight > 0.12) return "jump";
-  if (turnDirection) return turnDirection === "left" ? "turn-left" : "turn-right";
   if (crouched || prone) return "crouch";
-  if (movement <= 0.12) return "idle";
-  return sprinting || movement >= 0.7 ? "run" : "walk";
+  if (movement > 0.12) {
+    return sprinting || movement >= 0.7 ? "run" : "walk";
+  }
+  if (turnDirection) return turnDirection === "left" ? "turn-left" : "turn-right";
+  return "idle";
 }
 
 export function getWarRoomPlayerAnimationPlaybackScale(

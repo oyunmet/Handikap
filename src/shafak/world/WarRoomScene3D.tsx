@@ -2354,7 +2354,8 @@ function WarRoomRuntimeScene({
     [room],
   );
   const cameraOccludersRef = useRef<CameraOccluderEntry[]>([]);
-  const cameraRaycastMeshesRef = useRef<THREE.Object3D[]>([]);
+  const cameraRaycastMeshesByOwnerRef = useRef(new Map<string, THREE.Object3D[]>());
+  const cameraRaycastCandidatesRef = useRef<THREE.Object3D[]>([]);
   const cameraRaycastOwnerByObjectRef = useRef(new WeakMap<THREE.Object3D, string>());
   const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
   const cameraBoundsRefreshRef = useRef(0);
@@ -4311,7 +4312,7 @@ function WarRoomRuntimeScene({
     if (scene && now - cameraBoundsRefreshRef.current >= 0.25) {
       scene.updateMatrixWorld(true);
       const occluders: CameraOccluderEntry[] = [];
-      const raycastMeshes: THREE.Object3D[] = [];
+      const raycastMeshesByOwner = new Map<string, THREE.Object3D[]>();
       const raycastOwners = new WeakMap<THREE.Object3D, string>();
       scene.traverse((object) => {
         const id = object.userData.warRoomCameraOccluderId;
@@ -4321,12 +4322,14 @@ function WarRoomRuntimeScene({
         occluders.push({ id, object, bounds });
         object.traverse((child) => {
           if (!(child instanceof THREE.Mesh) || !child.visible) return;
-          raycastMeshes.push(child);
+          const meshes = raycastMeshesByOwner.get(id) ?? [];
+          meshes.push(child);
+          raycastMeshesByOwner.set(id, meshes);
           raycastOwners.set(child, id);
         });
       });
       cameraOccludersRef.current = occluders;
-      cameraRaycastMeshesRef.current = raycastMeshes;
+      cameraRaycastMeshesByOwnerRef.current = raycastMeshesByOwner;
       cameraRaycastOwnerByObjectRef.current = raycastOwners;
       cameraBoundsRef.current = [
         ...logicalCameraBounds,
@@ -4373,7 +4376,7 @@ function WarRoomRuntimeScene({
         cameraPlacement.position.z,
       );
     }
-    if (cameraMode === "third-person" && cameraRaycastMeshesRef.current.length > 0) {
+    if (cameraMode === "third-person" && cameraRaycastMeshesByOwnerRef.current.size > 0) {
       cameraRayOrigin.set(
         cameraFrame.lookAt.x,
         cameraFrame.lookAt.y,
@@ -4386,9 +4389,23 @@ function WarRoomRuntimeScene({
         cameraRaycaster.set(cameraRayOrigin, cameraDirection);
         cameraRaycaster.near = 0;
         cameraRaycaster.far = rayLength;
-        const rayHit = cameraRaycaster
-          .intersectObjects(cameraRaycastMeshesRef.current, false)
-          .find((hit) => cameraRaycastOwnerByObjectRef.current.has(hit.object));
+        const candidateIds = getWarRoomCameraBlockerIds(
+          cameraStartPoint,
+          cameraEndPoint,
+          cameraBoundsRef.current,
+          0.28,
+        );
+        const raycastCandidates = cameraRaycastCandidatesRef.current;
+        raycastCandidates.length = 0;
+        for (const id of candidateIds) {
+          const meshes = cameraRaycastMeshesByOwnerRef.current.get(id);
+          if (meshes) raycastCandidates.push(...meshes);
+        }
+        const rayHit = raycastCandidates.length > 0
+          ? cameraRaycaster
+            .intersectObjects(raycastCandidates, false)
+            .find((hit) => cameraRaycastOwnerByObjectRef.current.has(hit.object))
+          : undefined;
         if (rayHit) {
           const safeDistance = getWarRoomCameraRaySafeDistance(
             rayLength,
@@ -4473,7 +4490,9 @@ function WarRoomRuntimeScene({
       cameraLook.set(indoorLook.x, indoorLook.y, indoorLook.z);
     }
     camera.lookAt(cameraLook);
-    scene.updateMatrixWorld(true);
+    // The renderer updates the full scene graph before drawing. Only the camera
+    // needs an immediate matrix update for the aim ray later in this frame.
+    camera.updateMatrixWorld();
 
     const trailWeaponId = player.meleeAttackWeaponId ?? player.weaponSlots[player.activeSlot];
     const trailWeapon = WAR_ROOM_WEAPON_BY_ID.get(trailWeaponId);

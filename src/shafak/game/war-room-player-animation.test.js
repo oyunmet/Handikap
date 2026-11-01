@@ -40,9 +40,11 @@ test("player animation selects jump, crouch, idle, walk, and run from live movem
   assert.equal(resolveWarRoomPlayerAnimationState({ ...baseInput, movement: 0.3, sprinting: true }), "run");
 });
 
-test("player turns use directional body-turn animations before the walk cycle", () => {
-  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "left", movement: 0.8 })), "turn-left");
-  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "right", movement: 0.8 })), "turn-right");
+test("active locomotion is not replaced by body-turn animation while the camera turns", () => {
+  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "left", movement: 0.8 })), "run");
+  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "right", movement: 0.45 })), "walk");
+  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "left", movement: 0 })), "turn-left");
+  assert.equal(resolveWarRoomPlayerAnimationState(input({ turnDirection: "right", movement: 0 })), "turn-right");
   assert.equal(resolveWarRoomPlayerAnimationState(input({
     hp: 0,
     turnDirection: "left",
