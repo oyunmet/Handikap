@@ -37,6 +37,18 @@ export function getWarRoomWorldMovement(moveX: number, moveY: number, cameraYaw:
   };
 }
 
+export function getWarRoomControlHeading(
+  currentHeading: number,
+  cameraHeading: number,
+  moveX: number,
+  moveY: number,
+  movementThreshold = 0.06,
+) {
+  return Math.hypot(moveX, moveY) >= movementThreshold
+    ? currentHeading
+    : cameraHeading;
+}
+
 export function resolveWarRoomOrientation(
   cameraYaw: number,
   moveX: number,

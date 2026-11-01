@@ -9,6 +9,7 @@ import {
   getWarRoomRoom,
   getWarRoomRoomCarryHp,
   getWarRoomRoomRewardMultiplier,
+  getWarRoomStairProgress,
   getWarRoomStairProfile,
   normalizeWarRoomSavedProgress,
   WAR_ROOM_MAX_ROOM_ENEMIES,
@@ -72,6 +73,20 @@ test("all eight houses have traversable doors, matching stairs, floors, and uppe
       assert.ok(Math.hypot(position.x - building.x, position.z - building.z) < 0.8);
 
       const stairs = getWarRoomStairProfile(building);
+      const stairMidpoint = getWarRoomBuildingWorldPoint(
+        building,
+        stairs.x,
+        (stairs.startZ + stairs.endZ) / 2,
+      );
+      assert.ok(Math.abs(getWarRoomStairProgress(building, stairMidpoint.x, stairMidpoint.z) - 0.5) < 1e-8);
+      assert.equal(
+        getWarRoomStairProgress(
+          building,
+          getWarRoomBuildingWorldPoint(building, 0, -building.depth).x,
+          getWarRoomBuildingWorldPoint(building, 0, -building.depth).z,
+        ),
+        null,
+      );
       let stairPosition = getWarRoomBuildingWorldPoint(building, stairs.x, stairs.startZ + 0.05);
       let floorHeight = 0;
       for (let index = 1; index <= 16; index += 1) {

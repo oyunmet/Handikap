@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomActorYawToTarget,
+  getWarRoomControlHeading,
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
   getWarRoomYawError,
@@ -68,6 +69,12 @@ test("screen-forward and backward stay camera-relative after the player turns ar
   closeAngle(backwardWhileFacingAway.yaw, Math.PI);
   assert.equal(forwardWhileFacingCamera.facingCamera, false);
   assert.equal(backwardWhileFacingAway.facingCamera, true);
+});
+
+test("joystick heading stays stable while moving and recenters to the rear camera on release", () => {
+  assert.equal(getWarRoomControlHeading(0, Math.PI, 0, -1), 0);
+  assert.equal(getWarRoomControlHeading(0, Math.PI, 0, 0), Math.PI);
+  assert.equal(getWarRoomControlHeading(0.4, 1.2, 0.02, 0.02), 1.2);
 });
 
 test("camera-facing mode tracks idle camera yaw while aim keeps strafe behavior", () => {

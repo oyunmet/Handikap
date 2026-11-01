@@ -260,6 +260,29 @@ export function getWarRoomStairProfile(building: WarRoomBuilding) {
   };
 }
 
+export function getWarRoomStairProgress(
+  building: WarRoomBuilding,
+  x: number,
+  z: number,
+) {
+  const local = getWarRoomBuildingLocalPoint(building, x, z);
+  const inside = Math.abs(local.x) < building.width / 2 - 0.28
+    && Math.abs(local.z) < building.depth / 2 - 0.28;
+  if (!inside) return null;
+
+  const stairs = getWarRoomStairProfile(building);
+  if (
+    Math.abs(local.x - stairs.x) > stairs.halfWidth
+    || local.z < stairs.startZ
+    || local.z > stairs.endZ
+  ) return null;
+
+  return Math.max(
+    0,
+    Math.min(1, (local.z - stairs.startZ) / (stairs.endZ - stairs.startZ)),
+  );
+}
+
 export function getWarRoomFloorHeight(
   x: number,
   z: number,
@@ -271,15 +294,8 @@ export function getWarRoomFloorHeight(
     const inside = Math.abs(local.x) < building.width / 2 - 0.28
       && Math.abs(local.z) < building.depth / 2 - 0.28;
     if (!inside) continue;
-    const stairs = getWarRoomStairProfile(building);
-    if (
-      Math.abs(local.x - stairs.x) <= stairs.halfWidth
-      && local.z >= stairs.startZ
-      && local.z <= stairs.endZ
-    ) {
-      const progress = (local.z - stairs.startZ) / (stairs.endZ - stairs.startZ);
-      return building.storyHeight * Math.max(0, Math.min(1, progress));
-    }
+    const stairProgress = getWarRoomStairProgress(building, x, z);
+    if (stairProgress !== null) return building.storyHeight * stairProgress;
     return previousHeight >= building.storyHeight * 0.62 ? building.storyHeight : 0;
   }
   return 0;

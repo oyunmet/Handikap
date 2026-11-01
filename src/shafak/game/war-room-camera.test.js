@@ -298,20 +298,24 @@ test("third-person camera defaults to a five-meter shoulder view and supports ei
 });
 
 test("indoor camera keeps a wider rear view while staying closer than outdoors", () => {
-  assert.deepEqual(getWarRoomCameraRig({
+  const right = getWarRoomCameraRig({
     mode: "third-person",
     aiming: false,
     shoulderOffset: 0.6,
     shoulderSide: "right",
     indoors: true,
-  }), { back: 2.8, shoulder: 0.6 });
-  assert.deepEqual(getWarRoomCameraRig({
+  });
+  const aiming = getWarRoomCameraRig({
     mode: "third-person",
     aiming: true,
     shoulderOffset: 0.6,
     shoulderSide: "right",
     indoors: true,
-  }), { back: 2.4, shoulder: 0.7 });
+  });
+  assert.equal(right.back, 2.8);
+  assert.ok(Math.abs(right.shoulder - 0.24) < 1e-10);
+  assert.equal(aiming.back, 2.4);
+  assert.ok(Math.abs(aiming.shoulder - 0.28) < 1e-10);
 });
 
 test("third-person aiming tightens the camera, and offsets remain bounded", () => {

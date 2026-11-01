@@ -494,7 +494,10 @@ export function WarRoomStaircase({ building }: BuildingProps) {
   const endZ = building.depth / 2 - 0.86;
   const halfWidth = 0.82;
   const run = endZ - startZ;
-  const stepCount = Math.max(10, Math.round(run / 0.31));
+  const stepCount = Math.max(
+    10,
+    Math.ceil(Math.max(building.storyHeight / 0.18, run / 0.27)),
+  );
   const stepRun = run / stepCount;
   const risePerStep = building.storyHeight / stepCount;
   const angle = Math.atan2(building.storyHeight, run);
