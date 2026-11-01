@@ -1342,7 +1342,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Hareket ve kamera</strong>
-                        <small>Savaş alanının her yerine dokunup sürükle; joystick dokunduğun yerde belirir, kamera seçtiğin yönü yumuşakça takip eder.</small>
+                        <small>Sol tarafa dokunup sürükle: joystick orada belirir. Sağ tarafta sürükle: kamerayı çevir. Kamera hareket yönünü otomatik takip eder.</small>
                       </span>
                     </div>
                     <div className="setting-row setting-row--quality">

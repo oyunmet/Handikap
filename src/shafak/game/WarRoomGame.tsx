@@ -46,11 +46,13 @@ import {
 } from "./war-room-look";
 import {
   beginWarRoomJoystick,
-  beginWarRoomMouseLook,
+  beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
+  getWarRoomTouchControlSide,
   readWarRoomJoystick,
   readWarRoomMouseLook,
+  rebaseWarRoomJoystick,
   resetWarRoomMobileControls,
 } from "./war-room-mobile-controls";
 import {
@@ -154,6 +156,7 @@ function createInputState(): WarRoomInputState {
     yaw: 0,
     cameraTargetYaw: 0,
     movementBaseYaw: null,
+    manualLookActive: false,
     pitch: -0.08,
     fireHeld: false,
     firePressed: false,
@@ -587,6 +590,7 @@ export default function WarRoomGame({
     inputRef.current.moveX = 0;
     inputRef.current.moveY = 0;
     inputRef.current.movementBaseYaw = null;
+    inputRef.current.manualLookActive = false;
     inputRef.current.fireHeld = false;
     inputRef.current.aimHeld = false;
     inputRef.current.lootHeld = false;
@@ -920,7 +924,9 @@ export default function WarRoomGame({
     if (!gesture || !reading) return;
     setWarRoomMoveVector(inputRef.current, reading.x, reading.y);
     inputRef.current.movementBaseYaw = reading.baseYaw;
-    if (reading.cameraYaw !== null) inputRef.current.cameraTargetYaw = reading.cameraYaw;
+    if (reading.cameraYaw !== null && !inputRef.current.manualLookActive) {
+      inputRef.current.cameraTargetYaw = reading.cameraYaw;
+    }
     if (!stick) return;
     stick.style.setProperty("--dynamic-stick-x", `${gesture.originX}px`);
     stick.style.setProperty("--dynamic-stick-y", `${gesture.originY}px`);
@@ -948,6 +954,12 @@ export default function WarRoomGame({
       delta.pointerType,
     );
     inputRef.current.cameraTargetYaw = inputRef.current.yaw;
+    if (inputRef.current.movementBaseYaw !== null) {
+      inputRef.current.movementBaseYaw = rebaseWarRoomJoystick(
+        mobileControlsRef.current,
+        inputRef.current.yaw,
+      );
+    }
   };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -961,6 +973,31 @@ export default function WarRoomGame({
     resumeWarRoomAudio();
 
     if (event.pointerType === "touch") {
+      const stageBounds = event.currentTarget.getBoundingClientRect();
+      const side = getWarRoomTouchControlSide(
+        event.clientX,
+        stageBounds.left,
+        stageBounds.width,
+      );
+      if (side === "look") {
+        const input = inputRef.current;
+        if (!beginWarRoomLook(mobileControlsRef.current, {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          pointerType: "touch",
+          button: event.button,
+        })) return;
+        input.manualLookActive = true;
+        input.cameraTargetYaw = input.yaw;
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // Pointer cancellation and window blur still clear the look gesture.
+        }
+        return;
+      }
+      if (side !== "movement") return;
       const input = inputRef.current;
       if (!beginWarRoomJoystick(
         mobileControlsRef.current,
@@ -984,13 +1021,15 @@ export default function WarRoomGame({
 
     if (event.button !== 0 && event.button !== 2) return;
     const pointerType = pointerTypeForEvent(event);
-    if (!beginWarRoomMouseLook(mobileControlsRef.current, {
+    if (!beginWarRoomLook(mobileControlsRef.current, {
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       pointerType,
       button: event.button,
     })) return;
+    inputRef.current.manualLookActive = true;
+    inputRef.current.cameraTargetYaw = inputRef.current.yaw;
     if (pointerType === "mouse" && event.button === 0) {
       pressWarRoomAction(inputRef.current, "fire");
     } else if (pointerType === "mouse" && event.button === 2) {
@@ -1015,6 +1054,9 @@ export default function WarRoomGame({
     if (ended.endedLook?.pointerType === "mouse") {
       if (ended.endedLook.button === 0) releaseWarRoomAction(inputRef.current, "fire");
       if (ended.endedLook.button === 2) releaseWarRoomAction(inputRef.current, "aim");
+    }
+    if (ended.endedLook) {
+      inputRef.current.manualLookActive = mobileControlsRef.current.look !== null;
     }
   };
 

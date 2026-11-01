@@ -1,6 +1,7 @@
 import { normalizeWarRoomCameraYaw } from "./war-room-look";
 
 export type WarRoomMobilePointerType = "touch" | "mouse" | "pen";
+export type WarRoomTouchControlSide = "movement" | "look";
 
 export type WarRoomJoystickGesture = {
   pointerId: number;
@@ -31,6 +32,26 @@ export type WarRoomJoystickReading = {
 };
 
 const JOYSTICK_DEAD_ZONE = 0.1;
+
+export function getWarRoomAutoFollowYaw(
+  baseYaw: number,
+  moveX: number,
+  moveY: number,
+) {
+  if (![baseYaw, moveX, moveY].every(Number.isFinite) || Math.hypot(moveX, moveY) <= 0.1) {
+    return null;
+  }
+  return normalizeWarRoomCameraYaw(baseYaw + Math.atan2(moveX, moveY));
+}
+
+export function getWarRoomTouchControlSide(
+  clientX: number,
+  stageLeft: number,
+  stageWidth: number,
+): WarRoomTouchControlSide | null {
+  if (![clientX, stageLeft, stageWidth].every(Number.isFinite) || stageWidth <= 0) return null;
+  return clientX < stageLeft + stageWidth / 2 ? "movement" : "look";
+}
 
 export function createWarRoomMobileControlsState(): WarRoomMobileControlsState {
   return { joystick: null, look: null };
@@ -84,13 +105,20 @@ export function readWarRoomJoystick(
     x: xAxis,
     y: yAxis,
     baseYaw: gesture.baseYaw,
-    cameraYaw: normalizeWarRoomCameraYaw(
-      gesture.baseYaw + Math.atan2(xAxis, yAxis),
-    ),
+    cameraYaw: getWarRoomAutoFollowYaw(gesture.baseYaw, xAxis, yAxis),
   };
 }
 
-export function beginWarRoomMouseLook(
+export function rebaseWarRoomJoystick(
+  state: WarRoomMobileControlsState,
+  cameraYaw: number,
+) {
+  if (!state.joystick || !Number.isFinite(cameraYaw)) return null;
+  state.joystick.baseYaw = normalizeWarRoomCameraYaw(cameraYaw);
+  return state.joystick.baseYaw;
+}
+
+export function beginWarRoomLook(
   state: WarRoomMobileControlsState,
   gesture: WarRoomLookGesture,
 ) {

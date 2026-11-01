@@ -19,6 +19,7 @@ function createInput() {
     yaw: 0,
     cameraTargetYaw: 0,
     movementBaseYaw: null,
+    manualLookActive: false,
     pitch: 0,
     facingSetting: "camera",
     fireHeld: false,

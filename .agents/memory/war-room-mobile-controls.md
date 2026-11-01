@@ -1,10 +1,10 @@
 ---
 name: War Room mobile controls
-description: Touch-origin joystick behavior and combat HUD ownership in War Room.
+description: Left-side joystick, right-side camera look, and combat HUD ownership in War Room.
 ---
 
-In mobile War Room play, show a dynamic joystick wherever the player first touches the battle area, then track that pointer until release or cancellation. HUD buttons keep their own input and do not start movement. The joystick itself is not a fixed/custom-layout control; custom placement remains for the combat HUD. Keep status details clear of the buttons and safe areas.
+In mobile War Room play, a touch on the left half of the battle area shows a dynamic joystick at that touch point; a touch drag on the right half controls camera look. These pointers can be active together. HUD buttons keep their own input and do not start either gesture. The joystick is not a fixed/custom-layout control; custom placement remains for the combat HUD.
 
-**Why:** The user replaced the fixed-stick behavior with a full-battle-area touch joystick that appears at the touch point.
+**Why:** The user explicitly clarified that movement belongs on the left and manual camera look belongs on the right, like Call of Duty Mobile.
 
-**How to apply:** Start movement on any non-button battle-area touch, capture it independently from combat-button pointers, and clear it on pointer up/cancel, blur, or page hiding. Keep HUD layout and safe-area rules intact.
+**How to apply:** Route touch starts by battle-area half, capture movement/look independently, and clear both on pointer up/cancel, blur, or page hiding. Keep HUD layout and safe-area rules intact.

@@ -49,6 +49,7 @@ import {
   isWarRoomFacingTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
+import { getWarRoomAutoFollowYaw } from "../game/war-room-mobile-controls";
 import {
   getWarRoomPlayerAnimationPlaybackScale,
   resolveWarRoomPlayerAnimationState,
@@ -3558,6 +3559,14 @@ function WarRoomRuntimeScene({
       moveY,
     );
     const strafeActive = input.aimHeld || now < player.strafeUntil;
+    if (input.movementBaseYaw !== null && !input.manualLookActive) {
+      const autoFollowYaw = getWarRoomAutoFollowYaw(
+        input.movementBaseYaw,
+        moveX,
+        moveY,
+      );
+      if (autoFollowYaw !== null) input.cameraTargetYaw = autoFollowYaw;
+    }
     const controlCameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
     const cameraTargetYaw = getWarRoomCameraAngles(input.cameraTargetYaw, input.pitch).yaw;
     const movementYaw = stepWarRoomYaw(
