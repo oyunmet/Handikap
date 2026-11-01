@@ -1,4 +1,4 @@
-import { Canvas, createPortal, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import type { ReactNode } from "react";
 import * as THREE from "three";
@@ -1339,6 +1339,12 @@ function FirstPersonWeaponViewModel({
 }) {
   const { camera, size } = useThree();
   const weaponRootRef = useRef<THREE.Group>(null);
+  const cameraPositionRef = useRef(new THREE.Vector3());
+  const cameraQuaternionRef = useRef(new THREE.Quaternion());
+  const localPositionRef = useRef(new THREE.Vector3());
+  const localQuaternionRef = useRef(new THREE.Quaternion());
+  const localEulerRef = useRef(new THREE.Euler());
+  const preparedMeshesRef = useRef(new WeakSet<THREE.Mesh>());
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   const viewConfig = getWarRoomViewModelConfig(weaponId, weapon.weaponClass === "melee");
@@ -1346,6 +1352,9 @@ function FirstPersonWeaponViewModel({
   useFrame(() => {
     const group = weaponRootRef.current;
     if (!group) return;
+    camera.updateWorldMatrix(true, false);
+    camera.getWorldPosition(cameraPositionRef.current);
+    camera.getWorldQuaternion(cameraQuaternionRef.current);
     const player = runtimeRef.current.player;
     const input = inputRef.current;
     const clock = player.clockTime;
@@ -1381,19 +1390,35 @@ function FirstPersonWeaponViewModel({
     }, aspect);
     group.visible = cameraMode === "first-person";
     group.scale.setScalar(viewConfig.scale * getWarRoomViewModelScaleFactor(aspect));
-    group.position.set(
+    localPositionRef.current.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
       viewConfig.position[1] + pose.position[1],
       viewConfig.position[2] + pose.position[2],
     );
-    group.rotation.set(
+    group.position.copy(cameraPositionRef.current)
+      .add(localPositionRef.current.applyQuaternion(cameraQuaternionRef.current));
+    localEulerRef.current.set(
       mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
       mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
       mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
     );
+    localQuaternionRef.current.setFromEuler(localEulerRef.current);
+    group.quaternion.copy(cameraQuaternionRef.current).multiply(localQuaternionRef.current);
+    group.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || preparedMeshesRef.current.has(object)) return;
+      preparedMeshesRef.current.add(object);
+      object.frustumCulled = false;
+      object.renderOrder = 1000;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => {
+        material.depthTest = false;
+        material.depthWrite = false;
+        material.needsUpdate = true;
+      });
+    });
   });
 
-  return createPortal(
+  return (
     <group
       ref={weaponRootRef}
       name="war-room-first-person-weapon"
@@ -1402,8 +1427,7 @@ function FirstPersonWeaponViewModel({
     >
       <FirstPersonArms />
       <WeaponModel weaponId={weaponId} mount={mount} />
-    </group>,
-    camera,
+    </group>
   );
 }
 
