@@ -305,7 +305,8 @@
 }
 
 .war-room-stick.is-dynamic.is-active {
-  position: absolute;
+  position: fixed;
+  z-index: 6;
   inset: auto;
   display: grid;
   left: var(--dynamic-stick-x, 0px);

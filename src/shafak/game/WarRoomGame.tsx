@@ -45,9 +45,17 @@ import {
   type WarRoomLookPointerType,
 } from "./war-room-look";
 import {
+  beginWarRoomJoystick,
+  beginWarRoomMouseLook,
+  createWarRoomMobileControlsState,
+  endWarRoomMobilePointer,
+  readWarRoomJoystick,
+  readWarRoomMouseLook,
+  resetWarRoomMobileControls,
+} from "./war-room-mobile-controls";
+import {
   beginWarRoomPointer,
   endWarRoomPointer,
-  moveWarRoomPointer,
   pressWarRoomAction,
   releaseWarRoomAction,
   resolveWarRoomStanceTap,
@@ -69,7 +77,6 @@ import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
   CONTROLS_CONFIG,
   createDefaultWarRoomControlLayout,
-  isWarRoomDynamicStickStartAllowed,
   loadWarRoomControlLayout,
   saveWarRoomControlLayout,
   type WarRoomControlId,
@@ -84,7 +91,6 @@ type Props = {
   profile: PlayerProfile;
   vibrationEnabled: boolean;
   motionReduced: boolean;
-  joystickMode: "dynamic" | "fixed";
   shoulderSide: "left" | "right";
   shoulderOffset: number;
   onOpenSettings: () => void;
@@ -146,6 +152,8 @@ function createInputState(): WarRoomInputState {
     moveX: 0,
     moveY: 0,
     yaw: 0,
+    cameraTargetYaw: 0,
+    movementBaseYaw: null,
     pitch: -0.08,
     fireHeld: false,
     firePressed: false,
@@ -393,7 +401,6 @@ export default function WarRoomGame({
   profile,
   vibrationEnabled,
   motionReduced,
-  joystickMode,
   shoulderSide,
   shoulderOffset,
   onOpenSettings,
@@ -552,11 +559,9 @@ export default function WarRoomGame({
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
   const inputRef = useRef<WarRoomInputState>(createInputState());
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
-  const lookPointerIdsRef = useRef(new Set<number>());
+  const mobileControlsRef = useRef(createWarRoomMobileControlsState());
   const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
-  const stickPointerRef = useRef<number | null>(null);
-  const dynamicStickOriginRef = useRef<{ x: number; y: number } | null>(null);
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
@@ -577,6 +582,22 @@ export default function WarRoomGame({
         : "ALT KAT";
   const controlLayoutEnabled = savedControlLayout.customized;
 
+  function resetTouchControls() {
+    resetWarRoomMobileControls(mobileControlsRef.current);
+    inputRef.current.moveX = 0;
+    inputRef.current.moveY = 0;
+    inputRef.current.movementBaseYaw = null;
+    inputRef.current.fireHeld = false;
+    inputRef.current.aimHeld = false;
+    inputRef.current.lootHeld = false;
+    pointerRef.current.clear();
+    stickRef.current?.style.setProperty("--stick-x", "0px");
+    stickRef.current?.style.setProperty("--stick-y", "0px");
+    stickRef.current?.style.removeProperty("--dynamic-stick-x");
+    stickRef.current?.style.removeProperty("--dynamic-stick-y");
+    setDynamicStickActive(false);
+  }
+
   const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
     resumeWarRoomAudio();
     runtimeRef.current = weaponLabMode
@@ -589,10 +610,7 @@ export default function WarRoomGame({
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
     inputRef.current = createInputState();
-    pointerRef.current.clear();
-    lookPointerIdsRef.current.clear();
-    stickPointerRef.current = null;
-    dynamicStickOriginRef.current = null;
+    resetTouchControls();
     crouchTapAtRef.current = null;
     setDynamicStickActive(false);
     setSprintLockActive(false);
@@ -666,11 +684,7 @@ export default function WarRoomGame({
     input.aimHeld = false;
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
-    pointerRef.current.clear();
-    lookPointerIdsRef.current.clear();
-    stickPointerRef.current = null;
-    dynamicStickOriginRef.current = null;
-    setDynamicStickActive(false);
+    resetTouchControls();
     setExitPrompt(true);
   }, []);
 
@@ -684,11 +698,7 @@ export default function WarRoomGame({
     inputRef.current.aimHeld = false;
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
-    pointerRef.current.clear();
-    lookPointerIdsRef.current.clear();
-    stickPointerRef.current = null;
-    dynamicStickOriginRef.current = null;
-    setDynamicStickActive(false);
+    resetTouchControls();
   }, [controlsEditorOpen, phase, settingsOpen]);
 
   useEffect(() => {
@@ -752,19 +762,20 @@ export default function WarRoomGame({
       inputRef.current.fireReleased = true;
       inputRef.current.lootHeld = false;
       runtimeRef.current.player.meleeInputPending = false;
-      pointerRef.current.clear();
-      lookPointerIdsRef.current.clear();
-      stickPointerRef.current = null;
-      dynamicStickOriginRef.current = null;
-      setDynamicStickActive(false);
+      resetTouchControls();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) onBlur();
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       inputRef.current.keys.clear();
       inputRef.current.fireHeld = false;
       inputRef.current.aimHeld = false;
@@ -902,157 +913,109 @@ export default function WarRoomGame({
     endWarRoomPointer(pointerRef.current, event.pointerId);
   };
 
-  const readDynamicStick = (event: ReactPointerEvent<HTMLElement>) => {
+  const updateTouchJoystick = (pointerId: number, x: number, y: number) => {
+    const gesture = mobileControlsRef.current.joystick;
+    const reading = readWarRoomJoystick(mobileControlsRef.current, pointerId, x, y);
     const stick = stickRef.current;
-    const origin = dynamicStickOriginRef.current;
-    const stage = event.currentTarget.closest(".war-room-battle");
-    if (!stick || !origin || !stage) return;
-    const bounds = stage.getBoundingClientRect();
-    const radius = 48;
-    const dx = (event.clientX - origin.x) / radius;
-    const dy = (origin.y - event.clientY) / radius;
-    const length = Math.hypot(dx, dy);
-    const scale = length > 1 ? 1 / length : 1;
-    const x = Math.max(-1, Math.min(1, dx * scale));
-    const y = Math.max(-1, Math.min(1, dy * scale));
-    stick.style.setProperty("--dynamic-stick-x", `${origin.x - bounds.left}px`);
-    stick.style.setProperty("--dynamic-stick-y", `${origin.y - bounds.top}px`);
-    stick.style.setProperty("--stick-x", `${x * radius}px`);
-    stick.style.setProperty("--stick-y", `${-y * radius}px`);
-    setWarRoomMoveVector(inputRef.current, x, y);
+    if (!gesture || !reading) return;
+    setWarRoomMoveVector(inputRef.current, reading.x, reading.y);
+    inputRef.current.movementBaseYaw = reading.baseYaw;
+    if (reading.cameraYaw !== null) inputRef.current.cameraTargetYaw = reading.cameraYaw;
+    if (!stick) return;
+    stick.style.setProperty("--dynamic-stick-x", `${gesture.originX}px`);
+    stick.style.setProperty("--dynamic-stick-y", `${gesture.originY}px`);
+    stick.style.setProperty("--stick-x", `${reading.x * 40}px`);
+    stick.style.setProperty("--stick-y", `${-reading.y * 40}px`);
   };
 
   const handleWorldPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (stickPointerRef.current === event.pointerId) {
-      readDynamicStick(event);
+    if (mobileControlsRef.current.joystick?.pointerId === event.pointerId) {
+      updateTouchJoystick(event.pointerId, event.clientX, event.clientY);
       return;
     }
-    if (!lookPointerIdsRef.current.has(event.pointerId)) return;
-    const pointer = pointerRef.current.get(event.pointerId);
-    const delta = moveWarRoomPointer(pointerRef.current, event.pointerId, event.clientX, event.clientY);
-    if (!pointer || !delta) return;
+    const delta = readWarRoomMouseLook(
+      mobileControlsRef.current,
+      event.pointerId,
+      event.clientX,
+      event.clientY,
+    );
+    if (!delta) return;
     applyWarRoomLookDelta(
       inputRef.current,
       delta.dx,
       delta.dy,
       { x: 0.007, y: 0.0045 },
-      pointer.pointerType,
+      delta.pointerType,
     );
+    inputRef.current.cameraTargetYaw = inputRef.current.yaw;
   };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug,.war-room-calibration-panel")) return;
-    const stageBounds = event.currentTarget.getBoundingClientRect();
-    const lookSideBoundary = stageBounds.left + stageBounds.width * 0.46;
-    if (event.pointerType === "touch" && event.clientX < lookSideBoundary) {
-      if (
-        joystickMode !== "dynamic"
-        || stickPointerRef.current !== null
-        || !isWarRoomDynamicStickStartAllowed(
-          event.clientX,
-          event.clientY,
-          window.innerWidth,
-          window.innerHeight,
-        )
-      ) return;
-      event.preventDefault();
-      resumeWarRoomAudio();
-      stickPointerRef.current = event.pointerId;
-      dynamicStickOriginRef.current = { x: event.clientX, y: event.clientY };
-      setDynamicStickActive(true);
-      event.currentTarget.setPointerCapture(event.pointerId);
-      readDynamicStick(event);
-      return;
-    }
+    const target = event.target instanceof Element ? event.target : null;
     if (
-      event.pointerType === "touch"
-      && event.clientX >= lookSideBoundary
-    ) {
-      event.preventDefault();
-      resumeWarRoomAudio();
-      beginWarRoomPointer(pointerRef.current, event.pointerId, {
-        x: event.clientX,
-        y: event.clientY,
-        button: event.button,
-        pointerType: pointerTypeForEvent(event),
-      });
-      lookPointerIdsRef.current.add(event.pointerId);
-      event.currentTarget.setPointerCapture(event.pointerId);
-      return;
-    }
-    if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
+      target?.closest(
+        "button,.war-room-stick,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
+      )
+    ) return;
     event.preventDefault();
     resumeWarRoomAudio();
-    beginWarRoomPointer(pointerRef.current, event.pointerId, {
+
+    if (event.pointerType === "touch") {
+      const input = inputRef.current;
+      if (!beginWarRoomJoystick(
+        mobileControlsRef.current,
+        event.pointerId,
+        event.clientX,
+        event.clientY,
+        42,
+        input.yaw,
+      )) return;
+      input.movementBaseYaw = input.yaw;
+      input.cameraTargetYaw = input.yaw;
+      setDynamicStickActive(true);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer cancellation and window blur still clear the held gesture.
+      }
+      updateTouchJoystick(event.pointerId, event.clientX, event.clientY);
+      return;
+    }
+
+    if (event.button !== 0 && event.button !== 2) return;
+    const pointerType = pointerTypeForEvent(event);
+    if (!beginWarRoomMouseLook(mobileControlsRef.current, {
+      pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
+      pointerType,
       button: event.button,
-      pointerType: pointerTypeForEvent(event),
-    });
-    lookPointerIdsRef.current.add(event.pointerId);
-    if (event.pointerType === "mouse" && event.button === 0) {
+    })) return;
+    if (pointerType === "mouse" && event.button === 0) {
       pressWarRoomAction(inputRef.current, "fire");
-    } else if (event.pointerType === "mouse" && event.button === 2) {
+    } else if (pointerType === "mouse" && event.button === 2) {
       pressWarRoomAction(inputRef.current, "aim");
     }
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer cancellation and window blur still clear the look gesture.
+    }
   };
 
   const handleWorldPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
-    if (stickPointerRef.current === event.pointerId) {
-      stickPointerRef.current = null;
-      dynamicStickOriginRef.current = null;
-      setDynamicStickActive(false);
+    const ended = endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
+    if (ended.endedJoystick) {
       setWarRoomMoveVector(inputRef.current, 0, 0);
+      inputRef.current.movementBaseYaw = null;
+      setDynamicStickActive(false);
       stickRef.current?.style.setProperty("--stick-x", "0px");
       stickRef.current?.style.setProperty("--stick-y", "0px");
-      return;
     }
-    lookPointerIdsRef.current.delete(event.pointerId);
-    const pointer = pointerRef.current.get(event.pointerId);
-    if (!pointer) return;
-    if (pointer.pointerType === "mouse" && pointer.button === 0) {
-      releaseWarRoomAction(inputRef.current, "fire");
-    } else if (pointer.pointerType === "mouse" && pointer.button === 2) {
-      releaseWarRoomAction(inputRef.current, "aim");
+    if (ended.endedLook?.pointerType === "mouse") {
+      if (ended.endedLook.button === 0) releaseWarRoomAction(inputRef.current, "fire");
+      if (ended.endedLook.button === 2) releaseWarRoomAction(inputRef.current, "aim");
     }
-    endWarRoomPointer(pointerRef.current, event.pointerId);
-  };
-
-  const readStick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const stick = stickRef.current;
-    if (!stick) return;
-    const rect = stick.getBoundingClientRect();
-    const radius = Math.max(1, rect.width * 0.37);
-    const dx = (event.clientX - (rect.left + rect.width / 2)) / radius;
-    const dy = ((rect.top + rect.height / 2) - event.clientY) / radius;
-    const length = Math.hypot(dx, dy);
-    const scale = length > 1 ? 1 / length : 1;
-    const x = Math.max(-1, Math.min(1, dx * scale));
-    const y = Math.max(-1, Math.min(1, dy * scale));
-    stick.style.setProperty("--stick-x", `${x * radius}px`);
-    stick.style.setProperty("--stick-y", `${-y * radius}px`);
-    setWarRoomMoveVector(inputRef.current, x, y);
-  };
-
-  const handleStickDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (stickPointerRef.current !== null) return;
-    event.preventDefault();
-    event.stopPropagation();
-    resumeWarRoomAudio();
-    stickPointerRef.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    readStick(event);
-  };
-  const handleStickMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (stickPointerRef.current === event.pointerId) readStick(event);
-  };
-  const handleStickUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (stickPointerRef.current !== event.pointerId) return;
-    stickPointerRef.current = null;
-    setWarRoomMoveVector(inputRef.current, 0, 0);
-    stickRef.current?.style.setProperty("--stick-x", "0px");
-    stickRef.current?.style.setProperty("--stick-y", "0px");
   };
 
   return (
@@ -1154,6 +1117,7 @@ export default function WarRoomGame({
           onPointerDown={handleWorldPointerDown}
           onPointerUp={handleWorldPointerUp}
           onPointerCancel={handleWorldPointerUp}
+          onLostPointerCapture={handleWorldPointerUp}
           onContextMenu={(event) => event.preventDefault()}
           onPointerMove={handleWorldPointerMove}
         >
@@ -1651,14 +1615,9 @@ export default function WarRoomGame({
               </div>
               <div
                 ref={stickRef}
-                className={`war-room-stick${joystickMode === "dynamic" ? " is-dynamic" : ""}${dynamicStickActive ? " is-active" : ""}${controlLayoutEnabled && joystickMode === "fixed" ? " is-custom-layout" : ""}`}
+                className={`war-room-stick is-dynamic${dynamicStickActive ? " is-active" : ""}`}
                 role="application"
                 aria-label="Hareket joystick'i"
-                style={controlLayoutEnabled && joystickMode === "fixed" ? getControlPlacementStyle("move-stick", savedControlLayout.layout) : undefined}
-                onPointerDown={joystickMode === "fixed" ? handleStickDown : undefined}
-                onPointerMove={handleStickMove}
-                onPointerUp={handleStickUp}
-                onPointerCancel={handleStickUp}
               >
                 <HudIcon icon="move" className="war-room-stick__move-icon" />
                 <i aria-hidden="true" />

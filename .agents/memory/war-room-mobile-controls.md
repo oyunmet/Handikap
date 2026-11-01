@@ -1,10 +1,10 @@
 ---
 name: War Room mobile controls
-description: Portrait mobile placement expectations for the movement joystick and combat HUD.
+description: Touch-origin joystick behavior and combat HUD ownership in War Room.
 ---
 
-In portrait mobile War Room play, keep the movement joystick fixed in the lower-left thumb-reach area. Keep health, stamina, and weapon details out of that area; stack them on the right above the action buttons, not in the upper-left where they can collide with settings and debug panels. The fixed joystick is the default, while dynamic positioning remains available only as an explicit choice. Preserve landscape and custom control layouts.
+In mobile War Room play, show a dynamic joystick wherever the player first touches the battle area, then track that pointer until release or cancellation. HUD buttons keep their own input and do not start movement. The joystick itself is not a fixed/custom-layout control; custom placement remains for the combat HUD. Keep status details clear of the buttons and safe areas.
 
-**Why:** The user reported that the joystick appeared too high and requested that it occupy the lower-left health/stamina area, with the status information moved elsewhere. Their follow-up screenshots showed the upper-left stack colliding with settings/debug panels.
+**Why:** The user replaced the fixed-stick behavior with a full-battle-area touch joystick that appears at the touch point.
 
-**How to apply:** Default and migrate older saved preferences to the fixed lower-left stick, while preserving a deliberate dynamic selection in current preferences. Keep safe-area spacing; keep the right-side status stack above, not on top of, the action buttons; test portrait phone sizes and landscape layouts.
+**How to apply:** Start movement on any non-button battle-area touch, capture it independently from combat-button pointers, and clear it on pointer up/cancel, blur, or page hiding. Keep HUD layout and safe-area rules intact.

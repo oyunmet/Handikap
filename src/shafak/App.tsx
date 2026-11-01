@@ -63,7 +63,6 @@ type Preferences = {
   visualEffects: boolean;
   reduceMotion: boolean;
   performanceMonitor: boolean;
-  warRoomJoystickMode: "dynamic" | "fixed";
   warRoomCameraMode: "first-person" | "third-person";
   warRoomShoulderSide: "left" | "right";
   warRoomShoulderOffset: number;
@@ -83,7 +82,6 @@ const initialPreferences: Preferences = {
   visualEffects: true,
   reduceMotion: false,
   performanceMonitor: false,
-  warRoomJoystickMode: "fixed",
   warRoomCameraMode: "third-person",
   warRoomShoulderSide: "right",
   warRoomShoulderOffset: 0.6,
@@ -163,12 +161,6 @@ function readPreferences(): Preferences {
         typeof saved.performanceMonitor === "boolean"
           ? saved.performanceMonitor
           : initialPreferences.performanceMonitor,
-      // Preserve a deliberate v3 choice. Older saves are migrated to fixed so
-      // a previous dynamic setting cannot unexpectedly relocate the stick.
-      warRoomJoystickMode:
-        currentPreferences !== null && saved.warRoomJoystickMode === "dynamic"
-          ? "dynamic"
-          : "fixed",
       // Older saves omitted this setting. Keep them in the supported,
       // always-visible shoulder camera instead of silently selecting first person.
       warRoomCameraMode: "third-person",
@@ -1220,7 +1212,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 profile={profile}
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
-                joystickMode={preferences.warRoomJoystickMode}
                 shoulderSide={preferences.warRoomShoulderSide}
                 shoulderOffset={preferences.warRoomShoulderOffset}
                 onOpenSettings={() => setSettingsOpen(true)}
@@ -1350,25 +1341,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   <>
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
-                        <strong>Savaş Odası joystick'i</strong>
-                        <small>Sabit mod sol altta kalır; dinamik mod yalnızca seçildiğinde dokunulan yerde belirir.</small>
+                        <strong>Hareket ve kamera</strong>
+                        <small>Savaş alanının her yerine dokunup sürükle; joystick dokunduğun yerde belirir, kamera seçtiğin yönü yumuşakça takip eder.</small>
                       </span>
-                      <div className="quality-switch" role="group" aria-label="Savaş Odası joystick modu">
-                        {([
-                          ["dynamic", "Dinamik"],
-                          ["fixed", "Sabit"],
-                        ] as const).map(([value, label]) => (
-                          <button
-                            className={preferences.warRoomJoystickMode === value ? "is-selected" : ""}
-                            key={value}
-                            type="button"
-                            aria-pressed={preferences.warRoomJoystickMode === value}
-                            onClick={() => setPreference("warRoomJoystickMode", value)}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">

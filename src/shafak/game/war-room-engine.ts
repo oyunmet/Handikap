@@ -145,6 +145,8 @@ export type WarRoomInputState = {
   moveX: number;
   moveY: number;
   yaw: number;
+  cameraTargetYaw: number;
+  movementBaseYaw: number | null;
   pitch: number;
   fireHeld: boolean;
   firePressed: boolean;

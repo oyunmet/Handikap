@@ -1455,7 +1455,7 @@ function ProceduralPlayerFallback() {
 function PlayerActor({
   runtimeRef,
   inputRef,
-  cameraHeadingRef,
+  movementBasisYawRef,
   weaponId,
   weaponMountOverrides,
   rootRef,
@@ -1465,7 +1465,7 @@ function PlayerActor({
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
-  cameraHeadingRef: MutableRefObject<number | null>;
+  movementBasisYawRef: MutableRefObject<number | null>;
   weaponId: WarRoomWeaponId;
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   rootRef: MutableRefObject<THREE.Group | null>;
@@ -1747,7 +1747,7 @@ function PlayerActor({
       const locomotion = resolveWarRoomLocomotion(
         moveX,
         moveY,
-        cameraHeadingRef.current ?? player.facingYaw,
+        movementBasisYawRef.current ?? player.facingYaw,
         player.facingYaw,
       );
       applyBoneOffset(
@@ -1800,7 +1800,7 @@ function PlayerActor({
     const direction = resolveWarRoomLocomotion(
       moveX,
       moveY,
-      cameraHeadingRef.current ?? player.facingYaw,
+      movementBasisYawRef.current ?? player.facingYaw,
       player.facingYaw,
     ).direction;
     const isOnStairs = runtimeRef.current.room.buildings.some((building) => (
@@ -2362,7 +2362,8 @@ function WarRoomRuntimeScene({
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
-  const cameraHeadingRef = useRef<number | null>(null);
+  const movementBasisYawRef = useRef<number | null>(null);
+  const cameraInitializedRef = useRef(false);
   const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
   const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
   const emptyClickAtRef = useRef(0);
@@ -3558,16 +3559,23 @@ function WarRoomRuntimeScene({
     );
     const strafeActive = input.aimHeld || now < player.strafeUntil;
     const controlCameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
-    input.yaw = controlCameraAngles.yaw;
+    const cameraTargetYaw = getWarRoomCameraAngles(input.cameraTargetYaw, input.pitch).yaw;
+    const movementYaw = stepWarRoomYaw(
+      controlCameraAngles.yaw,
+      cameraTargetYaw,
+      delta,
+      input.movementBaseYaw === null ? 16 : 9,
+    );
+    const movementBasisYaw = input.movementBaseYaw ?? movementYaw;
+    input.yaw = movementYaw;
     input.pitch = controlCameraAngles.pitch;
-    const movementYaw = controlCameraAngles.yaw;
-    cameraHeadingRef.current = movementYaw;
+    movementBasisYawRef.current = movementBasisYaw;
     player.yaw = player.facingYaw;
     player.pitch = controlCameraAngles.pitch;
-    const forwardX = Math.sin(movementYaw);
-    const forwardZ = -Math.cos(movementYaw);
-    const rightX = Math.cos(movementYaw);
-    const rightZ = Math.sin(movementYaw);
+    const forwardX = Math.sin(movementBasisYaw);
+    const forwardZ = -Math.cos(movementBasisYaw);
+    const rightX = Math.cos(movementBasisYaw);
+    const rightZ = Math.sin(movementBasisYaw);
     const orientation = resolveWarRoomOrientation(
       movementYaw,
       moveX,
@@ -3658,7 +3666,7 @@ function WarRoomRuntimeScene({
         : isOnStairs ? 4
           : player.sprinting ? 8.2
             : 6.1;
-    const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementYaw);
+    const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
     let dx = worldMovement.x * speed * delta;
     let dz = worldMovement.z * speed * delta;
     if (now < player.dodgeUntil) {
@@ -4449,7 +4457,21 @@ function WarRoomRuntimeScene({
         );
       }
     }
-    camera.position.copy(cameraDesired);
+    const cameraBlocked = Boolean(blockerId || cameraPlacement?.blocked);
+    if (!cameraInitializedRef.current || cameraBlocked) {
+      camera.position.copy(cameraDesired);
+      cameraInitializedRef.current = true;
+    } else {
+      camera.position.lerp(
+        cameraDesired,
+        1 - Math.exp(-18 * Math.min(delta, 0.05)),
+      );
+      if (!isWarRoomCameraPointClear(
+        { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        cameraBoundsRef.current,
+        0.28,
+      )) camera.position.copy(cameraDesired);
+    }
     if (
       cameraPlacement
       && !isWarRoomCameraPointClear(
@@ -4663,7 +4685,7 @@ function WarRoomRuntimeScene({
       <PlayerActor
         runtimeRef={runtimeRef}
         inputRef={inputRef}
-        cameraHeadingRef={cameraHeadingRef}
+        movementBasisYawRef={movementBasisYawRef}
         weaponId={activeWeapon}
         weaponMountOverrides={weaponMountOverrides}
         rootRef={playerRootRef}

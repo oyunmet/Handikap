@@ -67,7 +67,7 @@ export default function WarRoomControlsEditor({ layout, onChange, onSave, onCanc
           if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
         }}
       >
-        {CONTROLS_CONFIG.map((control) => {
+        {CONTROLS_CONFIG.filter((control) => control.id !== "move-stick").map((control) => {
           const position = layout[control.id];
           const scale = position.size / 100;
           return (
