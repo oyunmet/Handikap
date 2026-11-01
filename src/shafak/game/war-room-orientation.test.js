@@ -13,6 +13,7 @@ import {
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   stepWarRoomYaw,
+  WAR_ROOM_CAMERA_FOLLOW_SPEED,
 } from "./war-room-orientation.ts";
 
 function closeAngle(actual, expected) {
@@ -132,6 +133,34 @@ test("camera-facing body rotation catches up within 120 ms across the wrap bound
   }
   const remaining = Math.abs(Math.atan2(Math.sin(target - yaw), Math.cos(target - yaw)));
   assert.ok(remaining < 0.01, `body should be within 0.01 radians; remaining ${remaining}`);
+});
+
+test("rear camera stays behind the player during a held backward turn", () => {
+  for (const delta of [1 / 120, 1 / 60, 1 / 30, 0.05]) {
+    let facingYaw = 0;
+    let cameraYaw = 0;
+    const reverseTarget = Math.PI;
+
+    for (let elapsed = 0; elapsed < 0.12; elapsed += delta) {
+      facingYaw = stepWarRoomYaw(facingYaw, reverseTarget, delta, 55);
+      cameraYaw = stepWarRoomYaw(cameraYaw, facingYaw, delta, WAR_ROOM_CAMERA_FOLLOW_SPEED);
+
+      const cameraLag = Math.abs(Math.atan2(
+        Math.sin(facingYaw - cameraYaw),
+        Math.cos(facingYaw - cameraYaw),
+      ));
+      assert.ok(
+        cameraLag < Math.PI / 2,
+        `camera must remain behind the player at ${Math.round(1 / delta)} FPS; lag ${cameraLag}`,
+      );
+    }
+
+    const settledLag = Math.abs(Math.atan2(
+      Math.sin(facingYaw - cameraYaw),
+      Math.cos(facingYaw - cameraYaw),
+    ));
+    assert.ok(settledLag < 0.12, `camera should settle behind the player; lag ${settledLag}`);
+  }
 });
 
 test("post-attack strafe ends 0.8 seconds after the attack animation", () => {

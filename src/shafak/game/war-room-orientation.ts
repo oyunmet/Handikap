@@ -1,6 +1,7 @@
 export type WarRoomFacingMode = "KAMERA" | "HAREKET" | "STRAFE";
 export type WarRoomFacingSetting = "camera" | "movement";
 export const WAR_ROOM_ENEMY_FIRE_ALIGNMENT_RADIANS = Math.PI / 12;
+export const WAR_ROOM_CAMERA_FOLLOW_SPEED = 32;
 
 export function getWarRoomYawError(currentYaw: number, targetYaw: number) {
   return Math.atan2(Math.sin(targetYaw - currentYaw), Math.cos(targetYaw - currentYaw));

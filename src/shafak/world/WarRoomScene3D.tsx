@@ -43,6 +43,7 @@ import {
   getWarRoomPlayerRootYaw,
   getWarRoomWorldMovement,
   getWarRoomControlHeading,
+  WAR_ROOM_CAMERA_FOLLOW_SPEED,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
@@ -3601,7 +3602,7 @@ function WarRoomRuntimeScene({
       cameraViewYaw,
       player.facingYaw,
       delta,
-      10,
+      WAR_ROOM_CAMERA_FOLLOW_SPEED,
     );
     player.facingMode = orientation.mode;
     player.joystickAngleDegrees = orientation.joystickAngleDegrees;
