@@ -256,7 +256,7 @@ export function getWarRoomStairProfile(building: WarRoomBuilding) {
     x: building.stairSide * (building.width / 2 - 1.12),
     startZ: -building.depth / 2 + 0.82,
     endZ: building.depth / 2 - 0.86,
-    halfWidth: 0.82,
+    halfWidth: 1.06,
   };
 }
 

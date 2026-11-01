@@ -18,10 +18,17 @@ import {
   getWarRoomStairProgress,
   type WarRoomRoom,
 } from "../game/war-room-rooms";
+import {
+  getWarRoomActiveBlockers,
+  getNearestWarRoomDoor,
+  getWarRoomDoorOpenProgress,
+  updateWarRoomDoors,
+} from "../game/war-room-doors";
 import { getWarRoomCameraAngles } from "../game/war-room-look";
 import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
 import { WarRoomBuildingShell, WarRoomStaircase } from "./WarRoomArchitecture";
 import { WarRoomHouseInterior } from "./WarRoomInteriors";
+import WarRoomDoor from "./WarRoomDoor";
 import {
   getWarRoomMeleeEffectiveReach,
   traceWarRoomMeleeCone,
@@ -934,7 +941,13 @@ function rotateWarRoomScenePoint(x: number, z: number, quarterTurns: number) {
   }
 }
 
-function Battlefield({ runtime }: { runtime: WarRoomRuntime }) {
+function Battlefield({
+  runtime,
+  runtimeRef,
+}: {
+  runtime: WarRoomRuntime;
+  runtimeRef: MutableRefObject<WarRoomRuntime>;
+}) {
   const { room } = runtime;
   const { theme } = room;
   const quarterRotation = room.quarterTurns * Math.PI / 2;
@@ -981,6 +994,7 @@ function Battlefield({ runtime }: { runtime: WarRoomRuntime }) {
           <WarRoomBuildingShell building={building} />
           <WarRoomStaircase building={building} />
           <WarRoomHouseInterior building={building} />
+          <WarRoomDoor building={building} runtimeRef={runtimeRef} />
         </group>
       ))}
       <WarRoomLootChestField runtime={runtime} />
@@ -1268,7 +1282,7 @@ function FirstPersonArms() {
 
   return (
     <group name="war-room-first-person-arms">
-      <group position={[0.38, -0.48, -0.12]} rotation={[0.04, 0.1, 0.58]}>
+      <group position={[0.1, -0.2, -0.12]} rotation={[0.04, 0.1, 0.58]}>
         <mesh castShadow={false}>
           <capsuleGeometry args={[0.12, 0.52, 3, 7]} />
           {sleeve}
@@ -1286,7 +1300,7 @@ function FirstPersonArms() {
           {hand}
         </mesh>
       </group>
-      <group position={[-0.32, -0.45, -0.4]} rotation={[0.02, -0.08, -0.58]}>
+      <group position={[-0.16, -0.22, -0.4]} rotation={[0.02, -0.08, -0.58]}>
         <mesh castShadow={false}>
           <capsuleGeometry args={[0.115, 0.5, 3, 7]} />
           {sleeve}
@@ -2218,6 +2232,12 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
   const ammo = player.ammo[weaponId];
   const bossHealth = getWarRoomCommanderHealth(runtime.enemies);
   const nearbyChest = getNearbyWarRoomLootChest(runtime);
+  const nearbyDoor = getNearestWarRoomDoor(
+    runtime.room.buildings,
+    player.x,
+    player.z,
+    player.floorHeight,
+  );
   const meleeProgress = player.meleeUntil > now
     ? Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
     : 0;
@@ -2286,6 +2306,16 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
     meleePhase,
     meleeComboCount: player.meleeComboCount,
     meleeLastResult: player.meleeLastResult,
+    nearbyDoor: nearbyDoor
+      ? {
+        id: nearbyDoor.building.id,
+        openProgress: getWarRoomDoorOpenProgress(runtime.doorStates[nearbyDoor.building.id], now),
+        secondsRemaining: Math.max(
+          0,
+          (runtime.doorStates[nearbyDoor.building.id]?.openUntil ?? 0) - now,
+        ),
+      }
+      : null,
     nearbyLootChest: nearbyChest
       ? {
         id: nearbyChest.chest.id,
@@ -2359,6 +2389,7 @@ function WarRoomRuntimeScene({
   const cameraRaycastCandidatesRef = useRef<THREE.Object3D[]>([]);
   const cameraRaycastOwnerByObjectRef = useRef(new WeakMap<THREE.Object3D, string>());
   const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
+  const activeBlockersRef = useRef<readonly WarRoomBlocker[]>(runtimeRef.current.room.blockers);
   const cameraBoundsRefreshRef = useRef(0);
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
@@ -2886,7 +2917,7 @@ function WarRoomRuntimeScene({
       { x: origin.x, y: origin.y, z: origin.z },
       { x: rayEnd.x, y: rayEnd.y, z: rayEnd.z },
       0,
-      runtimeRef.current.room.blockers,
+      activeBlockersRef.current,
     );
     const result = traceWarRoomRay(
       { x: origin.x, y: origin.y, z: origin.z },
@@ -2918,7 +2949,7 @@ function WarRoomRuntimeScene({
         z: enemy.z,
       },
       0.08,
-      runtimeRef.current.room.blockers,
+      activeBlockersRef.current,
     ) !== null
   );
 
@@ -3176,7 +3207,7 @@ function WarRoomRuntimeScene({
         Math.sin(attackYaw) * plan.lungeMeters,
         -Math.cos(attackYaw) * plan.lungeMeters,
         WAR_ROOM_PLAYER_COLLISION_RADIUS,
-        runtime.room.blockers,
+        activeBlockersRef.current,
       );
       player.x = lunged.x;
       player.z = lunged.z;
@@ -3445,6 +3476,9 @@ function WarRoomRuntimeScene({
     const input = inputRef.current;
     if (input.paused) return;
     const wallNow = frame.clock.elapsedTime;
+    updateWarRoomDoors(runtime, wallNow, input.doorPressed);
+    input.doorPressed = false;
+    activeBlockersRef.current = getWarRoomActiveBlockers(runtime, wallNow);
     const renderStatsNow = performance.now();
     if (debugMode && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
@@ -3689,7 +3723,7 @@ function WarRoomRuntimeScene({
       dx,
       dz,
       WAR_ROOM_PLAYER_COLLISION_RADIUS,
-      runtime.room.blockers,
+      activeBlockersRef.current,
       player.floorHeight,
     );
     player.x = nextPosition.x;
@@ -3776,7 +3810,7 @@ function WarRoomRuntimeScene({
       && Math.hypot(dx, dz) > 0.035
       && now >= footstepAtRef.current
     ) {
-      const surface = getWarRoomFootstepSurface(player.x, player.z, runtime.room.blockers);
+      const surface = getWarRoomFootstepSurface(player.x, player.z, activeBlockersRef.current);
       playWarRoomSound(
         "footstep",
         player.crouched ? 0.38 : 0.68,
@@ -3866,7 +3900,7 @@ function WarRoomRuntimeScene({
         y: player.floorHeight + player.jumpHeight + (player.crouched ? 1.1 : 1.4),
         z: player.z,
       };
-      const lineBlocked = segmentBlockFraction(enemyEye, playerEye, 0, runtime.room.blockers) !== null;
+      const lineBlocked = segmentBlockFraction(enemyEye, playerEye, 0, activeBlockersRef.current) !== null;
       enemy.mode = activeLootChase
         ? "approach"
         : player.hp / player.maxHp < 0.33
@@ -3915,7 +3949,7 @@ function WarRoomRuntimeScene({
             moveXEnemy,
             moveZEnemy,
             0.35,
-            runtime.room.blockers,
+            activeBlockersRef.current,
             enemy.floorHeight ?? 0,
           );
           enemy.x = moved.x;
@@ -3945,7 +3979,7 @@ function WarRoomRuntimeScene({
           awayX * enemyPush,
           awayZ * enemyPush,
           0.35,
-          runtime.room.blockers,
+          activeBlockersRef.current,
           enemy.floorHeight ?? 0,
         );
         enemy.x = enemySeparated.x;
@@ -3965,7 +3999,7 @@ function WarRoomRuntimeScene({
             -awayX * remainingOverlap,
             -awayZ * remainingOverlap,
             0.4,
-            runtime.room.blockers,
+            activeBlockersRef.current,
             player.floorHeight,
           );
           player.x = playerSeparated.x;
@@ -3996,7 +4030,7 @@ function WarRoomRuntimeScene({
           { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.6 : 1.4), z: enemy.z },
           { x: player.x, y: player.floorHeight + player.jumpHeight + 1.3, z: player.z },
           0,
-          runtime.room.blockers,
+          activeBlockersRef.current,
         );
         return blocked === null;
       })
@@ -4230,7 +4264,7 @@ function WarRoomRuntimeScene({
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
       : 0;
     const { back: baseCameraBack, shoulder } = getWarRoomCameraRig({
-      mode: "third-person",
+      mode: cameraMode,
       aiming: false,
       shoulderOffset,
       shoulderSide,
@@ -4300,9 +4334,9 @@ function WarRoomRuntimeScene({
         };
       }
     }
-    const cameraHeight = 1.55;
-    const focusHeight = 1.5;
-    const focusAhead = 0;
+    const cameraHeight = cameraMode === "first-person" ? 1.35 : 1.55;
+    const focusHeight = cameraMode === "first-person" ? 1.7 : 1.5;
+    const focusAhead = cameraMode === "first-person" ? 8 : 0;
     cameraStart.set(
       player.x,
       player.floorHeight + player.jumpHeight + cameraHeight,
@@ -4319,7 +4353,7 @@ function WarRoomRuntimeScene({
       focusHeight,
     );
     cameraDesired.set(cameraFrame.position.x, cameraFrame.position.y, cameraFrame.position.z);
-    if (indoorBuilding && !WAR_ROOM_CAMERA_OCCLUSION_ENABLED) {
+    if (indoorBuilding && cameraMode === "third-person" && !WAR_ROOM_CAMERA_OCCLUSION_ENABLED) {
       const indoorTarget = clampWarRoomCameraToInterior(
         { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
         indoorBuilding,
@@ -4366,7 +4400,7 @@ function WarRoomRuntimeScene({
     const requestedCameraDistance = cameraStart.distanceTo(cameraDesired);
     const cameraStartPoint = { x: cameraStart.x, y: cameraStart.y, z: cameraStart.z };
     const cameraEndPoint = { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z };
-    const cameraPlacement = WAR_ROOM_CAMERA_OCCLUSION_ENABLED
+    const cameraPlacement = cameraMode === "third-person" && WAR_ROOM_CAMERA_OCCLUSION_ENABLED
       ? indoorBuilding
         ? resolveWarRoomInteriorCameraPlacement(
           cameraStartPoint,
@@ -4505,14 +4539,14 @@ function WarRoomRuntimeScene({
       camera.position.copy(cameraDesired);
     }
     if (playerRootRef.current) {
-      playerRootRef.current.visible = true;
+      playerRootRef.current.visible = cameraMode !== "first-person";
     }
     cameraLook.set(
       cameraFrame.lookAt.x,
       cameraFrame.lookAt.y,
       cameraFrame.lookAt.z,
     );
-    if (indoorBuilding) {
+    if (indoorBuilding && cameraMode === "third-person") {
       const indoorLook = clampWarRoomCameraToInterior(
         { x: cameraLook.x, y: cameraLook.y, z: cameraLook.z },
         indoorBuilding,
@@ -4651,7 +4685,7 @@ function WarRoomRuntimeScene({
   return (
     <>
       <TimeOfDaySky quality={quality} />
-      <Battlefield runtime={runtime} />
+      <Battlefield runtime={runtime} runtimeRef={runtimeRef} />
       {RESTORE_CONFIG.enabled && runtime.healingPoints.map((point) => (
         <WarRoomHealingPointMarker
           key={point.id}

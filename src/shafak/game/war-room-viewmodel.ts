@@ -99,8 +99,8 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
 
   return {
     position: [
-      (0.42 + (0.06 - 0.42) * aim + swingX + recoil * 0.025) * horizontalFactor,
-      -0.31 + (0.06 + 0.31) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025,
+      (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor,
+      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025,
       -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08,
     ],
     rotation: [

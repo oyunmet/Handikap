@@ -274,6 +274,15 @@ test("first person camera stays at the eye without a third-person shoulder", () 
   }), { back: 0, shoulder: 0 });
 });
 
+test("first-person camera removes the shoulder and rear offset", () => {
+  assert.deepEqual(getWarRoomCameraRig({
+    mode: "first-person",
+    aiming: false,
+    shoulderOffset: 0.7,
+    shoulderSide: "right",
+  }), { back: 0, shoulder: 0 });
+});
+
 test("third-person camera defaults to a five-meter shoulder view and supports either side", () => {
   const right = getWarRoomCameraRig({
     mode: "third-person",

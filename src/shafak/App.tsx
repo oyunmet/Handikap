@@ -63,9 +63,6 @@ type Preferences = {
   visualEffects: boolean;
   reduceMotion: boolean;
   performanceMonitor: boolean;
-  warRoomCameraMode: "first-person" | "third-person";
-  warRoomShoulderSide: "left" | "right";
-  warRoomShoulderOffset: number;
   timeOfDay: TimeOfDayMode;
 };
 
@@ -82,9 +79,6 @@ const initialPreferences: Preferences = {
   visualEffects: true,
   reduceMotion: false,
   performanceMonitor: false,
-  warRoomCameraMode: "third-person",
-  warRoomShoulderSide: "right",
-  warRoomShoulderOffset: 0.6,
   timeOfDay: "auto",
 };
 
@@ -161,13 +155,6 @@ function readPreferences(): Preferences {
         typeof saved.performanceMonitor === "boolean"
           ? saved.performanceMonitor
           : initialPreferences.performanceMonitor,
-      // Older saves omitted this setting. Keep them in the supported,
-      // always-visible shoulder camera instead of silently selecting first person.
-      warRoomCameraMode: "third-person",
-      warRoomShoulderSide: saved.warRoomShoulderSide === "left" ? "left" : "right",
-      warRoomShoulderOffset: typeof saved.warRoomShoulderOffset === "number"
-        ? Math.max(0.2, Math.min(1.5, saved.warRoomShoulderOffset))
-        : initialPreferences.warRoomShoulderOffset,
       timeOfDay: saved.timeOfDay === "day" || saved.timeOfDay === "sunset" || saved.timeOfDay === "night"
         ? saved.timeOfDay
         : "auto",
@@ -1212,8 +1199,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 profile={profile}
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
-                shoulderSide={preferences.warRoomShoulderSide}
-                shoulderOffset={preferences.warRoomShoulderOffset}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
                 controlsEditorOpen={warRoomControlsEditorOpen}
@@ -1348,44 +1333,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Kamera görünümü</strong>
-                        <small>Üçüncü şahıs omuz kamerası; karakter daima görünür.</small>
+                        <small>Birinci şahıs; ekranda yalnızca kol ve eldeki silah görünür.</small>
                       </span>
                     </div>
-                    <>
-                      <div className="setting-row setting-row--quality">
-                          <span className="setting-row__copy">
-                            <strong>Omuz tarafı</strong>
-                            <small>Üçüncü şahıs kamerasının karakter yanındaki konumu.</small>
-                          </span>
-                          <div className="quality-switch" role="group" aria-label="Omuz tarafı">
-                            {([
-                              ["left", "Sol"],
-                              ["right", "Sağ"],
-                            ] as const).map(([value, label]) => (
-                              <button
-                                className={preferences.warRoomShoulderSide === value ? "is-selected" : ""}
-                                key={value}
-                                type="button"
-                                aria-pressed={preferences.warRoomShoulderSide === value}
-                                onClick={() => setPreference("warRoomShoulderSide", value)}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                      </div>
-                      <SettingRange
-                          id="war-room-camera-shoulder-offset"
-                          label="Omuz mesafesi"
-                          description="Kameranın karakterden yana uzaklığı."
-                          value={preferences.warRoomShoulderOffset}
-                          min={0.2}
-                          max={1.5}
-                          step={0.05}
-                          formatValue={(value) => `${value.toFixed(2)} m`}
-                          onChange={(value) => setPreference("warRoomShoulderOffset", value)}
-                      />
-                    </>
                   </>
                 )}
                 <div className="setting-row setting-row--quality">

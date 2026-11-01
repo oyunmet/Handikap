@@ -3,8 +3,8 @@ name: War Room camera framing
 description: The War Room must remain third-person with the player visible.
 ---
 
-Keep the War Room third-person camera behind the movement heading selected by the mobile joystick. Left-side joystick movement automatically turns the camera toward the selected heading when there is no active manual look; a right-side touch drag temporarily owns camera yaw and pitch. Capture the camera yaw at joystick start so automatic camera motion cannot feed back into a held stick; if the player manually looks while moving, rebase movement against that view, then resume auto-follow on release. Desktop mouse look remains available. Preserve indoor camera bounds, obstruction avoidance, and player recovery.
+Use first-person camera framing in War Room: hide the player body and show only the camera-mounted arms and current weapon. Keep the left-side joystick/right-side touch-look split and desktop mouse look. Preserve camera yaw, pitch, and movement-basis separation so manual look while moving does not cause movement feedback. Third-person framing is no longer the War Room default.
 
-**Why:** The user explicitly requested both Call of Duty Mobile-style split touch zones and automatic camera alignment with joystick movement.
+**Why:** The user later explicitly requested first-person framing for the War Room, with only the player's arm and weapon visible. This supersedes the earlier third-person preference.
 
-**How to apply:** Keep current camera yaw, manual-look state, auto-follow target, touch-start movement basis, and player body yaw separate. Verify simultaneous left movement/right look, auto-follow after releasing look, all joystick directions, and indoor camera clearance.
+**How to apply:** Keep camera yaw, manual-look state, touch-start movement basis, and player body yaw separate. Verify simultaneous left movement/right look, all joystick directions, first-person weapon visibility, body hiding, and indoor doorway/stair clearance.

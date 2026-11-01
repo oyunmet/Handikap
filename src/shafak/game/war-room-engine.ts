@@ -9,6 +9,7 @@ import {
   type WarRoomWeaponId,
 } from "./war-room-data";
 import type { WarRoomFacingMode } from "./war-room-orientation";
+import type { WarRoomDoorState } from "./war-room-doors";
 import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
 import { getWarRoomRoom, type WarRoomRoom } from "./war-room-rooms";
 
@@ -53,6 +54,7 @@ export type WarRoomAmmo = { magazine: number; reserve: number };
 
 export type WarRoomRuntime = {
   room: WarRoomRoom;
+  doorStates: Record<string, WarRoomDoorState>;
   player: {
     x: number;
     z: number;
@@ -162,6 +164,7 @@ export type WarRoomInputState = {
   weaponSlotPressed: number | null;
   pronePressed: boolean;
   lootHeld: boolean;
+  doorPressed: boolean;
   paused: boolean;
 };
 
@@ -214,6 +217,7 @@ export type WarRoomHudSnapshot = {
   meleeComboCount: number;
   meleeLastResult: string;
   nearbyLootChest: { id: string; label: string; contents: string; progress: number } | null;
+  nearbyDoor: { id: string; openProgress: number; secondsRemaining: number } | null;
 };
 
 export type DamageTarget = { hp: number; maxHp: number };
@@ -301,6 +305,9 @@ export function createWarRoomRuntime(
 
   return {
     room,
+    doorStates: Object.fromEntries(
+      room.buildings.map((building) => [building.id, { openedAt: 0, openUntil: 0 }]),
+    ),
     lootChests: room.lootChests.map((chest) => ({ ...chest, opened: false })),
     player: {
       x: 0,

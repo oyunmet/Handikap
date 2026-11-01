@@ -18,6 +18,7 @@ import {
 } from "./war-room-engine";
 import { createWarRoomLeaderboard, type WarRoomLeaderboardEntry } from "./war-room-leaderboard";
 import { getWarRoomBuildingLocalPoint } from "./war-room-rooms";
+import { getWarRoomDoorOpenProgress } from "./war-room-doors";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
 import {
@@ -93,8 +94,6 @@ type Props = {
   profile: PlayerProfile;
   vibrationEnabled: boolean;
   motionReduced: boolean;
-  shoulderSide: "left" | "right";
-  shoulderOffset: number;
   onOpenSettings: () => void;
   settingsOpen: boolean;
   controlsEditorOpen: boolean;
@@ -171,6 +170,7 @@ function createInputState(): WarRoomInputState {
     weaponSlotPressed: null,
     pronePressed: false,
     lootHeld: false,
+    doorPressed: false,
     paused: false,
   };
 }
@@ -222,6 +222,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     meleeComboCount: 0,
     meleeLastResult: "Henüz isabet yok",
     nearbyLootChest: null,
+    nearbyDoor: null,
   };
 }
 
@@ -404,8 +405,6 @@ export default function WarRoomGame({
   profile,
   vibrationEnabled,
   motionReduced,
-  shoulderSide,
-  shoulderOffset,
   onOpenSettings,
   settingsOpen,
   controlsEditorOpen,
@@ -445,6 +444,8 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const nearbyDoorRef = useRef<WarRoomHudSnapshot["nearbyDoor"]>(null);
+  nearbyDoorRef.current = hud.nearbyDoor;
   const [damagePopup, setDamagePopup] = useState<{
     id: number;
     damage: number;
@@ -594,6 +595,7 @@ export default function WarRoomGame({
     inputRef.current.fireHeld = false;
     inputRef.current.aimHeld = false;
     inputRef.current.lootHeld = false;
+    inputRef.current.doorPressed = false;
     pointerRef.current.clear();
     stickRef.current?.style.setProperty("--stick-x", "0px");
     stickRef.current?.style.setProperty("--stick-y", "0px");
@@ -737,7 +739,7 @@ export default function WarRoomGame({
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const input = inputRef.current;
       const key = event.key.toLowerCase();
-      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift", "x", "f"].includes(key)) {
+      if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift", "x", "f", "e"].includes(key)) {
         setKeyboardHintsVisible(true);
       }
       if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
@@ -750,6 +752,9 @@ export default function WarRoomGame({
       else if (key === "x") {
         pressWarRoomAction(input, "sprint-lock");
         setSprintLockActive(input.sprintLocked);
+      }
+      else if (key === "e" && nearbyDoorRef.current) {
+        if (!event.repeat) input.doorPressed = true;
       }
       else if (key === "f" || key === "e") input.lootHeld = true;
       else if (key === "escape") pauseBattle();
@@ -1169,10 +1174,10 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
-            cameraMode="third-person"
+            cameraMode="first-person"
             motionReduced={motionReduced}
-            shoulderSide={shoulderSide}
-            shoulderOffset={shoulderOffset}
+            shoulderSide="right"
+            shoulderOffset={0}
             bloodEffects={bloodEffects}
             trainingMode={weaponLabMode}
             quality={quality}
@@ -1668,6 +1673,27 @@ export default function WarRoomGame({
             </div>
             <button className="war-room-pause" type="button" onClick={pauseBattle}>DURAKLAT · ÇIK</button>
           </div>
+          {hud.nearbyDoor && (
+            <button
+              className={`war-room-door-action${hud.nearbyDoor.openProgress > 0.95 ? " is-open" : ""}`}
+              type="button"
+              aria-label={`Kapıyı aç: ${hud.nearbyDoor.id}`}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onPointerUp={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                inputRef.current.doorPressed = true;
+              }}
+            >
+              <span>{hud.nearbyDoor.openProgress > 0.95 ? "KAPI AÇIK" : "KAPIYI AÇ"}</span>
+              <small>{hud.nearbyDoor.openProgress > 0.95
+                ? `KAPANMASINA ${hud.nearbyDoor.secondsRemaining.toFixed(1)} SN · E`
+                : "BAS · KAPI 5 SN AÇIK KALIR · E"}</small>
+            </button>
+          )}
           {hud.nearbyLootChest && (
             <button
               className={`war-room-loot-action${hud.nearbyLootChest.progress > 0 ? " is-opening" : ""}`}

@@ -28,6 +28,8 @@ test("portrait view keeps the weapon inside a narrower camera frame", () => {
   const landscape = getWarRoomViewModelPose(state, 1.75);
   const portrait = getWarRoomViewModelPose(state, 0.46);
   assert.ok(portrait.position[0] < landscape.position[0] * 0.3);
+  assert.ok(portrait.position[0] < 0.1);
+  assert.ok(portrait.position[1] > -0.1);
   assert.ok(getWarRoomViewModelHorizontalFactor(0.46) < 0.3);
   assert.ok(getWarRoomViewModelScaleFactor(0.46) < 1);
   assert.equal(getWarRoomViewModelHorizontalFactor(1.75), 1);
@@ -38,7 +40,7 @@ test("reduced motion removes idle, locomotion, and firing sway", () => {
     time: 1.2, movement: 1, aiming: false, recoil: 1, reloadProgress: 0, chargeProgress: 0,
     meleeProgress: null, meleeStyle: "slash", comboIndex: 0, motionReduced: true,
   });
-  assert.deepEqual(pose.position, [0.42, -0.31, -0.58]);
+  assert.deepEqual(pose.position, [0.28, -0.08, -0.58]);
   assert.deepEqual(pose.rotation, [0.04, -0.06, -0.045]);
 });
 

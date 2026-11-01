@@ -203,8 +203,8 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
   const stairX = building.stairSide * (width / 2 - 1.12);
   const stairStartZ = -depth / 2 + 0.82;
   const stairEndZ = depth / 2 - 0.86;
-  const stairHalfWidth = 0.82;
-  const openingWidth = Math.min(1.78, width - 0.48);
+  const stairHalfWidth = 1.06;
+  const openingWidth = Math.min(2.22, width - 0.48);
   const openingLeft = Math.max(-width / 2, stairX - openingWidth / 2);
   const openingRight = Math.min(width / 2, stairX + openingWidth / 2);
   const openingActualWidth = openingRight - openingLeft;
@@ -492,7 +492,7 @@ export function WarRoomStaircase({ building }: BuildingProps) {
   const stairX = building.stairSide * (building.width / 2 - 1.12);
   const startZ = -building.depth / 2 + 0.82;
   const endZ = building.depth / 2 - 0.86;
-  const halfWidth = 0.82;
+  const halfWidth = 1.06;
   const run = endZ - startZ;
   const stepCount = Math.max(
     10,

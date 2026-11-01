@@ -401,7 +401,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7.2,
     storyHeight: 3.05,
     upperWallHeight: 2.8,
-    doorWidth: 1.6,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
     style: 0,
@@ -414,7 +414,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7.2,
     storyHeight: 3.05,
     upperWallHeight: 2.8,
-    doorWidth: 1.7,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
     style: 1,
@@ -427,7 +427,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7.6,
     storyHeight: 3.05,
     upperWallHeight: 2.7,
-    doorWidth: 1.55,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
     style: 2,
@@ -440,7 +440,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7,
     storyHeight: 3.05,
     upperWallHeight: 2.75,
-    doorWidth: 1.6,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
     style: 3,
@@ -453,7 +453,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7.6,
     storyHeight: 3.05,
     upperWallHeight: 2.8,
-    doorWidth: 1.6,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
     style: 4,
@@ -466,7 +466,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7,
     storyHeight: 3.05,
     upperWallHeight: 2.7,
-    doorWidth: 1.65,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
     style: 5,
@@ -479,7 +479,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7.4,
     storyHeight: 3.05,
     upperWallHeight: 2.8,
-    doorWidth: 1.65,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
     style: 6,
@@ -492,7 +492,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
     depth: 7.4,
     storyHeight: 3.05,
     upperWallHeight: 2.75,
-    doorWidth: 1.7,
+    doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
     style: 7,
@@ -506,8 +506,8 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
   const frontZ = building.z - building.depth / 2;
   const backZ = building.z + building.depth / 2;
   const partitionZ = building.z + building.depth / 2 - 1.72;
-  const secretOpening = 1.35;
-  const stairOpening = 1.9;
+  const secretOpening = 1.9;
+  const stairOpening = 2.2;
   const stairX = building.stairSide * (building.width / 2 - 1.12);
   const partitionGaps = [
     [-secretOpening / 2, secretOpening / 2] as const,
@@ -608,7 +608,7 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
 function createBuildingUpperFloorBlockers(building: WarRoomBuilding): WarRoomBlocker[] {
   const inset = 0.18;
   const stairProfileX = building.stairSide * (building.width / 2 - 1.12);
-  const stairOpeningHalfWidth = 0.92;
+  const stairOpeningHalfWidth = 1.08;
   const localLeft = -building.width / 2 + inset;
   const localRight = building.width / 2 - inset;
   const localFront = -building.depth / 2 + inset;
