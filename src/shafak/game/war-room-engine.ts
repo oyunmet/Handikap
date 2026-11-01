@@ -162,6 +162,9 @@ export type WarRoomInputState = {
   paused: boolean;
 };
 
+export const WAR_ROOM_PLAYER_COLLISION_RADIUS = 0.3;
+const WAR_ROOM_COLLISION_STEP_DISTANCE = 0.12;
+
 export type WarRoomHudSnapshot = {
   player: { x: number; z: number; floorHeight: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };
   orientation: {
@@ -438,15 +441,29 @@ export function moveWarRoomEntity(
   z: number,
   dx: number,
   dz: number,
-  radius = 0.38,
+  radius = WAR_ROOM_PLAYER_COLLISION_RADIUS,
   blockers: readonly WarRoomBlocker[] = WAR_ROOM_BLOCKERS,
   floorHeight = 0,
 ) {
   const limit = WAR_ROOM_HALF_SIZE - radius - 1;
-  let nextX = Math.max(-limit, Math.min(limit, x + dx));
-  let nextZ = Math.max(-limit, Math.min(limit, z + dz));
-  if (blockers.some((blocker) => circleHitsBlocker(nextX, z, radius, blocker, floorHeight))) nextX = x;
-  if (blockers.some((blocker) => circleHitsBlocker(nextX, nextZ, radius, blocker, floorHeight))) nextZ = z;
+  let nextX = x;
+  let nextZ = z;
+  const distance = Math.hypot(dx, dz);
+  const steps = Math.max(1, Math.ceil(distance / WAR_ROOM_COLLISION_STEP_DISTANCE));
+  const stepX = dx / steps;
+  const stepZ = dz / steps;
+
+  for (let index = 0; index < steps; index += 1) {
+    const candidateX = Math.max(-limit, Math.min(limit, nextX + stepX));
+    const candidateZ = Math.max(-limit, Math.min(limit, nextZ + stepZ));
+    if (!blockers.some((blocker) => circleHitsBlocker(candidateX, nextZ, radius, blocker, floorHeight))) {
+      nextX = candidateX;
+    }
+    if (!blockers.some((blocker) => circleHitsBlocker(nextX, candidateZ, radius, blocker, floorHeight))) {
+      nextZ = candidateZ;
+    }
+  }
+
   return { x: nextX, z: nextZ };
 }
 

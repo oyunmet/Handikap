@@ -9,6 +9,7 @@ import {
   resolveWarRoomStanceTap,
   setWarRoomMoveVector,
 } from "./war-room-input.ts";
+import { applyWarRoomLookDelta } from "./war-room-look.ts";
 
 function createInput() {
   return {
@@ -47,6 +48,22 @@ test("independent pointers preserve joystick, fire, and look ownership", () => {
   assert.equal(pointers.has(11), true);
   assert.equal(pointers.has(13), true);
   assert.equal(moveWarRoomPointer(pointers, 12, 500, 500), null);
+});
+
+test("a right-side touch swipe updates camera aim without stealing the move stick", () => {
+  const pointers = new Map();
+  const look = { yaw: 0, pitch: 0 };
+  beginWarRoomPointer(pointers, 21, { x: 30, y: 40, pointerType: "touch", button: -1 });
+  beginWarRoomPointer(pointers, 22, { x: 340, y: 300, pointerType: "touch", button: -1 });
+
+  const lookDelta = moveWarRoomPointer(pointers, 22, 390, 280);
+  applyWarRoomLookDelta(look, lookDelta.dx, lookDelta.dy, { x: 0.007, y: 0.0045 }, "touch");
+
+  assert.ok(look.yaw > 0);
+  assert.ok(look.pitch > 0);
+  assert.equal(pointers.has(21), true);
+  assert.equal(endWarRoomPointer(pointers, 22), true);
+  assert.equal(pointers.has(21), true);
 });
 
 test("touch and keyboard controls produce the expected input-only actions", () => {

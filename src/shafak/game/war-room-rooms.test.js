@@ -15,7 +15,12 @@ import {
   WAR_ROOM_MAX_ROOM_ENEMIES,
 } from "./war-room-rooms.ts";
 import { GAME_BUILD_MARKER } from "../build-info.ts";
-import { createWarRoomRuntime, moveWarRoomEntity, segmentBlockFraction } from "./war-room-engine.ts";
+import {
+  createWarRoomRuntime,
+  moveWarRoomEntity,
+  segmentBlockFraction,
+  WAR_ROOM_PLAYER_COLLISION_RADIUS,
+} from "./war-room-engine.ts";
 import {
   WAR_ROOM_BUILD_VERSION,
   WAR_ROOM_ROOM_BUFFS_ENABLED,
@@ -66,11 +71,57 @@ test("all eight houses have traversable doors, matching stairs, floors, and uppe
           position.z,
           -forwardX * 0.3,
           -forwardZ * 0.3,
-          0.38,
+          WAR_ROOM_PLAYER_COLLISION_RADIUS,
           room.blockers,
         );
       }
       assert.ok(Math.hypot(position.x - building.x, position.z - building.z) < 0.8);
+
+      const center = getWarRoomBuildingWorldPoint(building, 0, 0);
+      for (const direction of [
+        { x: 0, z: -1 },
+        { x: 0, z: 1 },
+        { x: -1, z: 0 },
+        { x: 1, z: 0 },
+      ]) {
+        const moved = moveWarRoomEntity(
+          center.x,
+          center.z,
+          direction.x * 0.75,
+          direction.z * 0.75,
+          WAR_ROOM_PLAYER_COLLISION_RADIUS,
+          room.blockers,
+        );
+        assert.ok(
+          Math.hypot(moved.x - center.x, moved.z - center.z) > 0.7,
+          `room ${roomNumber} ${building.id} should allow movement in every direction`,
+        );
+        const returned = moveWarRoomEntity(
+          moved.x,
+          moved.z,
+          -direction.x * 0.75,
+          -direction.z * 0.75,
+          WAR_ROOM_PLAYER_COLLISION_RADIUS,
+          room.blockers,
+        );
+        assert.ok(Math.hypot(returned.x - center.x, returned.z - center.z) < 0.02);
+      }
+
+      let exitPosition = position;
+      for (let index = 0; index < steps; index += 1) {
+        exitPosition = moveWarRoomEntity(
+          exitPosition.x,
+          exitPosition.z,
+          forwardX * 0.3,
+          forwardZ * 0.3,
+          WAR_ROOM_PLAYER_COLLISION_RADIUS,
+          room.blockers,
+        );
+      }
+      assert.ok(
+        Math.hypot(exitPosition.x - front.x, exitPosition.z - front.z) < 0.8,
+        `room ${roomNumber} ${building.id} should allow leaving through its doorway`,
+      );
 
       const stairs = getWarRoomStairProfile(building);
       const stairMidpoint = getWarRoomBuildingWorldPoint(
@@ -100,7 +151,7 @@ test("all eight houses have traversable doors, matching stairs, floors, and uppe
           stairPosition.z,
           nextLocal.x - stairPosition.x,
           nextLocal.z - stairPosition.z,
-          0.28,
+          WAR_ROOM_PLAYER_COLLISION_RADIUS,
           room.blockers,
           floorHeight,
         );

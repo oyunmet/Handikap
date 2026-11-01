@@ -1,7 +1,6 @@
 export type WarRoomFacingMode = "KAMERA" | "HAREKET" | "STRAFE";
 export type WarRoomFacingSetting = "camera" | "movement";
 export const WAR_ROOM_ENEMY_FIRE_ALIGNMENT_RADIANS = Math.PI / 12;
-export const WAR_ROOM_CAMERA_FOLLOW_SPEED = 32;
 
 export function getWarRoomYawError(currentYaw: number, targetYaw: number) {
   return Math.atan2(Math.sin(targetYaw - currentYaw), Math.cos(targetYaw - currentYaw));
@@ -36,18 +35,6 @@ export function getWarRoomWorldMovement(moveX: number, moveY: number, cameraYaw:
     x: Math.sin(cameraYaw) * moveY + Math.cos(cameraYaw) * moveX,
     z: -Math.cos(cameraYaw) * moveY + Math.sin(cameraYaw) * moveX,
   };
-}
-
-export function getWarRoomControlHeading(
-  currentHeading: number,
-  cameraHeading: number,
-  moveX: number,
-  moveY: number,
-  movementThreshold = 0.06,
-) {
-  return Math.hypot(moveX, moveY) >= movementThreshold
-    ? currentHeading
-    : cameraHeading;
 }
 
 export function resolveWarRoomOrientation(

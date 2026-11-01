@@ -40,10 +40,14 @@ import { HudButton, HudIcon, type HudButtonIconKey } from "./HudButton";
 import { playGameButtonClick } from "../audio/howler";
 import type { RenderQuality } from "../world/graphics-quality";
 import { isWithinWarRoomDrawCallBudget, WAR_ROOM_DRAW_CALL_BUDGET, type WarRoomFrameStats } from "./war-room-quality";
-import type { WarRoomLookPointerType } from "./war-room-look";
+import {
+  applyWarRoomLookDelta,
+  type WarRoomLookPointerType,
+} from "./war-room-look";
 import {
   beginWarRoomPointer,
   endWarRoomPointer,
+  moveWarRoomPointer,
   pressWarRoomAction,
   releaseWarRoomAction,
   resolveWarRoomStanceTap,
@@ -548,6 +552,7 @@ export default function WarRoomGame({
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
   const inputRef = useRef<WarRoomInputState>(createInputState());
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
+  const lookPointerIdsRef = useRef(new Set<number>());
   const settingsPauseRef = useRef(false);
   const stickRef = useRef<HTMLDivElement>(null);
   const stickPointerRef = useRef<number | null>(null);
@@ -585,6 +590,7 @@ export default function WarRoomGame({
     preparedNextRoomRef.current = null;
     inputRef.current = createInputState();
     pointerRef.current.clear();
+    lookPointerIdsRef.current.clear();
     stickPointerRef.current = null;
     dynamicStickOriginRef.current = null;
     crouchTapAtRef.current = null;
@@ -661,6 +667,7 @@ export default function WarRoomGame({
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
     pointerRef.current.clear();
+    lookPointerIdsRef.current.clear();
     stickPointerRef.current = null;
     dynamicStickOriginRef.current = null;
     setDynamicStickActive(false);
@@ -678,6 +685,7 @@ export default function WarRoomGame({
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
     pointerRef.current.clear();
+    lookPointerIdsRef.current.clear();
     stickPointerRef.current = null;
     dynamicStickOriginRef.current = null;
     setDynamicStickActive(false);
@@ -745,6 +753,7 @@ export default function WarRoomGame({
       inputRef.current.lootHeld = false;
       runtimeRef.current.player.meleeInputPending = false;
       pointerRef.current.clear();
+      lookPointerIdsRef.current.clear();
       stickPointerRef.current = null;
       dynamicStickOriginRef.current = null;
       setDynamicStickActive(false);
@@ -914,13 +923,28 @@ export default function WarRoomGame({
   };
 
   const handleWorldPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (stickPointerRef.current !== event.pointerId) return;
-    readDynamicStick(event);
+    if (stickPointerRef.current === event.pointerId) {
+      readDynamicStick(event);
+      return;
+    }
+    if (!lookPointerIdsRef.current.has(event.pointerId)) return;
+    const pointer = pointerRef.current.get(event.pointerId);
+    const delta = moveWarRoomPointer(pointerRef.current, event.pointerId, event.clientX, event.clientY);
+    if (!pointer || !delta) return;
+    applyWarRoomLookDelta(
+      inputRef.current,
+      delta.dx,
+      delta.dy,
+      { x: 0.007, y: 0.0045 },
+      pointer.pointerType,
+    );
   };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button,.war-room-stick,.war-room-minimap,.war-room-weapon-debug,.war-room-calibration-panel")) return;
-    if (event.pointerType === "touch" && event.clientX < window.innerWidth * 0.46) {
+    const stageBounds = event.currentTarget.getBoundingClientRect();
+    const lookSideBoundary = stageBounds.left + stageBounds.width * 0.46;
+    if (event.pointerType === "touch" && event.clientX < lookSideBoundary) {
       if (
         joystickMode !== "dynamic"
         || stickPointerRef.current !== null
@@ -940,6 +964,22 @@ export default function WarRoomGame({
       readDynamicStick(event);
       return;
     }
+    if (
+      event.pointerType === "touch"
+      && event.clientX >= lookSideBoundary
+    ) {
+      event.preventDefault();
+      resumeWarRoomAudio();
+      beginWarRoomPointer(pointerRef.current, event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        button: event.button,
+        pointerType: pointerTypeForEvent(event),
+      });
+      lookPointerIdsRef.current.add(event.pointerId);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
     if (event.pointerType === "mouse" && event.button !== 0 && event.button !== 2) return;
     event.preventDefault();
     resumeWarRoomAudio();
@@ -949,6 +989,7 @@ export default function WarRoomGame({
       button: event.button,
       pointerType: pointerTypeForEvent(event),
     });
+    lookPointerIdsRef.current.add(event.pointerId);
     if (event.pointerType === "mouse" && event.button === 0) {
       pressWarRoomAction(inputRef.current, "fire");
     } else if (event.pointerType === "mouse" && event.button === 2) {
@@ -967,10 +1008,14 @@ export default function WarRoomGame({
       stickRef.current?.style.setProperty("--stick-y", "0px");
       return;
     }
+    lookPointerIdsRef.current.delete(event.pointerId);
     const pointer = pointerRef.current.get(event.pointerId);
     if (!pointer) return;
-    if (pointer.button === 0) releaseWarRoomAction(inputRef.current, "fire");
-    else if (pointer.button === 2) releaseWarRoomAction(inputRef.current, "aim");
+    if (pointer.pointerType === "mouse" && pointer.button === 0) {
+      releaseWarRoomAction(inputRef.current, "fire");
+    } else if (pointer.pointerType === "mouse" && pointer.button === 2) {
+      releaseWarRoomAction(inputRef.current, "aim");
+    }
     endWarRoomPointer(pointerRef.current, event.pointerId);
   };
 

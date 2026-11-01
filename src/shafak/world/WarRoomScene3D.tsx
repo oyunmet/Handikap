@@ -18,6 +18,7 @@ import {
   getWarRoomStairProgress,
   type WarRoomRoom,
 } from "../game/war-room-rooms";
+import { getWarRoomCameraAngles } from "../game/war-room-look";
 import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
 import { WarRoomBuildingShell, WarRoomStaircase } from "./WarRoomArchitecture";
 import { WarRoomHouseInterior } from "./WarRoomInteriors";
@@ -42,8 +43,6 @@ import {
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
   getWarRoomWorldMovement,
-  getWarRoomControlHeading,
-  WAR_ROOM_CAMERA_FOLLOW_SPEED,
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
@@ -126,6 +125,7 @@ import {
   nextWarRoomRandom,
   segmentBlockFraction,
   shortestAngleDelta,
+  WAR_ROOM_PLAYER_COLLISION_RADIUS,
   type WarRoomEnemy,
   type WarRoomHudSnapshot,
   type WarRoomInputState,
@@ -2362,7 +2362,6 @@ function WarRoomRuntimeScene({
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
   const cameraHeadingRef = useRef<number | null>(null);
-  const cameraViewHeadingRef = useRef<number | null>(null);
   const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
   const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
   const emptyClickAtRef = useRef(0);
@@ -3173,7 +3172,7 @@ function WarRoomRuntimeScene({
         player.z,
         Math.sin(attackYaw) * plan.lungeMeters,
         -Math.cos(attackYaw) * plan.lungeMeters,
-        0.38,
+        WAR_ROOM_PLAYER_COLLISION_RADIUS,
         runtime.room.blockers,
       );
       player.x = lunged.x;
@@ -3557,20 +3556,13 @@ function WarRoomRuntimeScene({
       moveY,
     );
     const strafeActive = input.aimHeld || now < player.strafeUntil;
-    // Keep the camera/control heading independent from body turns so joystick
-    // up/down remain screen-relative while the player faces backward or sideways.
-    if (cameraHeadingRef.current === null) cameraHeadingRef.current = player.facingYaw;
-    if (cameraViewHeadingRef.current === null) cameraViewHeadingRef.current = player.facingYaw;
-    const cameraViewYaw = cameraViewHeadingRef.current ?? player.facingYaw;
-    cameraHeadingRef.current = getWarRoomControlHeading(
-      cameraHeadingRef.current,
-      cameraViewYaw,
-      moveX,
-      moveY,
-    );
-    const movementYaw = cameraHeadingRef.current;
+    const controlCameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
+    input.yaw = controlCameraAngles.yaw;
+    input.pitch = controlCameraAngles.pitch;
+    const movementYaw = controlCameraAngles.yaw;
+    cameraHeadingRef.current = movementYaw;
     player.yaw = player.facingYaw;
-    player.pitch = WAR_ROOM_FIXED_CAMERA_PITCH;
+    player.pitch = controlCameraAngles.pitch;
     const forwardX = Math.sin(movementYaw);
     const forwardZ = -Math.cos(movementYaw);
     const rightX = Math.cos(movementYaw);
@@ -3581,12 +3573,13 @@ function WarRoomRuntimeScene({
       moveY,
       player.facingYaw,
       strafeActive,
-      "movement",
+      "camera",
     );
     const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
       && orientationWeapon.weaponClass === "melee"
       && input.aimHeld
+      && inputLength < 0.12
       ? getWarRoomMeleeAssistYaw(
         player.x,
         player.z,
@@ -3598,12 +3591,6 @@ function WarRoomRuntimeScene({
       : orientation.yaw;
     player.facingYaw = stepWarRoomYaw(player.facingYaw, assistedYaw, delta, 55);
     player.yaw = player.facingYaw;
-    cameraViewHeadingRef.current = stepWarRoomYaw(
-      cameraViewYaw,
-      player.facingYaw,
-      delta,
-      WAR_ROOM_CAMERA_FOLLOW_SPEED,
-    );
     player.facingMode = orientation.mode;
     player.joystickAngleDegrees = orientation.joystickAngleDegrees;
     player.facingCamera = orientation.facingCamera;
@@ -3683,7 +3670,7 @@ function WarRoomRuntimeScene({
       player.z,
       dx,
       dz,
-      0.38,
+      WAR_ROOM_PLAYER_COLLISION_RADIUS,
       runtime.room.blockers,
       player.floorHeight,
     );
@@ -4218,8 +4205,9 @@ function WarRoomRuntimeScene({
       perspective.fov = 70;
       perspective.updateProjectionMatrix();
     }
-    const cameraYaw = cameraViewHeadingRef.current ?? player.facingYaw;
-    const cameraPitch = WAR_ROOM_FIXED_CAMERA_PITCH;
+    const sceneCameraAngles = getWarRoomCameraAngles(inputRef.current.yaw, inputRef.current.pitch);
+    const cameraYaw = sceneCameraAngles.yaw;
+    const cameraPitch = sceneCameraAngles.pitch;
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
       : 0;

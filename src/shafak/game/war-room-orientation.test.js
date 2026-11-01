@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomActorYawToTarget,
-  getWarRoomControlHeading,
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
   getWarRoomYawError,
@@ -13,7 +12,6 @@ import {
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   stepWarRoomYaw,
-  WAR_ROOM_CAMERA_FOLLOW_SPEED,
 } from "./war-room-orientation.ts";
 
 function closeAngle(actual, expected) {
@@ -72,12 +70,6 @@ test("screen-forward and backward stay camera-relative after the player turns ar
   assert.equal(backwardWhileFacingAway.facingCamera, true);
 });
 
-test("joystick heading stays stable while moving and recenters to the rear camera on release", () => {
-  assert.equal(getWarRoomControlHeading(0, Math.PI, 0, -1), 0);
-  assert.equal(getWarRoomControlHeading(0, Math.PI, 0, 0), Math.PI);
-  assert.equal(getWarRoomControlHeading(0.4, 1.2, 0.02, 0.02), 1.2);
-});
-
 test("camera-facing mode tracks idle camera yaw while aim keeps strafe behavior", () => {
   const strafing = resolveWarRoomOrientation(0.4, 0, -1, 0, true);
   closeAngle(strafing.yaw, 0.4);
@@ -103,6 +95,39 @@ test("locomotion resolves forward, backward, and sideways directions in body spa
   assert.equal(resolveWarRoomLocomotion(1, 0, 0, 0).direction, "right");
   assert.equal(resolveWarRoomLocomotion(-1, 0, 0, 0).direction, "left");
   assert.equal(resolveWarRoomLocomotion(0, 0, 0, 0).direction, "idle");
+});
+
+test("camera-relative controls keep forward, back, and strafing consistent after camera turns", () => {
+  const inputs = [
+    { x: 0, y: 1, direction: "forward" },
+    { x: 0, y: -1, direction: "backward" },
+    { x: -1, y: 0, direction: "left" },
+    { x: 1, y: 0, direction: "right" },
+  ];
+
+  for (const cameraYaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    for (const input of inputs) {
+      const world = getWarRoomWorldMovement(input.x, input.y, cameraYaw);
+      const orientation = resolveWarRoomOrientation(
+        cameraYaw,
+        input.x,
+        input.y,
+        0,
+        true,
+        "camera",
+      );
+      const locomotion = resolveWarRoomLocomotion(
+        input.x,
+        input.y,
+        cameraYaw,
+        cameraYaw,
+      );
+
+      closeAngle(orientation.yaw, cameraYaw);
+      assert.equal(locomotion.direction, input.direction);
+      assert.ok(Math.abs(Math.hypot(world.x, world.z) - 1) < 1e-8);
+    }
+  }
 });
 
 test("body rotation takes the short path across the ±180° boundary", () => {
@@ -133,34 +158,6 @@ test("camera-facing body rotation catches up within 120 ms across the wrap bound
   }
   const remaining = Math.abs(Math.atan2(Math.sin(target - yaw), Math.cos(target - yaw)));
   assert.ok(remaining < 0.01, `body should be within 0.01 radians; remaining ${remaining}`);
-});
-
-test("rear camera stays behind the player during a held backward turn", () => {
-  for (const delta of [1 / 120, 1 / 60, 1 / 30, 0.05]) {
-    let facingYaw = 0;
-    let cameraYaw = 0;
-    const reverseTarget = Math.PI;
-
-    for (let elapsed = 0; elapsed < 0.12; elapsed += delta) {
-      facingYaw = stepWarRoomYaw(facingYaw, reverseTarget, delta, 55);
-      cameraYaw = stepWarRoomYaw(cameraYaw, facingYaw, delta, WAR_ROOM_CAMERA_FOLLOW_SPEED);
-
-      const cameraLag = Math.abs(Math.atan2(
-        Math.sin(facingYaw - cameraYaw),
-        Math.cos(facingYaw - cameraYaw),
-      ));
-      assert.ok(
-        cameraLag < Math.PI / 2,
-        `camera must remain behind the player at ${Math.round(1 / delta)} FPS; lag ${cameraLag}`,
-      );
-    }
-
-    const settledLag = Math.abs(Math.atan2(
-      Math.sin(facingYaw - cameraYaw),
-      Math.cos(facingYaw - cameraYaw),
-    ));
-    assert.ok(settledLag < 0.12, `camera should settle behind the player; lag ${settledLag}`);
-  }
 });
 
 test("post-attack strafe ends 0.8 seconds after the attack animation", () => {

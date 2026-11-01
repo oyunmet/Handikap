@@ -8,6 +8,7 @@ import {
   moveWarRoomEntity,
   segmentBlockFraction,
   shortestAngleDelta,
+  WAR_ROOM_PLAYER_COLLISION_RADIUS,
 } from "./war-room-engine.ts";
 import { getWarRoomLoadoutFromProfile } from "./war-room-loadout.ts";
 import { defaultProfile } from "./profile.ts";
@@ -122,6 +123,30 @@ test("movement stops at solid blockers and ray tests report cover", () => {
   assert.ok(wall.x < 35);
   assert.equal(segmentBlockFraction({ x: -5, y: 0.8, z: -1 }, { x: 10, y: 0.8, z: -1 }) !== null, true);
   assert.equal(segmentBlockFraction({ x: 0, y: 1, z: 24 }, { x: 0, y: 1, z: 10 }), null);
+});
+
+test("small movement steps slide along walls instead of sticking on diagonal contact", () => {
+  const wall = {
+    id: "slide-wall",
+    kind: "wall",
+    x: 0,
+    z: 0,
+    width: 0.5,
+    depth: 12,
+    height: 3,
+    color: "#000",
+  };
+  const result = moveWarRoomEntity(
+    -0.55,
+    -2,
+    0.45,
+    4,
+    WAR_ROOM_PLAYER_COLLISION_RADIUS,
+    [wall],
+  );
+
+  assert.ok(result.x <= -0.55 + 1e-8, "the player stays outside the wall");
+  assert.ok(result.z > 1.8, "the player keeps moving along the wall");
 });
 
 test("angle interpolation chooses the short path across the wrap boundary", () => {
