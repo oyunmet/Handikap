@@ -12,6 +12,8 @@ import {
   type WarRoomWeaponId,
 } from "./war-room-data";
 
+const WAR_ROOM_FLOOR_COLLISION_RADIUS = 0.4;
+
 export type WarRoomRoomTheme = {
   sky: string;
   fog: string;
@@ -295,6 +297,13 @@ export function getWarRoomFloorHeight(
 ) {
   for (const building of buildings) {
     const local = getWarRoomBuildingLocalPoint(building, x, z);
+    const frontZ = -building.depth / 2;
+    const balconyHalfWidth = (building.doorWidth + 1) / 2;
+    const onUpperBalcony = previousHeight >= building.storyHeight * 0.5
+      && Math.abs(local.x) < balconyHalfWidth - WAR_ROOM_FLOOR_COLLISION_RADIUS
+      && local.z >= frontZ - 1.68 + WAR_ROOM_FLOOR_COLLISION_RADIUS
+      && local.z <= frontZ + WAR_ROOM_FLOOR_COLLISION_RADIUS;
+    if (onUpperBalcony) return building.storyHeight;
     const inside = Math.abs(local.x) < building.width / 2 - 0.28
       && Math.abs(local.z) < building.depth / 2 - 0.28;
     if (!inside) continue;

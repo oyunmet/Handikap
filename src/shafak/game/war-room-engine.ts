@@ -310,7 +310,10 @@ export function createWarRoomRuntime(
   return {
     room,
     doorStates: Object.fromEntries(
-      room.buildings.map((building) => [building.id, { openedAt: 0, openUntil: 0 }]),
+      room.buildings.flatMap((building) => [
+        [building.id, { openedAt: 0, openUntil: 0 }],
+        [`${building.id}-upper`, { openedAt: 0, openUntil: 0 }],
+      ]),
     ),
     lootChests: room.lootChests.map((chest) => ({ ...chest, opened: false })),
     player: {

@@ -10,10 +10,11 @@ export const WAR_ROOM_DOOR_ANIMATION_SECONDS = 0.28;
 export const WAR_ROOM_DOOR_INTERACTION_DISTANCE = 2.65;
 const WAR_ROOM_DOOR_OCCUPANCY_BUFFER = 0.5;
 const WAR_ROOM_DOOR_PLAYER_RADIUS = 0.4;
-const WAR_ROOM_DOOR_OCCUPANCY_SECONDS = WAR_ROOM_DOOR_OPEN_SECONDS;
 const WAR_ROOM_DOOR_THICKNESS = 0.18;
 const WAR_ROOM_DOOR_MIN_CLEAR_WIDTH = 1.6;
 const WAR_ROOM_DOOR_HEIGHT = 2.4;
+
+export type WarRoomDoorFloor = 0 | 1;
 
 export type WarRoomDoorState = {
   openedAt: number;
@@ -27,18 +28,26 @@ export type WarRoomDoorRuntime = {
   enemies?: readonly { x: number; z: number; floorHeight?: number; alive: boolean }[];
 };
 
-export function getWarRoomDoorBlocker(building: WarRoomBuilding): WarRoomBlocker {
+export function getWarRoomDoorStateKey(building: WarRoomBuilding, floor: WarRoomDoorFloor) {
+  return floor === 0 ? building.id : `${building.id}-upper`;
+}
+
+export function getWarRoomDoorBlocker(
+  building: WarRoomBuilding,
+  floor: WarRoomDoorFloor = 0,
+): WarRoomBlocker {
   const front = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2);
   const quarterTurn = Math.abs(Math.sin(building.rotationY)) > 0.5;
   const clearWidth = Math.max(WAR_ROOM_DOOR_MIN_CLEAR_WIDTH, building.doorWidth);
   return {
-    id: `${building.id}-entrance-door-blocker`,
+    id: `${building.id}-floor-${floor}-entrance-door-blocker`,
     kind: "wall",
     x: front.x,
     z: front.z,
     width: quarterTurn ? WAR_ROOM_DOOR_THICKNESS : clearWidth,
     depth: quarterTurn ? clearWidth : WAR_ROOM_DOOR_THICKNESS,
     height: WAR_ROOM_DOOR_HEIGHT,
+    baseY: floor === 0 ? 0 : building.storyHeight,
     color: "#543a2c",
   };
 }
@@ -62,9 +71,14 @@ export function getWarRoomActiveBlockers(
   runtime: WarRoomDoorRuntime,
   now: number,
 ): readonly WarRoomBlocker[] {
-  const closedDoors = runtime.room.buildings
-    .filter((building) => !isWarRoomDoorOpen(runtime.doorStates[building.id], now))
-    .map(getWarRoomDoorBlocker);
+  const closedDoors = runtime.room.buildings.flatMap((building) => (
+    ([0, 1] as const)
+      .filter((floor) => !isWarRoomDoorOpen(
+        runtime.doorStates[getWarRoomDoorStateKey(building, floor)],
+        now,
+      ))
+      .map((floor) => getWarRoomDoorBlocker(building, floor))
+  ));
   return closedDoors.length > 0
     ? [...runtime.room.blockers, ...closedDoors]
     : runtime.room.blockers;
@@ -77,9 +91,18 @@ export function getNearestWarRoomDoor(
   floorHeight: number,
   lookYaw?: number,
 ) {
-  if (floorHeight > 1.1) return null;
-  let nearest: { building: WarRoomBuilding; distance: number } | null = null;
+  let nearest: {
+    building: WarRoomBuilding;
+    floor: WarRoomDoorFloor;
+    key: string;
+    distance: number;
+  } | null = null;
   for (const building of buildings) {
+    const floor: WarRoomDoorFloor = Math.abs(floorHeight - building.storyHeight) < Math.abs(floorHeight)
+      ? 1
+      : 0;
+    const doorFloorHeight = floor === 0 ? 0 : building.storyHeight;
+    if (Math.abs(floorHeight - doorFloorHeight) > 1.1) continue;
     const local = getWarRoomBuildingLocalPoint(building, x, z);
     const frontZ = -building.depth / 2;
     const dx = local.x;
@@ -100,17 +123,28 @@ export function getNearestWarRoomDoor(
       || Math.abs(dx) > building.doorWidth / 2 + 0.65
       || Math.abs(dz) > WAR_ROOM_DOOR_INTERACTION_DISTANCE
     ) continue;
-    if (!nearest || distance < nearest.distance) nearest = { building, distance };
+    if (!nearest || distance < nearest.distance) {
+      nearest = {
+        building,
+        floor,
+        key: getWarRoomDoorStateKey(building, floor),
+        distance,
+      };
+    }
   }
   return nearest;
 }
 
 function isWarRoomDoorwayOccupied(
   building: WarRoomBuilding,
+  floor: WarRoomDoorFloor,
   actor: { x: number; z: number; floorHeight: number },
 ) {
-  if (actor.floorHeight < -WAR_ROOM_DOOR_OCCUPANCY_BUFFER
-    || actor.floorHeight > WAR_ROOM_DOOR_HEIGHT + WAR_ROOM_DOOR_OCCUPANCY_BUFFER) return false;
+  const doorFloorHeight = floor === 0 ? 0 : building.storyHeight;
+  if (
+    actor.floorHeight < doorFloorHeight - WAR_ROOM_DOOR_OCCUPANCY_BUFFER
+    || actor.floorHeight > doorFloorHeight + WAR_ROOM_DOOR_HEIGHT + WAR_ROOM_DOOR_OCCUPANCY_BUFFER
+  ) return false;
   const local = getWarRoomBuildingLocalPoint(building, actor.x, actor.z);
   const frontZ = -building.depth / 2;
   const halfWidth = building.doorWidth / 2
@@ -137,25 +171,27 @@ export function updateWarRoomDoors(
     lookYaw,
   );
   if (openRequested && nearest) {
-    runtime.doorStates[nearest.building.id] = {
+    runtime.doorStates[nearest.key] = {
       openedAt: now,
       openUntil: now + WAR_ROOM_DOOR_OPEN_SECONDS,
     };
   }
 
   for (const building of runtime.room.buildings) {
-    const state = runtime.doorStates[building.id];
-    if (!state || state.openUntil > now) continue;
-    const playerOccupies = isWarRoomDoorwayOccupied(building, runtime.player);
-    const enemyOccupies = runtime.enemies?.some((enemy) => enemy.alive
-      && isWarRoomDoorwayOccupied(building, {
-        x: enemy.x,
-        z: enemy.z,
-        floorHeight: enemy.floorHeight ?? 0,
-      })) ?? false;
-    if (playerOccupies || enemyOccupies) {
-      state.openUntil = now + WAR_ROOM_DOOR_OCCUPANCY_SECONDS;
+    for (const floor of [0, 1] as const) {
+      const state = runtime.doorStates[getWarRoomDoorStateKey(building, floor)];
+      if (!state) continue;
+      const playerOccupies = isWarRoomDoorwayOccupied(building, floor, runtime.player);
+      const enemyOccupies = runtime.enemies?.some((enemy) => enemy.alive
+        && isWarRoomDoorwayOccupied(building, floor, {
+          x: enemy.x,
+          z: enemy.z,
+          floorHeight: enemy.floorHeight ?? 0,
+        })) ?? false;
+      if (playerOccupies || enemyOccupies) {
+        state.openUntil = Math.max(state.openUntil, now + WAR_ROOM_DOOR_OPEN_SECONDS);
+      }
     }
   }
-  return nearest?.building.id ?? null;
+  return nearest?.key ?? null;
 }

@@ -16,6 +16,10 @@ export type WarRoomViewModelState = {
 export type WarRoomViewModelPose = {
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
+  weaponBob: {
+    y: number;
+    roll: number;
+  };
 };
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
@@ -72,8 +76,8 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   const charge = clamp01(state.chargeProgress);
   const motion = state.motionReduced ? 0 : 1;
   const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion * swayScale;
-  const walkBob = Math.sin(state.time * 5.25) * movement * 0.009 * motion * swayScale;
-  const walkRoll = Math.cos(state.time * 2.625) * movement * 0.009 * motion * swayScale;
+  const walkBob = Math.sin(state.time * 2.625) * movement * 0.0045 * motion * swayScale;
+  const walkRoll = Math.cos(state.time * 1.3125) * movement * 0.0045 * motion * swayScale;
 
   let swingX = 0;
   let swingY = 0;
@@ -112,5 +116,9 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
       -0.06 + swingYaw,
       -0.045 + walkRoll + idleBreath * 0.7 + swingRoll,
     ],
+    weaponBob: {
+      y: -walkBob,
+      roll: walkRoll,
+    },
   };
 }

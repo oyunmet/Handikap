@@ -103,6 +103,17 @@ export function isWarRoomEyeClearAbove(
   }, bounds, 0.05);
 }
 
+export function stepWarRoomCameraFloorHeight(
+  current: number,
+  target: number,
+  delta: number,
+  smoothing = 14,
+) {
+  if (![current, target, delta, smoothing].every(Number.isFinite)) return target;
+  const blend = 1 - Math.exp(-Math.max(0, delta) * Math.max(0, smoothing));
+  return current + (target - current) * blend;
+}
+
 export function getWarRoomViewModelWallProximity(
   position: WarRoomCameraPoint,
   forward: WarRoomCameraPoint,

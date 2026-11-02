@@ -1,5 +1,7 @@
 import { getWarRoomInteriorFurnitureLayout } from "./war-room-interior-layout.ts";
 
+const WAR_ROOM_DOORWAY_HEIGHT = 2.4;
+
 export type BlasterWeaponClass = "rifle" | "pistol" | "shotgun" | "light" | "heavy";
 export type WarRoomWeaponClass = BlasterWeaponClass | "melee";
 export type WarRoomMeleeStyle = "slash" | "thrust";
@@ -694,7 +696,15 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
   const floorWalls = (floor: 0 | 1): WarRoomBlocker[] => {
     const baseY = floor === 0 ? 0 : building.storyHeight;
     const height = floor === 0 ? building.storyHeight : building.upperWallHeight;
-    const walls = [
+    const walls: Array<{
+      id: string;
+      x: number;
+      z: number;
+      width: number;
+      depth: number;
+      baseY?: number;
+      height?: number;
+    }> = [
       ...(floor === 0
         ? [
           {
@@ -712,13 +722,31 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
             depth: thickness,
           },
         ]
-        : [{
-          id: `${building.id}-floor-${floor}-front`,
-          x: building.x,
-          z: frontZ,
-          width: building.width,
-          depth: thickness,
-        }]),
+        : [
+          {
+            id: `${building.id}-floor-${floor}-front-left`,
+            x: building.x - frontOffset,
+            z: frontZ,
+            width: frontSegmentWidth,
+            depth: thickness,
+          },
+          {
+            id: `${building.id}-floor-${floor}-front-right`,
+            x: building.x + frontOffset,
+            z: frontZ,
+            width: frontSegmentWidth,
+            depth: thickness,
+          },
+          {
+            id: `${building.id}-floor-${floor}-front-lintel`,
+            x: building.x,
+            z: frontZ,
+            width: building.doorWidth,
+            depth: thickness,
+            baseY: building.storyHeight + WAR_ROOM_DOORWAY_HEIGHT,
+            height: Math.max(0, building.upperWallHeight - WAR_ROOM_DOORWAY_HEIGHT),
+          },
+        ]),
       {
         id: `${building.id}-floor-${floor}-back`,
         x: building.x,
@@ -748,11 +776,33 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
         depth: wall.depth,
       })),
     ];
-    return walls.map((wall) => ({
+    const balconyRails = floor === 1
+      ? [
+        {
+          id: `${building.id}-upper-balcony-front-rail`,
+          x: building.x,
+          z: frontZ - 1.68,
+          width: building.doorWidth + 1,
+          depth: 0.12,
+          baseY: building.storyHeight,
+          height: 0.95,
+        },
+        ...([-1, 1] as const).map((side) => ({
+          id: `${building.id}-upper-balcony-side-rail-${side}`,
+          x: building.x + side * (building.doorWidth / 2 + 0.5),
+          z: frontZ - 0.84,
+          width: 0.12,
+          depth: 1.68,
+          baseY: building.storyHeight,
+          height: 0.95,
+        })),
+      ]
+      : [];
+    return [...walls, ...balconyRails].map((wall) => ({
       ...wall,
       kind: "wall",
-      baseY,
-      height,
+      baseY: wall.baseY ?? baseY,
+      height: wall.height ?? height,
       color: floor === 0 ? "#897968" : "#766456",
     }));
   };

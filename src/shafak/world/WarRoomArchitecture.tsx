@@ -308,7 +308,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         <meshStandardMaterial color={palette.foundation} roughness={0.94} />
       </mesh>
 
-      {/* The upper exterior wall is closed; the stair lands inside the rear room. */}
+      {/* The upper entrance aligns with its door leaf and guarded landing. */}
       {[-1, 1].map((side) => (
         <mesh
           key={`upper-front-${side}`}
@@ -326,11 +326,52 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         </mesh>
       ))}
       <mesh
-        position={[0, groundHeight + upperHeight / 2, frontZ]}
-        userData={{ warRoomCameraOccluderId: `${building.id}-upper-front-center` }}
+        position={[0, groundHeight + 2.4 + (upperHeight - 2.4) / 2, frontZ]}
+        userData={{ warRoomCameraOccluderId: `${building.id}-upper-front-lintel` }}
       >
-        <boxGeometry args={[building.doorWidth, upperHeight, wallThickness]} />
+        <boxGeometry args={[building.doorWidth, Math.max(0.01, upperHeight - 2.4), wallThickness]} />
         <meshStandardMaterial color={palette.wall} roughness={0.94} />
+      </mesh>
+      <mesh position={[0, groundHeight - 0.075, frontZ - 0.84]} receiveShadow>
+        <boxGeometry args={[building.doorWidth + 1, 0.15, 1.68]} />
+        <meshStandardMaterial color={palette.foundation} roughness={0.94} />
+      </mesh>
+      <mesh position={[0, groundHeight + 0.04, frontZ - 0.84]}>
+        <boxGeometry args={[building.doorWidth + 0.28, 0.08, 1.72]} />
+        <meshStandardMaterial color={palette.timber} roughness={0.84} />
+      </mesh>
+      <mesh position={[0, groundHeight + 2.4 + (upperHeight - 2.4) / 2, frontZ - 0.04]}>
+        <boxGeometry args={[building.doorWidth + 0.24, 0.16, wallThickness + 0.08]} />
+        <meshStandardMaterial color={palette.timber} roughness={0.84} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <group key={`upper-door-frame-${side}`}>
+          <mesh
+            position={[
+              side * (building.doorWidth / 2 + 0.07),
+              groundHeight + 1.2,
+              frontZ - 0.04,
+            ]}
+            castShadow
+          >
+            <boxGeometry args={[0.14, 2.4, wallThickness + 0.1]} />
+            <meshStandardMaterial color={palette.timber} roughness={0.82} />
+          </mesh>
+          <mesh
+            position={[
+              side * (building.doorWidth / 2 + 0.5),
+              groundHeight + 0.475,
+              frontZ - 0.84,
+            ]}
+          >
+            <boxGeometry args={[0.12, 0.95, 1.68]} />
+            <meshStandardMaterial color={palette.timber} roughness={0.82} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, groundHeight + 0.475, frontZ - 1.68]}>
+        <boxGeometry args={[building.doorWidth + 1, 0.95, 0.12]} />
+        <meshStandardMaterial color={palette.timber} roughness={0.82} />
       </mesh>
       <mesh
         position={[0, groundHeight + upperHeight / 2, backZ]}

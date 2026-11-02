@@ -13,6 +13,7 @@ import {
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   resolveWarRoomCameraSweep,
+  stepWarRoomCameraFloorHeight,
 } from "./war-room-camera.ts";
 import {
   getWarRoomFacingYawFromRootYaw,
@@ -131,6 +132,13 @@ test("camera stops before an obstacle closer than the minimum camera distance", 
 test("camera point checks use the same swept-sphere clearance", () => {
   assert.equal(isWarRoomCameraPointClear({ x: 0, y: 1.5, z: 0 }, [wall]), true);
   assert.equal(isWarRoomCameraPointClear({ x: 0.1, y: 1.5, z: -1.8 }, [wall]), false);
+});
+
+test("camera floor transitions ease toward the stair landing without changing direction", () => {
+  const halfway = stepWarRoomCameraFloorHeight(0, 3.05, 0.05);
+  assert.ok(halfway > 0 && halfway < 3.05);
+  assert.ok(stepWarRoomCameraFloorHeight(halfway, 3.05, 0.05) > halfway);
+  assert.equal(stepWarRoomCameraFloorHeight(0, 3.05, 0), 0);
 });
 
 test("camera fades every wall crossed between the player and its rear position", () => {

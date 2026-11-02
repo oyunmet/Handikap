@@ -1408,6 +1408,50 @@
   }
 }
 
+@media
+  (orientation: landscape) and (max-height: 620px) and (max-width: 1000px),
+  (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
+  .war-room-door-action {
+    width: min(210px, 29vw);
+    min-height: 31px;
+    padding: 4px 8px;
+  }
+
+  .war-room-hud-settings {
+    top: max(94px, calc(env(safe-area-inset-top) + 88px));
+  }
+
+  .war-room-ammo {
+    right: auto;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 50px));
+    left: 50%;
+    width: min(128px, 17vw);
+    min-width: 0;
+    min-height: 36px;
+    padding: 4px 7px;
+    border-color: rgba(225, 193, 145, .24);
+    background: rgba(17, 18, 19, .62);
+    text-align: center;
+    transform: translateX(-50%);
+  }
+
+  .war-room-ammo > strong { font-size: 17px; }
+  .war-room-ammo > strong small { font-size: 9px; }
+  .war-room-ammo > small { font-size: 6px; }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: clamp(5.5px, .62vw, 6px);
+    line-height: 1.05;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
 @media (orientation: portrait) and (pointer: coarse) {
   .war-room-loot-action {
     top: max(228px, calc(env(safe-area-inset-top) + 214px));

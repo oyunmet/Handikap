@@ -13,7 +13,7 @@ import { getWarRoomBuildingWorldPoint } from "./war-room-rooms.ts";
 test("War Room house entrances start blocked by properly rotated doors", () => {
   const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
   const doors = getWarRoomActiveBlockers(runtime, 0)
-    .filter((blocker) => blocker.id.endsWith("-entrance-door-blocker"));
+    .filter((blocker) => blocker.id.endsWith("-floor-0-entrance-door-blocker"));
   assert.equal(doors.length, runtime.room.buildings.length);
   for (const building of runtime.room.buildings) {
     const blocker = getWarRoomDoorBlocker(building);
@@ -40,17 +40,17 @@ test("the nearby door opens for six seconds and then closes", () => {
   assert.equal(runtime.doorStates[building.id].openUntil, 16);
   assert.ok(Math.abs(getWarRoomDoorOpenProgress(runtime.doorStates[building.id], 10.14) - 0.5) < 1e-10);
   assert.equal(getWarRoomActiveBlockers(runtime, 10).some((blocker) => (
-    blocker.id === `${building.id}-entrance-door-blocker`
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), true, "collision stays in place during the opening animation");
   assert.equal(getWarRoomActiveBlockers(runtime, 10.25).some((blocker) => (
-    blocker.id === `${building.id}-entrance-door-blocker`
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), false);
   assert.equal(getWarRoomActiveBlockers(runtime, 16.3).some((blocker) => (
-    blocker.id === `${building.id}-entrance-door-blocker`
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), true);
 });
 
-test("a door stays open while the player occupies its threshold", () => {
+test("a door resets its close timer every frame while the player occupies its threshold", () => {
   const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
   const building = runtime.room.buildings[0];
   const threshold = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2 + 0.45);
@@ -58,16 +58,16 @@ test("a door stays open while the player occupies its threshold", () => {
   runtime.player.z = threshold.z;
   runtime.doorStates[building.id] = { openedAt: 0, openUntil: 5 };
 
-  updateWarRoomDoors(runtime, 5.02, false);
-  assert.ok(runtime.doorStates[building.id].openUntil >= 11.02);
-  assert.equal(getWarRoomActiveBlockers(runtime, 5.02).some((blocker) => (
-    blocker.id === `${building.id}-entrance-door-blocker`
+  updateWarRoomDoors(runtime, 4.9, false);
+  assert.ok(runtime.doorStates[building.id].openUntil >= 10.9);
+  assert.equal(getWarRoomActiveBlockers(runtime, 4.9).some((blocker) => (
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), false);
 
   runtime.player.x += 4;
   updateWarRoomDoors(runtime, 11.1, false);
   assert.equal(getWarRoomActiveBlockers(runtime, 17.2).some((blocker) => (
-    blocker.id === `${building.id}-entrance-door-blocker`
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), true);
 });
 
@@ -85,7 +85,7 @@ test("a living enemy in the doorway also resets the automatic close timer", () =
 
   assert.equal(runtime.doorStates[building.id].openUntil, 12.1);
   assert.equal(getWarRoomActiveBlockers(runtime, 6.1).some((blocker) => (
-    blocker.id === `${building.id}-entrance-door-blocker`
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), false);
 });
 
@@ -114,11 +114,36 @@ test("all entrance doors retain at least 1.6m clear width and 2.4m height", () =
   }
 });
 
-test("the door prompt is limited to ground-floor entrance distance", () => {
+test("both ground- and upper-floor door prompts stay limited to their floor and distance", () => {
   const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
   const building = runtime.room.buildings[0];
   const front = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2);
   assert.equal(getNearestWarRoomDoor(runtime.room.buildings, front.x, front.z, 0)?.building.id, building.id);
-  assert.equal(getNearestWarRoomDoor(runtime.room.buildings, front.x, front.z, building.storyHeight), null);
+  assert.equal(
+    getNearestWarRoomDoor(runtime.room.buildings, front.x, front.z, building.storyHeight)?.floor,
+    1,
+  );
+  assert.equal(getNearestWarRoomDoor(runtime.room.buildings, front.x, front.z, 1.5), null);
   assert.equal(getNearestWarRoomDoor(runtime.room.buildings, 0, 0, 0), null);
+});
+
+test("the upper entrance has a matching openable blocker and preserves the ground door", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
+  const building = runtime.room.buildings[0];
+  const front = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2);
+  const upperKey = `${building.id}-upper`;
+  runtime.player.x = front.x;
+  runtime.player.z = front.z;
+  runtime.player.floorHeight = building.storyHeight;
+
+  assert.equal(updateWarRoomDoors(runtime, 20, true), upperKey);
+  const upperBlockerId = `${building.id}-floor-1-entrance-door-blocker`;
+  const groundBlockerId = `${building.id}-floor-0-entrance-door-blocker`;
+  assert.equal(getWarRoomActiveBlockers(runtime, 20.25).some((blocker) => (
+    blocker.id === upperBlockerId
+  )), false);
+  assert.equal(getWarRoomActiveBlockers(runtime, 20.25).some((blocker) => (
+    blocker.id === groundBlockerId
+  )), true);
+  assert.equal(getWarRoomDoorBlocker(building, 1).baseY, building.storyHeight);
 });

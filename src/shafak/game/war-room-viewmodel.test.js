@@ -44,6 +44,38 @@ test("reduced motion removes idle, locomotion, and firing sway", () => {
   assert.deepEqual(pose.rotation, [0.04, -0.06, -0.045]);
 });
 
+test("running bob is half the former amplitude and is independently exposed for the weapon", () => {
+  const pose = getWarRoomViewModelPose({
+    time: Math.PI / (2 * 2.625),
+    movement: 1,
+    aiming: false,
+    recoil: 0,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    meleeProgress: null,
+    meleeStyle: "slash",
+    comboIndex: 0,
+    motionReduced: false,
+  });
+  assert.ok(Math.abs(pose.weaponBob.y + 0.0045) < 1e-9);
+  assert.ok(Math.abs(pose.weaponBob.roll) <= 0.0045);
+
+  const stopped = getWarRoomViewModelPose({
+    time: 1,
+    movement: 0,
+    aiming: false,
+    recoil: 0,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    meleeProgress: null,
+    meleeStyle: "slash",
+    comboIndex: 0,
+    motionReduced: false,
+  });
+  assert.equal(Math.abs(stopped.weaponBob.y), 0);
+  assert.equal(stopped.weaponBob.roll, 0);
+});
+
 test("melee attacks get distinct sweep and thrust view-model arcs", () => {
   const shared = {
     time: 0.5, movement: 0, aiming: false, recoil: 0, reloadProgress: 0, chargeProgress: 0,

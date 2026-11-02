@@ -1776,7 +1776,7 @@ export default function WarRoomGame({
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
                     ? "KISA BAS: SALDIR · BASILI TUT: GÜÇLÜ"
                     : hud.magazine <= 0 && !hud.reloading
-                      ? keyboardHintsVisible ? "R: ŞARJÖR DOLDUR" : "ŞARJÖRÜ DOLDUR"
+                      ? keyboardHintsVisible ? "R: DOLDUR" : "DOLDUR"
                     : keyboardHintsVisible
                       ? "R: DOLDUR · V: SİLAH DEĞİŞTİR"
                       : "DOLDUR · SİLAH SEÇ"}

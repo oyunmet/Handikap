@@ -90,6 +90,7 @@ import {
   getWarRoomViewModelWallProximity,
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
+  stepWarRoomCameraFloorHeight,
   type WarRoomCameraBounds,
   type WarRoomCameraMode,
   type WarRoomShoulderSide,
@@ -1031,6 +1032,7 @@ function Battlefield({
           <WarRoomStaircase building={building} />
           <WarRoomHouseInterior building={building} />
           <WarRoomDoor building={building} runtimeRef={runtimeRef} />
+          <WarRoomDoor building={building} runtimeRef={runtimeRef} floor={1} />
         </group>
       ))}
       <WarRoomLootChestField runtime={runtime} />
@@ -1379,10 +1381,11 @@ function FirstPersonWeaponViewModel({
 }) {
   const { camera, size } = useThree();
   const weaponRootRef = useRef<THREE.Group>(null);
+  const armsRootRef = useRef<THREE.Group>(null);
+  const weaponPoseRef = useRef<THREE.Group>(null);
   const cameraPositionRef = useRef(new THREE.Vector3());
   const cameraQuaternionRef = useRef(new THREE.Quaternion());
   const cameraForwardRef = useRef(new THREE.Vector3());
-  const localPositionRef = useRef(new THREE.Vector3());
   const localQuaternionRef = useRef(new THREE.Quaternion());
   const localEulerRef = useRef(new THREE.Euler());
   const wallProbeRef = useRef({ x: 0, y: 0, z: 0 });
@@ -1396,8 +1399,10 @@ function FirstPersonWeaponViewModel({
 
   useFrame((_, rawDelta) => {
     const group = weaponRootRef.current;
+    const arms = armsRootRef.current;
+    const weaponPose = weaponPoseRef.current;
     if (inputRef.current.paused) return;
-    if (!group) return;
+    if (!group || !arms || !weaponPose) return;
     camera.updateWorldMatrix(true, false);
     camera.getWorldPosition(cameraPositionRef.current);
     camera.getWorldQuaternion(cameraQuaternionRef.current);
@@ -1456,20 +1461,31 @@ function FirstPersonWeaponViewModel({
     }, aspect);
     group.visible = cameraMode === "first-person";
     group.scale.setScalar(viewConfig.scale * getWarRoomViewModelScaleFactor(aspect));
-    localPositionRef.current.set(
+    group.position.copy(cameraPositionRef.current);
+    group.quaternion.copy(cameraQuaternionRef.current);
+
+    arms.position.set(
+      viewConfig.position[0] * horizontalFactor + pose.position[0],
+      viewConfig.position[1] + pose.position[1] - pose.weaponBob.y,
+      viewConfig.position[2] + pose.position[2],
+    );
+    arms.rotation.set(
+      mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
+      mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
+      mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2] - pose.weaponBob.roll,
+    );
+    weaponPose.position.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
       viewConfig.position[1] + pose.position[1],
       viewConfig.position[2] + pose.position[2],
     );
-    group.position.copy(cameraPositionRef.current)
-      .add(localPositionRef.current.applyQuaternion(cameraQuaternionRef.current));
     localEulerRef.current.set(
       mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
       mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
       mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
     );
     localQuaternionRef.current.setFromEuler(localEulerRef.current);
-    group.quaternion.copy(cameraQuaternionRef.current).multiply(localQuaternionRef.current);
+    weaponPose.quaternion.copy(localQuaternionRef.current);
     group.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || preparedMeshesRef.current.has(object)) return;
       preparedMeshesRef.current.add(object);
@@ -1484,8 +1500,12 @@ function FirstPersonWeaponViewModel({
       visible={cameraMode === "first-person"}
       scale={viewConfig.scale}
     >
-      <FirstPersonArms />
-      <WeaponModel weaponId={weaponId} mount={mount} />
+      <group ref={armsRootRef} name="war-room-first-person-arms-mount">
+        <FirstPersonArms />
+      </group>
+      <group ref={weaponPoseRef} name="war-room-first-person-weapon-bob">
+        <WeaponModel weaponId={weaponId} mount={mount} />
+      </group>
     </group>
   );
 }
@@ -2412,11 +2432,11 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
     meleeLastResult: player.meleeLastResult,
     nearbyDoor: nearbyDoor
       ? {
-        id: nearbyDoor.building.id,
-        openProgress: getWarRoomDoorOpenProgress(runtime.doorStates[nearbyDoor.building.id], now),
+        id: nearbyDoor.key,
+        openProgress: getWarRoomDoorOpenProgress(runtime.doorStates[nearbyDoor.key], now),
         secondsRemaining: Math.max(
           0,
-          (runtime.doorStates[nearbyDoor.building.id]?.openUntil ?? 0) - now,
+          (runtime.doorStates[nearbyDoor.key]?.openUntil ?? 0) - now,
         ),
       }
       : null,
@@ -2480,6 +2500,7 @@ function WarRoomRuntimeScene({
   const cameraStart = useMemo(() => new THREE.Vector3(), []);
   const cameraDesired = useMemo(() => new THREE.Vector3(), []);
   const cameraEyeHeightRef = useRef(1.6);
+  const cameraFloorHeightRef = useRef(0);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
   const cameraRayOrigin = useMemo(() => new THREE.Vector3(), []);
@@ -3643,7 +3664,7 @@ function WarRoomRuntimeScene({
     const wallNow = frame.clock.elapsedTime;
     updateWarRoomDoors(runtime, player.clockTime, input.doorPressed, input.yaw);
     input.doorPressed = false;
-    activeBlockersRef.current = getWarRoomActiveBlockers(runtime, wallNow);
+    activeBlockersRef.current = getWarRoomActiveBlockers(runtime, player.clockTime);
     const renderStatsNow = performance.now();
     if ((debugMode || debugDiagnosticsEnabled) && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
@@ -4610,15 +4631,33 @@ function WarRoomRuntimeScene({
       eyeHeightTarget - cameraEyeHeightRef.current
     ) * (1 - Math.exp(-delta * 10));
     const cameraHeight = cameraMode === "first-person" ? cameraEyeHeightRef.current : 1.55;
+    const smoothedFloorHeight = stepWarRoomCameraFloorHeight(
+      cameraFloorHeightRef.current,
+      player.floorHeight,
+      delta,
+    );
+    const smoothedEye = {
+      x: player.x,
+      y: smoothedFloorHeight + player.jumpHeight + cameraHeight,
+      z: player.z,
+    };
+    cameraFloorHeightRef.current = isWarRoomCameraPointClear(
+      smoothedEye,
+      cameraBoundsRef.current,
+      0.05,
+    )
+      ? smoothedFloorHeight
+      : player.floorHeight;
+    const cameraFloorHeight = cameraFloorHeightRef.current;
     const focusHeight = cameraMode === "first-person" ? cameraHeight : 1.5;
     const focusAhead = cameraMode === "first-person" ? 8 : 0;
     cameraStart.set(
       player.x,
-      player.floorHeight + player.jumpHeight + cameraHeight,
+      cameraFloorHeight + player.jumpHeight + cameraHeight,
       player.z,
     );
     const cameraFrame = getWarRoomRearCameraFrame(
-      { x: player.x, y: player.floorHeight + player.jumpHeight, z: player.z },
+      { x: player.x, y: cameraFloorHeight + player.jumpHeight, z: player.z },
       cameraYaw,
       cameraPitch,
       baseCameraBack,

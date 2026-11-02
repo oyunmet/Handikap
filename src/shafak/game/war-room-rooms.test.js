@@ -121,6 +121,25 @@ test("all eight houses have traversable doors, matching stairs, floors, and uppe
     const room = getWarRoomRoom(roomNumber);
     assert.equal(room.buildings.length, 8);
     for (const building of room.buildings) {
+      const upperBalcony = getWarRoomBuildingWorldPoint(
+        building,
+        0,
+        -building.depth / 2 - 0.84,
+      );
+      assert.equal(
+        getWarRoomFloorHeight(
+          upperBalcony.x,
+          upperBalcony.z,
+          building.storyHeight,
+          room.buildings,
+        ),
+        building.storyHeight,
+      );
+      assert.equal(
+        getWarRoomFloorHeight(upperBalcony.x, upperBalcony.z, 0, room.buildings),
+        0,
+      );
+
       const frontDistance = building.depth / 2 + 1.4;
       const front = getWarRoomBuildingWorldPoint(building, 0, -frontDistance);
       const forwardX = -Math.sin(building.rotationY);
