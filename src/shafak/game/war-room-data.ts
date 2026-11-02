@@ -580,8 +580,8 @@ export const WAR_ROOM_HALF_SIZE = 36;
 export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   {
     id: "northwest-barracks",
-    x: -25.5,
-    z: -25.3,
+    x: -24,
+    z: -24,
     width: 14,
     depth: 14.2,
     storyHeight: 3.05,
@@ -594,7 +594,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   {
     id: "north-keep",
     x: 0,
-    z: -25.3,
+    z: -24,
     width: 14,
     depth: 14.2,
     storyHeight: 3.05,
@@ -606,8 +606,8 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "northeast-storehouse",
-    x: 25.5,
-    z: -25.3,
+    x: 24,
+    z: -24,
     width: 14,
     depth: 14.2,
     storyHeight: 3.05,
@@ -619,7 +619,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "west-guardhouse",
-    x: -25.5,
+    x: -24,
     z: 0,
     width: 14,
     depth: 14.2,
@@ -632,7 +632,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "east-barracks",
-    x: 25.5,
+    x: 24,
     z: 0,
     width: 14,
     depth: 14.2,
@@ -645,8 +645,8 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "southwest-armory",
-    x: -25.5,
-    z: 25.3,
+    x: -24,
+    z: 24,
     width: 14,
     depth: 14.2,
     storyHeight: 3.05,
@@ -659,7 +659,7 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   {
     id: "south-watch",
     x: 0,
-    z: 25.3,
+    z: 24,
     width: 14,
     depth: 14.2,
     storyHeight: 3.05,
@@ -671,8 +671,8 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "southeast-storehouse",
-    x: 25.5,
-    z: 25.3,
+    x: 24,
+    z: 24,
     width: 14,
     depth: 14.2,
     storyHeight: 3.05,
@@ -840,8 +840,8 @@ export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "north-barricade-right", kind: "wall", x: 15, z: -15.4, width: 13, depth: 1.4, height: 4.2, color: "#776050" },
   { id: "central-wall-west", kind: "wall", x: -7, z: -8, width: 1.4, depth: 12, height: 4.4, color: "#69534a" },
   { id: "central-wall-east", kind: "wall", x: 8, z: -8, width: 1.4, depth: 12, height: 4.4, color: "#69534a" },
-  { id: "passage-west", kind: "wall", x: -3.2, z: 13, width: 1.25, depth: 18, height: 3.8, color: "#70564b" },
-  { id: "passage-east", kind: "wall", x: 3.2, z: 13, width: 1.25, depth: 18, height: 3.8, color: "#70564b" },
+  { id: "passage-west", kind: "wall", x: -3.2, z: 12.2, width: 1.25, depth: 8, height: 3.8, color: "#70564b" },
+  { id: "passage-east", kind: "wall", x: 3.2, z: 12.2, width: 1.25, depth: 8, height: 3.8, color: "#70564b" },
   { id: "cover-west-north", kind: "cover", x: -15, z: -14, width: 7, depth: 1.5, height: 1.35, color: "#6e5745" },
   { id: "cover-east-north", kind: "cover", x: 15, z: -14, width: 7, depth: 1.5, height: 1.35, color: "#6e5745" },
   { id: "cover-center", kind: "cover", x: 1, z: -1, width: 6.5, depth: 1.5, height: 1.3, color: "#785a43" },
