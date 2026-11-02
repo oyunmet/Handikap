@@ -1,3 +1,5 @@
+import { getWarRoomInteriorFurnitureLayout } from "./war-room-interior-layout";
+
 export type BlasterWeaponClass = "rifle" | "pistol" | "shotgun" | "light" | "heavy";
 export type WarRoomWeaponClass = BlasterWeaponClass | "melee";
 export type WarRoomMeleeStyle = "slash" | "thrust";
@@ -350,7 +352,7 @@ export const WAR_ROOM_WEAPON_MOUNTS = {
   ),
 } as Record<WarRoomWeaponId, WarRoomWeaponMount>;
 
-export type WarRoomBlockerKind = "wall" | "cover" | "tower" | "platform";
+export type WarRoomBlockerKind = "wall" | "cover" | "tower" | "platform" | "rail";
 
 export type WarRoomBlocker = {
   id: string;
@@ -363,6 +365,77 @@ export type WarRoomBlocker = {
   height: number;
   color: string;
 };
+
+export type WarRoomReservedPoint = { x: number; z: number };
+
+export function isWarRoomPointClear(
+  x: number,
+  z: number,
+  blockers: readonly WarRoomBlocker[],
+  radius = 0.38,
+  floorHeight = 0,
+  bodyHeight = 1.8,
+) {
+  return blockers.every((blocker) => {
+    if (blocker.kind === "platform") return true;
+    const baseY = blocker.baseY ?? 0;
+    if (floorHeight >= baseY + blocker.height || floorHeight + bodyHeight <= baseY) return true;
+    const closestX = Math.max(
+      blocker.x - blocker.width / 2,
+      Math.min(blocker.x + blocker.width / 2, x),
+    );
+    const closestZ = Math.max(
+      blocker.z - blocker.depth / 2,
+      Math.min(blocker.z + blocker.depth / 2, z),
+    );
+    return (x - closestX) ** 2 + (z - closestZ) ** 2 >= radius ** 2;
+  });
+}
+
+export function findNearestWarRoomClearPoint(
+  point: WarRoomReservedPoint,
+  blockers: readonly WarRoomBlocker[],
+  options: {
+    radius?: number;
+    floorHeight?: number;
+    reserved?: readonly WarRoomReservedPoint[];
+    minimumReservedDistance?: number;
+    maximumSearchDistance?: number;
+  } = {},
+): WarRoomReservedPoint {
+  const radius = options.radius ?? 0.38;
+  const floorHeight = options.floorHeight ?? 0;
+  const reserved = options.reserved ?? [];
+  const minimumReservedDistance = options.minimumReservedDistance ?? 0;
+  const maximumSearchDistance = options.maximumSearchDistance ?? 6;
+  const isAvailable = (x: number, z: number) => (
+    isWarRoomPointClear(x, z, blockers, radius, floorHeight)
+    && reserved.every((other) => (
+      Math.hypot(x - other.x, z - other.z) >= minimumReservedDistance
+    ))
+  );
+  if (isAvailable(point.x, point.z)) return { x: point.x, z: point.z };
+
+  const step = 0.25;
+  const radialSteps = Math.ceil(maximumSearchDistance / step);
+  const angularSteps = 32;
+  for (let ring = 1; ring <= radialSteps; ring += 1) {
+    const distance = ring * step;
+    const candidates = Array.from({ length: angularSteps }, (_, index) => {
+      const angle = (index / angularSteps) * Math.PI * 2;
+      return {
+        x: point.x + Math.cos(angle) * distance,
+        z: point.z + Math.sin(angle) * distance,
+      };
+    }).sort((left, right) => (
+      Math.hypot(left.x - point.x, left.z - point.z)
+      - Math.hypot(right.x - point.x, right.z - point.z)
+    ));
+    const clear = candidates.find((candidate) => isAvailable(candidate.x, candidate.z));
+    if (clear) return clear;
+  }
+  throw new Error(`War Room could not find clear space near (${point.x}, ${point.z}).`);
+}
 
 export type WarRoomBuilding = {
   id: string;
@@ -377,6 +450,118 @@ export type WarRoomBuilding = {
   stairSide: -1 | 1;
   style: number;
 };
+
+export const WAR_ROOM_HOUSE_PLAN = {
+  corridorWidth: 2.6,
+  wallThickness: 0.26,
+  roomDoorWidth: 1.8,
+  roomDoorHeight: 2.4,
+  frontRoomDoorOffset: 2.55,
+  rearRoomDoorOffset: 4.9,
+  roomDividerOffset: 5.45,
+  stairInset: 2.8,
+  stairStartOffsetFromBack: 6.6,
+  stairEndOffsetFromBack: 2,
+  stairWidth: 2.2,
+  landingDepth: 2,
+  railingHeight: 0.95,
+  railingThickness: 0.12,
+} as const;
+
+export function getWarRoomHousePlan(building: WarRoomBuilding) {
+  const halfDepth = building.depth / 2;
+  const corridorHalfWidth = WAR_ROOM_HOUSE_PLAN.corridorWidth / 2;
+  return {
+    corridorWidth: WAR_ROOM_HOUSE_PLAN.corridorWidth,
+    corridorHalfWidth,
+    wallThickness: WAR_ROOM_HOUSE_PLAN.wallThickness,
+    corridorWallX: corridorHalfWidth + WAR_ROOM_HOUSE_PLAN.wallThickness / 2,
+    roomDoorWidth: WAR_ROOM_HOUSE_PLAN.roomDoorWidth,
+    roomDoorHeight: WAR_ROOM_HOUSE_PLAN.roomDoorHeight,
+    frontRoomDoorZ: -halfDepth + WAR_ROOM_HOUSE_PLAN.frontRoomDoorOffset,
+    rearRoomDoorZ: halfDepth - WAR_ROOM_HOUSE_PLAN.rearRoomDoorOffset,
+    roomDividerZ: -halfDepth + WAR_ROOM_HOUSE_PLAN.roomDividerOffset,
+    stairX: building.stairSide * (building.width / 2 - WAR_ROOM_HOUSE_PLAN.stairInset),
+    stairStartZ: halfDepth - WAR_ROOM_HOUSE_PLAN.stairStartOffsetFromBack,
+    stairEndZ: halfDepth - WAR_ROOM_HOUSE_PLAN.stairEndOffsetFromBack,
+    stairWidth: WAR_ROOM_HOUSE_PLAN.stairWidth,
+    landingDepth: WAR_ROOM_HOUSE_PLAN.landingDepth,
+    railingHeight: WAR_ROOM_HOUSE_PLAN.railingHeight,
+    railingThickness: WAR_ROOM_HOUSE_PLAN.railingThickness,
+  };
+}
+
+export type WarRoomHouseInteriorWall = {
+  id: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+};
+
+function wallSegmentsAroundGaps(
+  min: number,
+  max: number,
+  gaps: readonly { center: number; width: number }[],
+) {
+  const sortedGaps = [...gaps]
+    .map(({ center, width }) => ({
+      start: Math.max(min, center - width / 2),
+      end: Math.min(max, center + width / 2),
+    }))
+    .filter((gap) => gap.end > gap.start)
+    .sort((left, right) => left.start - right.start);
+  const segments: Array<{ start: number; end: number }> = [];
+  let cursor = min;
+  for (const gap of sortedGaps) {
+    if (gap.start > cursor) segments.push({ start: cursor, end: gap.start });
+    cursor = Math.max(cursor, gap.end);
+  }
+  if (cursor < max) segments.push({ start: cursor, end: max });
+  return segments.filter((segment) => segment.end - segment.start > 0.18);
+}
+
+export function getWarRoomHouseInteriorWalls(
+  building: WarRoomBuilding,
+): WarRoomHouseInteriorWall[] {
+  const plan = getWarRoomHousePlan(building);
+  const walls: WarRoomHouseInteriorWall[] = [];
+  for (const side of [-1, 1] as const) {
+    const corridorX = side * plan.corridorWallX;
+    wallSegmentsAroundGaps(-building.depth / 2, building.depth / 2, [
+      { center: plan.frontRoomDoorZ, width: plan.roomDoorWidth },
+      { center: plan.rearRoomDoorZ, width: plan.roomDoorWidth },
+    ]).forEach((segment, index) => {
+      walls.push({
+        id: `hall-${side}-${index}`,
+        x: corridorX,
+        z: (segment.start + segment.end) / 2,
+        width: plan.wallThickness,
+        depth: segment.end - segment.start,
+      });
+    });
+
+    const wingMin = side < 0
+      ? -building.width / 2 + plan.wallThickness / 2
+      : plan.corridorWallX;
+    const wingMax = side < 0
+      ? -plan.corridorWallX
+      : building.width / 2 - plan.wallThickness / 2;
+    const wingCenter = (wingMin + wingMax) / 2;
+    wallSegmentsAroundGaps(wingMin, wingMax, [
+      { center: wingCenter, width: plan.roomDoorWidth },
+    ]).forEach((segment, index) => {
+      walls.push({
+        id: `room-divider-${side}-${index}`,
+        x: (segment.start + segment.end) / 2,
+        z: plan.roomDividerZ,
+        width: segment.end - segment.start,
+        depth: plan.wallThickness,
+      });
+    });
+  }
+  return walls;
+}
 
 export type WarRoomLootChest = {
   id: string;
@@ -395,12 +580,12 @@ export const WAR_ROOM_HALF_SIZE = 36;
 export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   {
     id: "northwest-barracks",
-    x: -27,
-    z: -24,
-    width: 7.2,
-    depth: 7.2,
+    x: -25.5,
+    z: -25.3,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.8,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
@@ -409,11 +594,11 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   {
     id: "north-keep",
     x: 0,
-    z: -24,
-    width: 7.6,
-    depth: 7.2,
+    z: -25.3,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.8,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
@@ -421,12 +606,12 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "northeast-storehouse",
-    x: 27,
-    z: -24,
-    width: 7,
-    depth: 7.6,
+    x: 25.5,
+    z: -25.3,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.7,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
@@ -434,12 +619,12 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "west-guardhouse",
-    x: -27,
+    x: -25.5,
     z: 0,
-    width: 7.4,
-    depth: 7,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.75,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
@@ -447,12 +632,12 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "east-barracks",
-    x: 27,
+    x: 25.5,
     z: 0,
-    width: 7.2,
-    depth: 7.6,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.8,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
@@ -460,12 +645,12 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "southwest-armory",
-    x: -27,
-    z: 24,
-    width: 7.4,
-    depth: 7,
+    x: -25.5,
+    z: 25.3,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.7,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
@@ -474,11 +659,11 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   {
     id: "south-watch",
     x: 0,
-    z: 29,
-    width: 7.2,
-    depth: 7.4,
+    z: 25.3,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.8,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: -1,
@@ -486,12 +671,12 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
   },
   {
     id: "southeast-storehouse",
-    x: 27,
-    z: 24,
-    width: 7.6,
-    depth: 7.4,
+    x: 25.5,
+    z: 25.3,
+    width: 14,
+    depth: 14.2,
     storyHeight: 3.05,
-    upperWallHeight: 2.75,
+    upperWallHeight: 3.05,
     doorWidth: 2.1,
     rotationY: 0,
     stairSide: 1,
@@ -500,57 +685,40 @@ export const WAR_ROOM_BUILDINGS: readonly WarRoomBuilding[] = [
 ];
 
 function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[] {
-  const thickness = 0.36;
+  const plan = getWarRoomHousePlan(building);
+  const thickness = plan.wallThickness;
   const frontSegmentWidth = (building.width - building.doorWidth) / 2;
   const frontOffset = building.doorWidth / 2 + frontSegmentWidth / 2;
   const frontZ = building.z - building.depth / 2;
   const backZ = building.z + building.depth / 2;
-  const partitionZ = building.z + building.depth / 2 - 1.72;
-  const secretOpening = 1.9;
-  const stairOpening = 2.2;
-  const stairX = building.stairSide * (building.width / 2 - 1.12);
-  const partitionGaps = [
-    [-secretOpening / 2, secretOpening / 2] as const,
-    [stairX - stairOpening / 2, stairX + stairOpening / 2] as const,
-  ].sort((left, right) => left[0] - right[0]);
-  const partitionSegments: Array<{ id: string; x: number; width: number }> = [];
-  let partitionCursor = -building.width / 2;
-  partitionGaps.forEach(([gapStart, gapEnd], index) => {
-    if (gapStart > partitionCursor) {
-      const width = gapStart - partitionCursor;
-      partitionSegments.push({
-        id: `partition-${index}-left`,
-        x: (partitionCursor + gapStart) / 2,
-        width,
-      });
-    }
-    partitionCursor = Math.max(partitionCursor, gapEnd);
-  });
-  if (partitionCursor < building.width / 2) {
-    partitionSegments.push({
-      id: "partition-right",
-      x: (partitionCursor + building.width / 2) / 2,
-      width: building.width / 2 - partitionCursor,
-    });
-  }
   const floorWalls = (floor: 0 | 1): WarRoomBlocker[] => {
     const baseY = floor === 0 ? 0 : building.storyHeight;
     const height = floor === 0 ? building.storyHeight : building.upperWallHeight;
     const walls = [
-      {
-        id: `${building.id}-floor-${floor}-front-left`,
-        x: building.x - frontOffset,
-        z: frontZ,
-        width: frontSegmentWidth,
-        depth: thickness,
-      },
-      {
-        id: `${building.id}-floor-${floor}-front-right`,
-        x: building.x + frontOffset,
-        z: frontZ,
-        width: frontSegmentWidth,
-        depth: thickness,
-      },
+      ...(floor === 0
+        ? [
+          {
+            id: `${building.id}-floor-${floor}-front-left`,
+            x: building.x - frontOffset,
+            z: frontZ,
+            width: frontSegmentWidth,
+            depth: thickness,
+          },
+          {
+            id: `${building.id}-floor-${floor}-front-right`,
+            x: building.x + frontOffset,
+            z: frontZ,
+            width: frontSegmentWidth,
+            depth: thickness,
+          },
+        ]
+        : [{
+          id: `${building.id}-floor-${floor}-front`,
+          x: building.x,
+          z: frontZ,
+          width: building.width,
+          depth: thickness,
+        }]),
       {
         id: `${building.id}-floor-${floor}-back`,
         x: building.x,
@@ -572,12 +740,12 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
         width: thickness,
         depth: building.depth,
       },
-      ...partitionSegments.map((segment) => ({
-        id: `${building.id}-floor-${floor}-${segment.id}`,
-        x: building.x + segment.x,
-        z: partitionZ,
-        width: segment.width,
-        depth: thickness,
+      ...getWarRoomHouseInteriorWalls(building).map((wall) => ({
+        id: `${building.id}-floor-${floor}-${wall.id}`,
+        x: building.x + wall.x,
+        z: building.z + wall.z,
+        width: wall.width,
+        depth: wall.depth,
       })),
     ];
     return walls.map((wall) => ({
@@ -591,30 +759,20 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
   return [
     ...floorWalls(0),
     ...floorWalls(1),
-    {
-      id: `${building.id}-upper-door-rail`,
-      kind: "wall",
-      x: building.x,
-      z: frontZ,
-      width: building.doorWidth,
-      depth: thickness,
-      baseY: building.storyHeight,
-      height: 1.15,
-      color: "#765b45",
-    },
   ];
 }
 
 function createBuildingUpperFloorBlockers(building: WarRoomBuilding): WarRoomBlocker[] {
+  const plan = getWarRoomHousePlan(building);
   const inset = 0.18;
-  const stairProfileX = building.stairSide * (building.width / 2 - 1.12);
-  const stairOpeningHalfWidth = 1.08;
+  const stairProfileX = plan.stairX;
+  const stairOpeningHalfWidth = plan.stairWidth / 2;
   const localLeft = -building.width / 2 + inset;
   const localRight = building.width / 2 - inset;
   const localFront = -building.depth / 2 + inset;
   const localBack = building.depth / 2 - inset;
-  const stairLeft = Math.max(localLeft, stairProfileX - stairOpeningHalfWidth);
-  const stairRight = Math.min(localRight, stairProfileX + stairOpeningHalfWidth);
+  const stairLeft = stairProfileX - stairOpeningHalfWidth;
+  const stairRight = stairProfileX + stairOpeningHalfWidth;
   const floorHeight = building.storyHeight;
   const floorThickness = 0.16;
   const panels: Array<{ id: string; x: number; z: number; width: number; depth: number }> = [];
@@ -631,16 +789,42 @@ function createBuildingUpperFloorBlockers(building: WarRoomBuilding): WarRoomBlo
 
   addPanel("upper-floor-left", localLeft, stairLeft, localFront, localBack);
   addPanel("upper-floor-right", stairRight, localRight, localFront, localBack);
-  addPanel("upper-floor-front", stairLeft, stairRight, localFront, -building.depth / 2 + 0.82);
-  addPanel("upper-floor-rear", stairLeft, stairRight, building.depth / 2 - 0.86, localBack);
+  addPanel("upper-floor-front", stairLeft, stairRight, localFront, plan.stairStartZ);
+  addPanel("upper-floor-rear", stairLeft, stairRight, plan.stairEndZ, localBack);
 
-  return panels.map((panel) => ({
+  const floorPanels: WarRoomBlocker[] = panels.map((panel) => ({
     ...panel,
     id: `${building.id}-${panel.id}`,
     kind: "platform",
     baseY: floorHeight - floorThickness,
     height: floorThickness,
     color: "#9b876e",
+  }));
+  const railBlockers: WarRoomBlocker[] = [-1, 1].map((side): WarRoomBlocker => ({
+    id: `${building.id}-stair-rail-${side}`,
+    kind: "rail",
+    x: building.x + stairProfileX + side * (stairOpeningHalfWidth + plan.railingThickness / 2),
+    z: building.z + (plan.stairStartZ + plan.stairEndZ) / 2,
+    width: plan.railingThickness,
+    depth: plan.stairEndZ - plan.stairStartZ,
+    baseY: 0,
+    height: building.storyHeight + plan.railingHeight,
+    color: "#765b45",
+  }));
+  return [...floorPanels, ...railBlockers];
+}
+
+function createBuildingFurnitureBlockers(building: WarRoomBuilding): WarRoomBlocker[] {
+  return getWarRoomInteriorFurnitureLayout(building).map((furniture) => ({
+    id: `${building.id}-furniture-floor-${furniture.floor}-${furniture.id}`,
+    kind: "cover",
+    x: building.x + furniture.x,
+    z: building.z + furniture.z,
+    width: furniture.width,
+    depth: furniture.depth,
+    baseY: furniture.floor * building.storyHeight,
+    height: furniture.height,
+    color: "#75543b",
   }));
 }
 
@@ -651,8 +835,9 @@ export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "outer-south", kind: "wall", x: 0, z: 35, width: 70, depth: 2, height: 5.5, color: "#715648" },
   ...WAR_ROOM_BUILDINGS.flatMap(createBuildingWallBlockers),
   ...WAR_ROOM_BUILDINGS.flatMap(createBuildingUpperFloorBlockers),
-  { id: "north-barricade-left", kind: "wall", x: -16, z: -23, width: 12, depth: 1.4, height: 4.2, color: "#776050" },
-  { id: "north-barricade-right", kind: "wall", x: 15, z: -24, width: 13, depth: 1.4, height: 4.2, color: "#776050" },
+  ...WAR_ROOM_BUILDINGS.flatMap(createBuildingFurnitureBlockers),
+  { id: "north-barricade-left", kind: "wall", x: -16, z: -15.4, width: 12, depth: 1.4, height: 4.2, color: "#776050" },
+  { id: "north-barricade-right", kind: "wall", x: 15, z: -15.4, width: 13, depth: 1.4, height: 4.2, color: "#776050" },
   { id: "central-wall-west", kind: "wall", x: -7, z: -8, width: 1.4, depth: 12, height: 4.4, color: "#69534a" },
   { id: "central-wall-east", kind: "wall", x: 8, z: -8, width: 1.4, depth: 12, height: 4.4, color: "#69534a" },
   { id: "passage-west", kind: "wall", x: -3.2, z: 13, width: 1.25, depth: 18, height: 3.8, color: "#70564b" },
@@ -665,10 +850,10 @@ export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "cover-east-side", kind: "cover", x: 19, z: -2, width: 1.5, depth: 6, height: 1.35, color: "#705542" },
   { id: "cover-west-side", kind: "cover", x: -19, z: 3, width: 1.5, depth: 6.5, height: 1.35, color: "#705542" },
   { id: "raised-platform", kind: "platform", x: 22, z: -17, width: 8, depth: 5, height: 1.05, color: "#80644f" },
-  { id: "crate-row-one", kind: "cover", x: -8, z: 21, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
-  { id: "crate-row-two", kind: "cover", x: 9, z: 24, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
-  { id: "barrel-west", kind: "cover", x: -21, z: 20, width: 1.35, depth: 1.35, height: 1.45, color: "#76543b" },
-  { id: "barrel-east", kind: "cover", x: 21, z: 13, width: 1.35, depth: 1.35, height: 1.45, color: "#76543b" },
+  { id: "crate-row-one", kind: "cover", x: -8, z: 14.4, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
+  { id: "crate-row-two", kind: "cover", x: 9, z: 14.4, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
+  { id: "barrel-west", kind: "cover", x: -17.8, z: 12, width: 1.35, depth: 1.35, height: 1.45, color: "#76543b" },
+  { id: "barrel-east", kind: "cover", x: 17.8, z: 12, width: 1.35, depth: 1.35, height: 1.45, color: "#76543b" },
 ];
 
 export const WAR_ROOM_COVER_SPOTS = [

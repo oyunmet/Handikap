@@ -4,6 +4,8 @@ import {
   WAR_ROOM_COMMANDER,
   WAR_ROOM_COVER_SPOTS,
   WAR_ROOM_ENEMY_SPAWNS,
+  findNearestWarRoomClearPoint,
+  getWarRoomHousePlan,
   type WarRoomBlocker,
   type WarRoomBuilding,
   type WarRoomLootChest,
@@ -58,6 +60,7 @@ export type WarRoomRoom = Omit<WarRoomRoomDefinition, "enemyCount"> & {
   buildings: readonly WarRoomBuilding[];
   coverSpots: readonly { x: number; z: number }[];
   enemySpawns: readonly WarRoomSpawn[];
+  playerSpawn: { x: number; z: number };
   commanderPosition: { x: number; z: number };
   lootChests: readonly WarRoomLootChest[];
 };
@@ -252,11 +255,12 @@ export function getWarRoomBuildingWorldPoint(
 }
 
 export function getWarRoomStairProfile(building: WarRoomBuilding) {
+  const plan = getWarRoomHousePlan(building);
   return {
-    x: building.stairSide * (building.width / 2 - 1.12),
-    startZ: -building.depth / 2 + 0.82,
-    endZ: building.depth / 2 - 0.86,
-    halfWidth: 1.06,
+    x: plan.stairX,
+    startZ: plan.stairStartZ,
+    endZ: plan.stairEndZ,
+    halfWidth: plan.stairWidth / 2,
   };
 }
 
@@ -304,6 +308,7 @@ export function getWarRoomFloorHeight(
 function getRoomLootChests(
   buildings: readonly WarRoomBuilding[],
   roomNumber: number,
+  blockers: readonly WarRoomBlocker[],
 ): WarRoomLootChest[] {
   const weaponPool: readonly WarRoomWeaponId[] = [
     "powder_rifle",
@@ -312,13 +317,25 @@ function getRoomLootChests(
     "crossbow",
     "longbow",
   ];
+  const reservedByFloor: Record<0 | 1, Array<{ x: number; z: number }>> = { 0: [], 1: [] };
   return buildings.flatMap((building) => {
     const weaponId = weaponPool[(building.style + roomNumber - 1) % weaponPool.length];
     const ammoWeaponId = weaponPool[(building.style + roomNumber) % weaponPool.length];
     return ([0, 1] as const).flatMap((floor) => {
       const floorHeight = floor === 0 ? 0 : building.storyHeight;
-      const ammoPoint = getWarRoomBuildingWorldPoint(building, -1.12, 0.35);
-      const weaponPoint = getWarRoomBuildingWorldPoint(building, 1.12, 0.35);
+      const reserved = reservedByFloor[floor];
+      const ammoPoint = findNearestWarRoomClearPoint(
+        getWarRoomBuildingWorldPoint(building, -4.15, -4.65),
+        blockers,
+        { radius: 0.35, floorHeight, reserved, minimumReservedDistance: 1.4 },
+      );
+      reserved.push(ammoPoint);
+      const weaponPoint = findNearestWarRoomClearPoint(
+        getWarRoomBuildingWorldPoint(building, 4.15, -4.65),
+        blockers,
+        { radius: 0.35, floorHeight, reserved, minimumReservedDistance: 1.4 },
+      );
+      reserved.push(weaponPoint);
       return [
         {
           id: `loot-${building.id}-floor-${floor}-ammo`,
@@ -407,12 +424,9 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
   });
   const buildings = WAR_ROOM_BUILDINGS.map((building) => {
     const point = transformPoint(building.x, building.z, definition);
-    const swapDimensions = definition.quarterTurns % 2 === 1;
     return {
       ...building,
       ...point,
-      width: swapDimensions ? building.depth : building.width,
-      depth: swapDimensions ? building.width : building.depth,
       rotationY: definition.quarterTurns * Math.PI / 2,
       style: (building.style + safeNumber - 1) % 8,
     };
@@ -428,16 +442,41 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       ...point,
     })),
   ];
-  const enemySpawns = baseSpawns.map((spawn) => ({
-    ...spawn,
-    ...transformPoint(spawn.x, spawn.z, definition),
-  }));
-  const commanderPosition = transformPoint(WAR_ROOM_COMMANDER.x, WAR_ROOM_COMMANDER.z, definition);
-  const lootChests = getRoomLootChests(buildings, safeNumber);
+  const placedEnemySpawns: Array<{ x: number; z: number }> = [];
+  const enemySpawns = baseSpawns.map((spawn) => {
+    const point = transformPoint(spawn.x, spawn.z, definition);
+    const safePoint = findNearestWarRoomClearPoint(
+      point,
+      blockers,
+      { radius: 0.48, reserved: placedEnemySpawns, minimumReservedDistance: 2.2 },
+    );
+    placedEnemySpawns.push(safePoint);
+    return { ...spawn, ...safePoint };
+  });
   const baseEnemyCount = Math.min(
     WAR_ROOM_MAX_ROOM_ENEMIES,
     definition.enemyCount + cycle,
   );
+  const commanderPoint = transformPoint(WAR_ROOM_COMMANDER.x, WAR_ROOM_COMMANDER.z, definition);
+  const commanderPosition = findNearestWarRoomClearPoint(
+    commanderPoint,
+    blockers,
+    { radius: 0.65, reserved: placedEnemySpawns, minimumReservedDistance: 2.2 },
+  );
+  const playerPoint = transformPoint(0, 20, definition);
+  const playerSpawn = findNearestWarRoomClearPoint(
+    playerPoint,
+    blockers,
+    {
+      radius: 0.38,
+      reserved: [
+        ...enemySpawns.slice(0, baseEnemyCount - 1),
+        commanderPosition,
+      ],
+      minimumReservedDistance: 3.2,
+    },
+  );
+  const lootChests = getRoomLootChests(buildings, safeNumber, blockers);
   return {
     ...definition,
     number: safeNumber,
@@ -448,6 +487,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
     buildings,
     coverSpots,
     enemySpawns,
+    playerSpawn,
     commanderPosition,
     lootChests,
   };

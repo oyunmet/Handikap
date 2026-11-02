@@ -53,6 +53,7 @@ import {
   resolveWarRoomLocomotion,
   resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
+  getWarRoomDirectionalSpeedScale,
   isWarRoomFacingTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
@@ -2288,11 +2289,19 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
       joystickAngleDegrees: player.joystickAngleDegrees,
       facingCamera: player.facingCamera,
     },
-    enemies: runtime.enemies.map(({ id, x, z, alive, commander }) => ({ id, x, z, alive, commander })),
+    enemies: runtime.enemies.map(({ id, x, z, floorHeight = 0, alive, commander }) => ({
+      id,
+      x,
+      z,
+      floorHeight,
+      alive,
+      commander,
+    })),
     healingPoints: RESTORE_CONFIG.enabled ? runtime.healingPoints.map(({ id, x, z, availableAt }) => ({
       id,
       x,
       z,
+      floorHeight: 0,
       available: availableAt <= now,
     })) : [],
     regenerationActive: player.regenerationActive,
@@ -2378,6 +2387,7 @@ function WarRoomRuntimeScene({
   const ndc = useMemo(() => new THREE.Vector2(), []);
   const cameraStart = useMemo(() => new THREE.Vector3(), []);
   const cameraDesired = useMemo(() => new THREE.Vector3(), []);
+  const cameraEyeHeightRef = useRef(1.6);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
   const cameraLook = useMemo(() => new THREE.Vector3(), []);
   const cameraRayOrigin = useMemo(() => new THREE.Vector3(), []);
@@ -3733,9 +3743,10 @@ function WarRoomRuntimeScene({
         : isOnStairs ? 4
           : player.sprinting ? 8.2
             : 6.1;
+    const directionalSpeedScale = getWarRoomDirectionalSpeedScale(moveX, moveY);
     const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
-    let dx = worldMovement.x * speed * delta;
-    let dz = worldMovement.z * speed * delta;
+    let dx = worldMovement.x * speed * directionalSpeedScale * delta;
+    let dz = worldMovement.z * speed * directionalSpeedScale * delta;
     if (now < player.dodgeUntil) {
       const remaining = Math.max(0, player.dodgeUntil - now);
       dx += player.dodgeX * 11 * Math.min(delta, remaining);
@@ -4358,8 +4369,12 @@ function WarRoomRuntimeScene({
         };
       }
     }
-    const cameraHeight = cameraMode === "first-person" ? 1.35 : 1.55;
-    const focusHeight = cameraMode === "first-person" ? 1.7 : 1.5;
+    const targetEyeHeight = player.crouched ? 1.0 : 1.6;
+    cameraEyeHeightRef.current += (
+      targetEyeHeight - cameraEyeHeightRef.current
+    ) * (1 - Math.exp(-delta * 10));
+    const cameraHeight = cameraMode === "first-person" ? cameraEyeHeightRef.current : 1.55;
+    const focusHeight = cameraMode === "first-person" ? cameraHeight : 1.5;
     const focusAhead = cameraMode === "first-person" ? 8 : 0;
     cameraStart.set(
       player.x,
@@ -4785,7 +4800,7 @@ export default function WarRoomScene3D(props: Props) {
     <Canvas
       dpr={maxPixelRatio}
       shadows={shadowsEnabled}
-      camera={{ position: [0, 3, 5], fov: 70, near: 0.08, far: 150 }}
+      camera={{ position: [0, 3, 5], fov: 70, near: 0.05, far: 150 }}
       gl={{ antialias: !touchDevice, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
       onCreated={({ gl }) => {
         gl.shadowMap.enabled = shadowsEnabled;

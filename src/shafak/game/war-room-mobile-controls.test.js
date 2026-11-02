@@ -51,6 +51,13 @@ test("joystick rejects other pointers, filters touch jitter, and clamps diagonal
   assert.ok(Math.abs(diagonal.cameraYaw - Math.PI / 4) < 1e-9);
 });
 
+test("joystick deadzone filters fifteen percent of its travel", () => {
+  const controls = createWarRoomMobileControlsState();
+  beginWarRoomJoystick(controls, 22, 100, 100, 100, 0);
+  assert.equal(readWarRoomJoystick(controls, 22, 115, 100).x, 0);
+  assert.ok(readWarRoomJoystick(controls, 22, 116, 100).x > 0);
+});
+
 test("camera yaw is always computed from the gesture start, not its smoothed current yaw", () => {
   const controls = createWarRoomMobileControlsState();
   beginWarRoomJoystick(controls, 4, 200, 400, 40, -Math.PI / 2);

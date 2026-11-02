@@ -1,3 +1,7 @@
+import {
+  readWarRoomLookSensitivity,
+  writeWarRoomLookSensitivity,
+} from "./game/war-room-look-settings";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -410,6 +414,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivity);
   const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
   const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
@@ -1329,6 +1334,35 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                         <strong>Hareket ve kamera</strong>
                         <small>Sol tarafa dokunup sürükle: joystick orada belirir. Sağ tarafta sürükle: kamerayı çevir. Kamera hareket yönünü otomatik takip eder.</small>
                       </span>
+                    </div>
+                    <div className="setting-row setting-row--quality">
+                      <span className="setting-row__copy">
+                        <strong>Kamera hassasiyeti</strong>
+                        <small>Parmak hareketi ve nişan sırasında kamera dönüşünü ayarla.</small>
+                      </span>
+                      <label
+                        aria-label="Kamera hassasiyeti"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          width: "min(180px, 42%)",
+                        }}
+                      >
+                        <input
+                          type="range"
+                          min="0.6"
+                          max="1.6"
+                          step="0.05"
+                          value={warRoomLookSensitivity}
+                          onChange={(event) => {
+                            const value = writeWarRoomLookSensitivity(Number(event.currentTarget.value));
+                            setWarRoomLookSensitivityValue(value);
+                          }}
+                          style={{ width: "100%" }}
+                        />
+                        <output>{Math.round(warRoomLookSensitivity * 100)}%</output>
+                      </label>
                     </div>
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">

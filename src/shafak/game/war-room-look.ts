@@ -1,8 +1,8 @@
 export type WarRoomLookInput = { yaw: number; pitch: number };
 export type WarRoomLookPointerType = "touch" | "mouse" | "pen";
 
-export const WAR_ROOM_PITCH_MIN = -0.4;
-export const WAR_ROOM_PITCH_MAX = 1;
+export const WAR_ROOM_PITCH_MIN = -(85 * Math.PI) / 180;
+export const WAR_ROOM_PITCH_MAX = (85 * Math.PI) / 180;
 
 export function normalizeWarRoomCameraYaw(yaw: number) {
   if (!Number.isFinite(yaw)) return 0;

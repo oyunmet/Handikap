@@ -1,7 +1,11 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { DoubleSide, Shape } from "three";
-import type { WarRoomBuilding } from "../game/war-room-data";
+import {
+  getWarRoomHouseInteriorWalls,
+  getWarRoomHousePlan,
+  type WarRoomBuilding,
+} from "../game/war-room-data";
 
 type BuildingProps = { building: WarRoomBuilding };
 
@@ -197,18 +201,14 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
   const depth = building.depth;
   const groundHeight = building.storyHeight;
   const upperHeight = building.upperWallHeight;
-  const wallThickness = 0.28;
+  const plan = getWarRoomHousePlan(building);
+  const wallThickness = plan.wallThickness;
   const frontZ = -depth / 2;
   const backZ = depth / 2;
-  const stairX = building.stairSide * (width / 2 - 1.12);
-  const stairStartZ = -depth / 2 + 0.82;
-  const stairEndZ = depth / 2 - 0.86;
-  const stairHalfWidth = 1.06;
-  const openingWidth = Math.min(2.22, width - 0.48);
-  const openingLeft = Math.max(-width / 2, stairX - openingWidth / 2);
-  const openingRight = Math.min(width / 2, stairX + openingWidth / 2);
-  const openingActualWidth = openingRight - openingLeft;
-  const rearOpeningHeight = Math.min(2.2, upperHeight - 0.3);
+  const stairX = plan.stairX;
+  const stairStartZ = plan.stairStartZ;
+  const stairEndZ = plan.stairEndZ;
+  const stairHalfWidth = plan.stairWidth / 2;
   const roofRise = Math.min(1.45, depth * 0.23);
   const roofHalfLength = Math.sqrt((depth / 2 + 0.35) ** 2 + roofRise ** 2);
   const roofBaseY = groundHeight + upperHeight;
@@ -218,8 +218,8 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
   const stoneQuoins = building.style === 1 || building.style === 3;
   const timberFrame = building.style === 2 || building.style === 4 || building.style === 7;
   const gableZ = depth / 2 + wallThickness / 2 + 0.015;
-  const floorLaneLeft = Math.max(-width / 2 + 0.16, stairX - stairHalfWidth - 0.12);
-  const floorLaneRight = Math.min(width / 2 - 0.16, stairX + stairHalfWidth + 0.12);
+  const floorLaneLeft = stairX - stairHalfWidth;
+  const floorLaneRight = stairX + stairHalfWidth;
   const frontLandingDepth = stairStartZ + depth / 2;
   const rearLandingDepth = depth / 2 - stairEndZ;
 
@@ -245,6 +245,16 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           }}
         >
           <boxGeometry args={[doorLeftWidth, groundHeight, wallThickness]} />
+          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+        </mesh>
+      ))}
+      {getWarRoomHouseInteriorWalls(building).map((wall) => (
+        <mesh
+          key={`ground-interior-${wall.id}`}
+          position={[wall.x, groundHeight / 2, wall.z]}
+          userData={{ warRoomCameraOccluderId: `${building.id}-floor-0-${wall.id}` }}
+        >
+          <boxGeometry args={[wall.width, groundHeight, wall.depth]} />
           <meshStandardMaterial color={palette.wall} roughness={0.94} />
         </mesh>
       ))}
@@ -298,7 +308,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         <meshStandardMaterial color={palette.foundation} roughness={0.94} />
       </mesh>
 
-      {/* Upper front wall and rear wall, whose doorway receives the stair landing. */}
+      {/* The upper exterior wall is closed; the stair lands inside the rear room. */}
       {[-1, 1].map((side) => (
         <mesh
           key={`upper-front-${side}`}
@@ -322,25 +332,11 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         <boxGeometry args={[building.doorWidth, upperHeight, wallThickness]} />
         <meshStandardMaterial color={palette.wall} roughness={0.94} />
       </mesh>
-      {[-1, 1].map((side) => {
-        const span = side < 0 ? openingLeft + width / 2 : width / 2 - openingRight;
-        const centerX = side < 0 ? (-width / 2 + openingLeft) / 2 : (openingRight + width / 2) / 2;
-        return span > 0.04 ? (
-          <mesh
-            key={`upper-rear-${side}`}
-            position={[centerX, groundHeight + upperHeight / 2, backZ]}
-            userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-back` }}
-          >
-            <boxGeometry args={[span, upperHeight, wallThickness]} />
-            <meshStandardMaterial color={palette.wall} roughness={0.94} />
-          </mesh>
-        ) : null;
-      })}
       <mesh
-        position={[(openingLeft + openingRight) / 2, groundHeight + rearOpeningHeight + (upperHeight - rearOpeningHeight) / 2, backZ]}
+        position={[0, groundHeight + upperHeight / 2, backZ]}
         userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-back` }}
       >
-        <boxGeometry args={[openingActualWidth, upperHeight - rearOpeningHeight, wallThickness]} />
+        <boxGeometry args={[width, upperHeight, wallThickness]} />
         <meshStandardMaterial color={palette.wall} roughness={0.94} />
       </mesh>
       {[-1, 1].map((side) => (
@@ -355,18 +351,18 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           <meshStandardMaterial color={palette.wall} roughness={0.94} />
         </mesh>
       ))}
-
-      {/* Door trim, story belt, and restrained corner structure. */}
-      {[-1, 1].map((side) => (
-        <mesh key={`rear-entry-jamb-${side}`} position={[(openingLeft + openingRight) / 2 + side * (openingActualWidth / 2 - 0.07), groundHeight + rearOpeningHeight / 2, backZ + 0.035]}>
-          <boxGeometry args={[0.14, rearOpeningHeight, wallThickness + 0.08]} />
-          <meshStandardMaterial color={palette.timber} roughness={0.82} />
+      {getWarRoomHouseInteriorWalls(building).map((wall) => (
+        <mesh
+          key={`upper-interior-${wall.id}`}
+          position={[wall.x, groundHeight + upperHeight / 2, wall.z]}
+          userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-${wall.id}` }}
+        >
+          <boxGeometry args={[wall.width, upperHeight, wall.depth]} />
+          <meshStandardMaterial color={palette.wall} roughness={0.94} />
         </mesh>
       ))}
-      <mesh position={[(openingLeft + openingRight) / 2, groundHeight + rearOpeningHeight, backZ + 0.035]}>
-        <boxGeometry args={[openingActualWidth + 0.14, 0.14, wallThickness + 0.08]} />
-        <meshStandardMaterial color={palette.timber} roughness={0.82} />
-      </mesh>
+
+      {/* Door trim, story belt, and restrained corner structure. */}
       <mesh position={[0, groundHeight + 0.06, frontZ - 0.17]} castShadow>
         <boxGeometry args={[width + 0.22, 0.18, 0.16]} />
         <meshStandardMaterial color={palette.timber} roughness={0.84} />
@@ -489,14 +485,15 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
 /** Visual staircase aligned to getWarRoomStairProfile / gameplay floor-height sampling. */
 export function WarRoomStaircase({ building }: BuildingProps) {
   const palette = HOUSE_PALETTES[((building.style % HOUSE_PALETTES.length) + HOUSE_PALETTES.length) % HOUSE_PALETTES.length];
-  const stairX = building.stairSide * (building.width / 2 - 1.12);
-  const startZ = -building.depth / 2 + 0.82;
-  const endZ = building.depth / 2 - 0.86;
-  const halfWidth = 1.06;
+  const plan = getWarRoomHousePlan(building);
+  const stairX = plan.stairX;
+  const startZ = plan.stairStartZ;
+  const endZ = plan.stairEndZ;
+  const halfWidth = plan.stairWidth / 2;
   const run = endZ - startZ;
   const stepCount = Math.max(
-    10,
-    Math.ceil(Math.max(building.storyHeight / 0.18, run / 0.27)),
+    12,
+    Math.ceil(Math.max(building.storyHeight / 0.18, run / 0.24)),
   );
   const stepRun = run / stepCount;
   const risePerStep = building.storyHeight / stepCount;
@@ -532,19 +529,19 @@ export function WarRoomStaircase({ building }: BuildingProps) {
         );
       })}
 
-      {/* Slim handrails stay just outside the 1.64-unit gameplay lane. */}
+      {/* Rails follow the collision lane and protect the open stairwell. */}
       {[-1, 1].map((side) => {
-        const railX = stairX + side * (halfWidth + 0.13);
+        const railX = stairX + side * (halfWidth + plan.railingThickness / 2);
         return (
           <group key={`stair-rail-${side}`}>
-            {[0.08, 0.94].map((heightOffset, railIndex) => (
+            {[0.08, plan.railingHeight].map((heightOffset, railIndex) => (
               <mesh
                 key={`rail-${railIndex}`}
                 position={[railX, heightOffset + building.storyHeight / 2, (startZ + endZ) / 2]}
                 rotation={[-angle, 0, 0]}
                 castShadow
               >
-                <boxGeometry args={[0.11, 0.12, railLength + 0.08]} />
+                <boxGeometry args={[plan.railingThickness, 0.12, railLength + 0.08]} />
                 <meshStandardMaterial color={palette.timber} roughness={0.82} />
               </mesh>
             ))}

@@ -1,7 +1,10 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { WarRoomBuilding } from "../game/war-room-data";
-import { getWarRoomInteriorStyle } from "../game/war-room-interior-layout";
+import {
+  getWarRoomInteriorFurnitureLayout,
+  getWarRoomInteriorStyle,
+} from "../game/war-room-interior-layout";
 import type { ShaderMaterial } from "three";
 
 const TV_VERTEX_SHADER = `
@@ -629,74 +632,76 @@ function SmallBarrel({
 export function WarRoomHouseInterior({ building }: { building: WarRoomBuilding }) {
   const style = getWarRoomInteriorStyle(building.style);
   const livingSide = -building.stairSide;
-  const sofaX = livingSide * (1.05 + style.sofaShift);
-  const tvX = livingSide * 1.18;
-  const bedX = livingSide * 1.18;
-  const bedZ = 0.2;
-  const accessoryX = building.stairSide * 0.62;
-  const accessoryZ = -building.depth / 2 + 0.78;
-  const bedNightstandX = bedX + (style.bedAngle === 0 ? livingSide * 1.05 : 0);
-  const bedNightstandZ = bedZ + (style.bedAngle === 0 ? 0 : 1.05);
+  const furnishings = getWarRoomInteriorFurnitureLayout(building);
+  const furniture = (
+    floor: 0 | 1,
+    id: (typeof furnishings)[number]["id"],
+  ) => furnishings.find((piece) => piece.floor === floor && piece.id === id)!;
+  const bench = furniture(0, "bench");
+  const table = furniture(0, "table");
+  const hearth = furniture(0, "hearth");
+  const storage = furniture(0, "storage");
+  const barrel = furniture(0, "barrel");
+  const frontBarrel = furniture(0, "front-barrel");
+  const bed = furniture(1, "bed");
+  const nightstand = furniture(1, "nightstand");
+  const upperStorage = furniture(1, "storage");
+  const upperBarrel = furniture(1, "barrel");
+  const upperFrontBarrel = furniture(1, "front-barrel");
 
   return (
     <group position={[building.x, 0, building.z]} rotation={[0, building.rotationY, 0]}>
       <Rug
-        position={[sofaX, 0.085, 0.5 + style.sofaShift * 0.35]}
-        width={2.8}
-        depth={2.15}
+        position={[bench.x - livingSide * 0.28, 0.085, bench.z + 0.76]}
+        width={2.5}
+        depth={1.7}
         base={style.rug}
         accent={style.rugAccent}
         pattern={building.style}
       />
       <CarvedBench
-        position={[sofaX, 0.08, -0.05]}
+        position={[bench.x, 0.08, bench.z]}
         rotation={style.sofaAngle}
         wood={style.wood}
         accent={style.rugAccent}
       />
       <StoneHearth
-        position={[tvX, 0.02, building.depth / 2 - 0.67]}
+        position={[hearth.x, 0.02, hearth.z]}
         stone={style.metal}
         timber={style.wood}
       />
       <TrestleTable
-        position={[sofaX, 0.08, 0.82]}
+        position={[table.x, 0.08, table.z]}
         wood={style.wood}
         metal={style.metal}
       />
-      <CarvedBench
-        position={[sofaX + livingSide * 0.12, 0.08, 1.58]}
-        rotation={Math.PI}
-        wood={style.wood}
-        accent={style.rugAccent}
-      />
       <StoragePiece
         kind={style.accessory}
-        position={[accessoryX, 0.02, accessoryZ]}
+        position={[storage.x, 0.02, storage.z]}
         wood={style.wood}
         metal={style.metal}
       />
       <ClayStorage
-        position={[livingSide * (building.width / 2 - 0.55), 0.02, building.depth / 2 - 1.05]}
+        position={[barrel.x, 0.02, barrel.z]}
         clay="#9b6542"
         trim={style.rugAccent}
       />
       <SmallBarrel
-        position={[livingSide * (building.width / 2 - 0.58), 0.02, -building.depth / 2 + 1.05]}
+        position={[frontBarrel.x, 0.02, frontBarrel.z]}
         wood={style.wood}
         metal={style.metal}
       />
 
       <Rug
-        position={[bedX, building.storyHeight + 0.085, bedZ]}
+        position={[bed.x, building.storyHeight + 0.085, bed.z]}
         width={2.2}
-        depth={2.55}
+        depth={2.65}
         base={style.rug}
         accent={style.rugAccent}
         pattern={building.style + 1}
       />
       <Bed
-        position={[bedX, building.storyHeight + 0.08, bedZ]}
+        position={[bed.x, building.storyHeight + 0.08, bed.z]}
         rotation={style.bedAngle}
         wood={style.wood}
         bedding={style.bedding}
@@ -704,24 +709,33 @@ export function WarRoomHouseInterior({ building }: { building: WarRoomBuilding }
         metal={style.metal}
       />
       <Nightstand
-        position={[bedNightstandX, building.storyHeight + 0.08, bedNightstandZ]}
+        position={[nightstand.x, building.storyHeight + 0.08, nightstand.z]}
         wood={style.wood}
         metal={style.metal}
       />
       <StoragePiece
         kind={style.accessory === "bookcase" ? "chest" : "wardrobe"}
-        position={[0.1, building.storyHeight + 0.08, -building.depth / 2 + 0.78]}
+        position={[upperStorage.x, building.storyHeight + 0.08, upperStorage.z]}
         wood={style.wood}
         metal={style.metal}
       />
       <ClayStorage
         position={[
-          -livingSide * (building.width / 2 - 0.54),
+          upperBarrel.x,
           building.storyHeight + 0.08,
-          building.depth / 2 - 0.72,
+          upperBarrel.z,
         ]}
         clay="#8b583a"
         trim={style.rugAccent}
+      />
+      <SmallBarrel
+        position={[
+          upperFrontBarrel.x,
+          building.storyHeight + 0.08,
+          upperFrontBarrel.z,
+        ]}
+        wood={style.wood}
+        metal={style.metal}
       />
     </group>
   );

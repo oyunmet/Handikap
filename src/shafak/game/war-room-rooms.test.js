@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { WAR_ROOM_BLOCKERS, WAR_ROOM_WEAPONS } from "./war-room-data.ts";
+import {
+  WAR_ROOM_BLOCKERS,
+  WAR_ROOM_HOUSE_PLAN,
+  WAR_ROOM_WEAPONS,
+  getWarRoomHousePlan,
+  isWarRoomPointClear,
+} from "./war-room-data.ts";
 import {
   addWarRoomRoomReward,
   getWarRoomBuildingWorldPoint,
@@ -17,6 +23,7 @@ import {
 import { GAME_BUILD_MARKER } from "../build-info.ts";
 import {
   createWarRoomRuntime,
+  createWarRoomTrainingRuntime,
   moveWarRoomEntity,
   segmentBlockFraction,
   WAR_ROOM_PLAYER_COLLISION_RADIUS,
@@ -26,11 +33,6 @@ import {
   WAR_ROOM_ROOM_BUFFS_ENABLED,
   WAR_ROOM_ROOM_CHAIN_ENABLED,
 } from "./war-room-features.ts";
-
-function overlapsBlocker(point, blocker, radius = 1.1) {
-  return Math.abs(point.x - blocker.x) < blocker.width / 2 + radius
-    && Math.abs(point.z - blocker.z) < blocker.depth / 2 + radius;
-}
 
 test("room-chain rollout is enabled with optional buffs disabled", () => {
   assert.equal(WAR_ROOM_ROOM_CHAIN_ENABLED, true);
@@ -48,9 +50,69 @@ test("the first six rooms have distinct names, layouts, themes, rosters and enem
     assert.equal(room.enemySpawns.length, WAR_ROOM_MAX_ROOM_ENEMIES - 1);
     assert.ok(room.enemyWeapons.every((id) => WAR_ROOM_WEAPONS.some((weapon) => weapon.id === id)));
     assert.ok(room.enemySpawns.slice(0, room.enemyCount - 1).every((spawn) => (
-      room.blockers.every((blocker) => !overlapsBlocker(spawn, blocker))
+      isWarRoomPointClear(spawn.x, spawn.z, room.blockers, 0.48)
+    )));
+    assert.ok(isWarRoomPointClear(room.playerSpawn.x, room.playerSpawn.z, room.blockers, 0.38));
+    assert.ok(isWarRoomPointClear(
+      room.commanderPosition.x,
+      room.commanderPosition.z,
+      room.blockers,
+      0.65,
+    ));
+    assert.ok(room.lootChests.every((chest) => (
+      isWarRoomPointClear(chest.x, chest.z, room.blockers, 0.35, chest.floorHeight)
     )));
     assert.ok(room.blockers.length === WAR_ROOM_BLOCKERS.length);
+  }
+});
+
+test("house rooms, corridor, doors, stairs and landings meet the visible dimensions", () => {
+  for (const building of getWarRoomRoom(1).buildings) {
+    const plan = getWarRoomHousePlan(building);
+    const clearWingWidth = building.width / 2 - plan.corridorWallX - plan.wallThickness / 2;
+    const frontWallInside = -building.depth / 2 + plan.wallThickness / 2;
+    const frontRoomDepth = plan.roomDividerZ - plan.wallThickness / 2 - frontWallInside;
+    const stairRun = plan.stairEndZ - plan.stairStartZ;
+    const stairAngle = Math.atan2(building.storyHeight, stairRun) * 180 / Math.PI;
+    const stairSteps = Math.ceil(Math.max(building.storyHeight / 0.18, stairRun / 0.24));
+
+    assert.ok(plan.corridorWidth >= 2.5);
+    assert.ok(clearWingWidth >= 5);
+    assert.ok(frontRoomDepth >= 5);
+    assert.ok(building.storyHeight >= 3);
+    assert.ok(plan.roomDoorWidth >= 1.6 && plan.roomDoorHeight >= 2.4);
+    assert.ok(plan.stairWidth >= 2);
+    assert.ok(plan.landingDepth >= 2);
+    assert.ok(stairAngle >= 30 && stairAngle <= 35);
+    assert.ok(building.storyHeight / stairSteps <= 0.4);
+    assert.ok(WAR_ROOM_HOUSE_PLAN.railingHeight >= 0.9);
+  }
+});
+
+test("all floorplan doorways and both stair landings remain traversable", () => {
+  const room = getWarRoomRoom(2);
+  for (const building of room.buildings) {
+    const plan = getWarRoomHousePlan(building);
+    for (const floorHeight of [0, building.storyHeight]) {
+      for (const point of [
+        getWarRoomBuildingWorldPoint(building, 0, plan.frontRoomDoorZ),
+        getWarRoomBuildingWorldPoint(building, -4.15, plan.frontRoomDoorZ),
+        getWarRoomBuildingWorldPoint(building, 4.15, plan.frontRoomDoorZ),
+        getWarRoomBuildingWorldPoint(building, -4.15, plan.roomDividerZ),
+        getWarRoomBuildingWorldPoint(building, 4.15, plan.roomDividerZ),
+        getWarRoomBuildingWorldPoint(building, 0, plan.rearRoomDoorZ),
+        getWarRoomBuildingWorldPoint(building, plan.stairX, plan.stairStartZ),
+        getWarRoomBuildingWorldPoint(building, plan.stairX, plan.stairEndZ),
+      ]) {
+        assert.ok(isWarRoomPointClear(point.x, point.z, room.blockers, 0.35, floorHeight));
+      }
+    }
+    assert.ok(room.blockers.some((blocker) => (
+      blocker.id === `${building.id}-stair-rail--1` && blocker.kind === "rail"
+    )));
+    assert.ok(room.blockers.some((blocker) => (
+      blocker.id === `${building.id}-stair-rail-1` && blocker.kind === "rail"
+    )));
   }
 });
 
@@ -203,6 +265,11 @@ test("room runtime uses the selected roster, visuals, spawn map, and existing da
   const movedWall = room.blockers.find((blocker) => blocker.id === "central-wall-west");
 
   assert.equal(runtime.room.id, room.id);
+  assert.deepEqual(runtime.player, {
+    ...runtime.player,
+    x: room.playerSpawn.x,
+    z: room.playerSpawn.z,
+  });
   assert.equal(runtime.enemies.length, room.enemyCount);
   assert.equal(guards.length, room.enemyCount - 1);
   assert.equal(commander?.name, room.commanderName);
@@ -228,6 +295,20 @@ test("room runtime uses the selected roster, visuals, spawn map, and existing da
     segmentBlockFraction({ x: -17, y: 1, z: 7 }, { x: -5, y: 1, z: 7 }),
     null,
   );
+});
+
+test("training dummy starts in clear space rather than inside house geometry", () => {
+  const runtime = createWarRoomTrainingRuntime(["powder_rifle", "crossbow"]);
+  const dummy = runtime.enemies[0];
+  assert.equal(dummy?.id, "training-dummy");
+  assert.ok(dummy);
+  assert.ok(isWarRoomPointClear(
+    dummy.x,
+    dummy.z,
+    runtime.room.blockers,
+    0.65,
+    dummy.floorHeight ?? 0,
+  ));
 });
 
 test("room rewards apply the requested multiplier cap and carry forty percent health", () => {

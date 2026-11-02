@@ -31,7 +31,7 @@ export type WarRoomJoystickReading = {
   cameraYaw: number | null;
 };
 
-const JOYSTICK_DEAD_ZONE = 0.1;
+const JOYSTICK_DEAD_ZONE = 0.15;
 
 export function getWarRoomAutoFollowYaw(
   baseYaw: number,

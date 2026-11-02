@@ -7,6 +7,7 @@ import {
   getWarRoomPlayerRootYaw,
   getWarRoomYawError,
   getWarRoomWorldMovement,
+  getWarRoomDirectionalSpeedScale,
   isWarRoomFacingTarget,
   getWarRoomPostAttackStrafeUntil,
   resolveWarRoomLocomotion,
@@ -68,6 +69,13 @@ test("screen-forward and backward stay camera-relative after the player turns ar
   closeAngle(backwardWhileFacingAway.yaw, Math.PI);
   assert.equal(forwardWhileFacingCamera.facingCamera, false);
   assert.equal(backwardWhileFacingAway.facingCamera, true);
+});
+
+test("backpedaling and strafing are slower than forward movement", () => {
+  assert.equal(getWarRoomDirectionalSpeedScale(0, 1), 1);
+  assert.ok(getWarRoomDirectionalSpeedScale(1, 0) < 1);
+  assert.ok(getWarRoomDirectionalSpeedScale(0, -1) < getWarRoomDirectionalSpeedScale(1, 0));
+  assert.ok(getWarRoomDirectionalSpeedScale(0.7, -0.7) > 0.62);
 });
 
 test("camera-facing mode tracks idle camera yaw while aim keeps strafe behavior", () => {

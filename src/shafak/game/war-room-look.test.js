@@ -33,7 +33,7 @@ test("mouse look keeps its existing vertical direction and pitch limits", () => 
   applyWarRoomLookDelta(input, 5, 10, 0.01, "mouse", true);
   assert.equal(input.yaw, 0.05);
   assert.equal(input.pitch, WAR_ROOM_PITCH_MAX);
-  applyWarRoomLookDelta(input, 0, -200, 0.01, "mouse");
+  applyWarRoomLookDelta(input, 0, -300, 0.01, "mouse");
   assert.equal(input.pitch, WAR_ROOM_PITCH_MIN);
 });
 

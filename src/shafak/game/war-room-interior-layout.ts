@@ -15,6 +15,129 @@ export type WarRoomInteriorStyle = {
   screenSeed: number;
 };
 
+export type WarRoomInteriorFurniture = {
+  id: "bench" | "table" | "hearth" | "storage" | "barrel" | "front-barrel" | "bed" | "nightstand";
+  floor: 0 | 1;
+  x: number;
+  z: number;
+  y: number;
+  width: number;
+  depth: number;
+  height: number;
+};
+
+export function getWarRoomInteriorFurnitureLayout(building: {
+  width: number;
+  depth: number;
+  storyHeight: number;
+  stairSide: -1 | 1;
+}): WarRoomInteriorFurniture[] {
+  const livingSide = -building.stairSide;
+  const edge = building.width / 2;
+  const frontZ = -building.depth / 2;
+  const rearZ = building.depth / 2;
+  const groundFloorFurnishings: Omit<WarRoomInteriorFurniture, "floor" | "y">[] = [
+    {
+      id: "bench",
+      x: livingSide * (edge - 1.35),
+      z: frontZ + 1.65,
+      width: 2.3,
+      depth: 0.82,
+      height: 0.92,
+    },
+    {
+      id: "table",
+      x: livingSide * (edge - 2.5),
+      z: frontZ + 4.05,
+      width: 1.5,
+      depth: 1.12,
+      height: 1.05,
+    },
+    {
+      id: "hearth",
+      x: livingSide * (edge - 1.15),
+      z: rearZ - 0.92,
+      width: 1.22,
+      depth: 1.15,
+      height: 1.3,
+    },
+    {
+      id: "storage",
+      x: building.stairSide * (edge - 0.82),
+      z: frontZ + 1.12,
+      width: 1.08,
+      depth: 0.86,
+      height: 1.42,
+    },
+    {
+      id: "barrel",
+      x: building.stairSide * (edge - 0.45),
+      z: rearZ - 0.82,
+      width: 0.78,
+      depth: 0.78,
+      height: 0.86,
+    },
+    {
+      id: "front-barrel",
+      x: building.stairSide * (edge - 0.82),
+      z: frontZ + 3.55,
+      width: 0.78,
+      depth: 0.78,
+      height: 0.86,
+    },
+  ];
+  const upperFloorFurnishings: Omit<WarRoomInteriorFurniture, "floor" | "y">[] = [
+    {
+      id: "bed",
+      x: livingSide * (edge - 1.45),
+      z: rearZ - 3.2,
+      width: 2.2,
+      depth: 2.65,
+      height: 1.22,
+    },
+    {
+      id: "nightstand",
+      x: livingSide * (edge - 3.2),
+      z: rearZ - 1.7,
+      width: 0.76,
+      depth: 0.72,
+      height: 0.9,
+    },
+    {
+      id: "storage",
+      x: building.stairSide * (edge - 0.82),
+      z: frontZ + 1.12,
+      width: 1.08,
+      depth: 0.86,
+      height: 1.42,
+    },
+    {
+      id: "barrel",
+      x: building.stairSide * (edge - 0.45),
+      z: rearZ - 0.82,
+      width: 0.78,
+      depth: 0.78,
+      height: 0.86,
+    },
+    {
+      id: "front-barrel",
+      x: building.stairSide * (edge - 0.82),
+      z: frontZ + 3.55,
+      width: 0.78,
+      depth: 0.78,
+      height: 0.86,
+    },
+  ];
+  return [
+    ...groundFloorFurnishings.map((piece) => ({ ...piece, floor: 0 as const, y: 0 })),
+    ...upperFloorFurnishings.map((piece) => ({
+      ...piece,
+      floor: 1 as const,
+      y: building.storyHeight,
+    })),
+  ];
+}
+
 export const WAR_ROOM_INTERIOR_STYLES: readonly WarRoomInteriorStyle[] = [
   {
     name: "barracks",

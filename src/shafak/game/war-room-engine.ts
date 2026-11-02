@@ -1,3 +1,4 @@
+import { findNearestWarRoomClearPoint } from "./war-room-data";
 import {
   WAR_ROOM_BLOCKERS,
   WAR_ROOM_COMMANDER,
@@ -168,7 +169,7 @@ export type WarRoomInputState = {
   paused: boolean;
 };
 
-export const WAR_ROOM_PLAYER_COLLISION_RADIUS = 0.3;
+export const WAR_ROOM_PLAYER_COLLISION_RADIUS = 0.38;
 const WAR_ROOM_COLLISION_STEP_DISTANCE = 0.12;
 
 export type WarRoomHudSnapshot = {
@@ -179,8 +180,8 @@ export type WarRoomHudSnapshot = {
     joystickAngleDegrees: number | null;
     facingCamera: boolean;
   };
-  enemies: Array<{ id: string; x: number; z: number; alive: boolean; commander: boolean }>;
-  healingPoints: Array<{ id: string; x: number; z: number; available: boolean }>;
+  enemies: Array<{ id: string; x: number; z: number; floorHeight: number; alive: boolean; commander: boolean }>;
+  healingPoints: Array<{ id: string; x: number; z: number; floorHeight: number; available: boolean }>;
   regenerationActive: boolean;
   regenerationWaitSeconds: number;
   regenerationAtCap: boolean;
@@ -310,8 +311,8 @@ export function createWarRoomRuntime(
     ),
     lootChests: room.lootChests.map((chest) => ({ ...chest, opened: false })),
     player: {
-      x: 0,
-      z: 20,
+      x: room.playerSpawn.x,
+      z: room.playerSpawn.z,
       floorHeight: 0,
       yaw: 0,
       facingYaw: 0,
@@ -401,14 +402,23 @@ export function createWarRoomTrainingRuntime(
   now = 0,
 ): WarRoomRuntime {
   const runtime = createWarRoomRuntime(weaponIds, now);
+  const dummyPosition = findNearestWarRoomClearPoint(
+    { x: 0, z: 10 },
+    runtime.room.blockers,
+    {
+      radius: 0.65,
+      reserved: [{ x: runtime.player.x, z: runtime.player.z }],
+      minimumReservedDistance: 4,
+    },
+  );
   runtime.enemies.splice(0, runtime.enemies.length, {
     id: "training-dummy",
     name: "Eğitim Mankeni",
     commander: false,
     weaponId: "powder_rifle",
     color: "#92715a",
-    x: 0,
-    z: 22.5,
+    ...dummyPosition,
+    floorHeight: 0,
     hp: 1_000_000,
     maxHp: 1_000_000,
     damage: 0,
@@ -417,8 +427,8 @@ export function createWarRoomTrainingRuntime(
     mode: "cover",
     brainAt: Number.POSITIVE_INFINITY,
     nextShotAt: Number.POSITIVE_INFINITY,
-    coverX: 0,
-    coverZ: 22.5,
+    coverX: dummyPosition.x,
+    coverZ: dummyPosition.z,
     hitUntil: 0,
     hitFlashUntil: 0,
     hitKneeUntil: 0,

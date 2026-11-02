@@ -146,14 +146,18 @@
   .war-room-hud-settings > .war-room-mute { min-width: 50px; }
 
   .war-room-commander {
-    top: max(132px, calc(env(safe-area-inset-top) + 124px));
+    top: max(148px, calc(env(safe-area-inset-top) + 140px));
     left: 50%;
     width: min(310px, calc(100vw - 42px));
     transform: translateX(-50%);
   }
 
   .war-room-boss-phase {
-    top: max(190px, calc(env(safe-area-inset-top) + 182px));
+    top: max(206px, calc(env(safe-area-inset-top) + 198px));
+  }
+
+  .war-room-orientation-hint {
+    display: block;
   }
 
   .war-room-pause {
@@ -274,7 +278,15 @@
   }
 
   .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
-    font-size: 6px;
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 7px;
+    line-height: 1.05;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
   .war-room-controls:not(.is-custom-layout) {
@@ -606,7 +618,15 @@
   }
 
   .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
-    font-size: 6px;
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 7px;
+    line-height: 1.05;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
   .war-room-controls:not(.is-custom-layout) {
@@ -764,7 +784,7 @@
   .war-room-hud-settings > .war-room-mute { min-width: 48px; }
 
   .war-room-commander {
-    top: max(39px, calc(env(safe-area-inset-top) + 32px));
+    top: max(108px, calc(env(safe-area-inset-top) + 100px));
     left: 50%;
     display: grid;
     width: min(360px, 40vw);
@@ -849,7 +869,7 @@
   }
 
   .war-room-boss-phase {
-    top: max(82px, calc(env(safe-area-inset-top) + 74px));
+    top: max(152px, calc(env(safe-area-inset-top) + 144px));
   }
 
   .war-room-notice {
