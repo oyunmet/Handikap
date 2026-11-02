@@ -104,6 +104,7 @@ import {
   getWarRoomViewModelHorizontalFactor,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
+  stepWarRoomViewModelWallProximity,
 } from "../game/war-room-viewmodel";
 import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
 import {
@@ -1392,6 +1393,8 @@ function FirstPersonWeaponViewModel({
   const preparedMeshesRef = useRef(new WeakSet<THREE.Mesh>());
   const previousPlayerPositionRef = useRef<{ x: number; z: number } | null>(null);
   const filteredMovementRef = useRef(0);
+  const walkPhaseRef = useRef(0);
+  const wallProximityRef = useRef(0);
   const movementActiveRef = useRef(false);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
@@ -1420,6 +1423,10 @@ function FirstPersonWeaponViewModel({
     const movementTarget = movementActiveRef.current ? normalizedSpeed : 0;
     filteredMovementRef.current += (movementTarget - filteredMovementRef.current)
       * (1 - Math.exp(-delta * 12));
+    if (filteredMovementRef.current > 0.02) {
+      walkPhaseRef.current = (walkPhaseRef.current + delta * (7.2 + filteredMovementRef.current * 2.8))
+        % (Math.PI * 2);
+    }
     const clock = player.clockTime;
     const shotAge = Math.max(0, 0.2 - (player.shotFeedbackUntil - clock));
     const recoilEnvelope = shotAge <= 0.06
@@ -1440,15 +1447,22 @@ function FirstPersonWeaponViewModel({
     const aspect = size.height > 0 ? size.width / size.height : 1.75;
     const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
     camera.getWorldDirection(cameraForwardRef.current);
-    const wallProximity = getWarRoomViewModelWallProximity(
+    const targetWallProximity = getWarRoomViewModelWallProximity(
       cameraPositionRef.current,
       cameraForwardRef.current,
       cameraBounds,
     );
+    wallProximityRef.current = stepWarRoomViewModelWallProximity(
+      wallProximityRef.current,
+      targetWallProximity,
+      delta,
+    );
+    const wallProximity = wallProximityRef.current;
     const pose = getWarRoomViewModelPose({
       time: clock,
       movement: filteredMovementRef.current,
-      swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.5 : 0,
+      walkPhase: walkPhaseRef.current,
+      swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.75 : 0,
       wallProximity,
       aiming: input.aimHeld,
       recoil,
@@ -1466,13 +1480,13 @@ function FirstPersonWeaponViewModel({
 
     arms.position.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
-      viewConfig.position[1] + pose.position[1] - pose.weaponBob.y,
+      viewConfig.position[1] + pose.position[1],
       viewConfig.position[2] + pose.position[2],
     );
     arms.rotation.set(
       mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
       mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
-      mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2] - pose.weaponBob.roll,
+      mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
     );
     weaponPose.position.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],

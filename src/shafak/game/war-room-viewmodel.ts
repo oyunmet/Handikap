@@ -1,6 +1,7 @@
 export type WarRoomViewModelState = {
   time: number;
   movement: number;
+  walkPhase?: number;
   swayScale?: number;
   wallProximity?: number;
   aiming: boolean;
@@ -16,13 +17,17 @@ export type WarRoomViewModelState = {
 export type WarRoomViewModelPose = {
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
-  weaponBob: {
-    y: number;
-    roll: number;
-  };
 };
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+
+export function stepWarRoomViewModelWallProximity(current: number, target: number, delta: number) {
+  const safeCurrent = clamp01(current);
+  const safeTarget = clamp01(target);
+  const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
+  const blend = 1 - Math.exp(-safeDelta * 8.5);
+  return safeCurrent + (safeTarget - safeCurrent) * blend;
+}
 
 export type WarRoomViewModelConfig = {
   scale: number;
@@ -75,9 +80,14 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   const reload = Math.sin(Math.PI * clamp01(state.reloadProgress));
   const charge = clamp01(state.chargeProgress);
   const motion = state.motionReduced ? 0 : 1;
+  const walkPhase = Number.isFinite(state.walkPhase) ? state.walkPhase! : state.time * 8.4;
+  const walkAmount = movement * swayScale * motion * (state.aiming ? 0.58 : 1);
   const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion * swayScale;
-  const walkBob = Math.sin(state.time * 2.625) * movement * 0.0045 * motion * swayScale;
-  const walkRoll = Math.cos(state.time * 1.3125) * movement * 0.0045 * motion * swayScale;
+  const walkSwayX = Math.sin(walkPhase) * walkAmount * 0.04;
+  const walkBob = Math.sin(walkPhase * 2) * walkAmount * 0.012;
+  const walkPitch = Math.cos(walkPhase * 2) * walkAmount * 0.01;
+  const walkYaw = Math.cos(walkPhase) * walkAmount * 0.014;
+  const walkRoll = Math.cos(walkPhase) * walkAmount * 0.038;
 
   let swingX = 0;
   let swingY = 0;
@@ -107,18 +117,14 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
 
   return {
     position: [
-      (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor,
-      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.06,
-      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.16,
+      (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor + walkSwayX,
+      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035,
+      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.08,
     ],
     rotation: [
-      0.04 + recoil * 0.12 + reload * 0.22 - charge * 0.12 + swingPitch,
-      -0.06 + swingYaw,
+      0.04 + recoil * 0.12 + reload * 0.22 - charge * 0.12 + swingPitch + walkPitch,
+      -0.06 + swingYaw + walkYaw,
       -0.045 + walkRoll + idleBreath * 0.7 + swingRoll,
     ],
-    weaponBob: {
-      y: -walkBob,
-      roll: walkRoll,
-    },
   };
 }

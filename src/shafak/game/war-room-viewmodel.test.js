@@ -5,6 +5,7 @@ import {
   getWarRoomViewModelHorizontalFactor,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
+  stepWarRoomViewModelWallProximity,
 } from "./war-room-viewmodel.ts";
 
 test("first-person view model moves to the sight line while aiming", () => {
@@ -44,9 +45,9 @@ test("reduced motion removes idle, locomotion, and firing sway", () => {
   assert.deepEqual(pose.rotation, [0.04, -0.06, -0.045]);
 });
 
-test("running bob is half the former amplitude and is independently exposed for the weapon", () => {
-  const pose = getWarRoomViewModelPose({
-    time: Math.PI / (2 * 2.625),
+test("walking gait moves the full view model side to side with a restrained vertical bob", () => {
+  const state = {
+    time: 0,
     movement: 1,
     aiming: false,
     recoil: 0,
@@ -56,12 +57,38 @@ test("running bob is half the former amplitude and is independently exposed for 
     meleeStyle: "slash",
     comboIndex: 0,
     motionReduced: false,
-  });
-  assert.ok(Math.abs(pose.weaponBob.y + 0.0045) < 1e-9);
-  assert.ok(Math.abs(pose.weaponBob.roll) <= 0.0045);
+  };
+  const rightStep = getWarRoomViewModelPose({ ...state, walkPhase: Math.PI / 2 });
+  const leftStep = getWarRoomViewModelPose({ ...state, walkPhase: 3 * Math.PI / 2 });
+  assert.ok(rightStep.position[0] > 0.28);
+  assert.ok(leftStep.position[0] < 0.28);
+  assert.ok(rightStep.position[0] - leftStep.position[0] >= 0.07);
 
-  const stopped = getWarRoomViewModelPose({
-    time: 1,
+  const rising = getWarRoomViewModelPose({ ...state, walkPhase: Math.PI / 4 });
+  const falling = getWarRoomViewModelPose({ ...state, walkPhase: 3 * Math.PI / 4 });
+  assert.ok(rising.position[1] < falling.position[1]);
+  assert.ok(rising.rotation[2] > falling.rotation[2]);
+
+  const stopped = getWarRoomViewModelPose({ ...state, movement: 0, walkPhase: Math.PI / 2 });
+  assert.equal(stopped.position[0], 0.28);
+  assert.equal(stopped.position[1], -0.08);
+  assert.equal(stopped.rotation[2], -0.045);
+});
+
+test("wall proximity eases in and out instead of snapping the weapon", () => {
+  const approaching = stepWarRoomViewModelWallProximity(0, 1, 1 / 60);
+  const closer = stepWarRoomViewModelWallProximity(approaching, 1, 1 / 60);
+  const retreating = stepWarRoomViewModelWallProximity(closer, 0, 1 / 60);
+
+  assert.ok(approaching > 0 && approaching < 1);
+  assert.ok(closer > approaching && closer < 1);
+  assert.ok(retreating > 0 && retreating < closer);
+  assert.equal(stepWarRoomViewModelWallProximity(closer, 0, 0), closer);
+});
+
+test("wall tuck stays smaller than the walking sway instead of zooming the weapon toward the camera", () => {
+  const state = {
+    time: 0,
     movement: 0,
     aiming: false,
     recoil: 0,
@@ -71,9 +98,13 @@ test("running bob is half the former amplitude and is independently exposed for 
     meleeStyle: "slash",
     comboIndex: 0,
     motionReduced: false,
-  });
-  assert.equal(Math.abs(stopped.weaponBob.y), 0);
-  assert.equal(stopped.weaponBob.roll, 0);
+  };
+  const clear = getWarRoomViewModelPose({ ...state, wallProximity: 0 });
+  const close = getWarRoomViewModelPose({ ...state, wallProximity: 1 });
+
+  assert.ok(clear.position[2] < close.position[2]);
+  assert.ok(close.position[2] - clear.position[2] <= 0.080001);
+  assert.ok(clear.position[1] - close.position[1] <= 0.035001);
 });
 
 test("melee attacks get distinct sweep and thrust view-model arcs", () => {
