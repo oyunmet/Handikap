@@ -137,7 +137,7 @@ test("small movement steps slide along walls instead of sticking on diagonal con
     color: "#000",
   };
   const result = moveWarRoomEntity(
-    -0.63,
+    -0.66,
     -2,
     0.45,
     4,
@@ -145,7 +145,7 @@ test("small movement steps slide along walls instead of sticking on diagonal con
     [wall],
   );
 
-  assert.ok(result.x <= -0.63 + 1e-8, "the player stays outside the wall");
+  assert.ok(result.x <= -0.66 + 1e-8, "the player stays outside the wall");
   assert.ok(result.z > 1.8, "the player keeps moving along the wall");
 });
 

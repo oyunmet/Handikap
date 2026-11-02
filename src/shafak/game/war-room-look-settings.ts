@@ -1,8 +1,15 @@
 const WAR_ROOM_LOOK_SENSITIVITY_KEY = "shafak.war-room-look-sensitivity";
+const WAR_ROOM_LOOK_SENSITIVITY_X_KEY = `${WAR_ROOM_LOOK_SENSITIVITY_KEY}-horizontal`;
+const WAR_ROOM_LOOK_SENSITIVITY_Y_KEY = `${WAR_ROOM_LOOK_SENSITIVITY_KEY}-vertical`;
 
 export const WAR_ROOM_LOOK_SENSITIVITY_DEFAULT = 1;
 export const WAR_ROOM_LOOK_SENSITIVITY_MIN = 0.6;
 export const WAR_ROOM_LOOK_SENSITIVITY_MAX = 1.6;
+
+export type WarRoomLookSensitivitySettings = {
+  horizontal: number;
+  vertical: number;
+};
 
 export function normalizeWarRoomLookSensitivity(value: number) {
   return Number.isFinite(value)
@@ -33,16 +40,58 @@ export function writeWarRoomLookSensitivity(value: number) {
   return normalized;
 }
 
+export function readWarRoomLookSensitivitySettings(): WarRoomLookSensitivitySettings {
+  const legacy = readWarRoomLookSensitivity();
+  if (typeof window === "undefined") return { horizontal: legacy, vertical: legacy };
+  try {
+    const horizontal = window.localStorage.getItem(WAR_ROOM_LOOK_SENSITIVITY_X_KEY);
+    const vertical = window.localStorage.getItem(WAR_ROOM_LOOK_SENSITIVITY_Y_KEY);
+    return {
+      horizontal: horizontal === null ? legacy : normalizeWarRoomLookSensitivity(Number(horizontal)),
+      vertical: vertical === null ? legacy : normalizeWarRoomLookSensitivity(Number(vertical)),
+    };
+  } catch {
+    return { horizontal: legacy, vertical: legacy };
+  }
+}
+
+export function writeWarRoomLookSensitivitySettings(
+  settings: WarRoomLookSensitivitySettings,
+): WarRoomLookSensitivitySettings {
+  const normalized = {
+    horizontal: normalizeWarRoomLookSensitivity(settings.horizontal),
+    vertical: normalizeWarRoomLookSensitivity(settings.vertical),
+  };
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(WAR_ROOM_LOOK_SENSITIVITY_X_KEY, String(normalized.horizontal));
+      window.localStorage.setItem(WAR_ROOM_LOOK_SENSITIVITY_Y_KEY, String(normalized.vertical));
+      window.localStorage.setItem(
+        WAR_ROOM_LOOK_SENSITIVITY_KEY,
+        String((normalized.horizontal + normalized.vertical) / 2),
+      );
+    } catch {
+      // The setting remains usable for the current session if storage is unavailable.
+    }
+  }
+  return normalized;
+}
+
 export function getWarRoomPointerSensitivity(
   viewportWidth: number,
   viewportHeight: number,
-  multiplier = WAR_ROOM_LOOK_SENSITIVITY_DEFAULT,
+  multiplier: number | WarRoomLookSensitivitySettings = WAR_ROOM_LOOK_SENSITIVITY_DEFAULT,
 ) {
   const width = Math.max(1, viewportWidth);
   const height = Math.max(1, viewportHeight);
-  const scale = normalizeWarRoomLookSensitivity(multiplier);
+  const horizontal = normalizeWarRoomLookSensitivity(
+    typeof multiplier === "number" ? multiplier : multiplier.horizontal,
+  );
+  const vertical = normalizeWarRoomLookSensitivity(
+    typeof multiplier === "number" ? multiplier : multiplier.vertical,
+  );
   return {
-    x: 0.007 * (720 / width) * scale,
-    y: 0.0045 * (420 / height) * scale,
+    x: 0.007 * (720 / width) * horizontal,
+    y: 0.0045 * (420 / height) * vertical,
   };
 }

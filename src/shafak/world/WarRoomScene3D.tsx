@@ -24,7 +24,14 @@ import {
   getWarRoomDoorOpenProgress,
   updateWarRoomDoors,
 } from "../game/war-room-doors";
-import { getWarRoomCameraAngles } from "../game/war-room-look";
+import {
+  applyWarRoomLookDelta,
+  getWarRoomCameraAngles,
+} from "../game/war-room-look";
+import {
+  getWarRoomPointerSensitivity,
+  readWarRoomLookSensitivitySettings,
+} from "../game/war-room-look-settings";
 import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
 import { WarRoomBuildingShell, WarRoomStaircase } from "./WarRoomArchitecture";
 import { WarRoomHouseInterior } from "./WarRoomInteriors";
@@ -57,7 +64,11 @@ import {
   isWarRoomFacingTarget,
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
-import { getWarRoomAutoFollowYaw } from "../game/war-room-mobile-controls";
+import {
+  getWarRoomAutoFollowYaw,
+  rebaseWarRoomJoystick,
+  type WarRoomMobileControlsState,
+} from "../game/war-room-mobile-controls";
 import {
   getWarRoomPlayerAnimationPlaybackScale,
   resolveWarRoomPlayerAnimationState,
@@ -69,6 +80,7 @@ import {
   getWarRoomCameraRaySafeDistance,
   getWarRoomCameraRig,
   isWarRoomCameraPointClear,
+  getWarRoomViewModelWallProximity,
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   type WarRoomCameraBounds,
@@ -159,6 +171,7 @@ import {
 type Props = {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
+  mobileControlsRef: MutableRefObject<WarRoomMobileControlsState>;
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   cameraMode: WarRoomCameraMode;
@@ -1326,6 +1339,7 @@ function FirstPersonArms() {
 function FirstPersonWeaponViewModel({
   runtimeRef,
   inputRef,
+  cameraBounds,
   weaponId,
   weaponMountOverrides,
   cameraMode,
@@ -1333,6 +1347,7 @@ function FirstPersonWeaponViewModel({
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
+  cameraBounds: readonly WarRoomCameraBounds[];
   weaponId: WarRoomWeaponId;
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   cameraMode: WarRoomCameraMode;
@@ -1342,9 +1357,11 @@ function FirstPersonWeaponViewModel({
   const weaponRootRef = useRef<THREE.Group>(null);
   const cameraPositionRef = useRef(new THREE.Vector3());
   const cameraQuaternionRef = useRef(new THREE.Quaternion());
+  const cameraForwardRef = useRef(new THREE.Vector3());
   const localPositionRef = useRef(new THREE.Vector3());
   const localQuaternionRef = useRef(new THREE.Quaternion());
   const localEulerRef = useRef(new THREE.Euler());
+  const wallProbeRef = useRef({ x: 0, y: 0, z: 0 });
   const preparedMeshesRef = useRef(new WeakSet<THREE.Mesh>());
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
@@ -1377,6 +1394,12 @@ function FirstPersonWeaponViewModel({
       : null;
     const aspect = size.height > 0 ? size.width / size.height : 1.75;
     const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
+    camera.getWorldDirection(cameraForwardRef.current);
+    const wallProximity = getWarRoomViewModelWallProximity(
+      cameraPositionRef.current,
+      cameraForwardRef.current,
+      cameraBounds,
+    );
     const pose = getWarRoomViewModelPose({
       time: clock,
       movement: Math.hypot(input.moveX, input.moveY),
@@ -1393,8 +1416,8 @@ function FirstPersonWeaponViewModel({
     group.scale.setScalar(viewConfig.scale * getWarRoomViewModelScaleFactor(aspect));
     localPositionRef.current.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
-      viewConfig.position[1] + pose.position[1],
-      viewConfig.position[2] + pose.position[2],
+      viewConfig.position[1] + pose.position[1] - wallProximity * 0.06,
+      viewConfig.position[2] + pose.position[2] + wallProximity * 0.16,
     );
     group.position.copy(cameraPositionRef.current)
       .add(localPositionRef.current.applyQuaternion(cameraQuaternionRef.current));
@@ -2363,6 +2386,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
 function WarRoomRuntimeScene({
   runtimeRef,
   inputRef,
+  mobileControlsRef,
   weaponIds,
   weaponMountOverrides,
   cameraMode,
@@ -2378,7 +2402,7 @@ function WarRoomRuntimeScene({
   onHudUpdate,
   onFinish,
 }: Props) {
-  const { camera, scene, gl } = useThree();
+  const { camera, scene, gl, size } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
   const enemyGroupRefs = useRef<Array<THREE.Group | null>>([]);
   const muzzleLightRef = useRef<THREE.PointLight>(null);
@@ -3509,6 +3533,29 @@ function WarRoomRuntimeScene({
     const player = runtime.player;
     const input = inputRef.current;
     if (input.paused) return;
+    const lookDeltaX = input.lookDeltaX;
+    const lookDeltaY = input.lookDeltaY;
+    input.lookDeltaX = 0;
+    input.lookDeltaY = 0;
+    if (lookDeltaX !== 0 || lookDeltaY !== 0) {
+      const sensitivity = getWarRoomPointerSensitivity(
+        size.width,
+        size.height,
+        readWarRoomLookSensitivitySettings(),
+      );
+      const fovScale = perspective.fov / 75;
+      applyWarRoomLookDelta(
+        input,
+        lookDeltaX,
+        lookDeltaY,
+        { x: sensitivity.x * fovScale, y: sensitivity.y * fovScale },
+        input.lookPointerType,
+      );
+      input.cameraTargetYaw = input.yaw;
+      if (input.movementBaseYaw !== null) {
+        input.movementBaseYaw = rebaseWarRoomJoystick(mobileControlsRef.current, input.yaw);
+      }
+    }
     const wallNow = frame.clock.elapsedTime;
     updateWarRoomDoors(runtime, wallNow, input.doorPressed);
     input.doorPressed = false;
@@ -4288,8 +4335,10 @@ function WarRoomRuntimeScene({
       return Math.abs(localPlayer.x) <= building.width / 2
         && Math.abs(localPlayer.z) <= building.depth / 2;
     });
-    if (perspective.fov !== 70) {
-      perspective.fov = 70;
+    const targetFov = input.aimHeld ? 55 : 75;
+    const smoothedFov = THREE.MathUtils.damp(perspective.fov, targetFov, 18, delta);
+    if (Math.abs(perspective.fov - smoothedFov) > 0.005) {
+      perspective.fov = smoothedFov;
       perspective.updateProjectionMatrix();
     }
     const sceneCameraAngles = getWarRoomCameraAngles(inputRef.current.yaw, inputRef.current.pitch);
@@ -4593,7 +4642,9 @@ function WarRoomRuntimeScene({
       );
       cameraLook.set(indoorLook.x, indoorLook.y, indoorLook.z);
     }
+    if (camera.rotation.order !== "YXZ") camera.rotation.order = "YXZ";
     camera.lookAt(cameraLook);
+    camera.rotation.z = 0;
     // The renderer updates the full scene graph before drawing. Only the camera
     // needs an immediate matrix update for the aim ray later in this frame.
     camera.updateMatrixWorld();
@@ -4778,6 +4829,7 @@ function WarRoomRuntimeScene({
       <FirstPersonWeaponViewModel
         runtimeRef={runtimeRef}
         inputRef={inputRef}
+        cameraBounds={logicalCameraBounds}
         weaponId={activeWeapon}
         weaponMountOverrides={weaponMountOverrides}
         cameraMode={cameraMode}
@@ -4799,8 +4851,9 @@ export default function WarRoomScene3D(props: Props) {
   return (
     <Canvas
       dpr={maxPixelRatio}
+      frameloop="always"
       shadows={shadowsEnabled}
-      camera={{ position: [0, 3, 5], fov: 70, near: 0.05, far: 150 }}
+      camera={{ position: [0, 3, 5], fov: 75, near: 0.05, far: 100 }}
       gl={{ antialias: !touchDevice, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
       onCreated={({ gl }) => {
         gl.shadowMap.enabled = shadowsEnabled;

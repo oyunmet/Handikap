@@ -4,6 +4,7 @@ import {
   clampWarRoomCameraToInterior,
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
+  getWarRoomViewModelWallProximity,
   getWarRoomCameraRaySafeDistance,
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
@@ -64,6 +65,32 @@ test("camera sphere clearance catches a prop just beside the center ray", () => 
   );
   assert.equal(result.blocked, true);
   assert.ok(result.safeDistance < 1.2);
+});
+
+test("first-person weapon moves back and down near a forward wall only", () => {
+  const nearWall = {
+    id: "near-wall",
+    minX: -1,
+    maxX: 1,
+    minY: 0,
+    maxY: 3,
+    minZ: -0.7,
+    maxZ: -0.45,
+  };
+  const proximity = getWarRoomViewModelWallProximity(
+    { x: 0, y: 1.5, z: 0 },
+    { x: 0, y: 0, z: -1 },
+    [nearWall],
+  );
+  assert.ok(proximity > 0.7 && proximity <= 1);
+  assert.equal(
+    getWarRoomViewModelWallProximity(
+      { x: 0, y: 1.5, z: 0 },
+      { x: 0, y: 0, z: -1 },
+      [],
+    ),
+    0,
+  );
 });
 
 test("camera preserves its shoulder distance when the sweep starts inside a nearby wall", () => {

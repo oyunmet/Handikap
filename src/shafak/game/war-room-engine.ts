@@ -151,6 +151,9 @@ export type WarRoomInputState = {
   cameraTargetYaw: number;
   movementBaseYaw: number | null;
   manualLookActive: boolean;
+  lookDeltaX: number;
+  lookDeltaY: number;
+  lookPointerType: "mouse" | "touch" | "pen";
   pitch: number;
   fireHeld: boolean;
   firePressed: boolean;
@@ -169,7 +172,7 @@ export type WarRoomInputState = {
   paused: boolean;
 };
 
-export const WAR_ROOM_PLAYER_COLLISION_RADIUS = 0.38;
+export const WAR_ROOM_PLAYER_COLLISION_RADIUS = 0.4;
 const WAR_ROOM_COLLISION_STEP_DISTANCE = 0.12;
 
 export type WarRoomHudSnapshot = {

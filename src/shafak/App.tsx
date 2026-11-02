@@ -1,6 +1,6 @@
 import {
-  readWarRoomLookSensitivity,
-  writeWarRoomLookSensitivity,
+  readWarRoomLookSensitivitySettings,
+  writeWarRoomLookSensitivitySettings,
 } from "./game/war-room-look-settings";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -414,7 +414,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivity);
+  const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivitySettings);
   const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
   const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
@@ -1338,31 +1338,38 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Kamera hassasiyeti</strong>
-                        <small>Parmak hareketi ve nişan sırasında kamera dönüşünü ayarla.</small>
+                        <small>Yatay ve dikey kamera dönüş hızını ayrı ayrı ayarla.</small>
                       </span>
-                      <label
-                        aria-label="Kamera hassasiyeti"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          width: "min(180px, 42%)",
-                        }}
-                      >
-                        <input
-                          type="range"
-                          min="0.6"
-                          max="1.6"
-                          step="0.05"
-                          value={warRoomLookSensitivity}
-                          onChange={(event) => {
-                            const value = writeWarRoomLookSensitivity(Number(event.currentTarget.value));
-                            setWarRoomLookSensitivityValue(value);
-                          }}
-                          style={{ width: "100%" }}
-                        />
-                        <output>{Math.round(warRoomLookSensitivity * 100)}%</output>
-                      </label>
+                      <div style={{ display: "grid", gap: 8, width: "min(190px, 45%)" }}>
+                        {([
+                          ["horizontal", "Yatay"],
+                          ["vertical", "Dikey"],
+                        ] as const).map(([axis, label]) => (
+                          <label
+                            key={axis}
+                            aria-label={`${label} kamera hassasiyeti`}
+                            style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "2px 8px" }}
+                          >
+                            <span style={{ fontSize: 11 }}>{label}</span>
+                            <output>{Math.round(warRoomLookSensitivity[axis] * 100)}%</output>
+                            <input
+                              type="range"
+                              min="0.6"
+                              max="1.6"
+                              step="0.05"
+                              value={warRoomLookSensitivity[axis]}
+                              onChange={(event) => {
+                                const next = writeWarRoomLookSensitivitySettings({
+                                  ...warRoomLookSensitivity,
+                                  [axis]: Number(event.currentTarget.value),
+                                });
+                                setWarRoomLookSensitivityValue(next);
+                              }}
+                              style={{ width: "100%", gridColumn: "1 / -1" }}
+                            />
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">

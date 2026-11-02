@@ -47,6 +47,25 @@ export function isWarRoomCameraPointClear(
   });
 }
 
+export function getWarRoomViewModelWallProximity(
+  position: WarRoomCameraPoint,
+  forward: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+) {
+  for (let distance = 0.3; distance <= 0.9; distance += 0.1) {
+    const x = position.x + forward.x * distance;
+    const y = position.y + forward.y * distance;
+    const z = position.z + forward.z * distance;
+    const blocked = bounds.some((obstacle) => (
+      x >= obstacle.minX - 0.1 && x <= obstacle.maxX + 0.1
+      && y >= obstacle.minY - 0.1 && y <= obstacle.maxY + 0.1
+      && z >= obstacle.minZ - 0.1 && z <= obstacle.maxZ + 0.1
+    ));
+    if (blocked) return Math.max(0, 1 - (distance - 0.3) / 0.6);
+  }
+  return 0;
+}
+
 export type WarRoomCameraPlacement = WarRoomCameraSweep & {
   position: WarRoomCameraPoint;
   usedAlternate: boolean;

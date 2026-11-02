@@ -127,6 +127,12 @@ export function beginWarRoomLook(
   return true;
 }
 
+export function isWarRoomLookDeltaValid(dx: number, dy: number) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return false;
+  const distance = Math.hypot(dx, dy);
+  return distance >= 0.5 && distance <= 150;
+}
+
 export function readWarRoomMouseLook(
   state: WarRoomMobileControlsState,
   pointerId: number,
@@ -148,7 +154,7 @@ export function readWarRoomMouseLook(
   };
   gesture.x = x;
   gesture.y = y;
-  return delta;
+  return isWarRoomLookDeltaValid(delta.dx, delta.dy) ? delta : null;
 }
 
 export function endWarRoomMobilePointer(

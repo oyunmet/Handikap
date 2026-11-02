@@ -6,7 +6,6 @@ import {
   getWarRoomFloorPresentation,
   getWarRoomMinimapPlayerRotation,
 } from "./war-room-floor-indicator";
-import { getWarRoomPointerSensitivity, readWarRoomLookSensitivity } from "./war-room-look-settings";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
@@ -51,7 +50,6 @@ import { playGameButtonClick } from "../audio/howler";
 import type { RenderQuality } from "../world/graphics-quality";
 import { isWithinWarRoomDrawCallBudget, WAR_ROOM_DRAW_CALL_BUDGET, type WarRoomFrameStats } from "./war-room-quality";
 import {
-  applyWarRoomLookDelta,
   type WarRoomLookPointerType,
 } from "./war-room-look";
 import {
@@ -62,7 +60,6 @@ import {
   getWarRoomTouchControlSide,
   readWarRoomJoystick,
   readWarRoomMouseLook,
-  rebaseWarRoomJoystick,
   resetWarRoomMobileControls,
 } from "./war-room-mobile-controls";
 import {
@@ -165,6 +162,9 @@ function createInputState(): WarRoomInputState {
     cameraTargetYaw: 0,
     movementBaseYaw: null,
     manualLookActive: false,
+    lookDeltaX: 0,
+    lookDeltaY: 0,
+    lookPointerType: "touch",
     pitch: -0.08,
     fireHeld: false,
     firePressed: false,
@@ -182,6 +182,13 @@ function createInputState(): WarRoomInputState {
     doorPressed: false,
     paused: false,
   };
+}
+
+function isPortraitMobileViewport() {
+  if (typeof window === "undefined") return false;
+  return window.innerHeight > window.innerWidth
+    && (window.innerWidth <= 760
+      || (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches));
 }
 
 function createEmptyHud(): WarRoomHudSnapshot {
@@ -598,6 +605,7 @@ export default function WarRoomGame({
   const [calibrationJson, setCalibrationJson] = useState("");
   const [calibrationCopyStatus, setCalibrationCopyStatus] = useState("");
   const [exitPrompt, setExitPrompt] = useState(false);
+  const [portraitMode, setPortraitMode] = useState(() => isPortraitMobileViewport());
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
   const [savedControlLayout, setSavedControlLayout] = useState(readSavedControlLayout);
@@ -660,6 +668,8 @@ export default function WarRoomGame({
   const mobileControlsRef = useRef(createWarRoomMobileControlsState());
   const fullscreenRequestedRef = useRef(false);
   const settingsPauseRef = useRef(false);
+  const orientationPauseRef = useRef(false);
+  const portraitModeRef = useRef(portraitMode);
   const stickRef = useRef<HTMLDivElement>(null);
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
@@ -686,14 +696,28 @@ export default function WarRoomGame({
     }
   }, []);
 
-  function resetTouchControls() {
+  const resetTouchControls = useCallback(() => {
+    const fireWasHeld = inputRef.current.fireHeld;
     resetWarRoomMobileControls(mobileControlsRef.current);
     inputRef.current.moveX = 0;
     inputRef.current.moveY = 0;
     inputRef.current.movementBaseYaw = null;
     inputRef.current.manualLookActive = false;
+    inputRef.current.lookDeltaX = 0;
+    inputRef.current.lookDeltaY = 0;
+    inputRef.current.keys.clear();
     inputRef.current.fireHeld = false;
+    inputRef.current.firePressed = false;
+    inputRef.current.fireReleased = fireWasHeld;
     inputRef.current.aimHeld = false;
+    inputRef.current.reloadPressed = false;
+    inputRef.current.swapPressed = false;
+    inputRef.current.jumpPressed = false;
+    inputRef.current.dodgePressed = false;
+    inputRef.current.crouchPressed = false;
+    inputRef.current.pronePressed = false;
+    inputRef.current.weaponSlotPressed = null;
+    inputRef.current.sprintLocked = false;
     inputRef.current.lootHeld = false;
     inputRef.current.doorPressed = false;
     pointerRef.current.clear();
@@ -702,7 +726,62 @@ export default function WarRoomGame({
     stickRef.current?.style.removeProperty("--dynamic-stick-x");
     stickRef.current?.style.removeProperty("--dynamic-stick-y");
     setDynamicStickActive(false);
-  }
+    setSprintLockActive(false);
+  }, []);
+
+  useEffect(() => {
+    const syncOrientation = () => {
+      const portrait = isPortraitMobileViewport();
+      portraitModeRef.current = portrait;
+      setPortraitMode(portrait);
+      if (phase !== "battle") {
+        orientationPauseRef.current = false;
+        return;
+      }
+      const input = inputRef.current;
+      if (portrait && !settingsOpen && !controlsEditorOpen && !exitPrompt) {
+        if (!input.paused) {
+          orientationPauseRef.current = true;
+          input.paused = true;
+          input.keys.clear();
+          input.fireHeld = false;
+          input.fireReleased = true;
+          input.firePressed = false;
+          input.aimHeld = false;
+          input.reloadPressed = false;
+          input.swapPressed = false;
+          input.jumpPressed = false;
+          input.dodgePressed = false;
+          input.crouchPressed = false;
+          input.pronePressed = false;
+          input.weaponSlotPressed = null;
+          input.sprintLocked = false;
+          input.lootHeld = false;
+          input.doorPressed = false;
+          runtimeRef.current.player.chargeStartedAt = 0;
+          runtimeRef.current.player.meleeInputPending = false;
+          resetTouchControls();
+        }
+        return;
+      }
+      if (!portrait && orientationPauseRef.current) {
+        orientationPauseRef.current = false;
+        if (!settingsOpen && !controlsEditorOpen && !exitPrompt && !settingsPauseRef.current) {
+          input.paused = false;
+        }
+      }
+    };
+    syncOrientation();
+    window.addEventListener("resize", syncOrientation, { passive: true });
+    window.addEventListener("orientationchange", syncOrientation);
+    const screenOrientation = window.screen.orientation;
+    screenOrientation?.addEventListener?.("change", syncOrientation);
+    return () => {
+      window.removeEventListener("resize", syncOrientation);
+      window.removeEventListener("orientationchange", syncOrientation);
+      screenOrientation?.removeEventListener?.("change", syncOrientation);
+    };
+  }, [controlsEditorOpen, exitPrompt, phase, resetTouchControls, settingsOpen]);
 
   const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
     fullscreenRequestedRef.current = requestWarRoomImmersiveDisplay();
@@ -717,6 +796,7 @@ export default function WarRoomGame({
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
     inputRef.current = createInputState();
+    orientationPauseRef.current = false;
     resetTouchControls();
     crouchTapAtRef.current = null;
     setDynamicStickActive(false);
@@ -810,7 +890,8 @@ export default function WarRoomGame({
 
   useEffect(() => {
     if (settingsOpen || controlsEditorOpen || exitPrompt || !settingsPauseRef.current) return;
-    inputRef.current.paused = false;
+    inputRef.current.paused = portraitModeRef.current;
+    orientationPauseRef.current = portraitModeRef.current;
     settingsPauseRef.current = false;
   }, [controlsEditorOpen, exitPrompt, settingsOpen]);
 
@@ -840,6 +921,12 @@ export default function WarRoomGame({
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const input = inputRef.current;
       const key = event.key.toLowerCase();
+      if (input.paused) {
+        if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+          event.preventDefault();
+        }
+        return;
+      }
       if (["w", "a", "s", "d", " ", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "v", "c", "shift", "x", "f", "e"].includes(key)) {
         setKeyboardHintsVisible(true);
       }
@@ -872,20 +959,24 @@ export default function WarRoomGame({
       inputRef.current.fireReleased = true;
       inputRef.current.lootHeld = false;
       runtimeRef.current.player.meleeInputPending = false;
+      runtimeRef.current.player.chargeStartedAt = 0;
       resetTouchControls();
     };
     const onVisibilityChange = () => {
       if (document.hidden) onBlur();
     };
+    const preventGesture = (event: Event) => event.preventDefault();
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("gesturestart", preventGesture, { passive: false });
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("gesturestart", preventGesture);
       inputRef.current.keys.clear();
       inputRef.current.fireHeld = false;
       inputRef.current.aimHeld = false;
@@ -1052,25 +1143,9 @@ export default function WarRoomGame({
       event.clientY,
     );
     if (!delta) return;
-    const sensitivity = getWarRoomPointerSensitivity(
-      window.innerWidth,
-      window.innerHeight,
-      readWarRoomLookSensitivity() * (inputRef.current.aimHeld ? 0.45 : 1),
-    );
-    applyWarRoomLookDelta(
-      inputRef.current,
-      delta.dx,
-      delta.dy,
-      sensitivity,
-      delta.pointerType,
-    );
-    inputRef.current.cameraTargetYaw = inputRef.current.yaw;
-    if (inputRef.current.movementBaseYaw !== null) {
-      inputRef.current.movementBaseYaw = rebaseWarRoomJoystick(
-        mobileControlsRef.current,
-        inputRef.current.yaw,
-      );
-    }
+    inputRef.current.lookDeltaX += delta.dx;
+    inputRef.current.lookDeltaY += delta.dy;
+    inputRef.current.lookPointerType = delta.pointerType;
   };
 
   const handleWorldPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1278,6 +1353,7 @@ export default function WarRoomGame({
             key={runKey}
             runtimeRef={runtimeRef}
             inputRef={inputRef}
+            mobileControlsRef={mobileControlsRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
             cameraMode="first-person"
@@ -1469,9 +1545,6 @@ export default function WarRoomGame({
             className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}${isWarRoomLowHealth(hud.player.hp, hud.player.maxHp) ? " is-low-health" : ""}`}
             data-boss-phase={bossHudPhase}
           >
-            <div className="war-room-orientation-hint" role="status">
-              Daha rahat oynamak için telefonu yatay çevirin.
-            </div>
             <div className="war-room-hud__top">
               <div className="war-room-location-status">
                 {WAR_ROOM_ROOM_CHAIN_ENABLED && (
@@ -1856,7 +1929,8 @@ export default function WarRoomGame({
                   <button
                     type="button"
                     onClick={() => {
-                      inputRef.current.paused = false;
+                      inputRef.current.paused = portraitModeRef.current;
+                      orientationPauseRef.current = portraitModeRef.current;
                       setExitPrompt(false);
                     }}
                   >
@@ -1865,6 +1939,15 @@ export default function WarRoomGame({
                   <button type="button" className="is-danger" onClick={closeMode}>ÇIKIŞ</button>
                 </div>
               </section>
+            </div>
+          )}
+          {portraitMode && (
+            <div className="war-room-orientation-overlay" role="alertdialog" aria-modal="true">
+              <div>
+                <span className="war-room-orientation-overlay__icon" aria-hidden="true">↻</span>
+                <h2>Telefonu yatay çevir</h2>
+                <p>Savaşın devam etmesi için ekranı yatay konuma getir.</p>
+              </div>
             </div>
           )}
         </div>

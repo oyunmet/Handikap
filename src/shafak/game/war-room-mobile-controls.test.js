@@ -7,6 +7,7 @@ import {
   endWarRoomMobilePointer,
   getWarRoomAutoFollowYaw,
   getWarRoomTouchControlSide,
+  isWarRoomLookDeltaValid,
   readWarRoomJoystick,
   readWarRoomMouseLook,
   rebaseWarRoomJoystick,
@@ -28,6 +29,13 @@ test("mobile touch zones route the left half to movement and the right half to c
   assert.equal(getWarRoomTouchControlSide(120, 20, 400), "movement");
   assert.equal(getWarRoomTouchControlSide(220, 20, 400), "look");
   assert.equal(getWarRoomTouchControlSide(0, 0, 0), null);
+});
+
+test("camera look ignores jitter and pointer jumps over 150 pixels", () => {
+  assert.equal(isWarRoomLookDeltaValid(0.2, 0.2), false);
+  assert.equal(isWarRoomLookDeltaValid(151, 0), false);
+  assert.equal(isWarRoomLookDeltaValid(0, 150), true);
+  assert.equal(isWarRoomLookDeltaValid(20, -12), true);
 });
 
 test("automatic camera yaw follows an active stick direction but stays still at neutral", () => {

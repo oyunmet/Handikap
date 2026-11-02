@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   getWarRoomPointerSensitivity,
   normalizeWarRoomLookSensitivity,
+  readWarRoomLookSensitivitySettings,
   WAR_ROOM_LOOK_SENSITIVITY_DEFAULT,
   WAR_ROOM_LOOK_SENSITIVITY_MAX,
   WAR_ROOM_LOOK_SENSITIVITY_MIN,
@@ -19,4 +20,17 @@ test("pointer sensitivity scales with viewport size and the saved user multiplie
   const smallPhone = getWarRoomPointerSensitivity(360, 720, 1.5);
   assert.ok(smallPhone.x > 0.007);
   assert.ok(smallPhone.y < getWarRoomPointerSensitivity(360, 420, 1.5).y);
+});
+
+test("horizontal and vertical look sensitivity scale independently", () => {
+  const sensitivity = getWarRoomPointerSensitivity(720, 420, {
+    horizontal: 1.5,
+    vertical: 0.75,
+  });
+  assert.ok(Math.abs(sensitivity.x - 0.0105) < 1e-12);
+  assert.ok(Math.abs(sensitivity.y - 0.003375) < 1e-12);
+  assert.deepEqual(readWarRoomLookSensitivitySettings(), {
+    horizontal: WAR_ROOM_LOOK_SENSITIVITY_DEFAULT,
+    vertical: WAR_ROOM_LOOK_SENSITIVITY_DEFAULT,
+  });
 });

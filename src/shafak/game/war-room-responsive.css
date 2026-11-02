@@ -156,10 +156,6 @@
     top: max(206px, calc(env(safe-area-inset-top) + 198px));
   }
 
-  .war-room-orientation-hint {
-    display: block;
-  }
-
   .war-room-pause {
     top: max(80px, calc(env(safe-area-inset-top) + 72px));
     right: auto;
