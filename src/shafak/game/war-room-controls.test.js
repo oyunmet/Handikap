@@ -6,7 +6,7 @@ import {
   clearWarRoomControlLayout,
   createDefaultWarRoomControlLayout,
   fitWarRoomControlLayoutToStage,
-  isWarRoomDynamicStickStartAllowed,
+  isWarRoomMovementTouchAllowed,
   loadWarRoomControlLayout,
   moveWarRoomControl,
   normalizeWarRoomControlLayout,
@@ -14,19 +14,22 @@ import {
   saveWarRoomControlLayout,
 } from "./war-room-controls.ts";
 
-test("dynamic joystick touch starts stay above portrait health HUD at common iPhone sizes", () => {
+test("movement touch can start anywhere in the left half on portrait phones", () => {
   for (const [width, height] of [[390, 844], [360, 780]]) {
-    assert.equal(isWarRoomDynamicStickStartAllowed(52, height - 290, width, height), true);
-    assert.equal(isWarRoomDynamicStickStartAllowed(52, height - 210, width, height), false);
-    assert.equal(isWarRoomDynamicStickStartAllowed(52, height - 40, width, height), false);
+    assert.equal(isWarRoomMovementTouchAllowed(52, 0, width, height), true);
+    assert.equal(isWarRoomMovementTouchAllowed(52, Math.floor(height / 2), width, height), true);
+    assert.equal(isWarRoomMovementTouchAllowed(52, height, width, height), true);
+    assert.equal(isWarRoomMovementTouchAllowed(width / 2, height / 2, width, height), false);
   }
 });
 
-test("dynamic joystick starts are restricted to the lower-left active area in landscape", () => {
-  assert.equal(isWarRoomDynamicStickStartAllowed(52, 155, 844, 390), false);
-  assert.equal(isWarRoomDynamicStickStartAllowed(52, 180, 844, 390), true);
-  assert.equal(isWarRoomDynamicStickStartAllowed(52, 280, 844, 390), false);
-  assert.equal(isWarRoomDynamicStickStartAllowed(450, 180, 844, 390), false);
+test("movement touch can start anywhere in the left half in landscape", () => {
+  assert.equal(isWarRoomMovementTouchAllowed(52, 0, 844, 390), true);
+  assert.equal(isWarRoomMovementTouchAllowed(52, 155, 844, 390), true);
+  assert.equal(isWarRoomMovementTouchAllowed(52, 390, 844, 390), true);
+  assert.equal(isWarRoomMovementTouchAllowed(450, 180, 844, 390), false);
+  assert.equal(isWarRoomMovementTouchAllowed(-1, 180, 844, 390), false);
+  assert.equal(isWarRoomMovementTouchAllowed(52, 391, 844, 390), false);
 });
 
 test("War Room control catalog contains all movable touch controls", () => {

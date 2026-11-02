@@ -89,7 +89,7 @@ import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
   CONTROLS_CONFIG,
   createDefaultWarRoomControlLayout,
-  isWarRoomDynamicStickStartAllowed,
+  isWarRoomMovementTouchAllowed,
   loadWarRoomControlLayout,
   saveWarRoomControlLayout,
   type WarRoomControlId,
@@ -928,7 +928,7 @@ export default function WarRoomGame({
 
   const handleRootPointerType = (event: ReactPointerEvent<HTMLElement>) => {
     const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest("button,[role='button'],.war-room-stick")) {
+    if (target?.closest("button,[role='button']")) {
       beginWarRoomButtonPointer(mobileControlsRef.current, event.pointerId);
     }
     if (event.pointerType === "touch") {
@@ -1186,10 +1186,9 @@ export default function WarRoomGame({
     const target = event.target instanceof Element ? event.target : null;
     if (
       target?.closest(
-        "button,[role='button'],.war-room-stick,.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
+        "button,[role='button'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
       )
     ) return;
-    endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
     event.preventDefault();
     resumeWarRoomAudio();
 
@@ -1221,7 +1220,7 @@ export default function WarRoomGame({
       if (side !== "movement") return;
       const localX = event.clientX - stageBounds.left;
       const localY = event.clientY - stageBounds.top;
-      if (!isWarRoomDynamicStickStartAllowed(
+      if (!isWarRoomMovementTouchAllowed(
         localX,
         localY,
         stageBounds.width,
@@ -1287,11 +1286,6 @@ export default function WarRoomGame({
     if (ended.endedLook) {
       inputRef.current.manualLookActive = mobileControlsRef.current.look !== null;
     }
-  };
-
-  const handleWorldPointerLeave = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (mobileControlsRef.current.roles.get(event.pointerId) !== "look") return;
-    handleWorldPointerUp(event);
   };
 
   return (
@@ -1396,13 +1390,12 @@ export default function WarRoomGame({
       {phase === "battle" && (
         <div
           className="war-room-battle"
-          onPointerDown={handleWorldPointerDown}
-          onPointerUp={handleWorldPointerUp}
-          onPointerCancel={handleWorldPointerUp}
+          onPointerDownCapture={handleWorldPointerDown}
+          onPointerUpCapture={handleWorldPointerUp}
+          onPointerCancelCapture={handleWorldPointerUp}
           onLostPointerCapture={handleWorldPointerUp}
-          onPointerLeave={handleWorldPointerLeave}
           onContextMenu={(event) => event.preventDefault()}
-          onPointerMove={handleWorldPointerMove}
+          onPointerMoveCapture={handleWorldPointerMove}
         >
           <WarRoomScene3D
             key={runKey}
@@ -1923,9 +1916,8 @@ export default function WarRoomGame({
               </div>
               <div
                 ref={stickRef}
-                className={`war-room-stick is-dynamic${dynamicStickActive ? " is-active" : ""}`}
-                role="application"
-                aria-label="Hareket joystick'i"
+        className={`war-room-stick is-dynamic${dynamicStickActive ? " is-active" : ""}`}
+        aria-hidden="true"
               >
                 <HudIcon icon="move" className="war-room-stick__move-icon" />
                 <i aria-hidden="true" />

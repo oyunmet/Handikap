@@ -103,7 +103,7 @@ export function moveWarRoomTouch(
   }
   if (state.look.id === identifier) {
     const dx = Math.max(-WAR_ROOM_TOUCH_LOOK_LIMIT, Math.min(WAR_ROOM_TOUCH_LOOK_LIMIT, x - state.look.lx));
-    const dy = Math.max(-WAR_ROOM_TOUCH_LOOK_LIMIT, Math.min(WAR_ROOM_TOUCH_LIMIT, y - state.look.ly));
+    const dy = Math.max(-WAR_ROOM_TOUCH_LOOK_LIMIT, Math.min(WAR_ROOM_TOUCH_LOOK_LIMIT, y - state.look.ly));
     state.look.lx = x;
     state.look.ly = y;
     state.input.lookDX += dx;
