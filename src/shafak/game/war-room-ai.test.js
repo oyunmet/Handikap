@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getWarRoomLootPursuitPoint } from "./war-room-ai.ts";
+import {
+  getWarRoomLootPursuitPoint,
+  getWarRoomObstacleWaypoint,
+} from "./war-room-ai.ts";
+import { isWarRoomPointClear } from "./war-room-data.ts";
+import { moveWarRoomEntity } from "./war-room-engine.ts";
 import {
   getWarRoomBuildingLocalPoint,
   getWarRoomBuildingWorldPoint,
@@ -70,4 +75,68 @@ test("looting bots follow the house stair lane to an upstairs player", () => {
     building,
   );
   assert.deepEqual(target, { x: upstairsPlayer.x, z: upstairsPlayer.z });
+});
+
+test("combat bots follow stairs in both directions when players change floors", () => {
+  const building = getWarRoomRoom(1).buildings[0];
+  const stairs = getWarRoomStairProfile(building);
+  const player = getWarRoomBuildingWorldPoint(building, 0, 0);
+  const enemyAtTop = getWarRoomBuildingWorldPoint(building, stairs.x, stairs.endZ - 0.25);
+
+  let target = getWarRoomLootPursuitPoint(
+    { ...enemyAtTop, floorHeight: building.storyHeight },
+    { ...player, floorHeight: 0 },
+    building,
+  );
+  assertLocalPoint(building, target, stairs.x, stairs.endZ - 0.25);
+
+  const enemyMidStairs = getWarRoomBuildingWorldPoint(
+    building,
+    stairs.x,
+    (stairs.startZ + stairs.endZ) / 2,
+  );
+  target = getWarRoomLootPursuitPoint(
+    { ...enemyMidStairs, floorHeight: building.storyHeight / 2 },
+    { ...player, floorHeight: 0 },
+    building,
+  );
+  assertLocalPoint(building, target, stairs.x, stairs.startZ + 0.25);
+});
+
+test("combat bots take collision-safe waypoints around blocked sight lines", () => {
+  const blockers = [{
+    id: "test-wall",
+    kind: "wall",
+    x: 0,
+    z: 0,
+    width: 2,
+    depth: 2,
+    height: 3,
+    color: "#777",
+  }];
+  const target = { x: 4, z: 0, floorHeight: 0 };
+  let actor = { x: -4, z: 0, floorHeight: 0 };
+
+  for (let step = 0; step < 240 && Math.hypot(target.x - actor.x, target.z - actor.z) > 0.5; step += 1) {
+    const waypoint = getWarRoomObstacleWaypoint(actor, target, blockers, 0.35);
+    const dx = waypoint.x - actor.x;
+    const dz = waypoint.z - actor.z;
+    const distance = Math.hypot(dx, dz);
+    const stride = Math.min(0.08, distance);
+    actor = moveWarRoomEntity(
+      actor.x,
+      actor.z,
+      distance > 0.001 ? dx / distance * stride : 0,
+      distance > 0.001 ? dz / distance * stride : 0,
+      0.35,
+      blockers,
+      0,
+    );
+    assert.ok(isWarRoomPointClear(actor.x, actor.z, blockers, 0.35, 0));
+  }
+
+  assert.ok(
+    Math.hypot(target.x - actor.x, target.z - actor.z) <= 0.5,
+    `bot should reach the target around the wall; stopped at ${actor.x},${actor.z}`,
+  );
 });

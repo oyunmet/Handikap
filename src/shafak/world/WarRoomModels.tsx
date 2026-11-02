@@ -265,6 +265,7 @@ type AnimatedActorProps = {
   playbackScale?: () => number;
   modelRef?: MutableRefObject<THREE.Group | null>;
   afterAnimationFrame?: (model: THREE.Group) => void;
+  isPaused?: () => boolean;
 };
 
 function createWarRoomPoseClip(
@@ -407,6 +408,7 @@ export function WarRoomAnimatedActor({
   playbackScale,
   modelRef,
   afterAnimationFrame,
+  isPaused,
 }: AnimatedActorProps) {
   const { scene, animations } = useLoader(GLTFLoader, src, loadCharacter) as GLTF;
   const prepared = useMemo(() => {
@@ -468,6 +470,7 @@ export function WarRoomAnimatedActor({
   }, [mixer, model, modelRef, prepared.resources]);
 
   useFrame((_, delta) => {
+    if (isPaused?.()) return;
     const nextState = state();
     if (nextState !== activeState.current) {
       const animationState = nextState === "death"

@@ -16,11 +16,11 @@ export default function WarRoomDoor({
   const leafWidth = Math.max(0.8, building.doorWidth - 0.12);
   const frontZ = -building.depth / 2;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     const hinge = hingeRef.current;
     if (!hinge) return;
     const state = runtimeRef.current.doorStates[building.id];
-    const progress = getWarRoomDoorOpenProgress(state, clock.elapsedTime);
+    const progress = getWarRoomDoorOpenProgress(state, runtimeRef.current.player.clockTime);
     hinge.rotation.y = -progress * Math.PI * 0.49;
   });
 

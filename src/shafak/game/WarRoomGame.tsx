@@ -1700,8 +1700,10 @@ export default function WarRoomGame({
                 )}
                 <small>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
-                    ? `GÖREV ${formatDuration(hud.elapsedSeconds)} · Kısa bas: saldır · Basılı tut: yüklü saldır`
-                    : `GÖREV ${formatDuration(hud.elapsedSeconds)} · V: SİLAH DEĞİŞTİR`}
+                    ? "KISA BAS: SALDIR · BASILI TUT: GÜÇLÜ"
+                    : keyboardHintsVisible
+                      ? "R: DOLDUR · V: SİLAH DEĞİŞTİR"
+                      : "DOLDUR · SİLAH SEÇ"}
                 </small>
               </div>
               <div className={`war-room-touch-layout${controlLayoutEnabled ? " is-custom-layout" : ""}`}>

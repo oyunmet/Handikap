@@ -805,7 +805,7 @@
 
 .war-room-loot-action {
   position: absolute;
-  top: 46%;
+  top: clamp(125px, 28vh, 290px);
   left: 50%;
   z-index: 20;
   display: grid;

@@ -9,7 +9,7 @@ export function getWarRoomYawError(currentYaw: number, targetYaw: number) {
 export function getWarRoomDirectionalSpeedScale(moveX: number, moveY: number) {
   const strafe = Math.min(1, Math.abs(moveX));
   const backward = Math.min(1, Math.max(0, -moveY));
-  return Math.max(0.62, 1 - strafe * 0.15 - backward * 0.2);
+  return Math.max(0.8, 1 - strafe * 0.1 - backward * 0.2);
 }
 
 export function isWarRoomFacingTarget(

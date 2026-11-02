@@ -1308,3 +1308,62 @@
     align-self: center;
   }
 }
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .war-room-loot-action {
+    top: max(228px, calc(env(safe-area-inset-top) + 214px));
+  }
+
+  .war-room-minimap {
+    width: 80px;
+    height: 80px;
+  }
+
+  .war-room-vitals,
+  .war-room-ammo {
+    border-color: rgba(225, 193, 145, .24);
+    background: rgba(17, 18, 19, .66);
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-ammo {
+    padding: 5px 7px;
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
+    display: block;
+    height: auto;
+    overflow: visible;
+    font-size: 6.5px;
+    line-height: 1.12;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: unset;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
+  .war-room-loot-action {
+    top: max(150px, calc(env(safe-area-inset-top) + 138px));
+  }
+
+  .war-room-vitals,
+  .war-room-ammo {
+    border-color: rgba(225, 193, 145, .24);
+    background: rgba(17, 18, 19, .66);
+    backdrop-filter: blur(8px);
+  }
+
+  .war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot__name {
+    display: block;
+    height: auto;
+    overflow: visible;
+    font-size: 6.5px;
+    line-height: 1.12;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: unset;
+  }
+}

@@ -3,8 +3,8 @@ name: War Room viewmodel rendering
 description: Keep the first-person arms and weapon visible in the War Room scene.
 ---
 
-Do not mount the War Room first-person viewmodel through a React Three Fiber portal to the default camera: the camera is not traversed as a scene child, so that portal can silently render nothing. Keep the viewmodel as a normal scene child and update its world position and rotation from the camera transform each frame. Keep its meshes late in render order with depth testing disabled so the weapon remains visible.
+Render the War Room first-person viewmodel in its own scene, with the active camera passed explicitly to the portal. Draw the world first, clear depth, then draw the viewmodel scene so weapon parts depth-test against each other without being hidden by world geometry. Never portal to the default camera object as a scene child.
 
-**Why:** The camera portal passed type checks and pose tests but produced no arms or weapon in actual 3D output.
+**Why:** A portal to the default camera passed type checks and pose tests but produced no arms or weapon. The separate scene and second pass meet the viewmodel overlay requirement while keeping weapon-internal depth.
 
-**How to apply:** Verify viewmodel changes in a rendered screenshot, preferably with SwiftShader Chromium when Replit's screenshot browser cannot create WebGL. Unit tests for pose math do not prove the model is visible.
+**How to apply:** Verify viewmodel changes in a rendered screenshot, preferably with SwiftShader Chromium when Replit's screenshot browser cannot create WebGL. Unit tests and a successful build do not prove the model is visible.

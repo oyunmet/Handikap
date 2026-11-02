@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, createPortal, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import type { ReactNode } from "react";
 import * as THREE from "three";
@@ -32,7 +32,10 @@ import {
   getWarRoomPointerSensitivity,
   readWarRoomLookSensitivitySettings,
 } from "../game/war-room-look-settings";
-import { getWarRoomLootPursuitPoint } from "../game/war-room-ai";
+import {
+  getWarRoomLootPursuitPoint,
+  getWarRoomObstacleWaypoint,
+} from "../game/war-room-ai";
 import { WarRoomBuildingShell, WarRoomStaircase } from "./WarRoomArchitecture";
 import { WarRoomHouseInterior } from "./WarRoomInteriors";
 import WarRoomDoor from "./WarRoomDoor";
@@ -124,7 +127,6 @@ import {
   countActiveWarRoomParticles,
   getWarRoomEffectCount,
   getWarRoomFrameStats,
-  getWarRoomPixelRatio,
   getWarRoomQualityProfile,
   isWarRoomAttackRunContinuous,
   WAR_ROOM_DRAW_CALL_BUDGET,
@@ -1369,6 +1371,7 @@ function FirstPersonWeaponViewModel({
 
   useFrame(() => {
     const group = weaponRootRef.current;
+    if (inputRef.current.paused) return;
     if (!group) return;
     camera.updateWorldMatrix(true, false);
     camera.getWorldPosition(cameraPositionRef.current);
@@ -1432,13 +1435,6 @@ function FirstPersonWeaponViewModel({
       if (!(object instanceof THREE.Mesh) || preparedMeshesRef.current.has(object)) return;
       preparedMeshesRef.current.add(object);
       object.frustumCulled = false;
-      object.renderOrder = 1000;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      materials.forEach((material) => {
-        material.depthTest = false;
-        material.depthWrite = false;
-        material.needsUpdate = true;
-      });
     });
   });
 
@@ -1457,16 +1453,19 @@ function FirstPersonWeaponViewModel({
 
 function MeleeDebugCone({
   runtimeRef,
+  inputRef,
   weaponId,
   enabled,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
+  inputRef: MutableRefObject<WarRoomInputState>;
   weaponId: WarRoomWeaponId;
   enabled: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   useFrame(() => {
+    if (inputRef.current.paused) return;
     const group = groupRef.current;
     if (!group) return;
     const player = runtimeRef.current.player;
@@ -1547,6 +1546,9 @@ function PlayerActor({
   const reloadMagazineRef = useRef<THREE.Mesh>(null);
   const previousShotFeedbackRef = useRef(0);
   const shotgunPumpStartedAtRef = useRef(-1);
+  const handScaleScratch = useMemo(() => new THREE.Vector3(), []);
+  const gripWorldScratch = useMemo(() => new THREE.Vector3(), []);
+  const gripLocalScratch = useMemo(() => new THREE.Vector3(), []);
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const isMeleeWeapon = weapon.weaponClass === "melee";
@@ -1620,6 +1622,7 @@ function PlayerActor({
     });
   };
   useFrame((_, delta) => {
+    if (inputRef.current.paused) return;
     const player = runtimeRef.current.player;
     const root = rootRef.current;
     if (root) {
@@ -1729,7 +1732,7 @@ function PlayerActor({
         weaponMount.position.copy(cachedPose.pose.position);
         weaponMount.quaternion.copy(cachedPose.pose.quaternion);
         weaponMount.scale.copy(cachedPose.pose.scale);
-        const handScale = hand.getWorldScale(new THREE.Vector3());
+        const handScale = hand.getWorldScale(handScaleScratch);
         const readabilityScale = melee ? 1.2 : 1.12;
         weaponMount.scale.multiplyScalar(readabilityScale);
         weaponMount.position.x += 0.035 / Math.max(0.01, Math.abs(handScale.x));
@@ -1784,9 +1787,9 @@ function PlayerActor({
       }
       if (weapon.weaponClass !== "melee" && weaponId !== "sidearm" && leftHand?.parent) {
         weaponMount.updateMatrixWorld(true);
-        const gripWorld = weaponMount.localToWorld(new THREE.Vector3(-0.08, 0, -0.52));
-        const gripLocal = leftHand.parent.worldToLocal(gripWorld);
-        leftHand.position.lerp(gripLocal, Math.min(1, delta * 12));
+        weaponMount.localToWorld(gripWorldScratch.set(-0.08, 0, -0.52));
+        leftHand.parent.worldToLocal(gripLocalScratch.copy(gripWorldScratch));
+        leftHand.position.lerp(gripLocalScratch, Math.min(1, delta * 12));
       }
       const applyBoneOffset = (
         bone: THREE.Object3D | undefined | null,
@@ -1888,6 +1891,7 @@ function PlayerActor({
             playbackScale={playerPlaybackScale}
             modelRef={modelRef}
             afterAnimationFrame={applyMeleePoseAfterAnimation}
+            isPaused={() => inputRef.current.paused}
           />
         </Suspense>
       </WarRoomAssetBoundary>
@@ -1958,11 +1962,13 @@ function EnemyActor({
   index,
   groupRefs,
   muzzleLightRef,
+  inputRef,
 }: {
   enemy: WarRoomEnemy;
   index: number;
   groupRefs: MutableRefObject<Array<THREE.Group | null>>;
   muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
+  inputRef: MutableRefObject<WarRoomInputState>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const hitPulseRef = useRef<THREE.Mesh>(null);
@@ -1978,6 +1984,7 @@ function EnemyActor({
   const muzzleAnchorRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Group>(null);
   useFrame((frame, delta) => {
+    if (inputRef.current.paused) return;
     const group = groupRef.current;
     if (!group) return;
     const runtime = group.parent?.userData.runtime as WarRoomRuntime | undefined;
@@ -2138,6 +2145,7 @@ function EnemyActor({
             commander={enemy.commander}
             state={enemyAnimation}
             modelRef={modelRef}
+            isPaused={() => inputRef.current.paused}
           />
         </Suspense>
       </WarRoomAssetBoundary>
@@ -2404,6 +2412,23 @@ function WarRoomRuntimeScene({
 }: Props) {
   const { camera, scene, gl, size } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
+  const viewModelScene = useMemo(() => {
+    const result = new THREE.Scene();
+    result.name = "war-room-first-person-view-model-pass";
+    return result;
+  }, []);
+  useFrame(({ gl: renderer, camera: activeCamera, scene: worldScene }) => {
+    const previousAutoClear = renderer.autoClear;
+    try {
+      renderer.autoClear = false;
+      renderer.clear();
+      renderer.render(worldScene, activeCamera);
+      renderer.clearDepth();
+      renderer.render(viewModelScene, activeCamera);
+    } finally {
+      renderer.autoClear = previousAutoClear;
+    }
+  }, 1);
   const enemyGroupRefs = useRef<Array<THREE.Group | null>>([]);
   const muzzleLightRef = useRef<THREE.PointLight>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -2418,6 +2443,17 @@ function WarRoomRuntimeScene({
   const cameraUnobstructed = useMemo(() => new THREE.Vector3(), []);
   const meleeOrigin = useMemo(() => new THREE.Vector3(), []);
   const meleeImpact = useMemo(() => new THREE.Vector3(), []);
+  const aimRayEnd = useMemo(() => new THREE.Vector3(), []);
+  const aimImpactPoint = useMemo(() => new THREE.Vector3(), []);
+  const muzzleScratch = useMemo(() => new THREE.Vector3(), []);
+  const tracerEndScratch = useMemo(() => new THREE.Vector3(), []);
+  const impactPointScratch = useMemo(() => new THREE.Vector3(), []);
+  const impactBiasScratch = useMemo(() => new THREE.Vector3(), []);
+  const enemyShotDirectionScratch = useMemo(() => new THREE.Vector3(), []);
+  const enemyAimPointScratch = useMemo(() => new THREE.Vector3(), []);
+  const enemyTracerTargetScratch = useMemo(() => new THREE.Vector3(), []);
+  const enemyMissOffsetScratch = useMemo(() => new THREE.Vector3(), []);
+  const pickupImpactScratch = useMemo(() => new THREE.Vector3(), []);
   const room = runtimeRef.current.room;
   const playerRootRef = useRef<THREE.Group | null>(null);
   const playerMuzzleRef = useRef<THREE.Group | null>(null);
@@ -2970,16 +3006,16 @@ function WarRoomRuntimeScene({
     raycaster.setFromCamera(ndc.set(x, y), perspective);
     const origin = raycaster.ray.origin;
     const rayDirection = raycaster.ray.direction;
-    const rayEnd = origin.clone().addScaledVector(rayDirection, range);
+    const rayEnd = aimRayEnd.copy(origin).addScaledVector(rayDirection, range);
     const blockedAt = segmentBlockFraction(
-      { x: origin.x, y: origin.y, z: origin.z },
-      { x: rayEnd.x, y: rayEnd.y, z: rayEnd.z },
+      origin,
+      rayEnd,
       0,
       activeBlockersRef.current,
     );
     const result = traceWarRoomRay(
-      { x: origin.x, y: origin.y, z: origin.z },
-      { x: rayDirection.x, y: rayDirection.y, z: rayDirection.z },
+      origin,
+      rayDirection,
       runtimeRef.current.enemies,
       range,
       blockedAt,
@@ -2987,7 +3023,7 @@ function WarRoomRuntimeScene({
     return {
       enemy: result.target,
       index: result.targetIndex,
-      point: new THREE.Vector3(result.point.x, result.point.y, result.point.z),
+      point: aimImpactPoint.set(result.point.x, result.point.y, result.point.z),
       headshot: result.headshot,
       blocked: result.blocked,
     };
@@ -3165,8 +3201,8 @@ function WarRoomRuntimeScene({
       if (effects.exitSplashParticles > 0) {
         const thrustX = Math.sin(player.meleeAttackYaw);
         const thrustZ = -Math.cos(player.meleeAttackYaw);
-        const splashPoint = impact.point.clone().add(
-          new THREE.Vector3(thrustX * 0.18, 0, thrustZ * 0.18),
+        const splashPoint = impactPointScratch.copy(impact.point).add(
+          impactBiasScratch.set(thrustX * 0.18, 0, thrustZ * 0.18),
         );
         const splashColor = effects.bloodParticles > 0 ? "#b82e3b" : effects.flashColor;
         spawnImpact(
@@ -3175,7 +3211,7 @@ function WarRoomRuntimeScene({
           now,
           effects.exitSplashParticles,
           0.04,
-          new THREE.Vector3(thrustX * 0.55, 0.16, thrustZ * 0.55),
+          impactBiasScratch.set(thrustX * 0.55, 0.16, thrustZ * 0.55),
         );
       }
       if (effects.sparkParticles > 0) {
@@ -3188,7 +3224,7 @@ function WarRoomRuntimeScene({
           now,
           effects.flashParticles,
           0.07,
-          new THREE.Vector3(0, 0.18, 0),
+          impactBiasScratch.set(0, 0.18, 0),
         );
       }
       const impactFloorHeight = enemy.floorHeight ?? player.floorHeight;
@@ -3372,7 +3408,7 @@ function WarRoomRuntimeScene({
     const spread = weapon.spread + player.recoil * 0.18;
     let shotHit = false;
     let shotHeadshot = false;
-    const muzzle = new THREE.Vector3();
+    const muzzle = muzzleScratch;
     const muzzleAnchor = playerMuzzleRef.current;
     if (muzzleAnchor) {
       muzzleAnchor.updateWorldMatrix(true, false);
@@ -3401,7 +3437,7 @@ function WarRoomRuntimeScene({
     }
     spawnMuzzleSmoke(muzzle, now);
     if (weaponId !== "longbow" && weaponId !== "crossbow") spawnCasing(muzzle, now, player.yaw);
-    const tracerEnd = new THREE.Vector3();
+    const tracerEnd = tracerEndScratch;
     const chargeMultiplier = weapon.charge ? 0.65 + charge * 0.55 : 1;
     for (let pellet = 0; pellet < pellets; pellet += 1) {
       const spreadX = (nextWarRoomRandom(runtime) - 0.5) * spread;
@@ -3468,7 +3504,7 @@ function WarRoomRuntimeScene({
               now,
               effects.flashParticles,
               0.06,
-              new THREE.Vector3(0, 0.14, 0),
+              impactBiasScratch.set(0, 0.14, 0),
             );
           }
           if (effects.dustParticles > 0) {
@@ -3508,12 +3544,12 @@ function WarRoomRuntimeScene({
     }
     if (!weapon.charge && weaponId !== "crossbow") {
       spawnImpact(
-        muzzle.clone().add(new THREE.Vector3(0.08, 0.015, 0)),
+        impactPointScratch.copy(muzzle).add(impactBiasScratch.set(0.08, 0.015, 0)),
         "#c6a360",
         now,
         2,
         0.025,
-        new THREE.Vector3(0.7, 0.15, 0.15),
+        impactBiasScratch.set(0.7, 0.15, 0.15),
       );
     }
     if (shotHit) {
@@ -3557,7 +3593,7 @@ function WarRoomRuntimeScene({
       }
     }
     const wallNow = frame.clock.elapsedTime;
-    updateWarRoomDoors(runtime, wallNow, input.doorPressed);
+    updateWarRoomDoors(runtime, player.clockTime, input.doorPressed);
     input.doorPressed = false;
     activeBlockersRef.current = getWarRoomActiveBlockers(runtime, wallNow);
     const renderStatsNow = performance.now();
@@ -3868,7 +3904,7 @@ function WarRoomRuntimeScene({
         getWarRoomAudioOptions(player, pickup.point.x, pickup.point.z),
       );
       if (WAR_ROOM_POOLED_FX_ENABLED) {
-        spawnImpact(new THREE.Vector3(pickup.point.x, 0.82, pickup.point.z), "#74f5a6", now, 12, 0.06);
+        spawnImpact(pickupImpactScratch.set(pickup.point.x, 0.82, pickup.point.z), "#74f5a6", now, 12, 0.06);
       }
     }
     player.jumpVelocity -= 14 * delta;
@@ -3962,6 +3998,11 @@ function WarRoomRuntimeScene({
       ? runtime.room.buildings.find((building) => building.id === activeLootChest.buildingId)
       : undefined;
     const activeLootChase = Boolean(activeLootChest && lootBuilding);
+    const playerBuilding = runtime.room.buildings.find((building) => {
+      const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
+      return Math.abs(localPlayer.x) <= building.width / 2
+        && Math.abs(localPlayer.z) <= building.depth / 2;
+    });
     if (!trainingMode) for (let index = 0; index < runtime.enemies.length; index += 1) {
       const enemy = runtime.enemies[index];
       const group = enemyGroupRefs.current[index];
@@ -3983,8 +4024,11 @@ function WarRoomRuntimeScene({
         z: player.z,
       };
       const lineBlocked = segmentBlockFraction(enemyEye, playerEye, 0, activeBlockersRef.current) !== null;
+      const floorGap = Math.abs((enemy.floorHeight ?? 0) - player.floorHeight);
       enemy.mode = activeLootChase
         ? "approach"
+        : floorGap > 1.25
+          ? "approach"
         : player.hp / player.maxHp < 0.33
           ? "cover"
           : !lineBlocked && gap <= (enemy.commander ? 22 : 17)
@@ -3993,9 +4037,12 @@ function WarRoomRuntimeScene({
       const updateInterval = activeLootChase ? 0.12 : gap > 38 ? 0.55 : 0.12;
       if (now >= enemy.brainAt) {
         enemy.brainAt = now + updateInterval;
-        let target = activeLootChase && lootBuilding
+        const needsFloorRoute = !activeLootChase && floorGap > 1.25 && playerBuilding;
+        let target: { x: number; z: number; floorHeight?: number } = activeLootChase && lootBuilding
           ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
-          : { x: player.x, z: player.z };
+          : needsFloorRoute
+            ? getWarRoomLootPursuitPoint(enemy, player, playerBuilding!)
+            : { x: player.x, z: player.z, floorHeight: player.floorHeight };
         if (!activeLootChase && enemy.mode === "cover") {
           if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
             const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
@@ -4004,7 +4051,15 @@ function WarRoomRuntimeScene({
               enemy.coverZ = cover.z;
             }
           }
-          target = { x: enemy.coverX, z: enemy.coverZ };
+          target = { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 };
+        }
+        if (!activeLootChase && !needsFloorRoute) {
+          target = getWarRoomObstacleWaypoint(
+            enemy,
+            target,
+            activeBlockersRef.current,
+            0.35,
+          );
         }
         const holdDistance = activeLootChase ? 0.8 : enemy.commander ? 12.5 : 10.5;
         const shouldMove = enemy.mode !== "fire"
@@ -4135,7 +4190,7 @@ function WarRoomRuntimeScene({
       enemyGroup.rotation.y = targetYaw;
       const enemyFacingYaw = targetYaw + PLAYER_CHARACTER_MODEL_FACING;
       enemy.nextShotAt = now + (enemy.commander ? 1.2 : 1.65) + nextWarRoomRandom(runtime) * 0.55;
-      const muzzle = new THREE.Vector3(
+      const muzzle = muzzleScratch.set(
         enemy.x + 0.22,
         (enemy.floorHeight ?? 0) + (enemy.commander ? 1.5 : 1.35),
         enemy.z - 0.48,
@@ -4169,20 +4224,20 @@ function WarRoomRuntimeScene({
         getWarRoomAudioOptions(player, enemy.x, enemy.z),
       );
       const missSeed = now * 9 + runtime.enemies.indexOf(enemy) * 2.7;
-      const shotDirection = new THREE.Vector3(
+      const shotDirection = enemyShotDirectionScratch.set(
         Math.sin(enemyFacingYaw),
         0,
         -Math.cos(enemyFacingYaw),
       );
-      const playerAimPoint = new THREE.Vector3(
+      const playerAimPoint = enemyAimPointScratch.set(
         player.x,
         player.floorHeight + player.jumpHeight + 1.15,
         player.z,
       );
       const shotDistance = Math.max(1, playerAimPoint.sub(muzzle).dot(shotDirection));
-      const target = muzzle.clone()
+      const target = enemyTracerTargetScratch.copy(muzzle)
         .addScaledVector(shotDirection, shotDistance)
-        .add(new THREE.Vector3(
+        .add(enemyMissOffsetScratch.set(
           Math.sin(missSeed) * 0.38,
           Math.cos(missSeed * 1.37) * 0.22,
           Math.sin(missSeed * 0.71) * 0.38,
@@ -4335,13 +4390,19 @@ function WarRoomRuntimeScene({
       return Math.abs(localPlayer.x) <= building.width / 2
         && Math.abs(localPlayer.z) <= building.depth / 2;
     });
-    const targetFov = input.aimHeld ? 55 : 75;
+    cameraKickRef.current *= Math.exp(-delta * 11);
+    cameraSideKickRef.current *= Math.exp(-delta * 15);
+    cameraFovKickRef.current = Math.max(0, cameraFovKickRef.current - delta * 16);
+    const targetFov = (input.aimHeld ? 55 : 75) + cameraFovKickRef.current;
     const smoothedFov = THREE.MathUtils.damp(perspective.fov, targetFov, 18, delta);
     if (Math.abs(perspective.fov - smoothedFov) > 0.005) {
       perspective.fov = smoothedFov;
       perspective.updateProjectionMatrix();
     }
-    const sceneCameraAngles = getWarRoomCameraAngles(inputRef.current.yaw, inputRef.current.pitch);
+    const sceneCameraAngles = getWarRoomCameraAngles(
+      inputRef.current.yaw + cameraSideKickRef.current,
+      inputRef.current.pitch + cameraKickRef.current,
+    );
     const cameraYaw = sceneCameraAngles.yaw;
     const cameraPitch = sceneCameraAngles.pitch;
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
@@ -4355,14 +4416,27 @@ function WarRoomRuntimeScene({
       indoors: Boolean(indoorBuilding),
       victoryZoom: 0,
     });
-    const playerBodyPoint = {
-      x: player.x,
-      y: player.floorHeight + player.jumpHeight + 0.75,
-      z: player.z,
-    };
+    const targetEyeHeight = player.crouched ? 1 : 1.6;
+    const isPlayerViewClear = (
+      x: number,
+      z: number,
+      floorHeight: number,
+      jumpHeight = 0,
+    ) => isWarRoomCameraPointClear(
+      { x, y: floorHeight + jumpHeight + targetEyeHeight, z },
+      cameraBoundsRef.current,
+      0.3,
+    );
     if (now - lastPlayerSafetyCheckAtRef.current >= 0.15) {
       lastPlayerSafetyCheckAtRef.current = now;
-      if (!isWarRoomCameraPointClear(playerBodyPoint, cameraBoundsRef.current, 0.05)) {
+      if (
+        !isWarRoomCameraPointClear(
+          { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
+          cameraBoundsRef.current,
+          0.05,
+        )
+        || !isPlayerViewClear(player.x, player.z, player.floorHeight, player.jumpHeight)
+      ) {
         let recovered = false;
         const savedPosition = lastSafePlayerPositionRef.current;
         if (
@@ -4372,6 +4446,7 @@ function WarRoomRuntimeScene({
             cameraBoundsRef.current,
             0.05,
           )
+          && isPlayerViewClear(savedPosition.x, savedPosition.z, savedPosition.floorHeight)
         ) {
           player.x = savedPosition.x;
           player.z = savedPosition.z;
@@ -4395,7 +4470,7 @@ function WarRoomRuntimeScene({
               { x: candidateX, y: candidateFloor + 0.75, z: candidateZ },
               cameraBoundsRef.current,
               0.05,
-            )) continue;
+            ) || !isPlayerViewClear(candidateX, candidateZ, candidateFloor)) continue;
             player.x = candidateX;
             player.z = candidateZ;
             player.floorHeight = candidateFloor;
@@ -4406,11 +4481,14 @@ function WarRoomRuntimeScene({
           }
         }
       }
-      if (isWarRoomCameraPointClear(
-        { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
-        cameraBoundsRef.current,
-        0.05,
-      )) {
+      if (
+        isWarRoomCameraPointClear(
+          { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
+          cameraBoundsRef.current,
+          0.05,
+        )
+        && isPlayerViewClear(player.x, player.z, player.floorHeight, player.jumpHeight)
+      ) {
         lastSafePlayerPositionRef.current = {
           x: player.x,
           z: player.z,
@@ -4418,9 +4496,8 @@ function WarRoomRuntimeScene({
         };
       }
     }
-    const targetEyeHeight = player.crouched ? 1.0 : 1.6;
     cameraEyeHeightRef.current += (
-      targetEyeHeight - cameraEyeHeightRef.current
+      (player.crouched ? 1.0 : 1.6) - cameraEyeHeightRef.current
     ) * (1 - Math.exp(-delta * 10));
     const cameraHeight = cameraMode === "first-person" ? cameraEyeHeightRef.current : 1.55;
     const focusHeight = cameraMode === "first-person" ? cameraHeight : 1.5;
@@ -4810,6 +4887,7 @@ function WarRoomRuntimeScene({
             key={enemy.id}
             enemy={enemy}
             index={index}
+            inputRef={inputRef}
             groupRefs={enemyGroupRefs}
             muzzleLightRef={muzzleLightRef}
           />
@@ -4826,16 +4904,29 @@ function WarRoomRuntimeScene({
         flashRef={playerMuzzleFlashRef}
         muzzleLightRef={muzzleLightRef}
       />
-      <FirstPersonWeaponViewModel
+      {createPortal(
+        <>
+          <ambientLight color="#fff3df" intensity={1.2} />
+          <directionalLight color="#fff0d7" intensity={1.8} position={[1.5, 2.5, 3]} />
+          <FirstPersonWeaponViewModel
+            runtimeRef={runtimeRef}
+            inputRef={inputRef}
+            cameraBounds={logicalCameraBounds}
+            weaponId={activeWeapon}
+            weaponMountOverrides={weaponMountOverrides}
+            cameraMode={cameraMode}
+            motionReduced={motionReduced}
+          />
+        </>,
+        viewModelScene,
+        { camera },
+      )}
+      <MeleeDebugCone
         runtimeRef={runtimeRef}
         inputRef={inputRef}
-        cameraBounds={logicalCameraBounds}
         weaponId={activeWeapon}
-        weaponMountOverrides={weaponMountOverrides}
-        cameraMode={cameraMode}
-        motionReduced={motionReduced}
+        enabled={debugMode}
       />
-      <MeleeDebugCone runtimeRef={runtimeRef} weaponId={activeWeapon} enabled={debugMode} />
     </>
   );
 }
@@ -4843,14 +4934,12 @@ function WarRoomRuntimeScene({
 export default function WarRoomScene3D(props: Props) {
   const { quality } = props;
   const touchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-  const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-  const maxPixelRatio = getWarRoomPixelRatio(quality, pixelRatio, touchDevice);
   const shadowsEnabled = typeof window !== "undefined"
     && !window.matchMedia("(pointer: coarse)").matches
     && quality !== "low";
   return (
     <Canvas
-      dpr={maxPixelRatio}
+      dpr={[1, 2]}
       frameloop="always"
       shadows={shadowsEnabled}
       camera={{ position: [0, 3, 5], fov: 75, near: 0.05, far: 100 }}

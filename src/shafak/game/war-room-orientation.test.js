@@ -73,8 +73,8 @@ test("screen-forward and backward stay camera-relative after the player turns ar
 
 test("backpedaling and strafing are slower than forward movement", () => {
   assert.equal(getWarRoomDirectionalSpeedScale(0, 1), 1);
-  assert.ok(getWarRoomDirectionalSpeedScale(1, 0) < 1);
-  assert.ok(getWarRoomDirectionalSpeedScale(0, -1) < getWarRoomDirectionalSpeedScale(1, 0));
+  assert.equal(getWarRoomDirectionalSpeedScale(1, 0), 0.9);
+  assert.equal(getWarRoomDirectionalSpeedScale(0, -1), 0.8);
   assert.ok(getWarRoomDirectionalSpeedScale(0.7, -0.7) > 0.62);
 });
 
@@ -134,6 +134,20 @@ test("camera-relative controls keep forward, back, and strafing consistent after
       closeAngle(orientation.yaw, cameraYaw);
       assert.equal(locomotion.direction, input.direction);
       assert.ok(Math.abs(Math.hypot(world.x, world.z) - 1) < 1e-8);
+    }
+  }
+});
+
+test("all eight normalized camera-relative directions stay unit length at cardinal yaws", () => {
+  const directions = [
+    [0, 1], [0, -1], [-1, 0], [1, 0],
+    [-Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, Math.SQRT1_2],
+    [-Math.SQRT1_2, -Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2],
+  ];
+  for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    for (const [moveX, moveY] of directions) {
+      const movement = getWarRoomWorldMovement(moveX, moveY, yaw);
+      assert.ok(Math.abs(Math.hypot(movement.x, movement.z) - 1) < 1e-8);
     }
   }
 });

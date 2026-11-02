@@ -30,7 +30,7 @@ export function getWarRoomViewModelHorizontalFactor(aspect: number) {
 }
 
 export function getWarRoomViewModelScaleFactor(aspect: number) {
-  return 0.84 + getWarRoomViewModelHorizontalFactor(aspect) * 0.16;
+  return (0.84 + getWarRoomViewModelHorizontalFactor(aspect) * 0.16) * 0.6;
 }
 
 const RIFLE_VIEW_MODEL: WarRoomViewModelConfig = {

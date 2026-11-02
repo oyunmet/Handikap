@@ -31,7 +31,7 @@ test("portrait view keeps the weapon inside a narrower camera frame", () => {
   assert.ok(portrait.position[0] < 0.1);
   assert.ok(portrait.position[1] > -0.1);
   assert.ok(getWarRoomViewModelHorizontalFactor(0.46) < 0.3);
-  assert.ok(getWarRoomViewModelScaleFactor(0.46) < 1);
+  assert.ok(getWarRoomViewModelScaleFactor(0.46) < getWarRoomViewModelScaleFactor(1.75));
   assert.equal(getWarRoomViewModelHorizontalFactor(1.75), 1);
 });
 
@@ -60,6 +60,7 @@ test("first-person weapon scale keeps oversized bows and crossbows controlled", 
   assert.ok(getWarRoomViewModelConfig("crossbow", false).scale < getWarRoomViewModelConfig("powder_rifle", false).scale);
   assert.ok(getWarRoomViewModelConfig("longbow", false).scale < 0.7);
   assert.equal(getWarRoomViewModelConfig("sidearm", false).scale, 0.72);
+  assert.equal(getWarRoomViewModelScaleFactor(1.75), 0.6);
 });
 
 test("each modeled War Room weapon carries its own view-model transform", () => {
