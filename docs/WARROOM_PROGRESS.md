@@ -2,6 +2,14 @@
 
 Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran görüntülerine göre sürdürüldü. Geçmiş commit ayrıntıları bu çalışma kopyasında bulunmadığında açıkça belirtilmiştir.
 
+## Ev planı devamı — kat göstergesi ve mobil HUD
+
+- **Durum:** Kod ve otomatik kontroller tamamlandı; gerçek iPhone/Safari kabulü bekliyor.
+- **Kapsam:** Önceki oturumda tanımlanan 14 × 14,2 m ev planı, 2,6 m koridor, dört oda ve merdiven düzeni korunarak kat göstergesi, minimap ve mobil görünüm tamamlandı.
+- **Yapılanlar:** Kat etiketi artık alt kat, üst kat ve merdiven durumlarını evin kendi yüksekliğine göre ayırıyor; minimap aynı kat bilgisini kullanıp oyuncu okunu Three.js yönüyle hizalıyor. Yatay küçük ekranlarda minimap büyütüldü ve iç plan/merdiven çizgileri güçlendirildi. Giriş ve merdiven erişimini kesen iki arena siperi evlerin dışına taşındı; düşman siper hedefleriyle eşlendi. Üst kat platformlarıyla çakışan iki şifa noktası dışarı alındı. Kamera hassasiyeti ayarı ve sol hareket/sağ kamera dokunma bölgeleri zaten mevcut olduğundan korundu.
+- **Doğrulama:** `npm test` 513/513 geçti; `npm run typecheck` ve `npm run build` başarılı. Uygulama önizlemesi Savaş Odası hazırlık ekranını açtı ve tarayıcı konsolunda hata göstermedi. Statik önizlemede savaşı başlatıp oyun içi HUD'a geçilemedi; gerçek iPhone/Safari görsel kabulü yapılmadı.
+- **Dağıtım:** Git push veya Vercel deploy yapılmadı.
+
 ## Düzeltme turu — iPhone testinde görülen sorunlar
 
 - **Durum:** DEVAM EDİYOR

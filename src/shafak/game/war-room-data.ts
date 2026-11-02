@@ -1,4 +1,4 @@
-import { getWarRoomInteriorFurnitureLayout } from "./war-room-interior-layout";
+import { getWarRoomInteriorFurnitureLayout } from "./war-room-interior-layout.ts";
 
 export type BlasterWeaponClass = "rifle" | "pistol" | "shotgun" | "light" | "heavy";
 export type WarRoomWeaponClass = BlasterWeaponClass | "melee";
@@ -847,8 +847,8 @@ export const WAR_ROOM_BLOCKERS: readonly WarRoomBlocker[] = [
   { id: "cover-center", kind: "cover", x: 1, z: -1, width: 6.5, depth: 1.5, height: 1.3, color: "#785a43" },
   { id: "cover-west-south", kind: "cover", x: -16, z: 9, width: 6, depth: 1.4, height: 1.25, color: "#795840" },
   { id: "cover-east-south", kind: "cover", x: 16, z: 7, width: 6.5, depth: 1.5, height: 1.3, color: "#795840" },
-  { id: "cover-east-side", kind: "cover", x: 19, z: -2, width: 1.5, depth: 6, height: 1.35, color: "#705542" },
-  { id: "cover-west-side", kind: "cover", x: -19, z: 3, width: 1.5, depth: 6.5, height: 1.35, color: "#705542" },
+  { id: "cover-east-side", kind: "cover", x: 14, z: -2, width: 1.5, depth: 6, height: 1.35, color: "#705542" },
+  { id: "cover-west-side", kind: "cover", x: -14, z: 3, width: 1.5, depth: 6.5, height: 1.35, color: "#705542" },
   { id: "raised-platform", kind: "platform", x: 22, z: -17, width: 8, depth: 5, height: 1.05, color: "#80644f" },
   { id: "crate-row-one", kind: "cover", x: -8, z: 14.4, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
   { id: "crate-row-two", kind: "cover", x: 9, z: 14.4, width: 3.1, depth: 2.4, height: 1.65, color: "#79573b" },
@@ -861,8 +861,8 @@ export const WAR_ROOM_COVER_SPOTS = [
   { x: 15, z: -11 },
   { x: -16, z: 12 },
   { x: 16, z: 10 },
-  { x: -19, z: 3 },
-  { x: 19, z: -2 },
+  { x: -14, z: 3 },
+  { x: 14, z: -2 },
   { x: -9, z: -1 },
   { x: 10, z: -1 },
 ] as const;

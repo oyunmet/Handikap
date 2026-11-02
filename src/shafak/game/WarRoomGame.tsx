@@ -2,6 +2,10 @@ import {
   getWarRoomHousePlan,
   type WarRoomBuilding,
 } from "./war-room-data";
+import {
+  getWarRoomFloorPresentation,
+  getWarRoomMinimapPlayerRotation,
+} from "./war-room-floor-indicator";
 import { getWarRoomPointerSensitivity, readWarRoomLookSensitivity } from "./war-room-look-settings";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
@@ -23,7 +27,6 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { createWarRoomLeaderboard, type WarRoomLeaderboardEntry } from "./war-room-leaderboard";
-import { getWarRoomBuildingLocalPoint } from "./war-room-rooms";
 import { getWarRoomDoorOpenProgress } from "./war-room-doors";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
@@ -382,8 +385,14 @@ function MiniMap({
   const pointX = (x: number) => 9 + ((Math.max(-34, Math.min(34, x)) + 34) / 68) * 102;
   const pointY = (z: number) => 9 + ((Math.max(-34, Math.min(34, z)) + 34) / 68) * 102;
   const mapScale = 102 / 68;
-  const playerFloor = hud.player.floorHeight >= (room.buildings[0]?.storyHeight ?? 3.05) * 0.78 ? 1 : 0;
-  const targetFloorHeight = playerFloor === 0 ? 0 : room.buildings[0]?.storyHeight ?? 3.05;
+  const floorPresentation = getWarRoomFloorPresentation(
+    room.buildings,
+    hud.player.x,
+    hud.player.z,
+    hud.player.floorHeight,
+  );
+  const playerFloor = floorPresentation?.floor ?? 0;
+  const targetFloorHeight = floorPresentation?.floorHeight ?? 0;
   return (
     <svg
       className={`war-room-minimap is-floor-${playerFloor}`}
@@ -445,7 +454,7 @@ function MiniMap({
           className={enemy.commander ? "is-commander" : ""}
           cx={pointX(enemy.x)}
           cy={pointY(enemy.z)}
-          r={enemy.commander ? 4.8 : 2.8}
+          r={enemy.commander ? 5 : 3.2}
         />
       ))}
       {hud.healingPoints.map((point) => Math.abs(point.floorHeight - targetFloorHeight) < 1.05 && (
@@ -454,14 +463,15 @@ function MiniMap({
           className={`is-heal-point${point.available ? "" : " is-depleted"}`}
           cx={pointX(point.x)}
           cy={pointY(point.z)}
-          r={3.2}
+          r={3.8}
         />
       ))}
-      <path
+      <g
         className="war-room-minimap__player"
-        d="M60 53 65 66 60 63 55 66Z"
-        transform={`translate(${pointX(hud.player.x) - 60} ${pointY(hud.player.z) - 60}) rotate(${(hud.player.yaw * 180) / Math.PI} ${pointX(hud.player.x)} ${pointY(hud.player.z)})`}
-      />
+        transform={`translate(${pointX(hud.player.x)} ${pointY(hud.player.z)}) rotate(${getWarRoomMinimapPlayerRotation(hud.player.yaw)})`}
+      >
+        <path d="M0 -7 5 6 0 3 -5 6Z" />
+      </g>
     </svg>
   );
 }
@@ -654,21 +664,13 @@ export default function WarRoomGame({
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
-  const floorBuilding = currentRoom.buildings.find((building) => {
-    const local = getWarRoomBuildingLocalPoint(building, hud.player.x, hud.player.z);
-    return Math.abs(local.x) < building.width / 2 - 0.28
-      && Math.abs(local.z) < building.depth / 2 - 0.28;
-  });
-  const floorProgress = floorBuilding
-    ? Math.max(0, Math.min(1, hud.player.floorHeight / floorBuilding.storyHeight))
-    : 0;
-  const floorLabel = !floorBuilding
-    ? null
-    : floorProgress >= 0.78
-      ? "ÜST KAT"
-      : floorProgress > 0.05
-        ? "MERDİVEN ↑"
-        : "ALT KAT";
+  const floorPresentation = getWarRoomFloorPresentation(
+    currentRoom.buildings,
+    hud.player.x,
+    hud.player.z,
+    hud.player.floorHeight,
+  );
+  const floorLabel = floorPresentation?.label ?? null;
   const controlLayoutEnabled = savedControlLayout.customized;
 
   useEffect(() => () => {
@@ -1479,7 +1481,7 @@ export default function WarRoomGame({
                 )}
                 {floorLabel && (
                   <div
-                    className={`war-room-floor-indicator${floorLabel === "MERDİVEN ↑" ? " is-stair" : ""}`}
+                    className={`war-room-floor-indicator${floorLabel === "MERDİVEN" ? " is-stair" : ""}`}
                     aria-live="polite"
                     aria-label={`Bulunduğun kat: ${floorLabel}`}
                   >

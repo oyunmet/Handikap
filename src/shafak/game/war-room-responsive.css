@@ -455,8 +455,8 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 68px;
-    height: 68px;
+    width: clamp(74px, 9.7vw, 84px);
+    height: clamp(74px, 9.7vw, 84px);
     border-radius: 10px;
   }
 

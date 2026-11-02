@@ -18,7 +18,7 @@ export function getWarRoomLootPursuitPoint(
     && Math.abs(local.z) < building.depth / 2 - 0.55;
 
   if (!inside) {
-    const side = local.x < 0 ? -1 : 1;
+    const side = local.x < -1e-6 ? -1 : 1;
     const outsideSideX = side * (building.width / 2 + 0.95);
     const frontApproachZ = -building.depth / 2 - 0.95;
     if (local.z > building.depth / 2 + 0.55) {
