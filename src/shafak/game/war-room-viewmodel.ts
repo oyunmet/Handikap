@@ -1,6 +1,8 @@
 export type WarRoomViewModelState = {
   time: number;
   movement: number;
+  swayScale?: number;
+  wallProximity?: number;
   aiming: boolean;
   recoil: number;
   reloadProgress: number;
@@ -62,14 +64,16 @@ export function getWarRoomViewModelConfig(weaponId: string, melee: boolean): War
 export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1.75): WarRoomViewModelPose {
   const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
   const movement = clamp01(state.movement);
+  const swayScale = clamp01(state.swayScale ?? 1);
+  const wallProximity = clamp01(state.wallProximity ?? 0);
   const aim = state.aiming ? 1 : 0;
   const recoil = clamp01(state.recoil) * (state.motionReduced ? 0 : 1);
   const reload = Math.sin(Math.PI * clamp01(state.reloadProgress));
   const charge = clamp01(state.chargeProgress);
   const motion = state.motionReduced ? 0 : 1;
-  const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion;
-  const walkBob = Math.sin(state.time * 10.5) * movement * 0.018 * motion;
-  const walkRoll = Math.cos(state.time * 5.25) * movement * 0.018 * motion;
+  const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion * swayScale;
+  const walkBob = Math.sin(state.time * 5.25) * movement * 0.009 * motion * swayScale;
+  const walkRoll = Math.cos(state.time * 2.625) * movement * 0.009 * motion * swayScale;
 
   let swingX = 0;
   let swingY = 0;
@@ -100,8 +104,8 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   return {
     position: [
       (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor,
-      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025,
-      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08,
+      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.06,
+      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.16,
     ],
     rotation: [
       0.04 + recoil * 0.12 + reload * 0.22 - charge * 0.12 + swingPitch,

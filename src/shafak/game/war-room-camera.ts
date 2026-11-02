@@ -47,6 +47,62 @@ export function isWarRoomCameraPointClear(
   });
 }
 
+const EYE_CLEARANCE_DIRECTIONS = [
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2],
+  [-Math.SQRT1_2, Math.SQRT1_2], [-Math.SQRT1_2, -Math.SQRT1_2],
+] as const;
+
+export function getWarRoomEyeClearancePush(
+  eye: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  probeDistance = 0.35,
+  maxPush = 0.3,
+) {
+  const blockedDirections = EYE_CLEARANCE_DIRECTIONS.filter(([x, z]) => (
+    !isWarRoomCameraPointClear({
+      x: eye.x + x * probeDistance,
+      y: eye.y,
+      z: eye.z + z * probeDistance,
+    }, bounds, 0.05)
+  ));
+  const centerBlocked = !isWarRoomCameraPointClear(eye, bounds, 0.05);
+  if (blockedDirections.length === 0 && !centerBlocked) return { x: 0, z: 0 };
+
+  let pushX = blockedDirections.reduce((sum, [x]) => sum - x, 0) * 0.045;
+  let pushZ = blockedDirections.reduce((sum, [, z]) => sum - z, 0) * 0.045;
+  if (centerBlocked && Math.hypot(pushX, pushZ) < 1e-5) {
+    for (const obstacle of bounds) {
+      const box = expandedBounds(obstacle, 0.05);
+      if (!containsPoint(box, eye)) continue;
+      const faceDistances = [
+        { distance: eye.x - box.minX, x: -1, z: 0 },
+        { distance: box.maxX - eye.x, x: 1, z: 0 },
+        { distance: eye.z - box.minZ, x: 0, z: -1 },
+        { distance: box.maxZ - eye.z, x: 0, z: 1 },
+      ].sort((first, second) => first.distance - second.distance);
+      pushX = faceDistances[0].x * Math.max(0.08, 0.14 - faceDistances[0].distance);
+      pushZ = faceDistances[0].z * Math.max(0.08, 0.14 - faceDistances[0].distance);
+      break;
+    }
+  }
+  const pushLength = Math.hypot(pushX, pushZ);
+  const scale = pushLength > maxPush ? maxPush / pushLength : 1;
+  return { x: pushX * scale, z: pushZ * scale };
+}
+
+export function isWarRoomEyeClearAbove(
+  eye: WarRoomCameraPoint,
+  bounds: readonly WarRoomCameraBounds[],
+  clearance = 0.35,
+) {
+  return isWarRoomCameraPointClear({
+    x: eye.x,
+    y: eye.y + clearance,
+    z: eye.z,
+  }, bounds, 0.05);
+}
+
 export function getWarRoomViewModelWallProximity(
   position: WarRoomCameraPoint,
   forward: WarRoomCameraPoint,

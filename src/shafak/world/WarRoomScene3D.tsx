@@ -27,6 +27,7 @@ import {
 import {
   applyWarRoomLookDelta,
   getWarRoomCameraAngles,
+  setWarRoomLook,
 } from "../game/war-room-look";
 import {
   getWarRoomPointerSensitivity,
@@ -69,6 +70,7 @@ import {
 } from "../game/war-room-orientation";
 import {
   getWarRoomAutoFollowYaw,
+  clampWarRoomLookDelta,
   rebaseWarRoomJoystick,
   type WarRoomMobileControlsState,
 } from "../game/war-room-mobile-controls";
@@ -82,6 +84,8 @@ import {
   getWarRoomCameraBlockerIds,
   getWarRoomCameraRaySafeDistance,
   getWarRoomCameraRig,
+  getWarRoomEyeClearancePush,
+  isWarRoomEyeClearAbove,
   isWarRoomCameraPointClear,
   getWarRoomViewModelWallProximity,
   resolveWarRoomInteriorCameraPlacement,
@@ -91,11 +95,16 @@ import {
   type WarRoomShoulderSide,
 } from "../game/war-room-camera";
 import {
+  createWarRoomSprintHysteresisState,
+  stepWarRoomSprintHysteresis,
+} from "../game/war-room-input";
+import {
   getWarRoomViewModelConfig,
   getWarRoomViewModelHorizontalFactor,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
 } from "../game/war-room-viewmodel";
+import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
 import {
   getWarRoomImpactFxProfile,
   WAR_ROOM_CRACK_DECAL_LIFETIME_SECONDS,
@@ -178,14 +187,25 @@ type Props = {
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   cameraMode: WarRoomCameraMode;
   motionReduced: boolean;
+  weaponSway: WarRoomWeaponSwayLevel;
   shoulderSide: WarRoomShoulderSide;
   shoulderOffset: number;
   bloodEffects: boolean;
   trainingMode: boolean;
   quality: RenderQuality;
   debugMode: boolean;
+  debugDiagnosticsEnabled: boolean;
   onMeleeDebugUpdate: (message: string) => void;
   onRenderStats: (stats: WarRoomFrameStats) => void;
+  onLookDebugUpdate: (snapshot: {
+    yaw: number;
+    pitch: number;
+    x: number;
+    y: number;
+    z: number;
+    deltaX: number;
+    deltaY: number;
+  }) => void;
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
@@ -1346,6 +1366,7 @@ function FirstPersonWeaponViewModel({
   weaponMountOverrides,
   cameraMode,
   motionReduced,
+  weaponSway,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
@@ -1354,6 +1375,7 @@ function FirstPersonWeaponViewModel({
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   cameraMode: WarRoomCameraMode;
   motionReduced: boolean;
+  weaponSway: WarRoomWeaponSwayLevel;
 }) {
   const { camera, size } = useThree();
   const weaponRootRef = useRef<THREE.Group>(null);
@@ -1365,11 +1387,14 @@ function FirstPersonWeaponViewModel({
   const localEulerRef = useRef(new THREE.Euler());
   const wallProbeRef = useRef({ x: 0, y: 0, z: 0 });
   const preparedMeshesRef = useRef(new WeakSet<THREE.Mesh>());
+  const previousPlayerPositionRef = useRef<{ x: number; z: number } | null>(null);
+  const filteredMovementRef = useRef(0);
+  const movementActiveRef = useRef(false);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   const viewConfig = getWarRoomViewModelConfig(weaponId, weapon.weaponClass === "melee");
 
-  useFrame(() => {
+  useFrame((_, rawDelta) => {
     const group = weaponRootRef.current;
     if (inputRef.current.paused) return;
     if (!group) return;
@@ -1378,6 +1403,18 @@ function FirstPersonWeaponViewModel({
     camera.getWorldQuaternion(cameraQuaternionRef.current);
     const player = runtimeRef.current.player;
     const input = inputRef.current;
+    const delta = Math.min(rawDelta, 0.05);
+    const previousPlayerPosition = previousPlayerPositionRef.current;
+    const measuredSpeed = previousPlayerPosition && delta > 0
+      ? Math.hypot(player.x - previousPlayerPosition.x, player.z - previousPlayerPosition.z) / delta
+      : 0;
+    previousPlayerPositionRef.current = { x: player.x, z: player.z };
+    const normalizedSpeed = Math.min(1, measuredSpeed / 8.2);
+    if (!movementActiveRef.current && normalizedSpeed >= 0.2) movementActiveRef.current = true;
+    else if (movementActiveRef.current && normalizedSpeed <= 0.1) movementActiveRef.current = false;
+    const movementTarget = movementActiveRef.current ? normalizedSpeed : 0;
+    filteredMovementRef.current += (movementTarget - filteredMovementRef.current)
+      * (1 - Math.exp(-delta * 12));
     const clock = player.clockTime;
     const shotAge = Math.max(0, 0.2 - (player.shotFeedbackUntil - clock));
     const recoilEnvelope = shotAge <= 0.06
@@ -1405,7 +1442,9 @@ function FirstPersonWeaponViewModel({
     );
     const pose = getWarRoomViewModelPose({
       time: clock,
-      movement: Math.hypot(input.moveX, input.moveY),
+      movement: filteredMovementRef.current,
+      swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.5 : 0,
+      wallProximity,
       aiming: input.aimHeld,
       recoil,
       reloadProgress,
@@ -1419,8 +1458,8 @@ function FirstPersonWeaponViewModel({
     group.scale.setScalar(viewConfig.scale * getWarRoomViewModelScaleFactor(aspect));
     localPositionRef.current.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
-      viewConfig.position[1] + pose.position[1] - wallProximity * 0.06,
-      viewConfig.position[2] + pose.position[2] + wallProximity * 0.16,
+      viewConfig.position[1] + pose.position[1],
+      viewConfig.position[2] + pose.position[2],
     );
     group.position.copy(cameraPositionRef.current)
       .add(localPositionRef.current.applyQuaternion(cameraQuaternionRef.current));
@@ -2293,6 +2332,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
     player.x,
     player.z,
     player.floorHeight,
+    input.yaw,
   );
   const meleeProgress = player.meleeUntil > now
     ? Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
@@ -2399,14 +2439,17 @@ function WarRoomRuntimeScene({
   weaponMountOverrides,
   cameraMode,
   motionReduced,
+  weaponSway,
   shoulderSide,
   shoulderOffset,
   bloodEffects,
   trainingMode,
   quality,
   debugMode,
+  debugDiagnosticsEnabled,
   onMeleeDebugUpdate,
   onRenderStats,
+  onLookDebugUpdate,
   onHudUpdate,
   onFinish,
 }: Props) {
@@ -2488,10 +2531,13 @@ function WarRoomRuntimeScene({
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
   const cameraDebugAtRef = useRef(0);
+  const lookDebugAtRef = useRef(0);
+  const lastLookDeltaRef = useRef({ dx: 0, dy: 0 });
   const movementBasisYawRef = useRef<number | null>(null);
+  const sprintHysteresisRef = useRef(createWarRoomSprintHysteresisState());
+  const previousLookYawRef = useRef<number | null>(null);
   const cameraInitializedRef = useRef(false);
   const lastSafePlayerPositionRef = useRef<{ x: number; z: number; floorHeight: number } | null>(null);
-  const lastPlayerSafetyCheckAtRef = useRef(Number.NEGATIVE_INFINITY);
   const emptyClickAtRef = useRef(0);
   const meleePerformanceRef = useRef({
     started: false,
@@ -3573,7 +3619,9 @@ function WarRoomRuntimeScene({
     const lookDeltaY = input.lookDeltaY;
     input.lookDeltaX = 0;
     input.lookDeltaY = 0;
-    if (lookDeltaX !== 0 || lookDeltaY !== 0) {
+    const boundedLookDelta = clampWarRoomLookDelta(lookDeltaX, lookDeltaY);
+    if (boundedLookDelta) {
+      lastLookDeltaRef.current = { dx: boundedLookDelta.dx, dy: boundedLookDelta.dy };
       const sensitivity = getWarRoomPointerSensitivity(
         size.width,
         size.height,
@@ -3582,8 +3630,8 @@ function WarRoomRuntimeScene({
       const fovScale = perspective.fov / 75;
       applyWarRoomLookDelta(
         input,
-        lookDeltaX,
-        lookDeltaY,
+        boundedLookDelta.dx,
+        boundedLookDelta.dy,
         { x: sensitivity.x * fovScale, y: sensitivity.y * fovScale },
         input.lookPointerType,
       );
@@ -3593,11 +3641,11 @@ function WarRoomRuntimeScene({
       }
     }
     const wallNow = frame.clock.elapsedTime;
-    updateWarRoomDoors(runtime, player.clockTime, input.doorPressed);
+    updateWarRoomDoors(runtime, player.clockTime, input.doorPressed, input.yaw);
     input.doorPressed = false;
     activeBlockersRef.current = getWarRoomActiveBlockers(runtime, wallNow);
     const renderStatsNow = performance.now();
-    if (debugMode && renderStatsNow - renderStatsAtRef.current >= 250) {
+    if ((debugMode || debugDiagnosticsEnabled) && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
       // R3F's automatic render completed the preceding frame before this sample.
       onRenderStats(getWarRoomFrameStats(gl.info.render.calls, rawDelta));
@@ -3727,8 +3775,17 @@ function WarRoomRuntimeScene({
       input.movementBaseYaw === null ? 16 : 9,
     );
     const movementBasisYaw = input.movementBaseYaw ?? movementYaw;
-    input.yaw = movementYaw;
-    input.pitch = controlCameraAngles.pitch;
+    const priorLookYaw = previousLookYawRef.current;
+    if (priorLookYaw !== null && Math.abs(shortestAngleDelta(priorLookYaw, movementYaw)) > Math.PI / 4
+      && (debugMode || debugDiagnosticsEnabled)) {
+      console.warn("War Room camera yaw changed by more than 45° in one frame.", {
+        previousYaw: priorLookYaw,
+        currentYaw: movementYaw,
+      });
+      console.trace("War Room yaw jump source");
+    }
+    previousLookYawRef.current = movementYaw;
+    setWarRoomLook(input, movementYaw, controlCameraAngles.pitch);
     movementBasisYawRef.current = movementBasisYaw;
     player.yaw = player.facingYaw;
     player.pitch = controlCameraAngles.pitch;
@@ -3813,14 +3870,19 @@ function WarRoomRuntimeScene({
       input.dodgePressed = false;
     }
 
-    const sprintRequested = !player.crouched
+    const sprintIntent = !player.crouched
       && (input.sprintLocked || (Math.abs(moveY) >= 0.93 && Math.abs(moveX) <= 0.34))
       && inputLength >= 0.28;
     const isOnStairs = runtime.room.buildings.some((building) => (
       getWarRoomStairProgress(building, player.x, player.z) !== null
     ));
-    const stairSprintRequested = sprintRequested && !isOnStairs;
-    player.sprinting = stairSprintRequested && player.stamina > 0;
+    const stairSprintRequested = sprintIntent && !isOnStairs && player.stamina > 0;
+    player.sprinting = stepWarRoomSprintHysteresis(
+      sprintHysteresisRef.current,
+      stairSprintRequested,
+      now,
+      0.15,
+    );
     const speed = player.prone ? 1.25
       : player.crouched ? 3.05
         : isOnStairs ? 4
@@ -4427,8 +4489,31 @@ function WarRoomRuntimeScene({
       cameraBoundsRef.current,
       0.3,
     );
-    if (now - lastPlayerSafetyCheckAtRef.current >= 0.15) {
-      lastPlayerSafetyCheckAtRef.current = now;
+    const eyeClearancePush = getWarRoomEyeClearancePush({
+      x: player.x,
+      y: player.floorHeight + player.jumpHeight + cameraEyeHeightRef.current,
+      z: player.z,
+    }, cameraBoundsRef.current, 0.35, 0.3);
+    if (Math.hypot(eyeClearancePush.x, eyeClearancePush.z) > 0.001) {
+      const clearancePosition = moveWarRoomEntity(
+        player.x,
+        player.z,
+        eyeClearancePush.x,
+        eyeClearancePush.z,
+        WAR_ROOM_PLAYER_COLLISION_RADIUS,
+        activeBlockersRef.current,
+        player.floorHeight,
+      );
+      player.x = clearancePosition.x;
+      player.z = clearancePosition.z;
+      player.floorHeight = getWarRoomFloorHeight(
+        player.x,
+        player.z,
+        player.floorHeight,
+        room.buildings,
+      );
+    }
+    {
       if (
         !isWarRoomCameraPointClear(
           { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
@@ -4448,14 +4533,32 @@ function WarRoomRuntimeScene({
           )
           && isPlayerViewClear(savedPosition.x, savedPosition.z, savedPosition.floorHeight)
         ) {
-          player.x = savedPosition.x;
-          player.z = savedPosition.z;
-          player.floorHeight = savedPosition.floorHeight;
-          player.jumpHeight = 0;
-          player.jumpVelocity = 0;
-          recovered = true;
+          const recoveryX = savedPosition.x - player.x;
+          const recoveryZ = savedPosition.z - player.z;
+          const recoveryDistance = Math.hypot(recoveryX, recoveryZ);
+          const recoveryScale = recoveryDistance > 0.3 ? 0.3 / recoveryDistance : 1;
+          const candidateX = player.x + recoveryX * recoveryScale;
+          const candidateZ = player.z + recoveryZ * recoveryScale;
+          const candidateFloor = getWarRoomFloorHeight(
+            candidateX,
+            candidateZ,
+            player.floorHeight,
+            room.buildings,
+          );
+          if (isWarRoomCameraPointClear(
+            { x: candidateX, y: candidateFloor + 0.75, z: candidateZ },
+            cameraBoundsRef.current,
+            0.05,
+          ) && isPlayerViewClear(candidateX, candidateZ, candidateFloor)) {
+            player.x = candidateX;
+            player.z = candidateZ;
+            player.floorHeight = candidateFloor;
+            player.jumpHeight = 0;
+            player.jumpVelocity = 0;
+            recovered = true;
+          }
         }
-        for (let radius = 0.5; !recovered && radius <= 3; radius += 0.5) {
+        for (let radius = 0.05; !recovered && radius <= 0.3; radius += 0.05) {
           for (let step = 0; step < 12; step += 1) {
             const angle = (step / 12) * Math.PI * 2;
             const candidateX = player.x + Math.cos(angle) * radius;
@@ -4496,8 +4599,15 @@ function WarRoomRuntimeScene({
         };
       }
     }
+    const eyeHeightTarget = isWarRoomEyeClearAbove({
+      x: player.x,
+      y: player.floorHeight + player.jumpHeight + targetEyeHeight,
+      z: player.z,
+    }, cameraBoundsRef.current, 0.35)
+      ? targetEyeHeight
+      : Math.max(0.82, targetEyeHeight - 0.28);
     cameraEyeHeightRef.current += (
-      (player.crouched ? 1.0 : 1.6) - cameraEyeHeightRef.current
+      eyeHeightTarget - cameraEyeHeightRef.current
     ) * (1 - Math.exp(-delta * 10));
     const cameraHeight = cameraMode === "first-person" ? cameraEyeHeightRef.current : 1.55;
     const focusHeight = cameraMode === "first-person" ? cameraHeight : 1.5;
@@ -4666,7 +4776,7 @@ function WarRoomRuntimeScene({
       }
     }
     const cameraBlocked = Boolean(blockerId || cameraPlacement?.blocked);
-    if (!cameraInitializedRef.current || cameraBlocked) {
+    if (cameraMode === "first-person" || !cameraInitializedRef.current || cameraBlocked) {
       camera.position.copy(cameraDesired);
       cameraInitializedRef.current = true;
     } else {
@@ -4725,6 +4835,21 @@ function WarRoomRuntimeScene({
     // The renderer updates the full scene graph before drawing. Only the camera
     // needs an immediate matrix update for the aim ray later in this frame.
     camera.updateMatrixWorld();
+    if (
+      (debugMode || debugDiagnosticsEnabled)
+      && now - lookDebugAtRef.current >= 0.25
+    ) {
+      lookDebugAtRef.current = now;
+      onLookDebugUpdate({
+        yaw: input.yaw,
+        pitch: input.pitch,
+        x: player.x,
+        y: player.floorHeight + player.jumpHeight,
+        z: player.z,
+        deltaX: lastLookDeltaRef.current.dx,
+        deltaY: lastLookDeltaRef.current.dy,
+      });
+    }
 
     const trailWeaponId = player.meleeAttackWeaponId ?? player.weaponSlots[player.activeSlot];
     const trailWeapon = WAR_ROOM_WEAPON_BY_ID.get(trailWeaponId);
@@ -4916,6 +5041,7 @@ function WarRoomRuntimeScene({
             weaponMountOverrides={weaponMountOverrides}
             cameraMode={cameraMode}
             motionReduced={motionReduced}
+            weaponSway={weaponSway}
           />
         </>,
         viewModelScene,

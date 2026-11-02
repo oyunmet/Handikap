@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   beginWarRoomJoystick,
+  beginWarRoomButtonPointer,
   beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
   getWarRoomAutoFollowYaw,
   getWarRoomTouchControlSide,
   isWarRoomLookDeltaValid,
+  WAR_ROOM_MAX_LOOK_DELTA_PIXELS,
   readWarRoomJoystick,
   readWarRoomMouseLook,
   rebaseWarRoomJoystick,
@@ -31,10 +33,11 @@ test("mobile touch zones route the left half to movement and the right half to c
   assert.equal(getWarRoomTouchControlSide(0, 0, 0), null);
 });
 
-test("camera look ignores jitter and pointer jumps over 150 pixels", () => {
+test("camera look ignores jitter and clamps pointer jumps to 80 pixels", () => {
   assert.equal(isWarRoomLookDeltaValid(0.2, 0.2), false);
-  assert.equal(isWarRoomLookDeltaValid(151, 0), false);
-  assert.equal(isWarRoomLookDeltaValid(0, 150), true);
+  assert.equal(isWarRoomLookDeltaValid(81, 0), false);
+  assert.equal(isWarRoomLookDeltaValid(0, 80), true);
+  assert.equal(WAR_ROOM_MAX_LOOK_DELTA_PIXELS, 80);
   assert.equal(isWarRoomLookDeltaValid(20, -12), true);
 });
 
@@ -105,8 +108,36 @@ test("look and movement pointers release independently and clear on reset", () =
     endedJoystick: false,
     endedLook: { pointerId: 2, x: 310, y: 190, pointerType: "touch", button: 2 },
   });
+  assert.equal(controls.roles.has(2), false);
+  assert.equal(controls.roles.get(1), "joystick");
   assert.ok(controls.joystick);
   resetWarRoomMobileControls(controls);
   assert.equal(controls.joystick, null);
   assert.equal(controls.look, null);
+  assert.equal(controls.roles.size, 0);
+});
+
+test("each touch pointer stays assigned to its original control role", () => {
+  const controls = createWarRoomMobileControlsState();
+  beginWarRoomButtonPointer(controls, 9);
+  assert.equal(beginWarRoomJoystick(controls, 9, 120, 300, 42, 0), false);
+  assert.equal(beginWarRoomLook(controls, {
+    pointerId: 9, x: 120, y: 300, pointerType: "touch", button: 0,
+  }), false);
+  assert.equal(controls.roles.get(9), "button");
+});
+
+test("the first look event only establishes a reference and the next delta is bounded", () => {
+  const controls = createWarRoomMobileControlsState();
+  beginWarRoomLook(controls, {
+    pointerId: 4, x: 100, y: 100, pointerType: "touch", button: 0,
+  });
+  assert.deepEqual(readWarRoomMouseLook(controls, 4, 100, 100), null);
+  const delta = readWarRoomMouseLook(controls, 4, 400, 100);
+  assert.deepEqual(delta, {
+    dx: WAR_ROOM_MAX_LOOK_DELTA_PIXELS,
+    dy: 0,
+    pointerType: "touch",
+    button: 0,
+  });
 });

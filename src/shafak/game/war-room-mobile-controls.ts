@@ -2,6 +2,7 @@ import { normalizeWarRoomCameraYaw } from "./war-room-look";
 
 export type WarRoomMobilePointerType = "touch" | "mouse" | "pen";
 export type WarRoomTouchControlSide = "movement" | "look";
+export type WarRoomPointerRole = "look" | "joystick" | "button";
 
 export type WarRoomJoystickGesture = {
   pointerId: number;
@@ -22,6 +23,7 @@ export type WarRoomLookGesture = {
 export type WarRoomMobileControlsState = {
   joystick: WarRoomJoystickGesture | null;
   look: WarRoomLookGesture | null;
+  roles: Map<number, WarRoomPointerRole>;
 };
 
 export type WarRoomJoystickReading = {
@@ -32,6 +34,7 @@ export type WarRoomJoystickReading = {
 };
 
 const JOYSTICK_DEAD_ZONE = 0.15;
+export const WAR_ROOM_MAX_LOOK_DELTA_PIXELS = 80;
 
 export function getWarRoomAutoFollowYaw(
   baseYaw: number,
@@ -54,7 +57,7 @@ export function getWarRoomTouchControlSide(
 }
 
 export function createWarRoomMobileControlsState(): WarRoomMobileControlsState {
-  return { joystick: null, look: null };
+  return { joystick: null, look: null, roles: new Map() };
 }
 
 export function beginWarRoomJoystick(
@@ -66,6 +69,7 @@ export function beginWarRoomJoystick(
   cameraYaw: number,
 ) {
   if (state.joystick || ![originX, originY, radius, cameraYaw].every(Number.isFinite)) return false;
+  if (state.roles.has(pointerId)) return false;
   state.joystick = {
     pointerId,
     originX,
@@ -73,6 +77,7 @@ export function beginWarRoomJoystick(
     radius: Math.max(1, radius),
     baseYaw: normalizeWarRoomCameraYaw(cameraYaw),
   };
+  state.roles.set(pointerId, "joystick");
   return true;
 }
 
@@ -122,15 +127,24 @@ export function beginWarRoomLook(
   state: WarRoomMobileControlsState,
   gesture: WarRoomLookGesture,
 ) {
-  if (state.look) return false;
+  if (state.look || state.roles.has(gesture.pointerId)) return false;
   state.look = { ...gesture };
+  state.roles.set(gesture.pointerId, "look");
   return true;
 }
 
 export function isWarRoomLookDeltaValid(dx: number, dy: number) {
   if (!Number.isFinite(dx) || !Number.isFinite(dy)) return false;
   const distance = Math.hypot(dx, dy);
-  return distance >= 0.5 && distance <= 150;
+  return distance >= 0.5 && distance <= WAR_ROOM_MAX_LOOK_DELTA_PIXELS;
+}
+
+export function clampWarRoomLookDelta(dx: number, dy: number) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+  const distance = Math.hypot(dx, dy);
+  if (distance < 0.5) return null;
+  const scale = Math.min(1, WAR_ROOM_MAX_LOOK_DELTA_PIXELS / distance);
+  return { dx: dx * scale, dy: dy * scale };
 }
 
 export function readWarRoomMouseLook(
@@ -146,15 +160,15 @@ export function readWarRoomMouseLook(
     || !Number.isFinite(x)
     || !Number.isFinite(y)
   ) return null;
-  const delta = {
-    dx: x - gesture.x,
-    dy: y - gesture.y,
+  const delta = clampWarRoomLookDelta(x - gesture.x, y - gesture.y);
+  gesture.x = x;
+  gesture.y = y;
+  if (!delta) return null;
+  return {
+    ...delta,
     pointerType: gesture.pointerType,
     button: gesture.button,
   };
-  gesture.x = x;
-  gesture.y = y;
-  return isWarRoomLookDeltaValid(delta.dx, delta.dy) ? delta : null;
 }
 
 export function endWarRoomMobilePointer(
@@ -165,10 +179,18 @@ export function endWarRoomMobilePointer(
   const endedLook = state.look?.pointerId === pointerId ? state.look : null;
   if (endedJoystick) state.joystick = null;
   if (endedLook) state.look = null;
+  state.roles.delete(pointerId);
   return { endedJoystick, endedLook };
 }
 
 export function resetWarRoomMobileControls(state: WarRoomMobileControlsState) {
   state.joystick = null;
   state.look = null;
+  state.roles.clear();
+}
+
+export function beginWarRoomButtonPointer(state: WarRoomMobileControlsState, pointerId: number) {
+  if (state.roles.has(pointerId)) return false;
+  state.roles.set(pointerId, "button");
+  return true;
 }

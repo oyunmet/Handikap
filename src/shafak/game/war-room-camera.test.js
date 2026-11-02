@@ -8,6 +8,8 @@ import {
   getWarRoomCameraRaySafeDistance,
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
+  getWarRoomEyeClearancePush,
+  isWarRoomEyeClearAbove,
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   resolveWarRoomCameraSweep,
@@ -237,6 +239,26 @@ test("rear camera stays behind the rendered hero after a lateral turn", () => {
     cameraOffsetX * renderedForwardX + cameraOffsetZ * renderedForwardZ < 0,
     "camera must stay behind the hero's visible forward direction",
   );
+});
+
+test("eye clearance checks all eight directions and caps correction distance", () => {
+  const bounds = [{
+    id: "near-wall",
+    minX: 0.32,
+    maxX: 0.5,
+    minY: 0,
+    maxY: 2.5,
+    minZ: -1,
+    maxZ: 1,
+  }];
+  const push = getWarRoomEyeClearancePush({ x: 0, y: 1.4, z: 0 }, bounds);
+  assert.ok(push.x < 0);
+  assert.ok(Math.hypot(push.x, push.z) <= 0.3);
+  assert.equal(isWarRoomEyeClearAbove(
+    { x: 0, y: 1, z: 0 },
+    [{ id: "ceiling", minX: -1, maxX: 1, minY: 1.3, maxY: 1.6, minZ: -1, maxZ: 1 }],
+    0.35,
+  ), false);
 });
 
 test("indoor camera targets remain within the rotated house and do not route around its walls", () => {

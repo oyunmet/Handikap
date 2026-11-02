@@ -2,6 +2,13 @@ import {
   readWarRoomLookSensitivitySettings,
   writeWarRoomLookSensitivitySettings,
 } from "./game/war-room-look-settings";
+import {
+  readWarRoomDebugEnabled,
+  readWarRoomWeaponSway,
+  writeWarRoomDebugEnabled,
+  writeWarRoomWeaponSway,
+  type WarRoomWeaponSwayLevel,
+} from "./game/war-room-viewmodel-settings";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -415,6 +422,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivitySettings);
+  const [warRoomWeaponSway, setWarRoomWeaponSway] = useState(readWarRoomWeaponSway);
+  const [warRoomDebugEnabled, setWarRoomDebugEnabled] = useState(readWarRoomDebugEnabled);
   const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
   const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
@@ -1204,6 +1213,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 profile={profile}
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
+                weaponSway={warRoomWeaponSway}
+                debugDiagnosticsEnabled={warRoomDebugEnabled}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
                 controlsEditorOpen={warRoomControlsEditorOpen}
@@ -1329,6 +1340,35 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 />
                 {screen === "war-room" && (
                   <>
+                    <div className="setting-row setting-row--quality">
+                      <span className="setting-row__copy">
+                        <strong>Silah sallanması</strong>
+                        <small>Hareket sırasında silahın kamera dışı salınımını ayarla.</small>
+                      </span>
+                      <div className="quality-switch war-room-sway-switch" role="group" aria-label="Silah sallanması">
+                        {([
+                          ["off", "Kapalı"],
+                          ["low", "Düşük"],
+                          ["normal", "Normal"],
+                        ] as const).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={warRoomWeaponSway === value ? "is-selected" : ""}
+                            aria-pressed={warRoomWeaponSway === value}
+                            onClick={() => setWarRoomWeaponSway(writeWarRoomWeaponSway(value as WarRoomWeaponSwayLevel))}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <SettingToggle
+                      label="Debug"
+                      description="Kamera yönü, konumu, dokunmatik rolleri ve FPS değerini göster."
+                      checked={warRoomDebugEnabled}
+                      onChange={() => setWarRoomDebugEnabled(writeWarRoomDebugEnabled(!warRoomDebugEnabled))}
+                    />
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Hareket ve kamera</strong>

@@ -33,8 +33,8 @@ export default function WarRoomDoor({
     >
       <group ref={hingeRef} position={[-leafWidth / 2, 0, frontZ]}>
         <group position={[leafWidth / 2, 0, 0]}>
-          <mesh position={[0, 1.08, 0]} castShadow receiveShadow>
-            <boxGeometry args={[leafWidth, 2.12, 0.12]} />
+            <mesh position={[0, 1.2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[leafWidth, 2.4, 0.12]} />
             <meshStandardMaterial color="#503629" roughness={0.82} metalness={0.04} />
           </mesh>
           <mesh position={[0, 0.19, 0.071]} castShadow>

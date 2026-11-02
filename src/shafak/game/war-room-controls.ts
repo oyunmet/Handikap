@@ -70,7 +70,7 @@ export function isWarRoomDynamicStickStartAllowed(
 ): boolean {
   if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return false;
   const landscape = height < 500;
-  const minY = landscape ? height * 0.18 : height * 0.38;
+  const minY = height * 0.4;
   const maxY = landscape ? height - 126 : height - 270;
   const maxX = landscape ? Math.min(width * 0.46, 96) : width * 0.46;
   return x >= 12 && x <= maxX && y >= minY && y <= maxY;

@@ -54,6 +54,7 @@ import {
 } from "./war-room-look";
 import {
   beginWarRoomJoystick,
+  beginWarRoomButtonPointer,
   beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
@@ -61,6 +62,7 @@ import {
   readWarRoomJoystick,
   readWarRoomMouseLook,
   resetWarRoomMobileControls,
+  type WarRoomPointerRole,
 } from "./war-room-mobile-controls";
 import {
   beginWarRoomPointer,
@@ -72,6 +74,7 @@ import {
   type WarRoomPointerPosition,
 } from "./war-room-input";
 import type { PlayerProfile } from "./profile";
+import type { WarRoomWeaponSwayLevel } from "./war-room-viewmodel-settings";
 import {
   getWarRoomProgressAfterVictory,
   getWarRoomRoom,
@@ -86,6 +89,7 @@ import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
   CONTROLS_CONFIG,
   createDefaultWarRoomControlLayout,
+  isWarRoomDynamicStickStartAllowed,
   loadWarRoomControlLayout,
   saveWarRoomControlLayout,
   type WarRoomControlId,
@@ -100,6 +104,8 @@ type Props = {
   profile: PlayerProfile;
   vibrationEnabled: boolean;
   motionReduced: boolean;
+  weaponSway: WarRoomWeaponSwayLevel;
+  debugDiagnosticsEnabled: boolean;
   onOpenSettings: () => void;
   settingsOpen: boolean;
   controlsEditorOpen: boolean;
@@ -108,6 +114,15 @@ type Props = {
 };
 type Phase = "briefing" | "battle" | "victory" | "defeat";
 type CalibrationField = "position" | "rotation" | "scale";
+type WarRoomLookDebugSnapshot = {
+  yaw: number;
+  pitch: number;
+  x: number;
+  y: number;
+  z: number;
+  deltaX: number;
+  deltaY: number;
+};
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
 const ROOM_PROGRESS_KEY = "shafak-war-room-room-progress-v1";
@@ -506,6 +521,8 @@ export default function WarRoomGame({
   profile,
   vibrationEnabled,
   motionReduced,
+  weaponSway,
+  debugDiagnosticsEnabled,
   onOpenSettings,
   settingsOpen,
   controlsEditorOpen,
@@ -554,6 +571,9 @@ export default function WarRoomGame({
     source: "dealt" | "received";
   } | null>(null);
   const [debugRenderStats, setDebugRenderStats] = useState<WarRoomFrameStats>({ drawCalls: 0, fps: 0 });
+  const [lookDebugSnapshot, setLookDebugSnapshot] = useState<WarRoomLookDebugSnapshot>({
+    yaw: 0, pitch: 0, x: 0, y: 0, z: 0, deltaX: 0, deltaY: 0,
+  });
   const [killConfirmation, setKillConfirmation] = useState<{ id: number; streak: number } | null>(null);
   const previousKillCountRef = useRef(0);
   const killStreakRef = useRef({ count: 0, at: 0 });
@@ -907,10 +927,20 @@ export default function WarRoomGame({
   };
 
   const handleRootPointerType = (event: ReactPointerEvent<HTMLElement>) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("button,[role='button'],.war-room-stick")) {
+      beginWarRoomButtonPointer(mobileControlsRef.current, event.pointerId);
+    }
     if (event.pointerType === "touch") {
       setKeyboardHintsVisible(false);
     } else if (hasKeyboardPointer()) {
       setKeyboardHintsVisible(true);
+    }
+  };
+
+  const handleRootPointerEndCapture = (event: ReactPointerEvent<HTMLElement>) => {
+    if (mobileControlsRef.current.roles.get(event.pointerId) === "button") {
+      endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
     }
   };
 
@@ -1102,6 +1132,7 @@ export default function WarRoomGame({
   );
 
   const handleActionPointerStart = (event: ReactPointerEvent<HTMLElement>) => {
+    beginWarRoomButtonPointer(mobileControlsRef.current, event.pointerId);
     beginWarRoomPointer(pointerRef.current, event.pointerId, {
       x: event.clientX,
       y: event.clientY,
@@ -1112,6 +1143,7 @@ export default function WarRoomGame({
 
   const handleActionPointerEnd = (event: ReactPointerEvent<HTMLElement>) => {
     endWarRoomPointer(pointerRef.current, event.pointerId);
+    endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
   };
 
   const updateTouchJoystick = (pointerId: number, x: number, y: number) => {
@@ -1132,10 +1164,12 @@ export default function WarRoomGame({
   };
 
   const handleWorldPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (mobileControlsRef.current.joystick?.pointerId === event.pointerId) {
+    const role = mobileControlsRef.current.roles.get(event.pointerId);
+    if (role === "joystick" && mobileControlsRef.current.joystick?.pointerId === event.pointerId) {
       updateTouchJoystick(event.pointerId, event.clientX, event.clientY);
       return;
     }
+    if (role !== "look") return;
     const delta = readWarRoomMouseLook(
       mobileControlsRef.current,
       event.pointerId,
@@ -1152,9 +1186,10 @@ export default function WarRoomGame({
     const target = event.target instanceof Element ? event.target : null;
     if (
       target?.closest(
-        "button,.war-room-stick,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
+        "button,[role='button'],.war-room-stick,.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
       )
     ) return;
+    endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
     event.preventDefault();
     resumeWarRoomAudio();
 
@@ -1184,6 +1219,14 @@ export default function WarRoomGame({
         return;
       }
       if (side !== "movement") return;
+      const localX = event.clientX - stageBounds.left;
+      const localY = event.clientY - stageBounds.top;
+      if (!isWarRoomDynamicStickStartAllowed(
+        localX,
+        localY,
+        stageBounds.width,
+        stageBounds.height,
+      )) return;
       const input = inputRef.current;
       if (!beginWarRoomJoystick(
         mobileControlsRef.current,
@@ -1246,8 +1289,19 @@ export default function WarRoomGame({
     }
   };
 
+  const handleWorldPointerLeave = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (mobileControlsRef.current.roles.get(event.pointerId) !== "look") return;
+    handleWorldPointerUp(event);
+  };
+
   return (
-    <main className="war-room" data-phase={phase} onPointerDownCapture={handleRootPointerType}>
+    <main
+      className="war-room"
+      data-phase={phase}
+      onPointerDownCapture={handleRootPointerType}
+      onPointerUpCapture={handleRootPointerEndCapture}
+      onPointerCancelCapture={handleRootPointerEndCapture}
+    >
       {phase === "briefing" && (
         <section className="war-room-briefing" role="dialog" aria-modal="true" aria-labelledby="war-room-title">
           <div className="war-room-briefing__backdrop" aria-hidden="true" />
@@ -1346,6 +1400,7 @@ export default function WarRoomGame({
           onPointerUp={handleWorldPointerUp}
           onPointerCancel={handleWorldPointerUp}
           onLostPointerCapture={handleWorldPointerUp}
+          onPointerLeave={handleWorldPointerLeave}
           onContextMenu={(event) => event.preventDefault()}
           onPointerMove={handleWorldPointerMove}
         >
@@ -1358,13 +1413,16 @@ export default function WarRoomGame({
             weaponMountOverrides={weaponMountOverrides}
             cameraMode="first-person"
             motionReduced={motionReduced}
+            weaponSway={weaponSway}
             shoulderSide="right"
             shoulderOffset={0}
             bloodEffects={bloodEffects}
             trainingMode={weaponLabMode}
             quality={quality}
             debugMode={debugMode}
+            debugDiagnosticsEnabled={debugDiagnosticsEnabled}
             onRenderStats={setDebugRenderStats}
+            onLookDebugUpdate={setLookDebugSnapshot}
             onMeleeDebugUpdate={(message) => {
               if (message.startsWith("İSABET:") || message.startsWith("ISKA:")) {
                 setMeleeDebugMessage(message);
@@ -1392,6 +1450,22 @@ export default function WarRoomGame({
               </aside>
             );
           })()}
+          {(debugMode || debugDiagnosticsEnabled) && (
+            <div className="war-room-camera-debug" aria-label="Kamera ve dokunmatik hata ayıklama">
+              <span>
+                YAW {((lookDebugSnapshot.yaw * 180 / Math.PI) % 360).toFixed(1)}°
+                {" · PITCH "}{(lookDebugSnapshot.pitch * 180 / Math.PI).toFixed(1)}°
+                {" · KONUM "}{lookDebugSnapshot.x.toFixed(2)}, {lookDebugSnapshot.y.toFixed(2)}, {lookDebugSnapshot.z.toFixed(2)}
+              </span>
+              <span>
+                DELTA {lookDebugSnapshot.deltaX.toFixed(1)}, {lookDebugSnapshot.deltaY.toFixed(1)} px
+                {" · POINTER "}{[...mobileControlsRef.current.roles.entries()]
+                  .map(([id, role]: [number, WarRoomPointerRole]) => `${id}:${role}`)
+                  .join(", ") || "—"}
+                {" · FPS "}{debugRenderStats.fps.toFixed(0)}
+              </span>
+            </div>
+          )}
           {debugMode && (
             <div className="war-room-melee-debug-result" aria-live="polite">
               <span>
@@ -1668,7 +1742,7 @@ export default function WarRoomGame({
                 </div>
                 <i className="war-room-bar"><em className="is-stamina" style={{ width: `${Math.max(0, hud.player.stamina)}%` }} /></i>
               </div>
-              <div className="war-room-ammo">
+              <div className={`war-room-ammo${hud.magazine <= 0 && !hud.reloading ? " is-empty" : ""}`}>
                 <span>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.name ?? "Silah"}
                   <small>{WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.className ?? ""}</small>
@@ -1686,7 +1760,7 @@ export default function WarRoomGame({
                       : WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.icon} ∞
                   </strong>
                 ) : (
-                  <strong>
+                  <strong className={hud.magazine <= 0 && !hud.reloading ? "is-empty" : ""}>
                     {hud.reloading
                       ? "DOLDURULUYOR"
                       : <>{hud.magazine}<small> / {hud.reserve}</small></>}
@@ -1701,6 +1775,8 @@ export default function WarRoomGame({
                 <small>
                   {WAR_ROOM_WEAPON_BY_ID.get(hud.weaponId)?.weaponClass === "melee"
                     ? "KISA BAS: SALDIR · BASILI TUT: GÜÇLÜ"
+                    : hud.magazine <= 0 && !hud.reloading
+                      ? keyboardHintsVisible ? "R: ŞARJÖR DOLDUR" : "ŞARJÖRÜ DOLDUR"
                     : keyboardHintsVisible
                       ? "R: DOLDUR · V: SİLAH DEĞİŞTİR"
                       : "DOLDUR · SİLAH SEÇ"}
@@ -1875,8 +1951,8 @@ export default function WarRoomGame({
             >
               <span>{hud.nearbyDoor.openProgress > 0.95 ? "KAPI AÇIK" : "KAPIYI AÇ"}</span>
               <small>{hud.nearbyDoor.openProgress > 0.95
-                ? `KAPANMASINA ${hud.nearbyDoor.secondsRemaining.toFixed(1)} SN · E`
-                : "BAS · KAPI 5 SN AÇIK KALIR · E"}</small>
+                ? `AÇIK · ${hud.nearbyDoor.secondsRemaining.toFixed(1)} SN · E`
+                : "BAS · KAPI 6 SN AÇIK KALIR · E"}</small>
             </button>
           )}
           {hud.nearbyLootChest && (

@@ -18,6 +18,37 @@ export type WarRoomPointerPosition = {
   button: number;
 };
 
+export type WarRoomSprintHysteresisState = {
+  active: boolean;
+  requested: boolean | null;
+  requestedAt: number;
+};
+
+export function createWarRoomSprintHysteresisState(): WarRoomSprintHysteresisState {
+  return { active: false, requested: null, requestedAt: 0 };
+}
+
+export function stepWarRoomSprintHysteresis(
+  state: WarRoomSprintHysteresisState,
+  requested: boolean,
+  now: number,
+  delaySeconds = 0.15,
+) {
+  if (requested === state.active) {
+    state.requested = null;
+    return state.active;
+  }
+  if (state.requested !== requested) {
+    state.requested = requested;
+    state.requestedAt = now;
+    return state.active;
+  }
+  if (now - state.requestedAt < delaySeconds) return state.active;
+  state.active = requested;
+  state.requested = null;
+  return state.active;
+}
+
 export function beginWarRoomPointer(
   pointers: Map<number, WarRoomPointerPosition>,
   pointerId: number,

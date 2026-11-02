@@ -22,6 +22,13 @@ test("dynamic joystick touch starts stay above portrait health HUD at common iPh
   }
 });
 
+test("dynamic joystick starts are restricted to the lower-left active area in landscape", () => {
+  assert.equal(isWarRoomDynamicStickStartAllowed(52, 155, 844, 390), false);
+  assert.equal(isWarRoomDynamicStickStartAllowed(52, 180, 844, 390), true);
+  assert.equal(isWarRoomDynamicStickStartAllowed(52, 280, 844, 390), false);
+  assert.equal(isWarRoomDynamicStickStartAllowed(450, 180, 844, 390), false);
+});
+
 test("War Room control catalog contains all movable touch controls", () => {
   assert.deepEqual(
     CONTROLS_CONFIG.map(({ id }) => id),

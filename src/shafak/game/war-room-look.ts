@@ -23,6 +23,12 @@ export function getWarRoomCameraAngles(yaw: number, pitch: number) {
   };
 }
 
+export function setWarRoomLook(input: WarRoomLookInput, yaw: number, pitch: number) {
+  input.yaw = normalizeWarRoomCameraYaw(yaw);
+  input.pitch = clampWarRoomCameraPitch(pitch);
+  return { yaw: input.yaw, pitch: input.pitch };
+}
+
 export function applyWarRoomLookDelta(
   input: WarRoomLookInput,
   dx: number,
@@ -33,8 +39,8 @@ export function applyWarRoomLookDelta(
 ) {
   const sensitivityX = typeof sensitivity === "number" ? sensitivity : sensitivity.x;
   const sensitivityY = typeof sensitivity === "number" ? sensitivity : sensitivity.y;
-  input.yaw = normalizeWarRoomCameraYaw(input.yaw + dx * sensitivityX);
+  const yaw = input.yaw + dx * sensitivityX;
   const touchPitchSign = invertTouchY ? 1 : -1;
   const pitchDelta = dy * sensitivityY * (pointerType === "touch" ? touchPitchSign : 1);
-  input.pitch = clampWarRoomCameraPitch(input.pitch + pitchDelta);
+  setWarRoomLook(input, yaw, input.pitch + pitchDelta);
 }
