@@ -1,11 +1,4 @@
-import {
-  getWarRoomHousePlan,
-  type WarRoomBuilding,
-} from "./war-room-data";
-import {
-  getWarRoomFloorPresentation,
-  getWarRoomMinimapPlayerRotation,
-} from "./war-room-floor-indicator";
+import { getWarRoomFloorPresentation } from "./war-room-floor-indicator";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
@@ -25,7 +18,7 @@ import {
   type WarRoomInputState,
   type WarRoomRuntime,
 } from "./war-room-engine";
-import { createWarRoomLeaderboard, type WarRoomLeaderboardEntry } from "./war-room-leaderboard";
+import { createWarRoomLeaderboard } from "./war-room-leaderboard";
 import { getWarRoomDoorOpenProgress } from "./war-room-doors";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
@@ -45,8 +38,11 @@ import {
   getWarRoomLabWeaponLength,
 } from "./war-room-lab";
 import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
-import { HudButton, HudIcon, type HudButtonIconKey } from "./HudButton";
-import { playGameButtonClick } from "../audio/howler";
+import { HudIcon } from "./HudButton";
+import { default as ActionButton } from "./WarRoomActionButton";
+import WarRoomBriefing from "./WarRoomBriefing";
+import { default as MiniMap } from "./WarRoomMiniMap";
+import WarRoomResult, { type WarRoomResultSummary } from "./WarRoomResult";
 import type { RenderQuality } from "../world/graphics-quality";
 import { isWithinWarRoomDrawCallBudget, WAR_ROOM_DRAW_CALL_BUDGET, type WarRoomFrameStats } from "./war-room-quality";
 import {
@@ -258,11 +254,6 @@ function createEmptyHud(): WarRoomHudSnapshot {
   };
 }
 
-function formatDuration(seconds: number) {
-  const safe = Math.max(0, Math.floor(seconds));
-  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
-}
-
 function recordWarRoomGold(amount: number) {
   try {
     const prior = Number(window.localStorage.getItem(GOLD_KEY) ?? "0");
@@ -289,214 +280,6 @@ function writeWarRoomRoomProgress(progress: WarRoomSavedProgress) {
   } catch {
     // Keep the current session's counter available even if storage is disabled.
   }
-}
-
-function ActionButton({
-  label,
-  hint,
-  className = "",
-  showHint = false,
-  vibrationEnabled = false,
-  style,
-  icon,
-  title,
-  onDown,
-  onUp,
-  onClick,
-  onPointerStart,
-  onPointerMove,
-  onPointerEnd,
-}: {
-  label: string;
-  hint?: string;
-  className?: string;
-  showHint?: boolean;
-  vibrationEnabled?: boolean;
-  style?: CSSProperties;
-  icon?: HudButtonIconKey;
-  title?: string;
-  onDown?: () => void;
-  onUp?: () => void;
-  onClick?: () => void;
-  onPointerStart?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  onPointerMove?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  onPointerEnd?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-}) {
-  const pointer = useRef<number | null>(null);
-  const [held, setHeld] = useState(false);
-  const actionIcon: HudButtonIconKey = icon ?? (
-    className.includes("fire") ? "fire"
-      : className.includes("aim") ? "aim"
-        : className.includes("melee-heavy") ? "melee-heavy"
-          : className.includes("melee-light") ? "knife"
-            : className.includes("reload") ? "reload"
-              : className.includes("jump") ? "jump"
-                : className.includes("dodge") ? "crouch"
-                  : className.includes("sprint") ? "sprint"
-                    : className.includes("swap") ? "swap"
-                      : "weapon"
-  );
-  const playFeedback = () => {
-    if (!isWarRoomMuted()) playGameButtonClick();
-    if (vibrationEnabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try { navigator.vibrate(8); } catch { /* Haptics are optional. */ }
-    }
-  };
-  return (
-    <HudButton
-      type="button"
-      icon={actionIcon}
-      label={label}
-      title={title}
-      keyboardHint={showHint ? hint : undefined}
-      held={held}
-      className={`war-room-control${showHint && hint ? " has-keyboard-hint" : ""} ${className}`}
-      style={style}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        pointer.current = event.pointerId;
-        event.currentTarget.setPointerCapture(event.pointerId);
-        setHeld(true);
-        onPointerStart?.(event);
-        onDown?.();
-        playFeedback();
-      }}
-      onPointerMove={(event) => {
-        if (pointer.current === event.pointerId) onPointerMove?.(event);
-      }}
-      onPointerUp={(event) => {
-        if (pointer.current !== event.pointerId) return;
-        pointer.current = null;
-        setHeld(false);
-        onPointerEnd?.(event);
-        onUp?.();
-        onClick?.();
-      }}
-      onPointerCancel={(event) => {
-        if (pointer.current !== event.pointerId) return;
-        pointer.current = null;
-        setHeld(false);
-        onPointerEnd?.(event);
-        onUp?.();
-      }}
-      onLostPointerCapture={(event) => {
-        if (pointer.current !== event.pointerId) return;
-        pointer.current = null;
-        setHeld(false);
-        onPointerEnd?.(event);
-        onUp?.();
-      }}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (event.detail === 0) {
-          onClick?.();
-          playFeedback();
-        }
-      }}
-    />
-  );
-}
-
-function MiniMap({
-  hud,
-  room,
-}: {
-  hud: WarRoomHudSnapshot;
-  room: { buildings: readonly WarRoomBuilding[] };
-}) {
-  const pointX = (x: number) => 9 + ((Math.max(-34, Math.min(34, x)) + 34) / 68) * 102;
-  const pointY = (z: number) => 9 + ((Math.max(-34, Math.min(34, z)) + 34) / 68) * 102;
-  const mapScale = 102 / 68;
-  const floorPresentation = getWarRoomFloorPresentation(
-    room.buildings,
-    hud.player.x,
-    hud.player.z,
-    hud.player.floorHeight,
-  );
-  const playerFloor = floorPresentation?.floor ?? 0;
-  const targetFloorHeight = floorPresentation?.floorHeight ?? 0;
-  return (
-    <svg
-      className={`war-room-minimap is-floor-${playerFloor}`}
-      viewBox="0 0 120 120"
-      role="img"
-      aria-label={`Savaş alanı mini haritası, ${playerFloor === 0 ? "alt kat" : "üst kat"}`}
-    >
-      <rect x="2" y="2" width="116" height="116" rx="14" />
-      <path d="M12 12h96v96H12zM60 12v96M12 60h96" />
-      {room.buildings.map((building) => {
-        const plan = getWarRoomHousePlan(building);
-        const width = building.width * mapScale;
-        const depth = building.depth * mapScale;
-        return (
-          <g
-            key={building.id}
-            className="war-room-minimap__building"
-            transform={`translate(${pointX(building.x)} ${pointY(building.z)}) rotate(${-building.rotationY * 180 / Math.PI})`}
-          >
-            <rect x={-width / 2} y={-depth / 2} width={width} height={depth} rx="1.2" />
-            <line
-              className="war-room-minimap__corridor"
-              x1={-plan.corridorWallX * mapScale}
-              x2={-plan.corridorWallX * mapScale}
-              y1={-depth / 2}
-              y2={depth / 2}
-            />
-            <line
-              className="war-room-minimap__corridor"
-              x1={plan.corridorWallX * mapScale}
-              x2={plan.corridorWallX * mapScale}
-              y1={-depth / 2}
-              y2={depth / 2}
-            />
-            <line
-              className="war-room-minimap__partition"
-              x1={-width / 2}
-              x2={width / 2}
-              y1={plan.roomDividerZ * mapScale}
-              y2={plan.roomDividerZ * mapScale}
-            />
-            <line
-              className="war-room-minimap__stairs"
-              x1={plan.stairX * mapScale}
-              x2={plan.stairX * mapScale}
-              y1={plan.stairStartZ * mapScale}
-              y2={plan.stairEndZ * mapScale}
-            />
-          </g>
-        );
-      })}
-      <text className="war-room-minimap__floor-label" x="60" y="16" textAnchor="middle">
-        {playerFloor === 0 ? "ALT KAT" : "ÜST KAT"}
-      </text>
-      {hud.enemies.map((enemy) => enemy.alive
-        && Math.abs(enemy.floorHeight - targetFloorHeight) < 1.05 && (
-        <circle
-          key={enemy.id}
-          className={enemy.commander ? "is-commander" : ""}
-          cx={pointX(enemy.x)}
-          cy={pointY(enemy.z)}
-          r={enemy.commander ? 5 : 3.2}
-        />
-      ))}
-      {hud.healingPoints.map((point) => Math.abs(point.floorHeight - targetFloorHeight) < 1.05 && (
-        <circle
-          key={`heal-${point.id}`}
-          className={`is-heal-point${point.available ? "" : " is-depleted"}`}
-          cx={pointX(point.x)}
-          cy={pointY(point.z)}
-          r={3.8}
-        />
-      ))}
-      <g
-        className="war-room-minimap__player"
-        transform={`translate(${pointX(hud.player.x)} ${pointY(hud.player.z)}) rotate(${getWarRoomMinimapPlayerRotation(hud.player.yaw)})`}
-      >
-        <path d="M0 -7 5 6 0 3 -5 6Z" />
-      </g>
-    </svg>
-  );
 }
 
 function requestWarRoomImmersiveDisplay() {
@@ -667,20 +450,7 @@ export default function WarRoomGame({
       window.clearTimeout(bossPhaseAnnouncementTimerRef.current);
     }
   }, []);
-  const [summary, setSummary] = useState<{
-    kills: number;
-    headshots: number;
-    accuracy: number;
-    seconds: number;
-    gold: number;
-    totalGold: number | null;
-    roomNumber: number;
-    roomName: string;
-    commanderTitle: string;
-    enemyCount: number;
-    nextRoom: WarRoomRoom | null;
-    leaderboard: WarRoomLeaderboardEntry[];
-  } | null>(null);
+  const [summary, setSummary] = useState<WarRoomResultSummary | null>(null);
   const runtimeRef = useRef<WarRoomRuntime>(
     weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout, 0, 1),
   );
@@ -1299,94 +1069,20 @@ export default function WarRoomGame({
       onPointerCancelCapture={handleRootPointerEndCapture}
     >
       {phase === "briefing" && (
-        <section className="war-room-briefing" role="dialog" aria-modal="true" aria-labelledby="war-room-title">
-          <div className="war-room-briefing__backdrop" aria-hidden="true" />
-          <button className="war-room-exit" type="button" onClick={closeMode} aria-label="Ana menüye dön">ÇIKIŞ</button>
-          <header className="war-room-heading">
-            <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · {WAR_ROOM_BUILD_VERSION}</span>
-            <h1 id="war-room-title">SAVAŞ ODASI</h1>
-            <p>{currentRoom.name} · {currentRoom.commanderName} ve {currentRoom.enemyCount - 1} muhafızla karşılaş.</p>
-          </header>
-          <div className="war-room-briefing__content">
-            <div className="war-room-mission-card">
-              <div className="war-room-mission-card__symbol" aria-hidden="true">✦</div>
-              <div>
-                <span>GÖREV HEDEFİ</span>
-                <strong>Komutan dâhil {currentRoom.enemyCount} düşmanı temizle</strong>
-                <small>{currentRoom.commanderTitle} · {currentRoom.layoutName} · Siper al ve komutanın işaretini takip et.</small>
-              </div>
-              <b className="war-room-enemy-count">{String(currentRoom.enemyCount).padStart(2, "0")}</b>
-            </div>
-            <div className="war-room-loadout-head">
-              <div>
-                <span className="war-room-eyebrow">SAVAŞ ÖNCESİ HAZIRLIK</span>
-                <h2>İki silah kuşan</h2>
-              </div>
-              <div className="war-room-slot-tabs" role="group" aria-label="Silah yuvası seç">
-                {([0, 1] as const).map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    className={selectedSlot === slot ? "is-selected" : ""}
-                    aria-pressed={selectedSlot === slot}
-                    onClick={() => setSelectedSlot(slot)}
-                  >
-                    {slot === 0 ? "I · ANA" : "II · YEDEK"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="war-room-weapon-grid">
-              {WAR_ROOM_WEAPONS.map((weapon) => {
-                const selected = loadout[selectedSlot] === weapon.id;
-                const otherSlot = selectedSlot === 0 ? 1 : 0;
-                const otherSlotSelected = loadout[otherSlot] === weapon.id;
-                const owned = isWarRoomWeaponOwned(weapon.id, profile.inventory.ownedItemIds);
-                return (
-                  <button
-                    key={weapon.id}
-                    type="button"
-                    className={`war-room-weapon-card${selected ? " is-selected" : ""}`}
-                    aria-pressed={selected}
-                    aria-disabled={!owned}
-                    title={!owned ? "Satın alınmadı; seçmek için mağazadan al." : undefined}
-                    onClick={() => setLoadoutWeapon(weapon.id)}
-                  >
-                    {WAR_ROOM_WEAPON_ICONS_ENABLED
-                      ? <WarRoomWeaponIcon className="war-room-weapon-card__icon" weaponId={weapon.id} />
-                      : <span className="war-room-weapon-card__icon" aria-hidden="true">{weapon.icon}</span>}
-                    <span className="war-room-weapon-card__copy">
-                      <b>{weapon.name}</b>
-                    <small>{weapon.className} · {weapon.rarity ?? "Sıradan"} · {weapon.weaponClass === "melee" ? `${weapon.range.toFixed(1)} m · sınırsız` : `${weapon.magazine} mermi`}</small>
-                    </span>
-                    <span className="war-room-weapon-card__status">
-                      {selected ? "SEÇİLİ" : otherSlotSelected ? `YUVA ${otherSlot + 1}` : owned ? "SEÇ" : "SATIN AL"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {loadoutNotice && <p className="war-room-loadout-notice" role="status" aria-live="polite">{loadoutNotice}</p>}
-            <div className="war-room-briefing__bottom">
-              <p>WASD / joystick hareket · Fare sürükle / sağ tarafı kaydır bakış · Sol tık / ATEŞ</p>
-              <button className="war-room-start" type="button" onClick={() => beginBattle()} disabled={!modelsReady}>
-                <span>{modelsReady ? "BAŞLA" : `MODELLER YÜKLENİYOR %${Math.round(modelProgress)}`}</span>
-                <i aria-hidden="true">{modelsReady ? "➜" : "…"}</i>
-              </button>
-              <div className="war-room-model-progress" role="progressbar" aria-label="Savaş Odası modelleri"
-                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(modelProgress)}>
-                <i style={{ width: `${Math.max(0, Math.min(100, modelProgress))}%` }} />
-              </div>
-              <small className="war-room-model-status" aria-live="polite">
-                {modelsReady
-                  ? modelErrors.length
-                    ? "Bazı modeller yüklenemedi; yedek görünümler hazır."
-                    : "3D modeller hazır."
-                  : "Karakterler ve savaş alanı hazırlanıyor."}
-              </small>
-            </div>
-          </div>
-        </section>
+        <WarRoomBriefing
+          room={currentRoom}
+          ownedItemIds={profile.inventory.ownedItemIds}
+          loadout={loadout}
+          selectedSlot={selectedSlot}
+          onSelectSlot={setSelectedSlot}
+          onSelectWeapon={setLoadoutWeapon}
+          loadoutNotice={loadoutNotice}
+          modelsReady={modelsReady}
+          modelProgress={modelProgress}
+          hasModelErrors={modelErrors.length > 0}
+          onExit={closeMode}
+          onBegin={() => beginBattle()}
+        />
       )}
 
       {phase === "battle" && (
@@ -2027,91 +1723,15 @@ export default function WarRoomGame({
       )}
 
       {(phase === "victory" || phase === "defeat") && summary && (
-        <section className={`war-room-result${phase === "defeat" ? " is-defeat" : ""}`} role="dialog" aria-modal="true">
-          <div className="war-room-result__card">
-            <span className="war-room-eyebrow">{summary.roomName.toLocaleUpperCase("tr-TR")} · ODA {summary.roomNumber} · GÖREV RAPORU</span>
-            <h1>{phase === "victory" ? "ZAFER" : "YENİLGİ"}</h1>
-            <p>{phase === "victory"
-              ? `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
-              : `${summary.roomName} düşmedi. Bu odadan yeniden başlayabilir veya zinciri baştan alabilirsin.`}</p>
-            <div className="war-room-stat-grid">
-              <div><span>DÜŞÜRÜLEN</span><b>{summary.kills} / {summary.enemyCount}</b></div>
-              <div><span>KAFA VURUŞU</span><b>{summary.headshots}</b></div>
-              <div><span>İSABET</span><b>%{summary.accuracy}</b></div>
-              <div><span>SÜRE</span><b>{formatDuration(summary.seconds)}</b></div>
-            </div>
-            <section className="war-room-leaderboard" aria-label="Maç liderlik tablosu">
-              <header>
-                <span>MAÇ LİDERLİK TABLOSU</span>
-                <small>{summary.leaderboard.length} karakter</small>
-              </header>
-              <ol>
-                {summary.leaderboard.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className={entry.id === "player" ? "is-player" : undefined}
-                    aria-current={entry.id === "player" ? "true" : undefined}
-                  >
-                    <span className="war-room-leaderboard__rank">{entry.rank}</span>
-                    <span className="war-room-leaderboard__identity">
-                      <strong>
-                        <span>{entry.name}</span>
-                        {entry.id === "player" && <em>SEN</em>}
-                      </strong>
-                      <small>{entry.role} · {entry.status}</small>
-                    </span>
-                    <b>{entry.score.toLocaleString("tr-TR")}</b>
-                  </li>
-                ))}
-              </ol>
-            </section>
-            {phase === "victory" && summary.nextRoom && (
-              <div className="war-room-next-room" aria-label="Sonraki oda önizlemesi">
-                <span>SONRAKİ ODA · {summary.nextRoom.number} / ∞</span>
-                <strong>{summary.nextRoom.name}</strong>
-                <small>{summary.nextRoom.layoutName} · {summary.nextRoom.enemyCount} düşman · {summary.nextRoom.commanderName}</small>
-                <i
-                  className="war-room-next-room__swatch"
-                  style={{
-                    background: `linear-gradient(135deg, ${summary.nextRoom.theme.sky}, ${summary.nextRoom.theme.floorTint})`,
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-            )}
-            {phase === "victory" && (
-              <div className="war-room-gold-reward">
-                <span>BU MODUN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
-                {summary.totalGold !== null && <small>Savaş Odası toplamı: {summary.totalGold} altın</small>}
-                {WAR_ROOM_ROOM_CHAIN_ENABLED && (
-                  <small>Oda ödülleri toplamı: {roomProgress.totalRoomRewards} altın · En yüksek oda: {roomProgress.highestRoom}</small>
-                )}
-              </div>
-            )}
-            <div className="war-room-result__actions">
-              {phase === "victory" && summary.nextRoom && (
-                <button
-                  type="button"
-                  className="war-room-start"
-                  onClick={() => beginBattle(summary.nextRoom!.number, preparedNextRoomRef.current ?? undefined)}
-                >
-                  SONRAKİ ODA
-                </button>
-              )}
-              <button
-                type="button"
-                className={phase === "victory" ? "" : "war-room-start"}
-                onClick={() => beginBattle(summary.roomNumber)}
-              >
-                {phase === "victory" ? "YENİDEN DENE" : "BU ODAYI TEKRAR DENE"}
-              </button>
-              {phase === "defeat" && (
-                <button type="button" onClick={() => beginBattle(1)}>BAŞTAN</button>
-              )}
-              {phase === "victory" && <button type="button" onClick={closeMode}>ÇIK</button>}
-            </div>
-          </div>
-        </section>
+        <WarRoomResult
+          phase={phase}
+          summary={summary}
+          roomProgress={roomProgress}
+          onNextRoom={() => beginBattle(summary.nextRoom!.number, preparedNextRoomRef.current ?? undefined)}
+          onRetryRoom={() => beginBattle(summary.roomNumber)}
+          onRestart={() => beginBattle(1)}
+          onExit={closeMode}
+        />
       )}
       {controlsEditorOpen && (
         <WarRoomControlsEditor
