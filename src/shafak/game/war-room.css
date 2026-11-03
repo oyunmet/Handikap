@@ -1,3 +1,16 @@
+.war-room-touch-mode,
+.war-room-touch-mode body,
+.war-room-touch-mode #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .war-room {
   position: fixed;
   z-index: 500;

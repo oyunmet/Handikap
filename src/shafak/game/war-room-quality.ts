@@ -25,13 +25,66 @@ export const WAR_ROOM_DRAW_CALL_BUDGET = WAR_ROOM_CONFIG.performance.drawCallBud
 export type WarRoomFrameStats = {
   drawCalls: number;
   fps: number;
+  frameTimeMs: number;
+  triangles: number;
 };
 
-export function getWarRoomFrameStats(drawCalls: number, deltaSeconds: number): WarRoomFrameStats {
+export function getWarRoomFrameStats(
+  drawCalls: number,
+  deltaSeconds: number,
+  triangles = 0,
+): WarRoomFrameStats {
   return {
     drawCalls: Number.isFinite(drawCalls) ? Math.max(0, Math.floor(drawCalls)) : 0,
     fps: Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? 1 / deltaSeconds : 0,
+    frameTimeMs: Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds * 1_000 : 0,
+    triangles: Number.isFinite(triangles) ? Math.max(0, Math.floor(triangles)) : 0,
   };
+}
+
+export type WarRoomAdaptiveDprState = {
+  pixelRatio: number;
+  slowWindows: number;
+  fastWindows: number;
+};
+
+export function createWarRoomAdaptiveDprState(pixelRatio: number): WarRoomAdaptiveDprState {
+  return {
+    pixelRatio: Number.isFinite(pixelRatio) ? Math.max(0.6, pixelRatio) : 1,
+    slowWindows: 0,
+    fastWindows: 0,
+  };
+}
+
+export function sampleWarRoomAdaptiveDpr(
+  state: WarRoomAdaptiveDprState,
+  maxPixelRatio: number,
+  averageFrameTimeMs: number,
+) {
+  const maximum = Number.isFinite(maxPixelRatio) ? Math.max(0.6, maxPixelRatio) : 1;
+  if (!Number.isFinite(averageFrameTimeMs) || averageFrameTimeMs <= 0) return state.pixelRatio;
+
+  if (averageFrameTimeMs > 20) {
+    state.slowWindows += 1;
+    state.fastWindows = 0;
+    if (state.slowWindows >= 2) {
+      state.pixelRatio = Math.max(0.6, Math.min(maximum, state.pixelRatio - 0.1));
+      state.slowWindows = 0;
+    }
+  } else if (averageFrameTimeMs < 16.7) {
+    state.fastWindows += 1;
+    state.slowWindows = 0;
+    if (state.fastWindows >= 4) {
+      state.pixelRatio = Math.min(maximum, state.pixelRatio + 0.05);
+      state.fastWindows = 0;
+    }
+  } else {
+    state.slowWindows = 0;
+    state.fastWindows = 0;
+  }
+
+  state.pixelRatio = Math.round(state.pixelRatio * 100) / 100;
+  return state.pixelRatio;
 }
 
 export function isWithinWarRoomDrawCallBudget(drawCalls: number) {

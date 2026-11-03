@@ -147,6 +147,7 @@ import {
   countActiveWarRoomParticles,
   getWarRoomEffectCount,
   getWarRoomFrameStats,
+  getWarRoomPixelRatio,
   getWarRoomQualityProfile,
   isWarRoomAttackRunContinuous,
   WAR_ROOM_DRAW_CALL_BUDGET,
@@ -155,6 +156,7 @@ import {
 } from "../game/war-room-quality";
 import { disposeWarRoomSceneResources } from "../game/war-room-dispose";
 import type { RenderQuality } from "./graphics-quality";
+import WarRoomAdaptiveDpr from "./WarRoomAdaptiveDpr";
 import TimeOfDaySky from "./TimeOfDaySky";
 import {
   applyWarRoomDamage,
@@ -3173,7 +3175,11 @@ function WarRoomRuntimeScene({
     if ((debugMode || debugDiagnosticsEnabled) && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
       // R3F's automatic render completed the preceding frame before this sample.
-      onRenderStats(getWarRoomFrameStats(gl.info.render.calls, rawDelta));
+      onRenderStats(getWarRoomFrameStats(
+        gl.info.render.calls,
+        rawDelta,
+        gl.info.render.triangles,
+      ));
     }
     if (
       WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
@@ -4699,7 +4705,11 @@ export default function WarRoomScene3D(props: Props) {
       <WarRoomSceneErrorBoundary key={canvasGeneration} onRetry={retryCanvas}>
         <Canvas
           key={canvasGeneration}
-          dpr={[1, 2]}
+          dpr={getWarRoomPixelRatio(
+            quality,
+            typeof window === "undefined" ? 1 : window.devicePixelRatio,
+            touchDevice,
+          )}
           frameloop="always"
           shadows={shadowsEnabled}
           camera={{
@@ -4715,6 +4725,7 @@ export default function WarRoomScene3D(props: Props) {
           }}
           onCreated={handleCanvasCreated}
         >
+          <WarRoomAdaptiveDpr quality={quality} touchDevice={touchDevice} />
           <WarRoomRuntimeScene {...props} />
         </Canvas>
       </WarRoomSceneErrorBoundary>

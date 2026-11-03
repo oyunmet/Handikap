@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   countOccupiedWarRoomDecals,
   countActiveWarRoomParticles,
+  createWarRoomAdaptiveDprState,
   getWarRoomEffectCount,
   getWarRoomFrameStats,
   isWithinWarRoomDrawCallBudget,
@@ -10,6 +11,7 @@ import {
   getWarRoomPixelRatio,
   getWarRoomQualityProfile,
   isWarRoomAttackRunContinuous,
+  sampleWarRoomAdaptiveDpr,
   WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS,
   WAR_ROOM_PERFORMANCE_SAMPLE_MS,
 } from "./war-room-quality.ts";
@@ -98,12 +100,53 @@ test("continuous attack reporting rejects sparse or interrupted runs", () => {
 });
 
 test("debug frame stats report draw calls and unclamped frame rate safely", () => {
-  assert.deepEqual(getWarRoomFrameStats(143, 1 / 60), { drawCalls: 143, fps: 60 });
-  assert.deepEqual(getWarRoomFrameStats(Number.NaN, 0), { drawCalls: 0, fps: 0 });
-  assert.deepEqual(getWarRoomFrameStats(-4, -1), { drawCalls: 0, fps: 0 });
+  assert.deepEqual(getWarRoomFrameStats(143, 1 / 60, 12_400), {
+    drawCalls: 143,
+    fps: 60,
+    frameTimeMs: 1_000 / 60,
+    triangles: 12_400,
+  });
+  assert.deepEqual(getWarRoomFrameStats(Number.NaN, 0), {
+    drawCalls: 0,
+    fps: 0,
+    frameTimeMs: 0,
+    triangles: 0,
+  });
+  assert.deepEqual(getWarRoomFrameStats(-4, -1, -1), {
+    drawCalls: 0,
+    fps: 0,
+    frameTimeMs: 0,
+    triangles: 0,
+  });
   assert.equal(isWithinWarRoomDrawCallBudget(150), true);
   assert.equal(isWithinWarRoomDrawCallBudget(151), false);
   assert.equal(isWithinWarRoomDrawCallBudget(Number.NaN), false);
+});
+
+test("adaptive War Room DPR lowers after sustained slow frames and recovers gradually", () => {
+  const state = createWarRoomAdaptiveDprState(1);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 1);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 0.9);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 0.9);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 0.8);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.8);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.8);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.8);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.85);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.85);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.85);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.85);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.82);
+});
+
+test("adaptive War Room DPR rejects invalid frame samples and respects its floor", () => {
+  const state = createWarRoomAdaptiveDprState(0.75);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.75, Number.NaN), 0.75);
+  for (let index = 0; index < 80; index += 1) {
+    sampleWarRoomAdaptiveDpr(state, 0.75, 40);
+  }
+  assert.equal(state.pixelRatio, 0.6);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.75, 0), 0.6);
 });
 
 test("decal pool usage counts only occupied slots", () => {

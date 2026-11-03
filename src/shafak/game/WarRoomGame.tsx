@@ -54,12 +54,22 @@ import {
   beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
+  getWarRoomAutoFollowYaw,
   getWarRoomTouchControlSide,
   readWarRoomJoystick,
   readWarRoomMouseLook,
   resetWarRoomMobileControls,
   type WarRoomPointerRole,
 } from "./war-room-mobile-controls";
+import {
+  createWarRoomTouchInputState,
+  endWarRoomTouch,
+  formatWarRoomTouchDiagnostics,
+  moveWarRoomTouch,
+  resetWarRoomTouchInput,
+  startWarRoomTouch,
+  WAR_ROOM_TOUCH_JOYSTICK_RADIUS,
+} from "./war-room-touch-input";
 import {
   beginWarRoomPointer,
   endWarRoomPointer,
@@ -355,7 +365,12 @@ export default function WarRoomGame({
     critical: boolean;
     source: "dealt" | "received";
   } | null>(null);
-  const [debugRenderStats, setDebugRenderStats] = useState<WarRoomFrameStats>({ drawCalls: 0, fps: 0 });
+  const [debugRenderStats, setDebugRenderStats] = useState<WarRoomFrameStats>({
+    drawCalls: 0,
+    fps: 0,
+    frameTimeMs: 0,
+    triangles: 0,
+  });
   const [lookDebugSnapshot, setLookDebugSnapshot] = useState<WarRoomLookDebugSnapshot>({
     yaw: 0, pitch: 0, x: 0, y: 0, z: 0, deltaX: 0, deltaY: 0,
   });
@@ -458,6 +473,8 @@ export default function WarRoomGame({
   const inputRef = useRef<WarRoomInputState>(createInputState());
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const mobileControlsRef = useRef(createWarRoomMobileControlsState());
+  const touchInputRef = useRef(createWarRoomTouchInputState());
+  const battleStageRef = useRef<HTMLDivElement>(null);
   const fullscreenRequestedRef = useRef(false);
   const settingsPauseRef = useRef(false);
   const orientationPauseRef = useRef(false);
@@ -491,6 +508,7 @@ export default function WarRoomGame({
   const resetTouchControls = useCallback(() => {
     const fireWasHeld = inputRef.current.fireHeld;
     resetWarRoomMobileControls(mobileControlsRef.current);
+    resetWarRoomTouchInput(touchInputRef.current);
     inputRef.current.moveX = 0;
     inputRef.current.moveY = 0;
     inputRef.current.movementBaseYaw = null;
@@ -520,6 +538,12 @@ export default function WarRoomGame({
     setDynamicStickActive(false);
     setSprintLockActive(false);
   }, []);
+
+  useEffect(() => {
+    if (phase !== "battle") return undefined;
+    document.documentElement.classList.add("war-room-touch-mode");
+    return () => document.documentElement.classList.remove("war-room-touch-mode");
+  }, [phase]);
 
   useEffect(() => {
     const syncOrientation = () => {
@@ -711,6 +735,7 @@ export default function WarRoomGame({
   };
 
   const handleRootPointerEndCapture = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.type === "pointercancel") touchInputRef.current.pointercancel += 1;
     if (mobileControlsRef.current.roles.get(event.pointerId) === "button") {
       endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
     }
@@ -961,63 +986,9 @@ export default function WarRoomGame({
         "button,[role='button'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
       )
     ) return;
+    if (event.pointerType === "touch") return;
     event.preventDefault();
     resumeWarRoomAudio();
-
-    if (event.pointerType === "touch") {
-      const stageBounds = event.currentTarget.getBoundingClientRect();
-      const side = getWarRoomTouchControlSide(
-        event.clientX,
-        stageBounds.left,
-        stageBounds.width,
-      );
-      if (side === "look") {
-        const input = inputRef.current;
-        if (!beginWarRoomLook(mobileControlsRef.current, {
-          pointerId: event.pointerId,
-          x: event.clientX,
-          y: event.clientY,
-          pointerType: "touch",
-          button: event.button,
-        })) return;
-        input.manualLookActive = true;
-        input.cameraTargetYaw = input.yaw;
-        try {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        } catch {
-          // Pointer cancellation and window blur still clear the look gesture.
-        }
-        return;
-      }
-      if (side !== "movement") return;
-      const localX = event.clientX - stageBounds.left;
-      const localY = event.clientY - stageBounds.top;
-      if (!isWarRoomMovementTouchAllowed(
-        localX,
-        localY,
-        stageBounds.width,
-        stageBounds.height,
-      )) return;
-      const input = inputRef.current;
-      if (!beginWarRoomJoystick(
-        mobileControlsRef.current,
-        event.pointerId,
-        event.clientX,
-        event.clientY,
-        42,
-        input.yaw,
-      )) return;
-      input.movementBaseYaw = input.yaw;
-      input.cameraTargetYaw = input.yaw;
-      setDynamicStickActive(true);
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Pointer cancellation and window blur still clear the held gesture.
-      }
-      updateTouchJoystick(event.pointerId, event.clientX, event.clientY);
-      return;
-    }
 
     if (event.button !== 0 && event.button !== 2) return;
     const pointerType = pointerTypeForEvent(event);
@@ -1060,6 +1031,171 @@ export default function WarRoomGame({
     }
   };
 
+  useEffect(() => {
+    if (phase !== "battle") return undefined;
+    const stage = battleStageRef.current;
+    if (!stage) return undefined;
+
+    const pointerIdForTouch = (identifier: number) => 10_000_000 + identifier;
+    const isGameplayTouch = (event: TouchEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      return Boolean(target && stage.contains(target));
+    };
+    const isHudTarget = (target: Element) => Boolean(target.closest(
+      "button,[role='button'],[role='alertdialog'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-weapon-lab,.war-room-calibration-panel,.war-room-control-editor,.war-room-confirm,.war-room-orientation-overlay",
+    ));
+    const releaseTouch = (identifier: number) => {
+      const state = touchInputRef.current;
+      if (!state.roles.has(identifier)) return;
+      const endedTouch = endWarRoomTouch(state, identifier);
+      const endedControl = endWarRoomMobilePointer(
+        mobileControlsRef.current,
+        pointerIdForTouch(identifier),
+      );
+      if (endedTouch.endedJoystick || endedControl.endedJoystick) {
+        setWarRoomMoveVector(inputRef.current, 0, 0);
+        inputRef.current.movementBaseYaw = null;
+        setDynamicStickActive(false);
+        stickRef.current?.style.setProperty("--stick-x", "0px");
+        stickRef.current?.style.setProperty("--stick-y", "0px");
+      }
+      if (endedTouch.endedLook || endedControl.endedLook) {
+        inputRef.current.manualLookActive = mobileControlsRef.current.look !== null;
+      }
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      if (!isGameplayTouch(event)) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const state = touchInputRef.current;
+      state.touchstart += event.changedTouches.length;
+      if (inputRef.current.paused || !target || isHudTarget(target)) return;
+      if (event.cancelable) event.preventDefault();
+      setKeyboardHintsVisible(false);
+      resumeWarRoomAudio();
+      const bounds = stage.getBoundingClientRect();
+      for (const touch of Array.from(event.changedTouches)) {
+        const side = getWarRoomTouchControlSide(touch.clientX, bounds.left, bounds.width);
+        if (!side) continue;
+        const x = touch.clientX - bounds.left;
+        const y = touch.clientY - bounds.top;
+        if (side === "movement" && !isWarRoomMovementTouchAllowed(x, y, bounds.width, bounds.height)) {
+          continue;
+        }
+
+        const previousIdentifier = side === "movement" ? state.joy.id : state.look.id;
+        if (previousIdentifier !== -1 && previousIdentifier !== touch.identifier) {
+          releaseTouch(previousIdentifier);
+        }
+
+        const role = startWarRoomTouch(state, touch.identifier, x, y, bounds.width);
+        if (!role) continue;
+        const controlPointerId = pointerIdForTouch(touch.identifier);
+        const input = inputRef.current;
+        if (role === "joystick") {
+          if (!beginWarRoomJoystick(
+            mobileControlsRef.current,
+            controlPointerId,
+            touch.clientX,
+            touch.clientY,
+            WAR_ROOM_TOUCH_JOYSTICK_RADIUS,
+            input.yaw,
+          )) {
+            endWarRoomTouch(state, touch.identifier);
+            continue;
+          }
+          input.movementBaseYaw = input.yaw;
+          input.cameraTargetYaw = input.yaw;
+          setDynamicStickActive(true);
+          updateTouchJoystick(controlPointerId, touch.clientX, touch.clientY);
+        } else {
+          if (!beginWarRoomLook(mobileControlsRef.current, {
+            pointerId: controlPointerId,
+            x: touch.clientX,
+            y: touch.clientY,
+            pointerType: "touch",
+            button: 0,
+          })) {
+            endWarRoomTouch(state, touch.identifier);
+            continue;
+          }
+          input.manualLookActive = true;
+          input.cameraTargetYaw = input.yaw;
+          input.lookPointerType = "touch";
+        }
+      }
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (!isGameplayTouch(event)) return;
+      const state = touchInputRef.current;
+      state.touchmove += event.changedTouches.length;
+      let handled = false;
+      const bounds = stage.getBoundingClientRect();
+      for (const touch of Array.from(event.changedTouches)) {
+        const reading = moveWarRoomTouch(
+          state,
+          touch.identifier,
+          touch.clientX - bounds.left,
+          touch.clientY - bounds.top,
+        );
+        if (!reading) continue;
+        handled = true;
+        const input = inputRef.current;
+        const controlPointerId = pointerIdForTouch(touch.identifier);
+        if (reading.role === "joystick") {
+          updateTouchJoystick(controlPointerId, touch.clientX, touch.clientY);
+          input.moveX = reading.moveX;
+          input.moveY = reading.moveY;
+          const baseYaw = mobileControlsRef.current.joystick?.baseYaw ?? input.yaw;
+          input.movementBaseYaw = baseYaw;
+          const cameraYaw = getWarRoomAutoFollowYaw(baseYaw, reading.moveX, reading.moveY);
+          if (cameraYaw !== null && !input.manualLookActive) {
+            input.cameraTargetYaw = cameraYaw;
+          }
+        } else {
+          input.lookDeltaX += reading.dx;
+          input.lookDeltaY += reading.dy;
+          input.lookPointerType = "touch";
+        }
+      }
+      if (handled && event.cancelable) event.preventDefault();
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const state = touchInputRef.current;
+      state.touchend += event.changedTouches.length;
+      let handled = false;
+      for (const touch of Array.from(event.changedTouches)) {
+        handled ||= state.roles.has(touch.identifier);
+        releaseTouch(touch.identifier);
+      }
+      if (handled && event.cancelable) event.preventDefault();
+    };
+    const onTouchCancel = (event: TouchEvent) => {
+      const state = touchInputRef.current;
+      state.touchcancel += event.changedTouches.length;
+      let handled = false;
+      for (const touch of Array.from(event.changedTouches)) {
+        handled ||= state.roles.has(touch.identifier);
+        releaseTouch(touch.identifier);
+      }
+      if (handled && event.cancelable) event.preventDefault();
+    };
+    const onOrientationChange = () => resetTouchControls();
+
+    window.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: false, capture: true });
+    window.addEventListener("touchcancel", onTouchCancel, { passive: false, capture: true });
+    window.addEventListener("orientationchange", onOrientationChange, true);
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart, true);
+      window.removeEventListener("touchmove", onTouchMove, true);
+      window.removeEventListener("touchend", onTouchEnd, true);
+      window.removeEventListener("touchcancel", onTouchCancel, true);
+      window.removeEventListener("orientationchange", onOrientationChange, true);
+      resetTouchControls();
+    };
+  }, [phase, resetTouchControls]);
+
   return (
     <main
       className="war-room"
@@ -1087,6 +1223,7 @@ export default function WarRoomGame({
 
       {phase === "battle" && (
         <div
+          ref={battleStageRef}
           className="war-room-battle"
           onPointerDownCapture={handleWorldPointerDown}
           onPointerUpCapture={handleWorldPointerUp}
@@ -1144,6 +1281,17 @@ export default function WarRoomGame({
           })()}
           {(debugMode || debugDiagnosticsEnabled) && (
             <div className="war-room-camera-debug" aria-label="Kamera ve dokunmatik hata ayıklama">
+              <span data-touch-diagnostics={formatWarRoomTouchDiagnostics(touchInputRef.current)}>
+                TOUCH {touchInputRef.current.touchstart}/{touchInputRef.current.touchmove}/
+                {touchInputRef.current.touchend}/{touchInputRef.current.touchcancel}
+                {" · AKTİF "}{[...touchInputRef.current.roles.entries()]
+                  .map(([id, role]) => `${id}:${role}`)
+                  .join(", ") || "—"}
+                {" · HAREKET "}{touchInputRef.current.input.moveX.toFixed(2)},
+                {touchInputRef.current.input.moveY.toFixed(2)}
+                {" · BAKIŞ "}{touchInputRef.current.input.lookDX.toFixed(1)},
+                {touchInputRef.current.input.lookDY.toFixed(1)}
+              </span>
               <span>
                 YAW {((lookDebugSnapshot.yaw * 180 / Math.PI) % 360).toFixed(1)}°
                 {" · PITCH "}{(lookDebugSnapshot.pitch * 180 / Math.PI).toFixed(1)}°
@@ -1187,6 +1335,8 @@ export default function WarRoomGame({
                 HARİTA: {currentRoom.name} · ÇİZİM: {debugRenderStats.drawCalls}/{WAR_ROOM_DRAW_CALL_BUDGET}
                 {" · BÜTÇE: "}{isWithinWarRoomDrawCallBudget(debugRenderStats.drawCalls) ? "OK" : "AŞILDI"}
                 {" · FPS: "}{debugRenderStats.fps.toFixed(0)}
+                {" · KARE: "}{debugRenderStats.frameTimeMs.toFixed(1)} ms
+                {" · ÜÇGEN: "}{debugRenderStats.triangles.toLocaleString("tr-TR")}
               </span>
             </div>
           )}
