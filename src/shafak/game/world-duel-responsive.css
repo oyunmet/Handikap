@@ -1,4 +1,10 @@
 /* Touch-first duel HUD layouts. Keep the center of the arena readable. */
+@media (pointer: coarse) {
+  .duel-controls--field .duel-stick {
+    display: grid;
+  }
+}
+
 @media
   (orientation: portrait) and (max-width: 760px),
   (orientation: portrait) and (pointer: coarse) {
@@ -213,6 +219,31 @@
     bottom: max(9px, env(safe-area-inset-bottom));
     width: 188px;
     height: 146px;
+  }
+
+  /* GameButton's inline defaults are larger than these compact touch layouts. */
+  .duel-controls--field .duel-control-cluster .duel-control.game-button {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    --game-button-face: 46px !important;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control.is-block {
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    --game-button-face: 50px !important;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack {
+    width: 72px !important;
+    min-width: 72px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    --game-button-face: 64px !important;
   }
 
   .duel-controls--field .duel-control-cluster__skills {

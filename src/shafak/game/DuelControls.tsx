@@ -217,10 +217,14 @@ export default function DuelControls({
     onMove(x, y);
   };
   const onJoystickDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (disabled) return;
+    if (disabled || joystickPointer.current !== null) return;
     event.preventDefault();
     joystickPointer.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Continue tracking while the pointer remains over the joystick if capture is unavailable.
+    }
     readJoystick(event);
   };
   const onJoystickMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -259,6 +263,7 @@ export default function DuelControls({
         onPointerMove={onJoystickMove}
         onPointerUp={onJoystickRelease}
         onPointerCancel={onJoystickRelease}
+        onLostPointerCapture={onJoystickRelease}
       >
         <span aria-hidden="true" />
       </div>

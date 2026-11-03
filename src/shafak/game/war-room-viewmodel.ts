@@ -22,6 +22,7 @@ export type WarRoomViewModelPose = {
 };
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+const WALK_GAIT_SCALE = 0.12;
 
 export function stepWarRoomViewModelWallProximity(current: number, target: number, delta: number) {
   const safeCurrent = clamp01(current);
@@ -108,7 +109,7 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   const switchProgress = clamp01(state.switchProgress ?? 1);
   const switchDip = Math.sin((1 - switchProgress) * Math.PI * 0.5);
   const walkPhase = Number.isFinite(state.walkPhase) ? state.walkPhase! : state.time * 8.4;
-  const walkAmount = movement * swayScale * motion * (state.aiming ? 0.58 : 1);
+  const walkAmount = movement * swayScale * motion * WALK_GAIT_SCALE * (state.aiming ? 0.58 : 1);
   const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion * swayScale;
   const walkSwayX = Math.sin(walkPhase) * walkAmount * 0.04;
   const walkBob = Math.sin(walkPhase * 2) * walkAmount * 0.012;
