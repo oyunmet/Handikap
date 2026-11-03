@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   getWarRoomViewModelConfig,
+  getWarRoomViewModelGripPoints,
   getWarRoomViewModelHorizontalFactor,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
@@ -126,9 +127,47 @@ test("first-person weapon scale keeps oversized bows and crossbows controlled", 
   assert.equal(getWarRoomViewModelScaleFactor(1.75), 0.6);
 });
 
+test("sprint and weapon switching add restrained, recoverable view-model poses", () => {
+  const base = {
+    time: 0,
+    movement: 0.4,
+    aiming: false,
+    recoil: 0,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    meleeProgress: null,
+    meleeStyle: "slash",
+    comboIndex: 0,
+    motionReduced: false,
+  };
+  const walking = getWarRoomViewModelPose(base);
+  const sprinting = getWarRoomViewModelPose({ ...base, movement: 1, sprint: 1 });
+  const lowering = getWarRoomViewModelPose({ ...base, switchProgress: 0 });
+  const raised = getWarRoomViewModelPose({ ...base, switchProgress: 1 });
+
+  assert.ok(sprinting.position[0] < walking.position[0]);
+  assert.ok(sprinting.position[1] < walking.position[1]);
+  assert.ok(lowering.position[1] < raised.position[1]);
+  assert.ok(lowering.position[1] > raised.position[1] - 0.31);
+});
+
 test("each modeled War Room weapon carries its own view-model transform", () => {
   const rifle = getWarRoomViewModelConfig("powder_rifle", false);
   const sidearm = getWarRoomViewModelConfig("sidearm", false);
   assert.notDeepEqual(rifle.position, sidearm.position);
   assert.notDeepEqual(rifle.rotation, sidearm.rotation);
+});
+
+test("the four primary ranged weapons define distinct right and support-hand grips", () => {
+  for (const weaponId of ["powder_rifle", "sidearm", "crossbow", "longbow"]) {
+    const { gripR, gripL } = getWarRoomViewModelGripPoints(weaponId);
+    assert.equal(gripR.length, 3);
+    assert.equal(gripL.length, 3);
+    assert.notDeepEqual(gripR, gripL);
+    assert.ok([...gripR, ...gripL].every(Number.isFinite));
+  }
+  assert.notDeepEqual(
+    getWarRoomViewModelGripPoints("crossbow"),
+    getWarRoomViewModelGripPoints("longbow"),
+  );
 });

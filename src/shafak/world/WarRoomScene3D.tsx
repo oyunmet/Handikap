@@ -56,6 +56,7 @@ import {
 import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
+  getWarRoomActorRootYawToTarget,
   getWarRoomPostAttackStrafeUntil,
   getWarRoomYawError,
   getWarRoomFacingYawFromRootYaw,
@@ -101,6 +102,7 @@ import {
 } from "../game/war-room-input";
 import {
   getWarRoomViewModelConfig,
+  getWarRoomViewModelGripPoints,
   getWarRoomViewModelHorizontalFactor,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
@@ -155,6 +157,7 @@ import {
   getNearestWarRoomCover,
   getWarRoomCommanderHealth,
   getWarRoomRemaining,
+  getWarRoomFallDamage,
   moveWarRoomEntity,
   nextWarRoomRandom,
   segmentBlockFraction,
@@ -173,13 +176,13 @@ import {
   type WarRoomSoundSurface,
 } from "../game/war-room-audio";
 import { isWarRoomLowHealth } from "../game/war-room-feedback";
-import { PLAYER_CHARACTER_MODEL_FACING } from "./player-model";
 import {
   WarRoomAnimatedActor,
   WarRoomAssetBoundary,
   WarRoomStaticModel,
   type WarRoomAnimationState,
 } from "./WarRoomModels";
+import { WarRoomFirstPersonArms, type WarRoomArmsAnimation } from "./WarRoomFirstPersonArms";
 
 type Props = {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
@@ -190,6 +193,7 @@ type Props = {
   cameraMode: WarRoomCameraMode;
   motionReduced: boolean;
   weaponSway: WarRoomWeaponSwayLevel;
+  armsVisible: boolean;
   shoulderSide: WarRoomShoulderSide;
   shoulderOffset: number;
   bloodEffects: boolean;
@@ -1145,18 +1149,96 @@ function Battlefield({
   );
 }
 
+function smoothProgress(value: number) {
+  const clamped = Math.max(0, Math.min(1, value));
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+function WarRoomWeaponReloadMotion({
+  weaponId,
+  animationRef,
+  magazineRef,
+  boltRef,
+  arrowRef,
+}: {
+  weaponId: WarRoomWeaponId;
+  animationRef: MutableRefObject<WarRoomArmsAnimation>;
+  magazineRef: MutableRefObject<THREE.Group | null>;
+  boltRef: MutableRefObject<THREE.Group | null>;
+  arrowRef: MutableRefObject<THREE.Group | null>;
+}) {
+  useFrame(() => {
+    const animation = animationRef.current;
+    const progress = animation.reloadProgress;
+    const magazine = magazineRef.current;
+    if (magazine) {
+      let magazineY = -0.14;
+      let visible = animation.loaded || progress > 0.04;
+      if (progress >= 0.12 && progress < 0.34) {
+        magazineY -= 0.24 * smoothProgress((progress - 0.12) / 0.22);
+      } else if (progress >= 0.34 && progress < 0.58) {
+        magazineY -= 0.24;
+        visible = progress < 0.43;
+      } else if (progress >= 0.58 && progress < 0.82) {
+        magazineY -= 0.24 * (1 - smoothProgress((progress - 0.58) / 0.24));
+      }
+      magazine.position.y = magazineY;
+      magazine.visible = visible;
+    }
+
+    const bolt = boltRef.current;
+    if (bolt) {
+      const pull = progress < 0.78
+        ? 0
+        : progress < 0.88
+          ? smoothProgress((progress - 0.78) / 0.1)
+          : progress < 0.97
+            ? 1 - smoothProgress((progress - 0.88) / 0.09)
+            : 0;
+      bolt.position.z = -0.24 + pull * 0.14;
+    }
+
+    const arrow = arrowRef.current;
+    if (!arrow) return;
+    if (weaponId === "crossbow") {
+      const insertion = smoothProgress((progress - 0.25) / 0.5);
+      arrow.visible = animation.loaded || progress > 0.1;
+      if (progress > 0 && progress < 1) {
+        arrow.position.set(
+          0.32 * (1 - insertion),
+          -0.18 * (1 - insertion) + 0.12 * insertion,
+          -0.18 - 0.22 * insertion,
+        );
+      } else {
+        arrow.position.set(0, 0.12, -0.4);
+      }
+    } else if (weaponId === "longbow") {
+      const draw = Math.max(0, Math.min(1, animation.chargeProgress));
+      arrow.visible = animation.loaded || draw > 0.04;
+      arrow.position.set(0, 0.02, -0.3 + draw * 0.18);
+    }
+  });
+  return null;
+}
+
 function WeaponModel({
   weaponId,
   mount,
   muzzleAnchorRef,
   muzzleFlashRef,
+  animationRef,
 }: {
   weaponId: WarRoomWeaponId;
   mount: WarRoomWeaponMount;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
   muzzleFlashRef?: MutableRefObject<THREE.Group | null>;
+  animationRef?: MutableRefObject<WarRoomArmsAnimation>;
 }) {
+  const magazineRef = useRef<THREE.Group>(null);
+  const boltRef = useRef<THREE.Group>(null);
+  const arrowRef = useRef<THREE.Group>(null);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
+  const gripPoints = getWarRoomViewModelGripPoints(weaponId);
   const crossbow = weaponId === "crossbow";
   const bow = weaponId === "longbow";
   const melee = weapon.weaponClass === "melee";
@@ -1233,6 +1315,16 @@ function WeaponModel({
             <cylinderGeometry args={[0.018, 0.018, 0.76, 5]} />
             <meshStandardMaterial color="#e7d2a6" roughness={0.45} />
           </mesh>
+          <group ref={arrowRef} position={[0, 0.02, -0.3]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} castShadow={false}>
+              <cylinderGeometry args={[0.009, 0.012, 0.48, 5]} />
+              <meshStandardMaterial color="#d7bd8e" roughness={0.82} />
+            </mesh>
+            <mesh position={[0, 0.25, 0]} rotation={[-Math.PI / 2, 0, 0]} castShadow={false}>
+              <coneGeometry args={[0.025, 0.1, 5]} />
+              <meshStandardMaterial color="#a9a396" metalness={0.5} roughness={0.55} />
+            </mesh>
+          </group>
         </>
       ) : (
         <>
@@ -1244,17 +1336,47 @@ function WeaponModel({
             <boxGeometry args={[Math.max(0.1, bodyWidth * 0.66), 0.025, sidearm ? 0.2 : 0.42]} />
             <meshStandardMaterial color={weapon.color} roughness={0.4} metalness={0.44} />
           </mesh>
-          {!sidearm && (
-            <mesh position={[0, -0.14, -0.04]} rotation={[0.22, 0, 0]} castShadow>
-              <boxGeometry args={[0.12, 0.36, 0.17]} />
-              <meshStandardMaterial color="#4b3529" roughness={0.8} />
-            </mesh>
+          {!crossbow && (
+            <group ref={magazineRef} position={[0, -0.14, -0.04]} rotation={[0.22, 0, 0]}>
+              <mesh castShadow={false}>
+                <boxGeometry args={sidearm ? [0.1, 0.21, 0.12] : [0.12, 0.36, 0.17]} />
+                <meshStandardMaterial color="#4b3529" roughness={0.84} />
+              </mesh>
+              <mesh position={[0, -0.02, 0.012]} castShadow={false}>
+                <boxGeometry args={[sidearm ? 0.073 : 0.09, 0.035, 0.014]} />
+                <meshStandardMaterial color="#b18a5e" roughness={0.76} />
+              </mesh>
+            </group>
+          )}
+          {!crossbow && (
+            <group ref={boltRef} position={[sidearm ? 0.11 : 0.16, 0.11, -0.24]}>
+              <mesh castShadow={false}>
+                <boxGeometry args={sidearm ? [0.055, 0.035, 0.16] : [0.075, 0.045, 0.2]} />
+                <meshStandardMaterial color="#55534c" metalness={0.58} roughness={0.44} />
+              </mesh>
+              <mesh position={[0, -0.025, -0.015]} castShadow={false}>
+                <boxGeometry args={[0.06, 0.035, 0.07]} />
+                <meshStandardMaterial color="#77736a" metalness={0.5} roughness={0.5} />
+              </mesh>
+            </group>
           )}
           {crossbow && (
-            <mesh position={[0, 0.05, -0.13]} castShadow>
-              <boxGeometry args={[0.9, 0.045, 0.085]} />
-              <meshStandardMaterial color="#a88558" roughness={0.68} />
-            </mesh>
+            <>
+              <mesh position={[0, 0.05, -0.13]} castShadow={false}>
+                <boxGeometry args={[0.9, 0.045, 0.085]} />
+                <meshStandardMaterial color="#a88558" roughness={0.68} />
+              </mesh>
+              <group ref={arrowRef} position={[0, 0.12, -0.4]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]} castShadow={false}>
+                  <cylinderGeometry args={[0.009, 0.012, 0.42, 5]} />
+                  <meshStandardMaterial color="#d7bd8e" roughness={0.82} />
+                </mesh>
+                <mesh position={[0, 0.22, 0]} rotation={[-Math.PI / 2, 0, 0]} castShadow={false}>
+                  <coneGeometry args={[0.026, 0.1, 5]} />
+                  <meshStandardMaterial color="#a9a396" metalness={0.5} roughness={0.55} />
+                </mesh>
+              </group>
+            </>
           )}
           {shotgun && (
             <mesh position={[0, -0.08, -0.48]} castShadow>
@@ -1279,6 +1401,12 @@ function WeaponModel({
     : proceduralFallback;
   return (
     <group name={`war-room-weapon:${weapon.id}`} position={[0, 0, 0]}>
+      {animationRef && (
+        <>
+          <group name={`war-room-gripR:${weaponId}`} position={gripPoints.gripR} visible={false} />
+          <group name={`war-room-gripL:${weaponId}`} position={gripPoints.gripL} visible={false} />
+        </>
+      )}
       {weapon.modelFile ? (
         <WarRoomAssetBoundary fallback={meleeFallback}>
           <Suspense fallback={meleeFallback}>
@@ -1298,6 +1426,15 @@ function WeaponModel({
           </Suspense>
         </WarRoomAssetBoundary>
       ) : meleeFallback}
+      {animationRef && (
+        <WarRoomWeaponReloadMotion
+          weaponId={weaponId}
+          animationRef={animationRef}
+          magazineRef={magazineRef}
+          boltRef={boltRef}
+          arrowRef={arrowRef}
+        />
+      )}
       <group ref={muzzleAnchorRef} name="war-room-muzzle-anchor" position={muzzle}>
         <group ref={muzzleFlashRef} name="war-room-muzzle-flash" visible={false}>
           <mesh>
@@ -1314,53 +1451,6 @@ function WeaponModel({
   );
 }
 
-function FirstPersonArms() {
-  const sleeve = <meshStandardMaterial color="#373b3b" roughness={0.86} flatShading />;
-  const cuff = <meshStandardMaterial color="#9b7950" roughness={0.54} metalness={0.42} flatShading />;
-  const hand = <meshStandardMaterial color="#b98a66" roughness={0.9} flatShading />;
-
-  return (
-    <group name="war-room-first-person-arms">
-      <group position={[0.1, -0.2, -0.12]} rotation={[0.04, 0.1, 0.58]}>
-        <mesh castShadow={false}>
-          <capsuleGeometry args={[0.12, 0.52, 3, 7]} />
-          {sleeve}
-        </mesh>
-        <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, 0]} castShadow={false}>
-          <boxGeometry args={[0.25, 0.075, 0.24]} />
-          {cuff}
-        </mesh>
-        <mesh position={[-0.14, 0.27, -0.16]} castShadow={false}>
-          <sphereGeometry args={[0.115, 8, 6]} />
-          {hand}
-        </mesh>
-        <mesh position={[-0.2, 0.3, -0.22]} rotation={[0, 0, -0.4]} castShadow={false}>
-          <capsuleGeometry args={[0.043, 0.1, 2, 5]} />
-          {hand}
-        </mesh>
-      </group>
-      <group position={[-0.16, -0.22, -0.4]} rotation={[0.02, -0.08, -0.58]}>
-        <mesh castShadow={false}>
-          <capsuleGeometry args={[0.115, 0.5, 3, 7]} />
-          {sleeve}
-        </mesh>
-        <mesh position={[0, 0.19, -0.015]} castShadow={false}>
-          <boxGeometry args={[0.24, 0.075, 0.23]} />
-          {cuff}
-        </mesh>
-        <mesh position={[0.1, 0.27, -0.18]} castShadow={false}>
-          <sphereGeometry args={[0.11, 8, 6]} />
-          {hand}
-        </mesh>
-        <mesh position={[0.17, 0.3, -0.24]} rotation={[0, 0, 0.35]} castShadow={false}>
-          <capsuleGeometry args={[0.042, 0.1, 2, 5]} />
-          {hand}
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
 function FirstPersonWeaponViewModel({
   runtimeRef,
   inputRef,
@@ -1370,6 +1460,8 @@ function FirstPersonWeaponViewModel({
   cameraMode,
   motionReduced,
   weaponSway,
+  armsVisible,
+  sourceCamera,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
@@ -1379,11 +1471,20 @@ function FirstPersonWeaponViewModel({
   cameraMode: WarRoomCameraMode;
   motionReduced: boolean;
   weaponSway: WarRoomWeaponSwayLevel;
+  armsVisible: boolean;
+  sourceCamera: THREE.Camera;
 }) {
-  const { camera, size } = useThree();
+  const { size } = useThree();
   const weaponRootRef = useRef<THREE.Group>(null);
   const armsRootRef = useRef<THREE.Group>(null);
   const weaponPoseRef = useRef<THREE.Group>(null);
+  const armsAnimationRef = useRef<WarRoomArmsAnimation>({
+    weaponId,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    recoil: 0,
+    loaded: true,
+  });
   const cameraPositionRef = useRef(new THREE.Vector3());
   const cameraQuaternionRef = useRef(new THREE.Quaternion());
   const cameraForwardRef = useRef(new THREE.Vector3());
@@ -1391,11 +1492,13 @@ function FirstPersonWeaponViewModel({
   const localEulerRef = useRef(new THREE.Euler());
   const wallProbeRef = useRef({ x: 0, y: 0, z: 0 });
   const preparedMeshesRef = useRef(new WeakSet<THREE.Mesh>());
-  const previousPlayerPositionRef = useRef<{ x: number; z: number } | null>(null);
+  const previousPlayerPositionRef = useRef({ x: 0, z: 0, initialized: false });
   const filteredMovementRef = useRef(0);
   const walkPhaseRef = useRef(0);
   const wallProximityRef = useRef(0);
   const movementActiveRef = useRef(false);
+  const lastWeaponIdRef = useRef(weaponId);
+  const switchProgressRef = useRef(1);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   const viewConfig = getWarRoomViewModelConfig(weaponId, weapon.weaponClass === "melee");
@@ -1406,17 +1509,19 @@ function FirstPersonWeaponViewModel({
     const weaponPose = weaponPoseRef.current;
     if (inputRef.current.paused) return;
     if (!group || !arms || !weaponPose) return;
-    camera.updateWorldMatrix(true, false);
-    camera.getWorldPosition(cameraPositionRef.current);
-    camera.getWorldQuaternion(cameraQuaternionRef.current);
+    sourceCamera.updateWorldMatrix(true, false);
+    sourceCamera.getWorldPosition(cameraPositionRef.current);
+    sourceCamera.getWorldQuaternion(cameraQuaternionRef.current);
     const player = runtimeRef.current.player;
     const input = inputRef.current;
     const delta = Math.min(rawDelta, 0.05);
     const previousPlayerPosition = previousPlayerPositionRef.current;
-    const measuredSpeed = previousPlayerPosition && delta > 0
+    const measuredSpeed = previousPlayerPosition.initialized && delta > 0
       ? Math.hypot(player.x - previousPlayerPosition.x, player.z - previousPlayerPosition.z) / delta
       : 0;
-    previousPlayerPositionRef.current = { x: player.x, z: player.z };
+    previousPlayerPosition.x = player.x;
+    previousPlayerPosition.z = player.z;
+    previousPlayerPosition.initialized = true;
     const normalizedSpeed = Math.min(1, measuredSpeed / 8.2);
     if (!movementActiveRef.current && normalizedSpeed >= 0.2) movementActiveRef.current = true;
     else if (movementActiveRef.current && normalizedSpeed <= 0.1) movementActiveRef.current = false;
@@ -1444,9 +1549,21 @@ function FirstPersonWeaponViewModel({
     const meleeProgress = weapon.weaponClass === "melee" && player.meleeUntil > clock
       ? Math.max(0, Math.min(1, (clock - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
       : null;
+    if (lastWeaponIdRef.current !== weaponId) {
+      lastWeaponIdRef.current = weaponId;
+      switchProgressRef.current = 0;
+    } else {
+      switchProgressRef.current = Math.min(1, switchProgressRef.current + delta / 0.38);
+    }
+    armsAnimationRef.current.weaponId = weaponId;
+    armsAnimationRef.current.reloadProgress = reloadProgress;
+    armsAnimationRef.current.chargeProgress = chargeProgress;
+    armsAnimationRef.current.recoil = recoil;
+    armsAnimationRef.current.loaded = weapon.weaponClass === "melee"
+      || (player.ammo[weaponId]?.magazine ?? 1) > 0
     const aspect = size.height > 0 ? size.width / size.height : 1.75;
     const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
-    camera.getWorldDirection(cameraForwardRef.current);
+    sourceCamera.getWorldDirection(cameraForwardRef.current);
     const targetWallProximity = getWarRoomViewModelWallProximity(
       cameraPositionRef.current,
       cameraForwardRef.current,
@@ -1472,9 +1589,11 @@ function FirstPersonWeaponViewModel({
       meleeStyle: weapon.meleeStyle ?? "slash",
       comboIndex: player.meleeAttackComboIndex,
       motionReduced,
+      sprint: Math.max(0, Math.min(1, (filteredMovementRef.current - 0.72) / 0.28)),
+      switchProgress: switchProgressRef.current,
     }, aspect);
     group.visible = cameraMode === "first-person";
-    group.scale.setScalar(viewConfig.scale * getWarRoomViewModelScaleFactor(aspect));
+    group.scale.setScalar(getWarRoomViewModelScaleFactor(aspect));
     group.position.copy(cameraPositionRef.current);
     group.quaternion.copy(cameraQuaternionRef.current);
 
@@ -1500,6 +1619,7 @@ function FirstPersonWeaponViewModel({
     );
     localQuaternionRef.current.setFromEuler(localEulerRef.current);
     weaponPose.quaternion.copy(localQuaternionRef.current);
+    weaponPose.scale.setScalar(viewConfig.scale);
     group.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || preparedMeshesRef.current.has(object)) return;
       preparedMeshesRef.current.add(object);
@@ -1512,13 +1632,17 @@ function FirstPersonWeaponViewModel({
       ref={weaponRootRef}
       name="war-room-first-person-weapon"
       visible={cameraMode === "first-person"}
-      scale={viewConfig.scale}
+      scale={getWarRoomViewModelScaleFactor(size.height > 0 ? size.width / size.height : 1.75)}
     >
       <group ref={armsRootRef} name="war-room-first-person-arms-mount">
-        <FirstPersonArms />
+        <WarRoomFirstPersonArms
+          animationRef={armsAnimationRef}
+          weaponScale={viewConfig.scale}
+          visible={armsVisible}
+        />
       </group>
       <group ref={weaponPoseRef} name="war-room-first-person-weapon-bob">
-        <WeaponModel weaponId={weaponId} mount={mount} />
+        <WeaponModel weaponId={weaponId} mount={mount} animationRef={armsAnimationRef} />
       </group>
     </group>
   );
@@ -2077,14 +2201,13 @@ function EnemyActor({
       }
     }
     if (player) {
-      const targetYaw = getWarRoomActorYawToTarget(
+      const targetRootYaw = getWarRoomActorRootYawToTarget(
         enemy.x,
         enemy.z,
         player.x,
         player.z,
-        PLAYER_CHARACTER_MODEL_FACING,
       );
-      group.rotation.y = shortestLerp(group.rotation.y, targetYaw, 24, delta);
+      group.rotation.y = shortestLerp(group.rotation.y, targetRootYaw, 24, delta);
     }
     const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.2 : 0;
     if (enemy.alive) delete group.userData.warRoomDeathStartedAt;
@@ -2474,6 +2597,7 @@ function WarRoomRuntimeScene({
   cameraMode,
   motionReduced,
   weaponSway,
+  armsVisible,
   shoulderSide,
   shoulderOffset,
   bloodEffects,
@@ -2494,14 +2618,28 @@ function WarRoomRuntimeScene({
     result.name = "war-room-first-person-view-model-pass";
     return result;
   }, []);
+  const viewModelCamera = useMemo(() => {
+    const result = new THREE.PerspectiveCamera(63, 1, 0.012, 18);
+    result.name = "war-room-first-person-view-model-camera";
+    return result;
+  }, []);
   useFrame(({ gl: renderer, camera: activeCamera, scene: worldScene }) => {
+    activeCamera.updateWorldMatrix(true, false);
+    activeCamera.getWorldPosition(viewModelCamera.position);
+    activeCamera.getWorldQuaternion(viewModelCamera.quaternion);
+    const viewAspect = size.height > 0 ? size.width / size.height : 1.75;
+    if (viewModelCamera.aspect !== viewAspect) {
+      viewModelCamera.aspect = viewAspect;
+      viewModelCamera.updateProjectionMatrix();
+    }
+    viewModelCamera.updateMatrixWorld(true);
     const previousAutoClear = renderer.autoClear;
     try {
       renderer.autoClear = false;
       renderer.clear();
       renderer.render(worldScene, activeCamera);
       renderer.clearDepth();
-      renderer.render(viewModelScene, activeCamera);
+      renderer.render(viewModelScene, viewModelCamera);
     } finally {
       renderer.autoClear = previousAutoClear;
     }
@@ -2783,6 +2921,8 @@ function WarRoomRuntimeScene({
   const footDustAtRef = useRef(0);
   const footstepAtRef = useRef(0);
   const previousJumpHeightRef = useRef(0);
+  const fallStartHeightRef = useRef<number | null>(null);
+  const fallRuntimeRef = useRef<WarRoomRuntime | null>(null);
   const tracerState = useMemo(() => ({
     geometry: new THREE.BufferGeometry(),
     positions: new Float32Array(WAR_ROOM_TRACER_POOL_SIZE * 6),
@@ -3383,6 +3523,8 @@ function WarRoomRuntimeScene({
         -Math.cos(attackYaw) * plan.lungeMeters,
         WAR_ROOM_PLAYER_COLLISION_RADIUS,
         activeBlockersRef.current,
+        player.floorHeight,
+        player.jumpHeight,
       );
       player.x = lunged.x;
       player.z = lunged.z;
@@ -3647,6 +3789,11 @@ function WarRoomRuntimeScene({
 
   useFrame((frame, rawDelta) => {
     const runtime = runtimeRef.current;
+    if (fallRuntimeRef.current !== runtime) {
+      fallRuntimeRef.current = runtime;
+      fallStartHeightRef.current = null;
+      previousJumpHeightRef.current = runtime.player.jumpHeight;
+    }
     const player = runtime.player;
     const input = inputRef.current;
     if (input.paused) return;
@@ -3940,15 +4087,27 @@ function WarRoomRuntimeScene({
       WAR_ROOM_PLAYER_COLLISION_RADIUS,
       activeBlockersRef.current,
       player.floorHeight,
+      player.jumpHeight,
     );
     player.x = nextPosition.x;
     player.z = nextPosition.z;
-    player.floorHeight = getWarRoomFloorHeight(
+    const previousFloorHeight = player.floorHeight;
+    const previousJumpHeight = player.jumpHeight;
+    const nextFloorHeight = getWarRoomFloorHeight(
       player.x,
       player.z,
       player.floorHeight,
       runtime.room.buildings,
     );
+    const lostFloorHeight = previousFloorHeight - nextFloorHeight;
+    if (lostFloorHeight > 0.45) {
+      fallStartHeightRef.current = Math.max(
+        fallStartHeightRef.current ?? Number.NEGATIVE_INFINITY,
+        previousFloorHeight + previousJumpHeight,
+      );
+      player.jumpHeight += lostFloorHeight;
+    }
+    player.floorHeight = nextFloorHeight;
     const nearbyLoot = getNearbyWarRoomLootChest(runtime);
     if (!input.lootHeld || !nearbyLoot) {
       player.lootChestId = null;
@@ -4004,10 +4163,36 @@ function WarRoomRuntimeScene({
         spawnImpact(pickupImpactScratch.set(pickup.point.x, 0.82, pickup.point.z), "#74f5a6", now, 12, 0.06);
       }
     }
+    if (fallStartHeightRef.current !== null) {
+      fallStartHeightRef.current = Math.max(
+        fallStartHeightRef.current,
+        player.floorHeight + player.jumpHeight,
+      );
+    }
     player.jumpVelocity -= 14 * delta;
     player.jumpHeight = Math.max(0, player.jumpHeight + player.jumpVelocity * delta);
     if (player.jumpHeight === 0) player.jumpVelocity = 0;
     const landed = previousJumpHeightRef.current > 0.08 && player.jumpHeight <= 0.001;
+    if (landed && fallStartHeightRef.current !== null) {
+      const fallDamage = getWarRoomFallDamage(fallStartHeightRef.current - player.floorHeight);
+      fallStartHeightRef.current = null;
+      if (fallDamage > 0) {
+        const hit = applyWarRoomDamage(player, fallDamage);
+        if (hit.damage > 0) {
+          player.lastDamageAt = now;
+          player.lastCombatAt = now;
+          player.invulnerableUntil = Math.max(player.invulnerableUntil, now + 0.4);
+          player.damageDirection = 0;
+          player.lastHitText = `−${hit.damage} CAN · DÜŞME`;
+          player.hitMessageUntil = now + 1.2;
+          player.lastHitDamage = hit.damage;
+          player.lastHitSource = "received";
+          player.lastHitCritical = false;
+          player.damageEventId += 1;
+          cameraKickRef.current = Math.max(cameraKickRef.current, 0.08);
+        }
+      }
+    }
     if (
       WAR_ROOM_POOLED_FX_ENABLED
       && (landed || (
@@ -4235,6 +4420,7 @@ function WarRoomRuntimeScene({
             0.4,
             activeBlockersRef.current,
             player.floorHeight,
+            player.jumpHeight,
           );
           player.x = playerSeparated.x;
           player.z = playerSeparated.z;
@@ -4275,17 +4461,24 @@ function WarRoomRuntimeScene({
       if (now < enemy.nextShotAt || now < player.invulnerableUntil) continue;
       const enemyIndex = runtime.enemies.indexOf(enemy);
       const enemyGroup = enemyGroupRefs.current[enemyIndex];
-      const targetYaw = getWarRoomActorYawToTarget(
+      const enemyFacingYaw = getWarRoomActorYawToTarget(
         enemy.x,
         enemy.z,
         player.x,
         player.z,
-        PLAYER_CHARACTER_MODEL_FACING,
+        0,
       );
-        const actorYaw = enemyGroup?.rotation.y ?? targetYaw;
-      if (!enemyGroup || !isWarRoomFacingTarget(actorYaw, targetYaw)) continue;
-      enemyGroup.rotation.y = targetYaw;
-      const enemyFacingYaw = targetYaw + PLAYER_CHARACTER_MODEL_FACING;
+      const targetRootYaw = getWarRoomActorRootYawToTarget(
+        enemy.x,
+        enemy.z,
+        player.x,
+        player.z,
+      );
+      const actorFacingYaw = enemyGroup
+        ? getWarRoomFacingYawFromRootYaw(enemyGroup.rotation.y)
+        : enemyFacingYaw;
+      if (!enemyGroup || !isWarRoomFacingTarget(actorFacingYaw, enemyFacingYaw)) continue;
+      enemyGroup.rotation.y = targetRootYaw;
       enemy.nextShotAt = now + (enemy.commander ? 1.2 : 1.65) + nextWarRoomRandom(runtime) * 0.55;
       const muzzle = muzzleScratch.set(
         enemy.x + 0.22,
@@ -4538,6 +4731,7 @@ function WarRoomRuntimeScene({
         WAR_ROOM_PLAYER_COLLISION_RADIUS,
         activeBlockersRef.current,
         player.floorHeight,
+        player.jumpHeight,
       );
       player.x = clearancePosition.x;
       player.z = clearancePosition.z;
@@ -4645,11 +4839,13 @@ function WarRoomRuntimeScene({
       eyeHeightTarget - cameraEyeHeightRef.current
     ) * (1 - Math.exp(-delta * 10));
     const cameraHeight = cameraMode === "first-person" ? cameraEyeHeightRef.current : 1.55;
-    const smoothedFloorHeight = stepWarRoomCameraFloorHeight(
-      cameraFloorHeightRef.current,
-      player.floorHeight,
-      delta,
-    );
+    const smoothedFloorHeight = fallStartHeightRef.current !== null
+      ? player.floorHeight
+      : stepWarRoomCameraFloorHeight(
+        cameraFloorHeightRef.current,
+        player.floorHeight,
+        delta,
+      );
     const smoothedEye = {
       x: player.x,
       y: smoothedFloorHeight + player.jumpHeight + cameraHeight,
@@ -5084,8 +5280,9 @@ function WarRoomRuntimeScene({
       />
       {createPortal(
         <>
-          <ambientLight color="#fff3df" intensity={1.2} />
-          <directionalLight color="#fff0d7" intensity={1.8} position={[1.5, 2.5, 3]} />
+          <ambientLight color="#fff0dc" intensity={1.35} />
+          <directionalLight color="#fff0d7" intensity={1.55} position={[1.5, 2.5, 3]} />
+          <directionalLight color="#d7a978" intensity={0.48} position={[-2, 1.2, -1]} />
           <FirstPersonWeaponViewModel
             runtimeRef={runtimeRef}
             inputRef={inputRef}
@@ -5095,10 +5292,12 @@ function WarRoomRuntimeScene({
             cameraMode={cameraMode}
             motionReduced={motionReduced}
             weaponSway={weaponSway}
+            armsVisible={armsVisible}
+            sourceCamera={camera}
           />
         </>,
         viewModelScene,
-        { camera },
+        { camera: viewModelCamera },
       )}
       <MeleeDebugCone
         runtimeRef={runtimeRef}

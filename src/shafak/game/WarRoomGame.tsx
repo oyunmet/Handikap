@@ -105,6 +105,7 @@ type Props = {
   vibrationEnabled: boolean;
   motionReduced: boolean;
   weaponSway: WarRoomWeaponSwayLevel;
+  armsVisible: boolean;
   debugDiagnosticsEnabled: boolean;
   onOpenSettings: () => void;
   settingsOpen: boolean;
@@ -522,6 +523,7 @@ export default function WarRoomGame({
   vibrationEnabled,
   motionReduced,
   weaponSway,
+  armsVisible,
   debugDiagnosticsEnabled,
   onOpenSettings,
   settingsOpen,
@@ -1407,6 +1409,7 @@ export default function WarRoomGame({
             cameraMode="first-person"
             motionReduced={motionReduced}
             weaponSway={weaponSway}
+            armsVisible={armsVisible}
             shoulderSide="right"
             shoulderOffset={0}
             bloodEffects={bloodEffects}

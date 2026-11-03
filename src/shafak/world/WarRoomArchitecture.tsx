@@ -11,6 +11,7 @@ type BuildingProps = { building: WarRoomBuilding };
 
 type HousePalette = {
   wall: string;
+  interiorWall: string;
   foundation: string;
   timber: string;
   roof: string;
@@ -20,14 +21,14 @@ type HousePalette = {
 };
 
 const HOUSE_PALETTES: HousePalette[] = [
-  { wall: "#b9ad97", foundation: "#777267", timber: "#594d40", roof: "#504b47", roofEdge: "#393a37", accent: "#89775f", glass: "#71888a" },
-  { wall: "#a5a59e", foundation: "#666a68", timber: "#4f504d", roof: "#464d50", roofEdge: "#363d40", accent: "#927e5e", glass: "#73898b" },
-  { wall: "#a88e70", foundation: "#75614c", timber: "#4f3c2e", roof: "#51463c", roofEdge: "#3c342e", accent: "#b08a57", glass: "#7b8580" },
-  { wall: "#c1b49c", foundation: "#827665", timber: "#625345", roof: "#604640", roofEdge: "#483632", accent: "#a98260", glass: "#778386" },
-  { wall: "#b5aa94", foundation: "#77756c", timber: "#4e4d44", roof: "#46504d", roofEdge: "#343d3a", accent: "#897151", glass: "#748584" },
-  { wall: "#aaa99f", foundation: "#696d69", timber: "#4b514e", roof: "#4b5052", roofEdge: "#363b3e", accent: "#986e5c", glass: "#788b8b" },
-  { wall: "#c0b8a5", foundation: "#7c7568", timber: "#5b5041", roof: "#535c55", roofEdge: "#3b433e", accent: "#90785a", glass: "#7e8983" },
-  { wall: "#b39d7a", foundation: "#79664e", timber: "#584632", roof: "#59483b", roofEdge: "#40342d", accent: "#a0784b", glass: "#7b8580" },
+  { wall: "#b9ad97", interiorWall: "#765b43", foundation: "#777267", timber: "#594d40", roof: "#504b47", roofEdge: "#393a37", accent: "#89775f", glass: "#71888a" },
+  { wall: "#a5a59e", interiorWall: "#53645f", foundation: "#666a68", timber: "#4f504d", roof: "#464d50", roofEdge: "#363d40", accent: "#927e5e", glass: "#73898b" },
+  { wall: "#a88e70", interiorWall: "#75503a", foundation: "#75614c", timber: "#4f3c2e", roof: "#51463c", roofEdge: "#3c342e", accent: "#b08a57", glass: "#7b8580" },
+  { wall: "#c1b49c", interiorWall: "#675747", foundation: "#827665", timber: "#625345", roof: "#604640", roofEdge: "#483632", accent: "#a98260", glass: "#778386" },
+  { wall: "#b5aa94", interiorWall: "#705844", foundation: "#77756c", timber: "#4e4d44", roof: "#46504d", roofEdge: "#343d3a", accent: "#897151", glass: "#748584" },
+  { wall: "#aaa99f", interiorWall: "#4b625e", foundation: "#696d69", timber: "#4b514e", roof: "#4b5052", roofEdge: "#363b3e", accent: "#986e5c", glass: "#788b8b" },
+  { wall: "#c0b8a5", interiorWall: "#746044", foundation: "#7c7568", timber: "#5b5041", roof: "#535c55", roofEdge: "#3b433e", accent: "#90785a", glass: "#7e8983" },
+  { wall: "#b39d7a", interiorWall: "#694b39", foundation: "#79664e", timber: "#584632", roof: "#59483b", roofEdge: "#40342d", accent: "#a0784b", glass: "#7b8580" },
 ];
 
 function HouseWindow({
@@ -191,6 +192,81 @@ function RoofTileField({
   );
 }
 
+function WarRoomInteriorWallLining({
+  building,
+  palette,
+}: {
+  building: WarRoomBuilding;
+  palette: HousePalette;
+}) {
+  const plan = getWarRoomHousePlan(building);
+  const wallThickness = plan.wallThickness;
+  const frontZ = -building.depth / 2;
+  const backZ = building.depth / 2;
+  const doorSideWidth = (building.width - building.doorWidth) / 2;
+  const floors = [
+    { id: "ground", baseY: 0, height: building.storyHeight },
+    { id: "upper", baseY: building.storyHeight, height: building.upperWallHeight },
+  ];
+  const panels = floors.flatMap((floor) => {
+    const y = floor.baseY + floor.height / 2;
+    const panelHeight = floor.height - 0.28;
+    const outerWalls = [
+      {
+        id: `${floor.id}-back`,
+        position: [0, y, backZ - wallThickness / 2 - 0.025] as [number, number, number],
+        size: [building.width - 0.36, panelHeight, 0.035] as [number, number, number],
+      },
+      ...([-1, 1] as const).map((side) => ({
+        id: `${floor.id}-side-${side}`,
+        position: [side * (building.width / 2 - wallThickness / 2 - 0.025), y, 0] as [number, number, number],
+        size: [0.035, panelHeight, building.depth - 0.36] as [number, number, number],
+      })),
+      ...([-1, 1] as const).map((side) => ({
+        id: `${floor.id}-front-${side}`,
+        position: [
+          side * (building.doorWidth / 2 + doorSideWidth / 2),
+          y,
+          frontZ + wallThickness / 2 + 0.025,
+        ] as [number, number, number],
+        size: [doorSideWidth - 0.12, panelHeight, 0.035] as [number, number, number],
+      })),
+    ];
+    const partitions = getWarRoomHouseInteriorWalls(building).flatMap((wall) => {
+      if (wall.width >= wall.depth) {
+        return [-1, 1].map((side) => ({
+          id: `${floor.id}-${wall.id}-face-${side}`,
+          position: [wall.x, y, wall.z + side * (wall.depth / 2 + 0.025)] as [number, number, number],
+          size: [Math.max(0.06, wall.width - 0.1), panelHeight, 0.035] as [number, number, number],
+        }));
+      }
+      return [-1, 1].map((side) => ({
+        id: `${floor.id}-${wall.id}-face-${side}`,
+        position: [wall.x + side * (wall.width / 2 + 0.025), y, wall.z] as [number, number, number],
+        size: [0.035, panelHeight, Math.max(0.06, wall.depth - 0.1)] as [number, number, number],
+      }));
+    });
+    return [...outerWalls, ...partitions];
+  });
+
+  return (
+    <group>
+      {panels.map((panel) => (
+        <group key={panel.id} position={panel.position}>
+          <mesh>
+            <boxGeometry args={panel.size} />
+            <meshStandardMaterial color={palette.interiorWall} roughness={0.96} />
+          </mesh>
+          <mesh position={[0, -panel.size[1] / 2 + 0.24, 0]}>
+            <boxGeometry args={[panel.size[0], 0.16, panel.size[2]]} />
+            <meshStandardMaterial color={palette.timber} roughness={0.88} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 /**
  * A lightweight, open-fronted two-storey house shell. The upper floor is split
  * around the exact traversal stair lane so the visual architecture never caps it.
@@ -234,6 +310,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         <boxGeometry args={[width - 0.42, 0.06, depth - 0.42]} />
         <meshStandardMaterial color={palette.wall} roughness={0.92} />
       </mesh>
+      <WarRoomInteriorWallLining building={building} palette={palette} />
 
       {/* Ground front: separated jambs leave the full doorway clear. */}
       {[-1, 1].map((side) => (

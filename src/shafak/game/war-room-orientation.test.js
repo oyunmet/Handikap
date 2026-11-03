@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
+  getWarRoomActorRootYawToTarget,
   getWarRoomActorYawToTarget,
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
@@ -163,6 +164,19 @@ test("body rotation takes the short path across the ±180° boundary", () => {
 test("enemy model yaw compensates for its built-in facing offset", () => {
   closeAngle(getWarRoomActorYawToTarget(0, 0, 0, -5, Math.PI) + Math.PI, 0);
   closeAngle(getWarRoomActorYawToTarget(0, 0, 5, 0, Math.PI) + Math.PI, Math.PI / 2);
+});
+
+test("enemy root yaw makes the corrected model face the player from all directions", () => {
+  for (const target of [
+    { x: 0, z: -5, facing: 0 },
+    { x: 5, z: 0, facing: Math.PI / 2 },
+    { x: 0, z: 5, facing: Math.PI },
+    { x: -5, z: 0, facing: -Math.PI / 2 },
+    { x: 4, z: -4, facing: Math.PI / 4 },
+  ]) {
+    const rootYaw = getWarRoomActorRootYawToTarget(0, 0, target.x, target.z);
+    closeAngle(getWarRoomFacingYawFromRootYaw(rootYaw), target.facing);
+  }
 });
 
 test("enemy fire waits until the model faces the target within fifteen degrees", () => {

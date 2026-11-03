@@ -12,6 +12,8 @@ export type WarRoomViewModelState = {
   meleeStyle: "slash" | "thrust";
   comboIndex: number;
   motionReduced: boolean;
+  sprint?: number;
+  switchProgress?: number;
 };
 
 export type WarRoomViewModelPose = {
@@ -34,6 +36,28 @@ export type WarRoomViewModelConfig = {
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
 };
+
+export type WarRoomViewModelGripPoints = {
+  gripR: readonly [number, number, number];
+  gripL: readonly [number, number, number];
+};
+
+const DEFAULT_VIEW_MODEL_GRIPS: WarRoomViewModelGripPoints = {
+  gripR: [0.035, -0.13, -0.13],
+  gripL: [-0.08, -0.08, -0.38],
+};
+
+export const WAR_ROOM_VIEW_MODEL_GRIPS: Readonly<Record<string, WarRoomViewModelGripPoints>> = {
+  powder_rifle: { gripR: [0.035, -0.13, -0.13], gripL: [0, -0.12, -0.46] },
+  sidearm: { gripR: [0.035, -0.13, -0.1], gripL: [-0.075, -0.08, -0.21] },
+  scattergun: { gripR: [0.035, -0.13, -0.13], gripL: [0, -0.13, -0.4] },
+  crossbow: { gripR: [0.035, -0.1, -0.08], gripL: [-0.25, -0.08, -0.32] },
+  longbow: { gripR: [-0.14, 0.02, -0.3], gripL: [-0.015, 0.02, -0.3] },
+};
+
+export function getWarRoomViewModelGripPoints(weaponId: string): WarRoomViewModelGripPoints {
+  return WAR_ROOM_VIEW_MODEL_GRIPS[weaponId] ?? DEFAULT_VIEW_MODEL_GRIPS;
+}
 
 export function getWarRoomViewModelHorizontalFactor(aspect: number) {
   const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1.75;
@@ -80,6 +104,9 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   const reload = Math.sin(Math.PI * clamp01(state.reloadProgress));
   const charge = clamp01(state.chargeProgress);
   const motion = state.motionReduced ? 0 : 1;
+  const sprint = clamp01(state.sprint ?? 0) * motion;
+  const switchProgress = clamp01(state.switchProgress ?? 1);
+  const switchDip = Math.sin((1 - switchProgress) * Math.PI * 0.5);
   const walkPhase = Number.isFinite(state.walkPhase) ? state.walkPhase! : state.time * 8.4;
   const walkAmount = movement * swayScale * motion * (state.aiming ? 0.58 : 1);
   const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion * swayScale;
@@ -117,14 +144,14 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
 
   return {
     position: [
-      (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor + walkSwayX,
-      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035,
-      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.08,
+      (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025 - sprint * 0.045) * horizontalFactor + walkSwayX,
+      -0.08 + (0.06 + 0.08) * aim - walkBob + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035 - sprint * 0.055 - switchDip * 0.3,
+      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.08 + sprint * 0.025 + switchDip * 0.04,
     ],
     rotation: [
-      0.04 + recoil * 0.12 + reload * 0.22 - charge * 0.12 + swingPitch + walkPitch,
-      -0.06 + swingYaw + walkYaw,
-      -0.045 + walkRoll + idleBreath * 0.7 + swingRoll,
+      0.04 + recoil * 0.12 + reload * 0.22 - charge * 0.12 + swingPitch + walkPitch - sprint * 0.1,
+      -0.06 + swingYaw + walkYaw - sprint * 0.1,
+      -0.045 + walkRoll + idleBreath * 0.7 + swingRoll + sprint * 0.06,
     ],
   };
 }

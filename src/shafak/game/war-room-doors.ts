@@ -7,7 +7,8 @@ import {
 
 export const WAR_ROOM_DOOR_OPEN_SECONDS = 6;
 export const WAR_ROOM_DOOR_ANIMATION_SECONDS = 0.28;
-export const WAR_ROOM_DOOR_INTERACTION_DISTANCE = 2.65;
+export const WAR_ROOM_DOOR_INTERACTION_DISTANCE = 3.15;
+export const WAR_ROOM_DOOR_CLEAR_PROGRESS = 0.65;
 const WAR_ROOM_DOOR_OCCUPANCY_BUFFER = 0.5;
 const WAR_ROOM_DOOR_PLAYER_RADIUS = 0.4;
 const WAR_ROOM_DOOR_THICKNESS = 0.18;
@@ -64,7 +65,7 @@ export function getWarRoomDoorOpenProgress(
 }
 
 export function isWarRoomDoorOpen(state: WarRoomDoorState | undefined, now: number) {
-  return getWarRoomDoorOpenProgress(state, now) >= 0.75;
+  return getWarRoomDoorOpenProgress(state, now) >= WAR_ROOM_DOOR_CLEAR_PROGRESS;
 }
 
 export function getWarRoomActiveBlockers(
@@ -116,7 +117,7 @@ export function getNearestWarRoomDoor(
       const facingX = Math.sin(lookYaw!);
       const facingZ = -Math.cos(lookYaw!);
       const facingDoor = (directionX * facingX + directionZ * facingZ) / directionLength;
-      if (facingDoor < 0.25) continue;
+      if (facingDoor < -0.1) continue;
     }
     if (
       distance > WAR_ROOM_DOOR_INTERACTION_DISTANCE

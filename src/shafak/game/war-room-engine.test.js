@@ -5,6 +5,7 @@ import { STORE_CATALOG } from "./store-catalog.ts";
 import {
   applyWarRoomDamage,
   createWarRoomRuntime,
+  getWarRoomFallDamage,
   moveWarRoomEntity,
   segmentBlockFraction,
   shortestAngleDelta,
@@ -147,6 +148,33 @@ test("small movement steps slide along walls instead of sticking on diagonal con
 
   assert.ok(result.x <= -0.66 + 1e-8, "the player stays outside the wall");
   assert.ok(result.z > 1.8, "the player keeps moving along the wall");
+});
+
+test("jumping above an upper balcony rail clears its movement blocker", () => {
+  const rail = {
+    id: "upper-balcony-front-rail",
+    kind: "wall",
+    x: 0,
+    z: 0,
+    width: 8,
+    depth: 0.12,
+    height: 0.95,
+    baseY: 3.05,
+    color: "#000",
+  };
+  const blocked = moveWarRoomEntity(0, -3, 0, 5, 0.4, [rail], 3.05);
+  const jumping = moveWarRoomEntity(0, -3, 0, 5, 0.4, [rail], 3.05, 1.05);
+
+  assert.ok(blocked.z < -0.45, "the railing still blocks movement when grounded");
+  assert.ok(jumping.z > 1.8, "the player can hop over the railing");
+});
+
+test("balcony falls apply mild damage only beyond a safe distance", () => {
+  assert.equal(getWarRoomFallDamage(0), 0);
+  assert.equal(getWarRoomFallDamage(2.1), 0);
+  assert.equal(getWarRoomFallDamage(3.05), 9);
+  assert.equal(getWarRoomFallDamage(-3), 0);
+  assert.equal(getWarRoomFallDamage(Number.POSITIVE_INFINITY), 0);
 });
 
 test("angle interpolation chooses the short path across the wrap boundary", () => {

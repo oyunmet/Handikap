@@ -127,6 +127,16 @@ export function getWarRoomActorYawToTarget(
   return Math.atan2(targetX - actorX, -(targetZ - actorZ)) - modelFacingYaw;
 }
 
+export function getWarRoomActorRootYawToTarget(
+  actorX: number,
+  actorZ: number,
+  targetX: number,
+  targetZ: number,
+) {
+  const facingYaw = getWarRoomActorYawToTarget(actorX, actorZ, targetX, targetZ);
+  return getWarRoomPlayerRootYaw(facingYaw);
+}
+
 export function getWarRoomPostAttackStrafeUntil(now: number, attackDuration = 0) {
   return now + Math.max(0, attackDuration) + 0.8;
 }

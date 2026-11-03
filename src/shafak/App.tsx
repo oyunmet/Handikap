@@ -3,8 +3,10 @@ import {
   writeWarRoomLookSensitivitySettings,
 } from "./game/war-room-look-settings";
 import {
+  readWarRoomArmsVisible,
   readWarRoomDebugEnabled,
   readWarRoomWeaponSway,
+  writeWarRoomArmsVisible,
   writeWarRoomDebugEnabled,
   writeWarRoomWeaponSway,
   type WarRoomWeaponSwayLevel,
@@ -423,6 +425,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivitySettings);
   const [warRoomWeaponSway, setWarRoomWeaponSway] = useState(readWarRoomWeaponSway);
+  const [warRoomArmsVisible, setWarRoomArmsVisible] = useState(readWarRoomArmsVisible);
   const [warRoomDebugEnabled, setWarRoomDebugEnabled] = useState(readWarRoomDebugEnabled);
   const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
@@ -1214,6 +1217,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
                 weaponSway={warRoomWeaponSway}
+                armsVisible={warRoomArmsVisible}
                 debugDiagnosticsEnabled={warRoomDebugEnabled}
                 onOpenSettings={() => setSettingsOpen(true)}
                 settingsOpen={settingsOpen}
@@ -1340,6 +1344,12 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 />
                 {screen === "war-room" && (
                   <>
+                    <SettingToggle
+                      label="Kol görünümü"
+                      description="Birinci şahıs kollarını göster veya gizle."
+                      checked={warRoomArmsVisible}
+                      onChange={() => setWarRoomArmsVisible(writeWarRoomArmsVisible(!warRoomArmsVisible))}
+                    />
                     <div className="setting-row setting-row--quality">
                       <span className="setting-row__copy">
                         <strong>Silah sallanması</strong>

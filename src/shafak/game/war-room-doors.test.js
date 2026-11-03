@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getWarRoomActiveBlockers,
+  WAR_ROOM_DOOR_ANIMATION_SECONDS,
+  WAR_ROOM_DOOR_CLEAR_PROGRESS,
   getWarRoomDoorOpenProgress,
   getWarRoomDoorBlocker,
   getNearestWarRoomDoor,
@@ -42,6 +44,10 @@ test("the nearby door opens for six seconds and then closes", () => {
   assert.equal(getWarRoomActiveBlockers(runtime, 10).some((blocker) => (
     blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), true, "collision stays in place during the opening animation");
+  const clearanceAt = 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS;
+  assert.equal(getWarRoomActiveBlockers(runtime, clearanceAt).some((blocker) => (
+    blocker.id === `${building.id}-floor-0-entrance-door-blocker`
+  )), false, "the doorway clears as soon as the moving door leaves enough room");
   assert.equal(getWarRoomActiveBlockers(runtime, 10.25).some((blocker) => (
     blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), false);
@@ -102,6 +108,18 @@ test("door interaction requires facing the doorway when a view direction is supp
   assert.equal(
     getNearestWarRoomDoor(runtime.room.buildings, outside.x, outside.z, 0, towardDoor + Math.PI),
     null,
+  );
+});
+
+test("door interaction range includes a comfortable approach distance", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
+  const building = runtime.room.buildings[0];
+  const outside = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2 - 3);
+  const door = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2);
+  const towardDoor = Math.atan2(door.x - outside.x, -(door.z - outside.z));
+  assert.equal(
+    getNearestWarRoomDoor(runtime.room.buildings, outside.x, outside.z, 0, towardDoor)?.building.id,
+    building.id,
   );
 });
 

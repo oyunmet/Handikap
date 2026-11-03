@@ -233,6 +233,11 @@ export function applyWarRoomDamage(target: DamageTarget, baseDamage: number, mul
   return { damage: before - target.hp, killed: before > 0 && target.hp <= 0 };
 }
 
+export function getWarRoomFallDamage(fallDistance: number) {
+  if (!Number.isFinite(fallDistance) || fallDistance <= 2.1) return 0;
+  return Math.max(0, Math.round((fallDistance - 2.1) * 9));
+}
+
 export function shortestAngleDelta(from: number, to: number) {
   return Math.atan2(Math.sin(to - from), Math.cos(to - from));
 }
@@ -452,11 +457,13 @@ function circleHitsBlocker(
   radius: number,
   blocker: WarRoomBlocker,
   floorHeight = 0,
+  jumpHeight = 0,
 ) {
   if (blocker.kind === "platform") return false;
   const baseY = blocker.baseY ?? 0;
   const bodyHeight = 1.8;
-  if (floorHeight >= baseY + blocker.height || floorHeight + bodyHeight <= baseY) return false;
+  const actorBaseY = floorHeight + jumpHeight;
+  if (actorBaseY >= baseY + blocker.height || actorBaseY + bodyHeight <= baseY) return false;
   const closestX = Math.max(blocker.x - blocker.width / 2, Math.min(blocker.x + blocker.width / 2, x));
   const closestZ = Math.max(blocker.z - blocker.depth / 2, Math.min(blocker.z + blocker.depth / 2, z));
   return (x - closestX) ** 2 + (z - closestZ) ** 2 < radius ** 2;
@@ -470,6 +477,7 @@ export function moveWarRoomEntity(
   radius = WAR_ROOM_PLAYER_COLLISION_RADIUS,
   blockers: readonly WarRoomBlocker[] = WAR_ROOM_BLOCKERS,
   floorHeight = 0,
+  jumpHeight = 0,
 ) {
   const limit = WAR_ROOM_HALF_SIZE - radius - 1;
   let nextX = x;
@@ -482,10 +490,24 @@ export function moveWarRoomEntity(
   for (let index = 0; index < steps; index += 1) {
     const candidateX = Math.max(-limit, Math.min(limit, nextX + stepX));
     const candidateZ = Math.max(-limit, Math.min(limit, nextZ + stepZ));
-    if (!blockers.some((blocker) => circleHitsBlocker(candidateX, nextZ, radius, blocker, floorHeight))) {
+    if (!blockers.some((blocker) => circleHitsBlocker(
+      candidateX,
+      nextZ,
+      radius,
+      blocker,
+      floorHeight,
+      jumpHeight,
+    ))) {
       nextX = candidateX;
     }
-    if (!blockers.some((blocker) => circleHitsBlocker(nextX, candidateZ, radius, blocker, floorHeight))) {
+    if (!blockers.some((blocker) => circleHitsBlocker(
+      nextX,
+      candidateZ,
+      radius,
+      blocker,
+      floorHeight,
+      jumpHeight,
+    ))) {
       nextZ = candidateZ;
     }
   }
