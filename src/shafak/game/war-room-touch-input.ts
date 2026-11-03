@@ -1,6 +1,8 @@
-export const WAR_ROOM_TOUCH_JOYSTICK_RADIUS = 60;
-export const WAR_ROOM_TOUCH_LOOK_LIMIT = 120;
-export const WAR_ROOM_TOUCH_DEAD_ZONE = 0.12;
+import { WAR_ROOM_CONFIG } from "./war-room-config";
+
+export const WAR_ROOM_TOUCH_JOYSTICK_RADIUS = WAR_ROOM_CONFIG.input.touchJoystickRadius;
+export const WAR_ROOM_TOUCH_LOOK_LIMIT = WAR_ROOM_CONFIG.input.touchLookMaxDeltaPixels;
+export const WAR_ROOM_TOUCH_DEAD_ZONE = WAR_ROOM_CONFIG.input.touchJoystickDeadZone;
 
 export type WarRoomTouchRole = "joystick" | "look";
 export type WarRoomTouchInputState = {

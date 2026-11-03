@@ -1,8 +1,10 @@
+import { WAR_ROOM_CONFIG } from "./war-room-config";
+
 export type WarRoomLookInput = { yaw: number; pitch: number };
 export type WarRoomLookPointerType = "touch" | "mouse" | "pen";
 
-export const WAR_ROOM_PITCH_MIN = -(85 * Math.PI) / 180;
-export const WAR_ROOM_PITCH_MAX = (85 * Math.PI) / 180;
+export const WAR_ROOM_PITCH_MIN = -(WAR_ROOM_CONFIG.camera.pitchLimitDegrees * Math.PI) / 180;
+export const WAR_ROOM_PITCH_MAX = (WAR_ROOM_CONFIG.camera.pitchLimitDegrees * Math.PI) / 180;
 
 export function normalizeWarRoomCameraYaw(yaw: number) {
   if (!Number.isFinite(yaw)) return 0;

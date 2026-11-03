@@ -7,6 +7,7 @@ import {
 import type { RenderQuality } from "../world/graphics-quality";
 import { getWorldRenderPixelRatio } from "../world/graphics-quality";
 import { WAR_ROOM_QUALITY_ENABLED } from "./war-room-features";
+import { WAR_ROOM_CONFIG } from "./war-room-config";
 
 export type WarRoomQualityProfile = {
   particleMultiplier: number;
@@ -16,9 +17,10 @@ export type WarRoomQualityProfile = {
   touchPixelRatioCap: number;
 };
 
-export const WAR_ROOM_PERFORMANCE_SAMPLE_MS = 60_000;
-export const WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS = 1_500;
-export const WAR_ROOM_DRAW_CALL_BUDGET = 150;
+export const WAR_ROOM_PERFORMANCE_SAMPLE_MS = WAR_ROOM_CONFIG.performance.sampleIntervalMs;
+export const WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS =
+  WAR_ROOM_CONFIG.performance.maximumContinuousAttackGapMs;
+export const WAR_ROOM_DRAW_CALL_BUDGET = WAR_ROOM_CONFIG.performance.drawCallBudget;
 
 export type WarRoomFrameStats = {
   drawCalls: number;

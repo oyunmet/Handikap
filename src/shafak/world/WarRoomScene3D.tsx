@@ -1,5 +1,14 @@
 import { Canvas, createPortal, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import type { ReactNode } from "react";
 import * as THREE from "three";
 import {
@@ -183,6 +192,8 @@ import {
   type WarRoomAnimationState,
 } from "./WarRoomModels";
 import { WarRoomFirstPersonArms, type WarRoomArmsAnimation } from "./WarRoomFirstPersonArms";
+import { WAR_ROOM_CONFIG } from "../game/war-room-config";
+import WarRoomSceneErrorBoundary from "./WarRoomSceneErrorBoundary";
 
 type Props = {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
@@ -216,7 +227,7 @@ type Props = {
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
 };
 
-const WAR_ROOM_FIXED_CAMERA_PITCH = -0.12;
+const WAR_ROOM_FIXED_CAMERA_PITCH = WAR_ROOM_CONFIG.camera.fixedPitch;
 
 type WarRoomHandMountPose = {
   position: THREE.Vector3;
@@ -5315,20 +5326,106 @@ export default function WarRoomScene3D(props: Props) {
   const shadowsEnabled = typeof window !== "undefined"
     && !window.matchMedia("(pointer: coarse)").matches
     && quality !== "low";
+  const [canvasGeneration, setCanvasGeneration] = useState(0);
+  const [contextLost, setContextLost] = useState(false);
+  const contextListenersRef = useRef<(() => void) | null>(null);
+  const retryCanvas = useCallback(() => {
+    contextListenersRef.current?.();
+    contextListenersRef.current = null;
+    setContextLost(false);
+    setCanvasGeneration((generation) => generation + 1);
+  }, []);
+  const handleCanvasCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    contextListenersRef.current?.();
+    const canvas = gl.domElement;
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      setContextLost(true);
+    };
+    const handleContextRestored = () => {
+      setContextLost(false);
+      setCanvasGeneration((generation) => generation + 1);
+    };
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
+    contextListenersRef.current = () => {
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored);
+    };
+    gl.shadowMap.enabled = shadowsEnabled;
+    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    gl.toneMappingExposure = 1.12;
+  }, [shadowsEnabled]);
+
+  useEffect(() => () => {
+    contextListenersRef.current?.();
+    contextListenersRef.current = null;
+  }, []);
+
   return (
-    <Canvas
-      dpr={[1, 2]}
-      frameloop="always"
-      shadows={shadowsEnabled}
-      camera={{ position: [0, 3, 5], fov: 75, near: 0.05, far: 100 }}
-      gl={{ antialias: !touchDevice, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
-      onCreated={({ gl }) => {
-        gl.shadowMap.enabled = shadowsEnabled;
-        gl.shadowMap.type = THREE.PCFSoftShadowMap;
-        gl.toneMappingExposure = 1.12;
-      }}
-    >
-      <WarRoomRuntimeScene {...props} />
-    </Canvas>
+    <div style={{ position: "absolute", inset: 0 }}>
+      <WarRoomSceneErrorBoundary key={canvasGeneration} onRetry={retryCanvas}>
+        <Canvas
+          key={canvasGeneration}
+          dpr={[1, 2]}
+          frameloop="always"
+          shadows={shadowsEnabled}
+          camera={{
+            position: [0, 3, 5],
+            fov: WAR_ROOM_CONFIG.camera.firstPerson.fov,
+            near: WAR_ROOM_CONFIG.camera.firstPerson.near,
+            far: WAR_ROOM_CONFIG.camera.firstPerson.far,
+          }}
+          gl={{
+            antialias: !touchDevice,
+            powerPreference: "high-performance",
+            toneMapping: THREE.ACESFilmicToneMapping,
+          }}
+          onCreated={handleCanvasCreated}
+        >
+          <WarRoomRuntimeScene {...props} />
+        </Canvas>
+      </WarRoomSceneErrorBoundary>
+      {contextLost && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 30,
+            display: "grid",
+            alignContent: "center",
+            justifyItems: "center",
+            gap: 12,
+            padding: 24,
+            background: "rgba(7, 10, 16, 0.96)",
+            color: "#f4ead7",
+            textAlign: "center",
+            font: "600 14px/1.5 Manrope, sans-serif",
+          }}
+        >
+          <strong style={{ font: "700 20px/1.3 Cinzel, Georgia, serif" }}>
+            3D bağlantısı kesildi
+          </strong>
+          <span>Sahne geri yüklenince yeniden başlatabilir veya elle deneyebilirsin.</span>
+          <button
+            type="button"
+            onClick={retryCanvas}
+            style={{
+              minHeight: 44,
+              padding: "0 20px",
+              border: "1px solid rgba(212, 177, 111, .65)",
+              borderRadius: 7,
+              background: "linear-gradient(120deg, #f0d08a, #ba7b36)",
+              color: "#1b1711",
+              fontWeight: 800,
+            }}
+          >
+            3D sahneyi yeniden başlat
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

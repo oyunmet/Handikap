@@ -4,16 +4,17 @@ import {
   getWarRoomBuildingWorldPoint,
   type WarRoomRoom,
 } from "./war-room-rooms";
+import { WAR_ROOM_CONFIG } from "./war-room-config";
 
-export const WAR_ROOM_DOOR_OPEN_SECONDS = 6;
-export const WAR_ROOM_DOOR_ANIMATION_SECONDS = 0.28;
-export const WAR_ROOM_DOOR_INTERACTION_DISTANCE = 3.15;
-export const WAR_ROOM_DOOR_CLEAR_PROGRESS = 0.65;
-const WAR_ROOM_DOOR_OCCUPANCY_BUFFER = 0.5;
-const WAR_ROOM_DOOR_PLAYER_RADIUS = 0.4;
-const WAR_ROOM_DOOR_THICKNESS = 0.18;
-const WAR_ROOM_DOOR_MIN_CLEAR_WIDTH = 1.6;
-const WAR_ROOM_DOOR_HEIGHT = 2.4;
+export const WAR_ROOM_DOOR_OPEN_SECONDS = WAR_ROOM_CONFIG.doors.openSeconds;
+export const WAR_ROOM_DOOR_ANIMATION_SECONDS = WAR_ROOM_CONFIG.doors.animationSeconds;
+export const WAR_ROOM_DOOR_INTERACTION_DISTANCE = WAR_ROOM_CONFIG.doors.interactionDistance;
+export const WAR_ROOM_DOOR_CLEAR_PROGRESS = WAR_ROOM_CONFIG.doors.clearProgress;
+const WAR_ROOM_DOOR_OCCUPANCY_BUFFER = WAR_ROOM_CONFIG.doors.occupancyBuffer;
+const WAR_ROOM_DOOR_PLAYER_RADIUS = WAR_ROOM_CONFIG.doors.playerRadius;
+const WAR_ROOM_DOOR_THICKNESS = WAR_ROOM_CONFIG.doors.thickness;
+const WAR_ROOM_DOOR_MIN_CLEAR_WIDTH = WAR_ROOM_CONFIG.doors.minimumClearWidth;
+const WAR_ROOM_DOOR_HEIGHT = WAR_ROOM_CONFIG.doors.height;
 
 export type WarRoomDoorFloor = 0 | 1;
 

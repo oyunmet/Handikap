@@ -13,6 +13,7 @@ import type { WarRoomFacingMode } from "./war-room-orientation";
 import type { WarRoomDoorState } from "./war-room-doors";
 import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
 import { getWarRoomRoom, type WarRoomRoom } from "./war-room-rooms";
+import { WAR_ROOM_CONFIG } from "./war-room-config";
 
 export type WarRoomEnemy = {
   id: string;
@@ -172,8 +173,8 @@ export type WarRoomInputState = {
   paused: boolean;
 };
 
-export const WAR_ROOM_PLAYER_COLLISION_RADIUS = 0.4;
-const WAR_ROOM_COLLISION_STEP_DISTANCE = 0.12;
+export const WAR_ROOM_PLAYER_COLLISION_RADIUS: number = WAR_ROOM_CONFIG.player.collisionRadius;
+const WAR_ROOM_COLLISION_STEP_DISTANCE: number = WAR_ROOM_CONFIG.player.collisionStepDistance;
 
 export type WarRoomHudSnapshot = {
   player: { x: number; z: number; floorHeight: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };

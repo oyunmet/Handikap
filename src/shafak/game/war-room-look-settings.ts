@@ -1,3 +1,5 @@
+import { WAR_ROOM_CONFIG } from "./war-room-config";
+
 const WAR_ROOM_LOOK_SENSITIVITY_KEY = "shafak.war-room-look-sensitivity";
 const WAR_ROOM_LOOK_SENSITIVITY_X_KEY = `${WAR_ROOM_LOOK_SENSITIVITY_KEY}-horizontal`;
 const WAR_ROOM_LOOK_SENSITIVITY_Y_KEY = `${WAR_ROOM_LOOK_SENSITIVITY_KEY}-vertical`;
@@ -91,7 +93,11 @@ export function getWarRoomPointerSensitivity(
     typeof multiplier === "number" ? multiplier : multiplier.vertical,
   );
   return {
-    x: 0.007 * (720 / width) * horizontal,
-    y: 0.0045 * (420 / height) * vertical,
+    x: WAR_ROOM_CONFIG.sensitivity.horizontal
+      * (WAR_ROOM_CONFIG.sensitivity.referenceWidth / width)
+      * horizontal,
+    y: WAR_ROOM_CONFIG.sensitivity.vertical
+      * (WAR_ROOM_CONFIG.sensitivity.referenceHeight / height)
+      * vertical,
   };
 }

@@ -1,4 +1,5 @@
 import { normalizeWarRoomCameraYaw } from "./war-room-look";
+import { WAR_ROOM_CONFIG } from "./war-room-config";
 
 export type WarRoomMobilePointerType = "touch" | "mouse" | "pen";
 export type WarRoomTouchControlSide = "movement" | "look";
@@ -33,8 +34,8 @@ export type WarRoomJoystickReading = {
   cameraYaw: number | null;
 };
 
-const JOYSTICK_DEAD_ZONE = 0.15;
-export const WAR_ROOM_MAX_LOOK_DELTA_PIXELS = 80;
+const JOYSTICK_DEAD_ZONE = WAR_ROOM_CONFIG.input.pointerJoystickDeadZone;
+export const WAR_ROOM_MAX_LOOK_DELTA_PIXELS = WAR_ROOM_CONFIG.input.pointerLookMaxDeltaPixels;
 
 export function getWarRoomAutoFollowYaw(
   baseYaw: number,
