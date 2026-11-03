@@ -8,6 +8,7 @@
 - [World camera clearance](world-camera-clearance.md) — Validate mobile camera position against nearby obstacle depth at both rest and running speed.
 - [War Room camera and controls](war-room-camera-framing.md) — Auto-follow joystick movement unless right-side touch look is active; keep the movement basis stable.
 - [War Room mobile controls](war-room-mobile-controls.md) — Left half starts a dynamic joystick; right-half drags control camera look.
+- [War Room replay goals](war-room-replay-goals.md) — The user wants meaningful reasons for players to keep returning to the War Room.
 - [World and duel visual expectations](world-duel-visual-expectations.md) — Keep rivals clear and anchored; size rig gear against full mount scale and verify ground clearance.
 - [World-scene scope](world-scene-scope.md) — Remove screen-filling sky geometry at its active source; preserve gameplay, UI, controls, economy, saves, and measured scale.
 - [Day/night mode expectations](world-time-of-day.md) — Keep the automatic cycle alongside manual day/night choices and preserve readable night lighting.

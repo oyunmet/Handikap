@@ -264,19 +264,49 @@ test("all eight houses have traversable doors, matching stairs, floors, and uppe
   );
 });
 
-test("rooms beyond six cycle themes, add enemies, and scale health without changing damage data", () => {
+test("room difficulty keeps increasing after the map cycle instead of dropping back", () => {
   const first = getWarRoomRoom(1);
   const seventh = getWarRoomRoom(7);
   const thirteenth = getWarRoomRoom(13);
   assert.equal(seventh.id, first.id);
   assert.equal(seventh.number, 7);
-  assert.equal(seventh.enemyCount, 10);
-  assert.equal(seventh.enemyHpMultiplier, 1.1);
-  assert.equal(thirteenth.enemyCount, 11);
-  assert.equal(thirteenth.enemyHpMultiplier, 1.2);
+  assert.equal(seventh.enemyCount, WAR_ROOM_MAX_ROOM_ENEMIES);
+  assert.equal(seventh.enemyHpMultiplier, 1.27);
+  assert.equal(seventh.enemyDamageMultiplier, 1.15);
+  assert.equal(thirteenth.enemyCount, WAR_ROOM_MAX_ROOM_ENEMIES);
+  assert.equal(thirteenth.enemyHpMultiplier, 1.54);
+  assert.ok(thirteenth.enemyDamageMultiplier > seventh.enemyDamageMultiplier);
+  assert.ok(getWarRoomRoom(100).enemyHpMultiplier > thirteenth.enemyHpMultiplier);
 });
 
-test("room runtime uses the selected roster, visuals, spawn map, and existing damage values", () => {
+test("each run seed produces repeatable enemy, house, and treasure variations", () => {
+  const first = getWarRoomRoom(2, 1234);
+  const sameRun = getWarRoomRoom(2, 1234);
+  const otherRun = getWarRoomRoom(2, 9876);
+  const signature = (room) => JSON.stringify({
+    enemySpawns: room.enemySpawns,
+    houseStyles: room.buildings.map((building) => building.style),
+    loot: room.lootChests.map(({ x, z, floor, kind }) => ({ x, z, floor, kind })),
+  });
+
+  assert.equal(first.runSeed, 1234);
+  assert.equal(signature(first), signature(sameRun));
+  assert.notEqual(signature(first), signature(otherRun));
+});
+
+test("optional room contracts are seeded, varied, and ramp their goals and bonus", () => {
+  const first = getWarRoomRoom(1, 1);
+  const sameRun = getWarRoomRoom(1, 1);
+  const otherRun = getWarRoomRoom(1, 2);
+  const later = getWarRoomRoom(13, 1);
+
+  assert.deepEqual(first.contract, sameRun.contract);
+  assert.notDeepEqual(first.contract, otherRun.contract);
+  assert.ok(later.contract.target >= first.contract.target);
+  assert.ok(later.contract.bonusGold > first.contract.bonusGold);
+});
+
+test("room runtime uses its randomized roster and applies the escalating enemy stats", () => {
   const room = getWarRoomRoom(2);
   const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, room.number);
   const commander = runtime.enemies.find((enemy) => enemy.commander);
@@ -300,6 +330,8 @@ test("room runtime uses the selected roster, visuals, spawn map, and existing da
   assert.ok(guards.every((enemy) => room.enemyWeapons.includes(enemy.weaponId)));
   assert.ok(guards.every((enemy) => room.enemyNames.includes(enemy.name)));
   assert.ok(guards.every((enemy) => room.enemySpawns.some((spawn) => spawn.id === enemy.id)));
+  assert.ok(guards.every((enemy) => enemy.hp === 90 * room.enemyHpMultiplier));
+  assert.ok(guards.every((enemy) => enemy.damage === Math.round(9 * room.enemyDamageMultiplier)));
   assert.ok(movedWall);
   assert.notEqual(
     segmentBlockFraction(

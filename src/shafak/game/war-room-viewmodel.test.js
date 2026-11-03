@@ -46,7 +46,7 @@ test("reduced motion removes idle, locomotion, and firing sway", () => {
   assert.deepEqual(pose.rotation, [0.04, -0.06, -0.045]);
 });
 
-test("walking gait keeps the weapon stable with only a subtle side-to-side movement", () => {
+test("walking gait avoids forward and vertical weapon pumping", () => {
   const state = {
     time: 0,
     movement: 1,
@@ -67,8 +67,10 @@ test("walking gait keeps the weapon stable with only a subtle side-to-side movem
 
   const rising = getWarRoomViewModelPose({ ...state, walkPhase: Math.PI / 4 });
   const falling = getWarRoomViewModelPose({ ...state, walkPhase: 3 * Math.PI / 4 });
-  assert.ok(rising.position[1] < falling.position[1]);
-  assert.ok(rising.rotation[2] > falling.rotation[2]);
+  assert.equal(rising.position[1], falling.position[1]);
+  assert.equal(rising.position[2], falling.position[2]);
+  assert.equal(rising.rotation[0], falling.rotation[0]);
+  assert.ok(Math.abs(rising.rotation[2] - falling.rotation[2]) < 0.002);
 
   const stopped = getWarRoomViewModelPose({ ...state, movement: 0, walkPhase: Math.PI / 2 });
   assert.equal(stopped.position[0], 0.28);

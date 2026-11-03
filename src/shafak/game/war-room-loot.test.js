@@ -31,9 +31,10 @@ test("nearby loot is floor-specific and collecting it changes only the match run
   assert.ok(upperWeaponChest);
   runtime.player.x = upperWeaponChest.x;
   runtime.player.z = upperWeaponChest.z;
+  runtime.lootChests = [upperWeaponChest];
 
   runtime.player.floorHeight = 0;
-  assert.equal(getNearbyWarRoomLootChest(runtime)?.chest.floor, 0);
+  assert.equal(getNearbyWarRoomLootChest(runtime)?.chest, undefined);
   runtime.player.floorHeight = upperWeaponChest.floorHeight;
   assert.equal(getNearbyWarRoomLootChest(runtime)?.chest.id, upperWeaponChest.id);
 

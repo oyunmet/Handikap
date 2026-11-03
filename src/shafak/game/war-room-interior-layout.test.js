@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WAR_ROOM_BUILDINGS } from "./war-room-data.ts";
 import {
+  getWarRoomInteriorFurnitureLayout,
   getWarRoomInteriorStyle,
   WAR_ROOM_INTERIOR_STYLES,
 } from "./war-room-interior-layout.ts";
@@ -23,4 +24,16 @@ test("interior style lookup wraps room rotations and negative style values", () 
   assert.equal(getWarRoomInteriorStyle(8).name, "barracks");
   assert.equal(getWarRoomInteriorStyle(-1).name, "storehouse-south");
   assert.equal(getWarRoomInteriorStyle(2.8).name, "storehouse");
+});
+
+test("house furnishing layouts vary by room style while keeping a stable result", () => {
+  const building = WAR_ROOM_BUILDINGS[0];
+  const first = getWarRoomInteriorFurnitureLayout({ ...building, style: 0 });
+  const alternate = getWarRoomInteriorFurnitureLayout({ ...building, style: 1 });
+  const repeated = getWarRoomInteriorFurnitureLayout({ ...building, style: 1 });
+  const at = (layout, floor, id) => layout.find((piece) => piece.floor === floor && piece.id === id);
+
+  assert.notDeepEqual(at(first, 0, "bench"), at(alternate, 0, "bench"));
+  assert.notDeepEqual(at(first, 1, "bed"), at(alternate, 1, "bed"));
+  assert.deepEqual(alternate, repeated);
 });

@@ -9,8 +9,11 @@ import {
   getNearestWarRoomDoor,
   updateWarRoomDoors,
 } from "./war-room-doors.ts";
-import { createWarRoomRuntime } from "./war-room-engine.ts";
-import { getWarRoomBuildingWorldPoint } from "./war-room-rooms.ts";
+import { createWarRoomRuntime, moveWarRoomEntity, WAR_ROOM_PLAYER_COLLISION_RADIUS } from "./war-room-engine.ts";
+import {
+  getWarRoomBuildingLocalPoint,
+  getWarRoomBuildingWorldPoint,
+} from "./war-room-rooms.ts";
 
 test("War Room house entrances start blocked by properly rotated doors", () => {
   const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
@@ -121,6 +124,47 @@ test("door interaction range includes a comfortable approach distance", () => {
     getNearestWarRoomDoor(runtime.room.buildings, outside.x, outside.z, 0, towardDoor)?.building.id,
     building.id,
   );
+});
+
+test("entering or leaving a house auto-opens the entrance from every room rotation", () => {
+  for (let roomNumber = 1; roomNumber <= 4; roomNumber += 1) {
+    for (const direction of [1, -1]) {
+      const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, roomNumber);
+      const building = runtime.room.buildings[0];
+      const frontZ = -building.depth / 2;
+      const start = getWarRoomBuildingWorldPoint(
+        building,
+        0,
+        frontZ + direction * 1.1,
+      );
+      const target = getWarRoomBuildingWorldPoint(
+        building,
+        0,
+        frontZ - direction * 2.5,
+      );
+      runtime.player.x = start.x;
+      runtime.player.z = start.z;
+
+      updateWarRoomDoors(runtime, 10, false, Math.PI);
+      assert.ok(runtime.doorStates[building.id], "the door opens without an interaction button");
+
+      const result = moveWarRoomEntity(
+        start.x,
+        start.z,
+        target.x - start.x,
+        target.z - start.z,
+        WAR_ROOM_PLAYER_COLLISION_RADIUS,
+        getWarRoomActiveBlockers(runtime, 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * 0.7),
+      );
+      const localResult = getWarRoomBuildingLocalPoint(building, result.x, result.z);
+      assert.ok(
+        direction > 0
+          ? localResult.z < frontZ - 1.4
+          : localResult.z > frontZ + 1.4,
+        `room ${roomNumber} ${direction > 0 ? "exit" : "entry"} should pass through the doorway`,
+      );
+    }
+  }
 });
 
 test("all entrance doors retain at least 1.6m clear width and 2.4m height", () => {

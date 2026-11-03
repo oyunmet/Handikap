@@ -9,6 +9,7 @@ import { WAR_ROOM_CONFIG } from "./war-room-config";
 export const WAR_ROOM_DOOR_OPEN_SECONDS = WAR_ROOM_CONFIG.doors.openSeconds;
 export const WAR_ROOM_DOOR_ANIMATION_SECONDS = WAR_ROOM_CONFIG.doors.animationSeconds;
 export const WAR_ROOM_DOOR_INTERACTION_DISTANCE = WAR_ROOM_CONFIG.doors.interactionDistance;
+const WAR_ROOM_DOOR_AUTO_OPEN_DISTANCE = WAR_ROOM_CONFIG.doors.autoOpenDistance;
 export const WAR_ROOM_DOOR_CLEAR_PROGRESS = WAR_ROOM_CONFIG.doors.clearProgress;
 const WAR_ROOM_DOOR_OCCUPANCY_BUFFER = WAR_ROOM_CONFIG.doors.occupancyBuffer;
 const WAR_ROOM_DOOR_PLAYER_RADIUS = WAR_ROOM_CONFIG.doors.playerRadius;
@@ -159,6 +160,19 @@ function isWarRoomDoorwayOccupied(
     && Math.abs(local.z - frontZ) <= halfDepth;
 }
 
+function isWarRoomDoorWithinAutoOpenRange(
+  building: WarRoomBuilding,
+  floor: WarRoomDoorFloor,
+  actor: { x: number; z: number; floorHeight: number },
+) {
+  const doorFloorHeight = floor === 0 ? 0 : building.storyHeight;
+  if (Math.abs(actor.floorHeight - doorFloorHeight) > 1.1) return false;
+  const local = getWarRoomBuildingLocalPoint(building, actor.x, actor.z);
+  const frontZ = -building.depth / 2;
+  return Math.abs(local.x) <= building.doorWidth / 2 + WAR_ROOM_DOOR_PLAYER_RADIUS
+    && Math.abs(local.z - frontZ) <= WAR_ROOM_DOOR_AUTO_OPEN_DISTANCE;
+}
+
 export function updateWarRoomDoors(
   runtime: WarRoomDoorRuntime,
   now: number,
@@ -172,11 +186,29 @@ export function updateWarRoomDoors(
     runtime.player.floorHeight,
     lookYaw,
   );
-  if (openRequested && nearest) {
-    runtime.doorStates[nearest.key] = {
+  const approachDoor = getNearestWarRoomDoor(
+    runtime.room.buildings,
+    runtime.player.x,
+    runtime.player.z,
+    runtime.player.floorHeight,
+  );
+  const autoOpenDoor = approachDoor
+    && isWarRoomDoorWithinAutoOpenRange(
+      approachDoor.building,
+      approachDoor.floor,
+      runtime.player,
+    )
+    ? approachDoor
+    : null;
+  const doorToOpen = (openRequested && nearest) || autoOpenDoor;
+  if (doorToOpen) {
+    const state = runtime.doorStates[doorToOpen.key];
+    if (openRequested || !state || state.openUntil <= now) {
+      runtime.doorStates[doorToOpen.key] = {
       openedAt: now,
       openUntil: now + WAR_ROOM_DOOR_OPEN_SECONDS,
-    };
+      };
+    }
   }
 
   for (const building of runtime.room.buildings) {

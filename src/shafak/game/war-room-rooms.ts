@@ -11,6 +11,7 @@ import {
   type WarRoomLootChest,
   type WarRoomWeaponId,
 } from "./war-room-data";
+import type { WarRoomContract } from "./war-room-contract";
 
 const WAR_ROOM_FLOOR_COLLISION_RADIUS = 0.4;
 
@@ -56,8 +57,11 @@ export type WarRoomSpawn = {
 export type WarRoomRoom = Omit<WarRoomRoomDefinition, "enemyCount"> & {
   number: number;
   cycle: number;
+  runSeed: number;
+  contract: WarRoomContract;
   enemyCount: number;
   enemyHpMultiplier: number;
+  enemyDamageMultiplier: number;
   blockers: readonly (WarRoomBlocker & { rotationY: number })[];
   buildings: readonly WarRoomBuilding[];
   coverSpots: readonly { x: number; z: number }[];
@@ -73,6 +77,33 @@ export type WarRoomSavedProgress = {
 };
 
 export const WAR_ROOM_MAX_ROOM_ENEMIES = 14;
+
+function getWarRoomGenerationSeed(roomNumber: number, runSeed: number, salt = 0) {
+  let seed = (Math.trunc(roomNumber) ^ Math.imul((runSeed ^ salt) >>> 0, 0x9e3779b1)) >>> 0;
+  seed = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b);
+  seed = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b);
+  return (seed ^ (seed >>> 16)) >>> 0;
+}
+
+function createWarRoomRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+function shuffleWarRoomItems<T>(items: readonly T[], random: () => number) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+  }
+  return shuffled;
+}
 
 const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   {
@@ -318,6 +349,7 @@ function getRoomLootChests(
   buildings: readonly WarRoomBuilding[],
   roomNumber: number,
   blockers: readonly WarRoomBlocker[],
+  runSeed: number,
 ): WarRoomLootChest[] {
   const weaponPool: readonly WarRoomWeaponId[] = [
     "powder_rifle",
@@ -330,17 +362,31 @@ function getRoomLootChests(
   return buildings.flatMap((building) => {
     const weaponId = weaponPool[(building.style + roomNumber - 1) % weaponPool.length];
     const ammoWeaponId = weaponPool[(building.style + roomNumber) % weaponPool.length];
+    const lootAnchors = [
+      [-4.15, -building.depth / 2 + 2],
+      [4.15, -building.depth / 2 + 2],
+      [-4.15, building.depth / 2 - 2],
+      [4.15, building.depth / 2 - 2],
+    ] as const;
     return ([0, 1] as const).flatMap((floor) => {
       const floorHeight = floor === 0 ? 0 : building.storyHeight;
       const reserved = reservedByFloor[floor];
+      const anchors = shuffleWarRoomItems(
+        lootAnchors,
+        createWarRoomRandom(getWarRoomGenerationSeed(
+          roomNumber,
+          runSeed,
+          building.style * 2 + floor + 1,
+        )),
+      );
       const ammoPoint = findNearestWarRoomClearPoint(
-        getWarRoomBuildingWorldPoint(building, -4.15, -4.65),
+        getWarRoomBuildingWorldPoint(building, anchors[0][0], anchors[0][1]),
         blockers,
         { radius: 0.35, floorHeight, reserved, minimumReservedDistance: 1.4 },
       );
       reserved.push(ammoPoint);
       const weaponPoint = findNearestWarRoomClearPoint(
-        getWarRoomBuildingWorldPoint(building, 4.15, -4.65),
+        getWarRoomBuildingWorldPoint(building, anchors[1][0], anchors[1][1]),
         blockers,
         { radius: 0.35, floorHeight, reserved, minimumReservedDistance: 1.4 },
       );
@@ -410,8 +456,9 @@ function getAdditionalSpawnSites() {
 
 const ADDITIONAL_SPAWN_SITES = getAdditionalSpawnSites();
 
-export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
+export function getWarRoomRoom(roomNumber: number, runSeed = 0): WarRoomRoom {
   const safeNumber = Math.max(1, Math.floor(Number.isFinite(roomNumber) ? roomNumber : 1));
+  const safeRunSeed = Number.isFinite(runSeed) ? Math.trunc(runSeed) >>> 0 : 0;
   const cycle = Math.floor((safeNumber - 1) / ROOM_DEFINITIONS.length);
   const definition = ROOM_DEFINITIONS[(safeNumber - 1) % ROOM_DEFINITIONS.length];
   const blockers = WAR_ROOM_BLOCKERS.map((blocker) => {
@@ -437,7 +484,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       ...building,
       ...point,
       rotationY: definition.quarterTurns * Math.PI / 2,
-      style: (building.style + safeNumber - 1) % 8,
+      style: (building.style + safeNumber - 1 + safeRunSeed % 8) % 8,
     };
   });
   const coverSpots = WAR_ROOM_COVER_SPOTS.map((spot) => (
@@ -452,7 +499,11 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
     })),
   ];
   const placedEnemySpawns: Array<{ x: number; z: number }> = [];
-  const enemySpawns = baseSpawns.map((spawn) => {
+  const randomizedSpawns = shuffleWarRoomItems(
+    baseSpawns,
+    createWarRoomRandom(getWarRoomGenerationSeed(safeNumber, safeRunSeed)),
+  );
+  const enemySpawns = randomizedSpawns.map((spawn) => {
     const point = transformPoint(spawn.x, spawn.z, definition);
     const safePoint = findNearestWarRoomClearPoint(
       point,
@@ -462,10 +513,7 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
     placedEnemySpawns.push(safePoint);
     return { ...spawn, ...safePoint };
   });
-  const baseEnemyCount = Math.min(
-    WAR_ROOM_MAX_ROOM_ENEMIES,
-    definition.enemyCount + cycle,
-  );
+  const baseEnemyCount = Math.min(WAR_ROOM_MAX_ROOM_ENEMIES, 8 + safeNumber);
   const commanderPoint = transformPoint(WAR_ROOM_COMMANDER.x, WAR_ROOM_COMMANDER.z, definition);
   const commanderPosition = findNearestWarRoomClearPoint(
     commanderPoint,
@@ -485,13 +533,35 @@ export function getWarRoomRoom(roomNumber: number): WarRoomRoom {
       minimumReservedDistance: 3.2,
     },
   );
-  const lootChests = getRoomLootChests(buildings, safeNumber, blockers);
+  const lootChests = getRoomLootChests(buildings, safeNumber, blockers, safeRunSeed);
+  const contractRandom = createWarRoomRandom(
+    getWarRoomGenerationSeed(safeNumber, safeRunSeed, 0x434f4e54),
+  );
+  const contractKind = contractRandom() < 0.5 ? "headshots" : "loot";
+  const contract: WarRoomContract = contractKind === "headshots"
+    ? {
+      kind: "headshots",
+      title: "Keskin nişancı",
+      description: "Kafa vuruşu yap",
+      target: 2 + Math.min(2, Math.floor((safeNumber - 1) / 6)),
+      bonusGold: 70 + Math.min(150, (safeNumber - 1) * 6),
+    }
+    : {
+      kind: "loot",
+      title: "Sandık avı",
+      description: "Ganimet sandığı aç",
+      target: 1 + Math.min(1, Math.floor((safeNumber - 1) / 8)),
+      bonusGold: 70 + Math.min(150, (safeNumber - 1) * 6),
+    };
   return {
     ...definition,
     number: safeNumber,
     cycle,
+    runSeed: safeRunSeed,
+    contract,
     enemyCount: baseEnemyCount,
-    enemyHpMultiplier: 1 + cycle * 0.1,
+    enemyHpMultiplier: Math.min(2.4, 1 + (safeNumber - 1) * 0.045),
+    enemyDamageMultiplier: Math.min(1.75, 1 + (safeNumber - 1) * 0.025),
     blockers,
     buildings,
     coverSpots,

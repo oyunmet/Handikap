@@ -19,6 +19,10 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import { createWarRoomLeaderboard } from "./war-room-leaderboard";
+import {
+  getWarRoomContractProgress,
+  getWarRoomContractReward,
+} from "./war-room-contract";
 import { getWarRoomDoorOpenProgress } from "./war-room-doors";
 import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout";
 import { isWarRoomMuted, playWarRoomSound, resumeWarRoomAudio, setWarRoomMuted } from "./war-room-audio";
@@ -260,6 +264,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     meleeComboCount: 0,
     meleeLastResult: "Henüz isabet yok",
     nearbyLootChest: null,
+    lootChestsOpened: 0,
     nearbyDoor: null,
   };
 }
@@ -483,6 +488,8 @@ export default function WarRoomGame({
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
+  const contractProgress = getWarRoomContractProgress(currentRoom.contract, hud);
+  const contractBonus = getWarRoomContractReward(currentRoom.contract, contractProgress);
   const floorPresentation = getWarRoomFloorPresentation(
     currentRoom.buildings,
     hud.player.x,
@@ -602,12 +609,15 @@ export default function WarRoomGame({
   const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
     fullscreenRequestedRef.current = requestWarRoomImmersiveDisplay();
     resumeWarRoomAudio();
+    const runSeed = preparedRuntime?.room.runSeed
+      ?? Math.floor(Math.random() * 4_294_967_296);
     runtimeRef.current = weaponLabMode
       ? createWarRoomTrainingRuntime(loadout)
       : preparedRuntime ?? createWarRoomRuntime(
         loadout,
         0,
         WAR_ROOM_ROOM_CHAIN_ENABLED ? targetRoomNumber : 1,
+        runSeed,
       );
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
@@ -629,14 +639,18 @@ export default function WarRoomGame({
 
   const finishBattle = useCallback((result: "victory" | "defeat", finalHud: WarRoomHudSnapshot) => {
     const completedRoom = runtimeRef.current.room;
+    const contractProgress = getWarRoomContractProgress(completedRoom.contract, finalHud);
+    const contractBonus = result === "victory"
+      ? getWarRoomContractReward(completedRoom.contract, contractProgress)
+      : 0;
     const nextRoom = result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED
-      ? getWarRoomRoom(completedRoom.number + 1)
+      ? getWarRoomRoom(completedRoom.number + 1, completedRoom.runSeed)
       : null;
     const baseReward = 90 + finalHud.kills * 7 + finalHud.headshots * 5;
     const gold = result === "victory"
       ? Math.round(baseReward * (
         WAR_ROOM_ROOM_CHAIN_ENABLED ? getWarRoomRoomRewardMultiplier(completedRoom.number) : 1
-      ))
+      )) + contractBonus
       : 0;
     const totalGold = gold > 0 ? recordWarRoomGold(gold) : null;
     if (result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED) {
@@ -648,7 +662,12 @@ export default function WarRoomGame({
       roomProgressRef.current = updatedProgress;
       setRoomProgress(updatedProgress);
       writeWarRoomRoomProgress(updatedProgress);
-      const prepared = createWarRoomRuntime(loadout, 0, completedRoom.number + 1);
+      const prepared = createWarRoomRuntime(
+        loadout,
+        0,
+        completedRoom.number + 1,
+        completedRoom.runSeed,
+      );
       prepared.player.hp = getWarRoomRoomCarryHp(finalHud.player.hp, finalHud.player.maxHp);
       preparedNextRoomRef.current = prepared;
     } else {
@@ -667,6 +686,11 @@ export default function WarRoomGame({
       commanderTitle: completedRoom.commanderTitle,
       enemyCount: completedRoom.enemyCount,
       nextRoom,
+      contract: {
+        ...completedRoom.contract,
+        progress: contractProgress,
+        completed: contractBonus > 0,
+      },
       leaderboard: createWarRoomLeaderboard(
         profile.name,
         result,
@@ -1477,6 +1501,15 @@ export default function WarRoomGame({
                     {floorLabel}
                   </div>
                 )}
+                <div
+                  className={`war-room-side-contract${contractBonus > 0 ? " is-complete" : ""}`}
+                  role="status"
+                  aria-label={`Ek hedef: ${currentRoom.contract.description}, ${contractProgress}/${currentRoom.contract.target}`}
+                >
+                  <span>EK HEDEF</span>
+                  <strong>{currentRoom.contract.title}</strong>
+                  <small>{contractProgress}/{currentRoom.contract.target} · +{currentRoom.contract.bonusGold} altın</small>
+                </div>
               </div>
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
                 {hud.killFeed.slice(0, 4).map((feed) => <span key={feed.id}>{feed.text}</span>)}

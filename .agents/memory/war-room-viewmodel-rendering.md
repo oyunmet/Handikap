@@ -7,6 +7,6 @@ Render the War Room first-person viewmodel in its own scene, with the active cam
 
 Keep ranged weapons steady while walking: use only a small amount of lateral movement and rotation so the muzzle does not sweep across nearby characters. Preserve visible aim, recoil, reload, and intentional attack animations.
 
-**Why:** A portal to the default camera passed type checks and pose tests but produced no arms or weapon. Independent arm compensation can cancel the shared gait, while stepped wall-proximity samples can make the weapon pop.
+**Why:** A portal to the default camera passed type checks and pose tests but produced no arms or weapon. Independent arm compensation can cancel the shared gait, while stepped wall-proximity samples can make the weapon pop. The user also wants articulated feet visible on a downward look without exposing the full model to camera clipping.
 
-**How to apply:** Keep arm and weapon motion coupled, ease wall-proximity targets, keep walk sway below a small fraction of its former amplitude, and verify viewmodel changes in a rendered screenshot—preferably with SwiftShader Chromium when Replit's screenshot browser cannot create WebGL. Unit tests and a successful build do not prove the model is visible.
+**How to apply:** Keep arm and weapon motion coupled, ease wall-proximity targets, and keep walk sway below a small fraction of its former amplitude. Show articulated legs and feet only when the camera looks down, positioned from the player's actual world pose; verify floor, jump, crouch, and walk poses in a rendered screenshot—preferably with SwiftShader Chromium when Replit's screenshot browser cannot create WebGL. Unit tests and a successful build do not prove the model is visible.

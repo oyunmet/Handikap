@@ -12,3 +12,9 @@ War Room timed-performance sampling must use `performance.now()` rather than the
 **Why:** The screenshot runner and development build are not a representative mobile production runtime, so this measurement cannot confirm that the 60 FPS target is met.
 
 **How to apply:** Treat 60 FPS as outstanding until measured on a target mobile device or a production-mode run. Track benchmark wall time separately from game-accepted attacks and attack gaps; label headless SwiftShader results as software-renderer measurements. If app-preview capture cannot create a WebGL context, do not infer a scene failure from its fallback; use a WebGL-capable browser for visual verification.
+
+Refresh camera and input diagnostics on wall-clock intervals, not the simulation clock.
+
+**Why:** At one SwiftShader frame per second, the game clock's capped delta can leave debug yaw and look deltas stale beyond a five-second test timeout, even when input was received.
+
+**How to apply:** Use `performance.now()` for diagnostic refresh throttles as well as frame-rate benchmarks; do not treat a stale debug snapshot as proof that an input was dropped.

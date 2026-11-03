@@ -191,6 +191,7 @@ import {
   type WarRoomAnimationState,
 } from "./WarRoomModels";
 import { WarRoomFirstPersonArms, type WarRoomArmsAnimation } from "./WarRoomFirstPersonArms";
+import WarRoomFirstPersonLegs from "./WarRoomFirstPersonLegs";
 import { WAR_ROOM_CONFIG } from "../game/war-room-config";
 import WarRoomSceneErrorBoundary from "./WarRoomSceneErrorBoundary";
 
@@ -986,6 +987,16 @@ function FirstPersonWeaponViewModel({
           visible={armsVisible}
         />
       </group>
+      <WarRoomFirstPersonLegs
+        runtimeRef={runtimeRef}
+        parentRef={weaponRootRef}
+        cameraPositionRef={cameraPositionRef}
+        cameraQuaternionRef={cameraQuaternionRef}
+        cameraForwardRef={cameraForwardRef}
+        movementRef={filteredMovementRef}
+        walkPhaseRef={walkPhaseRef}
+        active={cameraMode === "first-person"}
+      />
       <group ref={weaponPoseRef} name="war-room-first-person-weapon-bob">
         <WeaponModel weaponId={weaponId} mount={mount} animationRef={armsAnimationRef} />
       </group>
@@ -1930,6 +1941,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
         progress: player.lootChestId === nearbyChest.chest.id ? player.lootProgress : 0,
       }
       : null,
+    lootChestsOpened: runtime.lootChests.filter((chest) => chest.opened).length,
   };
 }
 
@@ -4433,11 +4445,12 @@ function WarRoomRuntimeScene({
     // The renderer updates the full scene graph before drawing. Only the camera
     // needs an immediate matrix update for the aim ray later in this frame.
     camera.updateMatrixWorld();
+    const lookDebugWallNow = performance.now();
     if (
       (debugMode || debugDiagnosticsEnabled)
-      && now - lookDebugAtRef.current >= 0.25
+      && lookDebugWallNow - lookDebugAtRef.current >= 250
     ) {
-      lookDebugAtRef.current = now;
+      lookDebugAtRef.current = lookDebugWallNow;
       onLookDebugUpdate({
         yaw: input.yaw,
         pitch: input.pitch,

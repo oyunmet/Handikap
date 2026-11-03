@@ -222,6 +222,7 @@ export type WarRoomHudSnapshot = {
   meleeComboCount: number;
   meleeLastResult: string;
   nearbyLootChest: { id: string; label: string; contents: string; progress: number } | null;
+  lootChestsOpened: number;
   nearbyDoor: { id: string; openProgress: number; secondsRemaining: number } | null;
 };
 
@@ -247,8 +248,9 @@ export function createWarRoomRuntime(
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId],
   now = 0,
   roomNumber = 1,
+  runSeed = 0,
 ): WarRoomRuntime {
-  const room = getWarRoomRoom(roomNumber);
+  const room = getWarRoomRoom(roomNumber, runSeed);
   const enemies: WarRoomEnemy[] = room.enemySpawns
     .slice(0, room.enemyCount - 1)
     .map((spawn, index) => {
@@ -262,7 +264,7 @@ export function createWarRoomRuntime(
       floorHeight: 0,
       hp: 90 * room.enemyHpMultiplier,
       maxHp: 90 * room.enemyHpMultiplier,
-      damage: 9,
+      damage: Math.round(9 * room.enemyDamageMultiplier),
       score: 0,
       alive: true,
       mode: "approach",
@@ -289,7 +291,7 @@ export function createWarRoomRuntime(
     floorHeight: 0,
     hp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
     maxHp: WAR_ROOM_COMMANDER.hp * room.enemyHpMultiplier,
-    damage: WAR_ROOM_COMMANDER.damage,
+    damage: Math.round(WAR_ROOM_COMMANDER.damage * room.enemyDamageMultiplier),
     score: 0,
     alive: true,
     mode: "approach",

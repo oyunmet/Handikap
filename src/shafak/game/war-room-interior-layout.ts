@@ -31,24 +31,34 @@ export function getWarRoomInteriorFurnitureLayout(building: {
   depth: number;
   storyHeight: number;
   stairSide: -1 | 1;
+  style?: number;
 }): WarRoomInteriorFurniture[] {
   const livingSide = -building.stairSide;
   const edge = building.width / 2;
   const frontZ = -building.depth / 2;
   const rearZ = building.depth / 2;
+  const layoutVariants = [
+    { bench: 0, table: 0, hearth: 0, bed: 0, nightstand: 0 },
+    { bench: 0.45, table: -0.35, hearth: -0.25, bed: 0.55, nightstand: -0.3 },
+    { bench: -0.35, table: 0.45, hearth: 0.35, bed: -0.45, nightstand: 0.3 },
+    { bench: 0.6, table: 0.35, hearth: -0.45, bed: -0.6, nightstand: 0.45 },
+  ] as const;
+  const style = Number.isFinite(building.style) ? Math.trunc(building.style!) : 0;
+  const variantIndex = ((style % layoutVariants.length) + layoutVariants.length) % layoutVariants.length;
+  const layout = layoutVariants[variantIndex];
   const groundFloorFurnishings: Omit<WarRoomInteriorFurniture, "floor" | "y">[] = [
     {
       id: "bench",
-      x: livingSide * (edge - 1.35),
-      z: frontZ + 1.65,
+      x: livingSide * (edge - 1.35) + livingSide * layout.bench * 0.18,
+      z: frontZ + 1.65 + layout.bench,
       width: 2.3,
       depth: 0.82,
       height: 0.92,
     },
     {
       id: "table",
-      x: livingSide * (edge - 2.5),
-      z: frontZ + 4.05,
+      x: livingSide * (edge - 2.5) + livingSide * layout.table * 0.2,
+      z: frontZ + 4.05 + layout.table,
       width: 1.5,
       depth: 1.12,
       height: 1.05,
@@ -56,7 +66,7 @@ export function getWarRoomInteriorFurnitureLayout(building: {
     {
       id: "hearth",
       x: livingSide * (edge - 1.15),
-      z: rearZ - 0.92,
+      z: rearZ - 0.92 + layout.hearth,
       width: 1.22,
       depth: 1.15,
       height: 1.3,
@@ -90,14 +100,14 @@ export function getWarRoomInteriorFurnitureLayout(building: {
     {
       id: "bed",
       x: livingSide * (edge - 1.45),
-      z: rearZ - 3.2,
+      z: rearZ - 3.2 + layout.bed,
       width: 2.2,
       depth: 2.65,
       height: 1.22,
     },
     {
       id: "nightstand",
-      x: livingSide * (edge - 3.2),
+      x: livingSide * (edge - 3.2) + livingSide * layout.nightstand * 0.2,
       z: rearZ - 1.7,
       width: 0.76,
       depth: 0.72,

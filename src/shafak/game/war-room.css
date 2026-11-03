@@ -814,6 +814,45 @@
   display: flex;
   align-items: flex-start;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+.war-room-side-contract {
+  display: grid;
+  min-width: 142px;
+  max-width: 174px;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid rgba(226, 184, 126, 0.32);
+  border-radius: 5px;
+  background: rgba(20, 19, 18, 0.78);
+  color: #ead9be;
+  text-shadow: 0 1px 3px #000;
+}
+
+.war-room-side-contract span {
+  color: #d6ad70;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.war-room-side-contract strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.war-room-side-contract small {
+  color: rgba(242, 227, 207, 0.72);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.war-room-side-contract.is-complete {
+  border-color: rgba(145, 207, 145, 0.65);
+  box-shadow: 0 0 14px rgba(145, 207, 145, 0.14);
 }
 
 .war-room-loot-action {
@@ -1986,6 +2025,54 @@
   color: #f2d3a1;
   font-family: var(--font-display, Georgia, serif);
   font-size: 18px;
+}
+
+.war-room-contract-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px 0 18px;
+  padding: 11px 13px;
+  border: 1px solid rgba(226, 184, 126, 0.32);
+  background: rgba(13, 12, 11, 0.34);
+  text-align: left;
+}
+
+.war-room-contract-result > div {
+  display: grid;
+  gap: 3px;
+}
+
+.war-room-contract-result span {
+  color: rgba(237, 218, 190, 0.58);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.war-room-contract-result strong {
+  color: #f2d3a1;
+  font-size: 12px;
+}
+
+.war-room-contract-result small {
+  color: rgba(237, 218, 190, 0.68);
+  font-size: 8px;
+}
+
+.war-room-contract-result > b {
+  color: #d8c1a0;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 15px;
+}
+
+.war-room-contract-result.is-complete {
+  border-color: rgba(145, 207, 145, 0.55);
+}
+
+.war-room-contract-result.is-complete > b {
+  color: #a4d0a0;
 }
 
 .war-room-gold-reward {

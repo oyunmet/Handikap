@@ -13,6 +13,14 @@ export type WarRoomResultSummary = {
   roomName: string;
   commanderTitle: string;
   enemyCount: number;
+  contract: {
+    title: string;
+    description: string;
+    target: number;
+    progress: number;
+    bonusGold: number;
+    completed: boolean;
+  };
   nextRoom: WarRoomRoom | null;
   leaderboard: WarRoomLeaderboardEntry[];
 };
@@ -59,6 +67,14 @@ export default function WarRoomResult({
           <div><span>İSABET</span><b>%{summary.accuracy}</b></div>
           <div><span>SÜRE</span><b>{formatDuration(summary.seconds)}</b></div>
         </div>
+        <section className={`war-room-contract-result${summary.contract.completed ? " is-complete" : ""}`}>
+          <div>
+            <span>EK HEDEF · {summary.contract.completed ? "TAMAMLANDI" : "TAMAMLANMADI"}</span>
+            <strong>{summary.contract.title}</strong>
+            <small>{summary.contract.description} · {summary.contract.progress}/{summary.contract.target}</small>
+          </div>
+          <b>{summary.contract.completed ? `+${summary.contract.bonusGold}` : "—"} ◈</b>
+        </section>
         <section className="war-room-leaderboard" aria-label="Maç liderlik tablosu">
           <header>
             <span>MAÇ LİDERLİK TABLOSU</span>

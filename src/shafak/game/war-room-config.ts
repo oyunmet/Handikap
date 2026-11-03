@@ -31,6 +31,7 @@ export const WAR_ROOM_CONFIG = {
     openSeconds: 6,
     animationSeconds: 0.28,
     interactionDistance: 3.15,
+    autoOpenDistance: 1.35,
     clearProgress: 0.65,
     occupancyBuffer: 0.5,
     playerRadius: 0.4,
