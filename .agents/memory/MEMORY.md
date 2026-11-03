@@ -23,3 +23,4 @@
 - [War Room blaster ownership](war-room-blaster-inventory.md) — Blasters may share store ownership, but stay exclusive to War Room loadouts unless cross-mode use is explicitly requested.
 - [War Room enterable buildings](war-room-enterable-buildings.md) — Keep visible door openings, movement collision, and shot-blocking geometry aligned across rotated rooms.
 - [War Room viewmodel rendering](war-room-viewmodel-rendering.md) — Keep the weapon steady in motion, preserve coupled arms, and verify camera-relative rendering.
+- [Follow complete project plans](complete-project-plan.md) — Finish all supplied project-plan steps in order; do not stop after one incremental change.
