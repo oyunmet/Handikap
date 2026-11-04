@@ -71,13 +71,6 @@ function HeldButton({
     pressedRef.current = false;
     onRelease(button);
   };
-  const keyHint = className.includes("attack") ? "J"
-    : className.includes("block") ? "K"
-      : className.includes("jump") ? "X"
-      : className.includes("aim") ? "F"
-        : className.includes("fire") ? "SPACE"
-          : className.includes("lightning") ? "Q"
-            : "";
   const icon: GameButtonIcon = className.includes("attack") ? "attack"
     : className.includes("block") ? "shield"
       : className.includes("aim") ? "aim"
@@ -123,7 +116,6 @@ function HeldButton({
       tone={tone}
       faceSize={className.includes("attack") ? 82 : className.includes("skill") ? 56 : 64}
       hitAreaSize={className.includes("attack") ? 96 : className.includes("skill") ? 68 : 76}
-      hint={keyHint}
       pressed={pressedRef.current}
       cooldownPercent={ringSeconds / 6 * 100}
       onPointerDown={onPointerDown}
@@ -273,7 +265,7 @@ export default function DuelControls({
         <div className="duel-weapon-select__heading">
           <b aria-hidden="true">⚔</b>
           <span>SAVAŞ SİLAHLARI</span>
-          <small className="duel-weapon-select__prompt">V: DEĞİŞTİR</small>
+          <small className="duel-weapon-select__prompt">DOKUN · DEĞİŞTİR</small>
         </div>
         <div className="duel-weapon-select__slots">
           {([0, 1] as const).map((slot) => {
@@ -385,18 +377,20 @@ export default function DuelControls({
         <div className="duel-control-cluster__skills">
           <HeldButton
             button={INPUT_BUTTON.skillOne}
-            label="KOR"
+            label="ATEŞ"
             className="is-skill is-fire"
+            accessibleLabel="Kor ateşi: rakibi yakar."
             onPress={onPress}
             onRelease={onRelease}
             cooldown={skillOneSeconds}
-            disabledReason={stamina < 24 ? "KOR için 24 dayanıklılık gerekli." : ""}
+            disabledReason={stamina < 24 ? "ATEŞ yeteneği için 24 dayanıklılık gerekli." : ""}
             onBlocked={showBlockedHint}
           />
           <HeldButton
             button={INPUT_BUTTON.skillTwo}
             label="YILDIRIM"
             className="is-skill is-lightning"
+            accessibleLabel="Yıldırım: uzaktaki rakibe güçlü bir saldırı yapar."
             onPress={onPress}
             onRelease={onRelease}
             cooldown={skillTwoSeconds}

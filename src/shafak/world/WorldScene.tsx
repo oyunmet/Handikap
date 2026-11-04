@@ -3217,8 +3217,8 @@ export default function WorldScene({
                   <div><span aria-hidden="true">⚔</span><b>SİLAH</b><i>Yuva I/II'ye dokunarak seç; V ile sıradaki silaha geç</i><strong>V</strong></div>
                   <div><span aria-hidden="true">◎</span><b>YAY</b><i>Uzaktan otomatik hedef alır; yakında bıçakla saldırır</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
-                  <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
-                  <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
+                  <div><span aria-hidden="true">♨</span><b>ATEŞ</b><i>Kor alevi rakibi yakar · dayanıklılık ve bekleme süresi</i><strong>↗</strong></div>
+                  <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak rakibe vurur · dayanıklılık ve bekleme süresi</i><strong>↗</strong></div>
                 </div>
                 <button type="button" className="game-gold-button" onClick={closeCombatTutorial}>ANLADIM</button>
               </section>
