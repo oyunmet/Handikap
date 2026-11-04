@@ -1,4 +1,20 @@
 /* Touch-first duel HUD layouts. Keep the center of the arena readable. */
+.world-scene[data-battle="fight"] .world-three-layer,
+.world-scene[data-battle="fight"] .world-three-layer > div:first-child,
+.world-scene[data-battle="fight"] .world-three-layer canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+}
+
 @media (pointer: coarse) {
   .duel-controls--field .duel-stick {
     display: grid;
@@ -11,18 +27,40 @@
   .duel-controls--field .duel-stick {
     bottom: max(154px, calc(env(safe-area-inset-bottom) + 146px));
     left: max(14px, calc(env(safe-area-inset-left) + 8px));
-    width: clamp(88px, 25vw, 104px);
-    height: clamp(88px, 25vw, 104px);
+    z-index: 2;
+    width: clamp(100px, 27vw, 112px);
+    height: clamp(100px, 27vw, 112px);
+    border: 2px solid rgba(255, 226, 170, .78);
+    background:
+      radial-gradient(circle, rgba(186, 143, 84, .42), rgba(17, 20, 24, .9) 70%),
+      linear-gradient(145deg, rgba(28, 40, 45, .72), rgba(10, 12, 16, .88));
+    box-shadow:
+      0 0 0 3px rgba(8, 12, 16, .72),
+      0 8px 26px rgba(0, 0, 0, .62),
+      inset 0 0 20px rgba(255, 220, 167, .18);
+  }
+
+  .duel-controls--field .duel-stick::before {
+    inset: 23%;
+    border-color: rgba(255, 231, 189, .5);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .35);
   }
 
   .duel-controls--field .duel-stick > span {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
+    border: 2px solid rgba(255, 238, 204, .92);
+    background: radial-gradient(circle at 35% 28%, #f0cb89, #705333 72%, #3a2c23);
+    box-shadow: 0 3px 14px rgba(0, 0, 0, .72), 0 0 10px rgba(255, 218, 150, .24);
   }
 
   .duel-controls--field .duel-stick-caption {
     bottom: max(137px, calc(env(safe-area-inset-bottom) + 129px));
     left: max(36px, calc(env(safe-area-inset-left) + 29px));
+    z-index: 3;
+    color: #fff0cf;
+    font-size: 8px;
+    text-shadow: 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, .9);
   }
 
   .duel-controls--field .duel-control-cluster {
@@ -38,11 +76,22 @@
     gap: 6px;
   }
 
+  /* GameButton owns inline dimensions; portrait controls must override those
+     values just as the landscape layout already does. */
+  .duel-controls--field .duel-control-cluster .duel-control.game-button {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    --game-button-face: 46px !important;
+  }
+
   .duel-controls--field .duel-control-cluster .duel-control.is-skill {
-    width: 50px;
-    min-width: 50px;
-    height: 50px;
-    min-height: 50px;
+    width: 50px !important;
+    min-width: 50px !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    --game-button-face: 44px !important;
     border-radius: 15px;
     font-size: 7px;
   }
@@ -52,31 +101,34 @@
     right: auto;
     bottom: auto;
     left: 0;
-    width: 56px;
-    min-width: 56px;
-    height: 56px;
-    min-height: 56px;
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    --game-button-face: 50px !important;
   }
 
   .duel-controls--field .duel-control-cluster .duel-control.is-dodge {
     top: 64px;
     right: auto;
     bottom: auto;
-    left: 62px;
-    width: 56px;
-    min-width: 56px;
-    height: 56px;
-    min-height: 56px;
+    left: 56px;
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    --game-button-face: 42px !important;
   }
 
   .duel-controls--field .duel-control-cluster .duel-control.is-attack {
     top: 82px;
     right: 0;
     bottom: auto;
-    width: 78px;
-    min-width: 78px;
-    height: 78px;
-    min-height: 78px;
+    width: 74px !important;
+    min-width: 74px !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    --game-button-face: 66px !important;
     border-radius: 24px;
   }
 
@@ -89,10 +141,11 @@
   }
 
   .duel-controls--field .duel-control.is-stance {
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
-    min-height: 48px;
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    --game-button-face: 42px !important;
     border-radius: 14px;
     font-size: 7px;
   }
@@ -172,8 +225,19 @@
     top: max(124px, calc(env(safe-area-inset-top) + 116px));
     left: 50%;
     width: min(270px, calc(100vw - 110px));
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 2.8em;
+    overflow: hidden;
+    padding: 4px 9px;
+    border: 1px solid rgba(240, 209, 148, .36);
+    border-radius: 999px;
+    background: rgba(14, 20, 25, .58);
+    box-shadow: none;
+    backdrop-filter: none;
     transform: translateX(-50%);
     font-size: 7px;
+    line-height: 1.25;
     text-align: center;
   }
 
