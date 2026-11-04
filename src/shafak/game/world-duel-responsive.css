@@ -515,3 +515,304 @@
     min-height: 34px;
   }
 }
+
+/* Keep the duel's active controls together and group the loadout into one dock. */
+@media (pointer: coarse) and (orientation: portrait), (max-width: 760px) and (orientation: portrait) {
+  .duel-controls--field .duel-control-cluster {
+    position: absolute;
+    top: auto;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(150px, calc(env(safe-area-inset-bottom) + 138px));
+    left: auto;
+    display: grid;
+    grid-template-columns: 54px 54px 74px;
+    grid-template-rows: 46px 68px;
+    align-items: center;
+    justify-items: center;
+    gap: 7px;
+    width: 200px;
+    height: auto;
+    transform: none;
+  }
+
+  .duel-controls--field .duel-control-cluster__skills {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    grid-column: 2 / 4;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    width: 100%;
+    height: auto;
+    transform: none;
+  }
+
+  .duel-controls--field .duel-control-cluster__actions {
+    display: contents;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    display: grid;
+    place-items: center;
+    width: 54px !important;
+    min-width: 54px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    margin: 0;
+    transform: none;
+  }
+
+  .duel-controls--field .duel-control-cluster__skills .duel-control {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control.is-jump {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control.is-block {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack {
+    grid-column: 3;
+    grid-row: 2;
+    width: 68px !important;
+    min-width: 68px !important;
+    height: 68px !important;
+    min-height: 68px !important;
+  }
+
+  .duel-controls--field .duel-loadout-dock {
+    position: absolute;
+    z-index: 4;
+    right: auto;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 50%;
+    display: grid;
+    gap: 5px;
+    width: min(330px, calc(100vw - 24px));
+    padding: 7px 8px;
+    border: 1px solid rgba(233, 207, 155, 0.58);
+    border-radius: 15px;
+    background:
+      linear-gradient(145deg, rgba(255, 238, 196, 0.12), transparent 38%),
+      linear-gradient(180deg, rgba(28, 25, 27, 0.94), rgba(13, 17, 22, 0.96));
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.52),
+      inset 0 1px rgba(255, 246, 219, 0.18);
+    backdrop-filter: blur(8px);
+    transform: translateX(-50%);
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    margin: 0;
+    transform: none;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__heading {
+    min-height: 14px;
+    margin: 0 2px 3px;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__slots {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__slot,
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__empty {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 39px;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-quickbar {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    transform: translateX(-50%);
+  }
+
+  .duel-controls--field .duel-control.game-button {
+    --game-button-face: 46px;
+    filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.42));
+  }
+
+  .duel-controls--field .duel-control.game-button .game-button__bezel {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.7), transparent 22% 72%, rgba(24, 14, 10, 0.9)),
+      linear-gradient(135deg, #fff0b2 0%, var(--game-button-bright) 18%, var(--game-button-mid) 54%, var(--game-button-dark) 100%);
+    box-shadow:
+      0 5px 10px rgba(0, 0, 0, 0.46),
+      inset 0 1px 2px rgba(255, 255, 255, 0.74),
+      inset 0 -3px 5px rgba(23, 11, 8, 0.8);
+  }
+
+  .duel-controls--field .duel-control.game-button .game-button__sheen {
+    inset: 4px;
+    border-color: rgba(255, 240, 207, 0.58);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 35%),
+      radial-gradient(circle at 35% 27%, rgba(255, 229, 171, 0.18), transparent 52%),
+      linear-gradient(150deg, #493a35, #19191d 78%);
+  }
+
+  .duel-controls--field .duel-control.game-button .game-button__icon {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2.35;
+  }
+
+  .duel-controls--field .duel-control.game-button .game-button__label {
+    font-size: 7px;
+    letter-spacing: 0.04em;
+  }
+
+  .duel-controls--field .duel-control.is-fire {
+    --game-button-bright: #ffd17b;
+    --game-button-mid: #b65334;
+    --game-button-dark: #391d22;
+  }
+
+  .duel-controls--field .duel-control.is-lightning {
+    --game-button-bright: #d4f8ff;
+    --game-button-mid: #448ca6;
+    --game-button-dark: #1a2940;
+  }
+
+  .duel-controls--field .duel-control.is-jump {
+    --game-button-bright: #ffe69a;
+    --game-button-mid: #b08337;
+    --game-button-dark: #49321d;
+  }
+
+  .duel-controls--field .duel-control.is-block {
+    --game-button-bright: #b9efe3;
+    --game-button-mid: #4d978d;
+    --game-button-dark: #193b3d;
+  }
+
+  .duel-controls--field .duel-control.is-attack {
+    --game-button-bright: #ffd18a;
+    --game-button-mid: #c05d37;
+    --game-button-dark: #4d2326;
+  }
+
+  .duel-controls--field .duel-control.game-button[data-pressed="true"] {
+    filter: brightness(1.12) drop-shadow(0 0 10px rgba(255, 193, 103, 0.52));
+    transform: scale(0.94);
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 620px) {
+  .duel-controls--field .duel-control-cluster {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    grid-template-columns: 46px 46px 64px;
+    grid-template-rows: 40px 58px;
+    gap: 5px;
+    width: 171px;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+  }
+
+  .duel-controls--field .duel-control-cluster__skills .duel-control {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack {
+    width: 58px !important;
+    min-width: 58px !important;
+    height: 58px !important;
+    min-height: 58px !important;
+  }
+
+  .duel-controls--field .duel-loadout-dock {
+    position: absolute;
+    z-index: 4;
+    top: max(8px, env(safe-area-inset-top));
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    display: grid;
+    gap: 4px;
+    width: min(260px, 34vw);
+    padding: 5px 6px;
+    border: 1px solid rgba(233, 207, 155, 0.58);
+    border-radius: 13px;
+    background: linear-gradient(180deg, rgba(28, 25, 27, 0.94), rgba(13, 17, 22, 0.96));
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 246, 219, 0.16);
+    transform: translateX(-50%);
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    margin: 0;
+    transform: none;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__slots {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-quickbar {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    transform: translateX(-50%);
+  }
+}

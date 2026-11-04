@@ -175,6 +175,54 @@ test("rigged Quaternius bone names support procedural jump, block, and crouch po
   assert.ok(bones.pelvis.position.y < baseline.get("pelvis").position.y);
 });
 
+test("duel jump phases animate the arms and legs instead of holding one static pose", () => {
+  const model = new THREE.Group();
+  const names = [
+    "Hips", "Body", "Spine", "Torso", "Head",
+    "UpperArmL", "LowerArmL", "UpperArmR", "LowerArmR",
+    "UpperLegL", "LowerLegL", "UpperLegR", "LowerLegR", "FootL", "FootR",
+  ];
+  for (const name of names) {
+    const bone = new THREE.Bone();
+    bone.name = name;
+    model.add(bone);
+  }
+  const bones = findCharacterPoseBones(model);
+  const baseline = captureCharacterPoseBaseline(bones);
+  const readPhase = (movementState, jumpHeight, jumpVelocity) => {
+    restoreCharacterPoseBaseline(bones, baseline);
+    poseCharacterWithoutClip(
+      bones,
+      "jump",
+      0,
+      0,
+      0,
+      false,
+      false,
+      1,
+      true,
+      false,
+      { movementState, jumpHeight, jumpVelocity },
+      baseline,
+    );
+    return [
+      bones.leftUpperArm.rotation.x,
+      bones.rightUpperArm.rotation.x,
+      bones.leftThigh.rotation.x,
+      bones.leftShin.rotation.x,
+    ];
+  };
+
+  const takeoff = readPhase("ZIPLAMA_HAZIRLIK", 0.02, 2);
+  const ascent = readPhase("HAVADA_YUKARI", 0.68, 3);
+  const descent = readPhase("HAVADA_AŞAĞI", 0.68, -3);
+  const landing = readPhase("İNİŞ", 0.12, -1);
+
+  assert.notDeepEqual(ascent, descent);
+  assert.notDeepEqual(takeoff, landing);
+  assert.ok(ascent.some((angle, index) => angle !== descent[index]));
+});
+
 test("procedural jump bends preserve non-zero GLB rest rotations on the legs", () => {
   const model = new THREE.Group();
   const thigh = new THREE.Bone();

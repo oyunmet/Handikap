@@ -1976,10 +1976,6 @@ export default function WorldScene({
     input.buttons &= ~button;
     input.released |= button;
   };
-  const toggleDuelAim = () => {
-    pressDuelButton(INPUT_BUTTON.aim);
-    releaseDuelButton(INPUT_BUTTON.aim);
-  };
   const moveDuelPlayer = (x: number, y: number) => {
     const input = getDuelCameraRelativeInput(
       Math.max(-1, Math.min(1, x)),
@@ -3152,10 +3148,10 @@ export default function WorldScene({
                   ? "CEPHANE YOK · DİĞER SİLAHA GEÇ"
                 : combatRender.player.isAiming
                   ? `HEDEF KİLİTLİ · ${ammoLabel} ${ammoCount} · SALDIR`
-                  : `F İLE HEDEF KİLİTLE · ${ammoLabel} ${ammoCount}`
+                  : `OTOMATİK HEDEF · ${ammoLabel} ${ammoCount} · ATEŞ`
               : combatRender.player.isAiming
                 ? `HEDEF KİLİTLİ · ${STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "SİLAH"} HAZIR`
-                : "NİŞAN AL · HEDEFİ KİLİTLE, SALDIRIYLA VUR"}
+                : "RAKİBE YAKLAŞ · SALDIRIYLA VUR"}
           </div>
             );
           })()}
@@ -3195,13 +3191,11 @@ export default function WorldScene({
                 : null,
             ]}
             activeWeaponSlot={combatRender.activeWeaponSlot}
-            aiming={combatRender.player.isAiming}
             isBowActive={getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"}
             bowCloseRange={bowCloseRange}
             ammoCount={combatAmmoCount}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
-            onToggleAim={toggleDuelAim}
             onMove={moveDuelPlayer}
             onSurrender={() => {
               if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);
@@ -3221,7 +3215,7 @@ export default function WorldScene({
                   <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
                   <div><span aria-hidden="true">⬟</span><b>SİPER</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
                   <div><span aria-hidden="true">⚔</span><b>SİLAH</b><i>Yuva I/II'ye dokunarak seç; V ile sıradaki silaha geç</i><strong>V</strong></div>
-                  <div><span aria-hidden="true">◎</span><b>NİŞAN</b><i>Rakibi arena boyunca kilitler; yayla ok atmak için NİŞAN açık olmalı</i><strong>F</strong></div>
+                  <div><span aria-hidden="true">◎</span><b>YAY</b><i>Uzaktan otomatik hedef alır; yakında bıçakla saldırır</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
                   <div><span aria-hidden="true">♨</span><b>KOR</b><i>İlk yetenek · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak hedefe vurur · bekleme süresi ve dayanıklılık</i><strong>↗</strong></div>

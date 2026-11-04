@@ -18,6 +18,7 @@ export const modules: ModuleMap = {
   "./components/mockups/road-world-dialogue/Improved.tsx": () => import("../components/mockups/road-world-dialogue/Improved.tsx"),
   "./components/mockups/shafak-duel-controls/Current.tsx": () => import("../components/mockups/shafak-duel-controls/Current.tsx"),
   "./components/mockups/shafak-duel-controls/DuelControls.tsx": () => import("../components/mockups/shafak-duel-controls/DuelControls.tsx"),
+  "./components/mockups/shafak-duel-controls/DuelControlsFinal.tsx": () => import("../components/mockups/shafak-duel-controls/DuelControlsFinal.tsx"),
   "./components/mockups/shafak-duel-controls/DuelControlsRefined.tsx": () => import("../components/mockups/shafak-duel-controls/DuelControlsRefined.tsx"),
   "./components/mockups/shafak-duel-controls/Redesign.tsx": () => import("../components/mockups/shafak-duel-controls/Redesign.tsx"),
   "./components/mockups/shafak-mobile-hud/Current.tsx": () => import("../components/mockups/shafak-mobile-hud/Current.tsx"),

@@ -22,13 +22,11 @@ type DuelControlsProps = {
   weaponSwapCooldownSeconds: number;
   weaponNames: readonly [string, string | null];
   activeWeaponSlot: 0 | 1;
-  aiming: boolean;
   isBowActive: boolean;
   bowCloseRange: boolean;
   ammoCount: number | null;
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
-  onToggleAim: () => void;
   onMove: (x: number, y: number) => void;
   onSurrender: () => void;
   onOpenHelp: () => void;
@@ -75,6 +73,7 @@ function HeldButton({
   };
   const keyHint = className.includes("attack") ? "J"
     : className.includes("block") ? "K"
+      : className.includes("jump") ? "X"
       : className.includes("aim") ? "F"
         : className.includes("fire") ? "SPACE"
           : className.includes("lightning") ? "Q"
@@ -167,7 +166,6 @@ export default function DuelControls({
   skillTwoSeconds,
   onPress,
   onRelease,
-  onToggleAim,
   onMove,
   onSurrender,
   onOpenHelp,
@@ -175,7 +173,6 @@ export default function DuelControls({
   weaponSwapCooldownSeconds,
   weaponNames,
   activeWeaponSlot,
-  aiming,
   isBowActive,
   bowCloseRange,
   ammoCount,
@@ -268,38 +265,10 @@ export default function DuelControls({
         <span aria-hidden="true" />
       </div>
       <span className="duel-stick-caption" aria-hidden="true">HAREKET</span>
-      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K SİPER · F NİŞAN · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
+      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K SİPER · X ZIPLA · SPACE KOR · 1–4 EŞYA · V SİLAH</div>
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
-      <div className="duel-stance-controls" aria-label="Düello hareketleri">
-        <GameButton
-          className={`duel-control is-stance is-aim${aiming ? " is-active" : ""}`}
-          type="button"
-          aria-label={`${aiming ? "Hedef kilidini bırak" : "Rakibe kilitlen"}: ${activeWeapon}`}
-          aria-pressed={aiming}
-          label={aiming ? "KİLİT" : "NİŞAN"}
-          icon="aim"
-          tone="teal"
-          faceSize={56}
-          hitAreaSize={68}
-          hint="F"
-          onClick={() => {
-            if (!disabled) onToggleAim();
-          }}
-        />
-        <GameButton
-          className="duel-control is-stance is-jump"
-          type="button"
-          aria-label="Zıpla ve havada saldırıyla yere vur"
-          label="ZIPLA"
-          icon="jump"
-          tone="copper"
-          faceSize={56}
-          hitAreaSize={68}
-          hint="X"
-          onClick={() => tapAction(INPUT_BUTTON.jump, stamina < 12 ? "Zıplamak için 12 dayanıklılık gerekli." : "")}
-        />
-      </div>
+      <div className="duel-loadout-dock">
       <div className="duel-weapon-select" role="group" aria-label="Savaş silahları">
         <div className="duel-weapon-select__heading">
           <b aria-hidden="true">⚔</b>
@@ -411,6 +380,7 @@ export default function DuelControls({
           );
         })}
       </div>}
+      </div>
       <div className="duel-control-cluster">
         <div className="duel-control-cluster__skills">
           <HeldButton
@@ -435,6 +405,16 @@ export default function DuelControls({
           />
         </div>
         <div className="duel-control-cluster__actions">
+          <HeldButton
+            button={INPUT_BUTTON.jump}
+            label="ZIPLA"
+            className="is-jump"
+            accessibleLabel="Zıpla ve havada saldırıyla yere vur"
+            onPress={onPress}
+            onRelease={onRelease}
+            disabledReason={stamina < 12 ? "Zıplamak için 12 dayanıklılık gerekli." : ""}
+            onBlocked={showBlockedHint}
+          />
           <HeldButton button={INPUT_BUTTON.block} label="SİPER" className="is-block" accessibleLabel="Siper al" onPress={onPress} onRelease={onRelease} disabledReason={stamina < 1 ? "Siper almak için dayanıklılık gerekli." : ""} onBlocked={showBlockedHint} />
           <HeldButton button={INPUT_BUTTON.attack} label={attackLabel} accessibleLabel={attackDescription} className={`is-attack${isBowActive ? " is-bow" : ""}${isBowActive && bowCloseRange ? " is-close-range" : ""}${isDagger ? " is-dagger" : ""}`} onPress={onPress} onRelease={onRelease} cooldown={attackCooldownSeconds} disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ammoEmpty ? "Ok yok. Diğer silaha geç veya savaş çantasına ok ekle." : ""} onBlocked={showBlockedHint} />
         </div>

@@ -912,6 +912,26 @@ function DuelFighter({
     actorMotion.current.distance = motionRef.current.distance - actor.z;
     actorMotion.current.cameraX = motionRef.current.cameraX;
     actorMotion.current.stepPhase = state.tick * 0.13;
+    const jumpDuration = actor.jumpUntilTick - actor.jumpStartedTick;
+    const jumpActive = jumpDuration > 0
+      && state.tick >= actor.jumpStartedTick
+      && state.tick < actor.jumpUntilTick;
+    const jumpProgress = jumpActive
+      ? THREE.MathUtils.clamp((state.tick - actor.jumpStartedTick) / jumpDuration, 0, 1)
+      : 0;
+    actorMotion.current.jumpHeight = jumpActive ? getDuelJumpHeight(actor, state.tick) : 0;
+    actorMotion.current.jumpVelocity = jumpActive
+      ? (getDuelJumpHeight(actor, state.tick + 1) - getDuelJumpHeight(actor, state.tick - 1)) * 30
+      : 0;
+    actorMotion.current.movementState = !jumpActive
+      ? "YERDE_DURUYOR"
+      : jumpProgress < 0.12
+        ? "ZIPLAMA_HAZIRLIK"
+        : jumpProgress >= 0.9
+          ? "İNİŞ"
+          : actorMotion.current.jumpVelocity >= 0
+            ? "HAVADA_YUKARI"
+            : "HAVADA_AŞAĞI";
     actorMotion.current.hasMoved = Math.hypot(actor.vx, actor.vz) > 0.25;
     if (actorRoot.current) {
       actorRoot.current.position.set(actor.x, 0, actor.z);
@@ -1144,6 +1164,11 @@ function DuelCombatVisual({
   );
   const fireballRef = useRef<THREE.Group>(null);
   const lightningMaterialRef = useRef<THREE.LineBasicMaterial>(null);
+  const lightningGlowMaterialRef = useRef<THREE.LineBasicMaterial>(null);
+  const lightningSourceRef = useRef<THREE.Mesh>(null);
+  const lightningSourceMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const lightningCoreRef = useRef<THREE.Mesh>(null);
+  const lightningCoreMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
   const shieldMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const shieldRippleRef = useRef<THREE.Mesh>(null);
@@ -1171,6 +1196,8 @@ function DuelCombatVisual({
   const end = useMemo(() => new THREE.Vector3(), []);
   const first = useMemo(() => new THREE.Vector3(), []);
   const second = useMemo(() => new THREE.Vector3(), []);
+  const boltStart = useMemo(() => new THREE.Vector3(), []);
+  const boltEnd = useMemo(() => new THREE.Vector3(), []);
   const sparkPositions = useMemo(() => new Float32Array(DUEL_HIT_SPARK_COUNT * 3), []);
   const sparkGeometry = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
@@ -1197,13 +1224,24 @@ function DuelCombatVisual({
     const opponent = state[event.target === "player" ? "bot" : "player"];
     const age = THREE.MathUtils.clamp((performance.now() - (event.expiresAt - 900)) / 900, 0, 1);
     const fade = 1 - age;
-    start.set(actor.x + (event.target === "player" ? 0.26 : -0.26), 1.1, actor.z - 0.42);
-    end.set(opponent.x, 1.04, opponent.z - 0.08);
+    const facing = getDuelFacingAngle(actor, opponent);
+    start.set(
+      actor.x + Math.sin(facing) * 0.34,
+      1.48,
+      actor.z + Math.cos(facing) * 0.34,
+    );
+    end.set(
+      opponent.x - Math.sin(facing) * 0.16,
+      1.34,
+      opponent.z - Math.cos(facing) * 0.16,
+    );
 
     if (kind === "fireball" && fireballRef.current) {
       fireballRef.current.position.lerpVectors(start, end, age);
       fireballRef.current.position.y += Math.sin(age * Math.PI) * 0.35;
       fireballRef.current.scale.setScalar(motionReduced ? 0.92 : 0.82 + Math.sin(frame.clock.elapsedTime * 24) * 0.08 + (1 - age) * 0.16);
+      fireballRef.current.lookAt(end);
+      fireballRef.current.rotateZ(Math.sin(frame.clock.elapsedTime * 19) * (motionReduced ? 0.08 : 0.2));
       fireballRef.current.visible = age < 1;
     }
 
@@ -1243,17 +1281,29 @@ function DuelCombatVisual({
     if (kind === "lightning" && lightningMaterialRef.current) {
       let vertex = 0;
       for (let bolt = 0; bolt < LIGHTNING_BOLT_COUNT; bolt += 1) {
-        const branchOffset = (bolt - (LIGHTNING_BOLT_COUNT - 1) / 2) * 0.18;
+        const forkProgress = bolt === 0 ? 0 : bolt === 1 ? 0.34 : 0.56;
+        boltStart.lerpVectors(start, end, forkProgress);
+        boltEnd.copy(end);
+        if (bolt === 1) {
+          boltEnd.x -= Math.sin(facing) * 0.28 + 0.18;
+          boltEnd.y += 0.2;
+          boltEnd.z += Math.cos(facing) * 0.18;
+        } else if (bolt === 2) {
+          boltEnd.x += Math.sin(facing) * 0.28 + 0.18;
+          boltEnd.y -= 0.04;
+          boltEnd.z -= Math.cos(facing) * 0.18;
+        }
         for (let segment = 0; segment < LIGHTNING_SEGMENT_COUNT; segment += 1) {
           const t0 = segment / LIGHTNING_SEGMENT_COUNT;
           const t1 = (segment + 1) / LIGHTNING_SEGMENT_COUNT;
           const offsetPoint = (point: THREE.Vector3, progress: number) => {
-            point.lerpVectors(start, end, progress);
+            point.lerpVectors(boltStart, boltEnd, progress);
             const effectTime = motionReduced ? 0 : frame.clock.elapsedTime;
-            const jagged = Math.sin(progress * 27 + bolt * 13 + event.id * 0.7 + effectTime * 74) * 0.13;
+            const jagged = Math.sin(progress * 33 + bolt * 13 + event.id * 0.7 + effectTime * 74) * (bolt === 0 ? 0.17 : 0.12);
             const envelope = Math.sin(progress * Math.PI);
-            point.x += branchOffset * envelope + jagged * envelope;
-            point.y += Math.sin(progress * 41 + bolt * 4 + effectTime * 82) * 0.15 * envelope;
+            point.x += jagged * envelope;
+            point.y += Math.sin(progress * 41 + bolt * 4 + effectTime * 82) * 0.2 * envelope;
+            point.z += Math.cos(progress * 29 + bolt * 5 + event.id + effectTime * 66) * 0.12 * envelope;
           };
           offsetPoint(first, t0);
           offsetPoint(second, t1);
@@ -1267,17 +1317,29 @@ function DuelCombatVisual({
       }
       const positions = lightningGeometry.getAttribute("position") as THREE.BufferAttribute;
       positions.needsUpdate = true;
-      lightningMaterialRef.current.opacity = fade * (motionReduced ? 0.8 : 0.72 + Math.sin(frame.clock.elapsedTime * 58) * 0.2);
+      const flicker = motionReduced ? 0.82 : 0.68 + Math.sin(frame.clock.elapsedTime * 58) * 0.14 + Math.sin(frame.clock.elapsedTime * 31) * 0.1;
+      lightningMaterialRef.current.opacity = fade * flicker;
+      if (lightningGlowMaterialRef.current) lightningGlowMaterialRef.current.opacity = fade * (motionReduced ? 0.3 : 0.24 + flicker * 0.22);
+      if (lightningSourceRef.current && lightningSourceMaterialRef.current) {
+        lightningSourceRef.current.position.copy(start);
+        lightningSourceRef.current.scale.setScalar(0.72 + flicker * 0.3);
+        lightningSourceMaterialRef.current.opacity = fade * 0.72;
+      }
+      if (lightningCoreRef.current && lightningCoreMaterialRef.current) {
+        lightningCoreRef.current.position.copy(end);
+        lightningCoreRef.current.scale.setScalar(0.8 + age * 0.9);
+        lightningCoreMaterialRef.current.opacity = fade * (motionReduced ? 0.72 : 0.82 + flicker * 0.16);
+      }
     }
 
     if (kind === "lightning" && lightningImpactRingRef.current && lightningImpactRingMaterialRef.current) {
       lightningImpactRingRef.current.position.set(event.destinationX ?? opponent.x, 0.07, event.destinationZ ?? opponent.z);
-      lightningImpactRingRef.current.scale.setScalar(0.42 + age * 2.2);
-      lightningImpactRingMaterialRef.current.opacity = fade * 0.72;
+      lightningImpactRingRef.current.scale.setScalar(0.5 + age * 2.8);
+      lightningImpactRingMaterialRef.current.opacity = fade * 0.88;
     }
 
     if (kind === "lightning" && lightningFlashRef.current) {
-      const flash = Math.max(0, 1 - age * 6.25) * (motionReduced ? 0.006 : 0.015);
+      const flash = Math.max(0, 1 - age * 6.25) * (motionReduced ? 0.008 : 0.022);
       lightningFlashRef.current.style.opacity = String(flash);
     }
 
@@ -1340,26 +1402,27 @@ function DuelCombatVisual({
       impactFlashMaterialRef.current.opacity = pulse * (event.critical ? 0.95 : 0.78);
     }
 
-    if (kind === "shockwave" && impactSparksRef.current && impactSparksMaterialRef.current) {
-      const targetX = event.destinationX ?? actor.x;
-      const targetZ = event.destinationZ ?? actor.z;
-      const scatter = Math.min(1, age * 3.2);
+    if ((kind === "shockwave" || kind === "lightning") && impactSparksRef.current && impactSparksMaterialRef.current) {
+      const targetX = kind === "lightning" ? event.destinationX ?? opponent.x : event.destinationX ?? actor.x;
+      const targetZ = kind === "lightning" ? event.destinationZ ?? opponent.z : event.destinationZ ?? actor.z;
+      const sparkAge = kind === "lightning" ? age * 1.35 : age;
+      const scatter = Math.min(1, sparkAge * (kind === "lightning" ? 4.6 : 3.2));
       for (let index = 0; index < DUEL_HIT_SPARK_COUNT; index += 1) {
-        const angle = index * 2.399963 + event.id * 0.013;
-        const travel = age * (event.critical ? 2.8 : 2.1);
+        const angle = index * 2.399963 + event.id * (kind === "lightning" ? 0.071 : 0.013);
+        const travel = sparkAge * (event.critical ? 2.8 : 2.1);
         const radius = (0.11 + (index % 4) * 0.055 + travel * (0.32 + (index % 3) * 0.1)) * scatter;
         sparkPositions[index * 3] = targetX + Math.cos(angle) * radius;
         const launch = 0.95 + (index % 4) * 0.44;
         sparkPositions[index * 3 + 1] = 1.08 + ((index % 3) - 1) * 0.11
-          + launch * age - 4.6 * age * age;
+          + launch * sparkAge - 4.6 * sparkAge * sparkAge;
         sparkPositions[index * 3 + 2] = targetZ + Math.sin(angle) * radius;
       }
       const position = sparkGeometry.getAttribute("position") as THREE.BufferAttribute;
       position.needsUpdate = true;
-      impactSparksRef.current.visible = age < 0.42;
-      impactSparksMaterialRef.current.opacity = Math.max(0, 1 - age * 2.4);
+      impactSparksRef.current.visible = kind === "lightning" ? age < 0.32 : age < 0.42;
+      impactSparksMaterialRef.current.opacity = Math.max(0, 1 - age * (kind === "lightning" ? 3.2 : 2.4));
       impactSparksMaterialRef.current.color.set(
-        event.critical ? "#fff0a4" : event.attack === "heavy" ? "#ffad65" : "#ffe4a2",
+        kind === "lightning" ? "#c8f8ff" : event.critical ? "#fff0a4" : event.attack === "heavy" ? "#ffad65" : "#ffe4a2",
       );
     }
 
@@ -1376,13 +1439,46 @@ function DuelCombatVisual({
     <>
       {kind === "fireball" && (
         <group ref={fireballRef}>
+          <mesh position={[0, 0, -0.34]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.16, 0.78, 8]} />
+            <meshBasicMaterial
+              color="#ff4d1a"
+              transparent
+              opacity={0.48}
+              depthWrite={false}
+              toneMapped={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
           <mesh>
             <icosahedronGeometry args={[0.24, 1]} />
-            <meshStandardMaterial color="#ffbc62" emissive="#ff4f16" emissiveIntensity={2.1} toneMapped={false} />
+            <meshStandardMaterial color="#ffe9a8" emissive="#ff541d" emissiveIntensity={2.8} toneMapped={false} />
           </mesh>
-          <mesh scale={1.5}>
+          <mesh scale={1.65}>
+            <sphereGeometry args={[0.24, 12, 10]} />
+            <meshBasicMaterial
+              color="#ff5b21"
+              transparent
+              opacity={0.22}
+              depthWrite={false}
+              toneMapped={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
+          <mesh scale={0.56}>
             <sphereGeometry args={[0.24, 10, 8]} />
-            <meshBasicMaterial color="#ff6a27" transparent opacity={0.22} depthWrite={false} />
+            <meshBasicMaterial color="#fff5d6" transparent opacity={0.88} toneMapped={false} />
+          </mesh>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.3, 0.025, 6, 16]} />
+            <meshBasicMaterial
+              color="#ffc05c"
+              transparent
+              opacity={0.82}
+              depthWrite={false}
+              toneMapped={false}
+              blending={THREE.AdditiveBlending}
+            />
           </mesh>
         </group>
       )}
@@ -1390,14 +1486,48 @@ function DuelCombatVisual({
         <>
           <lineSegments geometry={lightningGeometry} frustumCulled={false}>
             <lineBasicMaterial
-              ref={lightningMaterialRef}
-              color="#a8f3ff"
+              ref={lightningGlowMaterialRef}
+              color="#34dfff"
               transparent
-              opacity={0.9}
+              opacity={0.42}
               depthWrite={false}
               blending={THREE.AdditiveBlending}
             />
           </lineSegments>
+          <lineSegments geometry={lightningGeometry} frustumCulled={false}>
+            <lineBasicMaterial
+              ref={lightningMaterialRef}
+              color="#efffff"
+              transparent
+              opacity={0.96}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </lineSegments>
+          <mesh ref={lightningSourceRef}>
+            <sphereGeometry args={[0.19, 10, 8]} />
+            <meshBasicMaterial
+              ref={lightningSourceMaterialRef}
+              color="#8df4ff"
+              transparent
+              opacity={0.72}
+              toneMapped={false}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
+          <mesh ref={lightningCoreRef}>
+            <sphereGeometry args={[0.22, 12, 10]} />
+            <meshBasicMaterial
+              ref={lightningCoreMaterialRef}
+              color="#e9fdff"
+              transparent
+              opacity={0.9}
+              toneMapped={false}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
           <mesh ref={lightningImpactRingRef} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.18, 0.32, 28]} />
             <meshBasicMaterial
@@ -1531,13 +1661,13 @@ function DuelCombatVisual({
           />
         </mesh>
       )}
-      {kind === "shockwave" && (
+      {(kind === "shockwave" || kind === "lightning") && (
         <>
           <points ref={impactSparksRef} geometry={sparkGeometry} frustumCulled={false}>
             <pointsMaterial
               ref={impactSparksMaterialRef}
-              color="#ffe4a2"
-              size={0.085}
+              color={kind === "lightning" ? "#c8f8ff" : "#ffe4a2"}
+              size={kind === "lightning" ? 0.11 : 0.085}
               sizeAttenuation
               transparent
               opacity={0.9}
@@ -1545,7 +1675,7 @@ function DuelCombatVisual({
               toneMapped={false}
             />
           </points>
-          {Boolean(event.damage && event.damage > 0) && (
+          {kind === "shockwave" && Boolean(event.damage && event.damage > 0) && (
             <Html
               position={[event.destinationX ?? 0, 1.62, event.destinationZ ?? 0]}
               center

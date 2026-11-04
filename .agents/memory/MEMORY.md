@@ -16,6 +16,7 @@
 - [GLB animation bounds](glb-animation-bounds.md) — Keep frame-zero transforms, 3D posture, and the native +Z facing convention aligned.
 - [Skinned-mesh debug bounds](skinned-mesh-debug-bounds.md) — Compare deformed geometry centers, not source pivots; player mesh origins can sit about 9.98 m away.
 - [Deterministic combat AI replay](combat-ai-replay.md) — Opponent archetypes must come from server-owned rival data and match exactly during server replay.
+- [Duel touch targeting](duel-touch-targeting.md) — Mobile ranged combat works without an aim button; retain close-range knife behavior and deterministic bot aim.
 - [Duel boundary and cover geometry](duel-arena-boundary.md) — Tightening movement bounds can alter cover-shot paths; verify both arena limits and cover interactions.
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.
 - [User-owned deployment](user-owned-deployment.md) — Make code changes only; the user handles Git pushes and Vercel deploys.

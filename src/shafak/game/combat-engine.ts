@@ -577,7 +577,6 @@ function startAttack(
     && !rangedAtCloseRange
     && (attack === "light" || attack === "heavy");
   const ammunitionId = side === "player" ? getWeaponAmmoItemId(weaponId) : null;
-  if (rangedShot && side === "player" && !actor.isAiming) return false;
   if (rangedShot && ammunitionId && state.combatItemCounts[ammunitionId] <= 0) {
     events.push({ id: tick * 100 + 41, type: "ammoEmpty", target: "player", weaponId: weaponId ?? undefined });
     return false;

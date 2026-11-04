@@ -311,19 +311,12 @@ test("an expired quick-combo window restarts at the first light hit", () => {
   assert.equal(released.player.comboChainStep, 1);
 });
 
-test("a short bow requires aim, uses a knife at close range, and can fire through clear lanes", () => {
+test("a short bow fires automatically, uses a knife at close range, and can fire through clear lanes", () => {
   const unAimed = createCombatState(2903, "easy");
   unAimed.weaponIds[0] = "weapon_short_bow";
+  unAimed.combatItemCounts.arrow_ammo = 2;
   unAimed.bot.staggerUntilTick = 1_000;
-  const denied = tapCombatButton(unAimed, INPUT_BUTTON.attack);
-  assert.equal(denied.state.player.attackType, null);
-
-  const aimed = createCombatState(2904, "easy");
-  aimed.weaponIds[0] = "weapon_short_bow";
-  aimed.combatItemCounts.arrow_ammo = 2;
-  aimed.bot.staggerUntilTick = 1_000;
-  const lock = tapCombatButton(aimed, INPUT_BUTTON.aim).state;
-  const shot = tapCombatButton(lock, INPUT_BUTTON.attack);
+  const shot = tapCombatButton(unAimed, INPUT_BUTTON.attack);
   assert.equal(shot.state.player.attackIsRanged, true);
   const resolved = advanceCombat(shot.state, 12);
   assert.ok(resolved.events.some((event) => event.type === "projectile" && event.weaponId === "weapon_short_bow"));
