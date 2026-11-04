@@ -91,7 +91,7 @@ test("wall proximity eases in and out instead of snapping the weapon", () => {
   assert.equal(stepWarRoomViewModelWallProximity(closer, 0, 0), closer);
 });
 
-test("wall tuck stays smaller than the walking sway instead of zooming the weapon toward the camera", () => {
+test("stationary wall tuck stays small instead of zooming the weapon toward the camera", () => {
   const state = {
     time: 0,
     movement: 0,
@@ -110,6 +110,26 @@ test("wall tuck stays smaller than the walking sway instead of zooming the weapo
   assert.ok(clear.position[2] < close.position[2]);
   assert.ok(close.position[2] - clear.position[2] <= 0.080001);
   assert.ok(clear.position[1] - close.position[1] <= 0.035001);
+});
+
+test("wall proximity cannot push the weapon forward or back while moving", () => {
+  const state = {
+    time: 0,
+    movement: 1,
+    aiming: false,
+    recoil: 0,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    meleeProgress: null,
+    meleeStyle: "slash",
+    comboIndex: 0,
+    motionReduced: false,
+  };
+  const clear = getWarRoomViewModelPose({ ...state, wallProximity: 0 });
+  const nearWall = getWarRoomViewModelPose({ ...state, wallProximity: 1 });
+
+  assert.deepEqual(nearWall.position, clear.position);
+  assert.deepEqual(nearWall.rotation, clear.rotation);
 });
 
 test("melee attacks get distinct sweep and thrust view-model arcs", () => {
