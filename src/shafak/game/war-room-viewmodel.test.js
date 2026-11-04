@@ -46,7 +46,7 @@ test("reduced motion removes idle, locomotion, and firing sway", () => {
   assert.deepEqual(pose.rotation, [0.04, -0.06, -0.045]);
 });
 
-test("walking gait avoids forward and vertical weapon pumping", () => {
+test("walking sway is limited to a small side swing with no forward, vertical, or pitch pumping", () => {
   const state = {
     time: 0,
     movement: 1,
@@ -59,22 +59,24 @@ test("walking gait avoids forward and vertical weapon pumping", () => {
     comboIndex: 0,
     motionReduced: false,
   };
-  const rightStep = getWarRoomViewModelPose({ ...state, walkPhase: Math.PI / 2 });
-  const leftStep = getWarRoomViewModelPose({ ...state, walkPhase: 3 * Math.PI / 2 });
-  assert.ok(rightStep.position[0] > 0.28);
-  assert.ok(leftStep.position[0] < 0.28);
-  assert.ok(rightStep.position[0] - leftStep.position[0] < 0.01);
+  const phases = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2]
+    .map((walkPhase) => getWarRoomViewModelPose({ ...state, walkPhase }));
+  const sidePositions = phases.map((pose) => pose.position[0]);
+  assert.ok(Math.max(...sidePositions) - Math.min(...sidePositions) >= 0.027);
 
-  const rising = getWarRoomViewModelPose({ ...state, walkPhase: Math.PI / 4 });
-  const falling = getWarRoomViewModelPose({ ...state, walkPhase: 3 * Math.PI / 4 });
-  assert.equal(rising.position[1], falling.position[1]);
-  assert.equal(rising.position[2], falling.position[2]);
-  assert.equal(rising.rotation[0], falling.rotation[0]);
-  assert.ok(Math.abs(rising.rotation[2] - falling.rotation[2]) < 0.002);
+  for (const pose of phases) {
+    assert.equal(pose.position[1], -0.08);
+    assert.equal(pose.position[2], -0.58);
+    assert.equal(pose.rotation[0], 0.04);
+  }
+  assert.ok(Math.max(...phases.map((pose) => Math.abs(pose.rotation[1] + 0.06))) <= 0.00401);
+  assert.ok(Math.max(...phases.map((pose) => Math.abs(pose.rotation[2] + 0.045))) <= 0.01201);
 
   const stopped = getWarRoomViewModelPose({ ...state, movement: 0, walkPhase: Math.PI / 2 });
   assert.equal(stopped.position[0], 0.28);
   assert.equal(stopped.position[1], -0.08);
+  assert.equal(stopped.position[2], -0.58);
+  assert.equal(stopped.rotation[1], -0.06);
   assert.equal(stopped.rotation[2], -0.045);
 });
 
@@ -129,7 +131,7 @@ test("first-person weapon scale keeps oversized bows and crossbows controlled", 
   assert.equal(getWarRoomViewModelScaleFactor(1.75), 0.6);
 });
 
-test("sprint and weapon switching add restrained, recoverable view-model poses", () => {
+test("weapon switching stays animated without adding a sprint push-in", () => {
   const base = {
     time: 0,
     movement: 0.4,
@@ -143,12 +145,13 @@ test("sprint and weapon switching add restrained, recoverable view-model poses",
     motionReduced: false,
   };
   const walking = getWarRoomViewModelPose(base);
-  const sprinting = getWarRoomViewModelPose({ ...base, movement: 1, sprint: 1 });
+  const running = getWarRoomViewModelPose({ ...base, movement: 1 });
   const lowering = getWarRoomViewModelPose({ ...base, switchProgress: 0 });
   const raised = getWarRoomViewModelPose({ ...base, switchProgress: 1 });
 
-  assert.ok(sprinting.position[0] < walking.position[0]);
-  assert.ok(sprinting.position[1] < walking.position[1]);
+  assert.equal(running.position[1], walking.position[1]);
+  assert.equal(running.position[2], walking.position[2]);
+  assert.equal(running.rotation[0], walking.rotation[0]);
   assert.ok(lowering.position[1] < raised.position[1]);
   assert.ok(lowering.position[1] > raised.position[1] - 0.31);
 });

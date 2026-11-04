@@ -935,7 +935,6 @@ function FirstPersonWeaponViewModel({
       meleeStyle: weapon.meleeStyle ?? "slash",
       comboIndex: player.meleeAttackComboIndex,
       motionReduced,
-      sprint: Math.max(0, Math.min(1, (filteredMovementRef.current - 0.72) / 0.28)),
       switchProgress: switchProgressRef.current,
     }, aspect);
     group.visible = cameraMode === "first-person";
