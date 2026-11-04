@@ -57,6 +57,20 @@ export function getWorldV2YawDelta(targetHeading: number, currentYaw: number) {
   );
 }
 
+export function getWorldV2NpcHeading(
+  actorX: number,
+  actorZ: number,
+  playerX: number,
+  playerZ: number,
+  fallback = Math.PI,
+) {
+  if (![actorX, actorZ, playerX, playerZ].every(Number.isFinite)) return fallback;
+  if (Math.hypot(playerX - actorX, playerZ - actorZ) < 0.01) return fallback;
+  // NPCs use the same +Z GLB and π model-axis correction as the road hero.
+  // Their root yaw therefore points opposite the actor-to-player vector.
+  return Math.atan2(actorX - playerX, actorZ - playerZ);
+}
+
 export type WorldV2AssetTarget =
   | {
       targetHeight: number;

@@ -15,7 +15,11 @@ import { KNIGHT_CONFIG } from "./knight-config";
 import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animation";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
-import { getWorldV2YawDelta, WORLD_V2_CONFIG } from "./world-v2-config";
+import {
+  getWorldV2NpcHeading,
+  getWorldV2YawDelta,
+  WORLD_V2_CONFIG,
+} from "./world-v2-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import {
   applyOpponentBasePalette,
@@ -285,9 +289,14 @@ export default function WorldV2Actor({
     } else {
       const actorZ = -(distance - motion.cameraX);
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
-      const directionX = playerPosition.x - x;
-      const directionZ = playerPosition.z - actorZ;
-      root.rotation.y = Math.atan2(directionX, directionZ);
+      const targetNpcHeading = getWorldV2NpcHeading(
+        x,
+        actorZ,
+        playerPosition.x,
+        playerPosition.z,
+      );
+      root.rotation.y += getWorldV2YawDelta(targetNpcHeading, root.rotation.y)
+        * (1 - Math.exp(-12 * Math.min(delta, 0.05)));
     }
 
     const proceduralPoseState = movementState === "ZIPLAMA_HAZIRLIK"

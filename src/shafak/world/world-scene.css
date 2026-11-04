@@ -1524,6 +1524,8 @@
 .world-scene:not([data-battle="none"]) .world-pickup-notice,
 .world-scene:not([data-battle="none"]) .world-pickup-flights,
 .world-scene:not([data-battle="none"]) .world-gate-prompt,
+.world-scene:not([data-battle="none"]) .world-war-room-entry,
+.world-scene:not([data-battle="none"]) .game-build-stamp--hud,
 .world-scene:not([data-battle="none"]) .world-step-bursts { display: none !important; }
 
 .world-scene[data-battle="fight"] .world-stage::after {

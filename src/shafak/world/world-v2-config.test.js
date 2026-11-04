@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   getWorldV2CameraOffset,
   getWorldV2Heading,
+  getWorldV2NpcHeading,
   getWorldV2YawDelta,
   WORLD_V2_CONFIG,
 } from "./world-v2-config.ts";
@@ -46,4 +47,31 @@ test("actor yaw turns toward its movement heading without another half-turn", ()
   assert.equal(getWorldV2YawDelta(0, 0), 0);
   assert.ok(Math.abs(getWorldV2YawDelta(0, 0.5) + 0.5) < 1e-9);
   assert.ok(Math.abs(getWorldV2YawDelta(Math.PI / 2, 0) - Math.PI / 2) < 1e-9);
+});
+
+test("road NPCs turn their corrected GLB front toward the player from every side", () => {
+  const actor = { x: 2.5, z: -20 };
+  const playerOffsets = [
+    [0, 10],
+    [-8, 0],
+    [0, -10],
+    [8, 0],
+  ];
+
+  for (const [offsetX, offsetZ] of playerOffsets) {
+    const player = { x: actor.x + offsetX, z: actor.z + offsetZ };
+    const yaw = getWorldV2NpcHeading(actor.x, actor.z, player.x, player.z);
+    const correctedFront = {
+      x: Math.sin(yaw + WORLD_V2_CONFIG.modelFacing),
+      z: Math.cos(yaw + WORLD_V2_CONFIG.modelFacing),
+    };
+    const targetLength = Math.hypot(offsetX, offsetZ);
+    const alignment = (
+      correctedFront.x * offsetX + correctedFront.z * offsetZ
+    ) / targetLength;
+    assert.ok(alignment > 0.999, `NPC must face player offset (${offsetX}, ${offsetZ})`);
+  }
+
+  assert.equal(getWorldV2NpcHeading(2.5, -20, 2.5, -20), Math.PI);
+  assert.equal(getWorldV2NpcHeading(Number.NaN, 0, 0, 0), Math.PI);
 });

@@ -177,6 +177,12 @@
     text-align: center;
   }
 
+  .duel-attack-warning {
+    top: max(164px, calc(env(safe-area-inset-top) + 156px));
+    width: min(300px, calc(100vw - 96px));
+    line-height: 1.35;
+  }
+
   .duel-controls--field .duel-control-toast {
     right: 50%;
     bottom: max(254px, calc(env(safe-area-inset-bottom) + 246px));
@@ -377,6 +383,12 @@
     transform: translateX(-50%);
     font-size: 7px;
     text-align: center;
+  }
+
+  .duel-attack-warning {
+    top: max(86px, calc(env(safe-area-inset-top) + 78px));
+    width: min(300px, calc(100vw - 236px));
+    line-height: 1.3;
   }
 
   .duel-controls--field .duel-control-toast {

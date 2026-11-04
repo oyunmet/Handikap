@@ -858,7 +858,6 @@ export default function WorldScene({
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
   const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
   const combatTutorialOpenRef = useRef(false);
-  const combatTutorialSeenRef = useRef(false);
   const lastBotTelegraphTickRef = useRef(-1);
   const storyDialogueRef = useRef<StoryDialogue | null>(storyDialogue);
   const storyChapterRef = useRef(0);
@@ -1748,9 +1747,7 @@ export default function WorldScene({
 
   function closeCombatTutorial() {
     combatTutorialOpenRef.current = false;
-    combatTutorialSeenRef.current = true;
     setCombatTutorialOpen(false);
-    try { window.localStorage.setItem("safak-combat-tutorial-seen-v1", "1"); } catch { /* Tutorial still works when storage is unavailable. */ }
   }
 
   const beginEncounter = useCallback(async (rival: WorldRival, forcePractice = false) => {
@@ -1946,11 +1943,6 @@ export default function WorldScene({
           const advance = (beat: number) => {
             if (beat >= 3) {
               updateBattleSession({ phase: "fight", beat: 3 });
-              let seen = false;
-              try { seen = window.localStorage.getItem("safak-combat-tutorial-seen-v1") === "1"; } catch { /* Keep the session value when storage is unavailable. */ }
-              seen = seen || combatTutorialSeenRef.current;
-              combatTutorialSeenRef.current = seen;
-              if (!seen) openCombatTutorial();
               return;
             }
             queueBattleTimer(() => {
