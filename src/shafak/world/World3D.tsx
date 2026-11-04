@@ -1186,6 +1186,8 @@ function DuelCombatVisual({
   const weaponTrailMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const impactSparksRef = useRef<THREE.Points>(null);
   const impactSparksMaterialRef = useRef<THREE.PointsMaterial>(null);
+  const ashBurstRef = useRef<THREE.Points>(null);
+  const ashBurstMaterialRef = useRef<THREE.PointsMaterial>(null);
   const arrowRef = useRef<THREE.Group>(null);
   const lightningPositions = useMemo(
     () => new Float32Array(LIGHTNING_BOLT_COUNT * LIGHTNING_SEGMENT_COUNT * 2 * 3),
@@ -1199,6 +1201,7 @@ function DuelCombatVisual({
   const boltStart = useMemo(() => new THREE.Vector3(), []);
   const boltEnd = useMemo(() => new THREE.Vector3(), []);
   const sparkPositions = useMemo(() => new Float32Array(DUEL_HIT_SPARK_COUNT * 3), []);
+  const ashPositions = useMemo(() => new Float32Array(DUEL_HIT_SPARK_COUNT * 3), []);
   const sparkGeometry = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
     const position = new THREE.BufferAttribute(sparkPositions, 3);
@@ -1206,6 +1209,13 @@ function DuelCombatVisual({
     geometry.setAttribute("position", position);
     return geometry;
   }, [sparkPositions]);
+  const ashGeometry = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const position = new THREE.BufferAttribute(ashPositions, 3);
+    position.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("position", position);
+    return geometry;
+  }, [ashPositions]);
 
   useEffect(() => {
     const attribute = new THREE.BufferAttribute(lightningPositions, 3);
@@ -1214,8 +1224,9 @@ function DuelCombatVisual({
     return () => {
       lightningGeometry.dispose();
       sparkGeometry.dispose();
+      ashGeometry.dispose();
     };
-  }, [lightningGeometry, lightningPositions, sparkGeometry]);
+  }, [ashGeometry, lightningGeometry, lightningPositions, sparkGeometry]);
 
   useFrame((frame) => {
     const state = combatStateRef.current;
@@ -1424,6 +1435,29 @@ function DuelCombatVisual({
       impactSparksMaterialRef.current.color.set(
         kind === "lightning" ? "#c8f8ff" : event.critical ? "#fff0a4" : event.attack === "heavy" ? "#ffad65" : "#ffe4a2",
       );
+    }
+
+    const emitsAsh = !motionReduced && (
+      kind === "plungeLanding"
+      || (kind === "shockwave" && (event.attack === "heavy" || event.critical))
+    );
+    if (emitsAsh && ashBurstRef.current && ashBurstMaterialRef.current) {
+      const targetX = event.destinationX ?? actor.x;
+      const targetZ = event.destinationZ ?? actor.z;
+      const drift = Math.min(1, age * 2.1);
+      for (let index = 0; index < DUEL_HIT_SPARK_COUNT; index += 1) {
+        const angle = index * 2.399963 + event.id * 0.029;
+        const radius = 0.08 + drift * (0.22 + (index % 4) * 0.065);
+        ashPositions[index * 3] = targetX + Math.cos(angle) * radius;
+        ashPositions[index * 3 + 1] = 0.08 + drift * (0.16 + (index % 3) * 0.1) - drift * drift * 0.055;
+        ashPositions[index * 3 + 2] = targetZ + Math.sin(angle) * radius;
+      }
+      (ashGeometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+      ashBurstRef.current.visible = age < 0.56;
+      ashBurstMaterialRef.current.opacity = Math.max(0, 1 - age * 1.8) * 0.42;
+      ashBurstMaterialRef.current.color.set(kind === "plungeLanding" ? "#c47a4c" : "#b7a18a");
+    } else if (ashBurstRef.current) {
+      ashBurstRef.current.visible = false;
     }
 
     if ((kind === "plunge" || kind === "plungeLanding") && shockwaveRef.current && shockwaveMaterialRef.current) {
@@ -1690,6 +1724,20 @@ function DuelCombatVisual({
             </Html>
           )}
         </>
+      )}
+      {(kind === "shockwave" || kind === "plungeLanding") && (
+        <points ref={ashBurstRef} geometry={ashGeometry} frustumCulled={false} visible={false}>
+          <pointsMaterial
+            ref={ashBurstMaterialRef}
+            color={kind === "plungeLanding" ? "#c47a4c" : "#b7a18a"}
+            size={0.14}
+            sizeAttenuation
+            transparent
+            opacity={0.42}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </points>
       )}
     </>
   );

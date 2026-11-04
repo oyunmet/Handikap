@@ -11,24 +11,24 @@ const CHAPTER_STORIES = [
   {
     title: "KÜL YOLU",
     lines: [
-      "Yıllardır kül altında kalan bu yolun sonunda Şafak Kapısı var.",
-      "Şafak Savaşçıları'na katıl; nöbetçileri yen ve açılan iki geçitten birini seç.",
+      "Kül Yolu'nda yanan her iz, Şafak Kapısı'nın kapanış gecesini yeniden anlatıyor.",
+      "Şafak Savaşçıları seni yola çağırdı; mührün neden sende uyandığını henüz bilmiyorsun.",
     ],
     hint: "Yol üstündeki ödülleri topla; kırmızı saldırı uyarısında blokla ya da yana kaç.",
   },
   {
     title: "DONMUŞ GEÇİT",
     lines: [
-      "Buz, sesi uzağa taşır. Burada atılan her adım seni de takip edenleri de ele verir.",
-      "Geçidin ardında bataklık ışıkları yanıyor; hiçbirine yolunu çizmesi için güvenme.",
+      "Kül Yolu'ndan taşıdığın mühür, ayazın altında çatladı. Geçidin ardında biri seni tanıyor.",
+      "Demir Yemin'in bıraktığı izler nöbetçilerin sırasını ve eski yeminin bedelini anlatıyor.",
     ],
     hint: "Saldırıdan önce kırmızı uyarıyı görürsen blokla ya da yana kaç.",
   },
   {
     title: "KIZIL BATAKLIK",
     lines: [
-      "Kızıl sisin içinden gelen fısıltılar eski yeminleri uyandırıyor.",
-      "Bir sonraki kapıda, sana yolun neden tekrarlandığını bilen biri bekliyor.",
+      "Kızıl ışıklar mühürdeki çatlağı tamamlıyor; nöbetçiler aynı sözü fısıldıyor: Kapı bir sözü tutar.",
+      "Demir Yemin'in son durağı burada. Yolun neden döngüye girdiğini ondan öğreneceksin.",
     ],
     hint: "Gürz ve kalkan taşıyan yolcuya rastlarsan önce sözünü dinle.",
   },
@@ -36,16 +36,16 @@ const CHAPTER_STORIES = [
 
 const NPC_LINES = [
   [
-    "Bu kılıç kapıyı korumuyor; ardında kalanların adını koruyor.",
-    "Külü geride bırakma. Buz, unuttuğun her şeyi saklar.",
+    "Kılıç kapıyı değil, geride bıraktıklarının adını korur. Mühür sende yanıyorsa ben de sınavın parçasıyım.",
+    "Külü geride bırakma; buzun altında kendi yemininin sesini duyacaksın.",
   ],
   [
-    "Buzun altındaki ses benim yeminim değil. Kapıyı açarken onu uyandırma.",
-    "Kızıl ışıklar yol göstermez; yalnızca baktığını hatırlar.",
+    "Buzun altındaki ses benim yeminim değil; kapı kapanırken adımı orada bıraktım.",
+    "Çatlak büyüdükçe yol seni hatırlıyor. Kızıl ışıklara değil, mühürdeki işarete bak.",
   ],
   [
-    "Bataklık, düşenlerin adını saklar. Benimkini henüz bulamadı.",
-    "Bir sonraki kapının ardında cevap yok; yalnızca daha eski bir soru var.",
+    "Bataklık düşenlerin adını saklar. Kapının döngüsü beni nöbetçi yaptı.",
+    "Mührü taşıyan sensin; döngüyü durdurabilecek olan da. Artık nedenini biliyorsun.",
   ],
 ] as const;
 

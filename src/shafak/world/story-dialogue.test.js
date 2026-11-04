@@ -12,9 +12,13 @@ test("opening and each chapter gate provide concise Turkish story dialogue and a
   const secondGate = getChapterStoryDialogue(2);
   assert.equal(opening.kind, "opening");
   assert.equal(opening.title, "ŞAFAK SAVAŞÇILARI");
-  assert.match(opening.lines[1], /Şafak Savaşçıları/);
+  assert.match(opening.lines.join(" "), /mühr/i);
+  assert.match(opening.lines.join(" "), /Şafak Savaşçıları/);
   assert.equal(firstGate.title, "DONMUŞ GEÇİT");
+  assert.match(firstGate.lines.join(" "), /Kül Yolu/);
+  assert.match(firstGate.lines.join(" "), /Demir Yemin/);
   assert.equal(secondGate.title, "KIZIL BATAKLIK");
+  assert.match(secondGate.lines.join(" "), /döngü/i);
   for (const dialogue of [opening, firstGate, secondGate]) {
     assert.ok(dialogue.lines.length >= 2);
     assert.ok(dialogue.lines.every((line) => line.trim().length > 0));
@@ -26,7 +30,9 @@ test("opening and each chapter gate provide concise Turkish story dialogue and a
 test("Demir Yemin has distinct lines that change with the chapter", () => {
   const openingChapter = getNpcStoryDialogue("Demir Yemin", 0);
   const frozenChapter = getNpcStoryDialogue("Demir Yemin", 1);
+  const finalChapter = getNpcStoryDialogue("Demir Yemin", 2);
   assert.equal(openingChapter?.kind, "npc");
   assert.notDeepEqual(openingChapter?.lines, frozenChapter?.lines);
+  assert.match(finalChapter?.lines.join(" ") ?? "", /döngü/i);
   assert.equal(getNpcStoryDialogue("Kül Okçusu", 1), null);
 });

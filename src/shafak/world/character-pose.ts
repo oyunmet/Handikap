@@ -204,6 +204,7 @@ export function poseCharacterWithoutClip(
   const walkWeight = clamp01(speed / 3.2);
   const runWeight = clamp01((speed - 3.2) / 2.6);
   const action = Math.sin(clamp01(actionProgress) * Math.PI);
+  const gaitSwing = Math.sin(phase) * walkWeight * THREE.MathUtils.lerp(0.42, 0.64, runWeight) * motionScale;
   const rotate = (name: CharacterPoseBoneName, x: number, y = 0, z = 0, add = false) => {
     const bone = bones[name];
     if (!bone) return;
@@ -220,22 +221,35 @@ export function poseCharacterWithoutClip(
   };
 
   if (!hasClip) {
-    const swing = Math.sin(phase) * walkWeight * THREE.MathUtils.lerp(0.42, 0.64, runWeight) * motionScale;
+    const swing = gaitSwing;
     const leftLift = Math.max(0, Math.sin(phase + Math.PI / 2)) * walkWeight * motionScale;
     const rightLift = Math.max(0, Math.sin(phase - Math.PI / 2)) * walkWeight * motionScale;
+    const leftPushOff = Math.max(0, Math.sin(phase)) * walkWeight * motionScale;
+    const rightPushOff = Math.max(0, -Math.sin(phase)) * walkWeight * motionScale;
     rotate("leftThigh", -swing);
     rotate("rightThigh", swing);
-    rotate("leftShin", leftLift * 0.46);
-    rotate("rightShin", rightLift * 0.46);
-    rotate("leftFoot", -leftLift * 0.28);
-    rotate("rightFoot", -rightLift * 0.28);
+    rotate("leftShin", leftLift * 0.48 + leftPushOff * 0.08);
+    rotate("rightShin", rightLift * 0.48 + rightPushOff * 0.08);
+    rotate("leftFoot", -leftLift * 0.28 + leftPushOff * 0.12);
+    rotate("rightFoot", -rightLift * 0.28 + rightPushOff * 0.12);
     rotate("leftUpperArm", swing * 0.58);
     rotate("rightUpperArm", -swing * 0.58);
-    rotate("leftForearm", -leftLift * 0.16);
-    rotate("rightForearm", -rightLift * 0.16);
-    rotate("spine", Math.sin(time * 1.35) * 0.012 * motionScale);
-    rotate("chest", Math.sin(time * 1.35) * 0.014 * motionScale, 0, 0);
-    rotate("head", -Math.sin(time * 1.35) * 0.006 * motionScale);
+    rotate("leftForearm", -leftLift * 0.18 + rightPushOff * 0.1);
+    rotate("rightForearm", -rightLift * 0.18 + leftPushOff * 0.1);
+    if (state === "idle" && walkWeight < 0.05) {
+      const idleSway = Math.sin(time * 0.72) * 0.025;
+      const breath = Math.sin(time * 2.15) * 0.018;
+      rotate("pelvis", 0, idleSway, idleSway * 0.4);
+      rotate("spine", breath * 0.55, -idleSway * 0.28, 0);
+      rotate("chest", breath, idleSway * 0.36, 0);
+      rotate("head", -breath * 0.42, -idleSway * 0.16, 0);
+      rotate("leftUpperArm", 0, 0, idleSway * 0.42);
+      rotate("rightUpperArm", 0, 0, -idleSway * 0.42);
+    } else {
+      rotate("spine", Math.sin(time * 1.35) * 0.012 * motionScale);
+      rotate("chest", Math.sin(time * 1.35) * 0.014 * motionScale, 0, 0);
+      rotate("head", -Math.sin(time * 1.35) * 0.006 * motionScale);
+    }
   }
 
   const applyLocomotionPose = (movementState: WorldMovementState) => {
@@ -245,8 +259,9 @@ export function poseCharacterWithoutClip(
         ? THREE.MathUtils.degToRad(20)
         : state === "walk" ? 0 : THREE.MathUtils.degToRad(12);
       const scaledLean = lean * motionScale;
-      rotate("spine", scaledLean * 0.45, 0, 0, add);
-      rotate("chest", scaledLean * 0.55, 0, 0, add);
+      rotate("spine", scaledLean * 0.45, -gaitSwing * 0.025, 0, add);
+      rotate("chest", scaledLean * 0.55, gaitSwing * 0.045, gaitSwing * 0.025, add);
+      rotate("pelvis", 0, 0, gaitSwing * 0.035, add);
       if (movementState === "SPRINT") rotate("head", -0.025 * motionScale, 0, 0, add);
     } else if (movementState === "ZIPLAMA_HAZIRLIK") {
       rotate("leftThigh", 0.25 * motionScale, 0, 0, add);
@@ -362,13 +377,25 @@ export function poseCharacterWithoutClip(
     rotate("rightForearm", -0.48 * motionScale, 0, 0, hasClip);
   } else if (!hasClip && (state === "attack" || state === "heavyAttack" || state === "plunge")) {
     const power = state === "heavyAttack" || state === "plunge" ? 1.05 : 0.78;
-    rotate("rightUpperArm", -0.42 - action * power, 0, -0.24 + action * 0.32);
-    rotate("rightForearm", -action * 0.62);
-    rotate("chest", 0, action * 0.12, 0);
+    const windup = 1 - clamp01(actionProgress / 0.34);
+    rotate("rightUpperArm", -0.42 + windup * 0.16 - action * power, 0, -0.24 + action * 0.32);
+    rotate("rightForearm", -windup * 0.2 - action * 0.62);
+    rotate("leftUpperArm", -action * 0.12, 0, 0.08 + action * 0.12);
+    rotate("leftForearm", -action * 0.18);
+    rotate("pelvis", 0, -action * 0.08, 0);
+    rotate("spine", 0, -action * 0.055, 0);
+    rotate("chest", 0, windup * -0.06 + action * 0.17, 0);
+    rotate("head", 0, -action * 0.025, 0);
   } else if (!hasClip && state === "hit") {
     rotate("leftUpperArm", 0, 0, 0.24 * action);
     rotate("rightUpperArm", 0, 0, -0.24 * action);
-    rotate("chest", 0, 0, 0.1 * action);
+    rotate("leftThigh", 0.08 * action);
+    rotate("rightThigh", 0.12 * action);
+    rotate("leftShin", -0.12 * action);
+    rotate("rightShin", -0.16 * action);
+    rotate("spine", 0.1 * action, 0, 0.06 * action);
+    rotate("chest", 0.18 * action, 0, 0.1 * action);
+    rotate("head", -0.11 * action, 0, -0.05 * action);
   } else if (!hasClip && (state === "dodge" || state === "backflip")) {
     rotate("leftUpperArm", 0, 0, 0.48 * action);
     rotate("rightUpperArm", 0, 0, -0.48 * action);

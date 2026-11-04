@@ -484,6 +484,7 @@ function Road({
         <planeGeometry args={[WORLD_ROAD_WIDTH, ROAD_LENGTH]} />
         <primitive object={roadMaterial} attach="material" />
       </mesh>
+      <RoadStonework quality={quality} />
       {[-WORLD_ROAD_WIDTH / 2, WORLD_ROAD_WIDTH / 2].map((x) => (
         <group key={x}>
           <mesh position={[x * 1.02, -0.015, ROAD_CENTER_Z]} rotation={[Math.PI / 2, 0, 0]} receiveShadow castShadow={false}>
@@ -504,6 +505,80 @@ function Road({
       />
       <RoadLanterns motionRef={motionRef} />
     </group>
+  );
+}
+
+type RoadStoneInstance = {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  depth: number;
+  rotation: number;
+  color: string;
+};
+
+function RoadStonework({ quality }: { quality: WorldQuality }) {
+  const stonesRef = useRef<THREE.InstancedMesh>(null);
+  const transform = useMemo(() => new THREE.Object3D(), []);
+  const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
+  const material = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#ffffff",
+    roughness: 0.96,
+    metalness: 0,
+    flatShading: true,
+  }), []);
+  const stones = useMemo(() => {
+    const random = seededRandom(0xa551c0);
+    const colors = ["#78615b", "#8b6a5e", "#514648", "#a07864", "#665651"];
+    const columns = Math.max(4, Math.floor(WORLD_ROAD_WIDTH / 1.2));
+    const rows = quality === "high" ? 230 : quality === "balanced" ? 170 : 110;
+    const cellWidth = WORLD_ROAD_WIDTH / columns;
+    const cellDepth = ROAD_LENGTH / rows;
+    const result: RoadStoneInstance[] = [];
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let column = 0; column < columns; column += 1) {
+        if (random() > (quality === "low" ? 0.88 : 0.96)) continue;
+        result.push({
+          x: -WORLD_ROAD_WIDTH / 2 + (column + 0.5) * cellWidth + (random() - 0.5) * 0.14,
+          y: -0.057 + random() * 0.009,
+          z: ROAD_CENTER_Z - ROAD_LENGTH / 2 + (row + 0.5) * cellDepth + (random() - 0.5) * 0.16,
+          width: cellWidth * (0.88 + random() * 0.1),
+          height: 0.035 + random() * 0.025,
+          depth: cellDepth * (0.88 + random() * 0.1),
+          rotation: (random() - 0.5) * 0.025,
+          color: colors[Math.floor(random() * colors.length)],
+        });
+      }
+    }
+    return result;
+  }, [quality]);
+
+  useLayoutEffect(() => {
+    const mesh = stonesRef.current;
+    if (!mesh) return;
+    stones.forEach((stone, index) => {
+      transform.position.set(stone.x, stone.y, stone.z);
+      transform.rotation.set(0, stone.rotation, 0);
+      transform.scale.set(stone.width, stone.height, stone.depth);
+      transform.updateMatrix();
+      mesh.setMatrixAt(index, transform.matrix);
+      mesh.setColorAt(index, new THREE.Color(stone.color));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [stones, transform]);
+
+  return (
+    <instancedMesh
+      ref={stonesRef}
+      args={[geometry, material, stones.length]}
+      castShadow={false}
+      receiveShadow={false}
+    />
   );
 }
 
