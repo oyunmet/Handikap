@@ -1140,7 +1140,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <span className="menu-action__war-room-copy">
                   <small>GÖREV MODU</small>
                   <b>SAVAŞ ODASI</b>
-                  <small>TEK KİŞİLİK NİŞAN GÖREVİ</small>
+                  <small>AYNI EKİPMAN · YENİ SINAV</small>
                 </span>
                 <span className="menu-action__war-room-arrow" aria-hidden="true">➜</span>
               </button>

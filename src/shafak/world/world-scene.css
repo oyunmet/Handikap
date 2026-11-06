@@ -2568,6 +2568,38 @@
   }
 }
 
+.world-duel-camera-angle {
+  position: absolute;
+  z-index: 24;
+  top: max(58px, calc(env(safe-area-inset-top) + 50px));
+  right: max(10px, calc(env(safe-area-inset-right) + 8px));
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid rgba(229, 197, 139, 0.55);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(35, 31, 29, 0.9), rgba(12, 13, 17, 0.88));
+  color: #f3dfb7;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.38), inset 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  font: 800 8px var(--font-body, sans-serif);
+  letter-spacing: 0.1em;
+  touch-action: manipulation;
+}
+
+.world-duel-camera-angle > span {
+  color: #f3cf8e;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.world-duel-camera-angle:focus-visible {
+  outline: 2px solid #f3cf8e;
+  outline-offset: 3px;
+}
+
 /* Shared raised-metal action buttons used by travel and combat controls. */
 .world-movement-actions .game-button {
   position: relative;

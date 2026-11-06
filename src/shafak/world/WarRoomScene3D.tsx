@@ -921,12 +921,17 @@ function FirstPersonWeaponViewModel({
       delta,
     );
     const wallProximity = wallProximityRef.current;
+    const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
+    const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
+    const hasMovementIntent = Math.hypot(input.moveX + keyX, input.moveY + keyY) > 0.05;
+    const isAirborne = player.jumpHeight > 0.02;
     const pose = getWarRoomViewModelPose({
       time: clock,
       movement: filteredMovementRef.current,
       walkPhase: walkPhaseRef.current,
       swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.75 : 0,
       wallProximity,
+      wallTuckEnabled: !hasMovementIntent && !isAirborne,
       aiming: input.aimHeld,
       recoil,
       reloadProgress,

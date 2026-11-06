@@ -1,12 +1,12 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import type { WeatherMode } from "./world-biomes";
-import { getNpcStoryDialogue } from "./story-dialogue";
+import { getNpcStoryDialogue, getWorldRivalStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import { RIVAL_DIALOGUE_RANGE_METERS, type WorldInteractableRegistry } from "./world-interactables";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
@@ -15,6 +15,7 @@ import type { LoadedWorldAsset } from "./world-v2-assets";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import WorldV2Actor from "./WorldV2Actor";
 import { WorldV2Label } from "./WorldV2Labels";
+import WorldSealFragmentModel from "./WorldSealFragmentModel";
 
 type MotionRef = MutableRefObject<WorldMotion>;
 type Registry = WorldInteractableRegistry<WorldObstacle | WorldRival>;
@@ -79,7 +80,16 @@ function WorldV2Pickup({
         <meshBasicMaterial color={color} transparent opacity={0.28} depthWrite={false} />
       </mesh>
       <group ref={spinRef}>
-        {pickup.kind === "gold-small" || pickup.kind === "gold-large" || pickup.kind === "treasure-cache" ? (
+        {pickup.kind === "seal-fragment" ? (
+          <Suspense fallback={
+            <mesh>
+              <octahedronGeometry args={[0.25, 0]} />
+              <meshStandardMaterial color="#c5a0ff" emissive="#8a43dc" emissiveIntensity={0.8} />
+            </mesh>
+          }>
+            <WorldSealFragmentModel />
+          </Suspense>
+        ) : pickup.kind === "gold-small" || pickup.kind === "gold-large" || pickup.kind === "treasure-cache" ? (
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[pickup.kind === "gold-small" ? 0.2 : 0.27, pickup.kind === "gold-small" ? 0.2 : 0.27, 0.07, 12]} />
             <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.3} metalness={0.72} roughness={0.26} flatShading />
@@ -91,6 +101,9 @@ function WorldV2Pickup({
           </mesh>
         )}
       </group>
+      {pickup.kind === "seal-fragment" && (
+        <WorldV2Label position={[0, 1.08, 0]} maxDistance={36}>MÜHÜR PARÇASI</WorldV2Label>
+      )}
     </group>
   );
 }
@@ -327,7 +340,8 @@ function WorldV2Npc({
   const anchorRef = useRef<THREE.Group>(null);
   const x = Math.sign(rival.x) * WORLD_V2_CONFIG.npcRoadOffset
     || (index % 2 === 0 ? -WORLD_V2_CONFIG.npcRoadOffset : WORLD_V2_CONFIG.npcRoadOffset);
-  const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
+  const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId)
+    ?? getWorldRivalStoryDialogue(rival);
   const speaker = dialogue?.speaker ?? rival.name;
   const line = dialogue?.lines[0] ?? rival.taunt;
 

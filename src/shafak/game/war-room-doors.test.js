@@ -147,6 +147,12 @@ test("entering or leaving a house auto-opens the entrance from every room rotati
 
       updateWarRoomDoors(runtime, 10, false, Math.PI);
       assert.ok(runtime.doorStates[building.id], "the door opens without an interaction button");
+      assert.equal(
+        getWarRoomActiveBlockers(runtime, 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS)
+          .some((blocker) => blocker.id === `${building.id}-floor-0-entrance-door-blocker`),
+        false,
+        "automatic opening clears the doorway before a running player reaches it",
+      );
 
       const result = moveWarRoomEntity(
         start.x,
@@ -164,6 +170,25 @@ test("entering or leaving a house auto-opens the entrance from every room rotati
         `room ${roomNumber} ${direction > 0 ? "exit" : "entry"} should pass through the doorway`,
       );
     }
+  }
+});
+
+test("doors begin opening from a running approach before the player reaches the threshold", () => {
+  for (let roomNumber = 1; roomNumber <= 4; roomNumber += 1) {
+    const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, roomNumber);
+    const building = runtime.room.buildings[0];
+    const start = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2 - 3);
+    runtime.player.x = start.x;
+    runtime.player.z = start.z;
+
+    updateWarRoomDoors(runtime, 22, false, Math.PI);
+    assert.ok(runtime.doorStates[building.id], `room ${roomNumber} should detect a running approach`);
+    assert.equal(
+      getWarRoomActiveBlockers(runtime, 22 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS + 0.001)
+        .some((blocker) => blocker.id === `${building.id}-floor-0-entrance-door-blocker`),
+      false,
+      `room ${roomNumber} should clear the threshold before collision`,
+    );
   }
 });
 

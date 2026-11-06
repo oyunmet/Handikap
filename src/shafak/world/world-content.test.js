@@ -47,11 +47,16 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
     getWorldChapter(2).pickups.filter((pickup) => pickup.kind === "diamond-small").length,
     4,
   );
+  assert.equal(
+    getWorldChapter(2).pickups.filter((pickup) => pickup.kind === "seal-fragment").length,
+    1,
+    "each chapter should offer a collectible seal fragment",
+  );
   assert.ok(
     getWorldChapter(2).pickups
       .filter((pickup) => !pickup.sourceObstacleId && pickup.kind !== "treasure-cache")
-      .every((pickup) => ["gold-small", "gold-large", "diamond-small"].includes(pickup.kind)),
-    "every regular road reward should be a real gold or diamond pickup",
+      .every((pickup) => ["gold-small", "gold-large", "diamond-small", "seal-fragment"].includes(pickup.kind)),
+    "every regular road reward should be a real collectible",
   );
 });
 
@@ -172,7 +177,10 @@ test("reward totals are derived from seeded pickup kinds and amounts", () => {
     totals.materials.ironShards,
     pickups.filter((pickup) => pickup.kind === "iron-shard").reduce((sum, pickup) => sum + pickup.amount, 0),
   );
-  assert.equal(totals.materials.sealFragments, 0);
+  assert.equal(
+    totals.materials.sealFragments,
+    pickups.filter((pickup) => pickup.kind === "seal-fragment").reduce((sum, pickup) => sum + pickup.amount, 0),
+  );
 });
 
 test("rocks and intact barricades stop forward travel unless the player dodges or breaks them", () => {

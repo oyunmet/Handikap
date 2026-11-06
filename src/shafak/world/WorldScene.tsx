@@ -52,7 +52,12 @@ import {
 } from "../game/combat-engine";
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { rollCombatLoot } from "../game/combat-loot.ts";
-import { DUEL_CAMERA_HEADING, getDuelCameraRelativeInput } from "../game/duel-camera.ts";
+import {
+  DUEL_CAMERA_HEADINGS,
+  DUEL_CAMERA_HEADING,
+  getDuelCameraRelativeInput,
+  getNextDuelCameraHeading,
+} from "../game/duel-camera.ts";
 import { resolveWorldPlayerAnimationState } from "./character-animation";
 import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
 import StoryDialogueOverlay from "./StoryDialogueOverlay";
@@ -60,6 +65,7 @@ import {
   getChapterStoryDialogue,
   getNpcStoryDialogue,
   getOpeningStoryDialogue,
+  getWorldRivalStoryDialogue,
   type StoryDialogue,
 } from "./story-dialogue";
 import {
@@ -853,6 +859,8 @@ export default function WorldScene({
   const [chestSlamActive, setChestSlamActive] = useState(false);
   const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
   const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => getOpeningStoryDialogue());
+  const [duelCameraHeading, setDuelCameraHeading] = useState(DUEL_CAMERA_HEADING);
+  const duelCameraHeadingRef = useRef(DUEL_CAMERA_HEADING);
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
@@ -1618,6 +1626,8 @@ export default function WorldScene({
     settlementStartedRef.current = false;
     hitStopUntilRef.current = 0;
     resetDuelInput();
+    duelCameraHeadingRef.current = DUEL_CAMERA_HEADING;
+    setDuelCameraHeading(DUEL_CAMERA_HEADING);
   }, []);
 
   const settleDuel = useCallback(async (verdict: "victory" | "defeat" | "draw", surrendered = false) => {
@@ -1752,6 +1762,8 @@ export default function WorldScene({
 
   const beginEncounter = useCallback(async (rival: WorldRival, forcePractice = false) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
+    duelCameraHeadingRef.current = DUEL_CAMERA_HEADING;
+    setDuelCameraHeading(DUEL_CAMERA_HEADING);
     if (duelWeaponSelectionBeforeRef.current && !skipWeaponSelectionRef.current) {
       setWeaponPickerSlot(activeWorldWeaponSlotRef.current);
       setPendingWeaponRival(rival);
@@ -1980,10 +1992,16 @@ export default function WorldScene({
     const input = getDuelCameraRelativeInput(
       Math.max(-1, Math.min(1, x)),
       Math.max(-1, Math.min(1, y)),
-      DUEL_CAMERA_HEADING,
+      duelCameraHeadingRef.current,
     );
     combatInputRef.current.x = input.x * 100;
     combatInputRef.current.y = input.z * 100;
+  };
+
+  const rotateDuelCamera = () => {
+    const nextHeading = getNextDuelCameraHeading(duelCameraHeadingRef.current);
+    duelCameraHeadingRef.current = nextHeading;
+    setDuelCameraHeading(nextHeading);
   };
 
   const debugStartBattle = () => {
@@ -2982,6 +3000,7 @@ export default function WorldScene({
             combatVisualEvents={visualEffectsEnabled ? combatEvents : []}
             cinematicIntro={Boolean(visualEffectsEnabled && battleSession && ["sweep", "vs"].includes(battleSession.phase))}
             finisherSlowMotion={Boolean(visualEffectsEnabled && battleSession?.phase === "settling")}
+            duelCameraHeading={duelCameraHeading}
             botTelegraphActive={Boolean(
               combatRender?.bot.attackType
               && combatRender.tick - combatRender.bot.attackStartedTick < getBotAttackWindupTicks(
@@ -3202,6 +3221,18 @@ export default function WorldScene({
             }}
             onOpenHelp={openCombatTutorial}
           />
+          {["sweep", "vs", "countdown", "fight"].includes(battleSession.phase) && (
+            <button
+              type="button"
+              className="world-duel-camera-angle"
+              onClick={rotateDuelCamera}
+              aria-label="Düello kamera açısını değiştir"
+              title={`Kamera açısı ${DUEL_CAMERA_HEADINGS.indexOf(duelCameraHeading as (typeof DUEL_CAMERA_HEADINGS)[number]) + 1}/3`}
+            >
+              <span aria-hidden="true">↻</span>
+              <b>KAMERA AÇISI</b>
+            </button>
+          )}
           <small className="game-build-stamp game-build-stamp--hud" aria-label={`Sürüm ${GAME_BUILD_MARKER}, derleme ${GAME_BUILD_DATE}`}>
             {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
           </small>
@@ -3544,14 +3575,7 @@ export default function WorldScene({
                   onClick={() => {
                     wake();
                     const dialogue = getNpcStoryDialogue(nextOpponent.name, nextOpponent.chapterId);
-                    showStoryDialogue(dialogue ?? {
-                      id: `world-rival-${nextOpponent.id}`,
-                      kind: "npc",
-                      title: nextOpponent.name,
-                      speaker: nextOpponent.name,
-                      lines: [nextOpponent.taunt, "Yolun devamı cesaret ve dikkat istiyor."],
-                      hint: "DEVAM ETMEK İÇİN DOKUN",
-                    });
+                    showStoryDialogue(dialogue ?? getWorldRivalStoryDialogue(nextOpponent));
                   }}
                 >
                   KONUŞ

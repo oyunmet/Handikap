@@ -9,7 +9,7 @@ import {
   RIVAL_DIALOGUE_RANGE_METERS,
   type WorldInteractableRegistry,
 } from "./world-interactables";
-import { getNpcStoryDialogue } from "./story-dialogue";
+import { getNpcStoryDialogue, getWorldRivalStoryDialogue } from "./story-dialogue";
 import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import { getWorldLabelOpacity } from "./world-label-layout";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
@@ -777,7 +777,8 @@ function BotActor({
   // Render rivals at the same lateral position used by their interaction
   // collider; the previous ±7.35m display offset put them beyond the road edge.
   const renderedX = rival.x;
-  const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId);
+  const dialogue = getNpcStoryDialogue(rival.name, rival.chapterId)
+    ?? getWorldRivalStoryDialogue(rival);
   const dialogueSpeaker = dialogue?.speaker ?? rival.name;
   const dialogueLine = dialogue?.lines[0] ?? rival.taunt;
   useEffect(() => {

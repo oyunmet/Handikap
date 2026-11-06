@@ -132,6 +132,30 @@ test("wall proximity cannot push the weapon forward or back while moving", () =>
   assert.deepEqual(nearWall.rotation, clear.rotation);
 });
 
+test("blocked movement and jumping suppress wall tuck without changing the base pose", () => {
+  const stationary = {
+    time: 0,
+    movement: 0,
+    aiming: false,
+    recoil: 0,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    meleeProgress: null,
+    meleeStyle: "slash",
+    comboIndex: 0,
+    motionReduced: false,
+    wallProximity: 1,
+  };
+  const clear = getWarRoomViewModelPose({ ...stationary, wallProximity: 0 });
+  const blocked = getWarRoomViewModelPose({ ...stationary, wallTuckEnabled: false });
+  const jumping = getWarRoomViewModelPose({ ...stationary, wallTuckEnabled: false });
+
+  assert.deepEqual(blocked.position, clear.position);
+  assert.deepEqual(jumping.position, clear.position);
+  assert.deepEqual(blocked.rotation, clear.rotation);
+  assert.deepEqual(jumping.rotation, clear.rotation);
+});
+
 test("melee attacks get distinct sweep and thrust view-model arcs", () => {
   const shared = {
     time: 0.5, movement: 0, aiming: false, recoil: 0, reloadProgress: 0, chargeProgress: 0,

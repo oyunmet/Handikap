@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DUEL_CAMERA_ARENA_CENTER_Z,
+  DUEL_CAMERA_HEADINGS,
   DUEL_CAMERA_HEADING,
   DUEL_CAMERA_PLAYER_FRAME_WEIGHT,
   DUEL_CAMERA_TOUCH_FOV,
@@ -11,10 +12,18 @@ import {
   getDuelCameraRelativeInput,
   getDuelFacingAngle,
   getDuelJumpHeight,
+  getNextDuelCameraHeading,
   getUprightDuelRotation,
 } from "./duel-camera.ts";
 import { COMBAT_ARENA_ACTOR_LIMIT } from "./combat-engine.ts";
 import { getKnightActorRootYaw } from "../world/knight-config.ts";
+
+test("duel camera angle control cycles through close rear-side views", () => {
+  assert.equal(DUEL_CAMERA_HEADINGS.length, 3);
+  assert.equal(getNextDuelCameraHeading(DUEL_CAMERA_HEADINGS[1]), DUEL_CAMERA_HEADINGS[2]);
+  assert.equal(getNextDuelCameraHeading(DUEL_CAMERA_HEADINGS[2]), DUEL_CAMERA_HEADINGS[0]);
+  assert.ok(DUEL_CAMERA_HEADINGS.every((heading) => heading >= Math.PI * 0.75 && heading <= Math.PI));
+});
 
 test("duel camera keeps a stable world heading as fighters move and cross", () => {
   const spawnPlayer = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
@@ -98,7 +107,7 @@ test("the mobile duel framing keeps both fighters on-screen and nearly level", (
     opponent,
     402 / 874,
     DUEL_CAMERA_TOUCH_FOV,
-    7.2,
+    6.2,
   );
   const pose = getDuelCameraPose(player, opponent, cameraBack, 0.32);
   const forward = {

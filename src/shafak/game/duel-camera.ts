@@ -16,14 +16,24 @@ export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
-export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.65;
+export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.1;
+export const DUEL_CAMERA_HEADINGS = [
+  DUEL_CAMERA_HEADING - Math.PI / 8,
+  DUEL_CAMERA_HEADING,
+  DUEL_CAMERA_HEADING + Math.PI / 8,
+] as const;
+
+export function getNextDuelCameraHeading(currentHeading: number) {
+  const currentIndex = DUEL_CAMERA_HEADINGS.findIndex((heading) => Math.abs(heading - currentHeading) < 1e-6);
+  return DUEL_CAMERA_HEADINGS[(currentIndex + 1 + DUEL_CAMERA_HEADINGS.length) % DUEL_CAMERA_HEADINGS.length];
+}
 
 export function getDuelCameraFramingDistance(
   player: DuelPoint,
   opponent: DuelPoint,
   aspect: number,
   verticalFovDegrees: number,
-  minimumDistance = 7.2,
+  minimumDistance = 6.2,
   cameraHeading = DUEL_CAMERA_HEADING,
 ) {
   const safeAspect = Number.isFinite(aspect) ? Math.max(0.25, Math.min(2.4, aspect)) : 0.46;
@@ -42,7 +52,7 @@ export function getDuelCameraFramingDistance(
   const requiredHalfWidth = Math.max(Math.abs(playerOffset), Math.abs(opponentOffset))
     + DUEL_CAMERA_ACTOR_EDGE_MARGIN;
   const requiredDistance = requiredHalfWidth / Math.tan(horizontalFov * 0.5);
-  const safeMinimum = Number.isFinite(minimumDistance) ? Math.max(0, minimumDistance) : 7.2;
+  const safeMinimum = Number.isFinite(minimumDistance) ? Math.max(0, minimumDistance) : 6.2;
   return Math.max(safeMinimum, requiredDistance);
 }
 

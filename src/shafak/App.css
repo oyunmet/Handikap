@@ -1291,12 +1291,20 @@
   }
 
   .menu-content {
-    align-items: flex-end;
-    padding: 0 0 13vh;
+    min-height: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 0 max(22px, calc(env(safe-area-inset-bottom) + 18px));
+    scrollbar-width: none;
   }
 
   .menu-copy {
     width: min(100%, 460px);
+    flex: none;
     padding: 0 2px;
   }
 
@@ -1321,6 +1329,13 @@
     width: min(100%, 290px);
   }
 
+  .menu-action--war-room {
+    width: min(100%, 290px);
+    min-height: 60px;
+    align-self: flex-start;
+    margin-left: 2px;
+  }
+
   .menu-action--primary {
     min-height: 50px;
     font-size: 9px;
@@ -1330,6 +1345,10 @@
     font-size: 7px;
     letter-spacing: 0.16em;
   }
+}
+
+.menu-content::-webkit-scrollbar {
+  display: none;
 }
 
 @media (max-width: 420px) {

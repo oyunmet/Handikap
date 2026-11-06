@@ -195,11 +195,13 @@ function createPickups(
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
   const regular: WorldPickup[] = [];
   PICKUP_DISTANCES.forEach((offset, index) => {
-    const kind: PickupKind = [2, 6, 9, 11].includes(index)
-      ? "diamond-small"
-      : index === 3 || index === 10
-        ? "gold-large"
-        : "gold-small";
+    const kind: PickupKind = index === 8
+      ? "seal-fragment"
+      : [2, 6, 9, 11].includes(index)
+        ? "diamond-small"
+        : index === 3 || index === 10
+          ? "gold-large"
+          : "gold-small";
 
     const amount = kind === "gold-small"
       ? 6 + Math.floor(random() * 7)
@@ -207,8 +209,6 @@ function createPickups(
         ? 22 + Math.floor(random() * 15)
         : kind === "diamond-small"
           ? 1
-          : kind === "iron-shard"
-            ? 1 + Math.floor(random() * 2)
             : kind === "seal-fragment"
               ? 1
               : 1 + Math.floor(random() * 2);

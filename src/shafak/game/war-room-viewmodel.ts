@@ -4,6 +4,7 @@ export type WarRoomViewModelState = {
   walkPhase?: number;
   swayScale?: number;
   wallProximity?: number;
+  wallTuckEnabled?: boolean;
   aiming: boolean;
   recoil: number;
   reloadProgress: number;
@@ -97,7 +98,9 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
   const movement = clamp01(state.movement);
   const swayScale = clamp01(state.swayScale ?? 1);
-  const wallProximity = movement < 0.05 ? clamp01(state.wallProximity ?? 0) : 0;
+  const wallProximity = movement < 0.05 && state.wallTuckEnabled !== false
+    ? clamp01(state.wallProximity ?? 0)
+    : 0;
   const aim = state.aiming ? 1 : 0;
   const recoil = clamp01(state.recoil) * (state.motionReduced ? 0 : 1);
   const reload = Math.sin(Math.PI * clamp01(state.reloadProgress));

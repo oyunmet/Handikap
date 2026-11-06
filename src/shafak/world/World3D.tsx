@@ -283,6 +283,7 @@ export type World3DProps = {
   combatVisualEvents: CombatVisualEvent[];
   cinematicIntro: boolean;
   finisherSlowMotion: boolean;
+  duelCameraHeading: number;
   botTelegraphActive: boolean;
   opponentName: string;
   debugCounters: { rivalCount: number; pickupCount: number; collectedCount: number };
@@ -428,6 +429,7 @@ function CameraRig({
   cinematicIntro,
   finisherSlowMotion,
   debugEnabled,
+  duelCameraHeading,
 }: {
   motionRef: MutableRefObject<WorldMotion>;
   motionReduced: boolean;
@@ -441,6 +443,7 @@ function CameraRig({
   cinematicIntro: boolean;
   finisherSlowMotion: boolean;
   debugEnabled: boolean;
+  duelCameraHeading: number;
 }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const scene = useThree((state) => state.scene);
@@ -490,7 +493,7 @@ function CameraRig({
     const lateral = motion.depth * 5.2;
     const combat = combatActive ? combatStateRef.current : null;
     if (combat) {
-      duelCameraHeadingRef.current = DUEL_CAMERA_HEADING;
+      duelCameraHeadingRef.current = duelCameraHeading;
     } else {
       duelCameraHeadingRef.current = null;
     }
@@ -528,7 +531,7 @@ function CameraRig({
         combat.bot,
         duelAspect,
         duelFov - 4,
-        touchRenderer ? 7.2 : 7.7,
+        touchRenderer ? 6.2 : 6.8,
         duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
       );
       const pose = getDuelCameraPose(
@@ -2554,6 +2557,7 @@ function SceneContents({
   combatVisualEvents,
   cinematicIntro,
   finisherSlowMotion,
+  duelCameraHeading,
   botTelegraphActive,
   combatRender,
   opponentName,
@@ -2766,6 +2770,7 @@ function SceneContents({
         visualEffectsEnabled={visualEffectsEnabled}
         cinematicIntro={cinematicIntro}
         finisherSlowMotion={finisherSlowMotion}
+        duelCameraHeading={duelCameraHeading}
         debugEnabled={debugEnabled}
       />
       {!combatActive && (
