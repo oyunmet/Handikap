@@ -1,18 +1,18 @@
 export const INTRO_EVENT_MS = {
-  letter: 260,
-  production: 740,
-  byline: 1_220,
-  shimmer: 1_650,
-  impact: 1_900,
-  creditsFade: 3_500,
-  worldReveal: 3_800,
-  lineOne: 4_300,
-  lineTwo: 12_500,
-  lineThree: 20_700,
-  productionCard: 28_100,
-  productionCardFade: 30_400,
-  title: 31_100,
-  prompt: 32_100,
+  letter: 220,
+  production: 600,
+  byline: 1_000,
+  shimmer: 1_400,
+  impact: 1_650,
+  creditsFade: 2_600,
+  worldReveal: 3_000,
+  lineOne: 3_500,
+  lineTwo: 6_100,
+  lineThree: 8_700,
+  productionCard: 9_800,
+  productionCardFade: 11_100,
+  title: 11_700,
+  prompt: 12_300,
 } as const;
 
 type IntroEventTimes = {
@@ -34,12 +34,12 @@ export function getIntroEventTimes(reducedMotion = false) {
   ) as IntroEventTimes;
 
   if (reducedMotion) {
-    events.lineTwo = events.lineOne + 8_200;
-    events.lineThree = events.lineTwo + 8_200;
-    events.productionCard = events.lineThree + 7_400;
-    events.productionCardFade = events.productionCard + 1_800;
-    events.title = events.productionCardFade + 600;
-    events.prompt = events.title + 800;
+    events.lineTwo = events.lineOne + 2_600;
+    events.lineThree = events.lineTwo + 2_600;
+    events.productionCard = events.lineThree + 1_100;
+    events.productionCardFade = events.productionCard + 1_000;
+    events.title = events.productionCardFade + 500;
+    events.prompt = events.title + 600;
   }
 
   return events;

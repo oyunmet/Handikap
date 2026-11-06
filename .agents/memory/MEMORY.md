@@ -2,6 +2,7 @@
 - [Replit npm lockfile recovery](replit-npm-recovery.md) — Use the existing npm lockfile with `npm ci` if helper resolution fails.
 - [Vercel native TypeScript imports](vercel-native-typescript-imports.md) — In this Node 24 project, local ESM imports in API graphs must name `.ts` explicitly; `tsx` can hide missing extensions.
 - [Game identity and hosting](handikap-original-identity.md) — Production uses external Vercel; the user handles Git pushes and deployments.
+- [Play Store release target](play-store-release.md) — The user plans a Play Store launch; verify Android packaging before calling the game store-ready.
 - [Mobile frame-rate verification](mobile-frame-rate-verification.md) — Replit dev screenshots measured 24–29 FPS during auto-run; confirm 60 FPS in production on-device before claiming it.
 - [World darkness and WebGL](webgl-preview-limits.md) — Distinguish dark lighting from black frames; preserve a 3D-only recovery path and never switch the world to 2D.
 - [GitHub push authentication](github-push-auth.md) — A GitHub integration can report healthy while the workspace still rejects `git push`; verify binding/auth before retrying.

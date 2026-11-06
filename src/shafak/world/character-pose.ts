@@ -109,11 +109,11 @@ export function getWorldLocomotionPoseAngles(
 
   if (state === "KOŞUYOR" || state === "SPRINT") {
     const lean = state === "SPRINT"
-      ? THREE.MathUtils.degToRad(20)
-      : animationState === "walk" ? 0 : THREE.MathUtils.degToRad(12);
+      ? THREE.MathUtils.degToRad(7)
+      : 0;
     set("spine", lean * 0.45);
     set("chest", lean * 0.55);
-    if (state === "SPRINT") set("head", -0.025);
+    set("head", -lean * 0.55);
   } else if (state === "ZIPLAMA_HAZIRLIK") {
     set("leftThigh", 0.25); set("rightThigh", 0.25);
     set("leftShin", -0.42); set("rightShin", -0.42);
@@ -256,13 +256,13 @@ export function poseCharacterWithoutClip(
     const add = hasClip;
     if (movementState === "KOŞUYOR" || movementState === "SPRINT") {
       const lean = movementState === "SPRINT"
-        ? THREE.MathUtils.degToRad(20)
-        : state === "walk" ? 0 : THREE.MathUtils.degToRad(12);
+        ? THREE.MathUtils.degToRad(7)
+        : 0;
       const scaledLean = lean * motionScale;
       rotate("spine", scaledLean * 0.45, -gaitSwing * 0.025, 0, add);
       rotate("chest", scaledLean * 0.55, gaitSwing * 0.045, gaitSwing * 0.025, add);
       rotate("pelvis", 0, 0, gaitSwing * 0.035, add);
-      if (movementState === "SPRINT") rotate("head", -0.025 * motionScale, 0, 0, add);
+      rotate("head", -scaledLean * 0.55, 0, 0, add);
     } else if (movementState === "ZIPLAMA_HAZIRLIK") {
       rotate("leftThigh", 0.25 * motionScale, 0, 0, add);
       rotate("rightThigh", 0.25 * motionScale, 0, 0, add);
@@ -326,6 +326,8 @@ export function poseCharacterWithoutClip(
       rotate("rightUpperArm", -0.18 * motionScale, 0, 0.12 * motionScale, add);
       rotate("leftForearm", -0.28 * motionScale, 0, 0, add);
       rotate("rightForearm", -0.28 * motionScale, 0, 0, add);
+    } else if (movementState === "YERDE_DURUYOR" && state === "idle" && !crouching && hasClip) {
+      rotate("head", -THREE.MathUtils.degToRad(1.5), 0, 0, add);
     }
   };
 

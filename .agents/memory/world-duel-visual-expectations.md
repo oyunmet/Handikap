@@ -18,3 +18,9 @@ In War Room mobile gameplay, a rendered hero is not enough: the player must be l
 **Why:** The user repeated that the live phone view still did not make the player, equipped weapon, or impact effects visible.
 
 **How to apply:** Verify an actual in-game mobile capture after visual changes. If the available preview cannot create WebGL, state that limitation and do not claim the combat scene was visually verified.
+
+On the road, the hero should keep an upright torso and a level head while standing; ordinary movement should not add a pronounced forward hunch.
+
+**Why:** The user reported that the hero looked bowed while standing after starting the road.
+
+**How to apply:** Check the bound player rig's idle pose and head angle at rest, then use only a small counter-pose if the animation needs it.

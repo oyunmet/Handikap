@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { CSSProperties } from "react";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { WORLD_TOUCH_ACTIONS_ENABLED } from "./world-features";
-import { ApiResponseError, type AuthenticatedApiRequest } from "../api-json";
+import { ApiResponseError, type AuthenticatedApiRequestWithRetry } from "../api-json";
 import DuelControls from "../game/DuelControls";
 import GameButton from "../game/GameButton";
 import WorldWeaponPicker from "./WorldWeaponPicker";
@@ -151,7 +151,7 @@ import "./world-scene-layout.css";
 import "../game/world-duel-responsive.css";
 
 type WorldSceneProps = {
-  apiRequest: AuthenticatedApiRequest;
+  apiRequest: AuthenticatedApiRequestWithRetry;
   userId?: string;
   quality: "high" | "balanced" | "low";
   combatDifficulty: CombatDifficulty;

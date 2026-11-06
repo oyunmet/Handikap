@@ -1168,7 +1168,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           >
             <Suspense fallback={<div className="entry-loading">Oyun sahnesi hazırlanıyor…</div>}>
               <WorldScene
-                apiRequest={authApiRequest}
+                apiRequest={authApiRequestWithRetry}
                 userId={user?.id}
                 quality={activeQuality}
                 combatDifficulty={preferences.combatDifficulty}

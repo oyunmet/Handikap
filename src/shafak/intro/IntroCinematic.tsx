@@ -13,9 +13,9 @@ import { getIntroEventTimes } from "./timeline";
 import "./intro.css";
 
 const STORY_LINES = [
-  "Kül ülkesinde şafak yıllardır doğmadı. Son ışık, kuzey kapısının ardında kaldı.",
-  "Kapıyı koruyanları yen; her zafer seni karanlığın kaynağına biraz daha yaklaştırsın.",
-  "Yol iki geçide ayrılıyor. Seçimin, önündeki sınavın zorluğunu belirleyecek.",
+  "Şafak söndü. Son ışık, kuzey kapısının ardında.",
+  "Kapıyı koruyanları yen; her zafer seni kaynağa yaklaştırır.",
+  "İki geçit, iki yol. Seçimin kaderini belirler.",
 ];
 
 type IntroCinematicProps = {
@@ -269,8 +269,13 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
           </div>
         )}
         {showPrompt && (
-          <button className="intro-start" type="button" onClick={complete}>
-            Başlamak için dokun <span aria-hidden="true">↓</span>
+          <button
+            className="intro-start"
+            type="button"
+            onClick={complete}
+            aria-label="Oyuna başla"
+          >
+            YOLA ÇIK <span aria-hidden="true">→</span>
           </button>
         )}
       </div>

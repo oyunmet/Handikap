@@ -1,6 +1,6 @@
 import { getWarRoomFloorPresentation } from "./war-room-floor-indicator";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
 import WarRoomScene3D from "../world/WarRoomScene3D";
 import { preloadWarRoomModels } from "../world/WarRoomModels";
@@ -94,6 +94,7 @@ import {
   type WarRoomRoom,
   type WarRoomSavedProgress,
 } from "./war-room-rooms";
+import { getWarRoomDailyChallenge, isWarRoomDailyChallengeComplete } from "./war-room-daily";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
 import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
@@ -137,6 +138,7 @@ type WarRoomLookDebugSnapshot = {
 
 const GOLD_KEY = "shafak-war-room-gold-v1";
 const ROOM_PROGRESS_KEY = "shafak-war-room-room-progress-v1";
+const DAILY_CHALLENGE_KEY = "shafak-war-room-daily-completed-v1";
 const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
 
 function getWarRoomControlStorage(): Storage | null {
@@ -289,6 +291,22 @@ function readWarRoomRoomProgress(): WarRoomSavedProgress {
   }
 }
 
+function readWarRoomDailyCompletionDayKey() {
+  try {
+    return window.localStorage.getItem(DAILY_CHALLENGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeWarRoomDailyCompletionDayKey(dayKey: string) {
+  try {
+    window.localStorage.setItem(DAILY_CHALLENGE_KEY, dayKey);
+  } catch {
+    // Keep today's completion visible during this session if storage is disabled.
+  }
+}
+
 function writeWarRoomRoomProgress(progress: WarRoomSavedProgress) {
   try {
     window.localStorage.setItem(ROOM_PROGRESS_KEY, JSON.stringify(progress));
@@ -433,6 +451,13 @@ export default function WarRoomGame({
   const [portraitMode, setPortraitMode] = useState(() => isPortraitMobileViewport());
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
+  const dailyChallenge = useMemo(() => getWarRoomDailyChallenge(), []);
+  const dailyChallengeRoom = useMemo(
+    () => getWarRoomRoom(1, dailyChallenge.seed),
+    [dailyChallenge.seed],
+  );
+  const [dailyCompletionDayKey, setDailyCompletionDayKey] = useState(readWarRoomDailyCompletionDayKey);
+  const dailyRunRef = useRef(false);
   const [savedControlLayout, setSavedControlLayout] = useState(readSavedControlLayout);
   const [controlLayoutDraft, setControlLayoutDraft] = useState<WarRoomControlLayout>(
     () => createDefaultWarRoomControlLayout(),
@@ -488,6 +513,10 @@ export default function WarRoomGame({
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
+  const dailyChallengeComplete = isWarRoomDailyChallengeComplete(
+    dailyCompletionDayKey,
+    dailyChallenge.dayKey,
+  );
   const contractProgress = getWarRoomContractProgress(currentRoom.contract, hud);
   const contractBonus = getWarRoomContractReward(currentRoom.contract, contractProgress);
   const floorPresentation = getWarRoomFloorPresentation(
@@ -606,10 +635,18 @@ export default function WarRoomGame({
     };
   }, [controlsEditorOpen, exitPrompt, phase, resetTouchControls, settingsOpen]);
 
-  const beginBattle = (targetRoomNumber = roomNumber, preparedRuntime?: WarRoomRuntime) => {
+  const beginBattle = (
+    targetRoomNumber = roomNumber,
+    preparedRuntime?: WarRoomRuntime,
+    dailySeedOverride?: number,
+  ) => {
     fullscreenRequestedRef.current = requestWarRoomImmersiveDisplay();
     resumeWarRoomAudio();
+    const isDailyRun = dailySeedOverride !== undefined
+      || (preparedRuntime !== undefined && dailyRunRef.current);
+    dailyRunRef.current = isDailyRun;
     const runSeed = preparedRuntime?.room.runSeed
+      ?? dailySeedOverride
       ?? Math.floor(Math.random() * 4_294_967_296);
     runtimeRef.current = weaponLabMode
       ? createWarRoomTrainingRuntime(loadout)
@@ -643,6 +680,16 @@ export default function WarRoomGame({
     const contractBonus = result === "victory"
       ? getWarRoomContractReward(completedRoom.contract, contractProgress)
       : 0;
+    const earnedDailyChallenge = dailyRunRef.current
+      && completedRoom.number === 1
+      && result === "victory"
+      && contractBonus > 0;
+    if (earnedDailyChallenge) {
+      setDailyCompletionDayKey(dailyChallenge.dayKey);
+      writeWarRoomDailyCompletionDayKey(dailyChallenge.dayKey);
+    }
+    const dailyChallengeCompleted = dailyRunRef.current
+      && (dailyChallengeComplete || earnedDailyChallenge);
     const nextRoom = result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED
       ? getWarRoomRoom(completedRoom.number + 1, completedRoom.runSeed)
       : null;
@@ -685,6 +732,8 @@ export default function WarRoomGame({
       roomName: completedRoom.name,
       commanderTitle: completedRoom.commanderTitle,
       enemyCount: completedRoom.enemyCount,
+      dailyChallenge: dailyRunRef.current,
+      dailyChallengeCompleted,
       nextRoom,
       contract: {
         ...completedRoom.contract,
@@ -700,7 +749,7 @@ export default function WarRoomGame({
       ),
     });
     setPhase(result);
-  }, [loadout, profile.name]);
+  }, [dailyChallenge.dayKey, dailyChallengeComplete, loadout, profile.name]);
 
   const pauseBattle = useCallback(() => {
     const input = inputRef.current;
@@ -1231,6 +1280,9 @@ export default function WarRoomGame({
       {phase === "briefing" && (
         <WarRoomBriefing
           room={currentRoom}
+          dailyChallengeRoom={dailyChallengeRoom}
+          dailyChallengeComplete={dailyChallengeComplete}
+          roomProgress={roomProgress}
           ownedItemIds={profile.inventory.ownedItemIds}
           loadout={loadout}
           selectedSlot={selectedSlot}
@@ -1242,6 +1294,7 @@ export default function WarRoomGame({
           hasModelErrors={modelErrors.length > 0}
           onExit={closeMode}
           onBegin={() => beginBattle()}
+          onBeginDaily={() => beginBattle(1, undefined, dailyChallenge.seed)}
         />
       )}
 
@@ -1911,8 +1964,16 @@ export default function WarRoomGame({
           summary={summary}
           roomProgress={roomProgress}
           onNextRoom={() => beginBattle(summary.nextRoom!.number, preparedNextRoomRef.current ?? undefined)}
-          onRetryRoom={() => beginBattle(summary.roomNumber)}
-          onRestart={() => beginBattle(1)}
+          onRetryRoom={() => beginBattle(
+            summary.roomNumber,
+            undefined,
+            summary.dailyChallenge ? dailyChallenge.seed : undefined,
+          )}
+          onRestart={() => beginBattle(
+            1,
+            undefined,
+            summary.dailyChallenge ? dailyChallenge.seed : undefined,
+          )}
           onExit={closeMode}
         />
       )}

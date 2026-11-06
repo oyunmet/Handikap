@@ -13,6 +13,8 @@ export type WarRoomResultSummary = {
   roomName: string;
   commanderTitle: string;
   enemyCount: number;
+  dailyChallenge?: boolean;
+  dailyChallengeCompleted?: boolean;
   contract: {
     title: string;
     description: string;
@@ -61,6 +63,14 @@ export default function WarRoomResult({
         <p>{victory
           ? `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
           : `${summary.roomName} düşmedi. Bu odadan yeniden başlayabilir veya zinciri baştan alabilirsin.`}</p>
+        {summary.dailyChallenge && (
+          <section className={`war-room-daily-result${summary.dailyChallengeCompleted ? " is-complete" : ""}`}>
+            <strong>{summary.dailyChallengeCompleted ? "GÜNLÜK SINAV TAMAMLANDI" : "GÜNLÜK SINAV DEVAM EDİYOR"}</strong>
+            <p>{summary.dailyChallengeCompleted
+              ? "Bugünün ortak sınavı tamamlandı. İstersen aynı sınavı yeniden oynayabilirsin."
+              : "Bugünün ek hedefini tamamlayıp sınavı bitirmek için aynı görevi tekrar deneyebilirsin."}</p>
+          </section>
+        )}
         <div className="war-room-stat-grid">
           <div><span>DÜŞÜRÜLEN</span><b>{summary.kills} / {summary.enemyCount}</b></div>
           <div><span>KAFA VURUŞU</span><b>{summary.headshots}</b></div>

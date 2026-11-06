@@ -5,10 +5,13 @@ import {
 import { isWarRoomWeaponOwned } from "./war-room-loadout";
 import { WAR_ROOM_BUILD_VERSION, WAR_ROOM_WEAPON_ICONS_ENABLED } from "./war-room-features";
 import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
-import type { WarRoomRoom } from "./war-room-rooms";
+import type { WarRoomRoom, WarRoomSavedProgress } from "./war-room-rooms";
 
 type Props = {
   room: WarRoomRoom;
+  dailyChallengeRoom: WarRoomRoom;
+  dailyChallengeComplete: boolean;
+  roomProgress: WarRoomSavedProgress;
   ownedItemIds: readonly string[];
   loadout: readonly [WarRoomWeaponId, WarRoomWeaponId];
   selectedSlot: 0 | 1;
@@ -20,10 +23,14 @@ type Props = {
   hasModelErrors: boolean;
   onExit: () => void;
   onBegin: () => void;
+  onBeginDaily: () => void;
 };
 
 export default function WarRoomBriefing({
   room,
+  dailyChallengeRoom,
+  dailyChallengeComplete,
+  roomProgress,
   ownedItemIds,
   loadout,
   selectedSlot,
@@ -35,6 +42,7 @@ export default function WarRoomBriefing({
   hasModelErrors,
   onExit,
   onBegin,
+  onBeginDaily,
 }: Props) {
   return (
     <section className="war-room-briefing" role="dialog" aria-modal="true" aria-labelledby="war-room-title">
@@ -55,6 +63,33 @@ export default function WarRoomBriefing({
           </div>
           <b className="war-room-enemy-count">{String(room.enemyCount).padStart(2, "0")}</b>
         </div>
+        <section
+          className={`war-room-daily-challenge${dailyChallengeComplete ? " is-complete" : ""}`}
+          aria-label="Günlük Savaş Odası sınavı"
+        >
+          <span className="war-room-daily-challenge__mark" aria-hidden="true">✦</span>
+          <div className="war-room-daily-challenge__copy">
+            <div className="war-room-daily-challenge__eyebrow">
+              <span>GÜNLÜK SINAV</span><small>HER GÜN YENİLENİR</small>
+            </div>
+            <strong>{dailyChallengeRoom.contract.title}</strong>
+            <p>{dailyChallengeRoom.contract.description} · {dailyChallengeRoom.contract.target} hedef</p>
+            <small>{dailyChallengeRoom.name} · +{dailyChallengeRoom.contract.bonusGold} altın</small>
+          </div>
+          <div className="war-room-daily-challenge__record" aria-label={`En iyi oda ${roomProgress.highestRoom}`}>
+            <small>EN İYİ</small>
+            <b>{roomProgress.highestRoom}</b>
+            <small>ODA</small>
+          </div>
+          <button
+            className="war-room-daily-challenge__start"
+            type="button"
+            onClick={onBeginDaily}
+            disabled={!modelsReady}
+          >
+            {dailyChallengeComplete ? "TEKRAR OYNA" : "SINAVI BAŞLAT"}
+          </button>
+        </section>
         <div className="war-room-loadout-head">
           <div>
             <span className="war-room-eyebrow">SAVAŞ ÖNCESİ HAZIRLIK</span>

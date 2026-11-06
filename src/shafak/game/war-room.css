@@ -231,6 +231,122 @@
   color: #f1c78d;
 }
 
+.war-room-daily-challenge {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 48px minmax(132px, auto);
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(218, 169, 100, .34);
+  border-radius: 4px;
+  background:
+    linear-gradient(110deg, rgba(105, 68, 40, .42), rgba(33, 29, 26, .88)),
+    radial-gradient(ellipse at 0% 50%, rgba(215, 143, 76, .13), transparent 58%);
+  box-shadow: inset 0 1px rgba(255, 231, 191, .06);
+}
+
+.war-room-daily-challenge__mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(233, 185, 117, .48);
+  border-radius: 50%;
+  background: rgba(105, 70, 41, .4);
+  color: #f0c77e;
+  font-size: 19px;
+}
+
+.war-room-daily-challenge__copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.war-room-daily-challenge__eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #f0c77e;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.war-room-daily-challenge__eyebrow small {
+  color: rgba(237, 220, 194, .52);
+  font-size: 7px;
+}
+
+.war-room-daily-challenge__copy > strong {
+  color: #f4e4ca;
+  font: 700 13px/1.25 var(--font-display, Georgia, serif);
+}
+
+.war-room-daily-challenge__copy > p,
+.war-room-daily-challenge__copy > small {
+  margin: 0;
+  color: rgba(237, 222, 199, .68);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.war-room-daily-challenge__record {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 4px;
+  border-left: 1px solid rgba(231, 193, 139, .16);
+}
+
+.war-room-daily-challenge__record small {
+  color: rgba(237, 222, 199, .55);
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.war-room-daily-challenge__record b {
+  color: #f3d7a4;
+  font: 700 19px/1.1 var(--font-display, Georgia, serif);
+}
+
+.war-room-daily-challenge__start {
+  min-width: 132px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(243, 198, 128, .54);
+  border-radius: 3px;
+  background: linear-gradient(110deg, rgba(125, 78, 44, .78), rgba(56, 40, 30, .9));
+  color: #ffebca;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.war-room-daily-challenge__start:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 220, 162, .88);
+  background: linear-gradient(110deg, rgba(154, 94, 50, .88), rgba(70, 48, 33, .96));
+}
+
+.war-room-daily-challenge__start:disabled {
+  opacity: .52;
+  cursor: wait;
+}
+
+.war-room-daily-challenge.is-complete {
+  border-color: rgba(173, 194, 126, .4);
+}
+
+.war-room-daily-challenge.is-complete .war-room-daily-challenge__eyebrow > span {
+  color: #c9d99b;
+}
+
 .war-room-weapon-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2073,6 +2189,63 @@
 
 .war-room-contract-result.is-complete > b {
   color: #a4d0a0;
+}
+
+.war-room-daily-result {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(218, 169, 100, .34);
+  border-left: 3px solid #d4a565;
+  border-radius: 3px;
+  background: rgba(112, 76, 43, .24);
+}
+
+.war-room-daily-result strong {
+  color: #f1cc8b;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.war-room-daily-result p {
+  margin: 5px 0 0;
+  color: rgba(241, 224, 198, .7);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.war-room-daily-result.is-complete {
+  border-color: rgba(173, 194, 126, .38);
+  border-left-color: #b6c785;
+  background: rgba(98, 112, 66, .18);
+}
+
+.war-room-daily-result.is-complete strong {
+  color: #d2dfa8;
+}
+
+@media (max-width: 600px) {
+  .war-room-daily-challenge {
+    grid-template-columns: 34px minmax(0, 1fr) 42px;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .war-room-daily-challenge__mark {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .war-room-daily-challenge__record {
+    min-height: 46px;
+  }
+
+  .war-room-daily-challenge__start {
+    min-width: 0;
+    min-height: 46px;
+    grid-column: 1 / -1;
+  }
 }
 
 .war-room-gold-reward {

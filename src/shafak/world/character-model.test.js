@@ -322,7 +322,7 @@ test("crouch lowers the shared Body bone by a fixed world distance at GLB scales
   }
 });
 
-test("locomotion poses keep crouch upright and use the requested run and sprint lean", () => {
+test("locomotion keeps the head level during a run and uses only a small counter-balanced sprint lean", () => {
   const crouch = getWorldLocomotionPoseAngles("EĞİLİYOR", 0);
   const walk = getWorldLocomotionPoseAngles("KOŞUYOR", 0, "walk");
   const run = getWorldLocomotionPoseAngles("KOŞUYOR", 0);
@@ -332,8 +332,10 @@ test("locomotion poses keep crouch upright and use the requested run and sprint 
   assert.ok((crouch.leftThigh?.[0] ?? 0) < -0.75);
   assert.ok((crouch.leftShin?.[0] ?? 0) > 1.2);
   assert.ok(Math.abs((walk.spine?.[0] ?? 0) + (walk.chest?.[0] ?? 0)) < 1e-9);
-  assert.ok(Math.abs(run.spine?.[0] + run.chest?.[0] - THREE.MathUtils.degToRad(12)) < 1e-9);
-  assert.ok(Math.abs(sprint.spine?.[0] + sprint.chest?.[0] - THREE.MathUtils.degToRad(20)) < 1e-9);
+  assert.ok(Math.abs((run.spine?.[0] ?? 0) + (run.chest?.[0] ?? 0)) < 1e-9);
+  assert.ok(Math.abs((run.head?.[0] ?? 0)) < 1e-9);
+  assert.ok(Math.abs(sprint.spine?.[0] + sprint.chest?.[0] - THREE.MathUtils.degToRad(7)) < 1e-9);
+  assert.ok((sprint.head?.[0] ?? 0) < 0, "the head should counter the small sprint lean");
 
   const states = [
     "YERDE_DURUYOR", "KOŞUYOR", "SPRINT", "ZIPLAMA_HAZIRLIK",
@@ -345,6 +347,31 @@ test("locomotion poses keep crouch upright and use the requested run and sprint 
       assert.ok(angles.every((angle) => Number.isFinite(angle) && Math.abs(angle) <= 1.28));
     }
   }
+});
+
+test("stationary idle animation receives a small head-leveling correction", () => {
+  const model = new THREE.Group();
+  const head = new THREE.Bone();
+  head.name = "Head";
+  head.rotation.x = THREE.MathUtils.degToRad(1.6);
+  model.add(head);
+  const bones = findCharacterPoseBones(model);
+
+  poseCharacterWithoutClip(
+    bones,
+    "idle",
+    0,
+    0,
+    0,
+    false,
+    false,
+    0,
+    true,
+    false,
+    { movementState: "YERDE_DURUYOR" },
+  );
+
+  assert.ok(Math.abs(head.rotation.x) < THREE.MathUtils.degToRad(0.2));
 });
 
 test("restoring the animation baseline prevents additive crouch poses from accumulating", () => {
