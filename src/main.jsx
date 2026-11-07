@@ -4,6 +4,14 @@ import AuthEntry from "./shafak/auth/EnvironmentRouter.tsx";
 import "./shafak/tokens.css";
 import "./shafak/App.css";
 
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((error) => {
+      console.warn("[shafak-pwa] Service worker registration failed.", error);
+    });
+  });
+}
+
 class StartupErrorBoundary extends React.Component {
   state = { error: null };
 

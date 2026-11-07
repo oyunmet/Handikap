@@ -1,0 +1,26 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.safaksavascilari.game"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.safaksavascilari.game"
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.4"
+}

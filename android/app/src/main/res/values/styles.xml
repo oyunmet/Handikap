@@ -1,0 +1,6 @@
+<resources>
+    <style name="TwaLauncherTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">#D5A95D</item>
+    </style>
+</resources>
