@@ -180,6 +180,10 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
+  advanceWarRoomFixedMovement,
+  createWarRoomMovementClock,
+} from "../game/war-room-fixed-movement";
+import {
   getWarRoomMeleeImpactCues,
   playWarRoomSound,
   type WarRoomShotStyle,
@@ -1124,6 +1128,7 @@ function PlayerActor({
   runtimeRef,
   inputRef,
   movementBasisYawRef,
+  renderPositionRef,
   weaponId,
   weaponMountOverrides,
   rootRef,
@@ -1134,6 +1139,7 @@ function PlayerActor({
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
   movementBasisYawRef: MutableRefObject<number | null>;
+  renderPositionRef: MutableRefObject<{ x: number; z: number }>;
   weaponId: WarRoomWeaponId;
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   rootRef: MutableRefObject<THREE.Group | null>;
@@ -1242,9 +1248,9 @@ function PlayerActor({
         ? Math.sin(Math.PI * attackProgress) * 0.16
         : 0;
       root.position.set(
-        player.x + Math.sin(bodyYaw) * heavyStep,
+        renderPositionRef.current.x + Math.sin(bodyYaw) * heavyStep,
         player.floorHeight + player.jumpHeight - (player.prone ? 0.34 : 0),
-        player.z - Math.cos(bodyYaw) * heavyStep,
+        renderPositionRef.current.z - Math.cos(bodyYaw) * heavyStep,
       );
       root.rotation.y = shortestLerp(root.rotation.y, getWarRoomPlayerRootYaw(bodyYaw), 10, delta);
       root.scale.y = player.prone ? 0.5 : player.crouched ? 0.78 : 1;
@@ -2082,6 +2088,14 @@ function WarRoomRuntimeScene({
   const pickupImpactScratch = useMemo(() => new THREE.Vector3(), []);
   const room = runtimeRef.current.room;
   const playerRootRef = useRef<THREE.Group | null>(null);
+  const playerRenderPositionRef = useRef({
+    x: runtimeRef.current.player.x,
+    z: runtimeRef.current.player.z,
+  });
+  const playerMovementClockRef = useRef(createWarRoomMovementClock(
+    runtimeRef.current.player.x,
+    runtimeRef.current.player.z,
+  ));
   const playerMuzzleRef = useRef<THREE.Group | null>(null);
   const playerMuzzleFlashRef = useRef<THREE.Group | null>(null);
   const lastHudAtRef = useRef(0);
@@ -3486,25 +3500,27 @@ function WarRoomRuntimeScene({
             : 6.1;
     const directionalSpeedScale = getWarRoomDirectionalSpeedScale(moveX, moveY);
     const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
-    let dx = worldMovement.x * speed * directionalSpeedScale * delta;
-    let dz = worldMovement.z * speed * directionalSpeedScale * delta;
-    if (now < player.dodgeUntil) {
-      const remaining = Math.max(0, player.dodgeUntil - now);
-      dx += player.dodgeX * 11 * Math.min(delta, remaining);
-      dz += player.dodgeZ * 11 * Math.min(delta, remaining);
-    }
-    const nextPosition = moveWarRoomEntity(
-      player.x,
-      player.z,
-      dx,
-      dz,
-      WAR_ROOM_PLAYER_COLLISION_RADIUS,
-      activeBlockersRef.current,
-      player.floorHeight,
-      player.jumpHeight,
-    );
+    const previousMoveX = player.x;
+    const previousMoveZ = player.z;
+    const nextPosition = advanceWarRoomFixedMovement(playerMovementClockRef.current, {
+      x: player.x,
+      z: player.z,
+      velocityX: worldMovement.x * speed * directionalSpeedScale,
+      velocityZ: worldMovement.z * speed * directionalSpeedScale,
+      delta,
+      now,
+      blockers: activeBlockersRef.current,
+      radius: WAR_ROOM_PLAYER_COLLISION_RADIUS,
+      floorHeight: player.floorHeight,
+      jumpHeight: player.jumpHeight,
+      dodge: { x: player.dodgeX, z: player.dodgeZ, until: player.dodgeUntil },
+    });
     player.x = nextPosition.x;
     player.z = nextPosition.z;
+    const dx = player.x - previousMoveX;
+    const dz = player.z - previousMoveZ;
+    playerRenderPositionRef.current.x = nextPosition.renderX;
+    playerRenderPositionRef.current.z = nextPosition.renderZ;
     const previousFloorHeight = player.floorHeight;
     const previousJumpHeight = player.jumpHeight;
     const nextFloorHeight = getWarRoomFloorHeight(
@@ -4260,10 +4276,12 @@ function WarRoomRuntimeScene({
         player.floorHeight,
         delta,
       );
+    const renderX = playerRenderPositionRef.current.x;
+    const renderZ = playerRenderPositionRef.current.z;
     const smoothedEye = {
-      x: player.x,
+      x: renderX,
       y: smoothedFloorHeight + player.jumpHeight + cameraHeight,
-      z: player.z,
+      z: renderZ,
     };
     cameraFloorHeightRef.current = isWarRoomCameraPointClear(
       smoothedEye,
@@ -4276,12 +4294,12 @@ function WarRoomRuntimeScene({
     const focusHeight = cameraMode === "first-person" ? cameraHeight : 1.5;
     const focusAhead = cameraMode === "first-person" ? 8 : 0;
     cameraStart.set(
-      player.x,
+      renderX,
       cameraFloorHeight + player.jumpHeight + cameraHeight,
-      player.z,
+      renderZ,
     );
     const cameraFrame = getWarRoomRearCameraFrame(
-      { x: player.x, y: cameraFloorHeight + player.jumpHeight, z: player.z },
+      { x: renderX, y: cameraFloorHeight + player.jumpHeight, z: renderZ },
       cameraYaw,
       cameraPitch,
       baseCameraBack,
@@ -4686,6 +4704,7 @@ function WarRoomRuntimeScene({
         runtimeRef={runtimeRef}
         inputRef={inputRef}
         movementBasisYawRef={movementBasisYawRef}
+        renderPositionRef={playerRenderPositionRef}
         weaponId={activeWeapon}
         weaponMountOverrides={weaponMountOverrides}
         rootRef={playerRootRef}
