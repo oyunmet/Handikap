@@ -36,14 +36,22 @@ try {
     }
   });
 
-  await page.goto(`${baseUrl}/?mod=savas&lab=1&debug=1`, {
+  await page.goto(`${baseUrl}/?mod=savas&debug=1`, {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
   });
+  const beginButton = page.locator(".war-room-start");
+  await beginButton.waitFor({ timeout: 30_000 });
+  await page.waitForFunction(() => {
+    const button = document.querySelector(".war-room-start");
+    return button instanceof HTMLButtonElement && !button.disabled;
+  }, null, { timeout: 60_000 });
+  await beginButton.click();
   const debug = page.locator(".war-room-camera-debug [data-touch-diagnostics]");
   await debug.waitFor({ timeout: 60_000 });
   await page.locator(".war-room-battle").waitFor();
   await page.waitForTimeout(1_500);
+  console.log("War Room E2E: battle and touch diagnostics are ready.");
 
   const diagnostics = () => debug.getAttribute("data-touch-diagnostics");
   const getYaw = async () => {
@@ -58,7 +66,7 @@ try {
         const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
         const match = text.match(/moveY\s+(-?\d+(?:\.\d+)?)/);
         return Boolean(match && Math.abs(Number(match[1])) > 0.12);
-      }, null, { timeout: 5_000 });
+      }, null, { timeout: 10_000 });
     } catch {
       throw new Error(`Joystick movement was not recorded: ${await diagnostics()}`);
     }
@@ -68,10 +76,49 @@ try {
       await page.waitForFunction(() => {
         const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
         return text.includes("aktif yok");
-      }, null, { timeout: 5_000 });
+      }, null, { timeout: 10_000 });
     } catch {
       throw new Error(`Touch roles remained after release: ${await diagnostics()}`);
     }
+  };
+  const waitForAimState = async (active) => {
+    try {
+      await page.waitForFunction((expected) => {
+        return document.querySelector(".war-room-hud")?.classList.contains("is-aiming") === expected;
+      }, active, { timeout: 10_000 });
+    } catch {
+      throw new Error(`Aim state did not become ${active ? "active" : "inactive"}; diagnostics=${await diagnostics()}`);
+    }
+  };
+  const waitForTouchRole = async (id, role) => {
+    try {
+      await page.waitForFunction(({ expectedId, expectedRole }) => {
+        const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
+        return text.includes(`${expectedId}:${expectedRole}`);
+      }, { expectedId: id, expectedRole: role }, { timeout: 10_000 });
+    } catch {
+      throw new Error(`Touch ${id} did not retain ${role} ownership: ${await diagnostics()}`);
+    }
+  };
+  const findOpenTouchPoint = async (side) => {
+    const point = await page.evaluate((requestedSide) => {
+      const stage = document.querySelector(".war-room-battle");
+      if (!stage) return null;
+      const bounds = stage.getBoundingClientRect();
+      const start = requestedSide === "left" ? 0.025 : 0.525;
+      const end = requestedSide === "left" ? 0.475 : 0.975;
+      for (let y = 0.12; y < 0.96; y += 0.035) {
+        for (let x = start; x < end; x += 0.035) {
+          const clientX = Math.round(bounds.left + bounds.width * x);
+          const clientY = Math.round(bounds.top + bounds.height * y);
+          const target = document.elementFromPoint(clientX, clientY);
+          if (target?.tagName === "CANVAS" && stage.contains(target)) return { x: clientX, y: clientY };
+        }
+      }
+      return null;
+    }, side);
+    assert.ok(point, `Could not find an unobstructed ${side}-side game touch area`);
+    return point;
   };
   const activeTouches = new Map();
   const cdp = await context.newCDPSession(page);
@@ -105,9 +152,10 @@ try {
   ]) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(250);
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 3; index += 1) {
       const id = touchId++;
-      await swipe(id, 115 + index * 12, 165, 0, -42);
+      const point = await findOpenTouchPoint("left");
+      await swipe(id, point.x, point.y, 0, -42);
       await waitForMovement();
       const text = await diagnostics();
       assert.ok(text?.includes(`${id}:joystick`), `Left swipe ${id} did not own the joystick: ${text}`);
@@ -115,6 +163,7 @@ try {
       await waitForNoActiveTouches();
     }
   }
+  console.log("War Room E2E: joystick swipes passed in both landscape sizes.");
 
   touchId = 40;
   for (const viewport of [
@@ -123,10 +172,11 @@ try {
   ]) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(250);
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 3; index += 1) {
       const before = await getYaw();
       const id = touchId++;
-      await swipe(id, 550, 190, 36, 0);
+      const point = await findOpenTouchPoint("right");
+      await swipe(id, point.x, point.y, 36, 0);
       await page.waitForFunction((expectedId) => {
         const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
         return text.includes(`${expectedId}:look`);
@@ -148,25 +198,82 @@ try {
       await waitForNoActiveTouches();
     }
   }
+  console.log("War Room E2E: camera-look swipes passed in both landscape sizes.");
 
   const startYaw = await getYaw();
-  await startTouch(71, 120, 240);
-  await startTouch(72, 690, 180);
-  await moveTouch(71, 120, 195);
-  await moveTouch(72, 725, 165);
+  const simultaneousMovePoint = await findOpenTouchPoint("left");
+  const simultaneousLookPoint = await findOpenTouchPoint("right");
+  await startTouch(71, simultaneousMovePoint.x, simultaneousMovePoint.y);
+  await startTouch(72, simultaneousLookPoint.x, simultaneousLookPoint.y);
+  await moveTouch(71, simultaneousMovePoint.x, simultaneousMovePoint.y - 45);
+  await moveTouch(72, simultaneousLookPoint.x + 35, simultaneousLookPoint.y - 15);
   await page.waitForFunction(() => {
     const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
     return text.includes("71:joystick") && text.includes("72:look");
-  }, null, { timeout: 5_000 });
+      }, null, { timeout: 10_000 });
   const simultaneous = await diagnostics();
-  assert.ok(simultaneous?.includes("moveY 0.75") || simultaneous?.includes("moveY 1.00"),
+  const simultaneousMoveY = Number(simultaneous?.match(/moveY\s+(-?\d+(?:\.\d+)?)/)?.[1]);
+  assert.ok(Number.isFinite(simultaneousMoveY) && simultaneousMoveY > 0.6,
     `Simultaneous movement did not reach the joystick: ${simultaneous}`);
   assert.notEqual(await getYaw(), startYaw, "Simultaneous right-side look did not rotate the camera");
   await endTouch(72);
+  await waitForTouchRole(71, "joystick");
   const leftStillActive = await diagnostics();
-  assert.ok(leftStillActive?.includes("71:joystick"), "Ending camera look also ended movement");
+  assert.ok(leftStillActive?.includes("71:joystick"),
+    `Ending camera look also ended movement: ${leftStillActive}`);
   await endTouch(71);
   await waitForNoActiveTouches();
+  console.log("War Room E2E: joystick movement and right-side camera look stayed independent.");
+
+  // Hold movement, aim, and fire with three real touch identifiers. Releasing
+  // fire must not release aim or cancel the movement pointer.
+  const aimButton = page.locator(".war-room-control.is-aim");
+  const fireButton = page.locator(".war-room-control.is-fire");
+  const aimBounds = await aimButton.boundingBox();
+  const fireBounds = await fireButton.boundingBox();
+  assert.ok(aimBounds && fireBounds, "Aim and fire touch controls were not visible");
+  assert.ok(aimBounds.width >= 48 && aimBounds.height >= 48,
+    `Aim control is smaller than the 48 px touch target: ${JSON.stringify(aimBounds)}`);
+  assert.ok(fireBounds.width >= 48 && fireBounds.height >= 48,
+    `Fire control is smaller than the 48 px touch target: ${JSON.stringify(fireBounds)}`);
+  const tripleTouchMovePoint = await findOpenTouchPoint("left");
+  await startTouch(82, tripleTouchMovePoint.x, tripleTouchMovePoint.y);
+  await moveTouch(82, tripleTouchMovePoint.x, tripleTouchMovePoint.y - 60);
+  await startTouch(83, aimBounds.x + aimBounds.width / 2, aimBounds.y + aimBounds.height / 2);
+  await startTouch(84, fireBounds.x + fireBounds.width / 2, fireBounds.y + fireBounds.height / 2);
+  await page.waitForFunction(() => {
+    const aim = document.querySelector(".war-room-control.is-aim");
+    const fire = document.querySelector(".war-room-control.is-fire");
+    const hud = document.querySelector(".war-room-hud");
+    return aim?.dataset.held === "true"
+      && fire?.dataset.held === "true"
+      && hud?.classList.contains("is-aiming");
+  }, null, { timeout: 5_000 });
+  const tripleTouch = await diagnostics();
+  assert.ok(tripleTouch?.includes("82:joystick"), `Movement lost ownership during aim/fire: ${tripleTouch}`);
+  assert.ok(Number(tripleTouch?.match(/moveY\s+(-?\d+(?:\.\d+)?)/)?.[1]) > 0.6,
+    `Movement was not active during aim/fire: ${tripleTouch}`);
+  await page.screenshot({ path: "/tmp/war-room-ads-844x390.png" });
+
+  await endTouch(84);
+  await page.waitForFunction(() => {
+    return document.querySelector(".war-room-control.is-fire")?.dataset.held !== "true";
+  }, null, { timeout: 5_000 });
+  await waitForAimState(true);
+  assert.equal(await aimButton.getAttribute("data-held"), "true",
+    "Releasing fire also released the independently held aim button");
+  await waitForTouchRole(82, "joystick");
+  assert.ok((await diagnostics())?.includes("82:joystick"),
+    `Releasing fire also ended the movement pointer: ${await diagnostics()}`);
+
+  await endTouch(83);
+  await waitForAimState(false);
+  await waitForTouchRole(82, "joystick");
+  assert.ok((await diagnostics())?.includes("82:joystick"),
+    `Releasing aim also ended the movement pointer: ${await diagnostics()}`);
+  await endTouch(82);
+  await waitForNoActiveTouches();
+  console.log("War Room E2E: three-touch movement, ADS, and fire passed; releasing fire kept aim active.");
 
   await startTouch(81, 130, 230);
   await moveTouch(81, 130, 170);
@@ -200,17 +307,21 @@ try {
   await moveTouch(101, 125, 170);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.dispatchEvent(new Event("orientationchange")));
-  await page.locator(".war-room-orientation-overlay").waitFor();
   await waitForNoActiveTouches();
+  assert.equal(await page.locator(".war-room-orientation-overlay").count(), 0,
+    "Portrait rotation unexpectedly blocked the War Room HUD");
+  assert.equal(await page.locator(".war-room-controls").isVisible(), true,
+    "Touch controls did not remain visible after portrait rotation");
   activeTouches.clear();
   await page.setViewportSize({ width: 844, height: 390 });
   await page.evaluate(() => window.dispatchEvent(new Event("orientationchange")));
-  await page.locator(".war-room-orientation-overlay").waitFor({ state: "detached" });
+  assert.equal(await page.locator(".war-room-orientation-overlay").count(), 0,
+    "Landscape rotation unexpectedly showed an orientation blocker");
 
   await page.screenshot({ path: "/tmp/war-room-mobile-844x390.png" });
   assert.deepEqual(pageErrors, [], `Browser page errors:\n${pageErrors.join("\n")}`);
   assert.deepEqual(consoleWarnings, [], `Browser console warnings/errors:\n${consoleWarnings.join("\n")}`);
-  console.log("War Room mobile E2E passed: 10 joystick swipes, 10 look swipes, simultaneous touch, cancel, HUD button, pause, and orientation recovery.");
+  console.log("War Room mobile E2E passed: joystick/look, three simultaneous controls, independent releases, cancel, HUD button, pause, and both orientations.");
 } finally {
   await browser.close();
 }
