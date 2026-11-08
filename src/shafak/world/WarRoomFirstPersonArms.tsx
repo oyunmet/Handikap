@@ -3,7 +3,10 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { WarRoomWeaponId } from "../game/war-room-data.ts";
-import { getWarRoomViewModelGripPoints } from "../game/war-room-viewmodel.ts";
+import {
+  getWarRoomViewModelAimScaleFactor,
+  getWarRoomViewModelGripPoints,
+} from "../game/war-room-viewmodel.ts";
 
 type Props = {
   animationRef: MutableRefObject<WarRoomArmsAnimation>;
@@ -13,6 +16,7 @@ type Props = {
 
 export type WarRoomArmsAnimation = {
   weaponId: WarRoomWeaponId;
+  aiming: boolean;
   reloadProgress: number;
   chargeProgress: number;
   recoil: number;
@@ -162,9 +166,10 @@ export function WarRoomFirstPersonArms({
   const cuffPosition = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    const { weaponId, reloadProgress, chargeProgress, recoil } = animationRef.current;
+    const { weaponId, aiming, reloadProgress, chargeProgress, recoil } = animationRef.current;
     const bow = weaponId === "longbow";
     const crossbow = weaponId === "crossbow";
+    const gripScale = weaponScale * getWarRoomViewModelAimScaleFactor(aiming);
     const reloadMix = Math.sin(Math.PI * Math.max(0, Math.min(1, reloadProgress)));
     const gripPoints = getWarRoomViewModelGripPoints(weaponId);
     const rightX = gripPoints.gripR[0];
@@ -181,8 +186,8 @@ export function WarRoomFirstPersonArms({
     leftX += (reloadX - leftX) * reloadMix;
     leftY += (reloadY - leftY) * reloadMix;
     leftZ += (reloadZ - leftZ) * reloadMix;
-    rightWrist.set(rightX * weaponScale, rightY * weaponScale - recoil * 0.012, rightZ * weaponScale);
-    leftWrist.set(leftX * weaponScale, leftY * weaponScale, leftZ * weaponScale);
+    rightWrist.set(rightX * gripScale, rightY * gripScale - recoil * 0.012, rightZ * gripScale);
+    leftWrist.set(leftX * gripScale, leftY * gripScale, leftZ * gripScale);
 
     placeCapsule(rightUpperRef.current, rightShoulder, rightElbow, 0.145, direction, midpoint, quaternion);
     placeCapsule(leftUpperRef.current, leftShoulder, leftElbow, 0.145, direction, midpoint, quaternion);

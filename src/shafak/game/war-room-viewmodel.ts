@@ -42,6 +42,23 @@ export type WarRoomViewModelGripPoints = {
   gripL: readonly [number, number, number];
 };
 
+export const WAR_ROOM_DEFAULT_FOV = 75;
+export const WAR_ROOM_AIM_FOV = 50;
+export const WAR_ROOM_AIM_VIEWMODEL_SCALE = 0.78;
+export const WAR_ROOM_AIM_WEAPON_OPACITY = 0.64;
+
+export function getWarRoomCameraFov(aiming: boolean) {
+  return aiming ? WAR_ROOM_AIM_FOV : WAR_ROOM_DEFAULT_FOV;
+}
+
+export function getWarRoomViewModelAimScaleFactor(aiming: boolean) {
+  return aiming ? WAR_ROOM_AIM_VIEWMODEL_SCALE : 1;
+}
+
+export function getWarRoomViewModelOpacity(aiming: boolean) {
+  return aiming ? WAR_ROOM_AIM_WEAPON_OPACITY : 1;
+}
+
 const DEFAULT_VIEW_MODEL_GRIPS: WarRoomViewModelGripPoints = {
   gripR: [0.035, -0.13, -0.13],
   gripL: [-0.08, -0.08, -0.38],
@@ -143,9 +160,9 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
 
   return {
     position: [
-      (0.28 + (0.02 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor + walkSwayX,
-      -0.08 + (0.06 + 0.08) * aim + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035 - switchDip * 0.3,
-      -0.58 - aim * 0.12 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.08 + switchDip * 0.04,
+      (0.28 + (0.42 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor + walkSwayX,
+      -0.08 + (-0.22 + 0.08) * aim + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035 - switchDip * 0.3,
+      -0.58 - aim * 0.1 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.08 + switchDip * 0.04,
     ],
     rotation: [
       0.04 + recoil * 0.12 + reload * 0.22 - charge * 0.12 + swingPitch,

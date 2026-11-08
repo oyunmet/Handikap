@@ -4,12 +4,15 @@ import {
   getWarRoomViewModelConfig,
   getWarRoomViewModelGripPoints,
   getWarRoomViewModelHorizontalFactor,
+  getWarRoomCameraFov,
+  getWarRoomViewModelAimScaleFactor,
+  getWarRoomViewModelOpacity,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
   stepWarRoomViewModelWallProximity,
 } from "./war-room-viewmodel.ts";
 
-test("first-person view model moves to the sight line while aiming", () => {
+test("aiming lowers and shifts the weapon to keep the center sightline clear", () => {
   const relaxed = getWarRoomViewModelPose({
     time: 0, movement: 0, aiming: false, recoil: 0, reloadProgress: 0, chargeProgress: 0,
     meleeProgress: null, meleeStyle: "slash", comboIndex: 0, motionReduced: false,
@@ -18,8 +21,17 @@ test("first-person view model moves to the sight line while aiming", () => {
     time: 0, movement: 0, aiming: true, recoil: 0, reloadProgress: 0, chargeProgress: 0,
     meleeProgress: null, meleeStyle: "slash", comboIndex: 0, motionReduced: false,
   });
-  assert.ok(Math.abs(aimed.position[0]) < Math.abs(relaxed.position[0]));
-  assert.ok(aimed.position[1] > relaxed.position[1]);
+  assert.ok(aimed.position[0] > relaxed.position[0]);
+  assert.ok(aimed.position[1] < relaxed.position[1]);
+  assert.ok(aimed.position[2] < relaxed.position[2]);
+});
+
+test("ADS reduces camera FOV and weapon size while keeping the target visible through it", () => {
+  assert.ok(getWarRoomCameraFov(true) < getWarRoomCameraFov(false));
+  assert.equal(getWarRoomViewModelAimScaleFactor(true), 0.78);
+  assert.equal(getWarRoomViewModelAimScaleFactor(false), 1);
+  assert.ok(getWarRoomViewModelOpacity(true) < 1);
+  assert.equal(getWarRoomViewModelOpacity(false), 1);
 });
 
 test("portrait view keeps the weapon inside a narrower camera frame", () => {

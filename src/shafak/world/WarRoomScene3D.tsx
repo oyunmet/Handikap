@@ -108,6 +108,9 @@ import {
   stepWarRoomSprintHysteresis,
 } from "../game/war-room-input";
 import {
+  getWarRoomCameraFov,
+  getWarRoomViewModelAimScaleFactor,
+  getWarRoomViewModelOpacity,
   getWarRoomViewModelConfig,
   getWarRoomViewModelGripPoints,
   getWarRoomViewModelHorizontalFactor,
@@ -826,6 +829,7 @@ function FirstPersonWeaponViewModel({
   const weaponPoseRef = useRef<THREE.Group>(null);
   const armsAnimationRef = useRef<WarRoomArmsAnimation>({
     weaponId,
+    aiming: false,
     reloadProgress: 0,
     chargeProgress: 0,
     recoil: 0,
@@ -845,9 +849,21 @@ function FirstPersonWeaponViewModel({
   const movementActiveRef = useRef(false);
   const lastWeaponIdRef = useRef(weaponId);
   const switchProgressRef = useRef(1);
+  const preparedWeaponMeshesRef = useRef(new WeakSet<THREE.Mesh>());
+  const weaponMaterialClonesRef = useRef(new Set<THREE.Material>());
+  const weaponMaterialDefaultsRef = useRef(new WeakMap<THREE.Material, {
+    opacity: number;
+    transparent: boolean;
+    depthWrite: boolean;
+  }>());
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const mount = weaponMountOverrides?.[weaponId] ?? WAR_ROOM_WEAPON_MOUNTS[weaponId];
   const viewConfig = getWarRoomViewModelConfig(weaponId, weapon.weaponClass === "melee");
+
+  useEffect(() => () => {
+    for (const material of weaponMaterialClonesRef.current) material.dispose();
+    weaponMaterialClonesRef.current.clear();
+  }, [weaponId]);
 
   useFrame((_, rawDelta) => {
     const group = weaponRootRef.current;
@@ -902,6 +918,7 @@ function FirstPersonWeaponViewModel({
       switchProgressRef.current = Math.min(1, switchProgressRef.current + delta / 0.38);
     }
     armsAnimationRef.current.weaponId = weaponId;
+    armsAnimationRef.current.aiming = input.aimHeld;
     armsAnimationRef.current.reloadProgress = reloadProgress;
     armsAnimationRef.current.chargeProgress = chargeProgress;
     armsAnimationRef.current.recoil = recoil;
@@ -969,7 +986,39 @@ function FirstPersonWeaponViewModel({
     );
     localQuaternionRef.current.setFromEuler(localEulerRef.current);
     weaponPose.quaternion.copy(localQuaternionRef.current);
-    weaponPose.scale.setScalar(viewConfig.scale);
+    weaponPose.scale.setScalar(viewConfig.scale * getWarRoomViewModelAimScaleFactor(input.aimHeld));
+    const weaponOpacity = getWarRoomViewModelOpacity(input.aimHeld);
+    weaponPose.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (!preparedWeaponMeshesRef.current.has(object)) {
+        preparedWeaponMeshesRef.current.add(object);
+        const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        const viewModelMaterials = sourceMaterials.map((source) => {
+          const material = source.clone();
+          weaponMaterialClonesRef.current.add(material);
+          weaponMaterialDefaultsRef.current.set(material, {
+            opacity: source.opacity,
+            transparent: source.transparent,
+            depthWrite: source.depthWrite,
+          });
+          return material;
+        });
+        object.material = Array.isArray(object.material) ? viewModelMaterials : viewModelMaterials[0];
+      }
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        const defaults = weaponMaterialDefaultsRef.current.get(material);
+        if (!defaults) continue;
+        material.opacity = defaults.opacity * weaponOpacity;
+        const transparent = defaults.transparent || weaponOpacity < 1;
+        const depthWrite = weaponOpacity < 1 ? false : defaults.depthWrite;
+        if (material.transparent !== transparent || material.depthWrite !== depthWrite) {
+          material.transparent = transparent;
+          material.depthWrite = depthWrite;
+          material.needsUpdate = true;
+        }
+      }
+    });
     group.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || preparedMeshesRef.current.has(object)) return;
       preparedMeshesRef.current.add(object);
@@ -4048,7 +4097,7 @@ function WarRoomRuntimeScene({
     cameraKickRef.current *= Math.exp(-delta * 11);
     cameraSideKickRef.current *= Math.exp(-delta * 15);
     cameraFovKickRef.current = Math.max(0, cameraFovKickRef.current - delta * 16);
-    const targetFov = (input.aimHeld ? 55 : 75) + cameraFovKickRef.current;
+    const targetFov = getWarRoomCameraFov(input.aimHeld) + cameraFovKickRef.current;
     const smoothedFov = THREE.MathUtils.damp(perspective.fov, targetFov, 18, delta);
     if (Math.abs(perspective.fov - smoothedFov) > 0.005) {
       perspective.fov = smoothedFov;

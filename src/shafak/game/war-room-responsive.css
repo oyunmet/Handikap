@@ -1486,6 +1486,13 @@
   }
 }
 
+@media (pointer: coarse) {
+  .war-room-controls > .war-room-control {
+    min-width: 48px !important;
+    min-height: 48px !important;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
   .war-room-loot-action {
     top: max(150px, calc(env(safe-area-inset-top) + 138px));

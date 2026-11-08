@@ -9,6 +9,13 @@ import {
   resolveWarRoomStanceTap,
   setWarRoomMoveVector,
 } from "./war-room-input.ts";
+import {
+  beginWarRoomButtonPointer,
+  beginWarRoomJoystick,
+  createWarRoomMobileControlsState,
+  endWarRoomMobilePointer,
+  readWarRoomJoystick,
+} from "./war-room-mobile-controls.ts";
 import { applyWarRoomLookDelta } from "./war-room-look.ts";
 
 function createInput() {
@@ -97,6 +104,38 @@ test("touch and keyboard controls produce the expected input-only actions", () =
   assert.equal(input.fireHeld, false);
   assert.equal(input.fireReleased, true);
   assert.equal(input.aimHeld, false);
+});
+
+test("joystick, aim, and fire remain independent while held together", () => {
+  const controls = createWarRoomMobileControlsState();
+  const input = createInput();
+  assert.equal(beginWarRoomJoystick(controls, 41, 40, 180, 44, 0), true);
+  beginWarRoomButtonPointer(controls, 42);
+  beginWarRoomButtonPointer(controls, 43);
+  pressWarRoomAction(input, "aim");
+  pressWarRoomAction(input, "fire");
+
+  assert.equal(input.aimHeld, true);
+  assert.equal(input.fireHeld, true);
+  assert.deepEqual(
+    [controls.roles.get(41), controls.roles.get(42), controls.roles.get(43)],
+    ["joystick", "button", "button"],
+  );
+
+  endWarRoomMobilePointer(controls, 43);
+  releaseWarRoomAction(input, "fire");
+  assert.equal(input.fireHeld, false);
+  assert.equal(input.aimHeld, true);
+  assert.ok(readWarRoomJoystick(controls, 41, 60, 180));
+  assert.equal(controls.roles.get(42), "button");
+
+  endWarRoomMobilePointer(controls, 42);
+  releaseWarRoomAction(input, "aim");
+  assert.equal(input.aimHeld, false);
+  assert.equal(controls.roles.get(41), "joystick");
+  assert.ok(readWarRoomJoystick(controls, 41, 60, 180));
+  endWarRoomMobilePointer(controls, 41);
+  assert.equal(controls.roles.size, 0);
 });
 
 test("movement vectors are finite and clamped to the unit circle", () => {
