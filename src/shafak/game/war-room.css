@@ -786,57 +786,6 @@
   touch-action: none;
 }
 
-.war-room-orientation-overlay {
-  position: absolute;
-  z-index: 10000;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding:
-    max(24px, env(safe-area-inset-top))
-    max(24px, env(safe-area-inset-right))
-    max(24px, env(safe-area-inset-bottom))
-    max(24px, env(safe-area-inset-left));
-  background: rgba(14, 15, 16, .96);
-  color: #f6ead5;
-  text-align: center;
-  pointer-events: auto;
-  touch-action: none;
-  -webkit-touch-callout: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.war-room-orientation-overlay > div {
-  display: grid;
-  justify-items: center;
-  width: min(360px, 100%);
-  gap: 12px;
-}
-
-.war-room-orientation-overlay__icon {
-  display: grid;
-  width: 68px;
-  height: 68px;
-  place-items: center;
-  border: 1px solid rgba(235, 194, 121, .58);
-  border-radius: 18px;
-  color: #e8bf79;
-  font-size: 42px;
-  transform: rotate(90deg);
-}
-
-.war-room-orientation-overlay h2 {
-  margin: 0;
-  font-size: clamp(19px, 5vw, 26px);
-}
-
-.war-room-orientation-overlay p {
-  margin: 0;
-  color: rgba(246, 234, 213, .72);
-  font-size: 13px;
-}
-
 .war-room-hud.is-hit::before {
   position: absolute;
   inset: 0;

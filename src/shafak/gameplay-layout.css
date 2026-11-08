@@ -45,6 +45,33 @@
   font: 500 12px/1.6 var(--font-body, Manrope, sans-serif);
 }
 
+.screen--menu {
+  min-height: 100dvh;
+}
+
+.screen--menu .menu-content {
+  min-height: 0;
+}
+
+.status-toast {
+  z-index: 120;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: max-content;
+  max-width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 24px);
+  align-items: flex-start;
+  padding: 12px 15px;
+  color: #fff0d7;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.status-toast span {
+  flex: 0 0 auto;
+  color: #ffdb8c;
+}
+
 .war-room-weapon-select { display: none; }
 
 .menu-header {
@@ -642,4 +669,29 @@
   .war-room-start { min-height: 36px; padding: 0 9px; font-size: 8px; }
   .war-room-model-progress { grid-column: 1; width: 100%; }
   .war-room-model-status { grid-column: 1; font-size: 6px; }
+}
+
+@media (max-width: 760px) {
+  .screen--menu {
+    padding:
+      max(14px, calc(env(safe-area-inset-top) + 6px))
+      max(14px, calc(env(safe-area-inset-right) + 6px))
+      max(14px, calc(env(safe-area-inset-bottom) + 6px))
+      max(14px, calc(env(safe-area-inset-left) + 6px));
+  }
+}
+
+@media (orientation: landscape) and (max-width: 960px) {
+  .screen--menu {
+    padding:
+      max(8px, calc(env(safe-area-inset-top) + 3px))
+      max(12px, calc(env(safe-area-inset-right) + 4px))
+      max(8px, calc(env(safe-area-inset-bottom) + 3px))
+      max(12px, calc(env(safe-area-inset-left) + 4px));
+  }
+
+  .screen--menu .menu-content {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }

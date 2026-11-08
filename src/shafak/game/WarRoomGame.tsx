@@ -212,13 +212,6 @@ function createInputState(): WarRoomInputState {
   };
 }
 
-function isPortraitMobileViewport() {
-  if (typeof window === "undefined") return false;
-  return window.innerHeight > window.innerWidth
-    && (window.innerWidth <= 760
-      || (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches));
-}
-
 function createEmptyHud(): WarRoomHudSnapshot {
   return {
     player: { x: 0, z: 0, floorHeight: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
@@ -323,12 +316,8 @@ function requestWarRoomImmersiveDisplay() {
     if (!document.fullscreenElement && typeof stage.requestFullscreen === "function") {
       void stage.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined);
     }
-    const orientation = window.screen.orientation;
-    if (typeof orientation?.lock === "function") {
-      void orientation.lock("landscape").catch(() => undefined);
-    }
   } catch {
-    // Fullscreen and orientation locking are optional on mobile browsers.
+    // Fullscreen is optional on mobile browsers.
   }
   return true;
 }
@@ -448,7 +437,6 @@ export default function WarRoomGame({
   const [calibrationJson, setCalibrationJson] = useState("");
   const [calibrationCopyStatus, setCalibrationCopyStatus] = useState("");
   const [exitPrompt, setExitPrompt] = useState(false);
-  const [portraitMode, setPortraitMode] = useState(() => isPortraitMobileViewport());
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
   const dailyChallenge = useMemo(() => getWarRoomDailyChallenge(), []);
@@ -507,8 +495,6 @@ export default function WarRoomGame({
   const battleStageRef = useRef<HTMLDivElement>(null);
   const fullscreenRequestedRef = useRef(false);
   const settingsPauseRef = useRef(false);
-  const orientationPauseRef = useRef(false);
-  const portraitModeRef = useRef(portraitMode);
   const stickRef = useRef<HTMLDivElement>(null);
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
@@ -533,11 +519,6 @@ export default function WarRoomGame({
     const stage = document.querySelector(".war-room");
     if (fullscreenRequestedRef.current && stage && document.fullscreenElement === stage) {
       void document.exitFullscreen().catch(() => undefined);
-    }
-    try {
-      window.screen.orientation.unlock();
-    } catch {
-      // Some mobile browsers do not expose orientation unlock.
     }
   }, []);
 
@@ -581,60 +562,6 @@ export default function WarRoomGame({
     return () => document.documentElement.classList.remove("war-room-touch-mode");
   }, [phase]);
 
-  useEffect(() => {
-    const syncOrientation = () => {
-      const portrait = isPortraitMobileViewport();
-      portraitModeRef.current = portrait;
-      setPortraitMode(portrait);
-      if (phase !== "battle") {
-        orientationPauseRef.current = false;
-        return;
-      }
-      const input = inputRef.current;
-      if (portrait && !settingsOpen && !controlsEditorOpen && !exitPrompt) {
-        if (!input.paused) {
-          orientationPauseRef.current = true;
-          input.paused = true;
-          input.keys.clear();
-          input.fireHeld = false;
-          input.fireReleased = true;
-          input.firePressed = false;
-          input.aimHeld = false;
-          input.reloadPressed = false;
-          input.swapPressed = false;
-          input.jumpPressed = false;
-          input.dodgePressed = false;
-          input.crouchPressed = false;
-          input.pronePressed = false;
-          input.weaponSlotPressed = null;
-          input.sprintLocked = false;
-          input.lootHeld = false;
-          input.doorPressed = false;
-          runtimeRef.current.player.chargeStartedAt = 0;
-          runtimeRef.current.player.meleeInputPending = false;
-          resetTouchControls();
-        }
-        return;
-      }
-      if (!portrait && orientationPauseRef.current) {
-        orientationPauseRef.current = false;
-        if (!settingsOpen && !controlsEditorOpen && !exitPrompt && !settingsPauseRef.current) {
-          input.paused = false;
-        }
-      }
-    };
-    syncOrientation();
-    window.addEventListener("resize", syncOrientation, { passive: true });
-    window.addEventListener("orientationchange", syncOrientation);
-    const screenOrientation = window.screen.orientation;
-    screenOrientation?.addEventListener?.("change", syncOrientation);
-    return () => {
-      window.removeEventListener("resize", syncOrientation);
-      window.removeEventListener("orientationchange", syncOrientation);
-      screenOrientation?.removeEventListener?.("change", syncOrientation);
-    };
-  }, [controlsEditorOpen, exitPrompt, phase, resetTouchControls, settingsOpen]);
-
   const beginBattle = (
     targetRoomNumber = roomNumber,
     preparedRuntime?: WarRoomRuntime,
@@ -659,7 +586,6 @@ export default function WarRoomGame({
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
     inputRef.current = createInputState();
-    orientationPauseRef.current = false;
     resetTouchControls();
     crouchTapAtRef.current = null;
     setDynamicStickActive(false);
@@ -779,8 +705,7 @@ export default function WarRoomGame({
 
   useEffect(() => {
     if (settingsOpen || controlsEditorOpen || exitPrompt || !settingsPauseRef.current) return;
-    inputRef.current.paused = portraitModeRef.current;
-    orientationPauseRef.current = portraitModeRef.current;
+    inputRef.current.paused = false;
     settingsPauseRef.current = false;
   }, [controlsEditorOpen, exitPrompt, settingsOpen]);
 
@@ -1115,7 +1040,7 @@ export default function WarRoomGame({
       return Boolean(target && stage.contains(target));
     };
     const isHudTarget = (target: Element) => Boolean(target.closest(
-      "button,[role='button'],[role='alertdialog'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-weapon-lab,.war-room-calibration-panel,.war-room-control-editor,.war-room-confirm,.war-room-orientation-overlay",
+      "button,[role='button'],[role='alertdialog'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-weapon-lab,.war-room-calibration-panel,.war-room-control-editor,.war-room-confirm",
     ));
     const releaseTouch = (identifier: number) => {
       const state = touchInputRef.current;
@@ -1934,8 +1859,7 @@ export default function WarRoomGame({
                   <button
                     type="button"
                     onClick={() => {
-                      inputRef.current.paused = portraitModeRef.current;
-                      orientationPauseRef.current = portraitModeRef.current;
+                      inputRef.current.paused = false;
                       setExitPrompt(false);
                     }}
                   >
@@ -1944,15 +1868,6 @@ export default function WarRoomGame({
                   <button type="button" className="is-danger" onClick={closeMode}>ÇIKIŞ</button>
                 </div>
               </section>
-            </div>
-          )}
-          {portraitMode && (
-            <div className="war-room-orientation-overlay" role="alertdialog" aria-modal="true">
-              <div>
-                <span className="war-room-orientation-overlay__icon" aria-hidden="true">↻</span>
-                <h2>Telefonu yatay çevir</h2>
-                <p>Savaşın devam etmesi için ekranı yatay konuma getir.</p>
-              </div>
             </div>
           )}
         </div>

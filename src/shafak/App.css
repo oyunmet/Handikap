@@ -25,6 +25,7 @@
 .entry-setup-card span { color: rgba(241, 228, 201, .76); }
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .shafak-app {
@@ -158,6 +159,7 @@
   display: flex;
   min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
   flex-direction: column;
 }
 
@@ -494,6 +496,7 @@
 .screen--menu {
   min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
   padding: 30px clamp(22px, 5.4vw, 84px) 23px;
   background:
     linear-gradient(90deg, rgba(6, 7, 11, 0.7) 0%, rgba(6, 7, 11, 0.28) 42%, transparent 73%),

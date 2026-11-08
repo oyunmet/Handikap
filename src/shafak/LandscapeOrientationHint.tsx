@@ -1,14 +1,3 @@
-export function requestLandscapeOrientation() {
-  try {
-    const orientation = typeof screen === "undefined" ? undefined : screen.orientation;
-    if (typeof orientation?.lock === "function") {
-      void orientation.lock("landscape").catch(() => {});
-    }
-  } catch {
-    // Some browsers expose the API but reject orientation locking outside an installed app.
-  }
-}
-
 export default function LandscapeOrientationHint({ warRoom = false }: { warRoom?: boolean }) {
   return (
     <div className="landscape-orientation-hint" role="status" aria-live="polite">
@@ -21,12 +10,8 @@ export default function LandscapeOrientationHint({ warRoom = false }: { warRoom?
           <path d="m19 48-3-6 7-1" />
         </svg>
       </span>
-      <strong>{warRoom ? "Lütfen telefonu yatay çevirin" : "OYUNU YATAY OYNAYIN"}</strong>
-      <span>
-        {warRoom
-          ? "Savaş Odası yatay ekran için tasarlandı."
-          : "Devam etmek için telefonunu yatay çevir."}
-      </span>
+      <strong>{warRoom ? "DİKEY YA DA YATAY DEVAM ET" : "EKRAN YÖNÜNÜ İSTEDİĞİN GİBİ DEĞİŞTİR"}</strong>
+      <span>Oyun, ekran döndürüldüğünde de açık kalır.</span>
     </div>
   );
 }

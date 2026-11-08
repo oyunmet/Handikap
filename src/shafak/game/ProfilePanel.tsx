@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PlayerProfile } from "./profile";
+import "./profile-panel.css";
 
 type ProfilePanelProps = {
   profile: PlayerProfile;
