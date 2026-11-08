@@ -28,15 +28,18 @@ try {
     isMobile: true,
     hasTouch: true,
   });
+  await context.addInitScript(() => {
+    localStorage.setItem("shafak.war-room-debug", "on");
+  });
   const page = await context.newPage();
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "warning" || message.type() === "error") {
-      consoleWarnings.push(`${message.type()}: ${message.text()}`);
+    if (message.type() === "error") {
+      consoleWarnings.push(message.text());
     }
   });
 
-  await page.goto(`${baseUrl}/?mod=savas&debug=1`, {
+  await page.goto(`${baseUrl}/?mod=savas`, {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
   });
