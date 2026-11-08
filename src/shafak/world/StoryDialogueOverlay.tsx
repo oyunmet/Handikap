@@ -13,11 +13,13 @@ export default function StoryDialogueOverlay({
   const [lineIndex, setLineIndex] = useState(0);
   const [visibleCharacters, setVisibleCharacters] = useState(0);
   const dialogRef = useRef<HTMLElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
   const skipRef = useRef<HTMLButtonElement>(null);
   const line = dialogue.lines[lineIndex] ?? "";
 
   useEffect(() => {
     setVisibleCharacters(0);
+    if (lineRef.current) lineRef.current.scrollTop = 0;
   }, [dialogue.id, lineIndex]);
 
   useEffect(() => {
@@ -28,6 +30,11 @@ export default function StoryDialogueOverlay({
     );
     return () => window.clearTimeout(timer);
   }, [line.length, motionReduced, visibleCharacters]);
+
+  useEffect(() => {
+    const currentLine = lineRef.current;
+    if (currentLine) currentLine.scrollTop = currentLine.scrollHeight;
+  }, [line, visibleCharacters]);
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -103,7 +110,7 @@ export default function StoryDialogueOverlay({
             <h2 id="world-story-title">{dialogue.title}</h2>
           </>
         )}
-        <p id="world-story-line" aria-live="off">{line.slice(0, visibleCharacters)}{lineIsComplete ? "" : "▌"}</p>
+        <p ref={lineRef} id="world-story-line" aria-live="off">{line.slice(0, visibleCharacters)}{lineIsComplete ? "" : "▌"}</p>
         <p id="world-story-hint" className="world-story-dialogue__hint">{dialogue.hint}</p>
         <div className="world-story-dialogue__footer">
           <span aria-hidden="true">{lineIndex + 1} / {dialogue.lines.length}</span>

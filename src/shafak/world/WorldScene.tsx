@@ -69,6 +69,12 @@ import {
   type StoryDialogue,
 } from "./story-dialogue";
 import {
+  markStoryDialogueSeen,
+  parseSeenStoryDialogueIds,
+  shouldShowFirstEntryStoryDialogue,
+  STORY_DIALOGUE_SEEN_STORAGE_KEY,
+} from "./story-dialogue-progress";
+import {
   createWorldMotion,
   interpolateWorldMotion,
   readWorldInput,
@@ -189,6 +195,24 @@ function readDuelWeaponSelectionPreference() {
     return window.localStorage.getItem("safak-duel-weapon-selection-v1") === "1";
   } catch {
     return false;
+  }
+}
+
+function readSeenStoryDialogueIds() {
+  if (typeof window === "undefined") return [];
+  try {
+    return parseSeenStoryDialogueIds(window.localStorage.getItem(STORY_DIALOGUE_SEEN_STORAGE_KEY));
+  } catch {
+    return [];
+  }
+}
+
+function saveSeenStoryDialogueIds(ids: readonly string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORY_DIALOGUE_SEEN_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // Story popups remain usable when browser storage is disabled.
   }
 }
 type StepBurst = {
@@ -858,7 +882,15 @@ export default function WorldScene({
   const [attackAnimation, setAttackAnimation] = useState(false);
   const [chestSlamActive, setChestSlamActive] = useState(false);
   const [battleSession, setBattleSession] = useState<BattleSession | null>(null);
-  const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => getOpeningStoryDialogue());
+  const seenStoryDialogueIdsRef = useRef(new Set(readSeenStoryDialogueIds()));
+  const [storyDialogue, setStoryDialogue] = useState<StoryDialogue | null>(() => {
+    const opening = getOpeningStoryDialogue();
+    return shouldShowFirstEntryStoryDialogue(
+      opening,
+      [...seenStoryDialogueIdsRef.current],
+      Boolean(initialStoreTab),
+    ) ? opening : null;
+  });
   const [duelCameraHeading, setDuelCameraHeading] = useState(DUEL_CAMERA_HEADING);
   const duelCameraHeadingRef = useRef(DUEL_CAMERA_HEADING);
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
@@ -1071,6 +1103,7 @@ export default function WorldScene({
     return () => window.clearInterval(timer);
   }, [movementDebugEnabled]);
   const showStoryDialogue = useCallback((dialogue: StoryDialogue) => {
+    if (!shouldShowFirstEntryStoryDialogue(dialogue, [...seenStoryDialogueIdsRef.current])) return;
     storyDialogueRef.current = dialogue;
     worldInput.clearActions();
     motionRef.current = {
@@ -1083,6 +1116,15 @@ export default function WorldScene({
     setStoryDialogue(dialogue);
   }, [worldInput.heldKeys, worldInput.joystick]);
   const closeStoryDialogue = useCallback(() => {
+    const currentDialogue = storyDialogueRef.current;
+    if (currentDialogue && currentDialogue.kind !== "npc") {
+      const seenIds = markStoryDialogueSeen(
+        [...seenStoryDialogueIdsRef.current],
+        currentDialogue.id,
+      );
+      seenStoryDialogueIdsRef.current = new Set(seenIds);
+      saveSeenStoryDialogueIds(seenIds);
+    }
     storyDialogueRef.current = null;
     worldInput.clearActions();
     setStoryDialogue(null);
@@ -1090,10 +1132,11 @@ export default function WorldScene({
   }, [audioOn, startAudio, worldInput.heldKeys, worldInput.joystick]);
 
   useEffect(() => {
+    if (panel !== null) return;
     if (currentChapterId <= storyChapterRef.current) return;
     storyChapterRef.current = currentChapterId;
     showStoryDialogue(getChapterStoryDialogue(currentChapterId));
-  }, [currentChapterId, showStoryDialogue]);
+  }, [currentChapterId, panel, showStoryDialogue]);
 
   useEffect(() => {
     setAudioOn(soundEnabled);

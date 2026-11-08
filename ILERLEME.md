@@ -5,7 +5,7 @@
 1. **Yatay/dikey mod ve arayüz — Tamamlandı**
 2. **Nişan ve ateş — Tamamlandı**
 3. **Hareket ve takılmalar — Tamamlandı**
-4. **Menü, mağaza, silahlar — Bekliyor**
+4. **Menü, mağaza, silahlar — Tamamlandı**
 5. **Savaş odası ve düello — Bekliyor**
 6. **Hikâye, zorluk, final — Bekliyor**
 7. **Prenses 3D modeli (GLB) — Bekliyor**
@@ -40,3 +40,12 @@
 - **Yarım kalanlar:** Kod tarafında yok.
 - **Doğrulanamayanlar:** 60 FPS hedefi orta seviye gerçek Android telefonda ölçülmedi. Bu ortamın yazılım WebGL E2E'si dokunma başına 4–6 saniye sürdüğünden telefon performansı yerine kullanılamaz.
 - **Değişen dosyalar:** `src/shafak/game/war-room-fixed-movement.ts`, `src/shafak/game/war-room-fixed-movement.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
+
+## Adım 4 — Menü, mağaza, silahlar
+
+- **Durum:** Tamamlandı (kod, testler, tür denetimi ve üretim derlemesi).
+- **Yapılanlar:** Ana menüden mağaza/envanter/demirciye doğrudan geçiş zaten doğru sekmeyi seçiyordu; ilk açılış hikâyesi artık bu paneli örtmüyor. Bölüm hikâyeleri panel kapatılana kadar bekliyor ve her açılış/bölüm hikâyesi tarayıcıda bir kez gösteriliyor; NPC konuşmaları tekrarlanabilir. Atla, Escape ve tamamını göster akışları korunup uzun daktilo metinleri kaydırılabilir hale getirildi. War Room silahlarının mağaza detayları artık sıfır RPG bonusları yerine gerçek hasar, atış aralığı, şarjör, yedek mühimmat, doldurma süresi ve menzili gösteriyor. Bu silahlar normal ekipman yuvasına eklenmedi; satın alınan silahın hazırlık ekranındaki iki yuvada seçilebildiği yükleme testiyle doğrulandı. Hesap, envanter ve para kaydına dokunulmadı.
+- **Doğrulama:** 6 yeni hedefli test geçti; `npm test` — 586 geçti; `npm run typecheck` — geçti; `npm run build` — geçti. Mobil önizlemede 402×874 açılış ekranı yüklendi, tarayıcıda uygulama hatası görülmedi. Üretim derlemesindeki 500 kB üzeri `time-of-day` parça uyarısı Adım 8 kapsamına bırakıldı.
+- **Yarım kalanlar:** Kod tarafında yok.
+- **Doğrulanamayanlar:** Önizleme görüntüsü etkileşim yapamadığı ve gerçek mağaza alımı kayıtlı oyun parasını değiştireceği için mağaza sekmeleri, hikâye atlama ve gerçek profilde satın alma/iki yuvaya yerleştirme uçtan uca tıklanmadı. Bunlar cihazda elle kabul testinde kontrol edilmeli.
+- **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/store-catalog.ts`, `src/shafak/game/store-ui/StorePanel.tsx`, `src/shafak/game/war-room-store-items.test.js`, `src/shafak/world/story-dialogue-progress.test.js`, `src/shafak/world/story-dialogue-progress.ts`, `src/shafak/world/StoryDialogueOverlay.tsx`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/world-scene.css`.

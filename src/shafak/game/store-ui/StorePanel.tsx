@@ -16,7 +16,11 @@ import {
   type StoreItem,
   type StoreTab,
 } from "../store-types.ts";
-import { EQUIPMENT_SETS, getDailySpecials } from "../store-catalog.ts";
+import {
+  EQUIPMENT_SETS,
+  getDailySpecials,
+  getWarRoomWeaponStoreStats,
+} from "../store-catalog.ts";
 import { getItemBonuses } from "../store-utils";
 import { isCoreWeapon } from "../weapons.ts";
 import { WarRoomWeaponIcon } from "../WarRoomWeaponIcon";
@@ -201,6 +205,9 @@ export default function StorePanel({
   const currentItem = selectedEquipmentKey
     ? items.find((item) => item.id === profile.equipment[selectedEquipmentKey])
     : undefined;
+  const warRoomWeaponStats = selected?.warRoomWeaponId
+    ? getWarRoomWeaponStoreStats(selected.warRoomWeaponId)
+    : null;
   const selectedBonuses = selected ? getItemBonuses(selected, profile) : undefined;
   const currentBonuses = currentItem ? getItemBonuses(currentItem, profile) : undefined;
   const affordable = selected
@@ -602,9 +609,30 @@ export default function StorePanel({
                 {selected.kind === "equipment" && <section className="safak-store__stats" aria-labelledby="store-stats-title">
                   <div className="safak-store__subheading">
                     <h4 id="store-stats-title">Savaş nitelikleri</h4>
-                    <span>{currentItem ? `Karşılaştırma: ${currentItem.name}` : "Mevcut kuşanılan eşya yok"}</span>
+                    <span>
+                      {warRoomWeaponStats
+                        ? `${warRoomWeaponStats.className} · Savaş Odası`
+                        : currentItem ? `Karşılaştırma: ${currentItem.name}` : "Mevcut kuşanılan eşya yok"}
+                    </span>
                   </div>
-                  {Object.entries(statLabels).map(([key, label]) => {
+                  {warRoomWeaponStats ? (
+                    [
+                      { key: "damage", label: "Hasar / mermi", value: `${warRoomWeaponStats.damage}` },
+                      { key: "interval", label: "Atış aralığı", value: `${warRoomWeaponStats.fireInterval.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sn` },
+                      ...(warRoomWeaponStats.magazine === null ? [] : [
+                        { key: "magazine", label: "Şarjör", value: `${warRoomWeaponStats.magazine} mermi` },
+                        { key: "reserve", label: "Yedek mühimmat", value: `${warRoomWeaponStats.reserve ?? 0} mermi` },
+                        { key: "reload", label: "Doldurma süresi", value: `${warRoomWeaponStats.reloadSeconds?.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "—"} sn` },
+                      ]),
+                      { key: "range", label: "Menzil", value: `${warRoomWeaponStats.range} m` },
+                    ].map((stat) => (
+                      <div className="safak-store__stat" key={stat.key} data-war-room-stat={stat.key}>
+                        <span>{stat.label}</span>
+                        <b>{stat.value}</b>
+                        <span className="safak-store__difference">Savaş Odası</span>
+                      </div>
+                    ))
+                  ) : Object.entries(statLabels).map(([key, label]) => {
                     const statKey = key as keyof EquipmentStatBonuses;
                     const value = selectedBonuses?.[statKey] ?? 0;
                     const comparison = currentBonuses?.[statKey] ?? 0;

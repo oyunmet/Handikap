@@ -1,7 +1,7 @@
 import type { EquipmentSlot, StoreItem } from "./store-types.ts";
 import { STORE_BALANCE_CONFIG } from "./store-balance.ts";
 import { WEAPONS } from "./weapons.ts";
-import { WAR_ROOM_WEAPONS } from "./war-room-data.ts";
+import { WAR_ROOM_WEAPONS, WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "./war-room-data.ts";
 
 const item = (
   id: string,
@@ -133,6 +133,23 @@ const warRoomWeaponItems: StoreItem[] = WAR_ROOM_WEAPONS
     visual: { weaponColor: weapon.color },
     icon: weapon.icon,
   }));
+
+export function getWarRoomWeaponStoreStats(weaponId: string | undefined) {
+  if (!weaponId) return null;
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId as WarRoomWeaponId);
+  if (!weapon) return null;
+  const ranged = weapon.weaponClass !== "melee";
+  return {
+    name: weapon.name,
+    className: weapon.className,
+    damage: weapon.damage,
+    fireInterval: weapon.fireInterval,
+    magazine: ranged && Number.isFinite(weapon.magazine) ? weapon.magazine : null,
+    reserve: ranged && Number.isFinite(weapon.reserve) ? weapon.reserve : null,
+    reloadSeconds: ranged && Number.isFinite(weapon.reloadSeconds) ? weapon.reloadSeconds : null,
+    range: weapon.range,
+  };
+}
 
 export const STORE_CATALOG: readonly StoreItem[] = [
   ...coreWeaponItems,
