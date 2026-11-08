@@ -1,8 +1,8 @@
 export const tr = {
   brand: "ŞAFAK SAVAŞÇILARI",
-  tagline: "Karanlığı yar. Şafağı getir.",
+  tagline: "Karanlık krallığı sardı; kayıp prensesi Mühür Parçaları'yla bul.",
   openingKicker: "KADERİN ÇAĞRISI",
-  openingDescription: "Bir krallığın son umudu, gün doğmadan yola çıkar.",
+  openingDescription: "Prenses kayıp. Son kapıyı açacak Mühür Parçaları Kül Yolu'na dağıldı.",
   start: "BAŞLA",
   loadingTitle: "YOL AÇILIYOR",
   loadingTips: [

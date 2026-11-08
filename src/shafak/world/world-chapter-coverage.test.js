@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WORLD_GATE_INTERVAL_METERS, WORLD_ROAD_WIDTH } from "./movement.ts";
+import { getCampaignRivalCount } from "./campaign-progression.ts";
 import {
   createWorldChunk,
   getMinimumWorldSceneryAxisOffset,
@@ -17,7 +18,12 @@ test("every supported chapter keeps its full virtual walk and camera corridor cl
     const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
     const chapterEnd = chapterStart + WORLD_GATE_INTERVAL_METERS;
     const content = getWorldChapter(chapterId);
-    assert.equal(content.rivals.length, 5, `chapter ${chapterId + 1}: five stable encounters`);
+    assert.equal(
+      content.rivals.length,
+      getCampaignRivalCount(chapterId),
+      `chapter ${chapterId + 1}: campaign encounter count`,
+    );
+    assert.equal(content.rivals.at(-1)?.isBoss, true, `chapter ${chapterId + 1}: boss remains last`);
     assert.equal(content.rivals[4].isBoss, true, `chapter ${chapterId + 1}: final encounter is the boss`);
     assert.ok(content.obstacles.every((obstacle) =>
       obstacle.distance >= chapterStart && obstacle.distance < chapterEnd,

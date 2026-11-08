@@ -7,6 +7,7 @@ import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
 import { canStartDailyDuel, consumeDailyAdDuel, getIstanbulDayKey, normalizeDailyLifeState, DAILY_DEFEAT_LIMIT } from "../src/shafak/game/daily-lives.ts";
 import type { WorldRouteChoice } from "../src/shafak/world/route-difficulty.ts";
+import { MAX_DEFEATED_OPPONENTS } from "../src/shafak/world/campaign-progression.ts";
 import { rollCombatLoot } from "../src/shafak/game/combat-loot.ts";
 import { grantLootItem } from "../src/shafak/game/store-rewards.ts";
 
@@ -68,7 +69,7 @@ function resolveOpponent(
   selectedDifficulty?: CombatDifficulty,
 ): ServerOpponent | null {
   if (typeof opponentId !== "string") return null;
-  const match = /^ash-road:(\d{1,7}):(rival|bot):([0-4])$/.exec(opponentId);
+  const match = /^ash-road:(\d{1,7}):(rival|bot):(\d{1,2})$/.exec(opponentId);
   if (!match) return null;
   const chapterId = Number(match[1]);
   const rivalIndex = Number(match[3]);
@@ -76,7 +77,8 @@ function resolveOpponent(
   const difficulty = routeChoice?.chapterId === chapterId ? routeChoice.difficulty : undefined;
   const rival = getWorldChapter(chapterId, difficulty, playerLevel, selectedDifficulty).rivals[rivalIndex];
   if (!rival || (match[2] === "rival" && rival.id !== opponentId)) return null;
-  const maximumLootByRival = Math.min(5_000, [48, 72, 96, 120, 200][rivalIndex] + chapterId * 8);
+  const baseLootLimit = rival.isBoss ? 200 : Math.min(160, 48 + rivalIndex * 24);
+  const maximumLootByRival = Math.min(5_000, baseLootLimit + chapterId * 8);
   return {
     id: rival.id,
     name: rival.name,
@@ -283,7 +285,7 @@ export function applyServerAward(
     winStreak,
     bestStreak: Math.max(base.bestStreak, winStreak),
     defeatedOpponents: outcome.verdict === "victory" && !base.defeatedOpponents.includes(outcome.opponentId)
-      ? [...base.defeatedOpponents, outcome.opponentId].slice(-30)
+      ? [...base.defeatedOpponents, outcome.opponentId].slice(-MAX_DEFEATED_OPPONENTS)
       : base.defeatedOpponents,
     dailyBattles: base.dailyBattles + 1,
     dailyWins: base.dailyWins + Number(outcome.verdict === "victory"),

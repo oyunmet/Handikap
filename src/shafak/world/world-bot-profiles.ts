@@ -262,10 +262,10 @@ export function getWorldBotProfile(index: number) {
   return WORLD_BOT_PROFILES[((Math.floor(index) % WORLD_BOT_PROFILES.length) + WORLD_BOT_PROFILES.length) % WORLD_BOT_PROFILES.length];
 }
 
-export function getWorldRivalProfile(chapterId: number, rivalIndex: number) {
+export function getWorldRivalProfile(chapterId: number, rivalIndex: number, isBoss = rivalIndex === 4) {
   const safeChapterId = Math.max(0, Math.floor(chapterId));
   const safeRivalIndex = Math.floor(rivalIndex);
-  if (safeRivalIndex === 4) {
+  if (isBoss) {
     return {
       ...CHAPTER_BOSS_PROFILE,
       name: CHAPTER_BOSS_NAMES[safeChapterId % CHAPTER_BOSS_NAMES.length],

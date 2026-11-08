@@ -14,6 +14,8 @@ import {
 import { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS } from "./storeCatalog.ts";
 import { WORLD_GATE_INTERVAL_METERS } from "../src/shafak/world/movement.ts";
 import { WORLD_GATE_STOP_OFFSET_METERS } from "../src/shafak/world/world-progress.ts";
+import { FINAL_CAMPAIGN_BOSS_ID, isCampaignComplete, MAX_DEFEATED_OPPONENTS } from "../src/shafak/world/campaign-progression.ts";
+import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { DAILY_DEFEAT_LIMIT, getIstanbulDayKey, grantDailyAdDuel, normalizeDailyLifeState } from "../src/shafak/game/daily-lives.ts";
 import { getDoorDifficulty, type WorldRouteChoice, type WorldRouteSide } from "../src/shafak/world/route-difficulty.ts";
 
@@ -103,15 +105,8 @@ function stringList(value: unknown, maximumItems: number): string[] | null {
 function maximumUnlockedDistance(defeatedOpponents: readonly string[], previouslyReachedDistance = 0) {
   const defeated = new Set(defeatedOpponents);
   let unlockedThroughChapter = 0;
-  while (
-    previouslyReachedDistance >= (unlockedThroughChapter + 1) * WORLD_GATE_INTERVAL_METERS
-    || (
-      [0, 1, 2, 3].every((rivalIndex) =>
-        defeated.has(`ash-road:${unlockedThroughChapter}:rival:${rivalIndex}`),
-      )
-      && defeated.has(`ash-road:${unlockedThroughChapter}:rival:4`)
-    )
-  ) {
+  while (previouslyReachedDistance >= (unlockedThroughChapter + 1) * WORLD_GATE_INTERVAL_METERS
+    || getWorldChapter(unlockedThroughChapter).rivals.every((rival) => defeated.has(rival.id))) {
     unlockedThroughChapter += 1;
   }
   return Math.max(
@@ -279,7 +274,7 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
   const winStreak = boundedInteger(value.winStreak, 0, 10_000_000);
   const bestStreak = boundedInteger(value.bestStreak, 0, 10_000_000);
   const items = stringList(value.items, 30);
-  const defeatedOpponents = stringList(value.defeatedOpponents, 30);
+  const defeatedOpponents = stringList(value.defeatedOpponents, MAX_DEFEATED_OPPONENTS);
   const hasWorldProgress = value.worldProgress !== undefined && value.worldProgress !== null;
   const worldProgress = hasWorldProgress && defeatedOpponents
     ? validateWorldPosition(
@@ -472,6 +467,50 @@ export function createProfileApi(database: Pool) {
         return;
       }
       response.json({ worldProgress: updated.rows[0].worldProgress });
+    } catch {
+      response.status(503).json({ error: "profile_storage_unavailable" });
+    }
+  });
+
+  router.post("/api/profile/new-game-plus", profileLimit, async (request, response) => {
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+    response.setHeader("Cache-Control", "no-store");
+
+    try {
+      const currentResult = await database.query<{ profile: unknown }>(
+        "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
+        [userId],
+      );
+      const currentProfile = validatePlayerProfile(currentResult.rows[0]?.profile, userId);
+      if (!currentProfile) {
+        response.status(404).json({ error: "profile_not_found" });
+        return;
+      }
+      if (!isCampaignComplete(
+        currentProfile.defeatedOpponents,
+        currentProfile.worldProgress?.distance ?? 0,
+      )) {
+        response.status(409).json({ error: "new_game_plus_locked" });
+        return;
+      }
+
+      const updated = await database.query<{ profile: unknown }>(
+        `UPDATE shafak_player_profiles
+         SET profile = jsonb_set(
+           jsonb_set(profile, '{defeatedOpponents}', '[]'::jsonb, true),
+           '{worldProgress}', 'null'::jsonb, true
+         ), updated_at = NOW()
+         WHERE user_id = $1 AND profile = $2::jsonb
+         RETURNING profile`,
+        [userId, JSON.stringify(currentResult.rows[0].profile)],
+      );
+      const resetProfile = validatePlayerProfile(updated.rows[0]?.profile, userId);
+      if (!resetProfile) {
+        response.status(409).json({ error: "profile_changed" });
+        return;
+      }
+      response.json({ profile: resetProfile });
     } catch {
       response.status(503).json({ error: "profile_storage_unavailable" });
     }

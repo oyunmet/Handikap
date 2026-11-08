@@ -1,5 +1,6 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import { getWorldChapter } from "./world-content.ts";
+import { FINAL_CAMPAIGN_CHAPTER_ID } from "./campaign-progression.ts";
 import type { WorldRouteChoice } from "./route-difficulty.ts";
 
 export type WorldProgress = {
@@ -150,7 +151,9 @@ export function unlockWorldGate(
   roomCleared: boolean,
   routeChoice?: WorldRouteChoice,
 ): WorldProgress {
-  if (!roomCleared || chapterId !== progress.unlockedThroughChapter) return progress;
+  if (!roomCleared || chapterId !== progress.unlockedThroughChapter || chapterId >= FINAL_CAMPAIGN_CHAPTER_ID) {
+    return progress;
+  }
   if (routeChoice && routeChoice.chapterId !== chapterId + 1) return progress;
   return {
     ...progress,

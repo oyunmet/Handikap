@@ -9,102 +9,102 @@ export type StoryDialogue = {
 
 const CHAPTER_STORIES = [
   {
-    title: "KÜL YOLU",
+    title: "KÜL YOLU · İLK KAPI",
     lines: [
-      "Şafak Kapısı kapanırken savaşçılar ölmedi; isimleri taşın içine kilitlendi. O geceyi hatırlayan tek şey, avucundaki mühür.",
-      "Bu yol bir zamanlar evine dönmek isteyenlerin iziydi. Şimdi her kül tanesi seni tanıyor; bazıları adını senden önce fısıldıyor.",
+      "Karanlık krallığın batı yolunu kapladığında prenses ortadan kayboldu. Kül Yolu'nun kapısını ancak dağılmış Mühür Parçaları açabilir.",
+      "Külün altında nöbetçilerin izleri duruyor; her parça, prensesin geçtiği yolu biraz daha belirginleştiriyor.",
     ],
-    hint: "Mor ışık saçan Mühür Parçalarını ara. Demirci onları ekipmanını güçlendirmek için kullanabilir.",
+    hint: "Kül Yolu'ndaki Mühür Parçalarını topla ve batı kapısının nöbetçilerini geç.",
   },
   {
-    title: "KÜL YOLU · SESSİZ ÇAN",
+    title: "KÜL YOLU · KAYIP İZLER",
     lines: [
-      "Yolun kıyısındaki çan, rüzgârda değil; sen yaklaştıkça çalıyor. İçinde birinin son nefesi saklı.",
-      "Kül Okçusu seni görmeden önce mührü gördü. Kapıya yaklaştıkça düşmanların yüzü değişiyor.",
+      "Eski kervan yolunda prensesin arabasına ait bir toka buldun. Kül nöbetçileri onu senden önce arıyor.",
+      "Mührün ışığı, batı kapısına giden güvenli geçidi gösteriyor.",
     ],
-    hint: "İzleri takip et. Kırmızı saldırı uyarısında siper al veya yana kaç; her kapı yeni bir anı açar.",
+    hint: "Yol kenarındaki ganimeti topla; kapıya giden izleri takip et.",
   },
   {
-    title: "KÜL YOLU · TAŞTAKİ İSİM",
+    title: "KÜL YOLU · BATI KAPISI",
     lines: [
-      "Taş levhada kendi adın kazılı. Harfler yeni değil; taş, seni çok uzun zamandır bekliyormuş.",
-      "Demir Yemin kapının ilk nöbetçisiydi. Savaş Odası'ndaki yankılar, onun neden hâlâ savaştığını gösterecek.",
+      "Kapının son nöbetçisi, prensesin geçmesini engelleyen emri hâlâ yerine getiriyor. Onu yenince mühür kuzeydeki geçidi işaret ediyor.",
+      "Kül Yolu açıldı; krallığın kuzey sınırı şimdi önünde.",
     ],
-    hint: "Savaş Odası'nda aynı yolcunun taşıdığı silahlarla sınava gir; karşılaşmadan sonra Kül Yolu'na dönebilirsin.",
+    hint: "Bölüm bossunu yen ve Donmuş Geçit'e giden kapıyı aç.",
   },
   {
-    title: "DONMUŞ GEÇİT",
+    title: "DONMUŞ GEÇİT · KUZEY YOLU",
     lines: [
-      "Geçidin buzunda kendi ayak izlerin var; ama bu bölümde henüz bulunmadın. Mühür, zamanı da saklıyor.",
-      "Buzun altından gelen ses sana yol arkadaşı gibi sesleniyor. Cevap verirsen, seni hatırlayacak.",
+      "Kuzey geçidi, karanlık yayılınca krallığın son kervanlarını buz altında bıraktı. İkinci kapının kilidi, yeni Mühür Parçalarıyla çözülebilir.",
+      "Buzun içindeki sancaklar, prensesin buradan güneye götürüldüğünü doğruluyor.",
     ],
-    hint: "Donmuş geçitteki Mühür Parçası kapının ikinci işaretini taşıyor. Yaklaşınca çevresindeki mor ışığı izle.",
+    hint: "Donmuş Geçit'teki parçaları ara; buzlu patikalarda saldırı işaretlerini izle.",
   },
   {
-    title: "DONMUŞ GEÇİT · BUZ ALTINDAKİ AD",
+    title: "DONMUŞ GEÇİT · BUZDAKİ MEKTUP",
     lines: [
-      "Buzun içinde zincirlenmiş bir sancak var; üzerinde Şafak Savaşçıları'nın kayıp birliğinin adı yazılı.",
-      "Nöbetçiler bu adı duyunca geri çekiliyor. Demir Yemin ise ilk kez kılıcını indiriyor.",
+      "Buzun içinde, prensesin el yazısıyla bırakılmış kısa bir not var: “Son kapı bataklıkta.”",
+      "Geçit nöbetçileri notu saklamış; güneye açılan yolu koruyorlar.",
     ],
-    hint: "Konuşmak için yolcunun yanına git. Her rakip yalnızca bir engel değil; kapının eksik bir hatırası.",
+    hint: "Notun işaret ettiği güneye giden geçidi bul.",
   },
   {
-    title: "DONMUŞ GEÇİT · KIRIK YEMİN",
+    title: "DONMUŞ GEÇİT · SON NÖBET",
     lines: [
-      "Demir Yemin, kapıyı içeriden kapattığını itiraf ediyor. Dışarıda kalanları korumak için kendi adını feda etmiş.",
-      "Mühürde yeni bir çizgi belirdi. Uzakta kızıl bir ışık yanıyor; biri zinciri çözmeye başlamış.",
+      "Geçidin bossu, prensesi taşıyan kafilenin izini saklamak için buz duvarını kapatmış. Yenilgisi güney kapısının kilidini çözüyor.",
+      "Mühür tamamlanmaya yaklaşıyor; son parçalar Kızıl Bataklık'ta.",
     ],
-    hint: "Bir sonraki eşikte yol artık seni sınamayacak; senden bir karar isteyecek.",
+    hint: "Bossu yenerek Kızıl Bataklık'ın kapısını aç.",
   },
   {
-    title: "KIZIL BATAKLIK",
+    title: "KIZIL BATAKLIK · GÜNEY KAPISI",
     lines: [
-      "Bataklıkta hiçbir iz kaybolmuyor. Su, savaşçıların son anlarını ve kapının her açılışını hatırlıyor.",
-      "Kızıl ışık mühürdeki çatlağa denk düştü. Kapının ardındaki şey, senin dönüşünü bekliyor.",
+      "Güney bataklığı, karanlığın krallığa ilk yayıldığı yer. Prensesin izleri son kapının önünde kesiliyor.",
+      "Mühür Parçaları burada birleşince, bataklığın ortasındaki geçit açılacak.",
     ],
-    hint: "Bataklıktaki parıltıyı takip et. Mühür Parçaları biriktikçe Demirci'de daha güçlü geliştirmeler açılır.",
+    hint: "Kızıl Bataklık'ta kalan Mühür Parçalarını topla ve son kapıya ilerle.",
   },
   {
-    title: "KIZIL BATAKLIK · ÇAMURDAKİ MÜHÜR",
+    title: "KIZIL BATAKLIK · SUYUN ALTINDA",
     lines: [
-      "Bataklığın dibinde bir tılsım buldun. Üzerindeki işaret, yoldaki tüm mühür parçalarını birbirine bağlıyor.",
-      "Bu tılsım, Savaş Odası'nın kapısını da tanıyor. Oradaki yankı sana bir sonraki bölümün adını söyleyebilir.",
+      "Bataklık suyu, prensesin bıraktığı son Mühür Parçasını saklıyor. Parçalar birleşince son kapının yeri görünür oluyor.",
+      "Karanlık, kapının ardındaki salonda toplanmış; artık başka bir yol yok.",
     ],
-    hint: "Tılsımın izini sür; her yeni bölümde başka bir parça ve başka bir tanık var.",
+    hint: "Son kapıya hazırlan; bu yolun en güçlü nöbetçileri burada.",
   },
   {
-    title: "KIZIL BATAKLIK · SON SULAR",
+    title: "KIZIL BATAKLIK · SON EŞİK",
     lines: [
-      "Kapı ilk kez aralandı. Ardında bir taht değil, yüzlerce savaşçının adını taşıyan boş bir salon var.",
-      "Bir ses fısıldıyor: 'Beni kurtarmaya gelmedin. Beni burada bırakan kişiyi bulmaya geldin.'",
+      "Dokuzuncu bölüm, son kapının önünde bitiyor. Karanlık Hükümdar'ı yen ve kayıp prensesle yüzleş.",
+      "Mühür tamamlandı; bundan sonra krallığın kaderini sen belirleyeceksin.",
     ],
-    hint: "Yol yeniden başlayabilir; fakat mühür artık seni tanıyor. Yeni döngüde daha önce gördüğün işaretleri hatırla.",
+    hint: "Son bossu yen; ardından prensesin hikâyesi tamamlanacak.",
   },
 ] as const;
 
 const NPC_LINES = [
   [
-    "Kılıç kapıyı değil, geride bıraktıklarının adını korur. Mühür sende yanıyorsa ben de sınavın parçasıyım.",
-    "Külü geride bırakma; buzun altında kendi yemininin sesini duyacaksın.",
+    "Karanlık batı kapısını kapattığında prenses buradan geçmişti. Mührün ışığı onun izini yeniden gösteriyor.",
+    "Kül nöbetçileri emri hâlâ sürdürüyor; kapı açılınca kuzey yolu ortaya çıkacak.",
   ],
   [
-    "Buzun altındaki ses benim yeminim değil; kapı kapanırken adımı orada bıraktım.",
-    "Çatlak büyüdükçe yol seni hatırlıyor. Kızıl ışıklara değil, mühürdeki işarete bak.",
+    "Prensesin mektubu güneye, Kızıl Bataklık'a gidiyor. Donmuş Geçit'teki son boss yolu kapatmış.",
+    "Mühür parçalarını birleştir; kapı bu kez ardına kadar açılacak.",
   ],
   [
-    "Bataklık düşenlerin adını saklar. Kapının döngüsü beni nöbetçi yaptı.",
-    "Mührü taşıyan sensin; döngüyü durdurabilecek olan da. Artık nedenini biliyorsun.",
+    "Prenses son kapının ardında. Bataklıkta karanlığın toplandığı yere kadar ilerle.",
+    "Karanlık Hükümdar düşerse krallık serbest kalacak; sonrası senin kararın.",
   ],
 ] as const;
 
 function chapterIndex(chapterId: number) {
   const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
-  return safeChapter % CHAPTER_STORIES.length;
+  return Math.min(safeChapter, CHAPTER_STORIES.length - 1);
 }
 
 function regionIndex(chapterId: number) {
   const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
-  return Math.floor(safeChapter / 3) % 3;
+  return Math.min(2, Math.floor(safeChapter / 3));
 }
 
 export function getOpeningStoryDialogue(): StoryDialogue {
@@ -112,32 +112,26 @@ export function getOpeningStoryDialogue(): StoryDialogue {
   return {
     id: "story-opening",
     kind: "opening",
-    title: "MÜHRÜN ÇAĞRISI",
+    title: "KAYIP PRENSES",
     speaker: "YOL KILAVUZU",
     lines: [
-      opening.lines[0],
-      "Yolun sonunda seni bekleyen cevap, Kül Yolu'nda ve Savaş Odası'nda saklı. İki kapı da aynı mühürle açılıyor.",
-      "Yolcu, silahını iki sınavda da yanında taşı. Bulduğun Mühür Parçaları Demirci'de gücünü artıracak.",
+      "Karanlık krallığı ele geçirirken prenses kayboldu.",
+      "Onu saklayan dokuz kapı, Mühür Parçaları olmadan açılmıyor.",
+      "Kül Yolu'ndan Kızıl Bataklık'a ilerle, parçaları birleştir ve son kapıya ulaş.",
     ],
-    hint: "Mührün mor ışığını izle; her bölümde Mühür Parçalarını ara. Her rakip kapının ardındaki geçmişten bir parça taşıyor.",
+    hint: "Her bölgede Mühür Parçalarını ara. Son bölümde Karanlık Hükümdar'ı geçerek prensesi bul.",
   };
 }
 
 export function getChapterStoryDialogue(chapterId: number): StoryDialogue {
   const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
   const chapter = CHAPTER_STORIES[chapterIndex(safeChapter)];
-  const cycle = Math.floor(safeChapter / CHAPTER_STORIES.length);
   return {
     id: `story-chapter-${safeChapter}`,
     kind: "chapter",
-    title: cycle > 0 ? `${chapter.title} · DÖNGÜ ${cycle + 1}` : chapter.title,
+    title: chapter.title,
     speaker: "YOL KILAVUZU",
-    lines: cycle > 0
-      ? [
-          `Yol aynı yere döndü, ama mühür bu kez daha sıcak. Bu ${cycle + 1}. döngüde taşların sakladığı izi sen de hatırlıyorsun.`,
-          ...chapter.lines,
-        ]
-      : [...chapter.lines],
+    lines: [...chapter.lines],
     hint: chapter.hint,
   };
 }
@@ -214,6 +208,20 @@ export function getWorldRivalStoryDialogue(rival: {
   chapterId: number;
   taunt: string;
 }): StoryDialogue {
+  if (rival.name === "Karanlık Hükümdar") {
+    return {
+      id: "story-final-boss",
+      kind: "npc",
+      title: "SON KAPI",
+      speaker: "KARANLIK HÜKÜMDAR",
+      lines: [
+        rival.taunt,
+        "Prensesi susturmadım; onu kapının ardında, krallığı koruyabilsin diye sakladım.",
+        "Mühür tamamlandı. Bu düellonun sonunda saklanan gerçeği duyacaksın.",
+      ],
+      hint: "Son bossu yen; ardından prensesle konuşacaksın.",
+    };
+  }
   const special = getNpcStoryDialogue(rival.name, rival.chapterId);
   if (special) return special;
   const safeChapter = Number.isFinite(rival.chapterId) ? Math.max(0, Math.floor(rival.chapterId)) : 0;

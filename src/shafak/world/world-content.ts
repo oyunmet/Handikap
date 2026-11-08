@@ -4,6 +4,7 @@ import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } fro
 import type { WorldRouteDifficulty } from "./route-difficulty.ts";
 import type { CombatDifficulty } from "../game/combat-engine.ts";
 import { WORLD_ROCK_OBSTACLE_DIMENSIONS } from "./world-model-sizing.ts";
+import { getCampaignRivalCount, isCampaignFinalBoss } from "./campaign-progression.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -360,23 +361,26 @@ function createObstacles(chapterId: number): WorldObstacle[] {
 function createRivals(chapterId: number, random: () => number, playerLevel: number): WorldRival[] {
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
   const safePlayerLevel = Math.max(1, Math.min(1_000, Math.floor(Number.isFinite(playerLevel) ? playerLevel : 1)));
-  const rivalDistances = [52, 84, 109, 134, 139];
-  return Array.from({ length: 5 }, (_, index) => {
-    const profile = getWorldRivalProfile(chapterId, index);
-    const isBoss = index === 4;
-    const distance = chapterStart + rivalDistances[index] + (isBoss ? 0 : (random() - 0.5) * 2);
-    const regionalLevel = 2 + chapterId * 2 + index * 2 + (isBoss ? 8 : 0);
+  const rivalCount = getCampaignRivalCount(chapterId);
+  const bossIndex = rivalCount - 1;
+  return Array.from({ length: rivalCount }, (_, index) => {
+    const isBoss = index === bossIndex;
+    const profile = getWorldRivalProfile(chapterId, index, isBoss);
+    const distanceOffset = 52 + (87 * index) / Math.max(1, bossIndex);
+    const finalBoss = isCampaignFinalBoss(chapterId, isBoss);
+    const distance = chapterStart + distanceOffset + (isBoss ? 0 : (random() - 0.5) * 2);
+    const regionalLevel = 2 + chapterId * 3 + index * 2 + (isBoss ? 10 : 0);
     return {
       id: `ash-road:${chapterId}:rival:${index}`,
-      name: profile.name,
-      title: profile.title,
+      name: finalBoss ? "Karanlık Hükümdar" : profile.name,
+      title: finalBoss ? "SON KAPI" : profile.title,
       archetype: profile.archetype,
       level: Math.min(1_000, Math.max(regionalLevel, Math.floor(safePlayerLevel * 0.65) + index + Math.floor(chapterId * 0.2))),
       isBoss,
-      isElite: index === 3,
+      isElite: !isBoss && index === 3,
       winRate: isBoss ? 94 + Math.min(4, chapterId) : 42 + index * 9 + Math.min(24, chapterId * 2),
       loot: isBoss ? 180 + chapterId * 10 : 48 + index * 24 + chapterId * 6,
-      taunt: profile.taunt,
+      taunt: finalBoss ? "Mühür parçaları kapıyı açtı. Bu krallığın son hükmünü şimdi vereceğiz." : profile.taunt,
       difficulty: profile.difficulty,
       chapterId,
       progressPercent: Math.max(0, Math.min(100, (distance - chapterStart) / WORLD_GATE_INTERVAL_METERS * 100)),

@@ -7,6 +7,7 @@ import DuelControls from "../game/DuelControls";
 import GameButton from "../game/GameButton";
 import WorldWeaponPicker from "./WorldWeaponPicker";
 import DuelResults from "../game/DuelResults";
+import CampaignEnding from "./CampaignEnding";
 import { awardBattle, normalizePlayerProfile, type PlayerProfile } from "../game/profile";
 import StorePanel from "../game/store-ui/StorePanel";
 import { isDailySpecialAvailable, STARTER_ITEM_IDS, STORE_CATALOG } from "../game/store-catalog";
@@ -84,6 +85,11 @@ import {
   type WorldMotionFrame,
   type WorldMotion,
 } from "./movement";
+import {
+  FINAL_CAMPAIGN_CHAPTER_ID,
+  isCampaignComplete,
+  isCampaignFinalBoss,
+} from "./campaign-progression";
 import { nextGateDistance, nextGateDistanceForCamera } from "./world-generation";
 import {
   getWorldChapter,
@@ -103,6 +109,7 @@ import {
   inferWorldProgressFromDefeatedOpponents,
   isWorldChapterCleared,
   limitWorldDistanceAtGate,
+  normalizeWorldProgress,
   readWorldProgress,
   saveWorldProgress,
   unlockWorldGate,
@@ -187,6 +194,7 @@ type WorldSceneProps = {
     persistent: boolean;
   }>;
   onSaveWorldPosition: (position: WorldProgressPosition) => Promise<void>;
+  onStartNewGamePlus: () => Promise<PlayerProfile>;
 };
 type Panel = "store" | "settings" | null;
 
@@ -589,6 +597,9 @@ export default function WorldScene({
     );
   });
   const [travel, setTravel] = useState(Math.floor(worldProgress.distance));
+  const [campaignEnding, setCampaignEnding] = useState(() =>
+    isCampaignComplete(profile.defeatedOpponents, worldProgress.distance),
+  );
   const worldProgressRef = useRef(worldProgress);
   const progressUserIdRef = useRef(userId);
   const accountPositionLoadedUserRef = useRef(accountProfileReady && userId ? userId : null);
@@ -622,6 +633,8 @@ export default function WorldScene({
     const position = motionRef.current;
     const chapterId = Math.max(0, Math.floor(position.distance / WORLD_GATE_INTERVAL_METERS));
     if (
+      chapterId >= FINAL_CAMPAIGN_CHAPTER_ID
+      ||
       nextGateDistance(position.distance) - position.distance > WORLD_GATE_INTERACTION_RANGE_METERS
       || !isWorldChapterCleared(chapterId, profileRef.current.defeatedOpponents)
     ) return;
@@ -644,6 +657,11 @@ export default function WorldScene({
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+  useEffect(() => {
+    if (isCampaignComplete(profile.defeatedOpponents, worldProgress.distance)) {
+      setCampaignEnding(true);
+    }
+  }, [profile.defeatedOpponents, worldProgress.distance]);
   const commitBattleProfile = useCallback((nextProfile: PlayerProfile) => {
     profileRef.current = nextProfile;
     onBattleProfile(nextProfile);
@@ -1677,6 +1695,23 @@ export default function WorldScene({
     setDuelCameraHeading(DUEL_CAMERA_HEADING);
   }, []);
 
+  const startNewGamePlus = useCallback(async () => {
+    const resetProfile = await onStartNewGamePlus();
+    closeEncounter();
+    profileRef.current = resetProfile;
+    onBattleProfile(resetProfile);
+    const initialProgress = normalizeWorldProgress(null);
+    worldProgressRef.current = initialProgress;
+    setWorldProgress(initialProgress);
+    motionRef.current = createWorldMotion(0, 0);
+    setTravel(0);
+    setStoryDialogue(null);
+    storyDialogueRef.current = null;
+    setCampaignEnding(false);
+    saveWorldProgress(initialProgress, userId);
+    saveCloudProgress(initialProgress, true);
+  }, [closeEncounter, onBattleProfile, onStartNewGamePlus, saveCloudProgress, userId]);
+
   const settleDuel = useCallback(async (verdict: "victory" | "defeat" | "draw", surrendered = false) => {
     const context = activeDuelRef.current;
     if (!context || settlementStartedRef.current) return;
@@ -1729,6 +1764,12 @@ export default function WorldScene({
           throw new Error("Sunucu düello sonucu için eksik yanıt verdi.");
         }
         commitBattleProfile(normalizePlayerProfile(result.profile));
+        if (
+          result.summary.verdict === "victory"
+          && isCampaignFinalBoss(context.rival.chapterId, context.rival.isBoss)
+        ) {
+          setCampaignEnding(true);
+        }
         updateBattleSession({
           phase: "result",
           summary: result.summary,
@@ -1792,6 +1833,9 @@ export default function WorldScene({
       isBoss: context.rival.isBoss,
     });
     commitBattleProfile(awarded.profile);
+    if (verdict === "victory" && isCampaignFinalBoss(context.rival.chapterId, context.rival.isBoss)) {
+      setCampaignEnding(true);
+    }
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
   }, [commitBattleProfile, profile]);
 

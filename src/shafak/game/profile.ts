@@ -3,6 +3,7 @@ import { grantLootItem } from "./store-rewards.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, DEFAULT_COMBAT_QUICK_SLOTS, normalizeCombatItemCounts, normalizeCombatQuickSlots } from "./combat-items.ts";
 import { getIstanbulDayKey, normalizeDailyLifeState } from "./daily-lives.ts";
 import type { WorldRouteChoice } from "../world/route-difficulty.ts";
+import { MAX_DEFEATED_OPPONENTS } from "../world/campaign-progression.ts";
 import { DEFAULT_WEAPON_ID, isCoreWeapon } from "./weapons.ts";
 
 export type PlayerProfile = {
@@ -133,7 +134,7 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
     bestStreak: finiteNumber(saved.bestStreak, defaultProfile.bestStreak),
     items: Array.isArray(saved.items) ? saved.items.filter((item): item is string => typeof item === "string").slice(0, 30) : [],
     defeatedOpponents: Array.isArray(saved.defeatedOpponents)
-      ? saved.defeatedOpponents.filter((item): item is string => typeof item === "string").slice(-30)
+      ? saved.defeatedOpponents.filter((item): item is string => typeof item === "string").slice(-MAX_DEFEATED_OPPONENTS)
       : [],
     worldProgress: savedWorldProgress
       && typeof savedWorldProgress.distance === "number"
@@ -221,7 +222,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
     winStreak,
     bestStreak: Math.max(base.bestStreak, winStreak),
     defeatedOpponents: outcome.verdict === "victory" && !base.defeatedOpponents.includes(outcome.opponentId)
-      ? [...base.defeatedOpponents, outcome.opponentId].slice(-30)
+      ? [...base.defeatedOpponents, outcome.opponentId].slice(-MAX_DEFEATED_OPPONENTS)
       : base.defeatedOpponents,
     dailyBattles: base.dailyBattles + 1,
     dailyWins: base.dailyWins + Number(outcome.verdict === "victory"),

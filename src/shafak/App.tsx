@@ -36,6 +36,7 @@ import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, sav
 import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { StoreTab } from "./game/store-types.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
+import { isCampaignComplete, resetCampaignProgressForNewGamePlus } from "./world/campaign-progression";
 import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import {
   AUTO_QUALITY_DOWN_FPS,
@@ -863,6 +864,39 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     if (preferences.sound) playUiChime();
   };
 
+  const startNewGamePlus = async () => {
+    if (!isCampaignComplete(profile.defeatedOpponents, profile.worldProgress?.distance ?? 0)) {
+      throw new Error("Son bölüm tamamlanmadan Yeni Oyun+ açılamaz. İlerlemen değişmedi.");
+    }
+
+    let nextProfile: PlayerProfile;
+    if (user?.id) {
+      if (profileSyncStatus !== "ready") {
+        throw new Error("Hesap profili doğrulanamadı. İlerlemen değişmedi; tekrar giriş yapıp dene.");
+      }
+      const result = await authApiRequestWithRetry<{ profile: unknown }>("/api/profile/new-game-plus", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }, {
+        operation: "new game plus",
+        fallbackMessage: "Yeni Oyun+ başlatılamadı. İlerlemen değişmedi.",
+        messageForCode: (code) => code === "new_game_plus_locked"
+          ? "Son bölüm tamamlanmadan Yeni Oyun+ açılamaz."
+          : "Yeni Oyun+ başlatılamadı. İlerlemen değişmedi.",
+      }, { maxRetries: 0 });
+      nextProfile = normalizePlayerProfile(result.profile);
+    } else {
+      nextProfile = normalizePlayerProfile(resetCampaignProgressForNewGamePlus(profile));
+      saveProfile(nextProfile);
+    }
+
+    setProfile(nextProfile);
+    setPreference("combatDifficulty", "hard");
+    return nextProfile;
+  };
+
   const transitionDuration = motionReduced ? 0.16 : 0.68;
 
   return (
@@ -1189,6 +1223,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onLoadClaimedPickups={loadClaimedPickups}
                 onClaimWorldPickups={claimWorldPickups}
                 onSaveWorldPosition={saveWorldPosition}
+                onStartNewGamePlus={startNewGamePlus}
                 onOpenWarRoom={() => enterWarRoom("world")}
                 onExit={() => {
                   setInitialWorldStoreTab(null);

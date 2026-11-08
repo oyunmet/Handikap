@@ -1,0 +1,161 @@
+.campaign-ending-backdrop {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse at 50% 22%, rgba(144, 102, 58, .22), transparent 48%),
+    rgba(8, 9, 12, .92);
+  backdrop-filter: blur(9px);
+}
+
+.campaign-ending {
+  position: relative;
+  width: min(100%, 520px);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: clamp(20px, 5vw, 34px);
+  border: 1px solid rgba(218, 177, 111, .5);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(45, 38, 31, .96), rgba(17, 19, 23, .98) 62%),
+    #17191d;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, .55), inset 0 0 35px rgba(226, 181, 108, .05);
+  color: #f0e4d2;
+  text-align: center;
+}
+
+.campaign-ending__art {
+  display: grid;
+  width: min(230px, 52vw);
+  margin: -12px auto 8px;
+  color: rgba(229, 184, 116, .86);
+  filter: drop-shadow(0 0 22px rgba(222, 166, 83, .2));
+}
+
+.campaign-ending__art svg { display: block; width: 100%; height: auto; }
+
+.campaign-ending__eyebrow {
+  display: block;
+  color: #dfb66f;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.campaign-ending h1 {
+  margin: 9px 0 14px;
+  color: #fff0d6;
+  font-size: clamp(22px, 5vw, 34px);
+  font-weight: 950;
+  letter-spacing: .07em;
+}
+
+.campaign-ending__dialogue {
+  max-width: 410px;
+  margin: 0 auto 10px;
+  color: #f2d5a4;
+  font-family: Georgia, serif;
+  font-size: clamp(15px, 3vw, 19px);
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.campaign-ending__copy {
+  max-width: 430px;
+  margin: 0 auto 17px;
+  color: rgba(240, 228, 210, .78);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.campaign-ending__rewards {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 350px);
+  margin: 0 auto 20px;
+  padding: 11px 14px;
+  border: 1px solid rgba(229, 188, 123, .25);
+  border-radius: 8px;
+  background: rgba(9, 11, 14, .48);
+}
+
+.campaign-ending__rewards span {
+  color: #d4aa67;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.campaign-ending__rewards b {
+  color: #f2e2c8;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-ending__reward-note {
+  margin: 0 auto 18px;
+  color: rgba(240, 228, 210, .68);
+  font-size: 11px;
+}
+
+.campaign-ending__actions {
+  display: grid;
+  justify-content: center;
+  gap: 9px;
+}
+
+.campaign-ending__actions button {
+  min-height: 46px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.campaign-ending__actions button:disabled { cursor: wait; opacity: .62; }
+
+.campaign-ending__primary {
+  border-color: rgba(255, 223, 161, .72) !important;
+  background: linear-gradient(135deg, #c58b45, #81512d) !important;
+  color: #fff3df;
+  box-shadow: 0 6px 18px rgba(130, 77, 35, .25);
+}
+
+.campaign-ending__secondary {
+  border-color: rgba(238, 225, 205, .25) !important;
+  background: rgba(11, 13, 16, .6) !important;
+  color: rgba(240, 228, 210, .8);
+}
+
+.campaign-ending__error {
+  margin: 0 auto 14px;
+  color: #ffb3a5;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .campaign-ending-backdrop { place-items: start center; }
+  .campaign-ending { width: min(100%, 760px); padding: 16px 22px; }
+  .campaign-ending__art { width: 112px; margin: -5px auto 2px; }
+  .campaign-ending h1 { margin: 4px 0 8px; }
+  .campaign-ending__dialogue { margin-bottom: 6px; font-size: 14px; }
+  .campaign-ending__copy { margin-bottom: 9px; font-size: 11px; }
+  .campaign-ending__rewards { margin-bottom: 10px; padding: 7px 11px; }
+  .campaign-ending__actions button { min-height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campaign-ending-backdrop,
+  .campaign-ending,
+  .campaign-ending * { scroll-behavior: auto; }
+}
