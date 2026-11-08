@@ -1274,10 +1274,10 @@
     right: max(10px, env(safe-area-inset-right));
     bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
     display: grid;
-    width: 142px;
-    height: 170px;
-    grid-template-columns: repeat(3, 44px);
-    grid-template-rows: 44px 44px 72px;
+    width: 154px;
+    height: 178px;
+    grid-template-columns: repeat(3, 48px);
+    grid-template-rows: 48px 48px 72px;
     gap: 5px;
     padding: 0;
     border: 0;
@@ -1291,10 +1291,10 @@
     position: relative;
     inset: auto;
     display: inline-flex;
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
     padding: 3px 2px;
     border: 1px solid rgba(221, 190, 139, .48);
     border-radius: 50%;
@@ -1360,10 +1360,10 @@
     right: max(9px, env(safe-area-inset-right));
     bottom: max(8px, env(safe-area-inset-bottom));
     display: grid;
-    width: 142px;
-    height: 154px;
-    grid-template-columns: repeat(3, 44px);
-    grid-template-rows: 44px 44px 62px;
+    width: 154px;
+    height: 168px;
+    grid-template-columns: repeat(3, 48px);
+    grid-template-rows: 48px 48px 62px;
     gap: 5px;
     padding: 0;
     border: 0;
@@ -1377,10 +1377,10 @@
     position: relative;
     inset: auto;
     display: inline-flex;
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
     padding: 3px 2px;
   }
 

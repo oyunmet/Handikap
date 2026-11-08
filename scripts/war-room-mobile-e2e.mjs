@@ -84,10 +84,26 @@ try {
   const waitForAimState = async (active) => {
     try {
       await page.waitForFunction((expected) => {
-        return document.querySelector(".war-room-hud")?.classList.contains("is-aiming") === expected;
+        const aim = document.querySelector(".war-room-control.is-aim");
+        const crosshair = document.querySelector(".war-room-crosshair");
+        return document.querySelector(".war-room-hud")?.classList.contains("is-aiming") === expected
+          && aim?.getAttribute("data-held") === String(expected)
+          && aim?.classList.contains("is-active") === expected
+          && crosshair?.classList.contains("is-zoomed") === expected;
       }, active, { timeout: 10_000 });
     } catch {
-      throw new Error(`Aim state did not become ${active ? "active" : "inactive"}; diagnostics=${await diagnostics()}`);
+      const state = await page.evaluate(() => {
+        const aim = document.querySelector(".war-room-control.is-aim");
+        const hud = document.querySelector(".war-room-hud");
+        const crosshair = document.querySelector(".war-room-crosshair");
+        return {
+          buttonHeld: aim?.getAttribute("data-held"),
+          buttonActive: aim?.classList.contains("is-active"),
+          hudAiming: hud?.classList.contains("is-aiming"),
+          crosshairZoomed: crosshair?.classList.contains("is-zoomed"),
+        };
+      });
+      throw new Error(`Aim state did not become ${active ? "active" : "inactive"}; state=${JSON.stringify(state)}; diagnostics=${await diagnostics()}`);
     }
   };
   const waitForTouchRole = async (id, role) => {
@@ -137,9 +153,13 @@ try {
     await dispatch("touchMove");
   };
   const endTouch = async (id) => {
-    assert.ok(activeTouches.has(id), `Touch ${id} was not active`);
+    const touch = activeTouches.get(id);
+    assert.ok(touch, `Touch ${id} was not active`);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [touch],
+    });
     activeTouches.delete(id);
-    await dispatch("touchEnd");
   };
   const swipe = async (id, x, y, dx, dy) => {
     await startTouch(id, x, y);
@@ -225,55 +245,64 @@ try {
   await waitForNoActiveTouches();
   console.log("War Room E2E: joystick movement and right-side camera look stayed independent.");
 
-  // Hold movement, aim, and fire with three real touch identifiers. Releasing
-  // fire must not release aim or cancel the movement pointer.
-  const aimButton = page.locator(".war-room-control.is-aim");
-  const fireButton = page.locator(".war-room-control.is-fire");
-  const aimBounds = await aimButton.boundingBox();
-  const fireBounds = await fireButton.boundingBox();
-  assert.ok(aimBounds && fireBounds, "Aim and fire touch controls were not visible");
-  assert.ok(aimBounds.width >= 48 && aimBounds.height >= 48,
-    `Aim control is smaller than the 48 px touch target: ${JSON.stringify(aimBounds)}`);
-  assert.ok(fireBounds.width >= 48 && fireBounds.height >= 48,
-    `Fire control is smaller than the 48 px touch target: ${JSON.stringify(fireBounds)}`);
-  const tripleTouchMovePoint = await findOpenTouchPoint("left");
-  await startTouch(82, tripleTouchMovePoint.x, tripleTouchMovePoint.y);
-  await moveTouch(82, tripleTouchMovePoint.x, tripleTouchMovePoint.y - 60);
-  await startTouch(83, aimBounds.x + aimBounds.width / 2, aimBounds.y + aimBounds.height / 2);
-  await startTouch(84, fireBounds.x + fireBounds.width / 2, fireBounds.y + fireBounds.height / 2);
-  await page.waitForFunction(() => {
-    const aim = document.querySelector(".war-room-control.is-aim");
-    const fire = document.querySelector(".war-room-control.is-fire");
-    const hud = document.querySelector(".war-room-hud");
-    return aim?.dataset.held === "true"
-      && fire?.dataset.held === "true"
-      && hud?.classList.contains("is-aiming");
-  }, null, { timeout: 5_000 });
-  const tripleTouch = await diagnostics();
-  assert.ok(tripleTouch?.includes("82:joystick"), `Movement lost ownership during aim/fire: ${tripleTouch}`);
-  assert.ok(Number(tripleTouch?.match(/moveY\s+(-?\d+(?:\.\d+)?)/)?.[1]) > 0.6,
-    `Movement was not active during aim/fire: ${tripleTouch}`);
-  await page.screenshot({ path: "/tmp/war-room-ads-844x390.png" });
+  // Hold movement, aim, and fire with three real touch identifiers on both
+  // landscape sizes. Releasing one action must not release either other touch.
+  let tripleTouchId = 82;
+  for (const viewport of [
+    { width: 844, height: 390 },
+    { width: 932, height: 430 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.waitForTimeout(250);
+    const aimButton = page.locator(".war-room-control.is-aim");
+    const fireButton = page.locator(".war-room-control.is-fire");
+    const aimBounds = await aimButton.boundingBox();
+    const fireBounds = await fireButton.boundingBox();
+    assert.ok(aimBounds && fireBounds, "Aim and fire touch controls were not visible");
+    assert.ok(aimBounds.width >= 48 && aimBounds.height >= 48,
+      `Aim control is smaller than the 48 px touch target: ${JSON.stringify(aimBounds)}`);
+    assert.ok(fireBounds.width >= 48 && fireBounds.height >= 48,
+      `Fire control is smaller than the 48 px touch target: ${JSON.stringify(fireBounds)}`);
 
-  await endTouch(84);
-  await page.waitForFunction(() => {
-    return document.querySelector(".war-room-control.is-fire")?.dataset.held !== "true";
-  }, null, { timeout: 5_000 });
-  await waitForAimState(true);
-  assert.equal(await aimButton.getAttribute("data-held"), "true",
-    "Releasing fire also released the independently held aim button");
-  await waitForTouchRole(82, "joystick");
-  assert.ok((await diagnostics())?.includes("82:joystick"),
-    `Releasing fire also ended the movement pointer: ${await diagnostics()}`);
+    const moveId = tripleTouchId++;
+    const aimId = tripleTouchId++;
+    const fireId = tripleTouchId++;
+    const tripleTouchMovePoint = await findOpenTouchPoint("left");
+    await startTouch(moveId, tripleTouchMovePoint.x, tripleTouchMovePoint.y);
+    await moveTouch(moveId, tripleTouchMovePoint.x, tripleTouchMovePoint.y - 60);
+    await startTouch(aimId, aimBounds.x + aimBounds.width / 2, aimBounds.y + aimBounds.height / 2);
+    await startTouch(fireId, fireBounds.x + fireBounds.width / 2, fireBounds.y + fireBounds.height / 2);
+    await page.waitForFunction(() => {
+      return document.querySelector(".war-room-control.is-fire")?.dataset.held === "true";
+    }, null, { timeout: 5_000 });
+    await waitForAimState(true);
+    const tripleTouch = await diagnostics();
+    assert.ok(tripleTouch?.includes(`${moveId}:joystick`),
+      `Movement lost ownership during aim/fire: ${tripleTouch}`);
+    assert.ok(Number(tripleTouch?.match(/moveY\s+(-?\d+(?:\.\d+)?)/)?.[1]) > 0.6,
+      `Movement was not active during aim/fire: ${tripleTouch}`);
+    if (viewport.width === 844) {
+      await page.screenshot({ path: "/tmp/war-room-ads-844x390.png" });
+    }
 
-  await endTouch(83);
-  await waitForAimState(false);
-  await waitForTouchRole(82, "joystick");
-  assert.ok((await diagnostics())?.includes("82:joystick"),
-    `Releasing aim also ended the movement pointer: ${await diagnostics()}`);
-  await endTouch(82);
-  await waitForNoActiveTouches();
-  console.log("War Room E2E: three-touch movement, ADS, and fire passed; releasing fire kept aim active.");
+    await endTouch(fireId);
+    await page.waitForFunction(() => {
+      return document.querySelector(".war-room-control.is-fire")?.dataset.held !== "true";
+    }, null, { timeout: 5_000 });
+    await waitForAimState(true);
+    await waitForTouchRole(moveId, "joystick");
+    assert.ok((await diagnostics())?.includes(`${moveId}:joystick`),
+      `Releasing fire also ended movement: ${await diagnostics()}`);
+
+    await endTouch(aimId);
+    await waitForAimState(false);
+    await waitForTouchRole(moveId, "joystick");
+    assert.ok((await diagnostics())?.includes(`${moveId}:joystick`),
+      `Releasing aim also ended movement: ${await diagnostics()}`);
+    await endTouch(moveId);
+    await waitForNoActiveTouches();
+  }
+  console.log("War Room E2E: three-touch movement, visible ADS, fire, and independent releases passed at both landscape sizes.");
 
   await startTouch(81, 130, 230);
   await moveTouch(81, 130, 170);
