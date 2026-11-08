@@ -38,8 +38,9 @@ test("rival count rises through the campaign and the final boss is the ninth cha
   assert.equal(isCampaignFinalBoss(8, false), false);
 });
 
-test("campaign completion recognizes the final boss or a legacy save beyond its gate", () => {
+test("campaign completion requires the final boss or a legacy save past the final gate", () => {
   assert.equal(isCampaignComplete([FINAL_CAMPAIGN_BOSS_ID]), true);
+  assert.equal(isCampaignComplete([], FINAL_CAMPAIGN_DISTANCE - 2.8), false);
   assert.equal(isCampaignComplete([], FINAL_CAMPAIGN_DISTANCE), true);
   assert.equal(isCampaignComplete([], FINAL_CAMPAIGN_DISTANCE - 1), false);
 });

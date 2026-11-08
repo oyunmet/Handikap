@@ -562,6 +562,7 @@ export default function WorldScene({
   onLoadClaimedPickups,
   onClaimWorldPickups,
   onSaveWorldPosition,
+  onStartNewGamePlus,
 }: WorldSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
   const [movementDebugEnabled] = useState(() =>
@@ -3995,6 +3996,13 @@ export default function WorldScene({
           dialogue={storyDialogue}
           motionReduced={motionReduced}
           onClose={closeStoryDialogue}
+        />
+      )}
+      {campaignEnding && (
+        <CampaignEnding
+          rewards={battleSession?.phase === "result" ? battleSession.rewards ?? null : null}
+          onStartNewGamePlus={startNewGamePlus}
+          onMainMenu={onExit}
         />
       )}
     </main>

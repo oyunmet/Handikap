@@ -379,7 +379,7 @@ function createRivals(chapterId: number, random: () => number, playerLevel: numb
       isBoss,
       isElite: !isBoss && index === 3,
       winRate: isBoss ? 94 + Math.min(4, chapterId) : 42 + index * 9 + Math.min(24, chapterId * 2),
-      loot: isBoss ? 180 + chapterId * 10 : 48 + index * 24 + chapterId * 6,
+      loot: isBoss ? 90 + chapterId * 8 : 24 + index * 8 + chapterId * 3,
       taunt: finalBoss ? "Mühür parçaları kapıyı açtı. Bu krallığın son hükmünü şimdi vereceğiz." : profile.taunt,
       difficulty: profile.difficulty,
       chapterId,
@@ -413,7 +413,7 @@ export function getWorldChapter(
           ...rival,
           level: Math.max(1, Math.floor(rival.level * (easy ? 0.72 : 1.48))),
           winRate: Math.max(20, Math.min(98, rival.winRate + (easy ? -17 : 16))),
-          loot: Math.floor(rival.loot * (easy ? 0.82 : 1.32)),
+          loot: Math.floor(rival.loot * (easy ? 0.88 : 1)),
           difficulty: combatDifficulty ?? routeDifficulty,
         };
       })

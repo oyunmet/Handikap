@@ -189,7 +189,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
   const currentDay = todayKey();
   const base = { ...profile, ...normalizeDailyLifeState(profile) };
   const lostStake = outcome.verdict === "defeat" ? Math.min(20, Math.floor(base.gold * 0.03)) : 0;
-  const questBonus = outcome.verdict === "victory" && base.dailyWins === 2 ? 100 : 0;
+  const questBonus = outcome.verdict === "victory" && base.dailyWins === 2 ? 50 : 0;
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
   const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;

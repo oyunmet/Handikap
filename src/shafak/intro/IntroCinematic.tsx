@@ -264,7 +264,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
                 <span>ŞAFAK</span>
                 <span>SAVAŞÇILARI</span>
               </h1>
-              <p className="intro-narrative__tagline">Karanlığı aş. Geçitleri aç. Şafağı geri getir.</p>
+              <p className="intro-narrative__tagline">Dokuz kapı. Kayıp prenses. Mühür Parçalarını birleştir.</p>
             </div>
           </div>
         )}

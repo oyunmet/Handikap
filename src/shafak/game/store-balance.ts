@@ -17,9 +17,9 @@ export const STORE_BALANCE_CONFIG = {
   },
   upgrade: {
     gold: {
-      base: 100,
-      perLevel: 85,
-      nonWeaponSurcharge: 25,
+      base: 140,
+      perLevel: 115,
+      nonWeaponSurcharge: 50,
     },
     ironShards: {
       base: 1,

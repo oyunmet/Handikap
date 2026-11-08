@@ -20,7 +20,9 @@ export function getCampaignRivalCount(chapterId: number) {
 export const FINAL_CAMPAIGN_BOSS_ID =
   `ash-road:${FINAL_CAMPAIGN_CHAPTER_ID}:rival:${getCampaignRivalCount(FINAL_CAMPAIGN_CHAPTER_ID) - 1}`;
 
-export const FINAL_CAMPAIGN_DISTANCE = CAMPAIGN_CHAPTER_COUNT * WORLD_GATE_INTERVAL_METERS - 2.8;
+// A legacy save must be past the final gate. Reaching its stop line alone
+// must not skip the final boss or unlock New Game+.
+export const FINAL_CAMPAIGN_DISTANCE = CAMPAIGN_CHAPTER_COUNT * WORLD_GATE_INTERVAL_METERS;
 
 export function getCampaignRegion(chapterId: number) {
   const chapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;

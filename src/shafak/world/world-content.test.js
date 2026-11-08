@@ -135,10 +135,10 @@ test("all five new rival types and chapter bosses appear in stable chapter conte
   assert.equal(WORLD_BOT_PROFILES.length, 9);
 });
 
-test("rival identities are stable and distinct across 60 encounters", () => {
+test("rival names remain distinct while encounter IDs stay unique across repeated chapters", () => {
   const encounters = Array.from({ length: 12 }, (_, chapterId) => getWorldChapter(chapterId).rivals).flat();
   assert.equal(new Set(encounters.map((rival) => rival.name)).size, 60);
-  assert.equal(new Set(encounters.map((rival) => rival.id)).size, 60);
+  assert.equal(new Set(encounters.map((rival) => rival.id)).size, encounters.length);
   for (const rival of encounters) {
     const chapter = getWorldChapter(rival.chapterId);
     assert.equal(chapter.rivals.find((candidate) => candidate.id === rival.id)?.title, rival.title);

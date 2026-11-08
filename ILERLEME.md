@@ -7,7 +7,7 @@
 3. **Hareket ve takılmalar — Tamamlandı**
 4. **Menü, mağaza, silahlar — Tamamlandı**
 5. **Savaş odası ve düello — Tamamlandı**
-6. **Hikâye, zorluk, final — Bekliyor**
+6. **Hikâye, zorluk, final — Tamamlandı**
 7. **Prenses 3D modeli (GLB) — Bekliyor**
 8. **Performans, boyut, Play Store — Bekliyor**
 
@@ -58,3 +58,12 @@
 - **Yarım kalanlar:** Kod tarafında yok.
 - **Doğrulanamayanlar:** Gerçek hesapla düello ödülünün veritabanına yazıldığı ve ana menü dönüşünün telefonda dokunmayla kabul testi yapılmadı; sunucu ödül mantığı birim/servis testleriyle doğrulandı.
 - **Değişen dosyalar:** `ILERLEME.md`, `server/duelService.ts`, `server/duelService.test.js`, `src/shafak/game/DuelResults.tsx`, `src/shafak/game/WarRoomResult.tsx`, `src/shafak/game/profile.ts`, `src/shafak/game/profile-rewards.test.js`, `src/shafak/game/types.ts`, `src/shafak/world/WorldScene.tsx`.
+
+## Adım 6 — Hikâye, zorluk, final
+
+- **Durum:** Tamamlandı (kampanya akışı, ekonomi ayarı, testler, tür denetimi ve üretim derlemesi).
+- **Yapılanlar:** Hikâye kayıp prenses, karanlığın ele geçirdiği krallık ve dokuz Mühür Parçası çevresinde tutarlı hale getirildi; üç bölgede her bölüm için kısa bilgi metinleri var ve açılış/menü sloganları değiştirildi. Bölüm başına rakip sayısı 5'ten 9'a kademeli yükseliyor; her bölümün son karşılaşması boss, rakip seviyesi ve savaş istatistikleri bölüm ilerledikçe artıyor. Son bossun ardından ödülleri, prensesin diyaloğunu ve “Oyun Tamamlandı” ekranını gösteren final akışı bağlandı. Yeni Oyun+ yalnız final bossu yenilince (eski kayıtlarda son kapı geçilmişse de) açılıyor; yeniden başlamayı onaylatıyor, zorluğu Zor'a alıyor ve yalnızca bölüm konumu ile yol rakibi kayıtlarını temizliyor. Profil, para, envanter, ekipman, yükseltmeler ve ganimetler korunuyor. Gelecekteki düello altını düşürüldü, Zor yol artık ekstra altın vermiyor; demirci yükseltme maliyetleri kademeli artırıldı. Mevcut oyuncu kayıtları değiştirilmedi.
+- **Doğrulama:** `npm test` — 598 geçti; `npm run typecheck` — geçti; `npm run build` — geçti. Kampanya bölümleri, final kapısı, boss ölçeklemesi, hikâye metinleri, ödül hızı ve yükseltme maliyetleri için yeni/hedefli testler eklendi.
+- **Yarım kalanlar:** Kod tarafında yok.
+- **Doğrulanamayanlar:** WebGL bağlamı bu önizleme tarayıcısında açılamadığı için gerçek 3D boss zaferi, final ekranının telefondaki görünümü ve Yeni Oyun+ dokunma akışı cihazda elle kabul testine bırakıldı. Derleme büyük `time-of-day` parçası uyarısı veriyor; Adım 8 kapsamında ele alınacak.
+- **Değişen dosyalar:** `ILERLEME.md`, `server/profileApi.ts`, `server/duelService.ts`, `src/shafak/App.tsx`, `src/shafak/i18n/tr.ts`, `src/shafak/intro/IntroCinematic.tsx`, `src/shafak/game/profile.ts`, `src/shafak/game/profile-rewards.test.js`, `src/shafak/game/store-balance.ts`, `src/shafak/game/store-balance.test.js`, `src/shafak/world/CampaignEnding.tsx`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/campaign-ending.css`, `src/shafak/world/campaign-progression.ts`, `src/shafak/world/campaign-progression.test.js`, `src/shafak/world/story-dialogue.ts`, `src/shafak/world/story-dialogue.test.js`, `src/shafak/world/world-bot-profiles.ts`, `src/shafak/world/world-chapter-coverage.test.js`, `src/shafak/world/world-content.ts`, `src/shafak/world/world-content.test.js`, `src/shafak/world/world-progress.ts`.
