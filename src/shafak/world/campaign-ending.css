@@ -31,6 +31,7 @@
 }
 
 .campaign-ending__art {
+  position: relative;
   display: grid;
   width: min(230px, 52vw);
   margin: -12px auto 8px;
@@ -40,6 +41,21 @@
 }
 
 .campaign-ending__art svg { display: block; width: 100%; height: auto; }
+.campaign-ending__art.has-3d-princess svg { opacity: 0; }
+
+.princess-model-reveal {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.princess-model-reveal canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
 
 .campaign-ending__eyebrow {
   display: block;

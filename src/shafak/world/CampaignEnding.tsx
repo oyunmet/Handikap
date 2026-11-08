@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState, type ComponentType } from "react";
 import type { BattleRewards } from "../game/types";
 import "./campaign-ending.css";
+import type { PrincessModelRevealProps } from "./PrincessModelReveal";
+import type { PrincessAnimationMood } from "./princess-model-config";
+
+type PrincessModelRevealComponent = ComponentType<PrincessModelRevealProps>;
 
 type CampaignEndingProps = {
   rewards: BattleRewards | null;
@@ -16,6 +20,31 @@ export default function CampaignEnding({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [PrincessModelReveal, setPrincessModelReveal] = useState<PrincessModelRevealComponent | null>(null);
+  const [princessModelReady, setPrincessModelReady] = useState(false);
+  const [princessMood, setPrincessMood] = useState<PrincessAnimationMood>("wave");
+
+  useEffect(() => {
+    let active = true;
+    void import("./PrincessModelReveal").then(({ default: component }) => {
+      if (active) setPrincessModelReveal(() => component);
+    }).catch(() => {
+      // Keep the static ending art if the optional 3D chunk cannot be loaded.
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (confirming) {
+      setPrincessMood("idle");
+      return undefined;
+    }
+    setPrincessMood("wave");
+    const timer = window.setTimeout(() => setPrincessMood("talk"), 1_700);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
+
+  const markPrincessModelReady = useCallback(() => setPrincessModelReady(true), []);
 
   const startNewGamePlus = async () => {
     setBusy(true);
@@ -38,7 +67,7 @@ export default function CampaignEnding({
       >
         {!confirming ? (
           <>
-            <div className="campaign-ending__art" aria-hidden="true">
+            <div className={`campaign-ending__art${princessModelReady ? " has-3d-princess" : ""}`} aria-hidden="true">
               <svg viewBox="0 0 260 220" fill="none">
                 <path d="M35 190V86L130 24l95 62v104" stroke="currentColor" strokeWidth="4" />
                 <path d="M74 190v-67a56 56 0 0 1 112 0v67" fill="rgba(18,18,21,.82)" stroke="currentColor" strokeWidth="3" />
@@ -51,6 +80,9 @@ export default function CampaignEnding({
                 <path d="M130 24v28m-10-7 10 7 10-7" stroke="#f3c879" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M44 190h172" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
               </svg>
+              {PrincessModelReveal && (
+                <PrincessModelReveal mood={princessMood} onReady={markPrincessModelReady} />
+              )}
             </div>
             <span className="campaign-ending__eyebrow">DOKUZUNCU BÖLÜM · SON KAPI</span>
             <h1 id="campaign-ending-title">OYUN TAMAMLANDI</h1>

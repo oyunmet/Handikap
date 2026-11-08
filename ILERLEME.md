@@ -67,3 +67,12 @@
 - **Yarım kalanlar:** Kod tarafında yok.
 - **Doğrulanamayanlar:** WebGL bağlamı bu önizleme tarayıcısında açılamadığı için gerçek 3D boss zaferi, final ekranının telefondaki görünümü ve Yeni Oyun+ dokunma akışı cihazda elle kabul testine bırakıldı. Derleme büyük `time-of-day` parçası uyarısı veriyor; Adım 8 kapsamında ele alınacak.
 - **Değişen dosyalar:** `ILERLEME.md`, `server/profileApi.ts`, `server/duelService.ts`, `src/shafak/App.tsx`, `src/shafak/i18n/tr.ts`, `src/shafak/intro/IntroCinematic.tsx`, `src/shafak/game/profile.ts`, `src/shafak/game/profile-rewards.test.js`, `src/shafak/game/store-balance.ts`, `src/shafak/game/store-balance.test.js`, `src/shafak/world/CampaignEnding.tsx`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/campaign-ending.css`, `src/shafak/world/campaign-progression.ts`, `src/shafak/world/campaign-progression.test.js`, `src/shafak/world/story-dialogue.ts`, `src/shafak/world/story-dialogue.test.js`, `src/shafak/world/world-bot-profiles.ts`, `src/shafak/world/world-chapter-coverage.test.js`, `src/shafak/world/world-content.ts`, `src/shafak/world/world-content.test.js`, `src/shafak/world/world-progress.ts`.
+
+## Adım 7 — Prenses modeli
+
+- **Durum:** Kod tarafı tamamlandı; animasyonlu GLB dosyasını kullanıcı yüklemeli.
+- **Yapılanlar:** Final ekranı açılana kadar model kodu ve GLB istenmiyor. Finalde `/models/princess.glb` aranıyor; 3 MiB sınırı, animasyon klip eşlemesi ve SVG silüet yedeği hazır. Model bozuksa veya WebGL açılamazsa oyun akışı çökmüyor. Animasyon adları `Idle`, `Walk`, `Wave`, `Talk` ve yaygın eş adlarla eşleştiriliyor.
+- **Gerekli kullanıcı dosyası:** `public/models/princess.glb` konumuna iskeletli, 3 MiB'den küçük GLB; yön, sıkıştırma ve klip adları `public/models/princess-upload.md` içinde. Üretim aracı yalnızca statik model oluşturabildiği için animasyonlu GLB üretmedi.
+- **Doğrulama:** 2 model-yükleme/eşleme testi geçti; `npm run typecheck` — geçti; `npm run build` — geçti. `PrincessModelReveal` ayrı bir üretim parçası olarak çıktı.
+- **Doğrulanamayanlar:** GLB henüz yok; model görüntüsü, iskelet animasyonları ve cihaz performansı gerçek asset eklendikten sonra doğrulanmalı.
+- **Değişen dosyalar:** `ILERLEME.md`, `public/models/princess-upload.md`, `src/shafak/world/CampaignEnding.tsx`, `src/shafak/world/PrincessModelReveal.tsx`, `src/shafak/world/campaign-ending.css`, `src/shafak/world/princess-model-config.ts`, `src/shafak/world/princess-model-config.test.js`.
