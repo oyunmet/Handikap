@@ -13,6 +13,7 @@ type DuelResultsProps = {
   note?: string;
   canReplay?: boolean;
   onContinue: () => void;
+  onMainMenu: () => void;
   onReplay: () => void;
 };
 
@@ -26,6 +27,7 @@ export default function DuelResults({
   note,
   canReplay = true,
   onContinue,
+  onMainMenu,
   onReplay,
 }: DuelResultsProps) {
   const won = summary.verdict === "victory";
@@ -65,6 +67,7 @@ export default function DuelResults({
           <div><span>ALTIN</span><strong>{rewards.gold > 0 ? `+${rewards.gold}` : rewards.lostStake ? `−${rewards.lostStake}` : "—"}</strong></div>
           <div><span>ELMAS</span><strong>{rewards.diamonds > 0 ? `+${rewards.diamonds}` : "—"}</strong></div>
           <div><span>DENEYİM</span><strong>+{rewards.xp} XP</strong></div>
+          {rewards.sealFragments > 0 && <div><span>MÜHÜR PARÇASI</span><strong>+{rewards.sealFragments}</strong></div>}
           <div><span>GANİMET</span><strong>{rewards.item ?? (drew ? "Aktarılmadı" : "Yok")}</strong></div>
         </div>
         <div className="duel-result__combat-stats" aria-label="Düello istatistikleri">
@@ -77,6 +80,7 @@ export default function DuelResults({
         <div className="duel-result__actions">
           <button type="button" className="game-gold-button" onClick={onContinue}>YOLUNA DEVAM ET</button>
           {canReplay && <button type="button" className="game-quiet-button" onClick={onReplay}>TEKRAR DÜELLO</button>}
+          <button type="button" className="game-quiet-button" onClick={onMainMenu}>ANA MENÜYE DÖN</button>
         </div>
       </motion.section>
     </main>

@@ -149,7 +149,7 @@ export default function WarRoomResult({
             {victory ? "YENİDEN DENE" : "BU ODAYI TEKRAR DENE"}
           </button>
           {!victory && <button type="button" onClick={onRestart}>BAŞTAN</button>}
-          {victory && <button type="button" onClick={onExit}>ÇIK</button>}
+          <button type="button" onClick={onExit}>ÇIKIŞ</button>
         </div>
       </div>
     </section>

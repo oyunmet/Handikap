@@ -20,6 +20,7 @@ export type BattleRewards = {
   gold: number;
   diamonds: number;
   xp: number;
+  sealFragments: number;
   item: string | null;
   itemId?: string | null;
   salvaged?: boolean;

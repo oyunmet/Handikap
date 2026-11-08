@@ -38,6 +38,7 @@ export type BattleOutcome = {
   opponentId: string;
   loot: number;
   item?: string | null;
+  isBoss?: boolean;
 };
 
 const STORAGE_KEY = "shafak-local-profile-v1";
@@ -182,7 +183,7 @@ export function saveProfile(profile: PlayerProfile, userId?: string) {
 
 export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, userId?: string): {
   profile: PlayerProfile;
-  rewards: { gold: number; diamonds: number; xp: number; item: string | null; itemId: string | null; salvaged: boolean; lostStake: number };
+  rewards: { gold: number; diamonds: number; xp: number; sealFragments: number; item: string | null; itemId: string | null; salvaged: boolean; lostStake: number };
 } {
   const currentDay = todayKey();
   const base = { ...profile, ...normalizeDailyLifeState(profile) };
@@ -191,6 +192,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
   const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
+  const sealFragments = outcome.verdict === "victory" && outcome.isBoss ? 1 : 0;
   const droppedItem = outcome.verdict === "victory"
     ? outcome.item === undefined ? "Kül Mührü" : outcome.item
     : null;
@@ -210,6 +212,10 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
     xp: totalXp,
     gold: Math.max(0, base.gold - lostStake + gold),
     diamonds: base.diamonds + diamonds,
+    materials: {
+      ...grantProfile.materials,
+      sealFragments: grantProfile.materials.sealFragments + sealFragments,
+    },
     battles: base.battles + 1,
     wins,
     winStreak,
@@ -229,6 +235,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
       gold,
       diamonds,
       xp,
+      sealFragments,
       item: lootGrant?.displayName ?? null,
       itemId: lootGrant?.itemId ?? null,
       salvaged: lootGrant?.salvaged ?? false,

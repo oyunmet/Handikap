@@ -11,11 +11,12 @@ import { rollCombatLoot } from "../src/shafak/game/combat-loot.ts";
 import { grantLootItem } from "../src/shafak/game/store-rewards.ts";
 
 export type DuelVerdict = "victory" | "defeat" | "draw";
-export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number; item?: string | null };
+export type DuelOutcome = { verdict: DuelVerdict; opponentId: string; loot: number; item?: string | null; isBoss?: boolean };
 type BattleRewards = {
   gold: number;
   diamonds: number;
   xp: number;
+  sealFragments: number;
   item: string | null;
   itemId?: string | null;
   salvaged?: boolean;
@@ -253,6 +254,7 @@ export function applyServerAward(
   const gold = outcome.verdict === "victory" ? Math.max(0, Math.floor(outcome.loot)) + questBonus : 0;
   const diamonds = outcome.verdict === "victory" ? 1 + Number(questBonus > 0) : 0;
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
+  const sealFragments = outcome.verdict === "victory" && outcome.isBoss ? 1 : 0;
   const droppedItem = outcome.verdict === "victory"
     ? outcome.item === undefined ? "Kül Mührü" : outcome.item
     : null;
@@ -272,6 +274,10 @@ export function applyServerAward(
     xp: totalXp,
     gold: Math.max(0, base.gold - lostStake + gold),
     diamonds: base.diamonds + diamonds,
+    materials: {
+      ...rewardBase.materials,
+      sealFragments: rewardBase.materials.sealFragments + sealFragments,
+    },
     battles: base.battles + 1,
     wins,
     winStreak,
@@ -290,6 +296,7 @@ export function applyServerAward(
       gold,
       diamonds,
       xp,
+      sealFragments,
       item: lootGrant?.displayName ?? null,
       itemId: lootGrant?.itemId ?? null,
       salvaged: lootGrant?.salvaged ?? false,
@@ -529,6 +536,7 @@ export async function completeDuel(
     opponentId: opponent.id,
     loot: encounter.loot,
     item: droppedItem,
+    isBoss: opponent.isBoss,
   };
   const profileAfterCombat = consumedInventory
     ? { ...profile, inventory: { ...profile.inventory, ...consumedInventory } }
@@ -542,7 +550,7 @@ export async function completeDuel(
           dailyBattles: normalizedDaily.dailyBattles + 1,
           dailyLosses: normalizedDaily.dailyLosses + 1,
         },
-        rewards: { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 },
+        rewards: { gold: 0, diamonds: 0, xp: 0, sealFragments: 0, item: null, lostStake: 0 },
       }
     : applyServerAward(profileAfterCombat, outcome, now);
   if (!surrendered) {

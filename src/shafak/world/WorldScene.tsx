@@ -1348,7 +1348,9 @@ export default function WorldScene({
         } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
-            ? "satın alındı ve kuşanıldı."
+            ? item.warRoomWeaponId
+              ? "satın alındı; Savaş Odası hazırlığında seçebilirsin."
+              : "satın alındı ve kuşanıldı."
             : item.reward?.type === "combat-item"
               ? "satın alındı ve savaş çantasına eklendi."
               : "satın alındı ve stoğunuza eklendi."}`
@@ -1390,7 +1392,9 @@ export default function WorldScene({
       } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
-            ? "satın alındı ve kuşanıldı."
+            ? item.warRoomWeaponId
+              ? "satın alındı; Savaş Odası hazırlığında seçebilirsin."
+              : "satın alındı ve kuşanıldı."
             : item.reward?.type === "combat-item"
               ? "satın alındı ve savaş çantasına eklendi."
               : "satın alındı."}`
@@ -1687,7 +1691,7 @@ export default function WorldScene({
     };
     pendingVerdictRef.current = localSummary;
     updateBattleSession({ phase: "settling", summary: localSummary, message: "" });
-    const emptyRewards: BattleRewards = { gold: 0, diamonds: 0, xp: 0, item: null, lostStake: 0 };
+    const emptyRewards: BattleRewards = { gold: 0, diamonds: 0, xp: 0, sealFragments: 0, item: null, lostStake: 0 };
     playGameSound(verdict === "victory" ? "victory" : "defeat");
 
     if (context.practice) {
@@ -1782,7 +1786,11 @@ export default function WorldScene({
           context.rival.isElite,
         )
       : null;
-    const awarded = awardBattle(profileAfterCombat, { ...localSummary, item: droppedItem });
+    const awarded = awardBattle(profileAfterCombat, {
+      ...localSummary,
+      item: droppedItem,
+      isBoss: context.rival.isBoss,
+    });
     commitBattleProfile(awarded.profile);
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
   }, [commitBattleProfile, profile]);
@@ -3742,6 +3750,7 @@ export default function WorldScene({
             visualEffectsEnabled={visualEffectsEnabled}
             canReplay={battleSession.practice || !profile.defeatedOpponents.includes(battleSession.rival.id)}
             onContinue={closeEncounter}
+            onMainMenu={onExit}
             onReplay={() => {
               const rival = battleSession.rival;
               closeEncounter();

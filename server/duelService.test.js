@@ -301,3 +301,21 @@ test("the retained server reward calculation preserves the third-win daily quest
   assert.equal(awarded.profile.wins, 3);
   assert.ok(awarded.profile.defeatedOpponents.includes("iron-vow"));
 });
+
+test("server boss victories grant a seal fragment without changing ordinary duel rewards", () => {
+  const bossAward = applyServerAward(
+    profile,
+    { verdict: "victory", opponentId: "chapter-boss", loot: 48, item: null, isBoss: true },
+    now,
+  );
+  const regularAward = applyServerAward(
+    profile,
+    { verdict: "victory", opponentId: "ordinary-rival", loot: 48, item: null, isBoss: false },
+    now,
+  );
+
+  assert.equal(bossAward.rewards.sealFragments, 1);
+  assert.equal(bossAward.profile.materials.sealFragments, 1);
+  assert.equal(regularAward.rewards.sealFragments, 0);
+  assert.equal(regularAward.profile.materials.sealFragments, 0);
+});

@@ -6,7 +6,7 @@
 2. **Nişan ve ateş — Tamamlandı**
 3. **Hareket ve takılmalar — Tamamlandı**
 4. **Menü, mağaza, silahlar — Tamamlandı**
-5. **Savaş odası ve düello — Bekliyor**
+5. **Savaş odası ve düello — Tamamlandı**
 6. **Hikâye, zorluk, final — Bekliyor**
 7. **Prenses 3D modeli (GLB) — Bekliyor**
 8. **Performans, boyut, Play Store — Bekliyor**
@@ -49,3 +49,12 @@
 - **Yarım kalanlar:** Kod tarafında yok.
 - **Doğrulanamayanlar:** Önizleme görüntüsü etkileşim yapamadığı ve gerçek mağaza alımı kayıtlı oyun parasını değiştireceği için mağaza sekmeleri, hikâye atlama ve gerçek profilde satın alma/iki yuvaya yerleştirme uçtan uca tıklanmadı. Bunlar cihazda elle kabul testinde kontrol edilmeli.
 - **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/store-catalog.ts`, `src/shafak/game/store-ui/StorePanel.tsx`, `src/shafak/game/war-room-store-items.test.js`, `src/shafak/world/story-dialogue-progress.test.js`, `src/shafak/world/story-dialogue-progress.ts`, `src/shafak/world/StoryDialogueOverlay.tsx`, `src/shafak/world/WorldScene.tsx`, `src/shafak/world/world-scene.css`.
+
+## Adım 5 — Savaş odası ve düello
+
+- **Durum:** Tamamlandı (kod, hedef testler, tür denetimi ve üretim derlemesi).
+- **Yapılanlar:** Savaş Odası hazırlığında silah yuvası seçimi ve `BAŞLA` doğrulaması korunup yenilgi sonuç ekranına da açık çıkış eklendi. Düello sonucunda ödüller kaydedildikten sonra hem keşfe devam hem doğrudan ana menüye dönüş var. Boss zaferi bir mühür parçası verir; normal zafer, yenilgi ve beraberlik bu malzemeyi üretmez. Kural hem misafir kayıtlarında hem sunucu tarafında uygulanıyor ve sunucu boss bilgisini kendi rakip kaydından alıyor. Savaş Odası silah satın alma bildirimi, silahın normal düello ekipmanına değil hazırlık yuvalarına gittiğini açıkça belirtiyor. Botların duvar çevresi ve merdiven rotaları mevcut çarpışma testleriyle doğrulandı.
+- **Doğrulama:** 42 ilgili test geçti (sunucu düello/ödül, bot davranışı, hasar/sağlık ve çevresel çarpışmalar); `npm run typecheck` — geçti; `npm run build` — geçti. Üretim derlemesinde 500 kB üzeri `time-of-day` parça uyarısı sürüyor; Adım 8 kapsamında ele alınacak.
+- **Yarım kalanlar:** Kod tarafında yok.
+- **Doğrulanamayanlar:** Gerçek hesapla düello ödülünün veritabanına yazıldığı ve ana menü dönüşünün telefonda dokunmayla kabul testi yapılmadı; sunucu ödül mantığı birim/servis testleriyle doğrulandı.
+- **Değişen dosyalar:** `ILERLEME.md`, `server/duelService.ts`, `server/duelService.test.js`, `src/shafak/game/DuelResults.tsx`, `src/shafak/game/WarRoomResult.tsx`, `src/shafak/game/profile.ts`, `src/shafak/game/profile-rewards.test.js`, `src/shafak/game/types.ts`, `src/shafak/world/WorldScene.tsx`.
