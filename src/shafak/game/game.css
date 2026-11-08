@@ -32,7 +32,7 @@
 
 .duel-intro__embers {
   opacity: .38;
-  background: url("/shafak-environment.png") center / cover;
+  background: url("/shafak-environment.webp") center / cover;
   filter: saturate(.45) brightness(.3);
 }
 

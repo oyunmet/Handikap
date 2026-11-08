@@ -11,7 +11,7 @@ let buttonClickOscillator: OscillatorNode | null = null;
 let buttonClickGain: GainNode | null = null;
 
 const uiChime = new Howl({
-  src: ["/shafak-ui-chime.wav"],
+  src: ["/shafak-ui-chime.ogg"],
   volume: 0.2,
   preload: true,
   pool: 4,

@@ -83,6 +83,7 @@ type Preferences = {
 const PREFERENCES_KEY = "shafak-settings-v3";
 const LEGACY_PREFERENCES_V2_KEY = "shafak-settings-v2";
 const LEGACY_PREFERENCES_V1_KEY = "shafak-settings-v1";
+const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 const initialPreferences: Preferences = {
   sound: true,
   soundVolume: DEFAULT_SOUND_VOLUME,
@@ -916,7 +917,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             <div className="scene-backdrop__vignette" />
           </div>
           <div className="scene-character" aria-hidden="true">
-            <img src="/shafak-warrior.png" alt="" />
+            <img src="/shafak-warrior.webp" alt="" />
           </div>
           <EmberLayer quality={activeQuality} motionReduced={motionReduced} />
           <div className="scene-grain" aria-hidden="true" />
@@ -1584,6 +1585,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 />
               </div>
 
+              <nav className="settings-legal-links" aria-label="Gizlilik ve hesap işlemleri">
+                <a href={`${APP_BASE_PATH}/privacy`} target="_blank" rel="noreferrer">Gizlilik bildirimi</a>
+                <a href={`${APP_BASE_PATH}/delete-account`}>Hesabı sil</a>
+              </nav>
               <div className="settings-panel__footer">
                 <span className="settings-seal" aria-hidden="true"><Crest small /></span>
                 <span>Ayarların bu cihazda saklanır.</span>

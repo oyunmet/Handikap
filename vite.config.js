@@ -14,6 +14,24 @@ export default defineConfig({
     __WORLD_BUILD_HASH__: JSON.stringify(worldBuildHash),
   },
   plugins: [react()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor",
+              test: /node_modules[\\/]/,
+              priority: 1,
+              minSize: 48 * 1024,
+              maxSize: 420 * 1024,
+              entriesAware: true,
+            },
+          ],
+        },
+      },
+    },
+  },
   server: {
     host: "0.0.0.0",
     port: 5000,

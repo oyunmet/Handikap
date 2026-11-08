@@ -47,6 +47,101 @@ export type PlayerProfileRecord = {
   dailyKey: string;
 };
 
+export const ACCOUNT_DELETION_CONFIRMATION = "HESABIMI SİL";
+
+const ACCOUNT_DATA_TABLES = [
+  "shafak_duels",
+  "shafak_pickup_claims",
+  "shafak_store_transactions",
+  "shafak_player_profiles",
+] as const;
+
+export class AccountDeletionError extends Error {
+  constructor(readonly code: "identity_delete_failed" | "data_cleanup_pending") {
+    super(code);
+    this.name = "AccountDeletionError";
+  }
+}
+
+async function deleteAccountRows(queryable: Pick<Pool, "query">, userId: string) {
+  for (const table of ACCOUNT_DATA_TABLES) {
+    await queryable.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+  }
+}
+
+async function deleteRowsAfterRemoteSuccess(database: Pool, userId: string) {
+  const cleanupClient = await database.connect();
+  try {
+    await cleanupClient.query("BEGIN");
+    await deleteAccountRows(cleanupClient, userId);
+    await cleanupClient.query("COMMIT");
+  } catch (error) {
+    try {
+      await cleanupClient.query("ROLLBACK");
+    } catch {
+      // Preserve the original cleanup error.
+    }
+    throw error;
+  } finally {
+    cleanupClient.release();
+  }
+}
+
+export async function deleteAccountAndData(
+  database: Pool,
+  userId: string,
+  clerkSecretKey: string,
+  fetcher: typeof fetch = fetch,
+) {
+  const client = await database.connect();
+  let transactionStarted = false;
+  let identityDeleted = false;
+
+  try {
+    await client.query("BEGIN");
+    transactionStarted = true;
+    await deleteAccountRows(client, userId);
+
+    const response = await fetcher(
+      `https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${clerkSecretKey}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    if (!response.ok && response.status !== 404) {
+      throw new AccountDeletionError("identity_delete_failed");
+    }
+    identityDeleted = true;
+
+    await client.query("COMMIT");
+    transactionStarted = false;
+  } catch (error) {
+    if (transactionStarted) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Preserve the deletion failure and try idempotent cleanup if needed.
+      }
+    }
+    if (identityDeleted) {
+      try {
+        await deleteRowsAfterRemoteSuccess(database, userId);
+        return;
+      } catch {
+        throw new AccountDeletionError("data_cleanup_pending");
+      }
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord {
   return {
     name,
@@ -354,11 +449,22 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
   };
 }
 
-export function createProfileApi(database: Pool) {
+type ProfileApiOptions = {
+  clerkSecretKey?: string;
+  fetcher?: typeof fetch;
+};
+
+export function createProfileApi(database: Pool, options: ProfileApiOptions = {}) {
   const router = Router();
   const profileLimit = rateLimit({
     windowMs: 60_000,
     limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  const accountDeletionLimit = rateLimit({
+    windowMs: 15 * 60_000,
+    limit: 3,
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -397,6 +503,50 @@ export function createProfileApi(database: Pool) {
       response.json({ profile });
     } catch {
       response.status(503).json({ error: "profile_storage_unavailable" });
+    }
+  });
+
+  router.delete("/api/profile/account", accountDeletionLimit, async (request, response) => {
+    response.setHeader("Cache-Control", "no-store");
+    const origin = request.get("origin");
+    const requestHost = request.get("host");
+    let sameOrigin = false;
+    try {
+      sameOrigin = Boolean(
+        origin &&
+        requestHost &&
+        new URL(origin).host.toLowerCase() === requestHost.toLowerCase(),
+      );
+    } catch {
+      sameOrigin = false;
+    }
+    if (!sameOrigin) {
+      response.status(403).json({ error: "same_origin_required" });
+      return;
+    }
+    if (!isRecord(request.body) || request.body.confirmation !== ACCOUNT_DELETION_CONFIRMATION) {
+      response.status(400).json({ error: "account_deletion_confirmation_required" });
+      return;
+    }
+
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+
+    const clerkSecretKey = (options.clerkSecretKey ?? process.env.CLERK_SECRET_KEY ?? "").trim();
+    if (!clerkSecretKey) {
+      response.status(503).json({ error: "account_deletion_unavailable" });
+      return;
+    }
+
+    try {
+      await deleteAccountAndData(database, userId, clerkSecretKey, options.fetcher ?? fetch);
+      response.json({ deleted: true });
+    } catch (error) {
+      const code = error instanceof AccountDeletionError
+        ? error.code
+        : "account_deletion_failed";
+      console.error("[account-deletion] request could not be completed", { code });
+      response.status(error instanceof AccountDeletionError ? 502 : 503).json({ error: code });
     }
   });
 

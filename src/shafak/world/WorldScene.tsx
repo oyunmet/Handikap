@@ -3655,7 +3655,7 @@ export default function WorldScene({
       )}
       {encounterVisible && nextOpponent && !storyDialogue && !talkingRivalId && (
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
-          <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.png" alt="" /></div>
+          <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.webp" alt="" /></div>
           <div className="world-encounter__card">
             <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
@@ -3727,7 +3727,7 @@ export default function WorldScene({
             <b>VS</b>
               <div className="world-battle-entry__side world-battle-entry__side--rival">
                 <div className="world-battle-entry__portrait" aria-hidden="true">
-                  <img src="/images/gece-nobetcisi.png" alt="" />
+                  <img src="/images/gece-nobetcisi.webp" alt="" />
                 </div>
                 <div className="world-battle-entry__rival-copy">
                   <small><i>{battleSession.rival.title}</i> · SEV. {battleSession.rival.level}</small>

@@ -49,7 +49,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: reducedMotion ? 0.1 : 0.62, ease: "easeOut" }}
         >
-          <div className="duel-intro__portrait"><img src="/shafak-warrior.png" alt="" /></div>
+          <div className="duel-intro__portrait"><img src="/shafak-warrior.webp" alt="" /></div>
           <span>YOLCU · SEVİYE {String(playerLevel).padStart(2, "0")}</span>
           <strong>{playerName}</strong>
         </motion.div>
@@ -66,7 +66,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: reducedMotion ? 0.1 : 0.62, ease: "easeOut" }}
         >
-          <div className="duel-intro__portrait"><img src="/shafak-warrior.png" alt="" /></div>
+          <div className="duel-intro__portrait"><img src="/shafak-warrior.webp" alt="" /></div>
           <span>YOL KESEN · SEVİYE {String(opponent.level).padStart(2, "0")}</span>
           <strong>{opponent.name}</strong>
           <small>{opponent.loot} altın ganimet</small>

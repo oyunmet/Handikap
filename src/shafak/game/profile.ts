@@ -45,6 +45,20 @@ export type BattleOutcome = {
 const STORAGE_KEY = "shafak-local-profile-v1";
 const storageKeyFor = (userId?: string) => `${STORAGE_KEY}:${userId || "guest"}`;
 
+export function clearLocalProfileCopies() {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const keysToRemove = Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index),
+    ).filter((key): key is string =>
+      key === STORAGE_KEY || Boolean(key?.startsWith(`${STORAGE_KEY}:`)),
+    );
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Account deletion still succeeds if browser storage is unavailable.
+  }
+}
+
 export const defaultProfile: PlayerProfile = {
   name: "Yolcu",
   level: 1,

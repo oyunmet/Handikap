@@ -20,8 +20,8 @@ export type CharacterAnimationAdapter = ComponentType<CharacterAnimationAdapterP
 function ProceduralCharacter() {
   return (
     <>
-      <div className="world-figure__cape"><img src="/shafak-warrior.png" alt="" draggable={false} /></div>
-      <img src="/shafak-warrior.png" alt="" draggable={false} />
+      <div className="world-figure__cape"><img src="/shafak-warrior.webp" alt="" draggable={false} /></div>
+      <img src="/shafak-warrior.webp" alt="" draggable={false} />
     </>
   );
 }

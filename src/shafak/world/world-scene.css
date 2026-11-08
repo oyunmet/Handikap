@@ -217,7 +217,7 @@
 }
 .world-stage__sky-tile {
   position: absolute; top: 0; bottom: 0; width: 100%;
-  background: url("/shafak-environment.png") center 48% / cover no-repeat;
+  background: url("/shafak-environment.webp") center 48% / cover no-repeat;
   filter: saturate(.78) brightness(.72);
   backface-visibility: hidden;
 }

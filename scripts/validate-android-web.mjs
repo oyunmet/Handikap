@@ -39,6 +39,27 @@ try {
 
   await fetchAsset("/sw.js");
   await fetchAsset("/offline.html");
+  await fetchAsset("/privacy");
+  await fetchAsset("/delete-account");
+
+  const assetLinksResponse = await fetchAsset("/.well-known/assetlinks.json");
+  const assetLinks = await assetLinksResponse.json();
+  const statement = Array.isArray(assetLinks)
+    ? assetLinks.find((item) =>
+        item?.target?.namespace === "android_app" &&
+        item.target.package_name === "com.safaksavascilari.game" &&
+        item.relation?.includes("delegate_permission/common.handle_all_urls"),
+      )
+    : null;
+  const fingerprints = statement?.target?.sha256_cert_fingerprints;
+  const validFingerprint = (fingerprint) =>
+    typeof fingerprint === "string" &&
+    /^([a-f\d]{2}:){31}[a-f\d]{2}$/i.test(fingerprint);
+  if (!statement) {
+    errors.push("Digital Asset Links does not declare the Android app package.");
+  } else if (!Array.isArray(fingerprints) || !fingerprints.some(validFingerprint)) {
+    errors.push("Digital Asset Links must contain a real SHA-256 signing certificate fingerprint.");
+  }
 } catch (error) {
   errors.push(error instanceof Error ? error.message : String(error));
 }
