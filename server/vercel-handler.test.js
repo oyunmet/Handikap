@@ -8,6 +8,7 @@ import handler from "../api/[...path].ts";
 import duelStartHandler from "../api/duels/start.ts";
 import duelCompleteHandler from "../api/duels/complete.ts";
 import pickupHandler from "../api/profile/pickups.ts";
+import debugToolsStatusHandler from "../api/debug-tools/status.ts";
 import storePurchaseHandler from "../api/store/purchase.ts";
 import storeEquipHandler from "../api/store/equip.ts";
 import storeLoadoutHandler from "../api/store/combat-loadout.ts";
@@ -34,6 +35,7 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const pending = [
     resolve(projectRoot, "api/[...path].ts"),
+    resolve(projectRoot, "api/debug-tools/status.ts"),
     resolve(projectRoot, "api/duels/start.ts"),
     resolve(projectRoot, "api/duels/complete.ts"),
     resolve(projectRoot, "api/profile/pickups.ts"),
@@ -69,6 +71,7 @@ test("Vercel API handler initializes lazily and returns health errors as JSON", 
   process.env.DATABASE_URL = "";
   process.env.CLERK_SECRET_KEY = "";
   process.env.CLERK_PUBLISHABLE_KEY = "";
+  process.env.DEBUG_TOOLS = "";
 
   const server = createServer((request, response) => {
     void handler(request, response);
@@ -101,6 +104,35 @@ test("Vercel API handler initializes lazily and returns health errors as JSON", 
   assert.equal(body.clerkSecretKeyConfigured, false);
   assert.equal(body.error, "DATABASE_URL ayarlanmamış. Supabase PostgreSQL bağlantı adresini ekleyin.");
   assert.ok(["development", "test"].includes(body.environment));
+});
+
+test("explicit debug status route reaches the API handler instead of returning a Vercel path-level 404", async (t) => {
+  const server = createServer((request, response) => {
+    void debugToolsStatusHandler(request, response);
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  );
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/debug-tools/status`,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(body, { error: "not_found" });
 });
 
 test("explicit pickup route returns JSON instead of a Vercel path-level 404", async (t) => {
