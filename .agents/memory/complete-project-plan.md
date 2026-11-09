@@ -1,10 +1,10 @@
 ---
 name: Follow complete project plans
-description: For this project, carry out all supplied plan steps sequentially instead of stopping after one increment.
+description: Work through supplied plans sequentially, validating and committing each substep before moving on.
 ---
 
-Bu projede kullanıcı, ekli metindeki tüm işleri sırayla tamamlamamı ve her ara aşamada devam onayı için durmamamı istedi.
+Bu projede kullanıcı, ekli metindeki işleri sırayla tamamlamamı ve her alt adımı tek tek bitirmemi istedi.
 
-**Why:** Kullanıcı, önceki yanıtın planın yalnızca bir bölümünde durduğunu düzeltti.
+**Why:** Kullanıcı, planın yalnızca bir bölümünde durulmasını düzeltmiş ve alt adım başına test, ilerleme kaydı ve yerel commit istemiştir.
 
-**How to apply:** Ekli bir uygulama planını önce mevcut kodla karşılaştır; tamamlanmış maddeleri doğrula ve kalanları plan sırasına göre uygula. Aşama raporu ver ama gerçek bir engel veya yüksek etkili işlem için gereken onay yoksa işi yarıda bırakma.
+**How to apply:** Ekli uygulama planını önce mevcut kodla karşılaştır; tamamlanmış maddeleri doğrula ve kalanları sırayla uygula. Aynı anda yalnızca bir alt adım üzerinde çalış; alt adım sonunda build/typecheck/test, ILERLEME.md güncellemesi ve yerel commit yap. Push veya deploy etme. Planı, kullanıcı bu istekte kapsamı daraltmadıkça, sıradaki alt adımlarla tamamla.

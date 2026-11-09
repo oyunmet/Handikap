@@ -97,3 +97,17 @@
 - **Ortam değişkeni:** Vercel projesinde **Settings → Environment Variables** altında `DEBUG_TOOLS=1` eklenip ilgili Production/Preview hedefi yeniden dağıtılmalıdır. Play Store sürümünde kapalı tutmak için TWA referrer engeli korunmalı; üretim değişkeni test amacıyla açılmışsa mağaza yayını öncesinde kaldırılmalıdır.
 - **Doğrulama:** Canlı ana sayfa, API sağlık kontrolü ve ana JavaScript/CSS varlıkları 200 döndü; `/api/debug-tools/status` ise Vercel katmanında `NOT_FOUND` döndürdü. Canlı API sağlık kontrolü veritabanı ve Clerk'i sağlıklı bildirdi. Başsız Chromium canlı sitede giriş ekranına ulaştı ve başlangıç hatası üretmedi; iPhone Safari sorunu burada yeniden üretilemedi. Vercel yolu için giriş dosyası, hata tanı görünümü ve regresyon testleri eklendi. `npm test` — 619/619; `npm run typecheck` — geçti; `npm run build` — geçti. Önceki görsel kontrolde dikey 402×874 ve yatay 844×390 kadrajları incelenmişti; gerçek cihaz kadrajı ayrıca kontrol edilmeli.
 - **Değişen dosyalar:** `ILERLEME.md`, `api/[...path].ts`, `api/debug-tools/status.ts`, `server/index.ts`, `server/debugToolsApi.ts`, `server/debugToolsApi.test.js`, `server/vercel-handler.test.js`, `src/main.jsx`, `src/shafak/debug/final-scene-access.ts`, `src/shafak/debug/final-scene-access.test.js`, `src/shafak/debug/FinalSceneEntry.tsx`, `src/shafak/world/CampaignEnding.tsx`.
+
+## Adım 10 — Uzun kampanya
+
+- **Durum:** Alt adım 10.1 tamamlandı. Sonraki ilk alt adım 10.2 — Hikâye — bekliyor. Bu çalışma yalnızca 10.1'i doğrulayıp kayda aldı; hikâye, zorluk, ekonomi ve final kapsamına geçilmedi.
+
+### 10.1 — Yapı ve veri modeli
+
+- **Yapılanlar:** 9 perde × 50 bölüm = 450 bölüm; her perdenin kompakt verisi ayrı modülde ve tembel yükleniyor. Şablon/parametre tabanlı üretimde normal çatışma, hayatta kalma, hedef avı, kuşatma ve keşif/hazine türleri bulunuyor; her 10. bölüm mini-boss, her 50. bölüm perde boss'u. Eski dünya mesafesinden kampanya bölümü hesaplanıyor; profil migrasyonu oyuncu ilerlemesini, altın/elması, malzemeleri (Mühür Parçaları dahil), envanteri, ekipmanı ve mevcut dünya konumunu koruyor. Menü perde/bölüm numarasını ve ilerleme çubuğunu gösteriyor; “DEVAM ET” düğmesi bölüm numarasıyla kaldığı yeri açıyor.
+- **Veri boyutu:** Üretim derlemesindeki dokuz perde veri parçasının gzip toplamı 4.922 bayt; bu ölçüm yalnızca perde veri parçalarını kapsar.
+- **Doğrulama:** Kampanya veri/progression/migrasyon ve dünya kapsamı hedef testleri 26/26 geçti; üretilen 450 bölümün kimlikleri, şablonları, görevleri, harita varyantları ve boss konumları doğrulandı. Proje testleri `.cache`, `.config`, `node_modules`, `.git` ve `dist` dışarıda bırakılarak açık dosya keşfiyle 647/647 geçti. Normal `npm test` komutu ortamda `.config/pulse/repl-runtime` bulunamadığı için test keşfine ulaşmadan durdu. `npm run typecheck` ve `npm run build` geçti. Yerel Chromium önizlemesinde ana menüde `PERDE 1 / 9`, `BÖLÜM 1 / 450`, yüzde ilerleme ve `DEVAM ET · BÖLÜM 1` göründü.
+- **Yarım kalanlar:** Kod tarafında 10.1 için yarım kalan yok. 10.2–10.6 sırayla bekliyor; 10.6 kapsamındaki 30 bölüm bot simülasyonu ve cihaz performans ölçümü henüz yapılmadı.
+- **Doğrulanamayanlar:** Gerçek iPhone Safari'de menü/dokunma kabul testi ve gerçek cihaz performansı bu alt adımda ölçülmedi.
+- **Kod durumu:** Kampanya uygulama kodu bu çalışma başlamadan önceki yerel `07beec2` commit'inde bulunuyordu; bu alt adımda kaynak kod değiştirilmedi. Bu commit yalnızca ilerleme kaydını ekler.
+- **Bu commit'te değişen dosyalar:** `ILERLEME.md`.
