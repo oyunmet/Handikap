@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState, type ComponentType } from "react";
 import type { BattleRewards } from "../game/types";
 import "./campaign-ending.css";
 import type { PrincessModelRevealProps } from "./PrincessModelReveal";
-import type { PrincessAnimationMood } from "./princess-model-config";
+import {
+  PRINCESS_ENDING_MOOD_TIMELINE,
+  type PrincessAnimationMood,
+} from "./princess-model-config";
 
 type PrincessModelRevealComponent = ComponentType<PrincessModelRevealProps>;
 
@@ -22,7 +25,7 @@ export default function CampaignEnding({
   const [error, setError] = useState("");
   const [PrincessModelReveal, setPrincessModelReveal] = useState<PrincessModelRevealComponent | null>(null);
   const [princessModelReady, setPrincessModelReady] = useState(false);
-  const [princessMood, setPrincessMood] = useState<PrincessAnimationMood>("wave");
+  const [princessMood, setPrincessMood] = useState<PrincessAnimationMood>("idle");
 
   useEffect(() => {
     let active = true;
@@ -35,14 +38,19 @@ export default function CampaignEnding({
   }, []);
 
   useEffect(() => {
-    if (confirming) {
+    if (confirming || !princessModelReady) {
       setPrincessMood("idle");
       return undefined;
     }
-    setPrincessMood("wave");
-    const timer = window.setTimeout(() => setPrincessMood("talk"), 1_700);
-    return () => window.clearTimeout(timer);
-  }, [confirming]);
+    const [arrival, wave, talk] = PRINCESS_ENDING_MOOD_TIMELINE;
+    setPrincessMood(arrival.mood);
+    const waveTimer = window.setTimeout(() => setPrincessMood(wave.mood), wave.atMs - arrival.atMs);
+    const talkTimer = window.setTimeout(() => setPrincessMood(talk.mood), talk.atMs - arrival.atMs);
+    return () => {
+      window.clearTimeout(waveTimer);
+      window.clearTimeout(talkTimer);
+    };
+  }, [confirming, princessModelReady]);
 
   const markPrincessModelReady = useCallback(() => setPrincessModelReady(true), []);
   const markPrincessModelFailed = useCallback(() => setPrincessModelReady(false), []);

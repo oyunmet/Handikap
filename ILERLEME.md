@@ -8,7 +8,7 @@
 4. **Menü, mağaza, silahlar — Tamamlandı**
 5. **Savaş odası ve düello — Tamamlandı**
 6. **Hikâye, zorluk, final — Tamamlandı**
-7. **Prenses 3D modeli (GLB) — Kod tamamlandı; kullanıcı dosyası bekleniyor**
+7. **Prenses 3D modeli (oyuncu iskeleti) — Tamamlandı**
 8. **Performans, boyut, Play Store — Kod tamamlandı; yayın öncesi kullanıcı işlemleri bekliyor**
 
 ## Adım 1 — Yatay/dikey mod ve arayüz
@@ -70,13 +70,13 @@
 
 ## Adım 7 — Prenses modeli
 
-- **Durum:** Kod tarafı tamamlandı. Planın GLB üretilemediğinde yükleme yolunu, animasyon eşlemesini ve güvenli yedek silueti hazırlama şartı karşılandı.
-- **Yapılanlar:** Final ekranı açılana kadar model kodu ve GLB istenmiyor. Finalde `/models/princess.glb` aranıyor; 3 MiB sınırı, animasyon klip eşlemesi ve SVG silüet yedeği hazır. Model bozuksa veya WebGL açılamazsa oyun akışı çökmüyor. Animasyon adları `Idle`, `Walk`, `Wave`, `Talk` ve yaygın eş adlarla eşleştiriliyor.
-- **Gerekli kullanıcı dosyası:** `public/models/princess.glb` konumuna iskeletli, 3 MiB'den küçük GLB; yön, sıkıştırma ve klip adları `public/models/princess-upload.md` içinde. Üretim aracı yalnızca statik model oluşturabildiği için animasyonlu GLB üretmedi.
-- **Doğrulama:** Bu oturumda `npm test -- src/shafak/world/princess-model-config.test.js` — 2/2 geçti. GLB dosyası yok ve yükleme yönergesi mevcut.
-- **Doğrulanamayanlar:** Gerçek modelin görünümü, iskelet animasyonları ve cihaz performansı GLB eklendikten sonra doğrulanmalı.
-- **Yarım kalanlar:** Kod tarafında yok; gerçek prenses modeli kullanıcı dosyası olarak bekleniyor.
-- **Değişen dosyalar:** `ILERLEME.md` (ilerleme kaydı).
+- **Durum:** Tamamlandı (oyuncu GLB iskeleti ve animasyonlarıyla kodla üretiliyor; harici prenses GLB'si gerekmiyor).
+- **Yapılanlar:** `player-hero.glb` aynı iskelet ve iskeletli karakter animasyonları için klonlanıyor. Koyu kızıl/altın palet, yere yakın uzun etek ve hafif salınımı, uzun saç, taç ve taş Three.js geometrisiyle ekleniyor; aksesuar boyutu kemiklerin fit sonrası dünya ölçeğine göre dengeleniyor. Final ekranı açılınca model bileşeni dinamik yükleniyor; model hazır olduktan sonra kısa yürüyüş, el sallama ve konuşma döngüsüne geçiyor. Finalde kamera yönüne dönüyor. Portre/yatay kamera kadrajı ayrı hesaplanıyor. Dinamik import, GLB veya WebGL hatasında alttaki SVG silueti görünür kalıyor.
+- **Dosya gereksinimi:** `public/models/princess.glb` yüklenmez ve üretilmez. Yeniden kullanılan `public/models/player-hero.glb` 660.208 bayt; ayrı prenses varlığı yok.
+- **Doğrulama:** Hedefli prenses testleri — 6/6; tam `npm test` — 611/611; `npm run typecheck` — geçti; `npm run build` — geçti. Üretim derlemesinde `PrincessModelReveal` ayrı bir dinamik chunk; oyuncu GLB'si veya prenses geometrisi açılış ekranı paketine eklenmedi. Mobil önizleme açılış ekranını uygulama hatası olmadan yükledi; son sahneye önizlemede etkileşimle ulaşılamadığı için modelin gerçek WebGL görüntüsü ayrıca doğrulanmadı.
+- **Doğrulanamayanlar:** Gerçek iPhone/Android üzerinde 3D görünüm, WebGL bağlamı ve döndürme sırasında final sahnesi cihazda gözle doğrulanmadı.
+- **Yarım kalanlar:** Kod tarafında yok; cihaz kabul testi yayın öncesi kontrol listesinde.
+- **Değişen dosyalar:** `ILERLEME.md`, `public/models/princess-upload.md`, `src/shafak/world/CampaignEnding.tsx`, `src/shafak/world/PrincessModelReveal.tsx`, `src/shafak/world/princess-character.ts`, `src/shafak/world/princess-character.test.js`, `src/shafak/world/princess-model-config.ts`, `src/shafak/world/princess-model-config.test.js`.
 
 ## Adım 8 — Performans, boyut, Play Store
 
@@ -84,6 +84,6 @@
 - **Yapılanlar:** Vite parça bölme sınırları büyük kod uyarısını kaldırıyor; ana ilk yükleme HTML/JS/CSS grafiği 0,32 MiB ham ve 0,10 MiB gzip. Ana menü ve oyun bölümleri tembel yükleniyor. Büyük görseller WebP, arayüz sesi OGG; `public/assets` içindeki dört GLB oyun kaynak kodunda kullanılıyor, Draco dosyaları model yükleyicisi için gerekli, bu yüzden kullanılmayan büyük bir dosya silinmedi. Savaş Odası efekt havuzları, yeniden kullanılan dünya/kare tamponları, grafik kalite seçenekleri, düşük kalitede gölge kapatma ve geometri/malzeme/doku temizliği mevcut. Gizlilik ve hesap/veri silme sayfaları herkese açık ve Ayarlar'dan bağlı; silme API'si aynı-köken, oturum ve açık onay istiyor, hesapla ilişkili dört sunucu tablosunu ve Clerk kimliğini siliyor. PWA manifesti, 192/512/maskable ikonlar ve yalnız çevrimdışı bilgilendirme sayfasını kullanan service worker hazır. Android kimliği `com.safaksavascilari.game`, hedef API 36, sürüm `1.0.0`; sürüm ana ekranda gösteriliyor.
 - **Doğrulama:** `npm test` — 607/607 geçti; `npm run typecheck` — geçti; `npm run build` — geçti ve 500 kB üzeri parça uyarısı yok. PWA/hesap silme hedef testleri 15/15 geçti. Mobil önizlemede hesap silme onay kutusu ve yazılı onay boşken silme düğmesi devre dışı göründü. `https://handikap.vercel.app` üzerinde salt-okunur Android web ön kontrolü manifest, ikon, service worker, çevrimdışı ekran ve yasal sayfalarda geçti; yalnız gerçek sertifika parmak izi beklediği için başarısız oldu. Üretim `/api/health` Clerk anahtarlarının yapılandırıldığını bildirdi.
 - **Veri güvenliği:** Hesap silme testi yalnız sahte Clerk yanıtı ve sahte veritabanı kullandı; gerçek hesap veya oyuncu kaydı silinmedi. Vercel üretiminde silme uç noktasıyla gerçek kullanıcı deneyi yapılmadı.
-- **Yarım kalanlar / kullanıcı işlemleri:** Android/JDK SDK ortamda yok; APK/AAB üretimi ve imzalama Android Studio'da yapılmalı. `public/.well-known/assetlinks.json` içindeki yer tutucu gerçek debug ve Play App Signing SHA-256 parmak izleriyle değiştirilip Vercel'e yayınlanmalı; sonra `npm run android:validate:web` yeniden geçmeli. Gerçek Android telefonda giriş, TWA tam ekran bağlantısı, düello, Savaş Odası, geri tuşu, döndürme, çevrimdışı ekran, WebGL/FPS ve ayrı bir test hesabıyla hesap silme elle doğrulanmalı. Adım 7'de açıklanan animasyonlu `public/models/princess.glb` dosyası da kullanıcıdan bekleniyor.
+- **Yarım kalanlar / kullanıcı işlemleri:** Android/JDK SDK ortamda yok; APK/AAB üretimi ve imzalama Android Studio'da yapılmalı. `public/.well-known/assetlinks.json` içindeki yer tutucu gerçek debug ve Play App Signing SHA-256 parmak izleriyle değiştirilip Vercel'e yayınlanmalı; sonra `npm run android:validate:web` yeniden geçmeli. Gerçek Android telefonda giriş, TWA tam ekran bağlantısı, düello, Savaş Odası, geri tuşu, döndürme, çevrimdışı ekran, WebGL/FPS ve ayrı bir test hesabıyla hesap silme elle doğrulanmalı.
 - **Doğrulanamayanlar:** İmzalı AAB, gerçek Play sertifikasıyla Digital Asset Links, Play Console yüklemesi ve gerçek cihaz kabul testleri bu çalışma alanında yapılamadı.
 - **Değişen dosyalar:** `ILERLEME.md`, `docs/android-play-store.md`; uygulama varlıkları ve hesap silme/PWA altyapısı önceki yerel commitlerde hazırlanmıştı.

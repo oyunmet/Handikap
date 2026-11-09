@@ -97,16 +97,23 @@ function createTrimMaterial(color = GOLD) {
 
 function addHairAndCrown(
   model: THREE.Object3D,
-  inverseFitScale: number,
   ownedGeometries: THREE.BufferGeometry[],
   ownedMaterials: THREE.Material[],
 ) {
   const head = model.getObjectByName("Head");
   if (!(head instanceof THREE.Bone)) throw new Error("Player rig is missing its Head bone.");
 
+  const headWorldScale = head.getWorldScale(new THREE.Vector3());
+  if (headWorldScale.x <= 0 || headWorldScale.y <= 0 || headWorldScale.z <= 0) {
+    throw new Error("Player rig Head bone has an invalid world scale.");
+  }
   const adornment = new THREE.Group();
   adornment.name = "PrincessHeadAdornment";
-  adornment.scale.setScalar(inverseFitScale);
+  adornment.scale.set(
+    1 / headWorldScale.x,
+    1 / headWorldScale.y,
+    1 / headWorldScale.z,
+  );
   head.add(adornment);
 
   const hair = new THREE.Group();
@@ -200,23 +207,30 @@ function addHairAndCrown(
 }
 
 function createSkirtGeometry() {
-  const geometry = new THREE.CylinderGeometry(0.145, 0.34, 0.62, 18, 5, true);
-  geometry.translate(0, -0.25, 0);
+  const geometry = new THREE.CylinderGeometry(0.145, 0.34, 0.6, 18, 6, true);
+  geometry.translate(0, -0.27, 0);
   return geometry;
 }
 
 function addDress(
   model: THREE.Object3D,
-  inverseFitScale: number,
   ownedGeometries: THREE.BufferGeometry[],
   ownedMaterials: THREE.Material[],
 ) {
   const hips = model.getObjectByName("Hips");
   if (!(hips instanceof THREE.Bone)) throw new Error("Player rig is missing its Hips bone.");
+  const hipsWorldScale = hips.getWorldScale(new THREE.Vector3());
+  if (hipsWorldScale.x <= 0 || hipsWorldScale.y <= 0 || hipsWorldScale.z <= 0) {
+    throw new Error("Player rig Hips bone has an invalid world scale.");
+  }
   const skirtPivot = new THREE.Group();
   skirtPivot.name = "PrincessSkirtPivot";
-  skirtPivot.position.y = 0.075;
-  skirtPivot.scale.setScalar(inverseFitScale);
+  skirtPivot.position.y = 0.075 / hipsWorldScale.y;
+  skirtPivot.scale.set(
+    1 / hipsWorldScale.x,
+    1 / hipsWorldScale.y,
+    1 / hipsWorldScale.z,
+  );
   hips.add(skirtPivot);
 
   const skirt = addAccessoryMesh(
@@ -254,12 +268,12 @@ function addDress(
     ownedMaterials,
   );
   hem.rotation.x = Math.PI / 2;
-  hem.position.y = -0.61;
+  hem.position.y = -0.62;
 
   const frontTrim = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0.005, 0.146),
-    new THREE.Vector3(0, -0.26, 0.231),
-    new THREE.Vector3(0, -0.57, 0.323),
+    new THREE.Vector3(0, -0.3, 0.234),
+    new THREE.Vector3(0, -0.56, 0.323),
   ]);
   addAccessoryMesh(
     skirtPivot,
@@ -438,8 +452,8 @@ export function createPrincessCharacter(
   const ownedMaterials: THREE.Material[] = [];
   const ownedGeometries: THREE.BufferGeometry[] = [];
   applyPrincessPalette(model, ownedMaterials);
-  addHairAndCrown(model, 1 / fit.scale, ownedGeometries, ownedMaterials);
-  addDress(model, 1 / fit.scale, ownedGeometries, ownedMaterials);
+  addHairAndCrown(model, ownedGeometries, ownedMaterials);
+  addDress(model, ownedGeometries, ownedMaterials);
   model.updateMatrixWorld(true);
 
   const baseClips = prepareWorldActorClips(

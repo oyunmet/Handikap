@@ -7,6 +7,7 @@ import {
   disposePrincessCharacter,
 } from "./princess-character.ts";
 import {
+  getPrincessFacingYaw,
   getPrincessCameraFrame,
   PRINCESS_BASE_MODEL_URL,
   resolvePrincessAnimationName,
@@ -45,6 +46,9 @@ function PrincessModel({
   onReady,
 }: PrincessModelRevealProps) {
   const rootRef = useRef<THREE.Group>(null);
+  const cameraWorldPosition = useMemo(() => new THREE.Vector3(), []);
+  const rootWorldPosition = useMemo(() => new THREE.Vector3(), []);
+  const { camera } = useThree();
   const { scene, animations } = useGLTF(PRINCESS_BASE_MODEL_URL);
   const character = useMemo(
     () => createPrincessCharacter(scene, animations),
@@ -73,7 +77,14 @@ function PrincessModel({
   useFrame((_, delta) => {
     const root = rootRef.current;
     if (!root) return;
-    root.rotation.y = THREE.MathUtils.damp(root.rotation.y, 0, 4.2, delta);
+    camera.getWorldPosition(cameraWorldPosition);
+    root.getWorldPosition(rootWorldPosition);
+    const targetYaw = getPrincessFacingYaw(rootWorldPosition, cameraWorldPosition);
+    const shortestAngle = Math.atan2(
+      Math.sin(targetYaw - root.rotation.y),
+      Math.cos(targetYaw - root.rotation.y),
+    );
+    root.rotation.y += shortestAngle * (1 - Math.exp(-4.2 * delta));
   });
 
   return (

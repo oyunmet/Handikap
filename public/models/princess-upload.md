@@ -1,16 +1,7 @@
-# Princess GLB upload
+# Prenses modeli — dosya yükleme gerekmiyor
 
-The final-screen loader looks for the animated character at:
+Final sahnesindeki prenses harici bir `princess.glb` dosyası kullanmaz. Sahne, oyuncunun mevcut iskeletli `player-hero.glb` modelini yalnızca kampanya finali açıldığında yükler ve klonlar; uzun elbise, saç ve taç Three.js geometrisiyle oluşturulur.
 
-`public/models/princess.glb`
+Animasyonlar aynı oyuncu iskeletini kullanır: Idle ve Walk klipleri oyuncu modelinden alınır; Wave ve Talk hareketleri iskelet kemiklerine kodla eklenir. Finalde karakter kamera/oyuncu yönüne döner.
 
-Upload a skinned, low-poly GLB no larger than 3 MiB. Keep textures at 1024 px or smaller and use Draco or Meshopt geometry compression with WebP/KTX2 textures where available. The model should stand upright on +Y and face local +Z toward the final-screen camera.
-
-Animation clips are matched case-insensitively by these names or aliases:
-
-- `Idle` (`Stand`, `Wait`, `Breath`)
-- `Walk` (`Walking`, `Run`)
-- `Wave` (`Greet`, `Greeting`, `Hello`)
-- `Talk` (`Speaking`, `Dialogue`)
-
-The model is requested only when the campaign-ending panel opens. If the file is missing, larger than 3 MiB, or cannot be rendered, the built-in princess silhouette remains visible.
+Oyuncu GLB'si eksikse, yüklenemezse veya WebGL bağlamı açılamazsa final ekranındaki SVG silueti görünür kalır. Bu nedenle `public/models/princess.glb` yüklemek gerekmez.

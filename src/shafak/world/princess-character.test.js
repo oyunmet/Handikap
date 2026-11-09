@@ -69,6 +69,34 @@ test("princess is generated from the player's sub-3 MiB skinned rig", async () =
       ["PrincessIdle", "PrincessWalk", "PrincessWave", "PrincessTalk"],
     );
 
+    const skirt = princess.model.getObjectByName("PrincessSkirtPivot");
+    assert.ok(skirt instanceof THREE.Group);
+    assert.ok(princess.ownedGeometries.length >= 10);
+    const dress = princess.model.getObjectByName("PrincessDressSkirt");
+    const hem = princess.model.getObjectByName("PrincessGoldHem");
+    assert.ok(dress instanceof THREE.Mesh);
+    assert.ok(hem instanceof THREE.Mesh);
+    dress.updateWorldMatrix(true, false);
+    const dressBounds = new THREE.Box3().setFromObject(dress, true);
+    assert.ok(
+      dressBounds.min.y >= 0 && dressBounds.min.y < 0.18,
+      `long dress hem should sit close to the floor, y=${dressBounds.min.y}`,
+    );
+    assert.ok(Math.abs(hem.position.y) > 0.6, "hem trim should reach the lower skirt edge");
+
+    const idle = princess.animations.find((clip) => clip.name === "PrincessIdle");
+    const walk = princess.animations.find((clip) => clip.name === "PrincessWalk");
+    assert.ok(idle);
+    assert.ok(walk);
+    assert.ok(
+      walk.tracks.some((track) => track.name === "PrincessSkirtPivot.quaternion"),
+      "walking should sway the dress",
+    );
+    assert.ok(
+      walk.tracks.some((track) => track.name === "PrincessHairFlow.quaternion"),
+      "walking should sway the long hair",
+    );
+
     const mixer = new THREE.AnimationMixer(princess.model);
     mixer.clipAction(princess.animations.find((clip) => clip.name === "PrincessWave")).play();
     mixer.setTime(0.5);
@@ -82,10 +110,6 @@ test("princess is generated from the player's sub-3 MiB skinned rig", async () =
     assert.ok(handY > shoulderY + 0.12, `wave should lift the hand, shoulder=${shoulderY}, hand=${handY}`);
     mixer.stopAllAction();
     mixer.uncacheRoot(princess.model);
-
-    const skirt = princess.model.getObjectByName("PrincessSkirtPivot");
-    assert.ok(skirt instanceof THREE.Group);
-    assert.ok(princess.ownedGeometries.length >= 10);
   } finally {
     disposePrincessCharacter(princess);
   }
