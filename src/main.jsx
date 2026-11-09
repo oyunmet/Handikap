@@ -20,7 +20,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 class StartupErrorBoundary extends React.Component {
-  state = { error: null, diagnosticsEnabled: false };
+  state = { error: null, diagnosticsEnabled: false, diagnosticComponentStack: "" };
   initialSearch = window.location.search;
   initialReferrer = document.referrer;
 
@@ -30,6 +30,7 @@ class StartupErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("[shafak-startup] The application could not render.", error, info.componentStack);
+    this.setState({ diagnosticComponentStack: info.componentStack ?? "" });
 
     if (!wasStartupErrorDiagnosticRequested(
       this.initialSearch,
@@ -74,7 +75,7 @@ class StartupErrorBoundary extends React.Component {
         )}
         {this.state.diagnosticsEnabled && (
           <code style={{ maxWidth: "min(720px, 90vw)", color: "#e6b2a5", overflowWrap: "anywhere" }}>
-            {formatStartupErrorDiagnostic(this.state.error)}
+            {formatStartupErrorDiagnostic(this.state.error, this.state.diagnosticComponentStack)}
           </code>
         )}
         <button

@@ -80,5 +80,18 @@ test("startup diagnostic text redacts likely credentials and stays short", () =>
     diagnostic,
     "Error: [key redacted] Bearer [redacted] token=[redacted]",
   );
-  assert.ok(formatStartupErrorDiagnostic(new Error("x".repeat(500))).length <= 320);
+  assert.ok(formatStartupErrorDiagnostic(new Error("x".repeat(900))).length <= 700);
+});
+
+test("startup diagnostics include the React component path and redact credential-shaped text", () => {
+  const error = new TypeError("undefined is not an object");
+  error.stack = "TypeError: undefined is not an object\n    at clerkSignIn (https://handikap.vercel.app/assets/auth.js:1:42)";
+  const diagnostic = formatStartupErrorDiagnostic(
+    error,
+    "\n    at SignIn\n    at ClerkProvider token=private\n    at AuthApp",
+  );
+
+  assert.ok(diagnostic.includes("TypeError: undefined is not an object"));
+  assert.ok(diagnostic.includes("at clerkSignIn (https://handikap.vercel.app/assets/auth.js:1:42)"));
+  assert.ok(diagnostic.includes("at SignIn > at ClerkProvider token=[redacted] > at AuthApp"));
 });

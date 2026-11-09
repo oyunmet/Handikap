@@ -38,15 +38,30 @@ export function wasStartupErrorDiagnosticRequested(
     || isStartupErrorDiagnosticRequest(currentSearch, referrer);
 }
 
-export function formatStartupErrorDiagnostic(error: unknown): string {
+export function formatStartupErrorDiagnostic(error: unknown, componentStack = ""): string {
   const message = error instanceof Error
     ? `${error.name}: ${error.message}`
     : String(error);
+  const javascriptStack = error instanceof Error && componentStack
+    ? (error.stack ?? "")
+      .split(/\r?\n/)
+      .slice(1, 5)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join(" > ")
+    : "";
+  const componentPath = componentStack
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 6)
+    .join(" > ");
+  const diagnostic = [message, javascriptStack, componentPath].filter(Boolean).join(" | ");
 
-  return message
+  return diagnostic
     .replace(/\b(?:pk|sk)_(?:live|test)_[A-Za-z0-9_-]+\b/gi, "[key redacted]")
     .replace(/\bBearer\s+\S+/gi, "Bearer [redacted]")
     .replace(/\b(token|secret|password|authorization)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
     .replace(/\s+/g, " ")
-    .slice(0, 320);
+    .slice(0, componentStack ? 1_100 : 320);
 }
