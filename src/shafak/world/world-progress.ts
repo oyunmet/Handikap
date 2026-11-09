@@ -1,6 +1,9 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import { getWorldChapter } from "./world-content.ts";
-import { FINAL_CAMPAIGN_CHAPTER_ID } from "./campaign-progression.ts";
+import {
+  CAMPAIGN_PROGRESS_VERSION,
+  FINAL_CAMPAIGN_CHAPTER_ID,
+} from "./campaign-progression.ts";
 import type { WorldRouteChoice } from "./route-difficulty.ts";
 
 export type WorldProgress = {
@@ -8,6 +11,7 @@ export type WorldProgress = {
   depth: number;
   unlockedThroughChapter: number;
   routeChoice: WorldRouteChoice | null;
+  campaignVersion: number;
 };
 
 export type WorldProgressPosition = Pick<WorldProgress, "distance" | "depth" | "routeChoice">;
@@ -21,6 +25,7 @@ const emptyWorldProgress = (): WorldProgress => ({
   depth: 0,
   unlockedThroughChapter: 0,
   routeChoice: null,
+  campaignVersion: CAMPAIGN_PROGRESS_VERSION,
 });
 
 function storageKeyFor(userId?: string) {
@@ -62,6 +67,7 @@ export function normalizeWorldProgress(value: unknown): WorldProgress {
     depth,
     unlockedThroughChapter: Math.max(savedUnlock, passedChapters),
     routeChoice,
+    campaignVersion: CAMPAIGN_PROGRESS_VERSION,
   };
 }
 

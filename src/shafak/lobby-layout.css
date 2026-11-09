@@ -10,6 +10,10 @@
   flex: 0 1 600px;
 }
 
+.screen--menu .campaign-menu-progress {
+  width: min(100%, 520px);
+}
+
 .screen--menu .menu-actions {
   display: grid;
   width: min(100%, 520px);
@@ -139,6 +143,7 @@
 @media (orientation: landscape) and (max-width: 960px) {
   .screen--menu .menu-content { gap: 14px; padding: 2px 0 5px; }
   .screen--menu .menu-copy { width: min(40%, 340px); flex-basis: 340px; }
+  .screen--menu .campaign-menu-progress { margin-bottom: 12px; padding: 8px 10px; }
   .screen--menu .menu-actions { width: min(100%, 350px); }
   .screen--menu .menu-action--war-room {
     width: min(26vw, 220px);

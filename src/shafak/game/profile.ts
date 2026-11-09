@@ -3,6 +3,7 @@ import { grantLootItem } from "./store-rewards.ts";
 import { DEFAULT_COMBAT_ITEM_COUNTS, DEFAULT_COMBAT_QUICK_SLOTS, normalizeCombatItemCounts, normalizeCombatQuickSlots } from "./combat-items.ts";
 import { getIstanbulDayKey, normalizeDailyLifeState } from "./daily-lives.ts";
 import type { WorldRouteChoice } from "../world/route-difficulty.ts";
+import { CAMPAIGN_PROGRESS_VERSION } from "../world/campaign-progression.ts";
 import { MAX_DEFEATED_OPPONENTS } from "../world/campaign-progression.ts";
 import { DEFAULT_WEAPON_ID, isCoreWeapon } from "./weapons.ts";
 
@@ -25,7 +26,12 @@ export type PlayerProfile = {
   bestStreak: number;
   items: string[];
   defeatedOpponents: string[];
-  worldProgress: { distance: number; depth: number; routeChoice?: WorldRouteChoice | null } | null;
+  worldProgress: {
+    distance: number;
+    depth: number;
+    routeChoice?: WorldRouteChoice | null;
+    campaignVersion?: number;
+  } | null;
   dailyBattles: number;
   dailyWins: number;
   dailyLosses: number;
@@ -160,6 +166,7 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
           distance: savedWorldProgress.distance,
           depth: Math.max(-1, Math.min(1, savedWorldProgress.depth)),
           routeChoice,
+          campaignVersion: CAMPAIGN_PROGRESS_VERSION,
         }
       : null,
     dailyBattles: daily.dailyBattles,

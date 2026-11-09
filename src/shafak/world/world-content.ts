@@ -4,7 +4,13 @@ import { getWorldRivalProfile, type WorldBotArchetype, type WorldBotWeapon } fro
 import type { WorldRouteDifficulty } from "./route-difficulty.ts";
 import type { CombatDifficulty } from "../game/combat-engine.ts";
 import { WORLD_ROCK_OBSTACLE_DIMENSIONS } from "./world-model-sizing.ts";
-import { getCampaignRivalCount, isCampaignFinalBoss } from "./campaign-progression.ts";
+import {
+  getCampaignRivalCount,
+  isCampaignBossLevel,
+  isCampaignFinalBoss,
+  getCampaignLevelKind,
+  type CampaignMissionKind,
+} from "./campaign-progression.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -76,6 +82,7 @@ export type WorldCollisionGrid = Map<number, Map<number, WorldCollider[]>>;
 
 export type WorldChapterContent = {
   chapterId: number;
+  campaignLevelKind: CampaignMissionKind;
   pickups: WorldPickup[];
   obstacles: WorldObstacle[];
   rivals: WorldRival[];
@@ -362,11 +369,11 @@ function createRivals(chapterId: number, random: () => number, playerLevel: numb
   const chapterStart = chapterId * WORLD_GATE_INTERVAL_METERS;
   const safePlayerLevel = Math.max(1, Math.min(1_000, Math.floor(Number.isFinite(playerLevel) ? playerLevel : 1)));
   const rivalCount = getCampaignRivalCount(chapterId);
-  const bossIndex = rivalCount - 1;
+  const bossIndex = isCampaignBossLevel(chapterId) ? rivalCount - 1 : -1;
   return Array.from({ length: rivalCount }, (_, index) => {
-    const isBoss = index === bossIndex;
+    const isBoss = bossIndex >= 0 && index === bossIndex;
     const profile = getWorldRivalProfile(chapterId, index, isBoss);
-    const distanceOffset = 52 + (87 * index) / Math.max(1, bossIndex);
+    const distanceOffset = 52 + (87 * index) / Math.max(1, rivalCount - 1);
     const finalBoss = isCampaignFinalBoss(chapterId, isBoss);
     const distance = chapterStart + distanceOffset + (isBoss ? 0 : (random() - 0.5) * 2);
     const regionalLevel = 2 + chapterId * 3 + index * 2 + (isBoss ? 10 : 0);
@@ -424,6 +431,7 @@ export function getWorldChapter(
   const obstacles = createObstacles(chapterId);
   return {
     chapterId,
+    campaignLevelKind: getCampaignLevelKind(chapterId),
     pickups: createPickups(chapterId, random, obstacles),
     obstacles,
     rivals: selectedRivals,

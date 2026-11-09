@@ -36,7 +36,14 @@ import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, sav
 import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { StoreTab } from "./game/store-types.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
-import { isCampaignComplete, resetCampaignProgressForNewGamePlus } from "./world/campaign-progression";
+import {
+  CAMPAIGN_ACT_COUNT,
+  CAMPAIGN_LEVEL_COUNT,
+  getCampaignProgressFromDistance,
+  isCampaignComplete,
+  resetCampaignProgressForNewGamePlus,
+} from "./world/campaign-progression";
+import { loadCampaignLevelData } from "./world/campaign-level-data";
 import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import {
   AUTO_QUALITY_DOWN_FPS,
@@ -696,12 +703,20 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen("intro");
   };
 
-  const enterWorld = (initialStoreTab: StoreTab | null = null) => {
+  const enterWorld = async (initialStoreTab: StoreTab | null = null) => {
     playFeedback();
     primeGameAudio();
+    const campaignPosition = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
+    try {
+      await loadCampaignLevelData(campaignPosition.chapterId);
+    } catch {
+      setAnnouncement("Sefer verisi yüklenemedi. Yeniden deneyebilirsin.");
+      return;
+    }
     setInitialWorldStoreTab(initialStoreTab);
     setScreen("world");
   };
+  const menuCampaignProgress = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
 
   const updateWarRoomQuery = (active: boolean) => {
     const url = new URL(window.location.href);
@@ -1126,16 +1141,34 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 </div>
                 <h1>{tr.menuTitle}</h1>
                 <p>{tr.menuDescription}</p>
+                <div className="campaign-menu-progress">
+                  <div className="campaign-menu-progress__labels">
+                    <span>PERDE {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
+                    <strong>BÖLÜM {menuCampaignProgress.levelNumber} / {CAMPAIGN_LEVEL_COUNT}</strong>
+                  </div>
+                  <b>{menuCampaignProgress.region.name}</b>
+                  <div
+                    className="campaign-menu-progress__track"
+                    role="progressbar"
+                    aria-label="Kampanya ilerlemesi"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(menuCampaignProgress.campaignProgressPercent)}
+                  >
+                    <i style={{ width: `${menuCampaignProgress.campaignProgressPercent}%` }} />
+                  </div>
+                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% tamamlandı</small>
+                </div>
                 <div className="menu-actions">
                   <button
                     className="menu-action menu-action--primary"
                     type="button"
                     onClick={() => {
-                      enterWorld();
+                      void enterWorld();
                     }}
                   >
                     <span className="menu-action__icon"><ArrowIcon /></span>
-                    <span>YOLA ÇIK</span>
+                    <span>DEVAM ET · BÖLÜM {menuCampaignProgress.levelNumber}</span>
                     <ArrowIcon />
                   </button>
                   <button
@@ -1158,7 +1191,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                         key={tab}
                         className="menu-gear-action"
                         type="button"
-                        onClick={() => enterWorld(tab)}
+                        onClick={() => { void enterWorld(tab); }}
                       >
                         {label}
                       </button>

@@ -86,10 +86,18 @@ import {
   type WorldMotion,
 } from "./movement";
 import {
+  CAMPAIGN_LEVEL_COUNT,
+  CAMPAIGN_MISSION_LABELS,
   FINAL_CAMPAIGN_CHAPTER_ID,
+  getCampaignLevelKind,
+  getCampaignRegion,
   isCampaignComplete,
   isCampaignFinalBoss,
 } from "./campaign-progression";
+import {
+  loadCampaignLevelData,
+  type CampaignLevelData,
+} from "./campaign-level-data";
 import { nextGateDistance, nextGateDistanceForCamera } from "./world-generation";
 import {
   getWorldChapter,
@@ -885,6 +893,31 @@ export default function WorldScene({
   const [audioOn, setAudioOn] = useState(soundEnabled);
   const [vibrationOn, setVibrationOn] = useState(vibrationEnabled);
   const currentChapterId = Math.max(0, Math.floor(travel / WORLD_GATE_INTERVAL_METERS));
+  const [campaignLevelData, setCampaignLevelData] = useState<CampaignLevelData | null>(null);
+  const [campaignLevelLoadError, setCampaignLevelLoadError] = useState(false);
+  const [campaignLevelLoadAttempt, setCampaignLevelLoadAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setCampaignLevelData(null);
+    setCampaignLevelLoadError(false);
+    void loadCampaignLevelData(currentChapterId)
+      .then((levelData) => {
+        if (active) setCampaignLevelData(levelData);
+      })
+      .catch((error: unknown) => {
+        console.error("Campaign act data could not be loaded.", error);
+        if (active) setCampaignLevelLoadError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [campaignLevelLoadAttempt, currentChapterId]);
+  const activeCampaignLevel = campaignLevelData?.chapterId === currentChapterId
+    ? campaignLevelData
+    : null;
+  const activeCampaignActName = activeCampaignLevel?.actName ?? getCampaignRegion(currentChapterId).name;
+  const activeCampaignMissionLabel = activeCampaignLevel?.kindLabel
+    ?? CAMPAIGN_MISSION_LABELS[getCampaignLevelKind(currentChapterId)];
   const [rivalRefresh, setRivalRefresh] = useState(0);
   const [stepBursts, setStepBursts] = useState<StepBurst[]>([]);
   const [perfectPassSequence, setPerfectPassSequence] = useState(0);
@@ -1154,6 +1187,7 @@ export default function WorldScene({
     if (panel !== null) return;
     if (currentChapterId <= storyChapterRef.current) return;
     storyChapterRef.current = currentChapterId;
+    if (currentChapterId >= 9) return;
     showStoryDialogue(getChapterStoryDialogue(currentChapterId));
   }, [currentChapterId, panel, showStoryDialogue]);
 
@@ -3417,13 +3451,13 @@ export default function WorldScene({
       <div
         className="world-progress"
         role="group"
-        aria-label="Kül Yolu ilerleme haritası"
+        aria-label="Kampanya ilerleme haritası"
       >
         <div className="world-progress__body">
           <div
             className="world-progress__map"
             role="progressbar"
-            aria-label={`Kül Yolu, kapıya yüzde ${Math.round(chapterProgress)} ilerleme`}
+            aria-label={`${activeCampaignActName}, kapıya yüzde ${Math.round(chapterProgress)} ilerleme`}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(chapterProgress)}
@@ -3455,9 +3489,22 @@ export default function WorldScene({
           </div>
           <div className="world-progress__details">
             <div className="world-progress__heading">
-              <span>KÜL YOLU · BÖLÜM {currentChapterId + 1}</span>
+              <span>{activeCampaignActName.toLocaleUpperCase("tr-TR")} · BÖLÜM {currentChapterId + 1} / {CAMPAIGN_LEVEL_COUNT}</span>
             </div>
             <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
+            {campaignLevelLoadError ? (
+              <small className="world-progress__mission" role="alert">
+                Perde verisi yüklenemedi.{" "}
+                <button type="button" onClick={() => setCampaignLevelLoadAttempt((attempt) => attempt + 1)}>
+                  Yeniden dene
+                </button>
+              </small>
+            ) : (
+              <small className="world-progress__mission">
+                {activeCampaignMissionLabel}
+                {activeCampaignLevel ? ` · ${activeCampaignLevel.templateName}` : ""}
+              </small>
+            )}
             <span className="world-progress__distance">KAPI · {Math.max(0, gateDistance - travel)} m</span>
           </div>
         </div>

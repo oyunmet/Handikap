@@ -1,41 +1,89 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 import {
+  CAMPAIGN_ACT_COUNT,
   CAMPAIGN_CHAPTER_COUNT,
+  CAMPAIGN_LEVELS_PER_ACT,
+  CAMPAIGN_LEVEL_COUNT,
   CAMPAIGN_REGIONS,
   FINAL_CAMPAIGN_BOSS_ID,
   FINAL_CAMPAIGN_CHAPTER_ID,
   FINAL_CAMPAIGN_DISTANCE,
+  getCampaignLevelKind,
+  getCampaignLevelNumber,
+  getCampaignProgressFromDistance,
   getCampaignRegion,
   getCampaignRivalCount,
+  isCampaignActBoss,
+  isCampaignBossLevel,
   isCampaignComplete,
   isCampaignFinalBoss,
+  isCampaignMiniBoss,
   resetCampaignProgressForNewGamePlus,
 } from "./campaign-progression.ts";
 
-test("the story campaign has nine chapters in three fixed regions", () => {
-  assert.equal(CAMPAIGN_CHAPTER_COUNT, 9);
+test("the long campaign has nine 50-level acts and preserves existing region identities", () => {
+  assert.equal(CAMPAIGN_ACT_COUNT, 9);
+  assert.equal(CAMPAIGN_LEVELS_PER_ACT, 50);
+  assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
+  assert.equal(CAMPAIGN_CHAPTER_COUNT, CAMPAIGN_LEVEL_COUNT);
   assert.deepEqual(CAMPAIGN_REGIONS.map((region) => region.name), [
     "Kül Yolu",
     "Donmuş Geçit",
     "Kızıl Bataklık",
+    "Fısıltı Ormanı",
+    "Çürük Taht",
+    "Sisli Kıyı",
+    "Kayıp Şehir",
+    "Kara Zirve",
+    "Gölge Sarayı",
   ]);
   assert.equal(getCampaignRegion(0).name, "Kül Yolu");
-  assert.equal(getCampaignRegion(3).name, "Donmuş Geçit");
-  assert.equal(getCampaignRegion(8).name, "Kızıl Bataklık");
-  assert.equal(getCampaignRegion(30).name, "Kızıl Bataklık");
+  assert.equal(getCampaignRegion(49).name, "Kül Yolu");
+  assert.equal(getCampaignRegion(50).name, "Donmuş Geçit");
+  assert.equal(getCampaignRegion(100).name, "Kızıl Bataklık");
+  assert.equal(getCampaignRegion(449).name, "Gölge Sarayı");
+  assert.equal(getCampaignRegion(500).name, "Gölge Sarayı");
 });
 
-test("rival count rises through the campaign and the final boss is the ninth chapter boss", () => {
+test("every tenth level is a mini-boss and every fiftieth level is an act boss", () => {
+  assert.equal(getCampaignLevelNumber(449), 450);
+  for (let chapterId = 0; chapterId < CAMPAIGN_LEVEL_COUNT; chapterId += 1) {
+    const levelNumber = chapterId + 1;
+    const expected = levelNumber % 50 === 0
+      ? "act-boss"
+      : levelNumber % 10 === 0
+        ? "mini-boss"
+        : undefined;
+    assert.equal(isCampaignActBoss(chapterId), levelNumber % 50 === 0);
+    assert.equal(isCampaignMiniBoss(chapterId), levelNumber % 10 === 0 && levelNumber % 50 !== 0);
+    assert.equal(isCampaignBossLevel(chapterId), expected !== undefined);
+    if (expected) assert.equal(getCampaignLevelKind(chapterId), expected);
+  }
+  assert.equal(FINAL_CAMPAIGN_CHAPTER_ID, 449);
+  assert.equal(FINAL_CAMPAIGN_BOSS_ID, "ash-road:449:rival:8");
+  assert.equal(isCampaignFinalBoss(449, true), true);
+  assert.equal(isCampaignFinalBoss(448, true), false);
+  assert.equal(isCampaignFinalBoss(449, false), false);
   assert.deepEqual(
-    Array.from({ length: CAMPAIGN_CHAPTER_COUNT }, (_, chapter) => getCampaignRivalCount(chapter)),
-    [5, 5, 6, 6, 7, 7, 8, 8, 9],
+    [0, 89, 90, 179, 180, 269, 270, 359, 360, 449].map(getCampaignRivalCount),
+    [5, 5, 6, 6, 7, 7, 8, 8, 9, 9],
   );
-  assert.equal(FINAL_CAMPAIGN_CHAPTER_ID, 8);
-  assert.equal(FINAL_CAMPAIGN_BOSS_ID, "ash-road:8:rival:8");
-  assert.equal(isCampaignFinalBoss(8, true), true);
-  assert.equal(isCampaignFinalBoss(7, true), false);
-  assert.equal(isCampaignFinalBoss(8, false), false);
+});
+
+test("saved distance maps to a campaign act, level, and readable progress", () => {
+  const halfwayThroughLevel52 = getCampaignProgressFromDistance(
+    51 * WORLD_GATE_INTERVAL_METERS + WORLD_GATE_INTERVAL_METERS / 2,
+  );
+  assert.equal(halfwayThroughLevel52.levelNumber, 52);
+  assert.equal(halfwayThroughLevel52.actNumber, 2);
+  assert.equal(halfwayThroughLevel52.region.name, "Donmuş Geçit");
+  assert.equal(halfwayThroughLevel52.levelProgressPercent, 50);
+  assert.ok(halfwayThroughLevel52.campaignProgressPercent > 11);
+  const complete = getCampaignProgressFromDistance(FINAL_CAMPAIGN_DISTANCE);
+  assert.equal(complete.levelNumber, 450);
+  assert.equal(complete.campaignProgressPercent, 100);
 });
 
 test("campaign completion requires the final boss or a legacy save past the final gate", () => {

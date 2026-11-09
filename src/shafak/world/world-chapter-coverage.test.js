@@ -4,6 +4,7 @@ import { WORLD_GATE_INTERVAL_METERS, WORLD_ROAD_WIDTH } from "./movement.ts";
 import {
   CAMPAIGN_CHAPTER_COUNT,
   FINAL_CAMPAIGN_CHAPTER_ID,
+  isCampaignBossLevel,
   getCampaignRivalCount,
 } from "./campaign-progression.ts";
 import { createCombatOpponentTuning } from "../game/combat-engine.ts";
@@ -32,8 +33,16 @@ test("campaign and boundary chapters keep their virtual walk and camera corridor
       getCampaignRivalCount(chapterId),
       `chapter ${chapterId + 1}: campaign encounter count`,
     );
-    assert.equal(content.rivals.at(-1)?.isBoss, true, `chapter ${chapterId + 1}: boss remains last`);
-    assert.equal(content.rivals.filter((rival) => rival.isBoss).length, 1, `chapter ${chapterId + 1}: one chapter boss`);
+    assert.equal(
+      content.rivals.at(-1)?.isBoss,
+      isCampaignBossLevel(chapterId),
+      `chapter ${chapterId + 1}: boss appears only at milestone levels`,
+    );
+    assert.equal(
+      content.rivals.filter((rival) => rival.isBoss).length,
+      isCampaignBossLevel(chapterId) ? 1 : 0,
+      `chapter ${chapterId + 1}: exactly one milestone boss`,
+    );
     assert.ok(content.obstacles.every((obstacle) =>
       obstacle.distance >= chapterStart && obstacle.distance < chapterEnd,
     ), `chapter ${chapterId + 1}: obstacle remains inside its gate interval`);

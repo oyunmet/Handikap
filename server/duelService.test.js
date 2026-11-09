@@ -31,7 +31,7 @@ const profile = {
 };
 
 test("server challenges use a generated rival id and return server-owned combat settings", async () => {
-  const rival = getWorldChapter(0).rivals[4];
+  const rival = getWorldChapter(9).rivals[4];
   const inserts = [];
   let reads = 0;
   const database = {

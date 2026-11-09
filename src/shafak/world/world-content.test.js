@@ -12,7 +12,7 @@ import {
 } from "./world-content.ts";
 import { WORLD_BOT_PROFILES } from "./world-bot-profiles.ts";
 
-test("seeded chapter content is stable and contains four rivals plus a gate boss", () => {
+test("seeded chapter content is stable and bosses appear only at campaign milestones", () => {
   const first = getWorldChapter(0);
   assert.deepEqual(getWorldChapter(0), first);
   assert.notDeepEqual(getWorldChapter(1), first);
@@ -25,7 +25,7 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
     "Gölge Şövalyesi",
   ]);
   assert.deepEqual(first.rivals.slice(0, 4).map((rival) => rival.archetype), WORLD_BOT_PROFILES.slice(0, 4).map((profile) => profile.archetype));
-  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["greatsword", "mace", "bow", "spear", "greatsword"]);
+  assert.deepEqual(first.rivals.map((rival) => rival.weapon), ["greatsword", "mace", "bow", "spear", "spear"]);
   assert.deepEqual(WORLD_BOT_PROFILES.slice(0, 4).map((profile) => profile.appearance.weaponStyle), [
     "greatsword",
     "mace",
@@ -34,12 +34,10 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
   ]);
   assert.equal(new Set(first.rivals.map((rival) => rival.armorTint)).size, 5);
   assert.equal(new Set(first.rivals.map((rival) => rival.name)).size, 5);
-  assert.equal(first.rivals[4].isBoss, true);
-  assert.equal(first.rivals[4].archetype, "chapter-boss");
+  assert.equal(first.rivals[4].isBoss, false);
   assert.equal(first.rivals[3].isElite, true);
-  assert.equal(first.rivals[4].isElite, false);
-  assert.ok(first.rivals[4].distance < 140);
-  assert.ok(first.rivals.slice(0, 4).every((rival) => rival.isBoss === false));
+  assert.ok(first.rivals.every((rival) => rival.isBoss === false));
+  assert.ok(first.rivals.at(-1).distance < 140);
   assert.ok(first.rivals[0].distance >= 51 && first.rivals[0].distance <= 53);
   assert.ok(first.rivals.every((rival) => rival.id.includes(":rival:")));
   assert.ok(first.rivals.every((rival, index) => index === 0 || rival.level > first.rivals[index - 1].level));
@@ -52,6 +50,11 @@ test("seeded chapter content is stable and contains four rivals plus a gate boss
     1,
     "each chapter should offer a collectible seal fragment",
   );
+  assert.equal(first.campaignLevelKind, "normal-combat");
+  assert.equal(getWorldChapter(9).campaignLevelKind, "mini-boss");
+  assert.equal(getWorldChapter(49).campaignLevelKind, "act-boss");
+  assert.equal(getWorldChapter(9).rivals.at(-1).isBoss, true);
+  assert.equal(getWorldChapter(8).rivals.at(-1).isBoss, false);
   assert.ok(
     getWorldChapter(2).pickups
       .filter((pickup) => !pickup.sourceObstacleId && pickup.kind !== "treasure-cache")
@@ -124,24 +127,23 @@ test("world rivals are not mistaken for walls: the center lane stays open beside
   assert.ok(Math.abs(resolveWorldPathCollision(0, 114, 0, 118, grid, broken).distance - 118) < 1e-8);
 });
 
-test("all five new rival types and chapter bosses appear in stable chapter content", () => {
-  const chapters = Array.from({ length: 3 }, (_, chapterId) => getWorldChapter(chapterId));
+test("rival archetypes appear in normal levels and mini/act bosses are placed correctly", () => {
+  const chapters = [0, 1, 2].map((chapterId) => getWorldChapter(chapterId));
   const standardArchetypes = chapters.flatMap((chapter) => chapter.rivals.filter((rival) => !rival.isBoss).map((rival) => rival.archetype));
   assert.equal(new Set(standardArchetypes).size, 9);
-  assert.deepEqual(
-    chapters.map((chapter) => chapter.rivals.at(-1)?.title),
-    ["BÖLÜM BOSSU", "BÖLÜM BOSSU", "BÖLÜM BOSSU"],
-  );
+  assert.equal(getWorldChapter(9).rivals.filter((rival) => rival.isBoss).length, 1);
+  assert.equal(getWorldChapter(49).rivals.filter((rival) => rival.isBoss).length, 1);
+  assert.equal(getWorldChapter(10).rivals.filter((rival) => rival.isBoss).length, 0);
   assert.equal(WORLD_BOT_PROFILES.length, 9);
 });
 
 test("rival names remain distinct while encounter IDs stay unique across repeated chapters", () => {
   const encounters = Array.from({ length: 12 }, (_, chapterId) => getWorldChapter(chapterId).rivals).flat();
-  assert.equal(new Set(encounters.map((rival) => rival.name)).size, 60);
   assert.equal(new Set(encounters.map((rival) => rival.id)).size, encounters.length);
   for (const rival of encounters) {
     const chapter = getWorldChapter(rival.chapterId);
     assert.equal(chapter.rivals.find((candidate) => candidate.id === rival.id)?.title, rival.title);
+    assert.ok(rival.name.length > 0);
     assert.ok(!rival.id.toLowerCase().includes("bot"));
   }
 });

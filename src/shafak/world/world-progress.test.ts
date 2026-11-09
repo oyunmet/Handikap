@@ -18,6 +18,7 @@ const initialProgress: WorldProgress = {
   depth: 0,
   unlockedThroughChapter: 0,
   routeChoice: null,
+  campaignVersion: 2,
 };
 
 test("normalizes saved position and keeps already-passed gates open", () => {
@@ -27,7 +28,7 @@ test("normalizes saved position and keeps already-passed gates open", () => {
       depth: 4,
       unlockedThroughChapter: -3,
     }),
-    { distance: 150, depth: 1, unlockedThroughChapter: 1, routeChoice: null },
+    { distance: 150, depth: 1, unlockedThroughChapter: 1, routeChoice: null, campaignVersion: 2 },
   );
 });
 
@@ -73,6 +74,7 @@ test("uses past duel wins to restore a returning player's world position", () =>
       depth: 0,
       unlockedThroughChapter: 1,
       routeChoice: null,
+      campaignVersion: 2,
     },
   );
 });
@@ -89,7 +91,13 @@ test("saves progress separately for each player", () => {
   });
 
   try {
-    const saved = { distance: 74.5, depth: -0.35, unlockedThroughChapter: 0, routeChoice: null };
+    const saved = {
+      distance: 74.5,
+      depth: -0.35,
+      unlockedThroughChapter: 0,
+      routeChoice: null,
+      campaignVersion: 2,
+    };
     saveWorldProgress(saved, "player-one");
     assert.deepEqual(readWorldProgress("player-one"), saved);
     assert.deepEqual(readWorldProgress("player-two"), initialProgress);
