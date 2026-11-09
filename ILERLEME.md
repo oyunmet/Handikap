@@ -8,7 +8,7 @@
 4. **Menü, mağaza, silahlar — Tamamlandı**
 5. **Savaş odası ve düello — Tamamlandı**
 6. **Hikâye, zorluk, final — Tamamlandı**
-7. **Prenses 3D modeli (GLB) — Bekliyor**
+7. **Prenses 3D modeli (GLB) — Kod tamamlandı; kullanıcı dosyası bekleniyor**
 8. **Performans, boyut, Play Store — Bekliyor**
 
 ## Adım 1 — Yatay/dikey mod ve arayüz
@@ -70,9 +70,10 @@
 
 ## Adım 7 — Prenses modeli
 
-- **Durum:** Kod tarafı tamamlandı; animasyonlu GLB dosyasını kullanıcı yüklemeli.
+- **Durum:** Kod tarafı tamamlandı. Planın GLB üretilemediğinde yükleme yolunu, animasyon eşlemesini ve güvenli yedek silueti hazırlama şartı karşılandı.
 - **Yapılanlar:** Final ekranı açılana kadar model kodu ve GLB istenmiyor. Finalde `/models/princess.glb` aranıyor; 3 MiB sınırı, animasyon klip eşlemesi ve SVG silüet yedeği hazır. Model bozuksa veya WebGL açılamazsa oyun akışı çökmüyor. Animasyon adları `Idle`, `Walk`, `Wave`, `Talk` ve yaygın eş adlarla eşleştiriliyor.
 - **Gerekli kullanıcı dosyası:** `public/models/princess.glb` konumuna iskeletli, 3 MiB'den küçük GLB; yön, sıkıştırma ve klip adları `public/models/princess-upload.md` içinde. Üretim aracı yalnızca statik model oluşturabildiği için animasyonlu GLB üretmedi.
-- **Doğrulama:** 2 model-yükleme/eşleme testi geçti; `npm run typecheck` — geçti; `npm run build` — geçti. `PrincessModelReveal` ayrı bir üretim parçası olarak çıktı.
-- **Doğrulanamayanlar:** GLB henüz yok; model görüntüsü, iskelet animasyonları ve cihaz performansı gerçek asset eklendikten sonra doğrulanmalı.
-- **Değişen dosyalar:** `ILERLEME.md`, `public/models/princess-upload.md`, `src/shafak/world/CampaignEnding.tsx`, `src/shafak/world/PrincessModelReveal.tsx`, `src/shafak/world/campaign-ending.css`, `src/shafak/world/princess-model-config.ts`, `src/shafak/world/princess-model-config.test.js`.
+- **Doğrulama:** Bu oturumda `npm test -- src/shafak/world/princess-model-config.test.js` — 2/2 geçti. GLB dosyası yok ve yükleme yönergesi mevcut.
+- **Doğrulanamayanlar:** Gerçek modelin görünümü, iskelet animasyonları ve cihaz performansı GLB eklendikten sonra doğrulanmalı.
+- **Yarım kalanlar:** Kod tarafında yok; gerçek prenses modeli kullanıcı dosyası olarak bekleniyor.
+- **Değişen dosyalar:** `ILERLEME.md` (ilerleme kaydı).
