@@ -111,3 +111,24 @@
 - **Doğrulanamayanlar:** Gerçek iPhone Safari'de menü/dokunma kabul testi ve gerçek cihaz performansı bu alt adımda ölçülmedi.
 - **Kod durumu:** Kampanya uygulama kodu bu çalışma başlamadan önceki yerel `07beec2` commit'inde bulunuyordu; bu alt adımda kaynak kod değiştirilmedi. Bu commit yalnızca ilerleme kaydını ekler.
 - **Bu commit'te değişen dosyalar:** `ILERLEME.md`.
+
+## Adım 11 — Kalite ve Savaş Odası yenilemesi
+
+### 11.1 — Mağaza: satın alma ve kuşanma
+
+- **Durum:** DEVAM
+- **Kök neden (düzeltme öncesi):** Savaş Odası silahları `STORE_CATALOG` içinde `kind: "equipment"` ve `slot: null` olarak tanımlı. Hem yerel `WorldScene` satın alma akışı hem sunucu `POST /api/store/purchase` akışı her ekipman için normal RPG yuvası arıyor; yuva bulunamayınca `item_not_equippable` / “Bu eşya kuşanılamaz.” hatası veriliyor. Profil kaydı bu kontrolden sonra yapıldığından bu hatada altın düşmüyor ve silah envantere eklenmiyor. Satın alınmış Savaş Odası silahı için mağaza ayrıca yalnızca satış düğmesi gösteriyor; “KUŞAN” akışı yok. Önizleme ise seçili silahı karakter modelinin eline takıp karakter kadrajlıyor; silahın kendi kutusuna göre bağımsız kadrajlama yapılmıyor.
+- **Kök nedeni yakalayacak testler:** Savaş Odası silahını sunucudan satın alma, yeterli/yetersiz bakiye, aynı işlem anahtarıyla tekrar ve ikinci satın alım; satın alınan silahı Ana/Yedek Savaş Odası yuvasına kaydetme; mevcut düello ekipmanı ile kampanya kaydının korunması. Önce testler kırmızı çalıştırılacak.
+- **Yarım kalanlar:** Kök neden bulundu; düzeltme ve doğrulama sürüyor.
+- **Doğrulanamayanlar:** Bu aşamada gerçek hesapta veya gerçek iPhone Safari'de hiçbir işlem denenmedi.
+
+### Adım 11 alt adımları
+
+- **11.2 — Ana menü metinleri:** Bekliyor
+- **11.3 — Yatay arayüz çakışmaları:** Bekliyor
+- **11.4 — Silah titremesi:** Bekliyor
+- **11.5 — Kapı ve eşik takılması:** Bekliyor
+- **11.6 — Ortam görsel kalitesi:** Bekliyor
+- **11.7 — Silahlar ve eller:** Bekliyor
+- **11.8 — Savaş Odası kapsamlı yenileme:** Bekliyor
+- **11.9 — Final doğrulama:** Bekliyor

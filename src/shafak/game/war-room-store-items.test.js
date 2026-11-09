@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getStoreItem, getWarRoomWeaponStoreStats } from "./store-catalog.ts";
-import { getWarRoomLoadoutFromProfile, isWarRoomWeaponOwned } from "./war-room-loadout.ts";
+import {
+  getWarRoomLoadoutAssignment,
+  getWarRoomLoadoutFromProfile,
+  isWarRoomWeaponOwned,
+} from "./war-room-loadout.ts";
 import { WAR_ROOM_WEAPONS } from "./war-room-data.ts";
 
 test("every store-linked War Room weapon exposes its real combat values", () => {
@@ -35,4 +39,25 @@ test("a purchased War Room weapon is owned and available in the two-slot briefin
     equipment: { weaponId: "weapon_ash_sword" },
     inventory: { ownedItemIds, secondaryWeaponId: null },
   }), ["blaster_r", "powder_rifle"]);
+});
+
+test("saved War Room slots load independently and assigning a weapon swaps rather than duplicates it", () => {
+  const profile = {
+    equipment: { weaponId: "weapon_ash_sword" },
+    inventory: {
+      ownedItemIds: ["war_room_blaster_r", "war_room_blaster_p"],
+      secondaryWeaponId: null,
+      warRoomPrimaryWeaponId: "blaster_r",
+      warRoomSecondaryWeaponId: "blaster_p",
+    },
+  };
+  assert.deepEqual(getWarRoomLoadoutFromProfile(profile), ["blaster_r", "blaster_p"]);
+  assert.deepEqual(getWarRoomLoadoutAssignment(profile, "blaster_p", 0), {
+    warRoomPrimaryWeaponId: "blaster_p",
+    warRoomSecondaryWeaponId: "blaster_r",
+  });
+  assert.throws(
+    () => getWarRoomLoadoutAssignment(profile, "blaster_q", 0),
+    /war_room_weapon_not_owned/,
+  );
 });

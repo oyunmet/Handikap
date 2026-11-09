@@ -138,6 +138,8 @@ export type PlayerInventory = {
   combatItemCounts: CombatItemCounts;
   quickSlots: CombatQuickSlots;
   secondaryWeaponId: string | null;
+  warRoomPrimaryWeaponId: string | null;
+  warRoomSecondaryWeaponId: string | null;
 };
 
 export type PlayerCombatModifiers = {

@@ -92,6 +92,8 @@ export const defaultProfile: PlayerProfile = {
     combatItemCounts: { ...DEFAULT_COMBAT_ITEM_COUNTS },
     quickSlots: [...DEFAULT_COMBAT_QUICK_SLOTS],
     secondaryWeaponId: null,
+    warRoomPrimaryWeaponId: null,
+    warRoomSecondaryWeaponId: null,
   },
   battles: 0,
   wins: 0,
@@ -312,7 +314,24 @@ function normalizeInventory(value: unknown): PlayerInventory {
     && isCoreWeapon(secondaryWeapon)
     ? secondaryWeapon
     : null;
-  return { ownedItemIds, upgrades, newItemIds, combatItemCounts, quickSlots, secondaryWeaponId };
+  const warRoomPrimaryWeaponId = typeof saved.warRoomPrimaryWeaponId === "string"
+    && /^[a-z0-9_-]{1,60}$/.test(saved.warRoomPrimaryWeaponId)
+    ? saved.warRoomPrimaryWeaponId
+    : null;
+  const warRoomSecondaryWeaponId = typeof saved.warRoomSecondaryWeaponId === "string"
+    && /^[a-z0-9_-]{1,60}$/.test(saved.warRoomSecondaryWeaponId)
+    ? saved.warRoomSecondaryWeaponId
+    : null;
+  return {
+    ownedItemIds,
+    upgrades,
+    newItemIds,
+    combatItemCounts,
+    quickSlots,
+    secondaryWeaponId,
+    warRoomPrimaryWeaponId,
+    warRoomSecondaryWeaponId,
+  };
 }
 
 function safeItemId(value: unknown, fallback: string) {

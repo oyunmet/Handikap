@@ -12,6 +12,7 @@ import {
   normalizeCombatQuickSlots,
 } from "../src/shafak/game/combat-items.ts";
 import { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS } from "./storeCatalog.ts";
+import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../src/shafak/game/war-room-data.ts";
 import { WORLD_GATE_INTERVAL_METERS } from "../src/shafak/world/movement.ts";
 import { WORLD_GATE_STOP_OFFSET_METERS } from "../src/shafak/world/world-progress.ts";
 import { FINAL_CAMPAIGN_BOSS_ID, isCampaignComplete, MAX_DEFEATED_OPPONENTS } from "../src/shafak/world/campaign-progression.ts";
@@ -158,6 +159,8 @@ export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord 
       combatItemCounts: { ...DEFAULT_COMBAT_ITEM_COUNTS },
       quickSlots: [...DEFAULT_COMBAT_QUICK_SLOTS],
       secondaryWeaponId: null,
+      warRoomPrimaryWeaponId: null,
+      warRoomSecondaryWeaponId: null,
     },
     battles: 0,
     wins: 0,
@@ -293,6 +296,8 @@ function normalizeInventory(value: unknown): PlayerInventory | null {
       combatItemCounts: { ...DEFAULT_COMBAT_ITEM_COUNTS },
       quickSlots: [...DEFAULT_COMBAT_QUICK_SLOTS],
       secondaryWeaponId: null,
+      warRoomPrimaryWeaponId: null,
+      warRoomSecondaryWeaponId: null,
     };
   }
   if (!isRecord(value)) return null;
@@ -318,6 +323,16 @@ function normalizeInventory(value: unknown): PlayerInventory | null {
     secondaryWeaponId &&
     (!ownedItemIds.includes(secondaryWeaponId) || getStoreItem(secondaryWeaponId)?.slot !== "weapon")
   ) return null;
+  const normalizeWarRoomWeapon = (candidate: unknown) => {
+    if (candidate === undefined || candidate === null) return null;
+    if (typeof candidate !== "string") return undefined;
+    const weapon = WAR_ROOM_WEAPON_BY_ID.get(candidate as WarRoomWeaponId);
+    if (!weapon || (weapon.storeItemId && !ownedItemIds.includes(weapon.storeItemId))) return undefined;
+    return weapon.id;
+  };
+  const warRoomPrimaryWeaponId = normalizeWarRoomWeapon(value.warRoomPrimaryWeaponId);
+  const warRoomSecondaryWeaponId = normalizeWarRoomWeapon(value.warRoomSecondaryWeaponId);
+  if (warRoomPrimaryWeaponId === undefined || warRoomSecondaryWeaponId === undefined) return null;
   if (value.upgrades !== undefined && !isRecord(value.upgrades)) return null;
   const rawUpgrades = isRecord(value.upgrades) ? value.upgrades : {};
   if (Object.keys(rawUpgrades).length > 120) return null;
@@ -335,6 +350,8 @@ function normalizeInventory(value: unknown): PlayerInventory | null {
     combatItemCounts,
     quickSlots,
     secondaryWeaponId,
+    warRoomPrimaryWeaponId,
+    warRoomSecondaryWeaponId: warRoomSecondaryWeaponId === warRoomPrimaryWeaponId ? null : warRoomSecondaryWeaponId,
   };
 }
 

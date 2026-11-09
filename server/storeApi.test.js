@@ -172,6 +172,74 @@ test("buying equipment immediately equips it and activates its combat stats", as
   assert.ok(calculateAccountCombatStats(pool.profile).damageMultiplier > baselineStats.damageMultiplier);
 });
 
+test("War Room weapon purchase adds ownership and charges exactly once without RPG equipment", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  profile.gold = 2_500;
+  const startingEquipment = structuredClone(profile.equipment);
+  const item = STORE_CATALOG.find((entry) => entry.warRoomWeaponId === "blaster_r");
+  assert.ok(item);
+  assert.equal(item.price.gold, 1_900);
+  const { pool, send } = await openStoreApi(t, profile);
+  const body = { itemId: item.id, idempotencyKey: "6ae8370c-d709-4a9d-8d25-71412ab23f05" };
+
+  const first = await send("purchase", body);
+  assert.equal(first.status, 200);
+  assert.equal(pool.profile.gold, 600);
+  assert.ok(pool.profile.inventory.ownedItemIds.includes(item.id));
+  assert.deepEqual(pool.profile.equipment, startingEquipment);
+
+  const replay = await send("purchase", body);
+  assert.equal(replay.status, 200);
+  assert.equal((await replay.json()).replayed, true);
+  assert.equal(pool.profile.gold, 600);
+  assert.equal(pool.profile.inventory.ownedItemIds.filter((id) => id === item.id).length, 1);
+
+  const duplicate = await send("purchase", {
+    itemId: item.id,
+    idempotencyKey: "1125a48d-5fe4-40d1-8d7a-4284075271ab",
+  });
+  assert.equal(duplicate.status, 409);
+  assert.equal(pool.profile.gold, 600);
+});
+
+test("an unaffordable War Room weapon purchase leaves the balance and inventory unchanged", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  const item = STORE_CATALOG.find((entry) => entry.warRoomWeaponId === "blaster_r");
+  assert.ok(item);
+  const startingInventory = structuredClone(profile.inventory);
+  const { pool, send } = await openStoreApi(t, profile);
+
+  const response = await send("purchase", {
+    itemId: item.id,
+    idempotencyKey: "2605b21c-c82c-4944-a9a1-876119ad3ee0",
+  });
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: "insufficient_funds" });
+  assert.equal(pool.profile.gold, 120);
+  assert.deepEqual(pool.profile.inventory, startingInventory);
+});
+
+test("owned War Room weapons can be assigned to separate primary and reserve slots", async (t) => {
+  const profile = createDefaultPlayerProfile();
+  const primary = STORE_CATALOG.find((entry) => entry.warRoomWeaponId === "blaster_r");
+  const reserve = STORE_CATALOG.find((entry) => entry.warRoomWeaponId === "blaster_p");
+  assert.ok(primary);
+  assert.ok(reserve);
+  profile.inventory.ownedItemIds.push(primary.id, reserve.id);
+  const startingEquipment = structuredClone(profile.equipment);
+  const { pool, send } = await openStoreApi(t, profile);
+
+  const primaryResponse = await send("war-room-equip", { itemId: primary.id, slot: "primary" });
+  assert.equal(primaryResponse.status, 200);
+  assert.equal(pool.profile.inventory.warRoomPrimaryWeaponId, "blaster_r");
+
+  const reserveResponse = await send("war-room-equip", { itemId: reserve.id, slot: "secondary" });
+  assert.equal(reserveResponse.status, 200);
+  assert.equal(pool.profile.inventory.warRoomSecondaryWeaponId, "blaster_p");
+  assert.deepEqual(pool.profile.equipment, startingEquipment);
+});
+
 test("purchased rings fill an empty ring slot before replacing the first ring", async (t) => {
   const profile = createDefaultPlayerProfile();
   profile.diamonds = 100;

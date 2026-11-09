@@ -14,6 +14,7 @@ import {
   STARTER_ITEM_IDS,
   STORE_CATALOG,
 } from "./storeCatalog.ts";
+import { getWarRoomLoadoutAssignment } from "../src/shafak/game/war-room-loadout.ts";
 import type { PlayerProfile } from "../src/shafak/game/profile.ts";
 import {
   getEquipmentLoadoutKey,
@@ -97,6 +98,19 @@ function validateEquipBody(value: unknown): { itemId: string; equipmentKey?: Equ
     itemId: value.itemId,
     ...(typeof value.equipmentKey === "string" ? { equipmentKey: value.equipmentKey as EquipmentLoadoutKey } : {}),
   };
+}
+
+function validateWarRoomEquipBody(value: unknown): { itemId: string; slotIndex: 0 | 1 } | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).length !== 2 ||
+    !Object.hasOwn(value, "itemId") ||
+    !Object.hasOwn(value, "slot") ||
+    typeof value.itemId !== "string" ||
+    !/^[a-z0-9_-]{1,60}$/.test(value.itemId) ||
+    (value.slot !== "primary" && value.slot !== "secondary")
+  ) return null;
+  return { itemId: value.itemId, slotIndex: value.slot === "primary" ? 0 : 1 };
 }
 
 function validateCombatLoadoutBody(value: unknown): {
@@ -309,26 +323,37 @@ export function createStoreApi(
       };
       if (storeItem.kind === "equipment") {
         if (profile.inventory.ownedItemIds.length >= 120) throw new StoreServiceError(409, "inventory_full");
-        const key = storeItem.slot === "ring"
-          ? !profile.equipment.ringOneId
-            ? "ringOneId"
-            : !profile.equipment.ringTwoId
-              ? "ringTwoId"
-              : "ringOneId"
-          : storeItem.slot ? equipmentKey(storeItem.slot) : null;
-        if (!key) throw new StoreServiceError(400, "item_not_equippable");
-        nextProfile = {
-          ...nextProfile,
-          equipment: {
-            ...nextProfile.equipment,
-            [key]: storeItem.id,
-          },
-          inventory: {
-            ...profile.inventory,
-            ownedItemIds: [...profile.inventory.ownedItemIds, storeItem.id],
-            newItemIds: [...profile.inventory.newItemIds, storeItem.id],
-          },
-        };
+        if (storeItem.warRoomWeaponId) {
+          nextProfile = {
+            ...nextProfile,
+            inventory: {
+              ...profile.inventory,
+              ownedItemIds: [...profile.inventory.ownedItemIds, storeItem.id],
+              newItemIds: [...profile.inventory.newItemIds, storeItem.id],
+            },
+          };
+        } else {
+          const key = storeItem.slot === "ring"
+            ? !profile.equipment.ringOneId
+              ? "ringOneId"
+              : !profile.equipment.ringTwoId
+                ? "ringTwoId"
+                : "ringOneId"
+            : storeItem.slot ? equipmentKey(storeItem.slot) : null;
+          if (!key) throw new StoreServiceError(400, "item_not_equippable");
+          nextProfile = {
+            ...nextProfile,
+            equipment: {
+              ...nextProfile.equipment,
+              [key]: storeItem.id,
+            },
+            inventory: {
+              ...profile.inventory,
+              ownedItemIds: [...profile.inventory.ownedItemIds, storeItem.id],
+              newItemIds: [...profile.inventory.newItemIds, storeItem.id],
+            },
+          };
+        }
       } else if (storeItem.reward?.type === "combat-item") {
         const current = profile.inventory.combatItemCounts[storeItem.reward.itemId];
         if (current + storeItem.reward.amount > 999) throw new StoreServiceError(409, "stack_limit");
@@ -405,6 +430,42 @@ export function createStoreApi(
         },
         inventory: {
           ...profile.inventory,
+          newItemIds: profile.inventory.newItemIds.filter((id) => id !== storeItem.id),
+        },
+      };
+      await updateProfile(client, userId, nextProfile);
+      return { profile: publicProfile(nextProfile), itemId: storeItem.id, equipped: true };
+    });
+  });
+
+  router.post("/api/store/war-room-equip", equipLimit, async (request, response) => {
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+    response.setHeader("Cache-Control", "no-store");
+    const body = validateWarRoomEquipBody(request.body);
+    if (!body) {
+      response.status(400).json({ error: "invalid_war_room_equip" });
+      return;
+    }
+    const storeItem = getStoreItem(body.itemId);
+    if (!storeItem?.warRoomWeaponId) {
+      response.status(400).json({ error: "item_not_equippable" });
+      return;
+    }
+    await runAccountOperation(database, userId, response, async (client) => {
+      const profile = await loadProfileForUpdate(client, userId);
+      if (!isStoreItemUnlocked(storeItem, profile.level)) throw new StoreServiceError(403, "item_level_locked");
+      if (!profile.inventory.ownedItemIds.includes(storeItem.id)) throw new StoreServiceError(403, "item_not_owned");
+      const assignment = getWarRoomLoadoutAssignment(
+        profile,
+        storeItem.warRoomWeaponId as Parameters<typeof getWarRoomLoadoutAssignment>[1],
+        body.slotIndex,
+      );
+      const nextProfile: PlayerProfile = {
+        ...profile,
+        inventory: {
+          ...profile.inventory,
+          ...assignment,
           newItemIds: profile.inventory.newItemIds.filter((id) => id !== storeItem.id),
         },
       };

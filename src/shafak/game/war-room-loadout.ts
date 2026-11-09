@@ -41,11 +41,41 @@ export function getWarRoomLoadoutFromProfile(
     .map(getWarRoomWeaponId)
     .filter((id): id is WarRoomWeaponId => id !== null))];
 
-  if (available.length === 0) return [...DEFAULT_WAR_ROOM_LOADOUT];
-  const primary = available[0];
-  const secondary = available.find((id) => id !== primary)
+  const primarySaved = getOwnedWarRoomWeapon(profile.inventory.warRoomPrimaryWeaponId, owned);
+  const secondarySaved = getOwnedWarRoomWeapon(profile.inventory.warRoomSecondaryWeaponId, owned);
+  const primary = primarySaved
+    ?? available.find((id) => id !== secondarySaved)
+    ?? DEFAULT_WAR_ROOM_LOADOUT[0];
+  const secondary = secondarySaved && secondarySaved !== primary
+    ? secondarySaved
+    : available.find((id) => id !== primary)
     ?? (primary === DEFAULT_WAR_ROOM_LOADOUT[0]
       ? DEFAULT_WAR_ROOM_LOADOUT[1]
       : DEFAULT_WAR_ROOM_LOADOUT[0]);
   return [primary, secondary];
+}
+
+function getOwnedWarRoomWeapon(value: string | null | undefined, owned: ReadonlySet<string>) {
+  if (!value || !WAR_ROOM_WEAPON_BY_ID.has(value as WarRoomWeaponId)) return null;
+  const weaponId = value as WarRoomWeaponId;
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+  return weapon && (!weapon.storeItemId || owned.has(weapon.storeItemId)) ? weaponId : null;
+}
+
+export function getWarRoomLoadoutAssignment(
+  profile: Pick<PlayerProfile, "equipment" | "inventory">,
+  weaponId: WarRoomWeaponId,
+  slotIndex: 0 | 1,
+) {
+  if (!isWarRoomWeaponOwned(weaponId, profile.inventory.ownedItemIds)) {
+    throw new Error("war_room_weapon_not_owned");
+  }
+  const next: [WarRoomWeaponId, WarRoomWeaponId] = [...getWarRoomLoadoutFromProfile(profile)];
+  const otherSlot = slotIndex === 0 ? 1 : 0;
+  if (next[otherSlot] === weaponId) next[otherSlot] = next[slotIndex];
+  next[slotIndex] = weaponId;
+  return {
+    warRoomPrimaryWeaponId: next[0],
+    warRoomSecondaryWeaponId: next[1],
+  };
 }
