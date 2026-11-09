@@ -1,7 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import AuthEntry from "./shafak/auth/EnvironmentRouter.tsx";
-import { resolveFinalSceneDebugRequest } from "./shafak/debug/final-scene-access.ts";
+import {
+  formatStartupErrorDiagnostic,
+  isStartupErrorDiagnosticRequest,
+  resolveFinalSceneDebugRequest,
+} from "./shafak/debug/final-scene-access.ts";
 import "./shafak/tokens.css";
 import "./shafak/App.css";
 
@@ -16,7 +20,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 class StartupErrorBoundary extends React.Component {
-  state = { error: null };
+  state = { error: null, diagnosticsEnabled: false };
 
   static getDerivedStateFromError(error) {
     return { error };
@@ -24,6 +28,15 @@ class StartupErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("[shafak-startup] The application could not render.", error, info.componentStack);
+
+    if (!isStartupErrorDiagnosticRequest(window.location.search, document.referrer)) return;
+
+    fetch("/api/debug-tools/status", { cache: "no-store", credentials: "same-origin" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((status) => {
+        if (status?.enabled === true) this.setState({ diagnosticsEnabled: true });
+      })
+      .catch(() => {});
   }
 
   render() {
@@ -51,6 +64,11 @@ class StartupErrorBoundary extends React.Component {
         {import.meta.env.DEV && (
           <code style={{ maxWidth: "min(720px, 90vw)", color: "#e6b2a5", overflowWrap: "anywhere" }}>
             {this.state.error?.message ?? String(this.state.error)}
+          </code>
+        )}
+        {this.state.diagnosticsEnabled && (
+          <code style={{ maxWidth: "min(720px, 90vw)", color: "#e6b2a5", overflowWrap: "anywhere" }}>
+            {formatStartupErrorDiagnostic(this.state.error)}
           </code>
         )}
         <button
