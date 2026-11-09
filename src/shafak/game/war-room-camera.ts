@@ -119,7 +119,9 @@ export function getWarRoomViewModelWallProximity(
   forward: WarRoomCameraPoint,
   bounds: readonly WarRoomCameraBounds[],
 ) {
-  for (let distance = 0.3; distance <= 0.9; distance += 0.1) {
+  const nearDistance = 0.3;
+  const farDistance = 1.2;
+  for (let distance = nearDistance; distance <= farDistance; distance += 0.1) {
     const x = position.x + forward.x * distance;
     const y = position.y + forward.y * distance;
     const z = position.z + forward.z * distance;
@@ -128,9 +130,21 @@ export function getWarRoomViewModelWallProximity(
       && y >= obstacle.minY - 0.1 && y <= obstacle.maxY + 0.1
       && z >= obstacle.minZ - 0.1 && z <= obstacle.maxZ + 0.1
     ));
-    if (blocked) return Math.max(0, 1 - (distance - 0.3) / 0.6);
+    if (blocked) return Math.max(0, 1 - (distance - nearDistance) / (farDistance - nearDistance));
   }
   return 0;
+}
+
+export function getWarRoomViewModelWallSafetyRetraction(
+  wallProximity: number,
+  weaponForwardReach: number,
+  clearance = 0.08,
+) {
+  const proximity = Math.max(0, Math.min(1, Number.isFinite(wallProximity) ? wallProximity : 0));
+  const reach = Math.max(0, Number.isFinite(weaponForwardReach) ? weaponForwardReach : 0);
+  const safeClearance = Math.max(0, Number.isFinite(clearance) ? clearance : 0);
+  const wallDistance = 1.2 - proximity * 0.9;
+  return Math.min(0.95, Math.max(0, reach + safeClearance - wallDistance));
 }
 
 export type WarRoomCameraPlacement = WarRoomCameraSweep & {

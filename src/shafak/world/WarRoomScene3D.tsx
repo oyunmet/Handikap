@@ -96,6 +96,7 @@ import {
   isWarRoomEyeClearAbove,
   isWarRoomCameraPointClear,
   getWarRoomViewModelWallProximity,
+  getWarRoomViewModelWallSafetyRetraction,
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   stepWarRoomCameraFloorHeight,
@@ -117,6 +118,7 @@ import {
   getWarRoomViewModelMovementIntent,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
+  getWarRoomViewModelSwayScale,
   stepWarRoomViewModelMovement,
   stepWarRoomViewModelWallProximity,
   WAR_ROOM_VIEWMODEL_FOV,
@@ -855,8 +857,10 @@ function FirstPersonWeaponViewModel({
     velocity: 0,
     active: false,
   });
+  const legMovementRef = useRef(0);
   const walkPhaseRef = useRef(0);
   const wallProximityRef = useRef(0);
+  const wallSafetyRetractionRef = useRef(0);
   const lastWeaponIdRef = useRef(weaponId);
   const switchProgressRef = useRef(1);
   const preparedWeaponMeshesRef = useRef(new WeakSet<THREE.Mesh>());
@@ -898,6 +902,7 @@ function FirstPersonWeaponViewModel({
       delta,
     );
     const viewModelMovement = viewModelMovementRef.current.value;
+    legMovementRef.current = viewModelMovement;
     if (viewModelMovement > 0.02) {
       walkPhaseRef.current = (walkPhaseRef.current + delta * (7.2 + viewModelMovement * 2.8))
         % (Math.PI * 2);
@@ -946,11 +951,12 @@ function FirstPersonWeaponViewModel({
       delta,
     );
     const wallProximity = wallProximityRef.current;
+    const viewModelScale = getWarRoomViewModelScaleFactor(aspect);
     const pose = getWarRoomViewModelPose({
       time: clock,
       movement: viewModelMovement,
       walkPhase: walkPhaseRef.current,
-      swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.45 : 0,
+      swayScale: getWarRoomViewModelSwayScale(weaponSway),
       wallProximity,
       wallTuckEnabled: movementIntent <= 0.05 && !isAirborne,
       aiming: input.aimHeld,
@@ -963,15 +969,32 @@ function FirstPersonWeaponViewModel({
       motionReduced,
       switchProgress: switchProgressRef.current,
     }, aspect);
+    const weaponLength = weapon.normalizeLength
+      ?? Math.max(...(weapon.modelSize ?? [0.8, 0.8, 0.8]));
+    const weaponForwardReach = (
+      Math.max(0, -(viewConfig.position[2] + pose.position[2]))
+      + weaponLength * viewConfig.scale * 0.5
+    ) * viewModelScale;
+    const targetWallRetraction = getWarRoomViewModelWallSafetyRetraction(
+      wallProximity,
+      weaponForwardReach,
+    );
+    wallSafetyRetractionRef.current = stepWarRoomViewModelWallProximity(
+      wallSafetyRetractionRef.current,
+      targetWallRetraction,
+      delta,
+      4,
+    );
+    const wallSafetyRetraction = wallSafetyRetractionRef.current / viewModelScale;
     group.visible = cameraMode === "first-person";
-    group.scale.setScalar(getWarRoomViewModelScaleFactor(aspect));
+    group.scale.setScalar(viewModelScale);
     group.position.copy(cameraPositionRef.current);
     group.quaternion.copy(cameraQuaternionRef.current);
 
     arms.position.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
       viewConfig.position[1] + pose.position[1],
-      viewConfig.position[2] + pose.position[2],
+      viewConfig.position[2] + pose.position[2] + wallSafetyRetraction,
     );
     arms.rotation.set(
       mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
@@ -981,7 +1004,7 @@ function FirstPersonWeaponViewModel({
     weaponPose.position.set(
       viewConfig.position[0] * horizontalFactor + pose.position[0],
       viewConfig.position[1] + pose.position[1],
-      viewConfig.position[2] + pose.position[2],
+      viewConfig.position[2] + pose.position[2] + wallSafetyRetraction,
     );
     localEulerRef.current.set(
       mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
@@ -1050,7 +1073,7 @@ function FirstPersonWeaponViewModel({
         cameraPositionRef={cameraPositionRef}
         cameraQuaternionRef={cameraQuaternionRef}
         cameraForwardRef={cameraForwardRef}
-      movementRef={viewModelMovementRef.current}
+        movementRef={legMovementRef}
         walkPhaseRef={walkPhaseRef}
         active={cameraMode === "first-person"}
       />
@@ -2035,7 +2058,7 @@ function WarRoomRuntimeScene({
     return result;
   }, []);
   const viewModelCamera = useMemo(() => {
-    const result = new THREE.PerspectiveCamera(63, 1, 0.012, 18);
+    const result = new THREE.PerspectiveCamera(WAR_ROOM_VIEWMODEL_FOV, 1, 0.012, 18);
     result.name = "war-room-first-person-view-model-camera";
     return result;
   }, []);

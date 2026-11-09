@@ -124,7 +124,7 @@ test("stationary wall tuck stays small instead of zooming the weapon toward the 
   assert.ok(clear.position[1] - close.position[1] <= 0.035001);
 });
 
-test("wall proximity cannot push the weapon forward or back while moving", () => {
+test("cosmetic wall tuck does not pump the weapon during movement", () => {
   const state = {
     time: 0,
     movement: 1,

@@ -5,6 +5,7 @@ import {
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
   getWarRoomViewModelWallProximity,
+  getWarRoomViewModelWallSafetyRetraction,
   getWarRoomCameraRaySafeDistance,
   isWarRoomCameraPointClear,
   getWarRoomCameraRig,
@@ -94,6 +95,27 @@ test("first-person weapon moves back and down near a forward wall only", () => {
     ),
     0,
   );
+});
+
+test("viewmodel wall scan reaches weapon range and computes a safe pullback", () => {
+  const farWall = {
+    id: "far-viewmodel-wall",
+    minX: -1,
+    maxX: 1,
+    minY: 0,
+    maxY: 3,
+    minZ: -1.2,
+    maxZ: -1,
+  };
+  const proximity = getWarRoomViewModelWallProximity(
+    { x: 0, y: 1.5, z: 0 },
+    { x: 0, y: 0, z: -1 },
+    [farWall],
+  );
+  assert.ok(proximity > 0 && proximity < 0.5, "the extended probe should detect a wall beyond 0.9 m");
+  assert.equal(getWarRoomViewModelWallSafetyRetraction(0, 0.8), 0);
+  assert.ok(getWarRoomViewModelWallSafetyRetraction(proximity, 0.95) > 0);
+  assert.ok(getWarRoomViewModelWallSafetyRetraction(1, 0.8) > 0.5);
 });
 
 test("camera preserves its shoulder distance when the sweep starts inside a nearby wall", () => {

@@ -29,6 +29,15 @@ export type WarRoomViewModelMovementState = {
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
 export const WAR_ROOM_VIEWMODEL_FOV = 60;
+export const WAR_ROOM_VIEWMODEL_SWAY_SCALE = {
+  off: 0,
+  low: 0.45,
+  normal: 0.6,
+} as const;
+
+export function getWarRoomViewModelSwayScale(level: keyof typeof WAR_ROOM_VIEWMODEL_SWAY_SCALE) {
+  return WAR_ROOM_VIEWMODEL_SWAY_SCALE[level];
+}
 
 export function getWarRoomViewModelMovementIntent(
   moveX: number,
@@ -64,11 +73,17 @@ export function stepWarRoomViewModelMovement(
   };
 }
 
-export function stepWarRoomViewModelWallProximity(current: number, target: number, delta: number) {
+export function stepWarRoomViewModelWallProximity(
+  current: number,
+  target: number,
+  delta: number,
+  smoothing = 8.5,
+) {
   const safeCurrent = clamp01(current);
   const safeTarget = clamp01(target);
   const safeDelta = Number.isFinite(delta) ? Math.max(0, delta) : 0;
-  const blend = 1 - Math.exp(-safeDelta * 8.5);
+  const safeSmoothing = Number.isFinite(smoothing) ? Math.max(0, smoothing) : 8.5;
+  const blend = 1 - Math.exp(-safeDelta * safeSmoothing);
   return safeCurrent + (safeTarget - safeCurrent) * blend;
 }
 

@@ -141,11 +141,22 @@
 - **Yarım kalanlar:** 11.3 için kod tarafında yok. 11.4–11.9 sıradaki alt adımlar.
 - **Doğrulanamayanlar:** Gerçek iPhone Safari'de dokunma kabulü ve cihaz üstü görüntü doğrulanmadı; Chromium emülasyonu gerçek cihaz testi yerine geçmez.
 
+### 11.4 — Silah titremesi
+
+- **Durum:** Tamamlandı (hareket ölçümü, testler, tür denetimi ve üretim derlemesi); gerçek telefon kabulü bekliyor.
+- **Kök neden:** Önceki üretim kodu silah hareketini çarpışma çözümünden sonraki oyuncu hızına bağladığında duvar sürtünmesi hızı kareden kareye değiştirebiliyordu. Sonraki düzeltme bunu joystick/klavye niyetine ve sönümlü yaya geçirmişti; ancak bacak görünümü hâlâ sayı tutan bir ref beklerken yeni hareket durumu nesnesi alıyordu, bu nedenle typecheck hata veriyordu. Eklenen ilk ölçüm testi de yeni akışı çağırmak yerine eski hız ölçümünü simüle ediyor ve artık kullanılmayan 0,75 sallanma değerini kullanıyordu; bu yüzden sprint ölçümü 0,001223 standart sapmayla 0,001 eşiğini aşıyordu. Ayrı viewmodel kamerası 60° sabiti tanımlı olmasına karşın 63° kuruluyordu.
+- **Yapılanlar:** Hareket niyeti, yerde olma ve 0,16 başlama / 0,08 bırakma eşikleriyle histerezis kullanılıyor; kritik sönümlü hareket hesabı kare süresine göre entegre ediliyor. Bacak görünümüne güncel hareket miktarını taşıyan ayrı sayı ref'i bağlandı; silah ve kollar aynı viewmodel pozunu kullanıyor. Ayrı kamera artık tam 60° FOV kullanıyor. Sallanma seçenekleri kapalı 0, hafif 0,45, normal 0,60 ölçeğinde; varsayılan hafif ve ayardaki etiket “Hafif”. Duvar geri çekilmesi hareket sırasında kapalı, dururken yumuşak geçişli; bu, hareket esnasında duvar algısının silahı ileri-geri itmesini engelliyor.
+- **5 saniyelik ölçüm:** 60 Hz'de her kare için yerel X/Y/Z ve üç dönüş değeri kaydedildi. Düz yürüme, fiziksel hızı her karede 0↔4,1 m/sn değişen duvar sürtünmesi ve 8,2 m/sn koşu; kapalı/hafif/normal ayarlarının her birinde sınandı. Frame-değişimi standart sapma üst sınırı 0,001: kapalı tüm koşullarda 0,000000; hafif yürüme/sürtünme/koşu 0,000319 / 0,000319 / 0,000734; normal 0,000425 / 0,000425 / 0,000978. Sabit hareket niyetinde duvar sürtünmesi ile düz yürüme viewmodel kareleri aynı; oyuncunun gerçek katettiği mesafe farklı.
+- **Doğrulama:** Başlangıçta tam test 643 testten 642 geçti ve sprint ölçüm testi kaldı; typecheck bacak ref türünde hata verdi. Düzeltilmiş hedef viewmodel testleri 20/20; tam `npm test` — 645/645; `npm run typecheck` — geçti; `npm run build` — geçti. SwiftShader Chromium'da 18 hazırlık/HUD görüntüsü tekrar alındı; dokuz çözünürlükte taşma/çakışma 0, tarayıcı hatası yok. 844×390 HUD görüntüsünde silah sağ-alt bölgede ve nişangâh açık kaldı. Kampanya kodunda aynı birinci şahıs silah viewmodel'i bulunmadığından düzeltme Savaş Odası görünümüne uygulandı; kampanya hareketi ve kayıtlarına dokunulmadı.
+- **Yarım kalanlar:** Kod tarafında yok.
+- **Doğrulanamayanlar:** Gerçek iPhone/Safari'de yürüyüş/koşu hissi, uzun süreli kare hızı, gerçek duvar temasında görüntü ve çoklu dokunma doğrulanamadı. Chromium emülasyonu gerçek cihaz FPS'sini kanıtlamaz.
+- **Değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/game/war-room-viewmodel.ts`, `src/shafak/game/war-room-viewmodel-jitter.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
+
 ### Adım 11 alt adımları
 
 - **11.2 — Ana menü metinleri:** Tamamlandı
 - **11.3 — Yatay arayüz çakışmaları:** Tamamlandı
-- **11.4 — Silah titremesi:** Bekliyor
+- **11.4 — Silah titremesi:** Tamamlandı
 - **11.5 — Kapı ve eşik takılması:** Bekliyor
 - **11.6 — Ortam görsel kalitesi:** Bekliyor
 - **11.7 — Silahlar ve eller:** Bekliyor

@@ -1459,7 +1459,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                       <div className="quality-switch war-room-sway-switch" role="group" aria-label="Silah sallanması">
                         {([
                           ["off", "Kapalı"],
-                          ["low", "Düşük"],
+                          ["low", "Hafif"],
                           ["normal", "Normal"],
                         ] as const).map(([value, label]) => (
                           <button
