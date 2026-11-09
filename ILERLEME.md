@@ -132,10 +132,18 @@
 - **Yarım kalanlar:** 11.2 için kod tarafında yok. 11.3–11.9 sıradaki adımlar olarak bekliyor.
 - **Doğrulanamayanlar:** Gerçek iPhone Safari ve production yayını bu oturumda denenmedi. Önizleme tarayıcısı WebGL yazılım fallback/GPU stall uyarıları verdi, ancak ana menü görüntülendi. Testler yalnızca statik kampanya fixture/verisini kullandı; gerçek profil/para/ilerleme kaydı değiştirilmedi.
 
+### 11.3 — Yatay arayüz çakışmaları
+
+- **Durum:** Yarım (çalışılıyor).
+- **Kök neden:** 772×330 Chromium ölçümünde hazırlık içeriğinin grid satırları beş normal alt öğeye değil dört satıra göre tanımlı; esnek satıra silah başlığı yerleşiyor, listenin ve alt barın satırları taşarak üst üste biniyor. BAŞLA düğmesinin 168 px minimum genişliği alt barın en fazla 140 px sütununu aşıyor ve viewport'un 12 px dışına taşıyor. HUD'da kapı düğmesi, düşman sayacı, boss göstergesi ve geçici bildirim birbirinden bağımsız mutlak koordinatlarla yerleştirilmiş; çakışmayı önleyen ortak ayrılmış alan veya bildirim kuyruğu yok.
+- **Yapılanlar:** Playwright/Chromium ile 772×330 temel ekranı ölçüp ekran görüntüsü aldım; test düzeltmeden önce bu iki ana çakışmayı yakalayacak şekilde hazırlanıyor.
+- **Yarım kalanlar:** Hazırlık ekranının iki sütun + sabit alt bar düzeni, kayan silah listesi, HUD bildirim kuyruğu ve belirtilen boyutlarda otomatik kutu çakışma testleri.
+- **Doğrulanamayanlar:** Henüz yok; düzeltme sonrası ekran boyutları ve gerçek iPhone Safari ayrıca kontrol edilecek.
+
 ### Adım 11 alt adımları
 
 - **11.2 — Ana menü metinleri:** Tamamlandı
-- **11.3 — Yatay arayüz çakışmaları:** Bekliyor
+- **11.3 — Yatay arayüz çakışmaları:** Yarım
 - **11.4 — Silah titremesi:** Bekliyor
 - **11.5 — Kapı ve eşik takılması:** Bekliyor
 - **11.6 — Ortam görsel kalitesi:** Bekliyor
