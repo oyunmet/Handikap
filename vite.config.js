@@ -20,6 +20,13 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             {
+              name: "motion",
+              test: /node_modules[\\/](?:framer-motion|motion-dom|motion-utils)[\\/]/,
+              priority: 2,
+              maxSize: 512 * 1024,
+              entriesAware: false,
+            },
+            {
               name: "vendor",
               test: /node_modules[\\/]/,
               priority: 1,
