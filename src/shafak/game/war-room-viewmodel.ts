@@ -21,7 +21,48 @@ export type WarRoomViewModelPose = {
   rotation: readonly [number, number, number];
 };
 
+export type WarRoomViewModelMovementState = {
+  value: number;
+  velocity: number;
+  active: boolean;
+};
+
 const clamp01 = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+export const WAR_ROOM_VIEWMODEL_FOV = 60;
+
+export function getWarRoomViewModelMovementIntent(
+  moveX: number,
+  moveY: number,
+  keyX = 0,
+  keyY = 0,
+) {
+  return clamp01(Math.hypot(
+    (Number.isFinite(moveX) ? moveX : 0) + (Number.isFinite(keyX) ? keyX : 0),
+    (Number.isFinite(moveY) ? moveY : 0) + (Number.isFinite(keyY) ? keyY : 0),
+  ));
+}
+
+export function stepWarRoomViewModelMovement(
+  current: WarRoomViewModelMovementState,
+  movementIntent: number,
+  grounded: boolean,
+  delta: number,
+): WarRoomViewModelMovementState {
+  const safeDelta = Number.isFinite(delta) ? Math.max(0, Math.min(0.05, delta)) : 0;
+  const intent = grounded ? clamp01(movementIntent) : 0;
+  const active = grounded && (current.active ? intent > 0.08 : intent >= 0.16);
+  const target = active ? intent : 0;
+  const omega = 18;
+  const displacement = (Number.isFinite(current.value) ? current.value : 0) - target;
+  const velocity = Number.isFinite(current.velocity) ? current.velocity : 0;
+  const springTerm = velocity + omega * displacement;
+  const decay = Math.exp(-omega * safeDelta);
+  return {
+    value: clamp01(target + (displacement + springTerm * safeDelta) * decay),
+    velocity: (velocity - omega * springTerm * safeDelta) * decay,
+    active,
+  };
+}
 
 export function stepWarRoomViewModelWallProximity(current: number, target: number, delta: number) {
   const safeCurrent = clamp01(current);

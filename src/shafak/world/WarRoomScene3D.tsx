@@ -114,9 +114,13 @@ import {
   getWarRoomViewModelConfig,
   getWarRoomViewModelGripPoints,
   getWarRoomViewModelHorizontalFactor,
+  getWarRoomViewModelMovementIntent,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
+  stepWarRoomViewModelMovement,
   stepWarRoomViewModelWallProximity,
+  WAR_ROOM_VIEWMODEL_FOV,
+  type WarRoomViewModelMovementState,
 } from "../game/war-room-viewmodel";
 import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
 import {
@@ -846,11 +850,13 @@ function FirstPersonWeaponViewModel({
   const localEulerRef = useRef(new THREE.Euler());
   const wallProbeRef = useRef({ x: 0, y: 0, z: 0 });
   const preparedMeshesRef = useRef(new WeakSet<THREE.Mesh>());
-  const previousPlayerPositionRef = useRef({ x: 0, z: 0, initialized: false });
-  const filteredMovementRef = useRef(0);
+  const viewModelMovementRef = useRef<WarRoomViewModelMovementState>({
+    value: 0,
+    velocity: 0,
+    active: false,
+  });
   const walkPhaseRef = useRef(0);
   const wallProximityRef = useRef(0);
-  const movementActiveRef = useRef(false);
   const lastWeaponIdRef = useRef(weaponId);
   const switchProgressRef = useRef(1);
   const preparedWeaponMeshesRef = useRef(new WeakSet<THREE.Mesh>());
@@ -881,21 +887,19 @@ function FirstPersonWeaponViewModel({
     const player = runtimeRef.current.player;
     const input = inputRef.current;
     const delta = Math.min(rawDelta, 0.05);
-    const previousPlayerPosition = previousPlayerPositionRef.current;
-    const measuredSpeed = previousPlayerPosition.initialized && delta > 0
-      ? Math.hypot(player.x - previousPlayerPosition.x, player.z - previousPlayerPosition.z) / delta
-      : 0;
-    previousPlayerPosition.x = player.x;
-    previousPlayerPosition.z = player.z;
-    previousPlayerPosition.initialized = true;
-    const normalizedSpeed = Math.min(1, measuredSpeed / 8.2);
-    if (!movementActiveRef.current && normalizedSpeed >= 0.2) movementActiveRef.current = true;
-    else if (movementActiveRef.current && normalizedSpeed <= 0.1) movementActiveRef.current = false;
-    const movementTarget = movementActiveRef.current ? normalizedSpeed : 0;
-    filteredMovementRef.current += (movementTarget - filteredMovementRef.current)
-      * (1 - Math.exp(-delta * 12));
-    if (filteredMovementRef.current > 0.02) {
-      walkPhaseRef.current = (walkPhaseRef.current + delta * (7.2 + filteredMovementRef.current * 2.8))
+    const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
+    const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
+    const movementIntent = getWarRoomViewModelMovementIntent(input.moveX, input.moveY, keyX, keyY);
+    const isAirborne = player.jumpHeight > 0.02;
+    viewModelMovementRef.current = stepWarRoomViewModelMovement(
+      viewModelMovementRef.current,
+      movementIntent,
+      !isAirborne,
+      delta,
+    );
+    const viewModelMovement = viewModelMovementRef.current.value;
+    if (viewModelMovement > 0.02) {
+      walkPhaseRef.current = (walkPhaseRef.current + delta * (7.2 + viewModelMovement * 2.8))
         % (Math.PI * 2);
     }
     const clock = player.clockTime;
@@ -942,17 +946,13 @@ function FirstPersonWeaponViewModel({
       delta,
     );
     const wallProximity = wallProximityRef.current;
-    const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
-    const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    const hasMovementIntent = Math.hypot(input.moveX + keyX, input.moveY + keyY) > 0.05;
-    const isAirborne = player.jumpHeight > 0.02;
     const pose = getWarRoomViewModelPose({
       time: clock,
-      movement: filteredMovementRef.current,
+      movement: viewModelMovement,
       walkPhase: walkPhaseRef.current,
-      swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.75 : 0,
+      swayScale: weaponSway === "normal" ? 1 : weaponSway === "low" ? 0.45 : 0,
       wallProximity,
-      wallTuckEnabled: !hasMovementIntent && !isAirborne,
+      wallTuckEnabled: movementIntent <= 0.05 && !isAirborne,
       aiming: input.aimHeld,
       recoil,
       reloadProgress,
@@ -1050,7 +1050,7 @@ function FirstPersonWeaponViewModel({
         cameraPositionRef={cameraPositionRef}
         cameraQuaternionRef={cameraQuaternionRef}
         cameraForwardRef={cameraForwardRef}
-        movementRef={filteredMovementRef}
+      movementRef={viewModelMovementRef.current}
         walkPhaseRef={walkPhaseRef}
         active={cameraMode === "first-person"}
       />
