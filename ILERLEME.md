@@ -10,6 +10,7 @@
 6. **Hikâye, zorluk, final — Tamamlandı**
 7. **Prenses 3D modeli (oyuncu iskeleti) — Tamamlandı**
 8. **Performans, boyut, Play Store — Kod tamamlandı; yayın öncesi kullanıcı işlemleri bekliyor**
+9. **Test kısayolu — Tamamlandı**
 
 ## Adım 1 — Yatay/dikey mod ve arayüz
 
@@ -87,3 +88,12 @@
 - **Yarım kalanlar / kullanıcı işlemleri:** Android/JDK SDK ortamda yok; APK/AAB üretimi ve imzalama Android Studio'da yapılmalı. `public/.well-known/assetlinks.json` içindeki yer tutucu gerçek debug ve Play App Signing SHA-256 parmak izleriyle değiştirilip Vercel'e yayınlanmalı; sonra `npm run android:validate:web` yeniden geçmeli. Gerçek Android telefonda giriş, TWA tam ekran bağlantısı, düello, Savaş Odası, geri tuşu, döndürme, çevrimdışı ekran, WebGL/FPS ve ayrı bir test hesabıyla hesap silme elle doğrulanmalı.
 - **Doğrulanamayanlar:** İmzalı AAB, gerçek Play sertifikasıyla Digital Asset Links, Play Console yüklemesi ve gerçek cihaz kabul testleri bu çalışma alanında yapılamadı.
 - **Değişen dosyalar:** `ILERLEME.md`, `docs/android-play-store.md`; uygulama varlıkları ve hesap silme/PWA altyapısı önceki yerel commitlerde hazırlanmıştı.
+
+## Adım 9 — Test kısayolu
+
+- **Durum:** Tamamlandı (kayıt sisteminden bağımsız final önizlemesi, sunucu tarafı kapısı, SVG yedek modu ve dikey/yatay kadraj kontrolü).
+- **Kısayol:** `https://handikap.vercel.app/?debug=final` prensesli final sahnesini; `https://handikap.vercel.app/?debug=final&fallback=1` SVG siluet yedeğini açar. `DEBUG_TOOLS` sunucu ortamında tam olarak `1` değilse endpoint 404 döndürür ve normal oyun açılışı devam eder.
+- **Veri güvenliği:** Kısayol `WorldScene`, Clerk oyun oturumu ve profil yükleme/kaydetme akışını başlatmaz. Final ekranında Yeni Oyun+ düğmesi yoktur; yalnızca normal oyuna dönme düğmesi bulunur. Ödül veya ilerleme yazımı yapılmaz. TWA'nın `android-app://com.safaksavascilari.game` referrer'ı test kısayolunu yok sayar; Play Store uygulaması normal oyunda kalır.
+- **Ortam değişkeni:** Vercel projesinde **Settings → Environment Variables** altında `DEBUG_TOOLS=1` eklenip ilgili Production/Preview hedefi yeniden dağıtılmalıdır. Play Store sürümünde kapalı tutmak için TWA referrer engeli korunmalı; üretim değişkeni test amacıyla açılmışsa mağaza yayını öncesinde kaldırılmalıdır.
+- **Doğrulama:** Sunucu API'sinde kapalı/açık durumlar, URL parametrelerinin tam eşleşmesi, `fallback=1` ve Play Store TWA engeli test edildi. Dikey/yatay görünüm 402×874 ve 844×390 önizlemelerinde kontrol edildi; gerçek cihaz kontrolü ayrıca yapılmalı. Test/tür denetimi/derleme sonuçları aşağıda güncellenir.
+- **Değişen dosyalar:** `ILERLEME.md`, `api/[...path].ts`, `server/index.ts`, `server/debugToolsApi.ts`, `server/debugToolsApi.test.js`, `src/main.jsx`, `src/shafak/debug/final-scene-access.ts`, `src/shafak/debug/final-scene-access.test.js`, `src/shafak/debug/FinalSceneEntry.tsx`, `src/shafak/world/CampaignEnding.tsx`.

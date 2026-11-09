@@ -16,6 +16,7 @@ async function createApiHandler(): Promise<ApiHandler> {
     profileApiModule,
     storeApiModule,
     worldRewardsApiModule,
+    debugToolsApiModule,
   ] = await Promise.all([
     import("express"),
     import("cors"),
@@ -27,6 +28,7 @@ async function createApiHandler(): Promise<ApiHandler> {
     import("../server/profileApi.ts"),
     import("../server/storeApi.ts"),
     import("../server/worldRewardsApi.ts"),
+    import("../server/debugToolsApi.ts"),
   ]);
 
   const express = expressModule.default;
@@ -42,6 +44,7 @@ async function createApiHandler(): Promise<ApiHandler> {
     process.env.CLERK_PUBLISHABLE_KEY?.trim(),
   );
   app.use(cors({ credentials: true, origin: true }));
+  app.use(debugToolsApiModule.createDebugToolsApi());
 
   app.get("/api/health", async (_request, response) => {
     const [health, clerkKeyHealth] = await Promise.all([

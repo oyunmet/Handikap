@@ -1,8 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import AuthEntry from "./shafak/auth/EnvironmentRouter.tsx";
+import { resolveFinalSceneDebugRequest } from "./shafak/debug/final-scene-access.ts";
 import "./shafak/tokens.css";
 import "./shafak/App.css";
+
+const FinalSceneEntry = React.lazy(() => import("./shafak/debug/FinalSceneEntry.tsx"));
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -71,10 +74,30 @@ class StartupErrorBoundary extends React.Component {
   }
 }
 
+function ApplicationEntry() {
+  const [debugRequest] = React.useState(() =>
+    resolveFinalSceneDebugRequest(window.location.search, document.referrer),
+  );
+
+  if (!debugRequest) return <AuthEntry />;
+
+  return (
+    <React.Suspense
+      fallback={
+        <main className="entry-loading" role="status" aria-busy="true">
+          Şafak Savaşçıları hazırlanıyor…
+        </main>
+      }
+    >
+      <FinalSceneEntry request={debugRequest} normalGame={<AuthEntry />} />
+    </React.Suspense>
+  );
+}
+
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <StartupErrorBoundary>
-      <AuthEntry />
+      <ApplicationEntry />
     </StartupErrorBoundary>
   </React.StrictMode>,
 );

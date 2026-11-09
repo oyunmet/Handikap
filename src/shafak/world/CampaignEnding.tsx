@@ -13,12 +13,16 @@ type CampaignEndingProps = {
   rewards: BattleRewards | null;
   onStartNewGamePlus: () => Promise<unknown>;
   onMainMenu: () => void;
+  previewMode?: boolean;
+  forceFallback?: boolean;
 };
 
 export default function CampaignEnding({
   rewards,
   onStartNewGamePlus,
   onMainMenu,
+  previewMode = false,
+  forceFallback = false,
 }: CampaignEndingProps) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -28,6 +32,12 @@ export default function CampaignEnding({
   const [princessMood, setPrincessMood] = useState<PrincessAnimationMood>("idle");
 
   useEffect(() => {
+    if (forceFallback) {
+      setPrincessModelReveal(null);
+      setPrincessModelReady(false);
+      return undefined;
+    }
+
     let active = true;
     void import("./PrincessModelReveal").then(({ default: component }) => {
       if (active) setPrincessModelReveal(() => component);
@@ -35,7 +45,7 @@ export default function CampaignEnding({
       // Keep the static ending art if the optional 3D chunk cannot be loaded.
     });
     return () => { active = false; };
-  }, []);
+  }, [forceFallback]);
 
   useEffect(() => {
     if (confirming || !princessModelReady) {
@@ -89,7 +99,7 @@ export default function CampaignEnding({
                 <path d="M130 24v28m-10-7 10 7 10-7" stroke="#f3c879" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M44 190h172" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
               </svg>
-              {PrincessModelReveal && (
+              {!forceFallback && PrincessModelReveal && (
                 <PrincessModelReveal
                   mood={princessMood}
                   onReady={markPrincessModelReady}
@@ -105,7 +115,11 @@ export default function CampaignEnding({
             <p className="campaign-ending__copy">
               Prenses güvende. Karanlık Hükümdar'ın yenilgisiyle üç kapı açıldı; krallığın yolu yeniden aydınlandı.
             </p>
-            {rewards ? (
+            {previewMode ? (
+              <p className="campaign-ending__reward-note">
+                TEST ÖNİZLEMESİ · KAYITLARIN DEĞİŞTİRİLMEZ
+              </p>
+            ) : rewards ? (
               <div className="campaign-ending__rewards" aria-label="Son bölüm ödülleri">
                 <span>SON BÖLÜM ÖDÜLÜ</span>
                 <b>{rewards.gold > 0 ? `+${rewards.gold} altın` : "Altın —"}</b>
@@ -116,11 +130,13 @@ export default function CampaignEnding({
               <p className="campaign-ending__reward-note">Son bossun ödülleri hesabında kayıtlı.</p>
             )}
             <div className="campaign-ending__actions">
-              <button className="campaign-ending__primary" type="button" onClick={() => setConfirming(true)}>
-                ZOR MODDA YENİ OYUN+
-              </button>
+              {!previewMode && (
+                <button className="campaign-ending__primary" type="button" onClick={() => setConfirming(true)}>
+                  ZOR MODDA YENİ OYUN+
+                </button>
+              )}
               <button className="campaign-ending__secondary" type="button" onClick={onMainMenu}>
-                ANA MENÜYE DÖN
+                {previewMode ? "NORMAL OYUNA DÖN" : "ANA MENÜYE DÖN"}
               </button>
             </div>
           </>
