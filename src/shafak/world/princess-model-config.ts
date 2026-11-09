@@ -1,13 +1,26 @@
-export const PRINCESS_MODEL_URL = "/models/princess.glb";
-export const PRINCESS_MODEL_MAX_BYTES = 3 * 1024 * 1024;
+import { PLAYER_CHARACTER_MODEL_PATH } from "./player-model.ts";
+
+export const PRINCESS_BASE_MODEL_URL = PLAYER_CHARACTER_MODEL_PATH;
 
 export type PrincessAnimationMood = "idle" | "walk" | "wave" | "talk";
+export type PrincessCameraFrame = {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov: number;
+};
+
+export function getPrincessCameraFrame(viewportWidth: number, viewportHeight: number): PrincessCameraFrame {
+  const landscape = viewportWidth > viewportHeight;
+  return landscape
+    ? { position: [0, 1.02, 2.8], target: [0, 0.92, 0], fov: 36 }
+    : { position: [0, 1.02, 3.1], target: [0, 0.92, 0], fov: 34 };
+}
 
 const PRINCESS_ANIMATION_ALIASES: Record<PrincessAnimationMood, readonly string[]> = {
-  idle: ["idle", "stand", "wait", "breath", "rest"],
-  walk: ["walk", "walking", "run"],
-  wave: ["wave", "greet", "greeting", "hello"],
-  talk: ["talk", "talking", "speak", "speaking", "dialogue"],
+  idle: ["princessidle", "idle", "stand", "wait", "breath", "rest"],
+  walk: ["princesswalk", "walk", "walking", "run"],
+  wave: ["princesswave", "wave", "greet", "greeting", "hello"],
+  talk: ["princesstalk", "talk", "talking", "speak", "speaking", "dialogue"],
 };
 
 function normalizeClipName(value: string) {
@@ -31,15 +44,4 @@ export function resolvePrincessAnimationName(
     if (match) return match;
   }
   return undefined;
-}
-
-export function isPrincessModelResponseUsable(
-  status: number,
-  contentType: string | null,
-  contentLength: string | null,
-) {
-  if (status < 200 || status >= 300 || contentType?.toLowerCase().includes("text/html")) return false;
-  if (contentLength === null) return true;
-  const size = Number(contentLength);
-  return Number.isFinite(size) && size > 0 && size <= PRINCESS_MODEL_MAX_BYTES;
 }

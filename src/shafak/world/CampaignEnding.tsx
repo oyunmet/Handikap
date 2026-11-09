@@ -45,6 +45,7 @@ export default function CampaignEnding({
   }, [confirming]);
 
   const markPrincessModelReady = useCallback(() => setPrincessModelReady(true), []);
+  const markPrincessModelFailed = useCallback(() => setPrincessModelReady(false), []);
 
   const startNewGamePlus = async () => {
     setBusy(true);
@@ -81,7 +82,11 @@ export default function CampaignEnding({
                 <path d="M44 190h172" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
               </svg>
               {PrincessModelReveal && (
-                <PrincessModelReveal mood={princessMood} onReady={markPrincessModelReady} />
+                <PrincessModelReveal
+                  mood={princessMood}
+                  onReady={markPrincessModelReady}
+                  onFailure={markPrincessModelFailed}
+                />
               )}
             </div>
             <span className="campaign-ending__eyebrow">DOKUZUNCU BÖLÜM · SON KAPI</span>

@@ -34,13 +34,14 @@
   position: relative;
   display: grid;
   width: min(230px, 52vw);
+  height: clamp(168px, 22vh, 220px);
   margin: -12px auto 8px;
   color: rgba(229, 184, 116, .86);
   filter: drop-shadow(0 0 22px rgba(222, 166, 83, .2));
   animation: campaign-ending-light 1.1s ease-out both;
 }
 
-.campaign-ending__art svg { display: block; width: 100%; height: auto; }
+.campaign-ending__art svg { display: block; width: 100%; height: 100%; }
 .campaign-ending__art.has-3d-princess svg { opacity: 0; }
 
 .princess-model-reveal {
@@ -174,7 +175,7 @@
 @media (max-height: 520px) and (orientation: landscape) {
   .campaign-ending-backdrop { place-items: start center; }
   .campaign-ending { width: min(100%, 760px); padding: 16px 22px; }
-  .campaign-ending__art { width: 112px; margin: -5px auto 2px; }
+  .campaign-ending__art { width: min(170px, 24vw); height: clamp(126px, 34vh, 150px); margin: -5px auto 2px; }
   .campaign-ending h1 { margin: 4px 0 8px; }
   .campaign-ending__dialogue { margin-bottom: 6px; font-size: 14px; }
   .campaign-ending__copy { margin-bottom: 9px; font-size: 11px; }
