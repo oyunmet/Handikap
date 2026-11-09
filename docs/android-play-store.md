@@ -60,12 +60,30 @@ Vercel yayını yapmaz. Yayından sonra:
    test ve mağaza beyanlarını tamamla. İlk yüklemeden sonra paket kimliği
    değiştirilemez.
 
-## Henüz tamamlanmayan Play Store adımları
+## Son doğrulama ve yayın öncesi işler
+
+9 Kasım 2026 kontrolünde `npm test` 607/607 geçti, `npm run typecheck` ve
+`npm run build` başarılı oldu. Üretim derlemesinde 500 kB üzeri parça uyarısı
+yok. İlk HTML/JavaScript/CSS statik yükleme grafiği 0,32 MiB ham ve 0,10 MiB
+gzip çıktı; oyun sahnesinin isteğe bağlı 3D varlıkları bu hesaba dahil değil.
+
+`npm run android:validate:web` canlı `handikap.vercel.app` alanında manifest,
+ikonlar, service worker, çevrimdışı ekranı ve yasal sayfaları doğruladı. Tek
+başarısızlık, aşağıdaki şablondaki imza parmak izinin henüz gerçek SHA-256
+değeri olmamasıydı. Üretim sağlık uç noktası Clerk anahtarlarının yapılandırılmış
+olduğunu bildirdi; hesap silme işlemi canlı bir kullanıcıyla çalıştırılmadı.
 
 Bu çalışma alanında Android SDK/JDK kurulu değil ve imzalama anahtarı
-oluşturulmadı. Canlı Vercel alan adında manifest ve Digital Asset Links dosyası
-yayınlanmadı. Bu nedenle burada henüz APK/AAB üretilemedi; bu hazırlık, tek
-başına Play Store'a yüklenebilir bir sürüm anlamına gelmez.
+oluşturulmadı; bu nedenle henüz APK/AAB üretilmedi. Yayın öncesinde:
+
+1. `public/.well-known/assetlinks.json` içindeki yer tutucuyu debug ve Play App
+   Signing sertifikalarının gerçek SHA-256 parmak izleriyle değiştirip Vercel'e
+   yayınla; ardından `npm run android:validate:web` komutunu tekrar çalıştır.
+2. Android Studio'da SDK 36 ile debug APK ve imzalı App Bundle üret; Play App
+   Signing'i aç. Keystore ve parolaları Git'e veya sohbete koyma.
+3. Ayrı bir test hesabıyla hesap silme akışını, giriş/düello/Savaş Odası,
+   çevrimdışı ekran, geri tuşu, döndürme ve WebGL/FPS davranışını gerçek Android
+   cihazında doğrula. Gerçek oyuncu hesabını silerek test etme.
 
 Google Play'in 31 Ağustos 2026'dan itibaren yeni uygulamalar için istediği
 minimum hedef Android sürümü API 36'dır. Gönderim günündeki Play Console

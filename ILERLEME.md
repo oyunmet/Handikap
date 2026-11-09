@@ -9,7 +9,7 @@
 5. **Savaş odası ve düello — Tamamlandı**
 6. **Hikâye, zorluk, final — Tamamlandı**
 7. **Prenses 3D modeli (GLB) — Kod tamamlandı; kullanıcı dosyası bekleniyor**
-8. **Performans, boyut, Play Store — Bekliyor**
+8. **Performans, boyut, Play Store — Kod tamamlandı; yayın öncesi kullanıcı işlemleri bekliyor**
 
 ## Adım 1 — Yatay/dikey mod ve arayüz
 
@@ -77,3 +77,13 @@
 - **Doğrulanamayanlar:** Gerçek modelin görünümü, iskelet animasyonları ve cihaz performansı GLB eklendikten sonra doğrulanmalı.
 - **Yarım kalanlar:** Kod tarafında yok; gerçek prenses modeli kullanıcı dosyası olarak bekleniyor.
 - **Değişen dosyalar:** `ILERLEME.md` (ilerleme kaydı).
+
+## Adım 8 — Performans, boyut, Play Store
+
+- **Durum:** Uygulama kodu ve web yayın hazırlığı tamamlandı; Play Store'a yüklenebilir imzalı paket için kullanıcıya bağlı son işlemler bekliyor.
+- **Yapılanlar:** Vite parça bölme sınırları büyük kod uyarısını kaldırıyor; ana ilk yükleme HTML/JS/CSS grafiği 0,32 MiB ham ve 0,10 MiB gzip. Ana menü ve oyun bölümleri tembel yükleniyor. Büyük görseller WebP, arayüz sesi OGG; `public/assets` içindeki dört GLB oyun kaynak kodunda kullanılıyor, Draco dosyaları model yükleyicisi için gerekli, bu yüzden kullanılmayan büyük bir dosya silinmedi. Savaş Odası efekt havuzları, yeniden kullanılan dünya/kare tamponları, grafik kalite seçenekleri, düşük kalitede gölge kapatma ve geometri/malzeme/doku temizliği mevcut. Gizlilik ve hesap/veri silme sayfaları herkese açık ve Ayarlar'dan bağlı; silme API'si aynı-köken, oturum ve açık onay istiyor, hesapla ilişkili dört sunucu tablosunu ve Clerk kimliğini siliyor. PWA manifesti, 192/512/maskable ikonlar ve yalnız çevrimdışı bilgilendirme sayfasını kullanan service worker hazır. Android kimliği `com.safaksavascilari.game`, hedef API 36, sürüm `1.0.0`; sürüm ana ekranda gösteriliyor.
+- **Doğrulama:** `npm test` — 607/607 geçti; `npm run typecheck` — geçti; `npm run build` — geçti ve 500 kB üzeri parça uyarısı yok. PWA/hesap silme hedef testleri 15/15 geçti. Mobil önizlemede hesap silme onay kutusu ve yazılı onay boşken silme düğmesi devre dışı göründü. `https://handikap.vercel.app` üzerinde salt-okunur Android web ön kontrolü manifest, ikon, service worker, çevrimdışı ekran ve yasal sayfalarda geçti; yalnız gerçek sertifika parmak izi beklediği için başarısız oldu. Üretim `/api/health` Clerk anahtarlarının yapılandırıldığını bildirdi.
+- **Veri güvenliği:** Hesap silme testi yalnız sahte Clerk yanıtı ve sahte veritabanı kullandı; gerçek hesap veya oyuncu kaydı silinmedi. Vercel üretiminde silme uç noktasıyla gerçek kullanıcı deneyi yapılmadı.
+- **Yarım kalanlar / kullanıcı işlemleri:** Android/JDK SDK ortamda yok; APK/AAB üretimi ve imzalama Android Studio'da yapılmalı. `public/.well-known/assetlinks.json` içindeki yer tutucu gerçek debug ve Play App Signing SHA-256 parmak izleriyle değiştirilip Vercel'e yayınlanmalı; sonra `npm run android:validate:web` yeniden geçmeli. Gerçek Android telefonda giriş, TWA tam ekran bağlantısı, düello, Savaş Odası, geri tuşu, döndürme, çevrimdışı ekran, WebGL/FPS ve ayrı bir test hesabıyla hesap silme elle doğrulanmalı. Adım 7'de açıklanan animasyonlu `public/models/princess.glb` dosyası da kullanıcıdan bekleniyor.
+- **Doğrulanamayanlar:** İmzalı AAB, gerçek Play sertifikasıyla Digital Asset Links, Play Console yüklemesi ve gerçek cihaz kabul testleri bu çalışma alanında yapılamadı.
+- **Değişen dosyalar:** `ILERLEME.md`, `docs/android-play-store.md`; uygulama varlıkları ve hesap silme/PWA altyapısı önceki yerel commitlerde hazırlanmıştı.
