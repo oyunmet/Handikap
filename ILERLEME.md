@@ -144,7 +144,7 @@
 ### Adım 11 alt adımları
 
 - **11.2 — Ana menü metinleri:** Tamamlandı
-- **11.3 — Yatay arayüz çakışmaları:** Yarım
+- **11.3 — Yatay arayüz çakışmaları:** Tamamlandı
 - **11.4 — Silah titremesi:** Bekliyor
 - **11.5 — Kapı ve eşik takılması:** Bekliyor
 - **11.6 — Ortam görsel kalitesi:** Bekliyor
