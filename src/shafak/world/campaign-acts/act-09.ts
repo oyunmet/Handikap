@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "shadow-palace",
   name: "Gölge Sarayı",
+  storySummary: "Gölge Muhafızları son sarayı koruyor; prensesin izini bulmak için bu perdeyi tamamla.",
   theme: "karanlığın hüküm sürdüğü son saray",
   enemyFaction: "Gölge Muhafızları",
   mapVariants: ["ayna-avlusu", "kara-galeri", "mühür-salonu", "son-koridor", "prenses-kulesi"],

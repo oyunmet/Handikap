@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ComponentType } from "react";
 import type { BattleRewards } from "../game/types";
+import { CAMPAIGN_COPY } from "../i18n/campaign-copy.ts";
 import "./campaign-ending.css";
 import type { PrincessModelRevealProps } from "./PrincessModelReveal";
 import {
@@ -107,13 +108,13 @@ export default function CampaignEnding({
                 />
               )}
             </div>
-            <span className="campaign-ending__eyebrow">DOKUZUNCU BÖLÜM · SON KAPI</span>
+            <span className="campaign-ending__eyebrow">{CAMPAIGN_COPY.finalChapterLabel}</span>
             <h1 id="campaign-ending-title">OYUN TAMAMLANDI</h1>
             <p className="campaign-ending__dialogue">
               “Beni kurtarmaya değil, hatırlamaya geldin. Mühür parçalarını birleştirince krallık da adımı hatırladı.”
             </p>
             <p className="campaign-ending__copy">
-              Prenses güvende. Karanlık Hükümdar'ın yenilgisiyle üç kapı açıldı; krallığın yolu yeniden aydınlandı.
+              {CAMPAIGN_COPY.endingSummary}
             </p>
             {previewMode ? (
               <p className="campaign-ending__reward-note">

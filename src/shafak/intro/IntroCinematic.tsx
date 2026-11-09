@@ -10,6 +10,7 @@ import { createWorldMotion } from "../world/movement";
 import { createIntroAmbience, createIntroImpact, primeGameAudio } from "../audio/howler";
 import MetEmblem from "./MetEmblem";
 import { getIntroEventTimes } from "./timeline";
+import { CAMPAIGN_COPY } from "../i18n/campaign-copy.ts";
 import "./intro.css";
 
 const STORY_LINES = [
@@ -264,7 +265,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
                 <span>ŞAFAK</span>
                 <span>SAVAŞÇILARI</span>
               </h1>
-              <p className="intro-narrative__tagline">Dokuz kapı. Kayıp prenses. Mühür Parçalarını birleştir.</p>
+              <p className="intro-narrative__tagline">{CAMPAIGN_COPY.introTagline}</p>
             </div>
           </div>
         )}

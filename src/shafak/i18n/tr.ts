@@ -1,18 +1,16 @@
+import { CAMPAIGN_COPY } from "./campaign-copy.ts";
+
 export const tr = {
   brand: "ŞAFAK SAVAŞÇILARI",
   tagline: "Karanlık krallığı ele geçirdi. Kayıp prensesi Mühür Parçaları'yla bul.",
   openingKicker: "KAYIP PRENSES",
-  openingDescription: "Dokuz kapının kilidi Kül Yolu'ndan Kızıl Bataklık'a dağılan Mühür Parçaları.",
+  openingDescription: CAMPAIGN_COPY.openingDescription,
   start: "BAŞLA",
   loadingTitle: "YOL AÇILIYOR",
-  loadingTips: [
-    "Karanlık krallığı ele geçirdi; prenses kayıp.",
-    "Her kapı, Mühür Parçaları birleştirilince açılır.",
-    "Dokuzuncu kapının ardında prensesi bul.",
-  ],
-  menuKicker: "DOKUZ KAPI · ÜÇ BÖLGE",
+  loadingTips: CAMPAIGN_COPY.loadingTips,
+  menuKicker: CAMPAIGN_COPY.menuKicker,
   menuTitle: "Prensesin izini sür.",
-  menuDescription: "Kül Yolu'ndan Kızıl Bataklık'a ilerle, Mühür Parçalarını birleştir ve son kapıyı aç.",
+  menuDescription: CAMPAIGN_COPY.menuDescription,
   openSettings: "OYUN AYARLARI",
   replayOpening: "AÇILIŞI YENİDEN İZLE",
   settingsTitle: "Savaş ayarları",

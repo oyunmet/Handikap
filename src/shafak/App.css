@@ -713,6 +713,13 @@
   text-align: right;
 }
 
+.campaign-menu-progress__story {
+  color: rgba(241, 229, 208, 0.78) !important;
+  font-size: 9px !important;
+  line-height: 1.45;
+  text-align: left !important;
+}
+
 .menu-actions {
   display: flex;
   width: min(100%, 305px);

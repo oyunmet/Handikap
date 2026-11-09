@@ -25,6 +25,7 @@ export type CampaignBossTemplate = {
 export type CampaignActData = {
   id: string;
   name: string;
+  storySummary: string;
   theme: string;
   enemyFaction: string;
   mapVariants: readonly string[];
@@ -40,6 +41,7 @@ export type CampaignLevelData = {
   actNumber: number;
   actId: string;
   actName: string;
+  storySummary: string;
   regionName: string;
   theme: string;
   enemyFaction: string;
@@ -124,6 +126,7 @@ export async function loadCampaignLevelData(chapterId: number): Promise<Campaign
     actNumber,
     actId: act.id,
     actName: act.name,
+    storySummary: act.storySummary,
     regionName: act.name,
     theme: act.theme,
     enemyFaction: act.enemyFaction,

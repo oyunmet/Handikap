@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "ash-road",
   name: "Kül Yolu",
+  storySummary: "Kül Nöbetçileri yolu tutuyor; mührün izi prensesin geçtiği kervan yolunu gösteriyor.",
   theme: "kül ve yıkılmış kervan yolu",
   enemyFaction: "Kül Nöbetçileri",
   mapVariants: ["kervan-geçidi", "yıkık-köprü", "kül-düzlüğü", "nöbetçi-burcu", "yanık-han"],

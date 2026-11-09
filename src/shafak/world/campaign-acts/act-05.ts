@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "broken-throne",
   name: "Çürük Taht",
+  storySummary: "Tahtın Muhafızları kraliyet merkezini savunuyor; mühür parçaları ihanetin izini aydınlatacak.",
   theme: "ihanetle parçalanmış kraliyet merkezi",
   enemyFaction: "Tahtın Muhafızları",
   mapVariants: ["taht-avlusu", "yıkık-kışla", "gizli-merdiven", "ihanet-salonu", "kırık-bahçe"],

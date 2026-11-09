@@ -7,108 +7,23 @@ export type StoryDialogue = {
   hint: string;
 };
 
-const CHAPTER_STORIES = [
-  {
-    title: "KÜL YOLU · İLK KAPI",
-    lines: [
-      "Karanlık krallığın batı yolunu kapladığında prenses ortadan kayboldu. Kül Yolu'nun kapısını ancak dağılmış Mühür Parçaları açabilir.",
-      "Külün altında nöbetçilerin izleri duruyor; her parça, prensesin geçtiği yolu biraz daha belirginleştiriyor.",
-    ],
-    hint: "Kül Yolu'ndaki Mühür Parçalarını topla ve batı kapısının nöbetçilerini geç.",
-  },
-  {
-    title: "KÜL YOLU · KAYIP İZLER",
-    lines: [
-      "Eski kervan yolunda prensesin arabasına ait bir toka buldun. Kül nöbetçileri onu senden önce arıyor.",
-      "Mührün ışığı, batı kapısına giden güvenli geçidi gösteriyor.",
-    ],
-    hint: "Yol kenarındaki ganimeti topla; kapıya giden izleri takip et.",
-  },
-  {
-    title: "KÜL YOLU · BATI KAPISI",
-    lines: [
-      "Kapının son nöbetçisi, prensesin geçmesini engelleyen emri hâlâ yerine getiriyor. Onu yenince mühür kuzeydeki geçidi işaret ediyor.",
-      "Kül Yolu açıldı; krallığın kuzey sınırı şimdi önünde.",
-    ],
-    hint: "Bölüm bossunu yen ve Donmuş Geçit'e giden kapıyı aç.",
-  },
-  {
-    title: "DONMUŞ GEÇİT · KUZEY YOLU",
-    lines: [
-      "Kuzey geçidi, karanlık yayılınca krallığın son kervanlarını buz altında bıraktı. İkinci kapının kilidi, yeni Mühür Parçalarıyla çözülebilir.",
-      "Buzun içindeki sancaklar, prensesin buradan güneye götürüldüğünü doğruluyor.",
-    ],
-    hint: "Donmuş Geçit'teki parçaları ara; buzlu patikalarda saldırı işaretlerini izle.",
-  },
-  {
-    title: "DONMUŞ GEÇİT · BUZDAKİ MEKTUP",
-    lines: [
-      "Buzun içinde, prensesin el yazısıyla bırakılmış kısa bir not var: “Son kapı bataklıkta.”",
-      "Geçit nöbetçileri notu saklamış; güneye açılan yolu koruyorlar.",
-    ],
-    hint: "Notun işaret ettiği güneye giden geçidi bul.",
-  },
-  {
-    title: "DONMUŞ GEÇİT · SON NÖBET",
-    lines: [
-      "Geçidin bossu, prensesi taşıyan kafilenin izini saklamak için buz duvarını kapatmış. Yenilgisi güney kapısının kilidini çözüyor.",
-      "Mühür tamamlanmaya yaklaşıyor; son parçalar Kızıl Bataklık'ta.",
-    ],
-    hint: "Bossu yenerek Kızıl Bataklık'ın kapısını aç.",
-  },
-  {
-    title: "KIZIL BATAKLIK · GÜNEY KAPISI",
-    lines: [
-      "Güney bataklığı, karanlığın krallığa ilk yayıldığı yer. Prensesin izleri son kapının önünde kesiliyor.",
-      "Mühür Parçaları burada birleşince, bataklığın ortasındaki geçit açılacak.",
-    ],
-    hint: "Kızıl Bataklık'ta kalan Mühür Parçalarını topla ve son kapıya ilerle.",
-  },
-  {
-    title: "KIZIL BATAKLIK · SUYUN ALTINDA",
-    lines: [
-      "Bataklık suyu, prensesin bıraktığı son Mühür Parçasını saklıyor. Parçalar birleşince son kapının yeri görünür oluyor.",
-      "Karanlık, kapının ardındaki salonda toplanmış; artık başka bir yol yok.",
-    ],
-    hint: "Son kapıya hazırlan; bu yolun en güçlü nöbetçileri burada.",
-  },
-  {
-    title: "KIZIL BATAKLIK · SON EŞİK",
-    lines: [
-      "Dokuzuncu bölüm, son kapının önünde bitiyor. Karanlık Hükümdar'ı yen ve kayıp prensesle yüzleş.",
-      "Mühür tamamlandı; bundan sonra krallığın kaderini sen belirleyeceksin.",
-    ],
-    hint: "Son bossu yen; ardından prensesin hikâyesi tamamlanacak.",
-  },
+import {
+  CAMPAIGN_ACT_COUNT,
+  CAMPAIGN_LEVEL_COUNT,
+  CAMPAIGN_LEVELS_PER_ACT,
+  CAMPAIGN_REGIONS,
+  clampCampaignChapterId,
+  getCampaignLevelNumber,
+  getCampaignRegion,
+} from "./campaign-progression.ts";
+
+const NPC_STORY_BEATS = [
+  "Mührün ışığı, burada saklanan eski bir yemini yeniden görünür kılıyor.",
+  "Prensesin izi bu perdede kaybolmadı; yalnızca yeni bir sınava dönüştü.",
+  "Bir sonraki eşiğe hazırlan. Krallığın kaderi hâlâ değişebilir.",
 ] as const;
-
-const NPC_LINES = [
-  [
-    "Karanlık batı kapısını kapattığında prenses buradan geçmişti. Mührün ışığı onun izini yeniden gösteriyor.",
-    "Kül nöbetçileri emri hâlâ sürdürüyor; kapı açılınca kuzey yolu ortaya çıkacak.",
-  ],
-  [
-    "Prensesin mektubu güneye, Kızıl Bataklık'a gidiyor. Donmuş Geçit'teki son boss yolu kapatmış.",
-    "Mühür parçalarını birleştir; kapı bu kez ardına kadar açılacak.",
-  ],
-  [
-    "Prenses son kapının ardında. Bataklıkta karanlığın toplandığı yere kadar ilerle.",
-    "Karanlık Hükümdar düşerse krallık serbest kalacak; sonrası senin kararın.",
-  ],
-] as const;
-
-function chapterIndex(chapterId: number) {
-  const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
-  return Math.min(safeChapter, CHAPTER_STORIES.length - 1);
-}
-
-function regionIndex(chapterId: number) {
-  const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
-  return Math.min(2, Math.floor(safeChapter / 3));
-}
 
 export function getOpeningStoryDialogue(): StoryDialogue {
-  const opening = CHAPTER_STORIES[0];
   return {
     id: "story-opening",
     kind: "opening",
@@ -116,23 +31,28 @@ export function getOpeningStoryDialogue(): StoryDialogue {
     speaker: "YOL KILAVUZU",
     lines: [
       "Karanlık krallığı ele geçirirken prenses kayboldu.",
-      "Onu saklayan dokuz kapı, Mühür Parçaları olmadan açılmıyor.",
-      "Kül Yolu'ndan Kızıl Bataklık'a ilerle, parçaları birleştir ve son kapıya ulaş.",
+      `${CAMPAIGN_ACT_COUNT} perdelik yolculukta Mühür Parçalarını birleştir; her perde prensesin izini biraz daha belirginleştirir.`,
+      `${CAMPAIGN_REGIONS[0].name} yolundan ${CAMPAIGN_REGIONS.at(-1)?.name ?? "son perde"} sarayına ilerle.`,
     ],
-    hint: "Her bölgede Mühür Parçalarını ara. Son bölümde Karanlık Hükümdar'ı geçerek prensesi bul.",
+    hint: `Her perdede Mühür Parçalarını ara. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) Karanlık Hükümdar'a giden yolu açar.`,
   };
 }
 
-export function getChapterStoryDialogue(chapterId: number): StoryDialogue {
-  const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
-  const chapter = CHAPTER_STORIES[chapterIndex(safeChapter)];
+export function getChapterStoryDialogue(chapterId: number, storySummary?: string): StoryDialogue {
+  const safeChapter = clampCampaignChapterId(chapterId);
+  const actNumber = Math.floor(safeChapter / CAMPAIGN_LEVELS_PER_ACT) + 1;
+  const levelNumber = getCampaignLevelNumber(safeChapter);
+  const region = getCampaignRegion(safeChapter);
   return {
     id: `story-chapter-${safeChapter}`,
     kind: "chapter",
-    title: chapter.title,
+    title: `${region.name.toLocaleUpperCase("tr-TR")} · PERDE ${actNumber} · BÖLÜM ${levelNumber}`,
     speaker: "YOL KILAVUZU",
-    lines: [...chapter.lines],
-    hint: chapter.hint,
+    lines: [
+      storySummary?.trim() || `${region.name} yolunda prensesin izini sür.`,
+      `${CAMPAIGN_ACT_COUNT} perdelik yolculuğun ${levelNumber}. bölümündesin; Mühür Parçalarını koru.`,
+    ],
+    hint: `Perde ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${levelNumber}/${CAMPAIGN_LEVEL_COUNT}. Mühür Parçalarını birleştir.`,
   };
 }
 
@@ -180,7 +100,7 @@ const RIVAL_STORIES: Readonly<Record<string, readonly [string, string, string]>>
   "frost-hunter": [
     "Ayaz, izleri silmez; onları bir sonraki kişinin görebileceği kadar dondurur.",
     "Buzun altında bir savaş sürüyor. Her ok, içeridekilerin kalp atışına göre yön değiştiriyor.",
-    "İkinci kapının önünde durma. Orada seni bekleyen kişi senin sesinle konuşacak.",
+    "Bir sonraki eşiğin önünde durma. Seni bekleyen kişi kendi sesinle konuşacak.",
   ],
   "chapter-boss": [
     "Beni son düşmanın sanıyorsun. Oysa ben, kapının dışarıda tuttuğu son hatırayım.",
@@ -191,14 +111,19 @@ const RIVAL_STORIES: Readonly<Record<string, readonly [string, string, string]>>
 
 export function getNpcStoryDialogue(name: string, chapterId: number): StoryDialogue | null {
   if (name !== "Demir Yemin") return null;
-  const safeChapter = Number.isFinite(chapterId) ? Math.max(0, Math.floor(chapterId)) : 0;
+  const safeChapter = clampCampaignChapterId(chapterId);
+  const actNumber = Math.floor(safeChapter / CAMPAIGN_LEVELS_PER_ACT) + 1;
+  const region = getCampaignRegion(safeChapter);
   return {
     id: `story-demir-yemin-${safeChapter}`,
     kind: "npc",
     title: "YEMİNİN AĞIRLIĞI",
     speaker: "DEMİR YEMİN",
-    lines: [...NPC_LINES[regionIndex(safeChapter)]],
-    hint: "Savaş Odası'ndaki yankılar onun geçmişini sınar; Kül Yolu'nda ise mührün izini sür.",
+    lines: [
+      `${region.name} yolunda prensesin izi, eski yeminleri yeniden uyandırıyor.`,
+      NPC_STORY_BEATS[safeChapter % NPC_STORY_BEATS.length],
+    ],
+    hint: `Perde ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${getCampaignLevelNumber(safeChapter)}/${CAMPAIGN_LEVEL_COUNT}.`,
   };
 }
 

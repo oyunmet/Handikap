@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "mist-coast",
   name: "Sisli Kıyı",
+  storySummary: "Kara Yelkenliler kıyıyı kuşatıyor; batık gemilerde prensesin izine dair bir parça yatıyor.",
   theme: "fırtınalı kıyı ve batık gemiler",
   enemyFaction: "Kara Yelkenliler",
   mapVariants: ["fener-burnu", "batık-güverte", "tuzlu-mağara", "fırtına-iskelesi", "kıyı-burcu"],

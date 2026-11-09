@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "whispering-forest",
   name: "Fısıltı Ormanı",
+  storySummary: "Kök Muhafızları sisli patikalarda bekliyor; prensesin izini ormanın derinliklerinde sür.",
   theme: "sisli orman ve unutulmuş patikalar",
   enemyFaction: "Kök Muhafızları",
   mapVariants: ["kök-tüneli", "sis-patikası", "yıkık-kulübe", "ay-taşı-korusu", "orman-kapısı"],

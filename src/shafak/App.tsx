@@ -43,7 +43,11 @@ import {
   isCampaignComplete,
   resetCampaignProgressForNewGamePlus,
 } from "./world/campaign-progression";
-import { loadCampaignLevelData } from "./world/campaign-level-data";
+import {
+  loadCampaignActData,
+  loadCampaignLevelData,
+  type CampaignActData,
+} from "./world/campaign-level-data";
 import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import {
   AUTO_QUALITY_DOWN_FPS,
@@ -717,6 +721,30 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen("world");
   };
   const menuCampaignProgress = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
+  const [menuCampaignAct, setMenuCampaignAct] = useState<{
+    actNumber: number;
+    data: CampaignActData;
+  } | null>(null);
+  const [menuCampaignActLoadError, setMenuCampaignActLoadError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setMenuCampaignAct(null);
+    setMenuCampaignActLoadError(false);
+    void loadCampaignActData(menuCampaignProgress.actNumber)
+      .then((data) => {
+        if (active) setMenuCampaignAct({ actNumber: menuCampaignProgress.actNumber, data });
+      })
+      .catch((error: unknown) => {
+        console.error("Campaign act summary could not be loaded.", error);
+        if (active) setMenuCampaignActLoadError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [menuCampaignProgress.actNumber]);
+  const currentMenuAct = menuCampaignAct?.actNumber === menuCampaignProgress.actNumber
+    ? menuCampaignAct.data
+    : null;
 
   const updateWarRoomQuery = (active: boolean) => {
     const url = new URL(window.location.href);
@@ -1146,7 +1174,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <span>PERDE {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
                     <strong>BÖLÜM {menuCampaignProgress.levelNumber} / {CAMPAIGN_LEVEL_COUNT}</strong>
                   </div>
-                  <b>{menuCampaignProgress.region.name}</b>
+                  <b>{currentMenuAct?.name ?? menuCampaignProgress.region.name}</b>
+                  <small className="campaign-menu-progress__story" aria-live="polite">
+                    {currentMenuAct?.storySummary
+                      ?? (menuCampaignActLoadError ? "Perde hikâyesi yüklenemedi." : "Perde hikâyesi yükleniyor…")}
+                  </small>
                   <div
                     className="campaign-menu-progress__track"
                     role="progressbar"

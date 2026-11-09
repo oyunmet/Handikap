@@ -91,6 +91,7 @@ import {
 } from "./movement";
 import {
   CAMPAIGN_LEVEL_COUNT,
+  CAMPAIGN_LEVELS_PER_ACT,
   CAMPAIGN_MISSION_LABELS,
   FINAL_CAMPAIGN_CHAPTER_ID,
   getCampaignLevelKind,
@@ -1190,11 +1191,12 @@ export default function WorldScene({
 
   useEffect(() => {
     if (panel !== null) return;
+    if (activeCampaignLevel?.chapterId !== currentChapterId) return;
     if (currentChapterId <= storyChapterRef.current) return;
+    if (currentChapterId % CAMPAIGN_LEVELS_PER_ACT !== 0) return;
     storyChapterRef.current = currentChapterId;
-    if (currentChapterId >= 9) return;
-    showStoryDialogue(getChapterStoryDialogue(currentChapterId));
-  }, [currentChapterId, panel, showStoryDialogue]);
+    showStoryDialogue(getChapterStoryDialogue(currentChapterId, activeCampaignLevel.storySummary));
+  }, [activeCampaignLevel, currentChapterId, panel, showStoryDialogue]);
 
   useEffect(() => {
     setAudioOn(soundEnabled);

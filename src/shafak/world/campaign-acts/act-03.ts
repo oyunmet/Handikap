@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "red-marsh",
   name: "Kızıl Bataklık",
+  storySummary: "Bataklık Lejyonu sazlıkları koruyor; mühür parçaları prensesin izini ortaya çıkaracak.",
   theme: "kızıl sazlıklar ve zehirli su",
   enemyFaction: "Bataklık Lejyonu",
   mapVariants: ["sazlik-koridoru", "batık-köprü", "kızıl-havuz", "çamur-yolu", "eski-iskele"],

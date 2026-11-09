@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "black-summit",
   name: "Kara Zirve",
+  storySummary: "Zirve Lejyonu kara dağı tutuyor; gök yarığındaki mühür son yolu açacak.",
   theme: "kara taşlı yüksek dağ ve gök yarığı",
   enemyFaction: "Zirve Lejyonu",
   mapVariants: ["kara-sırt", "uçurum-geçidi", "rüzgar-burcu", "yarık-kenarı", "zirve-merdiveni"],

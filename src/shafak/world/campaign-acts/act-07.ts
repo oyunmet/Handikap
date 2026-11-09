@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "lost-city",
   name: "Kayıp Şehir",
+  storySummary: "Taş Yeminliler kayıp şehri koruyor; kum altındaki mühür sarayın yolunu gösterecek.",
   theme: "kum altında kalmış taş şehir",
   enemyFaction: "Taş Yeminliler",
   mapVariants: ["kumlu-pazar", "gömülü-avlu", "taş-köprü", "kayıp-arşiv", "güneş-kapısı"],

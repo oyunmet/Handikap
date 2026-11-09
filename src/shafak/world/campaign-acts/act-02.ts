@@ -3,6 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "frozen-pass",
   name: "Donmuş Geçit",
+  storySummary: "Buz Sancaklıları geçidi tutuyor; prensesin mektubu güneye giden yolu gösteriyor.",
   theme: "buz sırtları ve terk edilmiş dağ yolu",
   enemyFaction: "Buz Sancaklıları",
   mapVariants: ["buz-kanyonu", "çöken-patika", "donmuş-kervan", "kar-burcu", "buz-gölü"],

@@ -123,9 +123,18 @@
 - **Yarım kalanlar:** 11.1 için kod tarafında yok. 11.2–11.9 sonraki alt adımlar olarak bekliyor.
 - **Doğrulanamayanlar:** Gerçek iPhone Safari'de dokunma kabul testi ve gerçek profilde satın alma/kuşanma yapılmadı. Yerel tarayıcı ekran görüntüsü yalnızca giriş introsunu gösterdi; önizleme ve mağaza etkileşimi bu statik görüntüyle açılamadı. Gerçek cihazdaki silah görünümü/dönüşü ayrıca kontrol edilmeli.
 
+### 11.2 — Ana menü metinleri (tek kaynak)
+
+- **Durum:** Tamamlandı.
+- **Kök neden:** Kampanya sayıları `campaign-progression.ts` içinde güncel olsa da `tr.ts`, açılış sinematiği, açılış hikâyesi ve final ekranında eski “dokuz kapı/üç bölge/dokuzuncu bölüm” metinleri sabit kalmış. Ana menü sayıları dinamik gösteriyor ancak güncel perde için kısa hikâye cümlesi kampanya verisinde bulunmuyor. Dolayısıyla yalnızca menü sayacını güncellemek diğer görünen kopyayı eski bırakıyor.
+- **Yapılanlar:** Kampanya metinleri perde/bölüm sayıları ve ilk/son bölge adlarıyla tek yardımcıdan üretiliyor. Dokuz perde verisine kısa hikâye özeti eklendi; menü, intro, açılış ve bölüm hikâyeleri, NPC rehberi ve final ekranı güncel kampanya verisini kullanıyor. Bölüm rehberi her perdenin başında ilgili perde özetini gösteriyor. Profil, kayıt, para ve envanter verisine dokunulmadı.
+- **Doğrulama:** Yeni regresyon testleri ilk çalıştırmada 3 beklenen hatayı verdi; düzeltmeden sonra hedefli kampanya/hikâye testleri 11/11 geçti. Tam `npm test` — 640/640; `npm run typecheck` — geçti; `npm run build` — geçti. Eski kampanya sayılarının aktif uygulama, README, public ve docs kopyalarında kalmadığını tarayan test eklendi. 402×874 yerel önizleme ekranında `9 PERDE · 450 BÖLÜM`, `KÜL YOLU` ve o perdeye ait hikâye cümlesi doğrulandı.
+- **Yarım kalanlar:** 11.2 için kod tarafında yok. 11.3–11.9 sıradaki adımlar olarak bekliyor.
+- **Doğrulanamayanlar:** Gerçek iPhone Safari ve production yayını bu oturumda denenmedi. Önizleme tarayıcısı WebGL yazılım fallback/GPU stall uyarıları verdi, ancak ana menü görüntülendi. Testler yalnızca statik kampanya fixture/verisini kullandı; gerçek profil/para/ilerleme kaydı değiştirilmedi.
+
 ### Adım 11 alt adımları
 
-- **11.2 — Ana menü metinleri:** Bekliyor
+- **11.2 — Ana menü metinleri:** Tamamlandı
 - **11.3 — Yatay arayüz çakışmaları:** Bekliyor
 - **11.4 — Silah titremesi:** Bekliyor
 - **11.5 — Kapı ve eşik takılması:** Bekliyor
