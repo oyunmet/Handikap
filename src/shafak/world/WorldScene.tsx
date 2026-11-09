@@ -30,6 +30,10 @@ import {
   type StoreTab,
 } from "../game/store-types";
 import { getEquipmentBonuses, getEquipmentVisual, getPlayerCombatModifiers } from "../game/store-utils";
+import {
+  assignLocalWarRoomWeapon,
+  purchaseLocalWarRoomWeapon,
+} from "../game/war-room-store-operations";
 import type { BattleRewards, DuelSummary } from "../game/types";
 import {
   COMBAT_HZ,
@@ -870,9 +874,10 @@ export default function WorldScene({
   const [storeMessage, setStoreMessage] = useState("");
   const [storeError, setStoreError] = useState("");
   const [storeRetryAction, setStoreRetryAction] = useState<{
-    operation: "purchase" | "equip" | "upgrade" | "sell" | "salvage";
+    operation: "purchase" | "equip" | "war-room-equip" | "upgrade" | "sell" | "salvage";
     itemId: string;
     equipmentKey?: EquipmentLoadoutKey;
+    slotIndex?: 0 | 1;
   } | null>(null);
   const weatherMode: WeatherMode = "clear";
   const weatherModeRef = useRef(weatherMode);
@@ -1198,10 +1203,15 @@ export default function WorldScene({
     setVibrationOn(vibrationEnabled);
   }, [vibrationEnabled]);
   const storeMutationKeysRef = useRef(new Map<string, string>());
+  const clearStoreFeedback = useCallback(() => {
+    setStoreError("");
+    setStoreMessage("");
+  }, []);
   const runStoreMutation = useCallback(async (
-    operation: "purchase" | "equip" | "upgrade" | "sell" | "salvage",
+    operation: "purchase" | "equip" | "war-room-equip" | "upgrade" | "sell" | "salvage",
     itemId: string,
     selectedEquipmentKey?: EquipmentLoadoutKey,
+    warRoomSlotIndex?: 0 | 1,
   ) => {
     if (storeMutationRef.current) return;
     const item = storeItems.find((entry) => entry.id === itemId);
@@ -1213,9 +1223,9 @@ export default function WorldScene({
       setStoreError("Hesap profili hazır değil; güvenli yerel alışverişe devam edilemiyor.");
       return;
     }
-    const mutationKey = `${operation}:${itemId}:${selectedEquipmentKey ?? ""}`;
+    const mutationKey = `${operation}:${itemId}:${selectedEquipmentKey ?? ""}:${warRoomSlotIndex ?? ""}`;
     let idempotencyKey = storeMutationKeysRef.current.get(mutationKey);
-    if (operation !== "equip" && !idempotencyKey) {
+    if (operation !== "equip" && operation !== "war-room-equip" && !idempotencyKey) {
       idempotencyKey = createIdempotencyKey();
       storeMutationKeysRef.current.set(mutationKey, idempotencyKey);
     }
@@ -1245,26 +1255,36 @@ export default function WorldScene({
           };
           if (item.kind === "equipment") {
             if (currentProfile.inventory.ownedItemIds.length >= 120) throw new StoreActionError("Heybe dolu; yeni eşya alamazsın.");
-            const equipmentKey = item.slot === "ring"
-              ? !currentProfile.equipment.ringOneId
-                ? "ringOneId"
-                : !currentProfile.equipment.ringTwoId
-                  ? "ringTwoId"
-                  : "ringOneId"
-              : item.slot ? slotEquipmentKey(item.slot) : null;
-            if (!equipmentKey) throw new StoreActionError("Bu eşya kuşanılamaz.");
-            nextProfile = {
-              ...nextProfile,
-              equipment: {
-                ...nextProfile.equipment,
-                [equipmentKey]: item.id,
-              },
-              inventory: {
-                ...currentProfile.inventory,
-                ownedItemIds: [...currentProfile.inventory.ownedItemIds, item.id],
-                newItemIds: [...new Set([...currentProfile.inventory.newItemIds, item.id])],
-              },
-            };
+            if (item.warRoomWeaponId) {
+              try {
+                nextProfile = purchaseLocalWarRoomWeapon(currentProfile, item);
+              } catch (error) {
+                throw new StoreActionError(error instanceof Error
+                  ? storeErrorText(error.message)
+                  : "Mağaza işlemi tamamlanamadı.");
+              }
+            } else {
+              const equipmentKey = item.slot === "ring"
+                ? !currentProfile.equipment.ringOneId
+                  ? "ringOneId"
+                  : !currentProfile.equipment.ringTwoId
+                    ? "ringTwoId"
+                    : "ringOneId"
+                : item.slot ? slotEquipmentKey(item.slot) : null;
+              if (!equipmentKey) throw new StoreActionError("Bu eşya kuşanılamaz.");
+              nextProfile = {
+                ...nextProfile,
+                equipment: {
+                  ...nextProfile.equipment,
+                  [equipmentKey]: item.id,
+                },
+                inventory: {
+                  ...currentProfile.inventory,
+                  ownedItemIds: [...currentProfile.inventory.ownedItemIds, item.id],
+                  newItemIds: [...new Set([...currentProfile.inventory.newItemIds, item.id])],
+                },
+              };
+            }
           } else if (item.reward?.type === "combat-item") {
             const count = currentProfile.inventory.combatItemCounts[item.reward.itemId];
             if (count + item.reward.amount > 999) throw new StoreActionError("Bu eşyanın heybe sınırına ulaştın.");
@@ -1296,6 +1316,16 @@ export default function WorldScene({
             };
           } else {
             throw new StoreActionError("Bu mağaza eşyasının ödül bilgisi eksik.");
+          }
+        } else if (operation === "war-room-equip") {
+          if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
+          if (warRoomSlotIndex === undefined) throw new StoreActionError("Savaş Odası yuvası seçilmedi.");
+          try {
+            nextProfile = assignLocalWarRoomWeapon(currentProfile, item, warRoomSlotIndex);
+          } catch (error) {
+            throw new StoreActionError(error instanceof Error
+              ? storeErrorText(error.message)
+              : "Bu eşya kuşanılamaz.");
           }
         } else if (operation === "equip") {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
@@ -1398,6 +1428,8 @@ export default function WorldScene({
           setStoreMessage(`${item.name} satıldı${payout.gold ? ` · ${payout.gold} altın` : ""}${payout.diamonds ? ` · ${payout.diamonds} elmas` : ""}.`);
         } else if (operation === "salvage") {
           setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
+        } else if (operation === "war-room-equip") {
+          setStoreMessage(`${item.name} Savaş Odası ${warRoomSlotIndex === 0 ? "Ana" : "Yedek"} yuvasına kuşanıldı.`);
         } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
@@ -1415,8 +1447,11 @@ export default function WorldScene({
       if (!accountProfileReady) throw new StoreActionError("Hesap profili henüz hazır değil.");
       const body = operation === "equip"
         ? { itemId, ...(selectedEquipmentKey ? { equipmentKey: selectedEquipmentKey } : {}) }
-        : { itemId, idempotencyKey };
-      const result = await apiRequest<{ profile?: unknown; upgradeSucceeded?: boolean }>(`/api/store/${operation}`, {
+        : operation === "war-room-equip"
+          ? { itemId, slot: warRoomSlotIndex === 0 ? "primary" : "secondary" }
+          : { itemId, idempotencyKey };
+      const route = operation === "war-room-equip" ? "war-room-equip" : operation;
+      const result = await apiRequest<{ profile?: unknown; upgradeSucceeded?: boolean }>(`/api/store/${route}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1442,6 +1477,8 @@ export default function WorldScene({
         setStoreMessage(`${item.name} satıldı${payout.gold ? ` · ${payout.gold} altın` : ""}${payout.diamonds ? ` · ${payout.diamonds} elmas` : ""}.`);
       } else if (operation === "salvage") {
         setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
+      } else if (operation === "war-room-equip") {
+        setStoreMessage(`${item.name} Savaş Odası ${warRoomSlotIndex === 0 ? "Ana" : "Yedek"} yuvasına kuşanıldı.`);
       } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
@@ -1456,7 +1493,7 @@ export default function WorldScene({
     } catch (error) {
       if (error instanceof ApiResponseError) {
         setStoreError(error.retryable ? "Mağaza şu an yüklenemedi, tekrar dene." : error.message);
-        if (error.retryable) setStoreRetryAction({ operation, itemId, equipmentKey: selectedEquipmentKey });
+        if (error.retryable) setStoreRetryAction({ operation, itemId, equipmentKey: selectedEquipmentKey, slotIndex: warRoomSlotIndex });
         else storeMutationKeysRef.current.delete(mutationKey);
       } else if (error instanceof StoreActionError) {
         setStoreError(error.message);
@@ -1467,7 +1504,7 @@ export default function WorldScene({
           errorName: error instanceof Error ? error.name : "unknown",
         });
         setStoreError("Mağaza şu an yüklenemedi, tekrar dene.");
-        if (accountDuelEnabled) setStoreRetryAction({ operation, itemId, equipmentKey: selectedEquipmentKey });
+        if (accountDuelEnabled) setStoreRetryAction({ operation, itemId, equipmentKey: selectedEquipmentKey, slotIndex: warRoomSlotIndex });
         else storeMutationKeysRef.current.delete(mutationKey);
       }
     } finally {
@@ -3887,13 +3924,15 @@ export default function WorldScene({
           onTry={setStoreTrialItemId}
           onPurchase={(itemId) => void runStoreMutation("purchase", itemId)}
           onEquip={(itemId, equipmentKey) => void runStoreMutation("equip", itemId, equipmentKey)}
+          onEquipWarRoom={(itemId, slotIndex) => void runStoreMutation("war-room-equip", itemId, undefined, slotIndex)}
           onUpgrade={(itemId) => void runStoreMutation("upgrade", itemId)}
           onSell={(itemId) => void runStoreMutation("sell", itemId)}
           onSalvage={(itemId) => void runStoreMutation("salvage", itemId)}
           onAssignQuickSlot={assignCombatQuickSlot}
           onSetSecondaryWeapon={setSecondaryWeapon}
           loadoutBusy={combatLoadoutBusy}
-          onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId, storeRetryAction.equipmentKey) : undefined}
+          onClearFeedback={clearStoreFeedback}
+          onRetry={storeRetryAction ? () => void runStoreMutation(storeRetryAction.operation, storeRetryAction.itemId, storeRetryAction.equipmentKey, storeRetryAction.slotIndex) : undefined}
           renderPreview={(item, equipmentKey, equipped) => {
             if (item.kind !== "equipment") {
               return (

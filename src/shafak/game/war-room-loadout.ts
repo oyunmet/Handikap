@@ -1,7 +1,7 @@
-import { getStoreItem } from "./store-catalog";
-import type { PlayerProfile } from "./profile";
-import { getWeaponDefinition } from "./weapons";
-import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "./war-room-data";
+import { getStoreItem } from "./store-catalog.ts";
+import type { PlayerProfile } from "./profile.ts";
+import { getWeaponDefinition } from "./weapons.ts";
+import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "./war-room-data.ts";
 
 export const DEFAULT_WAR_ROOM_LOADOUT: readonly [WarRoomWeaponId, WarRoomWeaponId] = [
   "powder_rifle",

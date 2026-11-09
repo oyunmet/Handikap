@@ -25,6 +25,10 @@ import { WarRoomAnimatedActor, WarRoomAssetBoundary, WarRoomStaticModel } from "
 import KnightActor from "./KnightActor";
 import { createWorldMotion } from "./movement";
 import { PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
+import {
+  getEquipmentPreviewBounds,
+  getEquipmentPreviewSubject,
+} from "./equipment-preview-camera";
 
 type EquipmentPreview3DProps = {
   appearance: EquipmentVisual;
@@ -147,9 +151,11 @@ function PreviewWeaponErrorFallback({
 function WarRoomPreviewRig({
   weaponId,
   readyRef,
+  weaponSubjectRef,
 }: {
   weaponId: WarRoomWeaponId;
   readyRef: React.MutableRefObject<boolean>;
+  weaponSubjectRef: MutableRefObject<THREE.Group | null>;
 }) {
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
   const mountConfig = weapon ? getPreviewWeaponMount(weaponId, weapon) : DEFAULT_PREVIEW_WEAPON_MOUNT;
@@ -170,6 +176,7 @@ function WarRoomPreviewRig({
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
     ].map((name) => actorRef.current?.getObjectByName(name)).find(Boolean);
     const mount = mountRef.current;
+    weaponSubjectRef.current = mount;
     const target = hand ?? rigRef.current;
 
     if (mount.parent !== target) {
@@ -279,12 +286,16 @@ function PreviewCameraFit({
   itemId,
   isLoading,
   subjectRef,
+  itemSubjectRef,
+  focusItemOnly = false,
   controlsRef,
   readyRef,
 }: {
   itemId: string;
   isLoading: boolean;
   subjectRef: RefObject<THREE.Group | null>;
+  itemSubjectRef?: RefObject<THREE.Group | null>;
+  focusItemOnly?: boolean;
   controlsRef: RefObject<PreviewOrbitControls | null>;
   readyRef?: RefObject<boolean>;
 }) {
@@ -294,10 +305,13 @@ function PreviewCameraFit({
 
   useFrame(() => {
     if (isLoading || fittedKeyRef.current === fitKey || (readyRef && !readyRef.current)) return;
-    const subject = subjectRef.current;
+    const subject = getEquipmentPreviewSubject(
+      focusItemOnly,
+      subjectRef.current,
+      itemSubjectRef?.current ?? null,
+    );
     if (!subject) return;
-    subject.updateWorldMatrix(true, true);
-    const bounds = new THREE.Box3().setFromObject(subject, true);
+    const bounds = getEquipmentPreviewBounds(subject);
     if (bounds.isEmpty()) return;
     const sphere = bounds.getBoundingSphere(new THREE.Sphere());
     if (!Number.isFinite(sphere.radius) || sphere.radius < 0.08) return;
@@ -341,6 +355,7 @@ export default function EquipmentPreview3D({
   const rootRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<PreviewOrbitControls | null>(null);
   const previewGroupRef = useRef<THREE.Group>(null);
+  const weaponSubjectRef = useRef<THREE.Group>(null);
   const weaponReadyRef = useRef(false);
   const pointerStartRef = useRef<{ x: number; y: number; id: number } | null>(null);
   const lastTapRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -349,6 +364,9 @@ export default function EquipmentPreview3D({
   const [itemChanging, setItemChanging] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const onPreviewReady = useCallback(() => setIsLoading(false), []);
+  const isWarRoomWeaponPreview = Boolean(
+    warRoomWeaponId && WAR_ROOM_WEAPON_BY_ID.has(warRoomWeaponId as WarRoomWeaponId),
+  );
 
   useEffect(() => {
     const element = rootRef.current;
@@ -444,6 +462,7 @@ export default function EquipmentPreview3D({
               key={warRoomWeaponId}
               weaponId={warRoomWeaponId as WarRoomWeaponId}
               readyRef={weaponReadyRef}
+              weaponSubjectRef={weaponSubjectRef}
             />
           ) : (
             <group scale={0.79}>
@@ -465,8 +484,10 @@ export default function EquipmentPreview3D({
           itemId={itemId}
           isLoading={isLoading}
           subjectRef={previewGroupRef}
+          itemSubjectRef={weaponSubjectRef}
+          focusItemOnly={isWarRoomWeaponPreview}
           controlsRef={controlsRef}
-          readyRef={warRoomWeaponId && WAR_ROOM_WEAPON_BY_ID.has(warRoomWeaponId as WarRoomWeaponId) ? weaponReadyRef : undefined}
+          readyRef={isWarRoomWeaponPreview ? weaponReadyRef : undefined}
         />
         <OrbitControls
           ref={(instance) => { controlsRef.current = instance as unknown as PreviewOrbitControls | null; }}

@@ -25,6 +25,7 @@ import { getItemBonuses } from "../store-utils";
 import { isCoreWeapon } from "../weapons.ts";
 import { WarRoomWeaponIcon } from "../WarRoomWeaponIcon";
 import type { WarRoomWeaponId } from "../war-room-data";
+import WarRoomStoreActions from "./WarRoomStoreActions";
 import "./store-panel.css";
 
 type StorePanelProps = {
@@ -43,6 +44,8 @@ type StorePanelProps = {
   onTry(itemId: string | null): void;
   onPurchase(itemId: string): void;
   onEquip(itemId: string, equipmentKey?: EquipmentLoadoutKey): void;
+  onEquipWarRoom(itemId: string, slotIndex: 0 | 1): void;
+  onClearFeedback(): void;
   onUpgrade(itemId: string): void;
   onSell(itemId: string): void;
   onSalvage(itemId: string): void;
@@ -135,6 +138,8 @@ export default function StorePanel({
   onTry,
   onPurchase,
   onEquip,
+  onEquipWarRoom,
+  onClearFeedback,
   onUpgrade,
   onSell,
   onSalvage,
@@ -197,6 +202,14 @@ export default function StorePanel({
       .sort((left, right) => ({ common: 0, rare: 1, epic: 2, legendary: 3 }[left.rarity] - { common: 0, rare: 1, epic: 2, legendary: 3 }[right.rarity]));
   }, [activeTab, dailyOfferRevision, items, ownedSet, profile.inventory.combatItemCounts, profile.materials]);
   const selected = visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
+  const previousSelectedItemIdRef = useRef(selected?.id ?? null);
+  useEffect(() => {
+    const nextSelectedItemId = selected?.id ?? null;
+    if (previousSelectedItemIdRef.current !== nextSelectedItemId) {
+      previousSelectedItemIdRef.current = nextSelectedItemId;
+      onClearFeedback();
+    }
+  }, [selected?.id, onClearFeedback]);
 
   const canManageProfile = isGuest || accountReady;
   const selectedEquipmentKey = selected?.slot
@@ -231,6 +244,14 @@ export default function StorePanel({
     : false;
   const isSecondaryWeapon = selected?.slot === "weapon" && profile.inventory.secondaryWeaponId === selected.id;
   const isPrimaryWeapon = selected?.slot === "weapon" && profile.equipment.weaponId === selected.id;
+  const isWarRoomPrimary = Boolean(
+    selected?.warRoomWeaponId
+    && profile.inventory.warRoomPrimaryWeaponId === selected.warRoomWeaponId,
+  );
+  const isWarRoomSecondary = Boolean(
+    selected?.warRoomWeaponId
+    && profile.inventory.warRoomSecondaryWeaponId === selected.warRoomWeaponId,
+  );
   const upgradeLevel = selected ? profile.inventory.upgrades[selected.id] ?? 0 : 0;
   const isBusy = selected ? busyItemId === selected.id : false;
   const upgradeCost = selected?.upgradeable && selected.slot && upgradeLevel < MAX_UPGRADE_LEVEL
@@ -481,7 +502,10 @@ export default function StorePanel({
                       type="button"
                       aria-pressed={selected?.id === item.id}
                       aria-label={`${item.name}, ${rarityLabels[item.rarity]}${levelLocked ? `, seviye ${item.requiredLevel} gerekli` : equipped ? ", kuşanıldı" : owned ? ", heybenizde" : item.dropOnly ? ", rakip ganimeti" : ", kilitli"}${isNew ? ", yeni" : ""}`}
-                      onClick={() => setSelectedId(item.id)}
+                      onClick={() => {
+                        if (selected?.id !== item.id) onClearFeedback();
+                        setSelectedId(item.id);
+                      }}
                     >
                       <span className="safak-store__item-topline">
                         <span className={`safak-store__rarity rarity-${item.rarity}`}>{rarityLabels[item.rarity]}</span>
@@ -684,19 +708,14 @@ export default function StorePanel({
                 <div className="safak-store__actions">
                   {selected.warRoomWeaponId ? (
                     selectedOwned ? (
-                      <>
-                        <p className="safak-store__funds-warning" role="status">
-                          Bu silah Savaş Odası hazırlığında seçilebilir; normal düello donanımına takılmaz.
-                        </p>
-                        <button
-                          className="safak-store__secondary"
-                          type="button"
-                          onClick={() => setConfirming({ item: selected, operation: "sell" })}
-                          disabled={!canManageProfile || !getItemSellValue(selected).gold || loading || !!busyItemId}
-                        >
-                          SAT · {getItemSellValue(selected).gold} ALTIN
-                        </button>
-                      </>
+                      <WarRoomStoreActions
+                        itemId={selected.id}
+                        primaryEquipped={isWarRoomPrimary}
+                        secondaryEquipped={isWarRoomSecondary}
+                        busy={isBusy}
+                        disabled={!canManageProfile || selectedLevelLocked || loading || !!busyItemId || loadoutBusy}
+                        onEquip={onEquipWarRoom}
+                      />
                     ) : (
                       <button
                         className="safak-store__primary"

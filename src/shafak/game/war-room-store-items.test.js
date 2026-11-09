@@ -7,6 +7,11 @@ import {
   isWarRoomWeaponOwned,
 } from "./war-room-loadout.ts";
 import { WAR_ROOM_WEAPONS } from "./war-room-data.ts";
+import { defaultProfile } from "./profile.ts";
+import {
+  assignLocalWarRoomWeapon,
+  purchaseLocalWarRoomWeapon,
+} from "./war-room-store-operations.ts";
 
 test("every store-linked War Room weapon exposes its real combat values", () => {
   for (const weapon of WAR_ROOM_WEAPONS.filter((entry) => entry.storeItemId)) {
@@ -60,4 +65,53 @@ test("saved War Room slots load independently and assigning a weapon swaps rathe
     () => getWarRoomLoadoutAssignment(profile, "blaster_q", 0),
     /war_room_weapon_not_owned/,
   );
+});
+
+test("local War Room purchase deducts once, adds inventory, and preserves campaign equipment", () => {
+  const profile = structuredClone(defaultProfile);
+  profile.gold = 2_500;
+  profile.worldProgress = { distance: 42_000, depth: 42_000, routeChoice: null, campaignVersion: 1 };
+  const originalEquipment = structuredClone(profile.equipment);
+  const item = getStoreItem("war_room_blaster_r");
+  assert.ok(item);
+
+  const purchased = purchaseLocalWarRoomWeapon(profile, item);
+
+  assert.equal(purchased.gold, 600);
+  assert.ok(purchased.inventory.ownedItemIds.includes(item.id));
+  assert.ok(purchased.inventory.newItemIds.includes(item.id));
+  assert.deepEqual(purchased.equipment, originalEquipment);
+  assert.deepEqual(purchased.worldProgress, profile.worldProgress);
+});
+
+test("local War Room purchase rejects insufficient funds and repeat purchases without mutation", () => {
+  const profile = structuredClone(defaultProfile);
+  const item = getStoreItem("war_room_blaster_r");
+  assert.ok(item);
+  const before = structuredClone(profile);
+
+  assert.throws(() => purchaseLocalWarRoomWeapon(profile, item), /insufficient_funds/);
+  assert.deepEqual(profile, before);
+
+  profile.gold = 2_500;
+  profile.inventory.ownedItemIds.push(item.id);
+  const alreadyOwned = structuredClone(profile);
+  assert.throws(() => purchaseLocalWarRoomWeapon(profile, item), /item_already_owned/);
+  assert.deepEqual(profile, alreadyOwned);
+});
+
+test("a purchased local War Room weapon can equip in either briefing slot", () => {
+  const profile = structuredClone(defaultProfile);
+  profile.gold = 5_000;
+  const primaryItem = getStoreItem("war_room_blaster_r");
+  const reserveItem = getStoreItem("war_room_blaster_p");
+  assert.ok(primaryItem);
+  assert.ok(reserveItem);
+
+  const afterPrimaryPurchase = purchaseLocalWarRoomWeapon(profile, primaryItem);
+  const afterReservePurchase = purchaseLocalWarRoomWeapon(afterPrimaryPurchase, reserveItem);
+  const withPrimary = assignLocalWarRoomWeapon(afterReservePurchase, primaryItem, 0);
+  const withReserve = assignLocalWarRoomWeapon(withPrimary, reserveItem, 1);
+
+  assert.deepEqual(getWarRoomLoadoutFromProfile(withReserve), ["blaster_r", "blaster_p"]);
 });

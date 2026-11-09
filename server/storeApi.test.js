@@ -9,6 +9,7 @@ import {
   validateStoreOperationBody,
 } from "./storeApi.ts";
 import { getDailySpecials, STORE_CATALOG } from "./storeCatalog.ts";
+import { getWarRoomLoadoutFromProfile } from "../src/shafak/game/war-room-loadout.ts";
 import {
   getItemSellValue,
   getSalvageYield,
@@ -200,6 +201,13 @@ test("War Room weapon purchase adds ownership and charges exactly once without R
   });
   assert.equal(duplicate.status, 409);
   assert.equal(pool.profile.gold, 600);
+
+  assert.equal(pool.profile.inventory.warRoomPrimaryWeaponId, null);
+  const equip = await send("war-room-equip", { itemId: item.id, slot: "primary" });
+  assert.equal(equip.status, 200);
+  assert.equal(pool.profile.inventory.warRoomPrimaryWeaponId, "blaster_r");
+  assert.deepEqual(getWarRoomLoadoutFromProfile(pool.profile), ["blaster_r", "powder_rifle"]);
+  assert.deepEqual(pool.profile.equipment, startingEquipment);
 });
 
 test("an unaffordable War Room weapon purchase leaves the balance and inventory unchanged", async (t) => {
