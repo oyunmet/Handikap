@@ -134,11 +134,12 @@
 
 ### 11.3 — Yatay arayüz çakışmaları
 
-- **Durum:** Yarım (çalışılıyor).
-- **Kök neden:** 772×330 Chromium ölçümünde hazırlık içeriğinin grid satırları beş normal alt öğeye değil dört satıra göre tanımlı; esnek satıra silah başlığı yerleşiyor, listenin ve alt barın satırları taşarak üst üste biniyor. BAŞLA düğmesinin 168 px minimum genişliği alt barın en fazla 140 px sütununu aşıyor ve viewport'un 12 px dışına taşıyor. HUD'da kapı düğmesi, düşman sayacı, boss göstergesi ve geçici bildirim birbirinden bağımsız mutlak koordinatlarla yerleştirilmiş; çakışmayı önleyen ortak ayrılmış alan veya bildirim kuyruğu yok.
-- **Yapılanlar:** Playwright/Chromium ile 772×330 temel ekranı ölçüp ekran görüntüsü aldım; test düzeltmeden önce bu iki ana çakışmayı yakalayacak şekilde hazırlanıyor.
-- **Yarım kalanlar:** Hazırlık ekranının iki sütun + sabit alt bar düzeni, kayan silah listesi, HUD bildirim kuyruğu ve belirtilen boyutlarda otomatik kutu çakışma testleri.
-- **Doğrulanamayanlar:** Henüz yok; düzeltme sonrası ekran boyutları ve gerçek iPhone Safari ayrıca kontrol edilecek.
+- **Durum:** Tamamlandı.
+- **Kök neden:** Yatay hazırlık ekranının önceki CSS’i, artık doğrudan alt öğe olmayan başlık/içerik/alt bar için grid satır ve sütunlarını sabitliyordu. İçerik öğelerinin min-content boyutları ve 168 px BAŞLA minimum genişliği, 772×330 ölçüsünde silah listesi/alt bar taşmasına yol açıyordu. Savaş içindeki kapı düğmesi ayar düğmeleri ve silah kontrollerinin alanına uzanıyordu; geçici bildirimler ise tek mutlak konumda gösteriliyordu.
+- **Yapılanlar:** Hazırlık ekranı mod/görev ve günlük sınav için sol, silah seçimi için sağ sütun ve ilerleme/BAŞLA alanı sabit alt satır olacak şekilde kuruldu; GERİ düğmesi başlık satırına alındı. Silah listesi `min-height: 0` ve kendi kaydırma alanını kullanıyor; portrede içerik tek sütun ve kaydırılabilir. HUD bildirimleri üç öğeli, zaman aşımı olan kuyruğa alındı; kapı düğmesi landscape ve portrait HUD alanlarında sayaç, boss çubuğu, ayarlar ve diğer kontrollerden ayrıldı. Playwright ölçüm testi ve kuyruk birim testleri eklendi.
+- **Doğrulama:** `npm test` — 642/642; `npm run typecheck` — geçti; `npm run build` — geçti. Playwright/Chromium'da 772×330, 667×375, 740×360, 800×360, 844×390, 915×412, 932×430, 360×800 ve 390×844 ölçülerinin her birinde hazırlık ekranı ve HUD kontrol edildi: 18 ekran görüntüsünde görünür metin/düğme kutularında çakışma veya viewport taşması yok. Görüntüler test sırasında `/tmp/war-room-11-3` altında üretildi; kullanıcı kayıtlarına dokunulmadı.
+- **Yarım kalanlar:** 11.3 için kod tarafında yok. 11.4–11.9 sıradaki alt adımlar.
+- **Doğrulanamayanlar:** Gerçek iPhone Safari'de dokunma kabulü ve cihaz üstü görüntü doğrulanmadı; Chromium emülasyonu gerçek cihaz testi yerine geçmez.
 
 ### Adım 11 alt adımları
 

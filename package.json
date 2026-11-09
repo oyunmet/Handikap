@@ -10,6 +10,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "warroom:weapons:inspect": "node scripts/analyze-war-room-weapons.mjs",
     "warroom:e2e": "node scripts/war-room-mobile-e2e.mjs",
+    "warroom:layout:e2e": "node scripts/war-room-layout-e2e.mjs",
     "build": "vite build",
     "android:validate:web": "node scripts/validate-android-web.mjs",
     "android:debug": "cd android && ./gradlew assembleDebug",

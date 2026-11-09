@@ -96,6 +96,11 @@ import {
 } from "./war-room-rooms";
 import { getWarRoomDailyChallenge, isWarRoomDailyChallengeComplete } from "./war-room-daily";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
+import {
+  appendWarRoomToast,
+  removeWarRoomToast,
+  type WarRoomToast,
+} from "./war-room-toast-queue";
 import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
   CONTROLS_CONFIG,
@@ -369,6 +374,22 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [hudToasts, setHudToasts] = useState<WarRoomToast[]>([]);
+  const hudToastIdRef = useRef(0);
+  const hudToastTimersRef = useRef(new Map<number, number>());
+  const previousDoorToastRef = useRef<{ id: string; isOpen: boolean } | null>(null);
+  const previousHitToastRef = useRef<string | null>(null);
+  const enqueueHudToast = useCallback((message: string) => {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const id = ++hudToastIdRef.current;
+    setHudToasts((queue) => appendWarRoomToast(queue, { id, message: trimmed }));
+    const timer = window.setTimeout(() => {
+      setHudToasts((queue) => removeWarRoomToast(queue, id));
+      hudToastTimersRef.current.delete(id);
+    }, 3_200);
+    hudToastTimersRef.current.set(id, timer);
+  }, []);
   const nearbyDoorRef = useRef<WarRoomHudSnapshot["nearbyDoor"]>(null);
   nearbyDoorRef.current = hud.nearbyDoor;
   const [damagePopup, setDamagePopup] = useState<{
@@ -388,6 +409,54 @@ export default function WarRoomGame({
   });
   const [killConfirmation, setKillConfirmation] = useState<{ id: number; streak: number } | null>(null);
   const previousKillCountRef = useRef(0);
+
+  useEffect(() => () => {
+    for (const timer of hudToastTimersRef.current.values()) window.clearTimeout(timer);
+    hudToastTimersRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "battle") {
+      previousDoorToastRef.current = null;
+      previousHitToastRef.current = null;
+      for (const timer of hudToastTimersRef.current.values()) window.clearTimeout(timer);
+      hudToastTimersRef.current.clear();
+      setHudToasts([]);
+      return;
+    }
+
+    const door = hud.nearbyDoor;
+    if (door) {
+      const isOpen = door.openProgress > 0.95;
+      const previousDoor = previousDoorToastRef.current;
+      if (previousDoor?.id === door.id && !previousDoor.isOpen && isOpen) {
+        enqueueHudToast("KAPI AÇIK");
+      }
+      previousDoorToastRef.current = { id: door.id, isOpen };
+    } else {
+      previousDoorToastRef.current = null;
+    }
+
+    const hitSignature = hud.hitMessage
+      ? `${hud.damageEventId}:${hud.hitMessage}`
+      : null;
+    if (
+      hitSignature
+      && hud.lastHitSource === null
+      && hitSignature !== previousHitToastRef.current
+    ) {
+      enqueueHudToast(hud.hitMessage);
+    }
+    previousHitToastRef.current = hitSignature;
+  }, [
+    enqueueHudToast,
+    hud.damageEventId,
+    hud.hitMessage,
+    hud.lastHitSource,
+    hud.nearbyDoor?.id,
+    hud.nearbyDoor?.openProgress,
+    phase,
+  ]);
   const killStreakRef = useRef({ count: 0, at: 0 });
   useEffect(() => {
     if (hud.kills < previousKillCountRef.current) {
@@ -1573,10 +1642,10 @@ export default function WarRoomGame({
                 aria-hidden="true"
               >▼</div>
             )}
-              <div className="war-room-notice" aria-live="polite">
-                {hud.hitMessage && hud.lastHitSource === null && (
-                  <span key={hud.hitMessage}>{hud.hitMessage}</span>
-                )}
+              <div className="war-room-notice" role="log" aria-live="polite" aria-relevant="additions text">
+                {hudToasts.map((toast) => (
+                  <span key={toast.id} data-toast-id={toast.id}>{toast.message}</span>
+                ))}
             </div>
             <div className="war-room-hud__bottom">
               <div className={`war-room-vitals${hud.damageVignette ? " is-damaged" : ""}`}>

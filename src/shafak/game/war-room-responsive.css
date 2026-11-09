@@ -1486,6 +1486,507 @@
   }
 }
 
+/* Preparation uses fixed grid rows: the weapon list scrolls inside its own column. */
+.war-room-briefing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: clamp(8px, 1.4vh, 16px);
+  overflow: hidden;
+  padding:
+    max(14px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left));
+}
+
+.war-room-briefing__header {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.war-room-briefing .war-room-heading {
+  grid-column: auto;
+  grid-row: auto;
+  align-self: center;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.war-room-briefing .war-room-heading h1 {
+  margin: 5px 0;
+  font-size: clamp(27px, 5vw, 44px);
+}
+
+.war-room-briefing .war-room-heading p {
+  font-size: clamp(9px, 1.4vw, 12px);
+}
+
+.war-room-briefing .war-room-exit {
+  position: static;
+  inset: auto;
+  min-width: 66px;
+  min-height: 36px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.war-room-briefing__content {
+  grid-column: auto;
+  grid-row: auto;
+  display: grid;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  grid-template-columns: minmax(190px, .68fr) minmax(0, 1.32fr);
+  gap: clamp(10px, 1.6vw, 20px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.war-room-briefing__overview {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.war-room-briefing__overview .war-room-daily-challenge {
+  margin-top: 0;
+}
+
+.war-room-briefing__loadout {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.war-room-briefing__loadout .war-room-loadout-head {
+  min-width: 0;
+  align-items: center;
+  margin: 0;
+}
+
+.war-room-briefing__loadout .war-room-loadout-head h2 {
+  font-size: clamp(16px, 2vw, 21px);
+}
+
+.war-room-weapon-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(215, 160, 93, .42) transparent;
+  scrollbar-width: thin;
+}
+
+.war-room-weapon-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.war-room-briefing__loadout .war-room-loadout-notice {
+  margin: 0;
+}
+
+.war-room-briefing__bottom {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, .55fr);
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(236, 206, 160, .16);
+}
+
+.war-room-briefing__bottom-copy,
+.war-room-briefing__bottom-actions {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.war-room-briefing__bottom-copy .war-room-model-progress,
+.war-room-briefing__bottom-actions .war-room-model-status,
+.war-room-briefing__bottom-actions .war-room-start {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.war-room-briefing__bottom-copy p {
+  max-width: none;
+  margin: 0;
+}
+
+.war-room-briefing__bottom-actions {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+  gap: 8px;
+}
+
+.war-room-briefing__bottom-actions .war-room-model-status {
+  min-width: 0;
+  font-size: 8px;
+}
+
+.war-room-briefing__bottom-actions .war-room-start {
+  width: 100%;
+  min-width: 0;
+}
+
+.war-room-notice {
+  top: max(158px, calc(env(safe-area-inset-top) + 150px));
+  right: auto;
+  left: max(14px, env(safe-area-inset-left));
+  display: grid;
+  width: min(260px, 31vw);
+  max-height: 112px;
+  gap: 5px;
+  overflow: hidden;
+  transform: none;
+  text-align: left;
+}
+
+.war-room-notice span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 9px;
+  border-radius: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .war-room-briefing {
+    gap: 8px;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .war-room-briefing__header {
+    gap: 8px;
+  }
+
+  .war-room-briefing .war-room-heading h1 {
+    font-size: clamp(29px, 9vw, 42px);
+  }
+
+  .war-room-briefing__content {
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 12px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 0 1px 5px;
+  }
+
+  .war-room-briefing__overview {
+    overflow: visible;
+  }
+
+  .war-room-briefing__loadout {
+    grid-template-rows: auto auto auto;
+    overflow: visible;
+  }
+
+  .war-room-weapon-scroll {
+    overflow: visible;
+  }
+
+  .war-room-briefing__bottom {
+    grid-template-columns: minmax(0, 1fr) minmax(142px, .72fr);
+    gap: 9px;
+    padding-top: 7px;
+  }
+
+  .war-room-briefing__bottom-copy p {
+    display: none;
+  }
+
+  .war-room-briefing__bottom-actions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  .war-room-briefing__bottom-actions .war-room-model-status {
+    font-size: 7px;
+    line-height: 1.2;
+  }
+
+  .war-room-briefing__bottom-actions .war-room-start {
+    grid-column: auto;
+    grid-row: auto;
+    min-height: 42px;
+    padding: 0 9px;
+    font-size: 9px;
+  }
+
+  .war-room-notice {
+    top: max(238px, calc(env(safe-area-inset-top) + 230px));
+    left: max(10px, env(safe-area-inset-left));
+    width: min(40vw, 160px);
+    max-height: 90px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 480px) and (max-width: 1000px) {
+  .war-room-briefing {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 6px;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(14px, env(safe-area-inset-right))
+      max(7px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .war-room-briefing__header {
+    gap: 8px;
+  }
+
+  .war-room-briefing .war-room-heading h1 {
+    margin: 2px 0;
+    font-size: clamp(24px, 4vw, 34px);
+  }
+
+  .war-room-briefing .war-room-heading p {
+    font-size: 8px;
+    line-height: 1.3;
+  }
+
+  .war-room-briefing .war-room-eyebrow {
+    font-size: 6px;
+  }
+
+  .war-room-briefing .war-room-exit {
+    min-height: 30px;
+  }
+
+  .war-room-briefing__content {
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-columns: minmax(180px, .66fr) minmax(0, 1.34fr);
+    gap: 10px;
+  }
+
+  .war-room-briefing__overview {
+    gap: 5px;
+  }
+
+  .war-room-briefing__overview .war-room-mission-card {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .war-room-briefing__overview .war-room-mission-card__symbol {
+    width: 27px;
+    height: 27px;
+    font-size: 13px;
+  }
+
+  .war-room-briefing__overview .war-room-mission-card span {
+    font-size: 6px;
+  }
+
+  .war-room-briefing__overview .war-room-mission-card strong {
+    font-size: 8px;
+  }
+
+  .war-room-briefing__overview .war-room-mission-card small {
+    font-size: 7px;
+    line-height: 1.25;
+  }
+
+  .war-room-briefing__overview .war-room-enemy-count {
+    font-size: 20px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge {
+    grid-template-columns: 26px minmax(0, 1fr) 32px;
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__mark {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__copy {
+    gap: 2px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__eyebrow {
+    gap: 4px;
+    font-size: 6px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__eyebrow small,
+  .war-room-briefing__overview .war-room-daily-challenge__copy > p,
+  .war-room-briefing__overview .war-room-daily-challenge__copy > small {
+    font-size: 6px;
+    line-height: 1.2;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__copy > strong {
+    font-size: 9px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__record {
+    min-height: 30px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__record small {
+    font-size: 5px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__record b {
+    font-size: 14px;
+  }
+
+  .war-room-briefing__overview .war-room-daily-challenge__start {
+    min-width: 0;
+    min-height: 26px;
+    grid-column: 1 / -1;
+    padding: 0 6px;
+    font-size: 6px;
+  }
+
+  .war-room-briefing__loadout {
+    gap: 5px;
+  }
+
+  .war-room-briefing__loadout .war-room-loadout-head h2 {
+    margin-top: 2px;
+    font-size: 14px;
+  }
+
+  .war-room-briefing .war-room-slot-tabs {
+    gap: 3px;
+  }
+
+  .war-room-briefing .war-room-slot-tabs button {
+    min-height: 26px;
+    padding: 0 6px;
+    font-size: 6px;
+  }
+
+  .war-room-briefing .war-room-weapon-grid {
+    gap: 5px;
+  }
+
+  .war-room-briefing .war-room-weapon-card {
+    min-height: 42px;
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 5px;
+    padding: 4px 6px;
+  }
+
+  .war-room-briefing .war-room-weapon-card__icon {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .war-room-briefing .war-room-weapon-card__copy {
+    gap: 2px;
+  }
+
+  .war-room-briefing .war-room-weapon-card__copy b {
+    font-size: 8px;
+  }
+
+  .war-room-briefing .war-room-weapon-card__copy small,
+  .war-room-briefing .war-room-weapon-card__status {
+    font-size: 6px;
+  }
+
+  .war-room-briefing__bottom {
+    grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+    gap: 8px;
+    padding-top: 5px;
+  }
+
+  .war-room-briefing__bottom-copy p {
+    display: none;
+  }
+
+  .war-room-briefing__bottom-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+    gap: 6px;
+  }
+
+  .war-room-briefing__bottom-actions .war-room-model-status {
+    font-size: 6px;
+    line-height: 1.2;
+  }
+
+  .war-room-briefing__bottom-actions .war-room-start {
+    min-height: 34px;
+    padding: 0 7px;
+    font-size: 8px;
+  }
+
+  .war-room-notice {
+    top: max(106px, calc(env(safe-area-inset-top) + 98px));
+    left: max(12px, env(safe-area-inset-left));
+    width: clamp(112px, 20vw, 160px);
+    max-height: min(88px, calc(100dvh - 150px));
+  }
+
+  .war-room-door-action {
+    top: max(121px, calc(env(safe-area-inset-top) + 113px));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
+    width: min(170px, 23vw);
+    min-width: 0;
+    min-height: 32px;
+    padding: 4px 7px;
+    transform: none;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 760px) {
+  .war-room-pause {
+    top: auto;
+    right: auto;
+    bottom: max(106px, calc(env(safe-area-inset-bottom) + 100px));
+    left: max(10px, env(safe-area-inset-left));
+  }
+
+  .war-room-door-action {
+    top: max(190px, calc(env(safe-area-inset-top) + 180px));
+    right: auto;
+    left: max(10px, env(safe-area-inset-left));
+    width: min(170px, calc(45vw - 12px));
+    min-width: 0;
+    transform: none;
+  }
+}
+
 @media (pointer: coarse) {
   .war-room-controls > .war-room-control {
     min-width: 48px !important;
