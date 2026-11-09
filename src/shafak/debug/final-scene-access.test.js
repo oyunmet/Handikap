@@ -5,6 +5,7 @@ import {
   isStartupErrorDiagnosticRequest,
   isPlayStoreTwaReferrer,
   resolveFinalSceneDebugRequest,
+  wasStartupErrorDiagnosticRequested,
 } from "./final-scene-access.ts";
 
 test("only the exact final-scene debug parameter requests the preview", () => {
@@ -49,6 +50,25 @@ test("startup diagnostics require the exact hidden parameter and stay off in the
   assert.equal(isStartupErrorDiagnosticRequest("?debug=final"), false);
   assert.equal(isStartupErrorDiagnosticRequest("?debug=1&scene=diagnostics"), false);
   assert.equal(isStartupErrorDiagnosticRequest("?debug=diagnostics", referrer), false);
+});
+
+test("startup diagnostics survive an in-app redirect that removes the query string", () => {
+  assert.equal(
+    wasStartupErrorDiagnosticRequested("?debug=diagnostics", "", ""),
+    true,
+  );
+  assert.equal(
+    wasStartupErrorDiagnosticRequested("", "?debug=diagnostics", ""),
+    true,
+  );
+  assert.equal(
+    wasStartupErrorDiagnosticRequested(
+      "?debug=diagnostics",
+      "",
+      "android-app://com.safaksavascilari.game",
+    ),
+    false,
+  );
 });
 
 test("startup diagnostic text redacts likely credentials and stays short", () => {

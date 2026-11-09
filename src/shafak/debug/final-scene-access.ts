@@ -29,6 +29,15 @@ export function isStartupErrorDiagnosticRequest(
   return new URLSearchParams(search).get("debug") === "diagnostics";
 }
 
+export function wasStartupErrorDiagnosticRequested(
+  initialSearch: string,
+  currentSearch: string,
+  referrer = "",
+): boolean {
+  return isStartupErrorDiagnosticRequest(initialSearch, referrer)
+    || isStartupErrorDiagnosticRequest(currentSearch, referrer);
+}
+
 export function formatStartupErrorDiagnostic(error: unknown): string {
   const message = error instanceof Error
     ? `${error.name}: ${error.message}`

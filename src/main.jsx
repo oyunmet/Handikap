@@ -3,8 +3,8 @@ import { createRoot } from "react-dom/client";
 import AuthEntry from "./shafak/auth/EnvironmentRouter.tsx";
 import {
   formatStartupErrorDiagnostic,
-  isStartupErrorDiagnosticRequest,
   resolveFinalSceneDebugRequest,
+  wasStartupErrorDiagnosticRequested,
 } from "./shafak/debug/final-scene-access.ts";
 import "./shafak/tokens.css";
 import "./shafak/App.css";
@@ -21,6 +21,8 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 class StartupErrorBoundary extends React.Component {
   state = { error: null, diagnosticsEnabled: false };
+  initialSearch = window.location.search;
+  initialReferrer = document.referrer;
 
   static getDerivedStateFromError(error) {
     return { error };
@@ -29,7 +31,11 @@ class StartupErrorBoundary extends React.Component {
   componentDidCatch(error, info) {
     console.error("[shafak-startup] The application could not render.", error, info.componentStack);
 
-    if (!isStartupErrorDiagnosticRequest(window.location.search, document.referrer)) return;
+    if (!wasStartupErrorDiagnosticRequested(
+      this.initialSearch,
+      window.location.search,
+      this.initialReferrer,
+    )) return;
 
     fetch("/api/debug-tools/status", { cache: "no-store", credentials: "same-origin" })
       .then((response) => response.ok ? response.json() : null)
