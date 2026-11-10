@@ -1,6 +1,7 @@
 export type WarRoomViewModelState = {
   time: number;
   movement: number;
+  runAmount?: number;
   walkPhase?: number;
   swayScale?: number;
   wallProximity?: number;
@@ -87,6 +88,15 @@ export function stepWarRoomViewModelWallProximity(
   return safeCurrent + (safeTarget - safeCurrent) * blend;
 }
 
+export function stepWarRoomViewModelRunAmount(
+  current: number,
+  sprinting: boolean,
+  grounded: boolean,
+  delta: number,
+) {
+  return stepWarRoomViewModelWallProximity(current, sprinting && grounded ? 1 : 0, delta, 12);
+}
+
 export type WarRoomViewModelConfig = {
   scale: number;
   position: readonly [number, number, number];
@@ -170,6 +180,7 @@ export function getWarRoomViewModelConfig(weaponId: string, melee: boolean): War
 export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1.75): WarRoomViewModelPose {
   const horizontalFactor = getWarRoomViewModelHorizontalFactor(aspect);
   const movement = clamp01(state.movement);
+  const runAmount = clamp01(state.runAmount ?? 0);
   const swayScale = clamp01(state.swayScale ?? 1);
   const wallProximity = movement < 0.05 && state.wallTuckEnabled !== false
     ? clamp01(state.wallProximity ?? 0)
@@ -217,7 +228,7 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   return {
     position: [
       (0.28 + (0.42 - 0.28) * aim + swingX + recoil * 0.025) * horizontalFactor + walkSwayX,
-      -0.08 + (-0.22 + 0.08) * aim + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035 - switchDip * 0.3,
+      -0.08 + (-0.22 + 0.08) * aim + idleBreath + swingY - reload * 0.11 - charge * 0.025 - wallProximity * 0.035 - switchDip * 0.3 - runAmount * 0.14,
       -0.58 - aim * 0.1 + swingZ + recoil * 0.12 + reload * 0.04 - charge * 0.08 + wallProximity * 0.08 + switchDip * 0.04,
     ],
     rotation: [

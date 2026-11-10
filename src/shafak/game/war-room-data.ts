@@ -178,8 +178,9 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
   {
     id: "melee_shovel", name: "Kürek", icon: "⛏", className: "Yakın dövüş · Ağır",
     damage: 62, fireInterval: 0.88, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2,
-    modelFile: null, modelSize: [0.18, 1.2, 0.13], normalizeLength: 1.2, weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.68, color: "#a98967",
-    mount: { position: [0.014, -0.018, -0.024], rotation: [0, 0, 0], scale: 1, gripRatio: 0.16 },
+    modelFile: "war-room-shovel.glb", modelSize: [0.46, 1.4, 0.13], normalizeLength: 1.4, sourceBounds: [0.46, 1.4, 0.13],
+    weaponClass: "melee", meleeStyle: "slash", meleeDuration: 0.68, color: "#a98967",
+    mount: { position: [0.014, -0.018, -0.024], rotation: [0, 0, 0], scale: 1, gripRatio: 0.25 },
   },
   {
     id: "melee_staff", name: "Kül Asası", icon: "ϟ", className: "Yakın dövüş · Geniş savuruş",

@@ -20,6 +20,7 @@ import {
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
 import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
+import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/player-hero.glb",
@@ -96,9 +97,9 @@ type StaticModelProps = {
   fallbackColor?: string;
   emissiveBoost?: number;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
-  magazineRef?: MutableRefObject<THREE.Group | null>;
-  boltRef?: MutableRefObject<THREE.Group | null>;
-  arrowRef?: MutableRefObject<THREE.Group | null>;
+  magazineRef?: MutableRefObject<THREE.Object3D | null>;
+  boltRef?: MutableRefObject<THREE.Object3D | null>;
+  arrowRef?: MutableRefObject<THREE.Object3D | null>;
 };
 
 export function WarRoomStaticModel({
@@ -186,12 +187,12 @@ export function WarRoomStaticModel({
   }, [emissiveBoost, fallbackColor, gripRatio, minimumVisualThickness, scene, src, targetSize, uniformFitLength]);
 
   useLayoutEffect(() => {
-    const magazine = model.getObjectByName("Magazine");
-    const bolt = model.getObjectByName("Bolt");
-    const arrow = model.getObjectByName("Arrow");
-    magazineRef && (magazineRef.current = magazine instanceof THREE.Group ? magazine : null);
-    boltRef && (boltRef.current = bolt instanceof THREE.Group ? bolt : null);
-    arrowRef && (arrowRef.current = arrow instanceof THREE.Group ? arrow : null);
+    const magazine = getWarRoomWeaponAnimationNode(model, "Magazine");
+    const bolt = getWarRoomWeaponAnimationNode(model, "Bolt");
+    const arrow = getWarRoomWeaponAnimationNode(model, "Arrow");
+    magazineRef && (magazineRef.current = magazine ?? null);
+    boltRef && (boltRef.current = bolt ?? null);
+    arrowRef && (arrowRef.current = arrow ?? null);
     return () => {
       if (magazineRef && magazineRef.current === magazine) magazineRef.current = null;
       if (boltRef && boltRef.current === bolt) boltRef.current = null;

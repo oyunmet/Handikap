@@ -120,6 +120,7 @@ import {
   getWarRoomViewModelScaleFactor,
   getWarRoomViewModelSwayScale,
   stepWarRoomViewModelMovement,
+  stepWarRoomViewModelRunAmount,
   stepWarRoomViewModelWallProximity,
   WAR_ROOM_VIEWMODEL_FOV,
   type WarRoomViewModelMovementState,
@@ -522,9 +523,9 @@ function WarRoomWeaponReloadMotion({
 }: {
   weaponId: WarRoomWeaponId;
   animationRef: MutableRefObject<WarRoomArmsAnimation>;
-  magazineRef: MutableRefObject<THREE.Group | null>;
-  boltRef: MutableRefObject<THREE.Group | null>;
-  arrowRef: MutableRefObject<THREE.Group | null>;
+  magazineRef: MutableRefObject<THREE.Object3D | null>;
+  boltRef: MutableRefObject<THREE.Object3D | null>;
+  arrowRef: MutableRefObject<THREE.Object3D | null>;
 }) {
   useFrame(() => {
     const animation = animationRef.current;
@@ -593,9 +594,9 @@ function WeaponModel({
   muzzleFlashRef?: MutableRefObject<THREE.Group | null>;
   animationRef?: MutableRefObject<WarRoomArmsAnimation>;
 }) {
-  const magazineRef = useRef<THREE.Group>(null);
-  const boltRef = useRef<THREE.Group>(null);
-  const arrowRef = useRef<THREE.Group>(null);
+  const magazineRef = useRef<THREE.Object3D>(null);
+  const boltRef = useRef<THREE.Object3D>(null);
+  const arrowRef = useRef<THREE.Object3D>(null);
   const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
   const gripPoints = getWarRoomViewModelGripPoints(weaponId);
   const crossbow = weaponId === "crossbow";
@@ -674,7 +675,7 @@ function WeaponModel({
             <cylinderGeometry args={[0.018, 0.018, 0.76, 5]} />
             <meshStandardMaterial color="#e7d2a6" roughness={0.45} />
           </mesh>
-          <group ref={arrowRef} position={[0, 0.02, -0.3]}>
+          <group ref={(node) => { arrowRef.current = node; }} position={[0, 0.02, -0.3]}>
             <mesh rotation={[-Math.PI / 2, 0, 0]} castShadow={false}>
               <cylinderGeometry args={[0.009, 0.012, 0.48, 5]} />
               <meshStandardMaterial color="#d7bd8e" roughness={0.82} />
@@ -696,7 +697,7 @@ function WeaponModel({
             <meshStandardMaterial color={weapon.color} roughness={0.4} metalness={0.44} />
           </mesh>
           {!crossbow && (
-            <group ref={magazineRef} position={[0, -0.14, -0.04]} rotation={[0.22, 0, 0]}>
+            <group ref={(node) => { magazineRef.current = node; }} position={[0, -0.14, -0.04]} rotation={[0.22, 0, 0]}>
               <mesh castShadow={false}>
                 <boxGeometry args={sidearm ? [0.1, 0.21, 0.12] : [0.12, 0.36, 0.17]} />
                 <meshStandardMaterial color="#4b3529" roughness={0.84} />
@@ -708,7 +709,7 @@ function WeaponModel({
             </group>
           )}
           {!crossbow && (
-            <group ref={boltRef} position={[sidearm ? 0.11 : 0.16, 0.11, -0.24]}>
+            <group ref={(node) => { boltRef.current = node; }} position={[sidearm ? 0.11 : 0.16, 0.11, -0.24]}>
               <mesh castShadow={false}>
                 <boxGeometry args={sidearm ? [0.055, 0.035, 0.16] : [0.075, 0.045, 0.2]} />
                 <meshStandardMaterial color="#55534c" metalness={0.58} roughness={0.44} />
@@ -725,7 +726,7 @@ function WeaponModel({
                 <boxGeometry args={[0.9, 0.045, 0.085]} />
                 <meshStandardMaterial color="#a88558" roughness={0.68} />
               </mesh>
-              <group ref={arrowRef} position={[0, 0.12, -0.4]}>
+              <group ref={(node) => { arrowRef.current = node; }} position={[0, 0.12, -0.4]}>
                 <mesh rotation={[-Math.PI / 2, 0, 0]} castShadow={false}>
                   <cylinderGeometry args={[0.009, 0.012, 0.42, 5]} />
                   <meshStandardMaterial color="#d7bd8e" roughness={0.82} />
@@ -860,6 +861,7 @@ function FirstPersonWeaponViewModel({
     velocity: 0,
     active: false,
   });
+  const runAmountRef = useRef(0);
   const legMovementRef = useRef(0);
   const walkPhaseRef = useRef(0);
   const wallProximityRef = useRef(0);
@@ -898,6 +900,12 @@ function FirstPersonWeaponViewModel({
     const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
     const movementIntent = getWarRoomViewModelMovementIntent(input.moveX, input.moveY, keyX, keyY);
     const isAirborne = player.jumpHeight > 0.02;
+    runAmountRef.current = stepWarRoomViewModelRunAmount(
+      runAmountRef.current,
+      player.sprinting,
+      !isAirborne,
+      delta,
+    );
     viewModelMovementRef.current = stepWarRoomViewModelMovement(
       viewModelMovementRef.current,
       movementIntent,
@@ -958,6 +966,7 @@ function FirstPersonWeaponViewModel({
     const pose = getWarRoomViewModelPose({
       time: clock,
       movement: viewModelMovement,
+      runAmount: runAmountRef.current,
       walkPhase: walkPhaseRef.current,
       swayScale: getWarRoomViewModelSwayScale(weaponSway),
       wallProximity,

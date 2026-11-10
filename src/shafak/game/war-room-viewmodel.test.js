@@ -9,6 +9,7 @@ import {
   getWarRoomViewModelOpacity,
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
+  stepWarRoomViewModelRunAmount,
   stepWarRoomViewModelWallProximity,
 } from "./war-room-viewmodel.ts";
 
@@ -210,6 +211,39 @@ test("weapon switching stays animated without adding a sprint push-in", () => {
   assert.equal(running.rotation[0], walking.rotation[0]);
   assert.ok(lowering.position[1] < raised.position[1]);
   assert.ok(lowering.position[1] > raised.position[1] - 0.31);
+});
+
+test("sprinting smoothly lowers the weapon without pushing it toward the camera", () => {
+  const shared = {
+    time: 0.8,
+    movement: 1,
+    aiming: false,
+    recoil: 0,
+    reloadProgress: 0,
+    chargeProgress: 0,
+    meleeProgress: null,
+    meleeStyle: "slash",
+    comboIndex: 0,
+    motionReduced: false,
+  };
+  const walking = getWarRoomViewModelPose({ ...shared, runAmount: 0 });
+  const sprinting = getWarRoomViewModelPose({ ...shared, runAmount: 1 });
+  assert.ok(sprinting.position[1] < walking.position[1] - 0.08);
+  assert.equal(sprinting.position[2], walking.position[2]);
+  assert.equal(sprinting.rotation[0], walking.rotation[0]);
+});
+
+test("sprint lowering eases in and out and is suppressed while airborne", () => {
+  let amount = stepWarRoomViewModelRunAmount(0, true, true, 0.02);
+  assert.ok(amount > 0 && amount < 1);
+  for (let frame = 0; frame < 50; frame += 1) {
+    amount = stepWarRoomViewModelRunAmount(amount, true, true, 0.02);
+  }
+  assert.ok(amount > 0.99);
+  const airborne = stepWarRoomViewModelRunAmount(amount, true, false, 0.02);
+  assert.ok(airborne < amount);
+  const released = stepWarRoomViewModelRunAmount(amount, false, true, 0.02);
+  assert.ok(released < amount && released > 0);
 });
 
 test("each modeled War Room weapon carries its own view-model transform", () => {

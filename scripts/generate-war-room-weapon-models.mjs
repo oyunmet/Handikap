@@ -155,6 +155,25 @@ function createWeapon(id, muzzle) {
     beam("Arrow", "Brass", [0, 0, -0.41], [0, 0, -0.48], 0.019, 6);
     box("Arrow", "Leather wrap", [0, 0.02, 0.14], [0.085, 0.09, 0.08]);
     muzzle.splice(0, 3, 0, 0.02, -0.68);
+  } else if (id === "war-room-shovel") {
+    beam("Receiver", "Oiled walnut", [0, -0.64, 0], [0, 0.35, 0], 0.047, 8);
+    box("Receiver", "Leather wrap", [0, -0.43, 0], [0.105, 0.2, 0.105]);
+    beam("Receiver", "Forged iron", [0, 0.27, 0], [0, 0.39, 0], 0.062, 7);
+    const bladeFront = [
+      [-0.09, 0.31, -0.065], [0.09, 0.31, -0.065], [0.23, 0.54, -0.065],
+      [0.145, 0.76, -0.065], [-0.145, 0.76, -0.065], [-0.23, 0.54, -0.065],
+    ];
+    const bladeBack = bladeFront.map(([x, y, z]) => [x, y, z + 0.09]);
+    const bladeCenterFront = [0, 0.53, -0.065];
+    const bladeCenterBack = [0, 0.53, 0.025];
+    for (let index = 0; index < bladeFront.length; index += 1) {
+      const next = (index + 1) % bladeFront.length;
+      triangle("Receiver", "Forged iron", bladeCenterFront, bladeFront[index], bladeFront[next]);
+      triangle("Receiver", "Forged iron", bladeCenterBack, bladeBack[next], bladeBack[index]);
+      quad("Receiver", "Forged iron", bladeFront[index], bladeFront[next], bladeBack[next], bladeBack[index]);
+    }
+    box("Receiver", "Brass", [0, 0.31, -0.012], [0.19, 0.045, 0.13]);
+    muzzle.splice(0, 3, 0, 0.53, -0.065);
   } else {
     throw new Error(`Unknown War Room weapon model: ${id}`);
   }
@@ -289,6 +308,7 @@ const modelSpecs = [
   { file: "brokenstone-shotgun.glb", id: "brokenstone-shotgun", muzzle: [0, 0, -0.9] },
   { file: "ash-crossbow.glb", id: "ash-crossbow", muzzle: [0, 0, -0.8] },
   { file: "dusk-longbow.glb", id: "dusk-longbow", muzzle: [0, 0, -0.7] },
+  { file: "war-room-shovel.glb", id: "war-room-shovel", muzzle: [0, 0.53, -0.065] },
 ];
 
 await MeshoptEncoder.ready;
