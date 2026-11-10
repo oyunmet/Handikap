@@ -164,11 +164,13 @@
 
 ### 11.6 — Görsel kalite: ortam (evler, sokaklar, koridorlar)
 
-- **Durum:** Sürüyor; 11.5 sonrasındaki sıradaki alt adım.
+- **Durum:** Kod ve varlık bütçesi tamamlandı; gerçek cihaz görsel/FPS kabul testi açık.
 - **Kapsam:** Pikselli görüntünün render ölçeği/doku filtresi nedenini ölç; mevcut 3B sahne, harita yerleşimi, oynanış, kontroller ve ölçeği koru. Tohumlu modüler bina/dekor çeşitliliği, uygun malzemeler, okunaklı ışık/sis/gökyüzü ve uzak LOD/instancing'i değerlendir. Hedef: görünür draw call <150, ortam varlıkları toplamı <6 MiB, telefonda 60 FPS hedefi; düşük/orta/yüksek ve otomatik kaliteyi koru.
 - **Kök neden — ilk ölçüm:** `world-environment-asset-budget.test.js` düzeltme öncesi 0/1 geçti. Dört ortam GLB'si toplam 19,136,964 bayt (18.25 MiB), 6 MiB sınırının üzerindeydi. `wooden-barrel.glb` 19 düğüm ve 9 adet 1024×1024 doku içeriyor; uygulama `wooden_barrels_01_barrel01` temsilci düğümünü izole edip yalnızca bu modeli çiziyor. Diğer varil düğümleri/dokuları bu yolda kullanılmıyor. Bu, indirilen ortam verisinin gereksiz büyümesinin ölçülebilir nedenidir.
-- **Doğrulama — ilk durum:** Dört GLB'nin her biri `WorldRoadEntities.tsx` içinde kullanılıyor; dosyaları silmek yerine kullanılan modelleri ve dokuları koruyarak optimize et. Gerçek telefondaki pikselli görünümün DPR mi, doku filtresi mi yoksa sunulan build mi kaynaklı olduğu henüz doğrulanmadı; kaynakta 1024 doku ve mipmap/linear filtreler var, canlı cihaz sonucu varsayılmayacak.
-- **Yarım kalanlar:** Varlıkları bütçeye indirmek; model/GLB sağlamlığını ve görsel LOD'yi test etmek; sahne draw-call ölçümünü kaydetmek; dünya ve Savaş Odası kalite ayarları/ışığını gözden geçirmek; tarayıcı ve cihazla doğrulanamayanları tamamlanırken yazmak.
+- **Kök neden — görünür varil:** `WorldModel.tsx` hem tekil modelde hem instanced batch'te yalnızca `wooden_barrels_01_barrel01` düğümünü ayırıyor. Diğer 18 düğüm ve iki kullanılmayan malzeme kümesinin dokuları yine de aynı GLB içinde indirilip ayrıştırılıyordu.
+- **Yapılanlar:** Dört gerekli GLB korundu; gömülü JPEG dokular 512×512 ve kalite 80'e indirildi. Varil GLB'sinden yalnızca hiç çizilmeyen ek düğümler, meshler ve bunlara ait materyal/dokular çıkarıldı; kullanılan varil modeli, üç PBR haritası ve diğer üç prop'un tüm sahne geometrisi korundu. Toplam boyut 19,136,964 bayttan 5,410,476 bayta (5.16 MiB) düştü; 6 MiB sınırının altında. GLB başlığı, JSON/BIN boyları, sahne ve düğüm/mesh/texture bağlantıları ile 512 px doku sınırı otomatik test ediliyor. Mevcut kalite kademeleri, dinamik çözünürlük, MSAA, ACES tone mapping, sis/gökyüzü, bina/dekor çeşitliliği ve instancing değiştirilmedi.
+- **Doğrulama:** Bütçe testi düzeltme öncesi kırmızıydı (19,136,964 bayt); `npm test` 654/654 geçti; ortam varlıkları, boyutlandırma ve grafik kalitesi hedef testleri 14/14 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Dört GLB'nin HTTP yanıtı 200; toplam indirme boyutu 5,410,476 bayt. 3B dünyaya kadar Chromium'da ulaşıldı ve canvas oluştu; fakat SwiftShader FPS sayacı 0 gösterdi, ekran görüntüsü yakalama zaman aşımına uğradı. Bu nedenle çizilen sahne ve draw-call sayısı ölçülmüş sayılmıyor.
+- **Yarım kalanlar / doğrulanamayanlar:** Pikselli telefon görüntüsünün DPR, doku filtresi veya dağıtılan build kaynaklı olduğu gerçek cihazda henüz ayrıştırılmadı. Görünür draw call <150 ve gerçek telefonda 60 FPS hedefi ölçülmedi. SwiftShader Chromium doğrulaması sahne pikselini göstermedi; iPhone/Android görsel ve performans kabulü açık.
 
 ### Adım 11 alt adımları
 
@@ -177,7 +179,7 @@
 - **11.3 — Yatay arayüz çakışmaları:** Tamamlandı
 - **11.4 — Silah titremesi:** Tamamlandı
 - **11.5 — Kapı ve eşik takılması:** Tamamlandı
-- **11.6 — Ortam görsel kalitesi:** Sürüyor
+- **11.6 — Ortam görsel kalitesi:** Kod tamamlandı; gerçek cihaz görsel/FPS kabulü açık
 - **11.7 — Silahlar ve eller:** Bekliyor
 - **11.8 — Savaş Odası kapsamlı yenileme:** Bekliyor
 - **11.9 — Final doğrulama:** Bekliyor

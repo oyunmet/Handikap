@@ -10,6 +10,7 @@ const environmentModels = [
   { file: "ceramic-vase.glb", node: "ceramic_vase_01" },
 ];
 const maxEnvironmentAssetBytes = 6 * 1024 * 1024;
+const maxEnvironmentTextureDimension = 512;
 
 test("road environment models stay within the 6 MiB asset budget", () => {
   const sizes = environmentModels.map(({ file }) => ({
@@ -24,7 +25,7 @@ test("road environment models stay within the 6 MiB asset budget", () => {
   );
 });
 
-function readGlb(path: string) {
+function readGlb(path) {
   const bytes = readFileSync(path);
   assert.equal(bytes.readUInt32LE(0), 0x46546c67, `${path} has a GLB header`);
   assert.equal(bytes.readUInt32LE(4), 2, `${path} uses GLB version 2`);
@@ -49,6 +50,31 @@ function readGlb(path: string) {
   return { document, binaryLength };
 }
 
+function getJpegDimensions(bytes) {
+  assert.equal(bytes.readUInt16BE(0), 0xffd8, "embedded image is a JPEG");
+  const frameMarkers = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
+  let offset = 2;
+  while (offset + 4 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    while (bytes[offset] === 0xff) offset += 1;
+    const marker = bytes[offset];
+    offset += 1;
+    if (marker === 0xd9 || marker === 0xda) break;
+    const segmentLength = bytes.readUInt16BE(offset);
+    if (frameMarkers.has(marker)) {
+      return {
+        height: bytes.readUInt16BE(offset + 3),
+        width: bytes.readUInt16BE(offset + 5),
+      };
+    }
+    offset += segmentLength;
+  }
+  throw new Error("Embedded JPEG has no frame dimensions.");
+}
+
 test("optimized environment GLBs retain the rendered nodes and valid buffer references", () => {
   for (const { file, node: requiredNode } of environmentModels) {
     const path = join(process.cwd(), "public", "assets", file);
@@ -59,6 +85,9 @@ test("optimized environment GLBs retain the rendered nodes and valid buffer refe
     assert.ok(nodes.some((node) => node.name === requiredNode), `${file} retains ${requiredNode}`);
     assert.ok(scenes.length > 0, `${file} has a scene`);
     assert.equal(buffers[0]?.byteLength <= binaryLength, true, `${file} buffer fits its BIN chunk`);
+    if (file === "wooden-barrel.glb") {
+      assert.deepEqual(nodes.map((entry) => entry.name), [requiredNode], "unused barrel bundle nodes are removed");
+    }
 
     for (const node of nodes) {
       if (node.mesh !== undefined) assert.ok(meshes[node.mesh], `${file} node mesh index is valid`);
@@ -83,6 +112,11 @@ test("optimized environment GLBs retain the rendered nodes and valid buffer refe
     for (const image of images) {
       if (image.uri?.startsWith("data:")) {
         assert.match(image.uri, /^data:image\/jpeg;base64,/u, `${file} keeps embedded JPEG textures`);
+        const dimensions = getJpegDimensions(Buffer.from(image.uri.slice(image.uri.indexOf(",") + 1), "base64"));
+        assert.ok(
+          Math.max(dimensions.width, dimensions.height) <= maxEnvironmentTextureDimension,
+          `${file} texture is at most ${maxEnvironmentTextureDimension} pixels per edge`,
+        );
       } else if (image.bufferView !== undefined) {
         assert.ok(bufferViews[image.bufferView], `${file} image bufferView index is valid`);
       }

@@ -1,6 +1,6 @@
 # World model assets
 
-The bundled models below are downloaded as self-contained glTF Binary (`.glb`) files. Their embedded image maps use the 1K (1024 px) Poly Haven variants.
+The bundled models below are self-contained glTF Binary (`.glb`) files. Their embedded Poly Haven image maps are reduced to 512 px and JPEG quality 80 for the mobile asset budget.
 
 | File | Source | License |
 | --- | --- | --- |
