@@ -6,6 +6,7 @@ import {
   getWarRoomHousePlan,
   type WarRoomBuilding,
 } from "../game/war-room-data";
+import { WAR_ROOM_PLASTER_TEXTURE } from "./war-room-procedural-textures";
 
 type BuildingProps = { building: WarRoomBuilding };
 
@@ -255,7 +256,7 @@ function WarRoomInteriorWallLining({
         <group key={panel.id} position={panel.position}>
           <mesh>
             <boxGeometry args={panel.size} />
-            <meshStandardMaterial color={palette.interiorWall} roughness={0.96} />
+            <meshStandardMaterial color={palette.interiorWall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.96} />
           </mesh>
           <mesh position={[0, -panel.size[1] / 2 + 0.24, 0]}>
             <boxGeometry args={[panel.size[0], 0.16, panel.size[2]]} />
@@ -311,7 +312,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
       </mesh>
       <mesh position={[0, -0.03, 0]} receiveShadow>
         <boxGeometry args={[width - 0.42, 0.06, depth - 0.42]} />
-        <meshStandardMaterial color={palette.wall} roughness={0.92} />
+        <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.92} />
       </mesh>
       <WarRoomInteriorWallLining building={building} palette={palette} />
 
@@ -325,7 +326,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           }}
         >
           <boxGeometry args={[doorLeftWidth, groundHeight, wallThickness]} />
-          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+          <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
         </mesh>
       ))}
       {getWarRoomHouseInteriorWalls(building).map((wall) => (
@@ -335,7 +336,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           userData={{ warRoomCameraOccluderId: `${building.id}-floor-0-${wall.id}` }}
         >
           <boxGeometry args={[wall.width, groundHeight, wall.depth]} />
-          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+          <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
         </mesh>
       ))}
       <mesh position={[0, groundHeight - 0.14, frontZ]}>
@@ -355,7 +356,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         userData={{ warRoomCameraOccluderId: `${building.id}-floor-0-back` }}
       >
         <boxGeometry args={[width, groundHeight, wallThickness]} />
-        <meshStandardMaterial color={palette.wall} roughness={0.94} />
+        <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
       </mesh>
       {[-1, 1].map((side) => (
         <mesh
@@ -366,7 +367,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           }}
         >
           <boxGeometry args={[wallThickness, groundHeight, depth]} />
-          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+          <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
         </mesh>
       ))}
 
@@ -402,7 +403,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           }}
         >
           <boxGeometry args={[doorLeftWidth, upperHeight, wallThickness]} />
-          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+          <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
         </mesh>
       ))}
       <mesh
@@ -410,7 +411,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         userData={{ warRoomCameraOccluderId: `${building.id}-upper-front-lintel` }}
       >
         <boxGeometry args={[building.doorWidth, Math.max(0.01, upperHeight - 2.4), wallThickness]} />
-        <meshStandardMaterial color={palette.wall} roughness={0.94} />
+        <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
       </mesh>
       <mesh position={[0, groundHeight - 0.075, frontZ - 0.84]} receiveShadow>
         <boxGeometry args={[building.doorWidth + 1, 0.15, 1.68]} />
@@ -467,7 +468,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
         userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-back` }}
       >
         <boxGeometry args={[width, upperHeight, wallThickness]} />
-        <meshStandardMaterial color={palette.wall} roughness={0.94} />
+        <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
       </mesh>
       {[-1, 1].map((side) => (
         <mesh
@@ -478,7 +479,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           }}
         >
           <boxGeometry args={[wallThickness, upperHeight, depth]} />
-          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+          <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
         </mesh>
       ))}
       {getWarRoomHouseInteriorWalls(building).map((wall) => (
@@ -488,7 +489,7 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-${wall.id}` }}
         >
           <boxGeometry args={[wall.width, upperHeight, wall.depth]} />
-          <meshStandardMaterial color={palette.wall} roughness={0.94} />
+          <meshStandardMaterial color={palette.wall} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.94} />
         </mesh>
       ))}
 
@@ -608,6 +609,25 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           </mesh>
         ))}
       </group>
+      {[1, 4, 7].includes(building.style) && (
+        <group
+          name={`war-room-house-chimney-${building.id}`}
+          position={[width * 0.28, roofBaseY + roofRise * 0.75, depth * 0.14]}
+        >
+          <mesh position={[0, 0.72, 0]} castShadow>
+            <boxGeometry args={[0.58, 1.44, 0.58]} />
+            <meshStandardMaterial color={palette.accent} map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.95} />
+          </mesh>
+          <mesh position={[0, 1.48, 0]} castShadow>
+            <boxGeometry args={[0.78, 0.14, 0.78]} />
+            <meshStandardMaterial color={palette.roofEdge} roughness={0.9} />
+          </mesh>
+          <mesh position={[0, 1.57, 0]}>
+            <boxGeometry args={[0.42, 0.04, 0.42]} />
+            <meshBasicMaterial color="#211c19" />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

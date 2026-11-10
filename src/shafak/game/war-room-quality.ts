@@ -50,7 +50,7 @@ export type WarRoomAdaptiveDprState = {
 
 export function createWarRoomAdaptiveDprState(pixelRatio: number): WarRoomAdaptiveDprState {
   return {
-    pixelRatio: Number.isFinite(pixelRatio) ? Math.max(0.6, pixelRatio) : 1,
+    pixelRatio: Number.isFinite(pixelRatio) ? Math.max(0.75, pixelRatio) : 1,
     slowWindows: 0,
     fastWindows: 0,
   };
@@ -61,14 +61,14 @@ export function sampleWarRoomAdaptiveDpr(
   maxPixelRatio: number,
   averageFrameTimeMs: number,
 ) {
-  const maximum = Number.isFinite(maxPixelRatio) ? Math.max(0.6, maxPixelRatio) : 1;
+  const maximum = Number.isFinite(maxPixelRatio) ? Math.max(0.75, Math.min(2, maxPixelRatio)) : 1;
   if (!Number.isFinite(averageFrameTimeMs) || averageFrameTimeMs <= 0) return state.pixelRatio;
 
   if (averageFrameTimeMs > 20) {
     state.slowWindows += 1;
     state.fastWindows = 0;
     if (state.slowWindows >= 2) {
-      state.pixelRatio = Math.max(0.6, Math.min(maximum, state.pixelRatio - 0.1));
+      state.pixelRatio = Math.max(0.75, Math.min(maximum, state.pixelRatio - 0.1));
       state.slowWindows = 0;
     }
   } else if (averageFrameTimeMs < 16.7) {
@@ -99,20 +99,20 @@ const WAR_ROOM_QUALITY_PROFILES: Record<RenderQuality, WarRoomQualityProfile> = 
     maxActiveParticles: 28,
     slashTrailSegments: 4,
     pixelRatioCap: 1,
-    touchPixelRatioCap: 0.75,
+    touchPixelRatioCap: 0.85,
   },
   balanced: {
     particleMultiplier: 0.7,
     maxActiveParticles: 50,
     slashTrailSegments: 7,
     pixelRatioCap: 1.25,
-    touchPixelRatioCap: 0.9,
+    touchPixelRatioCap: 0.95,
   },
   high: {
     particleMultiplier: 1,
     maxActiveParticles: Math.min(WAR_ROOM_EFFECT_POOL_SIZE, WAR_ROOM_EFFECT_POOL_LIMIT),
     slashTrailSegments: WAR_ROOM_SLASH_TRAIL_SEGMENTS,
-    pixelRatioCap: 1.6,
+    pixelRatioCap: 2,
     touchPixelRatioCap: 1,
   },
 };

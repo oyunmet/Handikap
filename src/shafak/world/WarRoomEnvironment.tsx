@@ -4,6 +4,7 @@ import type { WarRoomBlocker } from "../game/war-room-data";
 import type { WarRoomRoom } from "../game/war-room-rooms";
 import { WarRoomAssetBoundary, WarRoomStaticModel } from "./WarRoomModels";
 import { createWorldRoadSurfaceTextures } from "./world-road-textures";
+import { WAR_ROOM_PLASTER_TEXTURE } from "./war-room-procedural-textures";
 
 const WAR_ROOM_ROAD_TEXTURES = createWorldRoadSurfaceTextures();
 
@@ -95,7 +96,7 @@ function WarRoomHouse({ blocker }: { blocker: WarRoomBlocker }) {
     >
       <mesh position={[0, wallHeight / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[blocker.width, wallHeight, blocker.depth]} />
-        <meshStandardMaterial color="#817568" roughness={0.92} />
+        <meshStandardMaterial color="#817568" map={WAR_ROOM_PLASTER_TEXTURE} roughness={0.92} />
       </mesh>
       <mesh position={[0, 2.8, front]} castShadow receiveShadow>
         <boxGeometry args={[blocker.width * 0.83, 5.6, 0.09]} />

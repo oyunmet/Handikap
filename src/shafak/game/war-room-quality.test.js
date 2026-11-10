@@ -41,10 +41,11 @@ test("quality tiers reduce emissions, live particle cap, trail length, and DPR",
 
 test("adaptive quality can lower touch-device DPR as well as desktop DPR", () => {
   assert.equal(getWarRoomPixelRatio("high", 3, true), 1);
-  assert.equal(getWarRoomPixelRatio("balanced", 3, true), 0.9);
-  assert.equal(getWarRoomPixelRatio("low", 3, true), 0.75);
+  assert.equal(getWarRoomPixelRatio("balanced", 3, true), 0.95);
+  assert.equal(getWarRoomPixelRatio("low", 3, true), 0.85);
   assert.equal(getWarRoomPixelRatio("low", 3, false), 1);
   assert.equal(getWarRoomPixelRatio("high", 1.25, false), 1.25);
+  assert.equal(getWarRoomPixelRatio("high", 3, false), 2);
 });
 
 test("the phase flag restores the unscaled quality profile when disabled", () => {
@@ -145,8 +146,8 @@ test("adaptive War Room DPR rejects invalid frame samples and respects its floor
   for (let index = 0; index < 80; index += 1) {
     sampleWarRoomAdaptiveDpr(state, 0.75, 40);
   }
-  assert.equal(state.pixelRatio, 0.6);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.75, 0), 0.6);
+  assert.equal(state.pixelRatio, 0.75);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.75, 0), 0.75);
 });
 
 test("decal pool usage counts only occupied slots", () => {

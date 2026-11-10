@@ -4827,7 +4827,7 @@ export default function WarRoomScene3D(props: Props) {
             far: WAR_ROOM_CONFIG.camera.firstPerson.far,
           }}
           gl={{
-            antialias: !touchDevice,
+            antialias: quality !== "low" || !touchDevice,
             powerPreference: "high-performance",
             toneMapping: THREE.ACESFilmicToneMapping,
           }}
