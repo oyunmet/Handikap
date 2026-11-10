@@ -781,6 +781,9 @@ function WeaponModel({
               fallbackColor={weapon.color}
               emissiveBoost={WAR_ROOM_WEAPON_PRESENTATION_ENABLED ? 0.12 : 0}
               muzzleAnchorRef={muzzleAnchorRef}
+              magazineRef={magazineRef}
+              boltRef={boltRef}
+              arrowRef={arrowRef}
             />
           </Suspense>
         </WarRoomAssetBoundary>

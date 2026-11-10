@@ -96,6 +96,9 @@ type StaticModelProps = {
   fallbackColor?: string;
   emissiveBoost?: number;
   muzzleAnchorRef?: MutableRefObject<THREE.Group | null>;
+  magazineRef?: MutableRefObject<THREE.Group | null>;
+  boltRef?: MutableRefObject<THREE.Group | null>;
+  arrowRef?: MutableRefObject<THREE.Group | null>;
 };
 
 export function WarRoomStaticModel({
@@ -111,6 +114,9 @@ export function WarRoomStaticModel({
   fallbackColor,
   emissiveBoost = 0,
   muzzleAnchorRef,
+  magazineRef,
+  boltRef,
+  arrowRef,
 }: StaticModelProps) {
   const { scene } = useLoader(WarRoomStaticGLTFLoader, src, loadCharacter) as GLTF;
   const model = useMemo(() => {
@@ -178,6 +184,20 @@ export function WarRoomStaticModel({
     }
     return clone;
   }, [emissiveBoost, fallbackColor, gripRatio, minimumVisualThickness, scene, src, targetSize, uniformFitLength]);
+
+  useLayoutEffect(() => {
+    const magazine = model.getObjectByName("Magazine");
+    const bolt = model.getObjectByName("Bolt");
+    const arrow = model.getObjectByName("Arrow");
+    magazineRef && (magazineRef.current = magazine instanceof THREE.Group ? magazine : null);
+    boltRef && (boltRef.current = bolt instanceof THREE.Group ? bolt : null);
+    arrowRef && (arrowRef.current = arrow instanceof THREE.Group ? arrow : null);
+    return () => {
+      if (magazineRef && magazineRef.current === magazine) magazineRef.current = null;
+      if (boltRef && boltRef.current === bolt) boltRef.current = null;
+      if (arrowRef && arrowRef.current === arrow) arrowRef.current = null;
+    };
+  }, [arrowRef, boltRef, magazineRef, model]);
 
   useLayoutEffect(() => {
     const anchor = muzzleAnchorRef?.current;
