@@ -162,6 +162,14 @@
 - **Doğrulanamayanlar:** Gerçek iPhone/Android'de kapıdan geçiş, dokunma ve kare hızı elle doğrulanmadı; önizleme etkileşim yapılmadan oyun içi kapı sahnesine ulaşmadı. Önizleme konsolunda `KnightActor.tsx:575` civarında Three.js `AnimationMixer` çalışma zamanı hatası görüldü; kapı testlerinden bağımsız bu hata görsel kabul doğrulamasını sınırlıyor ve 11.9 doğrulamasında yeniden ele alınmalı.
 - **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/war-room-doors.test.js`, `src/shafak/game/war-room-engine.test.js`, `src/shafak/game/war-room-rooms.ts`, `src/shafak/game/war-room-viewmodel-jitter.test.js`, `src/shafak/world/world-v2-gate-state.test.js`.
 
+### 11.6 — Görsel kalite: ortam (evler, sokaklar, koridorlar)
+
+- **Durum:** Sürüyor; 11.5 sonrasındaki sıradaki alt adım.
+- **Kapsam:** Pikselli görüntünün render ölçeği/doku filtresi nedenini ölç; mevcut 3B sahne, harita yerleşimi, oynanış, kontroller ve ölçeği koru. Tohumlu modüler bina/dekor çeşitliliği, uygun malzemeler, okunaklı ışık/sis/gökyüzü ve uzak LOD/instancing'i değerlendir. Hedef: görünür draw call <150, ortam varlıkları toplamı <6 MiB, telefonda 60 FPS hedefi; düşük/orta/yüksek ve otomatik kaliteyi koru.
+- **Kök neden — ilk ölçüm:** `world-environment-asset-budget.test.js` düzeltme öncesi 0/1 geçti. Dört ortam GLB'si toplam 19,136,964 bayt (18.25 MiB), 6 MiB sınırının üzerindeydi. `wooden-barrel.glb` 19 düğüm ve 9 adet 1024×1024 doku içeriyor; uygulama `wooden_barrels_01_barrel01` temsilci düğümünü izole edip yalnızca bu modeli çiziyor. Diğer varil düğümleri/dokuları bu yolda kullanılmıyor. Bu, indirilen ortam verisinin gereksiz büyümesinin ölçülebilir nedenidir.
+- **Doğrulama — ilk durum:** Dört GLB'nin her biri `WorldRoadEntities.tsx` içinde kullanılıyor; dosyaları silmek yerine kullanılan modelleri ve dokuları koruyarak optimize et. Gerçek telefondaki pikselli görünümün DPR mi, doku filtresi mi yoksa sunulan build mi kaynaklı olduğu henüz doğrulanmadı; kaynakta 1024 doku ve mipmap/linear filtreler var, canlı cihaz sonucu varsayılmayacak.
+- **Yarım kalanlar:** Varlıkları bütçeye indirmek; model/GLB sağlamlığını ve görsel LOD'yi test etmek; sahne draw-call ölçümünü kaydetmek; dünya ve Savaş Odası kalite ayarları/ışığını gözden geçirmek; tarayıcı ve cihazla doğrulanamayanları tamamlanırken yazmak.
+
 ### Adım 11 alt adımları
 
 - **11.1 — Mağaza: satın alma ve kuşanma:** Tamamlandı
@@ -169,7 +177,7 @@
 - **11.3 — Yatay arayüz çakışmaları:** Tamamlandı
 - **11.4 — Silah titremesi:** Tamamlandı
 - **11.5 — Kapı ve eşik takılması:** Tamamlandı
-- **11.6 — Ortam görsel kalitesi:** Bekliyor
+- **11.6 — Ortam görsel kalitesi:** Sürüyor
 - **11.7 — Silahlar ve eller:** Bekliyor
 - **11.8 — Savaş Odası kapsamlı yenileme:** Bekliyor
 - **11.9 — Final doğrulama:** Bekliyor
