@@ -101,12 +101,18 @@ test("the three new War Room melee models are optimized, purchasable and mapped 
     (WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_staff")?.damage ?? Infinity));
 });
 
-test("missing legacy weapon GLBs keep procedural fallbacks", () => {
+test("starter weapons use dedicated GLBs while retaining their tuned model dimensions", () => {
   const rifle = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "powder_rifle");
   const pistol = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "sidearm");
   assert.deepEqual(
     WAR_ROOM_WEAPONS.slice(0, 5).map((weapon) => weapon.modelFile),
-    [null, null, null, null, null],
+    [
+      "kara-barut-rifle.glb",
+      "spark-pistol.glb",
+      "brokenstone-shotgun.glb",
+      "ash-crossbow.glb",
+      "dusk-longbow.glb",
+    ],
   );
   assert.ok(Math.abs(rifle.modelSize[2] * 0.58 - 1) < 0.02);
   assert.ok(Math.abs(pistol.modelSize[2] * 0.58 - 0.25) < 0.02);

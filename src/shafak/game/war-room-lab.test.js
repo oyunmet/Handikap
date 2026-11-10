@@ -22,6 +22,8 @@ test("weapon lab reports a positive fitted length for every weapon", () => {
   for (const weapon of WAR_ROOM_WEAPONS) {
     assert.ok(getWarRoomLabWeaponLength(weapon) > 0, `${weapon.id} should have a measurable length`);
   }
-  assert.equal(getWarRoomLabWeaponLength(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_shovel")), 1.2);
+  const shovel = WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "melee_shovel");
+  assert.equal(getWarRoomLabWeaponLength(shovel), shovel.normalizeLength);
+  assert.equal(getWarRoomLabWeaponLength(shovel), 1.4);
   assert.equal(getWarRoomLabWeaponLength(WAR_ROOM_WEAPONS.find((weapon) => weapon.id === "blaster_b")), 0.25);
 });

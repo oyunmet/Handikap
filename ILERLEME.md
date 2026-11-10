@@ -172,6 +172,16 @@
 - **Doğrulama:** Bütçe testi düzeltme öncesi kırmızıydı (19,136,964 bayt); `npm test` 654/654 geçti; ortam varlıkları, boyutlandırma ve grafik kalitesi hedef testleri 14/14 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Dört GLB'nin HTTP yanıtı 200; toplam indirme boyutu 5,410,476 bayt. 3B dünyaya kadar Chromium'da ulaşıldı ve canvas oluştu; fakat SwiftShader FPS sayacı 0 gösterdi, ekran görüntüsü yakalama zaman aşımına uğradı. Bu nedenle çizilen sahne ve draw-call sayısı ölçülmüş sayılmıyor.
 - **Yarım kalanlar / doğrulanamayanlar:** Pikselli telefon görüntüsünün DPR, doku filtresi veya dağıtılan build kaynaklı olduğu gerçek cihazda henüz ayrıştırılmadı. Görünür draw call <150 ve gerçek telefonda 60 FPS hedefi ölçülmedi. SwiftShader Chromium doğrulaması sahne pikselini göstermedi; iPhone/Android görsel ve performans kabulü açık.
 
+### 11.7 — Görsel kalite: silahlar ve eller
+
+- **Durum:** Kod ve otomatik testler tamamlandı; 844×390 Chromium emülasyonunda boşta/nişan/koşu görüntüleri kontrol edildi. Gerçek cihaz kabulü açık.
+- **Kök neden:** Silah kataloğunda özel GLB modelleri ve yeni ölçüler bulunmasına rağmen iki eski test hâlâ önceki veriyi varsayıyordu: ilk beş silahın model dosyalarını `null` bekliyor, silah laboratuvarı kürek uzunluğunu 1,2 m sayıyordu; güncel katalog özel modeller ve 1,4 m normalize uzunluk kullanıyor. Bu beklentiler mevcut model ve ölçüleri yanlış tanımlıyordu.
+- **Yapılanlar:** Her Savaş Odası silahının ayrı Meshopt GLB modeli kullandığı ve model boyutunun 150 KiB sınırında kaldığı testlerle doğrulanıyor. Ana ateşli silah modellerinin namlu ve hareketli parça işaretleri korunuyor. Birinci şahıs kolları eldiven/kumaş ve parmak detaylarıyla silaha göre tutuş kullanıyor; ADS silahı küçültüp yana alıyor ve orta nişan hattını açık tutuyor. Ateş geri tepmesi, namlu alevi, kovan, doldurma, silah değiştirme ve koşuda silahı yumuşak indirme akışları mevcut. Eski beklentiler gerçek model/uzunluk değerleriyle güncellendi.
+- **Doğrulama:** Viewmodel/silah modeli odaklı testler 27/27; tam `npm test` — 659/659; `npm run typecheck` ve `npm run build` geçti. İzole Playwright profiliyle 844×390 savaş ekranına girildi; boşta ve ADS'de eller/silah görünür, merkez nişan hattı açık, koşuda silah aşağı iner; tarayıcı hatası görülmedi. `npm run warroom:e2e` joystick ve kamera kaydırma kontrollerini geçti ancak üç eşzamanlı dokunma aşamasında 5 dakikalık komut süresi doldu; bu tam E2E sonucu başarılı sayılmıyor.
+- **Yarım kalanlar:** Kod tarafında yok; gerçek cihaz kabulü ve tam çoklu-dokunma E2E doğrulaması bekliyor.
+- **Doğrulanamayanlar:** Gerçek iPhone/Android'de el tutuşu, ADS/koşu görünümü ve kare hızı ölçülmedi. Chromium emülasyonu cihaz kabulü yerine geçmez.
+- **Bu alt adımda değişen dosyalar:** `src/shafak/game/war-room-engine.test.js`, `src/shafak/game/war-room-lab.test.js`, `ILERLEME.md`.
+
 ### Adım 11 alt adımları
 
 - **11.1 — Mağaza: satın alma ve kuşanma:** Tamamlandı
@@ -180,6 +190,6 @@
 - **11.4 — Silah titremesi:** Tamamlandı
 - **11.5 — Kapı ve eşik takılması:** Tamamlandı
 - **11.6 — Ortam görsel kalitesi:** Kod tamamlandı; gerçek cihaz görsel/FPS kabulü açık
-- **11.7 — Silahlar ve eller:** Bekliyor
+- **11.7 — Silahlar ve eller:** Kod/test tamamlandı; gerçek cihaz kabulü açık
 - **11.8 — Savaş Odası kapsamlı yenileme:** Bekliyor
 - **11.9 — Final doğrulama:** Bekliyor
