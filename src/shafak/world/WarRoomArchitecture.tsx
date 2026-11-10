@@ -285,6 +285,9 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
   const stairStartZ = plan.stairStartZ;
   const stairEndZ = plan.stairEndZ;
   const stairHalfWidth = plan.stairWidth / 2;
+  const balconyRailOpeningWidth = building.doorWidth + 0.6;
+  const balconyRailSideWidth = (building.doorWidth + 1 - balconyRailOpeningWidth) / 2;
+  const balconyRailSideCenter = balconyRailOpeningWidth / 2 + balconyRailSideWidth / 2;
   const roofRise = Math.min(1.45, depth * 0.23);
   const roofHalfLength = Math.sqrt((depth / 2 + 0.35) ** 2 + roofRise ** 2);
   const roofBaseY = groundHeight + upperHeight;
@@ -446,10 +449,19 @@ export function WarRoomBuildingShell({ building }: BuildingProps) {
           </mesh>
         </group>
       ))}
-      <mesh position={[0, groundHeight + 0.475, frontZ - 1.68]}>
-        <boxGeometry args={[building.doorWidth + 1, 0.95, 0.12]} />
-        <meshStandardMaterial color={palette.timber} roughness={0.82} />
-      </mesh>
+      {([-1, 1] as const).map((side) => (
+        <mesh
+          key={`upper-balcony-front-rail-${side}`}
+          position={[
+            side * balconyRailSideCenter,
+            groundHeight + 0.475,
+            frontZ - 1.68,
+          ]}
+        >
+          <boxGeometry args={[balconyRailSideWidth, 0.95, 0.12]} />
+          <meshStandardMaterial color={palette.timber} roughness={0.82} />
+        </mesh>
+      ))}
       <mesh
         position={[0, groundHeight + upperHeight / 2, backZ]}
         userData={{ warRoomCameraOccluderId: `${building.id}-floor-1-back` }}

@@ -776,17 +776,19 @@ function createBuildingWallBlockers(building: WarRoomBuilding): WarRoomBlocker[]
         depth: wall.depth,
       })),
     ];
+    const balconyRailOpeningWidth = building.doorWidth + 0.6;
+    const balconyRailSideWidth = (building.doorWidth + 1 - balconyRailOpeningWidth) / 2;
     const balconyRails = floor === 1
       ? [
-        {
-          id: `${building.id}-upper-balcony-front-rail`,
-          x: building.x,
+        ...([-1, 1] as const).map((side) => ({
+          id: `${building.id}-upper-balcony-front-rail-${side}`,
+          x: building.x + side * (balconyRailOpeningWidth / 2 + balconyRailSideWidth / 2),
           z: frontZ - 1.68,
-          width: building.doorWidth + 1,
+          width: balconyRailSideWidth,
           depth: 0.12,
           baseY: building.storyHeight,
           height: 0.95,
-        },
+        })),
         ...([-1, 1] as const).map((side) => ({
           id: `${building.id}-upper-balcony-side-rail-${side}`,
           x: building.x + side * (building.doorWidth / 2 + 0.5),

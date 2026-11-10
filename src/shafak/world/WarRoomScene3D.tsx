@@ -2009,10 +2009,6 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
       ? {
         id: nearbyDoor.key,
         openProgress: getWarRoomDoorOpenProgress(runtime.doorStates[nearbyDoor.key], now),
-        secondsRemaining: Math.max(
-          0,
-          (runtime.doorStates[nearbyDoor.key]?.openUntil ?? 0) - now,
-        ),
       }
       : null,
     nearbyLootChest: nearbyChest
@@ -3270,9 +3266,6 @@ function WarRoomRuntimeScene({
       }
     }
     const wallNow = frame.clock.elapsedTime;
-    updateWarRoomDoors(runtime, player.clockTime, input.doorPressed, input.yaw);
-    input.doorPressed = false;
-    activeBlockersRef.current = getWarRoomActiveBlockers(runtime, player.clockTime);
     const renderStatsNow = performance.now();
     if ((debugMode || debugDiagnosticsEnabled) && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
@@ -3426,6 +3419,10 @@ function WarRoomRuntimeScene({
     const forwardZ = -Math.cos(movementBasisYaw);
     const rightX = Math.cos(movementBasisYaw);
     const rightZ = Math.sin(movementBasisYaw);
+    const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
+    updateWarRoomDoors(runtime, now, input.doorPressed, input.yaw, worldMovement);
+    input.doorPressed = false;
+    activeBlockersRef.current = getWarRoomActiveBlockers(runtime, now);
     const orientation = resolveWarRoomOrientation(
       movementYaw,
       moveX,
@@ -3522,7 +3519,6 @@ function WarRoomRuntimeScene({
           : player.sprinting ? 8.2
             : 6.1;
     const directionalSpeedScale = getWarRoomDirectionalSpeedScale(moveX, moveY);
-    const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
     const previousMoveX = player.x;
     const previousMoveZ = player.z;
     const nextPosition = advanceWarRoomFixedMovement(playerMovementClockRef.current, {
@@ -3772,6 +3768,8 @@ function WarRoomRuntimeScene({
       const updateInterval = activeLootChase ? 0.12 : gap > 38 ? 0.55 : 0.12;
       if (now >= enemy.brainAt) {
         enemy.brainAt = now + updateInterval;
+        enemy.doorApproachX = 0;
+        enemy.doorApproachZ = 0;
         const needsFloorRoute = !activeLootChase && floorGap > 1.25 && playerBuilding;
         let target: { x: number; z: number; floorHeight?: number } = activeLootChase && lootBuilding
           ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
@@ -3815,6 +3813,8 @@ function WarRoomRuntimeScene({
               moveZEnemy += (separationZ / separation) * 1.5 * updateInterval;
             }
           }
+          enemy.doorApproachX = moveXEnemy;
+          enemy.doorApproachZ = moveZEnemy;
           const moved = moveWarRoomEntity(
             enemy.x,
             enemy.z,

@@ -1859,7 +1859,9 @@ export default function WarRoomGame({
             <button
               className={`war-room-door-action${hud.nearbyDoor.openProgress > 0.95 ? " is-open" : ""}`}
               type="button"
-              aria-label={`Kapıyı aç: ${hud.nearbyDoor.id}`}
+              aria-label={hud.nearbyDoor.openProgress > 0.95
+                ? `Kapı açık: ${hud.nearbyDoor.id}`
+                : `Kapıyı otomatik aç: ${hud.nearbyDoor.id}`}
               onPointerDown={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1872,8 +1874,8 @@ export default function WarRoomGame({
             >
               <span>{hud.nearbyDoor.openProgress > 0.95 ? "KAPI AÇIK" : "KAPIYI AÇ"}</span>
               <small>{hud.nearbyDoor.openProgress > 0.95
-                ? `AÇIK · ${hud.nearbyDoor.secondsRemaining.toFixed(1)} SN · E`
-                : "BAS · KAPI 6 SN AÇIK KALIR · E"}</small>
+                ? "GEÇİŞ SERBEST"
+                : "YAKLAŞINCA AÇILIR · DOKUNARAK AÇ"}</small>
             </button>
           )}
           {hud.nearbyLootChest && (

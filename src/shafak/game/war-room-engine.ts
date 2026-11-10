@@ -39,6 +39,8 @@ export type WarRoomEnemy = {
   hitKneeUntil: number;
   hitKnockbackX: number;
   hitKnockbackZ: number;
+  doorApproachX: number;
+  doorApproachZ: number;
   deathYaw: number;
 };
 
@@ -223,7 +225,7 @@ export type WarRoomHudSnapshot = {
   meleeLastResult: string;
   nearbyLootChest: { id: string; label: string; contents: string; progress: number } | null;
   lootChestsOpened: number;
-  nearbyDoor: { id: string; openProgress: number; secondsRemaining: number } | null;
+  nearbyDoor: { id: string; openProgress: number } | null;
 };
 
 export type DamageTarget = { hp: number; maxHp: number };
@@ -277,6 +279,8 @@ export function createWarRoomRuntime(
       hitKneeUntil: 0,
       hitKnockbackX: 0,
       hitKnockbackZ: 0,
+      doorApproachX: 0,
+      doorApproachZ: 0,
       deathYaw: 0,
     };
   });
@@ -304,6 +308,8 @@ export function createWarRoomRuntime(
     hitKneeUntil: 0,
     hitKnockbackX: 0,
     hitKnockbackZ: 0,
+    doorApproachX: 0,
+    doorApproachZ: 0,
     deathYaw: 0,
   });
 
@@ -317,12 +323,7 @@ export function createWarRoomRuntime(
 
   return {
     room,
-    doorStates: Object.fromEntries(
-      room.buildings.flatMap((building) => [
-        [building.id, { openedAt: 0, openUntil: 0 }],
-        [`${building.id}-upper`, { openedAt: 0, openUntil: 0 }],
-      ]),
-    ),
+    doorStates: {},
     lootChests: room.lootChests.map((chest) => ({ ...chest, opened: false })),
     player: {
       x: room.playerSpawn.x,
@@ -448,6 +449,8 @@ export function createWarRoomTrainingRuntime(
     hitKneeUntil: 0,
     hitKnockbackX: 0,
     hitKnockbackZ: 0,
+    doorApproachX: 0,
+    doorApproachZ: 0,
     deathYaw: 0,
   });
   runtime.healingPoints.length = 0;

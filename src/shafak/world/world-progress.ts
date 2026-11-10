@@ -18,6 +18,8 @@ export type WorldProgressPosition = Pick<WorldProgress, "distance" | "depth" | "
 
 export const WORLD_GATE_STOP_OFFSET_METERS = 2.8;
 export const WORLD_GATE_INTERACTION_RANGE_METERS = 12;
+export const WORLD_GATE_AUTO_OPEN_DISTANCE_METERS = 3;
+export const WORLD_GATE_PASSAGE_CLEARANCE_METERS = 2.8;
 
 const WORLD_PROGRESS_KEY = "shafak-world-progress-v1";
 const emptyWorldProgress = (): WorldProgress => ({

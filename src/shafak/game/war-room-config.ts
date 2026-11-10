@@ -5,7 +5,7 @@
  */
 export const WAR_ROOM_CONFIG = {
   player: {
-    collisionRadius: 0.4,
+    collisionRadius: 0.3,
     collisionStepDistance: 0.12,
   },
   camera: {
@@ -28,15 +28,14 @@ export const WAR_ROOM_CONFIG = {
     referenceHeight: 420,
   },
   doors: {
-    openSeconds: 6,
     animationSeconds: 0.28,
     interactionDistance: 3.5,
-    autoOpenDistance: 3.25,
+    autoOpenDistance: 2.8,
     clearProgress: 0.65,
     occupancyBuffer: 0.5,
-    playerRadius: 0.4,
+    playerRadius: 0.3,
     thickness: 0.18,
-    minimumClearWidth: 1.6,
+    minimumClearWidth: 1.3,
     height: 2.4,
   },
   performance: {

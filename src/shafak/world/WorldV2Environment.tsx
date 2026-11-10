@@ -78,6 +78,7 @@ export function WorldV2RouteGates({
       gateDistance - motion.distance,
       chapterAtGate,
       unlockedThroughChapter,
+      motion.velocityY,
     );
     const targetAngle = open ? Math.PI * 0.49 : 0;
     const safeDelta = Math.min(Math.max(delta, 0), 0.05);
