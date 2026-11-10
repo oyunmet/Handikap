@@ -7,9 +7,11 @@ import {
   WAR_ROOM_DOOR_CLEAR_PROGRESS,
   getWarRoomDoorOpenProgress,
   getWarRoomDoorBlocker,
+  getWarRoomDoorStateKey,
   getNearestWarRoomDoor,
   updateWarRoomDoors,
 } from "./war-room-doors.ts";
+import { isWarRoomPointClear } from "./war-room-data.ts";
 import { createWarRoomRuntime, moveWarRoomEntity, WAR_ROOM_PLAYER_COLLISION_RADIUS } from "./war-room-engine.ts";
 import {
   getWarRoomBuildingLocalPoint,
@@ -313,15 +315,29 @@ test("players and guards cross every War Room doorway from five angles at walk a
           };
           const floorHeight = floor === 0 ? 0 : building.storyHeight;
           const frontZ = -building.depth / 2;
-          const startDistance = 2.5;
+          // Place the actor in the actual interior corridor, not inside a
+          // side-room wall on diagonal upper-floor exits.
+          const startDistance = 1.25;
           const startLocal = {
             x: -localDirection.x * startDistance,
             z: frontZ - localDirection.z * startDistance,
           };
           const start = getWarRoomBuildingWorldPoint(building, startLocal.x, startLocal.z);
+          const doorStateKey = getWarRoomDoorStateKey(building, floor);
 
           for (const speed of speeds) {
             for (const actorType of ["player", "guard"]) {
+              const actorRadius = actorType === "player" ? WAR_ROOM_PLAYER_COLLISION_RADIUS : 0.35;
+              assert.ok(
+                isWarRoomPointClear(
+                  start.x,
+                  start.z,
+                  runtime.room.blockers,
+                  actorRadius,
+                  floorHeight,
+                ),
+                `${building.id}, floor ${floor}, ${angleDegrees}° start must be walkable for ${actorType}`,
+              );
               runtime.doorStates = {};
               runtime.enemies = actorType === "guard"
                 ? [{
@@ -343,6 +359,7 @@ test("players and guards cross every War Room doorway from five angles at walk a
               let slowSeconds = 0;
               let maximumSlowSeconds = 0;
               let passedDoor = false;
+              let doorStartedOpening = false;
 
               for (let frame = 0; frame < 4 * 60; frame += 1) {
                 const now = frame * frameSeconds;
@@ -357,6 +374,7 @@ test("players and guards cross every War Room doorway from five angles at walk a
                   runtime.enemies[0].doorApproachZ = direction.z;
                   updateWarRoomDoors(runtime, now, false);
                 }
+                doorStartedOpening ||= Boolean(runtime.doorStates[doorStateKey]);
 
                 const previousX = x;
                 const previousZ = z;
@@ -365,7 +383,7 @@ test("players and guards cross every War Room doorway from five angles at walk a
                   z,
                   direction.x * speed * frameSeconds,
                   direction.z * speed * frameSeconds,
-                  actorType === "player" ? WAR_ROOM_PLAYER_COLLISION_RADIUS : 0.35,
+                  actorRadius,
                   getWarRoomActiveBlockers(runtime, now),
                   floorHeight,
                 );
@@ -393,6 +411,11 @@ test("players and guards cross every War Room doorway from five angles at walk a
                 passedDoor,
                 true,
                 `room ${roomNumber}, ${building.id}, floor ${floor}, ${angleDegrees}°, ${speed}m/s, ${actorType}`,
+              );
+              assert.equal(
+                doorStartedOpening,
+                true,
+                `${building.id}, floor ${floor}, ${angleDegrees}°, ${speed}m/s, ${actorType} should trigger its own door`,
               );
               assert.ok(
                 maximumSlowSeconds <= 0.15,

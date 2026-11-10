@@ -466,7 +466,9 @@ export function getWarRoomRoom(roomNumber: number, runSeed = 0): WarRoomRoom {
       blocker.x,
       blocker.z,
       definition,
-      blocker.kind === "cover" && !blocker.id.startsWith("hideout-crate-"),
+      blocker.kind === "cover"
+        && !blocker.id.startsWith("hideout-crate-")
+        && !blocker.id.startsWith("barrel-"),
     );
     const swapDimensions = definition.quarterTurns % 2 === 1;
     return {

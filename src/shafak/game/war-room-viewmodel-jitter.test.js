@@ -41,6 +41,7 @@ function simulateWarRoomViewModel({ movementIntent, speedAtFrame, wallProximity 
   let movement = { value: 0, velocity: 0, active: false };
   let walkPhase = 0;
   const frames = [];
+  const wallRetractions = [];
 
   for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
     const speed = speedAtFrame(frame);
@@ -89,10 +90,12 @@ function simulateWarRoomViewModel({ movementIntent, speedAtFrame, wallProximity 
       pose.position[2] + currentWallRetraction,
       ...pose.rotation,
     ]);
+    wallRetractions.push(currentWallRetraction);
   }
 
   return {
     frames,
+    wallRetractions,
     speeds,
     playerX,
     ...measureFrameChangeStandardDeviation(frames),
@@ -142,10 +145,17 @@ test("five-second walk, wall-scrape, and sprint viewmodel changes stay below the
   });
   assert.ok(new Set(wallScrape.speeds).size > 1, "wall contact should change physical movement speed");
   assert.notEqual(straightWalk.playerX, wallScrape.playerX, "wall contact should reduce actual distance");
-  const getFinalFrameChanges = (frames) => frames.slice(-SAMPLE_RATE).slice(1).map((frame, index) =>
-    frame.map((value, axis) => value - frames.slice(-SAMPLE_RATE)[index][axis]));
-  const straightChanges = getFinalFrameChanges(straightWalk.frames);
-  const wallChanges = getFinalFrameChanges(wallScrape.frames);
+  const getFinalFrameChanges = (result) => {
+    const start = result.frames.length - SAMPLE_RATE;
+    const frames = result.frames.slice(start).map((frame, index) => frame.map((value, axis) => (
+      axis === 2 ? value - result.wallRetractions[start + index] : value
+    )));
+    return frames.slice(1).map((frame, index) => (
+      frame.map((value, axis) => value - frames[index][axis])
+    ));
+  };
+  const straightChanges = getFinalFrameChanges(straightWalk);
+  const wallChanges = getFinalFrameChanges(wallScrape);
   let largestCollisionSpeedDelta = 0;
   for (let frame = 0; frame < straightChanges.length; frame += 1) {
     for (let axis = 0; axis < straightChanges[frame].length; axis += 1) {

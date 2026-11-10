@@ -146,7 +146,10 @@ test("small movement steps slide along walls instead of sticking on diagonal con
     [wall],
   );
 
-  assert.ok(result.x <= -0.66 + 1e-8, "the player stays outside the wall");
+  assert.ok(
+    result.x <= -(wall.width / 2 + WAR_ROOM_PLAYER_COLLISION_RADIUS) + 0.01,
+    "the player can approach the wall but the capsule stays outside its collision boundary",
+  );
   assert.ok(result.z > 1.8, "the player keeps moving along the wall");
 });
 

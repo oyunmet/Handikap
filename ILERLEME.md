@@ -152,12 +152,23 @@
 - **Doğrulanamayanlar:** Gerçek iPhone/Safari'de yürüyüş/koşu hissi, uzun süreli kare hızı, gerçek duvar temasında görüntü ve çoklu dokunma doğrulanamadı. Chromium emülasyonu gerçek cihaz FPS'sini kanıtlamaz.
 - **Değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/game/war-room-viewmodel.ts`, `src/shafak/game/war-room-viewmodel-jitter.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
 
+### 11.5 — Kapı ve eşik takılması
+
+- **Durum:** Tamamlandı (kapı/çarpışma regresyon testleri, tür denetimi ve üretim derlemesi).
+- **Kök neden:** Batık Hisar ve Ayışığı Kalesi düzenlerinde ortak `coverOffset`, iki varilin çarpışma kutusunu bina giriş yaklaşımına kaydırıyordu; oyuncu veya bot kapıya yönelse de varile takılıyordu. 1.920 senaryolu testin bir üst kat çapraz çıkış başlangıcı da iç koridor yerine yan duvarın içinde kaldığından geçerli bir oyun rotasını ölçmüyordu. Tam testteki duvar kayma kontrolü, oyuncunun duvara yaklaşmasını tamamen yasaklıyordu; silah ölçümü ise duvar güvenlik geri çekilmesinin yumuşak hareketini yürüme bob titreşimiyle karıştırıyordu.
+- **Yapılanlar:** Varil çarpışmaları harita varyantının genel örtü kaydırmasından çıkarıldı; görünür variller ve çarpışma konumları aynı oda verisinden üretilmeye devam ediyor. Kapı test başlangıçları gerçek, açık koridor noktalarına alındı ve oyuncu/bot için her başlangıç `isWarRoomPointClear` ile doğrulanıyor. Test, alt/üst katın doğru kapı durum anahtarını denetliyor. Duvar kayma kabul ölçütü, kapsülün duvara yaklaşmasına izin verip gerçek çarpışma sınırının aşılmadığını doğruluyor. Silah testinin duvar güvenlik çekilmesi bileşeni ana titreşim ölçümünde korunuyor; düz yürüme karşılaştırmasında bu bağımsız, yumuşak güvenlik ofseti ayrıştırılıyor. Kampanya kapı mantığı mevcut bölüm ilerlemesine bağlı otomatik açılmayı kullanıyor; aynı yaklaşma, kapıda bekleme ve geçiş açıklığı kuralları 450 bölümün tamamında sınanıyor. Kapı/duvar fizik hareketi mevcut 60 Hz sabit adımlı hareket akışında kaldı.
+- **Doğrulama:** İlk tam çalıştırmada 651 testten 648'i geçti; üç başarısızlığın kök nedenleri yukarıdaki test kabul ölçütü ve varyant çarpışma konumları olarak ayrıştırıldı. Düzeltme sonrası `npm test` — 652/652; kapılardan 1.920 oyuncu/bot geçiş senaryosu (6 harita, 48 bina, iki kat, beş açı, yürüme/koşma) geçti; 450 kampanya kapısı senaryosu geçti; `npm run typecheck` ve `npm run build` başarılı. Yerel 402×874 önizleme açıldı ve giriş/introyu gösterdi.
+- **Yarım kalanlar:** Kod tarafında yok.
+- **Doğrulanamayanlar:** Gerçek iPhone/Android'de kapıdan geçiş, dokunma ve kare hızı elle doğrulanmadı; önizleme etkileşim yapılmadan oyun içi kapı sahnesine ulaşmadı. Önizleme konsolunda `KnightActor.tsx:575` civarında Three.js `AnimationMixer` çalışma zamanı hatası görüldü; kapı testlerinden bağımsız bu hata görsel kabul doğrulamasını sınırlıyor ve 11.9 doğrulamasında yeniden ele alınmalı.
+- **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/war-room-doors.test.js`, `src/shafak/game/war-room-engine.test.js`, `src/shafak/game/war-room-rooms.ts`, `src/shafak/game/war-room-viewmodel-jitter.test.js`, `src/shafak/world/world-v2-gate-state.test.js`.
+
 ### Adım 11 alt adımları
 
+- **11.1 — Mağaza: satın alma ve kuşanma:** Tamamlandı
 - **11.2 — Ana menü metinleri:** Tamamlandı
 - **11.3 — Yatay arayüz çakışmaları:** Tamamlandı
 - **11.4 — Silah titremesi:** Tamamlandı
-- **11.5 — Kapı ve eşik takılması:** Bekliyor
+- **11.5 — Kapı ve eşik takılması:** Tamamlandı
 - **11.6 — Ortam görsel kalitesi:** Bekliyor
 - **11.7 — Silahlar ve eller:** Bekliyor
 - **11.8 — Savaş Odası kapsamlı yenileme:** Bekliyor
