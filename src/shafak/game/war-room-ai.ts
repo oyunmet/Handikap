@@ -1,4 +1,9 @@
-import { isWarRoomPointClear, type WarRoomBlocker, type WarRoomBuilding } from "./war-room-data";
+import {
+  isWarRoomPointClear,
+  WAR_ROOM_HALF_SIZE,
+  type WarRoomBlocker,
+  type WarRoomBuilding,
+} from "./war-room-data";
 import { segmentBlockFraction } from "./war-room-engine";
 import {
   getWarRoomBuildingLocalPoint,
@@ -8,6 +13,137 @@ import {
 
 type PursuitActor = { x: number; z: number; floorHeight?: number };
 type PursuitPlayer = { x: number; z: number; floorHeight: number };
+
+type WarRoomNavigationGrid = {
+  min: number;
+  step: number;
+  size: number;
+  blocked: Uint8Array;
+};
+
+const navigationGrids = new WeakMap<readonly WarRoomBlocker[], Map<string, WarRoomNavigationGrid>>();
+
+function getWarRoomNavigationGrid(
+  blockers: readonly WarRoomBlocker[],
+  radius: number,
+  floorHeight: number,
+) {
+  const key = `${radius.toFixed(2)}:${floorHeight.toFixed(1)}`;
+  let byFloor = navigationGrids.get(blockers);
+  const cached = byFloor?.get(key);
+  if (cached) return cached;
+
+  const step = 1;
+  const min = -Math.floor(WAR_ROOM_HALF_SIZE - 2);
+  const size = Math.floor((WAR_ROOM_HALF_SIZE - 2 - min) / step) + 1;
+  const blocked = new Uint8Array(size * size);
+  for (let row = 0; row < size; row += 1) {
+    const z = min + row * step;
+    for (let column = 0; column < size; column += 1) {
+      const x = min + column * step;
+      blocked[row * size + column] = isWarRoomPointClear(x, z, blockers, radius, floorHeight) ? 0 : 1;
+    }
+  }
+
+  const grid = { min, step, size, blocked };
+  if (!byFloor) {
+    byFloor = new Map();
+    navigationGrids.set(blockers, byFloor);
+  }
+  byFloor.set(key, grid);
+  return grid;
+}
+
+function nearestClearGridIndex(x: number, z: number, grid: WarRoomNavigationGrid) {
+  const centerX = Math.round((x - grid.min) / grid.step);
+  const centerZ = Math.round((z - grid.min) / grid.step);
+  for (let ring = 0; ring <= 5; ring += 1) {
+    let bestIndex = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let offsetZ = -ring; offsetZ <= ring; offsetZ += 1) {
+      for (let offsetX = -ring; offsetX <= ring; offsetX += 1) {
+        if (ring > 0 && Math.max(Math.abs(offsetX), Math.abs(offsetZ)) !== ring) continue;
+        const column = centerX + offsetX;
+        const row = centerZ + offsetZ;
+        if (column < 0 || column >= grid.size || row < 0 || row >= grid.size) continue;
+        const index = row * grid.size + column;
+        if (grid.blocked[index]) continue;
+        const distance = offsetX * offsetX + offsetZ * offsetZ;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      }
+    }
+    if (bestIndex >= 0) return bestIndex;
+  }
+  return -1;
+}
+
+function getGridPoint(index: number, grid: WarRoomNavigationGrid) {
+  const row = Math.floor(index / grid.size);
+  const column = index - row * grid.size;
+  return { x: grid.min + column * grid.step, z: grid.min + row * grid.step };
+}
+
+function findWarRoomGridWaypoint(
+  actor: PursuitActor,
+  target: PursuitActor,
+  blockers: readonly WarRoomBlocker[],
+  radius: number,
+) {
+  const floorHeight = actor.floorHeight ?? 0;
+  const grid = getWarRoomNavigationGrid(blockers, radius, floorHeight);
+  const startIndex = nearestClearGridIndex(actor.x, actor.z, grid);
+  const goalIndex = nearestClearGridIndex(target.x, target.z, grid);
+  if (startIndex < 0 || goalIndex < 0 || startIndex === goalIndex) return null;
+
+  const previous = new Int32Array(grid.blocked.length);
+  previous.fill(-1);
+  previous[startIndex] = startIndex;
+  const queue = new Int32Array(grid.blocked.length);
+  let head = 0;
+  let tail = 0;
+  queue[tail++] = startIndex;
+  const offsets = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+    [-1, -1], [1, -1], [-1, 1], [1, 1],
+  ] as const;
+
+  while (head < tail && previous[goalIndex] < 0) {
+    const current = queue[head++]!;
+    const row = Math.floor(current / grid.size);
+    const column = current - row * grid.size;
+    for (const [dx, dz] of offsets) {
+      const nextColumn = column + dx;
+      const nextRow = row + dz;
+      if (nextColumn < 0 || nextColumn >= grid.size || nextRow < 0 || nextRow >= grid.size) continue;
+      const next = nextRow * grid.size + nextColumn;
+      if (grid.blocked[next] || previous[next] >= 0) continue;
+      if (dx !== 0 && dz !== 0) {
+        if (
+          grid.blocked[row * grid.size + nextColumn]
+          || grid.blocked[nextRow * grid.size + column]
+        ) continue;
+      }
+      previous[next] = current;
+      queue[tail++] = next;
+    }
+  }
+  if (previous[goalIndex] < 0) return null;
+
+  let next = goalIndex;
+  while (previous[next] !== startIndex && previous[next] !== next) {
+    next = previous[next]!;
+  }
+  const waypoint = getGridPoint(next, grid);
+  return segmentBlockFraction(
+    { x: actor.x, y: floorHeight + 0.9, z: actor.z },
+    { ...waypoint, y: floorHeight + 0.9 },
+    radius,
+    blockers,
+  ) === null ? waypoint : getGridPoint(startIndex, grid);
+}
 
 export function getWarRoomObstacleWaypoint(
   actor: PursuitActor,
@@ -36,7 +172,7 @@ export function getWarRoomObstacleWaypoint(
   }
   if (!firstBlocker) return { x: target.x, z: target.z };
 
-  const clearance = radius + 0.3;
+  const clearance = radius + 0.85;
   let best: { x: number; z: number; score: number } | null = null;
   for (const sideX of [-1, 1]) {
     for (const sideZ of [-1, 1]) {
@@ -58,13 +194,19 @@ export function getWarRoomObstacleWaypoint(
         radius,
         blockers,
       );
+      if (
+        remainingBlock !== null
+        && Math.hypot(candidate.x - actor.x, candidate.z - actor.z) < radius + 0.1
+      ) continue;
       const score = Math.hypot(candidate.x - actor.x, candidate.z - actor.z)
         + Math.hypot(candidate.x - target.x, candidate.z - target.z)
         + (remainingBlock === null ? 0 : 0.5);
       if (!best || score < best.score) best = { ...candidate, score };
     }
   }
-  return best ? { x: best.x, z: best.z } : { x: target.x, z: target.z };
+  if (best) return { x: best.x, z: best.z };
+  return findWarRoomGridWaypoint(actor, target, blockers, radius)
+    ?? { x: target.x, z: target.z };
 }
 
 export function getWarRoomLootPursuitPoint(

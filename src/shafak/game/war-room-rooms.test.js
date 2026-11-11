@@ -308,7 +308,13 @@ test("optional room contracts are seeded, varied, and ramp their goals and bonus
 
 test("room runtime uses its randomized roster and applies the escalating enemy stats", () => {
   const room = getWarRoomRoom(2);
-  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, room.number);
+  const runtime = createWarRoomRuntime(
+    ["powder_rifle", "crossbow"],
+    0,
+    room.number,
+    0,
+    { mode: "raid", difficulty: "normal", modifiers: [], mapId: room.id },
+  );
   const commander = runtime.enemies.find((enemy) => enemy.commander);
   const guards = runtime.enemies.filter((enemy) => !enemy.commander);
   const movedWall = room.blockers.find((blocker) => blocker.id === "central-wall-west");
@@ -325,13 +331,20 @@ test("room runtime uses its randomized roster and applies the escalating enemy s
   assert.equal(commander?.weaponId, room.commanderWeapon);
   assert.equal(commander?.damage, 13);
   assert.ok(commander?.x === room.commanderPosition.x && commander.z === room.commanderPosition.z);
-  assert.ok(guards.every((enemy) => enemy.damage === 9));
   assert.ok(guards.every((enemy) => enemy.color === room.enemyColor));
   assert.ok(guards.every((enemy) => room.enemyWeapons.includes(enemy.weaponId)));
   assert.ok(guards.every((enemy) => room.enemyNames.includes(enemy.name)));
   assert.ok(guards.every((enemy) => room.enemySpawns.some((spawn) => spawn.id === enemy.id)));
-  assert.ok(guards.every((enemy) => enemy.hp === 90 * room.enemyHpMultiplier));
-  assert.ok(guards.every((enemy) => enemy.damage === Math.round(9 * room.enemyDamageMultiplier)));
+  assert.ok(guards.every((enemy) => {
+    const archetypeHealth = enemy.archetype === "heavy" ? 1.55
+      : enemy.archetype === "shield" ? 1.28
+        : enemy.archetype === "assault" ? 0.82 : 1;
+    const archetypeDamage = enemy.archetype === "marksman" ? 1.2
+      : enemy.archetype === "heavy" ? 1.35
+        : enemy.archetype === "summoner" ? 0.9 : 1;
+    return enemy.hp === 90 * room.enemyHpMultiplier * archetypeHealth
+      && enemy.damage === Math.round(9 * room.enemyDamageMultiplier * archetypeDamage);
+  }));
   assert.ok(movedWall);
   assert.notEqual(
     segmentBlockFraction(

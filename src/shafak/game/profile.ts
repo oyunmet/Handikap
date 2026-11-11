@@ -38,6 +38,9 @@ export type PlayerProfile = {
   dailyAdRewardUsed: boolean;
   dailyAdDuelsRemaining: number;
   dailyKey: string;
+  warRoomRewardDayKey: string;
+  warRoomDailyXp: number;
+  warRoomDailySealClaimed: boolean;
 };
 
 export type BattleOutcome = {
@@ -108,6 +111,9 @@ export const defaultProfile: PlayerProfile = {
   dailyAdRewardUsed: false,
   dailyAdDuelsRemaining: 0,
   dailyKey: getIstanbulDayKey(),
+  warRoomRewardDayKey: getIstanbulDayKey(),
+  warRoomDailyXp: 0,
+  warRoomDailySealClaimed: false,
 };
 
 function todayKey() {
@@ -125,6 +131,7 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
     : null;
   const today = todayKey();
   const daily = normalizeDailyLifeState(saved, new Date());
+  const warRoomRewardsSameDay = saved.warRoomRewardDayKey === today;
   const routeValue = savedWorldProgress?.routeChoice;
   const routeChoice = routeValue && typeof routeValue === "object"
     && Number.isSafeInteger(routeValue.chapterId)
@@ -177,6 +184,9 @@ export function normalizePlayerProfile(value: unknown): PlayerProfile {
     dailyAdRewardUsed: daily.dailyAdRewardUsed,
     dailyAdDuelsRemaining: daily.dailyAdDuelsRemaining,
     dailyKey: today,
+    warRoomRewardDayKey: today,
+    warRoomDailyXp: warRoomRewardsSameDay ? finiteNumber(saved.warRoomDailyXp, 0) : 0,
+    warRoomDailySealClaimed: warRoomRewardsSameDay && saved.warRoomDailySealClaimed === true,
   };
 }
 

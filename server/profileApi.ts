@@ -19,6 +19,10 @@ import { FINAL_CAMPAIGN_BOSS_ID, isCampaignComplete, MAX_DEFEATED_OPPONENTS } fr
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { DAILY_DEFEAT_LIMIT, getIstanbulDayKey, grantDailyAdDuel, normalizeDailyLifeState } from "../src/shafak/game/daily-lives.ts";
 import { getDoorDifficulty, type WorldRouteChoice, type WorldRouteSide } from "../src/shafak/world/route-difficulty.ts";
+import {
+  awardWarRoomProfileReward,
+  parseWarRoomProfileRewardRequest,
+} from "../src/shafak/game/war-room-profile-rewards.ts";
 
 export type PlayerProfileRecord = {
   name: string;
@@ -46,6 +50,9 @@ export type PlayerProfileRecord = {
   dailyAdRewardUsed: boolean;
   dailyAdDuelsRemaining: number;
   dailyKey: string;
+  warRoomRewardDayKey: string;
+  warRoomDailyXp: number;
+  warRoomDailySealClaimed: boolean;
 };
 
 export const ACCOUNT_DELETION_CONFIRMATION = "HESABIMI SİL";
@@ -175,6 +182,9 @@ export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord 
     dailyAdRewardUsed: false,
     dailyAdDuelsRemaining: 0,
     dailyKey: getIstanbulDayKey(),
+    warRoomRewardDayKey: getIstanbulDayKey(),
+    warRoomDailyXp: 0,
+    warRoomDailySealClaimed: false,
   };
 }
 
@@ -406,6 +416,19 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
   const dailyKey = typeof value.dailyKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.dailyKey)
     ? value.dailyKey
     : null;
+  const warRoomRewardDayKey = value.warRoomRewardDayKey === undefined
+    ? getIstanbulDayKey()
+    : typeof value.warRoomRewardDayKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.warRoomRewardDayKey)
+      ? value.warRoomRewardDayKey
+      : null;
+  const warRoomDailyXp = value.warRoomDailyXp === undefined
+    ? 0
+    : boundedInteger(value.warRoomDailyXp, 0, 60);
+  const warRoomDailySealClaimed = value.warRoomDailySealClaimed === undefined
+    ? false
+    : typeof value.warRoomDailySealClaimed === "boolean"
+      ? value.warRoomDailySealClaimed
+      : null;
 
   if (
     !name ||
@@ -436,7 +459,10 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
     dailyLosses > dailyBattles ||
     dailyAdDuelsRemaining === null ||
     (dailyAdDuelsRemaining > 0 && !dailyAdRewardUsed) ||
-    dailyKey === null
+    dailyKey === null ||
+    warRoomRewardDayKey === null ||
+    warRoomDailyXp === null ||
+    warRoomDailySealClaimed === null
   ) {
     return null;
   }
@@ -463,6 +489,9 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
     dailyAdRewardUsed,
     dailyAdDuelsRemaining,
     dailyKey,
+    warRoomRewardDayKey,
+    warRoomDailyXp,
+    warRoomDailySealClaimed,
   };
 }
 
@@ -634,6 +663,50 @@ export function createProfileApi(database: Pool, options: ProfileApiOptions = {}
         return;
       }
       response.json({ worldProgress: updated.rows[0].worldProgress });
+    } catch {
+      response.status(503).json({ error: "profile_storage_unavailable" });
+    }
+  });
+
+  router.post("/api/profile/war-room-reward", profileLimit, async (request, response) => {
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+    response.setHeader("Cache-Control", "no-store");
+    const rewardRequest = parseWarRoomProfileRewardRequest(request.body);
+    if (!rewardRequest) {
+      response.status(400).json({ error: "invalid_war_room_reward" });
+      return;
+    }
+
+    try {
+      const currentResult = await database.query<{ profile: unknown }>(
+        "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
+        [userId],
+      );
+      const rawProfile = currentResult.rows[0]?.profile;
+      const currentProfile = validatePlayerProfile(rawProfile, userId);
+      if (!currentProfile) {
+        response.status(404).json({ error: "profile_not_found" });
+        return;
+      }
+      const { profile: nextProfile, rewards } = awardWarRoomProfileReward(currentProfile, rewardRequest);
+      const updated = await database.query<{ profile: unknown }>(
+        `UPDATE shafak_player_profiles
+         SET profile = $3::jsonb, updated_at = NOW()
+         WHERE user_id = $1 AND profile = $2::jsonb
+         RETURNING profile`,
+        [userId, JSON.stringify(rawProfile), JSON.stringify(nextProfile)],
+      );
+      if (!updated.rows[0]) {
+        response.status(409).json({ error: "profile_changed" });
+        return;
+      }
+      const savedProfile = validatePlayerProfile(updated.rows[0].profile, userId);
+      if (!savedProfile) {
+        response.status(503).json({ error: "profile_storage_invalid" });
+        return;
+      }
+      response.json({ profile: savedProfile, rewards });
     } catch {
       response.status(503).json({ error: "profile_storage_unavailable" });
     }

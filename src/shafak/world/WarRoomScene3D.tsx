@@ -1956,6 +1956,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
   return {
     mission: {
       mode: runtime.mission.mode,
+      dailyObjective: runtime.mission.dailyObjective,
       wave: runtime.mission.wave,
       score: runtime.mission.score,
       timeLimitSeconds: runtime.mission.timeLimitSeconds,

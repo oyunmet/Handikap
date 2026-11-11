@@ -2208,6 +2208,57 @@
   margin: 24px 0;
 }
 
+.war-room-grade-result {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 11px;
+  margin: 18px 0 12px;
+  padding: 10px;
+  border: 1px solid rgba(226, 184, 126, 0.32);
+  background: rgba(13, 12, 11, 0.34);
+  text-align: left;
+}
+
+.war-room-grade-result__mark,
+.war-room-grade-result__score {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.war-room-grade-result__mark {
+  justify-items: center;
+  border-right: 1px solid rgba(239, 218, 187, 0.16);
+}
+
+.war-room-grade-result__mark span,
+.war-room-grade-result__score span,
+.war-room-profile-reward > strong {
+  color: rgba(237, 218, 190, 0.58);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.war-room-grade-result__mark strong {
+  color: #f2d3a1;
+  font: 700 28px/1 var(--font-display, Georgia, serif);
+}
+
+.war-room-grade-result__mark.is-s strong { color: #f5d286; }
+.war-room-grade-result__mark.is-c strong { color: #d98b74; }
+
+.war-room-grade-result__score strong {
+  color: #f2d3a1;
+  font: 700 18px/1.1 var(--font-display, Georgia, serif);
+}
+
+.war-room-grade-result__score small {
+  color: rgba(237, 218, 190, 0.68);
+  font-size: 7px;
+  line-height: 1.4;
+}
+
 .war-room-stat-grid > div {
   display: flex;
   min-height: 68px;
@@ -2359,6 +2410,28 @@
   font-weight: 500;
   letter-spacing: 0;
 }
+
+.war-room-profile-reward {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 218, 187, 0.16);
+  background: rgba(13, 12, 11, 0.28);
+  text-align: left;
+}
+
+.war-room-profile-reward > span {
+  color: #f2d3a1;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.war-room-profile-reward.is-failed > span { color: #e6a08f; }
+.war-room-profile-reward.is-pending > span { color: rgba(237, 218, 190, 0.68); }
 
 .war-room-result__actions {
   display: flex;

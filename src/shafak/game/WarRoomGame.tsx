@@ -94,6 +94,7 @@ import {
   type WarRoomPointerPosition,
 } from "./war-room-input";
 import type { PlayerProfile } from "./profile";
+import type { WarRoomProfileReward, WarRoomProfileRewardRequest } from "./war-room-profile-rewards";
 import type { WarRoomWeaponSwayLevel } from "./war-room-viewmodel-settings";
 import {
   getWarRoomProgressAfterVictory,
@@ -129,6 +130,9 @@ import "./war-room-responsive.css";
 type Props = {
   onExit: () => void;
   profile: PlayerProfile;
+  onAwardProfileReward: (
+    request: WarRoomProfileRewardRequest,
+  ) => Promise<{ profile: PlayerProfile; rewards: WarRoomProfileReward }>;
   vibrationEnabled: boolean;
   motionReduced: boolean;
   weaponSway: WarRoomWeaponSwayLevel;
@@ -232,6 +236,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
   return {
     mission: {
       mode: "raid",
+      dailyObjective: null,
       wave: 1,
       score: 0,
       timeLimitSeconds: null,
@@ -355,6 +360,7 @@ function requestWarRoomImmersiveDisplay() {
 export default function WarRoomGame({
   onExit,
   profile,
+  onAwardProfileReward,
   vibrationEnabled,
   motionReduced,
   weaponSway,
@@ -824,6 +830,9 @@ export default function WarRoomGame({
         healthRatio: finalHud.player.hp / Math.max(1, finalHud.player.maxHp),
         seconds: finalHud.elapsedSeconds,
       }),
+      xp: 0,
+      sealFragments: 0,
+      profileRewardState: "pending",
       leaderboard: createWarRoomLeaderboard(
         profile.name,
         result,
@@ -832,6 +841,22 @@ export default function WarRoomGame({
         runtimeRef.current.enemies,
       ),
     });
+    void onAwardProfileReward({
+      mode: completedMission.mode,
+      victory: result === "victory",
+      kills: finalHud.kills,
+      headshots: finalHud.headshots,
+      wave: completedMission.wave,
+    }).then(({ rewards }) => {
+      setSummary((current) => current ? {
+        ...current,
+        xp: rewards.xp,
+        sealFragments: rewards.sealFragments,
+        profileRewardState: "saved",
+      } : current);
+    }).catch(() => {
+      setSummary((current) => current ? { ...current, profileRewardState: "failed" } : current);
+    });
     setPhase(result);
   }, [
     dailyChallenge.dayKey,
@@ -839,6 +864,7 @@ export default function WarRoomGame({
     dailyPreset,
     loadout,
     profile.name,
+    onAwardProfileReward,
   ]);
 
   const pauseBattle = useCallback(() => {

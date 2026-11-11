@@ -33,6 +33,10 @@ import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import {
+  awardWarRoomProfileReward,
+  type WarRoomProfileRewardRequest,
+} from "./game/war-room-profile-rewards";
 import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { StoreTab } from "./game/store-types.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
@@ -768,6 +772,34 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen(warRoomReturnScreen);
   };
 
+  const awardWarRoomReward = useCallback(async (request: WarRoomProfileRewardRequest) => {
+    if (!user?.id) {
+      const result = awardWarRoomProfileReward(profile, request);
+      setProfile(result.profile);
+      saveProfile(result.profile);
+      return result;
+    }
+    if (profileSyncStatus !== "ready") {
+      throw new Error("Hesap profili eşitlenemedi; Savaş Odası profil ödülü eklenmedi.");
+    }
+
+    const result = await authApiRequestWithRetry<{
+      profile: unknown;
+      rewards: { xp: number; sealFragments: number };
+    }>("/api/profile/war-room-reward", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }, {
+      operation: "War Room reward",
+      fallbackMessage: "Savaş Odası profil ödülü şu an kaydedilemedi.",
+    }, { maxRetries: 1, baseDelayMs: 350 });
+    const nextProfile = normalizePlayerProfile(result.profile);
+    setProfile(nextProfile);
+    return { profile: nextProfile, rewards: result.rewards };
+  }, [authApiRequestWithRetry, profile, profileSyncStatus, user?.id]);
+
   const loadClaimedPickups = useCallback(async (chapterId: number) => {
     if (!user?.id || profileSyncStatus !== "ready") return [];
     const query = new URLSearchParams({ chapterId: String(chapterId) });
@@ -1315,6 +1347,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <WarRoomGame
                 onExit={exitWarRoom}
                 profile={profile}
+                onAwardProfileReward={awardWarRoomReward}
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
                 weaponSway={warRoomWeaponSway}

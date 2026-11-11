@@ -12,7 +12,13 @@ import {
   getWarRoomResultGrade,
 } from "./war-room-missions.ts";
 import { WAR_ROOM_MAPS, getWarRoomRoom } from "./war-room-rooms.ts";
-import { createWarRoomRuntime, getWarRoomRemaining } from "./war-room-engine.ts";
+import {
+  advanceWarRoomSurvivalWave,
+  createWarRoomRuntime,
+  getWarRoomRemaining,
+  moveWarRoomEntity,
+} from "./war-room-engine.ts";
+import { getWarRoomObstacleWaypoint } from "./war-room-ai.ts";
 
 test("daily challenge parameters are deterministic and rotate maps and modifiers", () => {
   const maps = WAR_ROOM_MAPS.map((map) => map.id);
@@ -68,6 +74,90 @@ test("all six map presets start a seeded mode runtime with reachable enemies", (
     assert.ok(getWarRoomRemaining(runtime) > 0);
     assert.equal(runtime.mission.mapId, map.id);
     assert.ok(runtime.enemies.every((enemy) => Number.isFinite(enemy.hp) && enemy.hp > 0));
+  }
+});
+
+test("bot simulations finish objectives on all maps and traverse blockers without sticking", () => {
+  const modes = ["raid", "survival", "treasure", "defense", "daily"];
+  for (const map of WAR_ROOM_MAPS) {
+    for (const mode of modes) {
+      const missionOptions = {
+        mode,
+        difficulty: "normal",
+        modifiers: [],
+        mapId: map.id,
+        ...(mode === "daily" ? { dailyObjective: "raid" } : {}),
+      };
+      const runtime = createWarRoomRuntime(
+        ["powder_rifle", "crossbow"],
+        0,
+        1,
+        20261111,
+        missionOptions,
+      );
+      const target = { x: runtime.player.x, z: runtime.player.z, floorHeight: 0 };
+      const bot = runtime.enemies
+        .filter((enemy) => !enemy.commander)
+        .sort((left, right) => (
+          Math.hypot(right.x - target.x, right.z - target.z)
+          - Math.hypot(left.x - target.x, left.z - target.z)
+        ))[0];
+      let distance = Math.hypot(bot.x - target.x, bot.z - target.z);
+      let stalledFrames = 0;
+      let reached = distance <= 10.5;
+
+      for (let frame = 0; frame < 1200 && !reached; frame += 1) {
+        const waypoint = getWarRoomObstacleWaypoint(bot, target, runtime.room.blockers, 0.35);
+        const dx = waypoint.x - bot.x;
+        const dz = waypoint.z - bot.z;
+        const length = Math.hypot(dx, dz);
+        const step = Math.min(length, 3.7 / 20);
+        const previousX = bot.x;
+        const previousZ = bot.z;
+        const moved = moveWarRoomEntity(
+          bot.x,
+          bot.z,
+          length > 0 ? (dx / length) * step : 0,
+          length > 0 ? (dz / length) * step : 0,
+          0.35,
+          runtime.room.blockers,
+        );
+        bot.x = moved.x;
+        bot.z = moved.z;
+        const stepDistance = Math.hypot(bot.x - previousX, bot.z - previousZ);
+        const nextDistance = Math.hypot(bot.x - target.x, bot.z - target.z);
+        stalledFrames = stepDistance < 0.005 ? stalledFrames + 1 : 0;
+        distance = nextDistance;
+        reached = distance <= 10.5;
+        assert.ok(stalledFrames < 160, `${map.name} / ${mode}: bot stopped progressing`);
+      }
+      assert.ok(reached, `${map.name} / ${mode}: bot did not reach its objective`);
+
+      const snapshot = {
+        remaining: 0,
+        openedChests: runtime.mission.targetChests,
+        elapsedSeconds: 1,
+        playerHp: 100,
+        defenseHp: runtime.mission.defenseMaxHp,
+      };
+      if (mode === "treasure") {
+        assert.ok(runtime.lootChests.length >= runtime.mission.targetChests);
+        assert.equal(getWarRoomMissionOutcome(mode, snapshot, runtime.mission), "victory");
+      } else if (mode === "survival") {
+        assert.equal(getWarRoomMissionOutcome(mode, snapshot, runtime.mission), "wave-complete");
+        const nextWave = createWarRoomRuntime(
+          ["powder_rifle", "crossbow"],
+          10,
+          2,
+          20261111,
+          missionOptions,
+        );
+        assert.equal(advanceWarRoomSurvivalWave(runtime, nextWave).mission.wave, 2);
+        assert.equal(getWarRoomMissionOutcome(mode, { ...snapshot, playerHp: 0 }, nextWave.mission), "defeat");
+      } else {
+        assert.equal(getWarRoomMissionOutcome(mode, snapshot, runtime.mission), "victory");
+      }
+    }
   }
 });
 

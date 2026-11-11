@@ -1,6 +1,7 @@
 import type { WarRoomRoom, WarRoomSavedProgress } from "./war-room-rooms";
 import type { WarRoomLeaderboardEntry } from "./war-room-leaderboard";
 import { WAR_ROOM_ROOM_CHAIN_ENABLED } from "./war-room-features";
+import { getWarRoomResultLabel, type WarRoomDifficultyId, type WarRoomModeId, type WarRoomModifierId } from "./war-room-missions";
 
 export type WarRoomResultSummary = {
   kills: number;
@@ -9,6 +10,15 @@ export type WarRoomResultSummary = {
   seconds: number;
   gold: number;
   totalGold: number | null;
+  mode: WarRoomModeId;
+  difficulty: WarRoomDifficultyId;
+  modifiers: WarRoomModifierId[];
+  wave: number;
+  score: number;
+  grade: "S" | "A" | "B" | "C";
+  xp: number;
+  sealFragments: number;
+  profileRewardState: "pending" | "saved" | "failed";
   roomNumber: number;
   roomName: string;
   commanderTitle: string;
@@ -57,12 +67,20 @@ export default function WarRoomResult({
     <section className={`war-room-result${victory ? "" : " is-defeat"}`} role="dialog" aria-modal="true">
       <div className="war-room-result__card">
         <span className="war-room-eyebrow">
-          {summary.roomName.toLocaleUpperCase("tr-TR")} · ODA {summary.roomNumber} · GÖREV RAPORU
+          {getWarRoomResultLabel(summary.mode)} · {summary.roomName.toLocaleUpperCase("tr-TR")} · GÖREV RAPORU
         </span>
         <h1>{victory ? "ZAFER" : "YENİLGİ"}</h1>
         <p>{victory
-          ? `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
-          : `${summary.roomName} düşmedi. Bu odadan yeniden başlayabilir veya zinciri baştan alabilirsin.`}</p>
+          ? summary.mode === "treasure"
+            ? "Süre dolmadan gerekli sandıklar açıldı."
+            : summary.mode === "defense"
+              ? "Savunma noktası korundu ve saldırı durduruldu."
+              : summary.mode === "survival"
+                ? `${summary.wave}. dalga tamamlandı.`
+                : `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
+          : summary.mode === "survival"
+            ? `${summary.wave}. dalgada durduruldun. Skorunu görmek veya yeniden denemek için seçim yap.`
+            : `${summary.roomName} görevi tamamlanmadı. Yeniden deneyebilir veya çıkabilirsin.`}</p>
         {summary.dailyChallenge && (
           <section className={`war-room-daily-result${summary.dailyChallengeCompleted ? " is-complete" : ""}`}>
             <strong>{summary.dailyChallengeCompleted ? "GÜNLÜK SINAV TAMAMLANDI" : "GÜNLÜK SINAV DEVAM EDİYOR"}</strong>
@@ -71,6 +89,21 @@ export default function WarRoomResult({
               : "Bugünün ek hedefini tamamlayıp sınavı bitirmek için aynı görevi tekrar deneyebilirsin."}</p>
           </section>
         )}
+        <section className="war-room-grade-result" aria-label="Görev derecesi ve puanı">
+          <div className={`war-room-grade-result__mark is-${summary.grade.toLowerCase()}`}>
+            <span>DERECE</span>
+            <strong>{summary.grade}</strong>
+          </div>
+          <div className="war-room-grade-result__score">
+            <span>PUAN</span>
+            <strong>{summary.score.toLocaleString("tr-TR")}</strong>
+            <small>{summary.difficulty.toLocaleUpperCase("tr-TR")} · {summary.modifiers.length
+              ? summary.modifiers.map((modifier) => modifier.toLocaleUpperCase("tr-TR")).join(" · ")
+              : "DEĞİŞTİRİCİ YOK"}
+              {summary.mode === "survival" ? ` · DALGA ${summary.wave}` : ""}
+            </small>
+          </div>
+        </section>
         <div className="war-room-stat-grid">
           <div><span>DÜŞÜRÜLEN</span><b>{summary.kills} / {summary.enemyCount}</b></div>
           <div><span>KAFA VURUŞU</span><b>{summary.headshots}</b></div>
@@ -130,6 +163,7 @@ export default function WarRoomResult({
           <div className="war-room-gold-reward">
             <span>BU MODUN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
             {summary.totalGold !== null && <small>Savaş Odası toplamı: {summary.totalGold} altın</small>}
+            <small>Savaş Odası bakiyesi; kampanya altınına aktarılmaz.</small>
             {WAR_ROOM_ROOM_CHAIN_ENABLED && (
               <small>
                 Oda ödülleri toplamı: {roomProgress.totalRoomRewards} altın · En yüksek oda: {roomProgress.highestRoom}
@@ -137,6 +171,16 @@ export default function WarRoomResult({
             )}
           </div>
         )}
+        <section className={`war-room-profile-reward is-${summary.profileRewardState}`} aria-live="polite">
+          <strong>PROFİL ÖDÜLÜ</strong>
+          {summary.profileRewardState === "pending" ? (
+            <span>Profiline ekleniyor…</span>
+          ) : summary.profileRewardState === "failed" ? (
+            <span>Kaydedilemedi; XP ve Mühür Parçası hesabına eklenmedi.</span>
+          ) : (
+            <span>+{summary.xp} XP{summary.sealFragments > 0 ? ` · +${summary.sealFragments} Mühür Parçası` : ""}</span>
+          )}
+        </section>
         <div className="war-room-result__actions">
           {victory && summary.nextRoom && (
             <button type="button" className="war-room-start" onClick={onNextRoom}>SONRAKİ ODA</button>
