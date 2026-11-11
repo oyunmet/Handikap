@@ -89,6 +89,9 @@ importers:
       http-proxy-middleware:
         specifier: ^3.0.7
         version: 3.0.7
+      meshoptimizer:
+        specifier: ^1.1.1
+        version: 1.1.1
       pg:
         specifier: ^8.23.1
         version: 8.23.1

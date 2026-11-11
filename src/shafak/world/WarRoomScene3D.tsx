@@ -199,6 +199,10 @@ import {
 } from "../game/war-room-audio";
 import { isWarRoomLowHealth } from "../game/war-room-feedback";
 import {
+  getWarRoomEnemySpeedMultiplier,
+  getWarRoomMissionOutcome,
+} from "../game/war-room-missions";
+import {
   WarRoomAnimatedActor,
   WarRoomAssetBoundary,
   WarRoomStaticModel,
@@ -1950,6 +1954,15 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
       ? "HAZIRLIK"
       : meleeProgress < 0.72 ? "VURUŞ" : "TOPARLAN";
   return {
+    mission: {
+      mode: runtime.mission.mode,
+      wave: runtime.mission.wave,
+      score: runtime.mission.score,
+      timeLimitSeconds: runtime.mission.timeLimitSeconds,
+      targetChests: runtime.mission.targetChests,
+      defenseHp: runtime.mission.defenseHp,
+      defenseMaxHp: runtime.mission.defenseMaxHp,
+    },
     player: {
       x: player.x,
       z: player.z,
@@ -3291,6 +3304,7 @@ function WarRoomRuntimeScene({
     if (
       WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
       && runtime.enemies.length > 0
+      && runtime.mission.mode !== "treasure"
       && getWarRoomRemaining(runtime) === 0
       && victoryCinematicStartedAtRef.current === null
     ) {
@@ -3759,22 +3773,26 @@ function WarRoomRuntimeScene({
         enemy.floorHeight ?? 0,
         runtime.room.buildings,
       );
-      const gap = Math.hypot(enemy.x - player.x, enemy.z - player.z);
+      const defenseMode = runtime.mission.mode === "defense";
+      const missionTarget = defenseMode ? runtime.mission.objectivePosition : player;
+      const gap = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
       const enemyEye = { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.65 : 1.45), z: enemy.z };
-      const playerEye = {
-        x: player.x,
-        y: player.floorHeight + player.jumpHeight + (player.crouched ? 1.1 : 1.4),
-        z: player.z,
+      const targetEye = {
+        x: missionTarget.x,
+        y: defenseMode ? 0.95 : player.floorHeight + player.jumpHeight + (player.crouched ? 1.1 : 1.4),
+        z: missionTarget.z,
       };
-      const lineBlocked = segmentBlockFraction(enemyEye, playerEye, 0, activeBlockersRef.current) !== null;
-      const floorGap = Math.abs((enemy.floorHeight ?? 0) - player.floorHeight);
+      const lineBlocked = segmentBlockFraction(enemyEye, targetEye, 0, activeBlockersRef.current) !== null;
+      const floorGap = defenseMode
+        ? Math.abs(enemy.floorHeight ?? 0)
+        : Math.abs((enemy.floorHeight ?? 0) - player.floorHeight);
       enemy.mode = activeLootChase
         ? "approach"
         : floorGap > 1.25
           ? "approach"
-        : player.hp / player.maxHp < 0.33
+        : !defenseMode && player.hp / player.maxHp < 0.33
           ? "cover"
-          : !lineBlocked && gap <= (enemy.commander ? 22 : 17)
+          : !lineBlocked && gap <= (defenseMode ? 22 : enemy.commander ? 22 : 17)
             ? "fire"
             : lineBlocked && gap < 26 ? "cover" : "approach";
       const updateInterval = activeLootChase ? 0.12 : gap > 38 ? 0.55 : 0.12;
@@ -3782,13 +3800,15 @@ function WarRoomRuntimeScene({
         enemy.brainAt = now + updateInterval;
         enemy.doorApproachX = 0;
         enemy.doorApproachZ = 0;
-        const needsFloorRoute = !activeLootChase && floorGap > 1.25 && playerBuilding;
+        const needsFloorRoute = !activeLootChase && !defenseMode && floorGap > 1.25 && playerBuilding;
         let target: { x: number; z: number; floorHeight?: number } = activeLootChase && lootBuilding
           ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
           : needsFloorRoute
             ? getWarRoomLootPursuitPoint(enemy, player, playerBuilding!)
-            : { x: player.x, z: player.z, floorHeight: player.floorHeight };
-        if (!activeLootChase && enemy.mode === "cover") {
+            : defenseMode
+              ? { ...runtime.mission.objectivePosition, floorHeight: 0 }
+              : { x: player.x, z: player.z, floorHeight: player.floorHeight };
+        if (!activeLootChase && !defenseMode && enemy.mode === "cover") {
           if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
             const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
             if (cover) {
@@ -3806,13 +3826,15 @@ function WarRoomRuntimeScene({
             0.35,
           );
         }
-        const holdDistance = activeLootChase ? 0.8 : enemy.commander ? 12.5 : 10.5;
+        const holdDistance = activeLootChase ? 0.8 : defenseMode ? 1.7 : enemy.commander ? 12.5 : 10.5;
         const shouldMove = enemy.mode !== "fire"
           && Math.hypot(target.x - enemy.x, target.z - enemy.z)
             > (enemy.mode === "cover" ? 1.2 : holdDistance);
         if (shouldMove) {
           const targetYaw = Math.atan2(target.x - enemy.x, -(target.z - enemy.z));
-          const moveSpeed = enemy.commander ? 2.55 : enemy.mode === "cover" ? 3.25 : 3.7;
+          const moveSpeed = (enemy.commander ? 2.55 : enemy.mode === "cover" ? 3.25 : 3.7)
+            * enemy.speedMultiplier
+            * getWarRoomEnemySpeedMultiplier(runtime.mission.modifiers);
           let moveXEnemy = Math.sin(targetYaw) * moveSpeed * updateInterval;
           let moveZEnemy = -Math.cos(targetYaw) * moveSpeed * updateInterval;
           for (const other of runtime.enemies) {
@@ -3903,41 +3925,47 @@ function WarRoomRuntimeScene({
       }
     }
 
+    const defenseMode = runtime.mission.mode === "defense";
+    const attackTarget = defenseMode ? runtime.mission.objectivePosition : player;
     const attackCandidates = trainingMode ? [] : runtime.enemies
       .filter((enemy) => {
         if (
           !enemy.alive
           || enemy.mode !== "fire"
-          || Math.hypot(enemy.x - player.x, enemy.z - player.z) > 24
+          || Math.hypot(enemy.x - attackTarget.x, enemy.z - attackTarget.z) > 24
         ) return false;
-        if (Math.abs((enemy.floorHeight ?? 0) - player.floorHeight) > 1.25) return false;
+        if (Math.abs((enemy.floorHeight ?? 0) - (defenseMode ? 0 : player.floorHeight)) > 1.25) return false;
         const blocked = segmentBlockFraction(
           { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.6 : 1.4), z: enemy.z },
-          { x: player.x, y: player.floorHeight + player.jumpHeight + 1.3, z: player.z },
+          {
+            x: attackTarget.x,
+            y: defenseMode ? 0.95 : player.floorHeight + player.jumpHeight + 1.3,
+            z: attackTarget.z,
+          },
           0,
           activeBlockersRef.current,
         );
         return blocked === null;
       })
-      .sort((left, right) => Math.hypot(left.x - player.x, left.z - player.z) - Math.hypot(right.x - player.x, right.z - player.z))
+      .sort((left, right) => Math.hypot(left.x - attackTarget.x, left.z - attackTarget.z) - Math.hypot(right.x - attackTarget.x, right.z - attackTarget.z))
       .slice(0, 3);
 
     for (const enemy of attackCandidates) {
-      if (now < enemy.nextShotAt || now < player.invulnerableUntil) continue;
+      if (now < enemy.nextShotAt || (!defenseMode && now < player.invulnerableUntil)) continue;
       const enemyIndex = runtime.enemies.indexOf(enemy);
       const enemyGroup = enemyGroupRefs.current[enemyIndex];
       const enemyFacingYaw = getWarRoomActorYawToTarget(
         enemy.x,
         enemy.z,
-        player.x,
-        player.z,
+        attackTarget.x,
+        attackTarget.z,
         0,
       );
       const targetRootYaw = getWarRoomActorRootYawToTarget(
         enemy.x,
         enemy.z,
-        player.x,
-        player.z,
+        attackTarget.x,
+        attackTarget.z,
       );
       const actorFacingYaw = enemyGroup
         ? getWarRoomFacingYawFromRootYaw(enemyGroup.rotation.y)
@@ -3971,7 +3999,7 @@ function WarRoomRuntimeScene({
       }
       spawnMuzzleSmoke(muzzle, now);
       spawnCasing(muzzle, now, enemyFacingYaw);
-      const enemyDistance = Math.hypot(enemy.x - player.x, enemy.z - player.z);
+      const enemyDistance = Math.hypot(enemy.x - attackTarget.x, enemy.z - attackTarget.z);
       playWarRoomSound(
         "enemy-shot",
         1,
@@ -3985,9 +4013,9 @@ function WarRoomRuntimeScene({
         -Math.cos(enemyFacingYaw),
       );
       const playerAimPoint = enemyAimPointScratch.set(
-        player.x,
-        player.floorHeight + player.jumpHeight + 1.15,
-        player.z,
+        attackTarget.x,
+        defenseMode ? 0.95 : player.floorHeight + player.jumpHeight + 1.15,
+        attackTarget.z,
       );
       const shotDistance = Math.max(1, playerAimPoint.sub(muzzle).dot(shotDirection));
       const target = enemyTracerTargetScratch.copy(muzzle)
@@ -3999,29 +4027,38 @@ function WarRoomRuntimeScene({
         ));
       addTracer(muzzle, target, "#f36e54", now, 0.08);
       if (nextWarRoomRandom(runtime) > (enemy.commander ? 0.25 : 0.38)) {
-        const hit = applyWarRoomDamage(player, enemy.damage);
-        if (hit.damage > 0) {
-          enemy.score += hit.damage;
-          playWarRoomSound("hit", 1, "rifle", getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"));
-          player.lastDamageAt = now;
-          player.lastCombatAt = now;
-          player.invulnerableUntil = now + 0.28;
-          cameraKickRef.current = Math.max(cameraKickRef.current, 0.09);
-          cameraFovKickRef.current = Math.min(cameraFovKickRef.current + 1.8, 4.2);
-          cameraSideKickRef.current = Math.max(
-            -0.035,
-            Math.min(0.035, cameraSideKickRef.current + Math.sign(player.damageDirection || 1) * 0.018),
-          );
-          player.damageDirection = shortestAngleDelta(
-            player.yaw,
-            Math.atan2(enemy.x - player.x, -(enemy.z - player.z)),
-          );
-          player.lastHitText = `−${hit.damage} CAN · ${enemy.name}`;
+        if (defenseMode) {
+          const defenseDamage = Math.min(runtime.mission.defenseHp, enemy.damage);
+          runtime.mission.defenseHp = Math.max(0, runtime.mission.defenseHp - defenseDamage);
+          enemy.score += defenseDamage;
+          player.lastHitText = `SAVUNMA −${defenseDamage} CAN`;
           player.hitMessageUntil = now + 1;
-          player.lastHitDamage = hit.damage;
-          player.lastHitSource = "received";
-          player.lastHitCritical = false;
-          player.damageEventId += 1;
+          playWarRoomSound("hit", 0.8, "rifle", getWarRoomAudioOptions(player, enemy.x, enemy.z, "metal"));
+        } else {
+          const hit = applyWarRoomDamage(player, enemy.damage);
+          if (hit.damage > 0) {
+            enemy.score += hit.damage;
+            playWarRoomSound("hit", 1, "rifle", getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"));
+            player.lastDamageAt = now;
+            player.lastCombatAt = now;
+            player.invulnerableUntil = now + 0.28;
+            cameraKickRef.current = Math.max(cameraKickRef.current, 0.09);
+            cameraFovKickRef.current = Math.min(cameraFovKickRef.current + 1.8, 4.2);
+            cameraSideKickRef.current = Math.max(
+              -0.035,
+              Math.min(0.035, cameraSideKickRef.current + Math.sign(player.damageDirection || 1) * 0.018),
+            );
+            player.damageDirection = shortestAngleDelta(
+              player.yaw,
+              Math.atan2(enemy.x - player.x, -(enemy.z - player.z)),
+            );
+            player.lastHitText = `−${hit.damage} CAN · ${enemy.name}`;
+            player.hitMessageUntil = now + 1;
+            player.lastHitDamage = hit.damage;
+            player.lastHitSource = "received";
+            player.lastHitCritical = false;
+            player.damageEventId += 1;
+          }
         }
       }
     }
@@ -4675,13 +4712,22 @@ function WarRoomRuntimeScene({
       onHudUpdate(buildHudSnapshot(runtime, now, input));
     }
     const snapshot = buildHudSnapshot(runtime, now, input);
-    if (!finishedRef.current && player.hp <= 0) {
+    const missionOutcome = getWarRoomMissionOutcome(runtime.mission.mode, {
+      remaining: snapshot.remaining,
+      openedChests: snapshot.lootChestsOpened,
+      elapsedSeconds: snapshot.elapsedSeconds,
+      playerHp: player.hp,
+      defenseHp: runtime.mission.defenseHp,
+    }, runtime.mission);
+    if (!finishedRef.current && missionOutcome === "defeat") {
       finishedRef.current = true;
       onFinish("defeat", snapshot);
     } else if (
       !finishedRef.current
-      && getWarRoomRemaining(runtime) === 0
-      && (!WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
+      && (missionOutcome === "victory" || missionOutcome === "wave-complete")
+      && (runtime.mission.mode === "treasure"
+        || runtime.mission.mode === "defense"
+        || !WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
         || (cinematicStartedAt !== null && cinematicElapsed >= WAR_ROOM_ENEMY_DEATH_FADE_SECONDS))
     ) {
       finishedRef.current = true;

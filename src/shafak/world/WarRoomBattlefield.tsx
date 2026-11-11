@@ -185,7 +185,23 @@ export default function WarRoomBattlefield({
   runtimeRef: MutableRefObject<WarRoomRuntime>;
 }) {
   const { room } = runtime;
-  const { theme } = room;
+  const darkModifier = runtime.mission.modifiers.includes("darkness");
+  const fogModifier = runtime.mission.modifiers.includes("fog");
+  const theme = darkModifier
+    ? {
+      ...room.theme,
+      sky: "#202537",
+      fog: "#293047",
+      skyLight: "#a6b2d0",
+      groundLight: "#10131d",
+      ambient: "#6f7892",
+      keyLight: "#aab8d8",
+      fillLight: "#617598",
+    }
+    : room.theme;
+  const sceneTheme = fogModifier
+    ? { ...theme, fogNear: Math.min(theme.fogNear, 9), fogFar: Math.min(theme.fogFar, 34) }
+    : theme;
   const quarterRotation = room.quarterTurns * Math.PI / 2;
   const visualBlockers = room.blockers.filter((blocker) => (
     !room.buildings.some((building) => blocker.id.startsWith(`${building.id}-`))
@@ -193,18 +209,18 @@ export default function WarRoomBattlefield({
   ));
   useLayoutEffect(() => {
     WAR_ROOM_FLOOR_MATERIAL.color.set(theme.floorTint);
-  }, [theme.floorTint]);
+  }, [sceneTheme.floorTint]);
 
   return (
     <>
-      <color attach="background" args={[theme.sky]} />
-      <fog attach="fog" args={[theme.fog, theme.fogNear, theme.fogFar]} />
-      <hemisphereLight args={[theme.skyLight, theme.groundLight, 2.2]} />
-      <ambientLight color={theme.ambient} intensity={1.4} />
+      <color attach="background" args={[sceneTheme.sky]} />
+      <fog attach="fog" args={[sceneTheme.fog, sceneTheme.fogNear, sceneTheme.fogFar]} />
+      <hemisphereLight args={[sceneTheme.skyLight, sceneTheme.groundLight, darkModifier ? 1.55 : 2.2]} />
+      <ambientLight color={sceneTheme.ambient} intensity={darkModifier ? 0.82 : 1.4} />
       <directionalLight
         position={[-8, 14, 8]}
-        color={theme.keyLight}
-        intensity={2.4}
+        color={sceneTheme.keyLight}
+        intensity={darkModifier ? 1.65 : 2.4}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -214,14 +230,39 @@ export default function WarRoomBattlefield({
         shadow-camera-bottom={-38}
         shadow-bias={-0.0004}
       />
-      <directionalLight position={[9, 8, -7]} color={theme.fillLight} intensity={0.72} />
-      <pointLight position={[-26, 3, -21]} color={theme.emberLight} intensity={8} distance={15} />
-      <pointLight position={[27, 3, 18]} color={theme.emberLight} intensity={6} distance={13} />
+      <directionalLight position={[9, 8, -7]} color={sceneTheme.fillLight} intensity={0.72} />
+      <pointLight position={[-26, 3, -21]} color={sceneTheme.emberLight} intensity={8} distance={15} />
+      <pointLight position={[27, 3, 18]} color={sceneTheme.emberLight} intensity={6} distance={13} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
         <planeGeometry args={[72, 72, 1, 1]} />
         <primitive object={WAR_ROOM_FLOOR_MATERIAL} attach="material" />
       </mesh>
-      <FloorPaving palette={theme.tiles} />
+      <FloorPaving palette={sceneTheme.tiles} />
+      {runtime.mission.mode === "defense" && (
+        <group
+          position={[
+            runtime.mission.objectivePosition.x,
+            0,
+            runtime.mission.objectivePosition.z,
+          ]}
+          name="war-room-defense-objective"
+        >
+          <mesh position={[0, 0.24, 0]}>
+            <cylinderGeometry args={[0.78, 0.96, 0.48, 8]} />
+            <meshStandardMaterial color="#715437" roughness={0.78} />
+          </mesh>
+          <mesh position={[0, 0.82, 0]} rotation={[0, Math.PI / 8, 0]}>
+            <octahedronGeometry args={[0.48, 0]} />
+            <meshStandardMaterial
+              color="#d6a65c"
+              emissive="#9d6425"
+              emissiveIntensity={0.7}
+              roughness={0.32}
+            />
+          </mesh>
+          <pointLight position={[0, 1.1, 0]} color="#f0b45d" intensity={1.7} distance={5} />
+        </group>
+      )}
       {visualBlockers.map((blocker) => (
         <WarRoomBlockerVisual key={blocker.id} blocker={blocker} />
       ))}

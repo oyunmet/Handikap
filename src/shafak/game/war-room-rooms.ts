@@ -129,8 +129,8 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   },
   {
     id: "ember-gate",
-    name: "Kor Kapısı",
-    layoutName: "Doğu Geçidi",
+    name: "Kül Köyü",
+    layoutName: "Kor içindeki doğu geçidi",
     quarterTurns: 1,
     coverOffset: [0, 0],
     theme: {
@@ -150,8 +150,8 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   },
   {
     id: "frost-bastion",
-    name: "Ayaz Burcu",
-    layoutName: "Güney Kulesi",
+    name: "Bataklık Kulübeleri",
+    layoutName: "Sulara gömülen güney yerleşimi",
     quarterTurns: 2,
     coverOffset: [0, 0],
     theme: {
@@ -171,8 +171,8 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   },
   {
     id: "black-rampart",
-    name: "Kara Siper",
-    layoutName: "Batı Savunması",
+    name: "Yıkık Tapınak",
+    layoutName: "Kırılmış batı kutsal alanı",
     quarterTurns: 3,
     coverOffset: [0, 0],
     theme: {
@@ -192,8 +192,8 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   },
   {
     id: "sunken-keep",
-    name: "Batık Hisar",
-    layoutName: "Yıkık Avlu",
+    name: "Kale Koridorları",
+    layoutName: "Batık hisarın iç avlusu",
     quarterTurns: 0,
     coverOffset: [-5, 4],
     theme: {
@@ -213,8 +213,8 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   },
   {
     id: "moonlit-citadel",
-    name: "Ayışığı Kalesi",
-    layoutName: "İç Kale",
+    name: "Kuzey Surları",
+    layoutName: "Ayışığı altındaki iç kale",
     quarterTurns: 2,
     coverOffset: [6, -4],
     theme: {
@@ -233,6 +233,18 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
     commanderColor: "#8c85c7",
   },
 ];
+
+export type WarRoomMapSummary = {
+  id: string;
+  name: string;
+  layoutName: string;
+};
+
+export const WAR_ROOM_MAPS: readonly WarRoomMapSummary[] = ROOM_DEFINITIONS.map((room) => ({
+  id: room.id,
+  name: room.name,
+  layoutName: room.layoutName,
+}));
 
 function rotatePoint(x: number, z: number, quarterTurns: number) {
   switch (quarterTurns % 4) {
@@ -456,11 +468,12 @@ function getAdditionalSpawnSites() {
 
 const ADDITIONAL_SPAWN_SITES = getAdditionalSpawnSites();
 
-export function getWarRoomRoom(roomNumber: number, runSeed = 0): WarRoomRoom {
+export function getWarRoomRoom(roomNumber: number, runSeed = 0, mapId?: string): WarRoomRoom {
   const safeNumber = Math.max(1, Math.floor(Number.isFinite(roomNumber) ? roomNumber : 1));
   const safeRunSeed = Number.isFinite(runSeed) ? Math.trunc(runSeed) >>> 0 : 0;
   const cycle = Math.floor((safeNumber - 1) / ROOM_DEFINITIONS.length);
-  const definition = ROOM_DEFINITIONS[(safeNumber - 1) % ROOM_DEFINITIONS.length];
+  const definition = ROOM_DEFINITIONS.find((room) => room.id === mapId)
+    ?? ROOM_DEFINITIONS[(safeNumber - 1) % ROOM_DEFINITIONS.length];
   const blockers = WAR_ROOM_BLOCKERS.map((blocker) => {
     const point = transformPoint(
       blocker.x,

@@ -147,6 +147,107 @@
   box-shadow: inset 0 1px 0 rgba(255, 238, 210, 0.05);
 }
 
+.war-room-mission-options {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.war-room-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.war-room-mode-grid button {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 8px 9px;
+  border: 1px solid rgba(210, 184, 146, 0.22);
+  border-radius: 4px;
+  background: rgba(25, 23, 21, 0.82);
+  color: #e7d4b7;
+  text-align: left;
+  cursor: pointer;
+}
+
+.war-room-mode-grid button.is-selected {
+  border-color: rgba(240, 187, 108, 0.78);
+  background: rgba(93, 63, 35, 0.65);
+  color: #fff0d1;
+  box-shadow: inset 0 0 0 1px rgba(240, 187, 108, 0.2);
+}
+
+.war-room-mode-grid button b {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.war-room-mode-grid button small {
+  color: rgba(231, 212, 183, 0.68);
+  font-size: 8px;
+  line-height: 1.3;
+}
+
+.war-room-mission-selects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.war-room-mission-selects label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  color: rgba(231, 212, 183, 0.7);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.war-room-mission-selects select {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid rgba(210, 184, 146, 0.25);
+  border-radius: 3px;
+  background: #211e1b;
+  color: #f0dfc2;
+  font: inherit;
+  font-size: 9px;
+}
+
+.war-room-modifier-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.war-room-modifier-list label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 3px 6px;
+  border: 1px solid rgba(210, 184, 146, 0.2);
+  border-radius: 3px;
+  background: rgba(25, 23, 21, 0.72);
+  color: rgba(231, 212, 183, 0.85);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.war-room-modifier-list input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #d9a45f;
+}
+
 .war-room-mission-card__symbol {
   display: grid;
   width: 42px;
@@ -918,6 +1019,45 @@
 .war-room-side-contract.is-complete {
   border-color: rgba(145, 207, 145, 0.65);
   box-shadow: 0 0 14px rgba(145, 207, 145, 0.14);
+}
+
+.war-room-objective-status {
+  display: grid;
+  min-width: 112px;
+  max-width: 174px;
+  gap: 3px;
+  padding: 6px 8px;
+  border: 1px solid rgba(236, 194, 126, 0.36);
+  border-radius: 4px;
+  background: rgba(19, 20, 24, 0.82);
+  color: #f0dfc2;
+  text-shadow: 0 1px 3px #000;
+}
+
+.war-room-objective-status > b {
+  color: #e6bb78;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+.war-room-objective-status > small {
+  color: rgba(242, 227, 207, 0.86);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.war-room-objective-status > i {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.war-room-objective-status > i em {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #9b4d3c, #e0b064);
 }
 
 .war-room-loot-action {

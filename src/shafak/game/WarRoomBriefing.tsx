@@ -4,13 +4,29 @@ import {
 } from "./war-room-data";
 import { isWarRoomWeaponOwned } from "./war-room-loadout";
 import { WAR_ROOM_BUILD_VERSION, WAR_ROOM_WEAPON_ICONS_ENABLED } from "./war-room-features";
+import {
+  WAR_ROOM_DIFFICULTIES,
+  WAR_ROOM_MODES,
+  WAR_ROOM_MODIFIERS,
+  type WarRoomDifficultyId,
+  type WarRoomModeId,
+  type WarRoomModifierId,
+} from "./war-room-missions";
 import { WarRoomWeaponIcon } from "./WarRoomWeaponIcon";
-import type { WarRoomRoom, WarRoomSavedProgress } from "./war-room-rooms";
+import { WAR_ROOM_MAPS, type WarRoomRoom, type WarRoomSavedProgress } from "./war-room-rooms";
 
 type Props = {
   room: WarRoomRoom;
   dailyChallengeRoom: WarRoomRoom;
   dailyChallengeComplete: boolean;
+  selectedMode: Exclude<WarRoomModeId, "daily">;
+  selectedDifficulty: WarRoomDifficultyId;
+  selectedModifiers: readonly WarRoomModifierId[];
+  selectedMapId: string;
+  onSelectMode: (mode: Exclude<WarRoomModeId, "daily">) => void;
+  onSelectDifficulty: (difficulty: WarRoomDifficultyId) => void;
+  onToggleModifier: (modifier: WarRoomModifierId) => void;
+  onSelectMap: (mapId: string) => void;
   roomProgress: WarRoomSavedProgress;
   ownedItemIds: readonly string[];
   loadout: readonly [WarRoomWeaponId, WarRoomWeaponId];
@@ -30,6 +46,14 @@ export default function WarRoomBriefing({
   room,
   dailyChallengeRoom,
   dailyChallengeComplete,
+  selectedMode,
+  selectedDifficulty,
+  selectedModifiers,
+  selectedMapId,
+  onSelectMode,
+  onSelectDifficulty,
+  onToggleModifier,
+  onSelectMap,
   roomProgress,
   ownedItemIds,
   loadout,
@@ -57,12 +81,68 @@ export default function WarRoomBriefing({
       </header>
       <div className="war-room-briefing__content">
         <section className="war-room-briefing__overview" aria-label="Görev bilgileri">
+          <div className="war-room-mission-options" aria-label="Görev ayarları">
+            <div className="war-room-mode-grid" role="group" aria-label="Oyun modu seç">
+              {WAR_ROOM_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={selectedMode === mode.id ? "is-selected" : ""}
+                  aria-pressed={selectedMode === mode.id}
+                  onClick={() => onSelectMode(mode.id)}
+                >
+                  <b>{mode.name}</b><small>{mode.description}</small>
+                </button>
+              ))}
+            </div>
+            <div className="war-room-mission-selects">
+              <label>
+                <span>HARİTA</span>
+                <select value={selectedMapId} onChange={(event) => onSelectMap(event.currentTarget.value)}>
+                  {WAR_ROOM_MAPS.map((map) => (
+                    <option key={map.id} value={map.id}>{map.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>ZORLUK</span>
+                <select
+                  value={selectedDifficulty}
+                  onChange={(event) => onSelectDifficulty(event.currentTarget.value as WarRoomDifficultyId)}
+                >
+                  {WAR_ROOM_DIFFICULTIES.map((difficulty) => (
+                    <option key={difficulty.id} value={difficulty.id}>{difficulty.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="war-room-modifier-list" role="group" aria-label="Görev değiştiricileri">
+              {WAR_ROOM_MODIFIERS.map((modifier) => (
+                <label key={modifier.id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedModifiers.includes(modifier.id)}
+                    onChange={() => onToggleModifier(modifier.id)}
+                  />
+                  <span>{modifier.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="war-room-mission-card">
             <div className="war-room-mission-card__symbol" aria-hidden="true">✦</div>
             <div>
               <span>GÖREV HEDEFİ</span>
-              <strong>Komutan dâhil {room.enemyCount} düşmanı temizle</strong>
-              <small>{room.commanderTitle} · {room.layoutName} · Siper al ve komutanın işaretini takip et.</small>
+              <strong>
+                {selectedMode === "treasure"
+                  ? "Süre dolmadan 5 sandık aç"
+                  : selectedMode === "defense"
+                    ? "Savunma noktasını koru ve komutanı yen"
+                    : selectedMode === "survival"
+                      ? "Sonsuz düşman dalgalarında hayatta kal"
+                      : `Komutan dâhil ${room.enemyCount} düşmanı temizle`}
+              </strong>
+              <small>{room.name} · {room.layoutName} · {room.commanderTitle}</small>
             </div>
             <b className="war-room-enemy-count">{String(room.enemyCount).padStart(2, "0")}</b>
           </div>

@@ -14,6 +14,7 @@ import {
 import {
   createWarRoomRuntime,
   createWarRoomTrainingRuntime,
+  advanceWarRoomSurvivalWave,
   type WarRoomHudSnapshot,
   type WarRoomInputState,
   type WarRoomRuntime,
@@ -37,6 +38,15 @@ import {
   WAR_ROOM_WEAPON_ICONS_ENABLED,
   WAR_ROOM_WEAPON_LAB_ENABLED,
 } from "./war-room-features";
+import {
+  getWarRoomDailyPreset,
+  getWarRoomMissionReward,
+  getWarRoomResultLabel,
+  getWarRoomResultGrade,
+  type WarRoomDifficultyId,
+  type WarRoomModeId,
+  type WarRoomModifierId,
+} from "./war-room-missions";
 import {
   getNextWarRoomLabWeaponIndex,
   getWarRoomLabWeaponLength,
@@ -91,6 +101,7 @@ import {
   getWarRoomRoomCarryHp,
   getWarRoomRoomRewardMultiplier,
   normalizeWarRoomSavedProgress,
+  WAR_ROOM_MAPS,
   type WarRoomRoom,
   type WarRoomSavedProgress,
 } from "./war-room-rooms";
@@ -219,6 +230,15 @@ function createInputState(): WarRoomInputState {
 
 function createEmptyHud(): WarRoomHudSnapshot {
   return {
+    mission: {
+      mode: "raid",
+      wave: 1,
+      score: 0,
+      timeLimitSeconds: null,
+      targetChests: 0,
+      defenseHp: 0,
+      defenseMaxHp: 0,
+    },
     player: { x: 0, z: 0, floorHeight: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
     orientation: {
       facingYaw: 0,
@@ -267,6 +287,11 @@ function createEmptyHud(): WarRoomHudSnapshot {
     lootChestsOpened: 0,
     nearbyDoor: null,
   };
+}
+
+function formatMissionClock(seconds: number) {
+  const safe = Math.max(0, Math.ceil(seconds));
+  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
 }
 
 function recordWarRoomGold(amount: number) {
@@ -509,10 +534,18 @@ export default function WarRoomGame({
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
   const dailyChallenge = useMemo(() => getWarRoomDailyChallenge(), []);
-  const dailyChallengeRoom = useMemo(
-    () => getWarRoomRoom(1, dailyChallenge.seed),
+  const dailyPreset = useMemo(
+    () => getWarRoomDailyPreset(dailyChallenge.seed, WAR_ROOM_MAPS.map(({ id }) => id)),
     [dailyChallenge.seed],
   );
+  const dailyChallengeRoom = useMemo(
+    () => getWarRoomRoom(1, dailyChallenge.seed, dailyPreset.mapId),
+    [dailyChallenge.seed, dailyPreset.mapId],
+  );
+  const [selectedMode, setSelectedMode] = useState<Exclude<WarRoomModeId, "daily">>("raid");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<WarRoomDifficultyId>("normal");
+  const [selectedModifiers, setSelectedModifiers] = useState<WarRoomModifierId[]>([]);
+  const [selectedMapId, setSelectedMapId] = useState(WAR_ROOM_MAPS[0]!.id);
   const [dailyCompletionDayKey, setDailyCompletionDayKey] = useState(readWarRoomDailyCompletionDayKey);
   const dailyRunRef = useRef(false);
   const [savedControlLayout, setSavedControlLayout] = useState(readSavedControlLayout);
@@ -582,6 +615,9 @@ export default function WarRoomGame({
   );
   const floorLabel = floorPresentation?.label ?? null;
   const controlLayoutEnabled = savedControlLayout.customized;
+  const briefingRoom = phase === "briefing"
+    ? getWarRoomRoom(roomNumber, 0, selectedMapId)
+    : currentRoom;
 
   useEffect(() => () => {
     if (typeof window === "undefined") return;
@@ -644,6 +680,14 @@ export default function WarRoomGame({
     const runSeed = preparedRuntime?.room.runSeed
       ?? dailySeedOverride
       ?? Math.floor(Math.random() * 4_294_967_296);
+    const missionOptions = dailySeedOverride !== undefined
+      ? { ...dailyPreset, mode: "daily" as const }
+      : {
+        mode: selectedMode,
+        difficulty: selectedDifficulty,
+        modifiers: selectedModifiers,
+        mapId: selectedMapId,
+      };
     runtimeRef.current = weaponLabMode
       ? createWarRoomTrainingRuntime(loadout)
       : preparedRuntime ?? createWarRoomRuntime(
@@ -651,6 +695,7 @@ export default function WarRoomGame({
         0,
         WAR_ROOM_ROOM_CHAIN_ENABLED ? targetRoomNumber : 1,
         runSeed,
+        missionOptions,
       );
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
@@ -671,14 +716,36 @@ export default function WarRoomGame({
 
   const finishBattle = useCallback((result: "victory" | "defeat", finalHud: WarRoomHudSnapshot) => {
     const completedRoom = runtimeRef.current.room;
+    const completedMission = runtimeRef.current.mission;
+    if (result === "victory" && completedMission.mode === "survival") {
+      const now = performance.now() / 1000;
+      const nextRuntime = createWarRoomRuntime(
+        loadout,
+        now,
+        completedRoom.number + 1,
+        completedRoom.runSeed,
+        {
+          mode: "survival",
+          difficulty: completedMission.difficulty,
+          modifiers: completedMission.modifiers,
+          mapId: completedMission.mapId,
+        },
+      );
+      runtimeRef.current = advanceWarRoomSurvivalWave(runtimeRef.current, nextRuntime);
+      setRoomNumber(nextRuntime.room.number);
+      preparedNextRoomRef.current = null;
+      setHud(createEmptyHud());
+      setRunKey((key) => key + 1);
+      return;
+    }
     const contractProgress = getWarRoomContractProgress(completedRoom.contract, finalHud);
-    const contractBonus = result === "victory"
+    const dailyAlreadyClaimed = dailyRunRef.current && dailyChallengeComplete;
+    const contractBonus = result === "victory" && !dailyAlreadyClaimed
       ? getWarRoomContractReward(completedRoom.contract, contractProgress)
       : 0;
     const earnedDailyChallenge = dailyRunRef.current
-      && completedRoom.number === 1
-      && result === "victory"
-      && contractBonus > 0;
+      && completedMission.mode === "daily"
+      && result === "victory";
     if (earnedDailyChallenge) {
       setDailyCompletionDayKey(dailyChallenge.dayKey);
       writeWarRoomDailyCompletionDayKey(dailyChallenge.dayKey);
@@ -688,12 +755,22 @@ export default function WarRoomGame({
     const nextRoom = result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED
       ? getWarRoomRoom(completedRoom.number + 1, completedRoom.runSeed)
       : null;
-    const baseReward = 90 + finalHud.kills * 7 + finalHud.headshots * 5;
-    const gold = result === "victory"
-      ? Math.round(baseReward * (
-        WAR_ROOM_ROOM_CHAIN_ENABLED ? getWarRoomRoomRewardMultiplier(completedRoom.number) : 1
-      )) + contractBonus
-      : 0;
+    const baseReward = getWarRoomMissionReward({
+      mode: completedMission.mode,
+      victory: result === "victory",
+      alreadyClaimedToday: dailyAlreadyClaimed,
+      kills: finalHud.kills,
+      headshots: finalHud.headshots,
+      contractBonus,
+      wave: completedMission.wave,
+    });
+    const gold = completedMission.mode === "survival"
+      ? baseReward
+      : result === "victory"
+        ? Math.round(baseReward * (
+          WAR_ROOM_ROOM_CHAIN_ENABLED ? getWarRoomRoomRewardMultiplier(completedRoom.number) : 1
+        ))
+        : 0;
     const totalGold = gold > 0 ? recordWarRoomGold(gold) : null;
     if (result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED) {
       const updatedProgress = getWarRoomProgressAfterVictory(
@@ -735,6 +812,18 @@ export default function WarRoomGame({
         progress: contractProgress,
         completed: contractBonus > 0,
       },
+      mode: completedMission.mode,
+      difficulty: completedMission.difficulty,
+      modifiers: completedMission.modifiers,
+      wave: completedMission.wave,
+      score: completedMission.mode === "survival"
+        ? finalHud.kills * 100 + finalHud.headshots * 25
+        : finalHud.kills * 100 + finalHud.headshots * 25,
+      grade: getWarRoomResultGrade({
+        accuracy: finalHud.shots > 0 ? (finalHud.hits / finalHud.shots) * 100 : 0,
+        healthRatio: finalHud.player.hp / Math.max(1, finalHud.player.maxHp),
+        seconds: finalHud.elapsedSeconds,
+      }),
       leaderboard: createWarRoomLeaderboard(
         profile.name,
         result,
@@ -744,7 +833,13 @@ export default function WarRoomGame({
       ),
     });
     setPhase(result);
-  }, [dailyChallenge.dayKey, dailyChallengeComplete, loadout, profile.name]);
+  }, [
+    dailyChallenge.dayKey,
+    dailyChallengeComplete,
+    dailyPreset,
+    loadout,
+    profile.name,
+  ]);
 
   const pauseBattle = useCallback(() => {
     const input = inputRef.current;
@@ -1273,9 +1368,21 @@ export default function WarRoomGame({
     >
       {phase === "briefing" && (
         <WarRoomBriefing
-          room={currentRoom}
+          room={briefingRoom}
           dailyChallengeRoom={dailyChallengeRoom}
           dailyChallengeComplete={dailyChallengeComplete}
+          selectedMode={selectedMode}
+          selectedDifficulty={selectedDifficulty}
+          selectedModifiers={selectedModifiers}
+          selectedMapId={selectedMapId}
+          onSelectMode={setSelectedMode}
+          onSelectDifficulty={setSelectedDifficulty}
+          onSelectMap={setSelectedMapId}
+          onToggleModifier={(modifier) => setSelectedModifiers((current) => (
+            current.includes(modifier)
+              ? current.filter((item) => item !== modifier)
+              : [...current, modifier]
+          ))}
           roomProgress={roomProgress}
           ownedItemIds={profile.inventory.ownedItemIds}
           loadout={loadout}
@@ -1535,8 +1642,15 @@ export default function WarRoomGame({
             <div className="war-room-hud__top">
               <div className="war-room-location-status">
                 {WAR_ROOM_ROOM_CHAIN_ENABLED && (
-                  <div className="war-room-room-indicator" aria-label={`Oda ${currentRoom.number} / sonsuz`}>
-                    <span>ODA</span><b>{currentRoom.number}</b><small>/ ∞</small>
+                  <div
+                    className="war-room-room-indicator"
+                    aria-label={hud.mission.mode === "survival"
+                      ? `Hayatta kalma dalgası ${hud.mission.wave}`
+                      : `Oda ${currentRoom.number} / sonsuz`}
+                  >
+                    <span>{hud.mission.mode === "survival" ? "DALGA" : "ODA"}</span>
+                    <b>{hud.mission.mode === "survival" ? hud.mission.wave : currentRoom.number}</b>
+                    {hud.mission.mode !== "survival" && <small>/ ∞</small>}
                   </div>
                 )}
                 {floorLabel && (
@@ -1548,7 +1662,7 @@ export default function WarRoomGame({
                     {floorLabel}
                   </div>
                 )}
-                <div
+                {hud.mission.mode === "raid" && <div
                   className={`war-room-side-contract${contractBonus > 0 ? " is-complete" : ""}`}
                   role="status"
                   aria-label={`Ek hedef: ${currentRoom.contract.description}, ${contractProgress}/${currentRoom.contract.target}`}
@@ -1556,6 +1670,30 @@ export default function WarRoomGame({
                   <span>EK HEDEF</span>
                   <strong>{currentRoom.contract.title}</strong>
                   <small>{contractProgress}/{currentRoom.contract.target} · +{currentRoom.contract.bonusGold} altın</small>
+                </div>}
+                <div className="war-room-objective-status" aria-label={`${getWarRoomResultLabel(hud.mission.mode)} görev durumu`}>
+                  <b>{getWarRoomResultLabel(hud.mission.mode)}</b>
+                  {hud.mission.mode === "survival" && (
+                    <small>DALGA {hud.mission.wave} · SKOR {(hud.kills * 100 + hud.headshots * 25).toLocaleString("tr-TR")}</small>
+                  )}
+                  {hud.mission.mode === "treasure" && (
+                    <small>
+                      SANDIK {hud.lootChestsOpened}/{hud.mission.targetChests}
+                      {" · "}
+                      {formatMissionClock(Math.max(0, (hud.mission.timeLimitSeconds ?? 0) - hud.elapsedSeconds))}
+                    </small>
+                  )}
+                  {hud.mission.mode === "defense" && (
+                    <>
+                      <small>SAVUNMA {Math.ceil(hud.mission.defenseHp)}/{hud.mission.defenseMaxHp}</small>
+                      <i aria-hidden="true">
+                        <em style={{ width: `${Math.max(0, Math.min(100, (hud.mission.defenseHp / Math.max(1, hud.mission.defenseMaxHp)) * 100))}%` }} />
+                      </i>
+                    </>
+                  )}
+                  {hud.mission.mode === "daily" && (
+                    <small>{currentRoom.contract.title} · {contractProgress}/{currentRoom.contract.target}</small>
+                  )}
                 </div>
               </div>
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">

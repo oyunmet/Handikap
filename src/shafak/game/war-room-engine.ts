@@ -14,11 +14,39 @@ import type { WarRoomDoorState } from "./war-room-doors";
 import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
 import { getWarRoomRoom, type WarRoomRoom } from "./war-room-rooms";
 import { WAR_ROOM_CONFIG } from "./war-room-config";
+import {
+  createWarRoomMissionState,
+  getWarRoomAmmoMultiplier,
+  getWarRoomEnemyDamageMultiplier,
+  getWarRoomEnemyHealthMultiplier,
+  getWarRoomEnemySpeedMultiplier,
+  type WarRoomMissionOptions,
+  type WarRoomMissionState,
+} from "./war-room-missions";
+
+export type WarRoomEnemyArchetype =
+  | "infantry"
+  | "assault"
+  | "marksman"
+  | "shield"
+  | "heavy"
+  | "summoner";
+
+const WAR_ROOM_ENEMY_ARCHETYPES: readonly WarRoomEnemyArchetype[] = [
+  "infantry",
+  "assault",
+  "marksman",
+  "shield",
+  "heavy",
+  "summoner",
+];
 
 export type WarRoomEnemy = {
   id: string;
   name: string;
   commander: boolean;
+  archetype: WarRoomEnemyArchetype;
+  speedMultiplier: number;
   weaponId: WarRoomWeaponId;
   color: string;
   x: number;
@@ -58,6 +86,7 @@ export type WarRoomAmmo = { magazine: number; reserve: number };
 
 export type WarRoomRuntime = {
   room: WarRoomRoom;
+  mission: WarRoomMissionState;
   doorStates: Record<string, WarRoomDoorState>;
   player: {
     x: number;
@@ -179,6 +208,16 @@ export const WAR_ROOM_PLAYER_COLLISION_RADIUS: number = WAR_ROOM_CONFIG.player.c
 const WAR_ROOM_COLLISION_STEP_DISTANCE: number = WAR_ROOM_CONFIG.player.collisionStepDistance;
 
 export type WarRoomHudSnapshot = {
+  mission: {
+    mode: WarRoomMissionState["mode"];
+    dailyObjective: WarRoomMissionState["dailyObjective"];
+    wave: number;
+    score: number;
+    timeLimitSeconds: number | null;
+    targetChests: number;
+    defenseHp: number;
+    defenseMaxHp: number;
+  };
   player: { x: number; z: number; floorHeight: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };
   orientation: {
     facingYaw: number;
@@ -251,22 +290,49 @@ export function createWarRoomRuntime(
   now = 0,
   roomNumber = 1,
   runSeed = 0,
+  missionOptions: WarRoomMissionOptions = {
+    mode: "raid",
+    difficulty: "normal",
+    modifiers: [],
+    mapId: "stone-courtyard",
+  },
 ): WarRoomRuntime {
-  const room = getWarRoomRoom(roomNumber, runSeed);
+  const room = getWarRoomRoom(roomNumber, runSeed, missionOptions.mapId);
+  const mission = createWarRoomMissionState(missionOptions, room.playerSpawn);
+  room.enemyHpMultiplier *= getWarRoomEnemyHealthMultiplier(mission.difficulty);
+  room.enemyDamageMultiplier *= getWarRoomEnemyDamageMultiplier(
+    mission.difficulty,
+    mission.modifiers,
+  );
+  const ammoMultiplier = getWarRoomAmmoMultiplier(mission.modifiers);
+  const enemySpeedMultiplier = getWarRoomEnemySpeedMultiplier(mission.modifiers);
   const enemies: WarRoomEnemy[] = room.enemySpawns
     .slice(0, room.enemyCount - 1)
     .map((spawn, index) => {
     const cover = room.coverSpots[index % room.coverSpots.length];
+    const archetype = WAR_ROOM_ENEMY_ARCHETYPES[index % WAR_ROOM_ENEMY_ARCHETYPES.length]!;
+    const archetypeHealth = archetype === "heavy" ? 1.55
+      : archetype === "shield" ? 1.28
+        : archetype === "assault" ? 0.82 : 1;
+    const archetypeDamage = archetype === "marksman" ? 1.2
+      : archetype === "heavy" ? 1.35
+        : archetype === "summoner" ? 0.9 : 1;
+    const archetypeSpeed = archetype === "assault" ? 1.4
+      : archetype === "heavy" ? 0.72
+        : archetype === "shield" ? 0.84
+          : archetype === "summoner" ? 0.92 : 1;
     return {
       ...spawn,
       name: room.enemyNames[index % room.enemyNames.length],
       commander: false,
+      archetype,
+      speedMultiplier: archetypeSpeed * enemySpeedMultiplier,
       weaponId: room.enemyWeapons[index % room.enemyWeapons.length],
       color: room.enemyColor,
       floorHeight: 0,
-      hp: 90 * room.enemyHpMultiplier,
-      maxHp: 90 * room.enemyHpMultiplier,
-      damage: Math.round(9 * room.enemyDamageMultiplier),
+      hp: 90 * room.enemyHpMultiplier * archetypeHealth,
+      maxHp: 90 * room.enemyHpMultiplier * archetypeHealth,
+      damage: Math.round(9 * room.enemyDamageMultiplier * archetypeDamage),
       score: 0,
       alive: true,
       mode: "approach",
@@ -288,6 +354,8 @@ export function createWarRoomRuntime(
     id: WAR_ROOM_COMMANDER.id,
     name: room.commanderName,
     commander: true,
+    archetype: "heavy",
+    speedMultiplier: 0.76 * enemySpeedMultiplier,
     weaponId: room.commanderWeapon,
     color: room.commanderColor,
     x: room.commanderPosition.x,
@@ -317,12 +385,16 @@ export function createWarRoomRuntime(
   for (const id of new Set(weaponIds)) {
     const weapon = WAR_ROOM_WEAPON_BY_ID.get(id);
     if (weapon && weapon.weaponClass !== "melee") {
-      ammo[id] = { magazine: weapon.magazine, reserve: weapon.reserve };
+      ammo[id] = {
+        magazine: Math.max(1, Math.floor(weapon.magazine * Math.min(1, ammoMultiplier + 0.2))),
+        reserve: Math.floor(weapon.reserve * ammoMultiplier),
+      };
     }
   }
 
   return {
     room,
+    mission,
     doorStates: {},
     lootChests: room.lootChests.map((chest) => ({ ...chest, opened: false })),
     player: {
@@ -412,6 +484,31 @@ export function createWarRoomRuntime(
   };
 }
 
+export function advanceWarRoomSurvivalWave(
+  previous: WarRoomRuntime,
+  next: WarRoomRuntime,
+) {
+  if (previous.mission.mode !== "survival" || next.mission.mode !== "survival") {
+    throw new Error("Only survival runs can advance to another wave.");
+  }
+  next.mission.wave = previous.mission.wave + 1;
+  next.mission.score = previous.player.kills * 100 + previous.player.headshots * 25;
+  next.player.hp = Math.min(next.player.maxHp, previous.player.hp);
+  next.player.stamina = Math.min(next.player.maxStamina, previous.player.stamina);
+  next.player.activeSlot = previous.player.activeSlot;
+  next.player.ammo = Object.fromEntries(
+    Object.entries(previous.player.ammo).map(([id, ammo]) => [id, ammo ? { ...ammo } : ammo]),
+  );
+  next.player.kills = previous.player.kills;
+  next.player.headshots = previous.player.headshots;
+  next.player.shots = previous.player.shots;
+  next.player.hits = previous.player.hits;
+  next.player.startTime = previous.player.startTime;
+  next.player.rngState = previous.player.rngState;
+  next.player.killFeed = [...previous.player.killFeed.slice(-3)];
+  return next;
+}
+
 export function createWarRoomTrainingRuntime(
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId],
   now = 0,
@@ -430,6 +527,8 @@ export function createWarRoomTrainingRuntime(
     id: "training-dummy",
     name: "Eğitim Mankeni",
     commander: false,
+    archetype: "infantry",
+    speedMultiplier: 0,
     weaponId: "powder_rifle",
     color: "#92715a",
     ...dummyPosition,
