@@ -1,6 +1,6 @@
-import type { PlayerProfile } from "./profile";
-import type { WarRoomModeId } from "./war-room-missions";
-import { getIstanbulDayKey } from "./daily-lives";
+import type { PlayerProfile } from "./profile.ts";
+import type { WarRoomModeId } from "./war-room-missions.ts";
+import { getIstanbulDayKey } from "./daily-lives.ts";
 
 export const WAR_ROOM_DAILY_PROFILE_XP_CAP = 60;
 export const WAR_ROOM_DAILY_SEAL_CAP = 1;

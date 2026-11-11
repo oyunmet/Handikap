@@ -21,7 +21,97 @@ type WarRoomNavigationGrid = {
   blocked: Uint8Array;
 };
 
+type CachedPursuitWaypoint = {
+  targetX: number;
+  targetZ: number;
+  targetFloor: number;
+  radius: number;
+  x: number;
+  z: number;
+  lastDistance: number;
+};
+
 const navigationGrids = new WeakMap<readonly WarRoomBlocker[], Map<string, WarRoomNavigationGrid>>();
+const pursuitWaypoints = new WeakMap<object, CachedPursuitWaypoint>();
+
+function pointToSegmentDistance(
+  point: { x: number; z: number },
+  start: { x: number; z: number },
+  end: { x: number; z: number },
+) {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const lengthSquared = dx * dx + dz * dz;
+  const fraction = lengthSquared > 0
+    ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSquared))
+    : 0;
+  return Math.hypot(point.x - (start.x + dx * fraction), point.z - (start.z + dz * fraction));
+}
+
+function segmentIntersectsBounds(
+  start: { x: number; z: number },
+  end: { x: number; z: number },
+  minX: number,
+  maxX: number,
+  minZ: number,
+  maxZ: number,
+) {
+  let minimum = 0;
+  let maximum = 1;
+  for (const [origin, delta, low, high] of [
+    [start.x, end.x - start.x, minX, maxX],
+    [start.z, end.z - start.z, minZ, maxZ],
+  ]) {
+    if (Math.abs(delta) < 1e-8) {
+      if (origin < low || origin > high) return false;
+      continue;
+    }
+    const first = (low - origin) / delta;
+    const second = (high - origin) / delta;
+    minimum = Math.max(minimum, Math.min(first, second));
+    maximum = Math.min(maximum, Math.max(first, second));
+    if (minimum > maximum) return false;
+  }
+  return true;
+}
+
+function isWarRoomSegmentClear(
+  start: { x: number; z: number },
+  end: { x: number; z: number },
+  blockers: readonly WarRoomBlocker[],
+  radius: number,
+  floorHeight: number,
+) {
+  for (const blocker of blockers) {
+    if (blocker.kind === "platform") continue;
+    const baseY = blocker.baseY ?? 0;
+    if (floorHeight >= baseY + blocker.height || floorHeight + 1.8 <= baseY) continue;
+    const minX = blocker.x - blocker.width / 2;
+    const maxX = blocker.x + blocker.width / 2;
+    const minZ = blocker.z - blocker.depth / 2;
+    const maxZ = blocker.z + blocker.depth / 2;
+    if (segmentIntersectsBounds(start, end, minX, maxX, minZ, maxZ)) return false;
+
+    const startX = Math.max(minX, Math.min(maxX, start.x));
+    const startZ = Math.max(minZ, Math.min(maxZ, start.z));
+    const endX = Math.max(minX, Math.min(maxX, end.x));
+    const endZ = Math.max(minZ, Math.min(maxZ, end.z));
+    let distance = Math.min(
+      Math.hypot(start.x - startX, start.z - startZ),
+      Math.hypot(end.x - endX, end.z - endZ),
+    );
+    for (const corner of [
+      { x: minX, z: minZ },
+      { x: minX, z: maxZ },
+      { x: maxX, z: minZ },
+      { x: maxX, z: maxZ },
+    ]) {
+      distance = Math.min(distance, pointToSegmentDistance(corner, start, end));
+    }
+    if (distance < radius) return false;
+  }
+  return true;
+}
 
 function getWarRoomNavigationGrid(
   blockers: readonly WarRoomBlocker[],
@@ -80,6 +170,40 @@ function nearestClearGridIndex(x: number, z: number, grid: WarRoomNavigationGrid
   return -1;
 }
 
+function nearestVisibleGridIndex(
+  actor: PursuitActor,
+  grid: WarRoomNavigationGrid,
+  blockers: readonly WarRoomBlocker[],
+  radius: number,
+) {
+  const centerX = Math.round((actor.x - grid.min) / grid.step);
+  const centerZ = Math.round((actor.z - grid.min) / grid.step);
+  const floorHeight = actor.floorHeight ?? 0;
+  for (let ring = 0; ring <= 5; ring += 1) {
+    let bestIndex = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let offsetZ = -ring; offsetZ <= ring; offsetZ += 1) {
+      for (let offsetX = -ring; offsetX <= ring; offsetX += 1) {
+        if (ring > 0 && Math.max(Math.abs(offsetX), Math.abs(offsetZ)) !== ring) continue;
+        const column = centerX + offsetX;
+        const row = centerZ + offsetZ;
+        if (column < 0 || column >= grid.size || row < 0 || row >= grid.size) continue;
+        const index = row * grid.size + column;
+        if (grid.blocked[index]) continue;
+        const point = getGridPoint(index, grid);
+        if (!isWarRoomSegmentClear(actor, point, blockers, radius, floorHeight)) continue;
+        const distance = offsetX * offsetX + offsetZ * offsetZ;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      }
+    }
+    if (bestIndex >= 0) return bestIndex;
+  }
+  return -1;
+}
+
 function getGridPoint(index: number, grid: WarRoomNavigationGrid) {
   const row = Math.floor(index / grid.size);
   const column = index - row * grid.size;
@@ -94,7 +218,7 @@ function findWarRoomGridWaypoint(
 ) {
   const floorHeight = actor.floorHeight ?? 0;
   const grid = getWarRoomNavigationGrid(blockers, radius, floorHeight);
-  const startIndex = nearestClearGridIndex(actor.x, actor.z, grid);
+  const startIndex = nearestVisibleGridIndex(actor, grid, blockers, radius);
   const goalIndex = nearestClearGridIndex(target.x, target.z, grid);
   if (startIndex < 0 || goalIndex < 0 || startIndex === goalIndex) return null;
 
@@ -132,17 +256,20 @@ function findWarRoomGridWaypoint(
   }
   if (previous[goalIndex] < 0) return null;
 
-  let next = goalIndex;
-  while (previous[next] !== startIndex && previous[next] !== next) {
-    next = previous[next]!;
+  const path: number[] = [];
+  for (let next = goalIndex; next !== startIndex; next = previous[next]!) {
+    path.push(next);
   }
-  const waypoint = getGridPoint(next, grid);
-  return segmentBlockFraction(
-    { x: actor.x, y: floorHeight + 0.9, z: actor.z },
-    { ...waypoint, y: floorHeight + 0.9 },
-    radius,
-    blockers,
-  ) === null ? waypoint : getGridPoint(startIndex, grid);
+  path.reverse();
+
+  let waypoint: { x: number; z: number } | null = null;
+  for (const index of path) {
+    const candidate = getGridPoint(index, grid);
+    if (isWarRoomSegmentClear(actor, candidate, blockers, radius, floorHeight)) {
+      waypoint = candidate;
+    }
+  }
+  return waypoint;
 }
 
 export function getWarRoomObstacleWaypoint(
@@ -155,22 +282,69 @@ export function getWarRoomObstacleWaypoint(
   const targetFloor = target.floorHeight ?? floorHeight;
   if (Math.abs(floorHeight - targetFloor) > 0.8) return { x: target.x, z: target.z };
 
+  const cached = pursuitWaypoints.get(actor);
+  if (cached) {
+    const distance = Math.hypot(cached.x - actor.x, cached.z - actor.z);
+    const targetStillSimilar = Math.hypot(cached.targetX - target.x, cached.targetZ - target.z) <= 2.5
+      && Math.abs(cached.targetFloor - targetFloor) <= 0.8
+      && cached.radius === radius;
+    const waypointStillReachable = isWarRoomPointClear(
+      cached.x,
+      cached.z,
+      blockers,
+      radius,
+      floorHeight,
+    ) && isWarRoomSegmentClear(actor, cached, blockers, radius, floorHeight);
+    if (
+      targetStillSimilar
+      && waypointStillReachable
+      && distance > 0.6
+      && distance < cached.lastDistance - 0.005
+    ) {
+      cached.lastDistance = distance;
+      return { x: cached.x, z: cached.z };
+    }
+    pursuitWaypoints.delete(actor);
+  }
+
+  const rememberWaypoint = (point: { x: number; z: number }) => {
+    pursuitWaypoints.set(actor, {
+      targetX: target.x,
+      targetZ: target.z,
+      targetFloor,
+      radius,
+      x: point.x,
+      z: point.z,
+      lastDistance: Math.hypot(point.x - actor.x, point.z - actor.z),
+    });
+    return point;
+  };
+
   const startY = floorHeight + 0.9;
   const endY = targetFloor + 0.9;
   const start = { x: actor.x, y: startY, z: actor.z };
   const end = { x: target.x, y: endY, z: target.z };
   let firstBlocker: WarRoomBlocker | null = null;
-  let nearestBlockFraction = Number.POSITIVE_INFINITY;
+  let nearestBlockDistance = Number.POSITIVE_INFINITY;
 
   for (const blocker of blockers) {
-    if (blocker.kind === "platform") continue;
-    const fraction = segmentBlockFraction(start, end, 0, [blocker]);
-    if (fraction !== null && fraction < nearestBlockFraction) {
-      nearestBlockFraction = fraction;
+    if (blocker.kind === "platform" || isWarRoomSegmentClear(
+      actor,
+      target,
+      [blocker],
+      radius,
+      floorHeight,
+    )) continue;
+    const distance = Math.hypot(blocker.x - actor.x, blocker.z - actor.z);
+    if (distance < nearestBlockDistance) {
+      nearestBlockDistance = distance;
       firstBlocker = blocker;
     }
   }
   if (!firstBlocker) return { x: target.x, z: target.z };
+
+  const routeWaypoint = findWarRoomGridWaypoint(actor, target, blockers, radius);
+  if (routeWaypoint) return rememberWaypoint(routeWaypoint);
 
   const clearance = radius + 0.85;
   let best: { x: number; z: number; score: number } | null = null;
@@ -204,9 +378,9 @@ export function getWarRoomObstacleWaypoint(
       if (!best || score < best.score) best = { ...candidate, score };
     }
   }
-  if (best) return { x: best.x, z: best.z };
-  return findWarRoomGridWaypoint(actor, target, blockers, radius)
-    ?? { x: target.x, z: target.z };
+  if (best) return rememberWaypoint({ x: best.x, z: best.z });
+  const fallbackWaypoint = findWarRoomGridWaypoint(actor, target, blockers, radius);
+  return fallbackWaypoint ? rememberWaypoint(fallbackWaypoint) : { x: target.x, z: target.z };
 }
 
 export function getWarRoomLootPursuitPoint(

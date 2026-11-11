@@ -5,10 +5,11 @@ import {
   getWarRoomObstacleWaypoint,
 } from "./war-room-ai.ts";
 import { isWarRoomPointClear } from "./war-room-data.ts";
-import { moveWarRoomEntity } from "./war-room-engine.ts";
+import { createWarRoomRuntime, moveWarRoomEntity } from "./war-room-engine.ts";
 import {
   getWarRoomBuildingLocalPoint,
   getWarRoomBuildingWorldPoint,
+  WAR_ROOM_MAPS,
   getWarRoomRoom,
   getWarRoomStairProfile,
 } from "./war-room-rooms.ts";
@@ -138,5 +139,49 @@ test("combat bots take collision-safe waypoints around blocked sight lines", () 
   assert.ok(
     Math.hypot(target.x - actor.x, target.z - actor.z) <= 0.5,
     `bot should reach the target around the wall; stopped at ${actor.x},${actor.z}`,
+  );
+});
+
+test("Taş Avlu raid bots keep advancing instead of alternating between corner waypoints", () => {
+  const map = WAR_ROOM_MAPS.find((candidate) => candidate.id === "stone-courtyard");
+  assert.ok(map);
+  const runtime = createWarRoomRuntime(
+    ["powder_rifle", "crossbow"],
+    0,
+    1,
+    20261111,
+    { mode: "raid", difficulty: "normal", modifiers: [], mapId: map.id },
+  );
+  const target = { x: runtime.player.x, z: runtime.player.z, floorHeight: 0 };
+  const bot = runtime.enemies
+    .filter((enemy) => !enemy.commander)
+    .sort((left, right) => (
+      Math.hypot(right.x - target.x, right.z - target.z)
+      - Math.hypot(left.x - target.x, left.z - target.z)
+    ))[0];
+  const initialDistance = Math.hypot(bot.x - target.x, bot.z - target.z);
+
+  for (let frame = 0; frame < 200; frame += 1) {
+    const waypoint = getWarRoomObstacleWaypoint(bot, target, runtime.room.blockers, 0.35);
+    const dx = waypoint.x - bot.x;
+    const dz = waypoint.z - bot.z;
+    const length = Math.hypot(dx, dz);
+    const step = Math.min(length, 3.7 / 20);
+    const moved = moveWarRoomEntity(
+      bot.x,
+      bot.z,
+      length > 0 ? (dx / length) * step : 0,
+      length > 0 ? (dz / length) * step : 0,
+      0.35,
+      runtime.room.blockers,
+    );
+    bot.x = moved.x;
+    bot.z = moved.z;
+  }
+
+  const finalDistance = Math.hypot(bot.x - target.x, bot.z - target.z);
+  assert.ok(
+    finalDistance < initialDistance - 5,
+    `Taş Avlu raid bot should make steady progress; distance changed from ${initialDistance.toFixed(2)} to ${finalDistance.toFixed(2)} at ${bot.x.toFixed(2)},${bot.z.toFixed(2)}`,
   );
 });
