@@ -533,6 +533,9 @@ function OptionalGlbKnight({
     return new Map(entries);
   }, [animationClips, mixer]);
   const currentAction = useRef<THREE.AnimationAction | null>(null);
+  const pendingCharacterDisposals = useRef(
+    new Map<THREE.Object3D, { cancelled: boolean }>(),
+  );
   const clipState = modelAnimationState ?? state;
   const selectedClip = playerCharacter
     ? resolveMappedGlbClipName(clipState, animationClips.map((clip) => clip.name), animationClipMap)
@@ -550,7 +553,10 @@ function OptionalGlbKnight({
   const framingDiagnosticElapsed = useRef(0);
 
   useEffect(() => {
-    const previous = currentAction.current;
+    const previousCandidate = currentAction.current;
+    const previous = previousCandidate?.getMixer() === mixer
+      ? previousCandidate
+      : null;
     if (!selectedAction) {
       previous?.fadeOut(0.2);
       currentAction.current = null;
@@ -575,7 +581,7 @@ function OptionalGlbKnight({
       selectedAction.fadeIn(0.2).play();
     }
     currentAction.current = selectedAction;
-  }, [clipState, modelConfig, selectedAction]);
+  }, [clipState, mixer, modelConfig, selectedAction]);
 
   useEffect(() => {
     if (
@@ -789,10 +795,26 @@ function OptionalGlbKnight({
     }
   });
 
-  useEffect(() => () => {
-    mixer.stopAllAction();
-    mixer.uncacheRoot(model);
-    disposeCharacterResources(ownedResources);
+  useEffect(() => {
+    const pendingDisposal = pendingCharacterDisposals.current.get(model);
+    if (pendingDisposal) {
+      pendingDisposal.cancelled = true;
+      pendingCharacterDisposals.current.delete(model);
+    }
+
+    return () => {
+      const disposal = { cancelled: false };
+      pendingCharacterDisposals.current.set(model, disposal);
+      queueMicrotask(() => {
+        if (disposal.cancelled) return;
+        mixer.stopAllAction();
+        mixer.uncacheRoot(model);
+        disposeCharacterResources(ownedResources);
+        if (pendingCharacterDisposals.current.get(model) === disposal) {
+          pendingCharacterDisposals.current.delete(model);
+        }
+      });
+    };
   }, [mixer, model, ownedResources]);
 
   return (

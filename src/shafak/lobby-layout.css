@@ -140,6 +140,18 @@
   }
 }
 
+@media (max-width: 380px) and (orientation: portrait) {
+  .screen--menu .menu-player-status {
+    min-width: 0;
+    gap: 2px;
+    padding-inline: 2px;
+  }
+
+  .screen--menu .menu-player-status .menu-resource-chip:last-of-type { display: none; }
+  .screen--menu .menu-tools { gap: 2px; }
+  .screen--menu .menu-tools .icon-control { width: 30px; height: 30px; }
+}
+
 @media (orientation: landscape) and (max-width: 960px) {
   .screen--menu .menu-content { gap: 14px; padding: 2px 0 5px; }
   .screen--menu .menu-copy { width: min(40%, 340px); flex-basis: 340px; }
@@ -181,4 +193,22 @@
   .screen--menu .menu-gear-action { min-height: 29px; font-size: 6px; }
   .scene-character { left: 45vw; width: 25vw; height: 82dvh; opacity: .72; }
   .scene-character img { height: 100%; }
+}
+
+@media (orientation: landscape) and (max-height: 430px) and (min-width: 601px) {
+  .screen--menu .menu-footer { display: none; }
+  .screen--menu .production-credit { display: none; }
+  .screen--menu .menu-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 2px max(12px, env(safe-area-inset-bottom));
+  }
+  .screen--menu .campaign-menu-progress { margin-top: 12px; }
+  .screen--menu .menu-copy > p { margin-block: 6px 8px; line-height: 1.4; }
+  .screen--menu .campaign-menu-progress { margin-bottom: 6px; padding: 6px 8px; }
+  .screen--menu .menu-action--war-room { min-height: 60px; }
+  .screen--menu .menu-action--primary { min-height: 34px; }
+  .screen--menu .menu-action--secondary,
+  .screen--menu .menu-gear-action { min-height: 28px; }
 }

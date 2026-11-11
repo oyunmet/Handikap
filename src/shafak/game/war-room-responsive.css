@@ -1694,7 +1694,7 @@
     grid-column: auto;
     grid-row: auto;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
+    grid-template-rows: max-content max-content;
     gap: 12px;
     overflow: auto;
     overscroll-behavior: contain;
@@ -1702,10 +1702,12 @@
   }
 
   .war-room-briefing__overview {
+    min-height: max-content;
     overflow: visible;
   }
 
   .war-room-briefing__loadout {
+    min-height: max-content;
     grid-template-rows: auto auto auto;
     overflow: visible;
   }
