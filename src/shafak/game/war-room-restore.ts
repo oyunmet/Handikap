@@ -21,6 +21,12 @@ export type WarRoomRestoreConfig = {
     radiusMeters: number;
     respawnSeconds: number;
   };
+  armorPickup: {
+    armorPerPickup: number;
+    radiusMeters: number;
+    respawnSeconds: number;
+    points: readonly WarRoomArmorPointConfig[];
+  };
   healingPoints: readonly WarRoomHealingPointConfig[];
 };
 
@@ -41,6 +47,15 @@ export const RESTORE_CONFIG: WarRoomRestoreConfig = {
     radiusMeters: 1.4,
     respawnSeconds: 45,
   },
+  armorPickup: {
+    armorPerPickup: 30,
+    radiusMeters: 1.4,
+    respawnSeconds: 55,
+    points: [
+      { id: "armor-north-west", x: -10, z: -22 },
+      { id: "armor-south-east", x: 10, z: 22 },
+    ],
+  },
   healingPoints: [
     { id: "heal-west", x: -20, z: -8.25 },
     { id: "heal-east", x: 21.5, z: -8.25 },
@@ -53,6 +68,16 @@ export type WarRoomHealingPoint = WarRoomHealingPointConfig & {
   availableAt: number;
 };
 
+export type WarRoomArmorPointConfig = {
+  id: string;
+  x: number;
+  z: number;
+};
+
+export type WarRoomArmorPoint = WarRoomArmorPointConfig & {
+  availableAt: number;
+};
+
 export type WarRoomRestorablePlayer = {
   hp: number;
   maxHp: number;
@@ -60,11 +85,23 @@ export type WarRoomRestorablePlayer = {
   lastCombatAt: number;
 };
 
+export type WarRoomArmoredPlayer = Pick<WarRoomRestorablePlayer, "hp" | "maxHp"> & {
+  armor: number;
+  maxArmor: number;
+};
+
 export function createWarRoomHealingPoints(
   now = 0,
   config: WarRoomRestoreConfig = RESTORE_CONFIG,
 ): WarRoomHealingPoint[] {
   return config.healingPoints.map((point) => ({ ...point, availableAt: now }));
+}
+
+export function createWarRoomArmorPoints(
+  now = 0,
+  config: WarRoomRestoreConfig = RESTORE_CONFIG,
+): WarRoomArmorPoint[] {
+  return config.armorPickup.points.map((point) => ({ ...point, availableAt: now }));
 }
 
 export function advanceWarRoomPassiveRegen(
@@ -132,4 +169,30 @@ export function collectWarRoomHealingPoint(
   if (healed <= 0) return { point: null, healed: 0 };
   point.availableAt = now + config.pickup.respawnSeconds;
   return { point, healed };
+}
+
+export function collectWarRoomArmorPoint(
+  points: WarRoomArmorPoint[],
+  player: WarRoomArmoredPlayer,
+  playerX: number,
+  playerZ: number,
+  now: number,
+  config: WarRoomRestoreConfig = RESTORE_CONFIG,
+) {
+  if (!config.enabled) return { point: null, armorAdded: 0 };
+  const point = points.find((candidate) => (
+    candidate.availableAt <= now
+    && Math.hypot(candidate.x - playerX, candidate.z - playerZ) <= config.armorPickup.radiusMeters
+  ));
+  if (!point) return { point: null, armorAdded: 0 };
+
+  const before = player.armor;
+  player.armor = Math.min(
+    player.maxArmor,
+    player.armor + Math.max(0, config.armorPickup.armorPerPickup),
+  );
+  const armorAdded = player.armor - before;
+  if (armorAdded <= 0) return { point: null, armorAdded: 0 };
+  point.availableAt = now + config.armorPickup.respawnSeconds;
+  return { point, armorAdded };
 }

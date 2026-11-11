@@ -1449,6 +1449,24 @@
   letter-spacing: 0.14em;
 }
 
+.war-room-commander__attack {
+  color: #ff977e;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-shadow: 0 0 9px rgba(255, 77, 56, 0.55);
+}
+
+.war-room-commander__attack[data-telegraphing="true"] {
+  animation: war-room-boss-warning-pulse 0.42s ease-in-out infinite alternate;
+}
+
+@keyframes war-room-boss-warning-pulse {
+  from { opacity: 0.64; }
+  to { opacity: 1; }
+}
+
 .war-room-commander b {
   color: #f0ddc0;
   font-size: 9px;

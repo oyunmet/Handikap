@@ -143,6 +143,19 @@ import {
   WAR_ROOM_WEAPON_PRESENTATION_ENABLED,
 } from "../game/war-room-features";
 import {
+  getWarRoomBossAttackDamage,
+  getWarRoomBossChargeStep,
+  getWarRoomBossPhase,
+  getWarRoomBossShockwaveHits,
+  getWarRoomBossTelegraphSeconds,
+  updateWarRoomBossTelegraph,
+  WAR_ROOM_BOSS_ATTACK_COOLDOWN_SECONDS,
+  WAR_ROOM_BOSS_CHARGE_SECONDS,
+  WAR_ROOM_BOSS_SHOCKWAVE_RADIUS,
+  WAR_ROOM_BOSS_SUMMON_COUNT,
+  type WarRoomBossAttack,
+} from "../game/war-room-boss";
+import {
   getWarRoomCommanderTelegraphProgress,
   getWarRoomDeathFadeProgress,
   getWarRoomHitRimIntensity,
@@ -178,6 +191,7 @@ import {
   getWarRoomFallDamage,
   moveWarRoomEntity,
   nextWarRoomRandom,
+  spawnWarRoomBossSummons,
   segmentBlockFraction,
   shortestAngleDelta,
   WAR_ROOM_PLAYER_COLLISION_RADIUS,
@@ -1641,17 +1655,37 @@ function EnemyActor({
     const runtime = group.parent?.userData.runtime as WarRoomRuntime | undefined;
     const player = runtime?.player;
     const gameNow = runtime?.player.clockTime ?? frame.clock.elapsedTime;
-    const warningProgress = getWarRoomCommanderTelegraphProgress(
-      enemy.commander && enemy.mode === "fire",
-      gameNow,
-      enemy.nextShotAt,
+    const isBossAbilityTelegraph = Boolean(
+      enemy.commander
+      && enemy.bossAttack
+      && gameNow < enemy.nextShotAt,
     );
+    const warningProgress = isBossAbilityTelegraph && enemy.bossAttack
+      ? Math.max(0, Math.min(1, (
+        gameNow - (enemy.bossAttackStartedAt ?? gameNow)
+      ) / Math.max(0.01, getWarRoomBossTelegraphSeconds(enemy.bossAttack))))
+      : getWarRoomCommanderTelegraphProgress(
+        enemy.commander && enemy.mode === "fire" && !enemy.bossAttack,
+        gameNow,
+        enemy.nextShotAt,
+      );
     if (attackWarningRef.current) {
       attackWarningRef.current.visible = WAR_ROOM_COMMANDER_TELEGRAPH_ENABLED
         && enemy.alive
         && warningProgress !== null;
       if (warningProgress !== null) {
-        attackWarningRef.current.scale.setScalar(0.82 + warningProgress * 0.18);
+        const scale = enemy.bossAttack === "shockwave"
+          ? 0.82 + warningProgress * (WAR_ROOM_BOSS_SHOCKWAVE_RADIUS * 0.55)
+          : 0.82 + warningProgress * 0.22;
+        attackWarningRef.current.scale.setScalar(scale);
+        if (enemy.bossAttack === "charge") {
+          attackWarningRef.current.rotation.y = Math.atan2(
+            (enemy.bossAttackTargetX ?? enemy.x) - enemy.x,
+            -((enemy.bossAttackTargetZ ?? enemy.z) - enemy.z),
+          );
+        } else {
+          attackWarningRef.current.rotation.y = 0;
+        }
       }
     }
     if (player) {
@@ -1937,6 +1971,9 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
   const weaponId = player.weaponSlots[player.activeSlot];
   const ammo = player.ammo[weaponId];
   const bossHealth = getWarRoomCommanderHealth(runtime.enemies);
+  const bossAttackEnemy = runtime.enemies.find(
+    (enemy) => enemy.commander && enemy.alive && enemy.bossAttack,
+  );
   const nearbyChest = getNearbyWarRoomLootChest(runtime);
   const nearbyDoor = getNearestWarRoomDoor(
     runtime.room.buildings,
@@ -2003,6 +2040,12 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
     remaining: getWarRoomRemaining(runtime),
     bossHp: bossHealth.hp,
     bossMaxHp: bossHealth.maxHp,
+    bossAttack: bossAttackEnemy?.bossAttack
+      ? {
+        attack: bossAttackEnemy.bossAttack,
+        telegraphing: now < bossAttackEnemy.nextShotAt,
+      }
+      : null,
     kills: player.kills,
     headshots: player.headshots,
     shots: player.shots,
@@ -2301,6 +2344,7 @@ function WarRoomRuntimeScene({
       born: -1,
       yaw: 0,
       color: "#ffd27e",
+      maxScale: 2.4,
     })),
     [],
   );
@@ -2653,6 +2697,7 @@ function WarRoomRuntimeScene({
     yaw: number,
     now: number,
     color = "#ffd27e",
+    maxScale = 2.4,
   ) => {
     const slot = shockwaveCursor.current++ % WAR_ROOM_SHOCKWAVE_POOL_SIZE;
     const shockwave = shockwaves[slot];
@@ -2661,6 +2706,7 @@ function WarRoomRuntimeScene({
     shockwave.yaw = yaw;
     shockwave.born = now;
     shockwave.color = color;
+    shockwave.maxScale = maxScale;
     shockwaveTint.set(shockwave.color);
     shockwaveMesh.setColorAt(slot, shockwaveTint);
     if (shockwaveMesh.instanceColor) shockwaveMesh.instanceColor.needsUpdate = true;
@@ -3776,6 +3822,153 @@ function WarRoomRuntimeScene({
       );
       const defenseMode = runtime.mission.mode === "defense";
       const missionTarget = defenseMode ? runtime.mission.objectivePosition : player;
+      const bossTelegraph = enemy.commander
+        ? updateWarRoomBossTelegraph(enemy, runtime.room.id, now, missionTarget)
+        : null;
+      const bossPhase = bossTelegraph?.phase ?? 1;
+      const bossAttack = bossTelegraph?.attack ?? null;
+      const bossTelegraphing = bossTelegraph?.telegraphing ?? false;
+      const bossChargeActive = bossAttack === "charge"
+        && now >= enemy.nextShotAt
+        && now < enemy.nextShotAt + WAR_ROOM_BOSS_CHARGE_SECONDS;
+      let applyBossImpact: (attack: WarRoomBossAttack) => void = () => {};
+      if (enemy.commander && bossAttack && now >= enemy.nextShotAt) {
+        applyBossImpact = (attack: WarRoomBossAttack) => {
+          const damage = getWarRoomBossAttackDamage(enemy.damage, attack);
+          if (defenseMode) {
+            const distance = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
+            const impactRadius = attack === "charge" ? 2.05 : WAR_ROOM_BOSS_SHOCKWAVE_RADIUS;
+            if (distance > impactRadius) return;
+            const defenseDamage = Math.min(runtime.mission.defenseHp, damage);
+            if (defenseDamage <= 0) return;
+            runtime.mission.defenseHp = Math.max(0, runtime.mission.defenseHp - defenseDamage);
+            enemy.score += defenseDamage;
+            player.lastHitText = `SAVUNMA −${defenseDamage} CAN`;
+            player.hitMessageUntil = now + 1.2;
+            playWarRoomSound(
+              "hit",
+              0.9,
+              "shotgun",
+              getWarRoomAudioOptions(player, enemy.x, enemy.z, "metal"),
+            );
+            return;
+          }
+          if (now < player.invulnerableUntil) return;
+          const hit = applyWarRoomDamage(player, damage);
+          if (hit.damage <= 0) return;
+          enemy.score += hit.damage;
+          playWarRoomSound(
+            "hit",
+            1,
+            "shotgun",
+            getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"),
+          );
+          player.lastDamageAt = now;
+          player.lastCombatAt = now;
+          player.invulnerableUntil = now + 0.38;
+          cameraKickRef.current = Math.max(cameraKickRef.current, 0.14);
+          cameraFovKickRef.current = Math.min(cameraFovKickRef.current + 2.4, 5.2);
+          cameraSideKickRef.current = Math.max(
+            -0.045,
+            Math.min(0.045, cameraSideKickRef.current + Math.sign(player.damageDirection || 1) * 0.024),
+          );
+          player.damageDirection = shortestAngleDelta(
+            player.yaw,
+            Math.atan2(enemy.x - player.x, -(enemy.z - player.z)),
+          );
+          player.lastHitText = `−${hit.damage} CAN · ${enemy.name}`;
+          player.hitMessageUntil = now + 1.2;
+          player.lastHitDamage = hit.damage;
+          player.lastHitSource = "received";
+          player.lastHitCritical = false;
+          player.damageEventId += 1;
+        };
+
+        if (bossAttack === "shockwave" && !enemy.bossAttackResolved) {
+          enemy.bossAttackResolved = true;
+          const center = new THREE.Vector3(enemy.x, 0, enemy.z);
+          spawnShockwave(
+            center,
+            0,
+            now,
+            "#ff5b45",
+            WAR_ROOM_BOSS_SHOCKWAVE_RADIUS / 0.53,
+          );
+          const distance = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
+          const verticalGap = Math.abs(
+            (enemy.floorHeight ?? 0) - (player.floorHeight + player.jumpHeight),
+          );
+          if (defenseMode) {
+            if (distance <= WAR_ROOM_BOSS_SHOCKWAVE_RADIUS) applyBossImpact("shockwave");
+          } else if (
+            getWarRoomBossShockwaveHits(
+              distance,
+              verticalGap,
+              player.jumpHeight > 0.85,
+            )
+          ) {
+            applyBossImpact("shockwave");
+          }
+          enemy.bossAttack = null;
+          enemy.bossAttackResolved = false;
+          enemy.nextShotAt = now + WAR_ROOM_BOSS_ATTACK_COOLDOWN_SECONDS;
+        } else if (bossAttack === "summon" && !enemy.bossAttackResolved) {
+          enemy.bossAttackResolved = true;
+          spawnWarRoomBossSummons(runtime, enemy, now, WAR_ROOM_BOSS_SUMMON_COUNT);
+          playWarRoomSound(
+            "enemy-shot",
+            0.75,
+            "rifle",
+            getWarRoomAudioOptions(player, enemy.x, enemy.z, "stone"),
+          );
+          enemy.bossAttack = null;
+          enemy.bossAttackResolved = false;
+          enemy.nextShotAt = now + WAR_ROOM_BOSS_ATTACK_COOLDOWN_SECONDS;
+        }
+      }
+      if (bossChargeActive) {
+        const targetX = enemy.bossAttackTargetX ?? missionTarget.x;
+        const targetZ = enemy.bossAttackTargetZ ?? missionTarget.z;
+        const dx = targetX - enemy.x;
+        const dz = targetZ - enemy.z;
+        const distance = Math.hypot(dx, dz);
+        const step = Math.min(distance, getWarRoomBossChargeStep(rawDelta));
+        if (distance > 0.001 && step > 0) {
+          const chargeYaw = Math.atan2(dx, -dz);
+          const moved = moveWarRoomEntity(
+            enemy.x,
+            enemy.z,
+            (dx / distance) * step,
+            (dz / distance) * step,
+            0.48,
+            activeBlockersRef.current,
+            enemy.floorHeight ?? 0,
+          );
+          enemy.x = moved.x;
+          enemy.z = moved.z;
+          enemy.doorApproachX = Math.sin(chargeYaw) * step;
+          enemy.doorApproachZ = -Math.cos(chargeYaw) * step;
+          enemy.floorHeight = getWarRoomFloorHeight(
+            enemy.x,
+            enemy.z,
+            enemy.floorHeight ?? 0,
+            runtime.room.buildings,
+          );
+        }
+        const currentTargetGap = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
+        const impactRadius = defenseMode ? 2.05 : 1.55;
+        if (!enemy.bossAttackResolved && currentTargetGap <= impactRadius) {
+          enemy.bossAttackResolved = true;
+          applyBossImpact("charge");
+        }
+      } else if (
+        bossAttack === "charge"
+        && now >= enemy.nextShotAt + WAR_ROOM_BOSS_CHARGE_SECONDS
+      ) {
+        enemy.bossAttack = null;
+        enemy.bossAttackResolved = false;
+        enemy.nextShotAt = now + WAR_ROOM_BOSS_ATTACK_COOLDOWN_SECONDS;
+      }
       const gap = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
       const enemyEye = { x: enemy.x, y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.65 : 1.45), z: enemy.z };
       const targetEye = {
@@ -3797,7 +3990,7 @@ function WarRoomRuntimeScene({
             ? "fire"
             : lineBlocked && gap < 26 ? "cover" : "approach";
       const updateInterval = activeLootChase ? 0.12 : gap > 38 ? 0.55 : 0.12;
-      if (now >= enemy.brainAt) {
+      if (now >= enemy.brainAt && !bossTelegraphing && !bossChargeActive) {
         enemy.brainAt = now + updateInterval;
         enemy.doorApproachX = 0;
         enemy.doorApproachZ = 0;
@@ -3874,7 +4067,11 @@ function WarRoomRuntimeScene({
       );
       const minimumActorGap = enemy.commander ? 1.2 : 0.88;
       const actorGap = Math.hypot(enemy.x - player.x, enemy.z - player.z);
-      if (playerVerticalGap < 1.25 && actorGap < minimumActorGap) {
+      if (
+        !(bossChargeActive && enemy.commander)
+        && playerVerticalGap < 1.25
+        && actorGap < minimumActorGap
+      ) {
         const fallbackAngle = (index % 4) * (Math.PI / 2);
         const awayX = actorGap > 0.001 ? (enemy.x - player.x) / actorGap : Math.cos(fallbackAngle);
         const awayZ = actorGap > 0.001 ? (enemy.z - player.z) / actorGap : Math.sin(fallbackAngle);
@@ -3933,6 +4130,7 @@ function WarRoomRuntimeScene({
         if (
           !enemy.alive
           || enemy.mode !== "fire"
+          || (enemy.commander && getWarRoomBossPhase(enemy.hp, enemy.maxHp) >= 2)
           || Math.hypot(enemy.x - attackTarget.x, enemy.z - attackTarget.z) > 24
         ) return false;
         if (Math.abs((enemy.floorHeight ?? 0) - (defenseMode ? 0 : player.floorHeight)) > 1.25) return false;
@@ -4139,7 +4337,7 @@ function WarRoomRuntimeScene({
         const progress = age / WAR_ROOM_SHOCKWAVE_LIFETIME;
         shockwaveTransform.position.set(shockwave.x, 0.035, shockwave.z);
         shockwaveTransform.rotation.set(-Math.PI / 2, 0, shockwave.yaw);
-        shockwaveTransform.scale.setScalar(0.3 + progress * 2.1);
+        shockwaveTransform.scale.setScalar(0.3 + progress * Math.max(0.3, shockwave.maxScale - 0.3));
         shockwaveTint.set(shockwave.color).multiplyScalar(1 - progress);
         shockwaveMesh.setColorAt(slot, shockwaveTint);
       }

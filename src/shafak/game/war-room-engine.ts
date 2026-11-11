@@ -11,9 +11,16 @@ import {
 } from "./war-room-data";
 import type { WarRoomFacingMode } from "./war-room-orientation";
 import type { WarRoomDoorState } from "./war-room-doors";
-import { createWarRoomHealingPoints, type WarRoomHealingPoint } from "./war-room-restore";
+import {
+  createWarRoomArmorPoints,
+  createWarRoomHealingPoints,
+  RESTORE_CONFIG,
+  type WarRoomArmorPoint,
+  type WarRoomHealingPoint,
+} from "./war-room-restore";
 import { getWarRoomRoom, type WarRoomRoom } from "./war-room-rooms";
 import { WAR_ROOM_CONFIG } from "./war-room-config";
+import type { WarRoomBossAttack } from "./war-room-boss";
 import {
   createWarRoomMissionState,
   getWarRoomAmmoMultiplier,
@@ -70,6 +77,12 @@ export type WarRoomEnemy = {
   doorApproachX: number;
   doorApproachZ: number;
   deathYaw: number;
+  bossAttack?: WarRoomBossAttack | null;
+  bossAttackStartedAt?: number;
+  bossAttackTargetX?: number;
+  bossAttackTargetZ?: number;
+  bossAttackResolved?: boolean;
+  bossAttackPhase?: number;
 };
 
 export function getWarRoomCommanderHealth(
@@ -101,6 +114,8 @@ export type WarRoomRuntime = {
     pitch: number;
     hp: number;
     maxHp: number;
+    armor: number;
+    maxArmor: number;
     stamina: number;
     maxStamina: number;
     jumpHeight: number;
@@ -160,6 +175,7 @@ export type WarRoomRuntime = {
     lastHitSource: "dealt" | "received" | null;
     damageEventId: number;
     lastHitDamage: number;
+    lastHitArmorDamage: number;
     hitMessageUntil: number;
     lastHitText: string;
     clockTime: number;
@@ -172,7 +188,9 @@ export type WarRoomRuntime = {
   };
   enemies: WarRoomEnemy[];
   healingPoints: WarRoomHealingPoint[];
+  armorPoints: WarRoomArmorPoint[];
   lootChests: Array<WarRoomLootChest & { opened: boolean }>;
+  bossSummonsUsed: number;
 };
 
 export type WarRoomInputState = {
@@ -218,7 +236,7 @@ export type WarRoomHudSnapshot = {
     defenseHp: number;
     defenseMaxHp: number;
   };
-  player: { x: number; z: number; floorHeight: number; yaw: number; hp: number; maxHp: number; stamina: number; maxStamina: number };
+  player: { x: number; z: number; floorHeight: number; yaw: number; hp: number; maxHp: number; armor: number; maxArmor: number; stamina: number; maxStamina: number };
   orientation: {
     facingYaw: number;
     mode: WarRoomFacingMode;
@@ -227,12 +245,14 @@ export type WarRoomHudSnapshot = {
   };
   enemies: Array<{ id: string; x: number; z: number; floorHeight: number; alive: boolean; commander: boolean }>;
   healingPoints: Array<{ id: string; x: number; z: number; floorHeight: number; available: boolean }>;
+  armorPoints: Array<{ id: string; x: number; z: number; floorHeight: number; available: boolean }>;
   regenerationActive: boolean;
   regenerationWaitSeconds: number;
   regenerationAtCap: boolean;
   remaining: number;
   bossHp: number;
   bossMaxHp: number;
+  bossAttack: { attack: WarRoomBossAttack; telegraphing: boolean } | null;
   kills: number;
   headshots: number;
   shots: number;
@@ -256,6 +276,7 @@ export type WarRoomHudSnapshot = {
   damageVignette: boolean;
   damageDirection: number;
   lastHitDamage: number;
+  lastHitArmorDamage: number;
   hitMessage: string;
   killFeed: Array<{ id: number; text: string }>;
   crouched: boolean;
@@ -267,13 +288,23 @@ export type WarRoomHudSnapshot = {
   nearbyDoor: { id: string; openProgress: number } | null;
 };
 
-export type DamageTarget = { hp: number; maxHp: number };
+export type DamageTarget = { hp: number; maxHp: number; armor?: number };
 
 export function applyWarRoomDamage(target: DamageTarget, baseDamage: number, multiplier = 1) {
   const before = Math.max(0, target.hp);
-  const damage = Math.max(0, Math.round(baseDamage * Math.max(0, multiplier)));
-  target.hp = Math.max(0, before - damage);
-  return { damage: before - target.hp, killed: before > 0 && target.hp <= 0 };
+  let remainingDamage = Math.max(0, Math.round(baseDamage * Math.max(0, multiplier)));
+  let armorDamage = 0;
+  if (target.armor !== undefined && target.armor > 0) {
+    armorDamage = Math.min(target.armor, remainingDamage);
+    target.armor -= armorDamage;
+    remainingDamage -= armorDamage;
+  }
+  target.hp = Math.max(0, before - remainingDamage);
+  return {
+    damage: before - target.hp,
+    killed: before > 0 && target.hp <= 0,
+    ...(armorDamage > 0 ? { armorDamage } : {}),
+  };
 }
 
 export function getWarRoomFallDamage(fallDistance: number) {
@@ -306,6 +337,20 @@ export function createWarRoomRuntime(
   );
   const ammoMultiplier = getWarRoomAmmoMultiplier(mission.modifiers);
   const enemySpeedMultiplier = getWarRoomEnemySpeedMultiplier(mission.modifiers);
+  const healingPoints = createWarRoomHealingPoints(now);
+  const armorPoints = createWarRoomArmorPoints(now).map((point) => {
+    const clear = findNearestWarRoomClearPoint(point, room.blockers, {
+      radius: 0.4,
+      floorHeight: 0,
+      reserved: [
+        room.playerSpawn,
+        ...healingPoints.map(({ x, z }) => ({ x, z })),
+      ],
+      minimumReservedDistance: 2.2,
+      maximumSearchDistance: 8,
+    });
+    return { ...point, ...clear };
+  });
   const enemies: WarRoomEnemy[] = room.enemySpawns
     .slice(0, room.enemyCount - 1)
     .map((spawn, index) => {
@@ -379,6 +424,12 @@ export function createWarRoomRuntime(
     doorApproachX: 0,
     doorApproachZ: 0,
     deathYaw: 0,
+    bossAttack: null,
+    bossAttackStartedAt: 0,
+    bossAttackTargetX: 0,
+    bossAttackTargetZ: 0,
+    bossAttackResolved: false,
+    bossAttackPhase: 1,
   });
 
   const ammo: WarRoomRuntime["player"]["ammo"] = {};
@@ -410,6 +461,8 @@ export function createWarRoomRuntime(
       pitch: -0.08,
       hp: 220,
       maxHp: 220,
+      armor: 0,
+      maxArmor: RESTORE_CONFIG.armorPickup.armorPerPickup * 2,
       stamina: 100,
       maxStamina: 100,
       jumpHeight: 0,
@@ -469,6 +522,7 @@ export function createWarRoomRuntime(
       lastHitSource: null,
       damageEventId: 0,
       lastHitDamage: 0,
+      lastHitArmorDamage: 0,
       hitMessageUntil: 0,
       lastHitText: "",
       clockTime: now,
@@ -480,8 +534,85 @@ export function createWarRoomRuntime(
       startTime: now,
     },
     enemies,
-    healingPoints: createWarRoomHealingPoints(now),
+    healingPoints,
+    armorPoints,
+    bossSummonsUsed: 0,
   };
+}
+
+export function spawnWarRoomBossSummons(
+  runtime: WarRoomRuntime,
+  commander: WarRoomEnemy,
+  now: number,
+  requestedCount = 2,
+) {
+  const remainingBudget = Math.max(0, 4 - runtime.bossSummonsUsed);
+  const count = Math.min(
+    Math.max(0, Math.floor(requestedCount)),
+    remainingBudget,
+  );
+  const template = runtime.enemies.find((enemy) => !enemy.commander);
+  if (!template || count === 0) return [];
+
+  const blockers = runtime.room.blockers;
+  const reserved = runtime.enemies
+    .filter((enemy) => enemy.alive)
+    .map(({ x, z }) => ({ x, z }));
+  const summons: WarRoomEnemy[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const summonNumber = runtime.bossSummonsUsed + index + 1;
+    const angle = (index / Math.max(1, count)) * Math.PI * 2 + Math.PI / 4;
+    const spawn = findNearestWarRoomClearPoint(
+      {
+        x: commander.x + Math.cos(angle) * 2.4,
+        z: commander.z + Math.sin(angle) * 2.4,
+      },
+      blockers,
+      {
+        radius: 0.35,
+        floorHeight: commander.floorHeight ?? 0,
+        reserved,
+        minimumReservedDistance: 1.05,
+        maximumSearchDistance: 8,
+      },
+    );
+    const maxHp = Math.max(32, Math.round(template.maxHp * 0.55));
+    const summoned: WarRoomEnemy = {
+      ...template,
+      id: `commander-summon-${summonNumber}`,
+      name: "Komutanın Takviyesi",
+      commander: false,
+      archetype: "assault",
+      speedMultiplier: Math.max(1.2, template.speedMultiplier),
+      x: spawn.x,
+      z: spawn.z,
+      floorHeight: commander.floorHeight ?? 0,
+      hp: maxHp,
+      maxHp,
+      damage: Math.max(1, Math.round(template.damage * 0.72)),
+      score: 0,
+      alive: true,
+      mode: "approach",
+      brainAt: now,
+      nextShotAt: now + 1.1,
+      coverX: spawn.x,
+      coverZ: spawn.z,
+      hitUntil: 0,
+      hitFlashUntil: 0,
+      hitKneeUntil: 0,
+      hitKnockbackX: 0,
+      hitKnockbackZ: 0,
+      doorApproachX: 0,
+      doorApproachZ: 0,
+      deathYaw: 0,
+      bossAttack: null,
+    };
+    runtime.enemies.push(summoned);
+    summons.push(summoned);
+    reserved.push(spawn);
+  }
+  runtime.bossSummonsUsed += summons.length;
+  return summons;
 }
 
 export function advanceWarRoomSurvivalWave(
@@ -494,6 +625,7 @@ export function advanceWarRoomSurvivalWave(
   next.mission.wave = previous.mission.wave + 1;
   next.mission.score = previous.player.kills * 100 + previous.player.headshots * 25;
   next.player.hp = Math.min(next.player.maxHp, previous.player.hp);
+  next.player.armor = Math.min(next.player.maxArmor, previous.player.armor);
   next.player.stamina = Math.min(next.player.maxStamina, previous.player.stamina);
   next.player.activeSlot = previous.player.activeSlot;
   next.player.ammo = Object.fromEntries(
@@ -553,6 +685,7 @@ export function createWarRoomTrainingRuntime(
     deathYaw: 0,
   });
   runtime.healingPoints.length = 0;
+  runtime.armorPoints.length = 0;
   return runtime;
 }
 

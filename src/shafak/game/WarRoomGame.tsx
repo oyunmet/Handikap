@@ -108,6 +108,7 @@ import {
 } from "./war-room-rooms";
 import { getWarRoomDailyChallenge, isWarRoomDailyChallengeComplete } from "./war-room-daily";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
+import { getWarRoomBossAttackLabel } from "./war-room-boss";
 import {
   appendWarRoomToast,
   removeWarRoomToast,
@@ -259,6 +260,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     remaining: 9,
     bossHp: 360,
     bossMaxHp: 360,
+    bossAttack: null,
     kills: 0,
     headshots: 0,
     shots: 0,
@@ -1776,6 +1778,17 @@ export default function WarRoomGame({
               <div className="war-room-commander__identity">
                 <span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span>
                 <b>{currentRoom.commanderName.toLocaleUpperCase("tr-TR")}</b>
+                {hud.bossAttack && (
+                  <em
+                    className="war-room-commander__attack"
+                    data-telegraphing={hud.bossAttack.telegraphing}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {hud.bossAttack.telegraphing ? "UYARI · " : ""}
+                    {getWarRoomBossAttackLabel(hud.bossAttack.attack)}
+                  </em>
+                )}
               </div>
               <div className="war-room-commander__health">
                 <small>FAZ {getBossHudPhaseRoman(bossHudPhase)}</small>
