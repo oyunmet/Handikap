@@ -1719,6 +1719,7 @@
 
 .war-room-bar:last-child { margin-bottom: 0; }
 .war-room-bar em { display: block; height: 100%; transition: width 130ms linear; }
+.war-room-bar em.is-armor { background: linear-gradient(90deg, #56a9bc, #a7e7ed); }
 .war-room-bar .is-health { background: linear-gradient(90deg, #a83d2b, #e58a56); }
 .war-room-bar .is-health.is-high { background: linear-gradient(90deg, #278b55, #79dc91); }
 .war-room-bar .is-health.is-medium { background: linear-gradient(90deg, #b98228, #f0c85f); }

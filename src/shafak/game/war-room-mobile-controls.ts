@@ -52,9 +52,11 @@ export function getWarRoomTouchControlSide(
   clientX: number,
   stageLeft: number,
   stageWidth: number,
+  moveOnRight = false,
 ): WarRoomTouchControlSide | null {
   if (![clientX, stageLeft, stageWidth].every(Number.isFinite) || stageWidth <= 0) return null;
-  return clientX < stageLeft + stageWidth / 2 ? "movement" : "look";
+  const rightSide = clientX >= stageLeft + stageWidth / 2;
+  return rightSide === moveOnRight ? "movement" : "look";
 }
 
 export function createWarRoomMobileControlsState(): WarRoomMobileControlsState {

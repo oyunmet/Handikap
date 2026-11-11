@@ -62,14 +62,36 @@ export function createDefaultWarRoomControlLayout(): WarRoomControlLayout {
   ])) as WarRoomControlLayout;
 }
 
+export function isWarRoomLeftHandedLayout(layout: WarRoomControlLayout) {
+  return layout.fire.x < 0.5;
+}
+
+export function setWarRoomControlHandedness(
+  layout: WarRoomControlLayout,
+  leftHanded: boolean,
+): WarRoomControlLayout {
+  if (isWarRoomLeftHandedLayout(layout) === leftHanded) return layout;
+  return CONTROLS_CONFIG.reduce<WarRoomControlLayout>((next, control) => {
+    if (control.id === "move-stick" || control.id === "weapon-select") return next;
+    const position = next[control.id];
+    return {
+      ...next,
+      [control.id]: { ...position, x: 1 - position.x },
+    };
+  }, layout);
+}
+
 export function isWarRoomMovementTouchAllowed(
   x: number,
   y: number,
   width: number,
   height: number,
+  moveOnRight = false,
 ): boolean {
   if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return false;
-  return x >= 0 && x < width / 2 && y >= 0 && y <= height;
+  return moveOnRight
+    ? x >= width / 2 && x <= width && y >= 0 && y <= height
+    : x >= 0 && x < width / 2 && y >= 0 && y <= height;
 }
 
 export function normalizeWarRoomControlLayout(value: unknown): WarRoomControlLayout {

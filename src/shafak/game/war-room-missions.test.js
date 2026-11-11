@@ -13,8 +13,11 @@ import {
 } from "./war-room-missions.ts";
 import { WAR_ROOM_MAPS, getWarRoomRoom } from "./war-room-rooms.ts";
 import {
+  applyWarRoomDamage,
+  applyWarRoomLootChest,
   advanceWarRoomSurvivalWave,
   createWarRoomRuntime,
+  getNearbyWarRoomLootChest,
   getWarRoomRemaining,
   moveWarRoomEntity,
 } from "./war-room-engine.ts";
@@ -53,6 +56,23 @@ test("mission mode objectives have explicit success and timeout rules", () => {
   }, defense), "defeat");
 });
 
+test("daily mode resolves all three seeded objective types to their real mission rules", () => {
+  for (const dailyObjective of ["raid", "treasure", "defense"]) {
+    const mission = createWarRoomMissionState({
+      mode: "daily",
+      dailyObjective,
+      difficulty: "hard",
+      modifiers: ["fog"],
+      mapId: "ember-gate",
+    }, { x: 0, z: 20 });
+    assert.equal(mission.mode, "daily");
+    assert.equal(mission.dailyObjective, dailyObjective);
+    assert.equal(mission.timeLimitSeconds, dailyObjective === "treasure" ? 180 : dailyObjective === "defense" ? 240 : null);
+    assert.equal(mission.targetChests, dailyObjective === "treasure" ? 5 : 0);
+    assert.equal(mission.defenseMaxHp, dailyObjective === "defense" ? 100 : 0);
+  }
+});
+
 test("survival emits a wave transition rather than a final victory", () => {
   const result = getWarRoomMissionOutcome("survival", {
     remaining: 0, openedChests: 0, elapsedSeconds: 75, playerHp: 100, defenseHp: 0,
@@ -74,19 +94,65 @@ test("all six map presets start a seeded mode runtime with reachable enemies", (
     assert.ok(getWarRoomRemaining(runtime) > 0);
     assert.equal(runtime.mission.mapId, map.id);
     assert.ok(runtime.enemies.every((enemy) => Number.isFinite(enemy.hp) && enemy.hp > 0));
+    assert.ok(
+      runtime.enemies.filter((enemy) => !enemy.commander).every((enemy) => enemy.mode === "patrol"),
+      `${map.name}: guards should begin on patrol rather than immediately pursuing the player`,
+    );
   }
 });
 
-test("bot simulations finish objectives on all maps and traverse blockers without sticking", () => {
+test("bot simulations travel, complete each objective, advance survival waves, and reach results", () => {
   const modes = ["raid", "survival", "treasure", "defense", "daily"];
-  for (const map of WAR_ROOM_MAPS) {
+  const dailyObjectives = ["raid", "treasure", "defense"];
+  const walkToPoint = (runtime, target, message) => {
+    const actor = runtime.player;
+    let stalledFrames = 0;
+    for (let frame = 0; frame < 2_400; frame += 1) {
+      const distance = Math.hypot(target.x - actor.x, target.z - actor.z);
+      if (distance <= 2.2 && Math.abs((target.floorHeight ?? 0) - actor.floorHeight) <= 0.9) return frame;
+      const waypoint = getWarRoomObstacleWaypoint(actor, target, runtime.room.blockers, 0.35);
+      const dx = waypoint.x - actor.x;
+      const dz = waypoint.z - actor.z;
+      const length = Math.hypot(dx, dz);
+      const step = Math.min(length, 0.15);
+      const moved = moveWarRoomEntity(
+        actor.x,
+        actor.z,
+        length > 0 ? (dx / length) * step : 0,
+        length > 0 ? (dz / length) * step : 0,
+        0.35,
+        runtime.room.blockers,
+        actor.floorHeight,
+      );
+      const traveled = Math.hypot(moved.x - actor.x, moved.z - actor.z);
+      stalledFrames = traveled < 0.002 ? stalledFrames + 1 : 0;
+      actor.x = moved.x;
+      actor.z = moved.z;
+      assert.ok(stalledFrames < 100, `${message}: bot got stuck`);
+    }
+    assert.fail(`${message}: bot did not reach its target`);
+  };
+  const killAllEnemies = (runtime) => {
+    for (const enemy of runtime.enemies) {
+      if (!enemy.alive) continue;
+      applyWarRoomDamage(enemy, enemy.hp);
+      enemy.alive = false;
+      runtime.player.kills += 1;
+      enemy.score += 100;
+    }
+  };
+
+  for (const [mapIndex, map] of WAR_ROOM_MAPS.entries()) {
     for (const mode of modes) {
+      const dailyObjective = mode === "daily"
+        ? dailyObjectives[mapIndex % dailyObjectives.length]
+        : undefined;
       const missionOptions = {
         mode,
         difficulty: "normal",
         modifiers: [],
         mapId: map.id,
-        ...(mode === "daily" ? { dailyObjective: "raid" } : {}),
+        ...(dailyObjective ? { dailyObjective } : {}),
       };
       const runtime = createWarRoomRuntime(
         ["powder_rifle", "crossbow"],
@@ -133,18 +199,37 @@ test("bot simulations finish objectives on all maps and traverse blockers withou
       }
       assert.ok(reached, `${map.name} / ${mode}: bot did not reach its objective`);
 
-      const snapshot = {
-        remaining: 0,
-        openedChests: runtime.mission.targetChests,
-        elapsedSeconds: 1,
-        playerHp: 100,
-        defenseHp: runtime.mission.defenseMaxHp,
-      };
-      if (mode === "treasure") {
-        assert.ok(runtime.lootChests.length >= runtime.mission.targetChests);
-        assert.equal(getWarRoomMissionOutcome(mode, snapshot, runtime.mission), "victory");
+      const objectiveMode = mode === "daily" ? dailyObjective : mode;
+      let elapsedSeconds = 1;
+      if (objectiveMode === "treasure") {
+        const groundChests = runtime.lootChests
+          .filter((chest) => chest.floorHeight === 0 && !chest.opened)
+          .slice(0, runtime.mission.targetChests);
+        assert.equal(groundChests.length, runtime.mission.targetChests, `${map.name}: seeded chest supply`);
+        for (const chest of groundChests) {
+          const frames = walkToPoint(runtime, chest, `${map.name} / ${mode} / ${chest.id}`);
+          elapsedSeconds += frames / 20;
+          const nearby = getNearbyWarRoomLootChest(runtime);
+          assert.equal(nearby?.chest.id, chest.id, `${map.name}: bot reaches the intended chest`);
+          applyWarRoomLootChest(runtime.player, chest);
+          chest.opened = true;
+        }
+      }
+
+      const snapshot = () => ({
+        remaining: getWarRoomRemaining(runtime),
+        openedChests: runtime.lootChests.filter((chest) => chest.opened).length,
+        elapsedSeconds,
+        playerHp: runtime.player.hp,
+        defenseHp: runtime.mission.defenseHp,
+      });
+
+      if (objectiveMode === "treasure") {
+        assert.equal(getWarRoomMissionOutcome(mode, snapshot(), runtime.mission), "victory");
+        assert.ok(elapsedSeconds < (runtime.mission.timeLimitSeconds ?? 0), `${map.name}: chest run stays in time`);
       } else if (mode === "survival") {
-        assert.equal(getWarRoomMissionOutcome(mode, snapshot, runtime.mission), "wave-complete");
+        killAllEnemies(runtime);
+        assert.equal(getWarRoomMissionOutcome(mode, snapshot(), runtime.mission), "wave-complete");
         const nextWave = createWarRoomRuntime(
           ["powder_rifle", "crossbow"],
           10,
@@ -152,13 +237,41 @@ test("bot simulations finish objectives on all maps and traverse blockers withou
           20261111,
           missionOptions,
         );
-        assert.equal(advanceWarRoomSurvivalWave(runtime, nextWave).mission.wave, 2);
-        assert.equal(getWarRoomMissionOutcome(mode, { ...snapshot, playerHp: 0 }, nextWave.mission), "defeat");
+        const waveTwo = advanceWarRoomSurvivalWave(runtime, nextWave);
+        assert.equal(waveTwo.mission.wave, 2);
+        killAllEnemies(waveTwo);
+        assert.equal(getWarRoomMissionOutcome(mode, {
+          remaining: getWarRoomRemaining(waveTwo),
+          openedChests: 0,
+          elapsedSeconds: 75,
+          playerHp: waveTwo.player.hp,
+          defenseHp: waveTwo.mission.defenseHp,
+        }, waveTwo.mission), "wave-complete");
+        waveTwo.player.hp = 0;
+        assert.equal(getWarRoomMissionOutcome(mode, {
+          remaining: 0,
+          openedChests: 0,
+          elapsedSeconds: 90,
+          playerHp: waveTwo.player.hp,
+          defenseHp: waveTwo.mission.defenseHp,
+        }, waveTwo.mission), "defeat");
       } else {
-        assert.equal(getWarRoomMissionOutcome(mode, snapshot, runtime.mission), "victory");
+        killAllEnemies(runtime);
+        assert.equal(getWarRoomMissionOutcome(mode, snapshot(), runtime.mission), "victory");
+      }
+
+      const reward = getWarRoomMissionReward({
+        mode,
+        victory: true,
+        kills: runtime.player.kills,
+        headshots: runtime.player.headshots,
+        contractBonus: 0,
+        wave: runtime.mission.wave,
+      });
+      assert.ok(Number.isFinite(reward) && reward >= 0, `${map.name} / ${mode}: result payout is valid`);
+      if (mode === "daily") assert.ok(reward <= 180, `${map.name}: daily payout cap`);
       }
     }
-  }
 });
 
 test("difficulty and modifiers change combat values without altering unrelated modes", () => {

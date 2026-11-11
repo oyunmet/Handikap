@@ -3,8 +3,10 @@ import {
   CONTROLS_CONFIG,
   createDefaultWarRoomControlLayout,
   fitWarRoomControlLayoutToStage,
+  isWarRoomLeftHandedLayout,
   moveWarRoomControl,
   resizeWarRoomControl,
+  setWarRoomControlHandedness,
   type WarRoomControlId,
   type WarRoomControlLayout,
 } from "./war-room-controls";
@@ -22,6 +24,7 @@ export default function WarRoomControlsEditor({ layout, onChange, onSave, onCanc
   const [selectedId, setSelectedId] = useState<WarRoomControlId>("fire");
   const [saveError, setSaveError] = useState(false);
   const selected = layout[selectedId];
+  const leftHanded = isWarRoomLeftHandedLayout(layout);
 
   useEffect(() => {
     const bounds = stageRef.current?.getBoundingClientRect();
@@ -141,6 +144,14 @@ export default function WarRoomControlsEditor({ layout, onChange, onSave, onCanc
             })}
           />
         </label>
+        <button
+          type="button"
+          aria-pressed={leftHanded}
+          onClick={() => onChange(setWarRoomControlHandedness(layout, !leftHanded))}
+        >
+          {leftHanded ? "SAĞ EL DÜZENİNE GEÇ" : "SOL EL DÜZENİNE GEÇ"}
+        </button>
+        <small>Hareket ve bakış tarafları da seçime göre değişir.</small>
         {saveError && <small className="war-room-control-editor__error" role="status">Tarayıcı kayda izin vermedi; düzenleme bu oturumda kullanılabilir.</small>}
         <div className="war-room-control-editor__actions">
           <button

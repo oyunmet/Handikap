@@ -55,9 +55,11 @@ export function startWarRoomTouch(
   x: number,
   y: number,
   viewportWidth: number,
+  movementSide: "left" | "right" = "left",
 ) {
   if (![identifier, x, y, viewportWidth].every(Number.isFinite) || viewportWidth <= 0) return null;
-  if (x < viewportWidth * 0.5) {
+  if ((movementSide === "left" && x < viewportWidth * 0.5)
+    || (movementSide === "right" && x >= viewportWidth * 0.5)) {
     if (state.joy.id !== -1) state.roles.delete(state.joy.id);
     state.joy.id = identifier;
     state.joy.ox = x;

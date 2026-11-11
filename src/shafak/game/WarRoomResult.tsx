@@ -11,6 +11,7 @@ export type WarRoomResultSummary = {
   gold: number;
   totalGold: number | null;
   mode: WarRoomModeId;
+  dailyObjective?: Exclude<WarRoomModeId, "daily" | "survival"> | null;
   difficulty: WarRoomDifficultyId;
   modifiers: WarRoomModifierId[];
   wave: number;
@@ -62,6 +63,9 @@ export default function WarRoomResult({
   onExit,
 }: Props) {
   const victory = phase === "victory";
+  const objectiveMode = summary.mode === "daily"
+    ? summary.dailyObjective ?? "raid"
+    : summary.mode;
 
   return (
     <section className={`war-room-result${victory ? "" : " is-defeat"}`} role="dialog" aria-modal="true">
@@ -71,11 +75,11 @@ export default function WarRoomResult({
         </span>
         <h1>{victory ? "ZAFER" : "YENİLGİ"}</h1>
         <p>{victory
-          ? summary.mode === "treasure"
+          ? objectiveMode === "treasure"
             ? "Süre dolmadan gerekli sandıklar açıldı."
-            : summary.mode === "defense"
+            : objectiveMode === "defense"
               ? "Savunma noktası korundu ve saldırı durduruldu."
-              : summary.mode === "survival"
+              : objectiveMode === "survival"
                 ? `${summary.wave}. dalga tamamlandı.`
                 : `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
           : summary.mode === "survival"

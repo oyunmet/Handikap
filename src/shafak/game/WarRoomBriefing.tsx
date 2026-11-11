@@ -20,6 +20,12 @@ type Props = {
   dailyChallengeRoom: WarRoomRoom;
   dailyChallengeComplete: boolean;
   selectedMode: Exclude<WarRoomModeId, "daily">;
+  dailyPreset: {
+    mode: WarRoomModeId;
+    difficulty: WarRoomDifficultyId;
+    modifiers: readonly WarRoomModifierId[];
+    mapId: string;
+  };
   selectedDifficulty: WarRoomDifficultyId;
   selectedModifiers: readonly WarRoomModifierId[];
   selectedMapId: string;
@@ -45,6 +51,7 @@ type Props = {
 export default function WarRoomBriefing({
   room,
   dailyChallengeRoom,
+  dailyPreset,
   dailyChallengeComplete,
   selectedMode,
   selectedDifficulty,
@@ -68,6 +75,13 @@ export default function WarRoomBriefing({
   onBegin,
   onBeginDaily,
 }: Props) {
+  const dailyModeName = WAR_ROOM_MODES.find((mode) => mode.id === dailyPreset.mode)?.name ?? "Baskın";
+  const dailyDifficultyName = WAR_ROOM_DIFFICULTIES.find(
+    (difficulty) => difficulty.id === dailyPreset.difficulty,
+  )?.name ?? "Normal";
+  const dailyModifierNames = dailyPreset.modifiers
+    .map((id) => WAR_ROOM_MODIFIERS.find((modifier) => modifier.id === id)?.name)
+    .filter((name): name is string => Boolean(name));
   return (
     <section className="war-room-briefing" role="dialog" aria-modal="true" aria-labelledby="war-room-title">
       <div className="war-room-briefing__backdrop" aria-hidden="true" />
@@ -157,7 +171,12 @@ export default function WarRoomBriefing({
               </div>
               <strong>{dailyChallengeRoom.contract.title}</strong>
               <p>{dailyChallengeRoom.contract.description} · {dailyChallengeRoom.contract.target} hedef</p>
-              <small>{dailyChallengeRoom.name} · +{dailyChallengeRoom.contract.bonusGold} altın</small>
+              <small>
+                {dailyModeName} · {dailyDifficultyName}
+                {dailyModifierNames.length ? ` · ${dailyModifierNames.join(" · ")}` : ""}
+                {" · "}
+                {dailyChallengeRoom.name} · +{dailyChallengeRoom.contract.bonusGold} altın
+              </small>
             </div>
             <div className="war-room-daily-challenge__record" aria-label={`En iyi oda ${roomProgress.highestRoom}`}>
               <small>EN İYİ</small>

@@ -1,5 +1,7 @@
 import {
+  readWarRoomAimAssistEnabled,
   readWarRoomLookSensitivitySettings,
+  writeWarRoomAimAssistEnabled,
   writeWarRoomLookSensitivitySettings,
 } from "./game/war-room-look-settings";
 import {
@@ -440,6 +442,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [warRoomAimAssistEnabled, setWarRoomAimAssistEnabled] = useState(readWarRoomAimAssistEnabled);
   const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivitySettings);
   const [warRoomWeaponSway, setWarRoomWeaponSway] = useState(readWarRoomWeaponSway);
   const [warRoomArmsVisible, setWarRoomArmsVisible] = useState(readWarRoomArmsVisible);
@@ -1348,6 +1351,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onExit={exitWarRoom}
                 profile={profile}
                 onAwardProfileReward={awardWarRoomReward}
+                aimAssistEnabled={warRoomAimAssistEnabled}
                 vibrationEnabled={preferences.vibration}
                 motionReduced={motionReduced}
                 weaponSway={warRoomWeaponSway}
@@ -1561,6 +1565,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                         <small>Birinci şahıs; ekranda yalnızca kol ve eldeki silah görünür.</small>
                       </span>
                     </div>
+                    <SettingToggle
+                      label="Hafif nişan yardımı"
+                      description="Nişan basılıyken yakın, görünür hedefe en fazla 1,5° yumuşak yönlendirme."
+                      checked={warRoomAimAssistEnabled}
+                      onChange={() => setWarRoomAimAssistEnabled(
+                        writeWarRoomAimAssistEnabled(!warRoomAimAssistEnabled),
+                      )}
+                    />
                   </>
                 )}
                 <div className="setting-row setting-row--quality">

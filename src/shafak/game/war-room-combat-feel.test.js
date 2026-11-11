@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getWarRoomRangedAimAssistYaw,
   getWarRoomMeleeAssistYaw,
   getWarRoomMeleeAttackPlan,
   WAR_ROOM_HEAVY_ATTACK_HOLD_SECONDS,
@@ -80,4 +81,31 @@ test("melee aim assist selects the nearest visible target inside its reach and 6
   );
 
   assert.ok(Math.abs(yaw - Math.atan2(valid.x, -valid.z)) < 1e-9);
+});
+
+test("light ranged aim assist only nudges toward a nearby visible target", () => {
+  const target = { x: 1, z: -10, alive: true };
+  const result = getWarRoomRangedAimAssistYaw(0, 0, 0, [target], 20, () => false);
+  assert.ok(result > 0);
+  assert.ok(result <= (1.5 * Math.PI) / 180);
+});
+
+test("light ranged aim assist ignores dead, blocked, distant, and out-of-cone targets", () => {
+  const targets = [
+    { x: 0.5, z: -8, alive: false },
+    { x: 0.5, z: -8, alive: true, blocked: true },
+    { x: 0.5, z: -30, alive: true },
+    { x: 4, z: -8, alive: true },
+  ];
+  for (const target of targets) {
+    const result = getWarRoomRangedAimAssistYaw(
+      0,
+      0,
+      0,
+      [target],
+      20,
+      (candidate) => candidate.blocked === true,
+    );
+    assert.equal(result, 0);
+  }
 });

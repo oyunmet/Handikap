@@ -41,6 +41,7 @@ import {
 import {
   getWarRoomDailyPreset,
   getWarRoomMissionReward,
+  getWarRoomObjectiveMode,
   getWarRoomResultLabel,
   getWarRoomResultGrade,
   type WarRoomDifficultyId,
@@ -118,6 +119,7 @@ import WarRoomControlsEditor from "./WarRoomControlsEditor";
 import {
   CONTROLS_CONFIG,
   createDefaultWarRoomControlLayout,
+  isWarRoomLeftHandedLayout,
   isWarRoomMovementTouchAllowed,
   loadWarRoomControlLayout,
   saveWarRoomControlLayout,
@@ -134,6 +136,7 @@ type Props = {
   onAwardProfileReward: (
     request: WarRoomProfileRewardRequest,
   ) => Promise<{ profile: PlayerProfile; rewards: WarRoomProfileReward }>;
+  aimAssistEnabled: boolean;
   vibrationEnabled: boolean;
   motionReduced: boolean;
   weaponSway: WarRoomWeaponSwayLevel;
@@ -202,7 +205,7 @@ function getControlPlacementStyle(
   };
 }
 
-function createInputState(): WarRoomInputState {
+function createInputState(aimAssistEnabled = true): WarRoomInputState {
   return {
     keys: new Set(),
     moveX: 0,
@@ -219,6 +222,7 @@ function createInputState(): WarRoomInputState {
     firePressed: false,
     fireReleased: false,
     aimHeld: false,
+    aimAssistEnabled,
     reloadPressed: false,
     swapPressed: false,
     jumpPressed: false,
@@ -245,7 +249,18 @@ function createEmptyHud(): WarRoomHudSnapshot {
       defenseHp: 0,
       defenseMaxHp: 0,
     },
-    player: { x: 0, z: 0, floorHeight: 0, yaw: 0, hp: 220, maxHp: 220, stamina: 100, maxStamina: 100 },
+    player: {
+      x: 0,
+      z: 0,
+      floorHeight: 0,
+      yaw: 0,
+      hp: 220,
+      maxHp: 220,
+      armor: 0,
+      maxArmor: 60,
+      stamina: 100,
+      maxStamina: 100,
+    },
     orientation: {
       facingYaw: 0,
       mode: "HAREKET",
@@ -254,6 +269,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     },
     enemies: [],
     healingPoints: [],
+    armorPoints: [],
     regenerationActive: false,
     regenerationWaitSeconds: 0,
     regenerationAtCap: false,
@@ -284,6 +300,7 @@ function createEmptyHud(): WarRoomHudSnapshot {
     damageVignette: false,
     damageDirection: 0,
     lastHitDamage: 0,
+    lastHitArmorDamage: 0,
     hitMessage: "",
     killFeed: [],
     crouched: false,
@@ -363,6 +380,7 @@ export default function WarRoomGame({
   onExit,
   profile,
   onAwardProfileReward,
+  aimAssistEnabled,
   vibrationEnabled,
   motionReduced,
   weaponSway,
@@ -598,10 +616,13 @@ export default function WarRoomGame({
     weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout, 0, 1),
   );
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
-  const inputRef = useRef<WarRoomInputState>(createInputState());
+  const inputRef = useRef<WarRoomInputState>(createInputState(aimAssistEnabled));
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const mobileControlsRef = useRef(createWarRoomMobileControlsState());
   const touchInputRef = useRef(createWarRoomTouchInputState());
+  useEffect(() => {
+    inputRef.current.aimAssistEnabled = aimAssistEnabled;
+  }, [aimAssistEnabled]);
   const battleStageRef = useRef<HTMLDivElement>(null);
   const fullscreenRequestedRef = useRef(false);
   const settingsPauseRef = useRef(false);
@@ -623,6 +644,7 @@ export default function WarRoomGame({
   );
   const floorLabel = floorPresentation?.label ?? null;
   const controlLayoutEnabled = savedControlLayout.customized;
+  const leftHandedControls = isWarRoomLeftHandedLayout(savedControlLayout.layout);
   const briefingRoom = phase === "briefing"
     ? getWarRoomRoom(roomNumber, 0, selectedMapId)
     : currentRoom;
@@ -707,7 +729,7 @@ export default function WarRoomGame({
       );
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
-    inputRef.current = createInputState();
+    inputRef.current = createInputState(aimAssistEnabled);
     resetTouchControls();
     crouchTapAtRef.current = null;
     setDynamicStickActive(false);
@@ -821,6 +843,7 @@ export default function WarRoomGame({
         completed: contractBonus > 0,
       },
       mode: completedMission.mode,
+      dailyObjective: completedMission.dailyObjective,
       difficulty: completedMission.difficulty,
       modifiers: completedMission.modifiers,
       wave: completedMission.wave,
@@ -1029,7 +1052,7 @@ export default function WarRoomGame({
     setLoadout(nextLoadout);
     setSelectedSlot(0);
     runtimeRef.current = createWarRoomTrainingRuntime(nextLoadout);
-    inputRef.current = createInputState();
+    inputRef.current = createInputState(aimAssistEnabled);
     setHud(createEmptyHud());
     setRunKey((key) => key + 1);
   };
@@ -1264,11 +1287,22 @@ export default function WarRoomGame({
       resumeWarRoomAudio();
       const bounds = stage.getBoundingClientRect();
       for (const touch of Array.from(event.changedTouches)) {
-        const side = getWarRoomTouchControlSide(touch.clientX, bounds.left, bounds.width);
+        const side = getWarRoomTouchControlSide(
+          touch.clientX,
+          bounds.left,
+          bounds.width,
+          leftHandedControls,
+        );
         if (!side) continue;
         const x = touch.clientX - bounds.left;
         const y = touch.clientY - bounds.top;
-        if (side === "movement" && !isWarRoomMovementTouchAllowed(x, y, bounds.width, bounds.height)) {
+        if (side === "movement" && !isWarRoomMovementTouchAllowed(
+          x,
+          y,
+          bounds.width,
+          bounds.height,
+          leftHandedControls,
+        )) {
           continue;
         }
 
@@ -1277,7 +1311,14 @@ export default function WarRoomGame({
           releaseTouch(previousIdentifier);
         }
 
-        const role = startWarRoomTouch(state, touch.identifier, x, y, bounds.width);
+        const role = startWarRoomTouch(
+          state,
+          touch.identifier,
+          x,
+          y,
+          bounds.width,
+          leftHandedControls ? "right" : "left",
+        );
         if (!role) continue;
         const controlPointerId = pointerIdForTouch(touch.identifier);
         const input = inputRef.current;
@@ -1384,7 +1425,7 @@ export default function WarRoomGame({
       window.removeEventListener("orientationchange", onOrientationChange, true);
       resetTouchControls();
     };
-  }, [phase, resetTouchControls]);
+  }, [leftHandedControls, phase, resetTouchControls]);
 
   return (
     <main
@@ -1398,6 +1439,7 @@ export default function WarRoomGame({
         <WarRoomBriefing
           room={briefingRoom}
           dailyChallengeRoom={dailyChallengeRoom}
+          dailyPreset={dailyPreset}
           dailyChallengeComplete={dailyChallengeComplete}
           selectedMode={selectedMode}
           selectedDifficulty={selectedDifficulty}
@@ -1720,7 +1762,17 @@ export default function WarRoomGame({
                     </>
                   )}
                   {hud.mission.mode === "daily" && (
-                    <small>{currentRoom.contract.title} · {contractProgress}/{currentRoom.contract.target}</small>
+                    <small>
+                      {getWarRoomResultLabel(getWarRoomObjectiveMode(hud.mission))}
+                      {" · "}
+                      {getWarRoomObjectiveMode(hud.mission) === "treasure"
+                        ? `SANDIK ${hud.lootChestsOpened}/${hud.mission.targetChests} · ${formatMissionClock(Math.max(0, (hud.mission.timeLimitSeconds ?? 0) - hud.elapsedSeconds))}`
+                        : getWarRoomObjectiveMode(hud.mission) === "defense"
+                          ? `SAVUNMA ${Math.ceil(hud.mission.defenseHp)}/${hud.mission.defenseMaxHp}`
+                          : `DÜŞMAN ${hud.remaining}`}
+                      {" · "}
+                      {currentRoom.contract.title} {contractProgress}/{currentRoom.contract.target}
+                    </small>
                   )}
                 </div>
               </div>
@@ -1836,6 +1888,19 @@ export default function WarRoomGame({
                       style={{ width: `${Math.max(0, (hud.player.hp / hud.player.maxHp) * 100)}%` }}
                     />
                 </i>
+                {hud.player.maxArmor > 0 && (
+                  <>
+                    <div className="war-room-bar-row">
+                      <span>ZIRH</span><b>{Math.ceil(hud.player.armor)} / {hud.player.maxArmor}</b>
+                    </div>
+                    <i className="war-room-bar">
+                      <em
+                        className="is-armor"
+                        style={{ width: `${Math.max(0, Math.min(100, (hud.player.armor / hud.player.maxArmor) * 100))}%` }}
+                      />
+                    </i>
+                  </>
+                )}
                 <div className="war-room-bar-row">
                   <span>DAYANIKLILIK</span><b>{Math.ceil(hud.player.stamina)}%</b>
                 </div>
@@ -2100,9 +2165,9 @@ export default function WarRoomGame({
           {exitPrompt && (
             <div className="war-room-confirm" role="alertdialog" aria-modal="true" aria-label="Savaş odasından çık">
               <section>
-                <span className="war-room-eyebrow">GÖREV DURDURULACAK</span>
-                <h2>Savaştan çıkılsın mı?</h2>
-                <p>Bu karşılaşmanın ilerlemesi kaydedilmez.</p>
+                <span className="war-room-eyebrow">OYUN DURAKLATILDI</span>
+                <h2>Savaşa ara verildi</h2>
+                <p>Devam et, ayarları değiştir veya karşılaşmadan çık.</p>
                 <div>
                   <button
                     type="button"
@@ -2112,6 +2177,15 @@ export default function WarRoomGame({
                     }}
                   >
                     DEVAM ET
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExitPrompt(false);
+                      onOpenSettings();
+                    }}
+                  >
+                    AYARLAR
                   </button>
                   <button type="button" className="is-danger" onClick={closeMode}>ÇIKIŞ</button>
                 </div>

@@ -182,6 +182,16 @@
 - **Doğrulanamayanlar:** Gerçek iPhone/Android'de el tutuşu, ADS/koşu görünümü ve kare hızı ölçülmedi. Chromium emülasyonu cihaz kabulü yerine geçmez.
 - **Bu alt adımda değişen dosyalar:** `src/shafak/game/war-room-engine.test.js`, `src/shafak/game/war-room-lab.test.js`, `ILERLEME.md`.
 
+### 11.8 — Savaş Odası kapsamlı yenileme
+
+- **Durum:** Kod ve hedef testler tamamlandı; tam proje doğrulaması 11.9’da.
+- **Kök neden:** Normal muhafızlar `approach` durumunda başlıyor ve devriye/uyarı/farkındalık akışı bulunmuyordu. Günlük görev HUD ve sonuç ekranı gerçek alt modu göstermiyor; zırh çalışma zamanında tutulmasına rağmen HUD’da görünmüyor; duraklatma ekranında ayarlara erişim yoktu. Mobil hareket ve kamera tarafları sabitti; hafif menzilli nişan yardımı kullanıcı ayarı değildi.
+- **Yapılanlar:** Mevcut beş oyun modu, altı harita, zorluk/değiştiriciler, boss fazları, ganimet ve ödül sınırları korunup bot simülasyonları gerçek sandık toplama, görev tamamlama, hayatta kalma dalgaları ve sonuç koşullarıyla çalıştırıldı. Muhafızlara devriye/uyarı/çatışma farkındalığı eklendi; günlük görev HUD, hazırlık ve sonuç ekranında gerçek görev türünü gösteriyor; zırh çubuğu eklendi. Duraklatma menüsünden devam/ayarlar/çıkış seçenekleri açılıyor. Dokunmatik düzenleyici sol el yerleşimini ve hareket/bakış taraflarını değiştiriyor; ayarlardan açılıp kapanan menzilli yardım yalnızca nişan basılıyken, yakındaki açık hedefe en fazla 1,5° yöneliyor. Dokunmatik düğme boyutu ve kamera hassasiyeti ayarları korundu.
+- **Doğrulama:** Savaş Odası görevleri, boss, ödül, ganimet, muhafız farkındalığı, nişan yardımı ve sol el düzeni için hedef testler 45/45 geçti. `npm run typecheck` ve `git diff --check` geçti. Altı haritanın her birinde beş gerçek zemin ganimet sandığına bot ulaştı.
+- **Yarım kalanlar:** Kod tarafında yok; 11.9 tam test/build, bundle, ekran boyutu ve önizleme doğrulamasıdır.
+- **Doğrulanamayanlar:** Gerçek iPhone/Android’de kare hızı, titreşim ve eşzamanlı çoklu dokunma henüz ölçülmedi; cihaz kabulü 11.9 sonunda ayrıca raporlanacak.
+- **Bu alt adımda değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/game/WarRoomBriefing.tsx`, `src/shafak/game/WarRoomControlsEditor.tsx`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/WarRoomResult.tsx`, `src/shafak/game/war-room-awareness.ts`, `src/shafak/game/war-room-awareness.test.js`, `src/shafak/game/war-room-combat-feel.ts`, `src/shafak/game/war-room-combat-feel.test.js`, `src/shafak/game/war-room-controls.ts`, `src/shafak/game/war-room-controls-handedness.test.js`, `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-look-settings.ts`, `src/shafak/game/war-room-missions.test.js`, `src/shafak/game/war-room-mobile-controls.ts`, `src/shafak/game/war-room-touch-input.ts`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
+
 ### Adım 11 alt adımları
 
 - **11.1 — Mağaza: satın alma ve kuşanma:** Tamamlandı
@@ -191,5 +201,5 @@
 - **11.5 — Kapı ve eşik takılması:** Tamamlandı
 - **11.6 — Ortam görsel kalitesi:** Kod tamamlandı; gerçek cihaz görsel/FPS kabulü açık
 - **11.7 — Silahlar ve eller:** Kod/test tamamlandı; gerçek cihaz kabulü açık
-- **11.8 — Savaş Odası kapsamlı yenileme:** Bekliyor
+- **11.8 — Savaş Odası kapsamlı yenileme:** Kod/test tamamlandı; tam doğrulama 11.9’da
 - **11.9 — Final doğrulama:** Bekliyor

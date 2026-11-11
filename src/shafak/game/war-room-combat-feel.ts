@@ -2,6 +2,46 @@ import type { WarRoomEnemy } from "./war-room-engine";
 
 export const WAR_ROOM_HEAVY_ATTACK_HOLD_SECONDS = 0.35;
 export const WAR_ROOM_MELEE_ASSIST_RADIANS = (65 * Math.PI) / 180;
+export const WAR_ROOM_RANGED_AIM_ASSIST_CONE_RADIANS = (9 * Math.PI) / 180;
+export const WAR_ROOM_RANGED_AIM_ASSIST_NUDGE_RADIANS = (1.5 * Math.PI) / 180;
+
+type RangedAimAssistTarget = {
+  x: number;
+  z: number;
+  alive: boolean;
+  floorHeight?: number;
+  commander?: boolean;
+};
+
+export function getWarRoomRangedAimAssistYaw(
+  x: number,
+  z: number,
+  yaw: number,
+  targets: readonly RangedAimAssistTarget[],
+  maxDistance: number,
+  isBlocked: (target: RangedAimAssistTarget) => boolean,
+) {
+  let selectedDelta: number | null = null;
+  let selectedDistance = Number.POSITIVE_INFINITY;
+  for (const target of targets) {
+    if (!target.alive || isBlocked(target)) continue;
+    const dx = target.x - x;
+    const dz = target.z - z;
+    const distance = Math.hypot(dx, dz);
+    if (!Number.isFinite(distance) || distance <= 0 || distance > maxDistance) continue;
+    const targetYaw = Math.atan2(dx, -dz);
+    const delta = Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw));
+    if (Math.abs(delta) > WAR_ROOM_RANGED_AIM_ASSIST_CONE_RADIANS || distance >= selectedDistance) continue;
+    selectedDelta = delta;
+    selectedDistance = distance;
+  }
+  if (selectedDelta === null) return yaw;
+  const nudge = Math.max(
+    -WAR_ROOM_RANGED_AIM_ASSIST_NUDGE_RADIANS,
+    Math.min(WAR_ROOM_RANGED_AIM_ASSIST_NUDGE_RADIANS, selectedDelta),
+  );
+  return yaw + nudge;
+}
 export const WAR_ROOM_COMBO_RESET_SECONDS = 1.15;
 type WarRoomMeleeAssistTarget = Pick<WarRoomEnemy, "x" | "z" | "alive">
   & Partial<Pick<WarRoomEnemy, "commander">>;

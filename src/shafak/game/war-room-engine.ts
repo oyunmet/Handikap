@@ -21,6 +21,7 @@ import {
 import { getWarRoomRoom, type WarRoomRoom } from "./war-room-rooms";
 import { WAR_ROOM_CONFIG } from "./war-room-config";
 import type { WarRoomBossAttack } from "./war-room-boss";
+import type { WarRoomAwarenessState } from "./war-room-awareness";
 import {
   createWarRoomMissionState,
   getWarRoomAmmoMultiplier,
@@ -64,7 +65,8 @@ export type WarRoomEnemy = {
   damage: number;
   score: number;
   alive: boolean;
-  mode: "approach" | "fire" | "cover";
+  mode: WarRoomAwarenessState | "approach" | "fire" | "cover";
+  awareness: number;
   brainAt: number;
   nextShotAt: number;
   coverX: number;
@@ -209,6 +211,7 @@ export type WarRoomInputState = {
   firePressed: boolean;
   fireReleased: boolean;
   aimHeld: boolean;
+  aimAssistEnabled: boolean;
   reloadPressed: boolean;
   swapPressed: boolean;
   jumpPressed: boolean;
@@ -380,7 +383,8 @@ export function createWarRoomRuntime(
       damage: Math.round(9 * room.enemyDamageMultiplier * archetypeDamage),
       score: 0,
       alive: true,
-      mode: "approach",
+      mode: "patrol",
+      awareness: 0,
       brainAt: 0,
       nextShotAt: 1.3 + index * 0.19,
       coverX: cover.x,
@@ -412,6 +416,7 @@ export function createWarRoomRuntime(
     score: 0,
     alive: true,
     mode: "approach",
+    awareness: 1,
     brainAt: 0,
     nextShotAt: 2.6,
     coverX: 0,
@@ -593,6 +598,7 @@ export function spawnWarRoomBossSummons(
       score: 0,
       alive: true,
       mode: "approach",
+      awareness: 1,
       brainAt: now,
       nextShotAt: now + 1.1,
       coverX: spawn.x,
@@ -671,6 +677,7 @@ export function createWarRoomTrainingRuntime(
     score: 0,
     alive: true,
     mode: "cover",
+    awareness: 1,
     brainAt: Number.POSITIVE_INFINITY,
     nextShotAt: Number.POSITIVE_INFINITY,
     coverX: dummyPosition.x,

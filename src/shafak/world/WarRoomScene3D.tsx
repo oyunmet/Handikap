@@ -60,7 +60,11 @@ import {
   collectWarRoomHealingPoint,
   type WarRoomHealingPoint,
 } from "../game/war-room-restore";
-import { getWarRoomMeleeAssistYaw, getWarRoomMeleeAttackPlan } from "../game/war-room-combat-feel";
+import {
+  getWarRoomMeleeAssistYaw,
+  getWarRoomMeleeAttackPlan,
+  getWarRoomRangedAimAssistYaw,
+} from "../game/war-room-combat-feel";
 import {
   cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomActorRootYawToTarget,
@@ -155,6 +159,7 @@ import {
   WAR_ROOM_BOSS_SUMMON_COUNT,
   type WarRoomBossAttack,
 } from "../game/war-room-boss";
+import { updateWarRoomAwareness } from "../game/war-room-awareness";
 import {
   getWarRoomCommanderTelegraphProgress,
   getWarRoomDeathFadeProgress,
@@ -1833,6 +1838,16 @@ function EnemyActor({
           />
         </Suspense>
       </WarRoomAssetBoundary>
+      {enemy.alive && enemy.mode === "alert" && (
+        <mesh
+          name={`war-room-alert:${enemy.id}`}
+          position={[0, characterHeight + 0.2, 0]}
+          renderOrder={10}
+        >
+          <octahedronGeometry args={[0.13, 0]} />
+          <meshBasicMaterial color="#ffd27a" toneMapped={false} />
+        </mesh>
+      )}
       <group
         ref={attackWarningRef}
         name={`commander-warning:${enemy.id}`}
@@ -2008,6 +2023,8 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
       yaw: player.yaw,
       hp: player.hp,
       maxHp: player.maxHp,
+      armor: player.armor,
+      maxArmor: player.maxArmor,
       stamina: player.stamina,
       maxStamina: player.maxStamina,
     },
@@ -2027,6 +2044,13 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
       commander,
     })),
     healingPoints: RESTORE_CONFIG.enabled ? runtime.healingPoints.map(({ id, x, z, availableAt }) => ({
+      id,
+      x,
+      z,
+      floorHeight: 0,
+      available: availableAt <= now,
+    })) : [],
+    armorPoints: RESTORE_CONFIG.enabled ? runtime.armorPoints.map(({ id, x, z, availableAt }) => ({
       id,
       x,
       z,
@@ -2068,6 +2092,7 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
     damageVignette: player.lastDamageAt > 0 && now - player.lastDamageAt < 0.72,
     damageDirection: player.damageDirection,
     lastHitDamage: player.lastHitDamage,
+    lastHitArmorDamage: player.lastHitArmorDamage,
     hitMessage: player.hitMessageUntil > now ? player.lastHitText : "",
     killFeed: player.killFeed,
     crouched: player.crouched,
@@ -3505,19 +3530,37 @@ function WarRoomRuntimeScene({
       "camera",
     );
     const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
-    const assistedYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
-      && orientationWeapon.weaponClass === "melee"
-      && input.aimHeld
-      && inputLength < 0.12
-      ? getWarRoomMeleeAssistYaw(
-        player.x,
-        player.z,
-        orientation.yaw,
-        runtime.enemies,
-        orientationWeapon.range,
-        (enemy) => isMeleeTargetBlocked(player, enemy),
-      )
-      : orientation.yaw;
+    const assistedYaw = orientationWeapon.weaponClass === "melee"
+      ? WAR_ROOM_COMBAT_FEEL_ENABLED && input.aimHeld && inputLength < 0.12
+        ? getWarRoomMeleeAssistYaw(
+          player.x,
+          player.z,
+          orientation.yaw,
+          runtime.enemies,
+          orientationWeapon.range,
+          (enemy) => isMeleeTargetBlocked(player, enemy),
+        )
+        : orientation.yaw
+      : input.aimHeld && input.aimAssistEnabled
+        ? getWarRoomRangedAimAssistYaw(
+          player.x,
+          player.z,
+          orientation.yaw,
+          runtime.enemies,
+          20,
+          (enemy) => Math.abs((enemy.floorHeight ?? 0) - player.floorHeight) > 1.25
+            || segmentBlockFraction(
+              { x: player.x, y: player.floorHeight + 1.35, z: player.z },
+              {
+                x: enemy.x,
+                y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.35 : 1.05),
+                z: enemy.z,
+              },
+              0,
+              activeBlockersRef.current,
+            ) !== null,
+        )
+        : orientation.yaw;
     player.facingYaw = stepWarRoomYaw(player.facingYaw, assistedYaw, delta, 55);
     player.yaw = player.facingYaw;
     player.facingMode = orientation.mode;
@@ -3980,10 +4023,25 @@ function WarRoomRuntimeScene({
       const floorGap = defenseMode
         ? Math.abs(enemy.floorHeight ?? 0)
         : Math.abs((enemy.floorHeight ?? 0) - player.floorHeight);
+      const perception = updateWarRoomAwareness(enemy.awareness, rawDelta, {
+        visible: floorGap <= 1.25 && gap <= 25 && !lineBlocked,
+        heardSound: floorGap <= 1.25 && (
+          (player.sprinting && gap <= 14)
+          || (
+            player.lastCombatAt >= player.startTime
+            && now - player.lastCombatAt <= 2.4
+            && gap <= 32
+          )
+        ),
+      });
+      enemy.awareness = perception.awareness;
+      const engaged = enemy.commander || defenseMode || perception.state === "engaged";
       enemy.mode = activeLootChase
         ? "approach"
         : floorGap > 1.25
           ? "approach"
+          : !engaged
+            ? perception.state === "alert" ? "alert" : "patrol"
         : !defenseMode && player.hp / player.maxHp < 0.33
           ? "cover"
           : !lineBlocked && gap <= (defenseMode ? 22 : enemy.commander ? 22 : 17)
@@ -3994,14 +4052,19 @@ function WarRoomRuntimeScene({
         enemy.brainAt = now + updateInterval;
         enemy.doorApproachX = 0;
         enemy.doorApproachZ = 0;
-        const needsFloorRoute = !activeLootChase && !defenseMode && floorGap > 1.25 && playerBuilding;
+        const needsFloorRoute = enemy.mode === "approach"
+          && !activeLootChase && !defenseMode && floorGap > 1.25 && playerBuilding;
         let target: { x: number; z: number; floorHeight?: number } = activeLootChase && lootBuilding
           ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
+          : defenseMode
+            ? { ...runtime.mission.objectivePosition, floorHeight: 0 }
+          : enemy.mode === "patrol"
+            ? { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 }
+          : enemy.mode === "alert"
+            ? { x: player.x, z: player.z, floorHeight: player.floorHeight }
           : needsFloorRoute
             ? getWarRoomLootPursuitPoint(enemy, player, playerBuilding!)
-            : defenseMode
-              ? { ...runtime.mission.objectivePosition, floorHeight: 0 }
-              : { x: player.x, z: player.z, floorHeight: player.floorHeight };
+            : { x: player.x, z: player.z, floorHeight: player.floorHeight };
         if (!activeLootChase && !defenseMode && enemy.mode === "cover") {
           if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
             const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
@@ -4012,7 +4075,7 @@ function WarRoomRuntimeScene({
           }
           target = { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 };
         }
-        if (!activeLootChase && !needsFloorRoute) {
+        if (!activeLootChase && !needsFloorRoute && enemy.mode !== "alert") {
           target = getWarRoomObstacleWaypoint(
             enemy,
             target,
@@ -4020,13 +4083,18 @@ function WarRoomRuntimeScene({
             0.35,
           );
         }
-        const holdDistance = activeLootChase ? 0.8 : defenseMode ? 1.7 : enemy.commander ? 12.5 : 10.5;
-        const shouldMove = enemy.mode !== "fire"
+        const holdDistance = activeLootChase ? 0.8
+          : defenseMode ? 1.7
+            : enemy.mode === "patrol" ? 0.4
+              : enemy.commander ? 12.5 : 10.5;
+        const shouldMove = (enemy.mode === "patrol" || enemy.mode === "approach" || enemy.mode === "cover")
           && Math.hypot(target.x - enemy.x, target.z - enemy.z)
             > (enemy.mode === "cover" ? 1.2 : holdDistance);
         if (shouldMove) {
           const targetYaw = Math.atan2(target.x - enemy.x, -(target.z - enemy.z));
-          const moveSpeed = (enemy.commander ? 2.55 : enemy.mode === "cover" ? 3.25 : 3.7)
+          const moveSpeed = (enemy.commander ? 2.55
+            : enemy.mode === "patrol" ? 1.15
+              : enemy.mode === "cover" ? 3.25 : 3.7)
             * enemy.speedMultiplier
             * getWarRoomEnemySpeedMultiplier(runtime.mission.modifiers);
           let moveXEnemy = Math.sin(targetYaw) * moveSpeed * updateInterval;
