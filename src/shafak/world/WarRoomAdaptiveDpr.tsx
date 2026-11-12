@@ -4,6 +4,7 @@ import {
   createWarRoomAdaptiveDprState,
   getWarRoomPixelRatio,
   sampleWarRoomAdaptiveDpr,
+  type WarRoomAdaptiveDprState,
 } from "../game/war-room-quality";
 import type { RenderQuality } from "./graphics-quality";
 
@@ -19,38 +20,33 @@ export default function WarRoomAdaptiveDpr({ quality, touchDevice }: Props) {
     typeof window === "undefined" ? 1 : window.devicePixelRatio,
     touchDevice,
   );
-  const adaptiveStateRef = useRef(createWarRoomAdaptiveDprState(maxPixelRatio));
-  const elapsedRef = useRef(0);
-  const frameTimeTotalRef = useRef(0);
-  const frameCountRef = useRef(0);
+  const adaptiveStateRef = useRef<WarRoomAdaptiveDprState | null>(null);
+  if (adaptiveStateRef.current === null) {
+    adaptiveStateRef.current = createWarRoomAdaptiveDprState(maxPixelRatio);
+  }
+  const lastFrameAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     adaptiveStateRef.current = createWarRoomAdaptiveDprState(maxPixelRatio);
-    elapsedRef.current = 0;
-    frameTimeTotalRef.current = 0;
-    frameCountRef.current = 0;
+    lastFrameAtRef.current = null;
     setDpr(maxPixelRatio);
   }, [maxPixelRatio, setDpr]);
 
-  useFrame((_, delta) => {
-    if (!Number.isFinite(delta) || delta <= 0 || delta > 0.2) return;
-    const frameTimeMs = delta * 1_000;
-    elapsedRef.current += frameTimeMs;
-    frameTimeTotalRef.current += frameTimeMs;
-    frameCountRef.current += 1;
-    if (elapsedRef.current < 600 || frameCountRef.current === 0) return;
-
-    const averageFrameTime = frameTimeTotalRef.current / frameCountRef.current;
-    const previousPixelRatio = adaptiveStateRef.current.pixelRatio;
+  useFrame(() => {
+    const nowMs = performance.now();
+    const previousFrameAt = lastFrameAtRef.current;
+    lastFrameAtRef.current = nowMs;
+    if (previousFrameAt === null) return;
+    const adaptiveState = adaptiveStateRef.current;
+    if (!adaptiveState) return;
+    const previousPixelRatio = adaptiveState.pixelRatio;
     const nextPixelRatio = sampleWarRoomAdaptiveDpr(
-      adaptiveStateRef.current,
+      adaptiveState,
       maxPixelRatio,
-      averageFrameTime,
+      nowMs - previousFrameAt,
+      nowMs,
     );
     if (nextPixelRatio !== previousPixelRatio) setDpr(nextPixelRatio);
-    elapsedRef.current = 0;
-    frameTimeTotalRef.current = 0;
-    frameCountRef.current = 0;
   });
 
   return null;

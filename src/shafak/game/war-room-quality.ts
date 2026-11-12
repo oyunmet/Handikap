@@ -44,46 +44,115 @@ export function getWarRoomFrameStats(
 
 export type WarRoomAdaptiveDprState = {
   pixelRatio: number;
+  levelIndex: number;
   slowWindows: number;
   fastWindows: number;
+  frameTimesMs: Float32Array;
+  sortedFrameTimesMs: Float32Array;
+  sampleCount: number;
+  samplesSinceEvaluation: number;
+  writeIndex: number;
+  lastScaleChangeAtMs: number;
 };
 
+export const WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES = 30;
+export const WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS = [1, 0.85, 0.7, 0.6] as const;
+export const WAR_ROOM_ADAPTIVE_DPR_CHANGE_COOLDOWN_MS = 1_000;
+
 export function createWarRoomAdaptiveDprState(pixelRatio: number): WarRoomAdaptiveDprState {
+  const safePixelRatio = Number.isFinite(pixelRatio)
+    ? Math.max(0.75, Math.min(2, pixelRatio))
+    : 1;
   return {
-    pixelRatio: Number.isFinite(pixelRatio) ? Math.max(0.75, pixelRatio) : 1,
+    pixelRatio: safePixelRatio,
+    levelIndex: 0,
     slowWindows: 0,
     fastWindows: 0,
+    frameTimesMs: new Float32Array(WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES),
+    sortedFrameTimesMs: new Float32Array(WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES),
+    sampleCount: 0,
+    samplesSinceEvaluation: 0,
+    writeIndex: 0,
+    lastScaleChangeAtMs: Number.NEGATIVE_INFINITY,
   };
 }
 
 export function sampleWarRoomAdaptiveDpr(
   state: WarRoomAdaptiveDprState,
   maxPixelRatio: number,
-  averageFrameTimeMs: number,
+  frameTimeMs: number,
+  nowMs: number,
 ) {
   const maximum = Number.isFinite(maxPixelRatio) ? Math.max(0.75, Math.min(2, maxPixelRatio)) : 1;
-  if (!Number.isFinite(averageFrameTimeMs) || averageFrameTimeMs <= 0) return state.pixelRatio;
+  if (
+    !Number.isFinite(frameTimeMs)
+    || frameTimeMs <= 0
+    || !Number.isFinite(nowMs)
+  ) return state.pixelRatio;
 
-  if (averageFrameTimeMs > 20) {
+  state.frameTimesMs[state.writeIndex] = frameTimeMs;
+  state.writeIndex = (state.writeIndex + 1) % WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES;
+  state.sampleCount = Math.min(state.sampleCount + 1, WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES);
+  state.samplesSinceEvaluation += 1;
+  if (
+    state.sampleCount < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES
+    || state.samplesSinceEvaluation < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES
+  ) return state.pixelRatio;
+  state.samplesSinceEvaluation = 0;
+
+  let totalFrameTimeMs = 0;
+  for (let index = 0; index < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES; index += 1) {
+    const sample = state.frameTimesMs[index]!;
+    state.sortedFrameTimesMs[index] = sample;
+    totalFrameTimeMs += sample;
+  }
+  state.sortedFrameTimesMs.sort();
+  const averageFrameTimeMs = totalFrameTimeMs / WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES;
+  const p95FrameTimeMs = state.sortedFrameTimesMs[
+    Math.ceil(WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES * 0.95) - 1
+  ]!;
+  const frameRateHz = averageFrameTimeMs > 0 ? 1_000 / averageFrameTimeMs : 0;
+  const targetFrameTimeMs = frameRateHz >= 25 && frameRateHz <= 35
+    ? 1_000 / 30
+    : 1_000 / 60;
+  const isSlow = averageFrameTimeMs > targetFrameTimeMs * 1.1
+    || p95FrameTimeMs > targetFrameTimeMs * 1.5;
+  const isFast = averageFrameTimeMs <= targetFrameTimeMs * 0.9
+    && p95FrameTimeMs <= targetFrameTimeMs * 1.25;
+
+  if (isSlow) {
     state.slowWindows += 1;
     state.fastWindows = 0;
-    if (state.slowWindows >= 2) {
-      state.pixelRatio = Math.max(0.75, Math.min(maximum, state.pixelRatio - 0.1));
-      state.slowWindows = 0;
-    }
-  } else if (averageFrameTimeMs < 16.7) {
+  } else if (isFast) {
     state.fastWindows += 1;
     state.slowWindows = 0;
-    if (state.fastWindows >= 4) {
-      state.pixelRatio = Math.min(maximum, state.pixelRatio + 0.05);
-      state.fastWindows = 0;
-    }
   } else {
     state.slowWindows = 0;
     state.fastWindows = 0;
   }
 
-  state.pixelRatio = Math.round(state.pixelRatio * 100) / 100;
+  if (nowMs - state.lastScaleChangeAtMs < WAR_ROOM_ADAPTIVE_DPR_CHANGE_COOLDOWN_MS) {
+    return state.pixelRatio;
+  }
+
+  if (state.slowWindows >= 2 && state.levelIndex < WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS.length - 1) {
+    state.levelIndex += 1;
+    state.slowWindows = 0;
+    state.fastWindows = 0;
+    state.lastScaleChangeAtMs = nowMs;
+  } else if (state.fastWindows >= 4 && state.levelIndex > 0) {
+    state.levelIndex -= 1;
+    state.slowWindows = 0;
+    state.fastWindows = 0;
+    state.lastScaleChangeAtMs = nowMs;
+  } else {
+    return state.pixelRatio;
+  }
+
+  state.pixelRatio = Math.round(
+    Math.max(0.6, Math.min(maximum, maximum * WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS[state.levelIndex]!))
+      * 100,
+  ) / 100;
   return state.pixelRatio;
 }
 
@@ -99,21 +168,21 @@ const WAR_ROOM_QUALITY_PROFILES: Record<RenderQuality, WarRoomQualityProfile> = 
     maxActiveParticles: 28,
     slashTrailSegments: 4,
     pixelRatioCap: 1,
-    touchPixelRatioCap: 0.85,
+    touchPixelRatioCap: 1,
   },
   balanced: {
     particleMultiplier: 0.7,
     maxActiveParticles: 50,
     slashTrailSegments: 7,
-    pixelRatioCap: 1.25,
-    touchPixelRatioCap: 0.95,
+    pixelRatioCap: 1.5,
+    touchPixelRatioCap: 1.5,
   },
   high: {
     particleMultiplier: 1,
     maxActiveParticles: Math.min(WAR_ROOM_EFFECT_POOL_SIZE, WAR_ROOM_EFFECT_POOL_LIMIT),
     slashTrailSegments: WAR_ROOM_SLASH_TRAIL_SEGMENTS,
     pixelRatioCap: 2,
-    touchPixelRatioCap: 1,
+    touchPixelRatioCap: 2,
   },
 };
 
