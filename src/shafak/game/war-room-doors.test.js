@@ -31,6 +31,28 @@ test("War Room house entrances start blocked by properly rotated doors", () => {
   }
 });
 
+test("active door blockers reuse a caller-owned buffer and cached door geometry", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
+  const building = runtime.room.buildings[0];
+  const lowerDoor = getWarRoomDoorBlocker(building, 0);
+  const upperDoor = getWarRoomDoorBlocker(building, 1);
+  assert.equal(getWarRoomDoorBlocker(building, 0), lowerDoor);
+  assert.equal(getWarRoomDoorBlocker(building, 1), upperDoor);
+
+  const reusable = [];
+  const first = getWarRoomActiveBlockers(runtime, 0, reusable);
+  const firstContents = [...first];
+  assert.equal(first, reusable);
+  assert.equal(
+    first.length,
+    runtime.room.blockers.length + runtime.room.buildings.length * 2,
+  );
+
+  const next = getWarRoomActiveBlockers(runtime, 0.05, reusable);
+  assert.equal(next, first);
+  assert.deepEqual(next, firstContents);
+});
+
 test("a door's blocker clears as its animation opens and remains state-driven", () => {
   const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"]);
   const building = runtime.room.buildings[0];

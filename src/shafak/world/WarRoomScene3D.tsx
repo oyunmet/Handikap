@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  memo,
   useMemo,
   useRef,
   useState,
@@ -258,6 +259,7 @@ type Props = {
   quality: RenderQuality;
   debugMode: boolean;
   debugDiagnosticsEnabled: boolean;
+  collectPerformanceMetrics: boolean;
   onMeleeDebugUpdate: (message: string) => void;
   onRenderStats: (stats: WarRoomFrameStats) => void;
   onLookDebugUpdate: (snapshot: {
@@ -2124,6 +2126,7 @@ function WarRoomRuntimeScene({
   quality,
   debugMode,
   debugDiagnosticsEnabled,
+  collectPerformanceMetrics,
   onMeleeDebugUpdate,
   onRenderStats,
   onLookDebugUpdate,
@@ -2212,11 +2215,16 @@ function WarRoomRuntimeScene({
   const renderStatsAtRef = useRef(0);
   const rendererNameForReportRef = useRef<string | null>(null);
   const previousQualityForReportRef = useRef(quality);
-  useEffect(() => observeWarRoomLongTasks(warRoomPerformanceCollector), []);
+  useEffect(
+    () => collectPerformanceMetrics
+      ? observeWarRoomLongTasks(warRoomPerformanceCollector)
+      : undefined,
+    [collectPerformanceMetrics],
+  );
   useEffect(() => {
     const qualityRank = { low: 0, balanced: 1, high: 2 } as const;
     const previous = previousQualityForReportRef.current;
-    if (qualityRank[quality] < qualityRank[previous]) {
+    if (collectPerformanceMetrics && qualityRank[quality] < qualityRank[previous]) {
       recordWarRoomQualityDowngrade(
         warRoomPerformanceCollector,
         performance.now(),
@@ -2225,7 +2233,7 @@ function WarRoomRuntimeScene({
       );
     }
     previousQualityForReportRef.current = quality;
-  }, [quality]);
+  }, [collectPerformanceMetrics, quality]);
   const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
     () => room.blockers.map((blocker) => ({
       id: blocker.id,
@@ -2244,6 +2252,7 @@ function WarRoomRuntimeScene({
   const cameraRaycastOwnerByObjectRef = useRef(new WeakMap<THREE.Object3D, string>());
   const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
   const activeBlockersRef = useRef<readonly WarRoomBlocker[]>(runtimeRef.current.room.blockers);
+  const activeBlockerBufferRef = useRef<WarRoomBlocker[]>([]);
   const cameraBoundsRefreshRef = useRef(0);
   const cameraFadeByIdRef = useRef(new Map<string, number>());
   const cameraMaterialOriginalsRef = useRef(new WeakMap<THREE.Material, CameraMaterialSnapshot>());
@@ -3364,44 +3373,46 @@ function WarRoomRuntimeScene({
       }
     }
     const wallNow = frame.clock.elapsedTime;
-    const renderStatsNow = performance.now();
-    const canvasForReport = gl.domElement;
-    let activeBotsForReport = 0;
-    for (let index = 0; index < runtime.enemies.length; index += 1) {
-      if (runtime.enemies[index]?.alive) activeBotsForReport += 1;
-    }
-    if (rendererNameForReportRef.current === null) {
-      try {
-        const context = gl.getContext();
-        const rendererExtension = context.getExtension("WEBGL_debug_renderer_info") as
-          | { UNMASKED_RENDERER_WEBGL: number }
-          | null;
-        const rendererValue = rendererExtension
-          ? context.getParameter(rendererExtension.UNMASKED_RENDERER_WEBGL)
-          : context.getParameter(context.RENDERER);
-        rendererNameForReportRef.current = typeof rendererValue === "string"
-          ? rendererValue
-          : "unknown";
-      } catch {
-        rendererNameForReportRef.current = "unavailable";
+    const renderStatsNow = collectPerformanceMetrics ? performance.now() : 0;
+    if (collectPerformanceMetrics) {
+      const canvasForReport = gl.domElement;
+      let activeBotsForReport = 0;
+      for (let index = 0; index < runtime.enemies.length; index += 1) {
+        if (runtime.enemies[index]?.alive) activeBotsForReport += 1;
       }
+      if (rendererNameForReportRef.current === null) {
+        try {
+          const context = gl.getContext();
+          const rendererExtension = context.getExtension("WEBGL_debug_renderer_info") as
+            | { UNMASKED_RENDERER_WEBGL: number }
+            | null;
+          const rendererValue = rendererExtension
+            ? context.getParameter(rendererExtension.UNMASKED_RENDERER_WEBGL)
+            : context.getParameter(context.RENDERER);
+          rendererNameForReportRef.current = typeof rendererValue === "string"
+            ? rendererValue
+            : "unknown";
+        } catch {
+          rendererNameForReportRef.current = "unavailable";
+        }
+      }
+      recordWarRoomPerformanceFrame(
+        warRoomPerformanceCollector,
+        renderStatsNow,
+        gl.info.render.calls,
+        gl.info.render.triangles,
+        gl.info.memory.geometries,
+        gl.info.memory.textures,
+        gl.getPixelRatio(),
+        canvasForReport.width,
+        canvasForReport.height,
+        activeBotsForReport,
+        quality,
+        runtime.room.name,
+        rendererNameForReportRef.current,
+        typeof window === "undefined" ? 1 : window.devicePixelRatio,
+      );
     }
-    recordWarRoomPerformanceFrame(
-      warRoomPerformanceCollector,
-      renderStatsNow,
-      gl.info.render.calls,
-      gl.info.render.triangles,
-      gl.info.memory.geometries,
-      gl.info.memory.textures,
-      gl.getPixelRatio(),
-      canvasForReport.width,
-      canvasForReport.height,
-      activeBotsForReport,
-      quality,
-      runtime.room.name,
-      rendererNameForReportRef.current,
-      typeof window === "undefined" ? 1 : window.devicePixelRatio,
-    );
     if ((debugMode || debugDiagnosticsEnabled) && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
       // R3F's automatic render completed the preceding frame before this sample.
@@ -3558,7 +3569,11 @@ function WarRoomRuntimeScene({
     const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
     updateWarRoomDoors(runtime, now, input.doorPressed, input.yaw, worldMovement);
     input.doorPressed = false;
-    activeBlockersRef.current = getWarRoomActiveBlockers(runtime, now);
+    activeBlockersRef.current = getWarRoomActiveBlockers(
+      runtime,
+      now,
+      activeBlockerBufferRef.current,
+    );
     const orientation = resolveWarRoomOrientation(
       movementYaw,
       moveX,
@@ -5179,7 +5194,7 @@ function WarRoomRuntimeScene({
   );
 }
 
-export default function WarRoomScene3D(props: Props) {
+export default memo(function WarRoomScene3D(props: Props) {
   const { quality } = props;
   const touchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const maxPixelRatio = getWarRoomPixelRatio(
@@ -5311,4 +5326,4 @@ export default function WarRoomScene3D(props: Props) {
       )}
     </div>
   );
-}
+});

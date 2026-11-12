@@ -15,6 +15,10 @@ const WAR_ROOM_DOOR_PLAYER_RADIUS = WAR_ROOM_CONFIG.doors.playerRadius;
 const WAR_ROOM_DOOR_THICKNESS = WAR_ROOM_CONFIG.doors.thickness;
 const WAR_ROOM_DOOR_MIN_CLEAR_WIDTH = WAR_ROOM_CONFIG.doors.minimumClearWidth;
 const WAR_ROOM_DOOR_HEIGHT = WAR_ROOM_CONFIG.doors.height;
+const doorBlockerCache = new WeakMap<
+  WarRoomBuilding,
+  readonly [WarRoomBlocker, WarRoomBlocker]
+>();
 
 export type WarRoomDoorFloor = 0 | 1;
 
@@ -46,20 +50,26 @@ export function getWarRoomDoorBlocker(
   building: WarRoomBuilding,
   floor: WarRoomDoorFloor = 0,
 ): WarRoomBlocker {
-  const front = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2);
-  const quarterTurn = Math.abs(Math.sin(building.rotationY)) > 0.5;
-  const clearWidth = Math.max(WAR_ROOM_DOOR_MIN_CLEAR_WIDTH, building.doorWidth);
-  return {
-    id: `${building.id}-floor-${floor}-entrance-door-blocker`,
-    kind: "wall",
-    x: front.x,
-    z: front.z,
-    width: quarterTurn ? WAR_ROOM_DOOR_THICKNESS : clearWidth,
-    depth: quarterTurn ? clearWidth : WAR_ROOM_DOOR_THICKNESS,
-    height: WAR_ROOM_DOOR_HEIGHT,
-    baseY: floor === 0 ? 0 : building.storyHeight,
-    color: "#543a2c",
-  };
+  let cached = doorBlockerCache.get(building);
+  if (!cached) {
+    const front = getWarRoomBuildingWorldPoint(building, 0, -building.depth / 2);
+    const quarterTurn = Math.abs(Math.sin(building.rotationY)) > 0.5;
+    const clearWidth = Math.max(WAR_ROOM_DOOR_MIN_CLEAR_WIDTH, building.doorWidth);
+    const createBlocker = (doorFloor: WarRoomDoorFloor): WarRoomBlocker => ({
+      id: `${building.id}-floor-${doorFloor}-entrance-door-blocker`,
+      kind: "wall",
+      x: front.x,
+      z: front.z,
+      width: quarterTurn ? WAR_ROOM_DOOR_THICKNESS : clearWidth,
+      depth: quarterTurn ? clearWidth : WAR_ROOM_DOOR_THICKNESS,
+      height: WAR_ROOM_DOOR_HEIGHT,
+      baseY: doorFloor === 0 ? 0 : building.storyHeight,
+      color: "#543a2c",
+    });
+    cached = [createBlocker(0), createBlocker(1)];
+    doorBlockerCache.set(building, cached);
+  }
+  return cached[floor];
 }
 
 export function getWarRoomDoorOpenProgress(
@@ -84,18 +94,39 @@ export function isWarRoomDoorOpen(state: WarRoomDoorState | undefined, now: numb
 export function getWarRoomActiveBlockers(
   runtime: WarRoomDoorRuntime,
   now: number,
+  reusableBlockers?: WarRoomBlocker[],
 ): readonly WarRoomBlocker[] {
-  const closedDoors = runtime.room.buildings.flatMap((building) => (
-    ([0, 1] as const)
-      .filter((floor) => !isWarRoomDoorOpen(
+  const baseBlockerCount = runtime.room.blockers.length;
+  if (reusableBlockers) {
+    reusableBlockers.length = baseBlockerCount;
+    for (let index = 0; index < baseBlockerCount; index += 1) {
+      reusableBlockers[index] = runtime.room.blockers[index]!;
+    }
+  }
+  const closedDoors: WarRoomBlocker[] | null = reusableBlockers ? null : [];
+  let closedDoorCount = 0;
+  for (const building of runtime.room.buildings) {
+    for (let floorIndex = 0; floorIndex <= 1; floorIndex += 1) {
+      const floor = floorIndex as WarRoomDoorFloor;
+      if (isWarRoomDoorOpen(
         runtime.doorStates[getWarRoomDoorStateKey(building, floor)],
         now,
-      ))
-      .map((floor) => getWarRoomDoorBlocker(building, floor))
-  ));
-  return closedDoors.length > 0
-    ? [...runtime.room.blockers, ...closedDoors]
-    : runtime.room.blockers;
+      )) continue;
+      const blocker = getWarRoomDoorBlocker(building, floor);
+      if (reusableBlockers) {
+        reusableBlockers[baseBlockerCount + closedDoorCount] = blocker;
+      } else {
+        closedDoors!.push(blocker);
+      }
+      closedDoorCount += 1;
+    }
+  }
+  if (closedDoorCount === 0) return runtime.room.blockers;
+  if (reusableBlockers) {
+    reusableBlockers.length = baseBlockerCount + closedDoorCount;
+    return reusableBlockers;
+  }
+  return [...runtime.room.blockers, ...closedDoors!];
 }
 
 export function getNearestWarRoomDoor(

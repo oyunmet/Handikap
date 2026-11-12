@@ -768,6 +768,17 @@ export default function WarRoomGame({
     setRunKey((key) => key + 1);
     setPhase("battle");
   };
+  const beginBattleRef = useRef(beginBattle);
+  beginBattleRef.current = beginBattle;
+  const handleBenchmarkFinish = useCallback(() => beginBattleRef.current(1), []);
+  const handleMeleeDebugUpdate = useCallback((message: string) => {
+    if (message.startsWith("İSABET:") || message.startsWith("ISKA:")) {
+      setMeleeDebugMessage(message);
+      setMeleeDebugMessageUntil(Date.now() + 2000);
+    } else {
+      setMeleeDebugActivity(message);
+    }
+  }, []);
 
   useEffect(() => {
     if (
@@ -1581,18 +1592,12 @@ export default function WarRoomGame({
             quality={quality}
             debugMode={debugMode}
             debugDiagnosticsEnabled={debugDiagnosticsEnabled}
+            collectPerformanceMetrics={benchmarkMode || debugMode || debugDiagnosticsEnabled}
             onRenderStats={setDebugRenderStats}
             onLookDebugUpdate={setLookDebugSnapshot}
-            onMeleeDebugUpdate={(message) => {
-              if (message.startsWith("İSABET:") || message.startsWith("ISKA:")) {
-                setMeleeDebugMessage(message);
-                setMeleeDebugMessageUntil(Date.now() + 2000);
-              } else {
-                setMeleeDebugActivity(message);
-              }
-            }}
+            onMeleeDebugUpdate={handleMeleeDebugUpdate}
             onHudUpdate={setHud}
-            onFinish={benchmarkMode ? () => beginBattle(1) : finishBattle}
+            onFinish={benchmarkMode ? handleBenchmarkFinish : finishBattle}
           />
           {weaponLabMode && (() => {
             const weapon = WAR_ROOM_WEAPONS[labWeaponIndex];
