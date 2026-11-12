@@ -24,6 +24,29 @@ export type WarRoomSprintHysteresisState = {
   requestedAt: number;
 };
 
+export function pauseWarRoomInput(input: WarRoomInputState) {
+  input.paused = true;
+  input.keys.clear();
+  input.moveX = 0;
+  input.moveY = 0;
+  input.lookDeltaX = 0;
+  input.lookDeltaY = 0;
+  input.manualLookActive = false;
+  input.fireHeld = false;
+  input.firePressed = false;
+  input.fireReleased = true;
+  input.aimHeld = false;
+  input.reloadPressed = false;
+  input.swapPressed = false;
+  input.jumpPressed = false;
+  input.dodgePressed = false;
+  input.crouchPressed = false;
+  input.weaponSlotPressed = null;
+  input.pronePressed = false;
+  input.lootHeld = false;
+  input.doorPressed = false;
+}
+
 export function createWarRoomSprintHysteresisState(): WarRoomSprintHysteresisState {
   return { active: false, requested: null, requestedAt: 0 };
 }

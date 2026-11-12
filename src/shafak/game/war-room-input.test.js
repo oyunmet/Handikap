@@ -4,6 +4,7 @@ import {
   beginWarRoomPointer,
   endWarRoomPointer,
   moveWarRoomPointer,
+  pauseWarRoomInput,
   pressWarRoomAction,
   releaseWarRoomAction,
   resolveWarRoomStanceTap,
@@ -23,6 +24,9 @@ function createInput() {
     keys: new Set(),
     moveX: 0,
     moveY: 0,
+    lookDeltaX: 0,
+    lookDeltaY: 0,
+    manualLookActive: false,
     yaw: 0,
     cameraTargetYaw: 0,
     movementBaseYaw: null,
@@ -32,7 +36,13 @@ function createInput() {
     fireHeld: false,
     firePressed: false,
     fireReleased: false,
+    firePressed: false,
     aimHeld: false,
+    reloadPressed: false,
+    swapPressed: false,
+    jumpPressed: false,
+    dodgePressed: false,
+    crouchPressed: false,
     reloadPressed: false,
     swapPressed: false,
     jumpPressed: false,
@@ -41,9 +51,47 @@ function createInput() {
     sprintLocked: false,
     weaponSlotPressed: null,
     pronePressed: false,
+    lootHeld: false,
+    doorPressed: false,
+    pronePressed: false,
     paused: false,
   };
 }
+
+test("background pause clears held and queued actions without losing match state", () => {
+  const input = createInput();
+  input.keys.add("w");
+  input.moveX = 1;
+  input.moveY = -1;
+  input.lookDeltaX = 80;
+  input.lookDeltaY = -30;
+  input.manualLookActive = true;
+  input.fireHeld = true;
+  input.firePressed = true;
+  input.aimHeld = true;
+  input.reloadPressed = true;
+  input.jumpPressed = true;
+  input.lootHeld = true;
+  input.doorPressed = true;
+
+  pauseWarRoomInput(input);
+
+  assert.equal(input.paused, true);
+  assert.equal(input.keys.size, 0);
+  assert.equal(input.moveX, 0);
+  assert.equal(input.moveY, 0);
+  assert.equal(input.lookDeltaX, 0);
+  assert.equal(input.lookDeltaY, 0);
+  assert.equal(input.manualLookActive, false);
+  assert.equal(input.fireHeld, false);
+  assert.equal(input.firePressed, false);
+  assert.equal(input.fireReleased, true);
+  assert.equal(input.aimHeld, false);
+  assert.equal(input.reloadPressed, false);
+  assert.equal(input.jumpPressed, false);
+  assert.equal(input.lootHeld, false);
+  assert.equal(input.doorPressed, false);
+});
 
 test("independent pointers preserve joystick, fire, and look ownership", () => {
   const pointers = new Map();
