@@ -53,7 +53,8 @@ const navigationGrids = new WeakMap<readonly WarRoomBlocker[], Map<string, WarRo
 const pursuitWaypoints = new WeakMap<object, CachedPursuitWaypoint>();
 
 function pointToSegmentDistance(
-  point: { x: number; z: number },
+  pointX: number,
+  pointZ: number,
   start: { x: number; z: number },
   end: { x: number; z: number },
 ) {
@@ -61,9 +62,9 @@ function pointToSegmentDistance(
   const dz = end.z - start.z;
   const lengthSquared = dx * dx + dz * dz;
   const fraction = lengthSquared > 0
-    ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSquared))
+    ? Math.max(0, Math.min(1, ((pointX - start.x) * dx + (pointZ - start.z) * dz) / lengthSquared))
     : 0;
-  return Math.hypot(point.x - (start.x + dx * fraction), point.z - (start.z + dz * fraction));
+  return Math.hypot(pointX - (start.x + dx * fraction), pointZ - (start.z + dz * fraction));
 }
 
 function segmentIntersectsBounds(
@@ -76,16 +77,23 @@ function segmentIntersectsBounds(
 ) {
   let minimum = 0;
   let maximum = 1;
-  for (const [origin, delta, low, high] of [
-    [start.x, end.x - start.x, minX, maxX],
-    [start.z, end.z - start.z, minZ, maxZ],
-  ]) {
-    if (Math.abs(delta) < 1e-8) {
-      if (origin < low || origin > high) return false;
-      continue;
-    }
-    const first = (low - origin) / delta;
-    const second = (high - origin) / delta;
+  const deltaX = end.x - start.x;
+  if (Math.abs(deltaX) < 1e-8) {
+    if (start.x < minX || start.x > maxX) return false;
+  } else {
+    const first = (minX - start.x) / deltaX;
+    const second = (maxX - start.x) / deltaX;
+    minimum = Math.max(minimum, Math.min(first, second));
+    maximum = Math.min(maximum, Math.max(first, second));
+    if (minimum > maximum) return false;
+  }
+
+  const deltaZ = end.z - start.z;
+  if (Math.abs(deltaZ) < 1e-8) {
+    if (start.z < minZ || start.z > maxZ) return false;
+  } else {
+    const first = (minZ - start.z) / deltaZ;
+    const second = (maxZ - start.z) / deltaZ;
     minimum = Math.max(minimum, Math.min(first, second));
     maximum = Math.min(maximum, Math.max(first, second));
     if (minimum > maximum) return false;
@@ -118,14 +126,10 @@ function isWarRoomSegmentClear(
       Math.hypot(start.x - startX, start.z - startZ),
       Math.hypot(end.x - endX, end.z - endZ),
     );
-    for (const corner of [
-      { x: minX, z: minZ },
-      { x: minX, z: maxZ },
-      { x: maxX, z: minZ },
-      { x: maxX, z: maxZ },
-    ]) {
-      distance = Math.min(distance, pointToSegmentDistance(corner, start, end));
-    }
+    distance = Math.min(distance, pointToSegmentDistance(minX, minZ, start, end));
+    distance = Math.min(distance, pointToSegmentDistance(minX, maxZ, start, end));
+    distance = Math.min(distance, pointToSegmentDistance(maxX, minZ, start, end));
+    distance = Math.min(distance, pointToSegmentDistance(maxX, maxZ, start, end));
     if (distance < radius) return false;
   }
   return true;

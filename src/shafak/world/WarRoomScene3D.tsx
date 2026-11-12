@@ -405,6 +405,68 @@ function getWarRoomAudioOptions(
   };
 }
 
+function applyWarRoomBossImpact(
+  attack: WarRoomBossAttack,
+  enemy: WarRoomEnemy,
+  missionTarget: { x: number; z: number },
+  player: WarRoomRuntime["player"],
+  mission: WarRoomRuntime["mission"],
+  defenseMode: boolean,
+  now: number,
+  cameraKickRef: MutableRefObject<number>,
+  cameraFovKickRef: MutableRefObject<number>,
+  cameraSideKickRef: MutableRefObject<number>,
+) {
+  const damage = getWarRoomBossAttackDamage(enemy.damage, attack);
+  if (defenseMode) {
+    const distance = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
+    const impactRadius = attack === "charge" ? 2.05 : WAR_ROOM_BOSS_SHOCKWAVE_RADIUS;
+    if (distance > impactRadius) return;
+    const defenseDamage = Math.min(mission.defenseHp, damage);
+    if (defenseDamage <= 0) return;
+    mission.defenseHp = Math.max(0, mission.defenseHp - defenseDamage);
+    enemy.score += defenseDamage;
+    player.lastHitText = `SAVUNMA −${defenseDamage} CAN`;
+    player.hitMessageUntil = now + 1.2;
+    playWarRoomSound(
+      "hit",
+      0.9,
+      "shotgun",
+      getWarRoomAudioOptions(player, enemy.x, enemy.z, "metal"),
+    );
+    return;
+  }
+  if (now < player.invulnerableUntil) return;
+  const hit = applyWarRoomDamage(player, damage);
+  if (hit.damage <= 0) return;
+  enemy.score += hit.damage;
+  playWarRoomSound(
+    "hit",
+    1,
+    "shotgun",
+    getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"),
+  );
+  player.lastDamageAt = now;
+  player.lastCombatAt = now;
+  player.invulnerableUntil = now + 0.38;
+  cameraKickRef.current = Math.max(cameraKickRef.current, 0.14);
+  cameraFovKickRef.current = Math.min(cameraFovKickRef.current + 2.4, 5.2);
+  cameraSideKickRef.current = Math.max(
+    -0.045,
+    Math.min(0.045, cameraSideKickRef.current + Math.sign(player.damageDirection || 1) * 0.024),
+  );
+  player.damageDirection = shortestAngleDelta(
+    player.yaw,
+    Math.atan2(enemy.x - player.x, -(enemy.z - player.z)),
+  );
+  player.lastHitText = `−${hit.damage} CAN · ${enemy.name}`;
+  player.hitMessageUntil = now + 1.2;
+  player.lastHitDamage = hit.damage;
+  player.lastHitSource = "received";
+  player.lastHitCritical = false;
+  player.damageEventId += 1;
+}
+
 function createWarRoomMeleeDebugGeometry() {
   const segments = 28;
   const positions = new Float32Array(segments * 9);
@@ -3933,59 +3995,7 @@ function WarRoomRuntimeScene({
         enemy.doorApproachX = 0;
         enemy.doorApproachZ = 0;
       }
-      let applyBossImpact: (attack: WarRoomBossAttack) => void = () => {};
       if (enemy.commander && bossAttack && now >= enemy.nextShotAt) {
-        applyBossImpact = (attack: WarRoomBossAttack) => {
-          const damage = getWarRoomBossAttackDamage(enemy.damage, attack);
-          if (defenseMode) {
-            const distance = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
-            const impactRadius = attack === "charge" ? 2.05 : WAR_ROOM_BOSS_SHOCKWAVE_RADIUS;
-            if (distance > impactRadius) return;
-            const defenseDamage = Math.min(runtime.mission.defenseHp, damage);
-            if (defenseDamage <= 0) return;
-            runtime.mission.defenseHp = Math.max(0, runtime.mission.defenseHp - defenseDamage);
-            enemy.score += defenseDamage;
-            player.lastHitText = `SAVUNMA −${defenseDamage} CAN`;
-            player.hitMessageUntil = now + 1.2;
-            playWarRoomSound(
-              "hit",
-              0.9,
-              "shotgun",
-              getWarRoomAudioOptions(player, enemy.x, enemy.z, "metal"),
-            );
-            return;
-          }
-          if (now < player.invulnerableUntil) return;
-          const hit = applyWarRoomDamage(player, damage);
-          if (hit.damage <= 0) return;
-          enemy.score += hit.damage;
-          playWarRoomSound(
-            "hit",
-            1,
-            "shotgun",
-            getWarRoomAudioOptions(player, enemy.x, enemy.z, "flesh"),
-          );
-          player.lastDamageAt = now;
-          player.lastCombatAt = now;
-          player.invulnerableUntil = now + 0.38;
-          cameraKickRef.current = Math.max(cameraKickRef.current, 0.14);
-          cameraFovKickRef.current = Math.min(cameraFovKickRef.current + 2.4, 5.2);
-          cameraSideKickRef.current = Math.max(
-            -0.045,
-            Math.min(0.045, cameraSideKickRef.current + Math.sign(player.damageDirection || 1) * 0.024),
-          );
-          player.damageDirection = shortestAngleDelta(
-            player.yaw,
-            Math.atan2(enemy.x - player.x, -(enemy.z - player.z)),
-          );
-          player.lastHitText = `−${hit.damage} CAN · ${enemy.name}`;
-          player.hitMessageUntil = now + 1.2;
-          player.lastHitDamage = hit.damage;
-          player.lastHitSource = "received";
-          player.lastHitCritical = false;
-          player.damageEventId += 1;
-        };
-
         if (bossAttack === "shockwave" && !enemy.bossAttackResolved) {
           enemy.bossAttackResolved = true;
           const center = new THREE.Vector3(enemy.x, 0, enemy.z);
@@ -4001,7 +4011,20 @@ function WarRoomRuntimeScene({
             (enemy.floorHeight ?? 0) - (player.floorHeight + player.jumpHeight),
           );
           if (defenseMode) {
-            if (distance <= WAR_ROOM_BOSS_SHOCKWAVE_RADIUS) applyBossImpact("shockwave");
+            if (distance <= WAR_ROOM_BOSS_SHOCKWAVE_RADIUS) {
+              applyWarRoomBossImpact(
+                "shockwave",
+                enemy,
+                missionTarget,
+                player,
+                runtime.mission,
+                defenseMode,
+                now,
+                cameraKickRef,
+                cameraFovKickRef,
+                cameraSideKickRef,
+              );
+            }
           } else if (
             getWarRoomBossShockwaveHits(
               distance,
@@ -4009,7 +4032,18 @@ function WarRoomRuntimeScene({
               player.jumpHeight > 0.85,
             )
           ) {
-            applyBossImpact("shockwave");
+            applyWarRoomBossImpact(
+              "shockwave",
+              enemy,
+              missionTarget,
+              player,
+              runtime.mission,
+              defenseMode,
+              now,
+              cameraKickRef,
+              cameraFovKickRef,
+              cameraSideKickRef,
+            );
           }
           enemy.bossAttack = null;
           enemy.bossAttackResolved = false;
@@ -4061,7 +4095,18 @@ function WarRoomRuntimeScene({
         const impactRadius = defenseMode ? 2.05 : 1.55;
         if (!enemy.bossAttackResolved && currentTargetGap <= impactRadius) {
           enemy.bossAttackResolved = true;
-          applyBossImpact("charge");
+          applyWarRoomBossImpact(
+            "charge",
+            enemy,
+            missionTarget,
+            player,
+            runtime.mission,
+            defenseMode,
+            now,
+            cameraKickRef,
+            cameraFovKickRef,
+            cameraSideKickRef,
+          );
         }
       } else if (
         bossAttack === "charge"
