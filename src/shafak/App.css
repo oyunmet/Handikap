@@ -1562,3 +1562,55 @@
     scroll-behavior: auto !important;
   }
 }
+
+.war-room-performance-diagnostics {
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(231, 214, 180, 0.09);
+}
+
+.war-room-performance-diagnostics > summary {
+  color: #ead7b4;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.war-room-performance-diagnostics > p,
+.war-room-performance-diagnostics > small {
+  display: block;
+  margin: 10px 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.war-room-performance-diagnostics__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.war-room-performance-diagnostics__actions button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(223, 187, 123, 0.28);
+  border-radius: 5px;
+  background: rgba(223, 187, 123, 0.08);
+  color: #f0dfc1;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.war-room-performance-diagnostics pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 10px;
+  border: 1px solid rgba(223, 187, 123, 0.16);
+  background: rgba(0, 0, 0, 0.22);
+  color: #d7c6aa;
+  font: 9px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

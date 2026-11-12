@@ -216,3 +216,121 @@
 - **11.7 — Silahlar ve eller:** Kod/test tamamlandı; gerçek cihaz kabulü açık
 - **11.8 — Savaş Odası kapsamlı yenileme:** Kod/test tamamlandı; tam doğrulama 11.9’da
 - **11.9 — Final doğrulama:** Tamamlandı; gerçek telefon kabulü açık
+
+## Adım 12 — Performans, dikey mod ve stabilite
+
+- **Durum:** 12.1 tamamlandı; sıradaki alt adım 12.2. 13. adıma ancak Adım 12 tamamlanınca geçilecek.
+- **Sıra:** Aynı anda yalnızca bir alt adım. Her alt adım sonunda test, bu dosya güncellemesi ve yerel commit yapılacak. Kayıtlı ilerleme korunacak; gerçek hesap/para verisi kullanılmayacak; sırlar repoya yazılmayacak.
+- **Kullanıcı bildirimi:** Gerçek iPhone Safari’de dikey düzen oynanamaz, oyun takılıyor/donuyor, kasmaya bağlı silah titreşimi sürüyor, silah ekranın sağ üçte birini kaplıyor, boss çubuğu ortada yer kaplıyor ve kenarlar pikselli.
+
+### 12.1 — Ölçüm ve tanılama
+
+- **Durum:** Tamamlandı; araç ve geliştirme ortamı ölçümü hazır. Gerçek iPhone ölçümü doğrulanmadı.
+- **Yapılanlar:** Savaş Odası Ayarları’na FPS HUD’undan ayrı, varsayılan kapalı bir Tanılama bölümü eklendi. Yerel rapor; ortalama FPS, kare süresi p50/p95/p99, 50 ms üzeri kareler, Long Task sayısı/süresi, kalite, render ölçeği, DPR/canvas boyutu, draw call/üçgen/geometri/doku, JS heap ve cihaz özellikleri (varsa), WebGL renderer, RAF hızı, harita, yaşayan düşman sayısı ve kalite düşürme olaylarını içeriyor. “Panoya kopyala” yalnızca cihazın panosuna yazar; rapor sunucuya gönderilmez.
+- **Benchmark:** `?benchmark=1` sabit seed `0x5afac011` ile Taş Avlu’da botlara karşı hareket edip ateş eden 60 saniyelik otomatik Savaş Odası koşusunu başlatır. `VITE_WAR_ROOM_BENCHMARK_DISABLED=true` bu yolu kapatır. `npm run warroom:benchmark` Playwright/SwiftShader çalıştırıcısıdır. Benchmark sonucu/yeniden başlatma profil ödülü, kayıt veya ekonomi yazmaz.
+- **ÖNCE — Replit geliştirme tarayıcısı, SwiftShader, 844×390, DPR 1, otomatik düşük kalite, 60 sn benchmark:**
+
+  | Ölçüm | Sonuç |
+  |---|---:|
+  | Render örnekleri / ölçülen örnek aralığı | 20 / 48.920 ms |
+  | Ortalama FPS / RAF frekansı | 0,4 / 0,4 Hz |
+  | Kare süresi p50 / p95 / p99 | 2.389,7 / 3.096,7 / 4.858,6 ms |
+  | 50 ms üzeri kare | 20 |
+  | Long Tasks / toplam süre | 43 / 21.154 ms |
+  | Draw call ortalama / tepe | 37,5 / 47 |
+  | Üçgen ortalama / tepe | 1.602 / 2.100 |
+  | Geometri / doku | 2.112 / 74 |
+  | Canvas / render ölçeği | 717×331 / 0,85 |
+  | Cihaz bildirimi / JS heap | 4 iş parçacığı, 8 GiB / 260.543.395 bayt |
+  | Harita / yaşayan düşman | Taş Avlu / 9 |
+
+- **ÖNCE — ayrı 22,46 sn geliştirme profili, hareket ve ateş açık:** 11 RAF örneği; p50 1.949,9 ms, p95/p99 3.483,2 ms; 39 draw call ve 1.664 üçgen. Örnek sayısı düşüktür; tek başına istatistiksel cihaz karşılaştırması değildir.
+- **ÖNCE — en çok örneklenen CPU işlevleri:** WebGL `getProgramInfoLog` 6.510 ms; React `exports.jsxDEV` 1.013 ms; adsız `(program)` 876 ms; GC 407 ms; `jsxDEVImpl` 369 ms. İlk yüklemedeki shader derlemesi ve geliştirme React kodu örneği etkiliyor. Bunlar gerçek iPhone’daki kök neden olarak doğrulanmadı; takip eden alt adımlarda ölçülerek ele alınacak.
+- **SONRA:** 12.1 ölçüm altyapısı ekledi, performans optimizasyonu yapmadı; bu nedenle iyileşme iddiası yok. Yukarıdaki 60 sn koşusu yeni aracın ilk ölçümüdür. 12.2 ve sonraki düzeltmelerden sonra aynı tabloya SONRA değerleri eklenecek.
+- **Doğrulama:** Yeni rapor/benchmark hedef testleri 4/4; `npm test` 709/709; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Otomatik benchmark tamamlandı ve tarayıcı çalışma zamanı hatası vermedi. Ayarlar’daki Tanılama’nın kapalı başladığı, rapor ürettiği ve panoya kopyalamanın yerel kaldığı tarayıcıda kontrol edildi.
+- **Kök neden / doğrulanamayanlar:** Önizleme WebGL renderer’ı SwiftShader olduğu için 0,4 FPS gerçek GPU/telefon sonucu değildir; bu ölçüm telefondaki takılmanın kök nedenini belirlemez. Otomatik koşuda shader/scene başlangıcı nedeniyle kare örnekleri 48,92 saniyeye yayıldı. iPhone Safari FPS/ısınma/bellek, Düşük Güç Modu davranışı ve gerçek GPU renderer ölçülmedi.
+- **Telefonda yapılacak:** Yatay/dikey gerçek oyunu birkaç saniye çalıştır; Ayarlar > Tanılama > Performans raporu’nu açıp “Panoya kopyala” ile paylaş. Rapor hesap veya oyun verisi taşımaz.
+
+### 12.2 — Render kaynaklı kasma: **Bekliyor**
+
+- DPR sınırları ve pikselli görüntünün kaynağı ölçülecek; hedef kare süresi ve son 30 kare ortalama/p95 ile dört kademeli dinamik çözünürlük, histerezis ve saniyede en fazla bir kademe uygulanacak. HUD DOM ölçeği sabit kalacak.
+- Mobil gölgeler/son işlemler/antialias; geometri birleştirme ve instancing, materyal/atlas, frustum/oda culling/LOD/far plane; ışık, parçacık, doku, bot görünürlük/animasyon bütçeleri ölçülecek.
+- Düşük/Orta/Yüksek/Otomatik kalite seçimi cihaz özellikleri ve ilk beş saniyenin ölçümünü dikkate alacak; sürekli düşük FPS’de tek kademe indirimi kullanıcıya bildirilecek.
+- HUD’da pahalı blur, shadow, blend ve sürekli animasyonlar mobil maliyete göre denetlenecek.
+
+### 12.3 — CPU, GC ve HUD kaynaklı kasma: **Bekliyor**
+
+- Kare döngüsündeki allocation’lar yeniden kullanılan vektör/tampon/havuzlarla azaltılıp allocation profiliyle ölçülecek. HUD kare başına React state güncellemesi yapmayacak; değişken metin yalnızca değişince güncellenecek, mini harita en fazla 10 Hz olacak.
+- Bot kararı 5–10 Hz, hareket kare başına; görüş/ışın ve yol bulma bütçeli olacak. Fizik dt üst sınırı 50 ms, en fazla üç adım; ses önceden hazırlanıp havuzlanacak.
+- Üretim döngüsünde konsol, localStorage/ağ/otomatik kayıt, JSON serileştirme veya layout okuması olmayacak; kayıtlar debounce/bölüm sonuyla sınırlandırılacak.
+
+### 12.4 — Donmayı önleme ve toparlanma: **Bekliyor**
+
+- Maç öncesi shader/materyal/silah/bot/efekt/ses/doku ısıtma; ilk kullanım takılmalarını ölçme.
+- Long Tasks ve 250 ms üzeri RAF aralığı watchdog’u; güvenli oyun döngüsü, hata veren sistemi devre dışı bırakma, React error boundary ve ilerlemeyi koruyan çıkış.
+- WebGL context kaybı/geri yükleme, görünürlük/arka plan duraklatması ve dönüşte dt sıçramasını önleme.
+- Harita değişiminde kaynak temizliği ve 10 maçlık bellek testi; resize/orientation/visualViewport debounce; kapı, bot doğma, boss fazı, silah değiştirme ve doldurma sırasındaki en uzun kare hedefi ≤50 ms.
+
+### 12.5 — Kasmaya bağlı silah titremesi: **Bekliyor**
+
+- Ham dt yerine sınırlandırılmış/yumuşatılmış dt ve sabit adımlı kritik sönüm; kamera/oyuncu interpolasyonu ile silah aynı karede güncellenecek. 25 ms üzeri karelerde bob/sway azalacak.
+- Ayrı viewmodel kamerası/FOV, duvara yaklaşırken yumuşak geri çekilme; silah %25–30 küçültülüp sağ alta taşınacak, ekranın üçte birinden fazla kaplamayacak ve ADS yolunu kapatmayacak.
+- 16/16/40/16/16/60 ms yapay dalgalanma testiyle silah konum sıçraması ölçülecek.
+
+### 12.6 — Dikey mod ve HUD: **Bekliyor**
+
+- Portre için ayrı tam kontrol/HUD düzeni: alt güvenli alan, ≥48 px hedef ve ≥8 px aralık, joystick/ateş ve diğer kontroller, geniş bakış alanı; mini harita, tek satır görev bilgisi, ince boss barı, kompakt silah/mühimmat.
+- Yatay HUD sadeleştirilecek; boss barı yalnız boss görünür/yakınken, görev kartları kısa süre sonra çipe küçülecek. Dikey FOV yatay görüşü daraltmayacak; dikey silah yerleşimi ve render maliyeti yataydan yüksek olmayacak.
+- Döndürmede oyun durumu korunacak; otomatik duraklatma/yön kilidi olmayacak. İsteğe bağlı yatay mod ipucu kapatılabilecek.
+- 360×640, 360×740, 390×664, 412×780, 430×800, 772×330 ve 844×390 ölçülerinde çakışma/taşma ölçümü ve ekran görüntüsü alınacak.
+
+### 12.7 — Doğrulama: **Bekliyor**
+
+- Önce/sonra ölçümü, bütçe ve 10 maçlık sızıntı testi, benchmark, silah titreşimi enjeksiyonu, HUD çakışmaları, tür denetimi, üretim derlemesi ve bundle raporu.
+- Rapor kök nedenleri, yalnızca ölçülen iyileşmeleri ve doğrulanamayan gerçek cihaz FPS/ısınma/Safari belleği/Düşük Güç Modu durumlarını ayıracak. Telefon raporu paylaşımı kullanıcıya bırakılacak.
+
+## Adım 13 — Play Store altyapısı ve reklam
+
+- **Durum:** Bekliyor; Adım 12 tamamlanmadan başlanmayacak.
+
+### 13.1 — Reklam altyapısı: **Bekliyor**
+
+- Sağlayıcıdan bağımsız `AdService` (`none`, `h5games`, pasif `admob-native`) ve varsayılan kapalı sağlayıcı; rıza, hazır olma, ödüllü/geçiş reklamı ve kapanış akışı.
+- Sağlayıcı/kimlik yokken reklam kodu veya üçüncü taraf script yüklenmeyecek; reklam yalnız açık sağlayıcı ve rıza durumunda menü/doğal arada lazy-load edilecek. Sunucu kill switch’i olacak. Gerçek kimlik/sırlar repoya konmayacak; geliştirmede yalnız test kimliği.
+
+### 13.2 — Reklam yerleşimi ve oyun deneyimi: **Bekliyor**
+
+- Ödüllü reklam yalnız oyuncu seçerse; geçiş reklamı doğal arada, en fazla üç bölümde bir ve en az üç dakika arayla; ilk beş bölümde, savaşta, boss’ta veya hikâye/finalde yok. Banner olmayacak.
+- Reklamda oyun/ses duraklatılacak; reklam yoksa oyun kesintisiz sürecek. Günlük küçük ödül sınırı sunucuda, tek kullanımlık nonce ve zaman/limit doğrulamasıyla korunacak. Gerçek para satışı olmayacak.
+
+### 13.3 — Rıza ve gizlilik: **Bekliyor**
+
+- Gereken bölgelerde onaylı CMP/UMP ve sonradan değiştirilebilir reklam/gizlilik tercihi; yaş onayı, 13 yaş altına reklam kapatma/veri toplamama.
+- Türkçe/İngilizce gizlilik sayfasında reklam/kimlik/çerez, rıza, Clerk, PostgreSQL/Vercel, saklama/silme, iletişim, KVKK/GDPR açıklanacak; `/delete-account` ve uygulama içi erişim test edilecek.
+- `app-ads.txt` yer tutucu şablonu eklenecek.
+
+### 13.4 — Play Console içerik dosyaları: **Bekliyor**
+
+- `docs/play-store/` altında TR/EN mağaza metni, Data Safety, içerik derecelendirme, reklam/hedef kitle, incelemeci erişimi ve v1.0.0 sürüm notları hazırlanacak.
+- İkon/öne çıkan görsel/telefon/tablet ekran görüntüsü kontrol listesi ve sahne listesi eklenecek; ilk iki görsel üretilemezse ölçülü şablon verilecek. İncelemeci parolası dosyaya yazılmayacak.
+
+### 13.5 — Güvenlik ve dayanıklılık: **Bekliyor**
+
+- API hız sınırı, doğrulama/yetkilendirme, güvenli hata, CORS/CSP; reklam alan adları yalnız reklam açıkken. Ödül/altın/envanter sunucuda doğrulanacak.
+- Bağlantı kopmasında ilerleme korunacak ve sınırlı yeniden deneme; üçüncü taraf analitik eklenmeyecek, yalnız anonim sunucu hata kaydı.
+- Android geri tuşu, ekranın uyanık kalması, arka plan/WebGL dönüşü ve ses odağı kontrol edilecek.
+
+### 13.6 — Android paketleme ve sürümleme: **Bekliyor**
+
+- Keystore/şifreleri GitHub Secrets’tan alan, elle tetiklenen Bubblewrap TWA AAB GitHub Actions iş akışı; imza materyali repoya girmeyecek. Secrets kurulum adımları dokümante edilecek.
+- `com.safaksavascilari.game`, package.json sürümünden `versionName` ve artan `versionCode`; hedef API resmi Play gereksiniminden doğrulanacak.
+- Debug/Play sertifikaları için assetlinks şablonu ve Capacitor/AdMob rehberi hazırlanacak; kullanıcı karar verene kadar Capacitor yolu pasif kalacak.
+
+### 13.7 — Yayın öncesi kontrol listesi: **Bekliyor**
+
+- Play Console sıralı kontrol listesi, yalnız kullanıcının yapabileceği hesap/ödeme/sertifika/başvuru/test kullanıcı adımları ve reklam kapalı ilk sürüm seçeneği yazılacak.
+
+### 13.8 — Doğrulama: **Bekliyor**
+
+- AdService rıza/limit/aralık/kill-switch/nonce ve `none` ağ isteği testleri; yaş kapısı, hesap silme, rate limit; tür denetimi, üretim derlemesi ve reklam kodu bundle kontrolü.
+- Gerçek reklam, cihaz ve Play Console’da doğrulanamayanlar ile kullanıcının manuel adımları açıkça raporlanacak.

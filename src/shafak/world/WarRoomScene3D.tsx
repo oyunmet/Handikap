@@ -182,6 +182,12 @@ import {
   WAR_ROOM_PERFORMANCE_SAMPLE_MS,
   type WarRoomFrameStats,
 } from "../game/war-room-quality";
+import {
+  observeWarRoomLongTasks,
+  recordWarRoomPerformanceFrame,
+  recordWarRoomQualityDowngrade,
+  warRoomPerformanceCollector,
+} from "../game/war-room-performance";
 import { disposeWarRoomSceneResources } from "../game/war-room-dispose";
 import type { RenderQuality } from "./graphics-quality";
 import WarRoomAdaptiveDpr from "./WarRoomAdaptiveDpr";
@@ -2219,6 +2225,22 @@ function WarRoomRuntimeScene({
   const cameraFovKickRef = useRef(0);
   const lowHealthBeatAtRef = useRef(0);
   const renderStatsAtRef = useRef(0);
+  const rendererNameForReportRef = useRef<string | null>(null);
+  const previousQualityForReportRef = useRef(quality);
+  useEffect(() => observeWarRoomLongTasks(warRoomPerformanceCollector), []);
+  useEffect(() => {
+    const qualityRank = { low: 0, balanced: 1, high: 2 } as const;
+    const previous = previousQualityForReportRef.current;
+    if (qualityRank[quality] < qualityRank[previous]) {
+      recordWarRoomQualityDowngrade(
+        warRoomPerformanceCollector,
+        performance.now(),
+        previous,
+        quality,
+      );
+    }
+    previousQualityForReportRef.current = quality;
+  }, [quality]);
   const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
     () => room.blockers.map((blocker) => ({
       id: blocker.id,
@@ -3364,6 +3386,43 @@ function WarRoomRuntimeScene({
     }
     const wallNow = frame.clock.elapsedTime;
     const renderStatsNow = performance.now();
+    const canvasForReport = gl.domElement;
+    let activeBotsForReport = 0;
+    for (let index = 0; index < runtime.enemies.length; index += 1) {
+      if (runtime.enemies[index]?.alive) activeBotsForReport += 1;
+    }
+    if (rendererNameForReportRef.current === null) {
+      try {
+        const context = gl.getContext();
+        const rendererExtension = context.getExtension("WEBGL_debug_renderer_info") as
+          | { UNMASKED_RENDERER_WEBGL: number }
+          | null;
+        const rendererValue = rendererExtension
+          ? context.getParameter(rendererExtension.UNMASKED_RENDERER_WEBGL)
+          : context.getParameter(context.RENDERER);
+        rendererNameForReportRef.current = typeof rendererValue === "string"
+          ? rendererValue
+          : "unknown";
+      } catch {
+        rendererNameForReportRef.current = "unavailable";
+      }
+    }
+    recordWarRoomPerformanceFrame(
+      warRoomPerformanceCollector,
+      renderStatsNow,
+      gl.info.render.calls,
+      gl.info.render.triangles,
+      gl.info.memory.geometries,
+      gl.info.memory.textures,
+      gl.getPixelRatio(),
+      canvasForReport.width,
+      canvasForReport.height,
+      activeBotsForReport,
+      quality,
+      runtime.room.name,
+      rendererNameForReportRef.current,
+      typeof window === "undefined" ? 1 : window.devicePixelRatio,
+    );
     if ((debugMode || debugDiagnosticsEnabled) && renderStatsNow - renderStatsAtRef.current >= 250) {
       renderStatsAtRef.current = renderStatsNow;
       // R3F's automatic render completed the preceding frame before this sample.

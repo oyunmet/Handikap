@@ -34,7 +34,9 @@ import { getInitialScreen } from "./intro/timeline";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
+import WarRoomPerformanceDiagnostics from "./game/WarRoomPerformanceDiagnostics";
 import { defaultProfile, normalizePlayerProfile, readProfile, renameProfile, saveProfile, type PlayerProfile } from "./game/profile";
+import { shouldRunWarRoomBenchmark } from "./game/war-room-performance";
 import {
   awardWarRoomProfileReward,
   type WarRoomProfileRewardRequest,
@@ -80,6 +82,10 @@ type Screen = "intro" | "opening" | "loading" | "menu" | "world" | "war-room";
 function resolveInitialScreen(): Screen {
   const search = typeof window === "undefined" ? "" : window.location.search;
   const query = new URLSearchParams(search);
+  if (shouldRunWarRoomBenchmark(
+    search,
+    import.meta.env.VITE_WAR_ROOM_BENCHMARK_DISABLED === "true",
+  )) return "war-room";
   if (query.get("debug") === "1" && query.get("scene") === "menu") return "menu";
   if (query.get("mod") === "savas") return "war-room";
   return getInitialScreen(search);
@@ -1482,6 +1488,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 />
                 {screen === "war-room" && (
                   <>
+                    <WarRoomPerformanceDiagnostics />
                     <SettingToggle
                       label="Kol görünümü"
                       description="Birinci şahıs kollarını göster veya gizle."

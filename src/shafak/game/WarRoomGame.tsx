@@ -39,6 +39,16 @@ import {
   WAR_ROOM_WEAPON_LAB_ENABLED,
 } from "./war-room-features";
 import {
+  buildWarRoomPerformanceReport,
+  getWarRoomBenchmarkInput,
+  resetWarRoomPerformanceCollector,
+  shouldRunWarRoomBenchmark,
+  WAR_ROOM_BENCHMARK_DURATION_MS,
+  WAR_ROOM_BENCHMARK_SEED,
+  warRoomPerformanceCollector,
+  type WarRoomPerformanceReport,
+} from "./war-room-performance";
+import {
   getWarRoomDailyPreset,
   getWarRoomMissionReward,
   getWarRoomObjectiveMode,
@@ -404,8 +414,14 @@ export default function WarRoomGame({
   const searchParams = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search)
     : null;
+  const benchmarkMode = typeof window !== "undefined" && shouldRunWarRoomBenchmark(
+    window.location.search,
+    import.meta.env.VITE_WAR_ROOM_BENCHMARK_DISABLED === "true",
+  );
   const weaponLabMode = WAR_ROOM_WEAPON_LAB_ENABLED && searchParams?.get("lab") === "1";
   const [phase, setPhase] = useState<Phase>(() => weaponLabMode ? "battle" : "briefing");
+  const benchmarkAutoStartRef = useRef(false);
+  const [benchmarkReport, setBenchmarkReport] = useState<WarRoomPerformanceReport | null>(null);
   const [soundMuted, setSoundMuted] = useState(isWarRoomMuted);
   const [bloodEffects, setBloodEffects] = useState(() => {
     try {
@@ -709,8 +725,17 @@ export default function WarRoomGame({
     dailyRunRef.current = isDailyRun;
     const runSeed = preparedRuntime?.room.runSeed
       ?? dailySeedOverride
-      ?? Math.floor(Math.random() * 4_294_967_296);
-    const missionOptions = dailySeedOverride !== undefined
+      ?? (benchmarkMode
+        ? WAR_ROOM_BENCHMARK_SEED
+        : Math.floor(Math.random() * 4_294_967_296));
+    const missionOptions = benchmarkMode
+      ? {
+        mode: "survival" as const,
+        difficulty: "easy" as const,
+        modifiers: [] as WarRoomModifierId[],
+        mapId: "stone-courtyard",
+      }
+      : dailySeedOverride !== undefined
       ? { ...dailyPreset, mode: "daily" as const }
       : {
         mode: selectedMode,
@@ -743,6 +768,53 @@ export default function WarRoomGame({
     setRunKey((key) => key + 1);
     setPhase("battle");
   };
+
+  useEffect(() => {
+    if (
+      !benchmarkMode
+      || !modelsReady
+      || phase !== "briefing"
+      || benchmarkAutoStartRef.current
+    ) return;
+    benchmarkAutoStartRef.current = true;
+    resetWarRoomPerformanceCollector();
+    setBenchmarkReport(null);
+    beginBattle(1);
+  }, [benchmarkMode, modelsReady, phase]);
+
+  useEffect(() => {
+    if (!benchmarkMode || phase !== "battle" || benchmarkReport) return undefined;
+    const startedAt = performance.now();
+    const benchmarkControls = {
+      moveX: 0,
+      moveY: 0,
+      fireHeld: false,
+      complete: false,
+    };
+    let frameId = 0;
+    const advanceBenchmarkInput = (now: number) => {
+      const elapsedMs = now - startedAt;
+      const controls = getWarRoomBenchmarkInput(elapsedMs, benchmarkControls);
+      const input = inputRef.current;
+      input.moveX = controls.moveX;
+      input.moveY = controls.moveY;
+      input.firePressed = controls.fireHeld && !input.fireHeld;
+      input.fireReleased = !controls.fireHeld && input.fireHeld;
+      input.fireHeld = controls.fireHeld;
+      runtimeRef.current.player.hp = runtimeRef.current.player.maxHp;
+      if (controls.complete || elapsedMs >= WAR_ROOM_BENCHMARK_DURATION_MS) {
+        input.moveX = 0;
+        input.moveY = 0;
+        input.fireHeld = false;
+        input.fireReleased = true;
+        setBenchmarkReport(buildWarRoomPerformanceReport(warRoomPerformanceCollector));
+        return;
+      }
+      frameId = window.requestAnimationFrame(advanceBenchmarkInput);
+    };
+    frameId = window.requestAnimationFrame(advanceBenchmarkInput);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [benchmarkMode, phase, benchmarkReport]);
 
   const finishBattle = useCallback((result: "victory" | "defeat", finalHud: WarRoomHudSnapshot) => {
     const completedRoom = runtimeRef.current.room;
@@ -1431,10 +1503,21 @@ export default function WarRoomGame({
     <main
       className="war-room"
       data-phase={phase}
+      data-benchmark-status={benchmarkMode
+        ? benchmarkReport ? "complete" : phase === "battle" ? "running" : "loading"
+        : undefined}
       onPointerDownCapture={handleRootPointerType}
       onPointerUpCapture={handleRootPointerEndCapture}
       onPointerCancelCapture={handleRootPointerEndCapture}
     >
+      {benchmarkMode && benchmarkReport && (
+        <aside className="war-room-benchmark-report" role="status">
+          <strong>60 SANİYELİK BENCHMARK TAMAMLANDI</strong>
+          <pre data-testid="war-room-benchmark-report">
+            {JSON.stringify(benchmarkReport, null, 2)}
+          </pre>
+        </aside>
+      )}
       {phase === "briefing" && (
         <WarRoomBriefing
           room={briefingRoom}
@@ -1509,7 +1592,7 @@ export default function WarRoomGame({
               }
             }}
             onHudUpdate={setHud}
-            onFinish={finishBattle}
+            onFinish={benchmarkMode ? () => beginBattle(1) : finishBattle}
           />
           {weaponLabMode && (() => {
             const weapon = WAR_ROOM_WEAPONS[labWeaponIndex];

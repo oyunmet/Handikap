@@ -2888,3 +2888,24 @@
     padding: 7px;
   }
 }
+
+.war-room-benchmark-report {
+  position: fixed;
+  z-index: 1000;
+  inset: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(223, 187, 123, 0.46);
+  background: #111217;
+  color: #f0dfc1;
+}
+
+.war-room-benchmark-report pre {
+  max-height: calc(100% - 35px);
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #d7c6aa;
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
