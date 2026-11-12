@@ -215,12 +215,11 @@ export default function WarRoomBattlefield({
     <>
       <color attach="background" args={[sceneTheme.sky]} />
       <fog attach="fog" args={[sceneTheme.fog, sceneTheme.fogNear, sceneTheme.fogFar]} />
-      <hemisphereLight args={[sceneTheme.skyLight, sceneTheme.groundLight, darkModifier ? 1.55 : 2.2]} />
-      <ambientLight color={sceneTheme.ambient} intensity={darkModifier ? 0.82 : 1.4} />
+      <hemisphereLight args={[sceneTheme.skyLight, sceneTheme.groundLight, darkModifier ? 2.3 : 3]} />
       <directionalLight
         position={[-8, 14, 8]}
         color={sceneTheme.keyLight}
-        intensity={darkModifier ? 1.65 : 2.4}
+        intensity={darkModifier ? 1.9 : 2.6}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -230,9 +229,6 @@ export default function WarRoomBattlefield({
         shadow-camera-bottom={-38}
         shadow-bias={-0.0004}
       />
-      <directionalLight position={[9, 8, -7]} color={sceneTheme.fillLight} intensity={0.72} />
-      <pointLight position={[-26, 3, -21]} color={sceneTheme.emberLight} intensity={8} distance={15} />
-      <pointLight position={[27, 3, 18]} color={sceneTheme.emberLight} intensity={6} distance={13} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
         <planeGeometry args={[72, 72, 1, 1]} />
         <primitive object={WAR_ROOM_FLOOR_MATERIAL} attach="material" />
@@ -260,7 +256,6 @@ export default function WarRoomBattlefield({
               roughness={0.32}
             />
           </mesh>
-          <pointLight position={[0, 1.1, 0]} color="#f0b45d" intensity={1.7} distance={5} />
         </group>
       )}
       {visualBlockers.map((blocker) => (
@@ -377,7 +372,6 @@ export default function WarRoomBattlefield({
               <coneGeometry args={[0.22, 0.58, 6]} />
               <meshBasicMaterial color="#ffad58" toneMapped={false} />
             </mesh>
-            <pointLight position={[0, 0.72, 0]} color="#ff8c42" intensity={3} distance={7} />
           </group>
         );
       })}

@@ -59,6 +59,8 @@ import {
 import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import {
   AUTO_QUALITY_DOWN_FPS,
+  AUTO_QUALITY_INITIAL_SAMPLE_MS,
+  AUTO_QUALITY_SAMPLE_INTERVAL_MS,
   getAutoQualityAction,
   normalizeGraphicsMode,
   resolveRenderQuality,
@@ -471,7 +473,13 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     const limitedMemory = typeof deviceMemory === "number" && deviceMemory <= 4;
     return limitedCores || limitedMemory ? "low" : "balanced";
   });
+  const automaticQualityRef = useRef(automaticQuality);
+  const lowFpsNotifiedRef = useRef(false);
   const activeQuality = resolveRenderQuality(preferences.quality, automaticQuality);
+
+  useEffect(() => {
+    automaticQualityRef.current = automaticQuality;
+  }, [automaticQuality]);
 
   useEffect(() => {
     try {
@@ -494,13 +502,18 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       preferences.quality !== "auto"
       || (screen !== "world" && screen !== "war-room")
       || (screen === "war-room" && !WAR_ROOM_QUALITY_ENABLED)
-    ) return undefined;
+    ) {
+      lowFpsNotifiedRef.current = false;
+      return undefined;
+    }
 
     let frameId = 0;
     let sampleStartedAt = performance.now();
     let frameCount = 0;
     let slowDuration = 0;
     let fastDuration = 0;
+    let isInitialSample = true;
+    lowFpsNotifiedRef.current = false;
     const sample = (now: number) => {
       if (document.visibilityState === "hidden") {
         frameCount = 0;
@@ -512,11 +525,18 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       }
       frameCount += 1;
       const elapsed = now - sampleStartedAt;
-      if (elapsed >= 2_000) {
+      const sampleIntervalMs = isInitialSample
+        ? AUTO_QUALITY_INITIAL_SAMPLE_MS
+        : AUTO_QUALITY_SAMPLE_INTERVAL_MS;
+      if (elapsed >= sampleIntervalMs) {
+        const wasInitialSample = isInitialSample;
+        isInitialSample = false;
         const fps = frameCount * 1_000 / elapsed;
         frameCount = 0;
         sampleStartedAt = now;
-        console.info("[shafak-fps] two-second average", {
+        console.info(wasInitialSample
+          ? "[shafak-fps] initial five-second average"
+          : "[shafak-fps] two-second average", {
           fps: Number(fps.toFixed(1)),
           selectedQuality: preferences.quality,
         });
@@ -538,6 +558,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
         );
         if (action) {
           setAutomaticQuality((current) => stepAutoQuality(current, action));
+          if (
+            action === "down"
+            && automaticQualityRef.current === "low"
+            && !lowFpsNotifiedRef.current
+          ) {
+            lowFpsNotifiedRef.current = true;
+            setAnnouncement("FPS düşük kalıyor; en düşük grafik ayarı kullanılıyor.");
+          }
           if (action === "down") {
             console.info("[shafak-fps] automatic quality lowered", {
               averageFps: Number(fps.toFixed(1)),

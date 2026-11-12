@@ -12,6 +12,7 @@ import {
   getWarRoomQualityProfile,
   isWarRoomAttackRunContinuous,
   sampleWarRoomAdaptiveDpr,
+  WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES,
   WAR_ROOM_CONTINUOUS_ATTACK_MAX_GAP_MS,
   WAR_ROOM_PERFORMANCE_SAMPLE_MS,
 } from "./war-room-quality.ts";
@@ -35,14 +36,14 @@ test("quality tiers reduce emissions, live particle cap, trail length, and DPR",
   assert.ok(low.pixelRatioCap < medium.pixelRatioCap);
   assert.ok(medium.pixelRatioCap < high.pixelRatioCap);
   assert.ok(low.touchPixelRatioCap < medium.touchPixelRatioCap);
-  assert.ok(medium.touchPixelRatioCap < high.touchPixelRatioCap);
+  assert.equal(medium.touchPixelRatioCap, high.touchPixelRatioCap);
   assert.equal(high.slashTrailSegments, WAR_ROOM_SLASH_TRAIL_SEGMENTS);
 });
 
 test("adaptive quality can lower touch-device DPR as well as desktop DPR", () => {
-  assert.equal(getWarRoomPixelRatio("high", 3, true), 1);
-  assert.equal(getWarRoomPixelRatio("balanced", 3, true), 0.95);
-  assert.equal(getWarRoomPixelRatio("low", 3, true), 0.85);
+  assert.equal(getWarRoomPixelRatio("high", 3, true), 1.5);
+  assert.equal(getWarRoomPixelRatio("balanced", 3, true), 1.5);
+  assert.equal(getWarRoomPixelRatio("low", 3, true), 1);
   assert.equal(getWarRoomPixelRatio("low", 3, false), 1);
   assert.equal(getWarRoomPixelRatio("high", 1.25, false), 1.25);
   assert.equal(getWarRoomPixelRatio("high", 3, false), 2);
@@ -87,6 +88,7 @@ test("particle pool usage counts only live fixed-pool entries", () => {
 test("War Room performance and pooled geometry stay within the requested fixed limits", () => {
   const limits = getWarRoomPoolLimits();
   assert.equal(WAR_ROOM_PERFORMANCE_SAMPLE_MS, 60_000);
+  assert.equal(WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES, 30);
   assert.ok(limits.particles <= 150);
   assert.ok(limits.decals <= 30);
   assert.ok(limits.slashTrailSegments <= 12);
@@ -126,28 +128,41 @@ test("debug frame stats report draw calls and unclamped frame rate safely", () =
 
 test("adaptive War Room DPR lowers after sustained slow frames and recovers gradually", () => {
   const state = createWarRoomAdaptiveDprState(1);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 1);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 0.9);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 0.9);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24), 0.8);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.8);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.8);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.8);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 16), 0.85);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.85);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.85);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.85);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.82, 10), 0.82);
+  let nowMs = 0;
+  const recordWindow = (frameTimeMs, maxPixelRatio = 1) => {
+    let pixelRatio = state.pixelRatio;
+    for (let frame = 0; frame < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES; frame += 1) {
+      nowMs += frameTimeMs;
+      pixelRatio = sampleWarRoomAdaptiveDpr(state, maxPixelRatio, frameTimeMs, nowMs);
+    }
+    return pixelRatio;
+  };
+
+  assert.equal(recordWindow(24), 1);
+  assert.equal(recordWindow(24), 0.85);
+  assert.equal(recordWindow(24), 0.85);
+  assert.equal(recordWindow(24), 0.7);
+  assert.equal(recordWindow(10), 0.7);
+  assert.equal(recordWindow(10), 0.7);
+  assert.equal(recordWindow(10), 0.7);
+  assert.equal(recordWindow(10), 0.85);
+  assert.equal(recordWindow(10), 0.85);
+  assert.equal(recordWindow(10), 0.85);
+  assert.equal(recordWindow(10), 0.85);
+  assert.equal(recordWindow(10), 1);
 });
 
 test("adaptive War Room DPR rejects invalid frame samples and respects its floor", () => {
-  const state = createWarRoomAdaptiveDprState(0.75);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.75, Number.NaN), 0.75);
-  for (let index = 0; index < 80; index += 1) {
-    sampleWarRoomAdaptiveDpr(state, 0.75, 40);
+  const state = createWarRoomAdaptiveDprState(1);
+  let nowMs = 0;
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, Number.NaN, nowMs), 1);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 24, Number.NaN), 1);
+  for (let index = 0; index < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES * 8; index += 1) {
+    nowMs += 24;
+    sampleWarRoomAdaptiveDpr(state, 1, 24, nowMs);
   }
-  assert.equal(state.pixelRatio, 0.75);
-  assert.equal(sampleWarRoomAdaptiveDpr(state, 0.75, 0), 0.75);
+  assert.equal(state.pixelRatio, 0.6);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1, 0, nowMs), 0.6);
 });
 
 test("decal pool usage counts only occupied slots", () => {

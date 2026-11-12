@@ -1486,6 +1486,68 @@
   }
 }
 
+@media (pointer: coarse) {
+  .war-room,
+  .war-room * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .war-room .war-room-hud-settings,
+  .war-room .war-room-commander,
+  .war-room .war-room-boss-phase,
+  .war-room .war-room-vitals,
+  .war-room .war-room-ammo,
+  .war-room .war-room-controls,
+  .war-room .war-room-pause,
+  .war-room .war-room-calibration-panel,
+  .war-room .war-room-weapon-lab,
+  .war-room .war-room-location-status,
+  .war-room .war-room-notice span,
+  .war-room .war-room-door-action,
+  .war-room .war-room-loot-action {
+    background-color: rgba(18, 18, 19, .82) !important;
+    background-image: none !important;
+  }
+
+  .war-room .war-room-hud-settings,
+  .war-room .war-room-commander,
+  .war-room .war-room-boss-phase,
+  .war-room .war-room-vitals,
+  .war-room .war-room-ammo,
+  .war-room .war-room-controls,
+  .war-room .war-room-controls > .shafak-hud-button,
+  .war-room .war-room-controls > .shafak-hud-button::before,
+  .war-room .war-room-weapon-select .war-room-weapon-slot,
+  .war-room .war-room-bar.is-regenerating .is-health,
+  .war-room .war-room-pause,
+  .war-room .war-room-stick,
+  .war-room .war-room-calibration-panel,
+  .war-room .war-room-weapon-lab,
+  .war-room .war-room-location-status,
+  .war-room .war-room-notice span,
+  .war-room .war-room-door-action,
+  .war-room .war-room-loot-action {
+    box-shadow: none !important;
+  }
+
+  .war-room .war-room-hud.is-low-health::after {
+    opacity: .4;
+    animation: none !important;
+  }
+
+  .war-room .war-room-commander__attack[data-telegraphing="true"],
+  .war-room .war-room-bar.is-regenerating .is-health,
+  .war-room .war-room-controls > .shafak-hud-button.is-fire {
+    animation: none !important;
+    filter: none !important;
+  }
+
+  .war-room .war-room-controls > .shafak-hud-button.is-fire .shafak-hud-button__glyph {
+    filter: none !important;
+  }
+}
+
 /* Preparation uses fixed grid rows: the weapon list scrolls inside its own column. */
 .war-room-briefing {
   display: grid;

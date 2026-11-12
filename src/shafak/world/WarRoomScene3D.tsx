@@ -1198,7 +1198,6 @@ function PlayerActor({
   rootRef,
   muzzleRef,
   flashRef,
-  muzzleLightRef,
 }: {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
@@ -1209,7 +1208,6 @@ function PlayerActor({
   rootRef: MutableRefObject<THREE.Group | null>;
   muzzleRef: MutableRefObject<THREE.Group | null>;
   flashRef: MutableRefObject<THREE.Group | null>;
-  muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
 }) {
   const recoilRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
@@ -1502,10 +1500,6 @@ function PlayerActor({
     if (flashRef.current && flashRef.current.userData.warRoomExpiresAt <= player.clockTime) {
       flashRef.current.visible = false;
     }
-    if (muzzleLightRef.current && muzzleLightRef.current.userData.warRoomExpiresAt <= player.clockTime) {
-      muzzleLightRef.current.visible = false;
-      muzzleLightRef.current.intensity = 0;
-    }
   });
   const playerAnimation = () => {
     const player = runtimeRef.current.player;
@@ -1572,13 +1566,6 @@ function PlayerActor({
         </Suspense>
       </WarRoomAssetBoundary>
       <group ref={recoilRef} name="war-room-weapon-mount" position={[0.7, 1.24, -0.36]}>
-        <pointLight
-          position={[0, 0.02, -0.32]}
-          color={weapon.color}
-          intensity={weapon.rarity === "Efsanevi" ? 0.28 : 0}
-          distance={1.1}
-          decay={2}
-        />
         {!isMeleeWeapon && (
           <mesh position={[0, 0, -0.04]}>
             <sphereGeometry args={[0.11, 8, 6]} />
@@ -1637,13 +1624,11 @@ function EnemyActor({
   enemy,
   index,
   groupRefs,
-  muzzleLightRef,
   inputRef,
 }: {
   enemy: WarRoomEnemy;
   index: number;
   groupRefs: MutableRefObject<Array<THREE.Group | null>>;
-  muzzleLightRef: MutableRefObject<THREE.PointLight | null>;
   inputRef: MutableRefObject<WarRoomInputState>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -1759,10 +1744,6 @@ function EnemyActor({
     }
     if (muzzleFlashRef.current && Number(muzzleFlashRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow) {
       muzzleFlashRef.current.visible = false;
-    }
-    if (muzzleLightRef.current && Number(muzzleLightRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow) {
-      muzzleLightRef.current.visible = false;
-      muzzleLightRef.current.intensity = 0;
     }
     group.visible = enemy.alive || deathProgress < 1;
     const kneeDip = enemy.alive && enemy.hitKneeUntil > gameNow ? 0.82 : 1;
@@ -2180,7 +2161,6 @@ function WarRoomRuntimeScene({
     }
   }, 1);
   const enemyGroupRefs = useRef<Array<THREE.Group | null>>([]);
-  const muzzleLightRef = useRef<THREE.PointLight>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const cameraRaycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
@@ -3213,12 +3193,6 @@ function WarRoomRuntimeScene({
       flash.scale.setScalar(scale);
       flash.rotation.z = Math.sin(seed * 1.3) * 0.65;
       flash.userData.warRoomExpiresAt = now + 0.06;
-    }
-    if (muzzleLightRef.current) {
-      muzzleLightRef.current.position.copy(muzzle);
-      muzzleLightRef.current.intensity = 2.4;
-      muzzleLightRef.current.visible = true;
-      muzzleLightRef.current.userData.warRoomExpiresAt = now + 0.06;
     }
     spawnMuzzleSmoke(muzzle, now);
     if (weaponId !== "longbow" && weaponId !== "crossbow") spawnCasing(muzzle, now, player.yaw);
@@ -4317,12 +4291,6 @@ function WarRoomRuntimeScene({
         enemyFlash.scale.setScalar(flashScale);
         enemyFlash.rotation.z = Math.sin(now * 29 + enemy.z) * 0.55;
       }
-      if (muzzleLightRef.current) {
-        muzzleLightRef.current.position.copy(muzzle);
-        muzzleLightRef.current.intensity = 2;
-        muzzleLightRef.current.visible = true;
-        muzzleLightRef.current.userData.warRoomExpiresAt = now + 0.06;
-      }
       spawnMuzzleSmoke(muzzle, now);
       spawnCasing(muzzle, now, enemyFacingYaw);
       const enemyDistance = Math.hypot(enemy.x - attackTarget.x, enemy.z - attackTarget.z);
@@ -5087,14 +5055,6 @@ function WarRoomRuntimeScene({
       <primitive object={decalMesh} dispose={null} />
       <primitive object={projectileShafts} dispose={null} />
       <primitive object={projectileHeads} dispose={null} />
-      <pointLight
-        ref={muzzleLightRef}
-        color="#ff9a4d"
-        intensity={0}
-        distance={3.2}
-        decay={2}
-        visible={false}
-      />
       <group userData={{ runtime }}>
         {runtime.enemies.map((enemy, index) => (
           <EnemyActor
@@ -5103,7 +5063,6 @@ function WarRoomRuntimeScene({
             index={index}
             inputRef={inputRef}
             groupRefs={enemyGroupRefs}
-            muzzleLightRef={muzzleLightRef}
           />
         ))}
       </group>
@@ -5117,13 +5076,11 @@ function WarRoomRuntimeScene({
         rootRef={playerRootRef}
         muzzleRef={playerMuzzleRef}
         flashRef={playerMuzzleFlashRef}
-        muzzleLightRef={muzzleLightRef}
       />
       {createPortal(
         <>
-          <ambientLight color="#fff0dc" intensity={1.35} />
-          <directionalLight color="#fff0d7" intensity={1.55} position={[1.5, 2.5, 3]} />
-          <directionalLight color="#d7a978" intensity={0.48} position={[-2, 1.2, -1]} />
+          <hemisphereLight args={["#fff0dc", "#59483b", 1.6]} />
+          <directionalLight color="#fff0d7" intensity={1.8} position={[1.5, 2.5, 3]} />
           <FirstPersonWeaponViewModel
             runtimeRef={runtimeRef}
             inputRef={inputRef}
@@ -5211,7 +5168,7 @@ export default function WarRoomScene3D(props: Props) {
             far: WAR_ROOM_CONFIG.camera.firstPerson.far,
           }}
           gl={{
-            antialias: quality !== "low" || !touchDevice,
+            antialias: quality === "high" && !touchDevice,
             powerPreference: "high-performance",
             toneMapping: THREE.ACESFilmicToneMapping,
           }}

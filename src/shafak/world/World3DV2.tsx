@@ -472,7 +472,7 @@ export default function World3DV2(props: World3DProps) {
             }}
             gl={{
               alpha: false,
-              antialias: true,
+              antialias: props.quality === "high" && !touchRenderer,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: 1.05,

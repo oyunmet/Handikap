@@ -2997,7 +2997,7 @@ export default function World3D(props: World3DProps) {
             }}
             gl={{
               alpha: false,
-              antialias: true,
+              antialias: rendererQuality === "high" && !touchRenderer,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: 0.65,

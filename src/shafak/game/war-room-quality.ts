@@ -182,7 +182,7 @@ const WAR_ROOM_QUALITY_PROFILES: Record<RenderQuality, WarRoomQualityProfile> = 
     maxActiveParticles: Math.min(WAR_ROOM_EFFECT_POOL_SIZE, WAR_ROOM_EFFECT_POOL_LIMIT),
     slashTrailSegments: WAR_ROOM_SLASH_TRAIL_SEGMENTS,
     pixelRatioCap: 2,
-    touchPixelRatioCap: 2,
+    touchPixelRatioCap: 1.5,
   },
 };
 

@@ -5,6 +5,8 @@ export const AUTO_QUALITY_DOWN_FPS = 40;
 export const AUTO_QUALITY_DOWN_AFTER_MS = 2_000;
 export const AUTO_QUALITY_UP_FPS = 56;
 export const AUTO_QUALITY_UP_AFTER_MS = 6_000;
+export const AUTO_QUALITY_INITIAL_SAMPLE_MS = 5_000;
+export const AUTO_QUALITY_SAMPLE_INTERVAL_MS = 2_000;
 
 const PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
   low: 1,
@@ -47,7 +49,9 @@ export function getAutoQualityAction(fps: number, sustainedForMs: number): "down
 }
 
 export function getPixelRatioCap(quality: RenderQuality, touchDevice = false): number {
-  void touchDevice;
+  if (touchDevice) {
+    return quality === "low" ? 1 : Math.min(1.5, PIXEL_RATIO_CAP[quality]);
+  }
   return PIXEL_RATIO_CAP[quality];
 }
 
@@ -59,12 +63,11 @@ export function getWorldRenderPixelRatio(
   const dpr = Number.isFinite(devicePixelRatio)
     ? Math.max(1, Math.min(4, devicePixelRatio))
     : 1;
-  return Math.min(touchDevice ? 2 : getPixelRatioCap(quality, touchDevice), dpr);
+  return Math.min(getPixelRatioCap(quality, touchDevice), dpr);
 }
 
 export function shouldEnableWorldShadows(quality: RenderQuality, touchDevice = false): boolean {
-  void touchDevice;
-  return quality !== "low";
+  return quality !== "low" && !touchDevice;
 }
 
 export function getShadowMapSize(quality: RenderQuality, devicePixelRatio: number): number {
