@@ -146,14 +146,14 @@
   .war-room-hud-settings > .war-room-mute { min-width: 50px; }
 
   .war-room-commander {
-    top: max(148px, calc(env(safe-area-inset-top) + 140px));
+    top: max(170px, calc(env(safe-area-inset-top) + 162px));
     left: 50%;
     width: min(310px, calc(100vw - 42px));
     transform: translateX(-50%);
   }
 
   .war-room-boss-phase {
-    top: max(206px, calc(env(safe-area-inset-top) + 198px));
+    top: max(220px, calc(env(safe-area-inset-top) + 212px));
   }
 
   .war-room-pause {
@@ -1980,7 +1980,7 @@
   }
 
   .war-room-door-action {
-    top: max(190px, calc(env(safe-area-inset-top) + 180px));
+    top: max(290px, calc(env(safe-area-inset-top) + 278px));
     right: auto;
     left: max(10px, env(safe-area-inset-left));
     width: min(170px, calc(45vw - 12px));

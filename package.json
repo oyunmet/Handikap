@@ -12,12 +12,13 @@
     "warroom:weapons:inspect": "node scripts/analyze-war-room-weapons.mjs",
     "warroom:e2e": "node scripts/war-room-mobile-e2e.mjs",
     "warroom:layout:e2e": "node scripts/war-room-layout-e2e.mjs",
+    "warroom:final:e2e": "node scripts/war-room-final-11-9-e2e.mjs",
     "build": "vite build",
     "android:validate:web": "node scripts/validate-android-web.mjs",
     "android:debug": "cd android && ./gradlew assembleDebug",
     "android:bundle": "cd android && ./gradlew bundleRelease",
     "preview": "vite preview --host 0.0.0.0 --port 5000",
-    "test": "node --import tsx --test",
+    "test": "node --import tsx --test --test-concurrency=4 $(find db server src -type f \\( -name '*.test.js' -o -name '*.test.ts' -o -name '*.spec.js' -o -name '*.spec.ts' -o -name '*.test.mjs' -o -name '*.spec.mjs' \\) -print)",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

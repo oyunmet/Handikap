@@ -192,6 +192,19 @@
 - **Doğrulanamayanlar:** Gerçek iPhone/Android’de kare hızı, titreşim ve eşzamanlı çoklu dokunma henüz ölçülmedi; cihaz kabulü 11.9 sonunda ayrıca raporlanacak.
 - **Bu alt adımda değişen dosyalar:** `src/shafak/App.tsx`, `src/shafak/game/WarRoomBriefing.tsx`, `src/shafak/game/WarRoomControlsEditor.tsx`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/WarRoomResult.tsx`, `src/shafak/game/war-room-awareness.ts`, `src/shafak/game/war-room-awareness.test.js`, `src/shafak/game/war-room-combat-feel.ts`, `src/shafak/game/war-room-combat-feel.test.js`, `src/shafak/game/war-room-controls.ts`, `src/shafak/game/war-room-controls-handedness.test.js`, `src/shafak/game/war-room-engine.ts`, `src/shafak/game/war-room-look-settings.ts`, `src/shafak/game/war-room-missions.test.js`, `src/shafak/game/war-room-mobile-controls.ts`, `src/shafak/game/war-room-touch-input.ts`, `src/shafak/game/war-room.css`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
 
+### 11.9 — Final doğrulama
+
+- **Durum:** Tamamlandı; yerel otomatik doğrulama geçti, gerçek telefon kabulü açık.
+- **Kök neden:** Dokuz ölçüdeki HUD taraması, portre görünümünde görev türüyle komutan adının 2 px çakıştığını, komutan satırı aşağı alınınca da kapı etkileşim düğmesinin komutan başlığının üstüne geldiğini gösterdi. HUD konumları aynı dar alana yığılmıştı.
+- **Yapılanlar:** Portre HUD’da komutan satırı görev etiketinden ayrıldı; kapı düğmesi komutan/ganimet bildirimi alanının altına taşındı ve faz bildirimi için boşluk korundu. Tekrar çalıştırılabilir `warroom:final:e2e` testi eklendi. Sonuç ekranı yalnızca sentetik test özetiyle açıldı. Mağaza ve envanter ekranları varsayılan test profiliyle render edildi; gerçek hesap, kayıt, para, eşya veya ilerleme değiştirilmedi.
+- **Ekran doğrulaması:** Ana menü, mağaza, envanter, hazırlık, HUD ve sonuç ekranlarının her biri 772×330, 667×375, 740×360, 800×360, 844×390, 915×412, 932×430, 360×800 ve 390×844 ölçülerinde yakalandı. Toplam 54 görüntü; görünür metin/düğme taşması 0, çakışma 0. Geçici görüntüler `/tmp/war-room-11-9` altında. HUD/sonuç ölçüm görüntülerinde canvas gizli olduğundan bu çalışma 3B sahnenin görüntü kalitesini veya performansını doğrulamaz.
+- **Testler:** `npm test` — 705/705; `npm run typecheck` — geçti; `npm run build` — geçti; `git diff --check` — geçti. Node test keşfi artık proje test dizinleri (`db`, `server`, `src`) ile sınırlı ve eşzamanlılık 4; sınırsız keşif Replit çalışma zamanı yolunda testler başlamadan hata veriyordu.
+- **Bundle ölçümü:** Üretim HTML’inin eager JS/CSS grafiği ayrıca hesaplandı; ayrıntılı değerler aşağıda. Savaş Odası kendi lazy JS/CSS parçalarıyla ilk yüklemede bulunmuyor. Ölçümler JS/CSS dosyalarıdır; harici yazı tipleri ve oyun içi 3B varlıklar dahil değildir.
+- **Yarım kalanlar:** Yerel kod doğrulamasında açık madde yok.
+- **Doğrulanamayanlar:** Gerçek iPhone/Android’de 60 FPS, silah sallanmasının hissi, gerçek duvar temasındaki görüntü ve eşzamanlı çoklu dokunma test edilmedi. SwiftShader tarayıcı görüntüsü cihaz performansı yerine geçmez; görünür draw-call sayısı da ölçülmedi.
+- **Telefonda kısa kontrol:** Yatay ve dikey döndür; joystick ile yürü/koş; yürürken nişan + ateş + hareketi aynı anda basılı tut; düğmelerin çakışmadığını ve dokunma bırakınca diğer kontrollerin sürmesini kontrol et; duvar yanında silahı ve gerçek FPS’yi gözle.
+- **Bu alt adımda değişen dosyalar:** `package.json`, `scripts/war-room-final-11-9-e2e.mjs`, `src/shafak/game/war-room-responsive.css`, `ILERLEME.md`.
+
 ### Adım 11 alt adımları
 
 - **11.1 — Mağaza: satın alma ve kuşanma:** Tamamlandı
@@ -202,4 +215,4 @@
 - **11.6 — Ortam görsel kalitesi:** Kod tamamlandı; gerçek cihaz görsel/FPS kabulü açık
 - **11.7 — Silahlar ve eller:** Kod/test tamamlandı; gerçek cihaz kabulü açık
 - **11.8 — Savaş Odası kapsamlı yenileme:** Kod/test tamamlandı; tam doğrulama 11.9’da
-- **11.9 — Final doğrulama:** Bekliyor
+- **11.9 — Final doğrulama:** Tamamlandı; gerçek telefon kabulü açık
