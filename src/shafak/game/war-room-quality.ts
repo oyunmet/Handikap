@@ -53,11 +53,14 @@ export type WarRoomAdaptiveDprState = {
   samplesSinceEvaluation: number;
   writeIndex: number;
   lastScaleChangeAtMs: number;
+  emergencySlowFrameStreak: number;
 };
 
 export const WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES = 30;
 export const WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS = [1, 0.85, 0.7, 0.6] as const;
 export const WAR_ROOM_ADAPTIVE_DPR_CHANGE_COOLDOWN_MS = 1_000;
+export const WAR_ROOM_ADAPTIVE_DPR_EMERGENCY_FRAME_MS = 100;
+export const WAR_ROOM_ADAPTIVE_DPR_EMERGENCY_STREAK = 2;
 
 export function createWarRoomAdaptiveDprState(pixelRatio: number): WarRoomAdaptiveDprState {
   const safePixelRatio = Number.isFinite(pixelRatio)
@@ -74,6 +77,7 @@ export function createWarRoomAdaptiveDprState(pixelRatio: number): WarRoomAdapti
     samplesSinceEvaluation: 0,
     writeIndex: 0,
     lastScaleChangeAtMs: Number.NEGATIVE_INFINITY,
+    emergencySlowFrameStreak: 0,
   };
 }
 
@@ -94,6 +98,27 @@ export function sampleWarRoomAdaptiveDpr(
   state.writeIndex = (state.writeIndex + 1) % WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES;
   state.sampleCount = Math.min(state.sampleCount + 1, WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES);
   state.samplesSinceEvaluation += 1;
+  state.emergencySlowFrameStreak = frameTimeMs >= WAR_ROOM_ADAPTIVE_DPR_EMERGENCY_FRAME_MS
+    ? Math.min(WAR_ROOM_ADAPTIVE_DPR_EMERGENCY_STREAK, state.emergencySlowFrameStreak + 1)
+    : 0;
+  if (
+    state.emergencySlowFrameStreak >= WAR_ROOM_ADAPTIVE_DPR_EMERGENCY_STREAK
+    && state.levelIndex < WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS.length - 1
+    && nowMs - state.lastScaleChangeAtMs >= WAR_ROOM_ADAPTIVE_DPR_CHANGE_COOLDOWN_MS
+  ) {
+    state.levelIndex += 1;
+    state.slowWindows = 0;
+    state.fastWindows = 0;
+    state.sampleCount = 0;
+    state.samplesSinceEvaluation = 0;
+    state.lastScaleChangeAtMs = nowMs;
+    state.emergencySlowFrameStreak = 0;
+    state.pixelRatio = Math.round(
+      Math.max(0.6, Math.min(maximum, maximum * WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS[state.levelIndex]!))
+        * 100,
+    ) / 100;
+    return state.pixelRatio;
+  }
   if (
     state.sampleCount < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES
     || state.samplesSinceEvaluation < WAR_ROOM_ADAPTIVE_DPR_WINDOW_FRAMES

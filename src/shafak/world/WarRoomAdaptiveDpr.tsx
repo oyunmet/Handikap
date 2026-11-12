@@ -11,9 +11,14 @@ import type { RenderQuality } from "./graphics-quality";
 type Props = {
   quality: RenderQuality;
   touchDevice: boolean;
+  onPixelRatioChange: (pixelRatio: number) => void;
 };
 
-export default function WarRoomAdaptiveDpr({ quality, touchDevice }: Props) {
+export default function WarRoomAdaptiveDpr({
+  quality,
+  touchDevice,
+  onPixelRatioChange,
+}: Props) {
   const setDpr = useThree((state) => state.setDpr);
   const maxPixelRatio = getWarRoomPixelRatio(
     quality,
@@ -30,7 +35,8 @@ export default function WarRoomAdaptiveDpr({ quality, touchDevice }: Props) {
     adaptiveStateRef.current = createWarRoomAdaptiveDprState(maxPixelRatio);
     lastFrameAtRef.current = null;
     setDpr(maxPixelRatio);
-  }, [maxPixelRatio, setDpr]);
+    onPixelRatioChange(maxPixelRatio);
+  }, [maxPixelRatio, onPixelRatioChange, setDpr]);
 
   useFrame(() => {
     const nowMs = performance.now();
@@ -46,7 +52,10 @@ export default function WarRoomAdaptiveDpr({ quality, touchDevice }: Props) {
       nowMs - previousFrameAt,
       nowMs,
     );
-    if (nextPixelRatio !== previousPixelRatio) setDpr(nextPixelRatio);
+    if (nextPixelRatio !== previousPixelRatio) {
+      setDpr(nextPixelRatio);
+      onPixelRatioChange(nextPixelRatio);
+    }
   });
 
   return null;

@@ -152,6 +152,19 @@ test("adaptive War Room DPR lowers after sustained slow frames and recovers grad
   assert.equal(recordWindow(10), 1);
 });
 
+test("adaptive DPR responds to consecutive severe stalls before the full sample window", () => {
+  const state = createWarRoomAdaptiveDprState(1.5);
+
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1.5, 100, 100), 1.5);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1.5, 100, 200), 1.27);
+  assert.equal(state.sampleCount, 0);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1.5, 16, 216), 1.27);
+  assert.equal(state.emergencySlowFrameStreak, 0);
+
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1.5, 120, 1_200), 1.27);
+  assert.equal(sampleWarRoomAdaptiveDpr(state, 1.5, 120, 1_320), 1.05);
+});
+
 test("adaptive War Room DPR rejects invalid frame samples and respects its floor", () => {
   const state = createWarRoomAdaptiveDprState(1);
   let nowMs = 0;

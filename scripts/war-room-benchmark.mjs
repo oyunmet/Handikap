@@ -6,6 +6,11 @@ const baseUrl = process.env.WAR_ROOM_BENCHMARK_BASE_URL
     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
     : "http://127.0.0.1:5000");
 const executablePath = process.env.CHROMIUM_PATH ?? "/repl/tools/bin/chromium";
+const desktopMode = process.env.WAR_ROOM_BENCHMARK_DESKTOP === "1";
+const deviceScaleFactor = Number(process.env.WAR_ROOM_BENCHMARK_DPR ?? 1);
+if (!Number.isFinite(deviceScaleFactor) || deviceScaleFactor < 0.5 || deviceScaleFactor > 4) {
+  throw new Error("WAR_ROOM_BENCHMARK_DPR must be a number between 0.5 and 4.");
+}
 const browser = await chromium.launch({
   headless: true,
   executablePath,
@@ -19,10 +24,10 @@ const browser = await chromium.launch({
   ],
 });
 const context = await browser.newContext({
-  viewport: { width: 844, height: 390 },
-  deviceScaleFactor: 1,
-  isMobile: true,
-  hasTouch: true,
+  viewport: desktopMode ? { width: 1280, height: 720 } : { width: 844, height: 390 },
+  deviceScaleFactor,
+  isMobile: !desktopMode,
+  hasTouch: !desktopMode,
 });
 const page = await context.newPage();
 const pageErrors = [];

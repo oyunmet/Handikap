@@ -5182,6 +5182,25 @@ function WarRoomRuntimeScene({
 export default function WarRoomScene3D(props: Props) {
   const { quality } = props;
   const touchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const maxPixelRatio = getWarRoomPixelRatio(
+    quality,
+    typeof window === "undefined" ? 1 : window.devicePixelRatio,
+    touchDevice,
+  );
+  // Keep Canvas's prop aligned with runtime DPR changes so React renders do not reset them.
+  const [adaptiveDpr, setAdaptiveDpr] = useState(() => ({
+    maxPixelRatio,
+    pixelRatio: maxPixelRatio,
+  }));
+  const canvasPixelRatio = adaptiveDpr.maxPixelRatio === maxPixelRatio
+    ? adaptiveDpr.pixelRatio
+    : maxPixelRatio;
+  const handleAdaptivePixelRatioChange = useCallback((pixelRatio: number) => {
+    setAdaptiveDpr((current) => current.maxPixelRatio === maxPixelRatio
+      && current.pixelRatio === pixelRatio
+      ? current
+      : { maxPixelRatio, pixelRatio });
+  }, [maxPixelRatio]);
   const shadowsEnabled = typeof window !== "undefined"
     && !window.matchMedia("(pointer: coarse)").matches
     && quality !== "low";
@@ -5226,11 +5245,7 @@ export default function WarRoomScene3D(props: Props) {
       <WarRoomSceneErrorBoundary key={canvasGeneration} onRetry={retryCanvas}>
         <Canvas
           key={canvasGeneration}
-          dpr={getWarRoomPixelRatio(
-            quality,
-            typeof window === "undefined" ? 1 : window.devicePixelRatio,
-            touchDevice,
-          )}
+          dpr={canvasPixelRatio}
           frameloop="always"
           shadows={shadowsEnabled}
           camera={{
@@ -5246,7 +5261,11 @@ export default function WarRoomScene3D(props: Props) {
           }}
           onCreated={handleCanvasCreated}
         >
-          <WarRoomAdaptiveDpr quality={quality} touchDevice={touchDevice} />
+          <WarRoomAdaptiveDpr
+            quality={quality}
+            touchDevice={touchDevice}
+            onPixelRatioChange={handleAdaptivePixelRatioChange}
+          />
           <WarRoomRuntimeScene {...props} />
         </Canvas>
       </WarRoomSceneErrorBoundary>
