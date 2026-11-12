@@ -2,7 +2,7 @@ import { moveWarRoomEntity, WAR_ROOM_PLAYER_COLLISION_RADIUS } from "./war-room-
 import type { WarRoomBlocker } from "./war-room-data";
 
 export const WAR_ROOM_FIXED_STEP_SECONDS = 1 / 60;
-const WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME = 4;
+export const WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME = 3;
 const WAR_ROOM_TELEPORT_RESET_DISTANCE = 1.25;
 
 export type WarRoomMovementClock = {

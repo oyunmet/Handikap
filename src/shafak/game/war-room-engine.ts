@@ -68,6 +68,11 @@ export type WarRoomEnemy = {
   mode: WarRoomAwarenessState | "approach" | "fire" | "cover";
   awareness: number;
   brainAt: number;
+  perceptionAt: number;
+  lineOfSightBlocked: boolean;
+  moveVelocityX: number;
+  moveVelocityZ: number;
+  movementBlockers: WarRoomBlocker[];
   nextShotAt: number;
   coverX: number;
   coverZ: number;
@@ -386,6 +391,11 @@ export function createWarRoomRuntime(
       mode: "patrol",
       awareness: 0,
       brainAt: 0,
+      perceptionAt: Number.NEGATIVE_INFINITY,
+      lineOfSightBlocked: false,
+      moveVelocityX: 0,
+      moveVelocityZ: 0,
+      movementBlockers: [],
       nextShotAt: 1.3 + index * 0.19,
       coverX: cover.x,
       coverZ: cover.z,
@@ -418,6 +428,11 @@ export function createWarRoomRuntime(
     mode: "approach",
     awareness: 1,
     brainAt: 0,
+    perceptionAt: Number.NEGATIVE_INFINITY,
+    lineOfSightBlocked: false,
+    moveVelocityX: 0,
+    moveVelocityZ: 0,
+    movementBlockers: [],
     nextShotAt: 2.6,
     coverX: 0,
     coverZ: -21,
@@ -600,6 +615,11 @@ export function spawnWarRoomBossSummons(
       mode: "approach",
       awareness: 1,
       brainAt: now,
+      perceptionAt: Number.NEGATIVE_INFINITY,
+      lineOfSightBlocked: false,
+      moveVelocityX: 0,
+      moveVelocityZ: 0,
+      movementBlockers: [],
       nextShotAt: now + 1.1,
       coverX: spawn.x,
       coverZ: spawn.z,
@@ -679,6 +699,11 @@ export function createWarRoomTrainingRuntime(
     mode: "cover",
     awareness: 1,
     brainAt: Number.POSITIVE_INFINITY,
+    perceptionAt: Number.POSITIVE_INFINITY,
+    lineOfSightBlocked: false,
+    moveVelocityX: 0,
+    moveVelocityZ: 0,
+    movementBlockers: [],
     nextShotAt: Number.POSITIVE_INFINITY,
     coverX: dummyPosition.x,
     coverZ: dummyPosition.z,
@@ -723,6 +748,7 @@ export function moveWarRoomEntity(
   blockers: readonly WarRoomBlocker[] = WAR_ROOM_BLOCKERS,
   floorHeight = 0,
   jumpHeight = 0,
+  result?: { x: number; z: number },
 ) {
   const limit = WAR_ROOM_HALF_SIZE - radius - 1;
   let nextX = x;
@@ -735,28 +761,48 @@ export function moveWarRoomEntity(
   for (let index = 0; index < steps; index += 1) {
     const candidateX = Math.max(-limit, Math.min(limit, nextX + stepX));
     const candidateZ = Math.max(-limit, Math.min(limit, nextZ + stepZ));
-    if (!blockers.some((blocker) => circleHitsBlocker(
-      candidateX,
-      nextZ,
-      radius,
-      blocker,
-      floorHeight,
-      jumpHeight,
-    ))) {
+    let blockedX = false;
+    for (const blocker of blockers) {
+      if (circleHitsBlocker(
+        candidateX,
+        nextZ,
+        radius,
+        blocker,
+        floorHeight,
+        jumpHeight,
+      )) {
+        blockedX = true;
+        break;
+      }
+    }
+    if (!blockedX) {
       nextX = candidateX;
     }
-    if (!blockers.some((blocker) => circleHitsBlocker(
-      nextX,
-      candidateZ,
-      radius,
-      blocker,
-      floorHeight,
-      jumpHeight,
-    ))) {
-      nextZ = candidateZ;
+    const candidateZAfterX = Math.max(-limit, Math.min(limit, nextZ + stepZ));
+    let blockedZ = false;
+    for (const blocker of blockers) {
+      if (circleHitsBlocker(
+        nextX,
+        candidateZAfterX,
+        radius,
+        blocker,
+        floorHeight,
+        jumpHeight,
+      )) {
+        blockedZ = true;
+        break;
+      }
+    }
+    if (!blockedZ) {
+      nextZ = candidateZAfterX;
     }
   }
 
+  if (result) {
+    result.x = nextX;
+    result.z = nextZ;
+    return result;
+  }
   return { x: nextX, z: nextZ };
 }
 
@@ -816,7 +862,11 @@ export function getNearestWarRoomCover(
 }
 
 export function getWarRoomRemaining(runtime: WarRoomRuntime) {
-  return runtime.enemies.filter((enemy) => enemy.alive).length;
+  let remaining = 0;
+  for (const enemy of runtime.enemies) {
+    if (enemy.alive) remaining += 1;
+  }
+  return remaining;
 }
 
 export function getNearbyWarRoomLootChest(

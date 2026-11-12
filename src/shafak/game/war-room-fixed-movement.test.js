@@ -4,6 +4,7 @@ import {
   advanceWarRoomFixedMovement,
   createWarRoomMovementClock,
   WAR_ROOM_FIXED_STEP_SECONDS,
+  WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME,
 } from "./war-room-fixed-movement.ts";
 
 test("fixed-step movement stays consistent at 30, 60, and 120 update rates", () => {
@@ -90,4 +91,22 @@ test("teleports reset render history instead of interpolating across the room", 
   });
   assert.equal(teleported.renderX, 10);
   assert.equal(teleported.renderZ, 8);
+});
+
+test("fixed movement clamps long frames to fifty milliseconds and at most three steps", () => {
+  const clock = createWarRoomMovementClock();
+  const result = advanceWarRoomFixedMovement(clock, {
+    x: 0,
+    z: 0,
+    velocityX: 1,
+    velocityZ: 0,
+    delta: 1,
+    now: 1,
+    blockers: [],
+  });
+
+  assert.equal(WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME, 3);
+  assert.equal(result.steps, 3);
+  assert.ok(Math.abs(result.x - WAR_ROOM_FIXED_STEP_SECONDS * 3) < 1e-8);
+  assert.ok(clock.accumulator < 1e-8);
 });

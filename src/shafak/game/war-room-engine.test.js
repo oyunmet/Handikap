@@ -132,6 +132,15 @@ test("movement stops at solid blockers and ray tests report cover", () => {
   assert.equal(segmentBlockFraction({ x: 0, y: 1, z: 24 }, { x: 0, y: 1, z: 10 }), null);
 });
 
+test("entity movement can reuse a caller-owned result object", () => {
+  const result = { x: -1, z: -1 };
+  const moved = moveWarRoomEntity(0, 0, 1, 0, 0.4, [], 0, 0, result);
+
+  assert.equal(moved, result);
+  assert.ok(Math.abs(moved.x - 1) < 1e-8);
+  assert.equal(moved.z, 0);
+});
+
 test("small movement steps slide along walls instead of sticking on diagonal contact", () => {
   const wall = {
     id: "slide-wall",

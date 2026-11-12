@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getWarRoomBotDecisionInterval,
   getWarRoomLootPursuitPoint,
   getWarRoomObstacleWaypoint,
+  shouldUpdateWarRoomBotPerception,
+  WAR_ROOM_BOT_FAR_DECISION_INTERVAL_SECONDS,
+  WAR_ROOM_BOT_NEAR_DECISION_INTERVAL_SECONDS,
+  WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS,
 } from "./war-room-ai.ts";
 import { isWarRoomPointClear } from "./war-room-data.ts";
 import { createWarRoomRuntime, moveWarRoomEntity } from "./war-room-engine.ts";
@@ -19,6 +24,23 @@ function assertLocalPoint(building, point, expectedX, expectedZ) {
   assert.ok(Math.abs(local.x - expectedX) < 0.001, `local x ${local.x} did not match ${expectedX}`);
   assert.ok(Math.abs(local.z - expectedZ) < 0.001, `local z ${local.z} did not match ${expectedZ}`);
 }
+
+test("bot perception runs at ten hertz and decisions stay between five and ten hertz", () => {
+  assert.equal(shouldUpdateWarRoomBotPerception(Number.NEGATIVE_INFINITY, 0), true);
+  assert.equal(
+    shouldUpdateWarRoomBotPerception(1, 1 + WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS - 0.001),
+    false,
+  );
+  assert.equal(
+    shouldUpdateWarRoomBotPerception(1, 1 + WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS),
+    true,
+  );
+  assert.equal(getWarRoomBotDecisionInterval(12, false), WAR_ROOM_BOT_NEAR_DECISION_INTERVAL_SECONDS);
+  assert.equal(getWarRoomBotDecisionInterval(45, false), WAR_ROOM_BOT_FAR_DECISION_INTERVAL_SECONDS);
+  assert.equal(getWarRoomBotDecisionInterval(45, true), WAR_ROOM_BOT_NEAR_DECISION_INTERVAL_SECONDS);
+  assert.equal(1 / WAR_ROOM_BOT_NEAR_DECISION_INTERVAL_SECONDS, 8.333333333333334);
+  assert.equal(1 / WAR_ROOM_BOT_FAR_DECISION_INTERVAL_SECONDS, 5);
+});
 
 test("looting bots route around all room rotations and enter through the open front door", () => {
   for (let roomNumber = 1; roomNumber <= 4; roomNumber += 1) {

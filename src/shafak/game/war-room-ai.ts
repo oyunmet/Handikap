@@ -14,6 +14,24 @@ import {
 type PursuitActor = { x: number; z: number; floorHeight?: number };
 type PursuitPlayer = { x: number; z: number; floorHeight: number };
 
+export const WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS = 0.1;
+export const WAR_ROOM_BOT_NEAR_DECISION_INTERVAL_SECONDS = 0.12;
+export const WAR_ROOM_BOT_FAR_DECISION_INTERVAL_SECONDS = 0.2;
+
+export function shouldUpdateWarRoomBotPerception(lastUpdateAt: number, now: number) {
+  return Number.isFinite(now)
+    && (!Number.isFinite(lastUpdateAt)
+      || now - lastUpdateAt >= WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS);
+}
+
+export function getWarRoomBotDecisionInterval(distance: number, activeLootChase: boolean) {
+  return !activeLootChase
+    && Number.isFinite(distance)
+    && distance > 38
+    ? WAR_ROOM_BOT_FAR_DECISION_INTERVAL_SECONDS
+    : WAR_ROOM_BOT_NEAR_DECISION_INTERVAL_SECONDS;
+}
+
 type WarRoomNavigationGrid = {
   min: number;
   step: number;
