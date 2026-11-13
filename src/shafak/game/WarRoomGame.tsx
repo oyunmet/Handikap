@@ -142,6 +142,7 @@ import "./war-room.css";
 import "./war-room-layout.css";
 import "./war-room-responsive.css";
 import "./war-room-orientation.css";
+import "./war-room-hud-v2.css";
 
 type Props = {
   onExit: () => void;

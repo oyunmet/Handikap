@@ -161,14 +161,37 @@ try {
           return rect.width < 48 || rect.height < 48;
         }).map((element) => element.getAttribute("aria-label") ?? element.className);
         const rowGap = controls ? Number.parseFloat(getComputedStyle(controls).rowGap) : 0;
+        const columnGap = controls ? Number.parseFloat(getComputedStyle(controls).columnGap) : 0;
         const canvas = root?.querySelector("canvas");
+        const findBox = (prefix) => boxes.find(({ label }) => label.startsWith(prefix))?.rect;
+        const ammoBox = findBox("war-room-ammo");
+        const weaponBox = findBox("war-room-weapon-select");
+        const controlBox = findBox("war-room-controls");
+        const ammoStacked = !ammoBox || !controlBox || ammoBox.bottom <= controlBox.top - 7;
+        const weaponsStacked = !weaponBox || !ammoBox || weaponBox.bottom <= ammoBox.top - 7;
+        const handedness = (() => {
+          if (!controls || !root) return false;
+          const original = root.getAttribute("data-left-handed");
+          root.setAttribute("data-left-handed", "false");
+          const rightHandControls = controls.getBoundingClientRect();
+          root.setAttribute("data-left-handed", "true");
+          const leftHandControls = controls.getBoundingClientRect();
+          if (original === null) root.removeAttribute("data-left-handed");
+          else root.setAttribute("data-left-handed", original);
+          return rightHandControls.left > window.innerWidth / 2
+            && leftHandControls.right < window.innerWidth / 2;
+        })();
         return {
           actionCount: actions.length,
           slotCount: slots.length,
           rowGap,
+          columnGap,
           intersections,
           outside,
           undersized,
+          ammoStacked,
+          weaponsStacked,
+          handedness,
           canvasPixels: canvas ? canvas.width * canvas.height : 0,
           battlePhase: root?.getAttribute("data-phase") === "battle",
         };
@@ -182,9 +205,15 @@ try {
         || (touchHud && (
           touchHud.actionCount !== 7
           || touchHud.rowGap < 8
+          || touchHud.columnGap < 8
           || touchHud.intersections.length
           || touchHud.outside.length
           || touchHud.undersized.length
+          || (viewport.width < viewport.height && (
+            !touchHud.ammoStacked
+            || !touchHud.weaponsStacked
+            || !touchHud.handedness
+          ))
           || touchHud.slotCount < 1
           || !touchHud.battlePhase
           || (viewport.width < viewport.height
@@ -195,6 +224,7 @@ try {
         `${name}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, çakışma ${report.overlaps.length}`
         + (touchHud
           ? `; kontrol ${touchHud.actionCount}, yuva ${touchHud.slotCount}, aralık ${touchHud.rowGap}px`
+            + `×${touchHud.columnGap}px, handedness ${touchHud.handedness ? "ok" : "hata"}`
             + `, canvas ${touchHud.canvasPixels}px²`
           : ""),
       );
@@ -214,9 +244,14 @@ try {
   await page.setViewportSize(viewports[0]);
   await page.locator(".war-room-start").click();
   await page.locator(".war-room-battle").waitFor({ timeout: 45_000 });
-  await page.waitForTimeout(4_200);
   const objectiveStatus = page.locator(".war-room-objective-status");
+  await page.waitForFunction(
+    () => document.querySelector(".war-room-objective-status")?.getAttribute("data-expanded") === "false",
+    undefined,
+    { timeout: 15_000 },
+  );
   assert.equal(await objectiveStatus.getAttribute("data-expanded"), "false", "Görev kartı 4 saniye sonra daralmadı.");
+  assert.ok((await objectiveStatus.boundingBox())?.height >= 48, "Daraltılmış görev çipi 48 px dokunma alanının altında.");
   await objectiveStatus.click();
   assert.equal(await objectiveStatus.getAttribute("data-expanded"), "true", "Görev kartına dokununca genişlemedi.");
   await objectiveStatus.click();
