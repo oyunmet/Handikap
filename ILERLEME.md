@@ -296,11 +296,14 @@
 - **Sıradaki adım:** 12.5 — Kasmaya bağlı silah titremesi — bekliyor. 13. adıma geçilmedi.
 - **Değişen dosyalar:** `src/shafak/game/war-room-camera.ts`, `src/shafak/game/war-room-camera.test.js`, `src/shafak/game/war-room-mobile-controls.ts`, `src/shafak/game/war-room-mobile-controls.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
 
-### 12.5 — Kasmaya bağlı silah titremesi: **Bekliyor**
+### 12.5 — Kasmaya bağlı silah titremesi: **Tamamlandı; gerçek cihaz kabulü açık**
 
-- Ham dt yerine sınırlandırılmış/yumuşatılmış dt ve sabit adımlı kritik sönüm; kamera/oyuncu interpolasyonu ile silah aynı karede güncellenecek. 25 ms üzeri karelerde bob/sway azalacak.
-- Ayrı viewmodel kamerası/FOV, duvara yaklaşırken yumuşak geri çekilme; silah %25–30 küçültülüp sağ alta taşınacak, ekranın üçte birinden fazla kaplamayacak ve ADS yolunu kapatmayacak.
-- 16/16/40/16/16/60 ms yapay dalgalanma testiyle silah konum sıçraması ölçülecek.
+- **Yapılanlar:** Viewmodel animasyon dt’si 50 ms ile sınırlandı ve EMA ile yumuşatıldı. 25 ms üzerindeki karelerde silah bob/sway hedefi kademeli olarak %45’e iner; normal karelerde yumuşakça geri gelir. Silah/ellerin hedef konumu ve dönüşü 120 Hz sabit adımlı kritik sönümlü yaydan geçirilip render karesine interpolasyonla uygulanıyor. Kamera, oyuncu ve silah aynı render karesindeki kamera dönüşümünü kullanıyor. Mevcut ayrı 60° viewmodel kamerası, derinlik temizliği, duvar geri çekilmesi, sağ-alt yerleşim, 0,6 yatay görünüm ölçeği ve ADS küçültme/şeffaflık yolu korundu; bu değerler için yeni bir değişiklik gerekmedi.
+- **ÖNCE/SONRA — aynı deterministik 120 karelik yürüyüş ve `[16, 16, 40, 16, 16, 60]` ms yapay kare süresi dizisi:** En büyük silah konumu değişimi 2,178 mm’den 1,480 mm’ye (%32,1 daha düşük), en büyük dönüş değişimi 0,002079 rad’dan 0,001467 rad’a (%29,4 daha düşük) indi. Son durumdaki test sınırı kare başına 1,5 mm.
+- **Tarayıcı duman testi — 13 Kasım 2026, Replit geliştirme ortamı, SwiftShader:** Savaş Odası benchmark’ı 26 kare örneğiyle hatasız tamamlandı; WebGL shader hazırlığı başarılı ve sayfa çalışma zamanı hatası oluşmadı. Renderer `ANGLE / SwiftShader`; örneklenen ortalama 0,5 FPS, p50/p95/p99 kare süresi 2.138,6 / 4.863,5 / 6.306,7 ms. Bu yazılım renderer ölçümü gerçek telefon/GPU performansını veya FPS artışını kanıtlamaz.
+- **Testler:** Viewmodel/jitter hedef testleri 21/21; tüm testler 722/722; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Kamera ile viewmodel aynı karede güncellendiği, ayrı kamera/FOV ve ADS yolunun test edildiği doğrulandı.
+- **Doğrulanamayanlar:** Gerçek iPhone Safari/Android cihazında silah hissi, uzun süreli kasma ve 60 FPS kabulü bu ortamda ölçülmedi. Canlı Vercel’e push veya deploy yapılmadı; üretim ve hedef cihaz kontrolü açık kalıyor.
+- **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/war-room-viewmodel.ts`, `src/shafak/game/war-room-viewmodel-jitter.test.js`, `src/shafak/world/WarRoomScene3D.tsx`.
 
 ### 12.6 — Dikey mod ve HUD: **Bekliyor**
 

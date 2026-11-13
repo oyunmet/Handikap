@@ -4,7 +4,11 @@ import {
   getWarRoomViewModelMovementIntent,
   getWarRoomViewModelPose,
   getWarRoomViewModelSwayScale,
+  createWarRoomViewModelFrameTimingState,
+  createWarRoomViewModelPoseSpringState,
+  stepWarRoomViewModelFrameTiming,
   stepWarRoomViewModelMovement,
+  stepWarRoomViewModelPoseSpring,
   stepWarRoomViewModelWallProximity,
   WAR_ROOM_VIEWMODEL_FOV,
 } from "./war-room-viewmodel.ts";
@@ -261,4 +265,58 @@ test("near-wall safety retraction eases in without a frame-to-frame jump", () =>
   const largestFrameChange = Math.max(...samples.slice(1).map((value, index) => value - samples[index]));
   assert.ok(largestFrameChange < 0.02, `wall retraction jumped ${largestFrameChange} m in one frame`);
   assert.ok(samples.at(-1) > 0.5, "the wall safety clamp should clear the weapon at close range");
+});
+
+test("16/16/40/16/16/60 ms frame jitter keeps viewmodel position changes bounded", () => {
+  const frameMilliseconds = [16, 16, 40, 16, 16, 60];
+  let timing = createWarRoomViewModelFrameTimingState();
+  let spring = createWarRoomViewModelPoseSpringState();
+  let movement = { value: 0, velocity: 0, active: false };
+  let walkPhase = 0;
+  let clock = 0;
+  const positions = [];
+  const swayOnLagFrames = [];
+
+  for (let frame = 0; frame < 120; frame += 1) {
+    const rawDelta = frameMilliseconds[frame % frameMilliseconds.length] / 1000;
+    timing = stepWarRoomViewModelFrameTiming(timing, rawDelta);
+    movement = stepWarRoomViewModelMovement(movement, 0.75, true, timing.delta);
+    if (movement.value > 0.02) {
+      walkPhase = (walkPhase + timing.delta * (7.2 + movement.value * 2.8)) % (Math.PI * 2);
+    }
+    clock += Math.min(rawDelta, 0.05);
+    const target = getWarRoomViewModelPose({
+      time: clock,
+      movement: movement.value,
+      walkPhase,
+      swayScale: getWarRoomViewModelSwayScale("low") * timing.swayScale,
+      wallProximity: 0,
+      wallTuckEnabled: false,
+      aiming: false,
+      recoil: 0,
+      reloadProgress: 0,
+      chargeProgress: 0,
+      meleeProgress: null,
+      meleeStyle: "slash",
+      comboIndex: 0,
+      motionReduced: false,
+    });
+    const stepped = stepWarRoomViewModelPoseSpring(spring, target, rawDelta);
+    spring = stepped.state;
+    positions.push(stepped.pose.position);
+    if (rawDelta > 0.025) swayOnLagFrames.push(timing.swayScale);
+  }
+
+  const jumps = positions.slice(1).map((position, index) => Math.hypot(
+    position[0] - positions[index][0],
+    position[1] - positions[index][1],
+    position[2] - positions[index][2],
+  ));
+  const largestPositionJump = Math.max(...jumps);
+  assert.ok(
+    largestPositionJump < 0.0015,
+    `weapon position jumped ${(largestPositionJump * 1000).toFixed(3)} mm`,
+  );
+  assert.ok(Math.min(...swayOnLagFrames) < 0.85, "lag frames should attenuate weapon sway");
+  assert.ok(Math.max(...swayOnLagFrames) - Math.min(...swayOnLagFrames) < 0.4, "sway should fade smoothly");
 });

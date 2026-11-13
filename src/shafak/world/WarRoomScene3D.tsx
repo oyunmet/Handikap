@@ -128,10 +128,17 @@ import {
   getWarRoomViewModelPose,
   getWarRoomViewModelScaleFactor,
   getWarRoomViewModelSwayScale,
+  createWarRoomViewModelFrameTimingState,
+  createWarRoomViewModelPoseSpringState,
+  stepWarRoomViewModelFrameTiming,
   stepWarRoomViewModelMovement,
+  stepWarRoomViewModelPoseSpring,
   stepWarRoomViewModelRunAmount,
   stepWarRoomViewModelWallProximity,
   WAR_ROOM_VIEWMODEL_FOV,
+  type WarRoomViewModelPose,
+  type WarRoomViewModelFrameTimingState,
+  type WarRoomViewModelPoseSpringState,
   type WarRoomViewModelMovementState,
 } from "../game/war-room-viewmodel";
 import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
@@ -962,6 +969,12 @@ function FirstPersonWeaponViewModel({
     velocity: 0,
     active: false,
   });
+  const frameTimingRef = useRef<WarRoomViewModelFrameTimingState>(
+    createWarRoomViewModelFrameTimingState(),
+  );
+  const poseSpringRef = useRef<WarRoomViewModelPoseSpringState>(
+    createWarRoomViewModelPoseSpringState(),
+  );
   const runAmountRef = useRef(0);
   const legMovementRef = useRef(0);
   const walkPhaseRef = useRef(0);
@@ -996,7 +1009,9 @@ function FirstPersonWeaponViewModel({
     sourceCamera.getWorldQuaternion(cameraQuaternionRef.current);
     const player = runtimeRef.current.player;
     const input = inputRef.current;
-    const delta = Math.min(rawDelta, 0.05);
+    const frameTiming = stepWarRoomViewModelFrameTiming(frameTimingRef.current, rawDelta);
+    frameTimingRef.current = frameTiming;
+    const delta = frameTiming.delta;
     const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
     const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
     const movementIntent = getWarRoomViewModelMovementIntent(input.moveX, input.moveY, keyX, keyY);
@@ -1069,7 +1084,7 @@ function FirstPersonWeaponViewModel({
       movement: viewModelMovement,
       runAmount: runAmountRef.current,
       walkPhase: walkPhaseRef.current,
-      swayScale: getWarRoomViewModelSwayScale(weaponSway),
+      swayScale: getWarRoomViewModelSwayScale(weaponSway) * frameTiming.swayScale,
       wallProximity,
       wallTuckEnabled: movementIntent <= 0.05 && !isAirborne,
       aiming: input.aimHeld,
@@ -1104,26 +1119,28 @@ function FirstPersonWeaponViewModel({
     group.position.copy(cameraPositionRef.current);
     group.quaternion.copy(cameraQuaternionRef.current);
 
-    arms.position.set(
-      viewConfig.position[0] * horizontalFactor + pose.position[0],
-      viewConfig.position[1] + pose.position[1],
-      viewConfig.position[2] + pose.position[2] + wallSafetyRetraction,
+    const targetPose: WarRoomViewModelPose = {
+      position: [
+        viewConfig.position[0] * horizontalFactor + pose.position[0],
+        viewConfig.position[1] + pose.position[1],
+        viewConfig.position[2] + pose.position[2] + wallSafetyRetraction,
+      ],
+      rotation: [
+        mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
+        mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
+        mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
+      ],
+    };
+    const poseSpring = stepWarRoomViewModelPoseSpring(
+      poseSpringRef.current,
+      targetPose,
+      rawDelta,
     );
-    arms.rotation.set(
-      mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
-      mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
-      mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
-    );
-    weaponPose.position.set(
-      viewConfig.position[0] * horizontalFactor + pose.position[0],
-      viewConfig.position[1] + pose.position[1],
-      viewConfig.position[2] + pose.position[2] + wallSafetyRetraction,
-    );
-    localEulerRef.current.set(
-      mount.rotation[0] + viewConfig.rotation[0] + pose.rotation[0],
-      mount.rotation[1] + viewConfig.rotation[1] + pose.rotation[1],
-      mount.rotation[2] + viewConfig.rotation[2] + pose.rotation[2],
-    );
+    poseSpringRef.current = poseSpring.state;
+    arms.position.set(...poseSpring.pose.position);
+    arms.rotation.set(...poseSpring.pose.rotation);
+    weaponPose.position.set(...poseSpring.pose.position);
+    localEulerRef.current.set(...poseSpring.pose.rotation);
     localQuaternionRef.current.setFromEuler(localEulerRef.current);
     weaponPose.quaternion.copy(localQuaternionRef.current);
     weaponPose.scale.setScalar(viewConfig.scale * getWarRoomViewModelAimScaleFactor(input.aimHeld));

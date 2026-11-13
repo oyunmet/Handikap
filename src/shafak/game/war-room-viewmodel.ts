@@ -28,13 +28,163 @@ export type WarRoomViewModelMovementState = {
   active: boolean;
 };
 
+export type WarRoomViewModelFrameTimingState = {
+  delta: number;
+  swayScale: number;
+};
+
+export type WarRoomViewModelPoseSpringState = {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  previousPosition: [number, number, number];
+  previousRotation: [number, number, number];
+  positionVelocity: [number, number, number];
+  rotationVelocity: [number, number, number];
+  accumulator: number;
+  initialized: boolean;
+};
+
 const clamp01 = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
 export const WAR_ROOM_VIEWMODEL_FOV = 60;
+export const WAR_ROOM_VIEWMODEL_FIXED_STEP = 1 / 120;
+export const WAR_ROOM_VIEWMODEL_LAG_SPIKE_SECONDS = 0.025;
+const WAR_ROOM_VIEWMODEL_MAX_DELTA = 0.05;
+const WAR_ROOM_VIEWMODEL_POSE_SPRING_OMEGA = 30;
 export const WAR_ROOM_VIEWMODEL_SWAY_SCALE = {
   off: 0,
   low: 0.45,
   normal: 0.6,
 } as const;
+
+export function createWarRoomViewModelFrameTimingState(): WarRoomViewModelFrameTimingState {
+  return { delta: 1 / 60, swayScale: 1 };
+}
+
+export function stepWarRoomViewModelFrameTiming(
+  current: WarRoomViewModelFrameTimingState,
+  rawDelta: number,
+): WarRoomViewModelFrameTimingState {
+  const safeDelta = Number.isFinite(rawDelta)
+    ? Math.max(0, Math.min(WAR_ROOM_VIEWMODEL_MAX_DELTA, rawDelta))
+    : 0;
+  const deltaBlend = 1 - Math.exp(-safeDelta * 18);
+  const swayTarget = safeDelta > WAR_ROOM_VIEWMODEL_LAG_SPIKE_SECONDS ? 0.45 : 1;
+  const swayBlend = 1 - Math.exp(-safeDelta * 12);
+  return {
+    delta: safeDelta === 0 ? 0 : current.delta + (safeDelta - current.delta) * deltaBlend,
+    swayScale: current.swayScale + (swayTarget - current.swayScale) * swayBlend,
+  };
+}
+
+export function createWarRoomViewModelPoseSpringState(): WarRoomViewModelPoseSpringState {
+  return {
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    previousPosition: [0, 0, 0],
+    previousRotation: [0, 0, 0],
+    positionVelocity: [0, 0, 0],
+    rotationVelocity: [0, 0, 0],
+    accumulator: 0,
+    initialized: false,
+  };
+}
+
+function stepCriticallyDampedAxis(
+  position: number,
+  velocity: number,
+  target: number,
+  delta: number,
+) {
+  const displacement = position - target;
+  const springTerm = velocity + WAR_ROOM_VIEWMODEL_POSE_SPRING_OMEGA * displacement;
+  const decay = Math.exp(-WAR_ROOM_VIEWMODEL_POSE_SPRING_OMEGA * delta);
+  return {
+    position: target + (displacement + springTerm * delta) * decay,
+    velocity: (velocity - WAR_ROOM_VIEWMODEL_POSE_SPRING_OMEGA * springTerm * delta) * decay,
+  };
+}
+
+export function stepWarRoomViewModelPoseSpring(
+  current: WarRoomViewModelPoseSpringState,
+  target: WarRoomViewModelPose,
+  rawDelta: number,
+) {
+  if (!current.initialized) {
+    const position = [...target.position] as [number, number, number];
+    const rotation = [...target.rotation] as [number, number, number];
+    const state = {
+      ...current,
+      position,
+      rotation,
+      previousPosition: [...position] as [number, number, number],
+      previousRotation: [...rotation] as [number, number, number],
+      accumulator: 0,
+      initialized: true,
+    };
+    return { state, pose: { position, rotation } };
+  }
+
+  const safeDelta = Number.isFinite(rawDelta)
+    ? Math.max(0, Math.min(WAR_ROOM_VIEWMODEL_MAX_DELTA, rawDelta))
+    : 0;
+  let accumulator = Math.min(
+    WAR_ROOM_VIEWMODEL_MAX_DELTA,
+    current.accumulator + safeDelta,
+  );
+  let position = [...current.position] as [number, number, number];
+  let rotation = [...current.rotation] as [number, number, number];
+  let positionVelocity = [...current.positionVelocity] as [number, number, number];
+  let rotationVelocity = [...current.rotationVelocity] as [number, number, number];
+  let previousPosition = [...current.previousPosition] as [number, number, number];
+  let previousRotation = [...current.previousRotation] as [number, number, number];
+
+  while (accumulator + Number.EPSILON >= WAR_ROOM_VIEWMODEL_FIXED_STEP) {
+    previousPosition = [...position];
+    previousRotation = [...rotation];
+    for (let axis = 0; axis < 3; axis += 1) {
+      const nextPosition = stepCriticallyDampedAxis(
+        position[axis],
+        positionVelocity[axis],
+        target.position[axis],
+        WAR_ROOM_VIEWMODEL_FIXED_STEP,
+      );
+      position[axis] = nextPosition.position;
+      positionVelocity[axis] = nextPosition.velocity;
+      const nextRotation = stepCriticallyDampedAxis(
+        rotation[axis],
+        rotationVelocity[axis],
+        target.rotation[axis],
+        WAR_ROOM_VIEWMODEL_FIXED_STEP,
+      );
+      rotation[axis] = nextRotation.position;
+      rotationVelocity[axis] = nextRotation.velocity;
+    }
+    accumulator = Math.max(0, accumulator - WAR_ROOM_VIEWMODEL_FIXED_STEP);
+  }
+
+  const state: WarRoomViewModelPoseSpringState = {
+    position,
+    rotation,
+    previousPosition,
+    previousRotation,
+    positionVelocity,
+    rotationVelocity,
+    accumulator,
+    initialized: true,
+  };
+  const interpolation = accumulator / WAR_ROOM_VIEWMODEL_FIXED_STEP;
+  return {
+    state,
+    pose: {
+      position: position.map((value, axis) => (
+        previousPosition[axis] + (value - previousPosition[axis]) * interpolation
+      )) as [number, number, number],
+      rotation: rotation.map((value, axis) => (
+        previousRotation[axis] + (value - previousRotation[axis]) * interpolation
+      )) as [number, number, number],
+    },
+  };
+}
 
 export function getWarRoomViewModelSwayScale(level: keyof typeof WAR_ROOM_VIEWMODEL_SWAY_SCALE) {
   return WAR_ROOM_VIEWMODEL_SWAY_SCALE[level];
