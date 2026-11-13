@@ -41,6 +41,7 @@ export function pauseWarRoomInput(input: WarRoomInputState) {
   input.jumpPressed = false;
   input.dodgePressed = false;
   input.crouchPressed = false;
+  input.sprintLocked = false;
   input.weaponSlotPressed = null;
   input.pronePressed = false;
   input.lootHeld = false;

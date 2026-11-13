@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildWarRoomPerformanceReport,
+  createWarRoomFrameStallWatchdogState,
   createWarRoomPerformanceCollector,
   getWarRoomBenchmarkInput,
   recordWarRoomLongTask,
   recordWarRoomPerformanceFrame,
   recordWarRoomQualityDowngrade,
+  resetWarRoomFrameStallWatchdog,
+  sampleWarRoomFrameStallWatchdog,
   shouldRunWarRoomBenchmark,
   WAR_ROOM_BENCHMARK_DURATION_MS,
   WAR_ROOM_BENCHMARK_SEED,
@@ -48,6 +51,7 @@ test("local performance report calculates frame percentiles and renderer totals"
   assert.equal(report.frameTimeMs.p99, 60);
   assert.equal(report.lowRefreshRateSuspected, true);
   assert.equal(report.framesOver50Ms, 1);
+  assert.equal(report.framesOver250Ms, 0);
   assert.equal(report.render.averageDrawCalls, 39.5);
   assert.equal(report.render.peakTriangles, 1_750);
   assert.equal(report.render.geometries, 42);
@@ -60,6 +64,21 @@ test("local performance report calculates frame percentiles and renderer totals"
   assert.equal(report.longTasks.count, 1);
   assert.equal(report.longTasks.totalMs, 78.5);
   assert.equal(report.privacy, "local-only");
+});
+
+test("frame-stall watchdog recovers once after repeated 250ms stalls and resets on visibility", () => {
+  const state = createWarRoomFrameStallWatchdogState();
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 249, 1_000), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 250, 1_016), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 20, 1_032), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 300, 1_048), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 280, 1_328), true);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 270, 1_598), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 280, 11_300), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 290, 11_590), false);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 300, 11_890), true);
+  resetWarRoomFrameStallWatchdog(state);
+  assert.equal(sampleWarRoomFrameStallWatchdog(state, 290, 12_180), false);
 });
 
 test("performance collector uses a bounded ring and skips invalid timestamps", () => {

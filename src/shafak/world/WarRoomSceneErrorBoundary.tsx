@@ -3,6 +3,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 type Props = {
   children: ReactNode;
   onRetry: () => void;
+  onError: () => void;
 };
 
 type State = { error: Error | null };
@@ -15,7 +16,10 @@ export default class WarRoomSceneErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[war-room] 3D scene failed to render.", error, info.componentStack);
+    if (import.meta.env.DEV) {
+      console.error("[war-room] 3D scene failed to render.", error, info.componentStack);
+    }
+    this.props.onError();
   }
 
   render() {

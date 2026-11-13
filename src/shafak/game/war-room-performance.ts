@@ -37,6 +37,7 @@ export type WarRoomPerformanceReport = {
   lowRefreshRateSuspected: boolean;
   frameTimeMs: { p50: number; p95: number; p99: number; max: number };
   framesOver50Ms: number;
+  framesOver250Ms: number;
   longTasks: { supported: boolean; count: number; totalMs: number };
   render: {
     quality: RenderQuality;
@@ -61,6 +62,57 @@ export type WarRoomPerformanceReport = {
   qualityDowngrades: Array<{ atMs: number; from: RenderQuality; to: RenderQuality }>;
   privacy: "local-only";
 };
+
+export const WAR_ROOM_FRAME_STALL_THRESHOLD_MS = 250;
+export const WAR_ROOM_FRAME_STALL_STREAK = 2;
+export const WAR_ROOM_FRAME_STALL_COOLDOWN_MS = 10_000;
+
+export type WarRoomFrameStallWatchdogState = {
+  consecutiveStalls: number;
+  lastRecoveryAtMs: number;
+};
+
+export function createWarRoomFrameStallWatchdogState(): WarRoomFrameStallWatchdogState {
+  return { consecutiveStalls: 0, lastRecoveryAtMs: Number.NEGATIVE_INFINITY };
+}
+
+export function resetWarRoomFrameStallWatchdog(
+  state: WarRoomFrameStallWatchdogState,
+) {
+  state.consecutiveStalls = 0;
+  state.lastRecoveryAtMs = Number.NEGATIVE_INFINITY;
+}
+
+export function sampleWarRoomFrameStallWatchdog(
+  state: WarRoomFrameStallWatchdogState,
+  frameTimeMs: number,
+  nowMs: number,
+) {
+  if (!Number.isFinite(frameTimeMs) || !Number.isFinite(nowMs) || frameTimeMs <= 0) {
+    state.consecutiveStalls = 0;
+    return false;
+  }
+  if (frameTimeMs < WAR_ROOM_FRAME_STALL_THRESHOLD_MS) {
+    state.consecutiveStalls = 0;
+    return false;
+  }
+  state.consecutiveStalls = Math.min(
+    WAR_ROOM_FRAME_STALL_STREAK,
+    state.consecutiveStalls + 1,
+  );
+  if (
+    state.consecutiveStalls < WAR_ROOM_FRAME_STALL_STREAK
+    || nowMs - state.lastRecoveryAtMs < WAR_ROOM_FRAME_STALL_COOLDOWN_MS
+  ) {
+    if (state.consecutiveStalls >= WAR_ROOM_FRAME_STALL_STREAK) {
+      state.consecutiveStalls = 0;
+    }
+    return false;
+  }
+  state.consecutiveStalls = 0;
+  state.lastRecoveryAtMs = nowMs;
+  return true;
+}
 
 const clampInteger = (value: number, maximum = 65_535) =>
   Number.isFinite(value) ? Math.max(0, Math.min(maximum, Math.floor(value))) : 0;
@@ -92,6 +144,12 @@ export function createWarRoomPerformanceCollector(): WarRoomPerformanceCollector
 }
 
 export const warRoomPerformanceCollector = createWarRoomPerformanceCollector();
+
+export function resetWarRoomPerformanceFrameClock(
+  collector: WarRoomPerformanceCollector = warRoomPerformanceCollector,
+) {
+  collector.lastFrameAtMs = null;
+}
 
 export function resetWarRoomPerformanceCollector(
   collector: WarRoomPerformanceCollector = warRoomPerformanceCollector,
@@ -165,12 +223,14 @@ export function recordWarRoomLongTask(
 
 export function observeWarRoomLongTasks(
   collector: WarRoomPerformanceCollector = warRoomPerformanceCollector,
+  onLongTask?: (durationMs: number) => void,
 ): () => void {
   if (typeof PerformanceObserver === "undefined") return () => undefined;
   try {
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
         recordWarRoomLongTask(collector, entry.duration);
+        onLongTask?.(entry.duration);
       }
     });
     observer.observe({ type: "longtask", buffered: true });
@@ -241,6 +301,7 @@ export function buildWarRoomPerformanceReport(
       max: Number((intervals.at(-1) ?? 0).toFixed(2)),
     },
     framesOver50Ms: intervals.reduce((count, value) => count + Number(value > 50), 0),
+    framesOver250Ms: intervals.reduce((count, value) => count + Number(value >= WAR_ROOM_FRAME_STALL_THRESHOLD_MS), 0),
     longTasks: {
       supported: hasLongTaskObserver,
       count: collector.longTaskCount,

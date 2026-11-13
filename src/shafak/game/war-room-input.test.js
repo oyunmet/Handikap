@@ -71,6 +71,7 @@ test("background pause clears held and queued actions without losing match state
   input.aimHeld = true;
   input.reloadPressed = true;
   input.jumpPressed = true;
+  input.sprintLocked = true;
   input.lootHeld = true;
   input.doorPressed = true;
 
@@ -87,6 +88,7 @@ test("background pause clears held and queued actions without losing match state
   assert.equal(input.firePressed, false);
   assert.equal(input.fireReleased, true);
   assert.equal(input.aimHeld, false);
+  assert.equal(input.sprintLocked, false);
   assert.equal(input.reloadPressed, false);
   assert.equal(input.jumpPressed, false);
   assert.equal(input.lootHeld, false);

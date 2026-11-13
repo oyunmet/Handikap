@@ -42,6 +42,7 @@ import {
   buildWarRoomPerformanceReport,
   getWarRoomBenchmarkInput,
   resetWarRoomPerformanceCollector,
+  resetWarRoomPerformanceFrameClock,
   shouldRunWarRoomBenchmark,
   WAR_ROOM_BENCHMARK_DURATION_MS,
   WAR_ROOM_BENCHMARK_SEED,
@@ -98,6 +99,7 @@ import {
 import {
   beginWarRoomPointer,
   endWarRoomPointer,
+  pauseWarRoomInput,
   pressWarRoomAction,
   releaseWarRoomAction,
   resolveWarRoomStanceTap,
@@ -402,6 +404,10 @@ export default function WarRoomGame({
   onCloseControlsEditor,
   quality,
 }: Props) {
+  const settingsOpenRef = useRef(settingsOpen);
+  settingsOpenRef.current = settingsOpen;
+  const controlsEditorOpenRef = useRef(controlsEditorOpen);
+  controlsEditorOpenRef.current = controlsEditorOpen;
   const { active: modelsLoading, errors: modelErrors, progress: modelProgress } = useProgress();
   const [modelsPreloadStarted, setModelsPreloadStarted] = useState(false);
   useEffect(() => {
@@ -421,6 +427,7 @@ export default function WarRoomGame({
   const weaponLabMode = WAR_ROOM_WEAPON_LAB_ENABLED && searchParams?.get("lab") === "1";
   const [phase, setPhase] = useState<Phase>(() => weaponLabMode ? "battle" : "briefing");
   const benchmarkAutoStartRef = useRef(false);
+  const [sceneWarmupReady, setSceneWarmupReady] = useState(false);
   const [benchmarkReport, setBenchmarkReport] = useState<WarRoomPerformanceReport | null>(null);
   const [soundMuted, setSoundMuted] = useState(isWarRoomMuted);
   const [bloodEffects, setBloodEffects] = useState(() => {
@@ -573,6 +580,8 @@ export default function WarRoomGame({
   const [calibrationJson, setCalibrationJson] = useState("");
   const [calibrationCopyStatus, setCalibrationCopyStatus] = useState("");
   const [exitPrompt, setExitPrompt] = useState(false);
+  const exitPromptRef = useRef(exitPrompt);
+  exitPromptRef.current = exitPrompt;
   const [roomNumber, setRoomNumber] = useState(1);
   const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
   const dailyChallenge = useMemo(() => getWarRoomDailyChallenge(), []);
@@ -755,6 +764,8 @@ export default function WarRoomGame({
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
     inputRef.current = createInputState(aimAssistEnabled);
+    inputRef.current.paused = true;
+    setSceneWarmupReady(false);
     resetTouchControls();
     crouchTapAtRef.current = null;
     setDynamicStickActive(false);
@@ -763,6 +774,7 @@ export default function WarRoomGame({
     setMeleeDebugMessage("");
     setMeleeDebugMessageUntil(0);
     setMeleeDebugActivity("");
+    exitPromptRef.current = false;
     setExitPrompt(false);
     setSummary(null);
     setRunKey((key) => key + 1);
@@ -794,7 +806,12 @@ export default function WarRoomGame({
   }, [benchmarkMode, modelsReady, phase]);
 
   useEffect(() => {
-    if (!benchmarkMode || phase !== "battle" || benchmarkReport) return undefined;
+    if (
+      !benchmarkMode
+      || phase !== "battle"
+      || !sceneWarmupReady
+      || benchmarkReport
+    ) return undefined;
     const startedAt = performance.now();
     const benchmarkControls = {
       moveX: 0,
@@ -825,7 +842,7 @@ export default function WarRoomGame({
     };
     frameId = window.requestAnimationFrame(advanceBenchmarkInput);
     return () => window.cancelAnimationFrame(frameId);
-  }, [benchmarkMode, phase, benchmarkReport]);
+  }, [benchmarkMode, phase, sceneWarmupReady, benchmarkReport]);
 
   const finishBattle = useCallback((result: "victory" | "defeat", finalHud: WarRoomHudSnapshot) => {
     const completedRoom = runtimeRef.current.room;
@@ -977,21 +994,41 @@ export default function WarRoomGame({
 
   const pauseBattle = useCallback(() => {
     const input = inputRef.current;
-    input.paused = true;
-    input.keys.clear();
-    input.fireHeld = false;
-    input.fireReleased = true;
-    input.aimHeld = false;
+    pauseWarRoomInput(input);
+    resetWarRoomPerformanceFrameClock();
     runtimeRef.current.player.chargeStartedAt = 0;
     runtimeRef.current.player.meleeInputPending = false;
     resetTouchControls();
+    exitPromptRef.current = true;
     setExitPrompt(true);
   }, []);
 
+  const handleSceneWarmupComplete = useCallback((succeeded: boolean) => {
+    setSceneWarmupReady(true);
+    if (
+      !document.hidden
+      && !exitPromptRef.current
+      && !settingsOpenRef.current
+      && !controlsEditorOpenRef.current
+      && !settingsPauseRef.current
+    ) {
+      inputRef.current.paused = false;
+    }
+    if (!succeeded) {
+      enqueueHudToast("Sahne ön hazırlığı tamamlanamadı; ilk efektlerde kısa takılma olabilir.");
+    }
+  }, [enqueueHudToast]);
+
+  const handleSceneRuntimeError = useCallback(() => {
+    pauseBattle();
+    enqueueHudToast("Oyun toparlandı. Karşılaşma güvenli biçimde duraklatıldı.");
+  }, [enqueueHudToast, pauseBattle]);
+
   useEffect(() => {
-    if (!(settingsOpen || controlsEditorOpen) || phase !== "battle" || inputRef.current.paused) return;
-    inputRef.current.paused = true;
+    if (!(settingsOpen || controlsEditorOpen) || phase !== "battle") return;
     settingsPauseRef.current = true;
+    if (inputRef.current.paused) return;
+    inputRef.current.paused = true;
     inputRef.current.keys.clear();
     inputRef.current.fireHeld = false;
     inputRef.current.fireReleased = true;
@@ -1003,9 +1040,10 @@ export default function WarRoomGame({
 
   useEffect(() => {
     if (settingsOpen || controlsEditorOpen || exitPrompt || !settingsPauseRef.current) return;
-    inputRef.current.paused = false;
     settingsPauseRef.current = false;
-  }, [controlsEditorOpen, exitPrompt, settingsOpen]);
+    inputRef.current.paused = !sceneWarmupReady;
+    resetTouchControls();
+  }, [controlsEditorOpen, exitPrompt, sceneWarmupReady, settingsOpen]);
 
   useEffect(() => {
     if (controlsEditorOpen) setControlLayoutDraft(savedControlLayout.layout);
@@ -1075,29 +1113,43 @@ export default function WarRoomGame({
       inputRef.current.keys.delete(event.key.toLowerCase());
       if (["f", "e"].includes(event.key.toLowerCase())) inputRef.current.lootHeld = false;
     };
-    const onBlur = () => {
-      inputRef.current.keys.clear();
-      inputRef.current.fireHeld = false;
-      inputRef.current.aimHeld = false;
-      inputRef.current.fireReleased = true;
-      inputRef.current.lootHeld = false;
+    const stopForInterruption = () => {
+      if (phase === "battle") {
+        if (!inputRef.current.paused) {
+          pauseBattle();
+          return;
+        }
+        pauseWarRoomInput(inputRef.current);
+        resetWarRoomPerformanceFrameClock();
+        runtimeRef.current.player.meleeInputPending = false;
+        runtimeRef.current.player.chargeStartedAt = 0;
+        resetTouchControls();
+        exitPromptRef.current = true;
+        setExitPrompt(true);
+        return;
+      }
+      pauseWarRoomInput(inputRef.current);
+      resetWarRoomPerformanceFrameClock();
       runtimeRef.current.player.meleeInputPending = false;
       runtimeRef.current.player.chargeStartedAt = 0;
       resetTouchControls();
     };
     const onVisibilityChange = () => {
-      if (document.hidden) onBlur();
+      if (document.hidden) stopForInterruption();
     };
     const preventGesture = (event: Event) => event.preventDefault();
+    const onPageHide = () => stopForInterruption();
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
+    window.addEventListener("blur", stopForInterruption);
+    window.addEventListener("pagehide", onPageHide);
     document.addEventListener("visibilitychange", onVisibilityChange);
     document.addEventListener("gesturestart", preventGesture, { passive: false });
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("blur", stopForInterruption);
+      window.removeEventListener("pagehide", onPageHide);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       document.removeEventListener("gesturestart", preventGesture);
       inputRef.current.keys.clear();
@@ -1107,6 +1159,7 @@ export default function WarRoomGame({
   }, [phase, pauseBattle]);
 
   const closeMode = () => {
+    exitPromptRef.current = false;
     setExitPrompt(false);
     onExit();
   };
@@ -1598,6 +1651,8 @@ export default function WarRoomGame({
             onMeleeDebugUpdate={handleMeleeDebugUpdate}
             onHudUpdate={setHud}
             onFinish={benchmarkMode ? handleBenchmarkFinish : finishBattle}
+            onWarmupComplete={handleSceneWarmupComplete}
+            onRuntimeError={handleSceneRuntimeError}
           />
           {weaponLabMode && (() => {
             const weapon = WAR_ROOM_WEAPONS[labWeaponIndex];
@@ -2260,7 +2315,8 @@ export default function WarRoomGame({
                   <button
                     type="button"
                     onClick={() => {
-                      inputRef.current.paused = false;
+                      exitPromptRef.current = false;
+                      inputRef.current.paused = !sceneWarmupReady;
                       setExitPrompt(false);
                     }}
                   >
@@ -2269,7 +2325,6 @@ export default function WarRoomGame({
                   <button
                     type="button"
                     onClick={() => {
-                      setExitPrompt(false);
                       onOpenSettings();
                     }}
                   >

@@ -187,11 +187,12 @@ import {
   type WarRoomFrameStats,
 } from "../game/war-room-quality";
 import {
-  observeWarRoomLongTasks,
   recordWarRoomPerformanceFrame,
   recordWarRoomQualityDowngrade,
+  resetWarRoomPerformanceFrameClock,
   warRoomPerformanceCollector,
 } from "../game/war-room-performance";
+import { pauseWarRoomInput } from "../game/war-room-input";
 import { disposeWarRoomSceneResources } from "../game/war-room-dispose";
 import type { RenderQuality } from "./graphics-quality";
 import WarRoomAdaptiveDpr from "./WarRoomAdaptiveDpr";
@@ -273,6 +274,8 @@ type Props = {
   }) => void;
   onHudUpdate: (snapshot: WarRoomHudSnapshot) => void;
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
+  onWarmupComplete: (succeeded: boolean) => void;
+  onRuntimeError: () => void;
 };
 
 const WAR_ROOM_FIXED_CAMERA_PITCH = WAR_ROOM_CONFIG.camera.fixedPitch;
@@ -2194,6 +2197,7 @@ function WarRoomRuntimeScene({
   onLookDebugUpdate,
   onHudUpdate,
   onFinish,
+  onRuntimeError,
 }: Props) {
   const { camera, scene, gl, size } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
@@ -2277,12 +2281,6 @@ function WarRoomRuntimeScene({
   const renderStatsAtRef = useRef(0);
   const rendererNameForReportRef = useRef<string | null>(null);
   const previousQualityForReportRef = useRef(quality);
-  useEffect(
-    () => collectPerformanceMetrics
-      ? observeWarRoomLongTasks(warRoomPerformanceCollector)
-      : undefined,
-    [collectPerformanceMetrics],
-  );
   useEffect(() => {
     const qualityRank = { low: 0, balanced: 1, high: 2 } as const;
     const previous = previousQualityForReportRef.current;
@@ -3409,6 +3407,7 @@ function WarRoomRuntimeScene({
     const player = runtime.player;
     const input = inputRef.current;
     if (input.paused) return;
+    try {
     const lookDeltaX = input.lookDeltaX;
     const lookDeltaY = input.lookDeltaY;
     input.lookDeltaX = 0;
@@ -5159,6 +5158,10 @@ function WarRoomRuntimeScene({
       finishedRef.current = true;
       onFinish("victory", snapshot ?? buildHudSnapshot(runtime, now, input));
     }
+    } catch {
+      pauseWarRoomInput(input);
+      onRuntimeError();
+    }
   });
 
   const runtime = runtimeRef.current;
@@ -5239,11 +5242,56 @@ function WarRoomRuntimeScene({
   );
 }
 
+function WarRoomShaderWarmup({
+  onComplete,
+}: {
+  onComplete: (succeeded: boolean) => void;
+}) {
+  const { camera, gl, scene } = useThree();
+  useEffect(() => {
+    let cancelled = false;
+    let finished = false;
+    let timeout = 0;
+    const finish = (succeeded: boolean) => {
+      if (cancelled || finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      onComplete(succeeded);
+    };
+    timeout = window.setTimeout(() => finish(false), 10_000);
+    void (async () => {
+      try {
+        if (typeof gl.compileAsync === "function") {
+          await gl.compileAsync(scene, camera);
+        } else {
+          gl.compile(scene, camera);
+        }
+        finish(true);
+      } catch {
+        finish(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [camera, gl, onComplete, scene]);
+  return null;
+}
+
 export default memo(function WarRoomScene3D(props: Props) {
-  const { quality } = props;
+  const { quality, onWarmupComplete, ...runtimeProps } = props;
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState(false);
+  const [warmupComplete, setWarmupComplete] = useState(false);
+  const recoveryNoticeTimerRef = useRef<number | null>(null);
+  const warmupCompletedRef = useRef(false);
+  const recoveryInProgressRef = useRef(false);
+  const resumeAfterRecoveryRef = useRef(false);
+  const effectiveQuality: RenderQuality = recoveryMode ? "low" : quality;
   const touchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const maxPixelRatio = getWarRoomPixelRatio(
-    quality,
+    effectiveQuality,
     typeof window === "undefined" ? 1 : window.devicePixelRatio,
     touchDevice,
   );
@@ -5261,27 +5309,63 @@ export default memo(function WarRoomScene3D(props: Props) {
       ? current
       : { maxPixelRatio, pixelRatio });
   }, [maxPixelRatio]);
+  const handleRepeatedStall = useCallback(() => {
+    setRecoveryMode(true);
+    setRecoveryNotice(true);
+    if (recoveryNoticeTimerRef.current !== null) {
+      window.clearTimeout(recoveryNoticeTimerRef.current);
+    }
+    recoveryNoticeTimerRef.current = window.setTimeout(() => {
+      recoveryNoticeTimerRef.current = null;
+      setRecoveryNotice(false);
+    }, 5_000);
+  }, []);
+  const pauseForCanvasRecovery = useCallback(() => {
+    if (!recoveryInProgressRef.current) {
+      recoveryInProgressRef.current = true;
+      resumeAfterRecoveryRef.current = !warmupCompletedRef.current
+        || !props.inputRef.current.paused;
+    }
+    pauseWarRoomInput(props.inputRef.current);
+    resetWarRoomPerformanceFrameClock();
+  }, [props.inputRef]);
+  const handleWarmupComplete = useCallback((succeeded: boolean) => {
+    setWarmupComplete(true);
+    warmupCompletedRef.current = true;
+    if (!recoveryInProgressRef.current || resumeAfterRecoveryRef.current) {
+      onWarmupComplete(succeeded);
+    }
+    recoveryInProgressRef.current = false;
+    resumeAfterRecoveryRef.current = false;
+  }, [onWarmupComplete]);
   const shadowsEnabled = typeof window !== "undefined"
     && !window.matchMedia("(pointer: coarse)").matches
-    && quality !== "low";
+    && effectiveQuality !== "low";
   const [canvasGeneration, setCanvasGeneration] = useState(0);
   const [contextLost, setContextLost] = useState(false);
   const contextListenersRef = useRef<(() => void) | null>(null);
   const retryCanvas = useCallback(() => {
+    pauseForCanvasRecovery();
     contextListenersRef.current?.();
     contextListenersRef.current = null;
+    setWarmupComplete(false);
+    warmupCompletedRef.current = false;
     setContextLost(false);
     setCanvasGeneration((generation) => generation + 1);
-  }, []);
+  }, [pauseForCanvasRecovery]);
   const handleCanvasCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
     contextListenersRef.current?.();
     const canvas = gl.domElement;
     const handleContextLost = (event: Event) => {
       event.preventDefault();
+      pauseForCanvasRecovery();
+      setWarmupComplete(false);
+      warmupCompletedRef.current = false;
       setContextLost(true);
     };
     const handleContextRestored = () => {
       setContextLost(false);
+      setWarmupComplete(false);
       setCanvasGeneration((generation) => generation + 1);
     };
     canvas.addEventListener("webglcontextlost", handleContextLost);
@@ -5293,16 +5377,25 @@ export default memo(function WarRoomScene3D(props: Props) {
     gl.shadowMap.enabled = shadowsEnabled;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
     gl.toneMappingExposure = 1.12;
-  }, [shadowsEnabled]);
+  }, [pauseForCanvasRecovery, shadowsEnabled]);
 
   useEffect(() => () => {
     contextListenersRef.current?.();
     contextListenersRef.current = null;
   }, []);
+  useEffect(() => () => {
+    if (recoveryNoticeTimerRef.current !== null) {
+      window.clearTimeout(recoveryNoticeTimerRef.current);
+    }
+  }, []);
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <WarRoomSceneErrorBoundary key={canvasGeneration} onRetry={retryCanvas}>
+      <WarRoomSceneErrorBoundary
+        key={canvasGeneration}
+        onRetry={retryCanvas}
+        onError={pauseForCanvasRecovery}
+      >
         <Canvas
           key={canvasGeneration}
           dpr={canvasPixelRatio}
@@ -5315,20 +5408,66 @@ export default memo(function WarRoomScene3D(props: Props) {
             far: WAR_ROOM_CONFIG.camera.firstPerson.far,
           }}
           gl={{
-            antialias: quality === "high" && !touchDevice,
+            antialias: effectiveQuality === "high" && !touchDevice,
             powerPreference: "high-performance",
             toneMapping: THREE.ACESFilmicToneMapping,
           }}
           onCreated={handleCanvasCreated}
         >
           <WarRoomAdaptiveDpr
-            quality={quality}
+            quality={effectiveQuality}
             touchDevice={touchDevice}
             onPixelRatioChange={handleAdaptivePixelRatioChange}
+            onRepeatedStall={handleRepeatedStall}
           />
-          <WarRoomRuntimeScene {...props} />
+          <WarRoomShaderWarmup onComplete={handleWarmupComplete} />
+          <WarRoomRuntimeScene {...runtimeProps} quality={effectiveQuality} />
         </Canvas>
       </WarRoomSceneErrorBoundary>
+      {!warmupComplete && !contextLost && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 20,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(7, 10, 16, 0.88)",
+            color: "#f4ead7",
+            font: "700 12px/1.5 Manrope, sans-serif",
+            letterSpacing: ".14em",
+            pointerEvents: "none",
+          }}
+        >
+          SAVAŞ ALANI HAZIRLANIYOR
+        </div>
+      )}
+      {recoveryNotice && !contextLost && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            zIndex: 25,
+            top: "max(12px, env(safe-area-inset-top))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            maxWidth: "calc(100% - 24px)",
+            padding: "9px 14px",
+            border: "1px solid rgba(235,198,126,.5)",
+            borderRadius: 5,
+            background: "rgba(17,17,21,.92)",
+            color: "#f4ead7",
+            font: "700 11px/1.4 Manrope, sans-serif",
+            textAlign: "center",
+            pointerEvents: "none",
+          }}
+        >
+          OYUN TOPARLANDI · GRAFİK YÜKÜ AZALTILDI
+        </div>
+      )}
       {contextLost && (
         <div
           role="alert"
