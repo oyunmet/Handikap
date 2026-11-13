@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import {
   createWarRoomAdaptiveDprState,
   getWarRoomPixelRatio,
+  getWarRoomViewportPixelRatio,
   sampleWarRoomAdaptiveDpr,
   type WarRoomAdaptiveDprState,
 } from "../game/war-room-quality";
@@ -29,10 +30,15 @@ export default function WarRoomAdaptiveDpr({
   onRepeatedStall,
 }: Props) {
   const setDpr = useThree((state) => state.setDpr);
-  const maxPixelRatio = getWarRoomPixelRatio(
-    quality,
-    typeof window === "undefined" ? 1 : window.devicePixelRatio,
-    touchDevice,
+  const size = useThree((state) => state.size);
+  const maxPixelRatio = getWarRoomViewportPixelRatio(
+    getWarRoomPixelRatio(
+      quality,
+      typeof window === "undefined" ? 1 : window.devicePixelRatio,
+      touchDevice,
+    ),
+    size.width,
+    size.height,
   );
   const adaptiveStateRef = useRef<WarRoomAdaptiveDprState | null>(null);
   if (adaptiveStateRef.current === null) {

@@ -9,6 +9,7 @@ import {
   isWithinWarRoomDrawCallBudget,
   getWarRoomPoolLimits,
   getWarRoomPixelRatio,
+  getWarRoomViewportPixelRatio,
   getWarRoomQualityProfile,
   isWarRoomAttackRunContinuous,
   sampleWarRoomAdaptiveDpr,
@@ -47,6 +48,23 @@ test("adaptive quality can lower touch-device DPR as well as desktop DPR", () =>
   assert.equal(getWarRoomPixelRatio("low", 3, false), 1);
   assert.equal(getWarRoomPixelRatio("high", 1.25, false), 1.25);
   assert.equal(getWarRoomPixelRatio("high", 3, false), 2);
+});
+
+test("portrait render pixel budget never exceeds the 844 by 390 landscape reference", () => {
+  const landscapeDpr = 1.5;
+  const landscapePixels = 844 * 390 * landscapeDpr ** 2;
+  for (const { width, height } of [
+    { width: 360, height: 640 },
+    { width: 360, height: 740 },
+    { width: 390, height: 664 },
+    { width: 412, height: 780 },
+    { width: 430, height: 800 },
+  ]) {
+    const portraitDpr = getWarRoomViewportPixelRatio(landscapeDpr, width, height);
+    assert.ok(width * height * portraitDpr ** 2 <= landscapePixels + 1e-6);
+    assert.ok(portraitDpr <= landscapeDpr);
+  }
+  assert.equal(getWarRoomViewportPixelRatio(1.5, 844, 390), 1.5);
 });
 
 test("the phase flag restores the unscaled quality profile when disabled", () => {

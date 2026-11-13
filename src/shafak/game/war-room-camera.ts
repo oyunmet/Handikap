@@ -17,6 +17,25 @@ export type WarRoomCameraSweep = {
   safeDistance: number;
 };
 
+export function getWarRoomResponsiveCameraFov(
+  baseVerticalFov: number,
+  aspectRatio: number,
+  minimumHorizontalFov = 75,
+) {
+  if (
+    !Number.isFinite(baseVerticalFov)
+    || !Number.isFinite(aspectRatio)
+    || aspectRatio <= 0
+    || !Number.isFinite(minimumHorizontalFov)
+    || minimumHorizontalFov <= 0
+    || aspectRatio >= 1
+  ) return baseVerticalFov;
+
+  const horizontalHalfAngle = Math.min(179, minimumHorizontalFov) * Math.PI / 360;
+  const requiredVerticalFov = 2 * Math.atan(Math.tan(horizontalHalfAngle) / aspectRatio) * 180 / Math.PI;
+  return Math.max(baseVerticalFov, requiredVerticalFov);
+}
+
 function expandedBounds(bounds: WarRoomCameraBounds, radius: number) {
   return {
     minX: bounds.minX - radius,

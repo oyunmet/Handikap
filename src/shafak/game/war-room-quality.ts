@@ -252,6 +252,33 @@ export function getWarRoomPixelRatio(
   );
 }
 
+export function getWarRoomViewportPixelRatio(
+  maxPixelRatio: number,
+  width: number,
+  height: number,
+  landscapeReferenceWidth = 844,
+  landscapeReferenceHeight = 390,
+) {
+  if (
+    !Number.isFinite(maxPixelRatio)
+    || !Number.isFinite(width)
+    || !Number.isFinite(height)
+    || width <= 0
+    || height <= 0
+    || width >= height
+  ) return maxPixelRatio;
+
+  const landscapePixelBudget = landscapeReferenceWidth * landscapeReferenceHeight;
+  const portraitPixelArea = width * height;
+  if (
+    !Number.isFinite(landscapePixelBudget)
+    || landscapePixelBudget <= 0
+    || portraitPixelArea <= landscapePixelBudget
+  ) return maxPixelRatio;
+
+  return maxPixelRatio * Math.sqrt(landscapePixelBudget / portraitPixelArea);
+}
+
 export function countActiveWarRoomParticles(
   particles: readonly { born: number; lifetime: number }[],
   now: number,

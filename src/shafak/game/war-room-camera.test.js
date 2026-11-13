@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clampWarRoomCameraToInterior,
+  getWarRoomResponsiveCameraFov,
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
   getWarRoomViewModelWallProximity,
@@ -31,6 +32,24 @@ const wall = {
   maxY: 4.2,
   maxZ: -1.3,
 };
+
+test("portrait camera FOV keeps at least 75 degrees of horizontal view", () => {
+  for (const { width, height } of [
+    { width: 360, height: 640 },
+    { width: 360, height: 740 },
+    { width: 390, height: 664 },
+    { width: 412, height: 780 },
+    { width: 430, height: 800 },
+  ]) {
+    const aspect = width / height;
+    const verticalFov = getWarRoomResponsiveCameraFov(75, aspect);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov * Math.PI / 360) * aspect) * 180 / Math.PI;
+    assert.ok(horizontalFov >= 74.999, `${width}x${height} horizontal FOV was ${horizontalFov}`);
+  }
+
+  assert.equal(getWarRoomResponsiveCameraFov(75, 844 / 390), 75);
+  assert.equal(getWarRoomResponsiveCameraFov(50, 360 / 640, 0), 50);
+});
 
 test("camera sweep stops outside a directly blocking wall even inside the preferred distance", () => {
   const result = resolveWarRoomCameraSweep(

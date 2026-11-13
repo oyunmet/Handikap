@@ -7,17 +7,15 @@ const baseUrl = process.env.WAR_ROOM_E2E_BASE_URL
     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
     : "http://127.0.0.1:5000");
 const executablePath = process.env.CHROMIUM_PATH ?? "/repl/tools/bin/chromium";
-const outputDir = process.env.WAR_ROOM_LAYOUT_SCREENSHOTS ?? "/tmp/war-room-11-3";
+const outputDir = process.env.WAR_ROOM_LAYOUT_SCREENSHOTS ?? "/tmp/war-room-12-6";
 const viewports = [
   { width: 772, height: 330 },
-  { width: 667, height: 375 },
-  { width: 740, height: 360 },
-  { width: 800, height: 360 },
   { width: 844, height: 390 },
-  { width: 915, height: 412 },
-  { width: 932, height: 430 },
-  { width: 360, height: 800 },
-  { width: 390, height: 844 },
+  { width: 360, height: 640 },
+  { width: 360, height: 740 },
+  { width: 390, height: 664 },
+  { width: 412, height: 780 },
+  { width: 430, height: 800 },
 ];
 
 await mkdir(outputDir, { recursive: true });
@@ -35,6 +33,7 @@ const browser = await chromium.launch({
 });
 
 const pageErrors = [];
+let landscapeCanvasPixelReference = null;
 try {
   const context = await browser.newContext({
     viewport: viewports[0],
@@ -122,12 +121,83 @@ try {
     const failures = [];
     for (const viewport of viewports) {
       await page.setViewportSize(viewport);
-      await page.waitForTimeout(140);
+      await page.waitForTimeout(240);
       const report = await checkLayout(screen);
+      const touchHud = screen === "hud" ? await page.evaluate(() => {
+        const root = document.querySelector(".war-room");
+        const controls = root?.querySelector(".war-room-controls:not(.is-custom-layout)");
+        const actions = controls
+          ? Array.from(controls.querySelectorAll(":scope > .shafak-hud-button"))
+          : [];
+        const slots = Array.from(root?.querySelectorAll(
+          ".war-room-weapon-select:not(.is-custom-layout) .war-room-weapon-slot",
+        ) ?? []);
+        const boxes = [
+          root?.querySelector(".war-room-ammo"),
+          root?.querySelector(".war-room-weapon-select:not(.is-custom-layout)"),
+          controls,
+        ].filter(Boolean).map((element) => ({
+          label: element.className,
+          rect: element.getBoundingClientRect().toJSON(),
+        }));
+        const intersections = [];
+        for (let first = 0; first < boxes.length; first += 1) {
+          for (let second = first + 1; second < boxes.length; second += 1) {
+            const a = boxes[first].rect;
+            const b = boxes[second].rect;
+            if (Math.min(a.right, b.right) > Math.max(a.left, b.left) + 1
+              && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top) + 1) {
+              intersections.push([boxes[first].label, boxes[second].label]);
+            }
+          }
+        }
+        const outside = boxes.filter(({ rect }) =>
+          rect.left < -1 || rect.top < -1
+          || rect.right > window.innerWidth + 1
+          || rect.bottom > window.innerHeight + 1,
+        ).map(({ label }) => label);
+        const undersized = [...actions, ...slots].filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.width < 48 || rect.height < 48;
+        }).map((element) => element.getAttribute("aria-label") ?? element.className);
+        const rowGap = controls ? Number.parseFloat(getComputedStyle(controls).rowGap) : 0;
+        const canvas = root?.querySelector("canvas");
+        return {
+          actionCount: actions.length,
+          slotCount: slots.length,
+          rowGap,
+          intersections,
+          outside,
+          undersized,
+          canvasPixels: canvas ? canvas.width * canvas.height : 0,
+          battlePhase: root?.getAttribute("data-phase") === "battle",
+        };
+      }) : null;
       const name = `${screen}-${viewport.width}x${viewport.height}.png`;
       await page.screenshot({ path: `${outputDir}/${name}` });
-      if (report.outside.length || report.overlaps.length) failures.push(report);
-      console.log(`${name}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, çakışma ${report.overlaps.length}`);
+      if (touchHud && viewport.width === 844 && viewport.height === 390) {
+        landscapeCanvasPixelReference = touchHud.canvasPixels;
+      }
+      if (report.outside.length || report.overlaps.length
+        || (touchHud && (
+          touchHud.actionCount !== 7
+          || touchHud.rowGap < 8
+          || touchHud.intersections.length
+          || touchHud.outside.length
+          || touchHud.undersized.length
+          || touchHud.slotCount < 1
+          || !touchHud.battlePhase
+          || (viewport.width < viewport.height
+            && landscapeCanvasPixelReference !== null
+            && touchHud.canvasPixels > landscapeCanvasPixelReference * 1.01)
+        ))) failures.push({ ...report, touchHud });
+      console.log(
+        `${name}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, çakışma ${report.overlaps.length}`
+        + (touchHud
+          ? `; kontrol ${touchHud.actionCount}, yuva ${touchHud.slotCount}, aralık ${touchHud.rowGap}px`
+            + `, canvas ${touchHud.canvasPixels}px²`
+          : ""),
+      );
     }
     if (failures.length) {
       const detail = failures.slice(0, 4).map((report) => JSON.stringify({
@@ -144,7 +214,13 @@ try {
   await page.setViewportSize(viewports[0]);
   await page.locator(".war-room-start").click();
   await page.locator(".war-room-battle").waitFor({ timeout: 45_000 });
-  await page.waitForTimeout(1_000);
+  await page.waitForTimeout(4_200);
+  const objectiveStatus = page.locator(".war-room-objective-status");
+  assert.equal(await objectiveStatus.getAttribute("data-expanded"), "false", "Görev kartı 4 saniye sonra daralmadı.");
+  await objectiveStatus.click();
+  assert.equal(await objectiveStatus.getAttribute("data-expanded"), "true", "Görev kartına dokununca genişlemedi.");
+  await objectiveStatus.click();
+  assert.equal(await objectiveStatus.getAttribute("data-expanded"), "false", "Görev kartı tekrar daraltılamadı.");
   await capture("hud");
   assert.deepEqual(pageErrors, [], `Tarayıcı hataları: ${pageErrors.join("; ")}`);
   console.log(`Ekran görüntüleri: ${outputDir}`);

@@ -141,6 +141,7 @@ import {
 import "./war-room.css";
 import "./war-room-layout.css";
 import "./war-room-responsive.css";
+import "./war-room-orientation.css";
 
 type Props = {
   onExit: () => void;
@@ -451,6 +452,7 @@ export default function WarRoomGame({
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [hudDetailsExpanded, setHudDetailsExpanded] = useState(true);
   const [hudToasts, setHudToasts] = useState<WarRoomToast[]>([]);
   const hudToastIdRef = useRef(0);
   const hudToastTimersRef = useRef(new Map<number, number>());
@@ -572,6 +574,11 @@ export default function WarRoomGame({
     return () => window.clearTimeout(timeout);
   }, [hud.damageEventId]);
   const bossHudPhase = getBossHudPhase(hud.bossHp, hud.bossMaxHp);
+  const commander = hud.enemies.find((enemy) => enemy.commander && enemy.alive);
+  const commanderDistance = commander
+    ? Math.hypot(hud.player.x - commander.x, hud.player.z - commander.z)
+    : Number.POSITIVE_INFINITY;
+  const showBossBar = hud.bossHp > 0 && hud.bossMaxHp > 0 && commanderDistance <= 40;
   const [bossPhaseAnnouncement, setBossPhaseAnnouncement] = useState<BossHudPhase | null>(null);
   const previousBossPhaseRef = useRef<number | null>(null);
   const bossPhaseAnnouncementTimerRef = useRef<number | null>(null);
@@ -658,6 +665,15 @@ export default function WarRoomGame({
   const debugMode = searchParams?.get("debug") === "1";
   const calibrationMode = weaponLabMode || searchParams?.get("calib") === "1";
   const currentRoom = runtimeRef.current.room;
+  useEffect(() => {
+    if (phase !== "battle") {
+      setHudDetailsExpanded(true);
+      return undefined;
+    }
+    setHudDetailsExpanded(true);
+    const timer = window.setTimeout(() => setHudDetailsExpanded(false), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [phase, roomNumber, runKey]);
   const dailyChallengeComplete = isWarRoomDailyChallengeComplete(
     dailyCompletionDayKey,
     dailyChallenge.dayKey,
@@ -1574,6 +1590,7 @@ export default function WarRoomGame({
     <main
       className="war-room"
       data-phase={phase}
+      data-left-handed={leftHandedControls ? "true" : "false"}
       data-benchmark-status={benchmarkMode
         ? benchmarkReport ? "complete" : phase === "battle" ? "running" : "loading"
         : undefined}
@@ -1882,17 +1899,36 @@ export default function WarRoomGame({
                     {floorLabel}
                   </div>
                 )}
-                {hud.mission.mode === "raid" && <div
+                {hud.mission.mode === "raid" && <button
+                  type="button"
                   className={`war-room-side-contract${contractBonus > 0 ? " is-complete" : ""}`}
-                  role="status"
+                  data-expanded={hudDetailsExpanded}
+                  aria-expanded={hudDetailsExpanded}
                   aria-label={`Ek hedef: ${currentRoom.contract.description}, ${contractProgress}/${currentRoom.contract.target}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setHudDetailsExpanded((expanded) => !expanded);
+                  }}
                 >
                   <span>EK HEDEF</span>
                   <strong>{currentRoom.contract.title}</strong>
                   <small>{contractProgress}/{currentRoom.contract.target} · +{currentRoom.contract.bonusGold} altın</small>
-                </div>}
-                <div className="war-room-objective-status" aria-label={`${getWarRoomResultLabel(hud.mission.mode)} görev durumu`}>
+                </button>}
+                <button
+                  type="button"
+                  className="war-room-objective-status"
+                  data-expanded={hudDetailsExpanded}
+                  aria-expanded={hudDetailsExpanded}
+                  aria-label={`${getWarRoomResultLabel(hud.mission.mode)} görev durumu`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setHudDetailsExpanded((expanded) => !expanded);
+                  }}
+                >
                   <b>{getWarRoomResultLabel(hud.mission.mode)}</b>
+                  {hud.mission.mode === "raid" && (
+                    <small>{currentRoom.contract.title} · {contractProgress}/{currentRoom.contract.target}</small>
+                  )}
                   {hud.mission.mode === "survival" && (
                     <small>DALGA {hud.mission.wave} · SKOR {(hud.kills * 100 + hud.headshots * 25).toLocaleString("tr-TR")}</small>
                   )}
@@ -1924,7 +1960,7 @@ export default function WarRoomGame({
                       {currentRoom.contract.title} {contractProgress}/{currentRoom.contract.target}
                     </small>
                   )}
-                </div>
+                </button>
               </div>
               <div className="war-room-kill-feed" aria-live="polite" aria-label="Düşman düşürme bildirimi">
                 {hud.killFeed.slice(0, 4).map((feed) => <span key={feed.id}>{feed.text}</span>)}
@@ -1975,7 +2011,7 @@ export default function WarRoomGame({
                 {soundMuted ? "SES AÇ" : "SESSİZ"}
               </button>
             </div>
-            {hud.bossHp > 0 && hud.bossMaxHp > 0 && (
+            {showBossBar && (
             <div className="war-room-commander" data-boss-phase={bossHudPhase}>
               <div className="war-room-commander__identity">
                 <span>{currentRoom.commanderTitle.toLocaleUpperCase("tr-TR")}</span>

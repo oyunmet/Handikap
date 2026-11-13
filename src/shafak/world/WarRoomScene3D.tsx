@@ -99,6 +99,7 @@ import {
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
   getWarRoomCameraRaySafeDistance,
+  getWarRoomResponsiveCameraFov,
   getWarRoomCameraRig,
   getWarRoomEyeClearancePush,
   isWarRoomEyeClearAbove,
@@ -4624,7 +4625,11 @@ function WarRoomRuntimeScene({
     cameraKickRef.current *= Math.exp(-delta * 11);
     cameraSideKickRef.current *= Math.exp(-delta * 15);
     cameraFovKickRef.current = Math.max(0, cameraFovKickRef.current - delta * 16);
-    const targetFov = getWarRoomCameraFov(input.aimHeld) + cameraFovKickRef.current;
+    const targetFov = getWarRoomResponsiveCameraFov(
+      getWarRoomCameraFov(input.aimHeld) + cameraFovKickRef.current,
+      size.height > 0 ? size.width / size.height : 1.75,
+      input.aimHeld ? 0 : 75,
+    );
     const smoothedFov = THREE.MathUtils.damp(perspective.fov, targetFov, 18, delta);
     if (Math.abs(perspective.fov - smoothedFov) > 0.005) {
       perspective.fov = smoothedFov;
