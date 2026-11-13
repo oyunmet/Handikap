@@ -48,6 +48,15 @@ export function getWarRoomAutoFollowYaw(
   return normalizeWarRoomCameraYaw(baseYaw + Math.atan2(moveX, moveY));
 }
 
+export function getWarRoomMovementCameraYaw(
+  baseYaw: number,
+  moveX: number,
+  moveY: number,
+  aiming: boolean,
+) {
+  return aiming ? null : getWarRoomAutoFollowYaw(baseYaw, moveX, moveY);
+}
+
 export function getWarRoomTouchControlSide(
   clientX: number,
   stageLeft: number,

@@ -85,7 +85,7 @@ import {
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
-  getWarRoomAutoFollowYaw,
+  getWarRoomMovementCameraYaw,
   clampWarRoomLookDelta,
   rebaseWarRoomJoystick,
   type WarRoomMobileControlsState,
@@ -108,6 +108,7 @@ import {
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   stepWarRoomCameraFloorHeight,
+  stepWarRoomCameraFollowPosition,
   type WarRoomCameraBounds,
   type WarRoomCameraMode,
   type WarRoomShoulderSide,
@@ -3593,11 +3594,12 @@ function WarRoomRuntimeScene({
       moveY,
     );
     const strafeActive = input.aimHeld || now < player.strafeUntil;
-    if (input.movementBaseYaw !== null && !input.manualLookActive) {
-      const autoFollowYaw = getWarRoomAutoFollowYaw(
+    if (input.movementBaseYaw !== null) {
+      const autoFollowYaw = getWarRoomMovementCameraYaw(
         input.movementBaseYaw,
         moveX,
         moveY,
+        input.aimHeld,
       );
       if (autoFollowYaw !== null) input.cameraTargetYaw = autoFollowYaw;
     }
@@ -4615,7 +4617,9 @@ function WarRoomRuntimeScene({
       inputRef.current.yaw + cameraSideKickRef.current,
       inputRef.current.pitch + cameraKickRef.current,
     );
-    const cameraYaw = sceneCameraAngles.yaw;
+    const cameraYaw = cameraMode === "third-person" && playerRootRef.current
+      ? getWarRoomFacingYawFromRootYaw(playerRootRef.current.rotation.y)
+      : sceneCameraAngles.yaw;
     const cameraPitch = sceneCameraAngles.pitch;
     const victoryZoom = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED && cinematicStartedAt !== null
       ? Math.min(1, cinematicElapsed / WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS)
@@ -4953,9 +4957,16 @@ function WarRoomRuntimeScene({
       camera.position.copy(cameraDesired);
       cameraInitializedRef.current = true;
     } else {
-      camera.position.lerp(
-        cameraDesired,
-        1 - Math.exp(-18 * Math.min(delta, 0.05)),
+      const followedCameraPosition = stepWarRoomCameraFollowPosition(
+        cameraStartPoint,
+        { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        { x: cameraDesired.x, y: cameraDesired.y, z: cameraDesired.z },
+        delta,
+      );
+      camera.position.set(
+        followedCameraPosition.x,
+        followedCameraPosition.y,
+        followedCameraPosition.z,
       );
       if (!isWarRoomCameraPointClear(
         { x: camera.position.x, y: camera.position.y, z: camera.position.z },

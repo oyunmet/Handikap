@@ -7,6 +7,7 @@ import {
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
   getWarRoomAutoFollowYaw,
+  getWarRoomMovementCameraYaw,
   getWarRoomTouchControlSide,
   isWarRoomLookDeltaValid,
   WAR_ROOM_MAX_LOOK_DELTA_PIXELS,
@@ -44,6 +45,13 @@ test("camera look ignores jitter and clamps pointer jumps to 80 pixels", () => {
 test("automatic camera yaw follows an active stick direction but stays still at neutral", () => {
   assert.ok(Math.abs(getWarRoomAutoFollowYaw(Math.PI / 2, 1, 0) - Math.PI) < 1e-9);
   assert.equal(getWarRoomAutoFollowYaw(0, 0, 0), null);
+});
+
+test("un-aimed movement turns the hero and rear camera toward travel; aiming keeps strafe", () => {
+  assert.ok(Math.abs(getWarRoomMovementCameraYaw(0, 1, 0, false) - Math.PI / 2) < 1e-9);
+  assert.ok(Math.abs(getWarRoomMovementCameraYaw(0, 0, 1, false)) < 1e-9);
+  assert.equal(getWarRoomMovementCameraYaw(0, 1, 0, true), null);
+  assert.equal(getWarRoomMovementCameraYaw(0, 0, 0, false), null);
 });
 
 test("joystick rejects other pointers, filters touch jitter, and clamps diagonals", () => {

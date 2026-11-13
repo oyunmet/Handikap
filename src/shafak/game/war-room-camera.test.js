@@ -14,6 +14,7 @@ import {
   resolveWarRoomInteriorCameraPlacement,
   resolveWarRoomCameraPlacement,
   resolveWarRoomCameraSweep,
+  stepWarRoomCameraFollowPosition,
   stepWarRoomCameraFloorHeight,
 } from "./war-room-camera.ts";
 import {
@@ -271,6 +272,60 @@ test("rear camera stays behind the rendered hero after a lateral turn", () => {
   );
 });
 
+test("rear camera follows a turn without lagging around the player's front", () => {
+  const start = { x: 0, y: 1.55, z: 0 };
+  const yaw = Math.PI / 2;
+  const desired = getWarRoomRearCameraFrame(
+    { x: 0, y: 0, z: 0 },
+    yaw,
+    0,
+    4,
+    0,
+    1.55,
+    1,
+    1.2,
+  ).position;
+  const current = { x: 0, y: 1.9, z: 5 };
+  const followed = stepWarRoomCameraFollowPosition(start, current, desired, 1 / 60);
+  const desiredOffset = {
+    x: desired.x - start.x,
+    y: desired.y - start.y,
+    z: desired.z - start.z,
+  };
+  const followedOffset = {
+    x: followed.x - start.x,
+    y: followed.y - start.y,
+    z: followed.z - start.z,
+  };
+  const dot = desiredOffset.x * followedOffset.x
+    + desiredOffset.y * followedOffset.y
+    + desiredOffset.z * followedOffset.z;
+  const lengths = Math.hypot(desiredOffset.x, desiredOffset.y, desiredOffset.z)
+    * Math.hypot(followedOffset.x, followedOffset.y, followedOffset.z);
+
+  assert.ok(dot / lengths > 0.999999, "camera direction should immediately align behind the hero");
+  assert.ok(followed.x < 0, "for a right-facing hero, the camera must move to the left/rear side");
+});
+
+test("rear camera snaps inward for interior clearance and eases outward", () => {
+  const start = { x: 0, y: 1.5, z: 0 };
+  const indoors = stepWarRoomCameraFollowPosition(
+    start,
+    { x: 0, y: 1.5, z: 5 },
+    { x: 0, y: 1.5, z: 2 },
+    1 / 60,
+  );
+  assert.equal(indoors.z, 2, "camera should not linger outside the closer interior target");
+
+  const outdoors = stepWarRoomCameraFollowPosition(
+    start,
+    { x: 0, y: 1.5, z: 2 },
+    { x: 0, y: 1.5, z: 5 },
+    1 / 60,
+  );
+  assert.ok(outdoors.z > 2 && outdoors.z < 5, "outward distance changes should remain smooth");
+});
+
 test("eye clearance checks all eight directions and caps correction distance", () => {
   const bounds = [{
     id: "near-wall",
@@ -400,7 +455,7 @@ test("indoor camera keeps a wider rear view while staying closer than outdoors",
     shoulderSide: "right",
     indoors: true,
   });
-  assert.equal(right.back, 2.8);
+  assert.equal(right.back, 2);
   assert.ok(Math.abs(right.shoulder - 0.24) < 1e-10);
   assert.equal(aiming.back, 2.4);
   assert.ok(Math.abs(aiming.shoulder - 0.28) < 1e-10);

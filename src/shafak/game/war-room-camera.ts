@@ -228,6 +228,40 @@ export function getWarRoomRearCameraFrame(
   };
 }
 
+export function stepWarRoomCameraFollowPosition(
+  start: WarRoomCameraPoint,
+  current: WarRoomCameraPoint,
+  desired: WarRoomCameraPoint,
+  deltaSeconds: number,
+  followSpeed = 18,
+): WarRoomCameraPoint {
+  const offsetX = desired.x - start.x;
+  const offsetY = desired.y - start.y;
+  const offsetZ = desired.z - start.z;
+  const desiredDistance = Math.hypot(offsetX, offsetY, offsetZ);
+  if (desiredDistance <= 1e-6) return { ...start };
+
+  const currentDistance = Math.hypot(
+    current.x - start.x,
+    current.y - start.y,
+    current.z - start.z,
+  );
+  const alpha = 1 - Math.exp(
+    -Math.max(0, deltaSeconds) * Math.max(0, followSpeed),
+  );
+  // Track heading immediately. Ease only when moving farther away; pull
+  // inward at once to avoid lingering outside a room or behind a wall.
+  const distance = currentDistance > desiredDistance
+    ? desiredDistance
+    : currentDistance + (desiredDistance - currentDistance) * alpha;
+  const scale = distance / desiredDistance;
+  return {
+    x: start.x + offsetX * scale,
+    y: start.y + offsetY * scale,
+    z: start.z + offsetZ * scale,
+  };
+}
+
 export function getWarRoomCameraRaySafeDistance(
   desiredDistance: number,
   hitDistance: number | null,
@@ -407,7 +441,7 @@ export function getWarRoomCameraRig({
     ? Math.max(0, Math.min(1, victoryZoom))
     : 0;
   const baseBack = indoors
-    ? aiming ? 2.4 : 2.8
+    ? aiming ? 2.4 : 2
     : 3.5;
   const back = baseBack * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)

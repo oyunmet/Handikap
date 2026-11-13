@@ -287,6 +287,15 @@
 - **Doğrulanamayanlar:** 10 gerçek maçlık bellek sızıntısı testi, kapı/bot doğma/boss fazı/silah değiştirme/doldurma olaylarının ayrı ayrı ≤50 ms kare hedefi, iPhone Safari/Android GPU ve gerçek cihaz ısınması bu ortamda doğrulanmadı. SwiftShader maksimum karesi hedefin çok üzerinde olduğundan olay bazlı hedefe ulaşıldığı iddia edilmiyor; gerçek cihaz/PC ölçümü 12.7’de açık kalacak. Hesap, kayıt veya ekonomi verisi kullanılmadı.
 - **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-performance.ts`, `src/shafak/game/war-room-performance.test.js`, `src/shafak/world/WarRoomModels.tsx`, `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/world/war-room-model-preload.test.js`.
 
+### Kamera ve kahraman yönü — Tamamlandı (12.5 öncesi ek takip)
+
+- **Kök neden:** Üçüncü şahıs kamera yeni kontrol yaw'ını izlerken oyuncu modeli yumuşatılmış kök yaw'ına göre dönüyordu. Kamera konumunun dünya koordinatlarında gecikmeli yumuşatılması dönüşte kamerayı oyuncunun önüne/yanına taşıyabiliyor; ev içinde de dışarıdaki eski mesafede kalıp duvar ve oda geometrisini bozabiliyordu. Hareket sırasında manuel bakış etkin olduğunda otomatik yön takibi kapanıyordu.
+- **Yapılanlar:** Üçüncü şahıs kamera yaw'ı artık görünen oyuncu kökünün gerçek yönünden hesaplanıyor. Kamera yeni arka yön çizgisine hemen geçiyor; yalnız uzaklaşma yumuşatılıyor, yaklaşma ve iç mekân mesafesi anında uygulanıyor. Nişan alınmayan hareket, manuel bakışla birlikteyken de hareket yönünü izliyor; nişan sırasında yan hareket korunuyor. Ev içi kamera mesafesi 2,8 m'den 2 m'ye indirildi; nişanda 2,4 m.
+- **Doğrulama:** `npm test` — 721/721 geçti; `npm run typecheck` — geçti; `npm run build` — geçti. Kamera dönüşünde arka yönde kalma, içeri girerken mesafenin hemen kısalması ve yatay joystick yönüne dönme testleri eklendi.
+- **Doğrulanamayanlar:** Replit ekran görüntüsü tarayıcısı WebGL bağlamı oluşturamadığından 3D kamera burada görsel olarak doğrulanamadı. Gerçek iPhone/Android ve canlı Vercel sürümü ayrıca kontrol edilmedi; değişiklikler push veya deploy edilmedi.
+- **Sıradaki adım:** 12.5 — Kasmaya bağlı silah titremesi — bekliyor. 13. adıma geçilmedi.
+- **Değişen dosyalar:** `src/shafak/game/war-room-camera.ts`, `src/shafak/game/war-room-camera.test.js`, `src/shafak/game/war-room-mobile-controls.ts`, `src/shafak/game/war-room-mobile-controls.test.js`, `src/shafak/world/WarRoomScene3D.tsx`, `ILERLEME.md`.
+
 ### 12.5 — Kasmaya bağlı silah titremesi: **Bekliyor**
 
 - Ham dt yerine sınırlandırılmış/yumuşatılmış dt ve sabit adımlı kritik sönüm; kamera/oyuncu interpolasyonu ile silah aynı karede güncellenecek. 25 ms üzeri karelerde bob/sway azalacak.
