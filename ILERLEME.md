@@ -219,7 +219,7 @@
 
 ## Adım 12 — Performans, dikey mod ve stabilite
 
-- **Durum:** 12.1–12.3 tamamlandı. 12.3’te kapı çarpışma tamponu ve 3B sahne memoization’ı doğrulandı; AI çizgi/mesafe testlerindeki geçici dizi ve nesneler kaldırıldı. SwiftShader benchmark’ı gerçek GPU sonucu değildir. Sıradaki alt adım 12.4; Adım 13’e ancak Adım 12 tamamlanınca geçilecek.
+- **Durum:** 12.1–12.4 tamamlandı. 12.3’te kapı çarpışma tamponu ve 3B sahne memoization’ı doğrulandı; 12.4’te yükleme, donma ve toparlanma korumaları tamamlandı. SwiftShader benchmark’ı gerçek GPU sonucu değildir. Sıradaki alt adım 12.5; Adım 13’e ancak Adım 12 tamamlanınca geçilecek.
 - **Sıra:** Aynı anda yalnızca bir alt adım. Her alt adım sonunda test, bu dosya güncellemesi ve yerel commit yapılacak. Kayıtlı ilerleme korunacak; gerçek hesap/para verisi kullanılmayacak; sırlar repoya yazılmayacak.
 - **Kullanıcı bildirimi:** Gerçek iPhone Safari’de dikey düzen oynanamaz, oyun takılıyor/donuyor, kasmaya bağlı silah titreşimi sürüyor, silah ekranın sağ üçte birini kaplıyor, boss çubuğu ortada yer kaplıyor ve kenarlar pikselli. Kullanıcı ayrıca masaüstü bilgisayarda oyunun düzgün oynanmadığını bildirdi.
 
@@ -276,12 +276,16 @@
 - **Testler:** Kapı, hareket, bot AI, boss ve sabit adım hedef testleri 49/49; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Benchmark tarayıcı hatası vermedi. Gerçek hesap, kayıt veya ekonomi verisine dokunulmadı.
 - **Doğrulanamayanlar:** 60 FPS/ısınma/GC, Safari belleği ve GPU tahsisi gerçek telefonda ölçülmedi. Üretim önizlemesi, Clerk yapılandırılmadığı için oyunu güvenli biçimde açmadı; kimlik doğrulama atlanmadı. Üretim profili ve telefondaki allocation doğrulaması kapalı kaldı. Gerçek cihaz kabulü 12.7 raporunda da açık kalacak.
 
-### 12.4 — Donmayı önleme ve toparlanma: **Bekliyor**
+### 12.4 — Donmayı önleme ve toparlanma: **Tamamlandı (cihaz ve olay stres ölçümü açık)**
 
-- Maç öncesi shader/materyal/silah/bot/efekt/ses/doku ısıtma; ilk kullanım takılmalarını ölçme.
-- Long Tasks ve 250 ms üzeri RAF aralığı watchdog’u; güvenli oyun döngüsü, hata veren sistemi devre dışı bırakma, React error boundary ve ilerlemeyi koruyan çıkış.
-- WebGL context kaybı/geri yükleme, görünürlük/arka plan duraklatması ve dönüşte dt sıçramasını önleme.
-- Harita değişiminde kaynak temizliği ve 10 maçlık bellek testi; resize/orientation/visualViewport debounce; kapı, bot doğma, boss fazı, silah değiştirme ve doldurma sırasındaki en uzun kare hedefi ≤50 ms.
+- **Kök neden:** Briefing ön yüklemesi oyuncu ve arena modellerini kapsıyordu ancak seçili silah GLB'leri ilk kullanımda yükleniyordu. Canvas boyut gözlemcisinde resize debounce yoktu. Shader hazırlığı, kare/Long Task watchdog'u, güvenli oyun döngüsü ve WebGL toparlanması zaten vardı; shader derleme süresi raporlanmıyordu.
+- **Yapılanlar:** Seçili iki silahın modelleri arena ve oyuncu modelleriyle birlikte maç başlamadan ortak GLTF önbelleğine yükleniyor; bütün silah kataloğu yüklenmiyor. Maç öncesi `useProgress` hazır olma durumunu izliyor. Shader derleme süresi ve başarı durumu cihazda kalan performans raporuna eklendi. Sesler sentezlendiği için dosya indirmesi yok; ses bağlamı maç başında başlatılıyor. Efekt havuzları ve GLB içindeki dokular kullanılmaya devam ediyor.
+- **Toparlanma:** Tekrarlanan 250 ms üzeri kareler ve Long Task'lar düşük kaliteye geçiriyor. Oyun döngüsündeki istisna maçı duraklatıyor; React error boundary sahneyi yeniden başlatabiliyor. WebGL bağlam kaybında oyun duraklatılıyor ve geri yüklemede Canvas yenilenirken dışarıdaki maç durumu korunuyor. Sekme/görünürlük kaybında girişler temizlenip performans saati sıfırlanıyor; dönüşte oyun duraklatılmış kalıyor. Simülasyon dt'si 50 ms ile sınırlı. Sahne kapanışında sahip olunan kaynaklar temizleniyor.
+- **Ekran boyutu:** R3F Canvas ölçüm/değişiklikleri 150 ms debounce kullanıyor. `orientationchange`, `resize` ve `visualViewport.resize` olaylarında dokunmatik girişler sıfırlanıyor; böylece eski joystick dokunuşları yeni yön boyutuna taşınmıyor.
+- **Benchmark — 13 Kasım 2026, 844×390, DPR 1, Taş Avlu/9 bot, SwiftShader:** 33 örnek / 57,908 sn; ortalama FPS/RAF 0,6; p50/p95/p99/maksimum 1.737,5 / 4.533,3 / 4.909,7 / 4.909,7 ms; 32 kare >50 ms ve >250 ms; 44 Long Task / 24.278 ms; shader derleme 2.506,2 ms ve başarılı; ortalama/tepe draw call 39,2/47; üçgen 1.679/2.184; geometri/doku 2.139/81. Tarayıcı çalışma zamanı hatası yok. Bu SwiftShader sonucu gerçek GPU performansını veya hızlanmayı doğrulamıyor.
+- **Testler:** Tam otomatik test paketi 718/718; yükleme, watchdog, arka plan dönüş saati ve kaynak temizliği odaklı hedef testleri 10/10; `npm run typecheck`, `npm run build`, `git diff --check` geçti. Benchmark 60 saniyeyi tamamladı ve yerel rapor üretti.
+- **Doğrulanamayanlar:** 10 gerçek maçlık bellek sızıntısı testi, kapı/bot doğma/boss fazı/silah değiştirme/doldurma olaylarının ayrı ayrı ≤50 ms kare hedefi, iPhone Safari/Android GPU ve gerçek cihaz ısınması bu ortamda doğrulanmadı. SwiftShader maksimum karesi hedefin çok üzerinde olduğundan olay bazlı hedefe ulaşıldığı iddia edilmiyor; gerçek cihaz/PC ölçümü 12.7’de açık kalacak. Hesap, kayıt veya ekonomi verisi kullanılmadı.
+- **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/WarRoomGame.tsx`, `src/shafak/game/war-room-performance.ts`, `src/shafak/game/war-room-performance.test.js`, `src/shafak/world/WarRoomModels.tsx`, `src/shafak/world/WarRoomScene3D.tsx`, `src/shafak/world/war-room-model-preload.test.js`.
 
 ### 12.5 — Kasmaya bağlı silah titremesi: **Bekliyor**
 

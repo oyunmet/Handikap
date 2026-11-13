@@ -20,6 +20,7 @@ import {
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
 import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
+import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../game/war-room-data";
 import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
 
 export const WAR_ROOM_MODEL_URLS = [
@@ -52,6 +53,21 @@ class WarRoomStaticGLTFLoader extends GLTFLoader {
 export function preloadWarRoomModels() {
   useLoader.preload(GLTFLoader, WAR_ROOM_MODEL_URLS[0], loadCharacter);
   WAR_ROOM_MODEL_URLS.slice(1).forEach((url) => useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter));
+}
+
+export function getWarRoomWeaponPreloadUrls(weaponIds: readonly WarRoomWeaponId[]) {
+  const urls = new Set<string>();
+  for (const id of weaponIds) {
+    const modelFile = WAR_ROOM_WEAPON_BY_ID.get(id)?.modelFile;
+    if (modelFile) urls.add(`/models/weapons/${modelFile}`);
+  }
+  return [...urls];
+}
+
+export function preloadWarRoomWeaponModels(weaponIds: readonly WarRoomWeaponId[]) {
+  getWarRoomWeaponPreloadUrls(weaponIds).forEach((url) => {
+    useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter);
+  });
 }
 
 type AssetBoundaryProps = {

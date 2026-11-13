@@ -17,6 +17,8 @@ export type WarRoomPerformanceCollector = {
   lastFrameAtMs: number | null;
   longTaskCount: number;
   longTaskTotalMs: number;
+  shaderWarmupMs: number | null;
+  shaderWarmupSucceeded: boolean | null;
   qualityEvents: Array<{ atMs: number; from: RenderQuality; to: RenderQuality }>;
   latest: {
     canvasWidth: number;
@@ -38,6 +40,7 @@ export type WarRoomPerformanceReport = {
   frameTimeMs: { p50: number; p95: number; p99: number; max: number };
   framesOver50Ms: number;
   framesOver250Ms: number;
+  warmup: { shaderCompileMs: number | null; shaderCompileSucceeded: boolean | null };
   longTasks: { supported: boolean; count: number; totalMs: number };
   render: {
     quality: RenderQuality;
@@ -131,6 +134,8 @@ export function createWarRoomPerformanceCollector(): WarRoomPerformanceCollector
     lastFrameAtMs: null,
     longTaskCount: 0,
     longTaskTotalMs: 0,
+    shaderWarmupMs: null,
+    shaderWarmupSucceeded: null,
     qualityEvents: [],
     latest: {
       canvasWidth: 0,
@@ -166,6 +171,8 @@ export function resetWarRoomPerformanceCollector(
   collector.lastFrameAtMs = null;
   collector.longTaskCount = 0;
   collector.longTaskTotalMs = 0;
+  collector.shaderWarmupMs = null;
+  collector.shaderWarmupSucceeded = null;
   collector.qualityEvents.length = 0;
 }
 
@@ -219,6 +226,16 @@ export function recordWarRoomLongTask(
   if (!Number.isFinite(durationMs) || durationMs < 0) return;
   collector.longTaskCount += 1;
   collector.longTaskTotalMs += durationMs;
+}
+
+export function recordWarRoomShaderWarmup(
+  collector: WarRoomPerformanceCollector,
+  durationMs: number,
+  succeeded: boolean,
+) {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return;
+  collector.shaderWarmupMs = Number(durationMs.toFixed(1));
+  collector.shaderWarmupSucceeded = succeeded;
 }
 
 export function observeWarRoomLongTasks(
@@ -302,6 +319,10 @@ export function buildWarRoomPerformanceReport(
     },
     framesOver50Ms: intervals.reduce((count, value) => count + Number(value > 50), 0),
     framesOver250Ms: intervals.reduce((count, value) => count + Number(value >= WAR_ROOM_FRAME_STALL_THRESHOLD_MS), 0),
+    warmup: {
+      shaderCompileMs: collector.shaderWarmupMs,
+      shaderCompileSucceeded: collector.shaderWarmupSucceeded,
+    },
     longTasks: {
       supported: hasLongTaskObserver,
       count: collector.longTaskCount,

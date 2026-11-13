@@ -3,7 +3,7 @@ import { getWarRoomFloorPresentation } from "./war-room-floor-indicator";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
 import WarRoomScene3D from "../world/WarRoomScene3D";
-import { preloadWarRoomModels } from "../world/WarRoomModels";
+import { preloadWarRoomModels, preloadWarRoomWeaponModels } from "../world/WarRoomModels";
 import {
   WAR_ROOM_WEAPONS,
   WAR_ROOM_WEAPON_BY_ID,
@@ -442,6 +442,9 @@ export default function WarRoomGame({
       ? [WAR_ROOM_WEAPONS[0].id, WAR_ROOM_WEAPONS[0].id]
       : getWarRoomLoadoutFromProfile(profile),
   );
+  useEffect(() => {
+    preloadWarRoomWeaponModels(loadout);
+  }, [loadout]);
   const [loadoutNotice, setLoadoutNotice] = useState("");
   const [weaponMountOverrides, setWeaponMountOverrides] = useState<Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>>({});
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
@@ -1546,19 +1549,23 @@ export default function WarRoomGame({
       }
       if (handled && event.cancelable) event.preventDefault();
     };
-    const onOrientationChange = () => resetTouchControls();
+    const onViewportChange = () => resetTouchControls();
 
     window.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
     window.addEventListener("touchend", onTouchEnd, { passive: false, capture: true });
     window.addEventListener("touchcancel", onTouchCancel, { passive: false, capture: true });
-    window.addEventListener("orientationchange", onOrientationChange, true);
+    window.addEventListener("orientationchange", onViewportChange, true);
+    window.addEventListener("resize", onViewportChange, { passive: true });
+    window.visualViewport?.addEventListener("resize", onViewportChange, { passive: true });
     return () => {
       window.removeEventListener("touchstart", onTouchStart, true);
       window.removeEventListener("touchmove", onTouchMove, true);
       window.removeEventListener("touchend", onTouchEnd, true);
       window.removeEventListener("touchcancel", onTouchCancel, true);
-      window.removeEventListener("orientationchange", onOrientationChange, true);
+      window.removeEventListener("orientationchange", onViewportChange, true);
+      window.removeEventListener("resize", onViewportChange);
+      window.visualViewport?.removeEventListener("resize", onViewportChange);
       resetTouchControls();
     };
   }, [leftHandedControls, phase, resetTouchControls]);

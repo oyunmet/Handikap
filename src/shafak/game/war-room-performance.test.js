@@ -8,6 +8,8 @@ import {
   recordWarRoomLongTask,
   recordWarRoomPerformanceFrame,
   recordWarRoomQualityDowngrade,
+  recordWarRoomShaderWarmup,
+  resetWarRoomPerformanceFrameClock,
   resetWarRoomFrameStallWatchdog,
   sampleWarRoomFrameStallWatchdog,
   shouldRunWarRoomBenchmark,
@@ -43,6 +45,7 @@ test("local performance report calculates frame percentiles and renderer totals"
   sample(collector, 1_110, 41, 1_750, 8);
   recordWarRoomLongTask(collector, 78.5);
   recordWarRoomQualityDowngrade(collector, 1_080, "high", "balanced");
+  recordWarRoomShaderWarmup(collector, 42.26, true);
 
   const report = buildWarRoomPerformanceReport(collector, new Date("2026-11-12T00:00:00.000Z"));
   assert.equal(report.sampleCount, 3);
@@ -63,6 +66,7 @@ test("local performance report calculates frame percentiles and renderer totals"
   assert.deepEqual(report.qualityDowngrades, [{ atMs: 1_080, from: "high", to: "balanced" }]);
   assert.equal(report.longTasks.count, 1);
   assert.equal(report.longTasks.totalMs, 78.5);
+  assert.deepEqual(report.warmup, { shaderCompileMs: 42.3, shaderCompileSucceeded: true });
   assert.equal(report.privacy, "local-only");
 });
 
@@ -79,6 +83,20 @@ test("frame-stall watchdog recovers once after repeated 250ms stalls and resets 
   assert.equal(sampleWarRoomFrameStallWatchdog(state, 300, 11_890), true);
   resetWarRoomFrameStallWatchdog(state);
   assert.equal(sampleWarRoomFrameStallWatchdog(state, 290, 12_180), false);
+});
+
+test("background suspension resets the frame clock without recording a long resume frame", () => {
+  const collector = createWarRoomPerformanceCollector();
+  sample(collector, 1_000, 38, 1_600);
+  sample(collector, 1_016, 39, 1_650);
+
+  resetWarRoomPerformanceFrameClock(collector);
+  sample(collector, 120_000, 40, 1_700);
+  sample(collector, 120_016, 41, 1_750);
+
+  const report = buildWarRoomPerformanceReport(collector);
+  assert.equal(report.framesOver250Ms, 0);
+  assert.equal(report.frameTimeMs.max, 16);
 });
 
 test("performance collector uses a bounded ring and skips invalid timestamps", () => {

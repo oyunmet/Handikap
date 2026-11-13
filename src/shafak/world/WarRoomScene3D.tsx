@@ -189,6 +189,7 @@ import {
 import {
   recordWarRoomPerformanceFrame,
   recordWarRoomQualityDowngrade,
+  recordWarRoomShaderWarmup,
   resetWarRoomPerformanceFrameClock,
   warRoomPerformanceCollector,
 } from "../game/war-room-performance";
@@ -2198,7 +2199,7 @@ function WarRoomRuntimeScene({
   onHudUpdate,
   onFinish,
   onRuntimeError,
-}: Props) {
+}: Omit<Props, "onWarmupComplete">) {
   const { camera, scene, gl, size } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
   const viewModelScene = useMemo(() => {
@@ -5252,10 +5253,16 @@ function WarRoomShaderWarmup({
     let cancelled = false;
     let finished = false;
     let timeout = 0;
+    const startedAt = performance.now();
     const finish = (succeeded: boolean) => {
       if (cancelled || finished) return;
       finished = true;
       window.clearTimeout(timeout);
+      recordWarRoomShaderWarmup(
+        warRoomPerformanceCollector,
+        performance.now() - startedAt,
+        succeeded,
+      );
       onComplete(succeeded);
     };
     timeout = window.setTimeout(() => finish(false), 10_000);
@@ -5398,6 +5405,7 @@ export default memo(function WarRoomScene3D(props: Props) {
       >
         <Canvas
           key={canvasGeneration}
+          resize={{ debounce: { resize: 150, scroll: 150 } }}
           dpr={canvasPixelRatio}
           frameloop="always"
           shadows={shadowsEnabled}
