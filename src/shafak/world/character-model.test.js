@@ -3,6 +3,7 @@ import test from "node:test";
 import * as THREE from "three";
 import {
   cloneCharacterResources,
+  disposeCharacterResources,
   fitCharacterModel,
   getCharacterBounds,
   getCharacterScreenCoverage,
@@ -32,6 +33,37 @@ test("character resource clones can share immutable GLTF textures", () => {
   assert.deepEqual(resources.textures, []);
   assert.equal(resources.materials.length, 1);
   assert.equal(resources.geometries.length, 1);
+});
+
+test("character cleanup disposes a shared skeleton bone texture once", () => {
+  const root = new THREE.Group();
+  const bone = new THREE.Bone();
+  root.add(bone);
+  const skeleton = new THREE.Skeleton([bone]);
+  skeleton.computeBoneTexture();
+  assert.ok(skeleton.boneTexture instanceof THREE.DataTexture);
+
+  let disposeCalls = 0;
+  const disposeSkeleton = skeleton.dispose.bind(skeleton);
+  skeleton.dispose = () => {
+    disposeCalls += 1;
+    disposeSkeleton();
+  };
+
+  for (let index = 0; index < 2; index += 1) {
+    const mesh = new THREE.SkinnedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial(),
+    );
+    mesh.bind(skeleton);
+    root.add(mesh);
+  }
+
+  const resources = cloneCharacterResources(root, { cloneTextures: false });
+  assert.equal(resources.skeletons.length, 1);
+  disposeCharacterResources(resources);
+
+  assert.equal(disposeCalls, 1);
 });
 
 test("character models fit the requested height with their lowest point on the floor", () => {

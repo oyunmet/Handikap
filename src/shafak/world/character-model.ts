@@ -13,6 +13,7 @@ export type CharacterOwnedResources = {
   geometries: THREE.BufferGeometry[];
   materials: THREE.Material[];
   textures: THREE.Texture[];
+  skeletons: THREE.Skeleton[];
 };
 
 function cloneTextureValue(
@@ -63,12 +64,22 @@ export function cloneCharacterResources(
   root: THREE.Object3D,
   { cloneTextures = true }: { cloneTextures?: boolean } = {},
 ): CharacterOwnedResources {
-  const resources: CharacterOwnedResources = { geometries: [], materials: [], textures: [] };
+  const resources: CharacterOwnedResources = {
+    geometries: [],
+    materials: [],
+    textures: [],
+    skeletons: [],
+  };
+  const ownedSkeletons = new Set<THREE.Skeleton>();
   const textureClones = new Map<THREE.Texture, THREE.Texture>();
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     object.geometry = object.geometry.clone();
     resources.geometries.push(object.geometry);
+    if (object instanceof THREE.SkinnedMesh && !ownedSkeletons.has(object.skeleton)) {
+      ownedSkeletons.add(object.skeleton);
+      resources.skeletons.push(object.skeleton);
+    }
     const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
     const materials = sourceMaterials.map((source) => {
       const clone = source.clone();
@@ -109,6 +120,7 @@ export function disposeCharacterResources(resources: CharacterOwnedResources) {
   resources.geometries.forEach((geometry) => geometry.dispose());
   resources.materials.forEach((material) => material.dispose());
   resources.textures.forEach((texture) => texture.dispose());
+  resources.skeletons.forEach((skeleton) => skeleton.dispose());
 }
 
 /** Shared GLTF loader setup for every player, rival, and boss model. */

@@ -219,7 +219,7 @@
 
 ## Adım 12 — Performans, dikey mod ve stabilite
 
-- **Durum:** 12.1–12.4 tamamlandı. 12.3’te kapı çarpışma tamponu ve 3B sahne memoization’ı doğrulandı; 12.4’te yükleme, donma ve toparlanma korumaları tamamlandı. SwiftShader benchmark’ı gerçek GPU sonucu değildir. Sıradaki alt adım 12.5; Adım 13’e ancak Adım 12 tamamlanınca geçilecek.
+- **Durum:** 12.1–12.7 otomatik kod ve önizleme doğrulaması tamamlandı; gerçek iPhone/Android/PC GPU performansı ve cihaz kabulü açık. Sıradaki alt adım 13.1.
 - **Sıra:** Aynı anda yalnızca bir alt adım. Her alt adım sonunda test, bu dosya güncellemesi ve yerel commit yapılacak. Kayıtlı ilerleme korunacak; gerçek hesap/para verisi kullanılmayacak; sırlar repoya yazılmayacak.
 - **Kullanıcı bildirimi:** Gerçek iPhone Safari’de dikey düzen oynanamaz, oyun takılıyor/donuyor, kasmaya bağlı silah titreşimi sürüyor, silah ekranın sağ üçte birini kaplıyor, boss çubuğu ortada yer kaplıyor ve kenarlar pikselli. Kullanıcı ayrıca masaüstü bilgisayarda oyunun düzgün oynanmadığını bildirdi.
 
@@ -317,14 +317,22 @@
 - **Değişen dosyalar:** `ILERLEME.md`, `pnpm-lock.yaml`, `scripts/war-room-layout-e2e.mjs`, `src/shafak/game/war-room-quality.ts`, `src/shafak/game/war-room-quality.test.js`.
 - **Yeniden doğrulama — 14 Kasım 2026:** Sonraki kontrol, çalışma ağacındaki Playwright kilit tanımının `package.json` ile hâlâ uyuşmadığını gösterdi (`^1.65.0` karşısında `^1.65.1`); dondurulmuş kurulum bu yüzden başarısızdı. `pnpm-lock.yaml` yalnızca `^1.65.1` tanımına hizalandı; `pnpm install --frozen-lockfile --ignore-scripts` geçti. Yeniden çalıştırmada `pnpm test` — 727/727, `pnpm run typecheck`, `pnpm run build` ve `pnpm run warroom:layout:e2e` geçti; yedi viewport'ta 14 ekran görüntüsünde taşma/çakışma yok.
 
-### 12.7 — Doğrulama: **Bekliyor**
+### 12.7 — Doğrulama: **Tamamlandı (otomatik doğrulama); gerçek cihaz kabulü açık**
 
-- Önce/sonra ölçümü, bütçe ve 10 maçlık sızıntı testi, benchmark, silah titreşimi enjeksiyonu, HUD çakışmaları, tür denetimi, üretim derlemesi ve bundle raporu.
-- Rapor kök nedenleri, yalnızca ölçülen iyileşmeleri ve doğrulanamayan gerçek cihaz FPS/ısınma/Safari belleği/Düşük Güç Modu durumlarını ayıracak. Telefon raporu paylaşımı kullanıcıya bırakılacak.
+- **Kök neden:** Her klonlanmış karakter iskeleti render sırasında bir GPU `Skeleton.boneTexture` oluşturuyordu. Karakter kaynaklarının kapatılması geometriyi, materyali ve klonlanmış dokuları temizliyor; iskeletin kemik dokusunu temizlemiyordu. İlk E2E ölçümünde her sahne yenilemesinde doku sayısı 7 arttı (32’den 81’e); geometri ve materyal sayıları sabit kaldı.
+- **Yapılanlar:** Karakter kaynak sahipliği artık benzersiz iskeletleri de izliyor ve kapanışta `Skeleton.dispose()` çağırıyor. Aynı iskeleti paylaşan iki mesh için yalnız bir kez kapatma yapıldığını doğrulayan regresyon testi eklendi; sızıntı testi eşiği gevşetilmedi.
+- **10 döngü kaynak testi:** Aynı WebGL renderer’ında üç ısınma yenilemesinden sonra taban 2.003 geometri / 18 doku / 3.180 materyaldi. Ardışık 10 test sahnesi yenilemesinin her birinde aynı sayaçlar korundu; yerel profil/ödül verisine yazılmadı.
+- **ÖNCE/SONRA benchmark yorumu:** Önceki SwiftShader koşusu 26 örnek ve 0,5 FPS; son koşu (14 Kasım 2026, 844×390, DPR 1) 25 örnek / 56.714 ms ve 0,4 FPS ölçtü. Son p50/p95/p99 2.238,2 / 5.476,9 / 6.594,9 ms; 24 kare 50 ms’yi, 24 kare 250 ms’yi aştı; 56 Long Task toplamı 30.097 ms. Sonuç hızlanma göstermiyor.
+- **Render bütçesi ve titreşim:** Son benchmark’ta ortalama/tepe draw call 39,3/47, üçgen 1.684/2.184 (hedeflerin altında); kalite Düşük, ölçek 0,6, shader hazırlığı başarılı. Viewmodel kare-süresi enjeksiyon testleri 5/5 geçti.
+- **HUD:** Son E2E kontrolünde menü, mağaza, envanter, hazırlık, HUD ve sonuç ekranları 9 boyutta (54 görüntü) taşma/çakışma olmadan geçti.
+- **Bundle raporu:** İlk statik grafik 309.297 B JS + 29.535 B CSS = 338.832 B (gzip toplamı 105.296 B). Savaş Odası giriş parçaları 297.974 B JS (gzip 89.442 B) + 128.099 B CSS (gzip 22.011 B). Savaş Odası’nın tüm statik import kapanışı ortak parçalarla 2.016.010 B JS + 198.119 B CSS (gzip toplamı 632.483 B); HTML, yazı tipi ve 3B varlıklar dahil değil.
+- **Doğrulama:** `pnpm test` — 728/728; `pnpm run typecheck`, `pnpm run build -- --manifest`, `pnpm run warroom:resource-leak:e2e` (10 yenileme) ve `pnpm run warroom:final:e2e` (54 görüntü) geçti.
+- **Doğrulanamayanlar:** Chromium `ANGLE / SwiftShader` yazılım renderer’ı gerçek GPU değildir; düşük FPS ölçümü gerçek PC/iPhone performansını kanıtlamaz. iPhone Safari ve Android’de FPS, ısınma, grafik belleği, Düşük Güç Modu ve uzun süreli oynanış ölçülmedi. Gerçek cihaz testi kullanıcıda kalıyor.
+- **Değişen dosyalar:** `src/shafak/world/character-model.ts`, `src/shafak/world/character-model.test.js`, `ILERLEME.md`.
 
 ## Adım 13 — Play Store altyapısı ve reklam
 
-- **Durum:** Bekliyor; Adım 12 tamamlanmadan başlanmayacak.
+- **Durum:** Bekliyor; Adım 12 doğrulandı, sıradaki alt adım 13.1.
 
 ### 13.1 — Reklam altyapısı: **Bekliyor**
 
