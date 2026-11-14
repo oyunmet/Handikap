@@ -315,6 +315,7 @@
 - **Testler:** `npm run warroom:layout:e2e` — tüm yedi boyut geçti; `pnpm test` — 725/725; `pnpm run typecheck`, `pnpm run build`, dondurulmuş pnpm kurulumu ve `git diff --check` geçti.
 - **Doğrulanamayanlar:** Gerçek iPhone Safari/Android GPU'sunda FPS, ısınma ve güvenli alan/dokunma kabulü yapılmadı; Vercel'de yeni commit henüz çalıştırılmadı. Canlı dağıtım ve cihaz ölçümleri 12.7'de/elle yapılacak.
 - **Değişen dosyalar:** `ILERLEME.md`, `pnpm-lock.yaml`, `scripts/war-room-layout-e2e.mjs`, `src/shafak/game/war-room-quality.ts`, `src/shafak/game/war-room-quality.test.js`.
+- **Yeniden doğrulama — 14 Kasım 2026:** Sonraki kontrol, çalışma ağacındaki Playwright kilit tanımının `package.json` ile hâlâ uyuşmadığını gösterdi (`^1.65.0` karşısında `^1.65.1`); dondurulmuş kurulum bu yüzden başarısızdı. `pnpm-lock.yaml` yalnızca `^1.65.1` tanımına hizalandı; `pnpm install --frozen-lockfile --ignore-scripts` geçti. Yeniden çalıştırmada `pnpm test` — 727/727, `pnpm run typecheck`, `pnpm run build` ve `pnpm run warroom:layout:e2e` geçti; yedi viewport'ta 14 ekran görüntüsünde taşma/çakışma yok.
 
 ### 12.7 — Doğrulama: **Bekliyor**
 

@@ -133,7 +133,7 @@ importers:
         version: 3.13.0(react@19.3.0)
     devDependencies:
       playwright:
-        specifier: ^1.65.0
+        specifier: ^1.65.1
         version: 1.65.1
 
 packages:
