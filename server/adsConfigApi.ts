@@ -19,17 +19,24 @@ function isValidAdsenseClientId(value: string | undefined): value is string {
   return Boolean(value && /^ca-pub-\d+$/.test(value.trim()));
 }
 
+function hasConsentPlatform(environment: AdsEnvironment) {
+  return isEnabled(environment.ADS_CONSENT_CMP_READY);
+}
+
 export function getPublicAdsConfig(
   environment: AdsEnvironment = process.env,
 ): PublicAdsConfig {
-  if (!isEnabled(environment.ADS_ENABLED)) {
+  if (!isEnabled(environment.ADS_ENABLED) || !hasConsentPlatform(environment)) {
     return { ads_enabled: false, provider: "none", consent_required: true };
   }
 
   const configuredProvider = environment.ADS_PROVIDER?.trim().toLowerCase();
   if (configuredProvider === "h5games") {
     const clientId = environment.ADSENSE_CLIENT_ID?.trim();
-    if (!isValidAdsenseClientId(clientId)) {
+    if (
+      !isValidAdsenseClientId(clientId) ||
+      !isEnabled(environment.ADS_REWARD_VERIFICATION_READY)
+    ) {
       return { ads_enabled: false, provider: "none", consent_required: true };
     }
     return {
@@ -40,12 +47,10 @@ export function getPublicAdsConfig(
     };
   }
 
-  if (configuredProvider === "admob-native") {
-    return {
-      ads_enabled: true,
-      provider: "admob-native",
-      consent_required: true,
-    };
+  if (configuredProvider === "admob" || configuredProvider === "admob-native") {
+    // Keep the native bridge dormant until an AdMob SDK, UMP and server-side
+    // reward verification are actually installed in a native wrapper.
+    return { ads_enabled: false, provider: "none", consent_required: true };
   }
 
   return { ads_enabled: false, provider: "none", consent_required: true };

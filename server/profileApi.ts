@@ -1,7 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
+import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { requireAuthenticatedUserId } from "./auth.ts";
+import { getPublicAdsConfig } from "./adsConfigApi.ts";
 import { MAX_UPGRADE_LEVEL, type EquipmentLoadout, type PlayerInventory } from "../src/shafak/game/store-types.ts";
 import {
   DEFAULT_COMBAT_ITEM_COUNTS,
@@ -61,6 +63,7 @@ const ACCOUNT_DATA_TABLES = [
   "shafak_duels",
   "shafak_pickup_claims",
   "shafak_store_transactions",
+  "shafak_ad_reward_challenges",
   "shafak_player_profiles",
 ] as const;
 
@@ -514,6 +517,12 @@ export function createProfileApi(database: Pool, options: ProfileApiOptions = {}
     standardHeaders: true,
     legacyHeaders: false,
   });
+  const adRewardChallengeLimit = rateLimit({
+    windowMs: 5 * 60_000,
+    limit: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
   function authenticatedUserId(request: Request, response: Response): string | null {
     return requireAuthenticatedUserId(request, response);
@@ -756,32 +765,105 @@ export function createProfileApi(database: Pool, options: ProfileApiOptions = {}
     }
   });
 
+  router.post("/api/ads/reward-challenge", adRewardChallengeLimit, async (request, response) => {
+    const userId = authenticatedUserId(request, response);
+    if (!userId) return;
+    response.setHeader("Cache-Control", "no-store");
+    if (!getPublicAdsConfig().ads_enabled) {
+      response.status(503).json({ error: "ads_disabled" });
+      return;
+    }
+    if (request.body?.placement !== "daily-ad-duel") {
+      response.status(400).json({ error: "invalid_ad_placement" });
+      return;
+    }
+
+    try {
+      const current = await database.query<{ profile: unknown }>(
+        "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
+        [userId],
+      );
+      const profile = validatePlayerProfile(current.rows[0]?.profile, userId);
+      if (!profile) {
+        response.status(404).json({ error: "profile_not_found" });
+        return;
+      }
+      const daily = normalizeDailyLifeState(profile);
+      if (daily.dailyLosses < DAILY_DEFEAT_LIMIT || daily.dailyAdRewardUsed) {
+        response.status(409).json({ error: "daily_ad_reward_unavailable" });
+        return;
+      }
+      const nonce = randomUUID();
+      await database.query(
+        `INSERT INTO shafak_ad_reward_challenges (user_id, nonce, placement)
+         VALUES ($1, $2::uuid, 'daily-ad-duel')`,
+        [userId, nonce],
+      );
+      response.status(201).json({ nonce, expiresInSeconds: 900, minimumWatchSeconds: 30 });
+    } catch {
+      response.status(503).json({ error: "ad_reward_storage_unavailable" });
+    }
+  });
+
   router.post("/api/profile/daily-ad-reward", profileLimit, async (request, response) => {
     const userId = authenticatedUserId(request, response);
     if (!userId) return;
     response.setHeader("Cache-Control", "no-store");
 
+    const nonce = request.body?.nonce;
+    if (typeof nonce !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(nonce)) {
+      response.status(400).json({ error: "ad_reward_challenge_required" });
+      return;
+    }
+
+    let client: Awaited<ReturnType<Pool["connect"]>> | undefined;
     try {
-      const currentResult = await database.query<{ profile: unknown }>(
+      if (!getPublicAdsConfig().ads_enabled) {
+        response.status(503).json({ error: "ads_disabled" });
+        return;
+      }
+      client = await database.connect();
+      await client.query("BEGIN");
+      const challenge = await client.query(
+        `UPDATE shafak_ad_reward_challenges
+         SET claimed_at = NOW()
+         WHERE user_id = $1
+           AND nonce = $2::uuid
+           AND placement = 'daily-ad-duel'
+           AND claimed_at IS NULL
+           AND created_at <= NOW() - INTERVAL '30 seconds'
+           AND created_at >= NOW() - INTERVAL '15 minutes'
+         RETURNING nonce`,
+        [userId, nonce],
+      );
+      if (!challenge.rows[0]) {
+        await client.query("ROLLBACK");
+        response.status(409).json({ error: "ad_reward_challenge_invalid" });
+        return;
+      }
+
+      const currentResult = await client.query<{ profile: unknown }>(
         "SELECT profile FROM shafak_player_profiles WHERE user_id = $1",
         [userId],
       );
       const rawProfile = currentResult.rows[0]?.profile;
       const profile = validatePlayerProfile(rawProfile, userId);
       if (!profile) {
+        await client.query("ROLLBACK");
         response.status(404).json({ error: "profile_not_found" });
         return;
       }
       const daily = normalizeDailyLifeState(profile);
       const rewarded = grantDailyAdDuel(daily);
       if (!rewarded) {
+        await client.query("ROLLBACK");
         response.status(409).json({
           error: daily.dailyLosses < DAILY_DEFEAT_LIMIT ? "daily_lives_remaining" : "daily_ad_reward_used",
         });
         return;
       }
       const nextProfile = { ...profile, ...rewarded };
-      const updated = await database.query<{ profile: unknown }>(
+      const updated = await client.query<{ profile: unknown }>(
         `UPDATE shafak_player_profiles
          SET profile = $3::jsonb, updated_at = NOW()
          WHERE user_id = $1 AND profile = $2::jsonb
@@ -789,17 +871,29 @@ export function createProfileApi(database: Pool, options: ProfileApiOptions = {}
         [userId, JSON.stringify(rawProfile), JSON.stringify(nextProfile)],
       );
       if (!updated.rows[0]) {
+        await client.query("ROLLBACK");
         response.status(409).json({ error: "daily_ad_reward_raced" });
         return;
       }
       const savedProfile = validatePlayerProfile(updated.rows[0].profile, userId);
       if (!savedProfile) {
+        await client.query("ROLLBACK");
         response.status(503).json({ error: "profile_storage_invalid" });
         return;
       }
+      await client.query("COMMIT");
       response.json({ profile: savedProfile });
     } catch {
+      if (client) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // Preserve the API error response.
+        }
+      }
       response.status(503).json({ error: "profile_storage_unavailable" });
+    } finally {
+      client?.release();
     }
   });
 

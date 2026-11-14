@@ -1,0 +1,3 @@
+# Replace this template with the authorized seller line from the active ad provider.
+# Do not claim a seller relationship before the publisher account is verified.
+google.com, pub-REPLACE_WITH_ADSENSE_PUBLISHER_ID, DIRECT, f08c47fec0942fa0

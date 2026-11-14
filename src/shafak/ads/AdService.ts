@@ -46,6 +46,8 @@ export interface AdService {
   init(): Promise<boolean>;
   getConsent(): AdsConsent;
   setConsent(consent: AdsConsent): void;
+  getPersonalizedAdsConsent(): boolean;
+  setPersonalizedAdsConsent(consent: boolean): void;
   showRewarded(placement: string): Promise<boolean>;
   showInterstitial(placement: string): Promise<boolean>;
   isReady(): boolean;
@@ -72,6 +74,7 @@ export interface H5GamesProvider {
 }
 
 export interface AdServiceOptions {
+  buildProvider?: "none" | "h5games" | "admob-native";
   fetchConfig?: () => Promise<AdsRuntimeConfig>;
   storage?: ConsentStorage | null;
   loadH5GamesApi?: (clientId: string) => Promise<AdPlacementApi | null>;
@@ -80,6 +83,14 @@ export interface AdServiceOptions {
 }
 
 const CONSENT_STORAGE_KEY = "safak-ads-consent-v1";
+const PERSONALIZED_ADS_STORAGE_KEY = "safak-personalized-ads-consent-v1";
+
+function getBuildProvider(): "none" | "h5games" | "admob-native" {
+  const configured = import.meta.env?.VITE_ADS_PROVIDER?.trim().toLowerCase();
+  if (configured === "h5games") return "h5games";
+  if (configured === "admob" || configured === "admob-native") return "admob-native";
+  return "none";
+}
 
 function getBrowserStorage(): ConsentStorage | null {
   if (typeof window === "undefined") return null;
@@ -105,6 +116,7 @@ async function fetchPublicAdsConfig(): Promise<AdsRuntimeConfig> {
 
 export function createAdService(options: AdServiceOptions = {}): AdService {
   const storage = options.storage === undefined ? getBrowserStorage() : options.storage;
+  const buildProvider = options.buildProvider ?? getBuildProvider();
   let consent: AdsConsent = "unknown";
   try {
     consent = parseConsent(storage?.getItem(CONSENT_STORAGE_KEY));
@@ -129,6 +141,7 @@ export function createAdService(options: AdServiceOptions = {}): AdService {
   };
 
   const initialize = async (): Promise<boolean> => {
+    if (buildProvider === "none" || buildProvider === "admob-native") return false;
     if (consent !== "granted") {
       provider = null;
       providerConfigKey = null;
@@ -150,7 +163,7 @@ export function createAdService(options: AdServiceOptions = {}): AdService {
       if (
         !config.ads_enabled ||
         config.consent_required !== true ||
-        config.provider !== "h5games" ||
+        config.provider !== buildProvider ||
         !config.adsense_client_id ||
         !/^ca-pub-\d+$/.test(config.adsense_client_id)
       ) {
@@ -216,6 +229,20 @@ export function createAdService(options: AdServiceOptions = {}): AdService {
         providerConfigKey = null;
       }
     },
+    getPersonalizedAdsConsent() {
+      try {
+        return storage?.getItem(PERSONALIZED_ADS_STORAGE_KEY) === "granted";
+      } catch {
+        return false;
+      }
+    },
+    setPersonalizedAdsConsent(nextConsent) {
+      try {
+        storage?.setItem(PERSONALIZED_ADS_STORAGE_KEY, nextConsent ? "granted" : "denied");
+      } catch {
+        // The preference remains in memory only when browser storage is unavailable.
+      }
+    },
     showRewarded: (placement) => runPlacement(placement, "rewarded"),
     showInterstitial: (placement) => runPlacement(placement, "interstitial"),
     isReady: () => consent === "granted" && (provider?.isReady() ?? false),
@@ -227,4 +254,13 @@ export function createAdService(options: AdServiceOptions = {}): AdService {
     },
   };
 }
+
+export const adService = createAdService({
+  onBeforeAd: () => {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("shafak:ad-start"));
+  },
+  onAfterAd: () => {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("shafak:ad-end"));
+  },
+});
 

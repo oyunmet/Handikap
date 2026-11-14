@@ -1,0 +1,60 @@
+.age-gate {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #f8ead0;
+  background: radial-gradient(ellipse at 50% 15%, #3d2a20, #101117 62%);
+}
+
+.age-gate__card {
+  width: min(100%, 440px);
+  padding: clamp(24px, 6vw, 38px);
+  border: 1px solid #a98451;
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgb(35 28 26 / 96%), rgb(17 19 26 / 98%));
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+}
+
+.age-gate__eyebrow {
+  color: #dfbd7c;
+  font-size: 11px;
+  letter-spacing: .18em;
+}
+
+.age-gate__card h1 {
+  margin: 14px 0 8px;
+  font-size: clamp(25px, 7vw, 34px);
+}
+
+.age-gate__card p {
+  color: #d4c4a8;
+  line-height: 1.6;
+}
+
+.age-gate__actions {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 16px;
+}
+
+.age-gate__actions button {
+  min-height: 48px;
+  border: 1px solid #a98451;
+  border-radius: 10px;
+  color: inherit;
+  background: #48331f;
+  font: inherit;
+  font-weight: 700;
+}
+
+.age-gate__actions button + button {
+  border-color: #514843;
+  background: #202127;
+}
+
+.age-gate__card a {
+  color: #e7c887;
+}

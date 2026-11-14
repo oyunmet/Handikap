@@ -30,6 +30,13 @@ class StartupErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("[shafak-startup] The application could not render.", error, info.componentStack);
+    fetch("/api/diagnostics/crash", {
+      method: "POST",
+      credentials: "same-origin",
+      keepalive: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "startup-render" }),
+    }).catch(() => undefined);
     this.setState({ diagnosticComponentStack: info.componentStack ?? "" });
 
     if (!wasStartupErrorDiagnosticRequested(

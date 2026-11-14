@@ -7,7 +7,6 @@ let apiHandlerPromise: Promise<ApiHandler> | undefined;
 async function createApiHandler(): Promise<ApiHandler> {
   const [
     expressModule,
-    corsModule,
     databaseModule,
     clerkModule,
     authModule,
@@ -18,9 +17,9 @@ async function createApiHandler(): Promise<ApiHandler> {
     worldRewardsApiModule,
     debugToolsApiModule,
     adsConfigApiModule,
+    diagnosticsApiModule,
   ] = await Promise.all([
     import("express"),
-    import("cors"),
     import("../db/postgres.ts"),
     import("@clerk/express"),
     import("../server/auth.ts"),
@@ -31,10 +30,10 @@ async function createApiHandler(): Promise<ApiHandler> {
     import("../server/worldRewardsApi.ts"),
     import("../server/debugToolsApi.ts"),
     import("../server/adsConfigApi.ts"),
+    import("../server/diagnosticsApi.ts"),
   ]);
 
   const express = expressModule.default;
-  const cors = corsModule.default;
   const app = express();
   const databaseConnection = databaseModule.createDatabaseConnection(
     process.env.DATABASE_URL,
@@ -45,7 +44,15 @@ async function createApiHandler(): Promise<ApiHandler> {
     process.env.CLERK_SECRET_KEY?.trim() &&
     process.env.CLERK_PUBLISHABLE_KEY?.trim(),
   );
-  app.use(cors({ credentials: true, origin: true }));
+  app.use((_request, response, next) => {
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+      response.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    }
+    next();
+  });
   app.use(debugToolsApiModule.createDebugToolsApi());
   app.use(adsConfigApiModule.createAdsConfigApi());
 
@@ -90,6 +97,7 @@ async function createApiHandler(): Promise<ApiHandler> {
     }));
   }
   app.use(express.json({ limit: "16kb" }));
+  app.use(diagnosticsApiModule.createDiagnosticsApi());
 
   if (clerkConfigured && database) {
     app.use(profileApiModule.createProfileApi(database));

@@ -50,7 +50,7 @@ export function PrivacyPage() {
         <div className="legal-page__content">
           <span className="legal-page__eyebrow">ŞAFAK SAVAŞÇILARI</span>
           <h1>Gizlilik bildirimi</h1>
-          <p className="legal-page__updated">Son güncelleme: 9 Kasım 2026</p>
+          <p className="legal-page__updated">Son güncelleme: 14 Kasım 2026</p>
           <p>
             Bu bildirim, Şafak Savaşçıları web ve Android sürümlerinde hangi
             bilgilerin kullanıldığını ve hesabını nasıl silebileceğini açıklar.
@@ -103,6 +103,67 @@ export function PrivacyPage() {
             Gizlilik veya veri silme konusunda{" "}
             <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> adresinden
             bize ulaşabilirsin.
+          </p>
+
+          <h2>Reklam ve onay tercihleri</h2>
+          <p>
+            Bu sürümde reklamlar ve üçüncü taraf reklam istekleri varsayılan
+            olarak kapalıdır; onay platformu ve sunucu tarafı ödül doğrulaması
+            hazır olmadığı sürece reklam sağlayıcısına bağlantı kurulmaz.
+            Uygulama ayarlarında reklam ve kişiselleştirme tercihlerini ayrı ayrı
+            değiştirebilirsin. Reklam özelliği ileride açılırsa sağlayıcı,
+            açıkça verdiğin tercihe göre reklam isteği ve gerekli reklam
+            tanımlayıcılarını işleyebilir. Bu sürüm üçüncü taraf analiz hizmeti
+            kullanmaz. İlk taraf tanılama yalnızca sınırlı bir hata kategorisini
+            alır; hata mesajı, stack trace, URL veya hesap kimliği gönderilmez.
+          </p>
+
+          <h2>KVKK ve GDPR hakları</h2>
+          <p>
+            Uygulanabildiği ölçüde kişisel verilerine erişme, düzeltme, silme,
+            işlemeyi kısıtlama veya işlemeye itiraz etme, verdiğin izni geri
+            çekme ve verilerini taşınabilir biçimde isteme hakların için{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> adresine
+            yazabilirsin. Hesap silme isteğini ayrıca{" "}
+            <a href={DELETE_ACCOUNT_PATH}>hesap silme sayfasından</a> başlatabilirsin.
+          </p>
+
+          <h2>English</h2>
+          <p>
+            This notice covers the Şafak Savaşçıları web and Android game.
+            Account authentication is provided by Clerk; game progress and
+            rewards are stored in PostgreSQL and hosted through Vercel. The game
+            may store local settings and a minimal age-gate decision in this
+            browser. Authentication providers may use the cookies needed to keep
+            a signed-in session.
+          </p>
+          <p>
+            Account data includes a display name, campaign progress, levels,
+            inventory, equipment, currencies, duel results, rewards and claimed
+            items. It is used to authenticate players, sync progress, deliver
+            game features and protect the service. Account data is retained
+            until you delete your account. Provider backups may persist for
+            their standard backup-retention period. Offline progress is not
+            promised.
+          </p>
+          <p>
+            Ads and third-party ad requests are disabled by default in this
+            release. No ad provider is contacted unless an appropriate consent
+            platform and server-side reward verification are configured and
+            you opt in. Ad and personalized-ad preferences are separate and
+            can be changed in the game settings. This release does not use
+            third-party analytics. First-party diagnostics collect only a
+            limited error category; they do not send error messages, stack
+            traces, URLs or account IDs.
+          </p>
+          <p>
+            You may request access, correction, deletion, restriction, objection,
+            withdrawal of consent, or data portability where applicable under
+            GDPR and Turkish data-protection law. Use the{" "}
+            <a href={DELETE_ACCOUNT_PATH}>account deletion page</a> or contact{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Account
+            deletion removes the server-side game records and local profile
+            copies; provider backups may remain until their normal expiry.
           </p>
         </div>
         <LegalFooter />

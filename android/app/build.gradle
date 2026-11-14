@@ -2,6 +2,10 @@ plugins {
     id "com.android.application"
 }
 
+def appPackage = new groovy.json.JsonSlurper().parse(file("../../package.json"))
+def androidVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
+def releaseKeyPath = System.getenv("ANDROID_KEYSTORE_PATH")
+
 android {
     namespace "com.safaksavascilari.game"
     compileSdk 36
@@ -10,12 +14,26 @@ android {
         applicationId "com.safaksavascilari.game"
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName "1.0.0"
+        versionCode androidVersionCode
+        versionName appPackage.version
+    }
+
+    signingConfigs {
+        release {
+            if (releaseKeyPath) {
+                storeFile file(releaseKeyPath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (releaseKeyPath) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
         }
     }

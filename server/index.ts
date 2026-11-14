@@ -1,4 +1,3 @@
-import cors from "cors";
 import { clerkMiddleware } from "@clerk/express";
 import express from "express";
 import { createServer } from "node:http";
@@ -15,6 +14,7 @@ import { createStoreApi } from "./storeApi";
 import { createWorldRewardsApi } from "./worldRewardsApi";
 import { createDebugToolsApi } from "./debugToolsApi";
 import { createAdsConfigApi } from "./adsConfigApi";
+import { createDiagnosticsApi } from "./diagnosticsApi";
 import { STORE_CATALOG } from "./storeCatalog";
 
 const port = Number(process.env.GAME_SERVER_PORT ?? "3001");
@@ -31,7 +31,15 @@ const clerkConfigured = Boolean(
   process.env.CLERK_PUBLISHABLE_KEY?.trim(),
 );
 
-app.use(cors({ credentials: true, origin: true }));
+app.use((_request, response, next) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    response.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  }
+  next();
+});
 app.use(createDebugToolsApi());
 app.use(createAdsConfigApi());
 
@@ -82,6 +90,7 @@ if (clerkConfigured) {
 }
 
 app.use(express.json({ limit: "256kb" }));
+app.use(createDiagnosticsApi());
 
 if (clerkConfigured && database) {
   app.use(createProfileApi(database));

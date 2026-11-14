@@ -20,11 +20,15 @@ test("ads stay disabled and provider-free unless the server enables them", () =>
 test("H5 Games requires an enabled server flag and a valid publisher ID", () => {
   const enabled = getPublicAdsConfig({
     ADS_ENABLED: "true",
+    ADS_CONSENT_CMP_READY: "true",
+    ADS_REWARD_VERIFICATION_READY: "true",
     ADS_PROVIDER: "h5games",
     ADSENSE_CLIENT_ID: "ca-pub-123456789",
   });
   const missingClientId = getPublicAdsConfig({
     ADS_ENABLED: "1",
+    ADS_CONSENT_CMP_READY: "true",
+    ADS_REWARD_VERIFICATION_READY: "true",
     ADS_PROVIDER: "h5games",
     ADSENSE_CLIENT_ID: "not-a-publisher-id",
   });
@@ -42,7 +46,7 @@ test("H5 Games requires an enabled server flag and a valid publisher ID", () => 
   });
 });
 
-test("AdMob native remains a passive provider without sending native IDs to the browser", () => {
+test("AdMob remains disabled until a native SDK and signed reward verifier exist", () => {
   assert.deepEqual(
     getPublicAdsConfig({
       ADS_ENABLED: "1",
@@ -50,8 +54,8 @@ test("AdMob native remains a passive provider without sending native IDs to the 
       ADMOB_APP_ID: "ca-app-pub-example",
     }),
     {
-      ads_enabled: true,
-      provider: "admob-native",
+      ads_enabled: false,
+      provider: "none",
       consent_required: true,
     },
   );
@@ -62,6 +66,8 @@ test("ads config is public, uncached, and contains only the configured provider 
   app.use(
     createAdsConfigApi({
       ADS_ENABLED: "1",
+    ADS_CONSENT_CMP_READY: "1",
+    ADS_REWARD_VERIFICATION_READY: "1",
       ADS_PROVIDER: "h5games",
       ADSENSE_CLIENT_ID: "ca-pub-123456789",
       ADMOB_APP_ID: "must-not-be-returned",

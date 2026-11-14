@@ -57,6 +57,7 @@ import {
   type CampaignActData,
 } from "./world/campaign-level-data";
 import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
+import { adService } from "./ads/AdService";
 import {
   AUTO_QUALITY_DOWN_FPS,
   AUTO_QUALITY_INITIAL_SAMPLE_MS,
@@ -450,6 +451,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adsConsent, setAdsConsent] = useState(() => adService.getConsent());
+  const [personalizedAdsConsent, setPersonalizedAdsConsent] = useState(() => adService.getPersonalizedAdsConsent());
+  const [adsReady, setAdsReady] = useState(false);
   const [warRoomAimAssistEnabled, setWarRoomAimAssistEnabled] = useState(readWarRoomAimAssistEnabled);
   const [warRoomLookSensitivity, setWarRoomLookSensitivityValue] = useState(readWarRoomLookSensitivitySettings);
   const [warRoomWeaponSway, setWarRoomWeaponSway] = useState(readWarRoomWeaponSway);
@@ -463,6 +467,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [profileOpen, setProfileOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const sceneRef = useRef<HTMLDivElement>(null);
+  const backUiStateRef = useRef({ settingsOpen, profileOpen, warRoomControlsEditorOpen });
+  backUiStateRef.current = { settingsOpen, profileOpen, warRoomControlsEditorOpen };
   const systemReducedMotion = useReducedMotion();
   const motionReduced = preferences.reduceMotion || Boolean(systemReducedMotion);
   const homeAtmosphere = screen === "opening" || screen === "loading" || screen === "menu";
@@ -480,6 +486,22 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   useEffect(() => {
     automaticQualityRef.current = automaticQuality;
   }, [automaticQuality]);
+
+  useEffect(() => {
+    if (!settingsOpen || adsConsent !== "granted") return;
+    void adService.init().then(setAdsReady);
+  }, [adsConsent, settingsOpen]);
+
+  useEffect(() => {
+    const pauseAudio = () => setSoundEnabled(false);
+    const resumeAudio = () => setSoundEnabled(preferences.sound);
+    window.addEventListener("shafak:ad-start", pauseAudio);
+    window.addEventListener("shafak:ad-end", resumeAudio);
+    return () => {
+      window.removeEventListener("shafak:ad-start", pauseAudio);
+      window.removeEventListener("shafak:ad-end", resumeAudio);
+    };
+  }, [preferences.sound]);
 
   useEffect(() => {
     try {
@@ -808,6 +830,88 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setInitialWorldStoreTab(null);
     setScreen(warRoomReturnScreen);
   };
+
+  useEffect(() => {
+    if (screen !== "world" && screen !== "war-room") return;
+    const guardState = { shafakGameBackGuard: true };
+    window.history.pushState(guardState, "", window.location.href);
+    const handleAndroidBack = () => {
+      const openUi = backUiStateRef.current;
+      if (openUi.warRoomControlsEditorOpen) {
+        setWarRoomControlsEditorOpen(false);
+        window.history.pushState(guardState, "", window.location.href);
+        return;
+      }
+      if (openUi.settingsOpen) {
+        setSettingsOpen(false);
+        window.history.pushState(guardState, "", window.location.href);
+        return;
+      }
+      if (openUi.profileOpen) {
+        setProfileOpen(false);
+        window.history.pushState(guardState, "", window.location.href);
+        return;
+      }
+      if (screen === "war-room") {
+        exitWarRoom();
+        return;
+      }
+      setInitialWorldStoreTab(null);
+      setScreen("menu");
+    };
+    window.addEventListener("popstate", handleAndroidBack);
+    return () => window.removeEventListener("popstate", handleAndroidBack);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen !== "world" && screen !== "war-room") return;
+    type WakeLockHandle = { release: () => Promise<void> };
+    type WakeLockNavigator = Navigator & {
+      wakeLock?: { request: (type: "screen") => Promise<WakeLockHandle> };
+    };
+    const wakeLock = (navigator as WakeLockNavigator).wakeLock;
+    if (!wakeLock) return;
+    let disposed = false;
+    let activeLock: WakeLockHandle | null = null;
+    const requestLock = async () => {
+      if (disposed || document.visibilityState !== "visible" || activeLock) return;
+      try {
+        activeLock = await wakeLock.request("screen");
+      } catch {
+        // Wake lock is optional and may be denied by the browser or battery saver.
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void requestLock();
+        return;
+      }
+      const previousLock = activeLock;
+      activeLock = null;
+      if (previousLock) void previousLock.release().catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    void requestLock();
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (activeLock) void activeLock.release().catch(() => undefined);
+    };
+  }, [screen]);
+
+  useEffect(() => {
+    const handleAppVisibility = () => {
+      const visible = document.visibilityState === "visible";
+      setSoundEnabled(visible && preferences.sound);
+      if (visible && (screen === "world" || screen === "war-room")) primeGameAudio();
+    };
+    document.addEventListener("visibilitychange", handleAppVisibility);
+    window.addEventListener("pageshow", handleAppVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleAppVisibility);
+      window.removeEventListener("pageshow", handleAppVisibility);
+    };
+  }, [preferences.sound, screen]);
 
   const awardWarRoomReward = useCallback(async (request: WarRoomProfileRewardRequest) => {
     if (!user?.id) {
@@ -1339,6 +1443,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <WorldScene
                 apiRequest={authApiRequestWithRetry}
                 userId={user?.id}
+                adsReady={adsReady}
                 quality={activeQuality}
                 combatDifficulty={preferences.combatDifficulty}
                 visualEffectsEnabled={preferences.visualEffects}
@@ -1493,6 +1598,30 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   description={tr.soundDescription}
                   checked={preferences.sound}
                   onChange={() => togglePreference("sound")}
+                />
+                <SettingToggle
+                  label="Reklamları etkinleştir"
+                  description="Varsayılan olarak kapalıdır. Rıza sistemi ve reklam sağlayıcısı sunucuda etkin değilse hiçbir reklam isteği gönderilmez."
+                  checked={adsConsent === "granted"}
+                  onChange={() => {
+                    const nextConsent = adsConsent === "granted" ? "denied" : "granted";
+                    adService.setConsent(nextConsent);
+                    setAdsConsent(nextConsent);
+                    setAdsReady(false);
+                    if (nextConsent === "granted") {
+                      void adService.init().then(setAdsReady);
+                    }
+                  }}
+                />
+                <SettingToggle
+                  label="Kişiselleştirilmiş reklamları kabul et"
+                  description="Ayrı ve isteğe bağlı tercihtir. Onay platformu kurulmadıkça kişiselleştirme ve reklamlar kapalı kalır."
+                  checked={personalizedAdsConsent}
+                  onChange={() => {
+                    const nextConsent = !personalizedAdsConsent;
+                    adService.setPersonalizedAdsConsent(nextConsent);
+                    setPersonalizedAdsConsent(nextConsent);
+                  }}
                 />
                 <VolumeSetting
                   id="sound-effects-volume"

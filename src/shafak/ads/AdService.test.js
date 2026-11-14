@@ -70,6 +70,7 @@ test("server kill switch is rechecked before each ad placement", async () => {
   let enabled = true;
   let placements = 0;
   const service = createAdService({
+    buildProvider: "h5games",
     storage: createStorage(),
     fetchConfig: async () => ({
       ads_enabled: enabled,
@@ -121,6 +122,7 @@ test("H5 Games initializes only after consent and emits close results", async ()
   let configOptions;
   const placements = [];
   const service = createAdService({
+    buildProvider: "h5games",
     storage: createStorage(),
     fetchConfig: async () => {
       configRequests += 1;

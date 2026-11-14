@@ -144,7 +144,6 @@ import {
   grantDailyAdDuel,
   normalizeDailyLifeState,
 } from "../game/daily-lives.ts";
-import { requestGoogleRewardedAd, getConfiguredRewardedAdUnit } from "../game/google-rewarded-ads.ts";
 import worldText from "./strings";
 import useTravelAudio from "./useTravelAudio";
 import useWorldInput from "./useWorldInput";
@@ -170,6 +169,7 @@ import {
   WorldInteractableRegistry,
 } from "./world-interactables";
 import { createLatestAsyncSaveQueue } from "./latest-async-save-queue.ts";
+import { adService } from "../ads/AdService";
 
 const World3D = lazy(() => import("./World3DRouter"));
 import "./world-scene.css";
@@ -179,6 +179,7 @@ import "../game/world-duel-responsive.css";
 type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequestWithRetry;
   userId?: string;
+  adsReady: boolean;
   quality: "high" | "balanced" | "low";
   combatDifficulty: CombatDifficulty;
   visualEffectsEnabled: boolean;
@@ -551,6 +552,7 @@ function WorldVolumeSlider({
 export default function WorldScene({
   apiRequest,
   userId,
+  adsReady,
   quality,
   combatDifficulty,
   visualEffectsEnabled,
@@ -587,13 +589,23 @@ export default function WorldScene({
   const [dailyClockTick, setDailyClockTick] = useState(() => Date.now());
   const [dailyAdBusy, setDailyAdBusy] = useState(false);
   const [dailyAdMessage, setDailyAdMessage] = useState("");
+  const adPausedRef = useRef(false);
   useEffect(() => {
     const timer = window.setInterval(() => setDailyClockTick(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    const pauseForAd = () => { adPausedRef.current = true; };
+    const resumeAfterAd = () => { adPausedRef.current = false; };
+    window.addEventListener("shafak:ad-start", pauseForAd);
+    window.addEventListener("shafak:ad-end", resumeAfterAd);
+    return () => {
+      window.removeEventListener("shafak:ad-start", pauseForAd);
+      window.removeEventListener("shafak:ad-end", resumeAfterAd);
+    };
+  }, []);
   const dailyLives = normalizeDailyLifeState(profile, new Date(dailyClockTick));
   const dailyAccess = canStartDailyDuel(dailyLives, new Date(dailyClockTick));
-  const dailyAdUnit = getConfiguredRewardedAdUnit();
   const [worldProgress, setWorldProgress] = useState<WorldProgress>(() => {
     const localProgress = readWorldProgress(userId);
     const savedPosition = userId && accountProfileReady ? profile.worldProgress : null;
@@ -683,36 +695,42 @@ export default function WorldScene({
   const claimDailyExtraDuel = useCallback(async () => {
     const currentDaily = normalizeDailyLifeState(profileRef.current);
     if (dailyAdBusy || currentDaily.dailyLosses < DAILY_DEFEAT_LIMIT || currentDaily.dailyAdRewardUsed) return;
-    if (!dailyAdUnit) {
-      setDailyAdMessage("Ödüllü reklam henüz bu oyun için ayarlanmadı. Haklar İstanbul saatiyle 00.00’da yenilenir.");
+    if (!adsReady || !userId) {
+      setDailyAdMessage("Ödüllü reklam şu an kapalı. Haklar İstanbul saatiyle 00.00’da yenilenir.");
       return;
     }
     setDailyAdBusy(true);
     setDailyAdMessage("");
     try {
-      const rewarded = await requestGoogleRewardedAd(dailyAdUnit);
+      const challenge = await apiRequest<{ nonce?: unknown }>("/api/ads/reward-challenge", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placement: "daily-ad-duel" }),
+      }, {
+        operation: "daily rewarded duel challenge",
+        fallbackMessage: "Ek düello hakkı şu an kullanılamıyor. Biraz sonra tekrar dene.",
+      });
+      if (typeof challenge.nonce !== "string") throw new Error("Reward challenge was not returned.");
+      const rewarded = await adService.showRewarded("daily-ad-duel");
       if (!rewarded) {
         setDailyAdMessage("Reklam tamamlanmadı veya şu an gösterilemiyor; düello hakkı verilmedi.");
         return;
       }
-      if (userId) {
-        const result = await apiRequest<{ profile?: unknown }>("/api/profile/daily-ad-reward", {
-          method: "POST",
-          credentials: "include",
-        }, {
-          operation: "daily rewarded duel",
-          fallbackMessage: "Ek düello hakkı şu an kaydedilemedi. Biraz sonra tekrar dene.",
-          messageForCode: (code) => code === "daily_ad_reward_used"
-            ? "Bugünkü reklam ödülünü zaten kullandın."
-            : "Ek düello hakkı şu an kaydedilemedi. Biraz sonra tekrar dene.",
-        });
-        if (!result.profile) throw new Error("Ad reward profile was not returned.");
-        commitBattleProfile(normalizePlayerProfile(result.profile));
-      } else {
-        const reward = grantDailyAdDuel(profileRef.current);
-        if (!reward) throw new Error("Daily rewarded duel is no longer available.");
-        commitBattleProfile(normalizePlayerProfile({ ...profileRef.current, ...reward }));
-      }
+      const result = await apiRequest<{ profile?: unknown }>("/api/profile/daily-ad-reward", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nonce: challenge.nonce }),
+      }, {
+        operation: "daily rewarded duel",
+        fallbackMessage: "Ek düello hakkı şu an kaydedilemedi. Biraz sonra tekrar dene.",
+        messageForCode: (code) => code === "daily_ad_reward_used"
+          ? "Bugünkü reklam ödülünü zaten kullandın."
+          : "Ek düello hakkı şu an kaydedilemedi. Biraz sonra tekrar dene.",
+      });
+      if (!result.profile) throw new Error("Ad reward profile was not returned.");
+      commitBattleProfile(normalizePlayerProfile(result.profile));
       setDailyAdMessage("Bir ek düello hakkı açıldı.");
     } catch {
       setDailyAdMessage("Ödül kaydedilemedi. Reklamı tekrar izletmeden önce profilini yenile.");
@@ -720,7 +738,7 @@ export default function WorldScene({
       setDailyAdBusy(false);
       setDailyClockTick(Date.now());
     }
-  }, [apiRequest, commitBattleProfile, dailyAdBusy, dailyAdUnit, userId]);
+  }, [adsReady, apiRequest, commitBattleProfile, dailyAdBusy, userId]);
   const motionRef = useRef(createWorldMotion(worldProgress.distance, worldProgress.depth));
   const renderMotionRef = useRef<WorldMotion | null>(null);
   const previousMotionRef = useRef<WorldMotion | null>(null);
@@ -2359,7 +2377,7 @@ export default function WorldScene({
             worldInput.joystick.current,
             worldInput.readActions(),
           );
-      const worldPausedForStory = Boolean(storyDialogueRef.current) || Boolean(pendingWeaponRival);
+      const worldPausedForStory = Boolean(storyDialogueRef.current) || Boolean(pendingWeaponRival) || adPausedRef.current;
       let frameState: WorldMotionFrame = stepWorldMotion(
         motionRef.current,
         battleActiveRef.current || worldPausedForStory ? stoppedInput : liveInput,
@@ -3560,7 +3578,7 @@ export default function WorldScene({
           )}
           {dailyLives.dailyLosses >= DAILY_DEFEAT_LIMIT && dailyLives.dailyAdDuelsRemaining === 0 && !dailyLives.dailyAdRewardUsed && (
             <>
-              {dailyAdUnit ? (
+              {adsReady && userId ? (
                 <button
                   className="world-daily-ad"
                   type="button"

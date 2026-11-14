@@ -12,6 +12,9 @@ try {
 export default defineConfig({
   define: {
     __WORLD_BUILD_HASH__: JSON.stringify(worldBuildHash),
+    "import.meta.env.VITE_ADS_PROVIDER": JSON.stringify(
+      process.env.VITE_ADS_PROVIDER ?? process.env.ADS_PROVIDER ?? "none",
+    ),
   },
   plugins: [react()],
   build: {
