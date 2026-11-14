@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
@@ -151,6 +151,10 @@ export function WarRoomFirstPersonArms({
     glove: new THREE.MeshStandardMaterial({ color: "#8b6347", roughness: 0.88 }),
     seam: new THREE.MeshStandardMaterial({ color: "#c09a6b", roughness: 0.86 }),
   }), []);
+  useEffect(() => () => {
+    Object.values(geometry).forEach((resource) => resource.dispose());
+    Object.values(material).forEach((resource) => resource.dispose());
+  }, [geometry, material]);
 
   const rightShoulder = useMemo(() => new THREE.Vector3(0.78, -0.76, -0.28), []);
   const leftShoulder = useMemo(() => new THREE.Vector3(-0.78, -0.76, -0.28), []);

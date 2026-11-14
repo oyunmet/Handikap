@@ -67,6 +67,6 @@
     "wouter": "^3.13.0"
   },
   "devDependencies": {
-    "playwright": "^1.65.0"
+    "playwright": "^1.65.1"
   }
 }

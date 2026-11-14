@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import {
   getWarRoomFirstPersonLegPose,
@@ -73,6 +73,10 @@ export default function WarRoomFirstPersonLegs({
     knee: new THREE.MeshStandardMaterial({ color: "#c39962", roughness: 0.82 }),
     boot: new THREE.MeshStandardMaterial({ color: "#8d673e", roughness: 0.84 }),
   }), []);
+  useEffect(() => () => {
+    Object.values(geometry).forEach((resource) => resource.dispose());
+    Object.values(materials).forEach((resource) => resource.dispose());
+  }, [geometry, materials]);
   const inverseCameraQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const worldYawQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const direction = useMemo(() => new THREE.Vector3(), []);

@@ -37,6 +37,7 @@ const readStats = async () => statsLocator.evaluate((element) => ({
   geometries: Number(element.getAttribute("data-geometries")),
   textures: Number(element.getAttribute("data-textures")),
   materials: Number(element.getAttribute("data-materials")),
+  textureResources: JSON.parse(element.getAttribute("data-texture-resources") ?? "[]"),
 }));
 
 async function waitForSample(generation, afterSequence) {
@@ -97,7 +98,11 @@ try {
       ? unchangedWarmups + 1
       : 0;
     baseline = current;
-    warmupSamples.push({ generation: warmupGeneration, ...current.counts });
+    warmupSamples.push({
+      generation: warmupGeneration,
+      ...current.counts,
+      sceneTextures: current.textureResources,
+    });
   }
   assert.ok(
     unchangedWarmups >= 2,

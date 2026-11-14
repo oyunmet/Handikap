@@ -296,6 +296,7 @@ export type WarRoomResourceStats = {
   geometries: number;
   textures: number;
   materials: number;
+  textureResources?: string[];
 };
 
 const WAR_ROOM_FIXED_CAMERA_PITCH = WAR_ROOM_CONFIG.camera.fixedPitch;
@@ -2235,11 +2236,30 @@ function WarRoomResourceProbe({
     };
     addSceneMaterials(worldScene);
     addSceneMaterials(viewModelScene);
+    const textureResources = new Map<string, string>();
+    const visited = new Set<object>();
+    const addTexture = (value: unknown, path: string) => {
+      if (value instanceof THREE.Texture) {
+        textureResources.set(
+          value.uuid,
+          `${value.uuid}:${value.name || value.constructor.name}@${path}`,
+        );
+        return;
+      }
+      if (!value || typeof value !== "object" || visited.has(value)) return;
+      visited.add(value);
+      if (Array.isArray(value)) value.forEach((child, index) => addTexture(child, `${path}[${index}]`));
+      else Object.entries(value).forEach(([key, child]) => addTexture(child, `${path}.${key}`));
+    };
+    for (const material of materials) {
+      Object.entries(material).forEach(([key, value]) => addTexture(value, `${material.type}.${key}`));
+    }
     onSample({
       generation,
       geometries: gl.info.memory.geometries,
       textures: gl.info.memory.textures,
       materials: materials.size,
+      textureResources: [...textureResources.values()],
     });
   });
 

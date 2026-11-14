@@ -37,6 +37,14 @@ function WarRoomLootChestField({ runtime }: { runtime: WarRoomRuntime }) {
     () => new THREE.MeshStandardMaterial({ color: "#d2a35a", metalness: 0.62, roughness: 0.32 }),
     [],
   );
+  useLayoutEffect(() => () => {
+    bodyGeometry.dispose();
+    lidGeometry.dispose();
+    latchGeometry.dispose();
+    bodyMaterial.dispose();
+    lidMaterial.dispose();
+    latchMaterial.dispose();
+  }, [bodyGeometry, bodyMaterial, latchGeometry, latchMaterial, lidGeometry, lidMaterial]);
 
   useLayoutEffect(() => {
     const body = bodyRef.current;
@@ -132,6 +140,10 @@ function WallDetails({ blockers }: { blockers: readonly WarRoomRoom["blockers"][
     () => new THREE.MeshStandardMaterial({ color: "#392e28", roughness: 0.93, metalness: 0 }),
     [],
   );
+  useLayoutEffect(() => () => {
+    geometry.dispose();
+    material.dispose();
+  }, [geometry, material]);
   const openings = useMemo(() => blockers.flatMap((blocker) => {
     if (blocker.kind !== "wall" || blocker.height < 3) return [];
     const alongX = blocker.width >= blocker.depth;

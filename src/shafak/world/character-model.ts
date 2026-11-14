@@ -35,8 +35,34 @@ function cloneTextureValue(
   return value;
 }
 
+function shareTextureValues(clonedValue: unknown, sourceValue: unknown): unknown {
+  if (sourceValue instanceof THREE.Texture) return sourceValue;
+  if (Array.isArray(sourceValue) && Array.isArray(clonedValue)) {
+    return clonedValue.map((value, index) => shareTextureValues(value, sourceValue[index]));
+  }
+  if (
+    sourceValue
+    && clonedValue
+    && typeof sourceValue === "object"
+    && typeof clonedValue === "object"
+    && !Array.isArray(sourceValue)
+    && !Array.isArray(clonedValue)
+  ) {
+    const sourceRecord = sourceValue as Record<string, unknown>;
+    const clonedRecord = clonedValue as Record<string, unknown>;
+    for (const key of Object.keys(sourceRecord)) {
+      if (!(key in clonedRecord)) continue;
+      clonedRecord[key] = shareTextureValues(clonedRecord[key], sourceRecord[key]);
+    }
+  }
+  return clonedValue;
+}
+
 /** Gives one character instance ownership of its geometry, materials, and texture handles. */
-export function cloneCharacterResources(root: THREE.Object3D): CharacterOwnedResources {
+export function cloneCharacterResources(
+  root: THREE.Object3D,
+  { cloneTextures = true }: { cloneTextures?: boolean } = {},
+): CharacterOwnedResources {
   const resources: CharacterOwnedResources = { geometries: [], materials: [], textures: [] };
   const textureClones = new Map<THREE.Texture, THREE.Texture>();
   root.traverse((object) => {
@@ -49,11 +75,12 @@ export function cloneCharacterResources(root: THREE.Object3D): CharacterOwnedRes
       const sourceProperties = source as unknown as Record<string, unknown>;
       const cloneProperties = clone as unknown as Record<string, unknown>;
       for (const [key, value] of Object.entries(sourceProperties)) {
+        if (!cloneTextures) break;
         if (value instanceof THREE.Texture || Array.isArray(value)) {
           cloneProperties[key] = cloneTextureValue(value, textureClones, resources.textures);
         }
       }
-      if (source instanceof THREE.ShaderMaterial && clone instanceof THREE.ShaderMaterial) {
+      if (cloneTextures && source instanceof THREE.ShaderMaterial && clone instanceof THREE.ShaderMaterial) {
         for (const [key, uniform] of Object.entries(clone.uniforms)) {
           if (!uniform) continue;
           uniform.value = cloneTextureValue(
@@ -61,6 +88,12 @@ export function cloneCharacterResources(root: THREE.Object3D): CharacterOwnedRes
             textureClones,
             resources.textures,
           );
+        }
+      } else if (source instanceof THREE.ShaderMaterial && clone instanceof THREE.ShaderMaterial) {
+        for (const [key, uniform] of Object.entries(clone.uniforms)) {
+          const sourceUniform = source.uniforms[key];
+          if (!uniform || !sourceUniform) continue;
+          uniform.value = shareTextureValues(uniform.value, sourceUniform.value);
         }
       }
       resources.materials.push(clone);

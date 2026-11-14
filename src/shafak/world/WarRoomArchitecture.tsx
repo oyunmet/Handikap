@@ -163,6 +163,10 @@ function RoofTileField({
     () => new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.94, metalness: 0 }),
     [],
   );
+  useLayoutEffect(() => () => {
+    geometry.dispose();
+    material.dispose();
+  }, [geometry, material]);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;

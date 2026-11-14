@@ -1632,6 +1632,7 @@ export default function WarRoomGame({
           data-geometries={resourceLeakSample.geometries}
           data-textures={resourceLeakSample.textures}
           data-materials={resourceLeakSample.materials}
+          data-texture-resources={JSON.stringify(resourceLeakSample.textureResources ?? [])}
         />
       )}
       {phase === "briefing" && (

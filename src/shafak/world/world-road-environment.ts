@@ -715,6 +715,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
       });
       mountainGeometries.forEach((geometry) => geometry.dispose());
       resourceMaterials.forEach((material) => material.dispose());
+      surfaceTextures.dispose();
     },
   };
 }

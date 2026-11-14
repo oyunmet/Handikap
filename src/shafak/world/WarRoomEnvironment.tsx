@@ -326,6 +326,7 @@ export function FloorPaving({ palette }: { palette: WarRoomRoom["theme"]["tiles"
     }
     return result;
   }, [palette]);
+  useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;

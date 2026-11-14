@@ -450,7 +450,9 @@ export function WarRoomAnimatedActor({
   const { scene, animations } = useLoader(GLTFLoader, src, loadCharacter) as GLTF;
   const prepared = useMemo(() => {
     const clone = cloneSkinned(scene) as THREE.Group;
-    const resources = cloneCharacterResources(clone);
+    // Actor materials are instance-owned, but their GLTF maps are immutable and shared.
+    // Cloning each map per actor created renderer texture growth across match remounts.
+    const resources = cloneCharacterResources(clone, { cloneTextures: false });
     if (tint) {
       const tintColor = new THREE.Color(tint);
       clone.traverse((object) => {

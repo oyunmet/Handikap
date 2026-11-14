@@ -61,3 +61,25 @@ test("the low-detail road still uses raised staggered cobblestones", () => {
     environment.dispose();
   }
 });
+
+test("disposing a road environment also releases its generated surface textures", () => {
+  const environment = createWorldRoadEnvironment(false, "low");
+  const textures = new Set();
+  environment.root.traverse((object) => {
+    const material = object.material;
+    if (!material) return;
+    const materials = Array.isArray(material) ? material : [material];
+    for (const entry of materials) {
+      for (const value of Object.values(entry)) {
+        if (value instanceof THREE.Texture) textures.add(value);
+      }
+    }
+  });
+  let disposeEvents = 0;
+  textures.forEach((texture) => texture.addEventListener("dispose", () => disposeEvents += 1));
+
+  environment.dispose();
+
+  assert.ok(textures.size > 0);
+  assert.equal(disposeEvents, textures.size);
+});

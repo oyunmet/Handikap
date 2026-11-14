@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
 import {
+  cloneCharacterResources,
   fitCharacterModel,
   getCharacterBounds,
   getCharacterScreenCoverage,
@@ -16,6 +17,22 @@ import {
   restoreCharacterPoseBaseline,
   WORLD_CROUCH_PELVIS_DROP_METERS,
 } from "./character-pose.ts";
+
+test("character resource clones can share immutable GLTF textures", () => {
+  const texture = new THREE.Texture();
+  const material = new THREE.ShaderMaterial({
+    uniforms: { diffuseMap: { value: texture } },
+  });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
+  const resources = cloneCharacterResources(mesh, { cloneTextures: false });
+  const clonedMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+
+  assert.ok(clonedMaterial instanceof THREE.ShaderMaterial);
+  assert.equal(clonedMaterial.uniforms.diffuseMap.value, texture);
+  assert.deepEqual(resources.textures, []);
+  assert.equal(resources.materials.length, 1);
+  assert.equal(resources.geometries.length, 1);
+});
 
 test("character models fit the requested height with their lowest point on the floor", () => {
   const model = new THREE.Group();
