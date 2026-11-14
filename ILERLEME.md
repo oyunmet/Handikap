@@ -330,6 +330,14 @@
 - **Doğrulanamayanlar:** Chromium `ANGLE / SwiftShader` yazılım renderer’ı gerçek GPU değildir; düşük FPS ölçümü gerçek PC/iPhone performansını kanıtlamaz. iPhone Safari ve Android’de FPS, ısınma, grafik belleği, Düşük Güç Modu ve uzun süreli oynanış ölçülmedi. Gerçek cihaz testi kullanıcıda kalıyor.
 - **Değişen dosyalar:** `src/shafak/world/character-model.ts`, `src/shafak/world/character-model.test.js`, `ILERLEME.md`.
 
+#### 12.7 yeniden doğrulama — 14 Kasım 2026
+
+- **Tam kontroller:** `pnpm install --frozen-lockfile --ignore-scripts` kilit dosyası değişmeden geçti; `pnpm test` — 728/728; `pnpm run typecheck` ve üretim derlemesi geçti. Manifest `pnpm exec vite build --manifest` ile üretildi.
+- **Benchmark:** 844×390, DPR 1, ANGLE/SwiftShader; 55 örnek / 57.728 ms, ortalama 1 FPS; p50/p95/p99 1.014,1 / 2.744,6 / 3.074,9 ms; en uzun kare 3.074,9 ms. 55 karenin 55'i 50 ms'yi, 53'ü 250 ms'yi aştı; 59 Long Task toplam 24.986 ms. Kalite Düşük, ölçek 0,6, canvas 506×234, ortalama/tepe draw call 39,1/47, üçgen 1.673/2.184, geometri 2.141, doku 81. Rapor `privacy: local-only`; gerçek hesap/ödül/ödeme verisi kullanılmadı.
+- **Önce/sonra:** Önceki aynı yazılım renderer'ı koşusuna göre p50/p95/p99 2.238,2 / 5.476,9 / 6.594,9 ms'den 1.014,1 / 2.744,6 / 3.074,9 ms'ye indi. Ancak son koşuda tüm örnekler 50 ms üzerindeydi; bu emülatör karşılaştırması gerçek cihazda hızlanma veya 60 FPS kanıtı değildir.
+- **Bundle raporu:** İlk statik grafik 309.297 B JS + 29.535 B CSS = 338.832 B ham, 105.292 B gzip. Savaş Odası giriş parçası 297.974 B JS (89.442 B gzip) + 128.099 B CSS (22.011 B gzip). Savaş Odası statik import kapanışı 2.016.010 B JS + 198.119 B CSS, 632.478 B gzip; tüm dinamik kapanış 3.160.087 B JS + 410.798 B CSS, 1.024.408 B gzip. HTML, yazı tipi ve 3B varlıklar dahil değil.
+- **Arayüz / kaynak testi:** Önceki doğrulamada 9 boyutta 54 arayüz görüntüsü ve 10 sahne yenilemesi geçmişti; bu devam turunda yeniden çalıştırılmadı. Gerçek telefon kabulü hâlâ kullanıcıda.
+
 ## Adım 13 — Play Store altyapısı ve reklam
 
 - **Durum:** Bekliyor; Adım 12 doğrulandı, sıradaki alt adım 13.1.
