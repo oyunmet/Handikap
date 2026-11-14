@@ -13,6 +13,7 @@
     "warroom:e2e": "node scripts/war-room-mobile-e2e.mjs",
     "warroom:layout:e2e": "node scripts/war-room-layout-e2e.mjs",
     "warroom:benchmark": "node scripts/war-room-benchmark.mjs",
+    "warroom:resource-leak:e2e": "node scripts/war-room-resource-leak-e2e.mjs",
     "warroom:final:e2e": "node scripts/war-room-final-11-9-e2e.mjs",
     "build": "vite build",
     "android:validate:web": "node scripts/validate-android-web.mjs",

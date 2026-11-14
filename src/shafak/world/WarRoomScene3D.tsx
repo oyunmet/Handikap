@@ -271,6 +271,9 @@ type Props = {
   debugMode: boolean;
   debugDiagnosticsEnabled: boolean;
   collectPerformanceMetrics: boolean;
+  resourceLeakTestEnabled?: boolean;
+  resourceLeakGeneration?: number;
+  onResourceLeakSample?: (stats: WarRoomResourceStats) => void;
   onMeleeDebugUpdate: (message: string) => void;
   onRenderStats: (stats: WarRoomFrameStats) => void;
   onLookDebugUpdate: (snapshot: {
@@ -286,6 +289,13 @@ type Props = {
   onFinish: (result: "victory" | "defeat", snapshot: WarRoomHudSnapshot) => void;
   onWarmupComplete: (succeeded: boolean) => void;
   onRuntimeError: () => void;
+};
+
+export type WarRoomResourceStats = {
+  generation: number;
+  geometries: number;
+  textures: number;
+  materials: number;
 };
 
 const WAR_ROOM_FIXED_CAMERA_PITCH = WAR_ROOM_CONFIG.camera.fixedPitch;
@@ -2194,6 +2204,48 @@ function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomIn
   };
 }
 
+function WarRoomResourceProbe({
+  generation,
+  worldScene,
+  viewModelScene,
+  onSample,
+}: {
+  generation: number;
+  worldScene: THREE.Scene;
+  viewModelScene: THREE.Scene;
+  onSample: (stats: WarRoomResourceStats) => void;
+}) {
+  const { gl } = useThree();
+  const lastSampleAtRef = useRef(0);
+
+  useFrame(() => {
+    const now = performance.now();
+    if (now - lastSampleAtRef.current < 500) return;
+    lastSampleAtRef.current = now;
+    const materials = new Set<THREE.Material>();
+    const addSceneMaterials = (scene: THREE.Scene) => {
+      scene.traverse((object) => {
+        const material = (object as THREE.Mesh).material;
+        if (Array.isArray(material)) {
+          material.forEach((entry) => materials.add(entry));
+        } else if (material instanceof THREE.Material) {
+          materials.add(material);
+        }
+      });
+    };
+    addSceneMaterials(worldScene);
+    addSceneMaterials(viewModelScene);
+    onSample({
+      generation,
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
+      materials: materials.size,
+    });
+  });
+
+  return null;
+}
+
 function WarRoomRuntimeScene({
   runtimeRef,
   inputRef,
@@ -2212,6 +2264,9 @@ function WarRoomRuntimeScene({
   debugMode,
   debugDiagnosticsEnabled,
   collectPerformanceMetrics,
+  resourceLeakTestEnabled,
+  resourceLeakGeneration,
+  onResourceLeakSample,
   onMeleeDebugUpdate,
   onRenderStats,
   onLookDebugUpdate,
@@ -5272,6 +5327,14 @@ function WarRoomRuntimeScene({
         weaponId={activeWeapon}
         enabled={debugMode}
       />
+      {resourceLeakTestEnabled && onResourceLeakSample && (
+        <WarRoomResourceProbe
+          generation={resourceLeakGeneration ?? 0}
+          worldScene={scene}
+          viewModelScene={viewModelScene}
+          onSample={onResourceLeakSample}
+        />
+      )}
     </>
   );
 }
@@ -5462,7 +5525,11 @@ export default memo(function WarRoomScene3D(props: Props) {
             onRepeatedStall={handleRepeatedStall}
           />
           <WarRoomShaderWarmup onComplete={handleWarmupComplete} />
-          <WarRoomRuntimeScene {...runtimeProps} quality={effectiveQuality} />
+          <WarRoomRuntimeScene
+            key={props.resourceLeakTestEnabled ? props.resourceLeakGeneration : undefined}
+            {...runtimeProps}
+            quality={effectiveQuality}
+          />
         </Canvas>
       </WarRoomSceneErrorBoundary>
       {!warmupComplete && !contextLost && (

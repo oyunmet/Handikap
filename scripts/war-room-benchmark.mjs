@@ -44,6 +44,8 @@ try {
   const report = JSON.parse(raw);
   assert.equal(report.privacy, "local-only");
   assert.ok(report.sampleCount > 0, "Benchmark completed without frame samples.");
+  assert.ok(report.render.peakDrawCalls <= 150, "The War Room exceeded the 150 draw-call budget.");
+  assert.ok(report.render.peakTriangles <= 250_000, "The War Room exceeded the 250,000-triangle budget.");
   assert.deepEqual(pageErrors, [], `Browser errors:\n${pageErrors.join("\n")}`);
   console.log(JSON.stringify(report, null, 2));
 } finally {

@@ -2,7 +2,7 @@ import { getWarRoomFloorPresentation } from "./war-room-floor-indicator";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
-import WarRoomScene3D from "../world/WarRoomScene3D";
+import WarRoomScene3D, { type WarRoomResourceStats } from "../world/WarRoomScene3D";
 import { preloadWarRoomModels, preloadWarRoomWeaponModels } from "../world/WarRoomModels";
 import {
   WAR_ROOM_WEAPONS,
@@ -426,6 +426,7 @@ export default function WarRoomGame({
     import.meta.env.VITE_WAR_ROOM_BENCHMARK_DISABLED === "true",
   );
   const weaponLabMode = WAR_ROOM_WEAPON_LAB_ENABLED && searchParams?.get("lab") === "1";
+  const resourceLeakTestMode = import.meta.env.DEV && searchParams?.get("resourceLeakTest") === "1";
   const [phase, setPhase] = useState<Phase>(() => weaponLabMode ? "battle" : "briefing");
   const benchmarkAutoStartRef = useRef(false);
   const [sceneWarmupReady, setSceneWarmupReady] = useState(false);
@@ -439,7 +440,7 @@ export default function WarRoomGame({
     }
   });
   const [loadout, setLoadout] = useState<[WarRoomWeaponId, WarRoomWeaponId]>(
-    () => weaponLabMode
+    () => weaponLabMode || resourceLeakTestMode
       ? [WAR_ROOM_WEAPONS[0].id, WAR_ROOM_WEAPONS[0].id]
       : getWarRoomLoadoutFromProfile(profile),
   );
@@ -451,6 +452,20 @@ export default function WarRoomGame({
   const [selectedSlot, setSelectedSlot] = useState<0 | 1>(0);
   const [labWeaponIndex, setLabWeaponIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
+  const [resourceLeakGeneration, setResourceLeakGeneration] = useState(0);
+  const [resourceLeakSample, setResourceLeakSample] = useState<WarRoomResourceStats & { sequence: number }>({
+    generation: 0,
+    sequence: 0,
+    geometries: 0,
+    textures: 0,
+    materials: 0,
+  });
+  const recordResourceLeakSample = useCallback((stats: WarRoomResourceStats) => {
+    setResourceLeakSample((current) => ({
+      ...stats,
+      sequence: current.sequence + 1,
+    }));
+  }, []);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
   const [hudDetailsExpanded, setHudDetailsExpanded] = useState(true);
   const [landscapeHintVisible, setLandscapeHintVisible] = useState(true);
@@ -649,13 +664,31 @@ export default function WarRoomGame({
   }, []);
   const [summary, setSummary] = useState<WarRoomResultSummary | null>(null);
   const runtimeRef = useRef<WarRoomRuntime>(
-    weaponLabMode ? createWarRoomTrainingRuntime(loadout) : createWarRoomRuntime(loadout, 0, 1),
+    weaponLabMode || resourceLeakTestMode
+      ? createWarRoomTrainingRuntime(loadout)
+      : createWarRoomRuntime(loadout, 0, 1),
   );
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
   const inputRef = useRef<WarRoomInputState>(createInputState(aimAssistEnabled));
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const mobileControlsRef = useRef(createWarRoomMobileControlsState());
   const touchInputRef = useRef(createWarRoomTouchInputState());
+  useEffect(() => {
+    if (!resourceLeakTestMode) return undefined;
+    const remountTrainingScene = () => {
+      runtimeRef.current = createWarRoomTrainingRuntime(loadout);
+      inputRef.current = createInputState(aimAssistEnabled);
+      mobileControlsRef.current = createWarRoomMobileControlsState();
+      touchInputRef.current = createWarRoomTouchInputState();
+      setHud(createEmptyHud());
+      setResourceLeakGeneration((generation) => generation + 1);
+    };
+    window.addEventListener("shafak:war-room-resource-leak-remount", remountTrainingScene);
+    return () => window.removeEventListener(
+      "shafak:war-room-resource-leak-remount",
+      remountTrainingScene,
+    );
+  }, [aimAssistEnabled, loadout, resourceLeakTestMode]);
   useEffect(() => {
     inputRef.current.aimAssistEnabled = aimAssistEnabled;
   }, [aimAssistEnabled]);
@@ -772,7 +805,7 @@ export default function WarRoomGame({
         modifiers: selectedModifiers,
         mapId: selectedMapId,
       };
-    runtimeRef.current = weaponLabMode
+    runtimeRef.current = weaponLabMode || resourceLeakTestMode
       ? createWarRoomTrainingRuntime(loadout)
       : preparedRuntime ?? createWarRoomRuntime(
         loadout,
@@ -803,6 +836,10 @@ export default function WarRoomGame({
   const beginBattleRef = useRef(beginBattle);
   beginBattleRef.current = beginBattle;
   const handleBenchmarkFinish = useCallback(() => beginBattleRef.current(1), []);
+  useEffect(() => {
+    if (!resourceLeakTestMode || !modelsReady || phase !== "briefing") return;
+    beginBattleRef.current(1);
+  }, [modelsReady, phase, resourceLeakTestMode]);
   const handleMeleeDebugUpdate = useCallback((message: string) => {
     if (message.startsWith("İSABET:") || message.startsWith("ISKA:")) {
       setMeleeDebugMessage(message);
@@ -1569,6 +1606,7 @@ export default function WarRoomGame({
     <main
       className="war-room"
       data-phase={phase}
+      data-resource-leak-test={resourceLeakTestMode ? "true" : undefined}
       data-left-handed={leftHandedControls ? "true" : "false"}
       data-benchmark-status={benchmarkMode
         ? benchmarkReport ? "complete" : phase === "battle" ? "running" : "loading"
@@ -1584,6 +1622,17 @@ export default function WarRoomGame({
             {JSON.stringify(benchmarkReport, null, 2)}
           </pre>
         </aside>
+      )}
+      {resourceLeakTestMode && (
+        <output
+          aria-hidden="true"
+          data-testid="war-room-resource-leak-stats"
+          data-sequence={resourceLeakSample.sequence}
+          data-generation={resourceLeakSample.generation}
+          data-geometries={resourceLeakSample.geometries}
+          data-textures={resourceLeakSample.textures}
+          data-materials={resourceLeakSample.materials}
+        />
       )}
       {phase === "briefing" && (
         <WarRoomBriefing
@@ -1631,7 +1680,7 @@ export default function WarRoomGame({
           onPointerMoveCapture={handleWorldPointerMove}
         >
           <WarRoomScene3D
-            key={runKey}
+            key={resourceLeakTestMode ? "war-room-resource-leak-test" : runKey}
             runtimeRef={runtimeRef}
             inputRef={inputRef}
             mobileControlsRef={mobileControlsRef}
@@ -1644,11 +1693,14 @@ export default function WarRoomGame({
             shoulderSide="right"
             shoulderOffset={0}
             bloodEffects={bloodEffects}
-            trainingMode={weaponLabMode}
+            trainingMode={weaponLabMode || resourceLeakTestMode}
             quality={quality}
             debugMode={debugMode}
             debugDiagnosticsEnabled={debugDiagnosticsEnabled}
             collectPerformanceMetrics={benchmarkMode || debugMode || debugDiagnosticsEnabled}
+            resourceLeakTestEnabled={resourceLeakTestMode}
+            resourceLeakGeneration={resourceLeakGeneration}
+            onResourceLeakSample={resourceLeakTestMode ? recordResourceLeakSample : undefined}
             onRenderStats={setDebugRenderStats}
             onLookDebugUpdate={setLookDebugSnapshot}
             onMeleeDebugUpdate={handleMeleeDebugUpdate}
