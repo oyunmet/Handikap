@@ -269,15 +269,17 @@ export function getWarRoomViewportPixelRatio(
     || width >= height
   ) return maxPixelRatio;
 
-  const landscapePixelBudget = landscapeReferenceWidth * landscapeReferenceHeight;
+  const landscapePixelBudget = Math.floor(landscapeReferenceWidth * maxPixelRatio)
+    * Math.floor(landscapeReferenceHeight * maxPixelRatio);
   const portraitPixelArea = width * height;
+  const portraitPixelsAtMaximum = portraitPixelArea * maxPixelRatio ** 2;
   if (
     !Number.isFinite(landscapePixelBudget)
     || landscapePixelBudget <= 0
-    || portraitPixelArea <= landscapePixelBudget
+    || portraitPixelsAtMaximum <= landscapePixelBudget
   ) return maxPixelRatio;
 
-  return maxPixelRatio * Math.sqrt(landscapePixelBudget / portraitPixelArea);
+  return Math.min(maxPixelRatio, Math.sqrt(landscapePixelBudget / portraitPixelArea));
 }
 
 export function countActiveWarRoomParticles(

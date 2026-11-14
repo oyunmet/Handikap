@@ -305,12 +305,16 @@
 - **Doğrulanamayanlar:** Gerçek iPhone Safari/Android cihazında silah hissi, uzun süreli kasma ve 60 FPS kabulü bu ortamda ölçülmedi. Canlı Vercel’e push veya deploy yapılmadı; üretim ve hedef cihaz kontrolü açık kalıyor.
 - **Değişen dosyalar:** `ILERLEME.md`, `src/shafak/game/war-room-viewmodel.ts`, `src/shafak/game/war-room-viewmodel-jitter.test.js`, `src/shafak/world/WarRoomScene3D.tsx`.
 
-### 12.6 — Dikey mod ve HUD: **Bekliyor**
+### 12.6 — Dikey mod ve HUD: **Tamamlandı; gerçek cihaz kabulü 12.7'de**
 
-- Portre için ayrı tam kontrol/HUD düzeni: alt güvenli alan, ≥48 px hedef ve ≥8 px aralık, joystick/ateş ve diğer kontroller, geniş bakış alanı; mini harita, tek satır görev bilgisi, ince boss barı, kompakt silah/mühimmat.
-- Yatay HUD sadeleştirilecek; boss barı yalnız boss görünür/yakınken, görev kartları kısa süre sonra çipe küçülecek. Dikey FOV yatay görüşü daraltmayacak; dikey silah yerleşimi ve render maliyeti yataydan yüksek olmayacak.
-- Döndürmede oyun durumu korunacak; otomatik duraklatma/yön kilidi olmayacak. İsteğe bağlı yatay mod ipucu kapatılabilecek.
-- 360×640, 360×740, 390×664, 412×780, 430×800, 772×330 ve 844×390 ölçülerinde çakışma/taşma ölçümü ve ekran görüntüsü alınacak.
+- **Yapılanlar:** Portre HUD'u güvenli alanları kullanıyor; yedi dokunma eylemi ve silah yuvaları en az 48 px, kontroller arası boşluk 8 px. Mini harita, kısa görev kartı, kompakt mühimmat/silah paneli ve ayrı kontrol yerleşimi korunuyor. Görev kartı dört saniye sonra çipe küçülüyor ve dokunmayla açılıp kapanıyor; yatay görünüm ipucu kapatılabiliyor. Döndürmede otomatik duraklatma veya yön kilidi yok; tüm ölçüler arasında test savaş aşamasının korunduğunu doğruluyor. Dikey kamera yatay görüşü en az 75° tutuyor.
+- **Render bütçesi düzeltmesi:** Portre DPR sınırı artık yatay referansın gerçek, tam sayı çizim arabelleği piksellerinden hesaplanıyor. Önceki sürekli alan hesabı, 430×800'de küsurat yuvarlaması nedeniyle bütçeyi 12 piksel aşıyordu; artık aşı yok.
+- **Ölçüm — 844×390 yatay referans:** Canvas 463×198 = 91.674 piksel. Portre: 360×640 — 216×384 = 82.944; 360×740 — 211×434 = 91.574; 390×664 — 232×395 = 91.640; 412×780 — 220×416 = 91.520; 430×800 — 221×412 = 91.052. Hepsi yatay referansın altında.
+- **Tarayıcı doğrulaması:** Yedi istenen ölçünün briefing ve savaş HUD ekran görüntüleri alındı; görünür HUD kutularında taşma/çakışma yok. Yedi eylem, ≥48 px hedef, 8×8 px aralık, iki silah yuvası, görev kartı aç/kapa, yatay ipucu kapatma ve savaş aşamasının korunması geçti. Render boyutu kontrolü yazılım SwiftShader ortamında animasyon-kare geri çağrısından bağımsız zamanlayıcıyla bekliyor.
+- **Vercel hatası:** `package.json` Playwright'ı `^1.65.0` isterken `pnpm-lock.yaml` eski `^1.64.1` değerini içeriyordu; Vercel'in dondurulmuş pnpm kurulumu bu nedenle duruyordu. pnpm kilidi `^1.65.0` / `1.65.1` ile eşitlendi; `pnpm install --frozen-lockfile` başarılı.
+- **Testler:** `npm run warroom:layout:e2e` — tüm yedi boyut geçti; `pnpm test` — 725/725; `pnpm run typecheck`, `pnpm run build`, dondurulmuş pnpm kurulumu ve `git diff --check` geçti.
+- **Doğrulanamayanlar:** Gerçek iPhone Safari/Android GPU'sunda FPS, ısınma ve güvenli alan/dokunma kabulü yapılmadı; Vercel'de yeni commit henüz çalıştırılmadı. Canlı dağıtım ve cihaz ölçümleri 12.7'de/elle yapılacak.
+- **Değişen dosyalar:** `ILERLEME.md`, `pnpm-lock.yaml`, `scripts/war-room-layout-e2e.mjs`, `src/shafak/game/war-room-quality.ts`, `src/shafak/game/war-room-quality.test.js`.
 
 ### 12.7 — Doğrulama: **Bekliyor**
 

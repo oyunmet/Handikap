@@ -131,7 +131,7 @@ try {
           return rect
             && Math.abs(rect.width - expected.width) < 1
             && Math.abs(rect.height - expected.height) < 1;
-        }, expectedCanvasSize, { timeout: 5_000 });
+        }, expectedCanvasSize, { polling: 100, timeout: 15_000 });
       } else {
         await page.waitForTimeout(240);
       }
@@ -252,13 +252,17 @@ try {
           || (viewport.width >= viewport.height && touchHud.landscapeHintVisible)
           || (viewport.width < viewport.height
             && landscapeCanvasPixelReference !== null
-            && touchHud.canvasPixels > landscapeCanvasPixelReference * 1.01)
+            && touchHud.canvasPixels > landscapeCanvasPixelReference)
         ))) failures.push({ ...report, touchHud });
       console.log(
         `${name}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, çakışma ${report.overlaps.length}`
         + (touchHud
           ? `; kontrol ${touchHud.actionCount}, yuva ${touchHud.slotCount}, aralık ${touchHud.rowGap}px`
-            + `×${touchHud.columnGap}px, handedness ${touchHud.handedness ? "ok" : "hata"}`
+            + `×${touchHud.columnGap}px, handedness ${
+              viewport.width < viewport.height
+                ? touchHud.handedness ? "ok" : "hata"
+                : "n/a"
+            }`
             + `, canvas ${touchHud.canvasPixels}px²`
             + ` (${touchHud.canvasSize?.width}×${touchHud.canvasSize?.height}, CSS `
             + `${touchHud.canvasCssSize?.width}×${touchHud.canvasCssSize?.height})`

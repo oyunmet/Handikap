@@ -52,7 +52,7 @@ test("adaptive quality can lower touch-device DPR as well as desktop DPR", () =>
 
 test("portrait render pixel budget never exceeds the 772 by 330 landscape canvas", () => {
   const landscapeDpr = 1.5;
-  const landscapePixels = 772 * 330 * landscapeDpr ** 2;
+  const landscapePixels = Math.floor(772 * landscapeDpr) * Math.floor(330 * landscapeDpr);
   for (const { width, height } of [
     { width: 360, height: 640 },
     { width: 360, height: 740 },
@@ -62,6 +62,9 @@ test("portrait render pixel budget never exceeds the 772 by 330 landscape canvas
   ]) {
     const portraitDpr = getWarRoomViewportPixelRatio(landscapeDpr, width, height);
     assert.ok(width * height * portraitDpr ** 2 <= landscapePixels + 1e-6);
+    assert.ok(
+      Math.floor(width * portraitDpr) * Math.floor(height * portraitDpr) <= landscapePixels,
+    );
     assert.ok(portraitDpr <= landscapeDpr);
   }
   assert.equal(getWarRoomViewportPixelRatio(1.5, 772, 330), 1.5);
