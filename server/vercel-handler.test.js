@@ -9,6 +9,7 @@ import duelStartHandler from "../api/duels/start.ts";
 import duelCompleteHandler from "../api/duels/complete.ts";
 import pickupHandler from "../api/profile/pickups.ts";
 import debugToolsStatusHandler from "../api/debug-tools/status.ts";
+import adsConfigHandler from "../api/ads/config.ts";
 import storePurchaseHandler from "../api/store/purchase.ts";
 import storeEquipHandler from "../api/store/equip.ts";
 import storeLoadoutHandler from "../api/store/combat-loadout.ts";
@@ -36,6 +37,7 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
   const pending = [
     resolve(projectRoot, "api/[...path].ts"),
     resolve(projectRoot, "api/debug-tools/status.ts"),
+    resolve(projectRoot, "api/ads/config.ts"),
     resolve(projectRoot, "api/duels/start.ts"),
     resolve(projectRoot, "api/duels/complete.ts"),
     resolve(projectRoot, "api/profile/pickups.ts"),
@@ -133,6 +135,49 @@ test("explicit debug status route reaches the API handler instead of returning a
   assert.match(response.headers.get("content-type") ?? "", /application\/json/);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(body, { error: "not_found" });
+});
+
+test("explicit ads config route returns a safe default without requiring an account", async (t) => {
+  const originalEnvironment = {
+    ADS_ENABLED: process.env.ADS_ENABLED,
+    ADS_PROVIDER: process.env.ADS_PROVIDER,
+    ADSENSE_CLIENT_ID: process.env.ADSENSE_CLIENT_ID,
+  };
+  process.env.ADS_ENABLED = "";
+  process.env.ADS_PROVIDER = "";
+  process.env.ADSENSE_CLIENT_ID = "";
+  t.after(() => {
+    for (const [key, value] of Object.entries(originalEnvironment)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  const server = createServer((request, response) => {
+    void adsConfigHandler(request, response);
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  );
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/ads/config`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await response.json(), {
+    ads_enabled: false,
+    provider: "none",
+    consent_required: true,
+  });
 });
 
 test("explicit pickup route returns JSON instead of a Vercel path-level 404", async (t) => {

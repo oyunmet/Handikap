@@ -17,6 +17,7 @@ async function createApiHandler(): Promise<ApiHandler> {
     storeApiModule,
     worldRewardsApiModule,
     debugToolsApiModule,
+    adsConfigApiModule,
   ] = await Promise.all([
     import("express"),
     import("cors"),
@@ -29,6 +30,7 @@ async function createApiHandler(): Promise<ApiHandler> {
     import("../server/storeApi.ts"),
     import("../server/worldRewardsApi.ts"),
     import("../server/debugToolsApi.ts"),
+    import("../server/adsConfigApi.ts"),
   ]);
 
   const express = expressModule.default;
@@ -45,6 +47,7 @@ async function createApiHandler(): Promise<ApiHandler> {
   );
   app.use(cors({ credentials: true, origin: true }));
   app.use(debugToolsApiModule.createDebugToolsApi());
+  app.use(adsConfigApiModule.createAdsConfigApi());
 
   app.get("/api/health", async (_request, response) => {
     const [health, clerkKeyHealth] = await Promise.all([

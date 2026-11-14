@@ -14,6 +14,7 @@ import { createProfileApi } from "./profileApi";
 import { createStoreApi } from "./storeApi";
 import { createWorldRewardsApi } from "./worldRewardsApi";
 import { createDebugToolsApi } from "./debugToolsApi";
+import { createAdsConfigApi } from "./adsConfigApi";
 import { STORE_CATALOG } from "./storeCatalog";
 
 const port = Number(process.env.GAME_SERVER_PORT ?? "3001");
@@ -32,6 +33,7 @@ const clerkConfigured = Boolean(
 
 app.use(cors({ credentials: true, origin: true }));
 app.use(createDebugToolsApi());
+app.use(createAdsConfigApi());
 
 app.get("/api/health", async (_request, response) => {
   const [health, clerkKeyHealth] = await Promise.all([
