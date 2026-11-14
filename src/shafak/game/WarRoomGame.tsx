@@ -81,7 +81,6 @@ import {
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
   getWarRoomAutoFollowYaw,
-  getWarRoomTouchControlSide,
   readWarRoomJoystick,
   readWarRoomMouseLook,
   resetWarRoomMobileControls,
@@ -454,6 +453,7 @@ export default function WarRoomGame({
   const [runKey, setRunKey] = useState(0);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
   const [hudDetailsExpanded, setHudDetailsExpanded] = useState(true);
+  const [landscapeHintVisible, setLandscapeHintVisible] = useState(true);
   const [hudToasts, setHudToasts] = useState<WarRoomToast[]>([]);
   const hudToastIdRef = useRef(0);
   const hudToastTimersRef = useRef(new Map<number, number>());
@@ -1352,7 +1352,7 @@ export default function WarRoomGame({
     const target = event.target instanceof Element ? event.target : null;
     if (
       target?.closest(
-        "button,[role='button'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
+        "button,[role='button'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-landscape-hint,.war-room-weapon-debug,.war-room-calibration-panel,.war-room-control-editor",
       )
     ) return;
     if (event.pointerType === "touch") return;
@@ -1411,7 +1411,7 @@ export default function WarRoomGame({
       return Boolean(target && stage.contains(target));
     };
     const isHudTarget = (target: Element) => Boolean(target.closest(
-      "button,[role='button'],[role='alertdialog'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-weapon-debug,.war-room-weapon-lab,.war-room-calibration-panel,.war-room-control-editor,.war-room-confirm",
+      "button,[role='button'],[role='alertdialog'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-landscape-hint,.war-room-weapon-debug,.war-room-weapon-lab,.war-room-calibration-panel,.war-room-control-editor,.war-room-confirm",
     ));
     const releaseTouch = (identifier: number) => {
       const state = touchInputRef.current;
@@ -1443,37 +1443,15 @@ export default function WarRoomGame({
       resumeWarRoomAudio();
       const bounds = stage.getBoundingClientRect();
       for (const touch of Array.from(event.changedTouches)) {
-        const side = getWarRoomTouchControlSide(
-          touch.clientX,
-          bounds.left,
-          bounds.width,
-          leftHandedControls,
-        );
-        if (!side) continue;
         const x = touch.clientX - bounds.left;
         const y = touch.clientY - bounds.top;
-        if (side === "movement" && !isWarRoomMovementTouchAllowed(
-          x,
-          y,
-          bounds.width,
-          bounds.height,
-          leftHandedControls,
-        )) {
-          continue;
-        }
-
-        const previousIdentifier = side === "movement" ? state.joy.id : state.look.id;
-        if (previousIdentifier !== -1 && previousIdentifier !== touch.identifier) {
-          releaseTouch(previousIdentifier);
-        }
-
         const role = startWarRoomTouch(
           state,
           touch.identifier,
           x,
           y,
           bounds.width,
-          leftHandedControls ? "right" : "left",
+          "any",
         );
         if (!role) continue;
         const controlPointerId = pointerIdForTouch(touch.identifier);
@@ -1585,7 +1563,7 @@ export default function WarRoomGame({
       window.visualViewport?.removeEventListener("resize", onViewportChange);
       resetTouchControls();
     };
-  }, [leftHandedControls, phase, resetTouchControls]);
+  }, [phase, resetTouchControls]);
 
   return (
     <main
@@ -1877,6 +1855,25 @@ export default function WarRoomGame({
             className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}${isWarRoomLowHealth(hud.player.hp, hud.player.maxHp) ? " is-low-health" : ""}`}
             data-boss-phase={bossHudPhase}
           >
+            {landscapeHintVisible
+              && !hudDetailsExpanded
+              && bossPhaseAnnouncement === null
+              && !hud.nearbyLootChest
+              && (
+              <div className="war-room-landscape-hint" role="note">
+                <span>Yatay görünüm daha rahat olabilir</span>
+                <button
+                  type="button"
+                  aria-label="Yatay görünüm ipucunu kapat"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setLandscapeHintVisible(false);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <div className="war-room-hud__top">
               <div className="war-room-location-status">
                 {WAR_ROOM_ROOM_CHAIN_ENABLED && (

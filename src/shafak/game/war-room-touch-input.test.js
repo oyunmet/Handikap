@@ -10,12 +10,20 @@ import {
   WAR_ROOM_TOUCH_JOYSTICK_RADIUS,
 } from "./war-room-touch-input.ts";
 
-test("floating joystick starts at every point on the left half with immediate bounded movement", () => {
+test("floating joystick starts anywhere on the screen with immediate bounded movement", () => {
   const state = createWarRoomTouchInputState();
-  for (let index = 0; index < 10; index += 1) {
-    const x = 30 + index * 27;
-    const y = 90 + index * 13;
-    assert.equal(startWarRoomTouch(state, index, x, y, 844), "joystick");
+  const points = [
+    [0, 0],
+    [843, 0],
+    [0, 843],
+    [843, 843],
+    [422, 422],
+    [12, 420],
+    [832, 420],
+  ];
+  for (let index = 0; index < points.length; index += 1) {
+    const [x, y] = points[index];
+    assert.equal(startWarRoomTouch(state, index, x, y, 844, "any"), "joystick");
     const moved = moveWarRoomTouch(state, index, x, y - 42);
     assert.ok(moved);
     assert.ok(state.input.moveY > 0.5);
@@ -23,6 +31,23 @@ test("floating joystick starts at every point on the left half with immediate bo
     assert.equal(state.joy.oy, y);
     assert.deepEqual(endWarRoomTouch(state, index), { endedJoystick: true, endedLook: false });
     assert.deepEqual([state.input.moveX, state.input.moveY], [0, 0]);
+  }
+});
+
+test("the second free touch looks from either screen side without stealing movement", () => {
+  for (const lookX of [16, 828]) {
+    const state = createWarRoomTouchInputState();
+    assert.equal(startWarRoomTouch(state, 1, 820, 400, 844, "any"), "joystick");
+    assert.equal(startWarRoomTouch(state, 2, lookX, 240, 844, "any"), "look");
+    assert.equal(startWarRoomTouch(state, 3, 400, 300, 844, "any"), null);
+
+    moveWarRoomTouch(state, 1, 820, 340);
+    const look = moveWarRoomTouch(state, 2, lookX + 30, 220);
+    assert.ok(state.input.moveY > 0.5);
+    assert.deepEqual(look, { role: "look", dx: 30, dy: -20 });
+    assert.equal(state.roles.get(1), "joystick");
+    assert.equal(state.roles.get(2), "look");
+    assert.equal(state.roles.has(3), false);
   }
 });
 

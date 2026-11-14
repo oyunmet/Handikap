@@ -121,7 +121,21 @@ try {
     const failures = [];
     for (const viewport of viewports) {
       await page.setViewportSize(viewport);
-      await page.waitForTimeout(240);
+      if (screen === "hud") {
+        const expectedCanvasSize = viewport.width >= viewport.height
+          ? { width: Math.min(viewport.width, 772), height: Math.min(viewport.height, 330) }
+          : viewport;
+        await page.waitForFunction((expected) => {
+          const canvas = document.querySelector(".war-room canvas");
+          const rect = canvas?.getBoundingClientRect();
+          return rect
+            && Math.abs(rect.width - expected.width) < 1
+            && Math.abs(rect.height - expected.height) < 1;
+        }, expectedCanvasSize, { timeout: 5_000 });
+      } else {
+        await page.waitForTimeout(240);
+      }
+      await page.waitForTimeout(100);
       const report = await checkLayout(screen);
       const touchHud = screen === "hud" ? await page.evaluate(() => {
         const root = document.querySelector(".war-room");
@@ -156,6 +170,12 @@ try {
           || rect.right > window.innerWidth + 1
           || rect.bottom > window.innerHeight + 1,
         ).map(({ label }) => label);
+        const landscapeHint = root?.querySelector(".war-room-landscape-hint");
+        const landscapeHintVisible = Boolean(
+          landscapeHint && getComputedStyle(landscapeHint).display !== "none",
+        );
+        const landscapeHintClose = landscapeHint?.querySelector("button");
+        const landscapeHintCloseRect = landscapeHintClose?.getBoundingClientRect();
         const undersized = [...actions, ...slots].filter((element) => {
           const rect = element.getBoundingClientRect();
           return rect.width < 48 || rect.height < 48;
@@ -167,6 +187,7 @@ try {
         const ammoBox = findBox("war-room-ammo");
         const weaponBox = findBox("war-room-weapon-select");
         const controlBox = findBox("war-room-controls");
+        const canvasRect = canvas?.getBoundingClientRect();
         const ammoStacked = !ammoBox || !controlBox || ammoBox.bottom <= controlBox.top - 7;
         const weaponsStacked = !weaponBox || !ammoBox || weaponBox.bottom <= ammoBox.top - 7;
         const handedness = (() => {
@@ -192,7 +213,17 @@ try {
           ammoStacked,
           weaponsStacked,
           handedness,
+          landscapeHintVisible,
+          landscapeHintCloseSized: Boolean(
+            landscapeHintCloseRect
+            && landscapeHintCloseRect.width >= 48
+            && landscapeHintCloseRect.height >= 48,
+          ),
           canvasPixels: canvas ? canvas.width * canvas.height : 0,
+          canvasSize: canvas ? { width: canvas.width, height: canvas.height } : null,
+          canvasCssSize: canvasRect
+            ? { width: canvasRect.width, height: canvasRect.height }
+            : null,
           battlePhase: root?.getAttribute("data-phase") === "battle",
         };
       }) : null;
@@ -217,6 +248,9 @@ try {
           || touchHud.slotCount < 1
           || !touchHud.battlePhase
           || (viewport.width < viewport.height
+            && (!touchHud.landscapeHintVisible || !touchHud.landscapeHintCloseSized))
+          || (viewport.width >= viewport.height && touchHud.landscapeHintVisible)
+          || (viewport.width < viewport.height
             && landscapeCanvasPixelReference !== null
             && touchHud.canvasPixels > landscapeCanvasPixelReference * 1.01)
         ))) failures.push({ ...report, touchHud });
@@ -226,6 +260,8 @@ try {
           ? `; kontrol ${touchHud.actionCount}, yuva ${touchHud.slotCount}, aralık ${touchHud.rowGap}px`
             + `×${touchHud.columnGap}px, handedness ${touchHud.handedness ? "ok" : "hata"}`
             + `, canvas ${touchHud.canvasPixels}px²`
+            + ` (${touchHud.canvasSize?.width}×${touchHud.canvasSize?.height}, CSS `
+            + `${touchHud.canvasCssSize?.width}×${touchHud.canvasCssSize?.height})`
           : ""),
       );
     }
@@ -235,6 +271,7 @@ try {
         viewport: report.viewport,
         outside: report.outside.slice(0, 4),
         overlaps: report.overlaps.slice(0, 5),
+        touchHud: report.touchHud,
       })).join("\n");
       throw new Error(`${screen}: görünür metin/düğme kutuları çakıştı veya viewport dışına çıktı.\n${detail}`);
     }
@@ -257,6 +294,9 @@ try {
   await objectiveStatus.click();
   assert.equal(await objectiveStatus.getAttribute("data-expanded"), "false", "Görev kartı tekrar daraltılamadı.");
   await capture("hud");
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.locator(".war-room-landscape-hint button").click();
+  await page.locator(".war-room-landscape-hint").waitFor({ state: "hidden" });
   assert.deepEqual(pageErrors, [], `Tarayıcı hataları: ${pageErrors.join("; ")}`);
   console.log(`Ekran görüntüleri: ${outputDir}`);
 } finally {

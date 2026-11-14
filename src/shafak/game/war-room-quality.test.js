@@ -50,9 +50,9 @@ test("adaptive quality can lower touch-device DPR as well as desktop DPR", () =>
   assert.equal(getWarRoomPixelRatio("high", 3, false), 2);
 });
 
-test("portrait render pixel budget never exceeds the 844 by 390 landscape reference", () => {
+test("portrait render pixel budget never exceeds the 772 by 330 landscape canvas", () => {
   const landscapeDpr = 1.5;
-  const landscapePixels = 844 * 390 * landscapeDpr ** 2;
+  const landscapePixels = 772 * 330 * landscapeDpr ** 2;
   for (const { width, height } of [
     { width: 360, height: 640 },
     { width: 360, height: 740 },
@@ -64,7 +64,8 @@ test("portrait render pixel budget never exceeds the 844 by 390 landscape refere
     assert.ok(width * height * portraitDpr ** 2 <= landscapePixels + 1e-6);
     assert.ok(portraitDpr <= landscapeDpr);
   }
-  assert.equal(getWarRoomViewportPixelRatio(1.5, 844, 390), 1.5);
+  assert.equal(getWarRoomViewportPixelRatio(1.5, 772, 330), 1.5);
+  assert.ok(Math.abs(getWarRoomViewportPixelRatio(0.6, 430, 800) - 0.516) < 0.001);
 });
 
 test("the phase flag restores the unscaled quality profile when disabled", () => {

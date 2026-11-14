@@ -5,6 +5,7 @@ import {
   getWarRoomPixelRatio,
   getWarRoomViewportPixelRatio,
   sampleWarRoomAdaptiveDpr,
+  WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS,
   type WarRoomAdaptiveDprState,
 } from "../game/war-room-quality";
 import type { RenderQuality } from "./graphics-quality";
@@ -31,14 +32,22 @@ export default function WarRoomAdaptiveDpr({
 }: Props) {
   const setDpr = useThree((state) => state.setDpr);
   const size = useThree((state) => state.size);
-  const maxPixelRatio = getWarRoomViewportPixelRatio(
-    getWarRoomPixelRatio(
-      quality,
-      typeof window === "undefined" ? 1 : window.devicePixelRatio,
-      touchDevice,
-    ),
-    size.width,
-    size.height,
+  const qualityPixelRatio = getWarRoomPixelRatio(
+    quality,
+    typeof window === "undefined" ? 1 : window.devicePixelRatio,
+    touchDevice,
+  );
+  const landscapePixelRatioRef = useRef<number | null>(null);
+  const lastAdaptiveScale = WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS[
+    WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS.length - 1
+  ]!;
+  const landscapePixelRatioBudget = landscapePixelRatioRef.current
+    ?? qualityPixelRatio * lastAdaptiveScale;
+  const maxPixelRatio = Math.min(
+    getWarRoomViewportPixelRatio(qualityPixelRatio, size.width, size.height),
+    size.width < size.height
+      ? getWarRoomViewportPixelRatio(landscapePixelRatioBudget, size.width, size.height)
+      : qualityPixelRatio,
   );
   const adaptiveStateRef = useRef<WarRoomAdaptiveDprState | null>(null);
   if (adaptiveStateRef.current === null) {
@@ -89,6 +98,12 @@ export default function WarRoomAdaptiveDpr({
     }
     const adaptiveState = adaptiveStateRef.current;
     if (!adaptiveState) return;
+    if (size.width >= size.height) {
+      landscapePixelRatioRef.current = Math.min(
+        landscapePixelRatioRef.current ?? adaptiveState.pixelRatio,
+        adaptiveState.pixelRatio,
+      );
+    }
     const previousPixelRatio = adaptiveState.pixelRatio;
     const nextPixelRatio = sampleWarRoomAdaptiveDpr(
       adaptiveState,

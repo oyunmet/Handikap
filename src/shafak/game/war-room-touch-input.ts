@@ -55,9 +55,30 @@ export function startWarRoomTouch(
   x: number,
   y: number,
   viewportWidth: number,
-  movementSide: "left" | "right" = "left",
+  movementSide: "left" | "right" | "any" = "left",
 ) {
   if (![identifier, x, y, viewportWidth].every(Number.isFinite) || viewportWidth <= 0) return null;
+  if (movementSide === "any") {
+    if (state.joy.id === -1) {
+      state.joy.id = identifier;
+      state.joy.ox = x;
+      state.joy.oy = y;
+      state.roles.set(identifier, "joystick");
+      state.input.moveX = 0;
+      state.input.moveY = 0;
+      return "joystick" as const;
+    }
+    if (state.look.id === -1) {
+      state.look.id = identifier;
+      state.look.lx = x;
+      state.look.ly = y;
+      state.roles.set(identifier, "look");
+      state.input.lookDX = 0;
+      state.input.lookDY = 0;
+      return "look" as const;
+    }
+    return null;
+  }
   if ((movementSide === "left" && x < viewportWidth * 0.5)
     || (movementSide === "right" && x >= viewportWidth * 0.5)) {
     if (state.joy.id !== -1) state.roles.delete(state.joy.id);

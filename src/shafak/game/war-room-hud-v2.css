@@ -32,7 +32,54 @@
   white-space: nowrap;
 }
 
+.war-room .war-room-landscape-hint {
+  display: none;
+}
+
 @media (orientation: portrait) and (max-width: 760px) and (pointer: coarse) {
+  .war-room .war-room-landscape-hint {
+    position: fixed;
+    z-index: 8;
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 200px);
+    left: max(10px, env(safe-area-inset-left));
+    display: flex;
+    width: min(150px, calc(50vw - 24px));
+    min-height: 48px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 0 4px 0 8px;
+    border: 1px solid rgba(227, 197, 150, .38);
+    border-radius: 10px;
+    background: rgba(25, 24, 22, .92);
+    color: #ead9b8;
+    font-size: 8px;
+    letter-spacing: .04em;
+    pointer-events: auto;
+  }
+
+  .war-room .war-room-landscape-hint button {
+    display: grid;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(227, 197, 150, .12);
+    color: #fff0d4;
+    font: 20px/1 sans-serif;
+    touch-action: manipulation;
+  }
+
+  .war-room[data-left-handed="true"] .war-room-landscape-hint {
+    right: max(10px, env(safe-area-inset-right));
+    left: auto;
+  }
+
   .war-room .war-room-hud__top {
     inset: max(8px, env(safe-area-inset-top))
       max(10px, env(safe-area-inset-right)) auto
@@ -355,12 +402,12 @@
     bottom: calc(env(safe-area-inset-bottom) + 92px);
     left: auto;
     display: grid;
-    width: min(186px, calc(100vw - 24px));
+    width: min(160px, calc(100vw - 24px));
     height: auto;
-    grid-template-columns: repeat(3, minmax(48px, 1fr));
+    grid-template-columns: repeat(3, 48px);
     grid-template-rows: 48px 48px 56px;
     gap: 8px;
-    padding: 6px;
+    padding: 0;
     border-radius: 14px;
   }
 

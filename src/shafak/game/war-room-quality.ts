@@ -64,7 +64,7 @@ export const WAR_ROOM_ADAPTIVE_DPR_EMERGENCY_STREAK = 2;
 
 export function createWarRoomAdaptiveDprState(pixelRatio: number): WarRoomAdaptiveDprState {
   const safePixelRatio = Number.isFinite(pixelRatio)
-    ? Math.max(0.75, Math.min(2, pixelRatio))
+    ? Math.max(0.3, Math.min(2, pixelRatio))
     : 1;
   return {
     pixelRatio: safePixelRatio,
@@ -87,7 +87,7 @@ export function sampleWarRoomAdaptiveDpr(
   frameTimeMs: number,
   nowMs: number,
 ) {
-  const maximum = Number.isFinite(maxPixelRatio) ? Math.max(0.75, Math.min(2, maxPixelRatio)) : 1;
+  const maximum = Number.isFinite(maxPixelRatio) ? Math.max(0.3, Math.min(2, maxPixelRatio)) : 1;
   if (
     !Number.isFinite(frameTimeMs)
     || frameTimeMs <= 0
@@ -174,8 +174,9 @@ export function sampleWarRoomAdaptiveDpr(
     return state.pixelRatio;
   }
 
+  const adaptiveFloor = Math.min(0.6, maximum * 0.75);
   state.pixelRatio = Math.round(
-    Math.max(0.6, Math.min(maximum, maximum * WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS[state.levelIndex]!))
+    Math.max(adaptiveFloor, Math.min(maximum, maximum * WAR_ROOM_ADAPTIVE_DPR_SCALE_LEVELS[state.levelIndex]!))
       * 100,
   ) / 100;
   return state.pixelRatio;
@@ -256,8 +257,8 @@ export function getWarRoomViewportPixelRatio(
   maxPixelRatio: number,
   width: number,
   height: number,
-  landscapeReferenceWidth = 844,
-  landscapeReferenceHeight = 390,
+  landscapeReferenceWidth = 772,
+  landscapeReferenceHeight = 330,
 ) {
   if (
     !Number.isFinite(maxPixelRatio)
