@@ -1,4 +1,3 @@
-import { normalizeWarRoomCameraYaw } from "./war-room-look";
 import { WAR_ROOM_CONFIG } from "./war-room-config";
 
 export type WarRoomMobilePointerType = "touch" | "mouse" | "pen";
@@ -10,7 +9,6 @@ export type WarRoomJoystickGesture = {
   originX: number;
   originY: number;
   radius: number;
-  baseYaw: number;
 };
 
 export type WarRoomLookGesture = {
@@ -30,35 +28,10 @@ export type WarRoomMobileControlsState = {
 export type WarRoomJoystickReading = {
   x: number;
   y: number;
-  baseYaw: number;
-  cameraYaw: number | null;
 };
 
 const JOYSTICK_DEAD_ZONE = WAR_ROOM_CONFIG.input.pointerJoystickDeadZone;
 export const WAR_ROOM_MAX_LOOK_DELTA_PIXELS = WAR_ROOM_CONFIG.input.pointerLookMaxDeltaPixels;
-
-export function getWarRoomAutoFollowYaw(
-  baseYaw: number,
-  moveX: number,
-  moveY: number,
-) {
-  if (![baseYaw, moveX, moveY].every(Number.isFinite) || Math.hypot(moveX, moveY) <= 0.1) {
-    return null;
-  }
-  return normalizeWarRoomCameraYaw(baseYaw + Math.atan2(moveX, moveY));
-}
-
-export function getWarRoomMovementCameraYaw(
-  baseYaw: number,
-  moveX: number,
-  moveY: number,
-  aiming: boolean,
-  manualLookActive = false,
-) {
-  return aiming || manualLookActive
-    ? null
-    : getWarRoomAutoFollowYaw(baseYaw, moveX, moveY);
-}
 
 export function getWarRoomTouchControlSide(
   clientX: number,
@@ -81,16 +54,14 @@ export function beginWarRoomJoystick(
   originX: number,
   originY: number,
   radius: number,
-  cameraYaw: number,
 ) {
-  if (state.joystick || ![originX, originY, radius, cameraYaw].every(Number.isFinite)) return false;
+  if (state.joystick || ![originX, originY, radius].every(Number.isFinite)) return false;
   if (state.roles.has(pointerId)) return false;
   state.joystick = {
     pointerId,
     originX,
     originY,
     radius: Math.max(1, radius),
-    baseYaw: normalizeWarRoomCameraYaw(cameraYaw),
   };
   state.roles.set(pointerId, "joystick");
   return true;
@@ -114,28 +85,14 @@ export function readWarRoomJoystick(
   const rawY = (gesture.originY - y) / gesture.radius;
   const rawLength = Math.hypot(rawX, rawY);
   if (rawLength <= JOYSTICK_DEAD_ZONE) {
-    return { x: 0, y: 0, baseYaw: gesture.baseYaw, cameraYaw: null };
+    return { x: 0, y: 0 };
   }
 
   const cappedLength = Math.min(1, rawLength);
   const strength = (cappedLength - JOYSTICK_DEAD_ZONE) / (1 - JOYSTICK_DEAD_ZONE);
   const xAxis = (rawX / rawLength) * strength;
   const yAxis = (rawY / rawLength) * strength;
-  return {
-    x: xAxis,
-    y: yAxis,
-    baseYaw: gesture.baseYaw,
-    cameraYaw: getWarRoomAutoFollowYaw(gesture.baseYaw, xAxis, yAxis),
-  };
-}
-
-export function rebaseWarRoomJoystick(
-  state: WarRoomMobileControlsState,
-  cameraYaw: number,
-) {
-  if (!state.joystick || !Number.isFinite(cameraYaw)) return null;
-  state.joystick.baseYaw = normalizeWarRoomCameraYaw(cameraYaw);
-  return state.joystick.baseYaw;
+  return { x: xAxis, y: yAxis };
 }
 
 export function beginWarRoomLook(

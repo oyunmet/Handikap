@@ -233,6 +233,13 @@ export function getWarRoomRearCameraFrame(
   const forwardZ = -Math.cos(bodyYaw) * Math.cos(pitch);
   const rightX = Math.cos(bodyYaw);
   const rightZ = Math.sin(bodyYaw);
+  const focusDistance = Math.max(0, focusAhead);
+  const backDistance = Math.max(0, back);
+  const aimLaneOffset = backDistance > 1e-4
+    ? shoulder + (
+      Math.sign(shoulder || 1) * 0.45 - shoulder
+    ) * (backDistance + focusDistance) / backDistance
+    : shoulder;
   return {
     position: {
       x: feet.x - forwardX * back + rightX * shoulder,
@@ -240,9 +247,9 @@ export function getWarRoomRearCameraFrame(
       z: feet.z - forwardZ * back + rightZ * shoulder,
     },
     lookAt: {
-      x: feet.x + forwardX * focusAhead,
-      y: feet.y + focusHeight + forwardY * focusAhead,
-      z: feet.z + forwardZ * focusAhead,
+      x: feet.x + forwardX * focusDistance + rightX * aimLaneOffset,
+      y: feet.y + focusHeight + forwardY * focusDistance,
+      z: feet.z + forwardZ * focusDistance + rightZ * aimLaneOffset,
     },
   };
 }

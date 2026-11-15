@@ -6,26 +6,21 @@ import {
   beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
-  getWarRoomAutoFollowYaw,
-  getWarRoomMovementCameraYaw,
   getWarRoomTouchControlSide,
   isWarRoomLookDeltaValid,
   WAR_ROOM_MAX_LOOK_DELTA_PIXELS,
   readWarRoomJoystick,
   readWarRoomMouseLook,
-  rebaseWarRoomJoystick,
   resetWarRoomMobileControls,
 } from "./war-room-mobile-controls.ts";
 
-test("joystick can start at any screen coordinate and captures a stable camera basis", () => {
+test("joystick can start at any screen coordinate and reports local movement axes", () => {
   const controls = createWarRoomMobileControlsState();
-  assert.equal(beginWarRoomJoystick(controls, 31, 348, 210, 40, Math.PI / 2), true);
+  assert.equal(beginWarRoomJoystick(controls, 31, 348, 210, 40), true);
   const reading = readWarRoomJoystick(controls, 31, 388, 210);
   assert.ok(reading);
   assert.ok(Math.abs(reading.x - 1) < 1e-9);
   assert.ok(Math.abs(reading.y) < 1e-9);
-  assert.ok(Math.abs(reading.baseYaw - Math.PI / 2) < 1e-9);
-  assert.ok(Math.abs(reading.cameraYaw - Math.PI) < 1e-9);
 });
 
 test("mobile touch zones route the left half to movement and the right half to camera look", () => {
@@ -42,64 +37,26 @@ test("camera look ignores jitter and clamps pointer jumps to 80 pixels", () => {
   assert.equal(isWarRoomLookDeltaValid(20, -12), true);
 });
 
-test("automatic camera yaw follows an active stick direction but stays still at neutral", () => {
-  assert.ok(Math.abs(getWarRoomAutoFollowYaw(Math.PI / 2, 1, 0) - Math.PI) < 1e-9);
-  assert.equal(getWarRoomAutoFollowYaw(0, 0, 0), null);
-});
-
-test("un-aimed movement turns the hero and rear camera toward travel; aiming keeps strafe", () => {
-  assert.ok(Math.abs(getWarRoomMovementCameraYaw(0, 1, 0, false) - Math.PI / 2) < 1e-9);
-  assert.ok(Math.abs(getWarRoomMovementCameraYaw(0, 0, 1, false)) < 1e-9);
-  assert.equal(getWarRoomMovementCameraYaw(0, 1, 0, true), null);
-  assert.equal(getWarRoomMovementCameraYaw(0, 1, 0, false, true), null);
-  assert.equal(getWarRoomMovementCameraYaw(0, 0, 0, false), null);
-});
-
 test("joystick rejects other pointers, filters touch jitter, and clamps diagonals", () => {
   const controls = createWarRoomMobileControlsState();
-  beginWarRoomJoystick(controls, 7, 140, 300, 40, 0);
+  beginWarRoomJoystick(controls, 7, 140, 300, 40);
   assert.equal(readWarRoomJoystick(controls, 8, 180, 300), null);
-  assert.deepEqual(readWarRoomJoystick(controls, 7, 143, 300), {
-    x: 0,
-    y: 0,
-    baseYaw: 0,
-    cameraYaw: null,
-  });
+  assert.deepEqual(readWarRoomJoystick(controls, 7, 143, 300), { x: 0, y: 0 });
   const diagonal = readWarRoomJoystick(controls, 7, 200, 240);
   assert.ok(diagonal);
   assert.ok(Math.abs(Math.hypot(diagonal.x, diagonal.y) - 1) < 1e-9);
-  assert.ok(Math.abs(diagonal.cameraYaw - Math.PI / 4) < 1e-9);
 });
 
 test("joystick deadzone filters fifteen percent of its travel", () => {
   const controls = createWarRoomMobileControlsState();
-  beginWarRoomJoystick(controls, 22, 100, 100, 100, 0);
-  assert.equal(readWarRoomJoystick(controls, 22, 115, 100).x, 0);
-  assert.ok(readWarRoomJoystick(controls, 22, 116, 100).x > 0);
-});
-
-test("camera yaw is always computed from the gesture start, not its smoothed current yaw", () => {
-  const controls = createWarRoomMobileControlsState();
-  beginWarRoomJoystick(controls, 4, 200, 400, 40, -Math.PI / 2);
-  const first = readWarRoomJoystick(controls, 4, 240, 400);
-  const second = readWarRoomJoystick(controls, 4, 240, 400);
-  assert.equal(first.cameraYaw, second.cameraYaw);
-  assert.ok(Math.abs(first.cameraYaw) < 1e-9);
-});
-
-test("manual camera movement rebases the active joystick without changing its pointer origin", () => {
-  const controls = createWarRoomMobileControlsState();
-  beginWarRoomJoystick(controls, 14, 200, 400, 40, 0);
-  assert.equal(rebaseWarRoomJoystick(controls, Math.PI / 2), Math.PI / 2);
-  const reading = readWarRoomJoystick(controls, 14, 240, 400);
-  assert.equal(reading.baseYaw, Math.PI / 2);
-  assert.ok(Math.abs(reading.cameraYaw - Math.PI) < 1e-9);
-  assert.equal(controls.joystick.originX, 200);
+  beginWarRoomJoystick(controls, 22, 100, 100, 100);
+  assert.deepEqual(readWarRoomJoystick(controls, 22, 115, 100), { x: 0, y: 0 });
+  assert.ok((readWarRoomJoystick(controls, 22, 116, 100)?.x ?? 0) > 0);
 });
 
 test("look and movement pointers release independently and clear on reset", () => {
   const controls = createWarRoomMobileControlsState();
-  beginWarRoomJoystick(controls, 1, 100, 300, 40, 0);
+  beginWarRoomJoystick(controls, 1, 100, 300, 40);
   beginWarRoomLook(controls, {
     pointerId: 2,
     x: 300,

@@ -29,7 +29,6 @@ function createInput() {
     manualLookActive: false,
     yaw: 0,
     cameraTargetYaw: 0,
-    movementBaseYaw: null,
     manualLookActive: false,
     pitch: 0,
     facingSetting: "camera",
@@ -159,7 +158,7 @@ test("touch and keyboard controls produce the expected input-only actions", () =
 test("joystick, aim, and fire remain independent while held together", () => {
   const controls = createWarRoomMobileControlsState();
   const input = createInput();
-  assert.equal(beginWarRoomJoystick(controls, 41, 40, 180, 44, 0), true);
+  assert.equal(beginWarRoomJoystick(controls, 41, 40, 180, 44), true);
   beginWarRoomButtonPointer(controls, 42);
   beginWarRoomButtonPointer(controls, 43);
   pressWarRoomAction(input, "aim");

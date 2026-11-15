@@ -85,10 +85,7 @@ import {
   stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
-  getWarRoomMovementCameraYaw,
   clampWarRoomLookDelta,
-  rebaseWarRoomJoystick,
-  type WarRoomMobileControlsState,
 } from "../game/war-room-mobile-controls";
 import {
   getWarRoomPlayerAnimationPlaybackScale,
@@ -143,6 +140,7 @@ import {
   type WarRoomViewModelPoseSpringState,
   type WarRoomViewModelMovementState,
 } from "../game/war-room-viewmodel";
+import { applyWarRoomWeaponHoldPose } from "../game/war-room-weapon-hold";
 import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
 import {
   getWarRoomImpactFxProfile,
@@ -257,7 +255,6 @@ import WarRoomSceneErrorBoundary from "./WarRoomSceneErrorBoundary";
 type Props = {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
   inputRef: MutableRefObject<WarRoomInputState>;
-  mobileControlsRef: MutableRefObject<WarRoomMobileControlsState>;
   weaponIds: readonly [WarRoomWeaponId, WarRoomWeaponId];
   weaponMountOverrides?: Partial<Record<WarRoomWeaponId, WarRoomWeaponMount>>;
   cameraMode: WarRoomCameraMode;
@@ -1668,7 +1665,10 @@ function PlayerActor({
             state={playerAnimation}
             playbackScale={playerPlaybackScale}
             modelRef={modelRef}
-            afterAnimationFrame={applyMeleePoseAfterAnimation}
+            afterAnimationFrame={(model) => {
+              applyMeleePoseAfterAnimation(model);
+              applyWarRoomWeaponHoldPose(model, isMeleeWeapon ? "melee" : "ranged");
+            }}
             isPaused={() => inputRef.current.paused}
           />
         </Suspense>
@@ -2277,7 +2277,6 @@ function WarRoomResourceProbe({
 function WarRoomRuntimeScene({
   runtimeRef,
   inputRef,
-  mobileControlsRef,
   weaponIds,
   weaponMountOverrides,
   cameraMode,
@@ -3550,9 +3549,6 @@ function WarRoomRuntimeScene({
         input.lookPointerType,
       );
       input.cameraTargetYaw = input.yaw;
-      if (input.movementBaseYaw !== null) {
-        input.movementBaseYaw = rebaseWarRoomJoystick(mobileControlsRef.current, input.yaw);
-      }
     }
     const wallNow = frame.clock.elapsedTime;
     const renderStatsNow = collectPerformanceMetrics ? performance.now() : 0;
@@ -3713,25 +3709,15 @@ function WarRoomRuntimeScene({
       moveY,
     );
     const strafeActive = input.aimHeld || now < player.strafeUntil;
-    if (input.movementBaseYaw !== null) {
-      const autoFollowYaw = getWarRoomMovementCameraYaw(
-        input.movementBaseYaw,
-        moveX,
-        moveY,
-        input.aimHeld,
-        input.manualLookActive,
-      );
-      if (autoFollowYaw !== null) input.cameraTargetYaw = autoFollowYaw;
-    }
     const controlCameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
     const cameraTargetYaw = getWarRoomCameraAngles(input.cameraTargetYaw, input.pitch).yaw;
     const movementYaw = stepWarRoomYaw(
       controlCameraAngles.yaw,
       cameraTargetYaw,
       delta,
-      input.movementBaseYaw === null ? 16 : WAR_ROOM_CONFIG.camera.autoFollowSpeed,
+      16,
     );
-    const movementBasisYaw = input.movementBaseYaw ?? movementYaw;
+    const movementBasisYaw = movementYaw;
     const priorLookYaw = previousLookYawRef.current;
     if (priorLookYaw !== null && Math.abs(shortestAngleDelta(priorLookYaw, movementYaw)) > Math.PI / 4
       && (debugMode || debugDiagnosticsEnabled)) {

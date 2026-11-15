@@ -7,8 +7,7 @@ import {
   fitCharacterModel,
 } from "../world/character-model.ts";
 import {
-  applyWarRoomRangedWeaponReadyPose,
-  restoreWarRoomRangedWeaponReadyPose,
+  applyWarRoomWeaponHoldPose,
 } from "./war-room-weapon-hold.ts";
 
 const playerModelUrl = new URL("../../../public/models/player-hero.glb", import.meta.url);
@@ -38,7 +37,7 @@ test("ranged weapon pose raises the real player hands and stays stable through i
   const rightBefore = rightHand.getWorldPosition(new THREE.Vector3());
   const leftBefore = leftHand.getWorldPosition(new THREE.Vector3());
 
-  assert.equal(applyWarRoomRangedWeaponReadyPose(model), true);
+  assert.equal(applyWarRoomWeaponHoldPose(model, "ranged"), true);
   actor.updateMatrixWorld(true);
   const rightReady = rightHand.getWorldPosition(new THREE.Vector3());
   const leftReady = leftHand.getWorldPosition(new THREE.Vector3());
@@ -49,7 +48,7 @@ test("ranged weapon pose raises the real player hands and stays stable through i
 
   mixer.setTime(0.8);
   actor.updateMatrixWorld(true);
-  assert.equal(applyWarRoomRangedWeaponReadyPose(model), true);
+  assert.equal(applyWarRoomWeaponHoldPose(model, "ranged"), true);
   actor.updateMatrixWorld(true);
   const rightAfterIdleStep = rightHand.getWorldPosition(new THREE.Vector3());
   assert.ok(
@@ -57,7 +56,7 @@ test("ranged weapon pose raises the real player hands and stays stable through i
     "idle animation should not pull the held weapon back down between frames",
   );
 
-  assert.equal(restoreWarRoomRangedWeaponReadyPose(model), true);
+  assert.equal(applyWarRoomWeaponHoldPose(model, "melee"), true);
   actor.updateMatrixWorld(true);
   assert.ok(
     rightHand.getWorldPosition(new THREE.Vector3()).distanceTo(rightBefore) < 0.03,

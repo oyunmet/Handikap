@@ -90,8 +90,9 @@ try {
       await page.waitForFunction((expected) => {
         const aim = document.querySelector(".war-room-control.is-aim");
         const crosshair = document.querySelector(".war-room-crosshair");
+        const held = aim?.getAttribute("data-held");
         return document.querySelector(".war-room-hud")?.classList.contains("is-aiming") === expected
-          && aim?.getAttribute("data-held") === String(expected)
+          && (expected ? held === "true" : held === null || held === "false")
           && aim?.classList.contains("is-active") === expected
           && crosshair?.classList.contains("is-zoomed") === expected;
       }, active, { timeout: 10_000 });
@@ -176,6 +177,7 @@ try {
   ]) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(250);
+    console.log(`War Room E2E: checking three-touch controls at ${viewport.width}x${viewport.height}.`);
     for (let index = 0; index < 3; index += 1) {
       const id = touchId++;
       const point = await findOpenTouchPoint("left");
@@ -295,16 +297,19 @@ try {
     }, null, { timeout: 5_000 });
     await waitForAimState(true);
     await waitForTouchRole(moveId, "joystick");
+    console.log(`War Room E2E: fire released independently at ${viewport.width}x${viewport.height}.`);
     assert.ok((await diagnostics())?.includes(`${moveId}:joystick`),
       `Releasing fire also ended movement: ${await diagnostics()}`);
 
     await endTouch(aimId);
     await waitForAimState(false);
     await waitForTouchRole(moveId, "joystick");
+    console.log(`War Room E2E: aim released independently at ${viewport.width}x${viewport.height}.`);
     assert.ok((await diagnostics())?.includes(`${moveId}:joystick`),
       `Releasing aim also ended movement: ${await diagnostics()}`);
     await endTouch(moveId);
     await waitForNoActiveTouches();
+    console.log(`War Room E2E: all three touch roles cleared at ${viewport.width}x${viewport.height}.`);
   }
   console.log("War Room E2E: three-touch movement, visible ADS, fire, and independent releases passed at both landscape sizes.");
 

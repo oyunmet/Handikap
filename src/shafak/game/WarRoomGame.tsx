@@ -217,7 +217,6 @@ function createInputState(aimAssistEnabled = true): WarRoomInputState {
     moveY: 0,
     yaw: 0,
     cameraTargetYaw: 0,
-    movementBaseYaw: null,
     manualLookActive: false,
     lookDeltaX: 0,
     lookDeltaY: 0,
@@ -749,7 +748,6 @@ export default function WarRoomGame({
     resetWarRoomMobileControls(mobileControlsRef.current);
     inputRef.current.moveX = 0;
     inputRef.current.moveY = 0;
-    inputRef.current.movementBaseYaw = null;
     inputRef.current.manualLookActive = false;
     inputRef.current.lookDeltaX = 0;
     inputRef.current.lookDeltaY = 0;
@@ -1366,10 +1364,6 @@ export default function WarRoomGame({
     const stick = stickRef.current;
     if (!gesture || !reading) return;
     setWarRoomMoveVector(inputRef.current, reading.x, reading.y);
-    inputRef.current.movementBaseYaw = reading.baseYaw;
-    if (reading.cameraYaw !== null && !inputRef.current.manualLookActive) {
-      inputRef.current.cameraTargetYaw = reading.cameraYaw;
-    }
     if (!stick) return;
     stick.style.setProperty("--dynamic-stick-x", `${gesture.originX}px`);
     stick.style.setProperty("--dynamic-stick-y", `${gesture.originY}px`);
@@ -1434,7 +1428,6 @@ export default function WarRoomGame({
     const ended = endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
     if (ended.endedJoystick) {
       setWarRoomMoveVector(inputRef.current, 0, 0);
-      inputRef.current.movementBaseYaw = null;
       setDynamicStickActive(false);
       stickRef.current?.style.setProperty("--stick-x", "0px");
       stickRef.current?.style.setProperty("--stick-y", "0px");
@@ -1465,7 +1458,6 @@ export default function WarRoomGame({
       const ended = endWarRoomMobilePointer(mobileControlsRef.current, pointerId);
       if (ended.endedJoystick) {
         setWarRoomMoveVector(inputRef.current, 0, 0);
-        inputRef.current.movementBaseYaw = null;
         setDynamicStickActive(false);
         stickRef.current?.style.setProperty("--stick-x", "0px");
         stickRef.current?.style.setProperty("--stick-y", "0px");
@@ -1502,10 +1494,7 @@ export default function WarRoomGame({
             touch.clientX,
             touch.clientY,
             WAR_ROOM_CONFIG.input.touchJoystickRadius,
-            input.yaw,
           )) continue;
-          input.movementBaseYaw = input.yaw;
-          input.cameraTargetYaw = input.yaw;
           setDynamicStickActive(true);
           updateTouchJoystick(controlPointerId, touch.clientX, touch.clientY);
         } else {
@@ -1686,7 +1675,6 @@ export default function WarRoomGame({
             key={resourceLeakTestMode ? "war-room-resource-leak-test" : runKey}
             runtimeRef={runtimeRef}
             inputRef={inputRef}
-            mobileControlsRef={mobileControlsRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
             cameraMode="third-person"

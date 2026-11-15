@@ -267,7 +267,7 @@ test("rear camera stays behind the player's facing direction at every quarter tu
   }
 });
 
-test("rear camera aims down the center line while keeping the shoulder camera offset", () => {
+test("rear camera keeps its aim line beside the hero instead of across the head", () => {
   assert.equal(getWarRoomCameraFocusAhead("first-person", false), 8);
   assert.equal(getWarRoomCameraFocusAhead("third-person", false), 4.5);
   assert.equal(getWarRoomCameraFocusAhead("third-person", true), 6.5);
@@ -283,13 +283,28 @@ test("rear camera aims down the center line while keeping the shoulder camera of
   );
 
   assert.equal(frame.position.x, 0.85);
-  assert.equal(frame.lookAt.x, 0, "the reticle target remains centered on the movement line");
-  assert.notEqual(
-    frame.position.x,
-    frame.lookAt.x,
-    "aiming from the shoulder should show the side of the held weapon",
+  const bodyPlaneFraction = 3 / (3 + 4.5);
+  const rayAtBodyPlane = frame.position.x
+    + (frame.lookAt.x - frame.position.x) * bodyPlaneFraction;
+  assert.ok(
+    Math.abs(rayAtBodyPlane - 0.45) < 1e-9,
+    "the aim ray should clear the head while keeping the hero inside the frame",
   );
   assert.equal(frame.lookAt.z, -4.5, "the reticle should point beyond the hero, not into their head");
+
+  const leftShoulder = getWarRoomRearCameraFrame(
+    { x: 0, y: 0, z: 0 },
+    0,
+    0,
+    3,
+    -0.85,
+    1.55,
+    4.5,
+    1.5,
+  );
+  const leftRayAtBodyPlane = leftShoulder.position.x
+    + (leftShoulder.lookAt.x - leftShoulder.position.x) * bodyPlaneFraction;
+  assert.ok(Math.abs(leftRayAtBodyPlane + 0.45) < 1e-9);
 });
 
 test("rear camera stays behind the rendered hero after a lateral turn", () => {

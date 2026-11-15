@@ -206,7 +206,6 @@ export type WarRoomInputState = {
   moveY: number;
   yaw: number;
   cameraTargetYaw: number;
-  movementBaseYaw: number | null;
   manualLookActive: boolean;
   lookDeltaX: number;
   lookDeltaY: number;

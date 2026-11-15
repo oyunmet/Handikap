@@ -64,3 +64,12 @@ export function restoreWarRoomRangedWeaponReadyPose(model: THREE.Object3D) {
   delete model.userData[WEAPON_READY_POSE_KEY];
   return true;
 }
+
+export function applyWarRoomWeaponHoldPose(
+  model: THREE.Object3D,
+  weaponClass: "melee" | "ranged",
+) {
+  return weaponClass === "melee"
+    ? restoreWarRoomRangedWeaponReadyPose(model)
+    : applyWarRoomRangedWeaponReadyPose(model);
+}
