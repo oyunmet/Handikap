@@ -1,6 +1,6 @@
 ---
 name: World and duel visual expectations
-description: Player-facing requirements for stable world rivals, clear duels, and discoverable road rewards and hazards.
+description: Player-facing requirements for coherent environments, clear duels, and recognizable combatants.
 ---
 
 World encounter rivals must stay anchored to their encounter locations instead of pacing, following the player, or sliding when revisiting. During a duel, both fighters must face each other and appear side by side across the screen, not stacked vertically. Use a rear-side camera angle that keeps the player's weapon hand and attack effects clearly visible; never present the player facing the camera. The duel player must retain the same recognizable appearance as the road hero, not switch to a different-looking procedural figure. Keep bosses on a player-like humanoid rig and close to the player's height; distinguish them with polished, well-proportioned armor, silhouette, patterns, and shapes rather than making the hero look miniature beside an oversized boss or using a mismatched standalone skeleton. Attach weapons and equipment to the rig's hand and bones. Keep the arena clear of world scenery and duplicate overlays so both fighters remain visible. Road rewards and hazards must be visually obvious and reachable; seeded content that players cannot see does not satisfy the requirement.
@@ -18,6 +18,12 @@ In War Room mobile gameplay, a rendered hero is not enough: the player must be l
 **Why:** The user repeated that the live phone view still did not make the player, equipped weapon, or impact effects visible.
 
 **How to apply:** Verify an actual in-game mobile capture after visual changes. If the available preview cannot create WebGL, state that limitation and do not claim the combat scene was visually verified.
+
+War Room battle spaces should read as connected, lived-in medieval settlements: a visible open sky, continuous stone streets and paths, and believable domestic interiors. Avoid isolated scenery that makes the world feel fragmented.
+
+**Why:** The user said the battle world felt disconnected and asked for sky, stone walkways, streets, and more home-like interiors.
+
+**How to apply:** Keep environmental additions aligned with room rotation and clear of gameplay paths; use cohesive procedural set dressing that fits mobile performance.
 
 On the road, the hero should keep an upright torso and a level head while standing; ordinary movement should not add a pronounced forward hunch.
 

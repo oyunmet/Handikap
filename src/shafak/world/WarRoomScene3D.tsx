@@ -1675,6 +1675,7 @@ function PlayerActor({
         )}
         <group position={[0, 0.03, -0.08]}>
           <WeaponModel
+            key={weaponId}
             weaponId={weaponId}
             mount={mount}
             muzzleAnchorRef={muzzleRef}
@@ -2296,6 +2297,13 @@ function WarRoomRuntimeScene({
 }: Omit<Props, "onWarmupComplete">) {
   const { camera, scene, gl, size } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
+  const initialWeaponId = runtimeRef.current.player.weaponSlots[
+    runtimeRef.current.player.activeSlot
+  ];
+  const [renderedActiveWeapon, setRenderedActiveWeapon] = useState<WarRoomWeaponId>(
+    () => initialWeaponId,
+  );
+  const renderedActiveWeaponRef = useRef(renderedActiveWeapon);
   const viewModelScene = useMemo(() => {
     const result = new THREE.Scene();
     result.name = "war-room-first-person-view-model-pass";
@@ -3501,6 +3509,11 @@ function WarRoomRuntimeScene({
     }
     const player = runtime.player;
     const input = inputRef.current;
+    const currentActiveWeapon = player.weaponSlots[player.activeSlot];
+    if (currentActiveWeapon !== renderedActiveWeaponRef.current) {
+      renderedActiveWeaponRef.current = currentActiveWeapon;
+      setRenderedActiveWeapon(currentActiveWeapon);
+    }
     if (input.paused) return;
     try {
     const lookDeltaX = input.lookDeltaX;
@@ -3699,6 +3712,7 @@ function WarRoomRuntimeScene({
         moveX,
         moveY,
         input.aimHeld,
+        input.manualLookActive,
       );
       if (autoFollowYaw !== null) input.cameraTargetYaw = autoFollowYaw;
     }
@@ -4720,7 +4734,9 @@ function WarRoomRuntimeScene({
       inputRef.current.yaw + cameraSideKickRef.current,
       inputRef.current.pitch + cameraKickRef.current,
     );
-    const cameraYaw = cameraMode === "third-person" && playerRootRef.current
+    const cameraYaw = cameraMode === "third-person"
+      && playerRootRef.current
+      && !input.manualLookActive
       ? getWarRoomFacingYawFromRootYaw(playerRootRef.current.rotation.y)
       : sceneCameraAngles.yaw;
     const cameraPitch = sceneCameraAngles.pitch;
@@ -4729,7 +4745,7 @@ function WarRoomRuntimeScene({
       : 0;
     const { back: baseCameraBack, shoulder } = getWarRoomCameraRig({
       mode: cameraMode,
-      aiming: false,
+      aiming: input.aimHeld,
       shoulderOffset,
       shoulderSide,
       indoors: Boolean(indoorBuilding),
@@ -5280,7 +5296,7 @@ function WarRoomRuntimeScene({
   });
 
   const runtime = runtimeRef.current;
-  const activeWeapon = runtime.player.weaponSlots[runtime.player.activeSlot];
+  const activeWeapon = renderedActiveWeapon;
   return (
     <>
       <TimeOfDaySky quality={quality} />
@@ -5332,6 +5348,7 @@ function WarRoomRuntimeScene({
           <hemisphereLight args={["#fff0dc", "#59483b", 1.6]} />
           <directionalLight color="#fff0d7" intensity={1.8} position={[1.5, 2.5, 3]} />
           <FirstPersonWeaponViewModel
+            key={activeWeapon}
             runtimeRef={runtimeRef}
             inputRef={inputRef}
             cameraBounds={logicalCameraBounds}

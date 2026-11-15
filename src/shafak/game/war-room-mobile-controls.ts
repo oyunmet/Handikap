@@ -53,8 +53,11 @@ export function getWarRoomMovementCameraYaw(
   moveX: number,
   moveY: number,
   aiming: boolean,
+  manualLookActive = false,
 ) {
-  return aiming ? null : getWarRoomAutoFollowYaw(baseYaw, moveX, moveY);
+  return aiming || manualLookActive
+    ? null
+    : getWarRoomAutoFollowYaw(baseYaw, moveX, moveY);
 }
 
 export function getWarRoomTouchControlSide(

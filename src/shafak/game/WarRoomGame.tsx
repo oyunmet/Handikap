@@ -80,7 +80,6 @@ import {
   beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
-  getWarRoomAutoFollowYaw,
   readWarRoomJoystick,
   readWarRoomMouseLook,
   resetWarRoomMobileControls,
@@ -1554,18 +1553,17 @@ export default function WarRoomGame({
         const controlPointerId = pointerIdForTouch(touch.identifier);
         if (reading.role === "joystick") {
           updateTouchJoystick(controlPointerId, touch.clientX, touch.clientY);
-          input.moveX = reading.moveX;
-          input.moveY = reading.moveY;
-          const baseYaw = mobileControlsRef.current.joystick?.baseYaw ?? input.yaw;
-          input.movementBaseYaw = baseYaw;
-          const cameraYaw = getWarRoomAutoFollowYaw(baseYaw, reading.moveX, reading.moveY);
-          if (cameraYaw !== null && !input.manualLookActive) {
-            input.cameraTargetYaw = cameraYaw;
-          }
         } else {
-          input.lookDeltaX += reading.dx;
-          input.lookDeltaY += reading.dy;
-          input.lookPointerType = "touch";
+          const delta = readWarRoomMouseLook(
+            mobileControlsRef.current,
+            controlPointerId,
+            touch.clientX,
+            touch.clientY,
+          );
+          if (!delta) continue;
+          input.lookDeltaX += delta.dx;
+          input.lookDeltaY += delta.dy;
+          input.lookPointerType = delta.pointerType;
         }
       }
       if (handled && event.cancelable) event.preventDefault();
@@ -1696,12 +1694,12 @@ export default function WarRoomGame({
             mobileControlsRef={mobileControlsRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
-            cameraMode="first-person"
+            cameraMode="third-person"
             motionReduced={motionReduced}
             weaponSway={weaponSway}
             armsVisible={armsVisible}
             shoulderSide="right"
-            shoulderOffset={0}
+            shoulderOffset={0.58}
             bloodEffects={bloodEffects}
             trainingMode={weaponLabMode || resourceLeakTestMode}
             quality={quality}

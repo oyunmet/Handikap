@@ -51,6 +51,7 @@ test("un-aimed movement turns the hero and rear camera toward travel; aiming kee
   assert.ok(Math.abs(getWarRoomMovementCameraYaw(0, 1, 0, false) - Math.PI / 2) < 1e-9);
   assert.ok(Math.abs(getWarRoomMovementCameraYaw(0, 0, 1, false)) < 1e-9);
   assert.equal(getWarRoomMovementCameraYaw(0, 1, 0, true), null);
+  assert.equal(getWarRoomMovementCameraYaw(0, 1, 0, false, true), null);
   assert.equal(getWarRoomMovementCameraYaw(0, 0, 0, false), null);
 });
 

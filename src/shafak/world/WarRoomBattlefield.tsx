@@ -14,6 +14,11 @@ import {
   WarRoomGateway,
   WarRoomTree,
 } from "./WarRoomEnvironment";
+import {
+  WarRoomHomeAccent,
+  WarRoomSky,
+  WarRoomVillageSetDressing,
+} from "./WarRoomVillageSetDressing";
 
 function WarRoomLootChestField({ runtime }: { runtime: WarRoomRuntime }) {
   const bodyRef = useRef<THREE.InstancedMesh>(null);
@@ -226,6 +231,7 @@ export default function WarRoomBattlefield({
   return (
     <>
       <color attach="background" args={[sceneTheme.sky]} />
+      <WarRoomSky skyColor={sceneTheme.sky} />
       <fog attach="fog" args={[sceneTheme.fog, sceneTheme.fogNear, sceneTheme.fogFar]} />
       <hemisphereLight args={[sceneTheme.skyLight, sceneTheme.groundLight, darkModifier ? 2.3 : 3]} />
       <directionalLight
@@ -246,6 +252,7 @@ export default function WarRoomBattlefield({
         <primitive object={WAR_ROOM_FLOOR_MATERIAL} attach="material" />
       </mesh>
       <FloorPaving palette={sceneTheme.tiles} />
+      <WarRoomVillageSetDressing quarterTurns={room.quarterTurns} />
       {runtime.mission.mode === "defense" && (
         <group
           position={[
@@ -277,6 +284,7 @@ export default function WarRoomBattlefield({
       {room.buildings.map((building) => (
         <group key={building.id}>
           <WarRoomBuildingShell building={building} />
+          <WarRoomHomeAccent building={building} />
           <WarRoomStaircase building={building} />
           <WarRoomHouseInterior building={building} />
           <WarRoomDoor building={building} runtimeRef={runtimeRef} />
