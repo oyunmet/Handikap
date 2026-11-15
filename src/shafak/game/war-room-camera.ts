@@ -298,10 +298,7 @@ export function getWarRoomCameraRaySafeDistance(
   return Math.max(0.2, Math.min(desiredDistance, hitDistance - Math.max(0, clearance)));
 }
 
-/**
- * Indoor views stay on the direct shoulder-camera segment. Searching lateral
- * alternatives here can put the camera outside a house through its walls.
- */
+/** Indoor fallback shifts within the room if a blocked rear line would crowd the player. */
 export function resolveWarRoomInteriorCameraPlacement(
   start: WarRoomCameraPoint,
   end: WarRoomCameraPoint,
@@ -312,6 +309,41 @@ export function resolveWarRoomInteriorCameraPlacement(
 ): WarRoomCameraPlacement {
   const candidate = clampWarRoomCameraToInterior(end, interior, radius + 0.24);
   const sweep = resolveWarRoomCameraSweep(start, candidate, bounds, radius, 0, clearance);
+  if (sweep.safeDistance < 1.7) {
+    const rearX = candidate.x - start.x;
+    const rearZ = candidate.z - start.z;
+    const rearLength = Math.hypot(rearX, rearZ);
+    if (rearLength > 0.001) {
+      const sideX = -rearZ / rearLength;
+      const sideZ = rearX / rearLength;
+      for (const sideOffset of [0.5, -0.5, 0.85, -0.85, 1.2, -1.2, 1.8, -1.8]) {
+        const alternate = clampWarRoomCameraToInterior({
+          x: candidate.x + sideX * sideOffset,
+          y: candidate.y,
+          z: candidate.z + sideZ * sideOffset,
+        }, interior, radius + 0.24);
+        const alternateSweep = resolveWarRoomCameraSweep(
+          start,
+          alternate,
+          bounds,
+          radius,
+          1.5,
+          clearance,
+        );
+        const position = pointAlongSegment(start, alternate, alternateSweep.safeDistance);
+        if (
+          alternateSweep.safeDistance >= 1.5
+          && isWarRoomCameraPointClear(position, bounds, radius)
+        ) {
+          return {
+            ...alternateSweep,
+            position,
+            usedAlternate: true,
+          };
+        }
+      }
+    }
+  }
   return {
     ...sweep,
     position: pointAlongSegment(start, candidate, sweep.safeDistance),

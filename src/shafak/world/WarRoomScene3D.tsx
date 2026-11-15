@@ -142,6 +142,7 @@ import {
 } from "../game/war-room-viewmodel";
 import { applyWarRoomWeaponHoldPose } from "../game/war-room-weapon-hold";
 import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
+import { getWarRoomWeaponReloadOffsets } from "../game/war-room-weapon-reload";
 import {
   getWarRoomImpactFxProfile,
   WAR_ROOM_CRACK_DECAL_LIFETIME_SECONDS,
@@ -651,55 +652,54 @@ function WarRoomWeaponReloadMotion({
   boltRef: MutableRefObject<THREE.Object3D | null>;
   arrowRef: MutableRefObject<THREE.Object3D | null>;
 }) {
+  const originalPartsRef = useRef(new WeakMap<THREE.Object3D, {
+    position: THREE.Vector3;
+    visible: boolean;
+  }>());
+  const readOriginalPart = (object: THREE.Object3D) => {
+    let original = originalPartsRef.current.get(object);
+    if (!original) {
+      original = { position: object.position.clone(), visible: object.visible };
+      originalPartsRef.current.set(object, original);
+    }
+    return original;
+  };
+
   useFrame(() => {
     const animation = animationRef.current;
     const progress = animation.reloadProgress;
+    const offsets = getWarRoomWeaponReloadOffsets(
+      weaponId,
+      progress,
+      animation.chargeProgress,
+    );
     const magazine = magazineRef.current;
     if (magazine) {
-      let magazineY = -0.14;
-      let visible = animation.loaded || progress > 0.04;
-      if (progress >= 0.12 && progress < 0.34) {
-        magazineY -= 0.24 * smoothProgress((progress - 0.12) / 0.22);
-      } else if (progress >= 0.34 && progress < 0.58) {
-        magazineY -= 0.24;
-        visible = progress < 0.43;
-      } else if (progress >= 0.58 && progress < 0.82) {
-        magazineY -= 0.24 * (1 - smoothProgress((progress - 0.58) / 0.24));
-      }
-      magazine.position.y = magazineY;
-      magazine.visible = visible;
+      const original = readOriginalPart(magazine);
+      magazine.position.copy(original.position);
+      magazine.position.y += offsets.magazineY;
+      magazine.visible = original.visible && (animation.loaded || progress > 0.04);
     }
 
     const bolt = boltRef.current;
     if (bolt) {
-      const pull = progress < 0.78
-        ? 0
-        : progress < 0.88
-          ? smoothProgress((progress - 0.78) / 0.1)
-          : progress < 0.97
-            ? 1 - smoothProgress((progress - 0.88) / 0.09)
-            : 0;
-      bolt.position.z = -0.24 + pull * 0.14;
+      const original = readOriginalPart(bolt);
+      bolt.position.copy(original.position);
+      bolt.position.z += offsets.boltZ;
     }
 
     const arrow = arrowRef.current;
     if (!arrow) return;
+    const original = readOriginalPart(arrow);
+    arrow.position.copy(original.position);
     if (weaponId === "crossbow") {
-      const insertion = smoothProgress((progress - 0.25) / 0.5);
-      arrow.visible = animation.loaded || progress > 0.1;
-      if (progress > 0 && progress < 1) {
-        arrow.position.set(
-          0.32 * (1 - insertion),
-          -0.18 * (1 - insertion) + 0.12 * insertion,
-          -0.18 - 0.22 * insertion,
-        );
-      } else {
-        arrow.position.set(0, 0.12, -0.4);
-      }
+      arrow.position.x += offsets.arrowX;
+      arrow.position.y += offsets.arrowY;
+      arrow.position.z += offsets.arrowZ;
+      arrow.visible = original.visible && (animation.loaded || progress > 0.1);
     } else if (weaponId === "longbow") {
-      const draw = Math.max(0, Math.min(1, animation.chargeProgress));
-      arrow.visible = animation.loaded || draw > 0.04;
-      arrow.position.set(0, 0.02, -0.3 + draw * 0.18);
+      arrow.position.z += offsets.arrowZ;
+      arrow.visible = original.visible && (animation.loaded || animation.chargeProgress > 0.04);
     }
   });
   return null;
@@ -1419,7 +1419,12 @@ function PlayerActor({
         player.floorHeight + player.jumpHeight - (player.prone ? 0.34 : 0),
         renderPositionRef.current.z - Math.cos(bodyYaw) * heavyStep,
       );
-      root.rotation.y = shortestLerp(root.rotation.y, getWarRoomPlayerRootYaw(bodyYaw), 10, delta);
+      root.rotation.y = shortestLerp(
+        root.rotation.y,
+        getWarRoomPlayerRootYaw(bodyYaw),
+        WAR_ROOM_CONFIG.camera.autoFollowSpeed,
+        delta,
+      );
       root.scale.y = player.prone ? 0.5 : player.crouched ? 0.78 : 1;
     }
     const hand = modelRef.current && [
@@ -4991,7 +4996,11 @@ function WarRoomRuntimeScene({
         cameraPlacement.position.z,
       );
     }
-    if (cameraMode === "third-person" && cameraRaycastMeshesByOwnerRef.current.size > 0) {
+    if (
+      cameraMode === "third-person"
+      && !cameraPlacement?.usedAlternate
+      && cameraRaycastMeshesByOwnerRef.current.size > 0
+    ) {
       cameraRayOrigin.set(
         cameraFrame.lookAt.x,
         cameraFrame.lookAt.y,

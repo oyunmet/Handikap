@@ -99,12 +99,12 @@ export default function WorldRoadEnvironmentLayer({
 
   return (
     <>
-      <hemisphereLight args={["#a3c9df", "#857c6d", 1.35]} />
-      <ambientLight color="#fff0dc" intensity={0.52} />
+      <hemisphereLight args={["#a3c9df", "#857c6d", 1.55]} />
+      <ambientLight color="#fff0dc" intensity={0.72} />
       <directionalLight
         position={[-8, 14, 5]}
         color="#fff1dc"
-        intensity={1.45}
+        intensity={1.6}
         castShadow
         shadow-mapSize={[768, 768]}
         shadow-camera-near={0.5}
@@ -114,7 +114,7 @@ export default function WorldRoadEnvironmentLayer({
         shadow-camera-top={13}
         shadow-camera-bottom={-8}
       />
-      <directionalLight position={[7, 8, -9]} color="#a3c9df" intensity={0.5} />
+      <directionalLight position={[7, 8, -9]} color="#a3c9df" intensity={0.7} />
       <primitive object={environment.root} dispose={null} />
     </>
   );

@@ -19,6 +19,18 @@ download includes a CC0 license file; they are free for commercial use.
 | `war-room/flag-pennant.glb`, `siege-ballista.glb`, `rocks-large.glb` | [Castle Kit — Kenney](https://kenney.nl/assets/castle-kit) | CC0 1.0 |
 
 The source bundle's `License.txt` states CC0 and permits commercial use.
-War Room weapon shapes remain the existing procedural fallback because the
-verified, direct GLB bundles checked for this task did not include weapons that
-fit this fantasy setting.
+
+## Weapons
+
+The following fantasy weapon models are original project-generated GLBs from
+`scripts/generate-war-room-weapon-models.mjs`; they do not contain third-party
+model-pack content:
+
+| Files | Source |
+| --- | --- |
+| `weapons/kara-barut-rifle.glb`, `spark-pistol.glb`, `brokenstone-shotgun.glb` | Shafak low-poly weapon generator |
+| `weapons/ash-crossbow.glb`, `dusk-longbow.glb`, `war-room-shovel.glb` | Shafak low-poly weapon generator |
+
+Other pre-existing weapon GLBs remain in the project and were not downloaded or
+changed for this refresh. Their upstream source licenses are not identified by
+the current project notes.

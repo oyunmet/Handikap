@@ -14,20 +14,20 @@ import {
 } from "./movement.ts";
 import { getWorldV2CameraOffset, WORLD_V2_CONFIG } from "./world-v2-config.ts";
 
-test("keyboard input separates strafe, turning, and forward/back movement", () => {
+test("keyboard left/right turns the hero while up/down controls forward movement", () => {
   const diagonal = readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 });
   const north = readWorldInput(new Set(["arrowup"]), { x: 0, y: 0 });
   const turnRight = readWorldInput(new Set(["arrowright"]), { x: 0, y: 0 });
 
-  assert.ok(Math.abs(Math.hypot(diagonal.strafe, diagonal.forward) - 1) < 1e-10);
-  assert.ok(Math.abs(diagonal.strafe - Math.SQRT1_2) < 1e-12);
+  assert.ok(Math.abs(Math.hypot(diagonal.turn, diagonal.forward) - 1) < 1e-10);
+  assert.ok(Math.abs(diagonal.turn - Math.SQRT1_2) < 1e-12);
   assert.ok(Math.abs(diagonal.forward - Math.SQRT1_2) < 1e-12);
   assert.deepEqual([north.turn, north.strafe, north.forward], [0, 0, 1]);
   assert.deepEqual([turnRight.turn, turnRight.strafe, turnRight.forward], [1, 0, 0]);
 });
 
 test("horizontal joystick input turns while the vertical axis controls travel", () => {
-  const straight = readWorldInput(new Set(), { x: -0.18, y: 0.9 });
+  const straight = readWorldInput(new Set(), { x: -0.1, y: 0.9 });
   const diagonal = readWorldInput(new Set(), { x: 0.25, y: 0.9 });
   const overRange = readWorldInput(new Set(), { x: 1, y: 1 });
 
@@ -38,7 +38,7 @@ test("horizontal joystick input turns while the vertical axis controls travel", 
 });
 
 test("forward running with horizontal deadzone drift keeps the player facing down the road", () => {
-  const input = readWorldInput(new Set(), { x: -0.18, y: 0.9 });
+  const input = readWorldInput(new Set(), { x: -0.1, y: 0.9 });
   let motion = createWorldMotion();
   for (let frame = 0; frame < 120; frame += 1) {
     motion = stepWorldMotion(motion, input, 1 / 60);
@@ -110,9 +110,9 @@ test("joystick forward input advances measured distance and the camera", () => {
   assert.equal(state.motion, "running");
 });
 
-test("W/S advances or reverses along the road while A/D strafes", () => {
+test("W/S moves along the road while A/D turns the player in place", () => {
   const forward = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
-  const lateral = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
+  const turnRight = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
   let state = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
     state = stepWorldMotion(state, forward, 1 / 60);
@@ -121,12 +121,13 @@ test("W/S advances or reverses along the road while A/D strafes", () => {
   assert.ok(state.stepCount >= 3);
   assert.ok(state.zoom < 1 && state.zoom > 0.96);
 
-  let depthState = createWorldMotion();
+  let turningState = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
-    depthState = stepWorldMotion(depthState, lateral, 1 / 60);
+    turningState = stepWorldMotion(turningState, turnRight, 1 / 60);
   }
-  assert.equal(depthState.distance, 0);
-  assert.ok(depthState.depth > 0.25);
+  assert.equal(turningState.distance, 0);
+  assert.equal(turningState.depth, 0);
+  assert.ok(Math.abs(turningState.cameraHeading) > 0.1);
 });
 
 test("weather handling slows steering response without changing the normal default", () => {
@@ -134,7 +135,7 @@ test("weather handling slows steering response without changing the normal defau
   const normal = stepWorldMotion(createWorldMotion(), right, 1 / 60);
   const stormy = stepWorldMotion(createWorldMotion(), right, 1 / 60, 1, undefined, 0.76);
 
-  assert.ok(Math.abs(stormy.velocityX) < Math.abs(normal.velocityX));
+  assert.ok(Math.abs(stormy.cameraHeading) < Math.abs(normal.cameraHeading));
   assert.equal(stepWorldMotion(createWorldMotion(), right, 1 / 60, 1, undefined, 1).velocityX, normal.velocityX);
 });
 
@@ -186,7 +187,10 @@ test("fixed-step render interpolation fills the gap without replacing simulation
 
   assert.equal(target.distance, (previous.distance + current.distance) / 2);
   assert.equal(target.depth, (previous.depth + current.depth) / 2);
-  assert.equal(target.cameraHeading, current.cameraHeading);
+  assert.equal(
+    target.cameraHeading,
+    previous.cameraHeading + (current.cameraHeading - previous.cameraHeading) * 0.5,
+  );
   assert.equal(target.stepCount, current.stepCount);
   assert.equal(target.hasMoved, current.hasMoved);
   assert.equal(previous.distance, 12);

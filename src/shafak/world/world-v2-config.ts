@@ -22,7 +22,7 @@ export const WORLD_V2_CONFIG = {
     near: 0.2,
     far: 400,
     collisionMargin: 0.3,
-    followSpeed: 10,
+    followSpeed: 14,
   },
   npcRoadOffset: 2.5,
   meshAuditLimit: 12,

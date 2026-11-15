@@ -222,7 +222,10 @@ function isWarRoomActorApproachingDoor(
   const frontZ = -building.depth / 2;
   if (Math.abs(localMoveZ) < 0.05) return false;
   const distanceAlongPath = (frontZ - local.z) / localMoveZ;
-  if (distanceAlongPath < 0 || distanceAlongPath > WAR_ROOM_DOOR_AUTO_OPEN_DISTANCE) return false;
+  if (
+    distanceAlongPath < 0
+    || distanceAlongPath > WAR_ROOM_DOOR_AUTO_OPEN_DISTANCE + 0.05
+  ) return false;
   const crossingX = local.x + localMoveX * distanceAlongPath;
   return Math.abs(crossingX) <= building.doorWidth / 2 + actorRadius;
 }

@@ -76,7 +76,7 @@ test("camera keeps its preferred minimum distance when the blocker is farther aw
     [farWall],
   );
   assert.equal(result.blocked, true);
-  assert.ok(result.safeDistance >= 1.2);
+  assert.ok(result.safeDistance >= 1.5);
   assert.ok(result.safeDistance < result.hitDistance);
 });
 
@@ -222,6 +222,32 @@ test("third-person placement stays on the rear line and shortens before a nearby
   assert.ok(result.position.z > wall.maxZ + 0.28);
   assert.equal(isWarRoomCameraPointClear(result.position, [wall], 0.28), true);
   assert.ok(result.position.z < 0, "the camera remains behind the player");
+});
+
+test("interior camera shifts sideways instead of collapsing into the player near a wall", () => {
+  const interior = { x: 0, z: 0, width: 8, depth: 8, rotationY: 0 };
+  const start = { x: 0, y: 1.5, z: 0 };
+  const end = { x: 0, y: 1.5, z: -3 };
+  const narrowWall = {
+    id: "narrow-rear-wall",
+    minX: -0.05,
+    minY: 0,
+    minZ: -1.1,
+    maxX: 0.05,
+    maxY: 3,
+    maxZ: -0.9,
+  };
+  const result = resolveWarRoomInteriorCameraPlacement(
+    start,
+    end,
+    [narrowWall],
+    interior,
+  );
+
+  assert.equal(result.usedAlternate, true);
+  assert.ok(result.safeDistance >= 1.5);
+  assert.ok(Math.abs(result.position.x) > 0.5);
+  assert.equal(isWarRoomCameraPointClear(result.position, [narrowWall], 0.28), true);
 });
 
 test("camera stays directly behind the player when its rear path is blocked", () => {
@@ -406,7 +432,7 @@ test("eye clearance checks all eight directions and caps correction distance", (
   ), false);
 });
 
-test("indoor camera targets remain within the rotated house and do not route around its walls", () => {
+test("indoor camera shifts around a blocked rear path while staying inside the house", () => {
   const interior = { x: 4, z: -3, width: 8, depth: 6, rotationY: Math.PI / 2 };
   const clamped = clampWarRoomCameraToInterior(
     { x: 14, y: 1.8, z: -4 },
@@ -432,11 +458,10 @@ test("indoor camera targets remain within the rotated house and do not route aro
     0.28,
     0.08,
   );
-  assert.equal(result.blockerId, "house-wall");
-  assert.ok(result.safeDistance < 1.42, "camera must stop before the expanded wall");
-  assert.equal(result.usedAlternate, false);
-  assert.ok(result.position.z > houseWall.maxZ + 0.28);
-  assert.ok(result.safeDistance < 1.5);
+  assert.equal(result.usedAlternate, true);
+  assert.ok(result.safeDistance >= 1.5, "camera remains far enough from the player");
+  assert.ok(Math.abs(result.position.x) <= 3.48);
+  assert.ok(Math.abs(result.position.z) <= 3.48);
   assert.equal(isWarRoomCameraPointClear(result.position, [houseWall], 0.28), true);
 });
 
@@ -454,9 +479,9 @@ test("indoor camera stays inside when the room edge cannot fit the full rear dis
   );
 
   assert.equal(result.blocked, false);
-  assert.ok(result.safeDistance > 1.4 && result.safeDistance < 1.5);
+  assert.ok(result.safeDistance >= 1.5);
   assert.ok(result.position.z > -3.52, "camera stays inside the room boundary");
-  assert.equal(result.usedAlternate, false);
+  assert.equal(result.usedAlternate, true);
 });
 
 test("first person camera stays at the eye without a third-person shoulder", () => {

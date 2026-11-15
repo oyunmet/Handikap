@@ -68,15 +68,23 @@ test("a door's blocker clears as its animation opens and remains state-driven", 
   )?.building.id, building.id);
   assert.equal(updateWarRoomDoors(runtime, 10, true), building.id);
   assert.equal(runtime.doorStates[building.id].closingAt, null);
-  assert.ok(Math.abs(getWarRoomDoorOpenProgress(runtime.doorStates[building.id], 10.14) - 0.5) < 1e-10);
+  assert.ok(Math.abs(getWarRoomDoorOpenProgress(
+    runtime.doorStates[building.id],
+    10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * 0.5,
+  ) - 0.5) < 1e-10);
   assert.equal(getWarRoomActiveBlockers(runtime, 10).some((blocker) => (
     blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), true, "collision stays in place during the opening animation");
-  const clearanceAt = 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS;
+  assert.equal(getWarRoomActiveBlockers(
+    runtime,
+    10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * 0.65,
+  ).some((blocker) => blocker.id === `${building.id}-floor-0-entrance-door-blocker`), true,
+  "collision remains until the door is nearly fully open");
+  const clearanceAt = 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS + 0.001;
   assert.equal(getWarRoomActiveBlockers(runtime, clearanceAt).some((blocker) => (
     blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), false, "the doorway clears as soon as the moving door leaves enough room");
-  assert.equal(getWarRoomActiveBlockers(runtime, 10.25).some((blocker) => (
+  assert.equal(getWarRoomActiveBlockers(runtime, clearanceAt + 0.01).some((blocker) => (
     blocker.id === `${building.id}-floor-0-entrance-door-blocker`
   )), false);
   runtime.player.x = front.x;
@@ -236,7 +244,7 @@ test("entering or leaving a house auto-opens the entrance from every room rotati
       });
       assert.ok(runtime.doorStates[building.id], "the door opens without an interaction button");
       assert.equal(
-        getWarRoomActiveBlockers(runtime, 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS)
+        getWarRoomActiveBlockers(runtime, 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS + 0.001)
           .some((blocker) => blocker.id === `${building.id}-floor-0-entrance-door-blocker`),
         false,
         "automatic opening clears the doorway before a running player reaches it",
@@ -248,7 +256,10 @@ test("entering or leaving a house auto-opens the entrance from every room rotati
         target.x - start.x,
         target.z - start.z,
         WAR_ROOM_PLAYER_COLLISION_RADIUS,
-        getWarRoomActiveBlockers(runtime, 10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * 0.7),
+        getWarRoomActiveBlockers(
+          runtime,
+          10 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS + 0.001,
+        ),
       );
       const localResult = getWarRoomBuildingLocalPoint(building, result.x, result.z);
       assert.ok(
@@ -478,10 +489,16 @@ test("the upper entrance has a matching openable blocker and preserves the groun
   assert.equal(updateWarRoomDoors(runtime, 20, true), upperKey);
   const upperBlockerId = `${building.id}-floor-1-entrance-door-blocker`;
   const groundBlockerId = `${building.id}-floor-0-entrance-door-blocker`;
-  assert.equal(getWarRoomActiveBlockers(runtime, 20.25).some((blocker) => (
+  assert.equal(getWarRoomActiveBlockers(
+    runtime,
+    20 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS + 0.001,
+  ).some((blocker) => (
     blocker.id === upperBlockerId
   )), false);
-  assert.equal(getWarRoomActiveBlockers(runtime, 20.25).some((blocker) => (
+  assert.equal(getWarRoomActiveBlockers(
+    runtime,
+    20 + WAR_ROOM_DOOR_ANIMATION_SECONDS * WAR_ROOM_DOOR_CLEAR_PROGRESS + 0.001,
+  ).some((blocker) => (
     blocker.id === groundBlockerId
   )), true);
   assert.equal(getWarRoomDoorBlocker(building, 1).baseY, building.storyHeight);

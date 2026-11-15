@@ -31,9 +31,9 @@ export type WorldMotion = {
 };
 
 export type WorldInput = {
-  /** Horizontal joystick axis turns the player and rear camera. */
+  /** Horizontal joystick and A/D input turn the player and rear camera. */
   turn: number;
-  /** Desktop A/D movement remains available as a separate strafe axis. */
+  /** Lateral translation axis reserved for non-player movement sources. */
   strafe: number;
   /** Vertical joystick axis walks forward or backward relative to the facing. */
   forward: number;
@@ -61,8 +61,8 @@ export const WORLD_PLAYER_DEPTH_LIMIT = WORLD_PLAYER_LATERAL_LIMIT_METERS / 5.2;
 export const WORLD_CHUNK_LENGTH_METERS = 48;
 export const WORLD_GATE_INTERVAL_METERS = 144;
 export const WORLD_ORIGIN_REBASE_INTERVAL_METERS = 1024;
-export const WORLD_JOYSTICK_X_DEADZONE = 0.2;
-export const WORLD_JOYSTICK_TURN_SPEED = 2.8;
+export const WORLD_JOYSTICK_X_DEADZONE = 0.12;
+export const WORLD_JOYSTICK_TURN_SPEED = 4;
 
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6.8;
@@ -106,24 +106,24 @@ export function readWorldInput(
   analog: { x: number; y: number },
   actions: WorldActionState = readWorldActions(keys),
 ): WorldInput {
-  const keyTurn = Number(keys.has("arrowright")) - Number(keys.has("arrowleft"));
-  const keyStrafe = Number(keys.has("d")) - Number(keys.has("a"));
+  const keyTurn = Number(keys.has("arrowright") || keys.has("d"))
+    - Number(keys.has("arrowleft") || keys.has("a"));
   const keyForward = Number(keys.has("arrowup") || keys.has("w"))
     - Number(keys.has("arrowdown") || keys.has("s"));
-  const hasKeyboardDirection = keyTurn !== 0 || keyStrafe !== 0 || keyForward !== 0;
+  const hasKeyboardDirection = keyTurn !== 0 || keyForward !== 0;
   const analogX = finiteOrZero(analog.x);
   const analogY = finiteOrZero(analog.y);
   let turn = hasKeyboardDirection
     ? keyTurn
     : Math.abs(analogX) < WORLD_JOYSTICK_X_DEADZONE ? 0 : analogX;
-  let strafe = hasKeyboardDirection ? keyStrafe : 0;
+  let strafe = 0;
   let forward = hasKeyboardDirection ? keyForward : analogY;
   let analogMagnitude = 0;
 
   if (hasKeyboardDirection) {
-    const movementMagnitude = Math.hypot(strafe, forward);
+    const movementMagnitude = Math.hypot(turn, forward);
     if (movementMagnitude > 1) {
-      strafe /= movementMagnitude;
+      turn /= movementMagnitude;
       forward /= movementMagnitude;
     }
   } else {
@@ -164,10 +164,12 @@ export function stepWorldMotion(
   handlingMultiplier = 1,
 ): WorldMotionFrame {
   const dt = clamp(finiteOrZero(deltaSeconds), 0, 0.05);
+  const handling = clamp(finiteOrZero(handlingMultiplier) || 1, 0.6, 1);
   const magnitude = clamp(Math.hypot(input.strafe, input.forward), 0, 1);
   const analogRun = smoothstep(0.58, 1, clamp(input.analogMagnitude, 0, 1));
   const cameraHeading = normalizeAngle(
-    state.cameraHeading - clamp(finiteOrZero(input.turn), -1, 1) * WORLD_JOYSTICK_TURN_SPEED * dt,
+    state.cameraHeading
+      - clamp(finiteOrZero(input.turn), -1, 1) * WORLD_JOYSTICK_TURN_SPEED * handling * dt,
   );
   let jumpVelocity = state.jumpVelocity;
   let jumpHeight = state.jumpHeight;
@@ -211,7 +213,6 @@ export function stepWorldMotion(
     Math.cos(cameraHeading) * localForward
     + Math.sin(cameraHeading) * localStrafe
   ) * targetSpeed;
-  const handling = clamp(finiteOrZero(handlingMultiplier) || 1, 0.6, 1);
   const timeConstant = (targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS) / handling;
   const response = 1 - Math.exp(-dt / timeConstant);
   let velocityX = state.velocityX + (targetX - state.velocityX) * response;

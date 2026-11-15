@@ -285,7 +285,7 @@ export default function WorldV2Actor({
       root.scale.z = THREE.MathUtils.damp(root.scale.z, standingScaleZ * jumpScaleXZ, 18, deltaSeconds);
       // The model-axis group below applies the single native +Z to -Z correction.
       const yawDelta = getWorldV2YawDelta(targetHeading, root.rotation.y);
-      root.rotation.y += yawDelta * (1 - Math.exp(-9 * Math.min(delta, 0.05)));
+      root.rotation.y += yawDelta * (1 - Math.exp(-14 * Math.min(delta, 0.05)));
     } else {
       const actorZ = -(distance - motion.cameraX);
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);

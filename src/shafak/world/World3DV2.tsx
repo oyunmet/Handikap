@@ -116,7 +116,7 @@ function WorldV2Camera({
       Math.sin(targetHeading - cameraHeading.current),
       Math.cos(targetHeading - cameraHeading.current),
     );
-    cameraHeading.current += headingDelta * (1 - Math.exp(-9 * dt));
+    cameraHeading.current += headingDelta * (1 - Math.exp(-14 * dt));
     const cameraOffset = getWorldV2CameraOffset(
       cameraHeading.current,
       WORLD_V2_CONFIG.camera.distanceBehind,

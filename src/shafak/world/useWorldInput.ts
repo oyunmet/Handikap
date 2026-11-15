@@ -34,7 +34,6 @@ export default function useWorldInput(wake: () => void) {
   const joystickPointerId = useRef<number | null>(null);
   const actionPointersRef = useRef(new Map<WorldTouchAction, Set<number>>());
   const actionPointerStartedAtRef = useRef(new Map<number, number>());
-  const tapTimer = useRef<number | undefined>(undefined);
   const jumpPressPendingRef = useRef(false);
   const toggledActionsRef = useRef(new Set<"shift" | "c">());
   const [toggledActions, setToggledActions] = useState<ReadonlySet<"shift" | "c">>(() => new Set());
@@ -42,16 +41,8 @@ export default function useWorldInput(wake: () => void) {
   const publishInputChange = useCallback(() => setInputRevision((revision) => revision + 1), []);
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-  if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
+    if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
     wake();
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const relativeX = (event.clientX - bounds.left) / bounds.width;
-    joystick.current = { x: relativeX < .32 ? -.38 : relativeX > .68 ? .38 : 0, y: .68 };
-    if (tapTimer.current) window.clearTimeout(tapTimer.current);
-    tapTimer.current = window.setTimeout(() => {
-      joystick.current = { x: 0, y: 0 };
-      tapTimer.current = undefined;
-    }, 1350);
   }, [wake]);
 
   const updateJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -217,10 +208,6 @@ export default function useWorldInput(wake: () => void) {
       window.removeEventListener("blur", onBlur);
     };
   }, [clearActions, publishInputChange, wake]);
-
-  useEffect(() => () => {
-    if (tapTimer.current) window.clearTimeout(tapTimer.current);
-  }, []);
 
   return {
     heldKeys,

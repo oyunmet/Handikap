@@ -1,9 +1,11 @@
 # Savaş Odası silah modelleri
 
-Bu klasöre isteğe bağlı `rifle.glb`, `pistol.glb`, `shotgun.glb`, `crossbow.glb`
-ve `bow.glb` dosyalarını koyun. Modeller otomatik eşleşir; eksik veya açılamayan
-dosyalarda sahne prosedürel modeli kullanır.
+Silah GLB dosyaları `war-room-data.ts` içindeki silah tanımlarıyla eşleşir.
+İndirilen ya da kullanıcı tarafından eklenen modellerde kaynak ve lisans bilgisi
+`../CREDITS.md` dosyasına eklenmelidir. Eksik veya açılamayan modeller için sahne
+prosedürel yedeği kullanır.
 
-Modelleri el tutuş noktasını orijine, namlu/yay yönünü yerel `-Z` eksenine göre
-düzenleyin. Hedef boyutları ve namlu konumları `src/shafak/game/war-room-data.ts`
-içinde silah başına ayarlanır.
+Proje içinde üretilen fantastik silahlar
+`scripts/generate-war-room-weapon-models.mjs` ile oluşturulur. Silah tanımlarında
+el tutuşu, hedef boyutları ve namlu yönü ayarlanır; animasyon parçaları GLB
+modelinin kendi başlangıç konumuna göre hareket ettirilir.

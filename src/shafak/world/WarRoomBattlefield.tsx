@@ -234,6 +234,7 @@ export default function WarRoomBattlefield({
       <WarRoomSky skyColor={sceneTheme.sky} />
       <fog attach="fog" args={[sceneTheme.fog, sceneTheme.fogNear, sceneTheme.fogFar]} />
       <hemisphereLight args={[sceneTheme.skyLight, sceneTheme.groundLight, darkModifier ? 2.3 : 3]} />
+      <ambientLight color="#fff2df" intensity={darkModifier ? 0.38 : 0.58} />
       <directionalLight
         position={[-8, 14, 8]}
         color={sceneTheme.keyLight}
