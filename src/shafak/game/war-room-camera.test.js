@@ -5,6 +5,7 @@ import {
   getWarRoomResponsiveCameraFov,
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
+  getWarRoomCameraFocusAhead,
   getWarRoomViewModelWallProximity,
   getWarRoomViewModelWallSafetyRetraction,
   getWarRoomCameraRaySafeDistance,
@@ -266,7 +267,10 @@ test("rear camera stays behind the player's facing direction at every quarter tu
   }
 });
 
-test("rear camera shifts its aim point onto the weapon-side shoulder", () => {
+test("rear camera aims down the center line while keeping the shoulder camera offset", () => {
+  assert.equal(getWarRoomCameraFocusAhead("first-person", false), 8);
+  assert.equal(getWarRoomCameraFocusAhead("third-person", false), 4.5);
+  assert.equal(getWarRoomCameraFocusAhead("third-person", true), 6.5);
   const frame = getWarRoomRearCameraFrame(
     { x: 0, y: 0, z: 0 },
     0,
@@ -274,13 +278,18 @@ test("rear camera shifts its aim point onto the weapon-side shoulder", () => {
     3,
     0.85,
     1.55,
-    0,
+    getWarRoomCameraFocusAhead("third-person", false),
     1.5,
   );
 
   assert.equal(frame.position.x, 0.85);
-  assert.equal(frame.lookAt.x, 0.85);
-  assert.ok(frame.lookAt.x > 0, "the hero should sit left of the screen-center aim ray");
+  assert.equal(frame.lookAt.x, 0, "the reticle target remains centered on the movement line");
+  assert.notEqual(
+    frame.position.x,
+    frame.lookAt.x,
+    "aiming from the shoulder should show the side of the held weapon",
+  );
+  assert.equal(frame.lookAt.z, -4.5, "the reticle should point beyond the hero, not into their head");
 });
 
 test("rear camera stays behind the rendered hero after a lateral turn", () => {
@@ -492,9 +501,9 @@ test("indoor camera keeps a wider rear view while staying closer than outdoors",
     indoors: true,
   });
   assert.equal(right.back, 2);
-  assert.ok(Math.abs(right.shoulder - 0.24) < 1e-10);
+  assert.ok(Math.abs(right.shoulder - 0.432) < 1e-10);
   assert.equal(aiming.back, 2.4);
-  assert.ok(Math.abs(aiming.shoulder - 0.28) < 1e-10);
+  assert.ok(Math.abs(aiming.shoulder - 0.504) < 1e-10);
 });
 
 test("third-person aiming tightens the camera, and offsets remain bounded", () => {

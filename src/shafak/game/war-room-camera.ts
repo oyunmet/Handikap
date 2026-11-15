@@ -240,9 +240,9 @@ export function getWarRoomRearCameraFrame(
       z: feet.z - forwardZ * back + rightZ * shoulder,
     },
     lookAt: {
-      x: feet.x + forwardX * focusAhead + rightX * shoulder,
+      x: feet.x + forwardX * focusAhead,
       y: feet.y + focusHeight + forwardY * focusAhead,
-      z: feet.z + forwardZ * focusAhead + rightZ * shoulder,
+      z: feet.z + forwardZ * focusAhead,
     },
   };
 }
@@ -435,6 +435,14 @@ export function resolveWarRoomCameraPlacement(
 
 export type WarRoomCameraMode = "first-person" | "third-person";
 export type WarRoomShoulderSide = "left" | "right";
+
+export function getWarRoomCameraFocusAhead(
+  mode: WarRoomCameraMode,
+  aiming: boolean,
+) {
+  if (mode === "first-person") return 8;
+  return aiming ? 6.5 : 4.5;
+}
 
 export function getWarRoomCameraRig({
   mode,

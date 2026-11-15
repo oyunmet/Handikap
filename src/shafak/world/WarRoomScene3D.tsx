@@ -98,6 +98,7 @@ import {
   clampWarRoomCameraToInterior,
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
+  getWarRoomCameraFocusAhead,
   getWarRoomCameraRaySafeDistance,
   getWarRoomResponsiveCameraFov,
   getWarRoomCameraRig,
@@ -4913,7 +4914,7 @@ function WarRoomRuntimeScene({
       : player.floorHeight;
     const cameraFloorHeight = cameraFloorHeightRef.current;
     const focusHeight = cameraMode === "first-person" ? cameraHeight : 1.5;
-    const focusAhead = cameraMode === "first-person" ? 8 : 0;
+    const focusAhead = getWarRoomCameraFocusAhead(cameraMode, input.aimHeld);
     cameraStart.set(
       renderX,
       cameraFloorHeight + player.jumpHeight + cameraHeight,

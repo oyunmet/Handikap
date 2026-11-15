@@ -29,6 +29,7 @@ try {
     hasTouch: true,
   });
   await context.addInitScript(() => {
+    localStorage.setItem("safak-age-gate-v1", "adult");
     localStorage.setItem("shafak.war-room-debug", "on");
   });
   const page = await context.newPage();

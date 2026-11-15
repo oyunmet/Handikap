@@ -1730,16 +1730,22 @@ export default function WarRoomGame({
           })()}
           {(debugMode || debugDiagnosticsEnabled) && (
             <div className="war-room-camera-debug" aria-label="Kamera ve dokunmatik hata ayıklama">
-              <span data-touch-diagnostics={formatWarRoomTouchDiagnostics(touchInputRef.current)}>
-                TOUCH {touchInputRef.current.touchstart}/{touchInputRef.current.touchmove}/
-                {touchInputRef.current.touchend}/{touchInputRef.current.touchcancel}
-                {" · AKTİF "}{[...touchInputRef.current.roles.entries()]
+              <span data-touch-diagnostics={`aktif ${
+                [...mobileControlsRef.current.roles.entries()]
+                  .map(([id, role]) => `${id >= 10_000_000 ? id - 10_000_000 : id}:${role}`)
+                  .join(", ") || "yok"
+              } moveX ${touchDiagnosticsRef.current.moveX.toFixed(2)} moveY ${
+                touchDiagnosticsRef.current.moveY.toFixed(2)
+              }`}>
+                TOUCH {touchDiagnosticsRef.current.touchstart}/{touchDiagnosticsRef.current.touchmove}/
+                {touchDiagnosticsRef.current.touchend}/{touchDiagnosticsRef.current.touchcancel}
+                {" · AKTİF "}{[...mobileControlsRef.current.roles.entries()]
                   .map(([id, role]) => `${id}:${role}`)
                   .join(", ") || "—"}
-                {" · HAREKET "}{touchInputRef.current.input.moveX.toFixed(2)},
-                {touchInputRef.current.input.moveY.toFixed(2)}
-                {" · BAKIŞ "}{touchInputRef.current.input.lookDX.toFixed(1)},
-                {touchInputRef.current.input.lookDY.toFixed(1)}
+                {" · HAREKET "}{touchDiagnosticsRef.current.moveX.toFixed(2)},
+                {touchDiagnosticsRef.current.moveY.toFixed(2)}
+                {" · BAKIŞ "}{touchDiagnosticsRef.current.lookDX.toFixed(1)},
+                {touchDiagnosticsRef.current.lookDY.toFixed(1)}
               </span>
               <span>
                 YAW {((lookDebugSnapshot.yaw * 180 / Math.PI) % 360).toFixed(1)}°
