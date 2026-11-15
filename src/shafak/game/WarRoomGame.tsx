@@ -80,20 +80,13 @@ import {
   beginWarRoomLook,
   createWarRoomMobileControlsState,
   endWarRoomMobilePointer,
+  getWarRoomTouchControlSide,
   readWarRoomJoystick,
   readWarRoomMouseLook,
   resetWarRoomMobileControls,
   type WarRoomPointerRole,
 } from "./war-room-mobile-controls";
-import {
-  createWarRoomTouchInputState,
-  endWarRoomTouch,
-  formatWarRoomTouchDiagnostics,
-  moveWarRoomTouch,
-  resetWarRoomTouchInput,
-  startWarRoomTouch,
-  WAR_ROOM_TOUCH_JOYSTICK_RADIUS,
-} from "./war-room-touch-input";
+import { WAR_ROOM_CONFIG } from "./war-room-config";
 import {
   beginWarRoomPointer,
   endWarRoomPointer,
@@ -680,14 +673,22 @@ export default function WarRoomGame({
   const inputRef = useRef<WarRoomInputState>(createInputState(aimAssistEnabled));
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const mobileControlsRef = useRef(createWarRoomMobileControlsState());
-  const touchInputRef = useRef(createWarRoomTouchInputState());
+  const touchDiagnosticsRef = useRef({
+    touchstart: 0,
+    touchmove: 0,
+    touchend: 0,
+    touchcancel: 0,
+    moveX: 0,
+    moveY: 0,
+    lookDX: 0,
+    lookDY: 0,
+  });
   useEffect(() => {
     if (!resourceLeakTestMode) return undefined;
     const remountTrainingScene = () => {
       runtimeRef.current = createWarRoomTrainingRuntime(loadout);
       inputRef.current = createInputState(aimAssistEnabled);
       mobileControlsRef.current = createWarRoomMobileControlsState();
-      touchInputRef.current = createWarRoomTouchInputState();
       setHud(createEmptyHud());
       setResourceLeakGeneration((generation) => generation + 1);
     };
@@ -746,7 +747,6 @@ export default function WarRoomGame({
   const resetTouchControls = useCallback(() => {
     const fireWasHeld = inputRef.current.fireHeld;
     resetWarRoomMobileControls(mobileControlsRef.current);
-    resetWarRoomTouchInput(touchInputRef.current);
     inputRef.current.moveX = 0;
     inputRef.current.moveY = 0;
     inputRef.current.movementBaseYaw = null;
@@ -758,6 +758,10 @@ export default function WarRoomGame({
     inputRef.current.firePressed = false;
     inputRef.current.fireReleased = fireWasHeld;
     inputRef.current.aimHeld = false;
+    touchDiagnosticsRef.current.moveX = 0;
+    touchDiagnosticsRef.current.moveY = 0;
+    touchDiagnosticsRef.current.lookDX = 0;
+    touchDiagnosticsRef.current.lookDY = 0;
     inputRef.current.reloadPressed = false;
     inputRef.current.swapPressed = false;
     inputRef.current.jumpPressed = false;
@@ -1134,7 +1138,6 @@ export default function WarRoomGame({
   };
 
   const handleRootPointerEndCapture = (event: ReactPointerEvent<HTMLElement>) => {
-    if (event.type === "pointercancel") touchInputRef.current.pointercancel += 1;
     if (mobileControlsRef.current.roles.get(event.pointerId) === "button") {
       endWarRoomMobilePointer(mobileControlsRef.current, event.pointerId);
     }
@@ -1458,61 +1461,49 @@ export default function WarRoomGame({
     const isHudTarget = (target: Element) => Boolean(target.closest(
       "button,[role='button'],[role='alertdialog'],.war-room-vitals,.war-room-ammo,.war-room-minimap,.war-room-hud-settings,.war-room-location-status,.war-room-landscape-hint,.war-room-weapon-debug,.war-room-weapon-lab,.war-room-calibration-panel,.war-room-control-editor,.war-room-confirm",
     ));
-    const releaseTouch = (identifier: number) => {
-      const state = touchInputRef.current;
-      if (!state.roles.has(identifier)) return;
-      const endedTouch = endWarRoomTouch(state, identifier);
-      const endedControl = endWarRoomMobilePointer(
-        mobileControlsRef.current,
-        pointerIdForTouch(identifier),
-      );
-      if (endedTouch.endedJoystick || endedControl.endedJoystick) {
+    const releaseTouch = (pointerId: number) => {
+      const ended = endWarRoomMobilePointer(mobileControlsRef.current, pointerId);
+      if (ended.endedJoystick) {
         setWarRoomMoveVector(inputRef.current, 0, 0);
         inputRef.current.movementBaseYaw = null;
         setDynamicStickActive(false);
         stickRef.current?.style.setProperty("--stick-x", "0px");
         stickRef.current?.style.setProperty("--stick-y", "0px");
+        touchDiagnosticsRef.current.moveX = 0;
+        touchDiagnosticsRef.current.moveY = 0;
       }
-      if (endedTouch.endedLook || endedControl.endedLook) {
+      if (ended.endedLook) {
         inputRef.current.manualLookActive = mobileControlsRef.current.look !== null;
       }
     };
     const onTouchStart = (event: TouchEvent) => {
       if (!isGameplayTouch(event)) return;
       const target = event.target instanceof Element ? event.target : null;
-      const state = touchInputRef.current;
-      state.touchstart += event.changedTouches.length;
+      touchDiagnosticsRef.current.touchstart += event.changedTouches.length;
       if (inputRef.current.paused || !target || isHudTarget(target)) return;
       if (event.cancelable) event.preventDefault();
       setKeyboardHintsVisible(false);
       resumeWarRoomAudio();
       const bounds = stage.getBoundingClientRect();
       for (const touch of Array.from(event.changedTouches)) {
-        const x = touch.clientX - bounds.left;
-        const y = touch.clientY - bounds.top;
-        const role = startWarRoomTouch(
-          state,
-          touch.identifier,
-          x,
-          y,
+        const side = getWarRoomTouchControlSide(
+          touch.clientX,
+          bounds.left,
           bounds.width,
-          leftHandedControls ? "right" : "left",
+          leftHandedControls,
         );
-        if (!role) continue;
+        if (!side) continue;
         const controlPointerId = pointerIdForTouch(touch.identifier);
         const input = inputRef.current;
-        if (role === "joystick") {
+        if (side === "movement") {
           if (!beginWarRoomJoystick(
             mobileControlsRef.current,
             controlPointerId,
             touch.clientX,
             touch.clientY,
-            WAR_ROOM_TOUCH_JOYSTICK_RADIUS,
+            WAR_ROOM_CONFIG.input.touchJoystickRadius,
             input.yaw,
-          )) {
-            endWarRoomTouch(state, touch.identifier);
-            continue;
-          }
+          )) continue;
           input.movementBaseYaw = input.yaw;
           input.cameraTargetYaw = input.yaw;
           setDynamicStickActive(true);
@@ -1524,36 +1515,29 @@ export default function WarRoomGame({
             y: touch.clientY,
             pointerType: "touch",
             button: 0,
-          })) {
-            endWarRoomTouch(state, touch.identifier);
-            continue;
-          }
+          })) continue;
           input.manualLookActive = true;
           input.cameraTargetYaw = input.yaw;
           input.lookPointerType = "touch";
+          touchDiagnosticsRef.current.lookDX = 0;
+          touchDiagnosticsRef.current.lookDY = 0;
         }
       }
     };
     const onTouchMove = (event: TouchEvent) => {
       if (!isGameplayTouch(event)) return;
-      const state = touchInputRef.current;
-      state.touchmove += event.changedTouches.length;
+      touchDiagnosticsRef.current.touchmove += event.changedTouches.length;
       let handled = false;
-      const bounds = stage.getBoundingClientRect();
       for (const touch of Array.from(event.changedTouches)) {
-        const reading = moveWarRoomTouch(
-          state,
-          touch.identifier,
-          touch.clientX - bounds.left,
-          touch.clientY - bounds.top,
-        );
-        if (!reading) continue;
-        handled = true;
-        const input = inputRef.current;
         const controlPointerId = pointerIdForTouch(touch.identifier);
-        if (reading.role === "joystick") {
+        const role = mobileControlsRef.current.roles.get(controlPointerId);
+        if (!role) continue;
+        handled = true;
+        if (role === "joystick") {
           updateTouchJoystick(controlPointerId, touch.clientX, touch.clientY);
-        } else {
+          touchDiagnosticsRef.current.moveX = inputRef.current.moveX;
+          touchDiagnosticsRef.current.moveY = inputRef.current.moveY;
+        } else if (role === "look") {
           const delta = readWarRoomMouseLook(
             mobileControlsRef.current,
             controlPointerId,
@@ -1561,34 +1545,39 @@ export default function WarRoomGame({
             touch.clientY,
           );
           if (!delta) continue;
-          input.lookDeltaX += delta.dx;
-          input.lookDeltaY += delta.dy;
-          input.lookPointerType = delta.pointerType;
+          inputRef.current.lookDeltaX += delta.dx;
+          inputRef.current.lookDeltaY += delta.dy;
+          inputRef.current.lookPointerType = delta.pointerType;
+          touchDiagnosticsRef.current.lookDX = delta.dx;
+          touchDiagnosticsRef.current.lookDY = delta.dy;
         }
       }
       if (handled && event.cancelable) event.preventDefault();
     };
     const onTouchEnd = (event: TouchEvent) => {
-      const state = touchInputRef.current;
-      state.touchend += event.changedTouches.length;
+      touchDiagnosticsRef.current.touchend += event.changedTouches.length;
       let handled = false;
       for (const touch of Array.from(event.changedTouches)) {
-        handled ||= state.roles.has(touch.identifier);
-        releaseTouch(touch.identifier);
+        const controlPointerId = pointerIdForTouch(touch.identifier);
+        handled ||= mobileControlsRef.current.roles.has(controlPointerId);
+        releaseTouch(controlPointerId);
       }
       if (handled && event.cancelable) event.preventDefault();
     };
     const onTouchCancel = (event: TouchEvent) => {
-      const state = touchInputRef.current;
-      state.touchcancel += event.changedTouches.length;
+      touchDiagnosticsRef.current.touchcancel += event.changedTouches.length;
       let handled = false;
       for (const touch of Array.from(event.changedTouches)) {
-        handled ||= state.roles.has(touch.identifier);
-        releaseTouch(touch.identifier);
+        const controlPointerId = pointerIdForTouch(touch.identifier);
+        handled ||= mobileControlsRef.current.roles.has(controlPointerId);
+        releaseTouch(controlPointerId);
       }
       if (handled && event.cancelable) event.preventDefault();
     };
     const onViewportChange = () => resetTouchControls();
+    const onVisibilityChange = () => {
+      if (document.hidden) resetTouchControls();
+    };
 
     window.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
@@ -1596,6 +1585,9 @@ export default function WarRoomGame({
     window.addEventListener("touchcancel", onTouchCancel, { passive: false, capture: true });
     window.addEventListener("orientationchange", onViewportChange, true);
     window.addEventListener("resize", onViewportChange, { passive: true });
+    window.addEventListener("blur", onViewportChange);
+    window.addEventListener("pagehide", onViewportChange);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.visualViewport?.addEventListener("resize", onViewportChange, { passive: true });
     return () => {
       window.removeEventListener("touchstart", onTouchStart, true);
@@ -1604,6 +1596,9 @@ export default function WarRoomGame({
       window.removeEventListener("touchcancel", onTouchCancel, true);
       window.removeEventListener("orientationchange", onViewportChange, true);
       window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("blur", onViewportChange);
+      window.removeEventListener("pagehide", onViewportChange);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.visualViewport?.removeEventListener("resize", onViewportChange);
       resetTouchControls();
     };
@@ -1699,7 +1694,7 @@ export default function WarRoomGame({
             weaponSway={weaponSway}
             armsVisible={armsVisible}
             shoulderSide="right"
-            shoulderOffset={0.58}
+            shoulderOffset={0.85}
             bloodEffects={bloodEffects}
             trainingMode={weaponLabMode || resourceLeakTestMode}
             quality={quality}

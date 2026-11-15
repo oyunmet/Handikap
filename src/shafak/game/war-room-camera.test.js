@@ -266,6 +266,23 @@ test("rear camera stays behind the player's facing direction at every quarter tu
   }
 });
 
+test("rear camera shifts its aim point onto the weapon-side shoulder", () => {
+  const frame = getWarRoomRearCameraFrame(
+    { x: 0, y: 0, z: 0 },
+    0,
+    0,
+    3,
+    0.85,
+    1.55,
+    0,
+    1.5,
+  );
+
+  assert.equal(frame.position.x, 0.85);
+  assert.equal(frame.lookAt.x, 0.85);
+  assert.ok(frame.lookAt.x > 0, "the hero should sit left of the screen-center aim ray");
+});
+
 test("rear camera stays behind the rendered hero after a lateral turn", () => {
   const facingYaw = Math.PI / 2;
   const rootYaw = getWarRoomPlayerRootYaw(facingYaw);

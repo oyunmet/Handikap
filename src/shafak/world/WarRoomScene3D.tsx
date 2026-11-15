@@ -315,9 +315,6 @@ function getWarRoomHandMountPose(
   root.updateWorldMatrix(true, true);
   hand.updateWorldMatrix(true, false);
 
-  const position = new THREE.Vector3(...mount.position)
-    .applyMatrix4(root.matrixWorld)
-    .applyMatrix4(new THREE.Matrix4().copy(hand.matrixWorld).invert());
   const rootWorldRotation = root.getWorldQuaternion(new THREE.Quaternion());
   const handWorldRotation = hand.getWorldQuaternion(new THREE.Quaternion()).invert();
   const weaponWorldRotation = rootWorldRotation.multiply(
@@ -325,14 +322,23 @@ function getWarRoomHandMountPose(
   );
   const quaternion = handWorldRotation.multiply(weaponWorldRotation);
   const handScale = hand.getWorldScale(new THREE.Vector3());
+  const safeHandScale = [
+    Math.max(0.01, Math.abs(handScale.x)),
+    Math.max(0.01, Math.abs(handScale.y)),
+    Math.max(0.01, Math.abs(handScale.z)),
+  ] as const;
 
   return {
-    position,
+    position: new THREE.Vector3(
+      mount.position[0] / safeHandScale[0],
+      mount.position[1] / safeHandScale[1],
+      mount.position[2] / safeHandScale[2],
+    ),
     quaternion,
     scale: new THREE.Vector3(
-      mount.scale / Math.max(0.01, Math.abs(handScale.x)),
-      mount.scale / Math.max(0.01, Math.abs(handScale.y)),
-      mount.scale / Math.max(0.01, Math.abs(handScale.z)),
+      mount.scale / safeHandScale[0],
+      mount.scale / safeHandScale[1],
+      mount.scale / safeHandScale[2],
     ),
   };
 }

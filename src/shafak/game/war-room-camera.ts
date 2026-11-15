@@ -240,9 +240,9 @@ export function getWarRoomRearCameraFrame(
       z: feet.z - forwardZ * back + rightZ * shoulder,
     },
     lookAt: {
-      x: feet.x + forwardX * focusAhead,
+      x: feet.x + forwardX * focusAhead + rightX * shoulder,
       y: feet.y + focusHeight + forwardY * focusAhead,
-      z: feet.z + forwardZ * focusAhead,
+      z: feet.z + forwardZ * focusAhead + rightZ * shoulder,
     },
   };
 }
@@ -464,7 +464,7 @@ export function getWarRoomCameraRig({
     : 3.5;
   const back = baseBack * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
-    * (indoors ? 0.4 : 1)
+    * (indoors ? 0.72 : 1)
     * (shoulderSide === "left" ? -1 : 1);
 
   return { back, shoulder };
