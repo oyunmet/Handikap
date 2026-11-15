@@ -91,6 +91,12 @@ async function createApiHandler(): Promise<ApiHandler> {
     response.status(isHealthy ? 200 : 503).json(healthResponse);
   });
 
+  app.get("/api/store/catalog", async (_request, response) => {
+    const { STORE_CATALOG } = await import("../src/shafak/game/store-catalog.ts");
+    response.setHeader("Cache-Control", "public, max-age=60");
+    response.status(200).json({ items: STORE_CATALOG });
+  });
+
   if (clerkConfigured) {
     app.use(clerkModule.clerkMiddleware({
       publishableKey: process.env.CLERK_PUBLISHABLE_KEY,

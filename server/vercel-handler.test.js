@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
@@ -16,6 +16,7 @@ import storeLoadoutHandler from "../api/store/combat-loadout.ts";
 import storeUpgradeHandler from "../api/store/upgrade.ts";
 import storeSellHandler from "../api/store/sell.ts";
 import storeSalvageHandler from "../api/store/salvage.ts";
+import { STORE_CATALOG } from "../src/shafak/game/store-catalog.ts";
 
 function getModuleSpecifiers(source) {
   const specifiers = [];
@@ -32,6 +33,23 @@ function getModuleSpecifiers(source) {
   return specifiers;
 }
 
+function getApiFunctionFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = resolve(directory, entry.name);
+    if (entry.isDirectory()) return getApiFunctionFiles(entryPath);
+    return /\.(?:[cm]?js|ts)$/.test(entry.name) ? [entryPath] : [];
+  });
+}
+
+test("Vercel Hobby deploy stays within its 12-function limit", () => {
+  const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const functions = getApiFunctionFiles(resolve(projectRoot, "api"));
+  assert.ok(
+    functions.length <= 12,
+    `Found ${functions.length} API entrypoints; Hobby allows at most 12.`,
+  );
+});
+
 test("Vercel API entrypoints use explicit TypeScript extensions throughout their import graph", () => {
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const pending = [
@@ -41,7 +59,6 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
     resolve(projectRoot, "api/duels/start.ts"),
     resolve(projectRoot, "api/duels/complete.ts"),
     resolve(projectRoot, "api/profile/pickups.ts"),
-    resolve(projectRoot, "api/store/catalog.ts"),
     resolve(projectRoot, "api/store/purchase.ts"),
     resolve(projectRoot, "api/store/equip.ts"),
     resolve(projectRoot, "api/store/combat-loadout.ts"),
@@ -67,6 +84,36 @@ test("Vercel API entrypoints use explicit TypeScript extensions throughout their
       pending.push(importedPath);
     }
   }
+});
+
+test("the shared Vercel API function serves the public store catalog", async (t) => {
+  process.env.DATABASE_URL = "";
+  process.env.CLERK_SECRET_KEY = "";
+  process.env.CLERK_PUBLISHABLE_KEY = "";
+
+  const server = createServer((request, response) => {
+    void handler(request, response);
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  );
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/store/catalog`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+  assert.match(response.headers.get("cache-control") ?? "", /max-age=60/);
+  assert.deepEqual(body.items, STORE_CATALOG);
 });
 
 test("Vercel API handler initializes lazily and returns health errors as JSON", async (t) => {

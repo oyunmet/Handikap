@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { STORE_CATALOG as SERVER_CATALOG } from "../../../server/storeCatalog.ts";
 import { getDailySpecials, isDailySpecialAvailable, STORE_CATALOG as GAME_CATALOG } from "./store-catalog.ts";
-import catalogHandler from "../../../api/store/catalog.ts";
 
 test("guest gameplay and server purchases share the same populated catalog", () => {
   assert.strictEqual(SERVER_CATALOG, GAME_CATALOG);
@@ -52,22 +51,4 @@ test("special offers switch at Istanbul midnight rather than UTC midnight", () =
   assert.equal(currentDayOffers.length, 2);
   assert.equal(new Set(currentDayOffers).size, currentDayOffers.length);
   assert.notDeepEqual(currentDayOffers, previousDayOffers);
-});
-
-test("the Vercel catalog handler returns the shared catalog as public JSON", async () => {
-  const headers = {};
-  let status = 0;
-  let body;
-  const response = {
-    setHeader(name, value) { headers[name] = value; },
-    status(code) { status = code; return this; },
-    json(value) { body = value; },
-    end(value) { body = value; },
-  };
-
-  await catalogHandler({ method: "GET" }, response);
-
-  assert.equal(status, 200);
-  assert.match(headers["Cache-Control"], /max-age=60/);
-  assert.deepEqual(body.items, GAME_CATALOG);
 });
