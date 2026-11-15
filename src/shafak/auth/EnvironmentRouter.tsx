@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { DeleteAccountPage, PrivacyPage } from "../LegalPages";
 import AgeGate from "./AgeGate";
 import { readAgeGateChoice, writeAgeGateChoice, type AgeGateChoice } from "./age-gate";

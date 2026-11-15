@@ -3516,11 +3516,17 @@ function WarRoomRuntimeScene({
         readWarRoomLookSensitivitySettings(),
       );
       const fovScale = perspective.fov / 75;
+      const pointerSensitivity = input.lookPointerType === "touch"
+        ? WAR_ROOM_CONFIG.sensitivity.touchMultiplier
+        : 1;
       applyWarRoomLookDelta(
         input,
         boundedLookDelta.dx,
         boundedLookDelta.dy,
-        { x: sensitivity.x * fovScale, y: sensitivity.y * fovScale },
+        {
+          x: sensitivity.x * fovScale * pointerSensitivity,
+          y: sensitivity.y * fovScale * pointerSensitivity,
+        },
         input.lookPointerType,
       );
       input.cameraTargetYaw = input.yaw;
@@ -3702,7 +3708,7 @@ function WarRoomRuntimeScene({
       controlCameraAngles.yaw,
       cameraTargetYaw,
       delta,
-      input.movementBaseYaw === null ? 16 : 9,
+      input.movementBaseYaw === null ? 16 : WAR_ROOM_CONFIG.camera.autoFollowSpeed,
     );
     const movementBasisYaw = input.movementBaseYaw ?? movementYaw;
     const priorLookYaw = previousLookYawRef.current;

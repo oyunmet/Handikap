@@ -52,8 +52,8 @@ const WAR_ROOM_VIEWMODEL_MAX_DELTA = 0.05;
 const WAR_ROOM_VIEWMODEL_POSE_SPRING_OMEGA = 30;
 export const WAR_ROOM_VIEWMODEL_SWAY_SCALE = {
   off: 0,
-  low: 0.45,
-  normal: 0.6,
+  low: 0.22,
+  normal: 0.38,
 } as const;
 
 export function createWarRoomViewModelFrameTimingState(): WarRoomViewModelFrameTimingState {
@@ -344,7 +344,7 @@ export function getWarRoomViewModelPose(state: WarRoomViewModelState, aspect = 1
   const switchDip = Math.sin((1 - switchProgress) * Math.PI * 0.5);
   const walkPhase = Number.isFinite(state.walkPhase) ? state.walkPhase! : state.time * 8.4;
   const walkAmount = movement * swayScale * motion * (state.aiming ? 0.58 : 1);
-  const idleBreath = Math.sin(state.time * 1.7) * 0.008 * motion * swayScale;
+  const idleBreath = Math.sin(state.time * 1.7) * 0.004 * motion * swayScale;
   const walkSwayX = Math.sin(walkPhase) * walkAmount * 0.014;
   const walkYaw = Math.cos(walkPhase) * walkAmount * 0.004;
   const walkRoll = Math.cos(walkPhase) * walkAmount * 0.012;

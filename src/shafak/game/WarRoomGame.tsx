@@ -380,8 +380,18 @@ function requestWarRoomImmersiveDisplay() {
   const stage = document.querySelector<HTMLElement>(".war-room");
   if (!stage) return false;
   try {
+    const lockLandscape = () => {
+      const orientation = window.screen.orientation;
+      if (typeof orientation?.lock === "function") {
+        void orientation.lock("landscape").catch(() => undefined);
+      }
+    };
     if (!document.fullscreenElement && typeof stage.requestFullscreen === "function") {
-      void stage.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined);
+      void stage.requestFullscreen({ navigationUI: "hide" })
+        .then(lockLandscape)
+        .catch(() => undefined);
+    } else {
+      lockLandscape();
     }
   } catch {
     // Fullscreen is optional on mobile browsers.
@@ -468,7 +478,6 @@ export default function WarRoomGame({
   }, []);
   const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
   const [hudDetailsExpanded, setHudDetailsExpanded] = useState(true);
-  const [landscapeHintVisible, setLandscapeHintVisible] = useState(true);
   const [hudToasts, setHudToasts] = useState<WarRoomToast[]>([]);
   const hudToastIdRef = useRef(0);
   const hudToastTimersRef = useRef(new Map<number, number>());
@@ -1488,7 +1497,7 @@ export default function WarRoomGame({
           x,
           y,
           bounds.width,
-          "any",
+          leftHandedControls ? "right" : "left",
         );
         if (!role) continue;
         const controlPointerId = pointerIdForTouch(touch.identifier);
@@ -1600,7 +1609,7 @@ export default function WarRoomGame({
       window.visualViewport?.removeEventListener("resize", onViewportChange);
       resetTouchControls();
     };
-  }, [phase, resetTouchControls]);
+  }, [leftHandedControls, phase, resetTouchControls]);
 
   return (
     <main
@@ -1908,25 +1917,11 @@ export default function WarRoomGame({
             className={`war-room-hud${hud.aiming ? " is-aiming" : ""}${hud.damageVignette ? " is-hit" : ""}${isWarRoomLowHealth(hud.player.hp, hud.player.maxHp) ? " is-low-health" : ""}`}
             data-boss-phase={bossHudPhase}
           >
-            {landscapeHintVisible
-              && !hudDetailsExpanded
-              && bossPhaseAnnouncement === null
-              && !hud.nearbyLootChest
-              && (
-              <div className="war-room-landscape-hint" role="note">
-                <span>Yatay görünüm daha rahat olabilir</span>
-                <button
-                  type="button"
-                  aria-label="Yatay görünüm ipucunu kapat"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setLandscapeHintVisible(false);
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            )}
+            <div className="war-room-landscape-hint" role="alert">
+              <span className="war-room-landscape-hint__icon" aria-hidden="true">↻</span>
+              <strong>Yatay oynayın</strong>
+              <small>Devam etmek için telefonu yatay konuma çevirin.</small>
+            </div>
             <div className="war-room-hud__top">
               <div className="war-room-location-status">
                 {WAR_ROOM_ROOM_CHAIN_ENABLED && (

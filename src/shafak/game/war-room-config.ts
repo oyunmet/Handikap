@@ -11,6 +11,7 @@ export const WAR_ROOM_CONFIG = {
   camera: {
     fixedPitch: -0.12,
     pitchLimitDegrees: 85,
+    autoFollowSpeed: 4.5,
     firstPerson: { fov: 75, near: 0.05, far: 100 },
     viewModel: { fov: 63, near: 0.012, far: 18 },
   },
@@ -24,6 +25,7 @@ export const WAR_ROOM_CONFIG = {
   sensitivity: {
     horizontal: 0.007,
     vertical: 0.0045,
+    touchMultiplier: 0.35,
     referenceWidth: 720,
     referenceHeight: 420,
   },

@@ -211,7 +211,7 @@ test("viewmodel uses the light default, bounded sway, wall pullback, and 60-degr
   assert.equal(getWarRoomViewModelSwayScale("off"), 0);
   assert.ok(getWarRoomViewModelSwayScale("normal") > getWarRoomViewModelSwayScale("low"));
   assert.ok(
-    getWarRoomViewModelSwayScale("normal") <= 0.6,
+    getWarRoomViewModelSwayScale("normal") <= 0.4,
     "normal sway must stay within the measured jitter budget",
   );
 

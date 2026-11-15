@@ -36,48 +36,55 @@
   display: none;
 }
 
-@media (orientation: portrait) and (max-width: 760px) and (pointer: coarse) {
+@media (orientation: portrait) and (pointer: coarse) {
   .war-room .war-room-landscape-hint {
     position: fixed;
-    z-index: 8;
-    right: auto;
-    bottom: calc(env(safe-area-inset-bottom) + 200px);
-    left: max(10px, env(safe-area-inset-left));
-    display: flex;
-    width: min(150px, calc(50vw - 24px));
-    min-height: 48px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    z-index: 10000;
+    inset: 0;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
     box-sizing: border-box;
-    padding: 0 4px 0 8px;
-    border: 1px solid rgba(227, 197, 150, .38);
-    border-radius: 10px;
-    background: rgba(25, 24, 22, .92);
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    background: rgba(12, 12, 13, .97);
     color: #ead9b8;
-    font-size: 8px;
+    font-size: 15px;
     letter-spacing: .04em;
     pointer-events: auto;
+    text-align: center;
+    touch-action: none;
   }
 
-  .war-room .war-room-landscape-hint button {
+  .war-room .war-room-landscape-hint__icon {
     display: grid;
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
-    min-height: 48px;
+    width: 72px;
+    height: 72px;
     place-items: center;
-    border: 0;
-    border-radius: 8px;
-    background: rgba(227, 197, 150, .12);
-    color: #fff0d4;
-    font: 20px/1 sans-serif;
-    touch-action: manipulation;
+    border: 1px solid rgba(227, 197, 150, .5);
+    border-radius: 18px;
+    color: #e8bd78;
+    font: 48px/1 sans-serif;
+    transform: rotate(90deg);
+  }
+
+  .war-room .war-room-landscape-hint strong {
+    color: #fff1d6;
+    font-size: clamp(20px, 6vw, 28px);
+  }
+
+  .war-room .war-room-landscape-hint small {
+    max-width: 300px;
+    color: #d1c2a8;
+    font-size: 13px;
+    line-height: 1.5;
   }
 
   .war-room[data-left-handed="true"] .war-room-landscape-hint {
-    right: max(10px, env(safe-area-inset-right));
-    left: auto;
+    right: 0;
+    left: 0;
   }
 
   .war-room .war-room-hud__top {
