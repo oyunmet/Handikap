@@ -402,7 +402,7 @@
 - Dokuz perdenin kısa özeti ve beşer hikâye anı güncellendi. Görev hedefleri ve görünen görev türü adları yeni anlatıyla eşleştirildi.
 - İlk bölgenin adı **Eşik Mahallesi** oldu. Eski `ash-road` veri kimliği ve 9 perde/450 bölüm aralıkları korunarak mevcut kayıtların eşleşmesi sürdürüldü.
 
-### 14.3 — Yürünebilir şehir merkezi ve kapılar: **Uygulandı; görsel kabul bekliyor**
+### 14.3 — Yürünebilir şehir merkezi ve kapılar: **Tarayıcıda görsel olarak doğrulandı**
 
 - Dört yöne açılan sokaklar, gün ışığı/gökyüzü, binalar, kaldırımlar, geçit çizgileri, ağaçlar ve sokak lambalarıyla 3D merkez kuruldu.
 - Farklı ten, saç, kıyafet ve beden oranlarına sahip yürüyen sakinler; mobil joystick, WASD/ok tuşları, bina çarpışması ve yakında beliren giriş düğmesi eklendi.
@@ -413,12 +413,15 @@
 - Ana menüye Eşik Mahallesi girişi eklendi; doğrudan sefere devam, profil, mağaza ve Savaş Odası girişleri korundu.
 - Açılış, intro, kampanya/biome etiketleri ve ilgili metinler yeni anlatıyla eşleştirildi. “Kül Yolu” kullanıcıya gösterilen kampanya adı olmaktan çıkarıldı; teknik kimlikler ve tarihî ekipman adı kimlikleri değiştirilmedi.
 
-### 14.5 — Doğrulama ve cihaz kontrolü: **Devam ediyor**
+### 14.5 — Doğrulama ve cihaz kontrolü: **Tarayıcı kontrolü tamam; gerçek cihaz testi açık**
 
-- Şehir, kampanya, bölüm diyaloğu ve boss kapsama testleri geçti: 23/23. Tam `npm test`: 744/747 geçti; `npm run build` ve `git diff --check` geçti.
-- Tam testte kalan 3 başarısızlık bu değişiklikten bağımsız mevcut beklentiler: `server/profileApi.test.js` reklam ödülü tablosunun silinme sırasını kapsamıyor; `src/shafak/android-pwa.test.js` sertifika yer tutucusu ve build işaretçisi için eski değer bekliyor.
-- `npm run typecheck` mevcut `server/profileApi.ts` ve `src/shafak/ads/h5GamesProvider.ts` hatalarında duruyor; yeni şehir/kampanya dosyaları için ek tip hatası raporlanmadı.
-- Masaüstü ve telefon önizlemeleri mevcut yaş onayı ekranında durdu. Yaş kapısı değiştirilmedi veya atlanmadı; şehir sahnesi bu oturumda görsel olarak doğrulanamadı.
-- Gerçek telefon/GPU performansı Replit yazılım renderer’ından varsayılmayacak; cihaz kabulü ayrıca açık kalacak.
+- Şehir, kampanya, diyalog ve boss kapsamındaki ilgili testler bu turda geçti: 34/34. `npm run build` ve `git diff --check` de geçti.
+- `npm run warroom:final:e2e` 6 ekranı 9 mobil ölçüde doğruladı: 54 görüntü; taşma ve metin/düğme çakışması yok. Menüde kritik girişlerin ekran dışına kaçmasını yakalayan görünürlük kontrolü eklendi.
+- İlk görsel kontrolde yatay menünün alt düğmeleri kesiliyordu. Menü 1280×720, 772×330, 844×390, 667×375 ve 390×844 ölçülerinde yeniden düzenlendi; sefer, şehir, profil, teçhizat ve Savaş Odası girişleri görünür kaldı.
+- Şehir sahnesi menüden açılarak masaüstünde, dikey ve yatay telefon boyutlarında kontrol edildi. 3D canvas, kapı rehberi ve ekran düğmeleri kadrajda; yakalanmamış sayfa hatası yok.
+- Yaş onayı kodu ve gerçek profil değiştirilmedi. Yaş onayından sonraki görseller yalnızca izole test tarayıcısında geçici seçimle alındı; normal önizleme hâlâ yaş onayını gösteriyor.
+- Yerel üretim önizlemesi Clerk yapılandırılmadığından giriş kurulum ekranında kaldı; üretim arayüzü bu ortamda doğrulanmadı ve kimlik doğrulama atlanmadı. Geliştirme önizlemesinde Drei `Html` etiket temizliği ve yazılım WebGL renderer’ı kaynaklı uyarılar görüldü; sayfa çökmemesi ve görsel doğrulama başarılı.
+- Önceki tam `npm test` koşusunda 744/747 sonucu ve üç bağımsız beklenti uyuşmazlığı kaydedilmişti; tam test ile typecheck bu CSS/önizleme turunda yeniden çalıştırılmadı. Typecheck’teki mevcut `server/profileApi.ts` ve `src/shafak/ads/h5GamesProvider.ts` hataları önceki kayıttaki gibi kapsam dışı.
+- Replit yazılım renderer’ı gerçek telefon GPU/FPS kabulü sayılmayacak; cihaz testi açık kalıyor.
 
-**Sıradaki işlem:** Yaş onayından sonra menü ve `?debug=1&scene=city` önizlemelerini masaüstü/telefon boyutlarında görsel olarak kontrol et. Kalan eski typecheck ve 3 bağımsız test uyuşmazlığını bu özellikten ayrı değerlendir.
+**Sıradaki işlem:** Gerçek iPhone/Android üzerinde 3D FPS ve dokunmatik kontrolleri dene; sonuçları paylaşınca 14.5 cihaz kabulünü kapat. Önceki tam test/typecheck uyuşmazlıklarını bu özellikten ayrı değerlendir.

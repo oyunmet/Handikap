@@ -120,23 +120,63 @@ const inspectLayout = async (page, rootSelector, screenName) => page.evaluate(
       || rect.top < -1
       || rect.right > viewport.width + 1
       || rect.bottom > viewport.height + 1);
+    const requiredOutside = name === "menu"
+      ? [
+        ".menu-action--primary",
+        ".menu-action--city",
+        ".menu-action--secondary:not(.menu-action--city)",
+        ".menu-gear-actions",
+        ".menu-action--war-room",
+      ].flatMap((selector) => {
+        const element = root.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return [{ selector, missing: true }];
+        const bounds = element.getBoundingClientRect();
+        if (
+          bounds.left >= -1
+          && bounds.top >= -1
+          && bounds.right <= viewport.width + 1
+          && bounds.bottom <= viewport.height + 1
+        ) return [];
+        return [{
+          selector,
+          bounds: {
+            left: Math.round(bounds.left),
+            top: Math.round(bounds.top),
+            right: Math.round(bounds.right),
+            bottom: Math.round(bounds.bottom),
+          },
+        }];
+      })
+      : [];
+    const orientationHint = root.querySelector(".war-room-landscape-hint");
+    const maskedBackground = orientationHint instanceof HTMLElement && isRendered(orientationHint);
     const overlaps = [];
-    for (let first = 0; first < entries.length; first += 1) {
-      for (let second = first + 1; second < entries.length; second += 1) {
-        const a = entries[first].rect;
-        const b = entries[second].rect;
-        const width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-        const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-        if (width > 1 && height > 1) {
-          overlaps.push({
-            first: entries[first],
-            second: entries[second],
-            intersection: { width, height },
-          });
+    if (!maskedBackground) {
+      for (let first = 0; first < entries.length; first += 1) {
+        for (let second = first + 1; second < entries.length; second += 1) {
+          const a = entries[first].rect;
+          const b = entries[second].rect;
+          const width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (width > 1 && height > 1) {
+            overlaps.push({
+              first: entries[first],
+              second: entries[second],
+              intersection: { width, height },
+            });
+          }
         }
       }
     }
-    return { screen: name, viewport, entryCount: entries.length, outside, overlaps };
+    return {
+      screen: name,
+      viewport,
+      entryCount: entries.length,
+      outside,
+      overlaps,
+      requiredOutside,
+      maskedBackground,
+    };
   },
   { rootSelector, screenName },
 );
@@ -168,15 +208,16 @@ const captureMatrix = async (page, screenName, rootSelector) => {
     });
     await writeFile(`${outputDir}/${fileName}`, Buffer.from(screenshot.data, "base64"));
     console.log(
-      `${fileName}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, çakışma ${report.overlaps.length}`,
+      `${fileName}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, ana işlem taşması ${report.requiredOutside.length}, çakışma ${report.overlaps.length}${report.maskedBackground ? ", yön uyarısı arka planı örtüyor" : ""}`,
     );
-    if (report.outside.length || report.overlaps.length) failures.push(report);
+    if (report.outside.length || report.requiredOutside.length || report.overlaps.length) failures.push(report);
   }
   if (failures.length) {
     const detail = failures.slice(0, 6).map((report) => JSON.stringify({
       screen: report.screen,
       viewport: report.viewport,
       outside: report.outside.slice(0, 4),
+      requiredOutside: report.requiredOutside.slice(0, 5),
       overlaps: report.overlaps.slice(0, 5),
     })).join("\n");
     throw new Error(`${screenName}: metin/düğme çakışması veya ekran taşması bulundu.\n${detail}`);

@@ -807,3 +807,252 @@
     margin-bottom: 24px;
   }
 }
+
+@media (orientation: landscape) and (max-height: 760px) and (min-width: 961px) {
+  .screen--menu {
+    height: 100dvh;
+    min-height: 100dvh;
+    padding: 12px clamp(24px, 3vw, 44px) 8px;
+  }
+
+  .screen--menu .menu-header {
+    min-height: 44px;
+  }
+
+  .screen--menu .menu-content {
+    min-height: 0;
+    gap: clamp(24px, 3vw, 42px);
+    padding-block: 0;
+  }
+
+  .screen--menu .menu-copy {
+    padding: 0 0 4px clamp(0px, 1vw, 14px);
+  }
+
+  .screen--menu .menu-divider {
+    margin-bottom: 10px;
+  }
+
+  .screen--menu .menu-copy h1 {
+    font-size: clamp(40px, 4.5vw, 58px);
+    line-height: .98;
+  }
+
+  .screen--menu .menu-copy > p {
+    margin: 9px 0 14px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .screen--menu .campaign-menu-progress {
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 9px 11px;
+  }
+
+  .screen--menu .campaign-menu-progress__story {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .screen--menu .campaign-menu-progress > small:not(.campaign-menu-progress__story) {
+    display: none;
+  }
+
+  .screen--menu .menu-actions {
+    gap: 7px;
+  }
+
+  .screen--menu .menu-action--primary {
+    min-height: 48px;
+    padding-inline: 14px;
+  }
+
+  .screen--menu .menu-action--city {
+    min-height: 44px;
+    gap: 3px;
+    padding: 8px 11px;
+  }
+
+  .screen--menu .menu-action--secondary:not(.menu-action--city) {
+    min-height: 36px;
+  }
+
+  .screen--menu .menu-gear-action {
+    min-height: 34px;
+  }
+
+  .screen--menu .menu-action--war-room {
+    min-height: 150px;
+  }
+
+  .screen--menu .menu-footer,
+  .screen--menu .production-credit {
+    display: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 960px) {
+  .screen--menu {
+    height: 100dvh;
+    min-height: 100dvh;
+    padding:
+      max(4px, env(safe-area-inset-top))
+      max(8px, calc(env(safe-area-inset-right) + 8px))
+      max(4px, env(safe-area-inset-bottom))
+      max(8px, calc(env(safe-area-inset-left) + 8px));
+  }
+
+  .screen--menu .menu-header {
+    min-height: 36px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+
+  .screen--menu .mini-brand {
+    gap: 7px;
+  }
+
+  .screen--menu .mini-brand .crest {
+    width: 26px;
+    height: 30px;
+  }
+
+  .screen--menu .mini-brand strong { font-size: 9px; }
+  .screen--menu .mini-brand small { font-size: 6px; }
+
+  .screen--menu .menu-player-status {
+    justify-self: center;
+    gap: 3px;
+    padding: 2px 4px;
+  }
+
+  .screen--menu .menu-player-status__name { display: none; }
+  .screen--menu .menu-tools { gap: 3px; }
+  .screen--menu .menu-tools .icon-control { width: 30px; height: 30px; }
+  .screen--menu .icon-control--settings { margin-left: 0; }
+
+  .screen--menu .menu-content {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, .36fr);
+    align-content: center;
+    justify-items: stretch;
+    gap: clamp(8px, 1.7vw, 16px);
+    overflow-y: auto;
+    padding: 3px 0 4px;
+  }
+
+  .screen--menu .menu-copy {
+    width: 100%;
+    max-width: none;
+    padding: 7px 9px 6px;
+    border-radius: 12px;
+  }
+
+  .screen--menu .menu-divider {
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 6px;
+    letter-spacing: .1em;
+  }
+
+  .screen--menu .menu-divider span:first-child,
+  .screen--menu .menu-divider span:last-child {
+    width: 16px;
+  }
+
+  .screen--menu .menu-copy h1 {
+    max-width: 100%;
+    font-size: clamp(25px, 4vw, 32px);
+    line-height: .94;
+  }
+
+  .screen--menu .menu-copy > p { display: none; }
+
+  .screen--menu .campaign-menu-progress {
+    gap: 3px;
+    margin: 4px 0 5px;
+    padding: 5px 7px;
+  }
+
+  .screen--menu .campaign-menu-progress__labels { font-size: 6px; }
+  .screen--menu .campaign-menu-progress__labels strong { font-size: 6.5px; }
+  .screen--menu .campaign-menu-progress > b { font-size: 12px; }
+  .screen--menu .campaign-menu-progress__story,
+  .screen--menu .campaign-menu-progress > small:not(.campaign-menu-progress__story) {
+    display: none;
+  }
+  .screen--menu .campaign-menu-progress__track { height: 3px; }
+
+  .screen--menu .menu-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+  }
+
+  .screen--menu .menu-action--primary {
+    grid-column: 1 / -1;
+    min-height: 34px;
+    padding-inline: 7px;
+    font-size: 8px;
+  }
+
+  .screen--menu .menu-action--city {
+    grid-column: 1 / -1;
+    min-height: 30px;
+    justify-items: center;
+    gap: 0;
+    padding: 4px 7px;
+    font-size: 8px;
+    text-align: center;
+  }
+
+  .screen--menu .menu-action--city small { display: none; }
+
+  .screen--menu .menu-action--secondary:not(.menu-action--city) {
+    grid-column: 1;
+    min-height: 30px;
+    padding: 3px 4px;
+    font-size: 7px;
+    white-space: nowrap;
+  }
+
+  .screen--menu .menu-gear-actions {
+    grid-column: 2 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .screen--menu .menu-gear-action {
+    min-height: 30px;
+    padding-inline: 2px;
+    font-size: 7px;
+    white-space: nowrap;
+  }
+
+  .screen--menu .menu-action--war-room {
+    width: min(100%, 190px);
+    min-width: 0;
+    min-height: 64px;
+    grid-template-columns: 22px minmax(0, 1fr) 12px;
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .screen--menu .menu-action--war-room .menu-action__icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .screen--menu .menu-action__war-room-copy { gap: 3px; }
+  .screen--menu .menu-action__war-room-copy small { font-size: 5px; }
+  .screen--menu .menu-action__war-room-copy b { font-size: 9px; }
+  .screen--menu .menu-action__war-room-arrow svg { width: 12px; height: 12px; }
+
+  .screen--menu .menu-footer,
+  .screen--menu .production-credit {
+    display: none;
+  }
+}
