@@ -1337,20 +1337,20 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               >
                 <div className="menu-divider">
                   <span />
-                  <span>{tr.menuKicker}</span>
+                  <span>KAYIP ŞAFAĞIN İZİNDE</span>
                   <span />
                 </div>
-                <h1>{tr.menuTitle}</h1>
-                <p>{tr.menuDescription}</p>
+                <h1>Şafak hâlâ kayıp.</h1>
+                <p>Dokuz bölge boyunca izini sür. Her perde yeni bir yol açar; her yol, kimin gerçekten düşman olduğunu biraz daha değiştirir.</p>
                 <div className="campaign-menu-progress">
                   <div className="campaign-menu-progress__labels">
-                    <span>PERDE {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
+                    <span>SEFER · PERDE {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
                     <strong>BÖLÜM {menuCampaignProgress.levelNumber} / {CAMPAIGN_LEVEL_COUNT}</strong>
                   </div>
                   <b>{currentMenuAct?.name ?? menuCampaignProgress.region.name}</b>
                   <small className="campaign-menu-progress__story" aria-live="polite">
                     {currentMenuAct?.storySummary
-                      ?? (menuCampaignActLoadError ? "Perde hikâyesi yüklenemedi." : "Perde hikâyesi yükleniyor…")}
+                      ?? (menuCampaignActLoadError ? "Bu perdenin izi kayboldu. Yeniden deneyebilirsin." : "Bu perdenin izi beliriyor…")}
                   </small>
                   <div
                     className="campaign-menu-progress__track"
@@ -1362,7 +1362,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   >
                     <i style={{ width: `${menuCampaignProgress.campaignProgressPercent}%` }} />
                   </div>
-                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% tamamlandı</small>
+                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% · dokuz bölgedeki yolun</small>
                 </div>
                 <div className="menu-actions">
                   <button
@@ -1373,7 +1373,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     }}
                   >
                     <span className="menu-action__icon"><ArrowIcon /></span>
-                    <span>DEVAM ET · BÖLÜM {menuCampaignProgress.levelNumber}</span>
+                    <span>SEFERE DÖN · BÖLÜM {menuCampaignProgress.levelNumber}</span>
                     <ArrowIcon />
                   </button>
                   <button
@@ -1409,13 +1409,23 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 type="button"
                 onClick={() => enterWarRoom("menu")}
               >
-                <span className="menu-action__icon" aria-hidden="true">✹</span>
-                <span className="menu-action__war-room-copy">
-                  <small>GÖREV MODU</small>
-                  <b>SAVAŞ ODASI</b>
-                  <small>AYNI EKİPMAN · YENİ SINAV</small>
+                <span className="menu-action__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.25" />
+                    <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.25" />
+                    <path d="M12 1.8v4M12 18.2v4M1.8 12h4m12.4 0h4" stroke="currentColor" strokeWidth="1.25" />
+                  </svg>
                 </span>
-                <span className="menu-action__war-room-arrow" aria-hidden="true">➜</span>
+                <span className="menu-action__war-room-copy">
+                  <small>ÇATIŞMANIN YANKISI</small>
+                  <b>SAVAŞ ODASI</b>
+                  <small>KURALLAR DEĞİŞİR · YÜKÜN SENİNLE</small>
+                </span>
+                <span className="menu-action__war-room-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 12h15m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               </button>
             </div>
 

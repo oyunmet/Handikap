@@ -11,6 +11,7 @@ import {
   getCampaignLevelKind,
   type CampaignMissionKind,
 } from "./campaign-progression.ts";
+import { CAMPAIGN_NARRATIVE } from "./campaign-narrative.ts";
 
 export type PickupKind = "gold-small" | "gold-large" | "treasure-cache" | "diamond-small" | "iron-shard" | "ember-crystal" | "seal-fragment";
 
@@ -379,7 +380,7 @@ function createRivals(chapterId: number, random: () => number, playerLevel: numb
     const regionalLevel = 2 + chapterId * 3 + index * 2 + (isBoss ? 10 : 0);
     return {
       id: `ash-road:${chapterId}:rival:${index}`,
-      name: finalBoss ? "Karanlık Hükümdar" : profile.name,
+      name: finalBoss ? CAMPAIGN_NARRATIVE.finalBossName : profile.name,
       title: finalBoss ? "SON KAPI" : profile.title,
       archetype: profile.archetype,
       level: Math.min(1_000, Math.max(regionalLevel, Math.floor(safePlayerLevel * 0.65) + index + Math.floor(chapterId * 0.2))),
@@ -387,7 +388,9 @@ function createRivals(chapterId: number, random: () => number, playerLevel: numb
       isElite: !isBoss && index === 3,
       winRate: isBoss ? 94 + Math.min(4, chapterId) : 42 + index * 9 + Math.min(24, chapterId * 2),
       loot: isBoss ? 90 + chapterId * 8 : 24 + index * 8 + chapterId * 3,
-      taunt: finalBoss ? "Mühür parçaları kapıyı açtı. Bu krallığın son hükmünü şimdi vereceğiz." : profile.taunt,
+      taunt: finalBoss
+        ? "Alaz mührü parçaladı; ben de bu krallığı kurtarmak için onu susturdum. Şimdi hangimizin yalan söylediğini öğreneceksin."
+        : profile.taunt,
       difficulty: profile.difficulty,
       chapterId,
       progressPercent: Math.max(0, Math.min(100, (distance - chapterStart) / WORLD_GATE_INTERVAL_METERS * 100)),

@@ -87,15 +87,16 @@ export default function WarRoomBriefing({
       <div className="war-room-briefing__backdrop" aria-hidden="true" />
       <header className="war-room-briefing__header">
         <div className="war-room-heading">
-          <span className="war-room-eyebrow">YENİ OYUN MODU · TEK KİŞİLİK GÖREV · {WAR_ROOM_BUILD_VERSION}</span>
+          <span className="war-room-eyebrow">ÇATIŞMANIN YANKISI · TEK KİŞİLİK GÖREV · {WAR_ROOM_BUILD_VERSION}</span>
           <h1 id="war-room-title">SAVAŞ ODASI</h1>
-          <p>{room.name} · {room.commanderName} ve {room.enemyCount - 1} muhafızla karşılaş.</p>
+          <p>{room.name}’de {room.commanderName} ve {room.enemyCount - 1} muhafızı alt et. Seferdeki çatışma burada başka kurallarla geri döner.</p>
         </div>
         <button className="war-room-exit" type="button" onClick={onExit} aria-label="Ana menüye dön">GERİ</button>
       </header>
       <div className="war-room-briefing__content">
         <section className="war-room-briefing__overview" aria-label="Görev bilgileri">
           <div className="war-room-mission-options" aria-label="Görev ayarları">
+            <div className="war-room-section-kicker">YANKI TÜRÜNÜ SEÇ</div>
             <div className="war-room-mode-grid" role="group" aria-label="Oyun modu seç">
               {WAR_ROOM_MODES.map((mode) => (
                 <button
@@ -111,7 +112,7 @@ export default function WarRoomBriefing({
             </div>
             <div className="war-room-mission-selects">
               <label>
-                <span>HARİTA</span>
+                <span>ÇATIŞMA ALANI</span>
                 <select value={selectedMapId} onChange={(event) => onSelectMap(event.currentTarget.value)}>
                   {WAR_ROOM_MAPS.map((map) => (
                     <option key={map.id} value={map.id}>{map.name}</option>
@@ -119,7 +120,7 @@ export default function WarRoomBriefing({
                 </select>
               </label>
               <label>
-                <span>ZORLUK</span>
+                <span>TEHDİT DÜZEYİ</span>
                 <select
                   value={selectedDifficulty}
                   onChange={(event) => onSelectDifficulty(event.currentTarget.value as WarRoomDifficultyId)}
@@ -144,9 +145,15 @@ export default function WarRoomBriefing({
             </div>
           </div>
           <div className="war-room-mission-card">
-            <div className="war-room-mission-card__symbol" aria-hidden="true">✦</div>
+            <div className="war-room-mission-card__symbol" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.2" />
+                <circle cx="12" cy="12" r="2.1" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M12 1.8v4M12 18.2v4M1.8 12h4m12.4 0h4" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </div>
             <div>
-              <span>GÖREV HEDEFİ</span>
+              <span>BU SEFERİN HEDEFİ</span>
               <strong>
                 {selectedMode === "treasure"
                   ? "Süre dolmadan 5 sandık aç"
@@ -158,16 +165,21 @@ export default function WarRoomBriefing({
               </strong>
               <small>{room.name} · {room.layoutName} · {room.commanderTitle}</small>
             </div>
-            <b className="war-room-enemy-count">{String(room.enemyCount).padStart(2, "0")}</b>
+              <b className="war-room-enemy-count" aria-label={`${room.enemyCount} düşman`}>{String(room.enemyCount).padStart(2, "0")}</b>
           </div>
           <section
             className={`war-room-daily-challenge${dailyChallengeComplete ? " is-complete" : ""}`}
             aria-label="Günlük Savaş Odası sınavı"
           >
-            <span className="war-room-daily-challenge__mark" aria-hidden="true">✦</span>
+            <span className="war-room-daily-challenge__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 2.5v19M2.5 12h19M5.3 5.3l13.4 13.4M18.7 5.3 5.3 18.7" stroke="currentColor" strokeWidth="1.1" />
+                <circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </span>
             <div className="war-room-daily-challenge__copy">
               <div className="war-room-daily-challenge__eyebrow">
-                <span>GÜNLÜK SINAV</span><small>HER GÜN YENİLENİR</small>
+                <span>GÜNLÜK YANKI</span><small>HER GÜN YENİLENİR</small>
               </div>
               <strong>{dailyChallengeRoom.contract.title}</strong>
               <p>{dailyChallengeRoom.contract.description} · {dailyChallengeRoom.contract.target} hedef</p>
@@ -196,8 +208,8 @@ export default function WarRoomBriefing({
         <section className="war-room-briefing__loadout" aria-label="Silah seçimi">
           <div className="war-room-loadout-head">
             <div>
-              <span className="war-room-eyebrow">SAVAŞ ÖNCESİ HAZIRLIK</span>
-              <h2>İki silah kuşan</h2>
+              <span className="war-room-eyebrow">EŞİĞİ GEÇMEDEN</span>
+              <h2>Yanına iki silah al</h2>
             </div>
             <div className="war-room-slot-tabs" role="group" aria-label="Silah yuvası seç">
               {([0, 1] as const).map((slot) => (
@@ -254,7 +266,7 @@ export default function WarRoomBriefing({
       </div>
       <footer className="war-room-briefing__bottom">
         <div className="war-room-briefing__bottom-copy">
-          <p>WASD / joystick hareket · Fare sürükle / sağ tarafı kaydır bakış · Sol tık / ATEŞ</p>
+          <p>WASD veya joystick ile ilerle · Sürükleyerek bakışını çevir · Sol tıkla ateş et</p>
           <div
             className="war-room-model-progress"
             role="progressbar"
@@ -275,8 +287,14 @@ export default function WarRoomBriefing({
               : "Karakterler ve savaş alanı hazırlanıyor."}
           </small>
           <button className="war-room-start" type="button" onClick={onBegin} disabled={!modelsReady}>
-            <span>{modelsReady ? "BAŞLA" : `MODELLER YÜKLENİYOR %${Math.round(modelProgress)}`}</span>
-            <i aria-hidden="true">{modelsReady ? "➜" : "…"}</i>
+            <span>{modelsReady ? "YANKIYA GİR" : `ALAN HAZIRLANIYOR %${Math.round(modelProgress)}`}</span>
+            <i aria-hidden="true">
+              {modelsReady ? (
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12h15m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : "…"}
+            </i>
           </button>
         </div>
       </footer>

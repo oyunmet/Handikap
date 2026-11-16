@@ -2,14 +2,14 @@ import { CAMPAIGN_COPY } from "./campaign-copy.ts";
 
 export const tr = {
   brand: "ŞAFAK SAVAŞÇILARI",
-  tagline: "Karanlık krallığı ele geçirdi. Kayıp prensesi Mühür Parçaları'yla bul.",
-  openingKicker: "KAYIP PRENSES",
+  tagline: "Dokuz yemin. Kırık bir mühür. Geri alınmayı bekleyen bir şafak.",
+  openingKicker: "KIRIK ŞAFAK · BİRİNCİ PERDE",
   openingDescription: CAMPAIGN_COPY.openingDescription,
   start: "BAŞLA",
   loadingTitle: "YOL AÇILIYOR",
   loadingTips: CAMPAIGN_COPY.loadingTips,
   menuKicker: CAMPAIGN_COPY.menuKicker,
-  menuTitle: "Prensesin izini sür.",
+  menuTitle: "Her kıvılcım bir gerçeği açığa çıkarır.",
   menuDescription: CAMPAIGN_COPY.menuDescription,
   openSettings: "OYUN AYARLARI",
   replayOpening: "AÇILIŞI YENİDEN İZLE",

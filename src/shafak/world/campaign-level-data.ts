@@ -26,6 +26,7 @@ export type CampaignActData = {
   id: string;
   name: string;
   storySummary: string;
+  storyBeats: readonly string[];
   theme: string;
   enemyFaction: string;
   mapVariants: readonly string[];
@@ -91,6 +92,9 @@ export async function loadCampaignActData(actNumber: number) {
   if (act.id !== expectedRegion.id || act.name !== expectedRegion.name) {
     throw new Error(`Campaign act ${actNumber} does not match its region manifest.`);
   }
+  if (act.storyBeats.length !== 5 || act.storyBeats.some((beat) => !beat.trim())) {
+    throw new Error(`Campaign act ${actNumber} must define five distinct story beats.`);
+  }
   loadedActs.set(actNumber, act);
   return act;
 }
@@ -108,6 +112,7 @@ export async function loadCampaignLevelData(chapterId: number): Promise<Campaign
   const actNumber = Math.floor(chapterId / CAMPAIGN_LEVELS_PER_ACT) + 1;
   const localLevelNumber = (chapterId % CAMPAIGN_LEVELS_PER_ACT) + 1;
   const act = await loadCampaignActData(actNumber);
+  const storyBeatIndex = Math.min(4, Math.floor((localLevelNumber - 1) / 10));
   const kind = getCampaignLevelKind(chapterId);
   const patternIndex = (localLevelNumber - 1) % act.mapVariants.length;
   const template = kind === "act-boss"
@@ -126,7 +131,7 @@ export async function loadCampaignLevelData(chapterId: number): Promise<Campaign
     actNumber,
     actId: act.id,
     actName: act.name,
-    storySummary: act.storySummary,
+    storySummary: act.storyBeats[storyBeatIndex],
     regionName: act.name,
     theme: act.theme,
     enemyFaction: act.enemyFaction,
@@ -139,6 +144,7 @@ export async function loadCampaignLevelData(chapterId: number): Promise<Campaign
     parameters: {
       localLevelNumber,
       patternIndex,
+      storyBeatIndex,
       actIntensity: actNumber,
       seed: Math.imul(levelNumber, 0x45d9f3b) >>> 0,
     },

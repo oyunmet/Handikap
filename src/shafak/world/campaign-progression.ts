@@ -10,14 +10,14 @@ export const MAX_DEFEATED_OPPONENTS = 64;
 
 export const CAMPAIGN_REGIONS = [
   { id: "ash-road", name: "Kül Yolu", firstChapterId: 0, lastChapterId: 49 },
-  { id: "frozen-pass", name: "Donmuş Geçit", firstChapterId: 50, lastChapterId: 99 },
-  { id: "red-marsh", name: "Kızıl Bataklık", firstChapterId: 100, lastChapterId: 149 },
-  { id: "whispering-forest", name: "Fısıltı Ormanı", firstChapterId: 150, lastChapterId: 199 },
-  { id: "broken-throne", name: "Çürük Taht", firstChapterId: 200, lastChapterId: 249 },
-  { id: "mist-coast", name: "Sisli Kıyı", firstChapterId: 250, lastChapterId: 299 },
-  { id: "lost-city", name: "Kayıp Şehir", firstChapterId: 300, lastChapterId: 349 },
-  { id: "black-summit", name: "Kara Zirve", firstChapterId: 350, lastChapterId: 399 },
-  { id: "shadow-palace", name: "Gölge Sarayı", firstChapterId: 400, lastChapterId: 449 },
+  { id: "frozen-pass", name: "Ayaz Geçidi", firstChapterId: 50, lastChapterId: 99 },
+  { id: "red-marsh", name: "Kızıl Sazlık", firstChapterId: 100, lastChapterId: 149 },
+  { id: "whispering-forest", name: "Fısıltı Korusu", firstChapterId: 150, lastChapterId: 199 },
+  { id: "broken-throne", name: "Kırık Taht", firstChapterId: 200, lastChapterId: 249 },
+  { id: "mist-coast", name: "Dilsiz Kıyı", firstChapterId: 250, lastChapterId: 299 },
+  { id: "lost-city", name: "Kumaltı Arşivleri", firstChapterId: 300, lastChapterId: 349 },
+  { id: "black-summit", name: "Yarık Zirvesi", firstChapterId: 350, lastChapterId: 399 },
+  { id: "shadow-palace", name: "Aynasız Saray", firstChapterId: 400, lastChapterId: 449 },
 ] as const;
 
 export type CampaignMissionKind =
@@ -30,13 +30,13 @@ export type CampaignMissionKind =
   | "act-boss";
 
 export const CAMPAIGN_MISSION_LABELS: Readonly<Record<CampaignMissionKind, string>> = {
-  "normal-combat": "Normal çatışma",
-  survival: "Hayatta kalma dalgası",
-  "target-hunt": "Hedef avı",
-  siege: "Kuşatma",
-  exploration: "Keşif ve hazine",
-  "mini-boss": "Mini-boss",
-  "act-boss": "Perde boss'u",
+  "normal-combat": "Yol Çatışması",
+  survival: "Nöbet Sınavı",
+  "target-hunt": "İz Sürme",
+  siege: "Hat Yarma",
+  exploration: "Emanet Arayışı",
+  "mini-boss": "Yemin Dönümü",
+  "act-boss": "Perde Muhafızı",
 };
 
 const REGULAR_MISSION_KINDS = [
