@@ -12,6 +12,8 @@ export type AttachedOpponentCostume = {
   dispose: () => void;
 };
 
+export type CityNpcAccessory = "none" | "hat" | "cape" | "glasses" | "cane" | "wheelchair";
+
 export function shouldAttachOpponentCostume(modelConfig: OpponentModelConfig | undefined) {
   return Boolean(modelConfig);
 }
@@ -52,9 +54,21 @@ const BONE_NAMES = {
   rightShoulder: ["Shoulder.R", "ShoulderR", "RightShoulder", "DEF-shoulder.R", "Rig_RightShoulder"],
   leftForearm: ["LowerArm.L", "LowerArmL", "LeftForeArm", "LeftForearm", "DEF-forearm.L", "Rig_LeftForearm"],
   rightForearm: ["LowerArm.R", "LowerArmR", "RightForeArm", "RightForearm", "DEF-forearm.R", "Rig_RightForearm"],
-  leftShin: ["LowerLeg.L", "LowerLegL", "LeftLeg", "LeftShin", "DEF-shin.L", "Rig_LeftShin"],
-  rightShin: ["LowerLeg.R", "LowerLegR", "RightLeg", "RightShin", "DEF-shin.R", "Rig_RightShin"],
+  leftHand: ["Hand.L", "HandL", "LeftHand", "mixamorigLeftHand", "Rig_LeftHand"],
+  rightHand: ["Hand.R", "HandR", "RightHand", "FistR", "Fist1R", "mixamorigRightHand", "Rig_RightHand"],
+  pelvis: ["Hips", "Rig_Hips", "mixamorigHips", "DEF-spine"],
+  leftThigh: ["UpLeg.L", "UpLegL", "LeftUpLeg", "LeftThigh", "UpperLeg.L", "mixamorigLeftUpLeg", "Rig_LeftUpLeg"],
+  rightThigh: ["UpLeg.R", "UpLegR", "RightUpLeg", "RightThigh", "UpperLeg.R", "mixamorigRightUpLeg", "Rig_RightUpLeg"],
+  leftShin: ["LowerLeg.L", "LowerLegL", "LeftLeg", "LeftShin", "DEF-shin.L", "mixamorigLeftLeg", "Rig_LeftShin"],
+  rightShin: ["LowerLeg.R", "LowerLegR", "RightLeg", "RightShin", "DEF-shin.R", "mixamorigRightLeg", "Rig_RightShin"],
 } as const;
+
+type SeatedPoseJoint = {
+  bone: THREE.Bone;
+  position: THREE.Vector3;
+  rotation: THREE.Euler;
+  rotationX: number;
+};
 
 function findMount(model: THREE.Object3D, names: readonly string[]) {
   let fallback: THREE.Object3D | null = null;
@@ -64,6 +78,25 @@ function findMount(model: THREE.Object3D, names: readonly string[]) {
     else fallback ??= object;
   });
   return fallback ?? model;
+}
+
+function findBone(model: THREE.Object3D, names: readonly string[]) {
+  let found: THREE.Bone | null = null;
+  model.traverse((object) => {
+    if (!found && object instanceof THREE.Bone && names.includes(object.name)) found = object;
+  });
+  return found;
+}
+
+function captureSeatedJoint(
+  model: THREE.Object3D,
+  names: readonly string[],
+  rotationX: number,
+): SeatedPoseJoint | null {
+  const bone = findBone(model, names);
+  return bone
+    ? { bone, position: bone.position.clone(), rotation: bone.rotation.clone(), rotationX }
+    : null;
 }
 
 function createCapeGeometry(width: number, length: number, columns = 6, rows = 8): CapeRecord {
@@ -117,6 +150,7 @@ export function attachOpponentCostume(
   model: THREE.Object3D,
   modelConfig: OpponentModelConfig,
   appearance: EquipmentVisual | undefined,
+  cityAccessory: CityNpcAccessory = "none",
 ): AttachedOpponentCostume {
   const style = modelConfig.costume;
   const trim = appearance?.trim ?? appearance?.armorLight ?? "#b99b70";
@@ -135,6 +169,15 @@ export function attachOpponentCostume(
   model.updateWorldMatrix(true, true);
   const head = findMount(model, BONE_NAMES.head);
   const torso = findMount(model, BONE_NAMES.torso);
+  const seatedPose = cityAccessory === "wheelchair"
+    ? {
+      pelvis: captureSeatedJoint(model, BONE_NAMES.pelvis, 0),
+      leftThigh: captureSeatedJoint(model, BONE_NAMES.leftThigh, -1.08),
+      rightThigh: captureSeatedJoint(model, BONE_NAMES.rightThigh, -1.08),
+      leftShin: captureSeatedJoint(model, BONE_NAMES.leftShin, 1.15),
+      rightShin: captureSeatedJoint(model, BONE_NAMES.rightShin, 1.15),
+    }
+    : null;
 
   const mountGroup = (
     parent: THREE.Object3D,
@@ -214,6 +257,39 @@ export function attachOpponentCostume(
       makeMaterial(modelConfig.isBoss ? "#c0c7cb" : trim, 0.68, 0.28),
       new THREE.Vector3(0, 0.035, 0.145),
     );
+  }
+
+  if (cityAccessory === "hat" && !style.helmet) {
+    mesh(
+      headGear,
+      new THREE.CylinderGeometry(0.205, 0.19, 0.045, 12),
+      makeMaterial(trim, 0.92, 0.02),
+      new THREE.Vector3(0, 0.16, -0.01),
+      new THREE.Vector3(1.22, 1, 1.14),
+    ).name = "city-npc-hat-brim";
+    mesh(
+      headGear,
+      new THREE.CylinderGeometry(0.12, 0.155, 0.17, 10),
+      makeMaterial(armorColor, 0.94, 0.01),
+      new THREE.Vector3(0, 0.255, -0.01),
+    ).name = "city-npc-hat-crown";
+  }
+
+  if (cityAccessory === "glasses" && !style.mask) {
+    for (const side of [-1, 1]) {
+      mesh(
+        headGear,
+        new THREE.TorusGeometry(0.072, 0.012, 6, 14),
+        makeMaterial("#473b2e", 0.86, 0.08),
+        new THREE.Vector3(side * 0.086, -0.03, 0.185),
+      ).name = `city-npc-glasses-lens-${side}`;
+    }
+    mesh(
+      headGear,
+      new THREE.BoxGeometry(0.055, 0.018, 0.018),
+      makeMaterial("#473b2e", 0.86, 0.08),
+      new THREE.Vector3(0, -0.03, 0.185),
+    ).name = "city-npc-glasses-bridge";
   }
 
   if (style.mask) {
@@ -380,7 +456,7 @@ export function attachOpponentCostume(
     }
   }
 
-  if (style.cape) {
+  if (style.cape || cityAccessory === "cape") {
     const cloth = createCapeGeometry(
       modelConfig.isBoss ? 0.92 * bossGearScale : 0.76,
       modelConfig.isBoss ? 1.25 * bossGearScale : 0.88,
@@ -402,6 +478,81 @@ export function attachOpponentCostume(
     cloth.geometry.computeVertexNormals();
     capes.push(cloth);
     capeMeshes.push(capeMesh);
+  }
+
+  if (cityAccessory === "cane") {
+    const hand = findBone(model, BONE_NAMES.rightHand)
+      ?? findBone(model, BONE_NAMES.rightForearm);
+    const parent = hand ?? model;
+    const cane = mountGroup(
+      parent,
+      parent === model ? new THREE.Vector3(0.38, 0.88, 0.12) : new THREE.Vector3(),
+    );
+    cane.name = "city-npc-cane";
+    mesh(
+      cane,
+      new THREE.CylinderGeometry(0.012, 0.019, 0.72, 7),
+      makeMaterial("#8b613d", 0.9, 0.01),
+      new THREE.Vector3(0, -0.35, 0),
+    ).name = "city-npc-cane-shaft";
+    mesh(
+      cane,
+      new THREE.TorusGeometry(0.045, 0.012, 6, 12, Math.PI),
+      makeMaterial("#8b613d", 0.9, 0.01),
+      new THREE.Vector3(0, 0.015, 0),
+    ).name = "city-npc-cane-handle";
+  }
+
+  if (cityAccessory === "wheelchair") {
+    const chair = mountGroup(model, new THREE.Vector3());
+    chair.name = "city-npc-wheelchair";
+    mesh(
+      chair,
+      new THREE.BoxGeometry(0.48, 0.065, 0.42),
+      makeMaterial("#397b77", 0.94, 0.02),
+      new THREE.Vector3(0, 0.58, -0.02),
+    ).name = "city-npc-wheelchair-seat";
+    mesh(
+      chair,
+      new THREE.BoxGeometry(0.48, 0.43, 0.065),
+      makeMaterial("#397b77", 0.94, 0.02),
+      new THREE.Vector3(0, 0.83, -0.22),
+    ).name = "city-npc-wheelchair-back";
+    for (const side of [-1, 1]) {
+      const wheel = mesh(
+        chair,
+        new THREE.TorusGeometry(0.34, 0.022, 7, 20),
+        makeMaterial("#535d60", 0.82, 0.18),
+        new THREE.Vector3(side * 0.34, 0.39, -0.09),
+      );
+      wheel.rotation.y = Math.PI / 2;
+      wheel.name = `city-npc-wheelchair-wheel-${side}`;
+      mesh(
+        chair,
+        new THREE.CylinderGeometry(0.035, 0.035, 0.07, 8),
+        makeMaterial("#a7b1b1", 0.76, 0.24),
+        new THREE.Vector3(side * 0.34, 0.39, -0.09),
+        new THREE.Vector3(1, 1, 0.55),
+      ).rotation.z = Math.PI / 2;
+      mesh(
+        chair,
+        new THREE.BoxGeometry(0.035, 0.53, 0.035),
+        makeMaterial("#9ba7a8", 0.8, 0.2),
+        new THREE.Vector3(side * 0.25, 0.4, -0.1),
+      );
+      mesh(
+        chair,
+        new THREE.BoxGeometry(0.3, 0.04, 0.24),
+        makeMaterial("#9ba7a8", 0.8, 0.2),
+        new THREE.Vector3(side * 0.16, 0.12, 0.3),
+      ).name = `city-npc-wheelchair-footrest-${side}`;
+      mesh(
+        chair,
+        new THREE.SphereGeometry(0.065, 8, 6),
+        makeMaterial("#7d898b", 0.84, 0.12),
+        new THREE.Vector3(side * 0.2, 0.07, 0.27),
+      ).name = `city-npc-wheelchair-caster-${side}`;
+    }
   }
 
   for (const [side, names] of [
@@ -498,6 +649,25 @@ export function attachOpponentCostume(
   }
 
   const update = (time: number) => {
+    if (seatedPose?.pelvis) {
+      seatedPose.pelvis.bone.position.copy(seatedPose.pelvis.position);
+      seatedPose.pelvis.bone.position.y -= 0.18;
+    }
+    if (seatedPose) {
+      for (const joint of [
+        seatedPose.leftThigh,
+        seatedPose.rightThigh,
+        seatedPose.leftShin,
+        seatedPose.rightShin,
+      ]) {
+        if (!joint) continue;
+        joint.bone.rotation.set(
+          joint.rotation.x + joint.rotationX,
+          joint.rotation.y,
+          joint.rotation.z,
+        );
+      }
+    }
     capes.forEach(({ geometry, basePositions }, capeIndex) => {
       const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
       const vertexCount = positions.count;
@@ -515,6 +685,19 @@ export function attachOpponentCostume(
   };
 
   const dispose = () => {
+    if (seatedPose?.pelvis) {
+      seatedPose.pelvis.bone.position.copy(seatedPose.pelvis.position);
+    }
+    if (seatedPose) {
+      for (const joint of [
+        seatedPose.leftThigh,
+        seatedPose.rightThigh,
+        seatedPose.leftShin,
+        seatedPose.rightShin,
+      ]) {
+        if (joint) joint.bone.rotation.copy(joint.rotation);
+      }
+    }
     mounts.forEach((group) => group.removeFromParent());
     capeMeshes.length = 0;
     ownedGeometries.forEach((geometry) => geometry.dispose());

@@ -27,6 +27,11 @@ import {
   resolveCameraCollision,
 } from "./world-v2-camera";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
+import {
+  collectWorldV2CameraCollisionTargets,
+  isEffectivelyVisible,
+  WorldCameraOcclusionFader,
+} from "./world-camera-collision";
 import WorldBlackFrameProbe from "./WorldBlackFrameProbe";
 import TimeOfDaySky from "./TimeOfDaySky";
 import { WorldV2LabelManager } from "./WorldV2Labels";
@@ -70,9 +75,14 @@ function WorldV2Camera({
   const { camera, scene } = useThree();
   const raycaster = useMemo(() => {
     const caster = new THREE.Raycaster();
-    caster.layers.set(WORLD_V2_CAMERA_COLLISION_LAYER);
+    caster.layers.set(0);
+    caster.layers.enable(WORLD_V2_CAMERA_COLLISION_LAYER);
     return caster;
   }, []);
+  const cameraCollisionTargetsRef = useRef<THREE.Object3D[]>([]);
+  const collisionScanSecondsRef = useRef(1);
+  const obstructionScanSecondsRef = useRef(1);
+  const cameraOcclusionFader = useMemo(() => new WorldCameraOcclusionFader(), []);
   const origin = useMemo(() => new THREE.Vector3(), []);
   const desired = useMemo(() => new THREE.Vector3(), []);
   const target = useMemo(() => new THREE.Vector3(), []);
@@ -83,6 +93,8 @@ function WorldV2Camera({
   const jumpPeakHeight = useRef(0);
   const landingPulseSeconds = useRef(0);
   const landingPulseStrength = useRef(0);
+
+  useEffect(() => () => cameraOcclusionFader.clear(), [cameraOcclusionFader]);
 
   useEffect(() => {
     camera.near = WORLD_V2_CONFIG.camera.near;
@@ -108,6 +120,14 @@ function WorldV2Camera({
       jumpPeakHeight.current = 0;
     }
     previousMovementState.current = motion.movementState;
+    collisionScanSecondsRef.current += dt;
+    if (collisionScanSecondsRef.current >= 0.25) {
+      collisionScanSecondsRef.current = 0;
+      cameraCollisionTargetsRef.current = collectWorldV2CameraCollisionTargets(
+        scene,
+        WORLD_V2_CAMERA_COLLISION_LAYER,
+      );
+    }
     landingPulseSeconds.current = Math.max(0, landingPulseSeconds.current - dt);
     const playerX = motion.depth * 5.2;
     const playerZ = -(motion.distance - motion.cameraX);
@@ -133,10 +153,9 @@ function WorldV2Camera({
       direction.normalize();
       raycaster.set(origin, direction);
       raycaster.far = desiredDistance;
-      const hit = raycaster.intersectObjects(scene.children, true)
+      const hit = raycaster.intersectObjects(cameraCollisionTargetsRef.current, true)
         .find((candidate) =>
-          candidate.object.layers.test(raycaster.layers)
-          && candidate.object.visible
+          isEffectivelyVisible(candidate.object)
           && candidate.distance < desiredDistance,
         );
       const safePosition = resolveCameraCollision(origin, desired, hit?.distance);
@@ -145,6 +164,23 @@ function WorldV2Camera({
     }
     target.set(playerX, motion.jumpHeight + WORLD_V2_CONFIG.camera.targetHeight, playerZ);
     camera.lookAt(target);
+    obstructionScanSecondsRef.current += dt;
+    if (obstructionScanSecondsRef.current >= 0.1) {
+      obstructionScanSecondsRef.current = 0;
+      direction.copy(target).sub(camera.position);
+      const sightDistance = direction.length();
+      if (sightDistance > 0.25) {
+        direction.normalize();
+        raycaster.set(camera.position, direction);
+        raycaster.far = sightDistance - 0.25;
+        const lineOfSightHits = raycaster
+          .intersectObjects(cameraCollisionTargetsRef.current, true)
+          .filter(({ object }) => isEffectivelyVisible(object));
+        cameraOcclusionFader.update(lineOfSightHits.map(({ object }) => object));
+      } else {
+        cameraOcclusionFader.clear();
+      }
+    }
     const pulseProgress = 1 - landingPulseSeconds.current / 0.24;
     const pulseEnvelope = Math.sin(Math.PI * pulseProgress) * landingPulseStrength.current;
     const cameraShake = motionReduced ? 0 : pulseEnvelope;

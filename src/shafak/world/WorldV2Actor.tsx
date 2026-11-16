@@ -26,6 +26,7 @@ import {
   attachOpponentCostume,
   shouldAttachOpponentCostume,
   type AttachedOpponentCostume,
+  type CityNpcAccessory,
 } from "./opponent-costume";
 import {
   createDuelWeapon,
@@ -57,6 +58,7 @@ type Props = {
   animationState?: CharacterAnimationState;
   localToParent?: boolean;
   modelConfig?: OpponentModelConfig;
+  cityAccessory?: CityNpcAccessory;
 };
 
 type JumpEcho = {
@@ -90,6 +92,7 @@ export default function WorldV2Actor({
   animationState = "idle",
   localToParent = false,
   modelConfig,
+  cityAccessory,
 }: Props) {
   const rootRef = useRef<THREE.Group>(null);
   const shadowRef = useRef<THREE.Mesh>(null);
@@ -184,13 +187,13 @@ export default function WorldV2Actor({
 
   useEffect(() => {
     if (isPlayer || !modelConfig || !shouldAttachOpponentCostume(modelConfig)) return undefined;
-    const costume = attachOpponentCostume(model, modelConfig, modelConfig.appearance);
+    const costume = attachOpponentCostume(model, modelConfig, modelConfig.appearance, cityAccessory);
     opponentCostumeRef.current = costume;
     return () => {
       if (opponentCostumeRef.current === costume) opponentCostumeRef.current = null;
       costume.dispose();
     };
-  }, [isPlayer, model, modelConfig]);
+  }, [cityAccessory, isPlayer, model, modelConfig]);
 
   useEffect(() => {
     if (isPlayer || !modelConfig) return undefined;

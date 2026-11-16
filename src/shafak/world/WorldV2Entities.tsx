@@ -15,6 +15,7 @@ import type { LoadedWorldAsset } from "./world-v2-assets";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import { getWorldRivalProfile } from "./world-bot-profiles";
+import type { CityNpcAccessory } from "./opponent-costume";
 import WorldV2Actor from "./WorldV2Actor";
 import { WorldV2Label } from "./WorldV2Labels";
 import WorldSealFragmentModel from "./WorldSealFragmentModel";
@@ -37,6 +38,14 @@ const NPC_TINTS: Record<string, string> = {
   "Kızıl Pelerin": "#b64740",
   "Kül Gezgini": "#969492",
 };
+
+const CITY_NPC_ACCESSORIES: readonly CityNpcAccessory[] = [
+  "hat",
+  "cape",
+  "glasses",
+  "cane",
+  "wheelchair",
+];
 
 function calculateNpcDialogueElementPosition(
   object: THREE.Object3D,
@@ -356,6 +365,9 @@ function WorldV2Npc({
       : getAnimatedRivalModelConfig(rival.name, profile, "world"),
     [demirTacModelConfig, profile, rival.name],
   );
+  const cityAccessory = rival.isBoss
+    ? "none"
+    : CITY_NPC_ACCESSORIES[index % CITY_NPC_ACCESSORIES.length];
 
   useEffect(() => {
     if (!rootRef.current) return undefined;
@@ -399,6 +411,7 @@ function WorldV2Npc({
         tint={rival.name === "Demir Taç" ? undefined : NPC_TINTS[rival.name] ?? rival.armorTint}
         localToParent
         modelConfig={modelConfig}
+        cityAccessory={cityAccessory}
       />
       <group ref={anchorRef}>
         <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>

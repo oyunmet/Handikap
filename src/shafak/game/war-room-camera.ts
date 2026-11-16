@@ -507,8 +507,8 @@ export function getWarRoomCameraRig({
     ? Math.max(0, Math.min(1, victoryZoom))
     : 0;
   const baseBack = indoors
-    ? aiming ? 2.4 : 2
-    : 3.5;
+    ? aiming ? 3.2 : 3.6
+    : 4.5;
   const back = baseBack * (1 - zoom * 0.18);
   const shoulder = (aiming ? Math.max(0, offset + 0.1) : offset)
     * (indoors ? 0.72 : 1)

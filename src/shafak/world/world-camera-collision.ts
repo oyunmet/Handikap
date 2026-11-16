@@ -40,6 +40,35 @@ export function collectCameraOccluders(scene: THREE.Scene) {
   return occluders;
 }
 
+export function collectWorldV2CameraCollisionTargets(
+  scene: THREE.Scene,
+  collisionLayer: number,
+) {
+  const targets = collectCameraOccluders(scene);
+  const seen = new Set(targets);
+  scene.traverse((object) => {
+    if (
+      !(object instanceof THREE.Mesh)
+      || !object.layers.isEnabled(collisionLayer)
+      || !isEffectivelyVisible(object)
+      || isCameraCollisionIgnored(object)
+    ) return;
+    for (let parent = object.parent; parent; parent = parent.parent) {
+      const category = parent.userData.worldModelCategory;
+      if (
+        parent.userData.cameraOccluder === true
+        || category === "hazard"
+        || category === "prop"
+      ) return;
+    }
+    if (!seen.has(object)) {
+      targets.push(object);
+      seen.add(object);
+    }
+  });
+  return targets;
+}
+
 type FadedMaterial = {
   original: THREE.Material | THREE.Material[];
   faded: THREE.Material | THREE.Material[];

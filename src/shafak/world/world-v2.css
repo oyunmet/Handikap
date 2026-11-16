@@ -100,10 +100,21 @@
 }
 .world-v2-label { visibility: hidden; }
 
+.world-v2-label,
+.world-scene-label {
+  border: 1px solid rgba(83, 68, 49, .32);
+  border-radius: 10px;
+  background: rgba(255, 250, 239, .96);
+  box-shadow: 0 3px 9px rgba(35, 30, 22, .2);
+  color: #29251f;
+  text-shadow: none;
+}
+
 .world-v2-label--danger,
 .world-scene-label--danger {
   border-color: rgba(255, 102, 76, .78);
-  color: #ffd2c6;
+  background: rgba(255, 241, 232, .97);
+  color: #7d3026;
 }
 
 .world-scene[data-world-renderer="rebuilt"] .world-atmosphere {

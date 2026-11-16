@@ -5570,6 +5570,9 @@ export default memo(function WarRoomScene3D(props: Props) {
             onRepeatedStall={handleRepeatedStall}
           />
           <WarRoomShaderWarmup onComplete={handleWarmupComplete} />
+          <hemisphereLight args={["#fff4e3", "#8a7c68", 1.55]} />
+          <ambientLight color="#fff3df" intensity={0.72} />
+          <directionalLight position={[-8, 14, 5]} color="#fff1dc" intensity={1.35} />
           <WarRoomRuntimeScene
             key={props.resourceLeakTestEnabled ? props.resourceLeakGeneration : undefined}
             {...runtimeProps}
