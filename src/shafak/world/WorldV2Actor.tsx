@@ -109,6 +109,7 @@ export default function WorldV2Actor({
     });
     return clone;
   }, [asset, modelConfig, tint]);
+  const baseActorScale = isPlayer ? 1 : modelConfig?.scale ?? 1;
   const jumpEcho = useMemo<JumpEcho | null>(() => {
     if (!isPlayer) return null;
     const object = cloneSkinnedModel(model);
@@ -192,10 +193,12 @@ export default function WorldV2Actor({
   }, [isPlayer, model, modelConfig]);
 
   useEffect(() => {
-    if (isPlayer || !modelConfig?.isDemirTac) return undefined;
+    if (isPlayer || !modelConfig) return undefined;
     const hand = model.getObjectByName("FistR") ?? model.getObjectByName("Fist1R");
     if (!hand) {
-      console.warn("[shafak-world] Demir Taç's animated rig has no right-hand weapon mount.");
+      if (modelConfig.isDemirTac) {
+        console.warn("[shafak-world] Demir Taç's animated rig has no right-hand weapon mount.");
+      }
       return undefined;
     }
     const weapon = createDuelWeapon(modelConfig.appearance);
@@ -254,13 +257,13 @@ export default function WorldV2Actor({
       root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
       const standingScaleY = typeof root.userData.worldStandingScaleY === "number"
         ? root.userData.worldStandingScaleY as number
-        : root.scale.y;
+        : baseActorScale;
       const standingScaleX = typeof root.userData.worldStandingScaleX === "number"
         ? root.userData.worldStandingScaleX as number
-        : root.scale.x;
+        : baseActorScale;
       const standingScaleZ = typeof root.userData.worldStandingScaleZ === "number"
         ? root.userData.worldStandingScaleZ as number
-        : root.scale.z;
+        : baseActorScale;
       root.userData.worldStandingScaleY = standingScaleY;
       root.userData.worldStandingScaleX = standingScaleX;
       root.userData.worldStandingScaleZ = standingScaleZ;
@@ -289,6 +292,7 @@ export default function WorldV2Actor({
     } else {
       const actorZ = -(distance - motion.cameraX);
       root.position.set(localToParent ? 0 : x, 0, localToParent ? 0 : actorZ);
+      root.scale.setScalar(baseActorScale);
       const targetNpcHeading = getWorldV2NpcHeading(
         x,
         actorZ,

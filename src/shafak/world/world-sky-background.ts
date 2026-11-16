@@ -21,7 +21,10 @@ function getCloudCoverage(width: number, height: number) {
         + Math.sin(u * 3 + v * 9 + Math.sin(v * 15 - u * 2) * 0.8) * 0.22
         + Math.sin(u * 7 - v * 16) * 0.16
         + Math.cos(u * 13 + v * 5) * 0.1;
-      coverage[y * width + x] = THREE.MathUtils.smoothstep(cloudWave, 0.51, 0.82) * cloudBand;
+      const wisps = 0.5 + Math.sin(u * 5 - v * 11) * 0.32 + Math.cos(u * 11 + v * 13) * 0.18;
+      const broadCloud = THREE.MathUtils.smoothstep(cloudWave, 0.46, 0.78);
+      const thinCloud = THREE.MathUtils.smoothstep(wisps, 0.58, 0.9) * 0.24;
+      coverage[y * width + x] = Math.min(1, broadCloud + thinCloud) * cloudBand;
     }
   }
   cloudCoverageCache.set(key, coverage);
@@ -84,7 +87,7 @@ export function paintWorldSkyGradient(
         .lerp(warmHorizon, horizonGlow)
         .lerp(sunHalo, sunGlow)
         .lerp(sunCore, sunDisc * 0.82)
-        .lerp(cloud, clouds[y * width + x] * 0.25);
+        .lerp(cloud, clouds[y * width + x] * 0.48);
       srgbColor.copy(color).convertLinearToSRGB();
       const offset = (y * width + x) * 4;
       pixels[offset] = Math.round(THREE.MathUtils.clamp(srgbColor.r, 0, 1) * 255);

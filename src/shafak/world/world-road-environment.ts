@@ -20,9 +20,9 @@ export type WorldRoadEnvironment = {
 };
 
 const BIOME_DETAIL_COLORS = {
-  "ash-road": { foliage: "#595247", bark: "#37302d", stone: "#75685d", far: "#a99d94", mid: "#77736f", near: "#514f4d" },
-  "frozen-pass": { foliage: "#829b99", bark: "#55595a", stone: "#76858a", far: "#a9bdc5", mid: "#849da8", near: "#637b86" },
-  "red-marsh": { foliage: "#73734c", bark: "#4e3d34", stone: "#796b62", far: "#b2a29a", mid: "#897a73", near: "#6a6260" },
+  "ash-road": { foliage: "#595247", bark: "#37302d", stone: "#75685d", far: "#a99d94", mid: "#77736f", near: "#514f4d", ember: "#ff9551" },
+  "frozen-pass": { foliage: "#829b99", bark: "#55595a", stone: "#76858a", far: "#a9bdc5", mid: "#849da8", near: "#637b86", ember: "#9de6ed" },
+  "red-marsh": { foliage: "#73734c", bark: "#4e3d34", stone: "#796b62", far: "#b2a29a", mid: "#897a73", near: "#6a6260", ember: "#e1bc61" },
 } as const;
 
 const ASH_SURFACE_COLORS = {
@@ -40,7 +40,7 @@ function seededRandom(seed: number) {
   };
 }
 
-function colorForBiome(distance: number, key: "ground" | "road" | "foliage" | "bark" | "stone" | "far" | "mid" | "near") {
+function colorForBiome(distance: number, key: "ground" | "road" | "foliage" | "bark" | "stone" | "far" | "mid" | "near" | "ember") {
   const transition = getBiomeTransition(distance);
   const paletteColor = (biome: typeof transition.from) => {
     if (biome === "ash-road" && (key === "ground" || key === "road")) return ASH_SURFACE_COLORS[key];
@@ -118,8 +118,8 @@ function createRoadPaving(
         -WORLD_ROAD_TILE_LENGTH / 2 + (row + 0.5) * tileDepth,
       );
       scale.set(width, 0.11 + random() * 0.012, tileDepth - 0.052);
-      const tint = 0.78 + random() * 0.2;
-      color.setRGB(tint, tint * (0.99 + random() * 0.018), tint * (0.97 + random() * 0.035));
+      const tint = 0.68 + random() * 0.31;
+      color.setRGB(tint, tint * (0.95 + random() * 0.07), tint * (0.91 + random() * 0.1));
       setInstance(mesh, count, position, scale, (random() - 0.5) * 0.018, color);
       count += 1;
     }
@@ -238,7 +238,7 @@ function createTile(
     curb.userData.worldV2AuditExempt = true;
 
     const random = seededRandom((offset + 64) * 8191 + (sign + 2) * 113);
-    const treeCount = shared.quality === "high" ? 3 : shared.quality === "balanced" ? 2 : 1;
+    const treeCount = shared.quality === "high" ? 4 : shared.quality === "balanced" ? 3 : 2;
     const trunks = new THREE.InstancedMesh(shared.trunkGeometry, shared.bark, treeCount);
     trunks.name = "world-road-tree-trunks";
     trunks.castShadow = true;
@@ -246,7 +246,7 @@ function createTile(
     canopies.name = "world-road-tree-canopies";
     canopies.castShadow = true;
     for (let tree = 0; tree < treeCount; tree += 1) {
-      const x = sign * (roadHalf + 5.9 + random() * 5.6);
+      const x = sign * (roadHalf + 4.8 + random() * 4.8);
       const z = (random() - 0.5) * WORLD_ROAD_TILE_LENGTH * 0.82;
       const height = 0.86 + random() * 0.34;
       setInstance(
@@ -271,14 +271,14 @@ function createTile(
     canopies.instanceMatrix.needsUpdate = true;
     root.add(trunks, canopies);
 
-    const rockCount = shared.quality === "high" ? 5 : shared.quality === "balanced" ? 4 : 2;
-    const grassCount = shared.quality === "high" ? 12 : shared.quality === "balanced" ? 8 : 4;
+    const rockCount = shared.quality === "high" ? 7 : shared.quality === "balanced" ? 5 : 3;
+    const grassCount = shared.quality === "high" ? 18 : shared.quality === "balanced" ? 12 : 6;
     const rocks = new THREE.InstancedMesh(shared.rockGeometry, shared.rock, rockCount);
     rocks.name = "world-roadside-rocks";
     const grass = new THREE.InstancedMesh(shared.grassGeometry, shared.grass, grassCount);
     grass.name = "world-roadside-grass";
     for (let index = 0; index < rockCount; index += 1) {
-      const x = sign * (roadHalf + 5.25 + random() * 7.2);
+      const x = sign * (roadHalf + 2.8 + random() * 5.2);
       const z = (random() - 0.5) * WORLD_ROAD_TILE_LENGTH;
       const scale = 0.32 + random() * 0.6;
       setInstance(
@@ -290,7 +290,7 @@ function createTile(
       );
     }
     for (let index = 0; index < grassCount; index += 1) {
-      const x = sign * (roadHalf + 5 + random() * 6.8);
+      const x = sign * (roadHalf + 2.45 + random() * 4.5);
       const z = (random() - 0.5) * WORLD_ROAD_TILE_LENGTH;
       const scale = 0.55 + random() * 0.8;
       setInstance(
@@ -469,38 +469,47 @@ function createTile(
   return root;
 }
 
-function createMountainGeometry() {
-  const geometry = new THREE.ConeGeometry(1, 1, 5, 1);
+function createMountainGeometry(index: number) {
+  const shape = new THREE.Shape();
+  const left = -175;
+  const right = 175;
+  const base = -2.4;
+  const ridgeCount = 23;
+  const spacing = (right - left) / ridgeCount;
+  const random = seededRandom(0x71a5 + index * 0x4192);
+  const heightScale = [10, 14, 18][index] ?? 14;
+  shape.moveTo(left, base);
+  for (let ridge = 0; ridge < ridgeCount; ridge += 1) {
+    const center = left + (ridge + 0.5) * spacing;
+    const height = heightScale * (0.62 + random() * 0.74);
+    const width = spacing * (0.64 + random() * 0.22);
+    shape.lineTo(center - width * 0.56, base + height * 0.35);
+    shape.lineTo(center - width * 0.22, base + height * 0.76);
+    shape.lineTo(center + (random() - 0.5) * 2.2, base + height);
+    shape.lineTo(center + width * 0.24, base + height * 0.68);
+    shape.lineTo(center + width * 0.58, base + height * (0.24 + random() * 0.14));
+  }
+  shape.lineTo(right, base);
+  shape.lineTo(left, base);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 12,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geometry.translate(0, 0, -6);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
 }
 
 function createMountainLayer(index: number, distance: number, material: THREE.MeshStandardMaterial) {
-  const count = 66;
-  const mesh = new THREE.InstancedMesh(createMountainGeometry(), material, count);
+  const geometry = createMountainGeometry(index);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.name = `world-horizon-mountains-${index}`;
   mesh.userData.worldV2AuditExempt = true;
   mesh.frustumCulled = false;
-  const random = seededRandom(0x4192 + index * 0x71a);
-  const baseX = -148;
-  const spacing = 4.55;
-  for (let item = 0; item < count; item += 1) {
-    const height = (index === 0 ? 5.5 : index === 1 ? 7.4 : 8.8) * (0.62 + random() * 0.65);
-    const width = 7.2 + random() * 0.8;
-    const x = baseX + item * spacing + random() * 2.8;
-    const z = -random() * 9;
-    setInstance(
-      mesh,
-      item,
-      new THREE.Vector3(x, height * 0.5 - 0.4, z),
-      new THREE.Vector3(width * 0.5, height, 3.4 + random() * 0.55),
-      random() * Math.PI * 2,
-      new THREE.Color(0.87 + random() * 0.2, 0.88 + random() * 0.18, 0.89 + random() * 0.16),
-    );
-  }
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
   const root = new THREE.Group();
   root.name = `world-horizon-layer-${index}`;
   root.add(mesh);
@@ -571,9 +580,9 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
       normalScale: new THREE.Vector2(0.22, 0.22),
       roughness: 1,
     }),
-    farMountain: new THREE.MeshStandardMaterial({ color: "#b4aaa0", roughness: 1, flatShading: true }),
-    midMountain: new THREE.MeshStandardMaterial({ color: "#89877f", roughness: 1, flatShading: true }),
-    nearMountain: new THREE.MeshStandardMaterial({ color: "#676a67", roughness: 1, flatShading: true }),
+    farMountain: new THREE.MeshStandardMaterial({ color: "#b4aaa0", roughness: 1, flatShading: true, side: THREE.DoubleSide }),
+    midMountain: new THREE.MeshStandardMaterial({ color: "#89877f", roughness: 1, flatShading: true, side: THREE.DoubleSide }),
+    nearMountain: new THREE.MeshStandardMaterial({ color: "#676a67", roughness: 1, flatShading: true, side: THREE.DoubleSide }),
   };
   const geometries = {
     road: new THREE.BoxGeometry(WORLD_ROAD_WIDTH, 0.14, WORLD_ROAD_TILE_LENGTH),
@@ -687,6 +696,8 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
     materials.farMountain.color.copy(colorForBiome(distance, "far"));
     materials.midMountain.color.copy(colorForBiome(distance, "mid"));
     materials.nearMountain.color.copy(colorForBiome(distance, "near"));
+    materials.ember.color.copy(colorForBiome(distance, "ember"));
+    materials.ember.emissive.copy(colorForBiome(distance, "ember")).multiplyScalar(0.72);
     materials.road.forEach((material) => {
       material.roughness = weather === "storm" ? 0.64 : weather === "rain" ? 0.72 : 0.94;
       material.metalness = weather === "storm" ? 0.035 : weather === "rain" ? 0.018 : 0;
@@ -695,7 +706,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
       material.roughness = weather === "storm" ? 0.68 : weather === "rain" ? 0.76 : 0.98;
       material.metalness = weather === "storm" ? 0.025 : weather === "rain" ? 0.012 : 0;
     });
-    materials.ember.emissiveIntensity = 1.45;
+    materials.ember.emissiveIntensity = weather === "storm" ? 1.05 : 1.45;
   };
 
   updatePalette(0, "clear");
@@ -709,7 +720,7 @@ export function createWorldRoadEnvironment(showProps = true, quality: RoadQualit
       resourceGeometries.forEach((geometry) => geometry.dispose());
       const mountainGeometries = new Set<THREE.BufferGeometry>();
       root.traverse((object) => {
-        if (object instanceof THREE.InstancedMesh && object.name.startsWith("world-horizon-mountains")) {
+        if (object instanceof THREE.Mesh && object.name.startsWith("world-horizon-mountains")) {
           mountainGeometries.add(object.geometry);
         }
       });

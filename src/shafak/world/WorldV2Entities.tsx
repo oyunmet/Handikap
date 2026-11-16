@@ -12,7 +12,9 @@ import { RIVAL_DIALOGUE_RANGE_METERS, type WorldInteractableRegistry } from "./w
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import type { LoadedWorldAsset } from "./world-v2-assets";
+import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
+import { getWorldRivalProfile } from "./world-bot-profiles";
 import WorldV2Actor from "./WorldV2Actor";
 import { WorldV2Label } from "./WorldV2Labels";
 import WorldSealFragmentModel from "./WorldSealFragmentModel";
@@ -344,6 +346,16 @@ function WorldV2Npc({
     ?? getWorldRivalStoryDialogue(rival);
   const speaker = dialogue?.speaker ?? rival.name;
   const line = dialogue?.lines[0] ?? rival.taunt;
+  const profile = useMemo(
+    () => getWorldRivalProfile(rival.chapterId, index, rival.isBoss),
+    [index, rival.chapterId, rival.isBoss],
+  );
+  const modelConfig = useMemo(
+    () => rival.name === "Demir Taç"
+      ? demirTacModelConfig
+      : getAnimatedRivalModelConfig(rival.name, profile, "world"),
+    [demirTacModelConfig, profile, rival.name],
+  );
 
   useEffect(() => {
     if (!rootRef.current) return undefined;
@@ -386,7 +398,7 @@ function WorldV2Npc({
         x={x}
         tint={rival.name === "Demir Taç" ? undefined : NPC_TINTS[rival.name] ?? rival.armorTint}
         localToParent
-        modelConfig={rival.name === "Demir Taç" ? demirTacModelConfig : undefined}
+        modelConfig={modelConfig}
       />
       <group ref={anchorRef}>
         <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
