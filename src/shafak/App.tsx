@@ -79,8 +79,9 @@ import "./lobby-layout.css";
 
 const WorldScene = lazy(() => import("./world/WorldScene"));
 const WarRoomGame = lazy(() => import("./game/WarRoomGame"));
+const CityHub = lazy(() => import("./world/CityHub"));
 
-type Screen = "intro" | "opening" | "loading" | "menu" | "world" | "war-room";
+type Screen = "intro" | "opening" | "loading" | "menu" | "city-hub" | "world" | "war-room";
 
 function resolveInitialScreen(): Screen {
   const search = typeof window === "undefined" ? "" : window.location.search;
@@ -89,6 +90,7 @@ function resolveInitialScreen(): Screen {
     search,
     import.meta.env.VITE_WAR_ROOM_BENCHMARK_DISABLED === "true",
   )) return "war-room";
+  if (query.get("debug") === "1" && query.get("scene") === "city") return "city-hub";
   if (query.get("debug") === "1" && query.get("scene") === "menu") return "menu";
   if (query.get("mod") === "savas") return "war-room";
   return getInitialScreen(search);
@@ -446,7 +448,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     [getToken, handleApiUnauthorized],
   );
   const [screen, setScreen] = useState<Screen>(() => resolveInitialScreen());
-  const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world">("menu");
+  const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world" | "city-hub">("menu");
+  const [worldReturnScreen, setWorldReturnScreen] = useState<"menu" | "city-hub">("menu");
   const [initialWorldStoreTab, setInitialWorldStoreTab] = useState<StoreTab | null>(null);
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
@@ -522,7 +525,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   useEffect(() => {
     if (
       preferences.quality !== "auto"
-      || (screen !== "world" && screen !== "war-room")
+      || (screen !== "world" && screen !== "war-room" && screen !== "city-hub")
       || (screen === "war-room" && !WAR_ROOM_QUALITY_ENABLED)
     ) {
       lowFpsNotifiedRef.current = false;
@@ -770,7 +773,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen("intro");
   };
 
-  const enterWorld = async (initialStoreTab: StoreTab | null = null) => {
+  const enterWorld = async (
+    initialStoreTab: StoreTab | null = null,
+    returnScreen: "menu" | "city-hub" = "menu",
+  ) => {
     playFeedback();
     primeGameAudio();
     const campaignPosition = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
@@ -781,7 +787,13 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       return;
     }
     setInitialWorldStoreTab(initialStoreTab);
+    setWorldReturnScreen(returnScreen);
     setScreen("world");
+  };
+  const enterCityHub = () => {
+    playFeedback();
+    setInitialWorldStoreTab(null);
+    setScreen("city-hub");
   };
   const menuCampaignProgress = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
   const [menuCampaignAct, setMenuCampaignAct] = useState<{
@@ -816,7 +828,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
-  const enterWarRoom = (returnScreen: "menu" | "world" = "menu") => {
+  const enterWarRoom = (returnScreen: "menu" | "world" | "city-hub" = "menu") => {
     playFeedback();
     primeGameAudio();
     setWarRoomControlsEditorOpen(false);
@@ -832,7 +844,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   };
 
   useEffect(() => {
-    if (screen !== "world" && screen !== "war-room") return;
+    if (screen !== "world" && screen !== "war-room" && screen !== "city-hub") return;
     const guardState = { shafakGameBackGuard: true };
     window.history.pushState(guardState, "", window.location.href);
     const handleAndroidBack = () => {
@@ -864,7 +876,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   }, [screen]);
 
   useEffect(() => {
-    if (screen !== "world" && screen !== "war-room") return;
+    if (screen !== "world" && screen !== "war-room" && screen !== "city-hub") return;
     type WakeLockHandle = { release: () => Promise<void> };
     type WakeLockNavigator = Navigator & {
       wakeLock?: { request: (type: "screen") => Promise<WakeLockHandle> };
@@ -903,7 +915,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     const handleAppVisibility = () => {
       const visible = document.visibilityState === "visible";
       setSoundEnabled(visible && preferences.sound);
-      if (visible && (screen === "world" || screen === "war-room")) primeGameAudio();
+      if (visible && (screen === "world" || screen === "war-room" || screen === "city-hub")) primeGameAudio();
     };
     document.addEventListener("visibilitychange", handleAppVisibility);
     window.addEventListener("pageshow", handleAppVisibility);
@@ -1192,7 +1204,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <span>{tr.start}</span>
                 <ArrowIcon />
               </button>
-              <span className="opening-subnote">Yolculuk başlamak üzere</span>
+              <span className="opening-subnote">Şehrin kapıları açılıyor</span>
             </motion.div>
             <div className="opening-bottom-mark">
               <span />
@@ -1377,6 +1389,14 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     <ArrowIcon />
                   </button>
                   <button
+                    className="menu-action menu-action--secondary menu-action--city"
+                    type="button"
+                    onClick={enterCityHub}
+                  >
+                    <span>ŞEHİR MERKEZİ · EŞİK MAHALLESİ</span>
+                    <small>Sokakları keşfet, farklı oyun kapılarını bul</small>
+                  </button>
+                  <button
                     className="menu-action menu-action--secondary"
                     type="button"
                     onClick={() => {
@@ -1440,6 +1460,32 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             <ProductionCredit />
           </motion.section>
         )}
+        {screen === "city-hub" && (
+          <motion.div
+            key="city-hub"
+            className="game-screen-shell city-hub-screen"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: motionReduced ? 0.12 : 0.36 }}
+          >
+            <Suspense fallback={<div className="entry-loading">Şehir hazırlanıyor…</div>}>
+              <CityHub
+                playerName={profile.name}
+                campaignChapter={menuCampaignProgress.levelNumber}
+                onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
+                onOpenWarRoom={() => enterWarRoom("city-hub")}
+                onOpenStore={(tab) => { void enterWorld(tab, "city-hub"); }}
+                onOpenProfile={() => setProfileOpen(true)}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onExit={() => {
+                  setInitialWorldStoreTab(null);
+                  setScreen("menu");
+                }}
+              />
+            </Suspense>
+          </motion.div>
+        )}
         {screen === "world" && (
           <motion.div
             key="world"
@@ -1477,7 +1523,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onOpenWarRoom={() => enterWarRoom("world")}
                 onExit={() => {
                   setInitialWorldStoreTab(null);
-                  setScreen("menu");
+                  setScreen(worldReturnScreen);
                 }}
                 initialStoreTab={initialWorldStoreTab}
                 onOpenSettings={() => setSettingsOpen(true)}
@@ -1752,7 +1798,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
                     <strong>Gökyüzü saati</strong>
-                    <small>Kül Yolu ve Savaş Odası için ışık ve gökyüzü.</small>
+                    <small>Eşik Mahallesi ve Savaş Odası için ışık ve gökyüzü.</small>
                   </span>
                   <div className="quality-switch time-of-day-switch" role="group" aria-label="Gökyüzü saati">
                     {([
@@ -1851,7 +1897,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <div className="setting-row">
                   <span className="setting-row__copy">
                     <strong>Açılış sinematiği</strong>
-                    <small>Kül Yolu’na ilk adımını yeniden izle.</small>
+                    <small>Kırık Şafak’ın ilk perdesini yeniden izle.</small>
                   </span>
                   <button
                     className="setting-action--intro"

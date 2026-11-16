@@ -15,16 +15,16 @@ export function getCampaignCopy(
   const finalRegion = CAMPAIGN_REGIONS.at(-1)?.name ?? "Son perde";
   return {
     menuKicker: `${CAMPAIGN_NARRATIVE.sagaTitle.toLocaleUpperCase("tr-TR")} · ${safeActCount} PERDE`,
-    introTagline: `${safeActCount} perde. ${safeChapterCount} bölüm. Dokuz mühür parçası. Tek bir şafak.`,
-    openingDescription: `${CAMPAIGN_NARRATIVE.opening} ${firstRegion}'ndan ${finalRegion}'na uzanan ${safeActCount} perde ve ${safeChapterCount} bölüm boyunca her düşmanın sakladığı izi açığa çıkar.`,
-    menuDescription: `${CAMPAIGN_NARRATIVE.princessName}'ın bıraktığı izi ${firstRegion}'ndan ${finalRegion}'na kadar takip et. Her 10 bölümde bir yemin sahibini yen; her perdede Şafak Mührü'nün yeni bir sırrını çöz.`,
+    introTagline: `${safeActCount} perde. ${safeChapterCount} bölüm. Dokuz hatıra. Bir şehir, aynı şafakta.`,
+    openingDescription: `${CAMPAIGN_NARRATIVE.opening} ${safeActCount} perde ve ${safeChapterCount} bölümde bu şehrin tekrarını kır.`,
+    menuDescription: `${CAMPAIGN_NARRATIVE.princessName}'ın izini ${firstRegion} ile ${finalRegion} arasında takip et. Her 10 bölümde bir yemin sahibiyle yüzleş; her perdede döngünün kayıp bir hatırasını açığa çıkar.`,
     loadingTips: [
-      `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz parçaya ayırdı.`,
+      `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz hatıraya böldü.`,
       `Her 10. bölümde bir yemin sahibiyle; her 50. bölümde perde muhafızıyla yüzleş.`,
       `Son bölümde (${safeChapterCount}) ${CAMPAIGN_NARRATIVE.finalBossName}'nı yen ve mührün ardındaki gerçeği öğren.`,
     ],
     finalChapterLabel: `BÖLÜM ${safeChapterCount} · ŞAFAK MÜHRÜ`,
-    endingSummary: `${safeChapterCount} bölüm boyunca dokuz yeminin izini sürdün. ${CAMPAIGN_NARRATIVE.princessName} bulundu; artık krallığın sabahını Kül Hükümdarı değil, sen belirliyorsun.`,
+    endingSummary: `${safeChapterCount} bölüm boyunca dokuz hatıranın izini sürdün. ${CAMPAIGN_NARRATIVE.princessName} bulundu; artık şehrin sabahını Kül Hükümdarı değil, yaşayanlar belirliyor.`,
   } as const;
 }
 

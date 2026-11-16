@@ -5,7 +5,8 @@ export const CAMPAIGN_NARRATIVE = {
   sealName: "Şafak Mührü",
   finalBossName: "Kül Hükümdarı",
   echoTrialName: "Yankı Ocağı",
-  opening: "Alaz, Şafak Mührü'nü Kül Hükümdarı'na bırakmamak için dokuz parçaya ayırdı. Her parça, eski bir yeminin ve onu koruyan bir düşmanın elinde. Son köz taşıyıcısı olarak izini sür; her düelloda yalnızca bir rakibi değil, unutulmuş bir gerçeği de yen.",
-  ending: "“Mührü ben kırdım. Karanlık hepimizi aynı güne mahkûm etmişti. Şimdi şafak, ilk kez gerçekten sizin.”",
-  echoTrial: "Yankı Ocağı, Şafak Mührü'nün içinde sıkışıp kalan eski savaşları yeniden kurar. Her deneme yeni bir cephe; kazandığın mühürler kampanya yolculuğundan ayrı saklanır.",
+  cityName: "Eşik Mahallesi",
+  opening: "Her sabah Eşik Mahallesi aynı çana uyanıyor; gece çökünce her şey baştan başlıyor. Alaz, Şafak Mührü'nü dokuz hatıraya ayırdı. Sen, Köz Taşıyıcısı, sokaklardaki tanıkları dinleyip bu döngüyü doğuran yemini çözeceksin.",
+  ending: "“Mührü ben böldüm. Şehri kaybetmemek için herkesi aynı güne bağladım. Ama yarın, artık kimsenin tek başına vereceği bir karar değil.”",
+  echoTrial: "Yankı Ocağı, Şafak Mührü'nde kayıtlı eski çatışmaları yeniden kurar. Her deneme ayrı bir cephe ve kampanya dışında saklanan kendi ödül yoludur.",
 } as const;

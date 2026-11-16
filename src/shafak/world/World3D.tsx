@@ -2978,7 +2978,7 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt, webglAvailable]);
 
   return (
-    <div className="world-three-layer" aria-label="Kül Yolu 3D dünyası">
+    <div className="world-three-layer" aria-label="Kırık Şafak kampanya dünyası">
       {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
       ) : webglAvailable ? (

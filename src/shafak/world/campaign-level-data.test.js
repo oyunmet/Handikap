@@ -17,7 +17,7 @@ test("entering one act loads only that act's compact campaign data", async () =>
 
   assert.equal(firstLevel.levelNumber, 1);
   assert.equal(firstLevel.actNumber, 1);
-  assert.equal(firstLevel.actName, "Kül Yolu");
+  assert.equal(firstLevel.actName, "Eşik Mahallesi");
   assert.ok(firstLevel.storySummary);
   assert.equal(firstLevel.kind, "normal-combat");
   assert.ok(firstLevel.templateId);

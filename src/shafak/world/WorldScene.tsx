@@ -3721,7 +3721,7 @@ export default function WorldScene({
       {movementDebugEnabled && (
         <aside
           className="world-movement-debug"
-          aria-label="Kül Yolu hareket ve dokunmatik tanılaması"
+          aria-label="Kampanya hareket ve dokunmatik tanılaması"
           data-input-revision={worldInput.inputRevision}
           data-debug-tick={movementDebugTick}
         >

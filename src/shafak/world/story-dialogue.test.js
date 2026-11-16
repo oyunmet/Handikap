@@ -31,10 +31,10 @@ test("chapter dialogue uses the active act story and campaign progress", async (
   const second = getChapterStoryDialogue(secondActLevel.chapterId, secondActLevel.storySummary);
   const final = getChapterStoryDialogue(finalLevel.chapterId, finalLevel.storySummary);
 
-  assert.match(first.title, /KÜL YOLU · PERDE 1 · BÖLÜM 1/);
-  assert.match(second.title, /DONMUŞ GEÇİT · PERDE 2 · BÖLÜM 51/);
-  assert.match(final.title, new RegExp(`GÖLGE SARAYI · PERDE ${CAMPAIGN_ACT_COUNT} · BÖLÜM ${CAMPAIGN_LEVEL_COUNT}`));
-  assert.match(first.lines[0], /Kül Nöbetçileri/);
+  assert.match(first.title, /EŞİK MAHALLESİ · PERDE 1 · BÖLÜM 1/);
+  assert.match(second.title, /AYAZ GEÇİDİ · PERDE 2 · BÖLÜM 51/);
+  assert.match(final.title, new RegExp(`AYNASIZ SARAY · PERDE ${CAMPAIGN_ACT_COUNT} · BÖLÜM ${CAMPAIGN_LEVEL_COUNT}`));
+  assert.match(first.lines[0], /Fırıncı/);
   assert.match(final.hint, new RegExp(`Perde ${CAMPAIGN_ACT_COUNT}/${CAMPAIGN_ACT_COUNT} · Bölüm ${CAMPAIGN_LEVEL_COUNT}/${CAMPAIGN_LEVEL_COUNT}`));
 });
 
@@ -53,7 +53,7 @@ test("rivals have distinct multi-line voices; Demir Yemin follows the active act
   const finalChapter = getNpcStoryDialogue("Demir Yemin", CAMPAIGN_LEVEL_COUNT - 1);
   assert.equal(openingChapter?.kind, "npc");
   assert.notDeepEqual(openingChapter?.lines, frozenChapter?.lines);
-  assert.match(finalChapter?.lines.join(" ") ?? "", /Gölge Sarayı/);
+  assert.match(finalChapter?.lines.join(" ") ?? "", /Aynasız Saray/);
   assert.match(finalChapter?.hint ?? "", new RegExp(`Perde ${CAMPAIGN_ACT_COUNT}/${CAMPAIGN_ACT_COUNT}`));
   assert.equal(getNpcStoryDialogue("Kül Okçusu", 1), null);
 });

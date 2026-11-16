@@ -9,7 +9,7 @@ export const FINAL_CAMPAIGN_CHAPTER_ID = CAMPAIGN_CHAPTER_COUNT - 1;
 export const MAX_DEFEATED_OPPONENTS = 64;
 
 export const CAMPAIGN_REGIONS = [
-  { id: "ash-road", name: "Kül Yolu", firstChapterId: 0, lastChapterId: 49 },
+  { id: "ash-road", name: "Eşik Mahallesi", firstChapterId: 0, lastChapterId: 49 },
   { id: "frozen-pass", name: "Ayaz Geçidi", firstChapterId: 50, lastChapterId: 99 },
   { id: "red-marsh", name: "Kızıl Sazlık", firstChapterId: 100, lastChapterId: 149 },
   { id: "whispering-forest", name: "Fısıltı Korusu", firstChapterId: 150, lastChapterId: 199 },
@@ -30,13 +30,13 @@ export type CampaignMissionKind =
   | "act-boss";
 
 export const CAMPAIGN_MISSION_LABELS: Readonly<Record<CampaignMissionKind, string>> = {
-  "normal-combat": "Yol Çatışması",
-  survival: "Nöbet Sınavı",
-  "target-hunt": "İz Sürme",
-  siege: "Hat Yarma",
-  exploration: "Emanet Arayışı",
-  "mini-boss": "Yemin Dönümü",
-  "act-boss": "Perde Muhafızı",
+  "normal-combat": "Yüzleşme",
+  survival: "Son Nöbet",
+  "target-hunt": "Tanık Takibi",
+  siege: "Kuşatma Hattı",
+  exploration: "Kayıp Kayıt",
+  "mini-boss": "Dönüm Karşılaşması",
+  "act-boss": "Perde Finali",
 };
 
 const REGULAR_MISSION_KINDS = [

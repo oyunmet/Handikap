@@ -55,6 +55,7 @@ export type CampaignLevelData = {
   parameters: {
     localLevelNumber: number;
     patternIndex: number;
+    storyBeatIndex: number;
     actIntensity: number;
     seed: number;
   };

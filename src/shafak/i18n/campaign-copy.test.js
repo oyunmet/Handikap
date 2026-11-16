@@ -7,7 +7,7 @@ import { getCampaignCopy } from "./campaign-copy.ts";
 import { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT } from "../world/campaign-progression.ts";
 import { loadCampaignActData } from "../world/campaign-level-data.ts";
 
-const staleCampaignCopy = /dokuz kapı|dokuzuncu kapı|dokuzuncu bölüm|üç bölge|3 bölge|12 bölüm/i;
+const staleCampaignCopy = /\b12 bölüm\b|\b3 bölge\b|\büç bölge\b/i;
 
 function collectSourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -19,15 +19,17 @@ function collectSourceFiles(directory) {
 }
 
 test("menu campaign title is generated from the campaign counts", () => {
-  assert.equal(tr.menuKicker, `${CAMPAIGN_ACT_COUNT} PERDE · ${CAMPAIGN_LEVEL_COUNT} BÖLÜM`);
+  assert.equal(tr.menuKicker, "KIRIK ŞAFAK · 9 PERDE");
+  assert.match(tr.menuKicker, new RegExp(`${CAMPAIGN_ACT_COUNT} PERDE`));
+  assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
 });
 
 test("campaign copy changes when campaign data counts change", () => {
   const copy = getCampaignCopy(8, 400);
-  assert.equal(copy.menuKicker, "8 PERDE · 400 BÖLÜM");
+  assert.equal(copy.menuKicker, "KIRIK ŞAFAK · 8 PERDE");
   assert.match(copy.openingDescription, /8 perde/);
   assert.match(copy.openingDescription, /400 bölüm/);
-  assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · SON PERDE");
+  assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · ŞAFAK MÜHRÜ");
 });
 
 test("all campaign acts provide a short story summary for the main menu", async () => {

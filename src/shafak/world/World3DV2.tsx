@@ -440,7 +440,7 @@ export default function World3DV2(props: World3DProps) {
   }, [hasDemirTacRival]);
 
   return (
-    <div className="world-three-layer world-3d-layer" aria-label="Kül Yolu 3D dünyası">
+    <div className="world-three-layer world-3d-layer" aria-label="Kırık Şafak kampanya dünyası">
       {rendererUnavailable ? (
         <div className="world-three-fallback" role="alert">
           <div className="world-three-fallback__content">

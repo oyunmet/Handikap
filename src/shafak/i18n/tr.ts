@@ -2,7 +2,7 @@ import { CAMPAIGN_COPY } from "./campaign-copy.ts";
 
 export const tr = {
   brand: "ŞAFAK SAVAŞÇILARI",
-  tagline: "Dokuz yemin. Kırık bir mühür. Geri alınmayı bekleyen bir şafak.",
+  tagline: "Dokuz perde. Bir şehir. Yeni bir sabah.",
   openingKicker: "KIRIK ŞAFAK · BİRİNCİ PERDE",
   openingDescription: CAMPAIGN_COPY.openingDescription,
   start: "BAŞLA",

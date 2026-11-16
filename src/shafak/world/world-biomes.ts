@@ -30,7 +30,7 @@ export type BiomeTransition = {
 
 export const WORLD_BIOME_PALETTES: Record<WorldBiome, BiomePalette> = {
   "ash-road": {
-    label: "Kül Yolu",
+    label: "Eşik Mahallesi",
     skyTint: "#fff0dd",
     horizon: "#e9bb91",
     middle: "#86b9dd",

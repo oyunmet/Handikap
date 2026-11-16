@@ -383,3 +383,42 @@
 
 - AdService rıza/limit/aralık/kill-switch/nonce ve `none` ağ isteği testleri; yaş kapısı, hesap silme, rate limit; tür denetimi, üretim derlemesi ve reklam kodu bundle kontrolü.
 - Gerçek reklam, cihaz ve Play Console’da doğrulanamayanlar ile kullanıcının manuel adımları açıkça raporlanacak.
+
+## Adım 14 — Yaşayan Şehir ve Kampanya Yenilemesi
+
+- **Amaç:** Tek doğrultulu “Kül Yolu” girişini, dört yönde yürünebilen ve mevcut oyun modlarına kapılarla bağlanan canlı bir şehir merkeziyle değiştirmek; açılış, menü ve dokuz perdelik hikâyeyi aynı evrende birleştirmek.
+- **Koruma sınırları:** Mevcut kampanya kayıtları, bölüm kimlikleri, savaş/mağaza sistemleri ve hesap ilerlemesi korunacak. Eski doğrusal görev sahnesi şehirdeki kampanya kapısının arkasında erişilebilir kalacak; yön tuşları ve dokunmatik kontrollerle yeni şehirde ileri/geri/sağ/sol yürüyüş ayrıca çalışacak.
+- **İlerleme kaydı:** Bu bölüm kaldığı yerden devam etmek için ana kaynaktır. Devam etmeden önce bu bölümün sonundaki “Sıradaki işlem” maddesini ve orada belirtilen dosyaların güncel hâlini oku; görselleri ya da eski sohbet özetlerini kodun yerine kullanma. Her tamamlanan alt adımdan sonra durumu ve test kanıtını burada güncelle.
+
+### 14.1 — Mevcut akış ve hikâye denetimi: **Tamamlandı**
+
+- Menü ve açılış akışı, dokuz perde/450 bölüm yapısı, kampanya isimlerinin ortak kaynakları ve mevcut savaş/mağaza girişleri incelendi.
+- İlk perde ile ilk biyom ekranda “Kül Yolu” adını kullanıyordu. `ash-road` gibi kayıt/teknik kimlikler değiştirilmeden görünen ad yenilenecek.
+- Şehir merkezi yeni ana buluşma alanı olacak; kampanya ve Savaş Odası kendi mevcut oyun akışlarını koruyacak.
+
+### 14.2 — Yeni ana hikâye ve perde anlatıları: **Tamamlandı**
+
+- Kırık Şafak'ın aynı sabaha dönen şehir anlatısı açılış, intro ve final metnine bağlandı; dokuz hatıra ve dokuz perde/450 bölüm sayısı korundu.
+- Dokuz perdenin kısa özeti ve beşer hikâye anı güncellendi. Görev hedefleri ve görünen görev türü adları yeni anlatıyla eşleştirildi.
+- İlk bölgenin adı **Eşik Mahallesi** oldu. Eski `ash-road` veri kimliği ve 9 perde/450 bölüm aralıkları korunarak mevcut kayıtların eşleşmesi sürdürüldü.
+
+### 14.3 — Yürünebilir şehir merkezi ve kapılar: **Uygulandı; görsel kabul bekliyor**
+
+- Dört yöne açılan sokaklar, gün ışığı/gökyüzü, binalar, kaldırımlar, geçit çizgileri, ağaçlar ve sokak lambalarıyla 3D merkez kuruldu.
+- Farklı ten, saç, kıyafet ve beden oranlarına sahip yürüyen sakinler; mobil joystick, WASD/ok tuşları, bina çarpışması ve yakında beliren giriş düğmesi eklendi.
+- Sefer Arşivi, Savaş Odası, Silah Pazarı ve Mahalle Demircisi kapıları mevcut oyun/teçhizat akışlarına bağlandı. Aktivitelerden çıkışta şehir ekranına dönülüyor.
+
+### 14.4 — Açılış ve menü bağlantısı: **Tamamlandı**
+
+- Ana menüye Eşik Mahallesi girişi eklendi; doğrudan sefere devam, profil, mağaza ve Savaş Odası girişleri korundu.
+- Açılış, intro, kampanya/biome etiketleri ve ilgili metinler yeni anlatıyla eşleştirildi. “Kül Yolu” kullanıcıya gösterilen kampanya adı olmaktan çıkarıldı; teknik kimlikler ve tarihî ekipman adı kimlikleri değiştirilmedi.
+
+### 14.5 — Doğrulama ve cihaz kontrolü: **Devam ediyor**
+
+- Şehir, kampanya, bölüm diyaloğu ve boss kapsama testleri geçti: 23/23. Tam `npm test`: 744/747 geçti; `npm run build` ve `git diff --check` geçti.
+- Tam testte kalan 3 başarısızlık bu değişiklikten bağımsız mevcut beklentiler: `server/profileApi.test.js` reklam ödülü tablosunun silinme sırasını kapsamıyor; `src/shafak/android-pwa.test.js` sertifika yer tutucusu ve build işaretçisi için eski değer bekliyor.
+- `npm run typecheck` mevcut `server/profileApi.ts` ve `src/shafak/ads/h5GamesProvider.ts` hatalarında duruyor; yeni şehir/kampanya dosyaları için ek tip hatası raporlanmadı.
+- Masaüstü ve telefon önizlemeleri mevcut yaş onayı ekranında durdu. Yaş kapısı değiştirilmedi veya atlanmadı; şehir sahnesi bu oturumda görsel olarak doğrulanamadı.
+- Gerçek telefon/GPU performansı Replit yazılım renderer’ından varsayılmayacak; cihaz kabulü ayrıca açık kalacak.
+
+**Sıradaki işlem:** Yaş onayından sonra menü ve `?debug=1&scene=city` önizlemelerini masaüstü/telefon boyutlarında görsel olarak kontrol et. Kalan eski typecheck ve 3 bağımsız test uyuşmazlığını bu özellikten ayrı değerlendir.
