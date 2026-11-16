@@ -1,12 +1,7 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Component, useEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import * as THREE from "three";
-import KnightActor from "../world/KnightActor";
-import WorldLandscape from "../world/WorldLandscape";
 import type { RenderQuality } from "../world/graphics-quality";
 import EmberLayer from "../scene/EmberLayer";
-import { createWorldMotion } from "../world/movement";
 import { createIntroAmbience, createIntroImpact, primeGameAudio } from "../audio/howler";
 import MetEmblem from "./MetEmblem";
 import { getIntroEventTimes } from "./timeline";
@@ -14,21 +9,18 @@ import { CAMPAIGN_COPY } from "../i18n/campaign-copy.ts";
 import "./intro.css";
 
 const STORY_LINES = [
-  "Şafak söndü. Son ışık, kuzey kapısının ardında.",
-  "Kapıyı koruyanları yen; her zafer seni kaynağa yaklaştırır.",
-  "İki geçit, iki yol. Seçimin kaderini belirler.",
+  "Eşik Mahallesi, aynı sabahın çan sesiyle yeniden uyanıyor.",
+  "Dokuz hatıra, bu döngünün ardındaki gerçeği saklıyor.",
+  "Sokaklarda bulduğun her kapı yeni bir oyuna açılıyor.",
 ];
+
+const IntroCityWorld = lazy(() => import("./IntroCityWorld"));
 
 type IntroCinematicProps = {
   reducedMotion: boolean;
   quality: RenderQuality;
   onComplete: () => void;
 };
-
-function smoothstep(value: number) {
-  const t = THREE.MathUtils.clamp(value, 0, 1);
-  return t * t * (3 - 2 * t);
-}
 
 class IntroCanvasBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
@@ -45,70 +37,19 @@ class IntroCanvasBoundary extends Component<
   }
 }
 
-function CameraDrift({ reducedMotion, startedAt }: { reducedMotion: boolean; startedAt: number }) {
-  const { camera } = useThree();
-  const startPosition = useMemo(() => new THREE.Vector3(13, 13, 31), []);
-  const endPosition = useMemo(() => new THREE.Vector3(0.55, 2.8, 6.8), []);
-  const startTarget = useMemo(() => new THREE.Vector3(0, 1, -84), []);
-  const endTarget = useMemo(() => new THREE.Vector3(0, 1.45, 0), []);
-  const position = useMemo(() => new THREE.Vector3(), []);
-  const target = useMemo(() => new THREE.Vector3(), []);
-
-  useFrame(() => {
-    const elapsed = (performance.now() - startedAt) / 1_000;
-    const progress = reducedMotion ? 1 : smoothstep((elapsed - 1.4) / 7.8);
-    position.lerpVectors(startPosition, endPosition, progress);
-    target.lerpVectors(startTarget, endTarget, progress);
-    camera.position.copy(position);
-    camera.lookAt(target);
-  });
-
-  return null;
-}
-
 function IntroWorld({
   reducedMotion,
-  startedAt,
   quality,
 }: {
   reducedMotion: boolean;
-  startedAt: number;
   quality: RenderQuality;
 }) {
-  const motionRef = useRef(createWorldMotion());
   const fallback = <div className="intro-world__fallback" aria-hidden="true" />;
   return (
     <IntroCanvasBoundary fallback={fallback}>
-      <Canvas
-        className="intro-world__canvas"
-        dpr={quality === "high" ? [1, 1.25] : quality === "balanced" ? [1, 1.1] : 1}
-        camera={{ position: [13, 13, 31], fov: 54, near: 0.1, far: 850 }}
-        gl={{
-          alpha: false,
-          antialias: false,
-          powerPreference: "low-power",
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.08,
-        }}
-        fallback={fallback}
-        aria-hidden="true"
-      >
-        <CameraDrift reducedMotion={reducedMotion} startedAt={startedAt} />
-        <WorldLandscape
-          motionRef={motionRef}
-          quality="low"
-          weather="fog"
-          motionReduced={reducedMotion}
-        />
-        <KnightActor
-          motionRef={motionRef}
-          state="idle"
-          motionReduced={reducedMotion}
-          castShadow={false}
-          playerCharacter
-          useInGamePlayerModel
-        />
-      </Canvas>
+      <Suspense fallback={fallback}>
+        <IntroCityWorld reducedMotion={reducedMotion} quality={quality} />
+      </Suspense>
     </IntroCanvasBoundary>
   );
 }
@@ -128,7 +69,6 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
   const audioStopRef = useRef<(() => void) | null>(null);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
-  const startedAt = useRef(performance.now()).current;
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
@@ -188,7 +128,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
       aria-label="Şafak Savaşçıları açılış sinematiği"
     >
       <div className={`intro-world${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
-        <IntroWorld reducedMotion={reducedMotion} startedAt={startedAt} quality={quality} />
+        <IntroWorld reducedMotion={reducedMotion} quality={quality} />
       </div>
       <div className={`intro-atmosphere${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
         <div className="intro-atmosphere__moon-haze" />
@@ -274,9 +214,9 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
             className="intro-start"
             type="button"
             onClick={complete}
-            aria-label="Oyuna başla"
+            aria-label="Eşik Mahallesi'ne gir"
           >
-            YOLA ÇIK <span aria-hidden="true">→</span>
+            MAHALLEYE GİR <span aria-hidden="true">→</span>
           </button>
         )}
       </div>

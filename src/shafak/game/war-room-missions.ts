@@ -46,10 +46,10 @@ export const WAR_ROOM_MODES: readonly {
   name: string;
   description: string;
 }[] = [
-  { id: "raid", name: "Baskın", description: "Muhafızları ve komutanı alt et." },
-  { id: "survival", name: "Hayatta Kalma", description: "Sonsuz dalgalarda dayan; skorunu yükselt." },
-  { id: "treasure", name: "Sandık Avı", description: "Süre dolmadan beş sandık aç." },
-  { id: "defense", name: "Savunma", description: "Komutanı yen ve savunma noktasını koru." },
+  { id: "raid", name: "Karşılaşma", description: "Rakipleri ve komutanı yen." },
+  { id: "survival", name: "Son Nöbet", description: "Giderek güçlenen dalgalara dayan; en iyi skorunu geç." },
+  { id: "treasure", name: "Emanet Avı", description: "Süre dolmadan beş kayıp sandığı bul." },
+  { id: "defense", name: "Meydanı Koru", description: "Saldıranları durdur ve savunma noktasını ayakta tut." },
 ];
 
 export const WAR_ROOM_DIFFICULTIES: readonly {
@@ -212,10 +212,10 @@ export function getWarRoomAmmoMultiplier(modifiers: readonly WarRoomModifierId[]
 
 export function getWarRoomResultLabel(mode: WarRoomModeId) {
   switch (mode) {
-    case "survival": return "HAYATTA KALMA";
-    case "treasure": return "SANDIK AVI";
-    case "defense": return "SAVUNMA";
-    case "daily": return "GÜNLÜK SINAV";
-    default: return "BASKIN";
+    case "survival": return "SON NÖBET";
+    case "treasure": return "EMANET AVI";
+    case "defense": return "MEYDANI KORU";
+    case "daily": return "GÜNÜN GÖREVİ";
+    default: return "KARŞILAŞMA";
   }
 }

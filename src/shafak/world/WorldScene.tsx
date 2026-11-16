@@ -1339,7 +1339,7 @@ export default function WorldScene({
           }
         } else if (operation === "war-room-equip") {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
-          if (warRoomSlotIndex === undefined) throw new StoreActionError("Savaş Odası yuvası seçilmedi.");
+          if (warRoomSlotIndex === undefined) throw new StoreActionError("Meydan silah yuvası seçilmedi.");
           try {
             nextProfile = assignLocalWarRoomWeapon(currentProfile, item, warRoomSlotIndex);
           } catch (error) {
@@ -1449,12 +1449,12 @@ export default function WorldScene({
         } else if (operation === "salvage") {
           setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
         } else if (operation === "war-room-equip") {
-          setStoreMessage(`${item.name} Savaş Odası ${warRoomSlotIndex === 0 ? "Ana" : "Yedek"} yuvasına kuşanıldı.`);
+          setStoreMessage(`${item.name} Meydan ${warRoomSlotIndex === 0 ? "ana" : "yedek"} yuvasına kuşanıldı.`);
         } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
             ? item.warRoomWeaponId
-              ? "satın alındı; Savaş Odası hazırlığında seçebilirsin."
+              ? "satın alındı; Meydan hazırlığında seçebilirsin."
               : "satın alındı ve kuşanıldı."
             : item.reward?.type === "combat-item"
               ? "satın alındı ve savaş çantasına eklendi."
@@ -1498,12 +1498,12 @@ export default function WorldScene({
       } else if (operation === "salvage") {
         setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
       } else if (operation === "war-room-equip") {
-        setStoreMessage(`${item.name} Savaş Odası ${warRoomSlotIndex === 0 ? "Ana" : "Yedek"} yuvasına kuşanıldı.`);
+        setStoreMessage(`${item.name} Meydan ${warRoomSlotIndex === 0 ? "ana" : "yedek"} yuvasına kuşanıldı.`);
       } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
             ? item.warRoomWeaponId
-              ? "satın alındı; Savaş Odası hazırlığında seçebilirsin."
+              ? "satın alındı; Meydan hazırlığında seçebilirsin."
               : "satın alındı ve kuşanıldı."
             : item.reward?.type === "combat-item"
               ? "satın alındı ve savaş çantasına eklendi."
@@ -3114,10 +3114,10 @@ export default function WorldScene({
           className="world-war-room-entry"
           type="button"
           onClick={onOpenWarRoom}
-          aria-label="Yeni oyun modu Savaş Odası'nı aç"
+          aria-label="Meydan görevlerini aç"
         >
           <span aria-hidden="true">✹</span>
-          <b>SAVAŞ ODASI</b>
+          <b>MEYDAN GÖREVLERİ</b>
           {showWarRoomNewBadge && <small>YENİ MOD</small>}
         </button>
       )}
@@ -3967,7 +3967,7 @@ export default function WorldScene({
                 return (
                   <div className="store-item-preview-static" role="img" aria-label={`${item.name} ürün önizlemesi`}>
                     <span>{item.icon ?? "◇"}</span>
-                    <small>SAVAŞ ODASI SİLAHI</small>
+                    <small>MEYDAN SİLAHI</small>
                   </div>
                 );
               }
@@ -3990,7 +3990,7 @@ export default function WorldScene({
                   aria-label={`${item.name} ürün önizlemesi`}
                 >
                   <span>{item.icon ?? "◇"}</span>
-                  <small>{item.warRoomWeaponId ? "SAVAŞ ODASI SİLAHI" : "ÜRÜN ÖNİZLEMESİ"}</small>
+                  <small>{item.warRoomWeaponId ? "MEYDAN SİLAHI" : "ÜRÜN ÖNİZLEMESİ"}</small>
                 </div>
               );
             }

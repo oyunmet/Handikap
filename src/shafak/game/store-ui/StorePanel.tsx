@@ -69,7 +69,7 @@ const tabs: { id: StoreTab; label: string }[] = [
 
 function StoreItemPreviewFallback({ item }: { item: StoreItem }) {
   const typeLabel = item.warRoomWeaponId
-    ? "SAVAŞ ODASI SİLAHI"
+    ? "MEYDAN SİLAHI"
     : item.kind === "consumable"
       ? "TÜKETİLEBİLİR"
       : item.kind === "material"
@@ -635,7 +635,7 @@ export default function StorePanel({
                     <h4 id="store-stats-title">Savaş nitelikleri</h4>
                     <span>
                       {warRoomWeaponStats
-                        ? `${warRoomWeaponStats.className} · Savaş Odası`
+                        ? `${warRoomWeaponStats.className} · Meydan`
                         : currentItem ? `Karşılaştırma: ${currentItem.name}` : "Mevcut kuşanılan eşya yok"}
                     </span>
                   </div>
@@ -653,7 +653,7 @@ export default function StorePanel({
                       <div className="safak-store__stat" key={stat.key} data-war-room-stat={stat.key}>
                         <span>{stat.label}</span>
                         <b>{stat.value}</b>
-                        <span className="safak-store__difference">Savaş Odası</span>
+                        <span className="safak-store__difference">Meydan</span>
                       </div>
                     ))
                   ) : Object.entries(statLabels).map(([key, label]) => {

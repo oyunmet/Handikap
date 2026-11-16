@@ -104,7 +104,7 @@ export default function WarRoomControlsEditor({ layout, onChange, onSave, onCanc
       </div>
 
       <aside className="war-room-control-editor__panel">
-        <span className="war-room-control-editor__eyebrow">SAVAŞ ODASI · DOKUNMATİK HUD</span>
+        <span className="war-room-control-editor__eyebrow">MEYDAN · DOKUNMATİK KONTROLLER</span>
         <h2 id="war-room-control-editor-title">Kontrolleri düzenle</h2>
         <p>Sürükleyerek taşı. Seçili kontrol: <strong>{CONTROLS_CONFIG.find((control) => control.id === selectedId)?.label}</strong></p>
         <label>

@@ -11,11 +11,15 @@ import {
 test("the city has a separate entrance for each existing activity", () => {
   assert.deepEqual(
     CITY_DOORS.map((door) => door.id),
-    ["campaign", "war-room", "weapons", "smithy"],
+    ["campaign", "war-room", "survival", "daily"],
   );
   for (const door of CITY_DOORS) {
     assert.equal(findNearbyCityDoor(door.entrance)?.id, door.id);
   }
+  assert.deepEqual(
+    CITY_DOORS.filter((door) => door.missionMode).map((door) => door.missionMode),
+    ["raid", "survival", "daily"],
+  );
 });
 
 test("the player can walk forward, backward, left, and right", () => {

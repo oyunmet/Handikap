@@ -137,6 +137,7 @@ import "./war-room-hud-v2.css";
 
 type Props = {
   onExit: () => void;
+  initialMode?: WarRoomModeId;
   profile: PlayerProfile;
   onAwardProfileReward: (
     request: WarRoomProfileRewardRequest,
@@ -392,6 +393,7 @@ function requestWarRoomImmersiveDisplay() {
 
 export default function WarRoomGame({
   onExit,
+  initialMode = "raid",
   profile,
   onAwardProfileReward,
   aimAssistEnabled,
@@ -619,7 +621,9 @@ export default function WarRoomGame({
     () => getWarRoomRoom(1, dailyChallenge.seed, dailyPreset.mapId),
     [dailyChallenge.seed, dailyPreset.mapId],
   );
-  const [selectedMode, setSelectedMode] = useState<Exclude<WarRoomModeId, "daily">>("raid");
+  const [selectedMode, setSelectedMode] = useState<Exclude<WarRoomModeId, "daily">>(
+    initialMode === "daily" ? "raid" : initialMode,
+  );
   const [selectedDifficulty, setSelectedDifficulty] = useState<WarRoomDifficultyId>("normal");
   const [selectedModifiers, setSelectedModifiers] = useState<WarRoomModifierId[]>([]);
   const [selectedMapId, setSelectedMapId] = useState(WAR_ROOM_MAPS[0]!.id);
@@ -1632,6 +1636,7 @@ export default function WarRoomGame({
           dailyChallengeRoom={dailyChallengeRoom}
           dailyPreset={dailyPreset}
           dailyChallengeComplete={dailyChallengeComplete}
+          dailyEntry={initialMode === "daily"}
           selectedMode={selectedMode}
           selectedDifficulty={selectedDifficulty}
           selectedModifiers={selectedModifiers}

@@ -31,6 +31,7 @@ import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from
 import IntroCinematic from "./intro/IntroCinematic";
 import MetEmblem from "./intro/MetEmblem";
 import { getInitialScreen } from "./intro/timeline";
+import { CAMPAIGN_COPY } from "./i18n/campaign-copy.ts";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
@@ -41,6 +42,7 @@ import {
   awardWarRoomProfileReward,
   type WarRoomProfileRewardRequest,
 } from "./game/war-room-profile-rewards";
+import type { WarRoomModeId } from "./game/war-room-missions";
 import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { StoreTab } from "./game/store-types.ts";
 import type { WorldProgressPosition } from "./world/world-progress";
@@ -449,6 +451,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   );
   const [screen, setScreen] = useState<Screen>(() => resolveInitialScreen());
   const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world" | "city-hub">("menu");
+  const [warRoomInitialMode, setWarRoomInitialMode] = useState<WarRoomModeId>("raid");
   const [worldReturnScreen, setWorldReturnScreen] = useState<"menu" | "city-hub">("menu");
   const [initialWorldStoreTab, setInitialWorldStoreTab] = useState<StoreTab | null>(null);
   const [progress, setProgress] = useState(0);
@@ -828,11 +831,15 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
-  const enterWarRoom = (returnScreen: "menu" | "world" | "city-hub" = "menu") => {
+  const enterWarRoom = (
+    returnScreen: "menu" | "world" | "city-hub" = "menu",
+    initialMode: WarRoomModeId = "raid",
+  ) => {
     playFeedback();
     primeGameAudio();
     setWarRoomControlsEditorOpen(false);
     setWarRoomReturnScreen(returnScreen);
+    setWarRoomInitialMode(initialMode);
     updateWarRoomQuery(true);
     setScreen("war-room");
   };
@@ -933,7 +940,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       return result;
     }
     if (profileSyncStatus !== "ready") {
-      throw new Error("Hesap profili eşitlenemedi; Savaş Odası profil ödülü eklenmedi.");
+      throw new Error("Hesap profili eşitlenemedi; Meydan profil ödülü eklenmedi.");
     }
 
     const result = await authApiRequestWithRetry<{
@@ -946,7 +953,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       body: JSON.stringify(request),
     }, {
       operation: "War Room reward",
-      fallbackMessage: "Savaş Odası profil ödülü şu an kaydedilemedi.",
+      fallbackMessage: "Meydan profil ödülü şu an kaydedilemedi.",
     }, { maxRetries: 1, baseDelayMs: 350 });
     const nextProfile = normalizePlayerProfile(result.profile);
     setProfile(nextProfile);
@@ -1349,11 +1356,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               >
                 <div className="menu-divider">
                   <span />
-                  <span>KAYIP ŞAFAĞIN İZİNDE</span>
+                  <span>{CAMPAIGN_COPY.menuKicker}</span>
                   <span />
                 </div>
-                <h1>Şafak hâlâ kayıp.</h1>
-                <p>Dokuz bölge boyunca izini sür. Her perde yeni bir yol açar; her yol, kimin gerçekten düşman olduğunu biraz daha değiştirir.</p>
+                <h1>Aynı sabah. Yeni bir yol.</h1>
+                <p>{CAMPAIGN_COPY.menuDescription}</p>
                 <div className="campaign-menu-progress">
                   <div className="campaign-menu-progress__labels">
                     <span>SEFER · PERDE {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
@@ -1374,7 +1381,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   >
                     <i style={{ width: `${menuCampaignProgress.campaignProgressPercent}%` }} />
                   </div>
-                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% · dokuz bölgedeki yolun</small>
+                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% · dokuz hatıraya uzanan yol</small>
                 </div>
                 <div className="menu-actions">
                   <button
@@ -1437,9 +1444,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   </svg>
                 </span>
                 <span className="menu-action__war-room-copy">
-                  <small>ÇATIŞMANIN YANKISI</small>
-                  <b>SAVAŞ ODASI</b>
-                  <small>KURALLAR DEĞİŞİR · YÜKÜN SENİNLE</small>
+                    <small>FARKLI GÖREVLER</small>
+                    <b>MEYDAN GÖREVLERİ</b>
+                    <small>KARŞILAŞMA · SON NÖBET · EMANET AVI</small>
                 </span>
                 <span className="menu-action__war-room-arrow" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -1474,8 +1481,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 playerName={profile.name}
                 campaignChapter={menuCampaignProgress.levelNumber}
                 onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
-                onOpenWarRoom={() => enterWarRoom("city-hub")}
-                onOpenStore={(tab) => { void enterWorld(tab, "city-hub"); }}
+                onOpenWarRoom={(mode) => enterWarRoom("city-hub", mode)}
                 onOpenProfile={() => setProfileOpen(true)}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onExit={() => {
@@ -1541,9 +1547,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             exit={{ opacity: 0 }}
             transition={{ duration: motionReduced ? 0.1 : 0.24, ease: "easeOut" }}
           >
-            <Suspense fallback={<div className="entry-loading">Savaş Odası hazırlanıyor…</div>}>
+            <Suspense fallback={<div className="entry-loading">Meydan görevleri hazırlanıyor…</div>}>
               <WarRoomGame
                 onExit={exitWarRoom}
+                initialMode={warRoomInitialMode}
                 profile={profile}
                 onAwardProfileReward={awardWarRoomReward}
                 aimAssistEnabled={warRoomAimAssistEnabled}
@@ -1634,7 +1641,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 {screen === "war-room" && (
                   <div className="setting-row">
                     <span className="setting-row__copy">
-                      <strong>Savaş Odası kontrolleri</strong>
+                      <strong>Meydan kontrolleri</strong>
                       <small>Dokunmatik düğmeleri taşı, boyutunu ve saydamlığını ayarla.</small>
                     </span>
                     <button
@@ -1798,7 +1805,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
                     <strong>Gökyüzü saati</strong>
-                    <small>Eşik Mahallesi ve Savaş Odası için ışık ve gökyüzü.</small>
+                    <small>Eşik Mahallesi ve Meydan görevleri için ışık ve gökyüzü.</small>
                   </span>
                   <div className="quality-switch time-of-day-switch" role="group" aria-label="Gökyüzü saati">
                     {([

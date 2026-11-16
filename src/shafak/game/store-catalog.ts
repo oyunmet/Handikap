@@ -122,7 +122,7 @@ const warRoomWeaponItems: StoreItem[] = WAR_ROOM_WEAPONS
     rarity: weapon.rarity === "Sıradan" ? "common"
       : weapon.rarity === "Nadir" ? "rare"
         : weapon.rarity === "Epik" ? "epic" : "legendary",
-    description: `Savaş Odası için ${weapon.className.toLocaleLowerCase("tr-TR")}. Hazırlık ekranında iki silah yuvasından birine seçilebilir.`,
+    description: `Meydan görevleri için ${weapon.className.toLocaleLowerCase("tr-TR")}. Hazırlık ekranında iki silah yuvasından birine seçilebilir.`,
     summary: weapon.weaponClass === "melee"
       ? `${weapon.className} · ${weapon.damage} hasar · menzil ${weapon.range} m`
       : `${weapon.className} · ${weapon.magazine} mermi · menzil ${weapon.range} m`,

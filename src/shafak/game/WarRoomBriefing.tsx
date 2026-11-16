@@ -19,6 +19,7 @@ type Props = {
   room: WarRoomRoom;
   dailyChallengeRoom: WarRoomRoom;
   dailyChallengeComplete: boolean;
+  dailyEntry?: boolean;
   selectedMode: Exclude<WarRoomModeId, "daily">;
   dailyPreset: {
     mode: WarRoomModeId;
@@ -53,6 +54,7 @@ export default function WarRoomBriefing({
   dailyChallengeRoom,
   dailyPreset,
   dailyChallengeComplete,
+  dailyEntry = false,
   selectedMode,
   selectedDifficulty,
   selectedModifiers,
@@ -75,7 +77,7 @@ export default function WarRoomBriefing({
   onBegin,
   onBeginDaily,
 }: Props) {
-  const dailyModeName = WAR_ROOM_MODES.find((mode) => mode.id === dailyPreset.mode)?.name ?? "Baskın";
+  const dailyModeName = WAR_ROOM_MODES.find((mode) => mode.id === dailyPreset.mode)?.name ?? "Karşılaşma";
   const dailyDifficultyName = WAR_ROOM_DIFFICULTIES.find(
     (difficulty) => difficulty.id === dailyPreset.difficulty,
   )?.name ?? "Normal";
@@ -87,9 +89,9 @@ export default function WarRoomBriefing({
       <div className="war-room-briefing__backdrop" aria-hidden="true" />
       <header className="war-room-briefing__header">
         <div className="war-room-heading">
-          <span className="war-room-eyebrow">ÇATIŞMANIN YANKISI · TEK KİŞİLİK GÖREV · {WAR_ROOM_BUILD_VERSION}</span>
-          <h1 id="war-room-title">SAVAŞ ODASI</h1>
-          <p>{room.name}’de {room.commanderName} ve {room.enemyCount - 1} muhafızı alt et. Seferdeki çatışma burada başka kurallarla geri döner.</p>
+          <span className="war-room-eyebrow">MEYDAN GÖREVLERİ · {WAR_ROOM_BUILD_VERSION}</span>
+          <h1 id="war-room-title">MEYDAN GÖREVLERİ</h1>
+          <p>İstediğin görevi seç. Harita, zorluk ve kuralları başlamadan önce değiştirebilirsin.</p>
         </div>
         <button className="war-room-exit" type="button" onClick={onExit} aria-label="Ana menüye dön">GERİ</button>
       </header>
@@ -156,11 +158,11 @@ export default function WarRoomBriefing({
               <span>BU SEFERİN HEDEFİ</span>
               <strong>
                 {selectedMode === "treasure"
-                  ? "Süre dolmadan 5 sandık aç"
+                  ? "Süre bitmeden beş kayıp sandığı bul"
                   : selectedMode === "defense"
-                    ? "Savunma noktasını koru ve komutanı yen"
+                    ? "Meydanı koru, saldıranları durdur"
                     : selectedMode === "survival"
-                      ? "Sonsuz düşman dalgalarında hayatta kal"
+                      ? "Giderek güçlenen dalgalara dayan"
                       : `Komutan dâhil ${room.enemyCount} düşmanı temizle`}
               </strong>
               <small>{room.name} · {room.layoutName} · {room.commanderTitle}</small>
@@ -168,8 +170,8 @@ export default function WarRoomBriefing({
               <b className="war-room-enemy-count" aria-label={`${room.enemyCount} düşman`}>{String(room.enemyCount).padStart(2, "0")}</b>
           </div>
           <section
-            className={`war-room-daily-challenge${dailyChallengeComplete ? " is-complete" : ""}`}
-            aria-label="Günlük Savaş Odası sınavı"
+            className={`war-room-daily-challenge${dailyChallengeComplete ? " is-complete" : ""}${dailyEntry ? " is-entry-highlight" : ""}`}
+            aria-label="Günün görevi"
           >
             <span className="war-room-daily-challenge__mark" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
@@ -179,7 +181,7 @@ export default function WarRoomBriefing({
             </span>
             <div className="war-room-daily-challenge__copy">
               <div className="war-room-daily-challenge__eyebrow">
-                <span>GÜNLÜK YANKI</span><small>HER GÜN YENİLENİR</small>
+                <span>GÜNÜN GÖREVİ</span><small>HER GÜN YENİLENİR</small>
               </div>
               <strong>{dailyChallengeRoom.contract.title}</strong>
               <p>{dailyChallengeRoom.contract.description} · {dailyChallengeRoom.contract.target} hedef</p>
@@ -201,7 +203,7 @@ export default function WarRoomBriefing({
               onClick={onBeginDaily}
               disabled={!modelsReady}
             >
-              {dailyChallengeComplete ? "TEKRAR OYNA" : "SINAVI BAŞLAT"}
+              {dailyChallengeComplete ? "TEKRAR OYNA" : dailyEntry ? "GÖREVE BAŞLA" : "GÖREVİ BAŞLAT"}
             </button>
           </section>
         </section>
@@ -270,7 +272,7 @@ export default function WarRoomBriefing({
           <div
             className="war-room-model-progress"
             role="progressbar"
-            aria-label="Savaş Odası modelleri"
+            aria-label="Meydan modelleri"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(modelProgress)}

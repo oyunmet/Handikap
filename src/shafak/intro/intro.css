@@ -5,8 +5,8 @@
   min-height: 100dvh;
   overflow: hidden;
   isolation: isolate;
-  background: #09090b;
-  color: #f0dfbd;
+  background: #c8e4e4;
+  color: #23464a;
   touch-action: manipulation;
 }
 
@@ -48,8 +48,8 @@
 
 .intro-world__fallback {
   background:
-    radial-gradient(ellipse at 50% 35%, rgba(180, 129, 103, .22), transparent 32%),
-    linear-gradient(180deg, #24212a, #3a2e34 45%, #171316 74%, #100e10);
+    radial-gradient(ellipse at 72% 22%, rgba(255, 231, 177, .62), transparent 31%),
+    linear-gradient(180deg, #87c7df, #c1e1dc 48%, #e4d5b1 100%);
 }
 
 .intro-atmosphere {
@@ -74,8 +74,8 @@
 .intro-atmosphere__moon-haze {
   opacity: 0;
   background:
-    radial-gradient(ellipse at 69% 36%, rgba(244, 192, 143, .16), transparent 24%),
-    linear-gradient(180deg, rgba(18, 17, 23, .05), rgba(14, 11, 13, .32) 56%, rgba(7, 7, 9, .64));
+    radial-gradient(ellipse at 73% 24%, rgba(255, 237, 188, .28), transparent 28%),
+    linear-gradient(180deg, rgba(231, 245, 230, .04), rgba(28, 58, 60, .08) 62%, rgba(18, 44, 46, .24));
   transition: opacity 2.4s ease;
 }
 
@@ -85,8 +85,8 @@
 
 .intro-atmosphere__vignette {
   background:
-    radial-gradient(ellipse at 51% 48%, transparent 31%, rgba(4, 4, 6, .28) 100%),
-    linear-gradient(0deg, rgba(7, 6, 8, .58), transparent 31%, rgba(5, 5, 7, .2));
+    radial-gradient(ellipse at 51% 48%, transparent 56%, rgba(24, 55, 57, .09) 100%),
+    linear-gradient(0deg, rgba(22, 48, 50, .16), transparent 43%, rgba(249, 246, 224, .05));
 }
 
 .intro-credits {
@@ -96,8 +96,8 @@
   align-items: center;
   justify-content: center;
   padding: 32px 24px;
-  background: #09090b;
-  color: #d9b96e;
+  background: #f0ead8;
+  color: #397678;
   transition: opacity .9s ease;
 }
 
@@ -113,8 +113,8 @@
   place-items: center;
   padding: max(28px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom));
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(25, 19, 17, .58), rgba(7, 7, 9, .84) 62%),
-    linear-gradient(180deg, rgba(8, 8, 10, .26), rgba(8, 8, 10, .72));
+    radial-gradient(ellipse at 50% 48%, rgba(255, 251, 238, .97), rgba(226, 239, 226, .94) 68%),
+    linear-gradient(180deg, rgba(230, 246, 236, .58), rgba(249, 241, 217, .84));
   opacity: 0;
   pointer-events: none;
   transition: opacity .72s ease;
@@ -311,55 +311,63 @@
   justify-content: center;
   gap: 12px;
   padding: 0 18px;
-  border: 1px solid rgba(220, 187, 126, .58);
-  border-radius: 4px;
-  background: linear-gradient(135deg, rgba(38, 30, 24, .94), rgba(16, 15, 17, .84));
-  box-shadow: inset 0 1px rgba(255, 241, 204, .08), 0 8px 26px rgba(0, 0, 0, .24);
-  color: #f1dfbd;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 12px;
+  background: rgba(255, 250, 237, .95);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .9), 0 8px 26px rgba(35, 75, 75, .17);
+  color: #285253;
   cursor: pointer;
   font: 800 10px/1 var(--font-body, "Manrope", sans-serif);
   letter-spacing: .13em;
   text-transform: uppercase;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   transition: background .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 
 .intro-skip:hover,
 .intro-skip:focus-visible {
-  border-color: #e2bd75;
-  background: linear-gradient(135deg, rgba(111, 74, 42, .92), rgba(49, 35, 27, .92));
-  box-shadow: inset 0 1px rgba(255, 241, 204, .12), 0 10px 30px rgba(0, 0, 0, .3), 0 0 18px rgba(214, 165, 84, .16);
-  color: #fff0ca;
+  border-color: #5eaaa5;
+  background: #fff5dc;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .9), 0 10px 30px rgba(36, 80, 80, .2);
+  color: #1f4b4e;
   transform: translateY(-1px);
 }
 
 .intro-skip span {
-  color: #c99750;
+  color: #d56f4e;
   font-size: 17px;
 }
 
 .intro-narrative {
   position: absolute;
   z-index: 2;
-  right: max(22px, env(safe-area-inset-right));
-  bottom: max(8vh, calc(42px + env(safe-area-inset-bottom)));
-  left: max(22px, env(safe-area-inset-left));
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(7vh, calc(24px + env(safe-area-inset-bottom)));
+  left: max(18px, env(safe-area-inset-left));
   display: flex;
   min-height: 138px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
+  width: min(920px, calc(100vw - 36px));
+  margin-inline: auto;
+  padding: clamp(14px, 2.2vw, 24px);
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 22px;
+  background: rgba(255, 250, 238, .92);
+  box-shadow: 0 16px 44px rgba(24, 62, 62, .18);
   text-align: center;
   pointer-events: none;
+  backdrop-filter: blur(12px);
 }
 
 .intro-narrative__line {
   max-width: min(850px, 90vw);
   margin: 0;
-  color: #f1e1c4;
+  color: #29494b;
   font: 500 clamp(17px, 2.7vw, 27px)/1.55 var(--font-display, Georgia, serif);
   letter-spacing: .015em;
-  text-shadow: 0 3px 22px rgba(4, 3, 4, .92), 0 1px 2px #120d0c;
+  text-shadow: none;
   animation: intro-caption-cycle 5.8s ease both;
 }
 
@@ -390,19 +398,19 @@
   display: flex;
   flex-direction: column;
   margin: 0;
-  color: #f0d39a;
+  color: #235456;
   font: 600 clamp(28px, 7vw, 70px)/1.04 var(--font-display, Georgia, serif);
   letter-spacing: .15em;
-  text-shadow: 0 3px 24px rgba(4, 3, 4, .9), 0 0 28px rgba(188, 117, 61, .23);
+  text-shadow: none;
 }
 
 .intro-narrative__tagline {
   margin: 10px 0 0;
-  color: #dbc18f;
+  color: #567876;
   font: 600 clamp(10px, 1.7vw, 14px)/1.4 var(--font-body, "Manrope", sans-serif);
   letter-spacing: .16em;
   text-transform: uppercase;
-  text-shadow: 0 2px 14px rgba(4, 3, 4, .9);
+  text-shadow: none;
 }
 
 .intro-start {
@@ -414,12 +422,11 @@
   gap: 18px;
   margin-top: 20px;
   padding: 0 22px;
-  border: 1px solid rgba(231, 196, 131, .72);
-  border-radius: 5px;
-  background:
-    linear-gradient(110deg, rgba(133, 83, 46, .9), rgba(40, 29, 25, .94));
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .32), inset 0 1px rgba(255, 238, 207, .12);
-  color: #f1dfb8;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 12px;
+  background: linear-gradient(115deg, #f4cc70, #e8895e);
+  box-shadow: 0 10px 24px rgba(180, 107, 64, .2), inset 0 1px rgba(255, 255, 255, .8);
+  color: #25464a;
   cursor: pointer;
   font: 700 11px/1 var(--font-body, "Manrope", sans-serif);
   letter-spacing: .17em;
@@ -430,12 +437,12 @@
 
 .intro-start:hover,
 .intro-start:focus-visible {
-  background: rgba(122, 77, 42, .78);
-  border-color: #f2d69b;
+  background: linear-gradient(115deg, #f8d98a, #efa27a);
+  border-color: #fff;
 }
 
 .intro-start span {
-  color: #d4a557;
+  color: #bd5943;
   font-size: 16px;
 }
 

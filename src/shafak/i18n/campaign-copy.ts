@@ -11,20 +11,19 @@ export function getCampaignCopy(
 ) {
   const safeActCount = Math.max(1, Math.floor(actCount));
   const safeChapterCount = Math.max(1, Math.floor(chapterCount));
-  const firstRegion = CAMPAIGN_REGIONS[0]?.name ?? "Başlangıç";
-  const finalRegion = CAMPAIGN_REGIONS.at(-1)?.name ?? "Son perde";
+  const cityName = CAMPAIGN_NARRATIVE.cityName;
   return {
-    menuKicker: `${CAMPAIGN_NARRATIVE.sagaTitle.toLocaleUpperCase("tr-TR")} · ${safeActCount} PERDE`,
-    introTagline: `${safeActCount} perde. ${safeChapterCount} bölüm. Dokuz hatıra. Bir şehir, aynı şafakta.`,
-    openingDescription: `${CAMPAIGN_NARRATIVE.opening} ${safeActCount} perde ve ${safeChapterCount} bölümde bu şehrin tekrarını kır.`,
-    menuDescription: `${CAMPAIGN_NARRATIVE.princessName}'ın izini ${firstRegion} ile ${finalRegion} arasında takip et. Her 10 bölümde bir yemin sahibiyle yüzleş; her perdede döngünün kayıp bir hatırasını açığa çıkar.`,
+    menuKicker: `${cityName.toLocaleUpperCase("tr-TR")} · ${safeActCount} PERDE`,
+    introTagline: `${safeActCount} perde · ${safeChapterCount} bölüm · 9 hatıra · aynı şehir, yeni bir sabah`,
+    openingDescription: `${cityName} her sabah aynı çanla uyanıyor. ${safeActCount} perde ve ${safeChapterCount} bölüm boyunca dokuz hatırayı bulup döngüyü çöz.`,
+    menuDescription: `${cityName} her sabah aynı çanla uyanıyor. Dokuz hatırayı bul, döngünün nedenini çöz. Sokaklardaki her kapı başka bir oyuna açılır.`,
     loadingTips: [
-      `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz hatıraya böldü.`,
-      `Her 10. bölümde bir yemin sahibiyle; her 50. bölümde perde muhafızıyla yüzleş.`,
-      `Son bölümde (${safeChapterCount}) ${CAMPAIGN_NARRATIVE.finalBossName}'nı yen ve mührün ardındaki gerçeği öğren.`,
+      `Alaz'ın kervan defteri, ilk hatıranın izini gösteriyor.`,
+      `Her 10. bölümde yeni bir rakip; her 50. bölümde perde sonu karşılaşması var.`,
+      `Son bölümde (${safeChapterCount}) döngünün ardındaki gerçeği ortaya çıkar.`,
     ],
     finalChapterLabel: `BÖLÜM ${safeChapterCount} · ŞAFAK MÜHRÜ`,
-    endingSummary: `${safeChapterCount} bölüm boyunca dokuz hatıranın izini sürdün. ${CAMPAIGN_NARRATIVE.princessName} bulundu; artık şehrin sabahını Kül Hükümdarı değil, yaşayanlar belirliyor.`,
+    endingSummary: `${safeChapterCount} bölüm boyunca dokuz hatırayı topladın. Eşik Mahallesi'ni aynı sabaha bağlayan döngü çözüldü; şehrin geleceğini artık sakinleri belirliyor.`,
   } as const;
 }
 

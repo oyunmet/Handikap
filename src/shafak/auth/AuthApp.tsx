@@ -174,7 +174,7 @@ function SignInPage() {
         <h1>Yolculuğuna<br />devam et.</h1>
         <p>Karakterin, ekipmanın ve ilerlemen seni bekliyor.</p>
         <div className="auth-page__modes" aria-hidden="true">
-          <span>KEŞİF <i>·</i> SAVAŞ ODASI <i>·</i> YOLCU PROFİLİ</span>
+          <span>KEŞİF <i>·</i> MEYDAN GÖREVLERİ <i>·</i> YOLCU PROFİLİ</span>
         </div>
       </section>
       <div className="auth-page__form">
@@ -207,7 +207,7 @@ function SignUpPage() {
         <h1>Yeni bir yol<br />aç.</h1>
         <p>Hesabını oluştur, maceranı kaldığın yerden sürdür.</p>
         <div className="auth-page__modes" aria-hidden="true">
-          <span>KEŞİF <i>·</i> SAVAŞ ODASI <i>·</i> YOLCU PROFİLİ</span>
+          <span>KEŞİF <i>·</i> MEYDAN GÖREVLERİ <i>·</i> YOLCU PROFİLİ</span>
         </div>
       </section>
       <div className="auth-page__form">

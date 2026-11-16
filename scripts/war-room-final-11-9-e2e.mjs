@@ -44,6 +44,9 @@ const pageErrors = [];
 const pages = [];
 const createPage = async () => {
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("safak-age-gate-v1", "adult");
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   pages.push(page);

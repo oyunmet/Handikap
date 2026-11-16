@@ -448,6 +448,20 @@
   color: #c9d99b;
 }
 
+.war-room-daily-challenge.is-entry-highlight {
+  border-color: rgba(108, 194, 183, .8);
+  background:
+    linear-gradient(110deg, rgba(46, 111, 107, .42), rgba(33, 43, 39, .92)),
+    radial-gradient(ellipse at 0% 50%, rgba(230, 180, 94, .18), transparent 58%);
+  box-shadow: 0 0 0 2px rgba(81, 166, 159, .18), inset 0 1px rgba(255, 255, 255, .12);
+}
+
+.war-room-daily-challenge.is-entry-highlight .war-room-daily-challenge__start {
+  border-color: rgba(255, 255, 255, .78);
+  background: linear-gradient(110deg, #f4cb70, #e78659);
+  color: #274447;
+}
+
 .war-room-weapon-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

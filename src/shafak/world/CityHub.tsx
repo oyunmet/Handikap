@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { StoreTab } from "../game/store-types.ts";
 import CityHubScene from "./CityHubScene";
 import {
   CITY_DOORS,
   CITY_START_POSITION,
+  type CityMissionMode,
   type CityDoor,
   type CityDoorId,
   type CityInput,
@@ -16,8 +16,7 @@ type CityHubProps = {
   playerName: string;
   campaignChapter: number;
   onOpenCampaign: () => void;
-  onOpenWarRoom: () => void;
-  onOpenStore: (tab: StoreTab) => void;
+  onOpenWarRoom: (mode: CityMissionMode) => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
   onExit: () => void;
@@ -32,7 +31,6 @@ export default function CityHub({
   campaignChapter,
   onOpenCampaign,
   onOpenWarRoom,
-  onOpenStore,
   onOpenProfile,
   onOpenSettings,
   onExit,
@@ -60,21 +58,12 @@ export default function CityHub({
 
   const enterDoor = useCallback((door: CityDoor | null) => {
     if (!door) return;
-    switch (door.id) {
-      case "campaign":
-        onOpenCampaign();
-        break;
-      case "war-room":
-        onOpenWarRoom();
-        break;
-      case "weapons":
-        onOpenStore("weapons");
-        break;
-      case "smithy":
-        onOpenStore("smithy");
-        break;
+    if (door.id === "campaign") {
+      onOpenCampaign();
+      return;
     }
-  }, [onOpenCampaign, onOpenStore, onOpenWarRoom]);
+    if (door.missionMode) onOpenWarRoom(door.missionMode);
+  }, [onOpenCampaign, onOpenWarRoom]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -197,7 +186,10 @@ export default function CityHub({
         </section>
       )}
 
-      <aside className="city-hub__route-guide" aria-label="Şehirdeki oyun alanları">
+      <aside
+        className={`city-hub__route-guide${activeDoor ? " is-door-active" : ""}`}
+        aria-label="Şehirdeki oyun alanları"
+      >
         <span className="city-hub__route-guide-title">SOKAKLARDAKİ KAPILAR</span>
         {CITY_DOORS.map((door) => (
           <div

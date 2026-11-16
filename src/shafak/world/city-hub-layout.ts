@@ -1,10 +1,12 @@
-export type CityDoorId = "campaign" | "war-room" | "weapons" | "smithy";
+export type CityDoorId = "campaign" | "war-room" | "survival" | "daily";
 export type CityPosition = { x: number; z: number };
 export type CityInput = { x: number; z: number };
 export type CityStreetSide = "east" | "west" | "north" | "south";
+export type CityMissionMode = "raid" | "survival" | "daily";
 
 export type CityDoor = {
   id: CityDoorId;
+  missionMode?: CityMissionMode;
   title: string;
   category: string;
   description: string;
@@ -35,9 +37,10 @@ export const CITY_DOORS: readonly CityDoor[] = [
   },
   {
     id: "war-room",
-    title: "SAVAŞ ODASI",
-    category: "SERBEST ÇATIŞMA",
-    description: "Kuralları ve rakipleri değişen savaş alanına gir.",
+    missionMode: "raid",
+    title: "KARŞILAŞMA ALANI",
+    category: "KISA GÖREV",
+    description: "Rakipleri ve komutanı yen; seçtiğin zorlukta mücadele et.",
     color: "#ec7359",
     street: "Doğu Sokağı",
     side: "west",
@@ -48,10 +51,11 @@ export const CITY_DOORS: readonly CityDoor[] = [
     height: 5.6,
   },
   {
-    id: "weapons",
-    title: "SİLAH PAZARI",
-    category: "TEÇHİZAT",
-    description: "Silahları incele, envanterini düzenle ve yeni ekipman seç.",
+    id: "survival",
+    missionMode: "survival",
+    title: "SON NÖBET",
+    category: "DALGA GÖREVİ",
+    description: "Giderek güçlenen dalgalara karşı dayan ve en iyi skorunu geç.",
     color: "#78aeba",
     street: "Kuzey Çarşısı",
     side: "south",
@@ -62,10 +66,11 @@ export const CITY_DOORS: readonly CityDoor[] = [
     height: 5.6,
   },
   {
-    id: "smithy",
-    title: "MAHALLE DEMİRCİSİ",
-    category: "USTALIK",
-    description: "Donanımını geliştir ve savaş hazırlığını tamamla.",
+    id: "daily",
+    missionMode: "daily",
+    title: "GÜNÜN GÖREVİ",
+    category: "GÜNLÜK GÖREV",
+    description: "Bugünün değişen harita ve kurallarıyla tek seferlik ödülü kazan.",
     color: "#e5a052",
     street: "Güney Çarşısı",
     side: "north",

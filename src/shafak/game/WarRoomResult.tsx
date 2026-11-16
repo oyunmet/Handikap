@@ -78,7 +78,7 @@ export default function WarRoomResult({
           ? objectiveMode === "treasure"
             ? "Süre dolmadan gerekli sandıklar açıldı."
             : objectiveMode === "defense"
-              ? "Savunma noktası korundu ve saldırı durduruldu."
+              ? "Meydan korundu ve saldırı durduruldu."
               : objectiveMode === "survival"
                 ? `${summary.wave}. dalga tamamlandı.`
                 : `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
@@ -166,8 +166,8 @@ export default function WarRoomResult({
         {victory && (
           <div className="war-room-gold-reward">
             <span>BU MODUN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
-            {summary.totalGold !== null && <small>Savaş Odası toplamı: {summary.totalGold} altın</small>}
-            <small>Savaş Odası bakiyesi; kampanya altınına aktarılmaz.</small>
+            {summary.totalGold !== null && <small>Meydan toplamı: {summary.totalGold} altın</small>}
+            <small>Meydan bakiyesi; sefer altınına aktarılmaz.</small>
             {WAR_ROOM_ROOM_CHAIN_ENABLED && (
               <small>
                 Oda ödülleri toplamı: {roomProgress.totalRoomRewards} altın · En yüksek oda: {roomProgress.highestRoom}

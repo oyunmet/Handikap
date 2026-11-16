@@ -17,6 +17,9 @@ type CityHubSceneProps = {
   inputRef: MutableRefObject<CityInput>;
   activeDoorId: CityDoorId | null;
   onNearbyDoorChange: (door: CityDoor | null) => void;
+  className?: string;
+  pixelRatio?: number;
+  reducedMotion?: boolean;
 };
 
 const RESIDENTS = [
@@ -115,6 +118,13 @@ function RoadNetwork() {
   );
 }
 
+const BUILDING_WALL_COLORS: Record<CityDoor["id"], string> = {
+  campaign: "#dcc8a3",
+  "war-room": "#d99478",
+  survival: "#b9c7a2",
+  daily: "#91b7bd",
+};
+
 function Building({ door, active }: { door: CityDoor; active: boolean }) {
   const { x, z } = door.building;
   const frontX = door.side === "east" ? x + door.width / 2 : door.side === "west" ? x - door.width / 2 : x;
@@ -128,11 +138,11 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
     <group position={[x, 0, z]}>
       <mesh position={[0, door.height / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[door.width, door.height, door.depth]} />
-        <meshStandardMaterial color={door.id === "war-room" ? "#6f5952" : door.id === "smithy" ? "#8b6c52" : "#a78d6b"} roughness={0.88} />
+        <meshStandardMaterial color={BUILDING_WALL_COLORS[door.id]} roughness={0.9} />
       </mesh>
       <mesh position={[0, door.height + 0.7, 0]} rotation-y={Math.PI / 4} castShadow>
         <coneGeometry args={[5.1, 1.8, 4]} />
-        <meshStandardMaterial color={door.id === "war-room" ? "#554a47" : door.id === "weapons" ? "#607c83" : "#7b5947"} roughness={0.9} />
+        <meshStandardMaterial color={door.color} roughness={0.86} />
       </mesh>
       <mesh position={[0, door.height + 0.06, 0]}>
         <boxGeometry args={[door.width + 0.16, 0.18, door.depth + 0.16]} />
@@ -149,7 +159,7 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
         <group key={`${door.id}-window-${index}`} position={[position[0] - x, position[1], position[2] - z]}>
           <mesh>
             <boxGeometry args={[1.1, 1.35, 0.12]} />
-            <meshStandardMaterial color="#7da0a2" roughness={0.22} metalness={0.12} emissive="#688b91" emissiveIntensity={0.18} />
+            <meshStandardMaterial color="#b9dce0" roughness={0.28} metalness={0.06} emissive="#b6d8d8" emissiveIntensity={0.09} />
           </mesh>
           <mesh position={[0, 0, 0.08]}>
             <boxGeometry args={[0.1, 1.42, 0.08]} />
@@ -159,8 +169,20 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
             <boxGeometry args={[1.15, 0.1, 0.08]} />
             <meshStandardMaterial color="#e1cda9" roughness={0.8} />
           </mesh>
+          <mesh position={[0, -0.76, 0.14]}>
+            <boxGeometry args={[1.3, 0.12, 0.34]} />
+            <meshStandardMaterial color="#e8d9bd" roughness={0.86} />
+          </mesh>
         </group>
       ))}
+      <mesh
+        position={[frontX - x, 2.78, frontZ - z + (door.side === "south" ? 0.38 : door.side === "north" ? -0.38 : 0)]}
+        rotation-y={doorRotation}
+        castShadow
+      >
+        <boxGeometry args={[2.65, 0.16, 0.86]} />
+        <meshStandardMaterial color={door.color} roughness={0.82} />
+      </mesh>
       <mesh position={[frontX - x, 3.55, frontZ - z]} rotation-y={doorRotation} castShadow>
         <boxGeometry args={[3.25, 0.7, 0.2]} />
         <meshStandardMaterial color={door.color} roughness={0.74} />
@@ -223,13 +245,25 @@ function StreetTree({ x, z, variant }: { x: number; z: number; variant: number }
   );
 }
 
-function Resident({ resident, index }: { resident: typeof RESIDENTS[number]; index: number }) {
+function Resident({
+  resident,
+  index,
+  reducedMotion,
+}: {
+  resident: typeof RESIDENTS[number];
+  index: number;
+  reducedMotion: boolean;
+}) {
   const groupRef = useRef<THREE.Group>(null);
+  const leftArmRef = useRef<THREE.Group>(null);
+  const rightArmRef = useRef<THREE.Group>(null);
+  const leftLegRef = useRef<THREE.Group>(null);
+  const rightLegRef = useRef<THREE.Group>(null);
   const phase = index * 0.83;
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
-    const time = clock.elapsedTime * 0.16 + phase;
-    const stride = Math.sin(time) * 0.72;
+    const time = reducedMotion ? phase : clock.elapsedTime * 0.42 + phase;
+    const stride = reducedMotion ? 0 : Math.sin(time) * 1.2;
     if (resident.axis === "x") {
       groupRef.current.position.set(resident.x + stride, 0, resident.z);
       groupRef.current.rotation.y = Math.cos(time) >= 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -237,6 +271,11 @@ function Resident({ resident, index }: { resident: typeof RESIDENTS[number]; ind
       groupRef.current.position.set(resident.x, 0, resident.z + stride);
       groupRef.current.rotation.y = Math.cos(time) >= 0 ? 0 : Math.PI;
     }
+    const gait = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 3.8 + phase) * 0.34;
+    if (leftArmRef.current) leftArmRef.current.rotation.x = gait;
+    if (rightArmRef.current) rightArmRef.current.rotation.x = -gait;
+    if (leftLegRef.current) leftLegRef.current.rotation.x = -gait;
+    if (rightLegRef.current) rightLegRef.current.rotation.x = gait;
   });
   return (
     <group ref={groupRef} scale={resident.scale}>
@@ -246,7 +285,7 @@ function Resident({ resident, index }: { resident: typeof RESIDENTS[number]; ind
       </mesh>
       <mesh position={[0, 0.55, 0]} castShadow>
         <boxGeometry args={[0.21, 0.62, 0.24]} />
-        <meshStandardMaterial color="#47413c" roughness={0.92} />
+        <meshStandardMaterial color={index % 2 === 0 ? "#555048" : "#53636b"} roughness={0.92} />
       </mesh>
       <mesh position={[0, 1.05, 0]} castShadow>
         <boxGeometry args={[0.56, 0.8, 0.34]} />
@@ -256,14 +295,46 @@ function Resident({ resident, index }: { resident: typeof RESIDENTS[number]; ind
         <boxGeometry args={[0.38, 0.13, 0.035]} />
         <meshStandardMaterial color={resident.scarf} roughness={0.86} />
       </mesh>
-      <mesh position={[-0.36, 1.05, 0]} rotation-z={-0.08} castShadow>
-        <capsuleGeometry args={[0.105, 0.52, 3, 6]} />
-        <meshStandardMaterial color={resident.coat} roughness={0.9} />
-      </mesh>
-      <mesh position={[0.36, 1.05, 0]} rotation-z={0.08} castShadow>
-        <capsuleGeometry args={[0.105, 0.52, 3, 6]} />
-        <meshStandardMaterial color={resident.coat} roughness={0.9} />
-      </mesh>
+      <group ref={leftArmRef} position={[-0.34, 1.35, 0]}>
+        <mesh position={[0, -0.27, 0]} castShadow>
+          <capsuleGeometry args={[0.105, 0.48, 4, 7]} />
+          <meshStandardMaterial color={resident.coat} roughness={0.9} />
+        </mesh>
+        <mesh position={[0, -0.56, 0.01]}>
+          <sphereGeometry args={[0.09, 8, 6]} />
+          <meshStandardMaterial color={resident.skin} roughness={0.86} />
+        </mesh>
+      </group>
+      <group ref={rightArmRef} position={[0.34, 1.35, 0]}>
+        <mesh position={[0, -0.27, 0]} castShadow>
+          <capsuleGeometry args={[0.105, 0.48, 4, 7]} />
+          <meshStandardMaterial color={resident.coat} roughness={0.9} />
+        </mesh>
+        <mesh position={[0, -0.56, 0.01]}>
+          <sphereGeometry args={[0.09, 8, 6]} />
+          <meshStandardMaterial color={resident.skin} roughness={0.86} />
+        </mesh>
+      </group>
+      <group ref={leftLegRef} position={[-0.13, 0.56, 0]}>
+        <mesh position={[0, -0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.12, 0.42, 4, 7]} />
+          <meshStandardMaterial color={index % 3 === 0 ? "#4d514f" : "#4e5961"} roughness={0.94} />
+        </mesh>
+        <mesh position={[0, -0.49, 0.08]} castShadow>
+          <boxGeometry args={[0.22, 0.12, 0.34]} />
+          <meshStandardMaterial color="#383a38" roughness={0.96} />
+        </mesh>
+      </group>
+      <group ref={rightLegRef} position={[0.13, 0.56, 0]}>
+        <mesh position={[0, -0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.12, 0.42, 4, 7]} />
+          <meshStandardMaterial color={index % 3 === 0 ? "#4d514f" : "#4e5961"} roughness={0.94} />
+        </mesh>
+        <mesh position={[0, -0.49, 0.08]} castShadow>
+          <boxGeometry args={[0.22, 0.12, 0.34]} />
+          <meshStandardMaterial color="#383a38" roughness={0.96} />
+        </mesh>
+      </group>
       <mesh position={[0, 1.65, 0]} castShadow>
         <sphereGeometry args={[0.22, 12, 10]} />
         <meshStandardMaterial color={resident.skin} roughness={0.85} />
@@ -293,6 +364,7 @@ function CityWorld({
   inputRef,
   activeDoorId,
   onNearbyDoorChange,
+  reducedMotion = false,
 }: CityHubSceneProps) {
   const playerRef = useRef<THREE.Group>(null);
   const lastDoorIdRef = useRef<CityDoorId | null>(null);
@@ -328,15 +400,15 @@ function CityWorld({
 
   return (
     <>
-      <color attach="background" args={["#a9c9d5"]} />
-      <fog attach="fog" args={["#b4c9cb", 27, 80]} />
-      <Sky distance={450000} sunPosition={[70, 18, 45]} turbidity={9} rayleigh={1.05} mieCoefficient={0.004} mieDirectionalG={0.78} />
-      <ambientLight intensity={0.72} color="#dce8e2" />
-      <hemisphereLight args={["#d8e9f4", "#786754", 1.1]} />
+      <color attach="background" args={["#9ed5ed"]} />
+      <fog attach="fog" args={["#c9e3e9", 34, 96]} />
+      <Sky distance={450000} sunPosition={[42, 92, 32]} turbidity={5.8} rayleigh={1.7} mieCoefficient={0.003} mieDirectionalG={0.72} />
+      <ambientLight intensity={0.9} color="#e5f2ed" />
+      <hemisphereLight args={["#d8f0ff", "#9a896d", 1.25]} />
       <directionalLight
-        position={[12, 19, 7]}
-        intensity={2.05}
-        color="#ffe1ba"
+        position={[16, 30, 12]}
+        intensity={2.25}
+        color="#fff0d4"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -358,7 +430,7 @@ function CityWorld({
       ].map(([x, z], index) => <StreetTree key={`tree-${index}`} x={x} z={z} variant={index} />)}
 
       {RESIDENTS.map((resident, index) => (
-        <Resident key={`resident-${index}`} resident={resident} index={index} />
+        <Resident key={`resident-${index}`} resident={resident} index={index} reducedMotion={reducedMotion} />
       ))}
 
       <group ref={playerRef}>
@@ -394,8 +466,9 @@ function CityWorld({
 export default function CityHubScene(props: CityHubSceneProps) {
   return (
     <Canvas
+      className={props.className}
       shadows
-      dpr={[1, 1.35]}
+      dpr={props.pixelRatio ?? [1, 1.35]}
       camera={{ position: [5.2, 7.2, 9.4], fov: 49, near: 0.1, far: 110 }}
       gl={{ antialias: true, powerPreference: "low-power" }}
       onCreated={({ gl }) => {

@@ -19,14 +19,14 @@ function collectSourceFiles(directory) {
 }
 
 test("menu campaign title is generated from the campaign counts", () => {
-  assert.equal(tr.menuKicker, "KIRIK ŞAFAK · 9 PERDE");
+  assert.equal(tr.menuKicker, "EŞİK MAHALLESİ · 9 PERDE");
   assert.match(tr.menuKicker, new RegExp(`${CAMPAIGN_ACT_COUNT} PERDE`));
   assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
 });
 
 test("campaign copy changes when campaign data counts change", () => {
   const copy = getCampaignCopy(8, 400);
-  assert.equal(copy.menuKicker, "KIRIK ŞAFAK · 8 PERDE");
+  assert.equal(copy.menuKicker, "EŞİK MAHALLESİ · 8 PERDE");
   assert.match(copy.openingDescription, /8 perde/);
   assert.match(copy.openingDescription, /400 bölüm/);
   assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · ŞAFAK MÜHRÜ");
