@@ -33,7 +33,7 @@ export type OpponentCostumeStyle = {
   mask: boolean;
   helmet: boolean;
   horns: boolean;
-  shoulders: "leather" | "metal" | "fur";
+  shoulders: "leather" | "metal" | "fur" | "none";
 };
 
 export type OpponentModelAnimationState =

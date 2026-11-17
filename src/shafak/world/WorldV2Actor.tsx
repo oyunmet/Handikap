@@ -57,6 +57,7 @@ type Props = {
   tint?: string;
   animationState?: CharacterAnimationState;
   localToParent?: boolean;
+  showWeapon?: boolean;
   modelConfig?: OpponentModelConfig;
   cityAccessory?: CityNpcAccessory;
 };
@@ -91,6 +92,7 @@ export default function WorldV2Actor({
   tint,
   animationState = "idle",
   localToParent = false,
+  showWeapon = true,
   modelConfig,
   cityAccessory,
 }: Props) {
@@ -196,7 +198,7 @@ export default function WorldV2Actor({
   }, [cityAccessory, isPlayer, model, modelConfig]);
 
   useEffect(() => {
-    if (isPlayer || !modelConfig) return undefined;
+    if (isPlayer || !modelConfig || !showWeapon) return undefined;
     const hand = model.getObjectByName("FistR") ?? model.getObjectByName("Fist1R");
     if (!hand) {
       if (modelConfig.isDemirTac) {
@@ -211,7 +213,7 @@ export default function WorldV2Actor({
       hand.remove(weapon);
       disposeDuelWeapon(weapon);
     };
-  }, [isPlayer, model, modelConfig]);
+  }, [isPlayer, model, modelConfig, showWeapon]);
 
   useFrame((frame, delta) => {
     const root = rootRef.current;
@@ -310,9 +312,9 @@ export default function WorldV2Actor({
       || movementState === "HAVADA_YUKARI"
       || movementState === "HAVADA_AŞAĞI"
       || movementState === "İNİŞ";
-    const state = isPlayer
-      ? (motion.crouching || proceduralPoseState ? "idle" : animationState)
-      : "idle";
+    const state = isPlayer && (motion.crouching || proceduralPoseState)
+      ? "idle"
+      : animationState;
     const clip = resolveClip(animations, state);
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);

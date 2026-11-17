@@ -555,63 +555,65 @@ export function attachOpponentCostume(
     }
   }
 
-  for (const [side, names] of [
-    [-1, BONE_NAMES.leftShoulder],
-    [1, BONE_NAMES.rightShoulder],
-  ] as const) {
-    const shoulder = findMount(model, names);
-    const shoulderGroup = mountGroup(
-      shoulder,
-      shoulder === model
-        ? new THREE.Vector3(side * 0.25, (modelConfig.targetHeight ?? 1.8) * 0.75, 0)
-        : new THREE.Vector3(0, -0.045, 0),
-      isDemirTac ? bossGearScale : 1,
-    );
-    const pad = mesh(
-      shoulderGroup,
-      modelConfig.isBoss
-        ? new THREE.DodecahedronGeometry(0.21, 0)
-        : new THREE.SphereGeometry(style.shoulders === "fur" ? 0.155 : 0.135, 10, 7),
-      makeMaterial(style.shoulders === "fur" ? capeColor : armorColor, style.shoulders === "fur" ? 0.98 : 0.78, style.shoulders === "metal" ? 0.28 : 0.08),
-      new THREE.Vector3(0, 0, 0),
-      modelConfig.isBoss
-        ? new THREE.Vector3(1.65, 1.08, 1.4)
-        : new THREE.Vector3(1.45, 0.92, 1.2),
-    );
-    if (modelConfig.isBoss) {
-      pad.name = isDemirTac
-        ? `demir-tac-angular-pauldron-${side < 0 ? "left" : "right"}`
-        : `opponent-angular-pauldron-${side < 0 ? "left" : "right"}`;
-      const pauldronStripe = mesh(
-        shoulderGroup,
-        new THREE.BoxGeometry(0.17, 0.045, 0.025),
-        makeMaterial("#c7463f", 0.48, 0.24),
-        new THREE.Vector3(0, -0.035, 0.17),
+  if (style.shoulders !== "none") {
+    for (const [side, names] of [
+      [-1, BONE_NAMES.leftShoulder],
+      [1, BONE_NAMES.rightShoulder],
+    ] as const) {
+      const shoulder = findMount(model, names);
+      const shoulderGroup = mountGroup(
+        shoulder,
+        shoulder === model
+          ? new THREE.Vector3(side * 0.25, (modelConfig.targetHeight ?? 1.8) * 0.75, 0)
+          : new THREE.Vector3(0, -0.045, 0),
+        isDemirTac ? bossGearScale : 1,
       );
-      pauldronStripe.name = isDemirTac
-        ? `demir-tac-pauldron-mark-${side < 0 ? "left" : "right"}`
-        : `opponent-pauldron-mark-${side < 0 ? "left" : "right"}`;
-    }
-    if (style.shoulders === "metal") {
-      const spike = mesh(
+      const pad = mesh(
         shoulderGroup,
-        new THREE.ConeGeometry(0.045, 0.18, 5),
-        makeMaterial(trim, 0.72, 0.28),
-        new THREE.Vector3(side * 0.13, 0.055, 0),
+        modelConfig.isBoss
+          ? new THREE.DodecahedronGeometry(0.21, 0)
+          : new THREE.SphereGeometry(style.shoulders === "fur" ? 0.155 : 0.135, 10, 7),
+        makeMaterial(style.shoulders === "fur" ? capeColor : armorColor, style.shoulders === "fur" ? 0.98 : 0.78, style.shoulders === "metal" ? 0.28 : 0.08),
+        new THREE.Vector3(0, 0, 0),
+        modelConfig.isBoss
+          ? new THREE.Vector3(1.65, 1.08, 1.4)
+          : new THREE.Vector3(1.45, 0.92, 1.2),
       );
-      spike.rotation.z = -side * 0.55;
-    } else if (style.shoulders === "fur") {
-      for (const offset of [-0.11, 0, 0.11]) {
-        mesh(
+      if (modelConfig.isBoss) {
+        pad.name = isDemirTac
+          ? `demir-tac-angular-pauldron-${side < 0 ? "left" : "right"}`
+          : `opponent-angular-pauldron-${side < 0 ? "left" : "right"}`;
+        const pauldronStripe = mesh(
           shoulderGroup,
-          new THREE.ConeGeometry(0.055, 0.17, 5),
-          makeMaterial(capeColor, 0.98, 0.01),
-          new THREE.Vector3(offset, -0.055, 0),
-        ).rotation.z = -0.28;
+          new THREE.BoxGeometry(0.17, 0.045, 0.025),
+          makeMaterial("#c7463f", 0.48, 0.24),
+          new THREE.Vector3(0, -0.035, 0.17),
+        );
+        pauldronStripe.name = isDemirTac
+          ? `demir-tac-pauldron-mark-${side < 0 ? "left" : "right"}`
+          : `opponent-pauldron-mark-${side < 0 ? "left" : "right"}`;
       }
+      if (style.shoulders === "metal") {
+        const spike = mesh(
+          shoulderGroup,
+          new THREE.ConeGeometry(0.045, 0.18, 5),
+          makeMaterial(trim, 0.72, 0.28),
+          new THREE.Vector3(side * 0.13, 0.055, 0),
+        );
+        spike.rotation.z = -side * 0.55;
+      } else if (style.shoulders === "fur") {
+        for (const offset of [-0.11, 0, 0.11]) {
+          mesh(
+            shoulderGroup,
+            new THREE.ConeGeometry(0.055, 0.17, 5),
+            makeMaterial(capeColor, 0.98, 0.01),
+            new THREE.Vector3(offset, -0.055, 0),
+          ).rotation.z = -0.28;
+        }
+      }
+      // Keep the sphere in the scene tree so it follows the rigged shoulder joint.
+      pad.visible = true;
     }
-    // Keep the sphere in the scene tree so it follows the rigged shoulder joint.
-    pad.visible = true;
   }
 
   if (isDemirTac) {
