@@ -25,27 +25,6 @@
 }
 
 .screen--menu .menu-action--secondary { grid-column: 1; }
-.screen--menu .menu-gear-actions { grid-column: 2; }
-
-.screen--menu .menu-action--war-room {
-  display: grid;
-  width: min(26vw, 240px);
-  min-width: 180px;
-  min-height: 88px;
-  flex: none;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-  padding: 12px;
-}
-
-.screen--menu .menu-action__war-room-copy {
-  display: grid;
-  gap: 4px;
-  text-align: left;
-}
-
-.screen--menu .menu-action__war-room-copy small { font-size: 7px; }
 
 @media (max-width: 760px) and (orientation: portrait) {
   .screen--menu .menu-header {
@@ -114,30 +93,6 @@
     text-align: center;
   }
 
-  .screen--menu .menu-gear-actions {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .screen--menu .menu-gear-action {
-    min-width: 0;
-    min-height: 46px;
-    border: 1px solid rgba(222, 192, 139, .16);
-    border-radius: 4px;
-    background: rgba(9, 10, 14, .38);
-    font-size: 8px;
-    letter-spacing: .1em;
-  }
-
-  .screen--menu .menu-action--war-room {
-    width: min(100%, 460px);
-    min-width: 0;
-    min-height: 66px;
-    align-self: stretch;
-    padding: 10px 14px;
-  }
 }
 
 @media (max-width: 380px) and (orientation: portrait) {
@@ -159,18 +114,8 @@
   .screen--menu .menu-flow-card li { padding: 5px 7px; font-size: 8px; }
   .screen--menu .campaign-menu-progress { margin-bottom: 12px; padding: 8px 10px; }
   .screen--menu .menu-actions { width: min(100%, 350px); }
-  .screen--menu .menu-action--war-room {
-    width: min(26vw, 220px);
-    min-width: 180px;
-    min-height: 76px;
-    gap: 7px;
-    padding: 8px;
-    font-size: 8px;
-  }
-
   .screen--menu .menu-action--primary { min-height: 43px; padding-inline: 8px; font-size: 8px; }
   .screen--menu .menu-action__icon { width: 27px; height: 27px; }
-  .screen--menu .menu-action__war-room-copy small { font-size: 6px; }
   .scene-character {
     left: 41vw;
     right: auto;
@@ -190,11 +135,9 @@
   .screen--menu .menu-copy { width: 62%; flex-basis: 62%; }
   .screen--menu .menu-flow-card { width: 34%; padding: 8px; gap: 5px; }
   .screen--menu .menu-flow-card li { padding: 4px 5px; font-size: 7px; }
-  .screen--menu .menu-action--war-room { width: 150px; min-width: 150px; }
   .screen--menu .menu-actions { gap: 5px; }
   .screen--menu .menu-action--primary { min-height: 38px; font-size: 7px; }
-  .screen--menu .menu-action--secondary,
-  .screen--menu .menu-gear-action { min-height: 29px; font-size: 6px; }
+  .screen--menu .menu-action--secondary { min-height: 29px; font-size: 6px; }
   .scene-character { left: 45vw; width: 25vw; height: 82dvh; opacity: .72; }
   .scene-character img { height: 100%; }
 }
@@ -211,10 +154,8 @@
   .screen--menu .campaign-menu-progress { margin-top: 12px; }
   .screen--menu .menu-copy > p { margin-block: 6px 8px; line-height: 1.4; }
   .screen--menu .campaign-menu-progress { margin-bottom: 6px; padding: 6px 8px; }
-  .screen--menu .menu-action--war-room { min-height: 60px; }
   .screen--menu .menu-action--primary { min-height: 34px; }
-  .screen--menu .menu-action--secondary,
-  .screen--menu .menu-gear-action { min-height: 28px; }
+  .screen--menu .menu-action--secondary { min-height: 28px; }
 }
 
 /* Campaign lobby — an illustrated field journal, with the War Room as its echo. */
@@ -383,8 +324,7 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, .25), inset 0 1px rgba(255, 241, 214, .14);
 }
 
-.screen--menu .menu-action--secondary,
-.screen--menu .menu-gear-action {
+.screen--menu .menu-action--secondary {
   border-radius: 2px;
 }
 
@@ -392,117 +332,6 @@
   color: rgba(239, 226, 204, .8);
   font-size: 9px;
   letter-spacing: .13em;
-}
-
-.screen--menu .menu-action--city {
-  grid-column: 1 / -1;
-  display: grid;
-  justify-items: start;
-  gap: 5px;
-  min-height: 52px;
-  padding: 10px 14px;
-  border: 1px solid rgba(205, 166, 105, .48);
-  background: linear-gradient(110deg, rgba(63, 57, 45, .76), rgba(39, 43, 41, .72));
-  color: #f2d28f;
-  text-align: left;
-  letter-spacing: .1em;
-}
-
-.screen--menu .menu-action--city small {
-  color: rgba(239, 226, 204, .72);
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: .02em;
-}
-
-.screen--menu .menu-action--city:hover,
-.screen--menu .menu-action--city:focus-visible {
-  border-color: rgba(238, 199, 126, .88);
-  background: linear-gradient(110deg, rgba(93, 72, 46, .9), rgba(46, 53, 51, .86));
-}
-
-.screen--menu .menu-gear-actions {
-  gap: 6px;
-}
-
-.screen--menu .menu-gear-action {
-  min-height: 42px;
-  background: rgba(13, 15, 19, .7);
-  color: rgba(239, 223, 195, .8);
-  font-size: 8px;
-}
-
-.screen--menu .menu-action--war-room {
-  display: grid;
-  width: min(100%, 310px);
-  min-width: 0;
-  min-height: 190px;
-  grid-template-columns: 38px minmax(0, 1fr) 18px;
-  align-content: center;
-  gap: 14px;
-  padding: 22px 19px;
-  border: 1px solid rgba(201, 117, 79, .5);
-  border-left: 2px solid rgba(207, 124, 78, .87);
-  border-radius: 2px;
-  background:
-    linear-gradient(140deg, rgba(47, 30, 27, .86), rgba(14, 15, 18, .87)),
-    repeating-linear-gradient(0deg, transparent 0 24px, rgba(226, 184, 135, .025) 25px 26px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 225, 192, .07);
-}
-
-.screen--menu .menu-action--war-room:hover {
-  border-color: rgba(231, 158, 105, .85);
-  background:
-    linear-gradient(140deg, rgba(68, 39, 31, .92), rgba(19, 17, 18, .91)),
-    repeating-linear-gradient(0deg, transparent 0 24px, rgba(226, 184, 135, .025) 25px 26px);
-}
-
-.screen--menu .menu-action--war-room .menu-action__icon {
-  width: 36px;
-  height: 36px;
-  border-color: rgba(224, 149, 93, .58);
-  border-radius: 50%;
-  color: #e9a873;
-  font-size: 0;
-}
-
-.screen--menu .menu-action--war-room .menu-action__icon::before {
-  display: none;
-}
-
-.screen--menu .menu-action--war-room .menu-action__icon svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-}
-
-.screen--menu .menu-action__war-room-copy {
-  gap: 8px;
-}
-
-.screen--menu .menu-action__war-room-copy small {
-  color: rgba(228, 185, 145, .69);
-  font-size: 8px;
-  letter-spacing: .13em;
-}
-
-.screen--menu .menu-action__war-room-copy b {
-  color: #f6e3c9;
-  font-family: var(--font-display);
-  font-size: 15px;
-  letter-spacing: .1em;
-}
-
-.screen--menu .menu-action__war-room-arrow {
-  align-self: center;
-  color: #e9a873;
-  font-size: 0;
-}
-
-.screen--menu .menu-action__war-room-arrow svg {
-  display: block;
-  width: 18px;
-  height: 18px;
 }
 
 .screen--menu .menu-footer {
@@ -630,39 +459,6 @@
     min-height: 41px;
   }
 
-  .screen--menu .menu-gear-actions {
-    grid-column: 1;
-  }
-
-  .screen--menu .menu-gear-action {
-    min-height: 40px;
-    font-size: 7px;
-  }
-
-  .screen--menu .menu-action--war-room {
-    width: min(100%, 520px);
-    min-height: 76px;
-    grid-template-columns: 32px minmax(0, 1fr) 18px;
-    gap: 10px;
-    padding: 12px 14px;
-  }
-
-  .screen--menu .menu-action--war-room .menu-action__icon {
-    width: 30px;
-    height: 30px;
-  }
-
-  .screen--menu .menu-action__war-room-copy {
-    gap: 4px;
-  }
-
-  .screen--menu .menu-action__war-room-copy b {
-    font-size: 12px;
-  }
-
-  .screen--menu .menu-action__war-room-copy small {
-    font-size: 7px;
-  }
 }
 
 @media (max-width: 380px) {
@@ -775,30 +571,11 @@
   box-shadow: 0 8px 18px rgba(183, 111, 62, .2);
 }
 
-.screen--menu .menu-action--secondary,
-.screen--menu .menu-gear-action,
-.screen--menu .menu-action--war-room {
+.screen--menu .menu-action--secondary {
   border-color: rgba(77, 145, 140, .32);
   background: rgba(255, 255, 255, .82);
   color: #285255;
   box-shadow: 0 7px 18px rgba(37, 76, 79, .12);
-}
-
-.screen--menu .menu-action--war-room {
-  background: linear-gradient(135deg, rgba(255, 249, 233, .98), rgba(221, 241, 228, .96));
-}
-
-.screen--menu .menu-action--war-room:hover {
-  border-color: #55a6a3;
-  background: linear-gradient(135deg, #fff7df, #d5eee7);
-}
-
-.screen--menu .menu-action__war-room-copy small {
-  color: #60817d;
-}
-
-.screen--menu .menu-action__war-room-copy b {
-  color: #244c4d;
 }
 
 @media (max-width: 760px) and (orientation: portrait) {
@@ -874,22 +651,8 @@
     padding-inline: 14px;
   }
 
-  .screen--menu .menu-action--city {
-    min-height: 44px;
-    gap: 3px;
-    padding: 8px 11px;
-  }
-
-  .screen--menu .menu-action--secondary:not(.menu-action--city) {
+  .screen--menu .menu-action--secondary {
     min-height: 36px;
-  }
-
-  .screen--menu .menu-gear-action {
-    min-height: 34px;
-  }
-
-  .screen--menu .menu-action--war-room {
-    min-height: 150px;
   }
 
   .screen--menu .menu-footer,
@@ -991,7 +754,7 @@
   .screen--menu .campaign-menu-progress__track { height: 3px; }
 
   .screen--menu .menu-actions {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
     width: 100%;
   }
@@ -1003,57 +766,12 @@
     font-size: 8px;
   }
 
-  .screen--menu .menu-action--city {
-    grid-column: 1 / -1;
-    min-height: 30px;
-    justify-items: center;
-    gap: 0;
-    padding: 4px 7px;
-    font-size: 8px;
-    text-align: center;
-  }
-
-  .screen--menu .menu-action--city small { display: none; }
-
-  .screen--menu .menu-action--secondary:not(.menu-action--city) {
-    grid-column: 1;
+  .screen--menu .menu-action--secondary {
+    grid-column: auto;
     min-height: 30px;
     padding: 3px 4px;
     font-size: 7px;
-    white-space: nowrap;
   }
-
-  .screen--menu .menu-gear-actions {
-    grid-column: 2 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .screen--menu .menu-gear-action {
-    min-height: 30px;
-    padding-inline: 2px;
-    font-size: 7px;
-    white-space: nowrap;
-  }
-
-  .screen--menu .menu-action--war-room {
-    width: min(100%, 190px);
-    min-width: 0;
-    min-height: 64px;
-    grid-template-columns: 22px minmax(0, 1fr) 12px;
-    gap: 6px;
-    padding: 7px;
-  }
-
-  .screen--menu .menu-action--war-room .menu-action__icon {
-    width: 22px;
-    height: 22px;
-  }
-
-  .screen--menu .menu-action__war-room-copy { gap: 3px; }
-  .screen--menu .menu-action__war-room-copy small { font-size: 5px; }
-  .screen--menu .menu-action__war-room-copy b { font-size: 9px; }
-  .screen--menu .menu-action__war-room-arrow svg { width: 12px; height: 12px; }
 
   .screen--menu .menu-footer,
   .screen--menu .production-credit {

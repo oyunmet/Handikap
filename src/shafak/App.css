@@ -798,29 +798,6 @@
   gap: 12px;
 }
 
-.menu-gear-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.menu-gear-action {
-  min-height: 38px;
-  padding: 0 5px;
-  border: 1px solid rgba(224, 188, 126, 0.24);
-  border-radius: 4px;
-  background: rgba(22, 20, 19, 0.56);
-  color: rgba(241, 222, 190, 0.84);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-}
-
-.menu-gear-action:hover {
-  border-color: rgba(246, 216, 164, 0.72);
-  color: #fff0d2;
-}
-
 .game-build-stamp {
   color: rgba(231, 215, 189, 0.42);
   font: 700 7px/1.4 var(--font-body, sans-serif);
@@ -889,53 +866,6 @@
   border-color: rgba(246, 216, 164, 0.92);
   background: linear-gradient(110deg, rgba(138, 92, 49, 0.75), rgba(38, 29, 24, 0.84));
   color: #fff0d2;
-}
-
-.menu-action--war-room {
-  min-height: 55px;
-  border: 1px solid rgba(215, 119, 73, 0.56);
-  border-radius: 4px;
-  background: linear-gradient(105deg, rgba(99, 45, 33, 0.8), rgba(35, 25, 24, 0.84));
-  color: #f0d8bd;
-  text-align: left;
-  backdrop-filter: blur(9px);
-}
-
-.menu-action--war-room:hover {
-  transform: translateY(-2px);
-  border-color: rgba(238, 155, 95, 0.88);
-  background: linear-gradient(105deg, rgba(128, 56, 39, 0.88), rgba(47, 30, 25, 0.9));
-  color: #fff0d2;
-}
-
-.menu-action--war-room .menu-action__icon {
-  color: #e9a45f;
-  font-size: 16px;
-}
-
-.menu-action__war-room-copy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.menu-action__war-room-copy b {
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.16em;
-}
-
-.menu-action__war-room-copy small {
-  color: rgba(232, 208, 178, 0.62);
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-
-.menu-action__war-room-arrow {
-  color: #e8ad70;
-  font-size: 15px;
 }
 
 .menu-action--primary > svg {
