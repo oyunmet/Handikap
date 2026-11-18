@@ -4,6 +4,9 @@
   --game-button-bright: #dca958;
   --game-button-mid: #9b6738;
   --game-button-dark: #35251f;
+  --game-button-surface: #f0d8a5;
+  --game-button-surface-shade: #a67849;
+  --game-button-ink: #332115;
   position: relative;
   display: grid;
   width: 96px;
@@ -32,26 +35,41 @@
   --game-button-bright: #c7a980;
   --game-button-mid: #78624b;
   --game-button-dark: #302821;
+  --game-button-surface: #e5d9c8;
+  --game-button-surface-shade: #8b7861;
+  --game-button-ink: #30251c;
 }
 .game-button[data-tone="copper"] {
   --game-button-bright: #e5ae62;
   --game-button-mid: #a25532;
   --game-button-dark: #3a211c;
+  --game-button-surface: #f3c394;
+  --game-button-surface-shade: #a85a3a;
+  --game-button-ink: #3c1e14;
 }
 .game-button[data-tone="gold"] {
   --game-button-bright: #ffe18a;
   --game-button-mid: #b78532;
   --game-button-dark: #49321a;
+  --game-button-surface: #f7e5ad;
+  --game-button-surface-shade: #b98c43;
+  --game-button-ink: #3c2b16;
 }
 .game-button[data-tone="teal"] {
   --game-button-bright: #a9e9dc;
   --game-button-mid: #448f83;
   --game-button-dark: #183b3c;
+  --game-button-surface: #c4eee5;
+  --game-button-surface-shade: #538e83;
+  --game-button-ink: #123a36;
 }
 .game-button[data-tone="sky"] {
   --game-button-bright: #c6f4ff;
   --game-button-mid: #4c9cba;
   --game-button-dark: #1d344a;
+  --game-button-surface: #d5f0f7;
+  --game-button-surface-shade: #5d96ad;
+  --game-button-ink: #18374a;
 }
 
 .game-button::before,
@@ -62,7 +80,7 @@
 .game-button__ripple {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: 50% / 43%;
   pointer-events: none;
 }
 .game-button__bezel {
@@ -81,12 +99,12 @@
   overflow: hidden;
   border: 1px solid rgba(255,240,201,.74);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.32), transparent 32%),
-    radial-gradient(ellipse at 50% 22%, rgba(255,239,193,.26), transparent 56%),
-    linear-gradient(150deg, #74503b 0%, var(--game-button-dark) 53%, #1b191a 100%);
+    linear-gradient(180deg, rgba(255,255,255,.8), rgba(255,255,255,.16) 27%, transparent 52%),
+    repeating-conic-gradient(from -8deg, rgba(255,255,255,.13) 0deg 2deg, transparent 2deg 14deg),
+    radial-gradient(ellipse at 50% 40%, var(--game-button-surface) 0%, var(--game-button-surface-shade) 100%);
   box-shadow:
-    inset 0 2px 4px rgba(255,255,255,.32),
-    inset 0 -8px 13px rgba(0,0,0,.6),
+    inset 0 2px 4px rgba(255,255,255,.72),
+    inset 0 -7px 11px rgba(31,20,14,.34),
     0 0 0 2px rgba(40,24,17,.7);
 }
 .game-button__sheen::before {
@@ -99,6 +117,21 @@
   background: linear-gradient(180deg, rgba(255,255,255,.58), rgba(255,255,255,.08) 72%, transparent);
   content: "";
   filter: blur(.3px);
+}
+.game-button__sheen::after {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(255,255,255,.48);
+  border-radius: inherit;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255,255,255,.2) 0deg 1.5deg,
+    transparent 1.5deg 18deg
+  );
+  content: "";
+  opacity: .5;
+  -webkit-mask: radial-gradient(circle, transparent 48%, #000 50%);
+  mask: radial-gradient(circle, transparent 48%, #000 50%);
 }
 .game-button__cooldown {
   inset: max(7px, calc((100% - var(--game-button-face)) / 2 + 7px));
@@ -125,26 +158,26 @@
   justify-items: center;
   gap: 2px;
   padding: 9px 7px 8px;
-  color: #fff2d8;
-  text-shadow: 0 1px 1px #291813, 0 2px 0 rgba(32,16,11,.9), 0 0 9px rgba(255,207,123,.42);
+  color: var(--game-button-ink);
+  text-shadow: 0 1px 1px rgba(255,255,255,.75);
 }
 .game-button__icon {
   width: clamp(20px, calc(var(--game-button-face) * .32), 31px);
   height: clamp(20px, calc(var(--game-button-face) * .32), 31px);
-  fill: rgba(255,233,189,.12);
+  fill: rgba(255,255,255,.2);
   stroke: currentColor;
   stroke-width: 2.25;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.72));
+  filter: drop-shadow(0 1px 1px rgba(255,255,255,.42));
 }
 .game-button__label {
   max-width: 100%;
-  color: #fff2d8;
+  color: var(--game-button-ink);
   font: 1000 clamp(7px, calc(var(--game-button-face) * .105), 10px)/1 var(--font-body, sans-serif);
   letter-spacing: .06em;
-  -webkit-text-stroke: .45px #341c13;
-  text-shadow: 0 1px 1px #291813, 0 2px 0 #271813, 0 0 8px rgba(255,210,130,.36);
+  -webkit-text-stroke: .2px rgba(255,255,255,.56);
+  text-shadow: 0 1px 1px rgba(255,255,255,.65);
 }
 .game-button__hint {
   position: absolute;

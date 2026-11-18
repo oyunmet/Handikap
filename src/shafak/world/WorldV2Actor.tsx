@@ -31,6 +31,7 @@ import {
 } from "./opponent-costume";
 import {
   createDuelWeapon,
+  createDuelShield,
   disposeDuelWeapon,
   normalizeDuelWeaponWorldSize,
   getDuelWeaponTargetWorldDimension,
@@ -249,6 +250,27 @@ export default function WorldV2Actor({
       disposeDuelWeapon(weapon);
     };
   }, [equipmentVisual, isPlayer, model, showWeapon]);
+
+  useEffect(() => {
+    if (!isPlayer || !equipmentVisual?.shieldStyle) return undefined;
+    const mount = [
+      "Rig_LeftForearm",
+      "LowerArm.L",
+      "LeftForeArm",
+      "LeftForearm",
+      "FistL",
+      "LeftHand",
+    ].map((name) => model.getObjectByName(name)).find(Boolean);
+    if (!mount) return undefined;
+    const shield = createDuelShield(equipmentVisual);
+    mount.add(shield);
+    shield.position.set(0, 0.04, 0.025);
+    normalizeDuelWeaponWorldSize(shield, 0.82);
+    return () => {
+      mount.remove(shield);
+      disposeDuelWeapon(shield);
+    };
+  }, [equipmentVisual, isPlayer, model]);
 
   useFrame((frame, delta) => {
     const root = rootRef.current;

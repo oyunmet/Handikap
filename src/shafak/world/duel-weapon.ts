@@ -71,14 +71,34 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
   const handle = (length: number, y = 0) => {
     add(new THREE.CylinderGeometry(0.035, 0.045, length, 7), leather, [0, y, 0]);
     add(new THREE.CylinderGeometry(0.047, 0.047, 0.035, 8), trim, [0, y - length * 0.42, 0]);
+    add(new THREE.CylinderGeometry(0.046, 0.046, 0.018, 8), trim, [0, y + length * 0.3, 0]);
   };
   const blade = (length: number, width: number, y: number) => {
-    add(new THREE.BoxGeometry(width, length, 0.045), steel, [0, y, 0]);
-    add(
-      new THREE.ConeGeometry(width * 0.48, Math.max(0.1, length * 0.2), 4),
+    const profile = new THREE.Shape();
+    profile.moveTo(-width * 0.45, -length * 0.5);
+    profile.lineTo(-width * 0.34, length * 0.25);
+    profile.lineTo(0, length * 0.62);
+    profile.lineTo(width * 0.34, length * 0.25);
+    profile.lineTo(width * 0.45, -length * 0.5);
+    profile.closePath();
+    const bladeMesh = add(
+      new THREE.ExtrudeGeometry(profile, {
+        depth: 0.045,
+        bevelEnabled: true,
+        bevelSegments: 1,
+        steps: 1,
+        bevelSize: Math.min(0.012, width * 0.08),
+        bevelThickness: 0.012,
+      }),
       steel,
-      [0, y + length * 0.59, 0],
+      [0, y, -0.022],
     );
+    bladeMesh.geometry.computeVertexNormals();
+    add(new THREE.BoxGeometry(Math.max(0.012, width * 0.055), length * 0.52, 0.012), trim, [
+      0,
+      y + length * 0.06,
+      0.034,
+    ]);
   };
 
   root.scale.setScalar(style === "greatsword" ? 0.58 : style === "spear" || style === "staff" || style === "crossbow" ? 0.54 : 0.56);
@@ -156,6 +176,104 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
     add(new THREE.BoxGeometry(0.025, 0.38, 0.014), crystal, [0, 0.51, 0.03]);
   }
 
+  return root;
+}
+
+function createShieldShape(style: NonNullable<EquipmentVisual["shieldStyle"]>) {
+  const shape = new THREE.Shape();
+  if (style === "tower") {
+    shape.moveTo(-0.46, 0.55);
+    shape.lineTo(0.46, 0.55);
+    shape.lineTo(0.38, -0.13);
+    shape.quadraticCurveTo(0.32, -0.42, 0, -0.62);
+    shape.quadraticCurveTo(-0.32, -0.42, -0.38, -0.13);
+  } else {
+    shape.moveTo(0, 0.52);
+    shape.bezierCurveTo(0.28, 0.52, 0.48, 0.32, 0.48, 0.03);
+    shape.bezierCurveTo(0.48, -0.27, 0.27, -0.5, 0, -0.52);
+    shape.bezierCurveTo(-0.27, -0.5, -0.48, -0.27, -0.48, 0.03);
+    shape.bezierCurveTo(-0.48, 0.32, -0.28, 0.52, 0, 0.52);
+  }
+  shape.closePath();
+  return shape;
+}
+
+/** Creates a rig-mounted shield whose heraldic face is visible from either side. */
+export function createDuelShield(appearance: EquipmentVisual = {}) {
+  const root = new THREE.Group();
+  root.name = "equipped-duel-shield";
+  const shape = createShieldShape(appearance.shieldStyle ?? "round");
+  const metal = new THREE.MeshStandardMaterial({
+    color: appearance.shieldColor ?? "#65717a",
+    roughness: 0.38,
+    metalness: 0.62,
+  });
+  const enamel = new THREE.MeshStandardMaterial({
+    color: appearance.armor ?? appearance.shieldColor ?? "#65717a",
+    roughness: 0.48,
+    metalness: 0.32,
+    side: THREE.DoubleSide,
+  });
+  const trim = new THREE.MeshStandardMaterial({
+    color: appearance.trim ?? "#d2bd87",
+    roughness: 0.3,
+    metalness: 0.78,
+  });
+  const gem = new THREE.MeshStandardMaterial({
+    color: appearance.auraColor ?? "#e4bf72",
+    emissive: appearance.auraColor ?? "#9a6228",
+    emissiveIntensity: 0.24,
+    metalness: 0.22,
+    roughness: 0.24,
+  });
+  const plate = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.085,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    steps: 1,
+    bevelSize: 0.025,
+    bevelThickness: 0.02,
+    curveSegments: 12,
+  });
+  addMesh(root, plate, metal, [0, 0, -0.0425]);
+
+  const faceShape = createShieldShape(appearance.shieldStyle ?? "round");
+  const faceGeometry = new THREE.ShapeGeometry(faceShape, 16);
+  for (const side of [-1, 1]) {
+    const face = addMesh(root, faceGeometry.clone(), enamel, [0, 0, side * 0.048]);
+    face.scale.set(0.8, 0.8, 1);
+    const medallion = addMesh(root, new THREE.TorusGeometry(0.25, 0.018, 5, 20), trim, [
+      0,
+      0.025,
+      side * 0.058,
+    ]);
+    medallion.rotation.set(0, side < 0 ? Math.PI : 0, 0);
+    const crest = addMesh(root, new THREE.OctahedronGeometry(0.115, 0), gem, [
+      0,
+      0.025,
+      side * 0.074,
+    ]);
+    crest.scale.set(0.82, 1.3, 0.48);
+    addMesh(root, new THREE.BoxGeometry(0.035, 0.5, 0.016), trim, [
+      0,
+      0.02,
+      side * 0.064,
+    ]);
+    addMesh(root, new THREE.BoxGeometry(0.36, 0.03, 0.016), trim, [
+      0,
+      0.02,
+      side * 0.064,
+    ]);
+    for (const x of [-0.3, 0.3]) {
+      const rivet = addMesh(root, new THREE.SphereGeometry(0.035, 8, 6), trim, [
+        x,
+        0.31,
+        side * 0.065,
+      ]);
+      rivet.scale.set(1, 1, 0.42);
+    }
+  }
+  root.rotation.z = -0.08;
   return root;
 }
 

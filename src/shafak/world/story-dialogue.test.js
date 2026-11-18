@@ -29,7 +29,11 @@ test("chapter dialogue uses the active act story and campaign progress", async (
   const firstActLevel = await loadCampaignLevelData(0);
   const secondActLevel = await loadCampaignLevelData(CAMPAIGN_LEVELS_PER_ACT);
   const finalLevel = await loadCampaignLevelData(CAMPAIGN_LEVEL_COUNT - 1);
-  const first = getChapterStoryDialogue(firstActLevel.chapterId, firstActLevel.storySummary);
+  const first = getChapterStoryDialogue(
+    firstActLevel.chapterId,
+    firstActLevel.storySummary,
+    firstActLevel.objective,
+  );
   const second = getChapterStoryDialogue(secondActLevel.chapterId, secondActLevel.storySummary);
   const final = getChapterStoryDialogue(finalLevel.chapterId, finalLevel.storySummary);
 
@@ -37,6 +41,7 @@ test("chapter dialogue uses the active act story and campaign progress", async (
   assert.match(second.title, /AYAZ GEÇİDİ · PERDE 2 · BÖLÜM 51/);
   assert.match(final.title, new RegExp(`AYNASIZ SARAY · PERDE ${CAMPAIGN_ACT_COUNT} · BÖLÜM ${CAMPAIGN_LEVEL_COUNT}`));
   assert.match(first.lines[0], /Fırıncı/);
+  assert.equal(first.lines[1], `Bu bölümün hedefi: ${firstActLevel.objective}`);
   assert.match(final.hint, new RegExp(`Perde ${CAMPAIGN_ACT_COUNT}/${CAMPAIGN_ACT_COUNT} · Bölüm ${CAMPAIGN_LEVEL_COUNT}/${CAMPAIGN_LEVEL_COUNT}`));
 });
 

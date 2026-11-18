@@ -38,6 +38,7 @@ import { getKnightActorLocalPosition } from "./knight-actor-transform";
 import { posePlayerRig, rigPlayerModel } from "./player-skeletal-rig";
 import {
   createDuelWeapon,
+  createDuelShield,
   disposeDuelWeapon,
   getDuelWeaponTargetWorldDimension,
   normalizeDuelWeaponWorldSize,
@@ -459,6 +460,17 @@ function OptionalGlbKnight({
           "DEF-handR",
         ].map((name) => model.getObjectByName(name)).find(Boolean)
     : undefined;
+  const equippedShieldMount = playerCharacter && weaponAppearance?.shieldStyle
+    ? [
+      "Rig_LeftForearm",
+      "mixamorigLeftForeArm",
+      "LowerArm.L",
+      "LeftForeArm",
+      "LeftForearm",
+      "FistL",
+      "LeftHand",
+    ].map((name) => model.getObjectByName(name)).find(Boolean)
+    : undefined;
   useEffect(() => {
     if (!equippedHand) return undefined;
     const weapon = createDuelWeapon(weaponAppearance);
@@ -477,6 +489,24 @@ function OptionalGlbKnight({
     weaponAppearance?.trim,
     weaponAppearance?.weaponColor,
     weaponAppearance?.weaponStyle,
+  ]);
+  useEffect(() => {
+    if (!equippedShieldMount || !weaponAppearance?.shieldStyle) return undefined;
+    const shield = createDuelShield(weaponAppearance);
+    equippedShieldMount.add(shield);
+    shield.position.set(0, 0.04, 0.025);
+    normalizeDuelWeaponWorldSize(shield, 0.82);
+    return () => {
+      equippedShieldMount.remove(shield);
+      disposeDuelWeapon(shield);
+    };
+  }, [
+    equippedShieldMount,
+    weaponAppearance?.armor,
+    weaponAppearance?.auraColor,
+    weaponAppearance?.shieldColor,
+    weaponAppearance?.shieldStyle,
+    weaponAppearance?.trim,
   ]);
   const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
   useEffect(() => {

@@ -13,6 +13,7 @@ import {
 } from "./procedural-hero";
 import {
   createDuelWeapon,
+  createDuelShield,
   disposeDuelWeapon,
   normalizeDuelWeaponWorldSize,
 } from "./duel-weapon";
@@ -68,6 +69,10 @@ export default function ProceduralHero({
       appearanceKey,
     ],
   );
+  const equippedShield = useMemo(
+    () => appearance?.shieldStyle ? createDuelShield(appearance) : null,
+    [appearanceKey],
+  );
 
   useEffect(() => () => {
     disposeProceduralHeroRig(rig);
@@ -85,6 +90,17 @@ export default function ProceduralHero({
       disposeDuelWeapon(equippedWeapon);
     };
   }, [appearance?.weaponStyle, equippedWeapon, rig]);
+
+  useEffect(() => {
+    if (!equippedShield) return undefined;
+    rig.leftHand.add(equippedShield);
+    equippedShield.position.set(0, 0.04, 0.025);
+    normalizeDuelWeaponWorldSize(equippedShield, 0.82);
+    return () => {
+      rig.leftHand.remove(equippedShield);
+      disposeDuelWeapon(equippedShield);
+    };
+  }, [equippedShield, rig]);
 
   useFrame((frame, delta) => {
     if (animationPaused) return;

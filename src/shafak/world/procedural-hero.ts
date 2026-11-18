@@ -19,6 +19,7 @@ export type ProceduralHeroRig = {
   rightArm: THREE.Group;
   leftElbow: THREE.Group;
   rightElbow: THREE.Group;
+  leftHand: THREE.Group;
   rightHand: THREE.Group;
   geometries: Set<THREE.BufferGeometry>;
   materials: Set<THREE.Material>;
@@ -135,6 +136,7 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
     rightArm: new THREE.Group(),
     leftElbow: new THREE.Group(),
     rightElbow: new THREE.Group(),
+    leftHand: new THREE.Group(),
     rightHand: new THREE.Group(),
     geometries: new Set<THREE.BufferGeometry>(),
     materials,
@@ -353,7 +355,10 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
     const hand = group(elbow, side < 0 ? "LeftHand" : "RightHand", [0, -0.25, 0]);
     addSphere(hand, 0.065, glove, [0, -0.025, 0], rig, [0.88, 0.92, 0.8]);
     addBox(hand, [0.055, 0.035, 0.065], steel, [0, 0.005, 0.025], rig);
-    if (side > 0) {
+    if (side < 0) {
+      rig.leftHand.position.set(0, -0.025, 0.015);
+      hand.add(rig.leftHand);
+    } else {
       rig.rightHand.position.set(0, -0.025, 0.015);
       hand.add(rig.rightHand);
     }

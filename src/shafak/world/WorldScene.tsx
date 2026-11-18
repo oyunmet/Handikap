@@ -1213,7 +1213,11 @@ export default function WorldScene({
     if (currentChapterId <= storyChapterRef.current) return;
     if (currentChapterId % CAMPAIGN_LEVELS_PER_ACT !== 0) return;
     storyChapterRef.current = currentChapterId;
-    showStoryDialogue(getChapterStoryDialogue(currentChapterId, activeCampaignLevel.storySummary));
+    showStoryDialogue(getChapterStoryDialogue(
+      currentChapterId,
+      activeCampaignLevel.storySummary,
+      activeCampaignLevel.objective,
+    ));
   }, [activeCampaignLevel, currentChapterId, panel, showStoryDialogue]);
 
   useEffect(() => {

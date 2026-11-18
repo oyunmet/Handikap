@@ -39,7 +39,11 @@ export function getOpeningStoryDialogue(): StoryDialogue {
   };
 }
 
-export function getChapterStoryDialogue(chapterId: number, storySummary?: string): StoryDialogue {
+export function getChapterStoryDialogue(
+  chapterId: number,
+  storySummary?: string,
+  objective?: string,
+): StoryDialogue {
   const safeChapter = clampCampaignChapterId(chapterId);
   const actNumber = Math.floor(safeChapter / CAMPAIGN_LEVELS_PER_ACT) + 1;
   const levelNumber = getCampaignLevelNumber(safeChapter);
@@ -51,7 +55,9 @@ export function getChapterStoryDialogue(chapterId: number, storySummary?: string
     speaker: "YOL KILAVUZU",
     lines: [
       storySummary?.trim() || `${region.name} yolunda prensesin izini sür.`,
-      `${CAMPAIGN_ACT_COUNT} perdelik yolculuğun ${levelNumber}. bölümündesin; Mühür Parçalarını koru.`,
+      objective?.trim()
+        ? `Bu bölümün hedefi: ${objective.trim()}`
+        : `${CAMPAIGN_ACT_COUNT} perdelik yolculuğun ${levelNumber}. bölümündesin; Mühür Parçalarını koru.`,
     ],
     hint: `Perde ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${levelNumber}/${CAMPAIGN_LEVEL_COUNT}. Mühür Parçalarını birleştir.`,
   };

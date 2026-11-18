@@ -208,17 +208,32 @@ function WorldV2Obstacle({
         <group position={[0, 0, 0]}>
           <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <boxGeometry args={[WORLD_V2_CONFIG.spikeTrap.width, WORLD_V2_CONFIG.spikeTrap.height, 0.08]} />
-            <meshStandardMaterial color="#342c28" roughness={0.94} />
+            <meshStandardMaterial color="#493d35" roughness={0.78} metalness={0.28} />
           </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * 1.46, 0.085, 0.025]}>
+              <boxGeometry args={[0.045, 0.045, 0.13]} />
+              <meshStandardMaterial color="#d7ad62" metalness={0.72} roughness={0.3} />
+            </mesh>
+          ))}
           {Array.from({ length: 9 }, (_, index) => {
             const x = -1.3 + index * 0.325;
             return (
               <mesh key={index} ref={markCollision} position={[x, 0.25, 0]} rotation={[0, 0, (index % 2 ? -1 : 1) * 0.12]}>
                 <coneGeometry args={[0.095, 0.42, 5]} />
-                <meshStandardMaterial color={index % 2 ? "#8c7560" : "#67584b"} roughness={0.9} flatShading />
+                <meshStandardMaterial
+                  color={index % 2 ? "#b59b7a" : "#776452"}
+                  roughness={0.46}
+                  metalness={0.64}
+                  flatShading
+                />
               </mesh>
             );
           })}
+          <mesh position={[0, 0.1, 0.1]} rotation={[0.35, 0, Math.PI / 4]}>
+            <octahedronGeometry args={[0.11, 0]} />
+            <meshStandardMaterial color="#f2d28e" emissive="#8a5524" emissiveIntensity={0.35} metalness={0.55} />
+          </mesh>
           <WorldV2Label position={[0, 0.72, 0]} maxDistance={30}>DİKENLİ TUZAK · ZIPLA</WorldV2Label>
         </group>
       )}
@@ -238,9 +253,15 @@ function WorldV2Obstacle({
           {[-0.62, 0, 0.62].map((x) => (
             <mesh key={x} position={[x, 1.49, 0.13]}>
               <boxGeometry args={[0.12, 0.1, 0.025]} />
-              <meshStandardMaterial color="#efb654" emissive="#9b592f" emissiveIntensity={0.25} />
+              <meshStandardMaterial color="#f2ce79" emissive="#b46f32" emissiveIntensity={0.32} metalness={0.55} />
             </mesh>
           ))}
+          {[-1, 1].flatMap((side) => [0.24, 0.72].map((y) => (
+            <mesh key={`${side}:${y}`} position={[side * 1.42, y, 0.105]}>
+              <boxGeometry args={[0.205, 0.035, 0.025]} />
+              <meshStandardMaterial color="#c49a5b" metalness={0.68} roughness={0.35} />
+            </mesh>
+          )))}
           <WorldV2Label position={[0, 1.9, 0]} maxDistance={30}>ALÇAK KİRİŞ · EĞİL</WorldV2Label>
         </group>
       )}
@@ -267,26 +288,60 @@ function WorldV2Obstacle({
             </group>
           )}
           <group ref={rockRef} visible={!falling} position={[0, 0.65, 0]}>
-            <mesh ref={markCollision} scale={[rockScaleX, 0.65, 1]}>
-              <icosahedronGeometry args={[1, 0]} />
-              <primitive object={rockMaterial} attach="material" />
-            </mesh>
+            <group scale={[rockScaleX, 0.65, 1]}>
+              <mesh ref={markCollision}>
+                <icosahedronGeometry args={[1, 0]} />
+                <primitive object={rockMaterial} attach="material" />
+              </mesh>
+              <mesh position={[-0.16, 0.16, 0.88]} rotation={[0, 0, -0.5]}>
+                <boxGeometry args={[0.24, 0.026, 0.018]} />
+                <meshStandardMaterial color="#e3a15e" emissive="#9c4b27" emissiveIntensity={0.32} roughness={0.52} />
+              </mesh>
+              <mesh position={[0.11, -0.12, 0.9]} rotation={[0, 0, 0.58]}>
+                <boxGeometry args={[0.19, 0.022, 0.018]} />
+                <meshStandardMaterial color="#e3a15e" emissive="#9c4b27" emissiveIntensity={0.32} roughness={0.52} />
+              </mesh>
+            </group>
           </group>
           {!falling && <WorldV2Label position={[0, 1.45, 0]} maxDistance={34}>KAYA · ETRAFINDAN DOLAŞ</WorldV2Label>}
         </group>
       )}
 
       {obstacle.kind === "barrel" && (
-        <mesh ref={markCollision} position={[0, 0.46, 0]}>
-          <cylinderGeometry args={[0.36, 0.36, 0.92, 9]} />
-          <meshStandardMaterial color={broken ? "#584132" : "#774c30"} roughness={0.94} flatShading />
-        </mesh>
+        <group>
+          <mesh ref={markCollision} position={[0, 0.46, 0]}>
+            <cylinderGeometry args={[0.36, 0.36, 0.92, 9]} />
+            <meshStandardMaterial color={broken ? "#584132" : "#774c30"} roughness={0.82} flatShading />
+          </mesh>
+          {[0.18, 0.74].map((y) => (
+            <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.345, 0.026, 5, 16]} />
+              <meshStandardMaterial color="#d7b16d" metalness={0.76} roughness={0.31} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.46, 0.345]} rotation={[0.3, 0, 0]}>
+            <octahedronGeometry args={[0.105, 0]} />
+            <meshStandardMaterial color="#e5c57e" metalness={0.58} roughness={0.3} />
+          </mesh>
+        </group>
       )}
       {obstacle.kind === "vase" && (
-        <mesh ref={markCollision} position={[0, 0.44, 0]}>
-          <dodecahedronGeometry args={[0.43, 0]} />
-          <meshStandardMaterial color={broken ? "#76564a" : "#a66e55"} roughness={0.88} flatShading />
-        </mesh>
+        <group>
+          <mesh ref={markCollision} position={[0, 0.44, 0]}>
+            <dodecahedronGeometry args={[0.43, 0]} />
+            <meshStandardMaterial color={broken ? "#76564a" : "#b47b5c"} roughness={0.72} metalness={0.12} flatShading />
+          </mesh>
+          {[0.2, 0.69].map((y) => (
+            <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.27, 0.022, 5, 16]} />
+              <meshStandardMaterial color="#e3bf7b" metalness={0.64} roughness={0.34} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.44, 0.33]} rotation={[0, Math.PI / 4, 0]}>
+            <octahedronGeometry args={[0.105, 0]} />
+            <meshStandardMaterial color="#f0d18b" emissive="#7f4a2e" emissiveIntensity={0.18} metalness={0.48} />
+          </mesh>
+        </group>
       )}
       {obstacle.kind === "barricade" && (
         <group>
@@ -294,7 +349,13 @@ function WorldV2Obstacle({
             <boxGeometry args={[Math.min(2.3, obstacle.width), 0.9, 0.24]} />
             <meshStandardMaterial color={broken ? "#5a493b" : "#795536"} roughness={0.94} flatShading />
           </mesh>
-          {[-0.7, 0, 0.7].map((x) => <mesh key={x} position={[x, 0.48, 0.14]}><boxGeometry args={[0.08, 0.8, 0.025]} /><meshStandardMaterial color="#bf955c" roughness={0.85} /></mesh>)}
+          {[-0.7, 0, 0.7].map((x) => <mesh key={x} position={[x, 0.48, 0.14]}><boxGeometry args={[0.08, 0.8, 0.025]} /><meshStandardMaterial color="#d6b16b" roughness={0.54} metalness={0.42} /></mesh>)}
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * 0.43, 0.48, 0.165]} rotation={[0, 0, side * -0.38]}>
+              <boxGeometry args={[0.07, 0.86, 0.035]} />
+              <meshStandardMaterial color="#60412d" roughness={0.82} />
+            </mesh>
+          ))}
         </group>
       )}
       {obstacle.kind === "treasure-chest" && (
@@ -305,8 +366,22 @@ function WorldV2Obstacle({
           </mesh>
           <mesh position={[0, 0.67, 0]}>
             <boxGeometry args={[0.96, 0.16, 0.68]} />
-            <meshStandardMaterial color="#b48949" metalness={0.4} roughness={0.54} />
+            <meshStandardMaterial color="#d3aa5b" metalness={0.66} roughness={0.38} />
           </mesh>
+          <mesh position={[0, 0.31, 0.33]}>
+            <boxGeometry args={[0.18, 0.24, 0.035]} />
+            <meshStandardMaterial color="#e5c16d" metalness={0.78} roughness={0.28} />
+          </mesh>
+          <mesh position={[0, 0.34, 0.36]}>
+            <octahedronGeometry args={[0.075, 0]} />
+            <meshStandardMaterial color="#fff0b1" emissive="#b27a34" emissiveIntensity={0.32} metalness={0.5} />
+          </mesh>
+          {[-0.38, 0.38].map((x) => (
+            <mesh key={x} position={[x, 0.33, 0.325]}>
+              <boxGeometry args={[0.035, 0.54, 0.025]} />
+              <meshStandardMaterial color="#c79445" metalness={0.72} roughness={0.38} />
+            </mesh>
+          ))}
         </group>
       )}
       {obstacle.kind !== "spike-trap" && obstacle.kind !== "low-bar" && obstacle.kind !== "rock" && !falling && (
