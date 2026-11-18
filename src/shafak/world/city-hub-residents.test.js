@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CITY_DOORS } from "./city-hub-layout.ts";
 import { CITY_RESIDENTS, CITY_RESIDENT_TINTS } from "./city-hub-residents.ts";
+import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 
 test("city residents cover each planned accessory and have distinct clothing colors", () => {
   const accessories = new Set(CITY_RESIDENTS.map((resident) => resident.accessory));
@@ -24,5 +26,21 @@ test("residents stay outside building collision footprints and inside city bound
     }
     assert.ok(Math.abs(resident.x) <= 21);
     assert.ok(Math.abs(resident.z) <= 21);
+  }
+});
+
+test("city residents use the campaign hero model and keep glasses unobstructed", () => {
+  for (const resident of CITY_RESIDENTS) {
+    const profile = getWorldBotProfileByArchetype(resident.archetype);
+    const model = getAnimatedRivalModelConfig(
+      undefined,
+      { ...profile, size: resident.scale },
+      "road",
+    );
+    assert.equal(model?.modelPath, "/models/player-hero.glb");
+    if (resident.accessory === "glasses") {
+      assert.equal(model.costume.mask, false);
+      assert.equal(model.costume.helmet, false);
+    }
   }
 });

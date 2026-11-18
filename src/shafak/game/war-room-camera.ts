@@ -10,6 +10,44 @@ export type WarRoomCameraBounds = {
   maxZ: number;
 };
 
+export type WarRoomPlayerBlocker = {
+  id: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  height: number;
+  kind: string;
+};
+
+export function updateWarRoomPlayerCollisionBounds(
+  blockers: readonly WarRoomPlayerBlocker[],
+  target: WarRoomCameraBounds[] = [],
+) {
+  for (let index = 0; index < blockers.length; index += 1) {
+    const blocker = blockers[index];
+    const bounds = target[index] ?? {
+      id: blocker.id,
+      minX: 0,
+      minY: 0,
+      minZ: 0,
+      maxX: 0,
+      maxY: 0,
+      maxZ: 0,
+    };
+    bounds.id = blocker.id;
+    bounds.minX = blocker.x - blocker.width / 2;
+    bounds.minY = -0.15;
+    bounds.minZ = blocker.z - blocker.depth / 2;
+    bounds.maxX = blocker.x + blocker.width / 2;
+    bounds.maxY = blocker.height + (blocker.kind === "tower" ? 2.2 : 0.15);
+    bounds.maxZ = blocker.z + blocker.depth / 2;
+    target[index] = bounds;
+  }
+  target.length = blockers.length;
+  return target;
+}
+
 export type WarRoomCameraSweep = {
   blocked: boolean;
   blockerId: string | null;
@@ -316,6 +354,8 @@ export function resolveWarRoomInteriorCameraPlacement(
     if (rearLength > 0.001) {
       const sideX = -rearZ / rearLength;
       const sideZ = rearX / rearLength;
+      let bestAlternate: WarRoomCameraPlacement | null = null;
+      let bestSideOffset = Infinity;
       for (const sideOffset of [0.5, -0.5, 0.85, -0.85, 1.2, -1.2, 1.8, -1.8]) {
         const alternate = clampWarRoomCameraToInterior({
           x: candidate.x + sideX * sideOffset,
@@ -334,14 +374,24 @@ export function resolveWarRoomInteriorCameraPlacement(
         if (
           alternateSweep.safeDistance >= 1.5
           && isWarRoomCameraPointClear(position, bounds, radius)
+          && (
+            !bestAlternate
+            || alternateSweep.safeDistance > bestAlternate.safeDistance + 1e-4
+            || (
+              Math.abs(alternateSweep.safeDistance - bestAlternate.safeDistance) <= 1e-4
+              && Math.abs(sideOffset) < bestSideOffset
+            )
+          )
         ) {
-          return {
+          bestAlternate = {
             ...alternateSweep,
             position,
             usedAlternate: true,
           };
+          bestSideOffset = Math.abs(sideOffset);
         }
       }
+      if (bestAlternate) return bestAlternate;
     }
   }
   return {

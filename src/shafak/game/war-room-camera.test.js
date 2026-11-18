@@ -10,6 +10,7 @@ import {
   getWarRoomViewModelWallSafetyRetraction,
   getWarRoomCameraRaySafeDistance,
   isWarRoomCameraPointClear,
+  updateWarRoomPlayerCollisionBounds,
   getWarRoomCameraRig,
   getWarRoomEyeClearancePush,
   isWarRoomEyeClearAbove,
@@ -245,9 +246,42 @@ test("interior camera shifts sideways instead of collapsing into the player near
   );
 
   assert.equal(result.usedAlternate, true);
-  assert.ok(result.safeDistance >= 1.5);
+  assert.ok(result.safeDistance > 2.5, "use the clear side instead of stopping next to the player");
   assert.ok(Math.abs(result.position.x) > 0.5);
   assert.equal(isWarRoomCameraPointClear(result.position, [narrowWall], 0.28), true);
+});
+
+test("player clearance follows active gameplay blockers, not visual camera-only geometry", () => {
+  const player = { x: 0, y: 1.2, z: 0 };
+  const visualOccluder = {
+    id: "wide-open-house-front",
+    minX: -1,
+    minY: 0,
+    minZ: -0.2,
+    maxX: 1,
+    maxY: 3,
+    maxZ: 0.2,
+  };
+  const activeDoorBlocker = {
+    id: "door-leaf-blocker",
+    x: 0,
+    z: 0,
+    width: 1.2,
+    depth: 0.2,
+    height: 2.4,
+    kind: "door",
+  };
+  const playerBounds = [];
+
+  updateWarRoomPlayerCollisionBounds([], playerBounds);
+  assert.equal(isWarRoomCameraPointClear(player, playerBounds, 0.05), true);
+  assert.equal(isWarRoomCameraPointClear(player, [visualOccluder], 0.05), false);
+
+  updateWarRoomPlayerCollisionBounds([activeDoorBlocker], playerBounds);
+  assert.equal(isWarRoomCameraPointClear(player, playerBounds, 0.05), false);
+  updateWarRoomPlayerCollisionBounds([], playerBounds);
+  assert.equal(playerBounds.length, 0, "opening the door removes its physical blocker");
+  assert.equal(isWarRoomCameraPointClear(player, playerBounds, 0.05), true);
 });
 
 test("camera stays directly behind the player when its rear path is blocked", () => {

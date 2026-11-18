@@ -102,6 +102,7 @@ import {
   getWarRoomEyeClearancePush,
   isWarRoomEyeClearAbove,
   isWarRoomCameraPointClear,
+  updateWarRoomPlayerCollisionBounds,
   getWarRoomViewModelWallProximity,
   getWarRoomViewModelWallSafetyRetraction,
   resolveWarRoomInteriorCameraPlacement,
@@ -2409,15 +2410,7 @@ function WarRoomRuntimeScene({
     previousQualityForReportRef.current = quality;
   }, [collectPerformanceMetrics, quality]);
   const logicalCameraBounds = useMemo<WarRoomCameraBounds[]>(
-    () => room.blockers.map((blocker) => ({
-      id: blocker.id,
-      minX: blocker.x - blocker.width / 2,
-      minY: -0.15,
-      minZ: blocker.z - blocker.depth / 2,
-      maxX: blocker.x + blocker.width / 2,
-      maxY: blocker.height + (blocker.kind === "tower" ? 2.2 : 0.15),
-      maxZ: blocker.z + blocker.depth / 2,
-    })),
+    () => updateWarRoomPlayerCollisionBounds(room.blockers),
     [room],
   );
   const cameraOccludersRef = useRef<CameraOccluderEntry[]>([]);
@@ -2425,6 +2418,7 @@ function WarRoomRuntimeScene({
   const cameraRaycastCandidatesRef = useRef<THREE.Object3D[]>([]);
   const cameraRaycastOwnerByObjectRef = useRef(new WeakMap<THREE.Object3D, string>());
   const cameraBoundsRef = useRef<WarRoomCameraBounds[]>(logicalCameraBounds);
+  const playerCollisionBoundsRef = useRef<WarRoomCameraBounds[]>([]);
   const activeBlockersRef = useRef<readonly WarRoomBlocker[]>(runtimeRef.current.room.blockers);
   const activeBlockerBufferRef = useRef<WarRoomBlocker[]>([]);
   const cameraBoundsRefreshRef = useRef(0);
@@ -4750,6 +4744,10 @@ function WarRoomRuntimeScene({
       victoryZoom: 0,
     });
     const targetEyeHeight = player.crouched ? 1 : 1.6;
+    const playerCollisionBounds = updateWarRoomPlayerCollisionBounds(
+      activeBlockersRef.current,
+      playerCollisionBoundsRef.current,
+    );
     const isPlayerViewClear = (
       x: number,
       z: number,
@@ -4757,14 +4755,14 @@ function WarRoomRuntimeScene({
       jumpHeight = 0,
     ) => isWarRoomCameraPointClear(
       { x, y: floorHeight + jumpHeight + targetEyeHeight, z },
-      cameraBoundsRef.current,
+      playerCollisionBounds,
       0.3,
     );
     const eyeClearancePush = getWarRoomEyeClearancePush({
       x: player.x,
       y: player.floorHeight + player.jumpHeight + cameraEyeHeightRef.current,
       z: player.z,
-    }, cameraBoundsRef.current, 0.35, 0.3);
+    }, playerCollisionBounds, 0.35, 0.3);
     if (Math.hypot(eyeClearancePush.x, eyeClearancePush.z) > 0.001) {
       const clearancePosition = moveWarRoomEntity(
         player.x,
@@ -4789,7 +4787,7 @@ function WarRoomRuntimeScene({
       if (
         !isWarRoomCameraPointClear(
           { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
-          cameraBoundsRef.current,
+          playerCollisionBounds,
           0.05,
         )
         || !isPlayerViewClear(player.x, player.z, player.floorHeight, player.jumpHeight)
@@ -4800,7 +4798,7 @@ function WarRoomRuntimeScene({
           savedPosition
           && isWarRoomCameraPointClear(
             { x: savedPosition.x, y: savedPosition.floorHeight + 0.75, z: savedPosition.z },
-            cameraBoundsRef.current,
+            playerCollisionBounds,
             0.05,
           )
           && isPlayerViewClear(savedPosition.x, savedPosition.z, savedPosition.floorHeight)
@@ -4819,7 +4817,7 @@ function WarRoomRuntimeScene({
           );
           if (isWarRoomCameraPointClear(
             { x: candidateX, y: candidateFloor + 0.75, z: candidateZ },
-            cameraBoundsRef.current,
+            playerCollisionBounds,
             0.05,
           ) && isPlayerViewClear(candidateX, candidateZ, candidateFloor)) {
             player.x = candidateX;
@@ -4843,7 +4841,7 @@ function WarRoomRuntimeScene({
             );
             if (!isWarRoomCameraPointClear(
               { x: candidateX, y: candidateFloor + 0.75, z: candidateZ },
-              cameraBoundsRef.current,
+              playerCollisionBounds,
               0.05,
             ) || !isPlayerViewClear(candidateX, candidateZ, candidateFloor)) continue;
             player.x = candidateX;
@@ -4859,7 +4857,7 @@ function WarRoomRuntimeScene({
       if (
         isWarRoomCameraPointClear(
           { x: player.x, y: player.floorHeight + player.jumpHeight + 0.75, z: player.z },
-          cameraBoundsRef.current,
+          playerCollisionBounds,
           0.05,
         )
         && isPlayerViewClear(player.x, player.z, player.floorHeight, player.jumpHeight)
@@ -4875,7 +4873,7 @@ function WarRoomRuntimeScene({
       x: player.x,
       y: player.floorHeight + player.jumpHeight + targetEyeHeight,
       z: player.z,
-    }, cameraBoundsRef.current, 0.35)
+    }, playerCollisionBounds, 0.35)
       ? targetEyeHeight
       : Math.max(0.82, targetEyeHeight - 0.28);
     cameraEyeHeightRef.current += (
@@ -4898,7 +4896,7 @@ function WarRoomRuntimeScene({
     };
     cameraFloorHeightRef.current = isWarRoomCameraPointClear(
       smoothedEye,
-      cameraBoundsRef.current,
+      playerCollisionBounds,
       0.05,
     )
       ? smoothedFloorHeight

@@ -22,14 +22,14 @@ type HousePalette = {
 };
 
 const HOUSE_PALETTES: HousePalette[] = [
-  { wall: "#b9ad97", interiorWall: "#765b43", foundation: "#777267", timber: "#594d40", roof: "#504b47", roofEdge: "#393a37", accent: "#89775f", glass: "#71888a" },
-  { wall: "#a5a59e", interiorWall: "#53645f", foundation: "#666a68", timber: "#4f504d", roof: "#464d50", roofEdge: "#363d40", accent: "#927e5e", glass: "#73898b" },
-  { wall: "#a88e70", interiorWall: "#75503a", foundation: "#75614c", timber: "#4f3c2e", roof: "#51463c", roofEdge: "#3c342e", accent: "#b08a57", glass: "#7b8580" },
-  { wall: "#c1b49c", interiorWall: "#675747", foundation: "#827665", timber: "#625345", roof: "#604640", roofEdge: "#483632", accent: "#a98260", glass: "#778386" },
-  { wall: "#b5aa94", interiorWall: "#705844", foundation: "#77756c", timber: "#4e4d44", roof: "#46504d", roofEdge: "#343d3a", accent: "#897151", glass: "#748584" },
-  { wall: "#aaa99f", interiorWall: "#4b625e", foundation: "#696d69", timber: "#4b514e", roof: "#4b5052", roofEdge: "#363b3e", accent: "#986e5c", glass: "#788b8b" },
-  { wall: "#c0b8a5", interiorWall: "#746044", foundation: "#7c7568", timber: "#5b5041", roof: "#535c55", roofEdge: "#3b433e", accent: "#90785a", glass: "#7e8983" },
-  { wall: "#b39d7a", interiorWall: "#694b39", foundation: "#79664e", timber: "#584632", roof: "#59483b", roofEdge: "#40342d", accent: "#a0784b", glass: "#7b8580" },
+  { wall: "#b9ad97", interiorWall: "#a18b70", foundation: "#777267", timber: "#594d40", roof: "#504b47", roofEdge: "#393a37", accent: "#89775f", glass: "#71888a" },
+  { wall: "#a5a59e", interiorWall: "#8fa39c", foundation: "#666a68", timber: "#4f504d", roof: "#464d50", roofEdge: "#363d40", accent: "#927e5e", glass: "#73898b" },
+  { wall: "#a88e70", interiorWall: "#a8896d", foundation: "#75614c", timber: "#4f3c2e", roof: "#51463c", roofEdge: "#3c342e", accent: "#b08a57", glass: "#7b8580" },
+  { wall: "#c1b49c", interiorWall: "#aa9a80", foundation: "#827665", timber: "#625345", roof: "#604640", roofEdge: "#483632", accent: "#a98260", glass: "#778386" },
+  { wall: "#b5aa94", interiorWall: "#a18d74", foundation: "#77756c", timber: "#4e4d44", roof: "#46504d", roofEdge: "#343d3a", accent: "#897151", glass: "#748584" },
+  { wall: "#aaa99f", interiorWall: "#8fa39d", foundation: "#696d69", timber: "#4b514e", roof: "#4b5052", roofEdge: "#363b3e", accent: "#986e5c", glass: "#788b8b" },
+  { wall: "#c0b8a5", interiorWall: "#a99b82", foundation: "#7c7568", timber: "#5b5041", roof: "#535c55", roofEdge: "#3b433e", accent: "#90785a", glass: "#7e8983" },
+  { wall: "#b39d7a", interiorWall: "#a48469", foundation: "#79664e", timber: "#584632", roof: "#59483b", roofEdge: "#40342d", accent: "#a0784b", glass: "#7b8580" },
 ];
 
 function HouseWindow({

@@ -1,7 +1,8 @@
 import { Html, Sky } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
+import { createWorldMotion, type WorldMotion } from "./movement";
 import {
   CITY_DOORS,
   findNearbyCityDoor,
@@ -11,6 +12,14 @@ import {
   type CityInput,
   type CityPosition,
 } from "./city-hub-layout";
+import { getCityCameraFrame, type CityCameraObstacle } from "./city-hub-camera";
+import { CITY_RESIDENTS, CITY_RESIDENT_TINTS, type CityResident } from "./city-hub-residents";
+import { getAnimatedRivalModelConfig, type OpponentModelConfig } from "./opponent-model-config";
+import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
+import WorldV2Actor from "./WorldV2Actor";
+import { KNIGHT_CONFIG } from "./knight-config";
+import { loadAsset, type LoadedWorldAsset } from "./world-v2-assets";
+import { WORLD_V2_CONFIG } from "./world-v2-config";
 
 type CityHubSceneProps = {
   positionRef: MutableRefObject<CityPosition>;
@@ -22,20 +31,21 @@ type CityHubSceneProps = {
   reducedMotion?: boolean;
 };
 
-const RESIDENTS = [
-  { x: -6.4, z: -3.4, axis: "x", skin: "#d8a47f", hair: "#332621", coat: "#596d78", scarf: "#bf7957", scale: 1.02, hat: false, bag: true },
-  { x: 6.4, z: 3.2, axis: "z", skin: "#edc4a3", hair: "#4a3528", coat: "#72876d", scarf: "#d7b06a", scale: 0.91, hat: true, bag: false },
-  { x: -3.2, z: -6.4, axis: "x", skin: "#a96f51", hair: "#241e20", coat: "#c16d51", scarf: "#e3c39a", scale: 0.97, hat: false, bag: false },
-  { x: 3.1, z: -6.4, axis: "z", skin: "#f0c9a6", hair: "#a7603c", coat: "#586b91", scarf: "#e0b15d", scale: 1.09, hat: false, bag: true },
-  { x: -6.3, z: 4.3, axis: "z", skin: "#c28761", hair: "#242027", coat: "#775978", scarf: "#c18e62", scale: 1.12, hat: true, bag: false },
-  { x: 6.2, z: -3.5, axis: "x", skin: "#e4b28f", hair: "#3d3027", coat: "#d0a158", scarf: "#617b80", scale: 0.94, hat: false, bag: true },
-  { x: -3.1, z: 6.3, axis: "x", skin: "#87593f", hair: "#201c1a", coat: "#507874", scarf: "#d17c59", scale: 0.89, hat: false, bag: false },
-  { x: 3.2, z: 6.3, axis: "z", skin: "#f0cfb2", hair: "#67432f", coat: "#ab6557", scarf: "#d9bd83", scale: 1.05, hat: true, bag: false },
-  { x: -12.4, z: -4.1, axis: "z", skin: "#d2a17e", hair: "#372a25", coat: "#737c89", scarf: "#c18d66", scale: 1.01, hat: false, bag: true },
-  { x: 12.2, z: 4.3, axis: "x", skin: "#bb805f", hair: "#251f20", coat: "#a55f55", scarf: "#e2c982", scale: 0.95, hat: true, bag: false },
-  { x: -4.4, z: -12.1, axis: "x", skin: "#e8bd9a", hair: "#72533d", coat: "#627a69", scarf: "#c87955", scale: 1.08, hat: false, bag: false },
-  { x: 4.3, z: 12.1, axis: "z", skin: "#9e674c", hair: "#211d20", coat: "#826b9c", scarf: "#d5a85f", scale: 0.92, hat: false, bag: true },
-] as const;
+const CITY_RESIDENT_MODEL_CONFIGS = CITY_RESIDENTS.map((resident) => {
+  const profile = getWorldBotProfileByArchetype(resident.archetype);
+  return getAnimatedRivalModelConfig(
+    undefined,
+    { ...profile, size: resident.scale },
+    "road",
+  ) as OpponentModelConfig;
+});
+const CITY_CAMERA_OBSTACLES: readonly CityCameraObstacle[] = CITY_DOORS.map((door) => ({
+  x: door.building.x,
+  z: door.building.z,
+  width: door.width,
+  depth: door.depth,
+  height: door.height + 2,
+}));
 
 function RoadNetwork() {
   const roadColor = "#484a49";
@@ -125,8 +135,25 @@ const BUILDING_WALL_COLORS: Record<CityDoor["id"], string> = {
   daily: "#91b7bd",
 };
 
+const BUILDING_ROOF_COLORS: Record<CityDoor["id"], string> = {
+  campaign: "#765447",
+  "war-room": "#72534a",
+  survival: "#5f7060",
+  daily: "#536d73",
+};
+
+function createGableShape(width: number, rise: number) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-width / 2, 0);
+  shape.lineTo(width / 2, 0);
+  shape.lineTo(0, rise);
+  shape.closePath();
+  return shape;
+}
+
 function Building({ door, active }: { door: CityDoor; active: boolean }) {
   const { x, z } = door.building;
+  const gableShape = useMemo(() => createGableShape(door.depth, 1.5), [door.depth]);
   const frontX = door.side === "east" ? x + door.width / 2 : door.side === "west" ? x - door.width / 2 : x;
   const frontZ = door.side === "south" ? z + door.depth / 2 : door.side === "north" ? z - door.depth / 2 : z;
   const doorRotation = door.side === "east" || door.side === "west" ? Math.PI / 2 : 0;
@@ -140,9 +167,43 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
         <boxGeometry args={[door.width, door.height, door.depth]} />
         <meshStandardMaterial color={BUILDING_WALL_COLORS[door.id]} roughness={0.9} />
       </mesh>
-      <mesh position={[0, door.height + 0.7, 0]} rotation-y={Math.PI / 4} castShadow>
-        <coneGeometry args={[5.1, 1.8, 4]} />
-        <meshStandardMaterial color={door.color} roughness={0.86} />
+      {[-1, 1].map((side) => (
+        <mesh
+          key={`${door.id}-gable-${side}`}
+          position={[side * (door.width / 2 + 0.015), door.height, 0]}
+          rotation-y={side > 0 ? Math.PI / 2 : -Math.PI / 2}
+        >
+          <shapeGeometry args={[gableShape]} />
+          <meshStandardMaterial
+            color={BUILDING_WALL_COLORS[door.id]}
+            roughness={0.92}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+      <mesh position={[-door.width / 4, door.height + 0.72, 0]} rotation-z={0.42} castShadow receiveShadow>
+        <boxGeometry args={[door.width / 2 + 0.28, 0.18, door.depth + 0.48]} />
+        <meshStandardMaterial color={BUILDING_ROOF_COLORS[door.id]} roughness={0.9} />
+      </mesh>
+      <mesh position={[door.width / 4, door.height + 0.72, 0]} rotation-z={-0.42} castShadow receiveShadow>
+        <boxGeometry args={[door.width / 2 + 0.28, 0.18, door.depth + 0.48]} />
+        <meshStandardMaterial color={BUILDING_ROOF_COLORS[door.id]} roughness={0.9} />
+      </mesh>
+      <mesh position={[-door.width / 4, door.height + 0.2, 0]}>
+        <boxGeometry args={[0.14, 0.18, door.depth + 0.55]} />
+        <meshStandardMaterial color="#d5c098" roughness={0.86} />
+      </mesh>
+      <mesh position={[door.width / 4, door.height + 0.2, 0]}>
+        <boxGeometry args={[0.14, 0.18, door.depth + 0.55]} />
+        <meshStandardMaterial color="#d5c098" roughness={0.86} />
+      </mesh>
+      <mesh position={[-door.width * 0.22, door.height + 1.26, -door.depth * 0.22]} castShadow>
+        <boxGeometry args={[0.54, 1.45, 0.56]} />
+        <meshStandardMaterial color="#9d8064" roughness={0.9} />
+      </mesh>
+      <mesh position={[-door.width * 0.22, door.height + 2, -door.depth * 0.22]}>
+        <boxGeometry args={[0.68, 0.12, 0.7]} />
+        <meshStandardMaterial color="#554b43" roughness={0.88} />
       </mesh>
       <mesh position={[0, door.height + 0.06, 0]}>
         <boxGeometry args={[door.width + 0.16, 0.18, door.depth + 0.16]} />
@@ -156,7 +217,11 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
         <meshStandardMaterial color={active ? door.color : "#493a32"} roughness={0.76} metalness={0.08} />
       </mesh>
       {windowPositions.map((position, index) => (
-        <group key={`${door.id}-window-${index}`} position={[position[0] - x, position[1], position[2] - z]}>
+        <group
+          key={`${door.id}-window-${index}`}
+          position={[position[0] - x, position[1], position[2] - z]}
+          rotation-y={doorRotation}
+        >
           <mesh>
             <boxGeometry args={[1.1, 1.35, 0.12]} />
             <meshStandardMaterial color="#b9dce0" roughness={0.28} metalness={0.06} emissive="#b6d8d8" emissiveIntensity={0.09} />
@@ -249,112 +314,46 @@ function Resident({
   resident,
   index,
   reducedMotion,
+  asset,
+  motionRef,
+  modelConfig,
 }: {
-  resident: typeof RESIDENTS[number];
+  resident: CityResident;
   index: number;
   reducedMotion: boolean;
+  asset: LoadedWorldAsset;
+  motionRef: MutableRefObject<WorldMotion>;
+  modelConfig: OpponentModelConfig;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const leftArmRef = useRef<THREE.Group>(null);
-  const rightArmRef = useRef<THREE.Group>(null);
-  const leftLegRef = useRef<THREE.Group>(null);
-  const rightLegRef = useRef<THREE.Group>(null);
   const phase = index * 0.83;
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
-    const time = reducedMotion ? phase : clock.elapsedTime * 0.42 + phase;
-    const stride = reducedMotion ? 0 : Math.sin(time) * 1.2;
-    if (resident.axis === "x") {
-      groupRef.current.position.set(resident.x + stride, 0, resident.z);
-      groupRef.current.rotation.y = Math.cos(time) >= 0 ? Math.PI / 2 : -Math.PI / 2;
-    } else {
-      groupRef.current.position.set(resident.x, 0, resident.z + stride);
-      groupRef.current.rotation.y = Math.cos(time) >= 0 ? 0 : Math.PI;
-    }
-    const gait = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 3.8 + phase) * 0.34;
-    if (leftArmRef.current) leftArmRef.current.rotation.x = gait;
-    if (rightArmRef.current) rightArmRef.current.rotation.x = -gait;
-    if (leftLegRef.current) leftLegRef.current.rotation.x = -gait;
-    if (rightLegRef.current) rightLegRef.current.rotation.x = gait;
+    const time = reducedMotion ? phase : clock.elapsedTime * 0.34 + phase;
+    const stride = reducedMotion || resident.accessory === "wheelchair"
+      ? 0
+      : Math.sin(time) * 0.38;
+    groupRef.current.position.set(
+      resident.x + (resident.axis === "x" ? stride : 0),
+      0,
+      resident.z + (resident.axis === "z" ? stride : 0),
+    );
   });
   return (
-    <group ref={groupRef} scale={resident.scale}>
-      <mesh position={[0, 0.12, 0]} receiveShadow>
-        <cylinderGeometry args={[0.2, 0.23, 0.12, 8]} />
-        <meshStandardMaterial color="#373a38" roughness={0.98} />
-      </mesh>
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <boxGeometry args={[0.21, 0.62, 0.24]} />
-        <meshStandardMaterial color={index % 2 === 0 ? "#555048" : "#53636b"} roughness={0.92} />
-      </mesh>
-      <mesh position={[0, 1.05, 0]} castShadow>
-        <boxGeometry args={[0.56, 0.8, 0.34]} />
-        <meshStandardMaterial color={resident.coat} roughness={0.88} />
-      </mesh>
-      <mesh position={[0, 1.28, 0.19]}>
-        <boxGeometry args={[0.38, 0.13, 0.035]} />
-        <meshStandardMaterial color={resident.scarf} roughness={0.86} />
-      </mesh>
-      <group ref={leftArmRef} position={[-0.34, 1.35, 0]}>
-        <mesh position={[0, -0.27, 0]} castShadow>
-          <capsuleGeometry args={[0.105, 0.48, 4, 7]} />
-          <meshStandardMaterial color={resident.coat} roughness={0.9} />
-        </mesh>
-        <mesh position={[0, -0.56, 0.01]}>
-          <sphereGeometry args={[0.09, 8, 6]} />
-          <meshStandardMaterial color={resident.skin} roughness={0.86} />
-        </mesh>
-      </group>
-      <group ref={rightArmRef} position={[0.34, 1.35, 0]}>
-        <mesh position={[0, -0.27, 0]} castShadow>
-          <capsuleGeometry args={[0.105, 0.48, 4, 7]} />
-          <meshStandardMaterial color={resident.coat} roughness={0.9} />
-        </mesh>
-        <mesh position={[0, -0.56, 0.01]}>
-          <sphereGeometry args={[0.09, 8, 6]} />
-          <meshStandardMaterial color={resident.skin} roughness={0.86} />
-        </mesh>
-      </group>
-      <group ref={leftLegRef} position={[-0.13, 0.56, 0]}>
-        <mesh position={[0, -0.25, 0]} castShadow>
-          <capsuleGeometry args={[0.12, 0.42, 4, 7]} />
-          <meshStandardMaterial color={index % 3 === 0 ? "#4d514f" : "#4e5961"} roughness={0.94} />
-        </mesh>
-        <mesh position={[0, -0.49, 0.08]} castShadow>
-          <boxGeometry args={[0.22, 0.12, 0.34]} />
-          <meshStandardMaterial color="#383a38" roughness={0.96} />
-        </mesh>
-      </group>
-      <group ref={rightLegRef} position={[0.13, 0.56, 0]}>
-        <mesh position={[0, -0.25, 0]} castShadow>
-          <capsuleGeometry args={[0.12, 0.42, 4, 7]} />
-          <meshStandardMaterial color={index % 3 === 0 ? "#4d514f" : "#4e5961"} roughness={0.94} />
-        </mesh>
-        <mesh position={[0, -0.49, 0.08]} castShadow>
-          <boxGeometry args={[0.22, 0.12, 0.34]} />
-          <meshStandardMaterial color="#383a38" roughness={0.96} />
-        </mesh>
-      </group>
-      <mesh position={[0, 1.65, 0]} castShadow>
-        <sphereGeometry args={[0.22, 12, 10]} />
-        <meshStandardMaterial color={resident.skin} roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 1.77, -0.015]} castShadow>
-        <sphereGeometry args={[0.225, 11, 8, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-        <meshStandardMaterial color={resident.hair} roughness={0.95} />
-      </mesh>
-      {resident.hat && (
-        <mesh position={[0, 1.84, 0]} castShadow>
-          <cylinderGeometry args={[0.22, 0.27, 0.16, 10]} />
-          <meshStandardMaterial color={resident.scarf} roughness={0.9} />
-        </mesh>
-      )}
-      {resident.bag && (
-        <mesh position={[0, 0.99, -0.22]} castShadow>
-          <boxGeometry args={[0.34, 0.45, 0.22]} />
-          <meshStandardMaterial color="#806044" roughness={0.95} />
-        </mesh>
-      )}
+    <group ref={groupRef} position={[resident.x, 0, resident.z]}>
+      <WorldV2Actor
+        asset={asset}
+        motionRef={motionRef}
+        isPlayer={false}
+        distance={-resident.z}
+        x={resident.x}
+        tint={CITY_RESIDENT_TINTS[index]}
+        animationState={resident.accessory === "wheelchair" ? "idle" : "walk"}
+        localToParent
+        showWeapon={false}
+        modelConfig={modelConfig}
+        cityAccessory={resident.accessory}
+      />
     </group>
   );
 }
@@ -365,29 +364,66 @@ function CityWorld({
   activeDoorId,
   onNearbyDoorChange,
   reducedMotion = false,
-}: CityHubSceneProps) {
-  const playerRef = useRef<THREE.Group>(null);
+  heroAsset,
+}: CityHubSceneProps & { heroAsset: LoadedWorldAsset | null }) {
+  const motionRef = useRef(createWorldMotion(
+    -positionRef.current.z,
+    positionRef.current.x / 5.2,
+  ));
+  const facingRef = useRef<CityPosition>({ x: 0, z: -1 });
+  const playerMovingRef = useRef(false);
+  const [playerMoving, setPlayerMoving] = useState(false);
   const lastDoorIdRef = useRef<CityDoorId | null>(null);
   const cameraTarget = useMemo(() => new THREE.Vector3(), []);
   const cameraPosition = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame(({ camera, clock }, delta) => {
+  useFrame(({ camera }, delta) => {
+    const previousX = positionRef.current.x;
+    const previousZ = positionRef.current.z;
     const next = stepCityPosition(positionRef.current, inputRef.current, delta);
     positionRef.current.x = next.x;
     positionRef.current.z = next.z;
-
-    if (playerRef.current) {
-      playerRef.current.position.set(next.x, 0, next.z);
-      if (Math.hypot(inputRef.current.x, inputRef.current.z) > 0.12) {
-        playerRef.current.rotation.y = Math.atan2(inputRef.current.x, inputRef.current.z);
-      }
-      playerRef.current.position.y = Math.sin(clock.elapsedTime * 10) * 0.035
-        * Math.min(1, Math.hypot(inputRef.current.x, inputRef.current.z));
+    const motion = motionRef.current;
+    const safeDelta = Math.max(delta, 1e-5);
+    const velocityX = (next.x - previousX) / safeDelta;
+    const velocityY = -(next.z - previousZ) / safeDelta;
+    const speed = Math.hypot(velocityX, velocityY);
+    const moving = speed > 0.12;
+    motion.depth = next.x / 5.2;
+    motion.distance = -next.z;
+    motion.cameraX = 0;
+    motion.velocityX = velocityX;
+    motion.velocityY = velocityY;
+    motion.jumpHeight = 0;
+    motion.jumpVelocity = 0;
+    motion.movementState = moving ? "KOŞUYOR" : "YERDE_DURUYOR";
+    motion.movementMachine.state = motion.movementState;
+    motion.stepPhase += speed * delta * 2.4;
+    motion.stopTime = moving ? 0 : motion.stopTime + delta;
+    motion.hasMoved ||= moving;
+    if (moving) {
+      motion.cameraHeading = Math.atan2(-velocityX, velocityY);
+      motion.facing = velocityX < 0 ? -1 : 1;
+      facingRef.current = { x: next.x - previousX, z: next.z - previousZ };
+    }
+    if (moving !== playerMovingRef.current) {
+      playerMovingRef.current = moving;
+      setPlayerMoving(moving);
     }
 
-    cameraPosition.set(next.x + 5.2, 7.2, next.z + 9.4);
-    camera.position.lerp(cameraPosition, 1 - Math.exp(-delta * 3.2));
-    cameraTarget.set(next.x, 1.15, next.z - 1.25);
+    const cameraFrame = getCityCameraFrame(next, facingRef.current, CITY_CAMERA_OBSTACLES);
+    cameraPosition.set(
+      cameraFrame.position.x,
+      cameraFrame.position.y,
+      cameraFrame.position.z,
+    );
+    if (cameraFrame.occluded) camera.position.copy(cameraPosition);
+    else camera.position.lerp(cameraPosition, 1 - Math.exp(-delta * 4.2));
+    cameraTarget.set(
+      cameraFrame.target.x,
+      cameraFrame.target.y,
+      cameraFrame.target.z,
+    );
     camera.lookAt(cameraTarget);
 
     const nearbyDoor = findNearbyCityDoor(next);
@@ -429,55 +465,68 @@ function CityWorld({
         [-16, -7], [16, 7], [-7, 16], [7, -16],
       ].map(([x, z], index) => <StreetTree key={`tree-${index}`} x={x} z={z} variant={index} />)}
 
-      {RESIDENTS.map((resident, index) => (
-        <Resident key={`resident-${index}`} resident={resident} index={index} reducedMotion={reducedMotion} />
+      {heroAsset && CITY_RESIDENTS.map((resident, index) => (
+        <Resident
+          key={`resident-${index}`}
+          resident={resident}
+          index={index}
+          reducedMotion={reducedMotion}
+          asset={heroAsset}
+          motionRef={motionRef}
+          modelConfig={CITY_RESIDENT_MODEL_CONFIGS[index]}
+        />
       ))}
-
-      <group ref={playerRef}>
-        <mesh position={[0, 0.12, 0]} receiveShadow>
-          <cylinderGeometry args={[0.33, 0.4, 0.08, 20]} />
-          <meshBasicMaterial color="#182029" transparent opacity={0.26} />
-        </mesh>
-        <mesh position={[0, 1.05, 0]} castShadow>
-          <capsuleGeometry args={[0.34, 0.66, 5, 9]} />
-          <meshStandardMaterial color="#283b49" roughness={0.78} />
-        </mesh>
-        <mesh position={[0, 1.18, 0.29]}>
-          <boxGeometry args={[0.36, 0.14, 0.05]} />
-          <meshStandardMaterial color="#cf8655" roughness={0.76} />
-        </mesh>
-        <mesh position={[0, 1.83, 0]} castShadow>
-          <sphereGeometry args={[0.25, 16, 12]} />
-          <meshStandardMaterial color="#cc9976" roughness={0.82} />
-        </mesh>
-        <mesh position={[0, 1.96, -0.02]} castShadow>
-          <sphereGeometry args={[0.25, 12, 9, 0, Math.PI * 2, 0, Math.PI * 0.48]} />
-          <meshStandardMaterial color="#302723" roughness={0.94} />
-        </mesh>
-        <mesh position={[0, 1.64, -0.12]} castShadow>
-          <boxGeometry args={[0.67, 0.62, 0.2]} />
-          <meshStandardMaterial color="#4c3b34" roughness={0.93} />
-        </mesh>
-      </group>
+      {heroAsset && (
+        <WorldV2Actor
+          asset={heroAsset}
+          motionRef={motionRef}
+          isPlayer
+          animationState={playerMoving ? "walk" : "idle"}
+          showWeapon={false}
+        />
+      )}
     </>
   );
 }
 
 export default function CityHubScene(props: CityHubSceneProps) {
+  const [heroAsset, setHeroAsset] = useState<LoadedWorldAsset | null>(null);
+  const [modelLoadFailed, setModelLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player).then((asset) => {
+      if (active) setHeroAsset(asset);
+    }).catch((error: unknown) => {
+      console.error("[city-hub] Campaign character model failed to load.", error);
+      if (active) setModelLoadFailed(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
-    <Canvas
-      className={props.className}
-      shadows
-      dpr={props.pixelRatio ?? [1, 1.35]}
-      camera={{ position: [5.2, 7.2, 9.4], fov: 49, near: 0.1, far: 110 }}
-      gl={{ antialias: true, powerPreference: "low-power" }}
-      onCreated={({ gl }) => {
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.08;
-      }}
-    >
-      <CityWorld {...props} />
-    </Canvas>
+    <>
+      <Canvas
+        className={props.className}
+        shadows
+        dpr={props.pixelRatio ?? [1, 1.35]}
+        camera={{ position: [2.6, 5.2, 7.2], fov: 49, near: 0.1, far: 110 }}
+        gl={{ antialias: true, powerPreference: "low-power" }}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.08;
+        }}
+      >
+        <CityWorld {...props} heroAsset={heroAsset} />
+      </Canvas>
+      {modelLoadFailed && (
+        <div className="city-hub__model-error" role="alert">
+          Şehir karakter modeli yüklenemedi. Sahne eksik görünebilir.
+        </div>
+      )}
+    </>
   );
 }

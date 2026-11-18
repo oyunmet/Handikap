@@ -2015,7 +2015,7 @@
   }
 
   .war-room-notice {
-    top: max(106px, calc(env(safe-area-inset-top) + 98px));
+    top: max(122px, calc(env(safe-area-inset-top) + 114px));
     left: max(12px, env(safe-area-inset-left));
     width: clamp(112px, 20vw, 160px);
     max-height: min(88px, calc(100dvh - 150px));

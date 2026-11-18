@@ -13,12 +13,12 @@ export type CityResident = {
 export const CITY_RESIDENTS: readonly CityResident[] = [
   { x: -6.4, z: -3.4, axis: "x", scale: 1.02, accessory: "hat", archetype: "gate-warden" },
   { x: 6.4, z: 3.2, axis: "z", scale: 0.91, accessory: "cape", archetype: "iron-oath" },
-  { x: -3.2, z: -6.4, axis: "x", scale: 0.97, accessory: "glasses", archetype: "rift-berserker" },
+  { x: -3.2, z: -6.4, axis: "x", scale: 0.97, accessory: "glasses", archetype: "gate-warden" },
   { x: 3.1, z: -6.4, axis: "z", scale: 1.09, accessory: "cane", archetype: "venom-assassin" },
   { x: -6.3, z: 4.3, axis: "z", scale: 1.12, accessory: "wheelchair", archetype: "gate-warden" },
   { x: 6.2, z: -3.5, axis: "x", scale: 0.94, accessory: "hat", archetype: "iron-oath" },
   { x: -3.1, z: 6.3, axis: "x", scale: 0.89, accessory: "cape", archetype: "rift-berserker" },
-  { x: 3.2, z: 6.3, axis: "z", scale: 1.05, accessory: "glasses", archetype: "venom-assassin" },
+  { x: 3.2, z: 6.3, axis: "z", scale: 1.05, accessory: "glasses", archetype: "gate-warden" },
 ];
 
 export const CITY_RESIDENT_TINTS = [
