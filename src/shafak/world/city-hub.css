@@ -150,7 +150,7 @@
   transform: translateY(-1px);
 }
 
-.city-hub__welcome {
+.city-hub__quest {
   position: absolute;
   z-index: 2;
   top: 118px;
@@ -164,7 +164,14 @@
   backdrop-filter: blur(10px);
 }
 
-.city-hub__welcome span,
+.city-hub__quest-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.city-hub__quest-kicker span,
 .city-hub__route-guide-title {
   color: #397678;
   font-size: 9px;
@@ -172,13 +179,122 @@
   letter-spacing: .17em;
 }
 
-.city-hub__welcome p {
+.city-hub__quest-kicker b {
+  color: #b96043;
+  font-size: 8px;
+  letter-spacing: .1em;
+  white-space: nowrap;
+}
+
+.city-hub__quest h2,
+.city-hub__quest p {
+  margin: 0;
+}
+
+.city-hub__quest h2 {
+  margin-top: 6px;
+  color: #203e43;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.city-hub__quest p {
   margin-top: 8px;
   max-width: 340px;
   color: #294a4f;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.45;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.city-hub__quest-objective {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px 9px;
+  border-left: 3px solid #e2a863;
+  border-radius: 5px 9px 9px 5px;
+  background: rgba(70, 126, 119, .09);
+}
+
+.city-hub__quest-objective b {
+  color: #b96043;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.city-hub__quest-objective span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #29494c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.city-hub__quest-progress {
+  display: grid;
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.city-hub__quest-progress > div {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(76, 119, 111, .24);
+  border-radius: 999px;
+  background: rgba(37, 71, 70, .12);
+}
+
+.city-hub__quest-progress > div i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #468b84, #e6b868);
+  box-shadow: 0 0 8px rgba(74, 147, 138, .44);
+}
+
+.city-hub__quest-progress small {
+  color: #607976;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-align: right;
+}
+
+.city-hub__quest > button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 11px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, .8);
+  border-radius: 999px;
+  background: linear-gradient(110deg, #f1cf7e, #e99a62);
+  color: #294143;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .11em;
+  box-shadow: 0 5px 14px rgba(55, 89, 80, .18), inset 0 1px rgba(255,255,255,.68);
+  cursor: pointer;
+  transition: filter .18s ease, transform .18s ease;
+}
+
+.city-hub__quest > button:hover,
+.city-hub__quest > button:focus-visible {
+  filter: brightness(1.07) saturate(1.08);
+  transform: translateY(-1px);
 }
 
 .city-hub__route-guide {
@@ -206,12 +322,29 @@
   grid-template-columns: 8px 1fr auto;
   align-items: center;
   gap: 8px;
+  width: 100%;
   min-width: 0;
+  min-height: 35px;
+  padding: 5px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: #28474c;
+  font: inherit;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .04em;
+  text-align: left;
+  cursor: pointer;
   transition: color .18s ease, transform .18s ease;
+}
+
+.city-hub__route-item:hover,
+.city-hub__route-item:focus-visible {
+  background: rgba(255, 255, 255, .65);
+  color: #b85d3f;
+  outline: 2px solid rgba(71, 135, 129, .5);
+  outline-offset: 1px;
 }
 
 .city-hub__route-item > i {
@@ -464,16 +597,39 @@
     font-size: 8px;
   }
 
-  .city-hub__welcome {
+  .city-hub__quest {
     top: 73px;
     left: 16px;
-    width: min(290px, calc(100vw - 32px));
-    padding: 10px 12px;
+    width: min(310px, calc(100vw - 32px));
+    padding: 11px 12px;
   }
 
-  .city-hub__welcome p {
-    max-width: 270px;
-    font-size: 12px;
+  .city-hub__quest h2 {
+    font-size: 17px;
+  }
+
+  .city-hub__quest p {
+    max-width: 286px;
+    font-size: 11px;
+  }
+
+  .city-hub__quest-objective {
+    margin-top: 6px;
+    padding: 7px 8px;
+  }
+
+  .city-hub__quest-objective span {
+    font-size: 9px;
+  }
+
+  .city-hub__quest-kicker span {
+    font-size: 8px;
+  }
+
+  .city-hub__quest > button {
+    min-height: 44px;
+    margin-top: 9px;
+    font-size: 9px;
   }
 
   .city-hub__route-guide {
@@ -492,7 +648,8 @@
   .city-hub__route-item {
     grid-template-columns: 7px 1fr;
     gap: 6px;
-    font-size: 8.5px;
+    min-height: 42px;
+    font-size: 8px;
   }
 
   .city-hub__route-guide.is-door-active {
@@ -551,13 +708,13 @@
     font-size: 17px;
   }
 
-  .city-hub__welcome {
+  .city-hub__quest {
     top: 67px;
   }
 
-  .city-hub__welcome p {
-    max-width: 240px;
-    font-size: 11px;
+  .city-hub__quest p {
+    max-width: 260px;
+    font-size: 10px;
   }
 
   .city-hub__route-guide {
@@ -586,6 +743,10 @@
   }
 
   .city-hub__door-card > button {
+    min-height: 44px;
+  }
+
+  .city-hub__route-item {
     min-height: 44px;
   }
 }

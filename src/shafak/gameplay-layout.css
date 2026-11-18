@@ -169,7 +169,7 @@
 }
 
 .menu-copy {
-  width: min(49%, 600px);
+  width: min(62%, 700px);
   padding: 0 2px;
 }
 
@@ -187,12 +187,12 @@
 .menu-actions {
   display: grid;
   width: min(100%, 520px);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 .menu-action--primary,
-.menu-action--war-room {
+.menu-action--secondary {
   min-height: 56px;
   padding-inline: 12px;
 }
@@ -201,21 +201,6 @@
   grid-column: 1;
   min-height: 42px;
   padding-inline: 10px;
-}
-
-.menu-gear-actions {
-  grid-column: 2;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.menu-gear-action {
-  min-width: 0;
-  min-height: 42px;
-  padding-inline: 5px;
-  font-size: 7px;
-  letter-spacing: .08em;
 }
 
 @media (orientation: landscape) and (max-width: 960px) {
@@ -237,17 +222,17 @@
   .menu-player-status__name small { font-size: 6px; }
   .menu-resource-chip { min-height: 22px; gap: 3px; padding-inline: 5px; font-size: 8px; }
   .menu-content { align-items: center; padding: 2px 0 5px; }
-  .menu-copy { width: min(58%, 490px); padding-left: 2px; }
+  .menu-copy { width: min(62%, 600px); padding-left: 2px; }
+  .menu-flow-card { width: min(34%, 360px); padding: 14px; gap: 8px; }
+  .menu-flow-card li { padding: 6px 8px; font-size: 8px; }
   .menu-divider { margin-bottom: 7px; font-size: 7px; }
   .menu-copy h1 { max-width: 360px; font-size: clamp(27px, 5vw, 42px); }
   .menu-copy > p { max-width: 310px; margin: 7px 0 10px; font-size: 9px; line-height: 1.5; }
   .menu-actions { width: min(100%, 440px); gap: 6px; }
   .menu-action--primary,
-  .menu-action--war-room { min-height: 43px; padding-inline: 8px; font-size: 8px; }
+  .menu-action--secondary { min-height: 43px; padding-inline: 8px; font-size: 8px; }
   .menu-action__icon { width: 27px; height: 27px; }
-  .menu-action--war-room small { font-size: 6px; }
-  .menu-action--secondary,
-  .menu-gear-action { min-height: 34px; font-size: 7px; }
+  .menu-action--secondary { min-height: 34px; font-size: 7px; }
   .menu-footer { display: none; }
   .scene-character {
     right: -3%;
@@ -373,14 +358,14 @@
   .menu-player-status { gap: 4px; padding: 3px 4px; }
   .menu-player-status__level { width: 25px; height: 25px; }
   .menu-resource-chip { padding-inline: 4px; font-size: 7px; }
-  .menu-copy { width: min(63%, 400px); }
+  .menu-copy { width: min(62%, 450px); }
+  .menu-flow-card { width: min(34%, 300px); padding: 10px; gap: 6px; }
+  .menu-flow-card li { padding: 4px 6px; font-size: 7px; }
   .menu-copy h1 { font-size: clamp(23px, 5vw, 33px); }
   .menu-copy > p { max-width: 260px; font-size: 8px; }
   .menu-actions { gap: 5px; }
   .menu-action--primary,
-  .menu-action--war-room { min-height: 38px; font-size: 7px; }
-  .menu-action--secondary,
-  .menu-gear-action { min-height: 29px; font-size: 6px; }
+  .menu-action--secondary { min-height: 38px; font-size: 7px; }
   .menu-header { grid-template-columns: auto minmax(0, 1fr) auto; }
   .menu-tools { gap: 3px; }
   .icon-control { width: 30px; height: 30px; }

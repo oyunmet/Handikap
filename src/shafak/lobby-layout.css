@@ -6,8 +6,8 @@
 }
 
 .screen--menu .menu-copy {
-  width: min(49%, 600px);
-  flex: 0 1 600px;
+  width: min(62%, 700px);
+  flex: 0 1 700px;
 }
 
 .screen--menu .campaign-menu-progress {
@@ -17,7 +17,7 @@
 .screen--menu .menu-actions {
   display: grid;
   width: min(100%, 520px);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .screen--menu .menu-action--primary {
@@ -91,7 +91,7 @@
   .screen--menu .menu-actions {
     display: grid;
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
 
@@ -105,7 +105,7 @@
 
   .screen--menu .menu-action--secondary {
     min-height: 46px;
-    grid-column: 1 / -1;
+    grid-column: 1;
     justify-content: center;
     padding-inline: 12px;
     border: 1px solid rgba(222, 192, 139, .18);
@@ -154,7 +154,9 @@
 
 @media (orientation: landscape) and (max-width: 960px) {
   .screen--menu .menu-content { gap: 14px; padding: 2px 0 5px; }
-  .screen--menu .menu-copy { width: min(40%, 340px); flex-basis: 340px; }
+  .screen--menu .menu-copy { width: min(62%, 600px); flex-basis: 600px; }
+  .screen--menu .menu-flow-card { width: min(34%, 300px); padding: 12px; gap: 7px; }
+  .screen--menu .menu-flow-card li { padding: 5px 7px; font-size: 8px; }
   .screen--menu .campaign-menu-progress { margin-bottom: 12px; padding: 8px 10px; }
   .screen--menu .menu-actions { width: min(100%, 350px); }
   .screen--menu .menu-action--war-room {
@@ -185,7 +187,9 @@
 }
 
 @media (orientation: landscape) and (max-width: 600px) {
-  .screen--menu .menu-copy { width: 44%; flex-basis: 44%; }
+  .screen--menu .menu-copy { width: 62%; flex-basis: 62%; }
+  .screen--menu .menu-flow-card { width: 34%; padding: 8px; gap: 5px; }
+  .screen--menu .menu-flow-card li { padding: 4px 5px; font-size: 7px; }
   .screen--menu .menu-action--war-room { width: 150px; min-width: 150px; }
   .screen--menu .menu-actions { gap: 5px; }
   .screen--menu .menu-action--primary { min-height: 38px; font-size: 7px; }

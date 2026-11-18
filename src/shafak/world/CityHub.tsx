@@ -10,12 +10,18 @@ import {
   type CityPosition,
 } from "./city-hub-layout";
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative";
+import { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT } from "./campaign-progression";
 import type { EquipmentVisual } from "../game/store-types";
 import "./city-hub.css";
 
 type CityHubProps = {
   playerName: string;
   campaignChapter: number;
+  campaignActNumber: number;
+  campaignActName: string;
+  campaignProgressPercent: number;
+  campaignObjective: string;
+  campaignSummary: string;
   playerAppearance: EquipmentVisual;
   onOpenCampaign: () => void;
   onOpenWarRoom: (mode: CityMissionMode) => void;
@@ -31,6 +37,11 @@ const clampAxis = (value: number) => Math.max(-1, Math.min(1, value));
 export default function CityHub({
   playerName,
   campaignChapter,
+  campaignActNumber,
+  campaignActName,
+  campaignProgressPercent,
+  campaignObjective,
+  campaignSummary,
   playerAppearance,
   onOpenCampaign,
   onOpenWarRoom,
@@ -67,6 +78,10 @@ export default function CityHub({
     }
     if (door.missionMode) onOpenWarRoom(door.missionMode);
   }, [onOpenCampaign, onOpenWarRoom]);
+  const focusDoor = useCallback((door: CityDoor) => {
+    activeDoorIdRef.current = door.id;
+    setActiveDoor(door);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -139,9 +154,13 @@ export default function CityHub({
   };
 
   const onNearbyDoorChange = useCallback((door: CityDoor | null) => {
-    activeDoorIdRef.current = door?.id ?? null;
-    setActiveDoor(door);
-  }, []);
+    if (door) {
+      focusDoor(door);
+      return;
+    }
+    activeDoorIdRef.current = null;
+    setActiveDoor(null);
+  }, [focusDoor]);
 
   return (
     <main className="city-hub" aria-label={`${CAMPAIGN_NARRATIVE.cityName} şehir merkezi`}>
@@ -171,10 +190,33 @@ export default function CityHub({
         </div>
       </header>
 
-      <div className="city-hub__welcome">
-        <span>AYNI SABAH · DOKUZ HATIRA</span>
-        <p>Alaz'ın Şafak Mührü şehir kapılarında yankılanıyor. Sefer Arşivi ana hikâyeyi sürdürür; diğer kapılar kısa yan sınavlara açılır.</p>
-      </div>
+      <section className="city-hub__quest" aria-label="Ana hikâye görevi">
+        <div className="city-hub__quest-kicker">
+          <span>ANA HİKÂYE</span>
+          <b>PERDE {campaignActNumber} / {CAMPAIGN_ACT_COUNT}</b>
+        </div>
+        <h2>{campaignActName}</h2>
+        <p>{campaignSummary}</p>
+        <div className="city-hub__quest-objective">
+          <b>BU BÖLÜMÜN HEDEFİ</b>
+          <span>{campaignObjective}</span>
+        </div>
+        <div className="city-hub__quest-progress">
+          <div
+            role="progressbar"
+            aria-label="Sefer ilerlemesi"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(campaignProgressPercent)}
+          >
+            <i style={{ width: `${Math.max(0, Math.min(100, campaignProgressPercent))}%` }} />
+          </div>
+          <small>BÖLÜM {campaignChapter} / {CAMPAIGN_LEVEL_COUNT} · {Math.floor(campaignProgressPercent)}%</small>
+        </div>
+        <button type="button" onClick={onOpenCampaign}>
+          SEFERE DEVAM ET <span aria-hidden="true">↗</span>
+        </button>
+      </section>
 
       {activeDoor && (
         <section className="city-hub__door-card" aria-live="polite" aria-atomic="true">
@@ -192,18 +234,21 @@ export default function CityHub({
 
       <aside
         className={`city-hub__route-guide${activeDoor ? " is-door-active" : ""}`}
-        aria-label="Şehirdeki oyun alanları"
+        aria-label="Görevler ve oyun modları"
       >
-        <span className="city-hub__route-guide-title">SOKAKLARDAKİ KAPILAR</span>
+        <span className="city-hub__route-guide-title">GÖREVLER VE MODLAR</span>
         {CITY_DOORS.map((door) => (
-          <div
+          <button
+            type="button"
             key={door.id}
+            aria-current={activeDoor?.id === door.id ? "location" : undefined}
             className={`city-hub__route-item${activeDoor?.id === door.id ? " is-active" : ""}`}
+            onClick={() => enterDoor(door)}
           >
             <i style={{ backgroundColor: door.color }} aria-hidden="true" />
             <span>{door.title}</span>
-            <small>{door.street}</small>
-          </div>
+            <small>{door.category}</small>
+          </button>
         ))}
       </aside>
 

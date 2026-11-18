@@ -810,6 +810,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     data: CampaignActData;
   } | null>(null);
   const [menuCampaignActLoadError, setMenuCampaignActLoadError] = useState(false);
+  const [menuCampaignObjective, setMenuCampaignObjective] = useState("");
+  const [menuCampaignLevelLoadError, setMenuCampaignLevelLoadError] = useState(false);
   useEffect(() => {
     let active = true;
     setMenuCampaignAct(null);
@@ -826,6 +828,22 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       active = false;
     };
   }, [menuCampaignProgress.actNumber]);
+  useEffect(() => {
+    let active = true;
+    setMenuCampaignObjective("");
+    setMenuCampaignLevelLoadError(false);
+    void loadCampaignLevelData(menuCampaignProgress.chapterId)
+      .then((data) => {
+        if (active) setMenuCampaignObjective(data.objective);
+      })
+      .catch((error: unknown) => {
+        console.error("Campaign level objective could not be loaded.", error);
+        if (active) setMenuCampaignLevelLoadError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [menuCampaignProgress.chapterId]);
   const currentMenuAct = menuCampaignAct?.actNumber === menuCampaignProgress.actNumber
     ? menuCampaignAct.data
     : null;
@@ -1365,7 +1383,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   <span>{CAMPAIGN_COPY.menuKicker}</span>
                   <span />
                 </div>
-                <h1>Aynı sabah. Yeni bir yol.</h1>
+                <h1>Şehrinden başla. Hikâyeni sürdür.</h1>
                 <p>{CAMPAIGN_COPY.menuDescription}</p>
                 <div className="campaign-menu-progress">
                   <div className="campaign-menu-progress__labels">
@@ -1393,21 +1411,18 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   <button
                     className="menu-action menu-action--primary"
                     type="button"
-                    onClick={() => {
-                      void enterWorld();
-                    }}
+                    onClick={enterCityHub}
                   >
                     <span className="menu-action__icon"><ArrowIcon /></span>
-                    <span>SEFERE DÖN · BÖLÜM {menuCampaignProgress.levelNumber}</span>
+                    <span>ŞEHİR MERKEZİNE GİR</span>
                     <ArrowIcon />
                   </button>
                   <button
-                    className="menu-action menu-action--secondary menu-action--city"
+                    className="menu-action menu-action--secondary"
                     type="button"
-                    onClick={enterCityHub}
+                    onClick={() => { void enterWorld(null, "city-hub"); }}
                   >
-                    <span>ŞEHİR MERKEZİ · EŞİK MAHALLESİ</span>
-                    <small>Mührün izini şehirden meydan görevlerine sür</small>
+                    <span>SEFERE DEVAM ET · BÖLÜM {menuCampaignProgress.levelNumber}</span>
                   </button>
                   <button
                     className="menu-action menu-action--secondary"
@@ -1419,47 +1434,18 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   >
                     YOLCU PROFİLİ
                   </button>
-                  <div className="menu-gear-actions" aria-label="Savaş hazırlığı">
-                    {([
-                      ["inventory", "ENVANTER"],
-                      ["weapons", "MAĞAZA"],
-                      ["smithy", "DEMİRCİ"],
-                    ] as const).map(([tab, label]) => (
-                      <button
-                        key={tab}
-                        className="menu-gear-action"
-                        type="button"
-                        onClick={() => { void enterWorld(tab); }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </motion.div>
-              <button
-                className="menu-action menu-action--war-room"
-                type="button"
-                onClick={() => enterWarRoom("menu")}
-              >
-                <span className="menu-action__icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.25" />
-                    <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.25" />
-                    <path d="M12 1.8v4M12 18.2v4M1.8 12h4m12.4 0h4" stroke="currentColor" strokeWidth="1.25" />
-                  </svg>
-                </span>
-                <span className="menu-action__war-room-copy">
-                    <small>FARKLI GÖREVLER</small>
-                    <b>MEYDAN GÖREVLERİ</b>
-                    <small>KARŞILAŞMA · SON NÖBET · EMANET AVI</small>
-                </span>
-                <span className="menu-action__war-room-arrow" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M4 12h15m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </button>
+              <aside className="menu-flow-card" aria-label="Oyunun akışı">
+                <span className="menu-flow-card__eyebrow">KIRIK ŞAFAK’TA YOLCULUK</span>
+                <h2>Bir hikâye, tek bir yol.</h2>
+                <ol>
+                  <li><b>01</b><span>Şehirde ana görevi seç.</span></li>
+                  <li><b>02</b><span>Seferde ilerle, rakiplerle düello et.</span></li>
+                  <li><b>03</b><span>Ödülünü al, güçlen ve şehre dön.</span></li>
+                </ol>
+                <p>Arena ve hayatta kalma sınavları şehir kapılarında.</p>
+              </aside>
             </div>
 
             <footer className="menu-footer">
@@ -1486,6 +1472,21 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <CityHub
                 playerName={profile.name}
                 campaignChapter={menuCampaignProgress.levelNumber}
+                campaignActNumber={menuCampaignProgress.actNumber}
+                campaignActName={currentMenuAct?.name ?? menuCampaignProgress.region.name}
+                campaignProgressPercent={menuCampaignProgress.campaignProgressPercent}
+                campaignObjective={
+                  menuCampaignObjective
+                  || (menuCampaignLevelLoadError
+                    ? "Bölüm hedefi yüklenemedi. Seferi yeniden açabilirsin."
+                    : "Bölüm hedefi hazırlanıyor…")
+                }
+                campaignSummary={
+                  currentMenuAct?.storySummary
+                  ?? (menuCampaignActLoadError
+                    ? "Sefer kaydı yüklenemedi. Yeniden deneyebilirsin."
+                    : "Alaz'ın izleri ve bu perdenin hikâyesi hazırlanıyor…")
+                }
                 playerAppearance={cityHubAppearance}
                 onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
                 onOpenWarRoom={(mode) => enterWarRoom("city-hub", mode)}
