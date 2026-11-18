@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getCityCameraFrame,
+  isCityCameraPointClear,
   isCityCameraPathClear,
 } from "./city-hub-camera.ts";
+import { CITY_DOORS } from "./city-hub-layout.ts";
 
 test("the city camera stays behind the hero and looks into the street", () => {
   const frame = getCityCameraFrame({ x: 0, z: 0 }, { x: 0, z: -1 });
@@ -49,4 +51,26 @@ test("the city camera moves to the clear shoulder when a roof blocks its usual v
     isCityCameraPathClear({ x: 0, y: 1.28, z: 0 }, frame.position, [obstacle]),
     true,
   );
+});
+
+test("the camera looks back at the street instead of clipping through a doorway wall", () => {
+  const obstacles = CITY_DOORS.map((door) => ({
+    x: door.building.x,
+    z: door.building.z,
+    width: door.width + 0.6,
+    depth: door.depth + 0.48,
+    height: door.height + 2.8,
+  }));
+
+  for (const door of CITY_DOORS) {
+    const facing = {
+      x: door.building.x - door.entrance.x,
+      z: door.building.z - door.entrance.z,
+    };
+    const frame = getCityCameraFrame(door.entrance, facing, obstacles);
+    assert.equal(frame.occluded, true, `${door.id} doorway should use a safe snapped camera frame`);
+    assert.equal(isCityCameraPointClear(frame.target, obstacles), true, `${door.id} camera target should stay outside walls`);
+    assert.equal(isCityCameraPointClear(frame.position, obstacles), true, `${door.id} camera should stay outside roofs`);
+    assert.equal(isCityCameraPathClear(frame.target, frame.position, obstacles), true, `${door.id} camera path should be clear`);
+  }
 });

@@ -63,7 +63,7 @@
   background-repeat: no-repeat;
   background-position: center 48%;
   background-size: cover;
-  filter: saturate(0.86) brightness(0.8);
+  filter: saturate(0.96) brightness(0.98);
   transform: translate3d(
     calc(var(--pointer-x) * -8px),
     calc(var(--pointer-y) * -5px),
@@ -77,14 +77,14 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(7, 9, 15, 0.58) 0%, rgba(7, 9, 15, 0.08) 55%, rgba(7, 9, 15, 0.18) 100%),
-    linear-gradient(0deg, rgba(6, 7, 11, 0.65) 0%, transparent 45%, rgba(7, 8, 13, 0.35) 100%);
+    linear-gradient(90deg, rgba(7, 9, 15, 0.36) 0%, rgba(7, 9, 15, 0.04) 55%, rgba(7, 9, 15, 0.12) 100%),
+    linear-gradient(0deg, rgba(6, 7, 11, 0.38) 0%, transparent 45%, rgba(7, 8, 13, 0.18) 100%);
 }
 
 .scene-backdrop__light {
   position: absolute;
   inset: -12%;
-  opacity: 0.48;
+  opacity: 0.62;
   background:
     radial-gradient(ellipse at 78% 46%, rgba(197, 106, 54, 0.24), transparent 29%),
     radial-gradient(ellipse at 54% 79%, rgba(180, 77, 45, 0.13), transparent 38%);
@@ -96,8 +96,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 59% 50%, transparent 28%, rgba(3, 4, 7, 0.3) 100%),
-    linear-gradient(90deg, rgba(3, 4, 8, 0.3), transparent 30%, transparent 75%, rgba(3, 4, 8, 0.18));
+    radial-gradient(ellipse at 59% 50%, transparent 34%, rgba(3, 4, 7, 0.2) 100%),
+    linear-gradient(90deg, rgba(3, 4, 8, 0.2), transparent 30%, transparent 75%, rgba(3, 4, 8, 0.12));
 }
 
 .scene-character {
@@ -195,8 +195,8 @@
   z-index: -1;
   inset: 0;
   background:
-    radial-gradient(ellipse at center 43%, rgba(9, 10, 14, 0.08), rgba(7, 8, 12, 0.64) 77%),
-    linear-gradient(0deg, rgba(5, 6, 9, 0.62), transparent 38%, rgba(5, 6, 9, 0.2));
+    radial-gradient(ellipse at center 43%, rgba(9, 10, 14, 0.02), rgba(7, 8, 12, 0.38) 77%),
+    linear-gradient(0deg, rgba(5, 6, 9, 0.36), transparent 38%, rgba(5, 6, 9, 0.1));
 }
 
 .opening-copy {

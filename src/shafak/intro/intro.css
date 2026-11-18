@@ -189,22 +189,22 @@
   align-items: baseline;
   justify-content: center;
   gap: 11px;
-  color: #f1dfbc;
+  color: #5c4b35;
   font-family: var(--font-display, Georgia, serif);
   line-height: 1;
   animation: intro-wordmark-arrive .85s .22s ease both;
 }
 
 .intro-production-card__met {
-  color: #f1d394;
+  color: #9e6b31;
   font-size: clamp(39px, 9vw, 54px);
   font-weight: 600;
   letter-spacing: .2em;
-  text-shadow: 0 0 30px rgba(202, 151, 75, .23);
+  text-shadow: 0 1px 10px rgba(202, 151, 75, .14);
 }
 
 .intro-production-card__production {
-  color: rgba(233, 218, 188, .86);
+  color: rgba(83, 72, 57, .88);
   font-size: clamp(18px, 4vw, 24px);
   font-weight: 400;
   letter-spacing: .055em;
@@ -231,7 +231,7 @@
 
 .intro-production-card__byline {
   margin: 0;
-  color: rgba(237, 226, 204, .82);
+  color: rgba(67, 61, 51, .84);
   font: 500 clamp(13px, 3.4vw, 16px)/1.5 var(--font-body, "Manrope", sans-serif);
   letter-spacing: .035em;
   animation: intro-wordmark-arrive .85s .5s ease both;

@@ -20,6 +20,7 @@ import WorldV2Actor from "./WorldV2Actor";
 import { KNIGHT_CONFIG } from "./knight-config";
 import { loadAsset, type LoadedWorldAsset } from "./world-v2-assets";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
+import type { EquipmentVisual } from "../game/store-types";
 
 type CityHubSceneProps = {
   positionRef: MutableRefObject<CityPosition>;
@@ -29,6 +30,7 @@ type CityHubSceneProps = {
   className?: string;
   pixelRatio?: number;
   reducedMotion?: boolean;
+  playerAppearance?: EquipmentVisual;
 };
 
 const CITY_RESIDENT_MODEL_CONFIGS = CITY_RESIDENTS.map((resident) => {
@@ -36,15 +38,15 @@ const CITY_RESIDENT_MODEL_CONFIGS = CITY_RESIDENTS.map((resident) => {
   return getAnimatedRivalModelConfig(
     undefined,
     { ...profile, size: resident.scale },
-    "road",
+    "world",
   ) as OpponentModelConfig;
 });
 const CITY_CAMERA_OBSTACLES: readonly CityCameraObstacle[] = CITY_DOORS.map((door) => ({
   x: door.building.x,
   z: door.building.z,
-  width: door.width,
-  depth: door.depth,
-  height: door.height + 2,
+  width: door.width + 0.6,
+  depth: door.depth + 0.48,
+  height: door.height + 2.8,
 }));
 
 function RoadNetwork() {
@@ -365,7 +367,12 @@ function CityWorld({
   onNearbyDoorChange,
   reducedMotion = false,
   heroAsset,
-}: CityHubSceneProps & { heroAsset: LoadedWorldAsset | null }) {
+  playerAppearance,
+  residentAssets,
+}: CityHubSceneProps & {
+  heroAsset: LoadedWorldAsset | null;
+  residentAssets: ReadonlyMap<string, LoadedWorldAsset>;
+}) {
   const motionRef = useRef(createWorldMotion(
     -positionRef.current.z,
     positionRef.current.x / 5.2,
@@ -471,7 +478,7 @@ function CityWorld({
           resident={resident}
           index={index}
           reducedMotion={reducedMotion}
-          asset={heroAsset}
+          asset={residentAssets.get(CITY_RESIDENT_MODEL_CONFIGS[index].modelPath) ?? heroAsset}
           motionRef={motionRef}
           modelConfig={CITY_RESIDENT_MODEL_CONFIGS[index]}
         />
@@ -482,7 +489,8 @@ function CityWorld({
           motionRef={motionRef}
           isPlayer
           animationState={playerMoving ? "walk" : "idle"}
-          showWeapon={false}
+          showWeapon={Boolean(playerAppearance?.weaponStyle)}
+          equipmentVisual={playerAppearance}
         />
       )}
     </>
@@ -491,6 +499,7 @@ function CityWorld({
 
 export default function CityHubScene(props: CityHubSceneProps) {
   const [heroAsset, setHeroAsset] = useState<LoadedWorldAsset | null>(null);
+  const [residentAssets, setResidentAssets] = useState<ReadonlyMap<string, LoadedWorldAsset>>(() => new Map());
   const [modelLoadFailed, setModelLoadFailed] = useState(false);
 
   useEffect(() => {
@@ -500,6 +509,25 @@ export default function CityHubScene(props: CityHubSceneProps) {
     }).catch((error: unknown) => {
       console.error("[city-hub] Campaign character model failed to load.", error);
       if (active) setModelLoadFailed(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const modelPaths = [...new Set(CITY_RESIDENT_MODEL_CONFIGS.map((config) => config.modelPath))];
+    void Promise.all(modelPaths.map(async (path) => {
+      try {
+        return [path, await loadAsset(path, WORLD_V2_CONFIG.player)] as const;
+      } catch (error) {
+        console.error(`[city-hub] Resident character model failed to load: ${path}`, error);
+        return null;
+      }
+    })).then((entries) => {
+      if (!active) return;
+      setResidentAssets(new Map(entries.filter((entry): entry is readonly [string, LoadedWorldAsset] => entry !== null)));
     });
     return () => {
       active = false;
@@ -520,7 +548,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
           gl.toneMappingExposure = 1.08;
         }}
       >
-        <CityWorld {...props} heroAsset={heroAsset} />
+        <CityWorld {...props} heroAsset={heroAsset} residentAssets={residentAssets} />
       </Canvas>
       {modelLoadFailed && (
         <div className="city-hub__model-error" role="alert">

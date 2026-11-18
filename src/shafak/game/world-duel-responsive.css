@@ -108,7 +108,7 @@
     --game-button-face: 50px !important;
   }
 
-  .duel-controls--field .duel-control-cluster .duel-control.is-dodge {
+  .duel-controls--field .duel-control-cluster .duel-control.is-aim {
     top: 64px;
     right: auto;
     bottom: auto;
@@ -341,7 +341,7 @@
     min-height: 50px;
   }
 
-  .duel-controls--field .duel-control-cluster .duel-control.is-dodge {
+  .duel-controls--field .duel-control-cluster .duel-control.is-aim {
     top: 52px;
     right: auto;
     bottom: auto;
@@ -486,7 +486,7 @@
     min-height: 46px;
   }
 
-  .duel-controls--field .duel-control-cluster .duel-control.is-dodge {
+  .duel-controls--field .duel-control-cluster .duel-control.is-aim {
     top: 46px;
     left: 50px;
     width: 46px;

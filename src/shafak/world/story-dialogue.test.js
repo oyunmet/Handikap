@@ -12,13 +12,15 @@ import {
   CAMPAIGN_LEVEL_COUNT,
   CAMPAIGN_LEVELS_PER_ACT,
 } from "./campaign-progression.ts";
+import { CAMPAIGN_NARRATIVE } from "./campaign-narrative.ts";
 
-test("opening establishes the missing princess, fallen kingdom, and seal quest", () => {
+test("opening establishes the city loop, Alaz, and the shared seal story", () => {
   const opening = getOpeningStoryDialogue();
   assert.equal(opening.kind, "opening");
-  assert.equal(opening.title, "KAYIP PRENSES");
-  assert.match(opening.lines.join(" "), /karanlık krallığı ele geçirirken prenses kayboldu/i);
-  assert.match(opening.lines.join(" "), /Mühür Parçaları/i);
+  assert.equal(opening.title, "AYNI SABAH");
+  assert.match(opening.lines.join(" "), new RegExp(CAMPAIGN_NARRATIVE.cityName));
+  assert.match(opening.lines.join(" "), new RegExp(CAMPAIGN_NARRATIVE.princessName));
+  assert.match(opening.lines.join(" "), /dokuz hatıraya/i);
   assert.match(opening.lines.join(" "), new RegExp(`${CAMPAIGN_ACT_COUNT} perdelik`));
   assert.match(opening.hint, new RegExp(`Son bölüm \\(${CAMPAIGN_LEVEL_COUNT}\\)`));
 });

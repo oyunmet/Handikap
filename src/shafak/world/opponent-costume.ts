@@ -80,7 +80,7 @@ function findMount(model: THREE.Object3D, names: readonly string[]) {
   return fallback ?? model;
 }
 
-function findBone(model: THREE.Object3D, names: readonly string[]) {
+function findBone(model: THREE.Object3D, names: readonly string[]): THREE.Bone | null {
   let found: THREE.Bone | null = null;
   model.traverse((object) => {
     if (!found && object instanceof THREE.Bone && names.includes(object.name)) found = object;

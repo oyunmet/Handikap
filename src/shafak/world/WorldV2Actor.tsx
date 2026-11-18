@@ -21,6 +21,7 @@ import {
   WORLD_V2_CONFIG,
 } from "./world-v2-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
+import type { EquipmentVisual } from "../game/store-types";
 import {
   applyOpponentBasePalette,
   attachOpponentCostume,
@@ -32,6 +33,7 @@ import {
   createDuelWeapon,
   disposeDuelWeapon,
   normalizeDuelWeaponWorldSize,
+  getDuelWeaponTargetWorldDimension,
 } from "./duel-weapon";
 
 export type WorldV2ActorDebugSnapshot = {
@@ -60,6 +62,7 @@ type Props = {
   showWeapon?: boolean;
   modelConfig?: OpponentModelConfig;
   cityAccessory?: CityNpcAccessory;
+  equipmentVisual?: EquipmentVisual;
 };
 
 type JumpEcho = {
@@ -68,8 +71,17 @@ type JumpEcho = {
   materials: THREE.Material[];
 };
 
-function resolveClip(animations: THREE.AnimationClip[], state: CharacterAnimationState) {
-  const aliases = KNIGHT_CONFIG.animationClips[state] as readonly string[];
+function resolveClip(
+  animations: THREE.AnimationClip[],
+  state: CharacterAnimationState,
+  modelConfig?: OpponentModelConfig,
+) {
+  const configuredAliases = modelConfig?.animationClips[
+    state as keyof OpponentModelConfig["animationClips"]
+  ];
+  const aliases: readonly string[] = configuredAliases?.length
+    ? configuredAliases
+    : KNIGHT_CONFIG.animationClips[state] as readonly string[];
   const normalizedNames = aliases.map((name) => name.toLowerCase());
   return animations.find((clip) => normalizedNames.includes(clip.name.toLowerCase()))
     ?? animations.find((clip) => clip.name.toLowerCase().includes(state.toLowerCase()))
@@ -95,6 +107,7 @@ export default function WorldV2Actor({
   showWeapon = true,
   modelConfig,
   cityAccessory,
+  equipmentVisual,
 }: Props) {
   const rootRef = useRef<THREE.Group>(null);
   const shadowRef = useRef<THREE.Mesh>(null);
@@ -215,6 +228,28 @@ export default function WorldV2Actor({
     };
   }, [isPlayer, model, modelConfig, showWeapon]);
 
+  useEffect(() => {
+    if (!isPlayer || !showWeapon || !equipmentVisual?.weaponStyle) return undefined;
+    const hand = model.getObjectByName("Rig_RightHand")
+      ?? model.getObjectByName("FistR")
+      ?? model.getObjectByName("Fist.R")
+      ?? model.getObjectByName("RightHand");
+    if (!hand) {
+      console.warn("[shafak-world] The city hero model has no right-hand weapon mount.");
+      return undefined;
+    }
+    const weapon = createDuelWeapon(equipmentVisual);
+    hand.add(weapon);
+    normalizeDuelWeaponWorldSize(
+      weapon,
+      getDuelWeaponTargetWorldDimension(equipmentVisual.weaponStyle),
+    );
+    return () => {
+      hand.remove(weapon);
+      disposeDuelWeapon(weapon);
+    };
+  }, [equipmentVisual, isPlayer, model, showWeapon]);
+
   useFrame((frame, delta) => {
     const root = rootRef.current;
     if (!root) return;
@@ -315,7 +350,7 @@ export default function WorldV2Actor({
     const state = isPlayer && (motion.crouching || proceduralPoseState)
       ? "idle"
       : animationState;
-    const clip = resolveClip(animations, state);
+    const clip = resolveClip(animations, state, modelConfig);
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
       nextAction.reset().fadeIn(0.16).play();

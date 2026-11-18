@@ -14,7 +14,7 @@ import {
   type WarRoomWeaponSwayLevel,
 } from "./game/war-room-viewmodel-settings";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiResponseError,
   requestAuthenticatedJson,
@@ -45,6 +45,8 @@ import {
 import type { WarRoomModeId } from "./game/war-room-missions";
 import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { StoreTab } from "./game/store-types.ts";
+import { getEquipmentVisual } from "./game/store-utils";
+import { STORE_CATALOG } from "./game/store-catalog";
 import type { WorldProgressPosition } from "./world/world-progress";
 import {
   CAMPAIGN_ACT_COUNT,
@@ -799,6 +801,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setScreen("city-hub");
   };
   const menuCampaignProgress = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
+  const cityHubAppearance = useMemo(
+    () => getEquipmentVisual(profile, STORE_CATALOG),
+    [profile],
+  );
   const [menuCampaignAct, setMenuCampaignAct] = useState<{
     actNumber: number;
     data: CampaignActData;
@@ -1401,7 +1407,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     onClick={enterCityHub}
                   >
                     <span>ŞEHİR MERKEZİ · EŞİK MAHALLESİ</span>
-                    <small>Sokakları keşfet, farklı oyun kapılarını bul</small>
+                    <small>Mührün izini şehirden meydan görevlerine sür</small>
                   </button>
                   <button
                     className="menu-action menu-action--secondary"
@@ -1480,6 +1486,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <CityHub
                 playerName={profile.name}
                 campaignChapter={menuCampaignProgress.levelNumber}
+                playerAppearance={cityHubAppearance}
                 onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
                 onOpenWarRoom={(mode) => enterWarRoom("city-hub", mode)}
                 onOpenProfile={() => setProfileOpen(true)}

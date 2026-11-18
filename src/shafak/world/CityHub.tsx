@@ -10,11 +10,13 @@ import {
   type CityPosition,
 } from "./city-hub-layout";
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative";
+import type { EquipmentVisual } from "../game/store-types";
 import "./city-hub.css";
 
 type CityHubProps = {
   playerName: string;
   campaignChapter: number;
+  playerAppearance: EquipmentVisual;
   onOpenCampaign: () => void;
   onOpenWarRoom: (mode: CityMissionMode) => void;
   onOpenProfile: () => void;
@@ -29,6 +31,7 @@ const clampAxis = (value: number) => Math.max(-1, Math.min(1, value));
 export default function CityHub({
   playerName,
   campaignChapter,
+  playerAppearance,
   onOpenCampaign,
   onOpenWarRoom,
   onOpenProfile,
@@ -148,6 +151,7 @@ export default function CityHub({
           inputRef={inputRef}
           activeDoorId={activeDoor?.id ?? null}
           onNearbyDoorChange={onNearbyDoorChange}
+          playerAppearance={playerAppearance}
         />
       </div>
 
@@ -168,8 +172,8 @@ export default function CityHub({
       </header>
 
       <div className="city-hub__welcome">
-        <span>ŞEHRİN İLK SABAHI</span>
-        <p>Çan yeniden çaldı. Sokaklarda tanıklar, açık kapılar ve farklı yollar seni bekliyor.</p>
+        <span>AYNI SABAH · DOKUZ HATIRA</span>
+        <p>Alaz'ın Şafak Mührü şehir kapılarında yankılanıyor. Sefer Arşivi ana hikâyeyi sürdürür; diğer kapılar kısa yan sınavlara açılır.</p>
       </div>
 
       {activeDoor && (

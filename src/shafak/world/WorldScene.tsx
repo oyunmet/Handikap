@@ -3293,7 +3293,7 @@ export default function WorldScene({
             )
             && (
               <>
-                <div className="duel-attack-warning" role="status" aria-live="assertive">RAKİP SALDIRIYOR · BLOKLA YA DA KAÇ</div>
+                <div className="duel-attack-warning" role="status" aria-live="assertive">RAKİP SALDIRIYOR · SİPER AL YA DA MENZİLDEN ÇIK</div>
               </>
             )}
           <DuelStaminaBar stamina={combatRender.player.stamina} maxStamina={combatRender.player.maxStamina} visualEffectsEnabled={visualEffectsEnabled} />
@@ -3353,11 +3353,11 @@ export default function WorldScene({
                 : ammoCount !== null && ammoCount <= 0
                   ? "CEPHANE YOK · DİĞER SİLAHA GEÇ"
                 : combatRender.player.isAiming
-                  ? `HEDEF KİLİTLİ · ${ammoLabel} ${ammoCount} · SALDIR`
-                  : `OTOMATİK HEDEF · ${ammoLabel} ${ammoCount} · ATEŞ`
+                  ? `HEDEF KİLİTLİ · ${ammoLabel} ${ammoCount} · ATEŞ`
+                  : `OTOMATİK HEDEF · F İLE KİLİTLE · ${ammoLabel} ${ammoCount}`
               : combatRender.player.isAiming
                 ? `HEDEF KİLİTLİ · ${STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "SİLAH"} HAZIR`
-                : "RAKİBE YAKLAŞ · SALDIRIYLA VUR"}
+                : "NİŞAN AL · HEDEFİ KİLİTLE"}
           </div>
             );
           })()}
@@ -3397,6 +3397,7 @@ export default function WorldScene({
                 : null,
             ]}
             activeWeaponSlot={combatRender.activeWeaponSlot}
+            isAiming={combatRender.player.isAiming}
             isBowActive={getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"}
             bowCloseRange={bowCloseRange}
             ammoCount={combatAmmoCount}
@@ -3433,7 +3434,7 @@ export default function WorldScene({
                   <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
                   <div><span aria-hidden="true">⬟</span><b>SİPER</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
                   <div><span aria-hidden="true">⚔</span><b>SİLAH</b><i>Yuva I/II'ye dokunarak seç; V ile sıradaki silaha geç</i><strong>V</strong></div>
-                  <div><span aria-hidden="true">◎</span><b>YAY</b><i>Uzaktan otomatik hedef alır; yakında bıçakla saldırır</i><strong>↗</strong></div>
+                  <div><span aria-hidden="true">◎</span><b>YAY</b><i>Uzaktan otomatik hedef alır; F ile kilit koy. Yakında bıçakla saldır</i><strong>F</strong></div>
                   <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
                   <div><span aria-hidden="true">♨</span><b>ATEŞ</b><i>Kor alevi rakibi yakar · dayanıklılık ve bekleme süresi</i><strong>↗</strong></div>
                   <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak rakibe vurur · dayanıklılık ve bekleme süresi</i><strong>↗</strong></div>

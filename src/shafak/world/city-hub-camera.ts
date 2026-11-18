@@ -64,7 +64,7 @@ function getSegmentBoxEntry(
   return exit < 0 || entry > 1 ? null : Math.max(0, entry);
 }
 
-function isCityCameraPointClear(point: CityCameraVector, obstacles: readonly CityCameraObstacle[]) {
+export function isCityCameraPointClear(point: CityCameraVector, obstacles: readonly CityCameraObstacle[]) {
   return obstacles.every((obstacle) => (
     point.x < obstacle.x - obstacle.width / 2 - CAMERA_RADIUS
     || point.x > obstacle.x + obstacle.width / 2 + CAMERA_RADIUS
@@ -95,11 +95,18 @@ export function getCityCameraFrame(
   const facingZ = facingLength > 0.01 ? facing.z / facingLength : -1;
   const rightX = -facingZ;
   const rightZ = facingX;
-  const target = {
+  const intendedTarget = {
     x: player.x + facingX * CAMERA_LOOK_AHEAD,
     y: CAMERA_TARGET_HEIGHT,
     z: player.z + facingZ * CAMERA_LOOK_AHEAD,
   };
+  // At a doorway the look-ahead point can land inside the solid wall even
+  // though the player is still standing in the street. Starting the camera
+  // sweep there leaves every shoulder blocked and can put the camera in a roof.
+  const targetWasClamped = !isCityCameraPointClear(intendedTarget, obstacles);
+  const target = targetWasClamped
+    ? { x: player.x, y: CAMERA_TARGET_HEIGHT, z: player.z }
+    : intendedTarget;
   let bestClipped: { position: CityCameraVector; distance: number } | null = null;
 
   for (let index = 0; index < CAMERA_OFFSETS.length; index += 1) {
@@ -120,7 +127,7 @@ export function getCityCameraFrame(
     }, null);
 
     if (firstHit === null && isCityCameraPointClear(desired, obstacles)) {
-      return { position: desired, target, occluded: index > 0 };
+       return { position: desired, target, occluded: targetWasClamped || index > 0 };
     }
 
     const safeDistance = Math.max(0, (firstHit ?? 1) * length - CAMERA_CLEARANCE);
@@ -147,11 +154,27 @@ export function getCityCameraFrame(
     return { position: bestClipped.position, target, occluded: true };
   }
 
+  // If every shoulder is blocked, raise the camera above the tallest city
+  // structure while keeping it directly over a clear street point. Never
+  // fall back to the original, potentially roof-embedded camera position.
+  const overheadPosition = {
+    x: target.x,
+    y: Math.max(CAMERA_HEIGHT, ...obstacles.map((obstacle) => obstacle.height))
+      + CAMERA_RADIUS + CAMERA_CLEARANCE + 0.5,
+    z: target.z,
+  };
+  if (
+    isCityCameraPointClear(overheadPosition, obstacles)
+    && isCityCameraPathClear(target, overheadPosition, obstacles)
+  ) {
+    return { position: overheadPosition, target, occluded: true };
+  }
+
   return {
     position: {
-      x: player.x - facingX * CAMERA_OFFSETS[0].back + rightX * CAMERA_OFFSETS[0].side,
-      y: CAMERA_HEIGHT,
-      z: player.z - facingZ * CAMERA_OFFSETS[0].back + rightZ * CAMERA_OFFSETS[0].side,
+      x: player.x,
+      y: overheadPosition.y,
+      z: player.z,
     },
     target,
     occluded: true,

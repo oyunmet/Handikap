@@ -16,6 +16,7 @@ import {
   getCampaignLevelNumber,
   getCampaignRegion,
 } from "./campaign-progression.ts";
+import { CAMPAIGN_NARRATIVE } from "./campaign-narrative.ts";
 
 const NPC_STORY_BEATS = [
   "Mührün ışığı, burada saklanan eski bir yemini yeniden görünür kılıyor.",
@@ -27,14 +28,14 @@ export function getOpeningStoryDialogue(): StoryDialogue {
   return {
     id: "story-opening",
     kind: "opening",
-    title: "KAYIP PRENSES",
+    title: "AYNI SABAH",
     speaker: "YOL KILAVUZU",
     lines: [
-      "Karanlık krallığı ele geçirirken prenses kayboldu.",
-      `${CAMPAIGN_ACT_COUNT} perdelik yolculukta Mühür Parçalarını birleştir; her perde prensesin izini biraz daha belirginleştirir.`,
-      `${CAMPAIGN_REGIONS[0].name} yolundan ${CAMPAIGN_REGIONS.at(-1)?.name ?? "son perde"} sarayına ilerle.`,
+      `${CAMPAIGN_NARRATIVE.cityName} her sabah aynı çanla yeniden uyanıyor; Prenses ${CAMPAIGN_NARRATIVE.princessName} kayıp.`,
+      `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz hatıraya böldü. Her perde bu kararın izini ve döngünün nedenini açığa çıkarıyor.`,
+      `${CAMPAIGN_ACT_COUNT} perdelik seferde tanıkları dinle, hatıraları birleştir ve ${CAMPAIGN_NARRATIVE.finalBossName} ile yüzleş.`,
     ],
-    hint: `Her perdede Mühür Parçalarını ara. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) Karanlık Hükümdar'a giden yolu açar.`,
+    hint: `Sefer ${CAMPAIGN_REGIONS[0].name} yolunda başlar. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) döngünün ardındaki gerçeği açar.`,
   };
 }
 

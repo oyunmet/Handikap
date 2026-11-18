@@ -1027,6 +1027,7 @@ function DuelFighter({
           positionedByParent
           targetHeight={side === "player" ? PLAYER_CHARACTER_TARGET_HEIGHT : undefined}
           characterLabel={side === "player" ? "duel-player" : boss ? "duel-boss" : `duel-rival:${opponentName}`}
+          aiming={Boolean(side === "player" && renderedActor?.isAiming)}
           modelConfig={modelConfig}
           modelAnimationState={modelAnimationState}
         />
@@ -1788,20 +1789,24 @@ function DuelTargetMarker({ combatStateRef }: { combatStateRef: MutableRefObject
     const marker = markerRef.current;
     if (!state || !marker) return;
     marker.visible = state.player.isAiming && state.bot.hp > 0;
-    marker.position.set(state.bot.x, 2.45 + Math.sin(frame.clock.elapsedTime * 3.5) * 0.08, state.bot.z);
+    marker.position.set(state.bot.x, 1.25 + Math.sin(frame.clock.elapsedTime * 3.5) * 0.045, state.bot.z);
     marker.rotation.y = Math.atan2(state.player.x - state.bot.x, state.player.z - state.bot.z);
     if (ringRef.current) ringRef.current.scale.setScalar(0.94 + Math.sin(frame.clock.elapsedTime * 7) * 0.06);
   });
 
   return (
     <group ref={markerRef} visible={false}>
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.39, 0.035, 5, 18]} />
-        <meshBasicMaterial color="#ffe29b" transparent opacity={0.9} depthWrite={false} />
+      <mesh ref={ringRef}>
+        <torusGeometry args={[0.28, 0.026, 6, 24]} />
+        <meshBasicMaterial color="#8deaff" transparent opacity={0.95} depthWrite={false} toneMapped={false} />
       </mesh>
-      <mesh position={[0, -0.29, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.14, 0.3, 5]} />
+      <mesh position={[0, 0.72, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.11, 0.22, 5]} />
         <meshBasicMaterial color="#ffe29b" toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0.035, 0.012]}>
+        <ringGeometry args={[0.045, 0.065, 12]} />
+        <meshBasicMaterial color="#fff0b6" toneMapped={false} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -3000,7 +3005,7 @@ export default function World3D(props: World3DProps) {
               antialias: rendererQuality === "high" && !touchRenderer,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
-              toneMappingExposure: 0.65,
+              toneMappingExposure: 0.95,
             }}
             onCreated={({ gl: renderer, scene }) => {
               renderer.setPixelRatio(maxDpr);

@@ -14,12 +14,12 @@ export function getCampaignCopy(
   const cityName = CAMPAIGN_NARRATIVE.cityName;
   return {
     menuKicker: `${cityName.toLocaleUpperCase("tr-TR")} · ${safeActCount} PERDE`,
-    introTagline: `${safeActCount} perde · ${safeChapterCount} bölüm · 9 hatıra · aynı şehir, yeni bir sabah`,
-    openingDescription: `${cityName} her sabah aynı çanla uyanıyor. ${safeActCount} perde ve ${safeChapterCount} bölüm boyunca dokuz hatırayı bulup döngüyü çöz.`,
-    menuDescription: `${cityName} her sabah aynı çanla uyanıyor. Dokuz hatırayı bul, döngünün nedenini çöz. Sokaklardaki her kapı başka bir oyuna açılır.`,
+    introTagline: `${safeActCount} perde · ${safeChapterCount} bölüm · 9 hatıra · tek bir hikâye`,
+    openingDescription: `Prenses Alaz kaybolduğundan beri ${cityName} her sabah aynı çanla uyanıyor. Dokuz hatırayı bul; ${safeActCount} perde ve ${safeChapterCount} bölümde döngüyü çöz.`,
+    menuDescription: `${cityName} her sabah aynı çanla uyanıyor. Dokuz hatırayı bul, döngünün nedenini çöz. Her kapı aynı mührün başka bir yankısını sınar; sefer bu izleri tek hikâyede birleştirir.`,
     loadingTips: [
       `Alaz'ın kervan defteri, ilk hatıranın izini gösteriyor.`,
-      `Her 10. bölümde yeni bir rakip; her 50. bölümde perde sonu karşılaşması var.`,
+      `Şehir kapılarındaki meydan görevleri, ana seferden ayrı kısa sınavlardır.`,
       `Son bölümde (${safeChapterCount}) döngünün ardındaki gerçeği ortaya çıkar.`,
     ],
     finalChapterLabel: `BÖLÜM ${safeChapterCount} · ŞAFAK MÜHRÜ`,

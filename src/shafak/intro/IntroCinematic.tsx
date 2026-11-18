@@ -6,12 +6,13 @@ import { createIntroAmbience, createIntroImpact, primeGameAudio } from "../audio
 import MetEmblem from "./MetEmblem";
 import { getIntroEventTimes } from "./timeline";
 import { CAMPAIGN_COPY } from "../i18n/campaign-copy.ts";
+import { CAMPAIGN_NARRATIVE } from "../world/campaign-narrative.ts";
 import "./intro.css";
 
 const STORY_LINES = [
-  "Eşik Mahallesi, aynı sabahın çan sesiyle yeniden uyanıyor.",
-  "Dokuz hatıra, bu döngünün ardındaki gerçeği saklıyor.",
-  "Sokaklarda bulduğun her kapı yeni bir oyuna açılıyor.",
+  `${CAMPAIGN_NARRATIVE.cityName}, her sabah aynı çanla uyanıyor; Prenses ${CAMPAIGN_NARRATIVE.princessName} kayıp.`,
+  `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz hatıraya böldü. Her perde bu kararın izini taşıyor.`,
+  "Şehir kapıları aynı mührün yankılarını sınar; sefer bütün izleri tek hikâyede birleştirir.",
 ];
 
 const IntroCityWorld = lazy(() => import("./IntroCityWorld"));

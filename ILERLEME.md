@@ -424,4 +424,12 @@
 - Önceki tam `npm test` koşusunda 744/747 sonucu ve üç bağımsız beklenti uyuşmazlığı kaydedilmişti; tam test ile typecheck bu CSS/önizleme turunda yeniden çalıştırılmadı. Typecheck’teki mevcut `server/profileApi.ts` ve `src/shafak/ads/h5GamesProvider.ts` hataları önceki kayıttaki gibi kapsam dışı.
 - Replit yazılım renderer’ı gerçek telefon GPU/FPS kabulü sayılmayacak; cihaz testi açık kalıyor.
 
+### 14.6 — Görsel tutarlılık, şehir kamerası ve düello nişanı: **Kod tamamlandı**
+
+- Açılış, şehir kapıları ve ana menü aynı Şafak Mührü/Alaz hikâyesine bağlandı; giriş perdesi aydınlatıldı ve 3D şehir karakterleri dört farklı gövde modelinden yükleniyor.
+- Şehir kamerasının kapı ve bina duvarlarının içine bakması engellendi. Şehirde seçili profil silahı kahramanın elinde görünüyor.
+- Düelloda KAÇ kontrol yuvası NİŞAN düğmesine ayrıldı; düğme hedef kilidini, rakip işaretçisini ve yay nişan duruşunu açıyor. Otomatik uzak hedef ve ok/cıvata sayımı korunuyor; yakın dövüş ve siper davranışı değişmedi. Mevcut iki silah yuvası, uzak silah filtresi ve ok/cıvata mağaza paketleri korunuyor.
+- Hedefli doğrulama: ilgili 47 test ve kampanya sınır testleri 2/2 geçti; `npm run build` ve `git diff --check` geçti. Tam test koşusunda 754/758 geçti; hikâye adı beklentisi düzeltilip ayrıca doğrulandı. Diğer üç başarısız beklenti hesap silme/Android yayın metaverisi testlerinde; bu değişikliklerin dosyaları kapsam dışı. `npm run typecheck` yalnızca değiştirilmeyen `server/profileApi.ts` ve `src/shafak/ads/h5GamesProvider.ts` dosyalarında hata verdi.
+- Önizleme ekran görüntüsü yaş doğrulama ekranında kaldığı için 3D sahne bu oturumda görsel olarak incelenemedi. Yaş doğrulaması veya oturum atlatılmadı; gerçek cihaz testi de ayrıca açık.
+
 **Sıradaki işlem:** Gerçek iPhone/Android üzerinde 3D FPS ve dokunmatik kontrolleri dene; sonuçları paylaşınca 14.5 cihaz kabulünü kapat. Önceki tam test/typecheck uyuşmazlıklarını bu özellikten ayrı değerlendir.
