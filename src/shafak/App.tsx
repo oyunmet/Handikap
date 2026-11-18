@@ -1210,7 +1210,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             exit={{
               opacity: 0,
               scale: motionReduced ? 1 : 1.07,
-              filter: motionReduced ? "blur(0px)" : "blur(10px)",
             }}
             transition={{ duration: transitionDuration, ease: "easeInOut" }}
           >
@@ -1290,8 +1289,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             key="menu"
             className="screen screen--menu"
             aria-label={tr.brand}
-            initial={{ opacity: 0, scale: motionReduced ? 1 : 0.97, filter: motionReduced ? "blur(0)" : "blur(8px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            initial={{ opacity: 0, scale: motionReduced ? 1 : 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: motionReduced ? 1 : 1.025 }}
             transition={{ duration: transitionDuration, ease: "easeOut" }}
           >

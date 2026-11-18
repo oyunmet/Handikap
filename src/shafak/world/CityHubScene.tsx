@@ -44,7 +44,7 @@ const CITY_RESIDENT_MODEL_CONFIGS = CITY_RESIDENTS.map((resident) => {
 const CITY_CAMERA_OBSTACLES: readonly CityCameraObstacle[] = CITY_DOORS.map((door) => ({
   x: door.building.x,
   z: door.building.z,
-  width: door.width + 0.6,
+  width: door.width + 0.28,
   depth: door.depth + 0.48,
   height: door.height + 2.8,
 }));
@@ -387,7 +387,13 @@ function CityWorld({
   useFrame(({ camera }, delta) => {
     const previousX = positionRef.current.x;
     const previousZ = positionRef.current.z;
-    const next = stepCityPosition(positionRef.current, inputRef.current, delta);
+    const next = heroAsset
+      ? stepCityPosition(positionRef.current, inputRef.current, delta)
+      : { x: previousX, z: previousZ };
+    if (!heroAsset) {
+      inputRef.current.x = 0;
+      inputRef.current.z = 0;
+    }
     positionRef.current.x = next.x;
     positionRef.current.z = next.z;
     const motion = motionRef.current;
@@ -539,7 +545,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
       <Canvas
         className={props.className}
         shadows
-        dpr={props.pixelRatio ?? [1, 1.35]}
+        dpr={props.pixelRatio ?? 1}
         camera={{ position: [2.6, 5.2, 7.2], fov: 49, near: 0.1, far: 110 }}
         gl={{ antialias: true, powerPreference: "low-power" }}
         onCreated={({ gl }) => {
@@ -550,6 +556,11 @@ export default function CityHubScene(props: CityHubSceneProps) {
       >
         <CityWorld {...props} heroAsset={heroAsset} residentAssets={residentAssets} />
       </Canvas>
+      {!heroAsset && !modelLoadFailed && (
+        <div className="city-hub__model-loading" role="status">
+          KAHRAMAN SAHNEYE ALINIYOR
+        </div>
+      )}
       {modelLoadFailed && (
         <div className="city-hub__model-error" role="alert">
           Şehir karakter modeli yüklenemedi. Sahne eksik görünebilir.

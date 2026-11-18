@@ -40,16 +40,14 @@ class IntroCanvasBoundary extends Component<
 
 function IntroWorld({
   reducedMotion,
-  quality,
 }: {
   reducedMotion: boolean;
-  quality: RenderQuality;
 }) {
   const fallback = <div className="intro-world__fallback" aria-hidden="true" />;
   return (
     <IntroCanvasBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <IntroCityWorld reducedMotion={reducedMotion} quality={quality} />
+        <IntroCityWorld reducedMotion={reducedMotion} />
       </Suspense>
     </IntroCanvasBoundary>
   );
@@ -129,7 +127,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
       aria-label="Şafak Savaşçıları açılış sinematiği"
     >
       <div className={`intro-world${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
-        <IntroWorld reducedMotion={reducedMotion} quality={quality} />
+        <IntroWorld reducedMotion={reducedMotion} />
       </div>
       <div className={`intro-atmosphere${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
         <div className="intro-atmosphere__moon-haze" />
@@ -185,42 +183,44 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
         İNTROYU ATLA <span aria-hidden="true">→</span>
       </button>
 
-      <div className="intro-narrative" aria-live="polite" aria-atomic="true">
-        {activeLine !== null && (
-          <p key={activeLine} className="intro-narrative__line">
-            {STORY_LINES[activeLine]}
-          </p>
-        )}
-        {showTitle && (
-          <div className="intro-narrative__brand">
-            <img
-              className="intro-narrative__logo"
-              src={`${import.meta.env.BASE_URL}logo.svg`}
-              alt=""
-              aria-hidden="true"
-              width="88"
-              height="88"
-            />
-            <div className="intro-narrative__wordmark">
-              <h1 className="intro-narrative__title">
-                <span>ŞAFAK</span>
-                <span>SAVAŞÇILARI</span>
-              </h1>
-              <p className="intro-narrative__tagline">{CAMPAIGN_COPY.introTagline}</p>
+      {(activeLine !== null || showTitle || showPrompt) && (
+        <div className="intro-narrative" aria-live="polite" aria-atomic="true">
+          {activeLine !== null && (
+            <p key={activeLine} className="intro-narrative__line">
+              {STORY_LINES[activeLine]}
+            </p>
+          )}
+          {showTitle && (
+            <div className="intro-narrative__brand">
+              <img
+                className="intro-narrative__logo"
+                src={`${import.meta.env.BASE_URL}logo.svg`}
+                alt=""
+                aria-hidden="true"
+                width="88"
+                height="88"
+              />
+              <div className="intro-narrative__wordmark">
+                <h1 className="intro-narrative__title">
+                  <span>ŞAFAK</span>
+                  <span>SAVAŞÇILARI</span>
+                </h1>
+                <p className="intro-narrative__tagline">{CAMPAIGN_COPY.introTagline}</p>
+              </div>
             </div>
-          </div>
-        )}
-        {showPrompt && (
-          <button
-            className="intro-start"
-            type="button"
-            onClick={complete}
-            aria-label="Eşik Mahallesi'ne gir"
-          >
-            MAHALLEYE GİR <span aria-hidden="true">→</span>
-          </button>
-        )}
-      </div>
+          )}
+          {showPrompt && (
+            <button
+              className="intro-start"
+              type="button"
+              onClick={complete}
+              aria-label="Eşik Mahallesi'ne gir"
+            >
+              MAHALLEYE GİR <span aria-hidden="true">→</span>
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }

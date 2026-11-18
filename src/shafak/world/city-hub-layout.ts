@@ -87,11 +87,11 @@ export const CITY_WALK_SPEED = 4.4;
 export const CITY_EDGE_LIMIT = 21;
 export const CITY_DOOR_INTERACTION_RANGE = 2.25;
 
-const COLLISION_MARGIN = 0.38;
+export const CITY_COLLISION_MARGIN = 0.55;
 
 function isInsideBuilding(position: CityPosition, door: CityDoor) {
-  const halfWidth = door.width / 2 + COLLISION_MARGIN;
-  const halfDepth = door.depth / 2 + COLLISION_MARGIN;
+  const halfWidth = door.width / 2 + CITY_COLLISION_MARGIN;
+  const halfDepth = door.depth / 2 + CITY_COLLISION_MARGIN;
   return Math.abs(position.x - door.building.x) < halfWidth
     && Math.abs(position.z - door.building.z) < halfDepth;
 }

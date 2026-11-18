@@ -142,6 +142,41 @@
   transform: translate(-50%, -50%);
 }
 
+.city-hub__model-loading {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 999px;
+  background: rgba(255, 249, 237, .94);
+  box-shadow: 0 10px 26px rgba(38, 77, 78, .18);
+  color: #294c4c;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.city-hub__model-loading::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(63, 132, 125, .25);
+  border-top-color: #3f847d;
+  border-radius: 50%;
+  content: "";
+  animation: city-hub-loading-spin .8s linear infinite;
+}
+
+@keyframes city-hub-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 .city-hub__top-actions button:hover,
 .city-hub__top-actions button:focus-visible {
   border-color: #55a6a3;
@@ -610,12 +645,15 @@
 
   .city-hub__quest p {
     max-width: 286px;
-    font-size: 11px;
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.35;
+    -webkit-line-clamp: 1;
   }
 
   .city-hub__quest-objective {
     margin-top: 6px;
-    padding: 7px 8px;
+    padding: 6px 8px;
   }
 
   .city-hub__quest-objective span {
@@ -627,8 +665,8 @@
   }
 
   .city-hub__quest > button {
-    min-height: 44px;
-    margin-top: 9px;
+    min-height: 40px;
+    margin-top: 8px;
     font-size: 9px;
   }
 
@@ -636,20 +674,24 @@
     top: auto;
     right: 10px;
     bottom: max(22px, env(safe-area-inset-bottom));
-    width: min(175px, 45vw);
-    gap: 8px;
-    padding: 10px;
+    width: min(220px, calc(100vw - 160px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 6px;
+    padding: 8px 9px;
   }
 
   .city-hub__route-guide-title {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
     font-size: 8px;
   }
 
   .city-hub__route-item {
     grid-template-columns: 7px 1fr;
     gap: 6px;
-    min-height: 42px;
-    font-size: 8px;
+    min-height: 44px;
+    padding: 3px;
+    font-size: 7px;
   }
 
   .city-hub__route-guide.is-door-active {
@@ -718,7 +760,7 @@
   }
 
   .city-hub__route-guide {
-    width: 145px;
+    width: min(220px, calc(100vw - 160px));
   }
 
   .city-hub__door-card {

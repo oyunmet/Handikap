@@ -146,6 +146,7 @@ export function getCityCameraFrame(
     if (
       clearPath
       && isCityCameraPointClear(clipped, obstacles)
+      && distance >= MIN_CAMERA_DISTANCE
       && (!bestClipped || distance > bestClipped.distance)
     ) bestClipped = { position: clipped, distance };
   }

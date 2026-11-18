@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  CITY_COLLISION_MARGIN,
   CITY_DOORS,
   CITY_EDGE_LIMIT,
   CITY_START_POSITION,
@@ -51,15 +52,16 @@ test("diagonal movement is normalized and never exceeds city boundaries", () => 
 
 test("building collision blocks entry but still permits sliding along the wall", () => {
   const door = CITY_DOORS[0];
+  const walkableX = door.building.x + door.width / 2 + CITY_COLLISION_MARGIN + 0.15;
   const blocked = stepCityPosition(
-    { x: door.building.x + door.width / 2 + 0.5, z: door.building.z },
+    { x: walkableX, z: door.building.z },
     { x: -1, z: 0 },
     0.05,
   );
   assert.ok(blocked.x > door.building.x + door.width / 2);
 
   const slide = stepCityPosition(
-    { x: door.building.x + door.width / 2 + 0.5, z: door.building.z },
+    { x: walkableX, z: door.building.z },
     { x: -1, z: 1 },
     0.05,
   );

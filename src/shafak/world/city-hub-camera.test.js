@@ -5,7 +5,15 @@ import {
   isCityCameraPointClear,
   isCityCameraPathClear,
 } from "./city-hub-camera.ts";
-import { CITY_DOORS } from "./city-hub-layout.ts";
+import { CITY_COLLISION_MARGIN, CITY_DOORS } from "./city-hub-layout.ts";
+
+const cityObstacles = CITY_DOORS.map((door) => ({
+  x: door.building.x,
+  z: door.building.z,
+  width: door.width + 0.28,
+  depth: door.depth + 0.48,
+  height: door.height + 2.8,
+}));
 
 test("the city camera stays behind the hero and looks into the street", () => {
   const frame = getCityCameraFrame({ x: 0, z: 0 }, { x: 0, z: -1 });
@@ -54,23 +62,65 @@ test("the city camera moves to the clear shoulder when a roof blocks its usual v
 });
 
 test("the camera looks back at the street instead of clipping through a doorway wall", () => {
-  const obstacles = CITY_DOORS.map((door) => ({
-    x: door.building.x,
-    z: door.building.z,
-    width: door.width + 0.6,
-    depth: door.depth + 0.48,
-    height: door.height + 2.8,
-  }));
-
   for (const door of CITY_DOORS) {
     const facing = {
       x: door.building.x - door.entrance.x,
       z: door.building.z - door.entrance.z,
     };
-    const frame = getCityCameraFrame(door.entrance, facing, obstacles);
+    const frame = getCityCameraFrame(door.entrance, facing, cityObstacles);
     assert.equal(frame.occluded, true, `${door.id} doorway should use a safe snapped camera frame`);
-    assert.equal(isCityCameraPointClear(frame.target, obstacles), true, `${door.id} camera target should stay outside walls`);
-    assert.equal(isCityCameraPointClear(frame.position, obstacles), true, `${door.id} camera should stay outside roofs`);
-    assert.equal(isCityCameraPathClear(frame.target, frame.position, obstacles), true, `${door.id} camera path should be clear`);
+    assert.equal(isCityCameraPointClear(frame.target, cityObstacles), true, `${door.id} camera target should stay outside walls`);
+    assert.equal(isCityCameraPointClear(frame.position, cityObstacles), true, `${door.id} camera should stay outside roofs`);
+    assert.equal(isCityCameraPathClear(frame.target, frame.position, cityObstacles), true, `${door.id} camera path should be clear`);
+  }
+});
+
+test("the camera keeps safe distance at legal building-edge positions", () => {
+  const player = { x: -15.25, z: -3 };
+  const facing = { x: Math.sqrt(3) / 2, z: -0.5 };
+  const frame = getCityCameraFrame(player, facing, cityObstacles);
+  const distance = Math.hypot(
+    frame.position.x - frame.target.x,
+    frame.position.y - frame.target.y,
+    frame.position.z - frame.target.z,
+  );
+
+  assert.ok(Math.abs(player.x - CITY_DOORS[0].building.x) > CITY_DOORS[0].width / 2 + CITY_COLLISION_MARGIN);
+  assert.ok(distance >= 2.5, `camera collapsed to ${distance.toFixed(2)}m`);
+  assert.equal(isCityCameraPointClear(frame.target, cityObstacles), true);
+  assert.equal(isCityCameraPointClear(frame.position, cityObstacles), true);
+  assert.equal(isCityCameraPathClear(frame.target, frame.position, cityObstacles), true);
+});
+
+test("camera targets and paths stay outside every building from reachable wall edges", () => {
+  const facings = Array.from({ length: 8 }, (_, index) => {
+    const angle = (index * Math.PI) / 4;
+    return { x: Math.sin(angle), z: -Math.cos(angle) };
+  });
+
+  for (const door of CITY_DOORS) {
+    const xOffset = door.width / 2 + CITY_COLLISION_MARGIN + 0.02;
+    const zOffset = door.depth / 2 + CITY_COLLISION_MARGIN + 0.02;
+    const positions = [
+      { x: door.building.x - xOffset, z: door.building.z },
+      { x: door.building.x + xOffset, z: door.building.z },
+      { x: door.building.x, z: door.building.z - zOffset },
+      { x: door.building.x, z: door.building.z + zOffset },
+    ];
+
+    for (const position of positions) {
+      for (const facing of facings) {
+        const frame = getCityCameraFrame(position, facing, cityObstacles);
+        const distance = Math.hypot(
+          frame.position.x - frame.target.x,
+          frame.position.y - frame.target.y,
+          frame.position.z - frame.target.z,
+        );
+        assert.ok(distance >= 2.5, `${door.id} camera collapsed near a wall`);
+        assert.equal(isCityCameraPointClear(frame.target, cityObstacles), true, `${door.id} target entered a wall`);
+        assert.equal(isCityCameraPointClear(frame.position, cityObstacles), true, `${door.id} camera entered a roof`);
+        assert.equal(isCityCameraPathClear(frame.target, frame.position, cityObstacles), true, `${door.id} camera crossed a wall`);
+      }
+    }
   }
 });

@@ -1,5 +1,4 @@
 import { useCallback, useRef } from "react";
-import type { RenderQuality } from "../world/graphics-quality";
 import CityHubScene from "../world/CityHubScene";
 import {
   CITY_START_POSITION,
@@ -9,14 +8,12 @@ import {
 
 type Props = {
   reducedMotion: boolean;
-  quality: RenderQuality;
 };
 
-export default function IntroCityWorld({ reducedMotion, quality }: Props) {
+export default function IntroCityWorld({ reducedMotion }: Props) {
   const positionRef = useRef<CityPosition>({ ...CITY_START_POSITION });
   const inputRef = useRef<CityInput>({ x: 0, z: 0 });
   const ignoreNearbyDoor = useCallback(() => {}, []);
-  const pixelRatio = quality === "high" ? 1.25 : quality === "balanced" ? 1.1 : 1;
 
   return (
     <CityHubScene
@@ -25,7 +22,7 @@ export default function IntroCityWorld({ reducedMotion, quality }: Props) {
       inputRef={inputRef}
       activeDoorId={null}
       onNearbyDoorChange={ignoreNearbyDoor}
-      pixelRatio={pixelRatio}
+      pixelRatio={1}
       reducedMotion={reducedMotion}
     />
   );
