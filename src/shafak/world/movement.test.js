@@ -10,31 +10,37 @@ import {
   WORLD_PLAYER_DEPTH_LIMIT,
   WORLD_PLAYER_LATERAL_LIMIT_METERS,
   WORLD_ORIGIN_REBASE_INTERVAL_METERS,
-  WORLD_JOYSTICK_TURN_SPEED,
+  WORLD_CAMERA_TURN_SPEED,
 } from "./movement.ts";
-import { getWorldV2CameraOffset, WORLD_V2_CONFIG } from "./world-v2-config.ts";
+import {
+  getWorldV2CameraOffset,
+  getWorldV2Heading,
+  WORLD_V2_CONFIG,
+} from "./world-v2-config.ts";
 
-test("keyboard left/right turns the hero while up/down controls forward movement", () => {
+test("keyboard movement uses camera-relative strafing and forward travel", () => {
   const diagonal = readWorldInput(new Set(["w", "d"]), { x: 0, y: 0 });
   const north = readWorldInput(new Set(["arrowup"]), { x: 0, y: 0 });
-  const turnRight = readWorldInput(new Set(["arrowright"]), { x: 0, y: 0 });
+  const strafeRight = readWorldInput(new Set(["arrowright"]), { x: 0, y: 0 });
+  const turnCameraRight = readWorldInput(new Set(["e"]), { x: 0, y: 0 });
 
-  assert.ok(Math.abs(Math.hypot(diagonal.turn, diagonal.forward) - 1) < 1e-10);
-  assert.ok(Math.abs(diagonal.turn - Math.SQRT1_2) < 1e-12);
+  assert.ok(Math.abs(Math.hypot(diagonal.strafe, diagonal.forward) - 1) < 1e-10);
+  assert.ok(Math.abs(diagonal.strafe - Math.SQRT1_2) < 1e-12);
   assert.ok(Math.abs(diagonal.forward - Math.SQRT1_2) < 1e-12);
-  assert.deepEqual([north.turn, north.strafe, north.forward], [0, 0, 1]);
-  assert.deepEqual([turnRight.turn, turnRight.strafe, turnRight.forward], [1, 0, 0]);
+  assert.deepEqual([north.strafe, north.forward], [0, 1]);
+  assert.deepEqual([strafeRight.turn, strafeRight.strafe, strafeRight.forward], [0, 1, 0]);
+  assert.equal(turnCameraRight.turn, 1);
 });
 
-test("horizontal joystick input turns while the vertical axis controls travel", () => {
+test("left joystick strafes and moves while preserving analog speed", () => {
   const straight = readWorldInput(new Set(), { x: -0.1, y: 0.9 });
   const diagonal = readWorldInput(new Set(), { x: 0.25, y: 0.9 });
   const overRange = readWorldInput(new Set(), { x: 1, y: 1 });
 
-  assert.deepEqual([straight.turn, straight.forward], [0, 0.9]);
-  assert.ok(diagonal.turn > 0.2);
+  assert.deepEqual([straight.strafe, straight.forward], [0, (0.9 - 0.12) / 0.88]);
+  assert.ok(diagonal.strafe > 0.1);
   assert.ok(diagonal.forward > 0.8);
-  assert.ok(Math.abs(Math.hypot(overRange.turn, overRange.forward) - 1) < 1e-10);
+  assert.ok(Math.abs(Math.hypot(overRange.strafe, overRange.forward) - 1) < 1e-10);
 });
 
 test("forward running with horizontal deadzone drift keeps the player facing down the road", () => {
@@ -110,9 +116,9 @@ test("joystick forward input advances measured distance and the camera", () => {
   assert.equal(state.motion, "running");
 });
 
-test("W/S moves along the road while A/D turns the player in place", () => {
+test("W/S advances and A/D moves laterally without rotating the camera", () => {
   const forward = readWorldInput(new Set(["w"]), { x: 0, y: 0 });
-  const turnRight = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
+  const strafeRight = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
   let state = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
     state = stepWorldMotion(state, forward, 1 / 60);
@@ -121,17 +127,17 @@ test("W/S moves along the road while A/D turns the player in place", () => {
   assert.ok(state.stepCount >= 3);
   assert.ok(state.zoom < 1 && state.zoom > 0.96);
 
-  let turningState = createWorldMotion();
+  let strafeState = createWorldMotion();
   for (let index = 0; index < 90; index += 1) {
-    turningState = stepWorldMotion(turningState, turnRight, 1 / 60);
+    strafeState = stepWorldMotion(strafeState, strafeRight, 1 / 60);
   }
-  assert.equal(turningState.distance, 0);
-  assert.equal(turningState.depth, 0);
-  assert.ok(Math.abs(turningState.cameraHeading) > 0.1);
+  assert.equal(strafeState.distance, 0);
+  assert.ok(strafeState.depth > 0.1);
+  assert.equal(strafeState.cameraHeading, 0);
 });
 
 test("weather handling slows steering response without changing the normal default", () => {
-  const right = readWorldInput(new Set(["d"]), { x: 0, y: 0 });
+  const right = readWorldInput(new Set(["e"]), { x: 0, y: 0 });
   const normal = stepWorldMotion(createWorldMotion(), right, 1 / 60);
   const stormy = stepWorldMotion(createWorldMotion(), right, 1 / 60, 1, undefined, 0.76);
 
@@ -191,15 +197,19 @@ test("fixed-step render interpolation fills the gap without replacing simulation
     target.cameraHeading,
     previous.cameraHeading + (current.cameraHeading - previous.cameraHeading) * 0.5,
   );
+  assert.equal(
+    target.cameraPitch,
+    previous.cameraPitch + (current.cameraPitch - previous.cameraPitch) * 0.5,
+  );
   assert.equal(target.stepCount, current.stepCount);
   assert.equal(target.hasMoved, current.hasMoved);
   assert.equal(previous.distance, 12);
 });
 
-test("the horizontal joystick completes a full camera and character turn in place", () => {
+test("keyboard camera turn rotates in place independently of movement input", () => {
   let state = createWorldMotion(10);
-  const turnRight = readWorldInput(new Set(), { x: 1, y: 0 });
-  const frames = Math.round((Math.PI * 2 / WORLD_JOYSTICK_TURN_SPEED) * 60);
+  const turnRight = readWorldInput(new Set(["e"]), { x: 0, y: 0 });
+  const frames = Math.round((Math.PI * 2 / WORLD_CAMERA_TURN_SPEED) * 60);
   for (let index = 0; index < frames; index += 1) {
     state = stepWorldMotion(state, turnRight, 1 / 60);
   }
@@ -211,28 +221,29 @@ test("the horizontal joystick completes a full camera and character turn in plac
   assert.equal(state.speed, 0);
 });
 
-test("turning around keeps the player back-facing the camera and enables backward travel", () => {
+test("camera drag changes its orbit while movement follows the new view direction", () => {
   let state = createWorldMotion(12);
-  const turnRight = readWorldInput(new Set(), { x: 1, y: 0 });
-  const halfTurnFrames = Math.round((Math.PI / WORLD_JOYSTICK_TURN_SPEED) * 60);
-  for (let index = 0; index < halfTurnFrames; index += 1) {
-    state = stepWorldMotion(state, turnRight, 1 / 60);
-  }
-  const beforeWalkingBack = state.distance;
-  const forward = readWorldInput(new Set(), { x: 0, y: 1 });
-  for (let index = 0; index < 45; index += 1) {
-    state = stepWorldMotion(state, forward, 1 / 60);
-  }
-
-  assert.ok(state.distance < beforeWalkingBack, "forward input after a half-turn should walk back along the road");
-  assert.ok(state.distance > 0);
-  const frontYaw = state.cameraHeading + WORLD_V2_CONFIG.modelFacing;
+  const orbitRight = readWorldInput(new Set(), { x: 0, y: 1 }, undefined, { yaw: 0.5, pitch: 0.1 });
+  state = stepWorldMotion(state, orbitRight, 1 / 60);
+  assert.ok(state.cameraHeading < 0);
+  assert.ok(state.cameraPitch > 0.3);
+  assert.ok(state.distance > 12);
+  const frontYaw = getWorldV2Heading(state.velocityX, state.velocityY) + WORLD_V2_CONFIG.modelFacing;
   const heroFront = { x: Math.sin(frontYaw), z: Math.cos(frontYaw) };
   const cameraOffset = getWorldV2CameraOffset(state.cameraHeading, WORLD_V2_CONFIG.camera.distanceBehind);
-  assert.ok(
-    heroFront.x * cameraOffset.x + heroFront.z * cameraOffset.z < -WORLD_V2_CONFIG.camera.distanceBehind + 1e-6,
-    "the camera remains behind the player's back after turning",
-  );
+  assert.ok(heroFront.x * cameraOffset.x + heroFront.z * cameraOffset.z < -3);
+});
+
+test("strafe turns the hero toward travel without rotating the follow camera", () => {
+  let state = createWorldMotion();
+  const right = readWorldInput(new Set(), { x: 1, y: 0 });
+  for (let index = 0; index < 20; index += 1) {
+    state = stepWorldMotion(state, right, 1 / 60);
+  }
+  const actorYaw = getWorldV2Heading(state.velocityX, state.velocityY);
+  const frontYaw = actorYaw + WORLD_V2_CONFIG.modelFacing;
+  assert.ok(Math.sin(frontYaw) > 0.99);
+  assert.equal(state.cameraHeading, 0);
 });
 
 test("the player stays 0.6 m inside the road edge and gets a small inward push", () => {

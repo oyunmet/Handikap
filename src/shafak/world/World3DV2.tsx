@@ -3,7 +3,11 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState 
 import type { ErrorInfo, ReactNode } from "react";
 import * as THREE from "three";
 import type { World3DProps } from "./World3D";
-import { readWorldInput, WORLD_JOYSTICK_X_DEADZONE } from "./movement";
+import {
+  readWorldInput,
+  WORLD_CAMERA_DEFAULT_PITCH,
+  WORLD_JOYSTICK_DEADZONE,
+} from "./movement";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
 import { KNIGHT_CONFIG } from "./knight-config";
@@ -89,6 +93,7 @@ function WorldV2Camera({
   const direction = useMemo(() => new THREE.Vector3(), []);
   const presentationOffset = useMemo(() => new THREE.Vector3(), []);
   const cameraHeading = useRef(0);
+  const cameraPitch = useRef(WORLD_CAMERA_DEFAULT_PITCH);
   const previousMovementState = useRef<WorldMotion["movementState"] | null>(null);
   const jumpPeakHeight = useRef(0);
   const landingPulseSeconds = useRef(0);
@@ -137,14 +142,19 @@ function WorldV2Camera({
       Math.cos(targetHeading - cameraHeading.current),
     );
     cameraHeading.current += headingDelta * (1 - Math.exp(-14 * dt));
+    cameraPitch.current += (motion.cameraPitch - cameraPitch.current)
+      * (1 - Math.exp(-14 * dt));
+    const horizontalCameraDistance = WORLD_V2_CONFIG.camera.distanceBehind
+      * Math.cos(cameraPitch.current);
     const cameraOffset = getWorldV2CameraOffset(
       cameraHeading.current,
-      WORLD_V2_CONFIG.camera.distanceBehind,
+      horizontalCameraDistance,
     );
     origin.set(playerX, motion.jumpHeight + 1.05, playerZ);
     desired.set(
       playerX + cameraOffset.x,
-      motion.jumpHeight + WORLD_V2_CONFIG.camera.height,
+      motion.jumpHeight + WORLD_V2_CONFIG.camera.targetHeight
+        + WORLD_V2_CONFIG.camera.distanceBehind * Math.sin(cameraPitch.current),
       playerZ + cameraOffset.z,
     );
     direction.copy(desired).sub(origin);
@@ -342,7 +352,7 @@ function WorldV2FrameDebug({
     const visibleHeadingText = actorDebug ? formatDegrees(actorDebug.visibleHeading) : empty;
     outputRef.current.textContent = [
       `Joystick ham: ${format(rawJoystick.x)}, ${format(rawJoystick.y)}`,
-      `Joystick dönüş / ileri: ${format(processedJoystick.turn)}, ${format(processedJoystick.forward)} (deadzone ${format(WORLD_JOYSTICK_X_DEADZONE)})`,
+      `Joystick sağ/sol · ileri/geri: ${format(processedJoystick.strafe)}, ${format(processedJoystick.forward)} (deadzone ${format(WORLD_JOYSTICK_DEADZONE)})`,
       `Hız X / ileri: ${format(motion.velocityX)}, ${format(motion.velocityY)} m/sn`,
       `Kamera yaw: ${formatDegrees(cameraYaw)}`,
       `Hedef yaw / gövde yaw / net model yönü: ${targetYawText} / ${bodyYawText} / ${visibleHeadingText}`,

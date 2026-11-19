@@ -19,6 +19,7 @@ export type WorldMotion = {
   depth: number;
   distance: number;
   cameraHeading: number;
+  cameraPitch: number;
   originDistance: number;
   cameraX: number;
   stepPhase: number;
@@ -31,12 +32,14 @@ export type WorldMotion = {
 };
 
 export type WorldInput = {
-  /** Horizontal joystick and A/D input turn the player and rear camera. */
+  /** Keyboard-only camera turn rate; mobile camera look comes from lookDelta. */
   turn: number;
-  /** Lateral translation axis reserved for non-player movement sources. */
+  /** Left/right movement relative to the camera. */
   strafe: number;
-  /** Vertical joystick axis walks forward or backward relative to the facing. */
+  /** Forward/backward movement relative to the camera. */
   forward: number;
+  /** One-shot camera rotation from a touch or mouse drag, in radians. */
+  lookDelta: { yaw: number; pitch: number };
   actions: WorldActionState;
   analogMagnitude: number;
 };
@@ -61,8 +64,11 @@ export const WORLD_PLAYER_DEPTH_LIMIT = WORLD_PLAYER_LATERAL_LIMIT_METERS / 5.2;
 export const WORLD_CHUNK_LENGTH_METERS = 48;
 export const WORLD_GATE_INTERVAL_METERS = 144;
 export const WORLD_ORIGIN_REBASE_INTERVAL_METERS = 1024;
-export const WORLD_JOYSTICK_X_DEADZONE = 0.12;
-export const WORLD_JOYSTICK_TURN_SPEED = 4;
+export const WORLD_JOYSTICK_DEADZONE = 0.12;
+export const WORLD_CAMERA_TURN_SPEED = 3.2;
+export const WORLD_CAMERA_DEFAULT_PITCH = 0.235;
+export const WORLD_CAMERA_MIN_PITCH = 0.05;
+export const WORLD_CAMERA_MAX_PITCH = 0.67;
 
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 6.8;
@@ -89,6 +95,7 @@ export function createWorldMotion(distance = 0, depth = 0): WorldMotion {
     depth: clamp(finiteOrZero(depth), -WORLD_PLAYER_DEPTH_LIMIT, WORLD_PLAYER_DEPTH_LIMIT),
     distance: initialDistance,
     cameraHeading: 0,
+    cameraPitch: WORLD_CAMERA_DEFAULT_PITCH,
     originDistance: getWorldOriginDistance(initialDistance),
     cameraX: initialDistance,
     stepPhase: 0,
@@ -105,40 +112,52 @@ export function readWorldInput(
   keys: ReadonlySet<string>,
   analog: { x: number; y: number },
   actions: WorldActionState = readWorldActions(keys),
+  lookDelta: { yaw?: number; pitch?: number } = {},
 ): WorldInput {
-  const keyTurn = Number(keys.has("arrowright") || keys.has("d"))
+  const keyStrafe = Number(keys.has("arrowright") || keys.has("d"))
     - Number(keys.has("arrowleft") || keys.has("a"));
   const keyForward = Number(keys.has("arrowup") || keys.has("w"))
     - Number(keys.has("arrowdown") || keys.has("s"));
-  const hasKeyboardDirection = keyTurn !== 0 || keyForward !== 0;
+  const keyCameraTurn = Number(keys.has("e")) - Number(keys.has("q"));
+  const hasKeyboardDirection = keyStrafe !== 0 || keyForward !== 0;
   const analogX = finiteOrZero(analog.x);
   const analogY = finiteOrZero(analog.y);
-  let turn = hasKeyboardDirection
-    ? keyTurn
-    : Math.abs(analogX) < WORLD_JOYSTICK_X_DEADZONE ? 0 : analogX;
-  let strafe = 0;
+  const applyDeadzone = (value: number) => {
+    const magnitude = Math.abs(value);
+    if (magnitude <= WORLD_JOYSTICK_DEADZONE) return 0;
+    return Math.sign(value) * (magnitude - WORLD_JOYSTICK_DEADZONE)
+      / (1 - WORLD_JOYSTICK_DEADZONE);
+  };
+  let strafe = hasKeyboardDirection
+    ? keyStrafe
+    : applyDeadzone(analogX);
   let forward = hasKeyboardDirection ? keyForward : analogY;
+  if (!hasKeyboardDirection) forward = applyDeadzone(analogY);
   let analogMagnitude = 0;
 
   if (hasKeyboardDirection) {
-    const movementMagnitude = Math.hypot(turn, forward);
+    const movementMagnitude = Math.hypot(strafe, forward);
     if (movementMagnitude > 1) {
-      turn /= movementMagnitude;
+      strafe /= movementMagnitude;
       forward /= movementMagnitude;
     }
   } else {
-    const stickMagnitude = Math.hypot(turn, forward);
+    const stickMagnitude = Math.hypot(strafe, forward);
     analogMagnitude = clamp(stickMagnitude, 0, 1);
     if (stickMagnitude > 1) {
-      turn /= stickMagnitude;
+      strafe /= stickMagnitude;
       forward /= stickMagnitude;
     }
   }
 
   return {
-    turn,
+    turn: keyCameraTurn,
     strafe,
     forward,
+    lookDelta: {
+      yaw: Number.isFinite(lookDelta.yaw) ? clamp(lookDelta.yaw ?? 0, -0.9, 0.9) : 0,
+      pitch: Number.isFinite(lookDelta.pitch) ? clamp(lookDelta.pitch ?? 0, -0.45, 0.45) : 0,
+    },
     actions,
     analogMagnitude,
   };
@@ -169,7 +188,13 @@ export function stepWorldMotion(
   const analogRun = smoothstep(0.58, 1, clamp(input.analogMagnitude, 0, 1));
   const cameraHeading = normalizeAngle(
     state.cameraHeading
-      - clamp(finiteOrZero(input.turn), -1, 1) * WORLD_JOYSTICK_TURN_SPEED * handling * dt,
+      - clamp(finiteOrZero(input.turn), -1, 1) * WORLD_CAMERA_TURN_SPEED * handling * dt
+      - finiteOrZero(input.lookDelta.yaw),
+  );
+  const cameraPitch = clamp(
+    finiteOrZero(state.cameraPitch) + finiteOrZero(input.lookDelta.pitch),
+    WORLD_CAMERA_MIN_PITCH,
+    WORLD_CAMERA_MAX_PITCH,
   );
   let jumpVelocity = state.jumpVelocity;
   let jumpHeight = state.jumpHeight;
@@ -263,6 +288,7 @@ export function stepWorldMotion(
   frame.depth = depth;
   frame.distance = distance;
   frame.cameraHeading = cameraHeading;
+  frame.cameraPitch = cameraPitch;
   frame.originDistance = originDistance;
   frame.cameraX = cameraX;
   frame.stepPhase = stepPhase;
@@ -307,6 +333,7 @@ export function interpolateWorldMotion(
     previous.cameraHeading
     + normalizeAngle(current.cameraHeading - previous.cameraHeading) * amount,
   );
+  target.cameraPitch = lerp(previous.cameraPitch, current.cameraPitch);
   target.originDistance = current.originDistance;
   target.cameraX = lerp(previous.cameraX, current.cameraX);
   target.stepPhase = lerp(previous.stepPhase, current.stepPhase);

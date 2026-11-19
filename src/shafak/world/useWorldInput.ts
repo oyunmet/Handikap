@@ -22,6 +22,8 @@ const MOVEMENT_KEYS = new Set([
   "a",
   "s",
   "d",
+  "q",
+  "e",
   "shift",
   "space",
   "control",
@@ -32,6 +34,10 @@ export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
   const joystickPointerId = useRef<number | null>(null);
+  const lookPointerId = useRef<number | null>(null);
+  const lookPointerX = useRef(0);
+  const lookPointerY = useRef(0);
+  const cameraLookDelta = useRef({ yaw: 0, pitch: 0 });
   const actionPointersRef = useRef(new Map<WorldTouchAction, Set<number>>());
   const actionPointerStartedAtRef = useRef(new Map<number, number>());
   const jumpPressPendingRef = useRef(false);
@@ -42,8 +48,44 @@ export default function useWorldInput(wake: () => void) {
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const isRightLookArea = event.clientX >= bounds.left + bounds.width * 0.42;
+    if (isRightLookArea && lookPointerId.current === null) {
+      event.preventDefault();
+      lookPointerId.current = event.pointerId;
+      lookPointerX.current = event.clientX;
+      lookPointerY.current = event.clientY;
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
+    }
     wake();
   }, [wake]);
+
+  const onStagePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (lookPointerId.current !== event.pointerId) return;
+    const deltaX = event.clientX - lookPointerX.current;
+    const deltaY = event.clientY - lookPointerY.current;
+    lookPointerX.current = event.clientX;
+    lookPointerY.current = event.clientY;
+    cameraLookDelta.current.yaw = Math.max(
+      -0.9,
+      Math.min(0.9, cameraLookDelta.current.yaw + deltaX * 0.006),
+    );
+    cameraLookDelta.current.pitch = Math.max(
+      -0.45,
+      Math.min(0.45, cameraLookDelta.current.pitch - deltaY * 0.004),
+    );
+    publishInputChange();
+  }, [publishInputChange]);
+
+  const finishLookPointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (lookPointerId.current !== event.pointerId) return;
+    lookPointerId.current = null;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch { /* A cancelled touch may already have released capture. */ }
+  }, []);
 
   const updateJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerId.current !== event.pointerId) return;
@@ -161,6 +203,10 @@ export default function useWorldInput(wake: () => void) {
     heldKeys.current.clear();
     joystick.current = { x: 0, y: 0 };
     joystickPointerId.current = null;
+    lookPointerId.current = null;
+    lookPointerX.current = 0;
+    lookPointerY.current = 0;
+    cameraLookDelta.current = { yaw: 0, pitch: 0 };
     actionPointersRef.current.clear();
     actionPointerStartedAtRef.current.clear();
     jumpPressPendingRef.current = false;
@@ -179,6 +225,12 @@ export default function useWorldInput(wake: () => void) {
     jumpPressPendingRef.current = false;
     publishInputChange();
   }, [publishInputChange]);
+
+  const consumeCameraLookDelta = useCallback(() => {
+    const delta = cameraLookDelta.current;
+    cameraLookDelta.current = { yaw: 0, pitch: 0 };
+    return { ...delta };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -213,6 +265,9 @@ export default function useWorldInput(wake: () => void) {
     heldKeys,
     joystick,
     onStagePointerDown,
+    onStagePointerMove,
+    onStagePointerUp: finishLookPointer,
+    onStagePointerCancel: finishLookPointer,
     onJoystickPointerDown,
     onJoystickPointerMove: updateJoystick,
     onJoystickPointerUp: releaseJoystick,
@@ -224,9 +279,11 @@ export default function useWorldInput(wake: () => void) {
     triggerAction,
     readActions,
     consumeJumpPress,
+    consumeCameraLookDelta,
     inputRevision,
     activePointerCount: () => countWorldTouchPointers(actionPointersRef.current)
-      + Number(joystickPointerId.current !== null),
+      + Number(joystickPointerId.current !== null)
+      + Number(lookPointerId.current !== null),
     isActionActive: (key: "shift" | "c") =>
       toggledActions.has(key)
       || heldKeys.current.has(key)

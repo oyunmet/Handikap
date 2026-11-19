@@ -2342,6 +2342,7 @@ export default function WorldScene({
       turn: 0,
       strafe: 0,
       forward: 0,
+      lookDelta: { yaw: 0, pitch: 0 },
       actions: { sprint: false, jumpPressed: false, crouch: false },
       analogMagnitude: 0,
     };
@@ -2353,6 +2354,7 @@ export default function WorldScene({
     );
     const collisionPosition = { x: 0, distance: 0 };
     const newlyCollected = new Map<number, string[]>();
+    let pendingCameraLookDelta = { yaw: 0, pitch: 0 };
     const animate = (now: number) => {
       if (document.visibilityState === "hidden") {
         frame = 0;
@@ -2367,6 +2369,7 @@ export default function WorldScene({
         || !Number.isFinite(currentMotion.depth)
         || !Number.isFinite(currentMotion.distance)
         || !Number.isFinite(currentMotion.cameraHeading)
+        || !Number.isFinite(currentMotion.cameraPitch)
         || !Number.isFinite(currentMotion.cameraX)
         || !Number.isFinite(currentMotion.stepPhase)
         || !Number.isFinite(currentMotion.zoom)
@@ -2383,6 +2386,14 @@ export default function WorldScene({
             worldInput.joystick.current,
             worldInput.readActions(),
           );
+      if (!pendingWeaponRival) {
+        const cameraDelta = worldInput.consumeCameraLookDelta();
+        pendingCameraLookDelta = {
+          yaw: Math.max(-0.9, Math.min(0.9, pendingCameraLookDelta.yaw + cameraDelta.yaw)),
+          pitch: Math.max(-0.45, Math.min(0.45, pendingCameraLookDelta.pitch + cameraDelta.pitch)),
+        };
+        liveInput = { ...liveInput, lookDelta: pendingCameraLookDelta };
+      }
       const worldPausedForStory = Boolean(storyDialogueRef.current) || Boolean(pendingWeaponRival) || adPausedRef.current;
       let frameState: WorldMotionFrame = stepWorldMotion(
         motionRef.current,
@@ -2401,6 +2412,7 @@ export default function WorldScene({
       let hasCollectedThisFrame = false;
       while (accumulator >= fixedStep) {
         if (worldPausedForStory && !battleActiveRef.current) {
+          pendingCameraLookDelta = { yaw: 0, pitch: 0 };
           const pausedFrame = stepWorldMotion(
             motionRef.current,
             stoppedInput,
@@ -2415,6 +2427,7 @@ export default function WorldScene({
           continue;
         }
         if (battleActiveRef.current) {
+          pendingCameraLookDelta = { yaw: 0, pitch: 0 };
           const session = battleSessionRef.current;
           const currentCombat = combatStateRef.current;
           if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && now >= hitStopUntilRef.current) {
@@ -2562,6 +2575,7 @@ export default function WorldScene({
         const simulationStep = fixedStep;
         if (chestSlamRef.current) {
           stepInput = stoppedInput;
+          pendingCameraLookDelta = { yaw: 0, pitch: 0 };
         } else if (stepInput.actions.jumpPressed) {
           stepInput = {
             ...stepInput,
@@ -2580,6 +2594,10 @@ export default function WorldScene({
           frameScratch,
           getWeatherHandlingMultiplier(weatherModeRef.current),
         );
+        if (stepInput.lookDelta.yaw !== 0 || stepInput.lookDelta.pitch !== 0) {
+          pendingCameraLookDelta = { yaw: 0, pitch: 0 };
+          liveInput = { ...liveInput, lookDelta: { yaw: 0, pitch: 0 } };
+        }
         let chestImpactId: string | null = null;
         const activeSlam = chestSlamRef.current;
         if (activeSlam) {
@@ -3127,7 +3145,14 @@ export default function WorldScene({
           {showWarRoomNewBadge && <small>YENİ MOD</small>}
         </button>
       )}
-      <div className="world-stage" onPointerDown={worldInput.onStagePointerDown}>
+      <div
+        className="world-stage"
+        onPointerDown={worldInput.onStagePointerDown}
+        onPointerMove={worldInput.onStagePointerMove}
+        onPointerUp={worldInput.onStagePointerUp}
+        onPointerCancel={worldInput.onStagePointerCancel}
+        onLostPointerCapture={worldInput.onStagePointerCancel}
+      >
         <Suspense
           fallback={
             <div className="world-three-layer" aria-hidden="true">
@@ -3630,13 +3655,14 @@ export default function WorldScene({
         className="world-joystick"
         role="application"
         aria-label={worldText.controls}
-        aria-description="Hareketi yönlendir; hızlanmak için joystick'i dış halkaya it."
+        aria-description="Sol joystick ile kameraya göre hareket et. Ekranın sağ tarafını sürükleyerek kamerayı çevir."
         onPointerDown={worldInput.onJoystickPointerDown}
         onPointerMove={worldInput.onJoystickPointerMove}
         onPointerUp={worldInput.onJoystickPointerUp}
         onPointerCancel={worldInput.onJoystickPointerCancel}
+        onLostPointerCapture={worldInput.onJoystickPointerCancel}
       ><span className="world-joystick__nub" /></div>
-      <span className="world-mobile-hint" aria-hidden="true">{worldText.controls}</span>
+      <span className="world-mobile-hint" aria-hidden="true">SOL · HAREKET &nbsp; / &nbsp; SAĞ · KAMERA</span>
       <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">
         <GameButton
           className={`world-movement-action is-sprint${worldInput.isActionActive("shift") ? " is-active" : ""}`}
