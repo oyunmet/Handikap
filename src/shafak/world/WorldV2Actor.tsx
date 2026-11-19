@@ -16,6 +16,10 @@ import { isRootTranslationTrack, prepareWorldActorClips } from "./model-animatio
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import { cloneWorldCharacter, disposeWorldCharacter } from "./world-v2-assets";
 import {
+  applyCharacterSurfaceDetail,
+  resolveCharacterSurfaceKind,
+} from "./knight-surface-detail";
+import {
   getWorldV2NpcHeading,
   getWorldV2YawDelta,
   WORLD_V2_CONFIG,
@@ -125,6 +129,11 @@ export default function WorldV2Actor({
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = false;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => {
+        const surfaceKind = resolveCharacterSurfaceKind(material.name, object.name);
+        if (surfaceKind) applyCharacterSurfaceDetail(object.geometry, material, surfaceKind);
+      });
     });
     return clone;
   }, [asset, modelConfig, tint]);

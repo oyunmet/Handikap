@@ -735,6 +735,8 @@
 .world-action:hover { transform: translateY(-2px); border-color: rgba(235,199,127,.65); background: rgba(73,53,39,.76); }
 .world-action svg { width: 19px; height: 19px; color: #e2c17e; }
 .world-action span { color: rgba(240,225,198,.72); font-size: 7px; letter-spacing: .08em; text-transform: uppercase; }
+.world-action--menu { border-color: rgba(235,174,103,.48); }
+.world-action--menu svg { color: #efa963; }
 .world-panel-backdrop {
   position: fixed; z-index: 10; inset: 0; display: grid; align-items: end; justify-items: end;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
@@ -1508,7 +1510,6 @@
     min-height: clamp(76px, 20vw, 88px) !important;
     --game-button-face: clamp(60px, 17vw, 76px) !important;
   }
-  .world-movement-actions .game-button.is-sprint { display: none; }
   .world-movement-actions .game-button .game-button__hint { display: none; }
   .world-joystick {
     width: clamp(96px, 25vw, 116px) !important;
@@ -2798,4 +2799,22 @@
     height: 80px;
     min-height: 80px;
   }
+}
+
+.world-scene {
+  background: #d6e6dc;
+}
+
+.world-stage {
+  filter: brightness(1.14) saturate(1.05);
+}
+
+.world-three-layer canvas {
+  filter: brightness(1.17) saturate(1.06);
+}
+
+.world-three-loading,
+.world-three-fallback {
+  background: radial-gradient(ellipse at 50% 20%, #f4f4df 0%, #d8ebe4 64%, #bed7d1 100%);
+  color: #28433e;
 }

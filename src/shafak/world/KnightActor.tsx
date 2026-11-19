@@ -9,9 +9,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import type { CharacterAnimationState } from "./character-animation";
 import { KNIGHT_CONFIG } from "./knight-config";
 import {
-  ensureKnightGeometryUVs,
-  KNIGHT_SURFACE_MAPS,
-  KNIGHT_SURFACE_NORMAL_SCALE,
+  applyCharacterSurfaceDetail,
 } from "./knight-surface-detail";
 import {
   getOpponentAnimationPlayback,
@@ -225,15 +223,8 @@ function prepareModel(
     const originalMaterials = Array.isArray(object.material) ? object.material : [object.material];
     let changed = false;
     const materials = originalMaterials.map((original) => {
-      if (playerCharacter && preserveOriginalPlayerMaterials) return original;
-      if (modelConfig?.isDemirTac) return original;
       const materialName = normalizeMaterialName(original.name);
       const meshName = normalizeMaterialName(object.name);
-      const preserveOriginal = modelConfig?.preserveOriginalMaterialAliases?.some((alias) => {
-        const normalizedAlias = normalizeMaterialName(alias);
-        return materialName.includes(normalizedAlias) || meshName.includes(normalizedAlias);
-      }) ?? false;
-      if (preserveOriginal) return original;
       const aliases = materialNameAliases;
       const matches = (values: readonly string[] | undefined) =>
         values?.some((alias) => {
@@ -251,6 +242,37 @@ function prepareModel(
       const isBoots = matches(aliases?.boots);
       const isArmor = matches(aliases?.armor);
       const hasSurfaceDetail = isArmor || isArmorLight || isArmorDark || isAccent;
+      const surfaceKind = materialName.includes("hair")
+        ? "hair"
+        : materialName.includes("skin") || materialName.includes("face") || materialName.includes("body")
+          ? "skin"
+          : materialName.includes("boot") || materialName.includes("shoe") || materialName.includes("leather")
+            ? "leather"
+            : materialName.includes("cloth") || materialName.includes("shirt") || materialName.includes("pants")
+              ? "cloth"
+              : materialName.includes("armor") || materialName.includes("steel")
+                ? "metal"
+                : isSkin
+                  ? "skin"
+                  : isHair
+                    ? "hair"
+                    : isBoots
+                      ? "leather"
+                      : isClothing || isPants
+                        ? "cloth"
+                        : hasSurfaceDetail
+                          ? "metal"
+                          : null;
+      if (playerCharacter && preserveOriginalPlayerMaterials) {
+        if (surfaceKind) applyCharacterSurfaceDetail(object.geometry, original, surfaceKind);
+        return original;
+      }
+      if (modelConfig?.isDemirTac) return original;
+      const preserveOriginal = modelConfig?.preserveOriginalMaterialAliases?.some((alias) => {
+        const normalizedAlias = normalizeMaterialName(alias);
+        return materialName.includes(normalizedAlias) || meshName.includes(normalizedAlias);
+      }) ?? false;
+      if (preserveOriginal) return original;
       const color = !paletteAppearance
         ? undefined
         : isCape
@@ -279,7 +301,7 @@ function prepareModel(
       const needsPhysicalTuning = isOpponentModel
         || (original instanceof THREE.MeshStandardMaterial
           && (original.metalness > 0.2 || original.roughness < 0.62));
-      if (!isOpponentModel && !color && !hasSurfaceDetail && !tintColor && !needsPhysicalTuning) return original;
+      if (!isOpponentModel && !color && !surfaceKind && !tintColor && !needsPhysicalTuning) return original;
       const originalColor = (original as THREE.Material & { color?: THREE.Color }).color;
       if (color && !originalColor?.isColor && !isOpponentModel) return original;
 
@@ -301,14 +323,7 @@ function prepareModel(
         customized.metalness = Math.min(customized.metalness, 0.2);
         customized.roughness = Math.max(customized.roughness, 0.62);
       }
-      if (!isOpponentModel && hasSurfaceDetail) {
-        ensureKnightGeometryUVs(object.geometry);
-        customized.map ??= KNIGHT_SURFACE_MAPS.color;
-        customized.normalMap ??= KNIGHT_SURFACE_MAPS.normal;
-        customized.roughnessMap ??= KNIGHT_SURFACE_MAPS.roughness;
-        customized.normalScale.set(KNIGHT_SURFACE_NORMAL_SCALE, KNIGHT_SURFACE_NORMAL_SCALE);
-        customized.needsUpdate = true;
-      }
+      if (surfaceKind) applyCharacterSurfaceDetail(object.geometry, customized, surfaceKind);
       ownedMaterials.push(customized);
       changed = true;
       return customized;

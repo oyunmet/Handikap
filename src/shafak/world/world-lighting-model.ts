@@ -1,6 +1,6 @@
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export const WORLD_LIGHTING_DARKNESS_ALPHA = 0.12;
+export const WORLD_LIGHTING_DARKNESS_ALPHA = 0.025;
 
 export function calculateWorldLightRadius(
   viewportWidth: number,

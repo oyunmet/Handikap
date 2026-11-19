@@ -551,7 +551,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.08;
+          gl.toneMappingExposure = 1.18;
         }}
       >
         <CityWorld {...props} heroAsset={heroAsset} residentAssets={residentAssets} />

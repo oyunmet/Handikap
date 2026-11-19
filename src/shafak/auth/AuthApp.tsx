@@ -170,7 +170,7 @@ function SignInPage() {
         <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
       </Link>
       <section className="auth-page__pitch">
-        <span>ŞAFAK SAVAŞÇILARI · YOLCULUK</span>
+        <span>OYUNCU HESABI</span>
         <h1>Yolculuğuna<br />devam et.</h1>
         <p>Karakterin, ekipmanın ve ilerlemen seni bekliyor.</p>
         <div className="auth-page__modes" aria-hidden="true">
@@ -203,7 +203,7 @@ function SignUpPage() {
         <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
       </Link>
       <section className="auth-page__pitch">
-        <span>ŞAFAK SAVAŞÇILARI · YOLCULUK</span>
+        <span>YENİ YOLCU</span>
         <h1>Yeni bir yol<br />aç.</h1>
         <p>Hesabını oluştur, maceranı kaldığın yerden sürdür.</p>
         <div className="auth-page__modes" aria-hidden="true">

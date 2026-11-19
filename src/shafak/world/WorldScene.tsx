@@ -193,6 +193,7 @@ type WorldSceneProps = {
   onMusicVolumeChange: (volume: number) => void;
   vibrationEnabled: boolean;
   onExit: () => void;
+  onMainMenu: () => void;
   onOpenWarRoom?: () => void;
   initialStoreTab?: StoreTab | null;
   onOpenSettings: () => void;
@@ -566,6 +567,7 @@ export default function WorldScene({
   onMusicVolumeChange,
   vibrationEnabled,
   onExit,
+  onMainMenu,
   onOpenWarRoom,
   initialStoreTab = null,
   onOpenSettings,
@@ -3924,6 +3926,14 @@ export default function WorldScene({
           </div>
         </div>
         <div className="world-actions">
+          <button
+            type="button"
+            className="world-action world-action--menu"
+            aria-label="Ana menüye dön"
+            onClick={onMainMenu}
+          >
+            <Icon name="exit" /><span>Ana menü</span>
+          </button>
           <button type="button" className="world-action" aria-label={worldText.inventory} onClick={() => openPanel("store")}>
             <Icon name="bag" /><span>{worldText.inventory}</span>
           </button>

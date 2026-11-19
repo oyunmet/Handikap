@@ -511,7 +511,7 @@ export default function World3DV2(props: World3DProps) {
               antialias: props.quality === "high" && !touchRenderer,
               powerPreference: "high-performance",
               toneMapping: THREE.ACESFilmicToneMapping,
-              toneMappingExposure: 1.05,
+              toneMappingExposure: 1.22,
             }}
             onCreated={({ gl, scene }) => {
               gl.setPixelRatio(renderPixelRatio);

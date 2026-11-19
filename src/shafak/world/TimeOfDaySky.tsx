@@ -32,13 +32,13 @@ const SKY_FRAGMENT_SHADER = `
     const float PI = 3.14159265359;
     vec3 direction = normalize(vSkyDirection);
     float phase = mod(uPhase, 1.0);
-    float daylight = clamp((sin(phase * 2.0 * PI + PI * 0.5) + 1.0) * 0.5, 0.0, 1.0);
+    float daylight = 0.78 + clamp((sin(phase * 2.0 * PI + PI * 0.5) + 1.0) * 0.5, 0.0, 1.0) * 0.22;
     float sunset = max(0.0, 1.0 - abs(phase - 0.25) / 0.12);
     float dawn = max(0.0, 1.0 - abs(phase - 0.75) / 0.12);
     float twilight = max(sunset, dawn);
 
-    vec3 nightZenith = vec3(0.035, 0.06, 0.13);
-    vec3 nightHorizon = vec3(0.11, 0.17, 0.27);
+    vec3 nightZenith = vec3(0.24, 0.35, 0.43);
+    vec3 nightHorizon = vec3(0.42, 0.51, 0.55);
     vec3 dayZenith = vec3(0.12, 0.35, 0.62);
     vec3 dayHorizon = vec3(0.58, 0.72, 0.82);
     vec3 twilightZenith = vec3(0.23, 0.17, 0.34);
@@ -78,7 +78,7 @@ const STAR_VERTEX_SHADER = `
   uniform float uEnabled;
   varying float vNight;
   void main() {
-    float daylight = clamp((sin(uPhase * 6.28318530718 + 1.57079632679) + 1.0) * 0.5, 0.0, 1.0);
+    float daylight = 0.78 + clamp((sin(uPhase * 6.28318530718 + 1.57079632679) + 1.0) * 0.5, 0.0, 1.0) * 0.22;
     vNight = (1.0 - daylight) * uEnabled;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     gl_PointSize = 1.45;

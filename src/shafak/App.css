@@ -1624,3 +1624,112 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.entry-loading,
+.entry-setup-screen {
+  background: radial-gradient(ellipse at 50% 24%, #fff8e8 0%, #e6f0e8 58%, #d5e4de 100%);
+  color: #25413d;
+}
+
+.screen--menu {
+  background:
+    linear-gradient(90deg, rgba(249, 242, 222, .94) 0%, rgba(248, 239, 216, .86) 47%, rgba(248, 239, 216, .22) 100%),
+    linear-gradient(0deg, rgba(244, 235, 211, .58), transparent 38%);
+  color: #233c3b;
+}
+
+.screen--menu .mini-brand strong,
+.screen--menu .menu-player-status,
+.screen--menu .menu-player-status__name,
+.screen--menu .menu-copy h1,
+.screen--menu .menu-flow-card h2,
+.screen--menu .menu-flow-card li,
+.screen--menu .campaign-menu-progress > b {
+  color: #24413d;
+  text-shadow: none;
+}
+
+.screen--menu .mini-brand small,
+.screen--menu .menu-player-status__name small,
+.screen--menu .menu-copy > p,
+.screen--menu .campaign-menu-progress__labels,
+.screen--menu .campaign-menu-progress > small,
+.screen--menu .menu-flow-card > p,
+.screen--menu .menu-footer {
+  color: #4e6660;
+  text-shadow: none;
+}
+
+.screen--menu .menu-divider,
+.screen--menu .menu-flow-card__eyebrow {
+  color: #9b5d35;
+}
+
+.screen--menu .campaign-menu-progress,
+.screen--menu .menu-flow-card {
+  border-color: rgba(82, 112, 98, .28);
+  background: rgba(255, 251, 239, .93);
+  box-shadow: 0 14px 36px rgba(45, 61, 50, .12);
+  color: #24413d;
+}
+
+.screen--menu .campaign-menu-progress__labels strong,
+.screen--menu .menu-flow-card li b {
+  color: #7c4f2b;
+}
+
+.screen--menu .menu-flow-card li {
+  border-color: rgba(82, 112, 98, .16);
+  background: rgba(228, 238, 226, .72);
+}
+
+.screen--menu .campaign-menu-progress__track {
+  border-color: rgba(82, 112, 98, .24);
+  background: #d8e2d6;
+}
+
+.screen--menu .menu-action--primary {
+  border-color: #d38d50;
+  background: linear-gradient(110deg, #f5d276, #efa36a);
+  color: #3c2a1b;
+  box-shadow: 0 8px 20px rgba(144, 85, 44, .18);
+  backdrop-filter: none;
+}
+
+.screen--menu .menu-action--primary:hover {
+  background: linear-gradient(110deg, #ffe18e, #f4b47b);
+  color: #322315;
+}
+
+.screen--menu .menu-action--secondary {
+  color: #47635c;
+}
+
+.screen--menu .menu-action--secondary:hover {
+  color: #9b5d35;
+}
+
+.screen--menu .icon-control {
+  border-color: rgba(70, 103, 90, .28);
+  background: rgba(255, 251, 239, .84);
+  color: #31574d;
+  backdrop-filter: none;
+}
+
+.screen--menu .icon-control:hover {
+  background: #f3dfaa;
+  color: #4a3421;
+}
+
+.screen--menu .menu-resource-chip {
+  color: #31574d;
+}
+
+.screen--menu .menu-footer .game-build-stamp {
+  color: rgba(50, 72, 63, .58);
+}
+
+.screen--menu :is(button, a):focus-visible {
+  outline: 3px solid #287f78;
+  outline-offset: 3px;
+}

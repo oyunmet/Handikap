@@ -137,7 +137,16 @@ export function createDuelWeapon(appearance: EquipmentVisual = {}) {
   } else if (style === "bow") {
     add(new THREE.TorusGeometry(0.33, 0.035, 6, 20, Math.PI * 1.55), leather, [0, 0.42, 0], [0, 0, Math.PI / 2]);
     add(new THREE.CylinderGeometry(0.012, 0.012, 0.62, 5), trim, [0, 0.42, 0]);
-    add(new THREE.BoxGeometry(0.025, 0.42, 0.022), steel, [0.04, 0.42, 0]);
+    add(new THREE.CylinderGeometry(0.009, 0.009, 0.42, 6), trim, [0.055, 0.58, 0.045]);
+    add(new THREE.ConeGeometry(0.022, 0.085, 6), steel, [0.055, 0.832, 0.045]);
+    for (const side of [-1, 1]) {
+      add(
+        new THREE.BoxGeometry(0.065, 0.012, 0.025),
+        leather,
+        [0.055 + side * 0.016, 0.39, 0.045],
+        [0, 0, side * 0.18],
+      );
+    }
   } else if (style === "crossbow") {
     handle(0.74, 0.24);
     add(new THREE.BoxGeometry(0.12, 0.08, 0.62), trim, [0, 0.62, 0]);

@@ -806,7 +806,7 @@ export default function StorePanel({
 
         <footer className="safak-store__footer">
           <span>Yolcu, iyi donanım uzak yolları kolaylaştırır.</span>
-          <span>ŞAFAK SAVAŞÇILARI <i>·</i> HEYBE</span>
+          <span>HEYBE</span>
         </footer>
         {celebrating && (
           <div className="safak-store__sparkles" aria-hidden="true">

@@ -1538,6 +1538,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   setInitialWorldStoreTab(null);
                   setScreen(worldReturnScreen);
                 }}
+                onMainMenu={() => {
+                  setInitialWorldStoreTab(null);
+                  setScreen("menu");
+                }}
                 initialStoreTab={initialWorldStoreTab}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onOpenProfile={() => setProfileOpen(true)}

@@ -202,7 +202,9 @@ export default function WarRoomBattlefield({
   runtimeRef: MutableRefObject<WarRoomRuntime>;
 }) {
   const { room } = runtime;
-  const darkModifier = runtime.mission.modifiers.includes("darkness");
+  // Keep every battlefield readable in daylight, even for missions that used
+  // to apply a dark visual modifier.
+  const darkModifier = false;
   const fogModifier = runtime.mission.modifiers.includes("fog");
   const theme = darkModifier
     ? {

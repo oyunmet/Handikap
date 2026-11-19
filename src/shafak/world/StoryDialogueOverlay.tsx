@@ -106,7 +106,7 @@ export default function StoryDialogueOverlay({
           </div>
         ) : (
           <>
-            <span className="world-story-dialogue__eyebrow">ŞAFAK SAVAŞÇILARI · {dialogue.speaker}</span>
+            <span className="world-story-dialogue__eyebrow">HİKÂYE · {dialogue.speaker}</span>
             <h2 id="world-story-title">{dialogue.title}</h2>
           </>
         )}

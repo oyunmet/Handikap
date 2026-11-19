@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   TIME_OF_DAY_CYCLE_MS,
   TIME_OF_DAY_STAR_COUNT,
+  MIN_WORLD_DAYLIGHT,
   getNextTimeOfDayMode,
   getCurrentTimeOfDayMode,
   getTimeOfDayDaylight,
@@ -78,6 +79,9 @@ test("automatic time is the default and night keeps a readable minimum light lev
   assert.ok(day.lightScale.directional > 0.98);
   assert.ok(day.lightScale.hemisphere > 0.98);
   assert.ok(day.lightScale.ambient > 0.98);
+  assert.ok(night.daylight >= MIN_WORLD_DAYLIGHT);
+  assert.ok(night.lightScale.directional > 0.95);
+  assert.ok(night.fogColor.r > 0.5);
   assert.equal(setCurrentTimeOfDayMode("night"), "night");
   assert.equal(getCurrentTimeOfDayMode(), "night");
   setCurrentTimeOfDayMode("day");
