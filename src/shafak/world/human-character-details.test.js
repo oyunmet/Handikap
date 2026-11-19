@@ -85,3 +85,19 @@ for (const rigConfig of RIGS) {
     assert.equal(model.getObjectByName("human-detail-articulated-bracer-1"), undefined);
   });
 }
+
+test("unknown skeletons do not receive disconnected armor on the model root", () => {
+  const model = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial());
+  model.add(body);
+
+  const details = attachHumanCharacterDetails(model);
+
+  assert.equal(model.getObjectByName("human-detail-tapered-chest-plate"), undefined);
+  assert.equal(model.getObjectByName("human-detail-articulated-bracer-1"), undefined);
+  assert.equal(model.children.length, 1, "details are skipped when the source rig has no matching bones");
+
+  details.dispose();
+  body.geometry.dispose();
+  body.material.dispose();
+});

@@ -261,10 +261,10 @@
 
 .intro-credits__production {
   overflow: hidden;
-  color: #e0be78;
+  color: #315e5b;
   font-size: clamp(19px, 3.2vw, 29px);
   letter-spacing: .19em;
-  text-shadow: 0 2px 22px rgba(190, 145, 75, .15);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .65);
 }
 
 .intro-credits__production::after {
@@ -283,9 +283,10 @@
 
 .intro-credits__byline {
   margin-top: 16px;
-  color: rgba(220, 201, 164, .72);
-  font-size: clamp(9px, 1.3vw, 11px);
-  letter-spacing: .16em;
+  color: #405453;
+  font-size: clamp(10px, 1.5vw, 12px);
+  font-weight: 700;
+  letter-spacing: .12em;
 }
 
 .intro-credits__emblem.is-visible,

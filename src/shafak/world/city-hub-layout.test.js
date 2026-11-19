@@ -6,6 +6,7 @@ import {
   CITY_EDGE_LIMIT,
   CITY_START_POSITION,
   findNearbyCityDoor,
+  readCityJoystick,
   stepCityPosition,
 } from "./city-hub-layout.ts";
 
@@ -34,6 +35,18 @@ test("the player can walk forward, backward, left, and right", () => {
   assert.ok(step(0, 1).z > start.z, "backward should move south");
   assert.ok(step(-1, 0).x < start.x, "left should move west");
   assert.ok(step(1, 0).x > start.x, "right should move east");
+});
+
+test("the city touch joystick maps finger movement to the matching world direction", () => {
+  const bounds = { left: 10, top: 20, width: 116, height: 116 };
+  const center = { x: 68, y: 78 };
+
+  assert.deepEqual(readCityJoystick(center.x, center.y, bounds), { x: 0, z: 0 });
+  assert.ok(readCityJoystick(center.x, center.y - 50, bounds).z < 0, "up moves forward");
+  assert.ok(readCityJoystick(center.x, center.y + 50, bounds).z > 0, "down moves backward");
+  assert.ok(readCityJoystick(center.x - 50, center.y, bounds).x < 0, "left moves left");
+  assert.ok(readCityJoystick(center.x + 50, center.y, bounds).x > 0, "right moves right");
+  assert.deepEqual(readCityJoystick(Number.NaN, center.y, bounds), { x: 0, z: 0 });
 });
 
 test("diagonal movement is normalized and never exceeds city boundaries", () => {

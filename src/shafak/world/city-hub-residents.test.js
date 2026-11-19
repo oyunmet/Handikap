@@ -17,6 +17,7 @@ test("city residents cover each planned accessory and have distinct clothing col
 
 test("residents stay outside building collision footprints and inside city bounds", () => {
   for (const resident of CITY_RESIDENTS) {
+    assert.equal("axis" in resident, false, "residents no longer have an autonomous patrol axis");
     for (const door of CITY_DOORS) {
       assert.ok(
         Math.abs(resident.x - door.building.x) >= door.width / 2 + 0.38

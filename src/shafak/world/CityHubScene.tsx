@@ -315,34 +315,18 @@ function StreetTree({ x, z, variant }: { x: number; z: number; variant: number }
 function Resident({
   resident,
   index,
-  reducedMotion,
   asset,
   motionRef,
   modelConfig,
 }: {
   resident: CityResident;
   index: number;
-  reducedMotion: boolean;
   asset: LoadedWorldAsset;
   motionRef: MutableRefObject<WorldMotion>;
   modelConfig: OpponentModelConfig;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const phase = index * 0.83;
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    const time = reducedMotion ? phase : clock.elapsedTime * 0.34 + phase;
-    const stride = reducedMotion || resident.accessory === "wheelchair"
-      ? 0
-      : Math.sin(time) * 0.38;
-    groupRef.current.position.set(
-      resident.x + (resident.axis === "x" ? stride : 0),
-      0,
-      resident.z + (resident.axis === "z" ? stride : 0),
-    );
-  });
   return (
-    <group ref={groupRef} position={[resident.x, 0, resident.z]}>
+    <group position={[resident.x, 0, resident.z]}>
       <WorldV2Actor
         asset={asset}
         motionRef={motionRef}
@@ -350,7 +334,7 @@ function Resident({
         distance={-resident.z}
         x={resident.x}
         tint={CITY_RESIDENT_TINTS[index]}
-        animationState={resident.accessory === "wheelchair" ? "idle" : "walk"}
+        animationState="idle"
         localToParent
         showWeapon={false}
         modelConfig={modelConfig}
@@ -365,7 +349,6 @@ function CityWorld({
   inputRef,
   activeDoorId,
   onNearbyDoorChange,
-  reducedMotion = false,
   heroAsset,
   playerAppearance,
   residentAssets,
@@ -478,17 +461,21 @@ function CityWorld({
         [-16, -7], [16, 7], [-7, 16], [7, -16],
       ].map(([x, z], index) => <StreetTree key={`tree-${index}`} x={x} z={z} variant={index} />)}
 
-      {heroAsset && CITY_RESIDENTS.map((resident, index) => (
-        <Resident
-          key={`resident-${index}`}
-          resident={resident}
-          index={index}
-          reducedMotion={reducedMotion}
-          asset={residentAssets.get(CITY_RESIDENT_MODEL_CONFIGS[index].modelPath) ?? heroAsset}
-          motionRef={motionRef}
-          modelConfig={CITY_RESIDENT_MODEL_CONFIGS[index]}
-        />
-      ))}
+      {heroAsset && CITY_RESIDENTS.map((resident, index) => {
+        const modelConfig = CITY_RESIDENT_MODEL_CONFIGS[index];
+        const residentAsset = residentAssets.get(modelConfig.modelPath);
+        if (!residentAsset) return null;
+        return (
+          <Resident
+            key={`resident-${index}`}
+            resident={resident}
+            index={index}
+            asset={residentAsset}
+            motionRef={motionRef}
+            modelConfig={modelConfig}
+          />
+        );
+      })}
       {heroAsset && (
         <WorldV2Actor
           asset={heroAsset}

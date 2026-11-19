@@ -22,7 +22,7 @@ export type AttachedHumanCharacterDetails = {
 };
 
 const BONE_ALIASES = {
-  torso: ["Torso", "Spine2", "Spine1", "DEF-spine.003", "DEF-spine.002", "Spine", "Body", "Hips"],
+  torso: ["Torso", "Spine2", "Spine1", "DEF-spine.003", "DEF-spine.002", "Rig_Spine", "Spine", "Body", "Hips"],
   hips: ["Hips", "Rig_Hips", "DEF-hips", "mixamorigHips"],
   leftShoulder: ["Shoulder.L", "ShoulderL", "LeftShoulder", "DEF-shoulder.L", "Rig_LeftShoulder"],
   rightShoulder: ["Shoulder.R", "ShoulderR", "RightShoulder", "DEF-shoulder.R", "Rig_RightShoulder"],
@@ -33,11 +33,14 @@ const BONE_ALIASES = {
 } as const;
 
 function findMount(model: THREE.Object3D, aliases: readonly string[]) {
-  let found: THREE.Bone | null = null;
-  model.traverse((object) => {
-    if (!found && object instanceof THREE.Bone && aliases.includes(object.name)) found = object;
-  });
-  return found ?? model;
+  const pending: THREE.Object3D[] = [model];
+  while (pending.length) {
+    const object = pending.pop();
+    if (!object) continue;
+    if (object instanceof THREE.Bone && aliases.includes(object.name)) return object;
+    pending.push(...object.children);
+  }
+  return null;
 }
 
 function makeMaterial(color: string, metalness: number, roughness: number) {
@@ -91,6 +94,7 @@ export function attachHumanCharacterDetails(
     frontFacing = false,
   ) => {
     const parent = findMount(model, aliases);
+    if (!parent) return null;
     parent.updateWorldMatrix(true, false);
     const scale = parent.getWorldScale(new THREE.Vector3());
     const inverseScale = new THREE.Vector3(
@@ -132,27 +136,31 @@ export function attachHumanCharacterDetails(
 
   if (include.chest) {
     const torso = makeMount(BONE_ALIASES.torso, [0, 0.035, frontSign * 0.055], "human-detail-chest-mount", true);
-    addMesh(
-      torso,
-      "human-detail-tapered-chest-plate",
-      createFacetedArmorPlateGeometry(0.38, 0.4, 0.045),
-      modelMaterials.metal,
-    );
+    if (torso) {
+      addMesh(
+        torso,
+        "human-detail-tapered-chest-plate",
+        createFacetedArmorPlateGeometry(0.38, 0.4, 0.045),
+        modelMaterials.metal,
+      );
+    }
   }
 
   if (include.belt) {
     const hips = makeMount(BONE_ALIASES.hips, [0, 0, frontSign * 0.045], "human-detail-belt-mount", true);
-    const beltGeometry = new THREE.BoxGeometry(0.38, 0.07, 0.055, 2, 1, 1);
-    addMesh(hips, "human-detail-reinforced-belt", beltGeometry, modelMaterials.dark);
-    const buckleGeometry = new THREE.OctahedronGeometry(0.045, 0);
-    addMesh(
-      hips,
-      "human-detail-belt-buckle",
-      buckleGeometry,
-      modelMaterials.trim,
-      [0, 0, frontSign * 0.032],
-      [1, 1.1, 0.55],
-    );
+    if (hips) {
+      const beltGeometry = new THREE.BoxGeometry(0.38, 0.07, 0.055, 2, 1, 1);
+      addMesh(hips, "human-detail-reinforced-belt", beltGeometry, modelMaterials.dark);
+      const buckleGeometry = new THREE.OctahedronGeometry(0.045, 0);
+      addMesh(
+        hips,
+        "human-detail-belt-buckle",
+        buckleGeometry,
+        modelMaterials.trim,
+        [0, 0, frontSign * 0.032],
+        [1, 1.1, 0.55],
+      );
+    }
   }
 
   if (include.shoulders) {
@@ -166,14 +174,16 @@ export function attachHumanCharacterDetails(
         `human-detail-shoulder-mount-${side}`,
         true,
       );
-      addMesh(
-        shoulder,
-        `human-detail-faceted-pauldron-${side}`,
-        createFacetedArmorPlateGeometry(0.25, 0.19, 0.04),
-        side < 0 ? modelMaterials.armor : modelMaterials.metal,
-        [side * 0.025, 0, 0],
-        [1.08, 0.82, 1],
-      );
+      if (shoulder) {
+        addMesh(
+          shoulder,
+          `human-detail-faceted-pauldron-${side}`,
+          createFacetedArmorPlateGeometry(0.25, 0.19, 0.04),
+          side < 0 ? modelMaterials.armor : modelMaterials.metal,
+          [side * 0.025, 0, 0],
+          [1.08, 0.82, 1],
+        );
+      }
     }
   }
 
@@ -188,14 +198,16 @@ export function attachHumanCharacterDetails(
         `human-detail-forearm-mount-${side}`,
         true,
       );
-      const bracer = addMesh(
-        forearm,
-        `human-detail-articulated-bracer-${side}`,
-        createHumanLimbGeometry("forearm", 8),
-        modelMaterials.metal,
-        [0, -0.065, 0],
-      );
-      bracer.scale.set(0.075, 0.25, 0.062);
+      if (forearm) {
+        const bracer = addMesh(
+          forearm,
+          `human-detail-articulated-bracer-${side}`,
+          createHumanLimbGeometry("forearm", 8),
+          modelMaterials.metal,
+          [0, -0.065, 0],
+        );
+        bracer.scale.set(0.075, 0.25, 0.062);
+      }
     }
   }
 
@@ -210,14 +222,16 @@ export function attachHumanCharacterDetails(
         `human-detail-shin-mount-${side}`,
         true,
       );
-      addMesh(
-        shin,
-        `human-detail-knee-and-shin-guard-${side}`,
-        createFacetedArmorPlateGeometry(0.19, 0.32, 0.035),
-        modelMaterials.armor,
-        [0, -0.075, 0],
-        [0.78, 1, 0.82],
-      );
+      if (shin) {
+        addMesh(
+          shin,
+          `human-detail-knee-and-shin-guard-${side}`,
+          createFacetedArmorPlateGeometry(0.19, 0.32, 0.035),
+          modelMaterials.armor,
+          [0, -0.075, 0],
+          [0.78, 1, 0.82],
+        );
+      }
     }
   }
 

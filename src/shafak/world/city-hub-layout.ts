@@ -1,6 +1,7 @@
 export type CityDoorId = "campaign" | "war-room" | "survival" | "daily";
 export type CityPosition = { x: number; z: number };
 export type CityInput = { x: number; z: number };
+export type CityJoystickBounds = Pick<DOMRect, "left" | "top" | "width" | "height">;
 export type CityStreetSide = "east" | "west" | "north" | "south";
 export type CityMissionMode = "raid" | "survival" | "daily";
 
@@ -88,6 +89,25 @@ export const CITY_EDGE_LIMIT = 21;
 export const CITY_DOOR_INTERACTION_RANGE = 2.25;
 
 export const CITY_COLLISION_MARGIN = 0.55;
+
+export function readCityJoystick(
+  clientX: number,
+  clientY: number,
+  bounds: CityJoystickBounds,
+): CityInput {
+  if (![clientX, clientY, bounds.left, bounds.top, bounds.width, bounds.height].every(Number.isFinite)) {
+    return { x: 0, z: 0 };
+  }
+  const radius = Math.max(1, Math.min(bounds.width, bounds.height) * 0.34);
+  const dx = clientX - bounds.left - bounds.width / 2;
+  const dy = clientY - bounds.top - bounds.height / 2;
+  const magnitude = Math.hypot(dx, dy);
+  const scale = magnitude > radius ? radius / magnitude : 1;
+  return {
+    x: Math.max(-1, Math.min(1, (dx * scale) / radius)),
+    z: Math.max(-1, Math.min(1, (dy * scale) / radius)),
+  };
+}
 
 function isInsideBuilding(position: CityPosition, door: CityDoor) {
   const halfWidth = door.width / 2 + CITY_COLLISION_MARGIN;

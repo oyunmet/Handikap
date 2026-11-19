@@ -452,6 +452,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     [getToken, handleApiUnauthorized],
   );
   const [screen, setScreen] = useState<Screen>(() => resolveInitialScreen());
+  const [loadingDestination, setLoadingDestination] = useState<"menu" | "city-hub">("menu");
   const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world" | "city-hub">("menu");
   const [warRoomInitialMode, setWarRoomInitialMode] = useState<WarRoomModeId>("raid");
   const [worldReturnScreen, setWorldReturnScreen] = useState<"menu" | "city-hub">("menu");
@@ -710,7 +711,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       const next = Math.min(100, Math.pow((now - startedAt) / duration, 0.82) * 100);
       setProgress(next);
       if (next >= 100) {
-        timeout = window.setTimeout(() => setScreen("menu"), motionReduced ? 40 : 260);
+        timeout = window.setTimeout(() => setScreen(loadingDestination), motionReduced ? 40 : 260);
       } else {
         frame = window.requestAnimationFrame(advance);
       }
@@ -725,7 +726,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       window.clearTimeout(timeout);
       window.clearInterval(tipTimer);
     };
-  }, [motionReduced, screen]);
+  }, [loadingDestination, motionReduced, screen]);
 
   useEffect(() => {
     if (!settingsOpen) return undefined;
@@ -762,15 +763,16 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     }
   };
 
-  const begin = () => {
+  const begin = (destination: "menu" | "city-hub" = "menu") => {
     playFeedback();
     setProgress(0);
     setTipIndex(0);
+    setLoadingDestination(destination);
     setScreen("loading");
   };
 
   const finishIntro = () => {
-    begin();
+    begin("city-hub");
   };
 
   const replayIntro = () => {
@@ -1230,7 +1232,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <span>Savaşçıları</span>
               </h1>
               <p className="opening-description">{tr.openingDescription}</p>
-              <button className="gold-button gold-button--opening" onClick={begin} type="button">
+              <button className="gold-button gold-button--opening" onClick={() => begin()} type="button">
                 <span>{tr.start}</span>
                 <ArrowIcon />
               </button>

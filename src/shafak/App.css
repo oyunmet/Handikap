@@ -423,14 +423,22 @@
 .screen--loading {
   align-items: center;
   justify-content: flex-end;
-  padding: 40px 28px 10vh;
-  background: linear-gradient(0deg, rgba(6, 7, 11, 0.83), transparent 65%);
+  padding: 40px 20px max(7vh, calc(24px + env(safe-area-inset-bottom)));
+  background:
+    linear-gradient(0deg, rgba(6, 7, 11, 0.72), rgba(6, 7, 11, 0.12) 70%),
+    linear-gradient(180deg, rgba(6, 7, 11, 0.1), transparent 35%);
 }
 
 .loading-card {
   width: min(100%, 470px);
   margin-inline: auto;
+  padding: clamp(20px, 5vw, 30px);
+  border: 1px solid rgba(231, 197, 133, .58);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(17, 23, 27, .96), rgba(30, 32, 31, .93));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 244, 218, .1);
   text-align: center;
+  backdrop-filter: blur(14px);
 }
 
 .crest-lockup--loading {
@@ -441,19 +449,19 @@
 
 .loading-card h2 {
   margin: 10px 0 25px;
-  color: var(--gold-300);
+  color: #fff0c9;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: clamp(21px, 5vw, 27px);
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
 }
 
 .loading-track {
   position: relative;
-  height: 4px;
+  height: 8px;
   overflow: hidden;
-  border: 1px solid rgba(221, 185, 119, 0.33);
-  border-radius: 2px;
+  border: 1px solid rgba(221, 185, 119, 0.56);
+  border-radius: 999px;
   background: rgba(8, 9, 14, 0.66);
   box-shadow: 0 0 14px rgba(183, 112, 54, 0.1);
 }
@@ -461,6 +469,7 @@
 .loading-track__fill {
   position: absolute;
   inset: 0 auto 0 0;
+  border-radius: inherit;
   background: linear-gradient(90deg, #86512f, #d4a14f 75%, #f0d391);
   box-shadow: 0 0 14px rgba(233, 182, 93, 0.6);
 }
@@ -480,15 +489,16 @@
   justify-content: space-between;
   gap: 18px;
   margin-top: 12px;
-  color: rgba(236, 224, 203, 0.7);
-  font-size: 10px;
+  color: #f5ead6;
+  font-size: clamp(12px, 3vw, 14px);
+  font-weight: 600;
   line-height: 1.5;
   text-align: left;
 }
 
 .loading-meta span:last-child {
   flex: 0 0 auto;
-  color: var(--gold-300);
+  color: #ffe09a;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

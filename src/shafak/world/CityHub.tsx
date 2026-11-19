@@ -3,6 +3,7 @@ import CityHubScene from "./CityHubScene";
 import {
   CITY_DOORS,
   CITY_START_POSITION,
+  readCityJoystick,
   type CityMissionMode,
   type CityDoor,
   type CityDoorId,
@@ -107,6 +108,7 @@ export default function CityHub({
     };
     const onBlur = () => {
       keysRef.current.clear();
+      joystickPointerRef.current = null;
       joystickRef.current = { x: 0, z: 0 };
       setJoystickPosition({ x: 0, z: 0 });
       updateInput();
@@ -123,17 +125,14 @@ export default function CityHub({
 
   const updateJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const dx = event.clientX - rect.left - rect.width / 2;
-    const dy = event.clientY - rect.top - rect.height / 2;
-    const radius = Math.max(1, rect.width * 0.34);
-    const x = clampAxis(dx / radius);
-    const z = clampAxis(dy / radius);
-    joystickRef.current = { x, z };
-    setJoystickPosition({ x, z });
+    const reading = readCityJoystick(event.clientX, event.clientY, rect);
+    joystickRef.current = reading;
+    setJoystickPosition(reading);
     updateInput();
   };
 
   const handleJoystickPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerRef.current !== null) return;
     event.preventDefault();
     joystickPointerRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -260,6 +259,7 @@ export default function CityHub({
         onPointerMove={handleJoystickPointerMove}
         onPointerUp={releaseJoystick}
         onPointerCancel={releaseJoystick}
+        onLostPointerCapture={releaseJoystick}
       >
         <span className="city-hub__joystick-arrow city-hub__joystick-arrow--up">▲</span>
         <span className="city-hub__joystick-arrow city-hub__joystick-arrow--down">▼</span>

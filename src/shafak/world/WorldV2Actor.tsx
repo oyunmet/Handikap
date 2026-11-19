@@ -34,6 +34,7 @@ import {
   type CityNpcAccessory,
 } from "./opponent-costume";
 import { attachHumanCharacterDetails, type AttachedHumanCharacterDetails } from "./human-character-details";
+import { resolveWorldActorClip } from "./world-v2-clip-selection";
 import {
   createDuelWeapon,
   createDuelShield,
@@ -76,24 +77,6 @@ type JumpEcho = {
   bonePairs: [THREE.Bone, THREE.Bone][];
   materials: THREE.Material[];
 };
-
-function resolveClip(
-  animations: THREE.AnimationClip[],
-  state: CharacterAnimationState,
-  modelConfig?: OpponentModelConfig,
-) {
-  const configuredAliases = modelConfig?.animationClips[
-    state as keyof OpponentModelConfig["animationClips"]
-  ];
-  const aliases: readonly string[] = configuredAliases?.length
-    ? configuredAliases
-    : KNIGHT_CONFIG.animationClips[state] as readonly string[];
-  const normalizedNames = aliases.map((name) => name.toLowerCase());
-  return animations.find((clip) => normalizedNames.includes(clip.name.toLowerCase()))
-    ?? animations.find((clip) => clip.name.toLowerCase().includes(state.toLowerCase()))
-    ?? animations.find((clip) => clip.name.toLowerCase().includes("idle"))
-    ?? animations[0];
-}
 
 function readLocalRotation(object: THREE.Object3D | undefined): [number, number, number] | null {
   if (!object) return null;
@@ -213,13 +196,14 @@ export default function WorldV2Actor({
   }, [jumpEcho]);
 
   useEffect(() => {
-    if (!isPlayer) return undefined;
+    if (!isPlayer && !modelConfig) return undefined;
+    const appearance = isPlayer ? equipmentVisual : modelConfig?.appearance;
     const details = attachHumanCharacterDetails(model, {
       palette: {
-        armor: equipmentVisual?.armor,
-        armorLight: equipmentVisual?.armorLight,
-        armorDark: equipmentVisual?.armorDark,
-        trim: equipmentVisual?.trim,
+        armor: appearance?.armor,
+        armorLight: appearance?.armorLight,
+        armorDark: appearance?.armorDark,
+        trim: appearance?.trim,
       },
       frontSign: 1,
     });
@@ -228,7 +212,7 @@ export default function WorldV2Actor({
       if (humanDetailsRef.current === details) humanDetailsRef.current = null;
       details.dispose();
     };
-  }, [equipmentVisual, isPlayer, model]);
+  }, [equipmentVisual, isPlayer, model, modelConfig]);
 
   useEffect(() => {
     if (isPlayer || !modelConfig || !shouldAttachOpponentCostume(modelConfig)) return undefined;
@@ -401,7 +385,12 @@ export default function WorldV2Actor({
     const state = isPlayer && (motion.crouching || proceduralPoseState)
       ? "idle"
       : animationState;
-    const clip = resolveClip(animations, state, modelConfig);
+    const clip = resolveWorldActorClip(
+      animations,
+      state,
+      modelConfig?.animationClips,
+      KNIGHT_CONFIG.animationClips,
+    );
     if (clip && clip.name !== activeClipNameRef.current) {
       const nextAction = mixer.clipAction(clip);
       nextAction.reset().fadeIn(0.16).play();
@@ -409,6 +398,10 @@ export default function WorldV2Actor({
       activeActionRef.current?.fadeOut(0.16);
       activeActionRef.current = nextAction;
       activeClipNameRef.current = clip.name;
+    } else if (!clip && activeActionRef.current) {
+      activeActionRef.current.fadeOut(0.12);
+      activeActionRef.current = null;
+      activeClipNameRef.current = "";
     }
     if (activeActionRef.current) {
       const speed = Math.hypot(motion.velocityX, motion.velocityY);
