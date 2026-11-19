@@ -1682,7 +1682,7 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
-            cameraMode="third-person"
+            cameraMode="first-person"
             motionReduced={motionReduced}
             weaponSway={weaponSway}
             armsVisible={armsVisible}

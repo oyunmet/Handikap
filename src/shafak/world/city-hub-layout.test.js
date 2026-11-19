@@ -22,9 +22,9 @@ test("the city has a separate entrance for each existing activity", () => {
     CITY_DOORS.filter((door) => door.missionMode).map((door) => door.missionMode),
     ["raid", "survival", "daily"],
   );
-  assert.match(CITY_DOORS.find((door) => door.id === "campaign")?.category ?? "", /ANA HİKÂYE/);
-  assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.title ?? "", /ARENA DÜELLOSU/);
-  assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.category ?? "", /SAVAŞ MODU/);
+  assert.match(CITY_DOORS.find((door) => door.id === "campaign")?.category ?? "", /ANA OPERASYON/);
+  assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.title ?? "", /TAKTİK ARENA/);
+  assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.category ?? "", /OPERASYON MERKEZİ/);
 });
 
 test("the player can walk forward, backward, left, and right", () => {

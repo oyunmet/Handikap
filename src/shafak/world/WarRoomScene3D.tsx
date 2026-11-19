@@ -1662,7 +1662,7 @@ function PlayerActor({
       <WarRoomAssetBoundary fallback={<ProceduralPlayerFallback />}>
         <Suspense fallback={<ProceduralPlayerFallback />}>
           <WarRoomAnimatedActor
-            src="/models/player-hero.glb"
+            src="/models/kuzgun-soldier.glb"
             height={WAR_ROOM_CHARACTER_HEIGHT}
             state={playerAnimation}
             playbackScale={playerPlaybackScale}
@@ -1911,7 +1911,7 @@ function EnemyActor({
       <WarRoomAssetBoundary fallback={fallback}>
         <Suspense fallback={fallback}>
           <WarRoomAnimatedActor
-            src="/models/player-hero.glb"
+            src="/models/kuzgun-soldier.glb"
             height={characterHeight}
             tint={tint}
             commander={enemy.commander}

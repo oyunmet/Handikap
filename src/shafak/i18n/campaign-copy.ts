@@ -13,17 +13,17 @@ export function getCampaignCopy(
   const safeChapterCount = Math.max(1, Math.floor(chapterCount));
   const cityName = CAMPAIGN_NARRATIVE.cityName;
   return {
-    menuKicker: `${cityName.toLocaleUpperCase("tr-TR")} · ${safeActCount} PERDE`,
-    introTagline: `${safeActCount} perde · ${safeChapterCount} bölüm · 9 hatıra · tek bir hikâye`,
-    openingDescription: `Prenses Alaz kaybolduğundan beri ${cityName} her sabah aynı çanla uyanıyor. Dokuz hatırayı bul; ${safeActCount} perde ve ${safeChapterCount} bölümde döngüyü çöz.`,
-    menuDescription: `${cityName} her sabah aynı çanla uyanıyor. Dokuz hatırayı bul, döngünün nedenini çöz. Her kapı aynı mührün başka bir yankısını sınar; sefer bu izleri tek hikâyede birleştirir.`,
+    menuKicker: `${cityName.toLocaleUpperCase("tr-TR")} · ${safeActCount} OPERASYON`,
+    introTagline: `${safeActCount} operasyon · ${safeChapterCount} bölüm · 9 istihbarat dosyası`,
+    openingDescription: `${cityName} çevresindeki tahliye hattı kesildi; ekip lideri Alaz kayıp. Dokuz istihbarat dosyasını topla, ${safeActCount} operasyona yayılan ${safeChapterCount} bölümde Demir Taç'ın planını ortaya çıkar.`,
+    menuDescription: `${cityName} çevresindeki iletişim ağı ele geçirildi. Dokuz dosyayı topla, Alaz'ı bul ve sivillerin tahliye koridorunu yeniden aç.`,
     loadingTips: [
-      `Alaz'ın kervan defteri, ilk hatıranın izini gösteriyor.`,
-      `Şehir kapılarındaki meydan görevleri, ana seferden ayrı kısa sınavlardır.`,
-      `Son bölümde (${safeChapterCount}) döngünün ardındaki gerçeği ortaya çıkar.`,
+      `İlk telsiz kaydı, Alaz'ın konvoyunun izini gösteriyor.`,
+      `Günlük saha görevleri ana operasyondan ayrı kısa sınavlardır.`,
+      `Son bölümde (${safeChapterCount}) iletişim ağının kontrolünü geri al.`,
     ],
-    finalChapterLabel: `BÖLÜM ${safeChapterCount} · ŞAFAK MÜHRÜ`,
-    endingSummary: `${safeChapterCount} bölüm boyunca dokuz hatırayı topladın. Eşik Mahallesi'ni aynı sabaha bağlayan döngü çözüldü; şehrin geleceğini artık sakinleri belirliyor.`,
+    finalChapterLabel: `BÖLÜM ${safeChapterCount} · SON İSTİHBARAT DOSYASI`,
+    endingSummary: `${safeChapterCount} bölüm boyunca dokuz dosyayı topladın. Demir Taç'ın ağı kapatıldı, siviller tahliye edildi ve Alaz Kuzgun Timi'ne geri döndü.`,
   } as const;
 }
 

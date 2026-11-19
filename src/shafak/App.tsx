@@ -1388,7 +1388,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <p>{CAMPAIGN_COPY.menuDescription}</p>
                 <div className="campaign-menu-progress">
                   <div className="campaign-menu-progress__labels">
-                    <span>SEFER · PERDE {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
+                    <span>OPERASYON {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
                     <strong>BÖLÜM {menuCampaignProgress.levelNumber} / {CAMPAIGN_LEVEL_COUNT}</strong>
                   </div>
                   <b>{currentMenuAct?.name ?? menuCampaignProgress.region.name}</b>
@@ -1406,7 +1406,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   >
                     <i style={{ width: `${menuCampaignProgress.campaignProgressPercent}%` }} />
                   </div>
-                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% · dokuz hatıraya uzanan yol</small>
+                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% · dokuz istihbarat dosyası</small>
                 </div>
                 <div className="menu-actions">
                   <button
@@ -1818,7 +1818,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <div className="setting-row setting-row--quality">
                   <span className="setting-row__copy">
                     <strong>Gökyüzü saati</strong>
-                    <small>Eşik Mahallesi ve Meydan görevleri için ışık ve gökyüzü.</small>
+                    <small>İleri Hat ve taktik saha görevleri için ışık ve gökyüzü.</small>
                   </span>
                   <div className="quality-switch time-of-day-switch" role="group" aria-label="Gökyüzü saati">
                     {([

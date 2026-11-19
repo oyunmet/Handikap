@@ -185,7 +185,7 @@ export function getAnimatedRivalModelConfig(
   };
   const useDemirTac = name === "Demir Taç";
   const modelPath = useDemirTac
-    ? "/models/player-hero.glb"
+    ? "/models/kuzgun-soldier.glb"
     : isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
   const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
   const heroAnimations = {
@@ -226,6 +226,10 @@ export function getAnimatedRivalModelConfig(
     castLightning: ["Rig|Spell_Simple_Shoot"],
     death: ["Rig|Death01"],
     victory: ["Rig|Dance_Loop"],
+  } satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
+  const soldierAnimations = {
+    walk: ["walk"],
+    run: ["run"],
   } satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
   const materialNameAliases: ModelMaterialNameAliases = {
     cape: ["cape", "cloak", "mantle", "pelerin"],
@@ -290,29 +294,31 @@ export function getAnimatedRivalModelConfig(
   };
   const colors = paletteByArchetype[selectedArchetype];
   const usePlayerHero = modelPath === "/models/player-hero.glb";
+  const useSoldier = modelPath === "/models/kuzgun-soldier.glb";
   const useHuman = modelPath === "/models/human.glb";
   const useNightWatcher = modelPath === "/models/gece-nobetcisi.glb";
   return {
     ...baseConfig,
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
-    modelFacing: usePlayerHero ? Math.PI : baseConfig.modelFacing,
+    modelFacing: usePlayerHero || useSoldier ? Math.PI : baseConfig.modelFacing,
     rootBoneName: useNightWatcher
       ? baseConfig.rootBoneName
-      : useHuman ? "Hips" : usePlayerHero ? "Root" : "root",
+      : useHuman || useSoldier ? "Hips" : usePlayerHero ? "Root" : "root",
     modelRotation: undefined,
     preserveOriginalMaterialAliases: useNightWatcher
       ? ["gold", "steel", "cape"]
-      : useHuman ? ["texture"] : undefined,
+      : useHuman ? ["texture"] : useSoldier ? ["material_1"] : undefined,
     targetHeight: sizeTarget.targetHeight,
     maxDimension: sizeTarget.maxDimension,
     isBoss,
     isDemirTac: useDemirTac,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
-    tintStrength: useDemirTac ? 0 : isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
+    tintStrength: useSoldier ? (useDemirTac ? 0.12 : 0.24) : useDemirTac ? 0 : isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
     animationClips: useNightWatcher
       ? baseConfig.animationClips
-      : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+      : useSoldier ? soldierAnimations
+        : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
     weapon,
     appearance,
     materialNameAliases: useDemirTac ? demirTacMaterialNameAliases : materialNameAliases,

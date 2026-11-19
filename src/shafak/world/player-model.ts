@@ -26,7 +26,7 @@ export const PLAYER_CHARACTER_ANIMATION_CLIPS = {
 export const PLAYER_CHARACTER_MATERIAL_ALIASES: ModelMaterialNameAliases = {
   cape: ["cape", "cloak"],
   accent: ["gold_accent", "trim", "accent", "detail", "material.006"],
-  armor: ["leather", "shirt"],
+  armor: ["leather", "shirt", "material_1"],
   armorLight: ["steel_light"],
   armorDark: ["steel_dark", "leather_dark", "undershirt"],
   skin: ["skin", "body", "face"],

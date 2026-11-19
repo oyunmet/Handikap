@@ -227,7 +227,9 @@ export default function WorldV2Actor({
 
   useEffect(() => {
     if (isPlayer || !modelConfig || !showWeapon) return undefined;
-    const hand = model.getObjectByName("FistR") ?? model.getObjectByName("Fist1R");
+    const hand = model.getObjectByName("FistR")
+      ?? model.getObjectByName("Fist1R")
+      ?? model.getObjectByName("RightHand");
     if (!hand) {
       if (modelConfig.isDemirTac) {
         console.warn("[shafak-world] Demir Taç's animated rig has no right-hand weapon mount.");

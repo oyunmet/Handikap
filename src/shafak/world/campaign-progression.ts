@@ -9,15 +9,15 @@ export const FINAL_CAMPAIGN_CHAPTER_ID = CAMPAIGN_CHAPTER_COUNT - 1;
 export const MAX_DEFEATED_OPPONENTS = 64;
 
 export const CAMPAIGN_REGIONS = [
-  { id: "ash-road", name: "Eşik Mahallesi", firstChapterId: 0, lastChapterId: 49 },
-  { id: "frozen-pass", name: "Ayaz Geçidi", firstChapterId: 50, lastChapterId: 99 },
-  { id: "red-marsh", name: "Kızıl Sazlık", firstChapterId: 100, lastChapterId: 149 },
-  { id: "whispering-forest", name: "Fısıltı Korusu", firstChapterId: 150, lastChapterId: 199 },
-  { id: "broken-throne", name: "Kırık Taht", firstChapterId: 200, lastChapterId: 249 },
-  { id: "mist-coast", name: "Dilsiz Kıyı", firstChapterId: 250, lastChapterId: 299 },
-  { id: "lost-city", name: "Kumaltı Arşivleri", firstChapterId: 300, lastChapterId: 349 },
-  { id: "black-summit", name: "Yarık Zirvesi", firstChapterId: 350, lastChapterId: 399 },
-  { id: "shadow-palace", name: "Aynasız Saray", firstChapterId: 400, lastChapterId: 449 },
+  { id: "ash-road", name: "İleri Hat", firstChapterId: 0, lastChapterId: 49 },
+  { id: "frozen-pass", name: "Kuzey Geçidi", firstChapterId: 50, lastChapterId: 99 },
+  { id: "red-marsh", name: "Kızıl Liman", firstChapterId: 100, lastChapterId: 149 },
+  { id: "whispering-forest", name: "Sis Koridoru", firstChapterId: 150, lastChapterId: 199 },
+  { id: "broken-throne", name: "Başkent Çemberi", firstChapterId: 200, lastChapterId: 249 },
+  { id: "mist-coast", name: "Fırtına Kıyısı", firstChapterId: 250, lastChapterId: 299 },
+  { id: "lost-city", name: "Kumaltı İstasyonu", firstChapterId: 300, lastChapterId: 349 },
+  { id: "black-summit", name: "Yarık Dağ Üssü", firstChapterId: 350, lastChapterId: 399 },
+  { id: "shadow-palace", name: "Son Komuta Merkezi", firstChapterId: 400, lastChapterId: 449 },
 ] as const;
 
 export type CampaignMissionKind =
@@ -30,13 +30,13 @@ export type CampaignMissionKind =
   | "act-boss";
 
 export const CAMPAIGN_MISSION_LABELS: Readonly<Record<CampaignMissionKind, string>> = {
-  "normal-combat": "Yüzleşme",
-  survival: "Son Nöbet",
-  "target-hunt": "Tanık Takibi",
-  siege: "Kuşatma Hattı",
-  exploration: "Kayıp Kayıt",
-  "mini-boss": "Dönüm Karşılaşması",
-  "act-boss": "Perde Finali",
+  "normal-combat": "İlk Temas",
+  survival: "Mevzi Savunması",
+  "target-hunt": "Hedef Takibi",
+  siege: "Kontrol Noktası",
+  exploration: "İstihbarat Toplama",
+  "mini-boss": "Komutan Karşılaşması",
+  "act-boss": "Operasyon Finali",
 };
 
 const REGULAR_MISSION_KINDS = [

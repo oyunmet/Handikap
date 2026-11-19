@@ -29,22 +29,22 @@ test("the long campaign has nine 50-level acts and preserves existing region ide
   assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
   assert.equal(CAMPAIGN_CHAPTER_COUNT, CAMPAIGN_LEVEL_COUNT);
   assert.deepEqual(CAMPAIGN_REGIONS.map((region) => region.name), [
-    "Eşik Mahallesi",
-    "Ayaz Geçidi",
-    "Kızıl Sazlık",
-    "Fısıltı Korusu",
-    "Kırık Taht",
-    "Dilsiz Kıyı",
-    "Kumaltı Arşivleri",
-    "Yarık Zirvesi",
-    "Aynasız Saray",
+    "İleri Hat",
+    "Kuzey Geçidi",
+    "Kızıl Liman",
+    "Sis Koridoru",
+    "Başkent Çemberi",
+    "Fırtına Kıyısı",
+    "Kumaltı İstasyonu",
+    "Yarık Dağ Üssü",
+    "Son Komuta Merkezi",
   ]);
-  assert.equal(getCampaignRegion(0).name, "Eşik Mahallesi");
-  assert.equal(getCampaignRegion(49).name, "Eşik Mahallesi");
-  assert.equal(getCampaignRegion(50).name, "Ayaz Geçidi");
-  assert.equal(getCampaignRegion(100).name, "Kızıl Sazlık");
-  assert.equal(getCampaignRegion(449).name, "Aynasız Saray");
-  assert.equal(getCampaignRegion(500).name, "Aynasız Saray");
+  assert.equal(getCampaignRegion(0).name, "İleri Hat");
+  assert.equal(getCampaignRegion(49).name, "İleri Hat");
+  assert.equal(getCampaignRegion(50).name, "Kuzey Geçidi");
+  assert.equal(getCampaignRegion(100).name, "Kızıl Liman");
+  assert.equal(getCampaignRegion(449).name, "Son Komuta Merkezi");
+  assert.equal(getCampaignRegion(500).name, "Son Komuta Merkezi");
 });
 
 test("every tenth level is a mini-boss and every fiftieth level is an act boss", () => {
@@ -78,7 +78,7 @@ test("saved distance maps to a campaign act, level, and readable progress", () =
   );
   assert.equal(halfwayThroughLevel52.levelNumber, 52);
   assert.equal(halfwayThroughLevel52.actNumber, 2);
-  assert.equal(halfwayThroughLevel52.region.name, "Ayaz Geçidi");
+  assert.equal(halfwayThroughLevel52.region.name, "Kuzey Geçidi");
   assert.equal(halfwayThroughLevel52.levelProgressPercent, 50);
   assert.ok(halfwayThroughLevel52.campaignProgressPercent > 11);
   const complete = getCampaignProgressFromDistance(FINAL_CAMPAIGN_DISTANCE);

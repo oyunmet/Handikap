@@ -192,7 +192,7 @@ export default function CityHub({
       <section className="city-hub__quest" aria-label="Ana hikâye görevi">
         <div className="city-hub__quest-kicker">
           <span>ANA HİKÂYE</span>
-          <b>PERDE {campaignActNumber} / {CAMPAIGN_ACT_COUNT}</b>
+          <b>OPERASYON {campaignActNumber} / {CAMPAIGN_ACT_COUNT}</b>
         </div>
         <h2>{campaignActName}</h2>
         <p>{campaignSummary}</p>

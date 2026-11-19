@@ -19,8 +19,10 @@ import {
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 import {
   PLAYER_CHARACTER_ANIMATION_CLIPS,
+  PLAYER_CHARACTER_MODEL_PATH,
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model.ts";
+import { KNIGHT_CONFIG } from "./knight-config.ts";
 
 test("locomotion clips remove fixed body lean while keeping animated movement", () => {
   const tilted = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, -0.08, 0.16, "XYZ"));
@@ -60,7 +62,7 @@ test("the world actor uses upright walk and run clips for the shared player rig"
     new THREE.QuaternionKeyframeTrack("Torso.quaternion", [0], rotation.toArray()),
   ]);
 
-  const prepared = prepareWorldActorClips("/models/player-hero.glb", [source]);
+  const prepared = prepareWorldActorClips(KNIGHT_CONFIG.modelPath, [source]);
   const preparedTorso = prepared[0].tracks.find((candidate) => candidate.name === "Torso.quaternion");
   const preparedRotation = new THREE.Euler().setFromQuaternion(
     new THREE.Quaternion().fromArray(preparedTorso.values),
@@ -68,6 +70,7 @@ test("the world actor uses upright walk and run clips for the shared player rig"
   );
 
   assert.notEqual(prepared[0], source);
+  assert.notEqual(prepareWorldActorClips(PLAYER_CHARACTER_MODEL_PATH, [source])[0], source);
   assert.ok(Math.abs(preparedRotation.x) < 1e-6);
   assert.ok(Math.abs(preparedRotation.y) < 1e-6);
   assert.ok(Math.abs(preparedRotation.z) < 1e-6);
@@ -87,9 +90,9 @@ test("GLB clip names are resolved case-insensitively from one configurable map",
 });
 
 test("missing locomotion clips fall back to a usable idle or walking clip", () => {
-  assert.equal(resolveGlbClipName("walk", ["Idle"]), "Idle");
-  assert.equal(resolveGlbClipName("run", ["Walk"]), "Walk");
-  assert.equal(resolveGlbClipName("block", ["Idle"]), "Idle");
+  assert.equal(resolveGlbClipName("walk", ["Idle"], PLAYER_CHARACTER_ANIMATION_CLIPS), "Idle");
+  assert.equal(resolveGlbClipName("run", ["Walk"], PLAYER_CHARACTER_ANIMATION_CLIPS), "Walk");
+  assert.equal(resolveGlbClipName("block", ["Idle"], PLAYER_CHARACTER_ANIMATION_CLIPS), "Idle");
   assert.equal(resolveGlbClipName("attack", ["Walk"]), null);
 });
 
@@ -204,13 +207,12 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
       assert.ok(config.animationClips.attack?.includes("Dagger_Attack"));
       assert.equal(config.isBoss, true);
     } else if (profile.name === "Demir Taç") {
-      assert.equal(config.modelPath, "/models/player-hero.glb");
+      assert.equal(config.modelPath, "/models/kuzgun-soldier.glb");
       assert.equal(config.targetHeight, 2.15);
-      assert.equal(config.rootBoneName, "Root");
+      assert.equal(config.rootBoneName, "Hips");
       assert.equal(config.modelFacing, Math.PI);
       assert.equal(config.modelRotation, undefined);
-      assert.ok(config.animationClips.run?.includes("CharacterArmature|Run"));
-      assert.ok(config.animationClips.attack?.includes("CharacterArmature|Dagger_Attack"));
+      assert.ok(config.animationClips.run?.includes("run"));
       assert.equal(config.isBoss, true);
     } else {
       const [modelPath, weapon, attackClips] = expectedModels[profile.archetype];
@@ -232,9 +234,9 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(ironCrown?.modelPath, "/models/player-hero.glb");
+  assert.equal(ironCrown?.modelPath, "/models/kuzgun-soldier.glb");
   assert.equal(ironCrown?.modelFacing, Math.PI);
-  assert.ok(ironCrown?.animationClips.run?.includes("CharacterArmature|Run"));
+  assert.ok(ironCrown?.animationClips.run?.includes("run"));
   assert.equal(ironCrown?.isDemirTac, true);
 });
 

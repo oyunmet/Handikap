@@ -389,7 +389,7 @@ function createRivals(chapterId: number, random: () => number, playerLevel: numb
       winRate: isBoss ? 94 + Math.min(4, chapterId) : 42 + index * 9 + Math.min(24, chapterId * 2),
       loot: isBoss ? 90 + chapterId * 8 : 24 + index * 8 + chapterId * 3,
       taunt: finalBoss
-        ? "Alaz mührü parçaladı; ben de bu krallığı kurtarmak için onu susturdum. Şimdi hangimizin yalan söylediğini öğreneceksin."
+        ? "Alaz ağı devre dışı bırakmak istedi; ben de bu hattı kontrol altında tutmak için onu susturdum. Şimdi kimin sivilleri koruduğunu göreceksin."
         : profile.taunt,
       difficulty: profile.difficulty,
       chapterId,

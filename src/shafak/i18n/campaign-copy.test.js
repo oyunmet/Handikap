@@ -19,17 +19,17 @@ function collectSourceFiles(directory) {
 }
 
 test("menu campaign title is generated from the campaign counts", () => {
-  assert.equal(tr.menuKicker, "EŞİK MAHALLESİ · 9 PERDE");
-  assert.match(tr.menuKicker, new RegExp(`${CAMPAIGN_ACT_COUNT} PERDE`));
+  assert.equal(tr.menuKicker, "KUZEY İLERİ ÜSSÜ · 9 OPERASYON");
+  assert.match(tr.menuKicker, new RegExp(`${CAMPAIGN_ACT_COUNT} OPERASYON`));
   assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
 });
 
 test("campaign copy changes when campaign data counts change", () => {
   const copy = getCampaignCopy(8, 400);
-  assert.equal(copy.menuKicker, "EŞİK MAHALLESİ · 8 PERDE");
-  assert.match(copy.openingDescription, /8 perde/);
+  assert.equal(copy.menuKicker, "KUZEY İLERİ ÜSSÜ · 8 OPERASYON");
+  assert.match(copy.openingDescription, /8 operasyona yayılan/);
   assert.match(copy.openingDescription, /400 bölüm/);
-  assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · ŞAFAK MÜHRÜ");
+  assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · SON İSTİHBARAT DOSYASI");
 });
 
 test("all campaign acts provide a short story summary for the main menu", async () => {

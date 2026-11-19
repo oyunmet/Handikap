@@ -18,8 +18,14 @@ import {
   getCharacterBounds,
 } from "./character-model.ts";
 import { prepareWorldAsset } from "./world-v2-assets.ts";
+import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
 
-const modelPath = new URL("../../../public/models/player-hero.glb", import.meta.url);
+if (!globalThis.self) globalThis.self = globalThis;
+if (!globalThis.createImageBitmap) {
+  globalThis.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
+}
+
+const modelPath = new URL("../../../public/models/kuzgun-soldier.glb", import.meta.url);
 
 function readGlb(path) {
   const buffer = fs.readFileSync(path);
@@ -30,7 +36,7 @@ function readGlb(path) {
   return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
 }
 
-test("Demir Taç uses the animated player rig and keeps a distinct boss identity", async () => {
+test("Demir Taç uses the detailed soldier rig and keeps a distinct boss identity", async () => {
   const gltf = readGlb(modelPath);
   const profile = getWorldBotProfileByArchetype("chapter-boss");
   const worldConfig = getAnimatedRivalModelConfig("Demir Taç", profile, "world");
@@ -39,40 +45,36 @@ test("Demir Taç uses the animated player rig and keeps a distinct boss identity
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const loaded = await new GLTFLoader().parseAsync(arrayBuffer, "");
 
-  assert.equal(worldConfig.modelPath, "/models/player-hero.glb");
+  assert.equal(worldConfig.modelPath, "/models/kuzgun-soldier.glb");
   assert.equal(worldConfig.isDemirTac, true);
-  assert.equal(worldConfig.rootBoneName, "Root");
+  assert.equal(worldConfig.rootBoneName, "Hips");
   assert.equal(worldConfig.modelFacing, Math.PI);
   assert.equal(worldConfig.modelRotation, undefined);
   assert.equal(worldConfig.appearance.armorLight, "#a8b1b8");
   assert.equal(worldConfig.appearance.trim, "#d7b16a");
   assert.equal(worldConfig.appearance.cape, "#681f2c");
   assert.equal(shouldAttachOpponentCostume(worldConfig), true);
-  assert.ok(loaded.scene.getObjectByName("Root"));
+  assert.ok(loaded.scene.getObjectByName("Hips"));
   assert.ok(loaded.scene.getObjectByName("Head"));
-  assert.ok(loaded.scene.getObjectByName("ShoulderL"));
-  assert.ok(loaded.scene.getObjectByName("LowerArmR"));
-  assert.ok(loaded.scene.getObjectByName("LowerLegR"));
-  assert.ok(loaded.scene.getObjectByName("FistR"));
-  assert.ok(loaded.animations.some((clip) => clip.name === "Run"));
-  assert.ok(worldConfig.animationClips.run?.includes("CharacterArmature|Run"));
+  assert.ok(loaded.scene.getObjectByName("LeftShoulder"));
+  assert.ok(loaded.scene.getObjectByName("RightForeArm"));
+  assert.ok(loaded.scene.getObjectByName("RightLeg"));
+  assert.ok(loaded.scene.getObjectByName("RightHand"));
+  assert.ok(loaded.animations.some((clip) => clip.name === "run"));
+  assert.ok(worldConfig.animationClips.run?.includes("run"));
   const materials = new Map();
   loaded.scene.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const list = Array.isArray(object.material) ? object.material : [object.material];
     list.forEach((material) => materials.set(material.name.toLowerCase(), material));
   });
-  const eyeColor = materials.get("eye").color.getHexString();
+  const soldierMaterial = materials.get("material_1");
+  assert.ok(soldierMaterial?.map, "the detailed soldier texture should remain attached");
+  const originalTexture = soldierMaterial.map;
+  const originalColor = soldierMaterial.color.getHexString();
   applyOpponentBasePalette(loaded.scene, worldConfig);
-  assert.equal(
-    materials.get("shirt").color.getHexString(),
-    worldConfig.appearance.armor.slice(1),
-  );
-  assert.equal(
-    materials.get("hair").color.getHexString(),
-    worldConfig.materialPalette.hair.slice(1),
-  );
-  assert.equal(materials.get("eye").color.getHexString(), eyeColor);
+  assert.equal(soldierMaterial.map, originalTexture);
+  assert.equal(soldierMaterial.color.getHexString(), originalColor);
   assert.equal(worldConfig.targetHeight, 1.95);
   assert.equal(duelConfig.targetHeight, 2.15);
   assert.equal(worldConfig.weapon, "greatsword");
@@ -120,4 +122,18 @@ test("Demir Taç's rig-mounted armor stays grounded and within world and duel si
       disposeCharacterResources(resources);
     }
   }
+});
+
+test("the playable soldier model fits the campaign's measured character size", async () => {
+  const buffer = fs.readFileSync(modelPath);
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const gltf = await new GLTFLoader().parseAsync(arrayBuffer, "");
+  const fitted = prepareWorldAsset("/models/kuzgun-soldier.glb", gltf, WORLD_MODEL_SIZE_TARGETS.player);
+  const bounds = getCharacterBounds(fitted.scene);
+  const dimensions = bounds.getSize(new THREE.Vector3());
+
+  assert.ok(Math.abs(dimensions.y - WORLD_MODEL_SIZE_TARGETS.player.targetHeight) < 0.08);
+  assert.ok(Math.max(dimensions.x, dimensions.y, dimensions.z) <= WORLD_MODEL_SIZE_TARGETS.player.maxDimension + 0.03);
+  assert.ok(Math.abs(bounds.min.y) < 0.03);
+  assert.ok(fitted.scene.getObjectByName("RightHand"));
 });

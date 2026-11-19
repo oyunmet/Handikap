@@ -74,7 +74,7 @@ test("later chapters add rivals and scale the boss level and combat stats", () =
   assert.ok(openingBoss);
   assert.ok(finalBoss);
   assert.ok(finale.length > opening.length);
-  assert.equal(finalBoss.name, "Kül Hükümdarı");
+  assert.equal(finalBoss.name, "Demir Taç");
   assert.ok(finalBoss.level > openingBoss.level);
   assert.equal(finalBoss.difficulty, "hard");
   assert.ok(

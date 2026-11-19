@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { CombatAction } from "../game/combat-engine";
 import { KNIGHT_CONFIG } from "./knight-config";
+import { PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
 import type { OpponentModelAnimationState } from "./opponent-model-config";
 
 export type ModelAnimationState = CharacterAnimationState | OpponentModelAnimationState;
@@ -119,7 +120,7 @@ export function prepareWorldActorClips(
   modelPath: string,
   clips: THREE.AnimationClip[],
 ): THREE.AnimationClip[] {
-  return modelPath === KNIGHT_CONFIG.modelPath
+  return modelPath === KNIGHT_CONFIG.modelPath || modelPath === PLAYER_CHARACTER_MODEL_PATH
     ? clips.map(createPlayerLocomotionClip)
     : clips;
 }

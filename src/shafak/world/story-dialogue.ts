@@ -19,23 +19,23 @@ import {
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative.ts";
 
 const NPC_STORY_BEATS = [
-  "Mührün ışığı, burada saklanan eski bir yemini yeniden görünür kılıyor.",
-  "Prensesin izi bu perdede kaybolmadı; yalnızca yeni bir sınava dönüştü.",
-  "Bir sonraki eşiğe hazırlan. Krallığın kaderi hâlâ değişebilir.",
+  "Bu kontrol noktasında, Taç Birliği'nin kapattığı başka bir tahliye hattı var.",
+  "Alaz'ın son sinyali bu bölgede kesildi; telsiz kayıtlarını kontrol et.",
+  "Bir sonraki operasyona hazırlan. Sivillerin güvenli çıkışı hâlâ mümkün.",
 ] as const;
 
 export function getOpeningStoryDialogue(): StoryDialogue {
   return {
     id: "story-opening",
     kind: "opening",
-    title: "AYNI SABAH",
-    speaker: "YOL KILAVUZU",
+    title: "KAYIP SİNYAL",
+    speaker: "KUZGUN İRTİBATI",
     lines: [
-      `${CAMPAIGN_NARRATIVE.cityName} her sabah aynı çanla yeniden uyanıyor; Prenses ${CAMPAIGN_NARRATIVE.princessName} kayıp.`,
-      `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz hatıraya böldü. Her perde bu kararın izini ve döngünün nedenini açığa çıkarıyor.`,
-      `${CAMPAIGN_ACT_COUNT} perdelik seferde tanıkları dinle, hatıraları birleştir ve ${CAMPAIGN_NARRATIVE.finalBossName} ile yüzleş.`,
+      `${CAMPAIGN_NARRATIVE.cityName} çevresindeki tahliye hattı kesildi; saha komutanı ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp.`,
+      "Şafak İletişim Ağı'nı Taç Birliği ele geçirdi. Dokuz dosya, yardım sinyallerinin nasıl hedef işaretine dönüştürüldüğünü kanıtlıyor.",
+      `${CAMPAIGN_ACT_COUNT} operasyonda dosyaları topla, Alaz'ı bul ve ${CAMPAIGN_NARRATIVE.finalBossName} ile yüzleş.`,
     ],
-    hint: `Sefer ${CAMPAIGN_REGIONS[0].name} yolunda başlar. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) döngünün ardındaki gerçeği açar.`,
+    hint: `İlk görev: ${CAMPAIGN_REGIONS[0].name}. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) merkez ağı kapatma fırsatı verecek.`,
   };
 }
 
@@ -51,68 +51,68 @@ export function getChapterStoryDialogue(
   return {
     id: `story-chapter-${safeChapter}`,
     kind: "chapter",
-    title: `${region.name.toLocaleUpperCase("tr-TR")} · PERDE ${actNumber} · BÖLÜM ${levelNumber}`,
-    speaker: "YOL KILAVUZU",
+    title: `${region.name.toLocaleUpperCase("tr-TR")} · OPERASYON ${actNumber} · BÖLÜM ${levelNumber}`,
+    speaker: "KUZGUN İRTİBATI",
     lines: [
-      storySummary?.trim() || `${region.name} yolunda prensesin izini sür.`,
+      storySummary?.trim() || `${region.name} bölgesinde Alaz'ın sinyalini takip et.`,
       objective?.trim()
         ? `Bu bölümün hedefi: ${objective.trim()}`
-        : `${CAMPAIGN_ACT_COUNT} perdelik yolculuğun ${levelNumber}. bölümündesin; Mühür Parçalarını koru.`,
+        : `${CAMPAIGN_ACT_COUNT} operasyonun ${levelNumber}. bölümündesin; istihbarat dosyalarını güvene al.`,
     ],
-    hint: `Perde ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${levelNumber}/${CAMPAIGN_LEVEL_COUNT}. Mühür Parçalarını birleştir.`,
+    hint: `Operasyon ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${levelNumber}/${CAMPAIGN_LEVEL_COUNT}.`,
   };
 }
 
 const RIVAL_STORIES: Readonly<Record<string, readonly [string, string, string]>> = {
   "gate-warden": [
-    "Kapıdan geçmek için önce içeride bıraktığın kişiyi hatırlamalısın.",
-    "Nöbet tuttuğum gecenin sabahı hiç gelmedi. Senin mührün bunu değiştirebilir.",
-    "Taşlar adını biliyor; ben de artık kimin dönmesini beklediğimi biliyorum.",
+    "Kontrol noktası kapalı. Geri çekil ya da telsizini bırak.",
+    "Konvoy güzergâhı değişti; merkezden gelen emri sorgulama.",
+    "Bu yolu tutmamın nedeni emir. Başka bir seçenek bırakmadılar.",
   ],
   "iron-oath": [
-    "Yeminimi tutmak için herkesi geride bıraktım. Şimdi yemin, beni burada tutuyor.",
-    "Kılıcımın ağırlığı demirden değil; verdiğim sözün içinde kalanlardan.",
-    "Kapı açılırsa benden geriye ne kalacağını bilmiyorum. Yine de çekilmem.",
+    "Bölgeyi teslim etmem için yazılı emir gerekiyor.",
+    "Merkez ağı susturuyor; kendi birimlerimizle bile bağlantı kuramıyoruz.",
+    "Bu hattı savunuyorum çünkü sivillerin çıkışı başka yerde kapalı.",
   ],
   "ash-archer": [
-    "Külün üstünde yürüyenlerin gölgesi yoktur. Seninki neden iki tane?",
-    "Oku kapıya değil, seni izleyen şeye attım. Sesini duydun mu?",
-    "Mühür parladığında hedefim kayboluyor; sanki gelecekten birini vuruyorum.",
+    "Gözlem noktasından bütün geçitler görünüyor.",
+    "Telsiz sessiz. Konumunu açık kanalda verme.",
+    "Sis kalkmadan bu yamacı geçemezsin.",
   ],
   "shadow-knight": [
-    "Zırhımda yüzüm yok; kapının ardında bıraktığım yüz var.",
-    "Gölgem senden önce geçti. Bir sonraki kapıda seni kimin beklediğini biliyor.",
-    "Kılıcımı indirirsem karanlık beni geri çağırır. Beni susturabilir misin?",
+    "Termal kamerada tek bir hareket bile kaçmaz.",
+    "İşaret fişeği göründüğünde konumun belli olacak.",
+    "Karanlıkta telsiz kullanma. Sinyal seni ele verir.",
   ],
   "storm-lancer": [
-    "Fırtınanın içinde tek bir ses duydum: kapının bu kez içeriden açılacağını söyledi.",
-    "Mızrağım yolu değil, yolu kapatan şeyi arıyor. Mühür sende olduğu için seni seçti.",
-    "Şimşek her çaktığında bir isim siliniyor. Benimki sıradaki olabilir.",
+    "Hava desteği yok. Bu mevzide yalnızız.",
+    "Anten hasarlı; batı kanadından sinyal alamıyoruz.",
+    "Fırtına dinince tahliye koridorunu tekrar açacağız.",
   ],
   "rift-berserker": [
-    "Yarık açıldığında içinden ben çıktım. Ama beni oraya kimin gönderdiğini hatırlamıyorum.",
-    "Öfkem bana ait değil; her darbede kapının içinden biri daha uyanıyor.",
-    "Beni yenmek kolay. Uyanan şeyi durdurmak için sonraki eşiğe ulaşmalısın.",
+    "Zırhlı araç desteği olmadan bu hat düşmez.",
+    "Her takviye talebi merkezde bekletiliyor.",
+    "Emir değişti. Kimse nedenini söylemiyor.",
   ],
   "ember-alchemist": [
-    "Külün içindeki ateşi söndürmedim; son hatırayı korumak için sakladım.",
-    "Her Mühür Parçası başka bir anı yakıyor. Sence bu anılar kime ait?",
-    "Tılsımın ışığına bakma. Işık sana bakıyorsa, artık seni tanımıştır.",
+    "Kontrol odasındaki güç dağıtımı hâlâ çalışıyor.",
+    "Yedek sunucu yeraltı tünelinde. Ana hattı kapatmadan oraya ulaş.",
+    "Bu cihazlar yardım sinyalini komuta ağına yönlendiriyor.",
   ],
   "venom-assassin": [
-    "Seni zehirlemedim. Kapının seni hatırlamasını sağlayan şeyi kanına bıraktım.",
-    "Sessizliğim korkudan değil; adımı söylersem kapı hemen açılır.",
-    "Dikkat et, yolcu. Burada en tehlikeli şey duyduğun ses değil, cevap verdiğin ses.",
+    "Telsizini kapat. Bu frekans dinleniyor.",
+    "İçeriden bilgi sızdıran kişiyi bulmadan merkeze girmeyin.",
+    "Yanlış çağrı kodunu kullandın. Burada kimse sana güvenmez.",
   ],
   "frost-hunter": [
-    "Ayaz, izleri silmez; onları bir sonraki kişinin görebileceği kadar dondurur.",
-    "Buzun altında bir savaş sürüyor. Her ok, içeridekilerin kalp atışına göre yön değiştiriyor.",
-    "Bir sonraki eşiğin önünde durma. Seni bekleyen kişi kendi sesinle konuşacak.",
+    "Kar, araç izlerini kapatır ama ayak izlerini değil.",
+    "Radar kaydı, konvoyun kuzey tüneline girdiğini gösteriyor.",
+    "Sinyali buldun. Şimdi göndericinin kim olduğunu öğren.",
   ],
   "chapter-boss": [
-    "Beni son düşmanın sanıyorsun. Oysa ben, kapının dışarıda tuttuğu son hatırayım.",
-    "Her döngüde buraya geldin; her döngüde cevabı unutup yeniden başladın.",
-    "Mührü tamamla. Son kapının ardında aradığın düşman değil, kendi seçimin var.",
+    "Dosyaları teslim et. Merkezde neler olduğunu hâlâ bilmiyorsun.",
+    "Alaz ağı durdurmak istedi; ben de bu hattı korumak için onu susturdum.",
+    "Demir Taç'ın emriyle bütün iletişim kanalları kapatılacak.",
   ],
 };
 
@@ -124,13 +124,13 @@ export function getNpcStoryDialogue(name: string, chapterId: number): StoryDialo
   return {
     id: `story-demir-yemin-${safeChapter}`,
     kind: "npc",
-    title: "YEMİNİN AĞIRLIĞI",
+    title: "SAHA RAPORU",
     speaker: "DEMİR YEMİN",
     lines: [
-      `${region.name} yolunda prensesin izi, eski yeminleri yeniden uyandırıyor.`,
+      `${region.name} bölgesinde Alaz'ın son yayınını takip ediyoruz.`,
       NPC_STORY_BEATS[safeChapter % NPC_STORY_BEATS.length],
     ],
-    hint: `Perde ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${getCampaignLevelNumber(safeChapter)}/${CAMPAIGN_LEVEL_COUNT}.`,
+    hint: `Operasyon ${actNumber}/${CAMPAIGN_ACT_COUNT} · Bölüm ${getCampaignLevelNumber(safeChapter)}/${CAMPAIGN_LEVEL_COUNT}.`,
   };
 }
 
@@ -140,18 +140,18 @@ export function getWorldRivalStoryDialogue(rival: {
   chapterId: number;
   taunt: string;
 }): StoryDialogue {
-  if (rival.name === "Karanlık Hükümdar") {
+  if (rival.name === CAMPAIGN_NARRATIVE.finalBossName || rival.name === "Karanlık Hükümdar") {
     return {
       id: "story-final-boss",
       kind: "npc",
-      title: "SON KAPI",
-      speaker: "KARANLIK HÜKÜMDAR",
+      title: "SON ÇATIŞMA",
+      speaker: CAMPAIGN_NARRATIVE.finalBossName.toLocaleUpperCase("tr-TR"),
       lines: [
         rival.taunt,
-        "Prensesi susturmadım; onu kapının ardında, krallığı koruyabilsin diye sakladım.",
-        "Mühür tamamlandı. Bu düellonun sonunda saklanan gerçeği duyacaksın.",
+        "Alaz ağı kapatmak istedi; bu koridoru korumak için onu merkezden uzak tuttum.",
+        "Dosyaları teslim et. Bu üssün kime ait olduğuna birazdan sen karar vereceksin.",
       ],
-      hint: "Son bossu yen; ardından prensesle konuşacaksın.",
+      hint: "Demir Taç'ı yen; ardından Alaz'la iletişim kur.",
     };
   }
   const special = getNpcStoryDialogue(rival.name, rival.chapterId);
@@ -162,13 +162,13 @@ export function getWorldRivalStoryDialogue(rival: {
   return {
     id: `story-rival-${rival.archetype}-${safeChapter}`,
     kind: "npc",
-    title: rival.name === "Kül Tahtı" ? "SON KAPI" : "KIRIK YEMİNLER",
+    title: rival.name === CAMPAIGN_NARRATIVE.finalBossName ? "SON ÇATIŞMA" : "SAHA RAPORU",
     speaker: rival.name.toLocaleUpperCase("tr-TR"),
     lines: [
       rival.taunt,
       voice[offset],
       voice[(offset + 1) % voice.length],
     ],
-    hint: "Her yolcu kapının başka bir anısını koruyor. Konuş, sonra karar verip düelloya gir.",
+    hint: "Bölgedeki telsiz kayıtlarını ve istihbarat dosyalarını incele.",
   };
 }

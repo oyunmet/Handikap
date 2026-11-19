@@ -379,15 +379,16 @@ function OptionalGlbKnight({
   characterLabel,
 }: KnightActorProps) {
   const { camera: activeCamera, size } = useThree();
-  const modelPath = modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH;
+  const modelPath = modelConfig?.modelPath
+    ?? (playerCharacter ? KNIGHT_CONFIG.modelPath : PLAYER_CHARACTER_MODEL_PATH);
   const gltf = useLoader(GLTFLoader, modelPath, loadCharacter) as GLTF;
   const actorGlowTexture = useMemo(() => getWorldGlowTexture(), []);
   const rootRef = useRef<THREE.Group>(null);
   const warnedTiltRef = useRef(false);
   const rootBoneName = modelConfig?.rootBoneName
-    ?? PLAYER_CHARACTER_ROOT_BONE;
+    ?? (modelPath === KNIGHT_CONFIG.modelPath ? KNIGHT_CONFIG.rootBoneName : PLAYER_CHARACTER_ROOT_BONE);
   const animationClipMap = modelConfig?.animationClips
-    ?? PLAYER_CHARACTER_ANIMATION_CLIPS;
+    ?? (modelPath === KNIGHT_CONFIG.modelPath ? KNIGHT_CONFIG.animationClips : PLAYER_CHARACTER_ANIMATION_CLIPS);
   const targetHeight = targetHeightOverride
     ?? modelConfig?.targetHeight
     ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
@@ -580,7 +581,9 @@ function OptionalGlbKnight({
     : resolveGlbClipName(clipState, animationClips.map((clip) => clip.name), animationClipMap);
   const selectedAction = selectedClip ? actions.get(selectedClip) ?? null : null;
   const staticPlayerModel = shouldRenderPlayerModel(playerCharacter, animationClips.length);
-  const proceduralPoseEnabled = playerCharacter ? staticPlayerModel : !selectedAction;
+  const proceduralPoseEnabled = playerCharacter
+    ? staticPlayerModel || modelPath === KNIGHT_CONFIG.modelPath
+    : !selectedAction;
   const modelFacing = modelConfig?.modelFacing
     ?? (playerCharacter ? PLAYER_CHARACTER_MODEL_FACING : KNIGHT_CONFIG.modelFacing);
   const staticPoseRef = useRef<THREE.Group>(null);

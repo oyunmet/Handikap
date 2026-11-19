@@ -3583,7 +3583,7 @@ export default function WorldScene({
             <div className="world-progress__track"><i style={{ width: `${chapterProgress}%` }} /></div>
             {campaignLevelLoadError ? (
               <small className="world-progress__mission" role="alert">
-                Perde verisi yüklenemedi.{" "}
+                Operasyon verisi yüklenemedi.{" "}
                 <button type="button" onClick={() => setCampaignLevelLoadAttempt((attempt) => attempt + 1)}>
                   Yeniden dene
                 </button>

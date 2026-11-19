@@ -19,13 +19,14 @@ import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
+import { KNIGHT_CONFIG } from "./knight-config";
 import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
 import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../game/war-room-data";
 import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
 import { attachHumanCharacterDetails } from "./human-character-details";
 
 export const WAR_ROOM_MODEL_URLS = [
-  "/models/player-hero.glb",
+  "/models/kuzgun-soldier.glb",
   "/models/war-room/wall.glb",
   "/models/war-room/tower-square.glb",
   "/models/war-room/tower-square-top.glb",
@@ -335,9 +336,16 @@ function createWarRoomPoseClip(
     : null;
 }
 
-function createWarRoomPoseClips(model: THREE.Group) {
+function createWarRoomPoseClips(model: THREE.Group, soldierModel = false) {
   const crouch = createWarRoomPoseClip(model, "crouch", [0, 0.4, 0.8], [
     { boneName: "Hips", rotations: [[0.16, 0, 0], [0.17, 0, 0], [0.16, 0, 0]] },
+    { boneName: "LeftUpLeg", rotations: [[-0.42, 0, 0], [-0.48, 0, 0], [-0.42, 0, 0]] },
+    { boneName: "RightUpLeg", rotations: [[-0.48, 0, 0], [-0.42, 0, 0], [-0.48, 0, 0]] },
+    { boneName: "LeftLeg", rotations: [[0.82, 0, 0], [0.72, 0, 0], [0.82, 0, 0]] },
+    { boneName: "RightLeg", rotations: [[0.72, 0, 0], [0.82, 0, 0], [0.72, 0, 0]] },
+    { boneName: "LeftArm", rotations: [[-0.18, 0, 0], [-0.2, 0, 0], [-0.18, 0, 0]] },
+    { boneName: "RightArm", rotations: [[-0.18, 0, 0], [-0.2, 0, 0], [-0.18, 0, 0]] },
+    { boneName: "Spine01", rotations: [[-0.08, 0, 0], [-0.09, 0, 0], [-0.08, 0, 0]] },
     { boneName: "UpperLeg.L", rotations: [[-0.42, 0, 0], [-0.48, 0, 0], [-0.42, 0, 0]] },
     { boneName: "UpperLeg.R", rotations: [[-0.48, 0, 0], [-0.42, 0, 0], [-0.48, 0, 0]] },
     { boneName: "LowerLeg.L", rotations: [[0.82, 0, 0], [0.72, 0, 0], [0.82, 0, 0]] },
@@ -347,6 +355,12 @@ function createWarRoomPoseClips(model: THREE.Group) {
     { boneName: "UpperArm.R", rotations: [[-0.18, 0, 0], [-0.2, 0, 0], [-0.18, 0, 0]] },
   ]);
   const jump = createWarRoomPoseClip(model, "jump", [0, 0.08, 0.22, 0.38], [
+    { boneName: "LeftUpLeg", rotations: [[0, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0]] },
+    { boneName: "RightUpLeg", rotations: [[0, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0]] },
+    { boneName: "LeftLeg", rotations: [[0, 0, 0], [0.78, 0, 0], [0.78, 0, 0], [0.78, 0, 0]] },
+    { boneName: "RightLeg", rotations: [[0, 0, 0], [0.78, 0, 0], [0.78, 0, 0], [0.78, 0, 0]] },
+    { boneName: "LeftArm", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
+    { boneName: "RightArm", rotations: [[0, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0], [-0.32, 0, 0]] },
     { boneName: "UpperLeg.L", rotations: [[0, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0]] },
     { boneName: "UpperLeg.R", rotations: [[0, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0], [-0.48, 0, 0]] },
     { boneName: "LowerLeg.L", rotations: [[0, 0, 0], [0.78, 0, 0], [0.78, 0, 0], [0.78, 0, 0]] },
@@ -356,6 +370,14 @@ function createWarRoomPoseClips(model: THREE.Group) {
   ]);
   const turnLeft = createWarRoomPoseClip(model, "turn-left", [0, 0.12, 0.24, 0.36, 0.48], [
     { boneName: "Hips", rotations: [[0, 0, 0], [0.03, 0.2, -0.07], [0, 0.34, 0], [0.02, -0.08, 0.07], [0, 0, 0]] },
+    { boneName: "Spine01", rotations: [[0, 0, 0], [0, -0.08, 0.025], [0, -0.16, 0], [0, 0.04, -0.025], [0, 0, 0]] },
+    { boneName: "Spine02", rotations: [[0, 0, 0], [-0.025, -0.1, 0.08], [-0.04, -0.2, 0.04], [0, 0.08, -0.07], [0, 0, 0]] },
+    { boneName: "LeftArm", rotations: [[0, 0, 0], [-0.14, 0, -0.14], [-0.2, 0, -0.24], [-0.08, 0, 0.08], [0, 0, 0]] },
+    { boneName: "RightArm", rotations: [[0, 0, 0], [0.1, 0, 0.1], [0.16, 0, 0.2], [0.06, 0, -0.08], [0, 0, 0]] },
+    { boneName: "LeftUpLeg", rotations: [[0, 0, 0], [-0.28, 0, 0.1], [0.16, 0, 0.16], [-0.08, 0, 0], [0, 0, 0]] },
+    { boneName: "RightUpLeg", rotations: [[0, 0, 0], [0.14, 0, -0.08], [-0.2, 0, -0.14], [0.06, 0, 0], [0, 0, 0]] },
+    { boneName: "LeftLeg", rotations: [[0, 0, 0], [0.1, 0, 0], [-0.14, 0, 0], [0.04, 0, 0], [0, 0, 0]] },
+    { boneName: "RightLeg", rotations: [[0, 0, 0], [-0.08, 0, 0], [0.12, 0, 0], [-0.03, 0, 0], [0, 0, 0]] },
     { boneName: "Abdomen", rotations: [[0, 0, 0], [0, -0.08, 0.025], [0, -0.16, 0], [0, 0.04, -0.025], [0, 0, 0]] },
     { boneName: "Torso", rotations: [[0, 0, 0], [-0.025, -0.1, 0.08], [-0.04, -0.2, 0.04], [0, 0.08, -0.07], [0, 0, 0]] },
     { boneName: "UpperArm.L", rotations: [[0, 0, 0], [-0.14, 0, -0.14], [-0.2, 0, -0.24], [-0.08, 0, 0.08], [0, 0, 0]] },
@@ -367,6 +389,14 @@ function createWarRoomPoseClips(model: THREE.Group) {
   ]);
   const turnRight = createWarRoomPoseClip(model, "turn-right", [0, 0.12, 0.24, 0.36, 0.48], [
     { boneName: "Hips", rotations: [[0, 0, 0], [0.03, -0.2, 0.07], [0, -0.34, 0], [0.02, 0.08, -0.07], [0, 0, 0]] },
+    { boneName: "Spine01", rotations: [[0, 0, 0], [0, 0.08, -0.025], [0, 0.16, 0], [0, -0.04, 0.025], [0, 0, 0]] },
+    { boneName: "Spine02", rotations: [[0, 0, 0], [-0.025, 0.1, -0.08], [-0.04, 0.2, -0.04], [0, -0.08, 0.07], [0, 0, 0]] },
+    { boneName: "LeftArm", rotations: [[0, 0, 0], [0.1, 0, -0.1], [0.16, 0, -0.2], [0.06, 0, 0.08], [0, 0, 0]] },
+    { boneName: "RightArm", rotations: [[0, 0, 0], [-0.14, 0, 0.14], [-0.2, 0, 0.24], [-0.08, 0, -0.08], [0, 0, 0]] },
+    { boneName: "LeftUpLeg", rotations: [[0, 0, 0], [0.14, 0, 0.08], [-0.2, 0, 0.14], [0.06, 0, 0], [0, 0, 0]] },
+    { boneName: "RightUpLeg", rotations: [[0, 0, 0], [-0.28, 0, -0.1], [0.16, 0, -0.16], [-0.08, 0, 0], [0, 0, 0]] },
+    { boneName: "LeftLeg", rotations: [[0, 0, 0], [-0.08, 0, 0], [0.12, 0, 0], [-0.03, 0, 0], [0, 0, 0]] },
+    { boneName: "RightLeg", rotations: [[0, 0, 0], [0.1, 0, 0], [-0.14, 0, 0], [0.04, 0, 0], [0, 0, 0]] },
     { boneName: "Abdomen", rotations: [[0, 0, 0], [0, 0.08, -0.025], [0, 0.16, 0], [0, -0.04, 0.025], [0, 0, 0]] },
     { boneName: "Torso", rotations: [[0, 0, 0], [-0.025, 0.1, -0.08], [-0.04, 0.2, -0.04], [0, -0.08, 0.07], [0, 0, 0]] },
     { boneName: "UpperArm.L", rotations: [[0, 0, 0], [0.1, 0, -0.1], [0.16, 0, -0.2], [0.06, 0, 0.08], [0, 0, 0]] },
@@ -376,7 +406,30 @@ function createWarRoomPoseClips(model: THREE.Group) {
     { boneName: "LowerLeg.L", rotations: [[0, 0, 0], [-0.08, 0, 0], [0.12, 0, 0], [-0.03, 0, 0], [0, 0, 0]] },
     { boneName: "LowerLeg.R", rotations: [[0, 0, 0], [0.1, 0, 0], [-0.14, 0, 0], [0.04, 0, 0], [0, 0, 0]] },
   ]);
-  return [crouch, jump, turnLeft, turnRight].filter((clip): clip is THREE.AnimationClip => clip !== null);
+  const soldierActions = soldierModel
+    ? [
+      createWarRoomPoseClip(model, "attack", [0, 0.08, 0.17, 0.32], [
+        { boneName: "Spine01", rotations: [[0, 0, 0], [-0.04, 0, 0], [-0.02, 0, 0], [0, 0, 0]] },
+        { boneName: "RightArm", rotations: [[0, 0, 0], [-0.2, 0, -0.03], [-0.16, 0, -0.02], [0, 0, 0]] },
+        { boneName: "RightForeArm", rotations: [[0, 0, 0], [-0.18, 0, 0], [-0.12, 0, 0], [0, 0, 0]] },
+        { boneName: "LeftArm", rotations: [[0, 0, 0], [-0.12, 0, 0.02], [-0.08, 0, 0.01], [0, 0, 0]] },
+        { boneName: "LeftForeArm", rotations: [[0, 0, 0], [-0.12, 0, 0], [-0.08, 0, 0], [0, 0, 0]] },
+      ]),
+      createWarRoomPoseClip(model, "hit", [0, 0.08, 0.2, 0.34], [
+        { boneName: "Hips", rotations: [[0, 0, 0], [0.12, 0, 0.08], [0.08, 0, 0.04], [0, 0, 0]] },
+        { boneName: "Spine02", rotations: [[0, 0, 0], [0.18, 0, 0.08], [0.1, 0, 0.04], [0, 0, 0]] },
+        { boneName: "Head", rotations: [[0, 0, 0], [-0.12, 0, 0.08], [-0.06, 0, 0.04], [0, 0, 0]] },
+      ]),
+      createWarRoomPoseClip(model, "death", [0, 0.25, 0.6], [
+        { boneName: "Hips", rotations: [[0, 0, 0], [0.45, 0, 0.12], [0.82, 0, 0.2]] },
+        { boneName: "Spine02", rotations: [[0, 0, 0], [0.22, 0, -0.08], [0.34, 0, -0.12]] },
+        { boneName: "LeftArm", rotations: [[0, 0, 0], [-0.35, 0, -0.24], [-0.5, 0, -0.3]] },
+        { boneName: "RightArm", rotations: [[0, 0, 0], [-0.28, 0, 0.2], [-0.42, 0, 0.25]] },
+      ]),
+    ]
+    : [];
+  return [crouch, jump, turnLeft, turnRight, ...soldierActions]
+    .filter((clip): clip is THREE.AnimationClip => clip !== null);
 }
 
 function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResources) {
@@ -487,13 +540,19 @@ export function WarRoomAnimatedActor({
     return { model: clone, resources, humanDetails };
   }, [commander, height, scene, src, tint]);
   const model = prepared.model;
-  const poseClips = useMemo(() => createWarRoomPoseClips(model), [model]);
+  const poseClips = useMemo(
+    () => createWarRoomPoseClips(model, src === KNIGHT_CONFIG.modelPath),
+    [model, src],
+  );
   const animationClips = useMemo(
     () => [
       ...animations.map((clip) => {
         const inPlaceClip = clip.clone();
         inPlaceClip.tracks = inPlaceClip.tracks.filter(
-          (track) => !isRootTranslationTrack(track.name, PLAYER_CHARACTER_ROOT_BONE),
+          (track) => !isRootTranslationTrack(
+            track.name,
+            src === KNIGHT_CONFIG.modelPath ? KNIGHT_CONFIG.rootBoneName : PLAYER_CHARACTER_ROOT_BONE,
+          ),
         );
         return createPlayerLocomotionClip(inPlaceClip);
       }),
@@ -534,7 +593,7 @@ export function WarRoomAnimatedActor({
         ?? animationClips.find((candidate) => candidate.name === resolveGlbClipName(
           animationState,
           animationClips.map((item) => item.name),
-          PLAYER_CHARACTER_ANIMATION_CLIPS,
+          src === KNIGHT_CONFIG.modelPath ? KNIGHT_CONFIG.animationClips : PLAYER_CHARACTER_ANIMATION_CLIPS,
         ));
       if (clip) {
         const nextAction = mixer.clipAction(clip);

@@ -10,8 +10,8 @@ import { CAMPAIGN_NARRATIVE } from "../world/campaign-narrative.ts";
 import "./intro.css";
 
 const STORY_LINES = [
-  `${CAMPAIGN_NARRATIVE.cityName}, her sabah aynı çanla uyanıyor; Prenses ${CAMPAIGN_NARRATIVE.princessName} kayıp.`,
-  `${CAMPAIGN_NARRATIVE.princessName}, Şafak Mührü'nü dokuz hatıraya böldü. Her perde bu kararın izini taşıyor.`,
+  `${CAMPAIGN_NARRATIVE.cityName} çevresindeki tahliye hattı kesildi; saha komutanı ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp.`,
+  `${CAMPAIGN_NARRATIVE.squadLeadName}, Şafak İletişim Ağı'nı dokuz istihbarat dosyasına böldü. Her operasyon bu planın izini taşıyor.`,
   "Şehir kapıları aynı mührün yankılarını sınar; sefer bütün izleri tek hikâyede birleştirir.",
 ];
 
@@ -214,7 +214,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
               className="intro-start"
               type="button"
               onClick={complete}
-              aria-label="Eşik Mahallesi'ne gir"
+              aria-label="Kuzey İleri Üssü'ne gir"
             >
               MAHALLEYE GİR <span aria-hidden="true">→</span>
             </button>
