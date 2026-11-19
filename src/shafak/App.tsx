@@ -966,7 +966,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       return result;
     }
     if (profileSyncStatus !== "ready") {
-      throw new Error("Hesap profili eşitlenemedi; Meydan profil ödülü eklenmedi.");
+      throw new Error("Hesap profili eşitlenemedi; taktik alan profil ödülü eklenmedi.");
     }
 
     const result = await authApiRequestWithRetry<{
@@ -979,7 +979,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       body: JSON.stringify(request),
     }, {
       operation: "War Room reward",
-      fallbackMessage: "Meydan profil ödülü şu an kaydedilemedi.",
+      fallbackMessage: "Taktik alan profil ödülü şu an kaydedilemedi.",
     }, { maxRetries: 1, baseDelayMs: 350 });
     const nextProfile = normalizePlayerProfile(result.profile);
     setProfile(nextProfile);
@@ -991,7 +991,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     const query = new URLSearchParams({ chapterId: String(chapterId) });
     const result = await authApiRequest<{ claimedPickupIds?: unknown }>(`/api/profile/pickups?${query}`, { credentials: "include" }, {
       operation: "pickup history",
-      fallbackMessage: "Yol ganimeti geçmişi şu an yüklenemedi. Lütfen tekrar dene.",
+      fallbackMessage: "Sefer ödülü geçmişi şu an yüklenemedi. Lütfen tekrar dene.",
     });
     return Array.isArray(result.claimedPickupIds)
       ? result.claimedPickupIds.filter((id): id is string => typeof id === "string")
@@ -1022,7 +1022,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
         body: JSON.stringify({ chapterId, pickupIds }),
       }, {
         operation: "pickup claim",
-        fallbackMessage: "Yol ganimeti şu an kaydedilemedi. Lütfen tekrar dene.",
+        fallbackMessage: "Sefer ödülü şu an kaydedilemedi. Lütfen tekrar dene.",
         messageForCode: (code) => {
           if (code === "authentication_required") return "Oturum doğrulanamadı.";
           if (code === "invalid_pickup_claim" || code === "invalid_pickup_ids") {
@@ -1034,7 +1034,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           if (code === "profile_storage_invalid") {
             return "Sunucudaki hesap profili doğrulanamadı.";
           }
-          return "Yol ganimeti şu an kaydedilemedi. Lütfen tekrar dene.";
+          return "Sefer ödülü şu an kaydedilemedi. Lütfen tekrar dene.";
         },
       }, { maxRetries: 2, baseDelayMs: 350 });
       if (!result.profile || !Array.isArray(result.claimedPickupIds) || !Array.isArray(result.awardedPickupIds)) {
@@ -1069,10 +1069,10 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       body: JSON.stringify(position),
     }, {
       operation: "world progress save",
-      fallbackMessage: "Yol konumu hesaba şu an eşitlenemedi.",
+      fallbackMessage: "Sefer konumu hesaba şu an eşitlenemedi.",
       messageForCode: (code) => code === "invalid_world_progress"
-        ? "Yol konumu hesap ilerlemesiyle uyuşmuyor."
-        : "Yol konumu hesaba şu an eşitlenemedi.",
+        ? "Sefer konumu hesap ilerlemesiyle uyuşmuyor."
+        : "Sefer konumu hesaba şu an eşitlenemedi.",
     }, { maxRetries: 1, baseDelayMs: 350 });
   }, [authApiRequestWithRetry, profileSyncStatus, user?.id]);
 
@@ -1081,7 +1081,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
       setProfile(renameProfile(profile, name));
       return;
     }
-    const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 20) || "Yolcu";
+    const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 20) || "Operatör 06";
     setProfile((current) => ({ ...current, name: cleanName }));
     if (profileSyncStatus !== "ready") return;
     void authApiRequest<{ profile: unknown }>("/api/profile", {
@@ -1394,7 +1394,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   <b>{currentMenuAct?.name ?? menuCampaignProgress.region.name}</b>
                   <small className="campaign-menu-progress__story" aria-live="polite">
                     {currentMenuAct?.storySummary
-                      ?? (menuCampaignActLoadError ? "Bu perdenin izi kayboldu. Yeniden deneyebilirsin." : "Bu perdenin izi beliriyor…")}
+                      ?? (menuCampaignActLoadError ? "Bu operasyonun kaydı yüklenemedi. Yeniden deneyebilirsin." : "Operasyon özeti hazırlanıyor…")}
                   </small>
                   <div
                     className="campaign-menu-progress__track"
@@ -1433,16 +1433,16 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                       setProfileOpen(true);
                     }}
                   >
-                    YOLCU PROFİLİ
+                    OPERATÖR PROFİLİ
                   </button>
                 </div>
               </motion.div>
               <aside className="menu-flow-card" aria-label="Oyunun akışı">
-                <span className="menu-flow-card__eyebrow">KIRIK ŞAFAK’TA YOLCULUK</span>
-                <h2>Bir hikâye, tek bir yol.</h2>
+                <span className="menu-flow-card__eyebrow">KUZGUN HATTI · OPERASYON BRİFİNGİ</span>
+                <h2>Dokuz operasyon. Tek tahliye hattı.</h2>
                 <ol>
-                  <li><b>01</b><span>Şehirde ana görevi seç.</span></li>
-                  <li><b>02</b><span>Seferde ilerle, rakiplerle düello et.</span></li>
+                  <li><b>01</b><span>Üste görevini seç.</span></li>
+                  <li><b>02</b><span>Sahada ilerle, Taç Birliği'nin birimlerini aş.</span></li>
                   <li><b>03</b><span>Ödülünü al, güçlen ve şehre dön.</span></li>
                 </ol>
                 <p>Arena ve hayatta kalma sınavları şehir kapılarında.</p>
@@ -1486,7 +1486,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                   currentMenuAct?.storySummary
                   ?? (menuCampaignActLoadError
                     ? "Sefer kaydı yüklenemedi. Yeniden deneyebilirsin."
-                    : "Alaz'ın izleri ve bu perdenin hikâyesi hazırlanıyor…")
+                    : "Alaz'ın izleri ve operasyon hikâyesi hazırlanıyor…")
                 }
                 playerAppearance={cityHubAppearance}
                 onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
@@ -1560,7 +1560,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             exit={{ opacity: 0 }}
             transition={{ duration: motionReduced ? 0.1 : 0.24, ease: "easeOut" }}
           >
-            <Suspense fallback={<div className="entry-loading">Meydan görevleri hazırlanıyor…</div>}>
+            <Suspense fallback={<div className="entry-loading">Taktik görevler hazırlanıyor…</div>}>
               <WarRoomGame
                 onExit={exitWarRoom}
                 initialMode={warRoomInitialMode}
@@ -1636,7 +1636,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             >
               <div className="settings-panel__heading">
                 <div>
-                  <span className="eyebrow">YOLCULUK REHBERİ</span>
+                  <span className="eyebrow">SAHA REHBERİ</span>
                   <h2 id="settings-title">{tr.settingsTitle}</h2>
                   <p>{tr.settingsDescription}</p>
                 </div>
@@ -1654,7 +1654,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 {screen === "war-room" && (
                   <div className="setting-row">
                     <span className="setting-row__copy">
-                      <strong>Meydan kontrolleri</strong>
+                      <strong>Taktik alan kontrolleri</strong>
                       <small>Dokunmatik düğmeleri taşı, boyutunu ve saydamlığını ayarla.</small>
                     </span>
                     <button
@@ -1917,7 +1917,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 <div className="setting-row">
                   <span className="setting-row__copy">
                     <strong>Açılış sinematiği</strong>
-                    <small>Kırık Şafak’ın ilk perdesini yeniden izle.</small>
+                    <small>Kırık Şafak'ın açılış bölümünü yeniden izle.</small>
                   </span>
                   <button
                     className="setting-action--intro"

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { tr } from "./tr.ts";
 import { getCampaignCopy } from "./campaign-copy.ts";
+import { CAMPAIGN_NARRATIVE } from "../world/campaign-narrative.ts";
 import { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT } from "../world/campaign-progression.ts";
 import { loadCampaignActData } from "../world/campaign-level-data.ts";
 
@@ -38,6 +39,39 @@ test("all campaign acts provide a short story summary for the main menu", async 
     assert.ok(act.storySummary?.trim(), `${act.name} needs a story summary`);
     assert.ok(act.storySummary.length <= 140, `${act.name} story summary should fit in the menu`);
   }
+});
+
+test("the nine operation stories share the rescue plot and avoid retired fantasy labels", async () => {
+  const visibleStory = [
+    CAMPAIGN_NARRATIVE.opening,
+    CAMPAIGN_NARRATIVE.ending,
+    tr.tagline,
+    tr.menuTitle,
+  ];
+  for (let actNumber = 1; actNumber <= CAMPAIGN_ACT_COUNT; actNumber += 1) {
+    const act = await loadCampaignActData(actNumber);
+    visibleStory.push(
+      act.name,
+      act.storySummary,
+      ...act.storyBeats,
+      ...act.missionTemplates.flatMap((mission) => [mission.name, mission.objective]),
+      act.miniBossTemplate.name,
+      act.miniBossTemplate.objective,
+      act.actBossTemplate.name,
+      act.actBossTemplate.objective,
+    );
+  }
+
+  const story = visibleStory.join("\n");
+  assert.match(CAMPAIGN_NARRATIVE.opening, /Kuzgun Timi/);
+  assert.match(CAMPAIGN_NARRATIVE.opening, /Alaz/);
+  assert.match(CAMPAIGN_NARRATIVE.opening, /Şafak İletişim Ağı/);
+  assert.match(story, /Demir Taç/);
+  assert.match(story, /tahliye/i);
+  assert.doesNotMatch(
+    story,
+    /Eşik Mahallesi|Meydan Görevleri|Kök Bekçisi|Yemin Bozan|Arşiv Hırsızı|Yarık Celladı|Buz Kıran|Yolcu Profil/i,
+  );
 });
 
 test("active app and project copy no longer contains obsolete campaign counts", () => {

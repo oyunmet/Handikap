@@ -115,7 +115,7 @@ export default function StoryDialogueOverlay({
         <div className="world-story-dialogue__footer">
           <span aria-hidden="true">{lineIndex + 1} / {dialogue.lines.length}</span>
           <button className="game-gold-button" type="button" onClick={onAdvance}>
-            {lineIsComplete ? lineIndex === dialogue.lines.length - 1 ? "YOLA DÖN" : "DEVAM" : "TAMAMINI GÖR"}
+            {lineIsComplete ? lineIndex === dialogue.lines.length - 1 ? "SAHAYA DÖN" : "DEVAM" : "TAMAMINI GÖR"}
           </button>
         </div>
       </div>

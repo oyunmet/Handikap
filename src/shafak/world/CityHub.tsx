@@ -183,7 +183,7 @@ export default function CityHub({
         </div>
         <div className="city-hub__top-actions">
           <span className="city-hub__traveler">{playerName} <small>· Bölüm {campaignChapter}</small></span>
-          <button type="button" onClick={onOpenProfile} aria-label="Yolcu profilini aç">PROFİL</button>
+          <button type="button" onClick={onOpenProfile} aria-label="Operatör profilini aç">PROFİL</button>
           <button type="button" onClick={onOpenSettings} aria-label="Ayarları aç">AYARLAR</button>
           <button type="button" onClick={onExit} aria-label="Ana menüye dön">MENÜ</button>
         </div>

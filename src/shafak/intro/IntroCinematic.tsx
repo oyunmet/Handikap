@@ -10,9 +10,9 @@ import { CAMPAIGN_NARRATIVE } from "../world/campaign-narrative.ts";
 import "./intro.css";
 
 const STORY_LINES = [
-  `${CAMPAIGN_NARRATIVE.cityName} çevresindeki tahliye hattı kesildi; saha komutanı ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp.`,
-  `${CAMPAIGN_NARRATIVE.squadLeadName}, Şafak İletişim Ağı'nı dokuz istihbarat dosyasına böldü. Her operasyon bu planın izini taşıyor.`,
-  "Şehir kapıları aynı mührün yankılarını sınar; sefer bütün izleri tek hikâyede birleştirir.",
+  `Tahliye konvoyu ${CAMPAIGN_NARRATIVE.cityName} yakınında kesildi. Kuzgun Timi'nin lideri ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp; telsizde Taç Birliği'nin adı geçiyor.`,
+  `Dokuz kayıt parçası, ${CAMPAIGN_NARRATIVE.sealName} ağına yapılan sızmayı kanıtlıyor. Her operasyon Alaz'ın izini ve saldırının kaynağını açığa çıkaracak.`,
+  "Üssü geç, iletişim merkezlerini ele geçir ve tahliye ağını yeniden güvenli hâle getir.",
 ];
 
 const IntroCityWorld = lazy(() => import("./IntroCityWorld"));
@@ -214,9 +214,9 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
               className="intro-start"
               type="button"
               onClick={complete}
-              aria-label="Kuzey İleri Üssü'ne gir"
+              aria-label="Operasyona başla"
             >
-              MAHALLEYE GİR <span aria-hidden="true">→</span>
+              OPERASYONA BAŞLA <span aria-hidden="true">→</span>
             </button>
           )}
         </div>

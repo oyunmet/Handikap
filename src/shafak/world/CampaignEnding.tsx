@@ -146,7 +146,7 @@ export default function CampaignEnding({
             <span className="campaign-ending__eyebrow">YENİ SEFER</span>
             <h1 id="campaign-ending-title">YENİ OYUN+ BAŞLASIN MI?</h1>
             <p className="campaign-ending__copy">
-              Bu geri alınamaz işlem yalnızca bölüm ilerlemesini ve yol rakibi kayıtlarını sıfırlar. Altın, elmas,
+              Bu geri alınamaz işlem yalnızca bölüm ilerlemesini ve sefer rakibi kayıtlarını sıfırlar. Altın, elmas,
               seviye, ekipman, envanter, demirci yükseltmeleri ve alınmış ganimetler korunur. Yeni sefer Zor modda başlar.
             </p>
             {error && <p className="campaign-ending__error" role="alert">{error}</p>}

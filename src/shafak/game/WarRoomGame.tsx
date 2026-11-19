@@ -1092,7 +1092,7 @@ export default function WarRoomGame({
 
   const handleSceneRuntimeError = useCallback(() => {
     pauseBattle();
-    enqueueHudToast("Oyun toparlandı. Karşılaşma güvenli biçimde duraklatıldı.");
+    enqueueHudToast("Oyun toparlandı. Taktik görev güvenli biçimde duraklatıldı.");
   }, [enqueueHudToast, pauseBattle]);
 
   useEffect(() => {

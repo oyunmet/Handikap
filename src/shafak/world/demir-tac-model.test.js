@@ -17,6 +17,8 @@ import {
   fitCharacterModel,
   getCharacterBounds,
 } from "./character-model.ts";
+import { prepareWorldActorClips } from "./model-animation.ts";
+import { KNIGHT_CONFIG } from "./knight-config.ts";
 import { prepareWorldAsset } from "./world-v2-assets.ts";
 import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
 
@@ -136,4 +138,43 @@ test("the playable soldier model fits the campaign's measured character size", a
   assert.ok(Math.max(dimensions.x, dimensions.y, dimensions.z) <= WORLD_MODEL_SIZE_TARGETS.player.maxDimension + 0.03);
   assert.ok(Math.abs(bounds.min.y) < 0.03);
   assert.ok(fitted.scene.getObjectByName("RightHand"));
+});
+
+test("soldier walk and run clips remove Hips root motion and neutralize the baked body lean", async () => {
+  const buffer = fs.readFileSync(modelPath);
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const gltf = await new GLTFLoader().parseAsync(arrayBuffer, "");
+  const preparedClips = prepareWorldActorClips(KNIGHT_CONFIG.modelPath, gltf.animations);
+
+  for (const clipName of ["walk", "run"]) {
+    const source = gltf.animations.find((clip) => clip.name === clipName);
+    const prepared = preparedClips.find((clip) => clip.name === clipName);
+    assert.ok(source, `the soldier GLB should contain ${clipName}`);
+    assert.ok(prepared, `the world actor should prepare ${clipName}`);
+    assert.notEqual(prepared, source);
+    assert.ok(source.tracks.some((track) => track.name === "Hips.position"), `${clipName} source exposes root motion`);
+    assert.equal(prepared.tracks.some((track) => track.name === "Hips.position"), false);
+
+    const sourceHips = source.tracks.find((track) => track.name === "Hips.quaternion");
+    const preparedHips = prepared.tracks.find((track) => track.name === "Hips.quaternion");
+    assert.ok(sourceHips);
+    assert.ok(preparedHips);
+    const meanEuler = (track, axis) => {
+      let sin = 0;
+      let cos = 0;
+      for (let offset = 0; offset + 3 < track.values.length; offset += 4) {
+        const angle = new THREE.Euler().setFromQuaternion(
+          new THREE.Quaternion().fromArray(track.values, offset),
+          "XYZ",
+        ).toArray()[axis];
+        sin += Math.sin(angle);
+        cos += Math.cos(angle);
+      }
+      return Math.atan2(sin, cos);
+    };
+    const sourcePitch = meanEuler(sourceHips, 0);
+    const preparedPitch = meanEuler(preparedHips, 0);
+    assert.ok(Math.abs(sourcePitch) > 0.1, `${clipName} source Hips should expose its baked tilt`);
+    assert.ok(Math.abs(preparedPitch) < 1e-5, `${clipName} Hips tilt should be neutralized`);
+  }
 });

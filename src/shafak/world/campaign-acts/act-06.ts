@@ -3,11 +3,11 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "mist-coast",
   name: "Fırtına Kıyısı",
-  storySummary: "Kıyıdaki yardım istasyonları susturulmuştur; altıncı dosya Alaz'ın denizden kurduğu tahliye rotasını ortaya çıkarır.",
+  storySummary: "Kıyı istasyonundaki kayıt, Alaz'ın deniz tahliyesini sürdürdüğünü ve ağın sivil yardım çağrılarını hedefe çevirdiğini gösterir.",
   storyBeats: [
     "Kıyı radarında, fırtına başlamadan önce izinsiz bir tahliye botu görünür.",
     "Kara Yelkenliler kod adlı deniz ekibi, Alaz'ın yardım çağrısını denizden iletmiştir.",
-    "Fırtına Kaptanı, sivillerin güvenli kıyıya çıkarılması için rotayı değiştirdiğini anlatır.",
+    "Kıyı Komutanı'nın kaydı, sivilleri güvenli bölgeye ulaştırmak için tahliye rotasının değiştirildiğini doğrular.",
     "Batık güvertedeki seyir kaydı, Demir Taç'ın kıyı iletişim istasyonlarını kapattığını doğrular.",
     "Altıncı dosya açılır: Alaz'ın ekibi, son sinyali merkez komuta üssüne göndermiştir.",
   ],
@@ -21,6 +21,6 @@ export const CAMPAIGN_ACT_DATA: CampaignActData = {
     { id: "coast-siege", name: "Kıyı Sinyali", kind: "siege", objective: "İletişim istasyonunu geri al ve yardım sinyalini tamamla." },
     { id: "coast-cache", name: "Altıncı Dosya", kind: "exploration", objective: "Enkazdaki seyir ve aktarım kayıtlarını çıkar." },
   ],
-  miniBossTemplate: { id: "coast-mini-boss", name: "Fırtına Kaptanı", objective: "Kıyı istasyonlarını kapatan filo komutanını etkisiz hâle getir." },
+  miniBossTemplate: { id: "coast-mini-boss", name: "Kıyı Komutanı", objective: "Kıyı istasyonlarını kapatan Taç Birliği komutanını etkisiz hâle getir." },
   actBossTemplate: { id: "coast-act-boss", name: "Kıyı Filosu Lideri", objective: "Radar üssünü geri al ve merkez üssün koordinatlarını çıkar." },
 };

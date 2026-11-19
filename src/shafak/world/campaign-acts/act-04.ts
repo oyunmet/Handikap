@@ -3,15 +3,15 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "whispering-forest",
   name: "Sis Koridoru",
-  storySummary: "Sisin içindeki dağ yolu, Alaz'ın timinden ayrıldığı noktaya çıkar; dördüncü dosya içeriden gelen ihaneti kanıtlar.",
+  storySummary: "Dağ koridorundaki değiştirilmiş koordinatlar içeriden sızıntıyı kanıtlar; dördüncü kayıt Alaz'ın izini iletişim merkezine taşır.",
   storyBeats: [
     "Gözetleme kamerası, konvoyun sis bastırmadan önce dar koridora girdiğini gösterir.",
-    "Taç Birliği'nin yol kontrol noktaları, Alaz'ın ekibinin kaçış rotasını kapatmıştır.",
-    "Kök Bekçisi kod adlı izci, konvoyun koordinatlarının tim içinden sızdırıldığını söyler.",
+    "Taç Birliği'nin geçit kontrol noktaları, Alaz'ın ekibinin tahliye rotasını kapatmıştır.",
+    "Saha İstihbarat Subayı, konvoy koordinatlarının tim içinden sızdırıldığını itiraf eder.",
     "Eski devriye kayıtları, Alaz'ın komuta zincirine güvenmediğini doğrular.",
     "Dördüncü istihbarat dosyası açılır: konvoyun konumunu sızdıran kişi merkez üste çalışmaktadır.",
   ],
-  theme: "sisli orman yolu, terk edilmiş kontrol noktaları ve kamufle mevziler",
+  theme: "sisli orman geçidi, terk edilmiş kontrol noktaları ve kamufle mevziler",
   enemyFaction: "Taç Birliği İz Takımı",
   mapVariants: ["kök-tüneli", "sis-patikası", "yıkık-kulübe", "ay-taşı-korusu", "orman-kapısı"],
   missionTemplates: [
@@ -21,6 +21,6 @@ export const CAMPAIGN_ACT_DATA: CampaignActData = {
     { id: "forest-siege", name: "Kuzey Kontrolü", kind: "siege", objective: "Sis koridorundaki iletişim direğini geri al." },
     { id: "forest-cache", name: "Dördüncü Dosya", kind: "exploration", objective: "Terk edilmiş devriye aracındaki kayıtları çıkar." },
   ],
-  miniBossTemplate: { id: "forest-mini-boss", name: "Kök Bekçisi", objective: "Sızdırılan koordinatların kaynağını bilen izciyi etkisiz hâle getir." },
+  miniBossTemplate: { id: "forest-mini-boss", name: "Saha İstihbarat Subayı", objective: "Sızdırılan koordinatların kaynağını bilen subayı etkisiz hâle getir." },
   actBossTemplate: { id: "forest-act-boss", name: "İz Takımı Lideri", objective: "Kontrol noktasını ele geçir ve dördüncü dosyayı çıkar." },
 };

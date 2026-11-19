@@ -18,7 +18,7 @@ export default function WarRoomStoreActions({
   return (
     <>
       <p className="safak-store__funds-warning" role="status">
-        Meydan görevlerinin ana veya yedek silah yuvasını seç. Bu seçim sefer ve düello donanımını değiştirmez.
+        Taktik alan görevleri için ana veya yedek silah yuvası seç. Bu seçim sefer ve düello donanımını değiştirmez.
       </p>
       <button
         className="safak-store__primary"

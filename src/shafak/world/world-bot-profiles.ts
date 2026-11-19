@@ -108,7 +108,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
       weaponColor: "#e0a35f",
       auraColor: "#df7954",
     },
-    taunt: "Rüzgâr adını fısıldadı; oku çoktan yola çıktı.",
+    taunt: "Konumun belli oldu; ok artık havada.",
   },
   {
     name: "Gölge Şövalyesi",
@@ -148,7 +148,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
       weaponColor: "#9fe3e5",
       auraColor: "#57c6d0",
     },
-    taunt: "Mızrağımın menzili, kaçış yolundan uzun.",
+    taunt: "Mızrağımın menzili, geri çekilmene izin vermez.",
   },
   {
     name: "Yarık Berserkeri",
@@ -208,7 +208,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
       weaponColor: "#a7e077",
       auraColor: "#79c66b",
     },
-    taunt: "Bir çizik bile seni bu yoldan alıkoyar.",
+    taunt: "Bir yara daha alırsan bölgeden çıkamazsın.",
   },
   {
     name: "Ayaz Avcısı",
@@ -255,7 +255,7 @@ const CHAPTER_BOSS_PROFILE: Omit<WorldBotProfile, "title"> = {
     weaponColor: "#e2b25f",
     auraColor: "#f15a4f",
   },
-  taunt: "Bu yolun son hükmünü ben veririm.",
+  taunt: "Bu bölgenin son sözü bende.",
 };
 
 export function getWorldBotProfile(index: number) {

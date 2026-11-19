@@ -54,6 +54,7 @@ export type WorldV2ActorDebugSnapshot = {
   hipsRotation: [number, number, number] | null;
   torsoRotation: [number, number, number] | null;
   bodyLean: number;
+  rootMotionSourceTracks: string[];
   rootMotionTracks: string[];
 };
 
@@ -478,6 +479,7 @@ export default function WorldV2Actor({
       const visibleHeading = root.rotation.y
         + WORLD_V2_CONFIG.modelFacing
         + model.rotation.y;
+      const sourceClip = asset.animations.find((candidate) => candidate.name === clip?.name);
       debugRef.current = {
         yaw: root.rotation.y,
         targetHeading,
@@ -488,10 +490,16 @@ export default function WorldV2Actor({
         hipsRotation: readLocalRotation(hipsBone),
         torsoRotation: readLocalRotation(torsoBone),
         bodyLean,
+        rootMotionSourceTracks: (sourceClip?.tracks ?? [])
+          .filter((track) =>
+            isRootTranslationTrack(track.name, KNIGHT_CONFIG.rootBoneName)
+            || isRootTranslationTrack(track.name, "Root"),
+          )
+          .map((track) => track.name),
         rootMotionTracks: (clip?.tracks ?? [])
           .filter((track) =>
-            isRootTranslationTrack(track.name, "Root")
-            || isRootTranslationTrack(track.name, "Hips"),
+            isRootTranslationTrack(track.name, KNIGHT_CONFIG.rootBoneName)
+            || isRootTranslationTrack(track.name, "Root"),
           )
           .map((track) => track.name),
       };

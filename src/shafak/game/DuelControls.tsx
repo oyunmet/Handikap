@@ -291,7 +291,7 @@ export default function DuelControls({
                 >
                   <span>{slot === 0 ? "I" : "II"}</span>
                   <small>BOŞ YUVA</small>
-                  <strong>Heybe'den farklı silah ata</strong>
+                  <strong>Envanterden farklı silah ata</strong>
                 </div>
               );
             }
@@ -334,9 +334,9 @@ export default function DuelControls({
           ][index];
           const unavailable = !item.id || item.count <= 0 || cooldown > 0 || Boolean(item.disabledReason);
           const blockedReason = !item.id
-            ? "Bu hızlı yuva boş. Eşyayı Heybe'den ata."
+            ? "Bu hızlı yuva boş. Eşyayı envanterden ata."
             : item.count <= 0
-              ? "Bu eşyadan heybenizde kalmadı."
+              ? "Bu eşyadan envanterinde kalmadı."
               : cooldown > 0
                 ? `Hazır olması için ${cooldown.toFixed(1)} saniye bekle.`
                 : item.disabledReason;

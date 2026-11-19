@@ -39,7 +39,7 @@ export const WEAPONS: readonly WeaponDefinition[] = [
     id: "weapon_ash_sword", name: "Kül Kılıcı", type: "yakın", subtype: "tek elli kılıç",
     rarity: "Sıradan", damage: 10, speed: 1, range: 2.4, durabilityCost: 4, criticalChance: 0.05,
     price: 0, icon: "⚔", animationId: "slash", effectId: "steel-trail",
-    description: "Yolcuların kullandığı dengeli, güvenilir kılıç.", summary: "Dengeli · başlangıç silahı",
+    description: "Saha görevlerinde kullanılan dengeli, güvenilir kılıç.", summary: "Dengeli · başlangıç silahı",
     storeRarity: "common", stats: {}, visual: { weaponStyle: "sword", weaponColor: "#d6dce0" },
   },
   {
@@ -69,7 +69,7 @@ export const WEAPONS: readonly WeaponDefinition[] = [
     visual: { weaponStyle: "axe", weaponColor: "#dba56d", trailColor: "#e3b877" },
   },
   {
-    id: "weapon_road_spear", name: "Yol Mızrağı", type: "yakın", subtype: "mızrak",
+    id: "weapon_road_spear", name: "Saha Mızrağı", type: "yakın", subtype: "mızrak",
     rarity: "Sıradan", damage: 12, speed: 1.02, range: 4.2, durabilityCost: 6, criticalChance: 0.06,
     price: 360, icon: "↗", animationId: "thrust", effectId: "spear-flash",
     description: "Mesafeyi koruyup güvenli dürtme vuruşları yap.",

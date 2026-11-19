@@ -3,7 +3,7 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "red-marsh",
   name: "Kızıl Liman",
-  storySummary: "Liman kayıtları, Alaz'ın konvoyunun deniz yoluyla taşındığını gösterir; üçüncü dosya Taç Birliği'nin sevkiyatını açığa çıkarır.",
+  storySummary: "Liman manifestoları, kayıp konvoyun Taç Birliği'ne değil sivil tahliye ağına ait olduğunu ortaya çıkarır.",
   storyBeats: [
     "Liman güvenlik kamerası, gece yarısı mühürsüz bir askeri sevkiyatı yakalar.",
     "Kayıp yük listesi, Alaz'ın ekibinin limandan bir haberleşme kasası çıkardığını gösterir.",

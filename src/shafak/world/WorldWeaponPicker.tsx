@@ -163,7 +163,7 @@ export default function WorldWeaponPicker({
             })}
           </div>
         ) : (
-          <p className="world-weapon-picker__empty">Heybende kuşanılabilir silah yok.</p>
+          <p className="world-weapon-picker__empty">Envanterinde kuşanılabilir silah yok.</p>
         )}
         {confirmLabel && (
           <button

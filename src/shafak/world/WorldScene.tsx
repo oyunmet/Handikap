@@ -431,8 +431,8 @@ function storeErrorText(code: string) {
     insufficient_upgrade_materials: "Geliştirme için altın, Kor Kristali, Demir Kırığı veya Mühür Parçası yetersiz.",
     item_drop_only: "Bu eşya yalnızca rakip ganimeti olarak bulunur.",
     item_level_locked: "Bu eşya için gereken seviyeye henüz ulaşmadın.",
-    item_already_owned: "Bu eşya zaten heybenizde.",
-    item_not_owned: "Bu eşyayı önce satın alıp heybenize eklemelisiniz.",
+    item_already_owned: "Bu eşya zaten envanterinizde.",
+    item_not_owned: "Bu eşyayı önce satın alıp envanterinize eklemelisiniz.",
     item_not_found: "Bu eşya katalogda bulunamadı; kataloğu yenileyip tekrar deneyin.",
     item_not_equippable: "Bu eşya kuşanılamaz.",
     item_not_equipment: "Yalnızca ekipman satılabilir veya parçalanabilir.",
@@ -440,8 +440,8 @@ function storeErrorText(code: string) {
     item_has_no_sale_value: "Bu eşyanın satış değeri yok.",
     starter_item_cannot_be_removed: "Başlangıç eşyaları satılamaz veya parçalanamaz.",
     special_offer_expired: "Bu özel teklif yenilendi; güncel teklifleri açıp tekrar dene.",
-    inventory_full: "Heybe dolu; önce eşya sat veya parçala.",
-    stack_limit: "Bu eşyanın heybe sınırına ulaştın.",
+    inventory_full: "Envanter dolu; önce eşya sat veya parçala.",
+    stack_limit: "Bu eşyanın envanter sınırına ulaştın.",
     invalid_equipment_slot: "Eşya seçilen ekipman yuvasına takılamaz.",
     item_not_upgradeable: "Bu eşya geliştirilemiyor.",
     upgrade_max_level: "Bu eşya en yüksek seviyede.",
@@ -1270,7 +1270,7 @@ export default function WorldScene({
             throw new StoreActionError("Bu özel teklif yenilendi; güncel teklifleri açıp tekrar dene.");
           }
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşya için seviye ${item.requiredLevel} gerekiyor.`);
-          if (item.kind === "equipment" && currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya zaten heybenizde.");
+          if (item.kind === "equipment" && currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya zaten envanterinizde.");
           if (currentProfile.gold < item.price.gold || currentProfile.diamonds < item.price.diamonds) {
             throw new StoreActionError("Altın veya elmas bakiyen bu eşya için yeterli değil.");
           }
@@ -1280,7 +1280,7 @@ export default function WorldScene({
             diamonds: currentProfile.diamonds - item.price.diamonds,
           };
           if (item.kind === "equipment") {
-            if (currentProfile.inventory.ownedItemIds.length >= 120) throw new StoreActionError("Heybe dolu; yeni eşya alamazsın.");
+            if (currentProfile.inventory.ownedItemIds.length >= 120) throw new StoreActionError("Envanter dolu; yeni eşya alamazsın.");
             if (item.warRoomWeaponId) {
               try {
                 nextProfile = purchaseLocalWarRoomWeapon(currentProfile, item);
@@ -1313,7 +1313,7 @@ export default function WorldScene({
             }
           } else if (item.reward?.type === "combat-item") {
             const count = currentProfile.inventory.combatItemCounts[item.reward.itemId];
-            if (count + item.reward.amount > 999) throw new StoreActionError("Bu eşyanın heybe sınırına ulaştın.");
+            if (count + item.reward.amount > 999) throw new StoreActionError("Bu eşyanın envanter sınırına ulaştın.");
             const quickSlots = [...currentProfile.inventory.quickSlots] as PlayerProfile["inventory"]["quickSlots"];
             if (!quickSlots.includes(item.reward.itemId)) {
               const firstOpenSlot = quickSlots.findIndex((itemId) => itemId === null);
@@ -1332,7 +1332,7 @@ export default function WorldScene({
             };
           } else if (item.reward?.type === "material") {
             const count = currentProfile.materials[item.reward.material];
-            if (count + item.reward.amount > 1_000_000_000) throw new StoreActionError("Bu malzemenin heybe sınırına ulaştın.");
+            if (count + item.reward.amount > 1_000_000_000) throw new StoreActionError("Bu malzemenin envanter sınırına ulaştın.");
             nextProfile = {
               ...nextProfile,
               materials: {
@@ -1345,7 +1345,7 @@ export default function WorldScene({
           }
         } else if (operation === "war-room-equip") {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
-          if (warRoomSlotIndex === undefined) throw new StoreActionError("Meydan silah yuvası seçilmedi.");
+          if (warRoomSlotIndex === undefined) throw new StoreActionError("Taktik alan silah yuvası seçilmedi.");
           try {
             nextProfile = assignLocalWarRoomWeapon(currentProfile, item, warRoomSlotIndex);
           } catch (error) {
@@ -1355,7 +1355,7 @@ export default function WorldScene({
           }
         } else if (operation === "equip") {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı kuşanmak için seviye ${item.requiredLevel} gerekiyor.`);
-          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp envanterinize eklemelisiniz.");
           if (item.kind !== "equipment" || !item.slot) throw new StoreActionError("Bu eşya kuşanılamaz.");
           const key = selectedEquipmentKey ?? slotEquipmentKey(item.slot);
           if (key !== slotEquipmentKey(item.slot, key)) throw new StoreActionError("Bu eşya seçilen yuvaya takılamaz.");
@@ -1375,7 +1375,7 @@ export default function WorldScene({
         } else if (operation === "sell" || operation === "salvage") {
           if (item.kind !== "equipment" || !item.slot) throw new StoreActionError("Yalnızca ekipman satılabilir veya parçalanabilir.");
           if (STARTER_ITEM_IDS.includes(item.id as (typeof STARTER_ITEM_IDS)[number])) throw new StoreActionError("Başlangıç eşyaları satılamaz veya parçalanamaz.");
-          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya heybenizde değil.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşya envanterinizde değil.");
           if (Object.values(currentProfile.equipment).includes(item.id) || currentProfile.inventory.secondaryWeaponId === item.id) {
             throw new StoreActionError("Önce kuşanılmış eşyayı çıkar.");
           }
@@ -1411,7 +1411,7 @@ export default function WorldScene({
         } else {
           if (!isStoreItemUnlocked(item, currentProfile.level)) throw new StoreActionError(`Bu eşyayı geliştirmek için seviye ${item.requiredLevel} gerekiyor.`);
           if (!item.upgradeable || item.kind !== "equipment" || !item.slot) throw new StoreActionError("Bu eşya geliştirilemiyor.");
-          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp heybenize eklemelisiniz.");
+          if (!currentProfile.inventory.ownedItemIds.includes(item.id)) throw new StoreActionError("Bu eşyayı önce satın alıp envanterinize eklemelisiniz.");
           const currentLevel = currentProfile.inventory.upgrades[item.id] ?? 0;
           if (currentLevel >= MAX_UPGRADE_LEVEL) throw new StoreActionError("Bu eşya en yüksek seviyede.");
           const cost = getUpgradeCost(item.slot, currentLevel);
@@ -1453,14 +1453,14 @@ export default function WorldScene({
           const payout = getItemSellValue(item);
           setStoreMessage(`${item.name} satıldı${payout.gold ? ` · ${payout.gold} altın` : ""}${payout.diamonds ? ` · ${payout.diamonds} elmas` : ""}.`);
         } else if (operation === "salvage") {
-          setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
+          setStoreMessage(`${item.name} parçalandı; malzemeler envanterinize eklendi.`);
         } else if (operation === "war-room-equip") {
-          setStoreMessage(`${item.name} Meydan ${warRoomSlotIndex === 0 ? "ana" : "yedek"} yuvasına kuşanıldı.`);
+          setStoreMessage(`${item.name} taktik alan ${warRoomSlotIndex === 0 ? "ana" : "yedek"} yuvasına kuşanıldı.`);
         } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
             ? item.warRoomWeaponId
-              ? "satın alındı; Meydan hazırlığında seçebilirsin."
+              ? "satın alındı; taktik alan hazırlığında seçebilirsin."
               : "satın alındı ve kuşanıldı."
             : item.reward?.type === "combat-item"
               ? "satın alındı ve savaş çantasına eklendi."
@@ -1502,14 +1502,14 @@ export default function WorldScene({
         const payout = getItemSellValue(item);
         setStoreMessage(`${item.name} satıldı${payout.gold ? ` · ${payout.gold} altın` : ""}${payout.diamonds ? ` · ${payout.diamonds} elmas` : ""}.`);
       } else if (operation === "salvage") {
-        setStoreMessage(`${item.name} parçalandı; malzemeler heybenize eklendi.`);
+        setStoreMessage(`${item.name} parçalandı; malzemeler envanterinize eklendi.`);
       } else if (operation === "war-room-equip") {
-        setStoreMessage(`${item.name} Meydan ${warRoomSlotIndex === 0 ? "ana" : "yedek"} yuvasına kuşanıldı.`);
+        setStoreMessage(`${item.name} taktik alan ${warRoomSlotIndex === 0 ? "ana" : "yedek"} yuvasına kuşanıldı.`);
       } else {
         setStoreMessage(operation === "purchase"
           ? `${item.name} ${item.kind === "equipment"
             ? item.warRoomWeaponId
-              ? "satın alındı; Meydan hazırlığında seçebilirsin."
+              ? "satın alındı; taktik alan hazırlığında seçebilirsin."
               : "satın alındı ve kuşanıldı."
             : item.reward?.type === "combat-item"
               ? "satın alındı ve savaş çantasına eklendi."
@@ -1546,7 +1546,7 @@ export default function WorldScene({
     if (storeMutationRef.current) return;
     const currentProfile = profileRef.current;
     if (quickSlots.some((itemId) => itemId !== null && currentProfile.inventory.combatItemCounts[itemId] <= 0)) {
-      setStoreError("Bu savaş eşyasından heybenizde kalmadı.");
+      setStoreError("Bu savaş eşyasından envanterinizde kalmadı.");
       return;
     }
     const assignedItems = quickSlots.filter((itemId): itemId is CombatItemId => itemId !== null);
@@ -1561,7 +1561,7 @@ export default function WorldScene({
       }
       const weapon = storeItems.find((item) => item.id === secondaryWeaponId);
       if (!weapon || weapon.slot !== "weapon" || !currentProfile.inventory.ownedItemIds.includes(secondaryWeaponId)) {
-        setStoreError("İkinci yuvaya yalnızca heybenizdeki bir silahı atayabilirsin.");
+        setStoreError("İkinci yuvaya yalnızca envanterindeki bir silahı atayabilirsin.");
         return;
       }
     }
@@ -1586,9 +1586,9 @@ export default function WorldScene({
           operation: "combat loadout update",
           fallbackMessage: "Savaş çantası şu an kaydedilemedi; tekrar dene.",
           messageForCode: (code) => code === "combat_item_unavailable"
-            ? "Bu savaş eşyasından heybenizde kalmadı."
+            ? "Bu savaş eşyasından envanterinizde kalmadı."
             : code === "secondary_weapon_not_owned"
-              ? "İkinci yuvaya yalnızca heybenizdeki bir silahı atayabilirsin."
+              ? "İkinci yuvaya yalnızca envanterindeki bir silahı atayabilirsin."
               : code === "secondary_weapon_matches_primary"
                 ? "İkinci silah, ana silahtan farklı olmalı."
               : "Savaş çantası şu an kaydedilemedi; tekrar dene.",
@@ -3138,11 +3138,11 @@ export default function WorldScene({
           className="world-war-room-entry"
           type="button"
           onClick={onOpenWarRoom}
-          aria-label="Meydan görevlerini aç"
+          aria-label="Taktik alanı aç"
         >
           <span aria-hidden="true">✹</span>
-          <b>MEYDAN GÖREVLERİ</b>
-          {showWarRoomNewBadge && <small>YENİ MOD</small>}
+          <b>TAKTİK ALAN</b>
+          {showWarRoomNewBadge && <small>YENİ GÖREVLER</small>}
         </button>
       )}
       <div
@@ -3481,7 +3481,7 @@ export default function WorldScene({
           <span className="world-profile__crest" aria-hidden="true">Ş</span>
           <span className="world-profile__identity">
             <strong className="world-profile__name">{profile.name}</strong>
-            <span className="world-profile__demo">YOLCU PROFİLİ</span>
+            <span className="world-profile__demo">OPERATÖR PROFİLİ</span>
           </span>
           <span className="world-profile__level"><span>{worldText.level}</span><b>{String(profile.level).padStart(2, "0")}</b></span>
         </button>
@@ -3633,14 +3633,14 @@ export default function WorldScene({
       {showGatePrompt && (
         <section className="world-gate-prompt" aria-label="Bölüm geçidi">
           <span className="world-gate-prompt__eyebrow">BÖLÜM {currentChapterId + 1} · GEÇİT</span>
-          <strong>{roomCleared ? "Yol temizlendi" : "Kapı kilitli"}</strong>
+          <strong>{roomCleared ? "Saha güvenli" : "Geçit kilitli"}</strong>
           <span className="world-gate-prompt__progress">
             {roomCleared
               ? "İki geçitten birini seç. Seçimin bir sonraki sınavın zorluğunu belirler."
               : `Rakipleri yen: ${defeatedChapterRivals}/${chapterRivals.length}`}
           </span>
           {roomCleared && (
-            <div className="world-gate-prompt__routes" role="group" aria-label="Bir sonraki yol">
+            <div className="world-gate-prompt__routes" role="group" aria-label="Sonraki geçit">
               <button type="button" onClick={() => chooseGateRoute("left")} aria-label="Sol geçidi seç">
                 SOL GEÇİT <span>←</span>
               </button>
@@ -3794,7 +3794,7 @@ export default function WorldScene({
         <div className={`world-encounter${canChallenge ? " is-near" : ""}`} data-bot-tick={rivalRefresh} aria-live="polite">
           <div className="world-encounter__rival" aria-hidden="true"><img src="/shafak-warrior.webp" alt="" /></div>
           <div className="world-encounter__card">
-            <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "YOLUNU KESİYOR" : `${Math.ceil(encounterDistance)} M`}</span>
+            <span className="world-encounter__eyebrow"><b>{nextOpponent.title}</b> · {nextOpponentDefeated ? "YENİDEN DÜELLOYA HAZIR" : canChallenge ? "SAHA TEMASI" : `${Math.ceil(encounterDistance)} M`}</span>
             <strong>{nextOpponent.name}</strong>
             <span>{nextOpponentDefeated
               ? "Ödülsüz antrenman karşılaşması"
@@ -3858,7 +3858,7 @@ export default function WorldScene({
           <span className="world-battle-entry__eyebrow">GERÇEK ZAMANLI SAVAŞ · AYNI 3D DÜNYA</span>
           <div className="world-battle-entry__versus">
               <div className="world-battle-entry__side world-battle-entry__side--player">
-                <small>YOLCU · SEV. {profile.level}</small>
+                <small>OPERATÖR · SEV. {profile.level}</small>
                 <strong>{profile.name}</strong>
               </div>
             <b>VS</b>
@@ -4008,7 +4008,7 @@ export default function WorldScene({
                 return (
                   <div className="store-item-preview-static" role="img" aria-label={`${item.name} ürün önizlemesi`}>
                     <span>{item.icon ?? "◇"}</span>
-                    <small>MEYDAN SİLAHI</small>
+                    <small>TAKTİK ALAN SİLAHI</small>
                   </div>
                 );
               }
@@ -4031,7 +4031,7 @@ export default function WorldScene({
                   aria-label={`${item.name} ürün önizlemesi`}
                 >
                   <span>{item.icon ?? "◇"}</span>
-                  <small>{item.warRoomWeaponId ? "MEYDAN SİLAHI" : "ÜRÜN ÖNİZLEMESİ"}</small>
+                  <small>{item.warRoomWeaponId ? "TAKTİK ALAN SİLAHI" : "ÜRÜN ÖNİZLEMESİ"}</small>
                 </div>
               );
             }

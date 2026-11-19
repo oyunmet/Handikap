@@ -171,10 +171,10 @@ function SignInPage() {
       </Link>
       <section className="auth-page__pitch">
         <span>OYUNCU HESABI</span>
-        <h1>Yolculuğuna<br />devam et.</h1>
+          <h1>Görevine<br />devam et.</h1>
         <p>Karakterin, ekipmanın ve ilerlemen seni bekliyor.</p>
         <div className="auth-page__modes" aria-hidden="true">
-          <span>KEŞİF <i>·</i> MEYDAN GÖREVLERİ <i>·</i> YOLCU PROFİLİ</span>
+          <span>SEFER <i>·</i> TAKTİK ALAN <i>·</i> OPERATÖR PROFİLİ</span>
         </div>
       </section>
       <div className="auth-page__form">
@@ -203,11 +203,11 @@ function SignUpPage() {
         <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
       </Link>
       <section className="auth-page__pitch">
-        <span>YENİ YOLCU</span>
-        <h1>Yeni bir yol<br />aç.</h1>
+        <span>YENİ OPERATÖR</span>
+        <h1>Göreve<br />katıl.</h1>
         <p>Hesabını oluştur, maceranı kaldığın yerden sürdür.</p>
         <div className="auth-page__modes" aria-hidden="true">
-          <span>KEŞİF <i>·</i> MEYDAN GÖREVLERİ <i>·</i> YOLCU PROFİLİ</span>
+          <span>SEFER <i>·</i> TAKTİK ALAN <i>·</i> OPERATÖR PROFİLİ</span>
         </div>
       </section>
       <div className="auth-page__form">

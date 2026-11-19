@@ -28,3 +28,4 @@
 - [War Room enterable buildings](war-room-enterable-buildings.md) — Keep visible door openings, movement collision, and shot-blocking geometry aligned across rotated rooms.
 - [War Room viewmodel rendering](war-room-viewmodel-rendering.md) — Keep the weapon steady in motion, preserve coupled arms, and verify camera-relative rendering.
 - [Follow complete project plans](complete-project-plan.md) — Finish all supplied project-plan steps in order; do not stop after one incremental change.
+- [Direct code changes](direct-code-workflow.md) — In this project, edit code directly when asked; do not create project tasks unless requested.

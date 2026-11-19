@@ -3,11 +3,11 @@ import type { CampaignActData } from "../campaign-level-data.ts";
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
   id: "black-summit",
   name: "Yarık Dağ Üssü",
-  storySummary: "Dağ üssündeki sekizinci dosya, Demir Taç'ın çatışmayı sürdürmek için tahliye sistemini nasıl kullandığını kanıtlar.",
+  storySummary: "Radar üssündeki emir, Demir Taç'ın tahliye ağını çatışmayı uzatmak için kullandığını kanıtlar; son koordinatlar komuta merkezine çıkar.",
   storyBeats: [
     "Dağ üssündeki radar, sivil tahliye çağrılarını askeri hedef işaretlerine dönüştürmüştür.",
     "Yarık Sancaklıları kod adlı birlik, bu aktarımı durdurmak için kendi komuta merkezinden ayrılmıştır.",
-    "Yarık Celladı, Demir Taç'ın emrine karşı çıktığı için üsse kapatıldığını anlatır.",
+    "Radar Üs Komutanı'nın kaydı, tahliye sinyallerinin Demir Taç'ın emriyle hedef sistemine aktarıldığını kanıtlar.",
     "Rüzgâr Burcu'ndaki ses kaydı, operasyon emrinin doğrudan merkez komutadan geldiğini doğrular.",
     "Sekizinci dosya açılır: ağı kapatacak ana anahtar, Son Komuta Merkezi'ndedir.",
   ],
@@ -21,6 +21,6 @@ export const CAMPAIGN_ACT_DATA: CampaignActData = {
     { id: "summit-siege", name: "Rüzgâr Burcu", kind: "siege", objective: "Anten kontrol binasını ele geçir ve aktarımı durdur." },
     { id: "summit-cache", name: "Sekizinci Dosya", kind: "exploration", objective: "Radar kontrol odasındaki anahtarın koordinatlarını çıkar." },
   ],
-  miniBossTemplate: { id: "summit-mini-boss", name: "Yarık Celladı", objective: "Anten sahasını tutan Taç Birliği komutanını durdur." },
+  miniBossTemplate: { id: "summit-mini-boss", name: "Radar Üs Komutanı", objective: "Anten sahasını tutan Taç Birliği komutanını durdur." },
   actBossTemplate: { id: "summit-act-boss", name: "Dağ Taburu Komutanı", objective: "Radar üssünü ele geçir ve son komutanın koordinatlarını al." },
 };

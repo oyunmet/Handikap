@@ -69,7 +69,7 @@ const tabs: { id: StoreTab; label: string }[] = [
 
 function StoreItemPreviewFallback({ item }: { item: StoreItem }) {
   const typeLabel = item.warRoomWeaponId
-    ? "MEYDAN SİLAHI"
+    ? "TAKTİK ALAN SİLAHI"
     : item.kind === "consumable"
       ? "TÜKETİLEBİLİR"
       : item.kind === "material"
@@ -323,8 +323,8 @@ export default function StorePanel({
       >
         <header className="safak-store__header">
           <div className="safak-store__titleblock">
-            <span className="safak-store__eyebrow">YOL ÜSTÜ DEMİRCİSİ · HEYBE</span>
-            <h2 id="safak-store-title">Yolun yükünü hafiflet.</h2>
+            <span className="safak-store__eyebrow">SAHA TEDARİKİ · ENVANTER</span>
+            <h2 id="safak-store-title">Donanımını göreve hazırla.</h2>
             <p id="safak-store-intro">Zırhını tazele, silahını bile; karanlık çökerken hazır ol.</p>
           </div>
           <div className="safak-store__header-side">
@@ -343,7 +343,7 @@ export default function StorePanel({
 
         {isGuest && (
           <div className="safak-store__guest-note" role="status">
-            <b>Misafir heybesi</b>
+            <b>Misafir envanteri</b>
             <span>Alışverişlerin bu cihazda kalır; bir hesaba aktarılamaz.</span>
           </div>
         )}
@@ -389,7 +389,7 @@ export default function StorePanel({
             <div className="safak-store__catalog-heading">
               <div>
                 <span className="safak-store__section-kicker">
-                  {activeTab === "inventory" ? "YOL ARKADAŞLARIN" : activeTab === "specials" ? "İSTANBUL SAATİYLE HER GÜN YENİLENİR" : "USTANIN TEZGAHI"}
+                  {activeTab === "inventory" ? "ENVANTERİN" : activeTab === "specials" ? "İSTANBUL SAATİYLE HER GÜN YENİLENİR" : "SAHA TEDARİĞİ"}
                 </span>
                 <h3>{tabs.find((tab) => tab.id === activeTab)?.label}</h3>
               </div>
@@ -401,7 +401,7 @@ export default function StorePanel({
               <section className="safak-store__equipment-loadout" aria-labelledby="store-equipment-title">
                 <div className="safak-store__combat-heading">
                   <div>
-                    <span className="safak-store__section-kicker">KARAKTER DONANIMI</span>
+                      <span className="safak-store__section-kicker">OPERATÖR DONANIMI</span>
                     <h4 id="store-equipment-title">Kuşanılan yuvalar</h4>
                   </div>
                   <span>{EQUIPMENT_LOADOUT_KEYS.filter((key) => profile.equipment[key]).length} dolu</span>
@@ -501,7 +501,7 @@ export default function StorePanel({
                       key={item.id}
                       type="button"
                       aria-pressed={selected?.id === item.id}
-                      aria-label={`${item.name}, ${rarityLabels[item.rarity]}${levelLocked ? `, seviye ${item.requiredLevel} gerekli` : equipped ? ", kuşanıldı" : owned ? ", heybenizde" : item.dropOnly ? ", rakip ganimeti" : ", kilitli"}${isNew ? ", yeni" : ""}`}
+                      aria-label={`${item.name}, ${rarityLabels[item.rarity]}${levelLocked ? `, seviye ${item.requiredLevel} gerekli` : equipped ? ", kuşanıldı" : owned ? ", envanterinizde" : item.dropOnly ? ", rakip ganimeti" : ", kilitli"}${isNew ? ", yeni" : ""}`}
                       onClick={() => {
                         if (selected?.id !== item.id) onClearFeedback();
                         setSelectedId(item.id);
@@ -543,7 +543,7 @@ export default function StorePanel({
                         </span>
                       </span>
                       <span className={`safak-store__item-status${equipped ? " status-equipped" : owned ? " status-owned" : " status-locked"}`}>
-                        {levelLocked ? `SEVİYE ${item.requiredLevel}` : equipped ? "KUŞANILDI" : item.kind !== "equipment" && owned ? `${resourceCount} ADET` : owned ? "HEYBEDE" : item.dropOnly ? "GANİMET" : "KİLİTLİ"}
+                        {levelLocked ? `SEVİYE ${item.requiredLevel}` : equipped ? "KUŞANILDI" : item.kind !== "equipment" && owned ? `${resourceCount} ADET` : owned ? "ENVANTERDE" : item.dropOnly ? "GANİMET" : "KİLİTLİ"}
                       </span>
                     </button>
                   );
@@ -552,8 +552,8 @@ export default function StorePanel({
             ) : (
               <div className="safak-store__empty">
                 <span className="safak-store__empty-stamp" aria-hidden="true">—</span>
-                <h4>{activeTab === "inventory" ? "Heybe henüz hafif." : "Tezgahta şimdilik eşya yok."}</h4>
-                <p>{activeTab === "inventory" ? "Satın aldığın veya yolculukta bulduğun eşyalar burada görünür." : "Bu bölümde gösterilecek eşya bulunmuyor."}</p>
+                <h4>{activeTab === "inventory" ? "Envanterin henüz boş." : "Bu bölümde henüz eşya yok."}</h4>
+                <p>{activeTab === "inventory" ? "Satın aldığın ve seferde bulduğun eşyalar burada görünür." : "Bu bölümde gösterilecek eşya bulunmuyor."}</p>
               </div>
             )}
           </section>
@@ -635,7 +635,7 @@ export default function StorePanel({
                     <h4 id="store-stats-title">Savaş nitelikleri</h4>
                     <span>
                       {warRoomWeaponStats
-                        ? `${warRoomWeaponStats.className} · Meydan`
+                        ? `${warRoomWeaponStats.className} · Taktik alan`
                         : currentItem ? `Karşılaştırma: ${currentItem.name}` : "Mevcut kuşanılan eşya yok"}
                     </span>
                   </div>
@@ -653,7 +653,7 @@ export default function StorePanel({
                       <div className="safak-store__stat" key={stat.key} data-war-room-stat={stat.key}>
                         <span>{stat.label}</span>
                         <b>{stat.value}</b>
-                        <span className="safak-store__difference">Meydan</span>
+                        <span className="safak-store__difference">Taktik alan</span>
                       </div>
                     ))
                   ) : Object.entries(statLabels).map(([key, label]) => {
@@ -683,7 +683,7 @@ export default function StorePanel({
                 </div>
 
                 {selected.kind !== "equipment" && (
-                  <div className="safak-store__resource-count">Heybende: <b>{numberFormat.format(selectedAmount)} adet</b></div>
+                  <div className="safak-store__resource-count">Envanterinde: <b>{numberFormat.format(selectedAmount)} adet</b></div>
                 )}
                 <div className="safak-store__price" aria-label={`Fiyat: ${numberFormat.format(selected.price.gold)} altın ve ${numberFormat.format(selected.price.diamonds)} elmas`}>
                   <span>Bedel</span>
@@ -693,7 +693,7 @@ export default function StorePanel({
 
                 {!affordable && !selectedOwned && (
                   <p className="safak-store__funds-warning" role="status">
-                    Bakiye yetmiyor. Altın ve elmas yol ganimetleri ile savaş zaferlerinden; günlük üçüncü zafer ek ödül getirir.
+                    Bakiye yetmiyor. Altın ve elmas sefer ödülleri ve çatışma zaferlerinden kazanılır; günlük üçüncü zafer ek ödül getirir.
                   </p>
                 )}
                 {selectedLevelLocked && (
@@ -805,8 +805,8 @@ export default function StorePanel({
         )}
 
         <footer className="safak-store__footer">
-          <span>Yolcu, iyi donanım uzak yolları kolaylaştırır.</span>
-          <span>HEYBE</span>
+          <span>Operatör, doğru donanım görevi kolaylaştırır.</span>
+          <span>ENVANTER</span>
         </footer>
         {celebrating && (
           <div className="safak-store__sparkles" aria-hidden="true">
@@ -828,9 +828,9 @@ export default function StorePanel({
             <h3 id="store-confirm-title">{confirming.item.name}</h3>
             <p id="store-confirm-copy">
               {confirming.operation === "purchase"
-                ? confirming.item.kind === "equipment" ? "Bu ekipman heybenize eklenecek. Ödemeyi onaylıyor musunuz?" : "Bu malzeme savaş çantanıza eklenecek. Ödemeyi onaylıyor musunuz?"
+                ? confirming.item.kind === "equipment" ? "Bu ekipman envanterinize eklenecek. Ödemeyi onaylıyor musunuz?" : "Bu malzeme savaş çantanıza eklenecek. Ödemeyi onaylıyor musunuz?"
                 : confirming.operation === "sell"
-                  ? "Bu eşya heybeden kalıcı olarak silinecek ve satış bedeli verilecek. Devam edilsin mi?"
+                  ? "Bu eşya envanterden kalıcı olarak silinecek ve satış bedeli verilecek. Devam edilsin mi?"
                   : "Bu eşya kalıcı olarak parçalanacak; geliştirme malzemeleri geri alınacak. Devam edilsin mi?"}
             </p>
             <div className="safak-store-confirm__price">

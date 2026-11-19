@@ -77,7 +77,7 @@ export default function WarRoomBriefing({
   onBegin,
   onBeginDaily,
 }: Props) {
-  const dailyModeName = WAR_ROOM_MODES.find((mode) => mode.id === dailyPreset.mode)?.name ?? "Karşılaşma";
+  const dailyModeName = WAR_ROOM_MODES.find((mode) => mode.id === dailyPreset.mode)?.name ?? "Baskın";
   const dailyDifficultyName = WAR_ROOM_DIFFICULTIES.find(
     (difficulty) => difficulty.id === dailyPreset.difficulty,
   )?.name ?? "Normal";
@@ -89,17 +89,17 @@ export default function WarRoomBriefing({
       <div className="war-room-briefing__backdrop" aria-hidden="true" />
       <header className="war-room-briefing__header">
         <div className="war-room-heading">
-          <span className="war-room-eyebrow">MEYDAN GÖREVLERİ · {WAR_ROOM_BUILD_VERSION}</span>
-          <h1 id="war-room-title">MEYDAN GÖREVLERİ</h1>
-          <p>İstediğin görevi seç. Harita, zorluk ve kuralları başlamadan önce değiştirebilirsin.</p>
+          <span className="war-room-eyebrow">TAKTİK ALAN · {WAR_ROOM_BUILD_VERSION}</span>
+          <h1 id="war-room-title">TAKTİK ALAN</h1>
+          <p>Görev türünü seç; haritayı, tehdit düzeyini ve saha kurallarını başlamadan önce ayarla.</p>
         </div>
         <button className="war-room-exit" type="button" onClick={onExit} aria-label="Ana menüye dön">GERİ</button>
       </header>
       <div className="war-room-briefing__content">
         <section className="war-room-briefing__overview" aria-label="Görev bilgileri">
           <div className="war-room-mission-options" aria-label="Görev ayarları">
-            <div className="war-room-section-kicker">YANKI TÜRÜNÜ SEÇ</div>
-            <div className="war-room-mode-grid" role="group" aria-label="Oyun modu seç">
+            <div className="war-room-section-kicker">GÖREV TÜRÜNÜ SEÇ</div>
+            <div className="war-room-mode-grid" role="group" aria-label="Görev türü seç">
               {WAR_ROOM_MODES.map((mode) => (
                 <button
                   key={mode.id}
@@ -114,7 +114,7 @@ export default function WarRoomBriefing({
             </div>
             <div className="war-room-mission-selects">
               <label>
-                <span>ÇATIŞMA ALANI</span>
+                <span>GÖREV BÖLGESİ</span>
                 <select value={selectedMapId} onChange={(event) => onSelectMap(event.currentTarget.value)}>
                   {WAR_ROOM_MAPS.map((map) => (
                     <option key={map.id} value={map.id}>{map.name}</option>
@@ -155,15 +155,15 @@ export default function WarRoomBriefing({
               </svg>
             </div>
             <div>
-              <span>BU SEFERİN HEDEFİ</span>
+              <span>GÖREV HEDEFİ</span>
               <strong>
                 {selectedMode === "treasure"
-                  ? "Süre bitmeden beş kayıp sandığı bul"
+                  ? "Süre dolmadan beş ikmal kasasını bul"
                   : selectedMode === "defense"
-                    ? "Meydanı koru, saldıranları durdur"
+                    ? "Komuta noktasını koru, saldırı timlerini durdur"
                     : selectedMode === "survival"
-                      ? "Giderek güçlenen dalgalara dayan"
-                      : `Komutan dâhil ${room.enemyCount} düşmanı temizle`}
+                      ? "Giderek güçlenen saldırı dalgalarına dayan"
+                      : `Komutan dâhil ${room.enemyCount} düşman birimini etkisiz hâle getir`}
               </strong>
               <small>{room.name} · {room.layoutName} · {room.commanderTitle}</small>
             </div>
@@ -272,7 +272,7 @@ export default function WarRoomBriefing({
           <div
             className="war-room-model-progress"
             role="progressbar"
-            aria-label="Meydan modelleri"
+            aria-label="Taktik alan modelleri"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(modelProgress)}

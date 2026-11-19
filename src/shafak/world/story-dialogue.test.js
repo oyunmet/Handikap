@@ -20,7 +20,7 @@ test("opening establishes the Kuzgun operation, Alaz, and the captured communica
   assert.equal(opening.title, "KAYIP SİNYAL");
   assert.match(opening.lines.join(" "), new RegExp(CAMPAIGN_NARRATIVE.cityName));
   assert.match(opening.lines.join(" "), new RegExp(CAMPAIGN_NARRATIVE.squadLeadName));
-  assert.match(opening.lines.join(" "), /dokuz dosya/i);
+  assert.match(opening.lines.join(" "), /dokuz kayıt parçası/i);
   assert.match(opening.lines.join(" "), new RegExp(`${CAMPAIGN_ACT_COUNT} operasyonda`));
   assert.match(opening.hint, new RegExp(`Son bölüm \\(${CAMPAIGN_LEVEL_COUNT}\\)`));
 });

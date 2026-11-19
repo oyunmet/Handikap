@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { CombatAction } from "../game/combat-engine";
 import { KNIGHT_CONFIG } from "./knight-config";
-import { PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
+import { PLAYER_CHARACTER_MODEL_PATH, PLAYER_CHARACTER_ROOT_BONE } from "./player-model";
 import type { OpponentModelAnimationState } from "./opponent-model-config";
 
 export type ModelAnimationState = CharacterAnimationState | OpponentModelAnimationState;
@@ -120,9 +120,20 @@ export function prepareWorldActorClips(
   modelPath: string,
   clips: THREE.AnimationClip[],
 ): THREE.AnimationClip[] {
-  return modelPath === KNIGHT_CONFIG.modelPath || modelPath === PLAYER_CHARACTER_MODEL_PATH
-    ? clips.map(createPlayerLocomotionClip)
-    : clips;
+  const rootBoneName = modelPath === KNIGHT_CONFIG.modelPath
+    ? KNIGHT_CONFIG.rootBoneName
+    : modelPath === PLAYER_CHARACTER_MODEL_PATH
+      ? PLAYER_CHARACTER_ROOT_BONE
+      : null;
+  if (!rootBoneName) return clips;
+
+  return clips.map((clip) => {
+    const inPlaceClip = clip.clone();
+    inPlaceClip.tracks = inPlaceClip.tracks.filter(
+      (track) => !isRootTranslationTrack(track.name, rootBoneName),
+    );
+    return createPlayerLocomotionClip(inPlaceClip);
+  });
 }
 
 function normalizeClipName(name: string) {

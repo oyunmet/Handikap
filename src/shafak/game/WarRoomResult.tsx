@@ -76,9 +76,9 @@ export default function WarRoomResult({
         <h1>{victory ? "ZAFER" : "YENİLGİ"}</h1>
         <p>{victory
           ? objectiveMode === "treasure"
-            ? "Süre dolmadan gerekli sandıklar açıldı."
+            ? "Süre dolmadan gerekli ikmal kasaları bulundu."
             : objectiveMode === "defense"
-              ? "Meydan korundu ve saldırı durduruldu."
+              ? "Komuta noktası korundu ve saldırı durduruldu."
               : objectiveMode === "survival"
                 ? `${summary.wave}. dalga tamamlandı.`
                 : `Görev tamamlandı; ${summary.commanderTitle} ve kuvvetleri yenildi.`
@@ -87,10 +87,10 @@ export default function WarRoomResult({
             : `${summary.roomName} görevi tamamlanmadı. Yeniden deneyebilir veya çıkabilirsin.`}</p>
         {summary.dailyChallenge && (
           <section className={`war-room-daily-result${summary.dailyChallengeCompleted ? " is-complete" : ""}`}>
-            <strong>{summary.dailyChallengeCompleted ? "GÜNLÜK SINAV TAMAMLANDI" : "GÜNLÜK SINAV DEVAM EDİYOR"}</strong>
+            <strong>{summary.dailyChallengeCompleted ? "GÜNLÜK GÖREV TAMAMLANDI" : "GÜNLÜK GÖREV DEVAM EDİYOR"}</strong>
             <p>{summary.dailyChallengeCompleted
-              ? "Bugünün ortak sınavı tamamlandı. İstersen aynı sınavı yeniden oynayabilirsin."
-              : "Bugünün ek hedefini tamamlayıp sınavı bitirmek için aynı görevi tekrar deneyebilirsin."}</p>
+              ? "Bugünün ortak görevi tamamlandı. İstersen aynı görevi yeniden oynayabilirsin."
+              : "Ek hedefi tamamlamak için bugünün görevini yeniden deneyebilirsin."}</p>
           </section>
         )}
         <section className="war-room-grade-result" aria-label="Görev derecesi ve puanı">
@@ -165,9 +165,9 @@ export default function WarRoomResult({
         )}
         {victory && (
           <div className="war-room-gold-reward">
-            <span>BU MODUN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
-            {summary.totalGold !== null && <small>Meydan toplamı: {summary.totalGold} altın</small>}
-            <small>Meydan bakiyesi; sefer altınına aktarılmaz.</small>
+            <span>BU GÖREVİN ALTIN ÖDÜLÜ</span><b>+{summary.gold} ◈</b>
+            {summary.totalGold !== null && <small>Taktik alan toplamı: {summary.totalGold} altın</small>}
+            <small>Taktik alan bakiyesi sefer altınına aktarılmaz.</small>
             {WAR_ROOM_ROOM_CHAIN_ENABLED && (
               <small>
                 Oda ödülleri toplamı: {roomProgress.totalRoomRewards} altın · En yüksek oda: {roomProgress.highestRoom}

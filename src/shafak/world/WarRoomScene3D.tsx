@@ -3185,7 +3185,7 @@ function WarRoomRuntimeScene({
       player.kills += 1;
       applyKillRecovery(player, enemy.commander, now);
       player.killFeed = [
-        { id: now * 1000 + player.kills, text: `Yolcu  →  ${enemy.name}` },
+        { id: now * 1000 + player.kills, text: `Operatör  →  ${enemy.name}` },
         ...player.killFeed,
       ].slice(0, 4);
     }
@@ -3401,7 +3401,7 @@ function WarRoomRuntimeScene({
           applyKillRecovery(player, aimedEnemy.commander, now);
           if (aim.headshot) player.headshots += 1;
           player.killFeed = [
-            { id: now * 1000 + player.kills, text: `Yolcu  →  ${aimedEnemy.name}${aim.headshot ? " · KAFA" : ""}` },
+            { id: now * 1000 + player.kills, text: `Operatör  →  ${aimedEnemy.name}${aim.headshot ? " · KAFA" : ""}` },
             ...player.killFeed,
           ].slice(0, 4);
         }

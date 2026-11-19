@@ -74,11 +74,11 @@ export default function DuelResults({
           <span>EN UZUN KOMBO <b>{summary.maxCombo ?? 0} VURUŞ</b></span>
           <span>EN YÜKSEK HASAR <b>{summary.highestDamage ?? 0}</b></span>
         </div>
-        {rewards.item && <p className="duel-result__item"><span>✦</span> {rewards.salvaged ? rewards.item : `${rewards.item} heybene eklendi`}</p>}
+        {rewards.item && <p className="duel-result__item"><span>✦</span> {rewards.salvaged ? rewards.item : `${rewards.item} envanterine eklendi`}</p>}
         {rewards.lostStake > 0 && <p className="duel-result__stake">{rewards.lostStake} altın düello payı olarak el değiştirdi.</p>}
 
         <div className="duel-result__actions">
-          <button type="button" className="game-gold-button" onClick={onContinue}>YOLUNA DEVAM ET</button>
+          <button type="button" className="game-gold-button" onClick={onContinue}>SEFERE DEVAM ET</button>
           {canReplay && <button type="button" className="game-quiet-button" onClick={onReplay}>TEKRAR DÜELLO</button>}
           <button type="button" className="game-quiet-button" onClick={onMainMenu}>ANA MENÜYE DÖN</button>
         </div>

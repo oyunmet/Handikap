@@ -249,7 +249,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     color: "#d9775e", mount: { position: [0.02, -0.025, -0.06], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
   },
   {
-    id: "blaster_g", name: "Yolcu Tüfeği", icon: "⌁", className: "Hafif tüfek", weaponClass: "rifle",
+    id: "blaster_g", name: "Saha Tüfeği", icon: "⌁", className: "Hafif tüfek", weaponClass: "rifle",
     rarity: "Sıradan", storeItemId: "war_room_blaster_g", priceGold: 360,
     damage: 16, fireInterval: 0.1, magazine: 34, reserve: 102, reloadSeconds: 1.8, recoil: 0.022, spread: 0.011, headshotMultiplier: 1.75, range: 54,
     modelFile: "blaster-g.glb", sourceBounds: [0.2, 0.3579, 0.7859], normalizeLength: 1,
@@ -298,7 +298,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     color: "#c06c61", mount: { position: [0.02, -0.022, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
   },
   {
-    id: "blaster_n", name: "Yol Hafifliği", icon: "⌁", className: "Hafif tüfek", weaponClass: "light",
+    id: "blaster_n", name: "Hafif Saha Tüfeği", icon: "⌁", className: "Hafif tüfek", weaponClass: "light",
     rarity: "Sıradan", storeItemId: "war_room_blaster_n", priceGold: 410,
     damage: 15, fireInterval: 0.1, magazine: 30, reserve: 90, reloadSeconds: 1.7, recoil: 0.021, spread: 0.012, headshotMultiplier: 1.75, range: 49,
     modelFile: "blaster-n.glb", sourceBounds: [0.17, 0.33, 0.6401], normalizeLength: 0.76,

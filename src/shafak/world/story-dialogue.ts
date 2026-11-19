@@ -31,11 +31,11 @@ export function getOpeningStoryDialogue(): StoryDialogue {
     title: "KAYIP SİNYAL",
     speaker: "KUZGUN İRTİBATI",
     lines: [
-      `${CAMPAIGN_NARRATIVE.cityName} çevresindeki tahliye hattı kesildi; saha komutanı ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp.`,
-      "Şafak İletişim Ağı'nı Taç Birliği ele geçirdi. Dokuz dosya, yardım sinyallerinin nasıl hedef işaretine dönüştürüldüğünü kanıtlıyor.",
-      `${CAMPAIGN_ACT_COUNT} operasyonda dosyaları topla, Alaz'ı bul ve ${CAMPAIGN_NARRATIVE.finalBossName} ile yüzleş.`,
+      `${CAMPAIGN_NARRATIVE.cityName} yakınında tahliye konvoyu kesildi; Kuzgun Timi lideri ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp.`,
+      `Taç Birliği, ${CAMPAIGN_NARRATIVE.sealName} üzerindeki kontrolü ele geçirdi. Dokuz kayıt parçası, sivil yardım çağrılarının nasıl hedef koordinatlarına çevrildiğini gösterecek.`,
+      `${CAMPAIGN_ACT_COUNT} operasyonda kayıt parçalarını topla, Alaz'ı bul ve ${CAMPAIGN_NARRATIVE.finalBossName} ile yüzleş.`,
     ],
-    hint: `İlk görev: ${CAMPAIGN_REGIONS[0].name}. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) merkez ağı kapatma fırsatı verecek.`,
+    hint: `İlk görev: ${CAMPAIGN_REGIONS[0].name}. Son bölüm (${CAMPAIGN_LEVEL_COUNT}) ağı güvenli kanala taşıma fırsatı verecek.`,
   };
 }
 
@@ -67,7 +67,7 @@ const RIVAL_STORIES: Readonly<Record<string, readonly [string, string, string]>>
   "gate-warden": [
     "Kontrol noktası kapalı. Geri çekil ya da telsizini bırak.",
     "Konvoy güzergâhı değişti; merkezden gelen emri sorgulama.",
-    "Bu yolu tutmamın nedeni emir. Başka bir seçenek bırakmadılar.",
+    "Bu mevziyi tutmamın nedeni emir. Başka bir seçenek bırakmadılar.",
   ],
   "iron-oath": [
     "Bölgeyi teslim etmem için yazılı emir gerekiyor.",

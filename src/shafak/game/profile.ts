@@ -69,7 +69,7 @@ export function clearLocalProfileCopies() {
 }
 
 export const defaultProfile: PlayerProfile = {
-  name: "Yolcu",
+  name: "Operatör 06",
   level: 1,
   xp: 0,
   gold: 120,

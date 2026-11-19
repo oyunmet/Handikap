@@ -27,7 +27,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
     return undefined;
   }, [beat, onComplete, reducedMotion]);
 
-  const beatLabel = beat < 3 ? ["3", "2", "1"][beat] : beat === 3 ? "SAVAŞ!" : "SAVAŞ!";
+  const beatLabel = beat < 3 ? ["3", "2", "1"][beat] : "BAŞLA!";
 
   return (
     <motion.main
@@ -41,7 +41,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
     >
       <div className="duel-intro__vignette" />
       <div className="duel-intro__embers" />
-      <p className="duel-intro__eyebrow">YOL KESİŞİMİ · ONUR DÜELLOSU</p>
+      <p className="duel-intro__eyebrow">SAHA TEMASI · BİREBİR MÜCADELE</p>
       <div className="duel-intro__versus">
         <motion.div
           className="duel-intro__fighter duel-intro__fighter--player"
@@ -50,7 +50,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
           transition={{ duration: reducedMotion ? 0.1 : 0.62, ease: "easeOut" }}
         >
           <div className="duel-intro__portrait"><img src="/shafak-warrior.webp" alt="" /></div>
-          <span>YOLCU · SEVİYE {String(playerLevel).padStart(2, "0")}</span>
+          <span>OPERATÖR · SEVİYE {String(playerLevel).padStart(2, "0")}</span>
           <strong>{playerName}</strong>
         </motion.div>
         <motion.span
@@ -67,7 +67,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
           transition={{ duration: reducedMotion ? 0.1 : 0.62, ease: "easeOut" }}
         >
           <div className="duel-intro__portrait"><img src="/shafak-warrior.webp" alt="" /></div>
-          <span>YOL KESEN · SEVİYE {String(opponent.level).padStart(2, "0")}</span>
+          <span>RAKİP · SEVİYE {String(opponent.level).padStart(2, "0")}</span>
           <strong>{opponent.name}</strong>
           <small>{opponent.loot} altın ganimet</small>
         </motion.div>
@@ -79,7 +79,7 @@ export default function DuelIntro({ playerName, playerLevel, opponent, onComplet
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: reducedMotion ? 0.1 : 0.36, ease: "backOut" }}
       >{beatLabel}</motion.div>
-      <p className="duel-intro__rule">ÜÇ SAYIM · BİR KARŞILAŞMA</p>
+      <p className="duel-intro__rule">ÜÇ SAYIM · TEMAS BAŞLIYOR</p>
     </motion.main>
   );
 }

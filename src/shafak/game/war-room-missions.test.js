@@ -9,7 +9,9 @@ import {
   getWarRoomEnemySpeedMultiplier,
   getWarRoomMissionOutcome,
   getWarRoomMissionReward,
+  getWarRoomResultLabel,
   getWarRoomResultGrade,
+  WAR_ROOM_MODES,
 } from "./war-room-missions.ts";
 import { WAR_ROOM_MAPS, getWarRoomRoom } from "./war-room-rooms.ts";
 import {
@@ -22,6 +24,23 @@ import {
   moveWarRoomEntity,
 } from "./war-room-engine.ts";
 import { getWarRoomObstacleWaypoint } from "./war-room-ai.ts";
+
+test("tactical mission names preserve saved IDs and match their result labels", () => {
+  assert.deepEqual(
+    WAR_ROOM_MODES.map(({ id, name }) => [id, name]),
+    [
+      ["raid", "Baskın"],
+      ["survival", "Hat Savunması"],
+      ["treasure", "İkmal Araması"],
+      ["defense", "Mevzi Savunması"],
+    ],
+  );
+  assert.deepEqual(
+    WAR_ROOM_MODES.map(({ id }) => getWarRoomResultLabel(id)),
+    ["BASKIN", "HAT SAVUNMASI", "İKMAL ARAMASI", "MEVZİ SAVUNMASI"],
+  );
+  assert.equal(getWarRoomResultLabel("daily"), "GÜNÜN GÖREVİ");
+});
 
 test("daily challenge parameters are deterministic and rotate maps and modifiers", () => {
   const maps = WAR_ROOM_MAPS.map((map) => map.id);

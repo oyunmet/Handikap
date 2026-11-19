@@ -44,7 +44,7 @@ export default function ProfilePanel({ profile, userEmail, accountSaveStatus, on
         <div className="profile-identity">
           <span className="profile-identity__crest">Ş</span>
           <label>
-            <span>Savaşçı adı</span>
+            <span>Operatör adı</span>
             <input value={name} maxLength={20} onChange={(event) => setName(event.target.value)} onBlur={() => onRename(name)} />
           </label>
           <strong>SEV. {String(profile.level).padStart(2, "0")}</strong>
@@ -60,17 +60,17 @@ export default function ProfilePanel({ profile, userEmail, accountSaveStatus, on
           <div><strong>{profile.bestStreak}</strong><span>En uzun seri</span></div>
         </div>
         <section className="profile-quest">
-          <div><span className="game-eyebrow">GÜNLÜK GÖREV</span><b>Yol kesenleri alt et</b></div>
+          <div><span className="game-eyebrow">GÜNLÜK GÖREV</span><b>Taç Birliği devriyesini etkisiz hâle getir</b></div>
           <span>{Math.min(profile.dailyWins, 3)} / 3</span>
           <div className="profile-quest__track"><i style={{ width: `${Math.min(100, profile.dailyWins / 3 * 100)}%` }} /></div>
           <small>3 zafer kazan · Ödül: 100 altın</small>
         </section>
         <section className="profile-inventory">
-          <div className="profile-section-heading"><span className="game-eyebrow">HEYBE</span><b>{profile.items.length} / 12</b></div>
+          <div className="profile-section-heading"><span className="game-eyebrow">ENVANTER</span><b>{profile.items.length} / 12</b></div>
           {profile.items.length ? (
             <div className="profile-items">{profile.items.map((item, index) => <span key={`${item}-${index}`}><i>✦</i>{item}</span>)}</div>
           ) : (
-            <p>İlk zaferini kazan ve heybeni doldur.</p>
+            <p>İlk görevi tamamla ve envanterini genişlet.</p>
           )}
           <div className="profile-materials" aria-label="Toplanan malzemeler">
             <span><i className="profile-materials__crystal" />Kor Kristali <b>{profile.materials.emberCrystals}</b></span>
