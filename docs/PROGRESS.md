@@ -2,43 +2,44 @@
 
 ## Yeni mimari çalışması — 19 Kasım 2026
 
-**Oyun adı:** Sunvoria; ekli yönergedeki çelişkili yeniden adlandırma maddesi uygulanmayacak.
+**Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in yeni ad önerileri uygulanmayacak.
 
 **Aşamalar:** A1 Core + tema + tek kabuk — sürüyor. A2 Hub dünyası + karakter — bekliyor. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** Mevcut özellikleri koruyarak ortak oyun çekirdeği, token teması ve tek uygulama kabuğu A1 altında hazırlanıyor.
+**Şu an yapılan iş:** A1 için mevcut oyun akışlarını koruyan ortak çekirdek, tek Canvas barındırıcısı ve token teması hazırlanıyor.
 
 **Sıradaki 3 adım:**
-1. Mevcut sahne döngüsü, giriş, kamera ve asset yüklemeyi ortak çekirdek sınırlarına taşı.
-2. Zustand tabanlı durum ve tek kabuk/Canvas geçişini ekle; mevcut modları silme.
-3. A1'i typecheck, test ve üretim build'i ile doğrula; sonucu kaydet.
+1. Ortak sabit zaman adımlı döngü, giriş, kamera, asset yükleyici ve Zustand durumunu ekle.
+2. Mevcut 3D sahnelerini tek Canvas mimarisine bağla; mevcut özellikleri veya kayıtları silme.
+3. A1'i test, typecheck, build ve tek Canvas sayımıyla doğrula; sonucu kaydet ve burada dur.
 
 **Mevcut temel (koddan doğrulandı):**
 - `package.json` — Vite, React, Three.js, Howler ve Zustand bağımlılıkları mevcut.
 - `tsconfig.json` — strict TypeScript açık.
-- `src/shafak/tokens.css` — mevcut görsel tokenların başlangıç noktası.
+- `src/shafak/tokens.css` — mevcut token teması; A1'de yeni ortak `src/styles` temasıyla uyumlanacak.
 - `src/shafak/App.tsx` — modlar arası SPA geçişleri mevcut.
 - Başlangıç doğrulaması: `npm run typecheck` ve `npm run build` geçti.
 - `AGENTS.md` — bu repo için kalıcı çalışma kuralları eklendi.
 
 **Bilinen hatalar ve yarım kalanlar:**
-- Dünya, şehir merkezi, düello/war room ve önizleme bileşenleri ayrı `<Canvas>` örnekleri açıyor; tek Canvas'a taşınmadılar.
+- Mevcut sahnelerde altı ayrı `<Canvas>` kullanımı var; kaynakları `World3D`, `World3DV2`, `WarRoomScene3D`, `CityHubScene`, `EquipmentPreview3D` ve `PrincessModelReveal` bileşenlerinde.
+- `src/core`, `src/world`, `src/modes`, `src/ui`, `src/state`, `src/data` ve `src/styles` henüz oluşturulmamış.
 - Zustand paketi kurulu, ancak uygulamada ortak Zustand store henüz kullanılmıyor.
-- Döngü, giriş ve kamera mantığı sahne/bileşenlere dağılmış.
-- Mevcut sunucu/API ve hesap özellikleri var; statik Vercel hedefinde bunları koruyan geçiş tasarımı henüz yapılmadı.
+- Döngü, giriş, kamera ve asset yükleme mantığı sahne/bileşenlere dağılmış.
+- Mevcut API, Clerk ve hesap/satın alma davranışlarını yeni kabukta koruma testi henüz yok.
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
 
 **Alınan kararlar:**
-- Ürün adı Sunvoria olarak kalacak; ekli metindeki Kül ve Şafak adlandırması başlık talimatıyla çeliştiği için yok sayılıyor.
+- Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı yeniden yazılmayacak.
 - Bu yeni mimari yönergesindeki grafit-altın token paleti hedef alınacak; renkler bileşenlere sabit yazılmayacak.
 - A1 dışında kalan modlar sonraki aşamalara taşınacak; geçiş boyunca mevcut oyun, Clerk, hesap kayıtları ve satın alma davranışları korunacak.
-- Bu aşama dışında yayınlama yapılmayacak; GitHub push yalnızca açıkça istenen bu çalışma yönergesine göre ilerleyecek.
+- Bu aşamada yayın/deploy yapılmayacak. Kullanıcı açıkça istediği için kaynak commit ve GitHub push adımları uygulanacak.
 
 **Eksik asset listesi:**
 - A1 için yeni model veya ses asset'i gerekmiyor.
-- Mevcut `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` korunuyor; gerekli tüm karakter animasyon klipleri ve sonraki aşamaların ses ihtiyaçları henüz denetlenmedi.
+- Mevcut `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` korunuyor; karakter GLB animasyon klipleri ve sonraki aşamaların ses ihtiyaçları henüz denetlenmedi.
 
-**Son güncelleme:** 2026-11-19 21:44 Europe/Istanbul.
+**Son güncelleme:** 2026-11-19 21:57 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 
