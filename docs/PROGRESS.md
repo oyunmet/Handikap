@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** Vercel kilit uyuşmazlığı yerelde giderildi ve A2 hub tamamlandı; A3, kullanıcı onayını bekliyor.
+**Şu an yapılan iş:** A3 tamamlandı; sefer/koşu ortak çekirdek zamanlayıcısını kullanıyor. A4, kullanıcının devam onayını bekliyor.
 
 **Sıradaki 3 adım:**
-1. A3 başlangıcında mevcut sefer ve koşu akışlarını, kayıtlarını ve mod geçişlerini denetle.
-2. Sefer/koşu akışını ortak kabuk ve çekirdeğe taşı; mevcut oynanışı ve hesap verisini koru.
-3. A3'ü test, typecheck, build ve mobil kontrollerle doğrula; aşama sonunda burada dur.
+1. A4 başlangıcında FPS baskın akışını, oda geçişlerini ve kayıtları incele.
+2. FPS modunu ortak kabuk/çekirdeğe bağlarken mevcut savaş ve envanter davranışını koru.
+3. A4'ü test, typecheck, build ve mobil kontrollerle doğrula; aşama bitince dur.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -46,11 +46,19 @@
 - `npm run typecheck` ve `npm run build` — geçti.
 - Mobil önizleme yaş doğrulama ekranında kaldı; giriş sonrası hub ve 3D sahne görsel olarak doğrulanmadı.
 
+**A3 tamamlandı — Sefer/koşu ortak GameRuntime'e bağlandı:**
+- `src/core/game-runtime.ts` — sabit-adım güncellemelerinden sonra bir kez çalışan, adım sayısı ve interpolasyon alfa değerini veren kare aboneliği eklendi.
+- `src/shafak/world/WorldScene.tsx` — sefer simülasyonu ayrı `requestAnimationFrame`/akümülatör yerine ortak Canvas sürücüsünün sabit adım sayısını ve interpolasyonunu kullanıyor. Sekme gizlenince zaman biriktirme ve takılı kalan hareket/savaş girdileri temizleniyor.
+- Mevcut hareket, çarpışma, kapı ilerlemesi, düello, ödül toplama ve yerel/hesap kaydı akışlarının kodu korunuyor; kayıt şeması ve Sunvoria adı değiştirilmedi.
+- `src/core/game-runtime.test.ts` — sabit güncellemelerden sonra kare bildirim sırasını ve interpolasyon durumunu test ediyor.
+- Doğrulama: `npm test` — 802/802; A3'e yönelik GameRuntime/sefer hareketi/kampanya/kayıt testleri — 32/32; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Uygulama yeniden başladı; önizleme yaş doğrulama ekranını gösterdi ve tarayıcı konsolunda çalışma zamanı hatası yok.
+- Sınır: Kimlik doğrulaması veya yaş kapısı atlanmadı; bu nedenle sefer sahnesi, WebGL hareketi ve gerçek telefon dokunmatik kabulü bu oturumda görsel olarak doğrulanmadı. Bu çalışma alanında Clerk ve `DATABASE_URL` yapılandırılmadığından hesap tabanlı kayıt akışı da canlı olarak denenemedi.
+
 **Bilinen hatalar ve sonraki aşamalara kalanlar:**
-- Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A3–A7 kapsamındadır.
+- Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A4–A7 kapsamındadır.
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
 - Vercel kilit dosyası düzeltmesi `main` dalına gönderildi; yeni Vercel build sonucuna erişip doğrulayamadım.
-- A3–A7 henüz başlamadı.
+- A4–A7 henüz başlamadı.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
@@ -62,7 +70,7 @@
 - A1 için yeni model veya ses asset'i gerekmiyor.
 - A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-19 23:50 Europe/Istanbul.
+**Son güncelleme:** 2026-11-20 00:34 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 

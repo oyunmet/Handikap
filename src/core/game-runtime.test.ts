@@ -13,3 +13,23 @@ test("GameRuntime runs registered systems at a fixed step and stops after cleanu
 
   assert.deepEqual(steps, [1 / 60, 1 / 60]);
 });
+
+test("GameRuntime notifies frame systems after fixed updates with interpolation state", () => {
+  const runtime = new GameRuntime();
+  const events: Array<string | [string, number, number]> = [];
+  runtime.register(() => events.push("step"));
+  const unregisterFrame = runtime.registerFrame(({ steps, alpha }) => {
+    events.push(["frame", steps, alpha]);
+  });
+
+  runtime.advanceFrame(1 / 30);
+  unregisterFrame();
+  runtime.advanceFrame(1 / 60);
+
+  assert.deepEqual(events, [
+    "step",
+    "step",
+    ["frame", 2, 0],
+    "step",
+  ]);
+});

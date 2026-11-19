@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { GAME_RUNTIME_DEFAULTS, sharedGameRuntime } from "../../core/game-runtime";
+import type { FixedStepResult } from "../../core/fixed-step-loop";
 import { playFootstep, playGameSound, playWorldCue } from "../audio/howler";
 import { WORLD_TOUCH_ACTIONS_ENABLED } from "./world-features";
 import { ApiResponseError, type AuthenticatedApiRequestWithRetry } from "../api-json";
@@ -2330,14 +2332,11 @@ export default function WorldScene({
     const interpolatedMotion = renderMotionRef.current;
     if (!previousMotion || !interpolatedMotion) return undefined;
 
-    let frame = 0;
-    let previous = 0;
-    let accumulator = 0;
     let lastReactUpdate = 0;
     let lastVisualUpdate = 0;
     let lastProgressSave = 0;
     const lastFiniteMotion = { ...motionRef.current };
-    const fixedStep = 1 / 60;
+    const fixedStep = GAME_RUNTIME_DEFAULTS.stepSeconds;
     const stoppedInput = {
       turn: 0,
       strafe: 0,
@@ -2355,13 +2354,9 @@ export default function WorldScene({
     const collisionPosition = { x: 0, distance: 0 };
     const newlyCollected = new Map<number, string[]>();
     let pendingCameraLookDelta = { yaw: 0, pitch: 0 };
-    const animate = (now: number) => {
-      if (document.visibilityState === "hidden") {
-        frame = 0;
-        previous = 0;
-        accumulator = 0;
-        return;
-      }
+    const animate = (runtimeFrame: Readonly<FixedStepResult>) => {
+      if (document.visibilityState === "hidden") return;
+      const now = window.performance.now();
       const currentMotion = motionRef.current;
       if (
         !Number.isFinite(currentMotion.velocityX)
@@ -2376,9 +2371,6 @@ export default function WorldScene({
         || !Number.isFinite(currentMotion.cameraLead)
       ) Object.assign(currentMotion, lastFiniteMotion);
       else Object.assign(lastFiniteMotion, currentMotion);
-      const dt = Math.min((now - (previous || now)) / 1000, fixedStep * 6);
-      previous = now;
-      accumulator = Math.min(accumulator + dt, fixedStep * 6);
       let liveInput = pendingWeaponRival
         ? stoppedInput
         : readWorldInput(
@@ -2410,7 +2402,7 @@ export default function WorldScene({
       let perfectPassCount = 0;
       newlyCollected.clear();
       let hasCollectedThisFrame = false;
-      while (accumulator >= fixedStep) {
+      for (let simulationStep = 0; simulationStep < runtimeFrame.steps; simulationStep += 1) {
         if (worldPausedForStory && !battleActiveRef.current) {
           pendingCameraLookDelta = { yaw: 0, pitch: 0 };
           const pausedFrame = stepWorldMotion(
@@ -2423,7 +2415,6 @@ export default function WorldScene({
           );
           frameState = pausedFrame;
           motionRef.current = pausedFrame;
-          accumulator -= fixedStep;
           continue;
         }
         if (battleActiveRef.current) {
@@ -2551,7 +2542,6 @@ export default function WorldScene({
             }
             if (stepped.state.ended && stepped.state.verdict) void settleDuel(stepped.state.verdict);
           }
-          accumulator -= fixedStep;
           continue;
         }
         simulationTimeRef.current += fixedStep;
@@ -2844,13 +2834,12 @@ export default function WorldScene({
         frameState = nextFrame;
         motionRef.current = frameState;
         footsteps += frameState.footsteps;
-        accumulator -= fixedStep;
       }
       if (battleActiveRef.current) Object.assign(previousMotion, motionRef.current);
       interpolateWorldMotion(
         previousMotion,
         motionRef.current,
-        accumulator / fixedStep,
+        runtimeFrame.alpha,
         interpolatedMotion,
       );
       worldProgressRef.current = {
@@ -2929,14 +2918,10 @@ export default function WorldScene({
         setTravel(Math.floor(frameState.distance));
         setRivalRefresh((current) => current + 1);
       }
-      frame = window.requestAnimationFrame(animate);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        window.cancelAnimationFrame(frame);
-        frame = 0;
-        previous = 0;
-        accumulator = 0;
+        sharedGameRuntime.reset();
         worldInput.clearActions();
         worldInput.joystick.current = { x: 0, y: 0 };
         combatInputRef.current.x = 0;
@@ -2944,16 +2929,12 @@ export default function WorldScene({
         combatInputRef.current.buttons = 0;
         combatInputRef.current.pressed = 0;
         combatInputRef.current.released = 0;
-        return;
       }
-      previous = 0;
-      accumulator = 0;
-      if (!frame) frame = window.requestAnimationFrame(animate);
     };
+    const unregisterFrame = sharedGameRuntime.registerFrame(animate);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    frame = window.requestAnimationFrame(animate);
     return () => {
-      window.cancelAnimationFrame(frame);
+      unregisterFrame();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [
