@@ -2,44 +2,49 @@
 
 ## Yeni mimari çalışması — 19 Kasım 2026
 
-**Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in yeni ad önerileri uygulanmayacak.
+**Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — sürüyor. A2 Hub dünyası + karakter — bekliyor. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bekliyor. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** A1 için mevcut oyun akışlarını koruyan ortak çekirdek, tek Canvas barındırıcısı ve token teması hazırlanıyor.
+**Şu an yapılan iş:** A1 doğrulandı ve tamamlandı; A2 yalnızca kullanıcı onayından sonra başlayacak.
 
 **Sıradaki 3 adım:**
-1. Ortak sabit zaman adımlı döngü, giriş, kamera, asset yükleyici ve Zustand durumunu ekle.
-2. Mevcut 3D sahnelerini tek Canvas mimarisine bağla; mevcut özellikleri veya kayıtları silme.
-3. A1'i test, typecheck, build ve tek Canvas sayımıyla doğrula; sonucu kaydet ve burada dur.
+1. A2 başlangıcında mevcut hub sahnesini, `player-hero.glb` rig'ini ve animasyon kliplerini denetle.
+2. Oynanabilir hub dünyasını ortak kabuk ve Canvas üzerinden kur; hesap, kayıt ve mevcut sahneleri koru.
+3. A2'yi test, typecheck, build ve mobil önizleme kontrolleriyle doğrula; sonucu kaydet ve burada dur.
 
-**Mevcut temel (koddan doğrulandı):**
-- `package.json` — Vite, React, Three.js, Howler ve Zustand bağımlılıkları mevcut.
-- `tsconfig.json` — strict TypeScript açık.
-- `src/shafak/tokens.css` — mevcut token teması; A1'de yeni ortak `src/styles` temasıyla uyumlanacak.
-- `src/shafak/App.tsx` — modlar arası SPA geçişleri mevcut.
-- Başlangıç doğrulaması: `npm run typecheck` ve `npm run build` geçti.
-- `AGENTS.md` — bu repo için kalıcı çalışma kuralları eklendi.
+**A1'de doğrulanan temel (koddan):**
+- `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
+- `src/state/game-store.ts`, `src/modes/mode.ts`, `src/world/world-config.ts` ve `src/data/asset-manifest.ts` — ortak mod/sahne durumu ve temel yapılandırma.
+- `src/styles/tokens.css` — grafit-altın tasarım tokenları; `src/shafak/tokens.css` bunları eski arayüz değişkenlerine bağlıyor.
+- `src/ui/GameShell.tsx` ve `src/ui/GameCanvasHost.tsx` — tek uygulama kabuğu ve tek gerçek React Three Fiber `<Canvas>`.
+- `src/shafak/App.tsx` — mevcut uygulama aynı kabukta kalıyor; altı 3D görünüm ortak Canvas'a viewport olarak kaydediliyor.
+- `src/ui/game-canvas-host.test.js` — tek Canvas, kabuk bağlantısı ve altı mevcut sahnenin ortak host kullanımı için regresyon kontrolleri.
+- `AGENTS.md` — oyun adı, stack, yapı ve aşama kuralları kayıtlı.
 
-**Bilinen hatalar ve yarım kalanlar:**
-- Mevcut sahnelerde altı ayrı `<Canvas>` kullanımı var; kaynakları `World3D`, `World3DV2`, `WarRoomScene3D`, `CityHubScene`, `EquipmentPreview3D` ve `PrincessModelReveal` bileşenlerinde.
-- `src/core`, `src/world`, `src/modes`, `src/ui`, `src/state`, `src/data` ve `src/styles` henüz oluşturulmamış.
-- Zustand paketi kurulu, ancak uygulamada ortak Zustand store henüz kullanılmıyor.
-- Döngü, giriş, kamera ve asset yükleme mantığı sahne/bileşenlere dağılmış.
-- Mevcut API, Clerk ve hesap/satın alma davranışlarını yeni kabukta koruma testi henüz yok.
+**A1 doğrulama — 19 Kasım 2026:**
+- `npm test` — 801/801 geçti.
+- `npm run typecheck` — geçti.
+- `npm run build` — geçti; statik `dist/` üretildi.
+- `git diff --check` — geçti.
+- Mobil önizlemede Sunvoria yaş doğrulama ekranı göründü; tarayıcıda uygulama hatası yok. Etkileşim yapılamadığı için giriş sonrası kabuk ve 3D pikseller bu görüntüde doğrulanmadı.
+
+**Bilinen hatalar ve sonraki aşamalara kalanlar:**
+- Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A2–A7 kapsamındadır.
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
+- A2–A7 henüz başlamadı.
 
 **Alınan kararlar:**
-- Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı yeniden yazılmayacak.
-- Bu yeni mimari yönergesindeki grafit-altın token paleti hedef alınacak; renkler bileşenlere sabit yazılmayacak.
-- A1 dışında kalan modlar sonraki aşamalara taşınacak; geçiş boyunca mevcut oyun, Clerk, hesap kayıtları ve satın alma davranışları korunacak.
-- Bu aşamada yayın/deploy yapılmayacak. Kullanıcı açıkça istediği için kaynak commit ve GitHub push adımları uygulanacak.
+- Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
+- Grafit-altın token paleti ortak tema kaynağıdır; aşamalı taşımada yeni sabit renkler eklenmeyecek.
+- Mevcut oyun, Clerk, hesap kayıtları, satın almalar ve sahneler geçiş boyunca korunacak.
+- Bu aşamada yayın/deploy yapılmayacak. Bu görevde kaynak commit'i ve istenen GitHub push'u yapılacak.
 
 **Eksik asset listesi:**
 - A1 için yeni model veya ses asset'i gerekmiyor.
-- Mevcut `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` korunuyor; karakter GLB animasyon klipleri ve sonraki aşamaların ses ihtiyaçları henüz denetlenmedi.
+- Mevcut `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` korunuyor; A2'de oyuncu rig'i/animasyon klipleri denetlenecek.
 
-**Son güncelleme:** 2026-11-19 21:57 Europe/Istanbul.
+**Son güncelleme:** 2026-11-19 23:26 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 
