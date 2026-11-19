@@ -28,9 +28,20 @@ test("PWA manifest has installable Turkish TWA metadata and local icons", () => 
   );
   assert.equal(assetLinks[0]?.target?.namespace, "android_app");
   assert.equal(assetLinks[0]?.target?.package_name, "com.safaksavascilari.game");
-  assert.equal(
-    assetLinks[0]?.target?.sha256_cert_fingerprints?.[0],
-    "REPLACE_WITH_SHA256_CERT_FINGERPRINT",
+  const fingerprints = assetLinks[0]?.target?.sha256_cert_fingerprints;
+  assert.ok(Array.isArray(fingerprints));
+  assert.equal(fingerprints.length, 2);
+  const isSha256Fingerprint = (value) =>
+    typeof value === "string" && /^([a-f\d]{2}:){31}[a-f\d]{2}$/i.test(value);
+  assert.ok(
+    fingerprints[0] === "REPLACE_WITH_DEBUG_SHA256_CERT_FINGERPRINT" ||
+      isSha256Fingerprint(fingerprints[0]),
+    "debug signing fingerprint is present or explicitly marked for setup",
+  );
+  assert.ok(
+    fingerprints[1] === "REPLACE_WITH_PLAY_APP_SIGNING_SHA256_CERT_FINGERPRINT" ||
+      isSha256Fingerprint(fingerprints[1]),
+    "Play App Signing fingerprint is present or explicitly marked for setup",
   );
 });
 
@@ -47,9 +58,16 @@ test("privacy and account deletion pages are public and linked from settings", (
   assert.match(app, /\/delete-account/);
 });
 
-test("the home screen exposes the Play Store version", () => {
+test("Android Play version follows package version and the home screen shows its build marker", () => {
+  const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
   const buildInfo = readFileSync(join(process.cwd(), "src/shafak/build-info.ts"), "utf8");
-  assert.match(buildInfo, /GAME_BUILD_MARKER = "v1\.0\.0"/);
+  const app = readFileSync(join(process.cwd(), "src/shafak/App.tsx"), "utf8");
+  const androidBuild = readFileSync(join(process.cwd(), "android/app/build.gradle"), "utf8");
+
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
+  assert.match(androidBuild, /versionName appPackage\.version/);
+  assert.match(buildInfo, /GAME_BUILD_MARKER = "[^"]+"/);
+  assert.match(app, /\{GAME_BUILD_MARKER\}/);
 });
 
 test("large art and the interface chime use compressed formats", () => {
