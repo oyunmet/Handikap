@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { EquipmentVisual } from "../game/store-types";
 import type { OpponentModelConfig } from "./opponent-model-config";
+import { attachHumanCharacterDetails } from "./human-character-details";
 
 type CapeRecord = {
   geometry: THREE.BufferGeometry;
@@ -167,6 +168,21 @@ export function attachOpponentCostume(
   const capeMeshes: THREE.Mesh[] = [];
   const isDemirTac = Boolean(modelConfig.isDemirTac);
   model.updateWorldMatrix(true, true);
+  const humanDetails = cityAccessory === "none"
+    ? attachHumanCharacterDetails(model, {
+      palette: {
+        armor: appearance?.armor ?? modelConfig.appearance.armor,
+        armorLight: appearance?.armorLight ?? modelConfig.appearance.armorLight,
+        armorDark: appearance?.armorDark ?? modelConfig.appearance.armorDark,
+        trim: appearance?.trim ?? modelConfig.appearance.trim,
+      },
+      frontSign: Math.abs(modelConfig.modelFacing) > Math.PI / 2 ? 1 : -1,
+      include: {
+        chest: !modelConfig.isBoss,
+        shoulders: false,
+      },
+    })
+    : null;
   const head = findMount(model, BONE_NAMES.head);
   const torso = findMount(model, BONE_NAMES.torso);
   const seatedPose = cityAccessory === "wheelchair"
@@ -570,9 +586,9 @@ export function attachOpponentCostume(
       );
       const pad = mesh(
         shoulderGroup,
-        modelConfig.isBoss
-          ? new THREE.DodecahedronGeometry(0.21, 0)
-          : new THREE.SphereGeometry(style.shoulders === "fur" ? 0.155 : 0.135, 10, 7),
+        style.shoulders === "fur"
+          ? new THREE.SphereGeometry(0.155, 10, 7)
+          : new THREE.DodecahedronGeometry(modelConfig.isBoss ? 0.21 : 0.16, 0),
         makeMaterial(style.shoulders === "fur" ? capeColor : armorColor, style.shoulders === "fur" ? 0.98 : 0.78, style.shoulders === "metal" ? 0.28 : 0.08),
         new THREE.Vector3(0, 0, 0),
         modelConfig.isBoss
@@ -687,6 +703,7 @@ export function attachOpponentCostume(
   };
 
   const dispose = () => {
+    humanDetails?.dispose();
     if (seatedPose?.pelvis) {
       seatedPose.pelvis.bone.position.copy(seatedPose.pelvis.position);
     }

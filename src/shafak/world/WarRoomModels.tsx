@@ -22,6 +22,7 @@ import {
 import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
 import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../game/war-room-data";
 import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
+import { attachHumanCharacterDetails } from "./human-character-details";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/player-hero.glb",
@@ -474,7 +475,16 @@ export function WarRoomAnimatedActor({
     });
     fitCharacterModel(clone, height, src);
     if (commander) attachCommanderCape(clone, resources);
-    return { model: clone, resources };
+    const humanDetails = attachHumanCharacterDetails(clone, {
+      palette: {
+        armor: commander ? "#464c53" : "#484440",
+        armorLight: commander ? "#c5a267" : "#a18a67",
+        armorDark: "#303338",
+        trim: commander ? "#b84d42" : "#765a40",
+      },
+      frontSign: 1,
+    });
+    return { model: clone, resources, humanDetails };
   }, [commander, height, scene, src, tint]);
   const model = prepared.model;
   const poseClips = useMemo(() => createWarRoomPoseClips(model), [model]);
@@ -504,6 +514,7 @@ export function WarRoomAnimatedActor({
       mixer.uncacheRoot(model);
       activeAction.current = null;
       activeState.current = null;
+      prepared.humanDetails.dispose();
       disposeCharacterResources(prepared.resources);
     };
   }, [mixer, model, modelRef, prepared.resources]);

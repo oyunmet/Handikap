@@ -138,15 +138,16 @@ export function WarRoomFirstPersonArms({
   const triggerIndexRef = useRef<THREE.Group>(null);
 
   const geometry = useMemo(() => ({
-    limb: new THREE.CapsuleGeometry(1, 1, 2, 7),
+    limb: new THREE.CapsuleGeometry(1, 1, 3, 10),
     forearm: new THREE.CylinderGeometry(0.78, 1.12, 1, 8, 1),
-    joint: new THREE.SphereGeometry(1, 7, 5),
-    palm: new THREE.SphereGeometry(1, 8, 6),
-    finger: new THREE.CapsuleGeometry(1, 1, 1, 5),
+    joint: new THREE.DodecahedronGeometry(1, 0),
+    palm: new THREE.SphereGeometry(1, 10, 7),
+    finger: new THREE.CapsuleGeometry(1, 1, 2, 7),
     cuff: new THREE.TorusGeometry(0.118, 0.017, 5, 10),
   }), []);
   const material = useMemo(() => ({
     cloth: new THREE.MeshStandardMaterial({ color: "#75583f", roughness: 0.91 }),
+    joint: new THREE.MeshStandardMaterial({ color: "#9f855b", metalness: 0.28, roughness: 0.74, flatShading: true }),
     cuff: new THREE.MeshStandardMaterial({ color: "#b18a5e", roughness: 0.76 }),
     glove: new THREE.MeshStandardMaterial({ color: "#8b6347", roughness: 0.88 }),
     seam: new THREE.MeshStandardMaterial({ color: "#c09a6b", roughness: 0.86 }),
@@ -229,8 +230,8 @@ export function WarRoomFirstPersonArms({
       <mesh ref={leftUpperRef} geometry={geometry.limb} material={material.cloth} frustumCulled={false} />
       <mesh ref={rightForearmRef} geometry={geometry.forearm} material={material.cloth} frustumCulled={false} />
       <mesh ref={leftForearmRef} geometry={geometry.forearm} material={material.cloth} frustumCulled={false} />
-      <mesh ref={rightElbowRef} geometry={geometry.joint} material={material.cloth} frustumCulled={false} />
-      <mesh ref={leftElbowRef} geometry={geometry.joint} material={material.cloth} frustumCulled={false} />
+      <mesh ref={rightElbowRef} geometry={geometry.joint} material={material.joint} frustumCulled={false} />
+      <mesh ref={leftElbowRef} geometry={geometry.joint} material={material.joint} frustumCulled={false} />
       <group ref={rightCuffRef} rotation={[Math.PI / 2, 0, 0]}>
         <mesh geometry={geometry.cuff} material={material.cuff} />
         <mesh geometry={geometry.cuff} material={material.seam} position={[0, 0, -0.026]} scale={0.86} />

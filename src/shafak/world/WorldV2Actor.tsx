@@ -33,6 +33,7 @@ import {
   type AttachedOpponentCostume,
   type CityNpcAccessory,
 } from "./opponent-costume";
+import { attachHumanCharacterDetails, type AttachedHumanCharacterDetails } from "./human-character-details";
 import {
   createDuelWeapon,
   createDuelShield,
@@ -187,6 +188,7 @@ export default function WorldV2Actor({
   const activeClipNameRef = useRef("");
   const debugRefreshElapsed = useRef(0);
   const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
+  const humanDetailsRef = useRef<AttachedHumanCharacterDetails | null>(null);
   const playerPosition = useMemo(() => new THREE.Vector3(), []);
 
   useEffect(() => {
@@ -209,6 +211,24 @@ export default function WorldV2Actor({
     });
     jumpEcho?.materials.forEach((material) => material.dispose());
   }, [jumpEcho]);
+
+  useEffect(() => {
+    if (!isPlayer) return undefined;
+    const details = attachHumanCharacterDetails(model, {
+      palette: {
+        armor: equipmentVisual?.armor,
+        armorLight: equipmentVisual?.armorLight,
+        armorDark: equipmentVisual?.armorDark,
+        trim: equipmentVisual?.trim,
+      },
+      frontSign: 1,
+    });
+    humanDetailsRef.current = details;
+    return () => {
+      if (humanDetailsRef.current === details) humanDetailsRef.current = null;
+      details.dispose();
+    };
+  }, [equipmentVisual, isPlayer, model]);
 
   useEffect(() => {
     if (isPlayer || !modelConfig || !shouldAttachOpponentCostume(modelConfig)) return undefined;

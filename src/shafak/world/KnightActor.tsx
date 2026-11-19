@@ -58,6 +58,7 @@ import {
   shouldAttachOpponentCostume,
   type AttachedOpponentCostume,
 } from "./opponent-costume";
+import { attachHumanCharacterDetails, type AttachedHumanCharacterDetails } from "./human-character-details";
 import {
   captureCharacterPoseBaseline,
   findCharacterPoseBones,
@@ -68,6 +69,7 @@ import { capWorldTextures } from "./texture-budget.ts";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
 import ProceduralHero from "./ProceduralHero";
+import HumanCharacterFallback from "./HumanCharacterFallback";
 
 export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
@@ -355,33 +357,6 @@ function getFallbackAppearance(
     : base;
 }
 
-function CharacterCapsule({
-  height,
-  color,
-  castShadow = true,
-}: {
-  height: number;
-  color?: string;
-  castShadow?: boolean;
-}) {
-  const radius = Math.min(0.24, height * 0.15);
-  const cylindricalHeight = Math.max(0.08, height - radius * 2);
-  return (
-    <mesh
-      position={[0, height / 2, 0]}
-      castShadow={castShadow}
-      receiveShadow
-    >
-      <capsuleGeometry args={[radius, cylindricalHeight, 4, 10]} />
-      <meshStandardMaterial
-        color={color ?? "#3b342e"}
-        metalness={0.12}
-        roughness={0.82}
-      />
-    </mesh>
-  );
-}
-
 function OptionalGlbKnight({
   motionRef,
   state,
@@ -524,6 +499,24 @@ function OptionalGlbKnight({
     weaponAppearance?.trim,
   ]);
   const opponentCostumeRef = useRef<AttachedOpponentCostume | null>(null);
+  const humanDetailsRef = useRef<AttachedHumanCharacterDetails | null>(null);
+  useEffect(() => {
+    if (!playerCharacter) return undefined;
+    const details = attachHumanCharacterDetails(model, {
+      palette: {
+        armor: appearance?.armor,
+        armorLight: appearance?.armorLight,
+        armorDark: appearance?.armorDark,
+        trim: appearance?.trim,
+      },
+      frontSign: 1,
+    });
+    humanDetailsRef.current = details;
+    return () => {
+      if (humanDetailsRef.current === details) humanDetailsRef.current = null;
+      details.dispose();
+    };
+  }, [appearance, model, playerCharacter]);
   useEffect(() => {
     if (!modelConfig || playerCharacter || !shouldAttachOpponentCostume(modelConfig)) return undefined;
     const costume = attachOpponentCostume(model, modelConfig, appearance ?? modelConfig.appearance);
@@ -1037,10 +1030,9 @@ function ModelLoadingFallback({ props }: { props: KnightActorProps }) {
   return (
     <>
       <group scale={modelConfig?.scale ?? 1}>
-        <CharacterCapsule
+        <HumanCharacterFallback
           height={targetHeight}
-          color={getFallbackAppearance(appearance, modelConfig)?.armorDark}
-          castShadow={castShadow}
+          appearance={getFallbackAppearance(appearance, modelConfig)}
         />
       </group>
       {modelConfig && (
@@ -1086,10 +1078,9 @@ export default function KnightActor(props: KnightActorProps) {
     ?? WORLD_MODEL_SIZE_TARGETS.player.targetHeight;
   const proceduralFallback = (
     <group scale={modelConfig?.scale ?? 1}>
-      <CharacterCapsule
+      <HumanCharacterFallback
         height={targetHeight}
-        color={getFallbackAppearance(appearance, modelConfig)?.armorDark}
-        castShadow={castShadow}
+        appearance={getFallbackAppearance(appearance, modelConfig)}
       />
     </group>
   );

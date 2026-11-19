@@ -64,13 +64,13 @@ export default function WarRoomFirstPersonLegs({
   const leftBootRef = useRef<THREE.Mesh>(null);
   const rightBootRef = useRef<THREE.Mesh>(null);
   const geometry = useMemo(() => ({
-    limb: new THREE.CapsuleGeometry(1, 1, 2, 7),
-    knee: new THREE.SphereGeometry(1, 9, 7),
-    boot: new THREE.BoxGeometry(0.18, 0.12, 0.3),
+    limb: new THREE.CapsuleGeometry(1, 1, 3, 10),
+    knee: new THREE.DodecahedronGeometry(1, 0),
+    boot: new THREE.BoxGeometry(0.18, 0.12, 0.3, 2, 1, 2),
   }), []);
   const materials = useMemo(() => ({
     trousers: new THREE.MeshStandardMaterial({ color: "#65492f", roughness: 0.9 }),
-    knee: new THREE.MeshStandardMaterial({ color: "#c39962", roughness: 0.82 }),
+    knee: new THREE.MeshStandardMaterial({ color: "#c39962", metalness: 0.18, roughness: 0.74, flatShading: true }),
     boot: new THREE.MeshStandardMaterial({ color: "#8d673e", roughness: 0.84 }),
   }), []);
   useEffect(() => () => {

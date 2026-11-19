@@ -251,6 +251,7 @@ import {
 } from "./WarRoomModels";
 import { WarRoomFirstPersonArms, type WarRoomArmsAnimation } from "./WarRoomFirstPersonArms";
 import WarRoomFirstPersonLegs from "./WarRoomFirstPersonLegs";
+import HumanCharacterFallback from "./HumanCharacterFallback";
 import { WAR_ROOM_CONFIG } from "../game/war-room-config";
 import WarRoomSceneErrorBoundary from "./WarRoomSceneErrorBoundary";
 
@@ -1277,20 +1278,15 @@ function MeleeDebugCone({
 
 function ProceduralPlayerFallback() {
   return (
-    <group>
-      <mesh position={[0, 0.2, 0]} castShadow>
-        <capsuleGeometry args={[0.28, 0.9, 3, 7]} />
-        <meshStandardMaterial color="#47575a" metalness={0.42} roughness={0.55} />
-      </mesh>
-      <mesh position={[0, 1.46, 0]} castShadow>
-        <sphereGeometry args={[0.25, 10, 8]} />
-        <meshStandardMaterial color="#85715e" roughness={0.88} />
-      </mesh>
-      <mesh position={[0, 1.06, 0.2]} castShadow>
-        <boxGeometry args={[0.38, 0.66, 0.08]} />
-        <meshStandardMaterial color="#963c35" roughness={0.85} />
-      </mesh>
-    </group>
+    <HumanCharacterFallback
+      height={WAR_ROOM_CHARACTER_HEIGHT}
+      appearance={{
+        armor: "#47575a",
+        armorLight: "#9f855b",
+        armorDark: "#303338",
+        trim: "#963c35",
+      }}
+    />
   );
 }
 
@@ -1708,30 +1704,15 @@ function PlayerActor({
 
 function ProceduralEnemyFallback({ commander, color }: { commander: boolean; color: string }) {
   return (
-    <group>
-      <mesh position={[0, 0.76, 0]} castShadow>
-        <capsuleGeometry args={[commander ? 0.27 : 0.24, commander ? 0.75 : 0.58, 3, 7]} />
-        <meshStandardMaterial color={color} metalness={0.3} roughness={0.75} />
-      </mesh>
-      <mesh position={[0, 1.53, 0]} castShadow>
-        <sphereGeometry args={[commander ? 0.24 : 0.2, 10, 8]} />
-        <meshStandardMaterial color={color} roughness={0.88} />
-      </mesh>
-      <mesh position={[0, 1.12, -0.18]} castShadow>
-        <boxGeometry args={commander ? [0.42, 0.5, 0.06] : [0.32, 0.42, 0.045]} />
-        <meshStandardMaterial color={color} roughness={0.86} />
-      </mesh>
-      <group position={[0.34, 1.0, -0.28]}>
-        <mesh position={[0, 0, -0.26]} castShadow>
-          <boxGeometry args={[0.2, 0.13, 0.54]} />
-          <meshStandardMaterial color="#49372e" metalness={0.32} roughness={0.65} />
-        </mesh>
-        <mesh position={[0, 0.02, -0.6]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.038, 0.052, 0.54, 7]} />
-          <meshStandardMaterial color="#343739" metalness={0.7} roughness={0.3} />
-        </mesh>
-      </group>
-    </group>
+    <HumanCharacterFallback
+      height={WAR_ROOM_CHARACTER_HEIGHT * (commander ? WAR_ROOM_COMMANDER_SCALE : 1)}
+      appearance={{
+        armor: color,
+        armorLight: commander ? "#c5a267" : "#a18a67",
+        armorDark: "#303338",
+        trim: commander ? "#b84d42" : "#765a40",
+      }}
+    />
   );
 }
 
