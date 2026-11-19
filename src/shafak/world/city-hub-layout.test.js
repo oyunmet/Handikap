@@ -16,7 +16,7 @@ import { getCityMovementInput } from "./city-hub-controls.ts";
 test("the city has a separate entrance for each existing activity", () => {
   assert.deepEqual(
     CITY_DOORS.map((door) => door.id),
-    ["campaign", "war-room", "survival", "daily"],
+    ["campaign", "war-room", "survival", "daily", "archive"],
   );
   for (const door of CITY_DOORS) {
     assert.equal(findNearbyCityDoor(door.entrance)?.id, door.id);
@@ -25,9 +25,11 @@ test("the city has a separate entrance for each existing activity", () => {
     CITY_DOORS.filter((door) => door.missionMode).map((door) => door.missionMode),
     ["raid", "survival", "daily"],
   );
-  assert.match(CITY_DOORS.find((door) => door.id === "campaign")?.category ?? "", /ANA OPERASYON/);
+  assert.match(CITY_DOORS.find((door) => door.id === "campaign")?.title ?? "", /SEFER HARİTASI/);
   assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.title ?? "", /TAKTİK ARENA/);
   assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.category ?? "", /OPERASYON MERKEZİ/);
+  assert.match(CITY_DOORS.find((door) => door.id === "archive")?.title ?? "", /KAYIT ARŞİVİ/);
+  assert.equal(CITY_DOORS.find((door) => door.id === "archive")?.missionMode, undefined);
 });
 
 test("the player can walk forward, backward, left, and right", () => {

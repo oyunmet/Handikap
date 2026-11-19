@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bekliyor. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** A1 doğrulandı ve tamamlandı; A2 yalnızca kullanıcı onayından sonra başlayacak.
+**Şu an yapılan iş:** Vercel kilit uyuşmazlığı yerelde giderildi ve A2 hub tamamlandı; A3, kullanıcı onayını bekliyor.
 
 **Sıradaki 3 adım:**
-1. A2 başlangıcında mevcut hub sahnesini, `player-hero.glb` rig'ini ve animasyon kliplerini denetle.
-2. Oynanabilir hub dünyasını ortak kabuk ve Canvas üzerinden kur; hesap, kayıt ve mevcut sahneleri koru.
-3. A2'yi test, typecheck, build ve mobil önizleme kontrolleriyle doğrula; sonucu kaydet ve burada dur.
+1. A3 başlangıcında mevcut sefer ve koşu akışlarını, kayıtlarını ve mod geçişlerini denetle.
+2. Sefer/koşu akışını ortak kabuk ve çekirdeğe taşı; mevcut oynanışı ve hesap verisini koru.
+3. A3'ü test, typecheck, build ve mobil kontrollerle doğrula; aşama sonunda burada dur.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -22,6 +22,13 @@
 - `src/ui/game-canvas-host.test.js` — tek Canvas, kabuk bağlantısı ve altı mevcut sahnenin ortak host kullanımı için regresyon kontrolleri.
 - `AGENTS.md` — oyun adı, stack, yapı ve aşama kuralları kayıtlı.
 
+**A2 tamamlandı — Hub dünyası ve karakter:**
+- `src/shafak/world/city-hub-layout.ts` — Sefer Haritası, Taktik Arena, Dalga Savunması, Günlük Operasyon ve Kayıt Arşivi için beş ayrı fiziksel istasyon.
+- `src/shafak/world/CityHub.tsx` — Kayıt Arşivi istasyonundan güncel sefer özeti/hedefi açılır; klavyede Escape ile kapanır ve kapatma odağı alınır.
+- `src/shafak/world/CityHubScene.tsx` ve `src/shafak/world/city-hub-residents.ts` — beş istasyon aynı sahnede, sıcak grafit-altın çevre renkleri ve insan rig'li oyuncu/yerleşik karakterler korunuyor.
+- `src/shafak/world/city-hub.css` — hub panelleri ve arşiv sheet'i ortak grafit-altın tasarım tokenlarını kullanıyor.
+- `src/shafak/world/city-hub-layout.test.js` ve mevcut `city-hub-camera.test.js` / `city-hub-residents.test.js` — yeni istasyon, hareket, kamera açıklığı ve yerleşik kontrolleri.
+
 **A1 doğrulama — 19 Kasım 2026:**
 - `npm test` — 801/801 geçti.
 - `npm run typecheck` — geçti.
@@ -29,22 +36,33 @@
 - `git diff --check` — geçti.
 - Mobil önizlemede Sunvoria yaş doğrulama ekranı göründü; tarayıcıda uygulama hatası yok. Etkileşim yapılamadığı için giriş sonrası kabuk ve 3D pikseller bu görüntüde doğrulanmadı.
 
+**Vercel derleme teşhisi — 19 Kasım 2026:**
+- Ekli Vercel çıktısında `npm ci` ve Vite build başarılı; hata sonraki dondurulmuş pnpm kurulumunda oluştu.
+- `package.json` içindeki `zustand@^5.1.0`, `pnpm-lock.yaml` kök importer'ında eksikti; kilit dosyası 5.1.0 sürümüyle eşitlendi.
+- `pnpm install --frozen-lockfile --lockfile-only --ignore-scripts` — geçti. Düzeltme henüz yeni Vercel build'inde çalıştırılmadı.
+
+**A2 doğrulama — 19 Kasım 2026:**
+- `npm test` — 801/801 geçti.
+- `npm run typecheck` ve `npm run build` — geçti.
+- Mobil önizleme yaş doğrulama ekranında kaldı; giriş sonrası hub ve 3D sahne görsel olarak doğrulanmadı.
+
 **Bilinen hatalar ve sonraki aşamalara kalanlar:**
-- Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A2–A7 kapsamındadır.
+- Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A3–A7 kapsamındadır.
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
-- A2–A7 henüz başlamadı.
+- Vercel kilit dosyası düzeltildi; canlı build doğrulaması için değişikliğin `main` dalına gönderilip Vercel'de yeniden çalışması gerekiyor.
+- A3–A7 henüz başlamadı.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
 - Grafit-altın token paleti ortak tema kaynağıdır; aşamalı taşımada yeni sabit renkler eklenmeyecek.
 - Mevcut oyun, Clerk, hesap kayıtları, satın almalar ve sahneler geçiş boyunca korunacak.
-- Bu aşamada yayın/deploy yapılmayacak. Bu görevde kaynak commit'i ve istenen GitHub push'u yapılacak.
+- Sunvoria adı ve mevcut kayıtlar korunacak. Vercel için kilit dosyası düzeltmesi yerelde doğrulandı; production yayını kullanıcı yönetir.
 
 **Eksik asset listesi:**
 - A1 için yeni model veya ses asset'i gerekmiyor.
-- Mevcut `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` korunuyor; A2'de oyuncu rig'i/animasyon klipleri denetlenecek.
+- A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-19 23:26 Europe/Istanbul.
+**Son güncelleme:** 2026-11-19 23:47 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 

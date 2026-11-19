@@ -73,9 +73,11 @@ export default function CityHub({
   const cameraControlRef = useRef<CityCameraControl>({ yaw: 0, pitch: 0 });
   const cameraPointerRef = useRef<CameraPointerGesture | null>(null);
   const joystickKnobRef = useRef<HTMLElement>(null);
+  const archiveCloseButtonRef = useRef<HTMLButtonElement>(null);
   const activeDoorIdRef = useRef<CityDoorId | null>(null);
   const joystickPointerRef = useRef<number | null>(null);
   const [activeDoor, setActiveDoor] = useState<CityDoor | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [joystickAnchor, setJoystickAnchor] = useState<JoystickAnchor | null>(null);
 
   const updateInput = useCallback(() => {
@@ -99,22 +101,39 @@ export default function CityHub({
 
   const enterDoor = useCallback((door: CityDoor | null) => {
     if (!door) return;
+    if (door.id === "archive") {
+      keysRef.current.clear();
+      joystickRef.current = { x: 0, z: 0 };
+      updateInput();
+      setArchiveOpen(true);
+      return;
+    }
     if (door.id === "campaign") {
       onOpenCampaign();
       return;
     }
     if (door.missionMode) onOpenWarRoom(door.missionMode);
-  }, [onOpenCampaign, onOpenWarRoom]);
+  }, [onOpenCampaign, onOpenWarRoom, updateInput]);
   const focusDoor = useCallback((door: CityDoor) => {
     activeDoorIdRef.current = door.id;
     setActiveDoor(door);
   }, []);
 
   useEffect(() => {
+    if (archiveOpen) archiveCloseButtonRef.current?.focus();
+  }, [archiveOpen]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const key = event.key.toLocaleLowerCase("en-US");
+      if (key === "escape") {
+        if (archiveOpen) setArchiveOpen(false);
+        else onExit();
+        return;
+      }
+      if (archiveOpen) return;
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
         event.preventDefault();
         keysRef.current.add(key);
@@ -124,8 +143,6 @@ export default function CityHub({
       if (key === "e" || key === "enter") {
         const door = CITY_DOORS.find((item) => item.id === activeDoorIdRef.current) ?? null;
         enterDoor(door);
-      } else if (key === "escape") {
-        onExit();
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -168,7 +185,7 @@ export default function CityHub({
       window.removeEventListener("pointercancel", onPointerEnd);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [enterDoor, onExit, updateInput]);
+  }, [archiveOpen, enterDoor, onExit, updateInput]);
 
   const updateJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = joystickBoundsRef.current;
@@ -394,6 +411,61 @@ export default function CityHub({
         Kamerayı sahnenin sağ tarafından sürükleyerek çevir.
         Yakındaki bir kapı için E tuşunu veya giriş düğmesini kullan.
       </p>
+      {archiveOpen && (
+        <div
+          className="city-hub__archive-overlay"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setArchiveOpen(false);
+          }}
+        >
+          <section
+            className="city-hub__archive-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="city-hub-archive-title"
+          >
+            <header className="city-hub__archive-header">
+              <div>
+                <small>GÜNCEL SEFER KAYDI</small>
+                <h2 id="city-hub-archive-title">Kayıt Arşivi</h2>
+              </div>
+              <button
+                type="button"
+                ref={archiveCloseButtonRef}
+                className="city-hub__archive-close"
+                onClick={() => setArchiveOpen(false)}
+                aria-label="Kayıt arşivini kapat"
+              >
+                ×
+              </button>
+            </header>
+            <dl className="city-hub__archive-meta">
+              <div>
+                <dt>OPERASYON</dt>
+                <dd>{campaignActName}</dd>
+              </div>
+              <div>
+                <dt>BÖLÜM</dt>
+                <dd>{campaignChapter} / {CAMPAIGN_LEVEL_COUNT}</dd>
+              </div>
+            </dl>
+            <div className="city-hub__archive-progress" aria-label={`Sefer ilerlemesi yüzde ${Math.floor(campaignProgressPercent)}`}>
+              <span style={{ width: `${Math.max(0, Math.min(100, campaignProgressPercent))}%` }} />
+            </div>
+            <article className="city-hub__archive-copy">
+              <h3>{campaignObjective}</h3>
+              <p>{campaignSummary}</p>
+            </article>
+            <button
+              type="button"
+              className="city-hub__archive-return"
+              onClick={() => setArchiveOpen(false)}
+            >
+              ÜSSE DÖN
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

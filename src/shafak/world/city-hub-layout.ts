@@ -1,4 +1,4 @@
-export type CityDoorId = "campaign" | "war-room" | "survival" | "daily";
+export type CityDoorId = "campaign" | "war-room" | "survival" | "daily" | "archive";
 export type CityPosition = { x: number; z: number };
 export type CityInput = { x: number; z: number };
 export type CityJoystickBounds = Pick<DOMRect, "left" | "top" | "width" | "height">;
@@ -26,10 +26,10 @@ export type CityDoor = {
 export const CITY_DOORS: readonly CityDoor[] = [
   {
     id: "campaign",
-    title: "SEFER ARŞİVİ",
+    title: "SEFER HARİTASI",
     category: "ANA OPERASYON · KUZGUN HATTI",
     description: "Dokuz istihbarat dosyasını topla, Alaz'ı bul ve tahliye ağını kimin ele geçirdiğini ortaya çıkar.",
-    color: "#d6aa69",
+    color: "#c9a24b",
     street: "Batı Sokağı",
     side: "east",
     building: { x: -11, z: 0 },
@@ -44,7 +44,7 @@ export const CITY_DOORS: readonly CityDoor[] = [
     title: "TAKTİK ARENA",
     category: "OPERASYON MERKEZİ",
     description: "Silah donanımını seç, çatışma alanında hedefleri temizle ve üsse dön.",
-    color: "#ec7359",
+    color: "#c4533d",
     street: "Doğu Sokağı",
     side: "west",
     building: { x: 11, z: 0 },
@@ -59,7 +59,7 @@ export const CITY_DOORS: readonly CityDoor[] = [
     title: "DALGA SAVUNMASI",
     category: "HAYATTA KALMA OPERASYONU",
     description: "Kontrol noktasını art arda gelen düşman birliklerine karşı savun ve en yüksek dalgana ulaş.",
-    color: "#78aeba",
+    color: "#8a8d93",
     street: "Kuzey Çarşısı",
     side: "south",
     building: { x: 0, z: -11 },
@@ -74,11 +74,25 @@ export const CITY_DOORS: readonly CityDoor[] = [
     title: "GÜNLÜK OPERASYON",
     category: "GÜNLÜK SAHA GÖREVİ",
     description: "Günün değişen harita ve hedeflerini tamamla, ödülünü alıp üsse dön.",
-    color: "#e5a052",
+    color: "#e6c77a",
     street: "Güney Çarşısı",
     side: "north",
     building: { x: 0, z: 11 },
     entrance: { x: 0, z: 7.35 },
+    width: 6,
+    depth: 6,
+    height: 5.6,
+  },
+  {
+    id: "archive",
+    title: "KAYIT ARŞİVİ",
+    category: "GÜNCEL SEFER KAYDI",
+    description: "Mevcut operasyon özetini ve bölüm hedefini incele.",
+    color: "#a78352",
+    street: "Kuzeybatı Geçidi",
+    side: "east",
+    building: { x: -11, z: -11 },
+    entrance: { x: -7.35, z: -11 },
     width: 6,
     depth: 6,
     height: 5.6,

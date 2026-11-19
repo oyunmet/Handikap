@@ -1,4 +1,4 @@
-import { Html, Sky } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { GameCanvas } from "../../ui/GameCanvasHost";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
@@ -59,15 +59,15 @@ const CITY_CAMERA_OBSTACLES: readonly CityCameraObstacle[] = CITY_DOORS.map((doo
 const DEFAULT_CITY_CAMERA_CONTROL: CityCameraControl = { yaw: 0, pitch: 0 };
 
 function RoadNetwork() {
-  const roadColor = "#484a49";
-  const stoneColor = "#a9a59a";
+  const roadColor = "#34363a";
+  const stoneColor = "#77716a";
   const stripePositions = [-18, -13, -8, 8, 13, 18];
   const crosswalkPositions = [-4.75, -3.95, -3.15, -2.35, 2.35, 3.15, 3.95, 4.75];
   return (
     <group>
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.08, 0]} receiveShadow>
         <planeGeometry args={[64, 64]} />
-        <meshStandardMaterial color="#88866f" roughness={1} />
+          <meshStandardMaterial color="#4b4036" roughness={1} />
       </mesh>
       <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[9, 64]} />
@@ -88,22 +88,22 @@ function RoadNetwork() {
         </mesh>,
         <mesh key={`curb-x-${direction}`} position={[direction * 4.48, 0.13, 0]}>
           <boxGeometry args={[0.16, 0.24, 64]} />
-          <meshStandardMaterial color="#d3c9b3" roughness={0.9} />
+          <meshStandardMaterial color="#8a8d93" roughness={0.9} />
         </mesh>,
         <mesh key={`curb-z-${direction}`} position={[0, 0.13, direction * 4.48]}>
           <boxGeometry args={[64, 0.24, 0.16]} />
-          <meshStandardMaterial color="#d3c9b3" roughness={0.9} />
+          <meshStandardMaterial color="#8a8d93" roughness={0.9} />
         </mesh>,
       ]))}
       {stripePositions.map((position) => (
         <group key={`road-mark-${position}`}>
           <mesh position={[0, 0.018, position]}>
             <boxGeometry args={[0.12, 0.025, 2.2]} />
-            <meshStandardMaterial color="#e1d8b7" roughness={0.8} />
+            <meshStandardMaterial color="#c9a24b" roughness={0.8} />
           </mesh>
           <mesh position={[position, 0.018, 0]}>
             <boxGeometry args={[2.2, 0.025, 0.12]} />
-            <meshStandardMaterial color="#e1d8b7" roughness={0.8} />
+            <meshStandardMaterial color="#c9a24b" roughness={0.8} />
           </mesh>
         </group>
       ))}
@@ -129,28 +129,30 @@ function RoadNetwork() {
       ))}
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0]} receiveShadow>
         <circleGeometry args={[3.3, 48]} />
-        <meshStandardMaterial color="#77796d" roughness={0.96} />
+          <meshStandardMaterial color="#39383a" roughness={0.96} />
       </mesh>
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.022, 0]}>
         <ringGeometry args={[2.65, 2.72, 48]} />
-        <meshStandardMaterial color="#c8ae7d" roughness={0.75} />
+        <meshStandardMaterial color="#c9a24b" roughness={0.75} />
       </mesh>
     </group>
   );
 }
 
 const BUILDING_WALL_COLORS: Record<CityDoor["id"], string> = {
-  campaign: "#dcc8a3",
-  "war-room": "#d99478",
-  survival: "#b9c7a2",
-  daily: "#91b7bd",
+  campaign: "#75634e",
+  "war-room": "#64453d",
+  survival: "#55504b",
+  daily: "#69583f",
+  archive: "#66513c",
 };
 
 const BUILDING_ROOF_COLORS: Record<CityDoor["id"], string> = {
-  campaign: "#765447",
-  "war-room": "#72534a",
-  survival: "#5f7060",
-  daily: "#536d73",
+  campaign: "#46362d",
+  "war-room": "#4b302b",
+  survival: "#34363a",
+  daily: "#51412e",
+  archive: "#42362e",
 };
 
 function createGableShape(width: number, rise: number) {
@@ -202,11 +204,11 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
       </mesh>
       <mesh position={[-door.width / 4, door.height + 0.2, 0]}>
         <boxGeometry args={[0.14, 0.18, door.depth + 0.55]} />
-        <meshStandardMaterial color="#d5c098" roughness={0.86} />
+        <meshStandardMaterial color="#8a8d93" roughness={0.86} />
       </mesh>
       <mesh position={[door.width / 4, door.height + 0.2, 0]}>
         <boxGeometry args={[0.14, 0.18, door.depth + 0.55]} />
-        <meshStandardMaterial color="#d5c098" roughness={0.86} />
+        <meshStandardMaterial color="#8a8d93" roughness={0.86} />
       </mesh>
       <mesh position={[-door.width * 0.22, door.height + 1.26, -door.depth * 0.22]} castShadow>
         <boxGeometry args={[0.54, 1.45, 0.56]} />
@@ -218,14 +220,14 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
       </mesh>
       <mesh position={[0, door.height + 0.06, 0]}>
         <boxGeometry args={[door.width + 0.16, 0.18, door.depth + 0.16]} />
-        <meshStandardMaterial color="#d5c098" roughness={0.8} />
+        <meshStandardMaterial color="#8a8d93" roughness={0.8} />
       </mesh>
       <mesh
         position={[frontX - x + (door.side === "east" ? 0.06 : door.side === "west" ? -0.06 : 0), 1.25, frontZ - z]}
         rotation-y={doorRotation}
       >
         <boxGeometry args={[1.55, 2.5, 0.18]} />
-        <meshStandardMaterial color={active ? door.color : "#493a32"} roughness={0.76} metalness={0.08} />
+        <meshStandardMaterial color={active ? door.color : "#292522"} roughness={0.76} metalness={0.08} />
       </mesh>
       {windowPositions.map((position, index) => (
         <group
@@ -235,19 +237,19 @@ function Building({ door, active }: { door: CityDoor; active: boolean }) {
         >
           <mesh>
             <boxGeometry args={[1.1, 1.35, 0.12]} />
-            <meshStandardMaterial color="#b9dce0" roughness={0.28} metalness={0.06} emissive="#b6d8d8" emissiveIntensity={0.09} />
+            <meshStandardMaterial color="#7a5935" roughness={0.34} metalness={0.12} emissive="#c9a24b" emissiveIntensity={0.12} />
           </mesh>
           <mesh position={[0, 0, 0.08]}>
             <boxGeometry args={[0.1, 1.42, 0.08]} />
-            <meshStandardMaterial color="#e1cda9" roughness={0.8} />
+            <meshStandardMaterial color="#8a8d93" roughness={0.8} />
           </mesh>
           <mesh position={[0, 0, 0.09]}>
             <boxGeometry args={[1.15, 0.1, 0.08]} />
-            <meshStandardMaterial color="#e1cda9" roughness={0.8} />
+            <meshStandardMaterial color="#8a8d93" roughness={0.8} />
           </mesh>
           <mesh position={[0, -0.76, 0.14]}>
             <boxGeometry args={[1.3, 0.12, 0.34]} />
-            <meshStandardMaterial color="#e8d9bd" roughness={0.86} />
+            <meshStandardMaterial color="#8a8d93" roughness={0.86} />
           </mesh>
         </group>
       ))}
@@ -298,7 +300,7 @@ function StreetLamp({ x, z }: { x: number; z: number }) {
 }
 
 function StreetTree({ x, z, variant }: { x: number; z: number; variant: number }) {
-  const canopyColor = ["#587858", "#6e896c", "#78815d", "#4d716b"][variant % 4];
+  const canopyColor = ["#68503b", "#745a40", "#806546", "#564638"][variant % 4];
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, 0.26, 0]} receiveShadow>
@@ -463,15 +465,14 @@ function CityWorld({
 
   return (
     <>
-      <color attach="background" args={["#9ed5ed"]} />
-      <fog attach="fog" args={["#c9e3e9", 34, 96]} />
-      <Sky distance={450000} sunPosition={[42, 92, 32]} turbidity={5.8} rayleigh={1.7} mieCoefficient={0.003} mieDirectionalG={0.72} />
-      <ambientLight intensity={0.9} color="#e5f2ed" />
-      <hemisphereLight args={["#d8f0ff", "#9a896d", 1.25]} />
+      <color attach="background" args={["#67503d"]} />
+      <fog attach="fog" args={["#78604a", 34, 96]} />
+      <ambientLight intensity={0.78} color="#e6c77a" />
+      <hemisphereLight args={["#d3ad70", "#3d3027", 1.05]} />
       <directionalLight
         position={[16, 30, 12]}
-        intensity={2.25}
-        color="#fff0d4"
+        intensity={1.8}
+        color="#f2d5a2"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}

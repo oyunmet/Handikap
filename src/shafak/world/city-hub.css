@@ -806,3 +806,290 @@
     min-height: 44px;
   }
 }
+
+.city-hub {
+  color: var(--palette-text);
+  font-family: var(--font-body);
+}
+
+.city-hub__scene::after {
+  background:
+    linear-gradient(180deg, rgba(20, 22, 26, .12), transparent 34%),
+    linear-gradient(0deg, rgba(20, 22, 26, .28), transparent 40%);
+}
+
+.city-hub__header,
+.city-hub__quest,
+.city-hub__route-guide,
+.city-hub__door-card,
+.city-hub__archive-panel {
+  color: var(--palette-text);
+  border: 1px solid rgba(201, 162, 75, .48);
+  background: linear-gradient(145deg, rgba(20, 22, 26, .96), rgba(30, 33, 38, .94));
+  box-shadow: 0 18px 46px rgba(0, 0, 0, .4);
+  backdrop-filter: blur(16px);
+}
+
+.city-hub .city-hub__brand h1,
+.city-hub .city-hub__quest h2,
+.city-hub .city-hub__door-copy h2,
+.city-hub .city-hub__archive-header h2 {
+  color: var(--palette-text);
+  font-family: var(--font-display);
+}
+
+.city-hub .city-hub__crest {
+  color: var(--palette-accent-bright);
+  border-color: rgba(201, 162, 75, .54);
+  background: rgba(201, 162, 75, .12);
+}
+
+.city-hub .city-hub__brand p,
+.city-hub .city-hub__traveler,
+.city-hub .city-hub__traveler small,
+.city-hub .city-hub__quest p,
+.city-hub .city-hub__quest-objective span,
+.city-hub .city-hub__quest-progress small,
+.city-hub .city-hub__route-item,
+.city-hub .city-hub__route-item small,
+.city-hub .city-hub__door-copy small,
+.city-hub .city-hub__door-copy p,
+.city-hub .city-hub__controls-hint,
+.city-hub .city-hub__archive-copy p,
+.city-hub .city-hub__archive-meta dd {
+  color: var(--palette-neutral);
+}
+
+.city-hub .city-hub__quest-kicker span,
+.city-hub .city-hub__quest-kicker b,
+.city-hub .city-hub__route-guide-title,
+.city-hub .city-hub__quest-objective b,
+.city-hub .city-hub__archive-header small,
+.city-hub .city-hub__archive-meta dt {
+  color: var(--palette-accent-bright);
+}
+
+.city-hub .city-hub__door-mark {
+  color: var(--palette-background);
+}
+
+.city-hub .city-hub__top-actions button,
+.city-hub .city-hub__route-item,
+.city-hub .city-hub__door-card > button,
+.city-hub .city-hub__archive-close {
+  color: var(--palette-accent-bright);
+  border: 1px solid rgba(201, 162, 75, .38);
+  background: rgba(30, 33, 38, .92);
+}
+
+.city-hub .city-hub__top-actions button:hover,
+.city-hub .city-hub__top-actions button:focus-visible,
+.city-hub .city-hub__route-item:hover,
+.city-hub .city-hub__route-item:focus-visible,
+.city-hub .city-hub__door-card > button:hover,
+.city-hub .city-hub__door-card > button:focus-visible,
+.city-hub .city-hub__archive-close:hover,
+.city-hub .city-hub__archive-close:focus-visible {
+  color: var(--palette-text);
+  border-color: var(--palette-accent-bright);
+  background: rgba(201, 162, 75, .18);
+}
+
+.city-hub .city-hub__route-item.is-active {
+  color: var(--palette-text);
+  border-color: var(--palette-accent-bright);
+  background: rgba(201, 162, 75, .16);
+}
+
+.city-hub .city-hub__quest > button,
+.city-hub .city-hub__archive-return {
+  color: var(--palette-background);
+  border: 1px solid var(--palette-accent-bright);
+  background: linear-gradient(135deg, var(--palette-accent), var(--palette-accent-bright));
+  font-weight: 800;
+}
+
+.city-hub .city-hub__quest > button:hover,
+.city-hub .city-hub__quest > button:focus-visible,
+.city-hub .city-hub__archive-return:hover,
+.city-hub .city-hub__archive-return:focus-visible {
+  filter: brightness(1.08);
+}
+
+.city-hub .city-hub__quest-objective {
+  border-color: rgba(201, 162, 75, .28);
+  background: rgba(20, 22, 26, .56);
+}
+
+.city-hub .city-hub__quest-progress > div {
+  background: rgba(138, 141, 147, .28);
+}
+
+.city-hub .city-hub__quest-progress > div i {
+  background: linear-gradient(90deg, var(--palette-accent), var(--palette-accent-bright));
+}
+
+.city-hub .city-hub__joystick {
+  border-color: rgba(201, 162, 75, .5);
+  background: rgba(20, 22, 26, .66);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, .35);
+}
+
+.city-hub .city-hub__joystick-arrow,
+.city-hub .city-hub__controls-hint kbd {
+  color: var(--palette-accent-bright);
+}
+
+.city-hub .city-hub__controls-hint b {
+  color: var(--palette-accent);
+}
+
+.city-hub .city-hub__joystick-knob {
+  border-color: var(--palette-accent-bright);
+  background: rgba(201, 162, 75, .62);
+}
+
+.city-hub .city-world-sign {
+  color: var(--palette-text);
+  border-color: var(--palette-accent);
+  background: rgba(20, 22, 26, .94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .42);
+}
+
+.city-hub .city-world-sign small {
+  color: var(--palette-neutral);
+}
+
+.city-hub .city-world-sign strong {
+  color: var(--palette-accent-bright);
+}
+
+.city-hub .city-hub__model-loading {
+  color: var(--palette-accent-bright);
+  border: 1px solid rgba(201, 162, 75, .52);
+  background: rgba(20, 22, 26, .94);
+}
+
+.city-hub .city-hub__model-error {
+  color: var(--palette-text);
+  border-color: var(--palette-danger);
+  background: rgba(30, 20, 19, .96);
+}
+
+.city-hub__archive-overlay {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  background: rgba(8, 9, 11, .78);
+  backdrop-filter: blur(10px);
+}
+
+.city-hub__archive-panel {
+  width: min(520px, 100%);
+  max-height: min(80dvh, 720px);
+  overflow: auto;
+  padding: clamp(20px, 5vw, 32px);
+  border-radius: var(--radius-panel);
+}
+
+.city-hub__archive-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.city-hub__archive-header small,
+.city-hub__archive-meta dt {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.city-hub__archive-header h2 {
+  margin: 8px 0 0;
+  font-size: clamp(23px, 6vw, 32px);
+}
+
+.city-hub__archive-close {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: var(--radius-control);
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.city-hub__archive-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  margin: 24px 0 14px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(201, 162, 75, .24);
+  border-bottom: 1px solid rgba(201, 162, 75, .24);
+}
+
+.city-hub__archive-meta div {
+  display: grid;
+  gap: 7px;
+}
+
+.city-hub__archive-meta dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.city-hub__archive-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(138, 141, 147, .24);
+}
+
+.city-hub__archive-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--palette-accent), var(--palette-accent-bright));
+}
+
+.city-hub__archive-copy {
+  margin: 22px 0;
+}
+
+.city-hub__archive-copy h3 {
+  margin: 0 0 10px;
+  color: var(--palette-text);
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.city-hub__archive-copy p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.city-hub .city-hub__archive-return {
+  width: 100%;
+  min-height: 48px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .city-hub__archive-panel {
+    max-height: min(86dvh, 720px);
+    padding: 20px;
+  }
+}

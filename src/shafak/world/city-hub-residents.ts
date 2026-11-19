@@ -22,11 +22,11 @@ export const CITY_RESIDENTS: readonly CityResident[] = [
 
 export const CITY_RESIDENT_TINTS = [
   "#a87860",
-  "#738b79",
-  "#897497",
+  "#75634e",
+  "#89715d",
   "#b68f59",
-  "#6d8d8d",
+  "#8a7766",
   "#9b6e67",
-  "#778994",
+  "#72645a",
   "#aa865c",
 ] as const;
