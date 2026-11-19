@@ -1,4 +1,9 @@
 import type { CityPosition } from "./city-hub-layout";
+import {
+  CITY_CAMERA_MAX_PITCH,
+  CITY_CAMERA_MIN_PITCH,
+  type CityCameraControl,
+} from "./city-hub-controls";
 
 export type CityCameraVector = CityPosition & { y: number };
 
@@ -87,14 +92,18 @@ export function isCityCameraPathClear(
 
 export function getCityCameraFrame(
   player: CityPosition,
-  facing: CityPosition,
+  cameraControl: CityCameraControl = { yaw: 0, pitch: 0 },
   obstacles: readonly CityCameraObstacle[] = [],
 ): CityCameraFrame {
-  const facingLength = Math.hypot(facing.x, facing.z);
-  const facingX = facingLength > 0.01 ? facing.x / facingLength : 0;
-  const facingZ = facingLength > 0.01 ? facing.z / facingLength : -1;
-  const rightX = -facingZ;
-  const rightZ = facingX;
+  const yaw = Number.isFinite(cameraControl.yaw) ? cameraControl.yaw : 0;
+  const pitch = Math.max(
+    CITY_CAMERA_MIN_PITCH,
+    Math.min(CITY_CAMERA_MAX_PITCH, Number.isFinite(cameraControl.pitch) ? cameraControl.pitch : 0),
+  );
+  const facingX = Math.sin(yaw);
+  const facingZ = -Math.cos(yaw);
+  const rightX = Math.cos(yaw);
+  const rightZ = Math.sin(yaw);
   const intendedTarget = {
     x: player.x + facingX * CAMERA_LOOK_AHEAD,
     y: CAMERA_TARGET_HEIGHT,
@@ -113,7 +122,7 @@ export function getCityCameraFrame(
     const { back, side } = CAMERA_OFFSETS[index];
     const desired = {
       x: player.x - facingX * back + rightX * side,
-      y: CAMERA_HEIGHT,
+      y: CAMERA_HEIGHT + pitch * 3.2,
       z: player.z - facingZ * back + rightZ * side,
     };
     const length = Math.hypot(
@@ -160,7 +169,7 @@ export function getCityCameraFrame(
   // fall back to the original, potentially roof-embedded camera position.
   const overheadPosition = {
     x: target.x,
-    y: Math.max(CAMERA_HEIGHT, ...obstacles.map((obstacle) => obstacle.height))
+    y: Math.max(CAMERA_HEIGHT + pitch * 3.2, ...obstacles.map((obstacle) => obstacle.height))
       + CAMERA_RADIUS + CAMERA_CLEARANCE + 0.5,
     z: target.z,
   };

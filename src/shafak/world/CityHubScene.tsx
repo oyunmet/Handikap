@@ -6,13 +6,19 @@ import { createWorldMotion, type WorldMotion } from "./movement";
 import {
   CITY_DOORS,
   findNearbyCityDoor,
+  getCityGroundHeight,
   stepCityPosition,
   type CityDoor,
   type CityDoorId,
   type CityInput,
   type CityPosition,
 } from "./city-hub-layout";
-import { getCityCameraFrame, type CityCameraObstacle } from "./city-hub-camera";
+import {
+  getCityCameraFrame,
+  isCityCameraPathClear,
+  type CityCameraObstacle,
+} from "./city-hub-camera";
+import { getCityMovementInput, type CityCameraControl } from "./city-hub-controls";
 import { CITY_RESIDENTS, CITY_RESIDENT_TINTS, type CityResident } from "./city-hub-residents";
 import { getAnimatedRivalModelConfig, type OpponentModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
@@ -25,6 +31,7 @@ import type { EquipmentVisual } from "../game/store-types";
 type CityHubSceneProps = {
   positionRef: MutableRefObject<CityPosition>;
   inputRef: MutableRefObject<CityInput>;
+  cameraControlRef?: MutableRefObject<CityCameraControl>;
   activeDoorId: CityDoorId | null;
   onNearbyDoorChange: (door: CityDoor | null) => void;
   className?: string;
@@ -48,6 +55,7 @@ const CITY_CAMERA_OBSTACLES: readonly CityCameraObstacle[] = CITY_DOORS.map((doo
   depth: door.depth + 0.48,
   height: door.height + 2.8,
 }));
+const DEFAULT_CITY_CAMERA_CONTROL: CityCameraControl = { yaw: 0, pitch: 0 };
 
 function RoadNetwork() {
   const roadColor = "#484a49";
@@ -347,6 +355,7 @@ function Resident({
 function CityWorld({
   positionRef,
   inputRef,
+  cameraControlRef,
   activeDoorId,
   onNearbyDoorChange,
   heroAsset,
@@ -360,18 +369,23 @@ function CityWorld({
     -positionRef.current.z,
     positionRef.current.x / 5.2,
   ));
-  const facingRef = useRef<CityPosition>({ x: 0, z: -1 });
+  const groundHeightRef = useRef(getCityGroundHeight(positionRef.current));
   const playerMovingRef = useRef(false);
   const [playerMoving, setPlayerMoving] = useState(false);
   const lastDoorIdRef = useRef<CityDoorId | null>(null);
   const cameraTarget = useMemo(() => new THREE.Vector3(), []);
   const cameraPosition = useMemo(() => new THREE.Vector3(), []);
+  const cameraCurrentPosition = useMemo(() => new THREE.Vector3(), []);
+  const cameraLookTarget = useMemo(() => new THREE.Vector3(), []);
+  const hasCameraLookTargetRef = useRef(false);
 
   useFrame(({ camera }, delta) => {
+    const cameraControl = cameraControlRef?.current ?? DEFAULT_CITY_CAMERA_CONTROL;
     const previousX = positionRef.current.x;
     const previousZ = positionRef.current.z;
+    const movementInput = getCityMovementInput(inputRef.current, cameraControl.yaw);
     const next = heroAsset
-      ? stepCityPosition(positionRef.current, inputRef.current, delta)
+      ? stepCityPosition(positionRef.current, movementInput, delta)
       : { x: previousX, z: previousZ };
     if (!heroAsset) {
       inputRef.current.x = 0;
@@ -379,6 +393,7 @@ function CityWorld({
     }
     positionRef.current.x = next.x;
     positionRef.current.z = next.z;
+    groundHeightRef.current = getCityGroundHeight(next);
     const motion = motionRef.current;
     const safeDelta = Math.max(delta, 1e-5);
     const velocityX = (next.x - previousX) / safeDelta;
@@ -400,27 +415,42 @@ function CityWorld({
     if (moving) {
       motion.cameraHeading = Math.atan2(-velocityX, velocityY);
       motion.facing = velocityX < 0 ? -1 : 1;
-      facingRef.current = { x: next.x - previousX, z: next.z - previousZ };
     }
     if (moving !== playerMovingRef.current) {
       playerMovingRef.current = moving;
       setPlayerMoving(moving);
     }
 
-    const cameraFrame = getCityCameraFrame(next, facingRef.current, CITY_CAMERA_OBSTACLES);
+    const cameraFrame = getCityCameraFrame(next, cameraControl, CITY_CAMERA_OBSTACLES);
     cameraPosition.set(
       cameraFrame.position.x,
       cameraFrame.position.y,
       cameraFrame.position.z,
     );
-    if (cameraFrame.occluded) camera.position.copy(cameraPosition);
-    else camera.position.lerp(cameraPosition, 1 - Math.exp(-delta * 4.2));
+    const cameraDelta = Math.min(Math.max(delta, 0), 0.05);
+    camera.getWorldPosition(cameraCurrentPosition);
+    const cameraPathClear = isCityCameraPathClear(
+      cameraCurrentPosition,
+      cameraPosition,
+      CITY_CAMERA_OBSTACLES,
+    );
+    if (!cameraPathClear) camera.position.copy(cameraPosition);
+    else camera.position.lerp(
+      cameraPosition,
+      1 - Math.exp(-cameraDelta * (cameraFrame.occluded ? 10 : 7)),
+    );
     cameraTarget.set(
       cameraFrame.target.x,
       cameraFrame.target.y,
       cameraFrame.target.z,
     );
-    camera.lookAt(cameraTarget);
+    if (!hasCameraLookTargetRef.current) {
+      cameraLookTarget.copy(cameraTarget);
+      hasCameraLookTargetRef.current = true;
+    } else {
+      cameraLookTarget.lerp(cameraTarget, 1 - Math.exp(-cameraDelta * 9));
+    }
+    camera.lookAt(cameraLookTarget);
 
     const nearbyDoor = findNearbyCityDoor(next);
     const nextDoorId = nearbyDoor?.id ?? null;
@@ -480,6 +510,7 @@ function CityWorld({
         <WorldV2Actor
           asset={heroAsset}
           motionRef={motionRef}
+          groundHeightRef={groundHeightRef}
           isPlayer
           animationState={playerMoving ? "walk" : "idle"}
           showWeapon={Boolean(playerAppearance?.weaponStyle)}

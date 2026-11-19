@@ -6,6 +6,7 @@ import {
   CITY_EDGE_LIMIT,
   CITY_START_POSITION,
   findNearbyCityDoor,
+  getCityGroundHeight,
   readCityJoystick,
   stepCityPosition,
 } from "./city-hub-layout.ts";
@@ -47,6 +48,21 @@ test("the city touch joystick maps finger movement to the matching world directi
   assert.ok(readCityJoystick(center.x - 50, center.y, bounds).x < 0, "left moves left");
   assert.ok(readCityJoystick(center.x + 50, center.y, bounds).x > 0, "right moves right");
   assert.deepEqual(readCityJoystick(Number.NaN, center.y, bounds), { x: 0, z: 0 });
+});
+
+test("the city joystick has a dead zone and uses the full visible stick travel", () => {
+  const bounds = { left: 10, top: 20, width: 116, height: 116 };
+  const center = { x: 68, y: 78 };
+  assert.deepEqual(readCityJoystick(center.x + 3, center.y, bounds), { x: 0, z: 0 });
+  const partial = readCityJoystick(center.x + 15, center.y, bounds);
+  assert.ok(partial.x > 0.4 && partial.x < 0.6);
+  assert.equal(readCityJoystick(center.x + 29, center.y, bounds).x, 1);
+});
+
+test("the city hero uses the road, sidewalk, and outdoor ground heights", () => {
+  assert.equal(getCityGroundHeight({ x: 0, z: 0 }), 0);
+  assert.equal(getCityGroundHeight({ x: 5.45, z: 0 }), 0.13);
+  assert.equal(getCityGroundHeight({ x: 12, z: 12 }), -0.08);
 });
 
 test("diagonal movement is normalized and never exceeds city boundaries", () => {

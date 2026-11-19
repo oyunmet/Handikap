@@ -61,6 +61,7 @@ export type WorldV2ActorDebugSnapshot = {
 type Props = {
   asset: LoadedWorldAsset;
   motionRef: MutableRefObject<WorldMotion>;
+  groundHeightRef?: MutableRefObject<number>;
   debugRef?: MutableRefObject<WorldV2ActorDebugSnapshot | null>;
   isPlayer: boolean;
   distance?: number;
@@ -88,6 +89,7 @@ function readLocalRotation(object: THREE.Object3D | undefined): [number, number,
 export default function WorldV2Actor({
   asset,
   motionRef,
+  groundHeightRef,
   debugRef,
   isPlayer,
   distance = 0,
@@ -335,7 +337,11 @@ export default function WorldV2Actor({
       : motion.cameraHeading;
 
     if (isPlayer) {
-      root.position.set(playerPosition.x, motion.jumpHeight, playerPosition.z);
+      root.position.set(
+        playerPosition.x,
+        motion.jumpHeight + (groundHeightRef?.current ?? 0),
+        playerPosition.z,
+      );
       const standingScaleY = typeof root.userData.worldStandingScaleY === "number"
         ? root.userData.worldStandingScaleY as number
         : baseActorScale;

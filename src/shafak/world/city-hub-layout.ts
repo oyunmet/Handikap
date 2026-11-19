@@ -89,6 +89,8 @@ export const CITY_EDGE_LIMIT = 21;
 export const CITY_DOOR_INTERACTION_RANGE = 2.25;
 
 export const CITY_COLLISION_MARGIN = 0.55;
+export const CITY_JOYSTICK_DEAD_ZONE = 0.12;
+export const CITY_JOYSTICK_TRAVEL_RATIO = 0.25;
 
 export function readCityJoystick(
   clientX: number,
@@ -98,15 +100,34 @@ export function readCityJoystick(
   if (![clientX, clientY, bounds.left, bounds.top, bounds.width, bounds.height].every(Number.isFinite)) {
     return { x: 0, z: 0 };
   }
-  const radius = Math.max(1, Math.min(bounds.width, bounds.height) * 0.34);
+  const radius = Math.max(1, Math.min(bounds.width, bounds.height) * CITY_JOYSTICK_TRAVEL_RATIO);
   const dx = clientX - bounds.left - bounds.width / 2;
   const dy = clientY - bounds.top - bounds.height / 2;
   const magnitude = Math.hypot(dx, dy);
-  const scale = magnitude > radius ? radius / magnitude : 1;
+  if (magnitude <= radius * CITY_JOYSTICK_DEAD_ZONE) return { x: 0, z: 0 };
+  const strength = Math.min(
+    1,
+    (magnitude - radius * CITY_JOYSTICK_DEAD_ZONE)
+      / (radius * (1 - CITY_JOYSTICK_DEAD_ZONE)),
+  );
+  const scale = magnitude > 0 ? strength / magnitude : 0;
   return {
-    x: Math.max(-1, Math.min(1, (dx * scale) / radius)),
-    z: Math.max(-1, Math.min(1, (dy * scale) / radius)),
+    x: Math.max(-1, Math.min(1, dx * scale)),
+    z: Math.max(-1, Math.min(1, dy * scale)),
   };
+}
+
+export function getCityGroundHeight(position: CityPosition) {
+  if (![position.x, position.z].every(Number.isFinite)) return 0;
+  const sidewalkMin = 4.45;
+  const sidewalkMax = 6.45;
+  const absoluteX = Math.abs(position.x);
+  const absoluteZ = Math.abs(position.z);
+  const onSidewalk = (absoluteX >= sidewalkMin && absoluteX <= sidewalkMax)
+    || (absoluteZ >= sidewalkMin && absoluteZ <= sidewalkMax);
+  if (onSidewalk) return 0.13;
+  if (absoluteX <= 4.5 || absoluteZ <= 4.5) return 0;
+  return -0.08;
 }
 
 function isInsideBuilding(position: CityPosition, door: CityDoor) {

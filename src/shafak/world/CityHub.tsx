@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import CityHubScene from "./CityHubScene";
 import {
   CITY_DOORS,
+  CITY_JOYSTICK_TRAVEL_RATIO,
   CITY_START_POSITION,
   readCityJoystick,
   type CityMissionMode,
@@ -10,6 +11,10 @@ import {
   type CityInput,
   type CityPosition,
 } from "./city-hub-layout";
+import {
+  stepCityCameraLook,
+  type CityCameraControl,
+} from "./city-hub-controls";
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative";
 import { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT } from "./campaign-progression";
 import type { EquipmentVisual } from "../game/store-types";
@@ -32,6 +37,7 @@ type CityHubProps = {
 };
 
 type JoystickPosition = { x: number; z: number };
+type CameraPointerGesture = { pointerId: number; x: number; y: number };
 
 const clampAxis = (value: number) => Math.max(-1, Math.min(1, value));
 
@@ -54,10 +60,12 @@ export default function CityHub({
   const inputRef = useRef<CityInput>({ x: 0, z: 0 });
   const keysRef = useRef(new Set<string>());
   const joystickRef = useRef<JoystickPosition>({ x: 0, z: 0 });
+  const cameraControlRef = useRef<CityCameraControl>({ yaw: 0, pitch: 0 });
+  const cameraPointerRef = useRef<CameraPointerGesture | null>(null);
+  const joystickKnobRef = useRef<HTMLElement>(null);
   const activeDoorIdRef = useRef<CityDoorId | null>(null);
   const joystickPointerRef = useRef<number | null>(null);
   const [activeDoor, setActiveDoor] = useState<CityDoor | null>(null);
-  const [joystickPosition, setJoystickPosition] = useState<JoystickPosition>({ x: 0, z: 0 });
 
   const updateInput = useCallback(() => {
     const keys = keysRef.current;
@@ -65,9 +73,16 @@ export default function CityHub({
       - Number(keys.has("arrowleft") || keys.has("a"));
     const keyboardZ = Number(keys.has("arrowdown") || keys.has("s"))
       - Number(keys.has("arrowup") || keys.has("w"));
+    let x = clampAxis(keyboardX + joystickRef.current.x);
+    let z = clampAxis(keyboardZ + joystickRef.current.z);
+    const magnitude = Math.hypot(x, z);
+    if (magnitude > 1) {
+      x /= magnitude;
+      z /= magnitude;
+    }
     inputRef.current = {
-      x: clampAxis(keyboardX + joystickRef.current.x),
-      z: clampAxis(keyboardZ + joystickRef.current.z),
+      x,
+      z,
     };
   }, []);
 
@@ -109,17 +124,36 @@ export default function CityHub({
     const onBlur = () => {
       keysRef.current.clear();
       joystickPointerRef.current = null;
+      cameraPointerRef.current = null;
       joystickRef.current = { x: 0, z: 0 };
-      setJoystickPosition({ x: 0, z: 0 });
+      if (joystickKnobRef.current) joystickKnobRef.current.style.transform = "translate(-50%, -50%)";
       updateInput();
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      if (joystickPointerRef.current === event.pointerId) {
+        joystickPointerRef.current = null;
+        joystickRef.current = { x: 0, z: 0 };
+        if (joystickKnobRef.current) joystickKnobRef.current.style.transform = "translate(-50%, -50%)";
+        updateInput();
+      }
+      if (cameraPointerRef.current?.pointerId === event.pointerId) cameraPointerRef.current = null;
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") onBlur();
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
+    window.addEventListener("pointerup", onPointerEnd);
+    window.addEventListener("pointercancel", onPointerEnd);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pointerup", onPointerEnd);
+      window.removeEventListener("pointercancel", onPointerEnd);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [enterDoor, onExit, updateInput]);
 
@@ -127,7 +161,12 @@ export default function CityHub({
     const rect = event.currentTarget.getBoundingClientRect();
     const reading = readCityJoystick(event.clientX, event.clientY, rect);
     joystickRef.current = reading;
-    setJoystickPosition(reading);
+    if (joystickKnobRef.current) {
+      const travel = Math.min(rect.width, rect.height) * CITY_JOYSTICK_TRAVEL_RATIO;
+      joystickKnobRef.current.style.transform = (
+        `translate(calc(-50% + ${reading.x * travel}px), calc(-50% + ${reading.z * travel}px))`
+      );
+    }
     updateInput();
   };
 
@@ -135,7 +174,11 @@ export default function CityHub({
     if (joystickPointerRef.current !== null) return;
     event.preventDefault();
     joystickPointerRef.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Window-level pointer end handlers still release the stick if capture is unavailable.
+    }
     updateJoystick(event);
   };
 
@@ -148,8 +191,40 @@ export default function CityHub({
     if (joystickPointerRef.current !== event.pointerId) return;
     joystickPointerRef.current = null;
     joystickRef.current = { x: 0, z: 0 };
-    setJoystickPosition({ x: 0, z: 0 });
+    if (joystickKnobRef.current) joystickKnobRef.current.style.transform = "translate(-50%, -50%)";
     updateInput();
+  };
+
+  const beginCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (
+      event.pointerType !== "mouse"
+      && event.clientX < bounds.left + bounds.width * 0.46
+    ) return;
+    event.preventDefault();
+    cameraPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // The scene fills the screen, so bubbling pointer events remain available as a fallback.
+    }
+  };
+
+  const updateCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = cameraPointerRef.current;
+    if (gesture?.pointerId !== event.pointerId) return;
+    cameraControlRef.current = stepCityCameraLook(
+      cameraControlRef.current,
+      event.clientX - gesture.x,
+      event.clientY - gesture.y,
+    );
+    gesture.x = event.clientX;
+    gesture.y = event.clientY;
+  };
+
+  const endCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (cameraPointerRef.current?.pointerId === event.pointerId) cameraPointerRef.current = null;
   };
 
   const onNearbyDoorChange = useCallback((door: CityDoor | null) => {
@@ -163,10 +238,18 @@ export default function CityHub({
 
   return (
     <main className="city-hub" aria-label={`${CAMPAIGN_NARRATIVE.cityName} şehir merkezi`}>
-      <div className="city-hub__scene">
+      <div
+        className="city-hub__scene"
+        onPointerDown={beginCameraLook}
+        onPointerMove={updateCameraLook}
+        onPointerUp={endCameraLook}
+        onPointerCancel={endCameraLook}
+        onLostPointerCapture={endCameraLook}
+      >
         <CityHubScene
           positionRef={positionRef}
           inputRef={inputRef}
+          cameraControlRef={cameraControlRef}
           activeDoorId={activeDoor?.id ?? null}
           onNearbyDoorChange={onNearbyDoorChange}
           playerAppearance={playerAppearance}
@@ -266,10 +349,9 @@ export default function CityHub({
         <span className="city-hub__joystick-arrow city-hub__joystick-arrow--left">◀</span>
         <span className="city-hub__joystick-arrow city-hub__joystick-arrow--right">▶</span>
         <i
+          ref={joystickKnobRef}
           className="city-hub__joystick-knob"
-          style={{
-            transform: `translate(calc(-50% + ${joystickPosition.x * 27}px), calc(-50% + ${joystickPosition.z * 27}px))`,
-          }}
+          style={{ transform: "translate(-50%, -50%)" }}
         />
       </div>
 
@@ -278,6 +360,7 @@ export default function CityHub({
       </div>
       <p className="city-hub__screen-reader-help">
         Masaüstünde W, A, S, D veya ok tuşlarıyla; telefonda sol alttaki kontrolle dört yönde yürü.
+        Kamerayı sahnenin sağ tarafından sürükleyerek çevir.
         Yakındaki bir kapı için E tuşunu veya giriş düğmesini kullan.
       </p>
     </main>

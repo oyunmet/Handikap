@@ -21,13 +21,18 @@ export type LoadedWorldAsset = {
 const assetCache = new Map<string, Promise<LoadedWorldAsset>>();
 const characterResources = new WeakMap<THREE.Object3D, CharacterOwnedResources>();
 
+export function getWorldAssetInitialPoseClip<T extends { name: string }>(animations: readonly T[]) {
+  return animations.find((clip) =>
+    clip.name.split("|").at(-1)?.trim().toLowerCase() === "idle") ?? null;
+}
+
 function prepareFirstAnimationFrame(gltf: GLTF) {
-  const idleClip = gltf.animations.find((clip) =>
-    clip.name.split("|").at(-1)?.trim().toLowerCase() === "idle");
-  const firstClip = idleClip ?? gltf.animations[0];
-  if (!firstClip) return;
+  const idleClip = getWorldAssetInitialPoseClip(gltf.animations);
+  // A walk/run first frame is not a safe bind pose: fitting to it can freeze
+  // one lifted foot into every later idle pose when the GLB has no idle clip.
+  if (!idleClip) return;
   const mixer = new THREE.AnimationMixer(gltf.scene);
-  mixer.clipAction(firstClip).play();
+  mixer.clipAction(idleClip).play();
   mixer.setTime(0);
   mixer.update(0);
   gltf.scene.updateMatrixWorld(true);
