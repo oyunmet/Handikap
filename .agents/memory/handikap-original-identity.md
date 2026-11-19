@@ -3,7 +3,11 @@ name: Current game and staged work
 description: The active game direction, external production host, and the user's instructions for phase sequencing.
 ---
 
-The active game is “Şafak Savaşçıları”: a dark-fantasy world-walking and real-time tile-duel game. This newer direction supersedes the earlier Royal Match product direction; the retained Royal Match sources are legacy.
+The former “Şafak Savaşçıları” dark-fantasy identity is retired. The new direction is a bright, sunny world with visible sky, clouds, and sun, an optimistic refreshed story, and a title that works for Turkish and international audiences. Do not use “Kül ve Şafak”; the new title has not yet been selected.
+
+**Why:** On 2026-11-19 the user explicitly requested a different atmosphere, story, and internationally appealing name, and said the game should be bright rather than dark.
+
+**How to apply:** Treat the attached “Kül ve Şafak” brief as superseded wherever its title or dark-theme direction conflicts with this request; preserve gameplay and existing product capabilities unless the user asks to replace them.
 
 The live site shown in the user's screenshots is hosted at `handikap.vercel.app`. Replit's deployment status and logs do not represent this external Vercel deployment.
 
