@@ -1,0 +1,862 @@
+.sunvoria-home {
+  --sv-ink: #234b4c;
+  --sv-deep: #315c57;
+  --sv-muted: #64847c;
+  --sv-coral: #d27659;
+  --sv-gold: #e5ae55;
+  --sv-paper: #fff9e9;
+  --sv-line: rgba(62, 104, 91, .18);
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  padding: max(18px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, #87cce4 0%, #b8e4e5 43%, #f5e6be 100%);
+  color: var(--sv-ink);
+  font-family: var(--font-body, "Avenir Next", "Trebuchet MS", sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sunvoria-home *,
+.sunvoria-home *::before,
+.sunvoria-home *::after {
+  box-sizing: border-box;
+}
+
+.sunvoria-landscape,
+.sunvoria-atmosphere {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sunvoria-landscape {
+  background:
+    radial-gradient(ellipse at 70% 30%, rgba(255, 244, 197, .22), transparent 33%),
+    linear-gradient(180deg, #7ec5e0 0%, #b4e0e1 40%, #e9e7c9 70%, #d4d9a9 100%);
+}
+
+.sunvoria-sky-glow {
+  position: absolute;
+  top: -31%;
+  right: 4%;
+  width: min(75vw, 1000px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 249, 215, .35), rgba(255, 246, 201, .12) 37%, transparent 69%);
+}
+
+.sunvoria-sun {
+  position: absolute;
+  top: 12%;
+  right: 15%;
+  width: clamp(90px, 12vw, 174px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 31%, #fffbe0 0%, #ffedaa 42%, #f5d17c 100%);
+  box-shadow: 0 0 0 14px rgba(255, 245, 194, .13), 0 0 65px 23px rgba(255, 225, 153, .34);
+}
+
+.sunvoria-sun span {
+  position: absolute;
+  inset: 11%;
+  border: 1px solid rgba(255, 255, 236, .42);
+  border-radius: inherit;
+}
+
+.sunvoria-cloud {
+  position: absolute;
+  width: 145px;
+  height: 44px;
+  opacity: .75;
+}
+
+.sunvoria-cloud i {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  background: rgba(255, 255, 247, .86);
+  border-radius: 50%;
+  box-shadow: inset 0 -5px rgba(201, 226, 224, .18);
+}
+
+.sunvoria-cloud i:first-child { left: 4px; width: 68px; height: 25px; }
+.sunvoria-cloud i:nth-child(2) { left: 39px; bottom: 8px; width: 52px; height: 36px; }
+.sunvoria-cloud i:last-child { right: 5px; width: 74px; height: 27px; }
+.sunvoria-cloud--one { top: 19%; left: 10%; transform: scale(.93); }
+.sunvoria-cloud--two { top: 33%; right: 35%; transform: scale(.62); opacity: .62; animation-delay: -12s; }
+.sunvoria-cloud--three { top: 11%; left: 46%; transform: scale(.43); opacity: .52; animation-delay: -21s; }
+
+.sunvoria-world-art {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: min(77vh, 790px);
+  min-height: 460px;
+}
+
+.sunvoria-village {
+  transform-origin: 860px 500px;
+  animation: sunvoria-village-arrive .9s cubic-bezier(.18,.72,.2,1) both;
+}
+
+.sunvoria-foreground-haze {
+  position: absolute;
+  inset: auto 0 0;
+  height: 26%;
+  background: linear-gradient(0deg, rgba(255, 237, 185, .3), transparent);
+}
+
+.sunvoria-atmosphere {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(236, 248, 228, .31) 0%, rgba(245, 248, 224, .09) 43%, transparent 70%),
+    linear-gradient(0deg, rgba(69, 106, 76, .12), transparent 39%);
+}
+
+.sunvoria-topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.sunvoria-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--sv-ink);
+}
+
+.sunvoria-brand__mark {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.66);
+  border-radius: 50%;
+  background: rgba(255, 249, 225, .45);
+  box-shadow: 0 3px 10px rgba(57, 104, 107, .08), inset 0 1px rgba(255,255,255,.68);
+}
+
+.sunvoria-brand__mark svg {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: #da9d4c;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.sunvoria-brand__mark .sunvoria-mark__shine { stroke: #fff5cb; stroke-width: 2.4; }
+
+.sunvoria-brand__word {
+  display: grid;
+  gap: 1px;
+}
+
+.sunvoria-brand__word strong {
+  font: 700 16px/1 var(--font-display, "Georgia", serif);
+  letter-spacing: .12em;
+}
+
+.sunvoria-brand__word small {
+  color: #64857c;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+.sunvoria-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sunvoria-wallet {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 14px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 999px;
+  background: rgba(255, 250, 230, .55);
+  box-shadow: 0 5px 18px rgba(57, 101, 102, .08), inset 0 1px rgba(255,255,255,.7);
+  backdrop-filter: blur(12px);
+}
+
+.sunvoria-wallet__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #395f59;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.sunvoria-coin {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.sunvoria-coin--gold {
+  border: 1.5px solid #e7b85f;
+  background: #f9d780;
+  color: #9b6d36;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.4);
+}
+
+.sunvoria-coin--gem {
+  border: 1px solid #6caeb1;
+  background: #b8e4df;
+  color: #42878a;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.sunvoria-wallet__divider {
+  width: 1px;
+  height: 19px;
+  background: rgba(75, 115, 102, .2);
+}
+
+.sunvoria-player {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 4px 5px;
+  border: 1px solid rgba(255,255,255,.76);
+  border-radius: 999px;
+  background: rgba(255, 250, 230, .52);
+  color: var(--sv-ink);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 5px 18px rgba(57, 101, 102, .08), inset 0 1px rgba(255,255,255,.7);
+  backdrop-filter: blur(12px);
+  transition: transform .2s ease;
+}
+
+.sunvoria-player:hover,
+.sunvoria-icon-button:hover {
+  transform: translateY(-2px);
+  background-color: rgba(255, 252, 237, .86);
+}
+
+.sunvoria-player__portrait {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border: 2px solid rgba(255,255,255,.86);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f1c66e, #df8b60);
+  color: #fff8dd;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 17px;
+  font-weight: 700;
+  box-shadow: 0 2px 7px rgba(133, 97, 50, .15);
+}
+
+.sunvoria-player__copy {
+  display: grid;
+  gap: 2px;
+  max-width: 120px;
+}
+
+.sunvoria-player__copy strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sunvoria-player__copy small {
+  color: #66847b;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.sunvoria-player__level {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid rgba(179, 126, 59, .25);
+  border-radius: 50%;
+  background: #fff3d2;
+  color: #a16d36;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.sunvoria-icon-button {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.76);
+  border-radius: 50%;
+  background: rgba(255, 250, 230, .52);
+  color: #47706a;
+  cursor: pointer;
+  box-shadow: 0 5px 18px rgba(57, 101, 102, .08), inset 0 1px rgba(255,255,255,.7);
+  backdrop-filter: blur(12px);
+  transition: transform .2s ease;
+}
+
+.sunvoria-icon-button svg,
+.sunvoria-profile-link svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.sunvoria-hero {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  width: min(100%, 1400px);
+  margin: 0 auto;
+}
+
+.sunvoria-hero__copy {
+  position: relative;
+  z-index: 1;
+  width: min(48%, 580px);
+  padding: 0 0 42px clamp(4px, 4.2vw, 62px);
+  animation: sunvoria-rise .75s cubic-bezier(.16,.74,.2,1) both;
+}
+
+.sunvoria-overline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 20px;
+  color: #4a8076;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .22em;
+}
+
+.sunvoria-overline span {
+  width: 25px;
+  height: 1px;
+  background: #df9a58;
+}
+
+.sunvoria-hero h1 {
+  margin: 0;
+  color: #234d4c;
+  font-family: var(--font-display, "Georgia", serif);
+  font-size: clamp(48px, 6.2vw, 88px);
+  font-weight: 500;
+  letter-spacing: -.055em;
+  line-height: .97;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, .28);
+}
+
+.sunvoria-hero h1 em {
+  color: #cc7357;
+  font-weight: 500;
+}
+
+.sunvoria-hero__copy > p {
+  max-width: 360px;
+  margin: 22px 0 24px;
+  color: #476e68;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+.sunvoria-welcome {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,.54);
+  border-radius: 999px;
+  background: rgba(255, 249, 225, .34);
+  color: #547970;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sunvoria-welcome strong { color: #315d56; font-weight: 800; }
+
+.sunvoria-welcome__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e6a456;
+  box-shadow: 0 0 0 4px rgba(230, 164, 86, .15);
+}
+
+.sunvoria-location {
+  position: absolute;
+  right: clamp(12px, 7vw, 108px);
+  bottom: 18%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 15px 10px 10px;
+  border: 1px solid rgba(255,255,255,.74);
+  border-radius: 14px;
+  background: rgba(255, 250, 231, .72);
+  box-shadow: 0 10px 26px rgba(65, 103, 83, .1), inset 0 1px rgba(255,255,255,.8);
+  backdrop-filter: blur(10px);
+}
+
+.sunvoria-location__pin {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border-radius: 11px;
+  background: #e8f2dc;
+  color: #558274;
+}
+
+.sunvoria-location__pin svg {
+  width: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.sunvoria-location > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.sunvoria-location small {
+  color: #7a9783;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.sunvoria-location strong {
+  color: #3a6258;
+  font: 600 14px/1.2 var(--font-display, Georgia, serif);
+}
+
+.sunvoria-location__line {
+  width: 26px;
+  height: 1px;
+  margin-left: 8px;
+  background: #dfa85b;
+}
+
+.sunvoria-dock {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: min(100%, 1240px);
+  grid-template-columns: minmax(300px, .95fr) minmax(350px, 1.05fr);
+  align-items: center;
+  gap: clamp(22px, 4vw, 64px);
+  margin: 0 auto;
+  padding: 19px clamp(20px, 3.1vw, 44px);
+  border: 1px solid rgba(255,255,255,.84);
+  border-radius: 22px;
+  background:
+    linear-gradient(115deg, rgba(255, 253, 241, .9), rgba(255, 250, 229, .79)),
+    rgba(255,255,255,.65);
+  box-shadow: 0 16px 50px rgba(65, 104, 82, .18), inset 0 1px rgba(255,255,255,.95);
+  backdrop-filter: blur(18px);
+  animation: sunvoria-rise .75s .12s cubic-bezier(.16,.74,.2,1) both;
+}
+
+.sunvoria-campaign {
+  min-width: 0;
+}
+
+.sunvoria-campaign__top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sunvoria-campaign__seal {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(209, 151, 79, .43);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f9e9be, #f3dca7);
+  color: #a6713e;
+  font: 700 20px/1 var(--font-display, Georgia, serif);
+  box-shadow: inset 0 1px rgba(255,255,255,.9);
+}
+
+.sunvoria-campaign__title {
+  min-width: 0;
+  flex: 1;
+}
+
+.sunvoria-campaign__title small {
+  color: #789185;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.sunvoria-campaign__title h2 {
+  overflow: hidden;
+  margin: 4px 0 0;
+  color: #31594f;
+  font: 600 clamp(15px, 1.7vw, 21px)/1.15 var(--font-display, Georgia, serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sunvoria-campaign__percent {
+  display: flex;
+  align-items: baseline;
+  color: #488276;
+  font-size: 23px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.sunvoria-campaign__percent small {
+  margin-left: 2px;
+  font-size: 11px;
+}
+
+.sunvoria-progress {
+  height: 7px;
+  overflow: hidden;
+  margin-top: 15px;
+  border: 1px solid rgba(97, 140, 112, .11);
+  border-radius: 99px;
+  background: #e6e8d4;
+}
+
+.sunvoria-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #91bc77, #e5b25f);
+  box-shadow: 0 1px 4px rgba(173, 155, 88, .18);
+}
+
+.sunvoria-campaign__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 7px;
+  color: #7c9281;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.sunvoria-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 9px;
+}
+
+.sunvoria-button {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 15px;
+  border-radius: 13px;
+  cursor: pointer;
+  font: 800 11px/1.2 var(--font-body, "Avenir Next", sans-serif);
+  transition: transform .18s ease;
+}
+
+.sunvoria-button:hover {
+  transform: translateY(-2px);
+}
+
+.sunvoria-button:active { transform: translateY(1px) scale(.99); }
+
+.sunvoria-button--primary {
+  grid-column: 1 / -1;
+  border: 1px solid #e0ac61;
+  background: linear-gradient(115deg, #f4cc76, #f0b56a 65%, #ed9c68);
+  box-shadow: 0 4px 0 #d49355, 0 8px 17px rgba(182, 130, 64, .15), inset 0 1px rgba(255,255,255,.65);
+  color: #5b5337;
+}
+
+.sunvoria-button--primary:hover {
+  background: linear-gradient(115deg, #f8d98b, #f3c079 65%, #efa875);
+  box-shadow: 0 5px 0 #d49355, 0 12px 22px rgba(182, 130, 64, .2), inset 0 1px rgba(255,255,255,.72);
+}
+
+.sunvoria-button__arrow {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(105, 89, 51, .18);
+  border-radius: 10px;
+  background: rgba(255, 250, 222, .38);
+}
+
+.sunvoria-button__arrow svg {
+  width: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.sunvoria-button--secondary {
+  border: 1px solid rgba(75, 130, 113, .2);
+  background: rgba(225, 240, 218, .76);
+  color: #426f62;
+  box-shadow: inset 0 1px rgba(255,255,255,.75);
+}
+
+.sunvoria-button--secondary:hover { background: #edf4db; }
+
+.sunvoria-button__play {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #d2e5ce;
+}
+
+.sunvoria-button__play i {
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid #548878;
+}
+
+.sunvoria-profile-link {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(75, 130, 113, .2);
+  border-radius: 13px;
+  background: rgba(255, 255, 247, .68);
+  color: #64847a;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  transition: transform .18s ease;
+}
+
+.sunvoria-profile-link:hover {
+  transform: translateY(-2px);
+  background: #fffdf1;
+}
+
+.sunvoria-profile-link svg { width: 16px; height: 16px; }
+
+.sunvoria-corner-note {
+  position: absolute;
+  right: max(26px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(56, 97, 83, .63);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.sunvoria-corner-note span {
+  color: #b6784c;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 11px;
+}
+
+.sunvoria-corner-note i {
+  width: 24px;
+  height: 1px;
+  background: rgba(80, 120, 96, .45);
+}
+
+.sunvoria-home button:focus-visible {
+  outline: 3px solid #43877d;
+  outline-offset: 3px;
+}
+
+@keyframes sunvoria-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sunvoria-village-arrive {
+  from { opacity: .7; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (min-width: 1500px) {
+  .sunvoria-world-art { height: 82vh; }
+  .sunvoria-hero__copy { padding-left: 90px; }
+}
+
+@media (max-width: 900px) {
+  .sunvoria-home { padding-inline: max(19px, env(safe-area-inset-left)) max(19px, env(safe-area-inset-right)); }
+  .sunvoria-hero__copy { width: 54%; padding-left: 2vw; }
+  .sunvoria-hero h1 { font-size: clamp(44px, 7.3vw, 66px); }
+  .sunvoria-dock { grid-template-columns: minmax(230px, .85fr) minmax(330px, 1.15fr); gap: 22px; padding-inline: 23px; }
+  .sunvoria-player__copy { max-width: 86px; }
+  .sunvoria-location { right: 2vw; bottom: 20%; }
+}
+
+@media (max-width: 680px) {
+  .sunvoria-home {
+    min-height: 100svh;
+    overflow: auto;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .sunvoria-landscape { position: fixed; }
+  .sunvoria-topbar { min-height: 58px; gap: 8px; }
+  .sunvoria-brand { gap: 7px; }
+  .sunvoria-brand__mark { width: 37px; height: 37px; }
+  .sunvoria-brand__mark svg { width: 22px; height: 22px; }
+  .sunvoria-brand__word strong { font-size: 12px; }
+  .sunvoria-brand__word small { font-size: 6px; }
+  .sunvoria-topbar__right { gap: 6px; }
+  .sunvoria-wallet {
+    min-height: 42px;
+    gap: 8px;
+    padding-inline: 9px;
+  }
+  .sunvoria-wallet__item { gap: 4px; font-size: 10px; }
+  .sunvoria-wallet__divider { height: 15px; }
+  .sunvoria-coin { width: 17px; height: 17px; font-size: 9px; }
+  .sunvoria-coin--gem { font-size: 14px; }
+  .sunvoria-player {
+    width: 48px;
+    min-height: 48px;
+    justify-content: center;
+    padding: 3px;
+  }
+  .sunvoria-player__portrait { width: 32px; height: 32px; }
+  .sunvoria-player__copy,
+  .sunvoria-player__level { display: none; }
+  .sunvoria-icon-button { width: 48px; height: 48px; }
+  .sunvoria-icon-button svg { width: 18px; height: 18px; }
+  .sunvoria-hero {
+    min-height: 380px;
+    align-items: flex-start;
+    flex: 1 0 auto;
+    padding-top: clamp(46px, 10vh, 86px);
+  }
+  .sunvoria-hero__copy {
+    width: min(88%, 440px);
+    padding: 0 0 0 1px;
+  }
+  .sunvoria-overline { margin-bottom: 14px; font-size: 8px; }
+  .sunvoria-hero h1 { font-size: clamp(45px, 12vw, 66px); }
+  .sunvoria-hero__copy > p { max-width: 290px; margin: 16px 0 17px; font-size: 12px; }
+  .sunvoria-welcome { min-height: 34px; font-size: 10px; }
+  .sunvoria-sun { top: 15%; right: -2%; width: 112px; opacity: .9; }
+  .sunvoria-cloud--one { top: 18%; left: 47%; transform: scale(.62); }
+  .sunvoria-cloud--two { top: 39%; right: 0; transform: scale(.48); }
+  .sunvoria-cloud--three { display: none; }
+  .sunvoria-world-art {
+    position: fixed;
+    bottom: 176px;
+    height: 46vh;
+    min-height: 315px;
+    object-position: center bottom;
+  }
+  .sunvoria-location {
+    right: 0;
+    bottom: 17px;
+    gap: 8px;
+    padding: 7px 10px 7px 7px;
+    border-radius: 12px;
+  }
+  .sunvoria-location__pin { width: 30px; height: 30px; border-radius: 9px; }
+  .sunvoria-location small { font-size: 6px; }
+  .sunvoria-location strong { font-size: 11px; }
+  .sunvoria-location__line { width: 14px; margin-left: 0; }
+  .sunvoria-dock {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 17px;
+    margin-top: auto;
+    padding: 15px;
+    border-radius: 19px;
+  }
+  .sunvoria-campaign__seal { width: 38px; height: 38px; }
+  .sunvoria-campaign__title small { font-size: 7px; }
+  .sunvoria-campaign__title h2 { font-size: 16px; }
+  .sunvoria-campaign__percent { font-size: 20px; }
+  .sunvoria-progress { margin-top: 11px; }
+  .sunvoria-actions { gap: 8px; }
+  .sunvoria-button { min-height: 50px; padding-inline: 12px; font-size: 10px; }
+  .sunvoria-button__arrow { width: 30px; height: 30px; }
+  .sunvoria-button--secondary { justify-content: flex-start; }
+  .sunvoria-profile-link { min-height: 50px; }
+  .sunvoria-corner-note { display: none; }
+}
+
+@media (max-width: 370px) {
+  .sunvoria-home { padding-inline: 13px; }
+  .sunvoria-wallet { gap: 6px; padding-inline: 7px; }
+  .sunvoria-wallet__item { font-size: 9px; }
+  .sunvoria-brand__word strong { font-size: 11px; }
+  .sunvoria-actions { grid-template-columns: minmax(0, 1fr) minmax(0, .82fr); }
+  .sunvoria-button { gap: 6px; padding-inline: 9px; font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sunvoria-home *,
+  .sunvoria-home *::before,
+  .sunvoria-home *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
