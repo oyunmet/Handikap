@@ -70,7 +70,8 @@ for (const rigConfig of RIGS) {
     assert.ok(model.getObjectByName("human-detail-faceted-pauldron--1"));
     assert.ok(model.getObjectByName("human-detail-knee-and-shin-guard--1"));
     assert.equal(forearmMount.parent, forearmBone);
-    assert.ok(guard.geometry instanceof THREE.CylinderGeometry);
+    assert.ok(guard.geometry instanceof THREE.BufferGeometry);
+    assert.ok(guard.geometry.getAttribute("position").count >= 40);
 
     model.updateMatrixWorld(true);
     const before = guard.getWorldPosition(new THREE.Vector3());

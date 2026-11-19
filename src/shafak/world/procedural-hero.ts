@@ -1,6 +1,15 @@
 import * as THREE from "three";
 import type { CharacterAnimationState } from "./character-animation";
 import type { EquipmentVisual } from "../game/store-types";
+import {
+  createFacetedArmorPlateGeometry,
+  createFacetedBootGeometry,
+  createFacetedProfileGeometry,
+  createHumanHeadGeometry,
+  createHumanJointGeometry,
+  createHumanLimbGeometry,
+  createHumanTorsoGeometry,
+} from "./human-character-geometry";
 
 const HERO_HEIGHT = 1.7;
 
@@ -145,10 +154,25 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   rig.torso.name = "Torso";
   rig.torso.position.set(0, 0.14, 0);
   rig.hips.add(rig.torso);
-  addBox(rig.hips, [0.34, 0.2, 0.23], dark, [0, 0, 0], rig);
   addMesh(
     rig.hips,
-    new THREE.CylinderGeometry(0.19, 0.195, 0.08, 12),
+    createFacetedProfileGeometry([
+      { y: -0.1, width: 0.12, depth: 0.09 },
+      { y: -0.045, width: 0.17, depth: 0.115 },
+      { y: 0.05, width: 0.18, depth: 0.12 },
+      { y: 0.1, width: 0.13, depth: 0.1 },
+    ], 8),
+    dark,
+    [0, 0, 0],
+    rig,
+  ).name = "hero-shaped-pelvis";
+  addMesh(
+    rig.hips,
+    createFacetedProfileGeometry([
+      { y: 0.005, width: 0.185, depth: 0.12 },
+      { y: 0.035, width: 0.19, depth: 0.123 },
+      { y: 0.075, width: 0.185, depth: 0.12 },
+    ], 12),
     leather,
     [0, 0.04, 0],
     rig,
@@ -163,19 +187,20 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   addBox(rig.hips, [0.14, 0.25, 0.055], cloth, [0, -0.17, 0.12], rig);
   addBox(rig.hips, [0.12, 0.025, 0.02], trim, [0, -0.28, 0.152], rig);
 
-  addBox(rig.torso, [0.43, 0.38, 0.25], cloth, [0, 0.18, 0], rig);
+  const torso = addMesh(rig.torso, createHumanTorsoGeometry(), cloth, [0, 0.18, 0], rig);
+  torso.scale.set(0.215, 0.39, 0.13);
+  torso.name = "hero-anatomical-faceted-torso";
   addBox(rig.torso, [0.36, 0.1, 0.265], clothLight, [0, 0.22, 0.01], rig);
   addBox(rig.torso, [0.3, 0.055, 0.27], trim, [0, 0.015, 0.015], rig);
   addBox(rig.torso, [0.075, 0.18, 0.045], leather, [0, 0.17, 0.137], rig);
   const chestPlate = addMesh(
     rig.torso,
-    new THREE.SphereGeometry(0.19, 10, 7),
+    createFacetedArmorPlateGeometry(0.35, 0.34, 0.035),
     steel,
-    [0, 0.205, 0.119],
+    [0, 0.205, 0.14],
     rig,
   );
   chestPlate.name = "hero-layered-chest-plate";
-  chestPlate.scale.set(0.92, 0.86, 0.37);
   addMesh(
     rig.torso,
     new THREE.OctahedronGeometry(0.063, 0),
@@ -217,12 +242,14 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   rig.head = group(rig.torso, "Head", [0, 0.48, 0]);
   addMesh(
     rig.head,
-    new THREE.CylinderGeometry(0.055, 0.065, 0.12, 8),
+    createHumanLimbGeometry("shin"),
     skin,
     [0, -0.12, 0],
     rig,
-  );
-  addSphere(rig.head, 0.14, skin, [0, 0.01, 0], rig, [0.86, 1.08, 0.88]);
+  ).scale.set(0.052, 0.12, 0.05);
+  const head = addMesh(rig.head, createHumanHeadGeometry(), skin, [0, 0.015, 0], rig);
+  head.scale.set(0.14, 0.29, 0.13);
+  head.name = "hero-faceted-human-head";
   addSphere(rig.head, 0.145, hair, [0, 0.09, -0.014], rig, [0.98, 0.67, 0.98]);
   addSphere(rig.head, 0.07, hair, [0, -0.035, -0.085], rig, [1.6, 1.5, 1.05]);
   addBox(rig.head, [0.16, 0.035, 0.04], hair, [0, 0.102, 0.112], rig);
@@ -258,35 +285,58 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
     thigh.name = side < 0 ? "LeftThigh" : "RightThigh";
     thigh.position.set(side * 0.105, -0.08, 0);
     rig.hips.add(thigh);
-    addMesh(
+    const thighMesh = addMesh(
       thigh,
-      new THREE.CylinderGeometry(0.075, 0.085, 0.31, 7),
+      createHumanLimbGeometry("thigh"),
       dark,
       [0, -0.155, 0],
       rig,
     );
-    addSphere(thigh, 0.082, steel, [0, -0.305, 0], rig, [1, 0.68, 0.9]).name = `hero-knee-cap-${sideName}`;
+    thighMesh.scale.set(0.083, 0.31, 0.075);
+    const kneeCap = addMesh(
+      thigh,
+      createHumanJointGeometry(),
+      leatherLight,
+      [0, -0.305, 0.006],
+      rig,
+    );
+    kneeCap.scale.set(0.065, 0.07, 0.052);
+    kneeCap.name = `hero-knee-cap-${sideName}`;
     knee.name = side < 0 ? "LeftKnee" : "RightKnee";
     knee.position.y = -0.32;
     thigh.add(knee);
-    addMesh(
+    const shin = addMesh(
       knee,
-      new THREE.CylinderGeometry(0.061, 0.07, 0.27, 7),
+      createHumanLimbGeometry("shin"),
       dark,
       [0, -0.13, 0],
       rig,
     );
-    addBox(knee, [0.16, 0.09, 0.16], boot, [0, -0.27, 0.045], rig);
-    addBox(knee, [0.17, 0.065, 0.2], leather, [0, -0.31, 0.075], rig);
+    shin.scale.set(0.066, 0.26, 0.061);
+    const bootShaft = addMesh(
+      knee,
+      createHumanLimbGeometry("shin"),
+      boot,
+      [0, -0.205, 0.012],
+      rig,
+    );
+    bootShaft.scale.set(0.071, 0.17, 0.068);
+    const bootFoot = addMesh(
+      knee,
+      createFacetedBootGeometry(),
+      boot,
+      [0, -0.29, 0.065],
+      rig,
+    );
+    bootFoot.scale.set(0.17, 0.1, 0.23);
     const kneeGuard = addMesh(
       knee,
-      new THREE.SphereGeometry(0.078, 8, 6),
+      createFacetedArmorPlateGeometry(0.15, 0.1, 0.035),
       steel,
-      [0, -0.025, 0.048],
+      [0, -0.015, 0.071],
       rig,
     );
     kneeGuard.name = `hero-articulated-knee-guard-${sideName}`;
-    kneeGuard.scale.set(0.98, 0.78, 0.48);
     addBox(knee, [0.035, 0.11, 0.025], trim, [0, -0.12, 0.097], rig);
     addBox(knee, [0.18, 0.04, 0.17], leatherLight, [0, -0.28, 0.082], rig);
   }
@@ -301,46 +351,58 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
     rig.torso.add(arm);
     const pauldron = addMesh(
       arm,
-      new THREE.DodecahedronGeometry(0.103, 0),
+      createFacetedArmorPlateGeometry(0.23, 0.18, 0.055),
       steel,
-      [side * 0.015, 0.015, 0],
+      [side * 0.015, 0.015, 0.045],
       rig,
     );
     pauldron.name = `hero-layered-pauldron-${sideName}`;
-    pauldron.scale.set(1.2, 0.92, 1.05);
-    addMesh(
+    const shoulderMuscle = addMesh(
       arm,
-      new THREE.SphereGeometry(0.07, 8, 5),
+      createHumanJointGeometry(),
       cloth,
-      [side * 0.015, -0.04, 0.03],
+      [side * 0.015, -0.09, -0.008],
       rig,
-    ).scale.set(1.1, 0.65, 0.9);
+    );
+    shoulderMuscle.scale.set(0.06, 0.13, 0.06);
     addSphere(arm, 0.018, steelEdge, [side * 0.07, 0.036, 0.075], rig);
     addSphere(arm, 0.018, steelEdge, [-side * 0.04, 0.036, 0.075], rig);
-    addMesh(
+    const upperArm = addMesh(
       arm,
-      new THREE.CylinderGeometry(0.075, 0.065, 0.27, 7),
+      createHumanLimbGeometry("upperArm"),
       cloth,
       [0, -0.145, 0],
       rig,
     );
+    upperArm.scale.set(0.078, 0.29, 0.068);
     elbow.name = side < 0 ? "LeftElbow" : "RightElbow";
     elbow.position.y = -0.28;
     arm.add(elbow);
-    addMesh(
+    const elbowJoint = addMesh(
       elbow,
-      new THREE.CylinderGeometry(0.061, 0.055, 0.23, 7),
+      createHumanJointGeometry(),
+      leatherLight,
+      [0, 0, 0],
+      rig,
+    );
+    elbowJoint.scale.set(0.047, 0.052, 0.042);
+    elbowJoint.name = `hero-articulated-elbow-${sideName}`;
+    const forearm = addMesh(
+      elbow,
+      createHumanLimbGeometry("forearm"),
       glove,
       [0, -0.115, 0],
       rig,
     );
+    forearm.scale.set(0.066, 0.23, 0.058);
     const bracer = addMesh(
       elbow,
-      new THREE.CylinderGeometry(0.072, 0.06, 0.18, 8, 1),
+      createHumanLimbGeometry("forearm"),
       steel,
       [0, -0.12, 0.012],
       rig,
     );
+    bracer.scale.set(0.071, 0.18, 0.062);
     bracer.name = `hero-forearm-bracer-${sideName}`;
     const bracerStripe = addBox(elbow, [0.022, 0.14, 0.022], trim, [side * -0.015, -0.12, 0.071], rig);
     bracerStripe.rotation.z = side * 0.08;
@@ -353,8 +415,50 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
     );
     cuff.rotation.x = Math.PI / 2;
     const hand = group(elbow, side < 0 ? "LeftHand" : "RightHand", [0, -0.25, 0]);
-    addSphere(hand, 0.065, glove, [0, -0.025, 0], rig, [0.88, 0.92, 0.8]);
-    addBox(hand, [0.055, 0.035, 0.065], steel, [0, 0.005, 0.025], rig);
+    const palm = addMesh(hand, createHumanJointGeometry(), glove, [0, -0.025, 0], rig);
+    palm.scale.set(0.056, 0.075, 0.045);
+    addMesh(
+      hand,
+      createFacetedArmorPlateGeometry(0.074, 0.052, 0.018),
+      steel,
+      [0, 0.007, 0.039],
+      rig,
+    );
+    for (let finger = 0; finger < 4; finger += 1) {
+      const fingerOffset = (finger - 1.5) * 0.027;
+      const fingerLength = 0.066 - Math.abs(finger - 1.5) * 0.008;
+      const fingerGroup = group(hand, `hero-finger-${sideName}-${finger}`, [
+        fingerOffset,
+        -0.061,
+        0.008,
+      ]);
+      const proximal = addMesh(
+        fingerGroup,
+        createHumanLimbGeometry("finger", 6),
+        glove,
+        [0, -fingerLength * 0.26, 0],
+        rig,
+      );
+      proximal.scale.set(0.012, fingerLength * 0.58, 0.012);
+      const distal = addMesh(
+        fingerGroup,
+        createHumanLimbGeometry("finger", 6),
+        glove,
+        [0, -fingerLength * 0.72, 0.004],
+        rig,
+      );
+      distal.scale.set(0.01, fingerLength * 0.42, 0.01);
+    }
+    const thumb = group(hand, `hero-thumb-${sideName}`, [side * 0.048, -0.018, 0.014]);
+    thumb.rotation.z = -side * 0.64;
+    const thumbSegment = addMesh(
+      thumb,
+      createHumanLimbGeometry("finger", 6),
+      glove,
+      [0, -0.027, 0],
+      rig,
+    );
+    thumbSegment.scale.set(0.014, 0.065, 0.014);
     if (side < 0) {
       rig.leftHand.position.set(0, -0.025, 0.015);
       hand.add(rig.leftHand);

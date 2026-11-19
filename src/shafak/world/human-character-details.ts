@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import type { EquipmentVisual } from "../game/store-types";
+import {
+  createFacetedArmorPlateGeometry,
+  createHumanLimbGeometry,
+} from "./human-character-geometry";
 
 type DetailPalette = Pick<
   EquipmentVisual,
@@ -34,28 +38,6 @@ function findMount(model: THREE.Object3D, aliases: readonly string[]) {
     if (!found && object instanceof THREE.Bone && aliases.includes(object.name)) found = object;
   });
   return found ?? model;
-}
-
-function makeShieldGeometry(width: number, height: number, depth: number) {
-  const shape = new THREE.Shape();
-  shape.moveTo(-width * 0.42, height * 0.5);
-  shape.lineTo(width * 0.42, height * 0.5);
-  shape.lineTo(width * 0.5, height * 0.16);
-  shape.lineTo(width * 0.3, -height * 0.34);
-  shape.lineTo(0, -height * 0.5);
-  shape.lineTo(-width * 0.3, -height * 0.34);
-  shape.lineTo(-width * 0.5, height * 0.16);
-  shape.closePath();
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: true,
-    bevelSegments: 1,
-    bevelSize: Math.min(width, height) * 0.035,
-    bevelThickness: Math.min(depth * 0.24, 0.012),
-    curveSegments: 1,
-  });
-  geometry.computeVertexNormals();
-  return geometry;
 }
 
 function makeMaterial(color: string, metalness: number, roughness: number) {
@@ -153,7 +135,7 @@ export function attachHumanCharacterDetails(
     addMesh(
       torso,
       "human-detail-tapered-chest-plate",
-      makeShieldGeometry(0.38, 0.4, 0.045),
+      createFacetedArmorPlateGeometry(0.38, 0.4, 0.045),
       modelMaterials.metal,
     );
   }
@@ -187,7 +169,7 @@ export function attachHumanCharacterDetails(
       addMesh(
         shoulder,
         `human-detail-faceted-pauldron-${side}`,
-        makeShieldGeometry(0.25, 0.19, 0.04),
+        createFacetedArmorPlateGeometry(0.25, 0.19, 0.04),
         side < 0 ? modelMaterials.armor : modelMaterials.metal,
         [side * 0.025, 0, 0],
         [1.08, 0.82, 1],
@@ -206,15 +188,14 @@ export function attachHumanCharacterDetails(
         `human-detail-forearm-mount-${side}`,
         true,
       );
-      const bracer = new THREE.CylinderGeometry(0.073, 0.09, 0.25, 8, 1);
-      addMesh(
+      const bracer = addMesh(
         forearm,
         `human-detail-articulated-bracer-${side}`,
-        bracer,
+        createHumanLimbGeometry("forearm", 8),
         modelMaterials.metal,
         [0, -0.065, 0],
-        [1, 1, 0.78],
       );
+      bracer.scale.set(0.075, 0.25, 0.062);
     }
   }
 
@@ -232,7 +213,7 @@ export function attachHumanCharacterDetails(
       addMesh(
         shin,
         `human-detail-knee-and-shin-guard-${side}`,
-        makeShieldGeometry(0.19, 0.32, 0.035),
+        createFacetedArmorPlateGeometry(0.19, 0.32, 0.035),
         modelMaterials.armor,
         [0, -0.075, 0],
         [0.78, 1, 0.82],

@@ -6,6 +6,11 @@ import {
   shouldShowWarRoomFirstPersonLegs,
 } from "../game/war-room-first-person-legs.ts";
 import type { WarRoomRuntime } from "../game/war-room-engine.ts";
+import {
+  createFacetedBootGeometry,
+  createHumanJointGeometry,
+  createHumanLimbGeometry,
+} from "./human-character-geometry";
 
 type Props = {
   runtimeRef: MutableRefObject<WarRoomRuntime>;
@@ -35,7 +40,7 @@ function setSegment(
   midpoint.addVectors(start, end).multiplyScalar(0.5);
   mesh.position.copy(midpoint);
   mesh.quaternion.setFromUnitVectors(UP, direction.multiplyScalar(1 / length));
-  mesh.scale.set(radius, length / 3, radius);
+  mesh.scale.set(radius, length, radius);
 }
 
 function setPoint(mesh: THREE.Mesh | null, point: THREE.Vector3, radius: number) {
@@ -64,14 +69,15 @@ export default function WarRoomFirstPersonLegs({
   const leftBootRef = useRef<THREE.Mesh>(null);
   const rightBootRef = useRef<THREE.Mesh>(null);
   const geometry = useMemo(() => ({
-    limb: new THREE.CapsuleGeometry(1, 1, 3, 10),
-    knee: new THREE.DodecahedronGeometry(1, 0),
-    boot: new THREE.BoxGeometry(0.18, 0.12, 0.3, 2, 1, 2),
+    thigh: createHumanLimbGeometry("thigh"),
+    shin: createHumanLimbGeometry("shin"),
+    knee: createHumanJointGeometry(),
+    boot: createFacetedBootGeometry(),
   }), []);
   const materials = useMemo(() => ({
     trousers: new THREE.MeshStandardMaterial({ color: "#65492f", roughness: 0.9 }),
-    knee: new THREE.MeshStandardMaterial({ color: "#c39962", metalness: 0.18, roughness: 0.74, flatShading: true }),
-    boot: new THREE.MeshStandardMaterial({ color: "#8d673e", roughness: 0.84 }),
+    knee: new THREE.MeshStandardMaterial({ color: "#725438", metalness: 0.02, roughness: 0.9, flatShading: true }),
+    boot: new THREE.MeshStandardMaterial({ color: "#765438", roughness: 0.86, flatShading: true }),
   }), []);
   useEffect(() => () => {
     Object.values(geometry).forEach((resource) => resource.dispose());
@@ -124,9 +130,9 @@ export default function WarRoomFirstPersonLegs({
       toCameraLocal(pose.knee, points[1]);
       toCameraLocal(pose.ankle, points[2]);
       toCameraLocal(pose.toe, points[3]);
-      setSegment(thigh, points[0], points[1], 0.11, direction, midpoint);
-      setSegment(shin, points[1], points[2], 0.085, direction, midpoint);
-      setPoint(knee, points[1], 0.08);
+      setSegment(thigh, points[0], points[1], 0.115, direction, midpoint);
+      setSegment(shin, points[1], points[2], 0.088, direction, midpoint);
+      setPoint(knee, points[1], 0.072);
       if (boot) {
         boot.position.copy(points[2]).lerp(points[3], 0.58);
         worldYawQuaternion.setFromAxisAngle(UP, state.yaw);
@@ -139,10 +145,10 @@ export default function WarRoomFirstPersonLegs({
 
   return (
     <group ref={groupRef} name="war-room-first-person-lower-body">
-      <mesh ref={leftThighRef} geometry={geometry.limb} material={materials.trousers} frustumCulled={false} />
-      <mesh ref={rightThighRef} geometry={geometry.limb} material={materials.trousers} frustumCulled={false} />
-      <mesh ref={leftShinRef} geometry={geometry.limb} material={materials.trousers} frustumCulled={false} />
-      <mesh ref={rightShinRef} geometry={geometry.limb} material={materials.trousers} frustumCulled={false} />
+      <mesh ref={leftThighRef} geometry={geometry.thigh} material={materials.trousers} frustumCulled={false} />
+      <mesh ref={rightThighRef} geometry={geometry.thigh} material={materials.trousers} frustumCulled={false} />
+      <mesh ref={leftShinRef} geometry={geometry.shin} material={materials.trousers} frustumCulled={false} />
+      <mesh ref={rightShinRef} geometry={geometry.shin} material={materials.trousers} frustumCulled={false} />
       <mesh ref={leftKneeRef} geometry={geometry.knee} material={materials.knee} frustumCulled={false} />
       <mesh ref={rightKneeRef} geometry={geometry.knee} material={materials.knee} frustumCulled={false} />
       <mesh ref={leftBootRef} geometry={geometry.boot} material={materials.boot} frustumCulled={false} />

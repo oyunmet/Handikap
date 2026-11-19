@@ -7,6 +7,11 @@ import {
   getWarRoomViewModelAimScaleFactor,
   getWarRoomViewModelGripPoints,
 } from "../game/war-room-viewmodel.ts";
+import {
+  createHumanJointGeometry,
+  createHumanLimbGeometry,
+  createHumanPalmGeometry,
+} from "./human-character-geometry";
 
 type Props = {
   animationRef: MutableRefObject<WarRoomArmsAnimation>;
@@ -41,8 +46,7 @@ function placeCapsule(
   mesh.position.copy(midpoint);
   quaternion.setFromUnitVectors(Y_AXIS, direction.multiplyScalar(1 / length));
   mesh.quaternion.copy(quaternion);
-  // The shared capsule geometry is three units long from cap to cap.
-  mesh.scale.set(radius, length / 3, radius);
+  mesh.scale.set(radius, length, radius);
 }
 
 function placeForearm(
@@ -72,8 +76,8 @@ function GripHand({
   mirror,
 }: {
   handRef: MutableRefObject<THREE.Group | null>;
-  palmGeometry: THREE.SphereGeometry;
-  fingerGeometry: THREE.CapsuleGeometry;
+  palmGeometry: THREE.BufferGeometry;
+  fingerGeometry: THREE.BufferGeometry;
   gloveMaterial: THREE.MeshStandardMaterial;
   triggerIndexRef?: MutableRefObject<THREE.Group | null>;
   mirror: boolean;
@@ -86,7 +90,7 @@ function GripHand({
         geometry={palmGeometry}
         material={gloveMaterial}
         position={[0, -0.01, 0]}
-        scale={[0.115, 0.072, 0.14]}
+        scale={[0.11, 0.12, 0.14]}
         frustumCulled={false}
       />
       {fingerOffsets.map((x, index) => (
@@ -138,16 +142,16 @@ export function WarRoomFirstPersonArms({
   const triggerIndexRef = useRef<THREE.Group>(null);
 
   const geometry = useMemo(() => ({
-    limb: new THREE.CapsuleGeometry(1, 1, 3, 10),
-    forearm: new THREE.CylinderGeometry(0.78, 1.12, 1, 8, 1),
-    joint: new THREE.DodecahedronGeometry(1, 0),
-    palm: new THREE.SphereGeometry(1, 10, 7),
-    finger: new THREE.CapsuleGeometry(1, 1, 2, 7),
+    limb: createHumanLimbGeometry("upperArm"),
+    forearm: createHumanLimbGeometry("forearm"),
+    joint: createHumanJointGeometry(),
+    palm: createHumanPalmGeometry(),
+    finger: createHumanLimbGeometry("finger", 6),
     cuff: new THREE.TorusGeometry(0.118, 0.017, 5, 10),
   }), []);
   const material = useMemo(() => ({
     cloth: new THREE.MeshStandardMaterial({ color: "#75583f", roughness: 0.91 }),
-    joint: new THREE.MeshStandardMaterial({ color: "#9f855b", metalness: 0.28, roughness: 0.74, flatShading: true }),
+    joint: new THREE.MeshStandardMaterial({ color: "#624637", metalness: 0.02, roughness: 0.92, flatShading: true }),
     cuff: new THREE.MeshStandardMaterial({ color: "#b18a5e", roughness: 0.76 }),
     glove: new THREE.MeshStandardMaterial({ color: "#8b6347", roughness: 0.88 }),
     seam: new THREE.MeshStandardMaterial({ color: "#c09a6b", roughness: 0.86 }),
