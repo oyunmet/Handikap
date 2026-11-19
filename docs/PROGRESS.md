@@ -39,7 +39,7 @@
 **Vercel derleme teşhisi — 19 Kasım 2026:**
 - Ekli Vercel çıktısında `npm ci` ve Vite build başarılı; hata sonraki dondurulmuş pnpm kurulumunda oluştu.
 - `package.json` içindeki `zustand@^5.1.0`, `pnpm-lock.yaml` kök importer'ında eksikti; kilit dosyası 5.1.0 sürümüyle eşitlendi.
-- `pnpm install --frozen-lockfile --lockfile-only --ignore-scripts` — geçti. Düzeltme henüz yeni Vercel build'inde çalıştırılmadı.
+- `pnpm install --frozen-lockfile --lockfile-only --ignore-scripts` — geçti. Düzeltme `main` dalına gönderildi; bu commit'in Vercel build sonucu henüz doğrulanmadı.
 
 **A2 doğrulama — 19 Kasım 2026:**
 - `npm test` — 801/801 geçti.
@@ -49,20 +49,20 @@
 **Bilinen hatalar ve sonraki aşamalara kalanlar:**
 - Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A3–A7 kapsamındadır.
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
-- Vercel kilit dosyası düzeltildi; canlı build doğrulaması için değişikliğin `main` dalına gönderilip Vercel'de yeniden çalışması gerekiyor.
+- Vercel kilit dosyası düzeltmesi `main` dalına gönderildi; yeni Vercel build sonucuna erişip doğrulayamadım.
 - A3–A7 henüz başlamadı.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
 - Grafit-altın token paleti ortak tema kaynağıdır; aşamalı taşımada yeni sabit renkler eklenmeyecek.
 - Mevcut oyun, Clerk, hesap kayıtları, satın almalar ve sahneler geçiş boyunca korunacak.
-- Sunvoria adı ve mevcut kayıtlar korunacak. Vercel için kilit dosyası düzeltmesi yerelde doğrulandı; production yayını kullanıcı yönetir.
+- Sunvoria adı ve mevcut kayıtlar korunacak. Kilit düzeltmesi GitHub'a gönderildi; Vercel production build sonucu doğrulanmadan başarılı sayılmayacak.
 
 **Eksik asset listesi:**
 - A1 için yeni model veya ses asset'i gerekmiyor.
 - A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-19 23:47 Europe/Istanbul.
+**Son güncelleme:** 2026-11-19 23:50 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 
