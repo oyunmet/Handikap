@@ -93,7 +93,7 @@ export default function SunvoriaHome({
           </span>
           <span className="sunvoria-brand__word">
             <strong>SUNVORIA</strong>
-            <small>YENİ BİR GÜN</small>
+             <small>GÜNEŞLİ MACERA</small>
           </span>
         </div>
 
@@ -130,12 +130,12 @@ export default function SunvoriaHome({
 
       <section className="sunvoria-hero" aria-labelledby="sunvoria-title">
         <div className="sunvoria-hero__copy">
-          <div className="sunvoria-overline"><span /> GÜNEŞİN DOĞDUĞU YER</div>
+          <div className="sunvoria-overline"><span /> AÇIK UFUK</div>
           <h1 id="sunvoria-title">Ufuk seni<br /><em>çağırıyor.</em></h1>
-          <p>Rüzgârı takip et. Sunvoria’nın kapıları bugün senin için açık.</p>
+          <p>Güneşli kıyılar ve keşfedilecek yeni yollar seni bekliyor.</p>
           <div className="sunvoria-welcome">
             <span className="sunvoria-welcome__dot" />
-            <span>Günaydın, <strong>{playerName}</strong></span>
+            <span>Hoş geldin, <strong>{playerName}</strong></span>
           </div>
         </div>
 

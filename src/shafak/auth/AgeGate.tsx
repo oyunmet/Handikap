@@ -9,7 +9,7 @@ export default function AgeGate({ blocked, onChoice }: AgeGateProps) {
   return (
     <main className="age-gate" role="main">
       <section className="age-gate__card" aria-labelledby="age-gate-title">
-        <span className="age-gate__eyebrow">ŞAFAK SAVAŞÇILARI</span>
+        <span className="age-gate__eyebrow">SUNVORIA</span>
         <h1 id="age-gate-title">{blocked ? "Oyuna erişilemiyor" : "Yaşını doğrula"}</h1>
         {blocked ? (
           <p>Bu oyun için en az 13 yaşında olmalısın. Kayıt ve kişisel bilgi girişi kapalıdır.</p>

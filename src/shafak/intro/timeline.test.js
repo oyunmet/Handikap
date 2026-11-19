@@ -6,11 +6,11 @@ import {
   INTRO_EVENT_MS,
 } from "./timeline.ts";
 
-test("ordinary visits always start with the intro while the explicit world debug route remains available", () => {
-  assert.equal(getInitialScreen(""), "intro");
-  assert.equal(getInitialScreen("?introSeen=true"), "intro");
+test("ordinary visits start at the Sunvoria home while the world debug route remains available", () => {
+  assert.equal(getInitialScreen(""), "opening");
+  assert.equal(getInitialScreen("?introSeen=true"), "opening");
   assert.equal(getInitialScreen("?debug=1&scene=world"), "world");
-  assert.equal(getInitialScreen("?debug=1"), "intro");
+  assert.equal(getInitialScreen("?debug=1"), "opening");
 });
 
 test("each readable story line stays visible before the production card, title, and start prompt", () => {

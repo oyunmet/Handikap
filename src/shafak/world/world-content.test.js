@@ -21,7 +21,7 @@ test("seeded chapter content is stable and bosses appear only at campaign milest
   assert.deepEqual(first.rivals.slice(0, 4).map((rival) => rival.name), [
     "Kapı Muhafızı",
     "Demir Yemin",
-    "Kül Okçusu",
+    "Kıyı Okçusu",
     "Gölge Şövalyesi",
   ]);
   assert.deepEqual(first.rivals.slice(0, 4).map((rival) => rival.archetype), WORLD_BOT_PROFILES.slice(0, 4).map((profile) => profile.archetype));

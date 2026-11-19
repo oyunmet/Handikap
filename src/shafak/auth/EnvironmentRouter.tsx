@@ -7,7 +7,7 @@ const ClerkApp = lazy(() => import("./AuthApp"));
 const GuestGame = lazy(() => import("./GuestGame"));
 
 function StartupFallback() {
-  return <div className="entry-loading" role="status">Şafak Savaşçıları hazırlanıyor…</div>;
+  return <div className="entry-loading" role="status">Sunvoria hazırlanıyor…</div>;
 }
 
 function readInitialAgeChoice(): AgeGateChoice {

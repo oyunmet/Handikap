@@ -1,16 +1,16 @@
 {
   "id": "/",
-  "name": "Şafak Savaşçıları",
-  "short_name": "Şafak",
-  "description": "Karanlığın içinden geç, şafağı geri getir.",
+  "name": "Sunvoria",
+  "short_name": "Sunvoria",
+  "description": "Sunvoria’nın güneşli kıyılarını keşfet ve yeni maceralara katıl.",
   "lang": "tr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "theme_color": "#080b12",
-  "background_color": "#080b12",
+  "theme_color": "#d9f2ed",
+  "background_color": "#f3f7e8",
   "categories": ["games", "entertainment"],
   "icons": [
     {

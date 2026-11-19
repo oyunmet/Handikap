@@ -325,7 +325,7 @@ export default function StorePanel({
           <div className="safak-store__titleblock">
             <span className="safak-store__eyebrow">SAHA TEDARİKİ · ENVANTER</span>
             <h2 id="safak-store-title">Donanımını göreve hazırla.</h2>
-            <p id="safak-store-intro">Zırhını tazele, silahını bile; karanlık çökerken hazır ol.</p>
+            <p id="safak-store-intro">Zırhını tazele, silahını bile; yeni yolculuğa hazır ol.</p>
           </div>
           <div className="safak-store__header-side">
             <div className="safak-store__purse" aria-label={`Bakiyeniz: ${numberFormat.format(profile.gold)} altın, ${numberFormat.format(profile.diamonds)} elmas`}>

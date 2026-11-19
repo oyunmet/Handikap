@@ -36,7 +36,7 @@ export const DEFAULT_WEAPON_ID = "weapon_ash_sword";
 
 export const WEAPONS: readonly WeaponDefinition[] = [
   {
-    id: "weapon_ash_sword", name: "Kül Kılıcı", type: "yakın", subtype: "tek elli kılıç",
+    id: "weapon_ash_sword", name: "Güneş Kılıcı", type: "yakın", subtype: "tek elli kılıç",
     rarity: "Sıradan", damage: 10, speed: 1, range: 2.4, durabilityCost: 4, criticalChance: 0.05,
     price: 0, icon: "⚔", animationId: "slash", effectId: "steel-trail",
     description: "Saha görevlerinde kullanılan dengeli, güvenilir kılıç.", summary: "Dengeli · başlangıç silahı",
@@ -123,7 +123,7 @@ export const WEAPONS: readonly WeaponDefinition[] = [
     visual: { weaponStyle: "bow", weaponColor: "#b98a54", trailColor: "#f0cf8a" },
   },
   {
-    id: "weapon_crossbow", name: "Kül Arbaleti", type: "uzak", subtype: "arbalet",
+    id: "weapon_crossbow", name: "Gümüş Arbalet", type: "uzak", subtype: "arbalet",
     rarity: "Epik", damage: 17, speed: 0.68, range: 10, durabilityCost: 3, criticalChance: 0.12,
     price: 840, icon: "⟿", animationId: "crossbow-shot", effectId: "bolt-flash",
     description: "Ağır cıvataları uzak mesafeden güçlü ve isabetli biçimde fırlatır.",

@@ -487,7 +487,7 @@ export default function World3DV2(props: World3DProps) {
   }, [hasDemirTacRival]);
 
   return (
-    <div className="world-three-layer world-3d-layer" aria-label="Kırık Şafak kampanya dünyası">
+    <div className="world-three-layer world-3d-layer" aria-label="Sunvoria oyun dünyası">
       {rendererUnavailable ? (
         <div className="world-three-fallback" role="alert">
           <div className="world-three-fallback__content">
@@ -556,7 +556,7 @@ export default function World3DV2(props: World3DProps) {
             }
           >
             <Suspense fallback={null}>
-              <TimeOfDaySky quality={props.quality} />
+              <TimeOfDaySky quality={props.quality} showSkyShell={false} />
               <WorldRoadEnvironmentLayer
                 motionRef={props.motionRef}
                 weather={props.weatherMode}

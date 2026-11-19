@@ -1,5 +1,5 @@
 const worldText = {
-  brand: "ŞAFAK SAVAŞÇILARI",
+  brand: "SUNVORIA",
   profileName: "Operatör",
   demo: "Yerel demo profili",
   level: "Seviye",

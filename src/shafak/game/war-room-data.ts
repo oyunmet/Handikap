@@ -116,7 +116,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
   },
   {
     id: "crossbow",
-    name: "Kül Arbaleti",
+    name: "Sahil Arbaleti",
     icon: "⟿",
     className: "Sessiz · ağır",
     damage: 74,
@@ -134,7 +134,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
   },
   {
     id: "longbow",
-    name: "Alacakaranlık Yayı",
+    name: "Ufuk Yayı",
     icon: "➶",
     className: "Çekmeli · güçlü",
     damage: 38,
@@ -183,7 +183,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     mount: { position: [0.014, -0.018, -0.024], rotation: [0, 0, 0], scale: 1, gripRatio: 0.25 },
   },
   {
-    id: "melee_staff", name: "Kül Asası", icon: "ϟ", className: "Yakın dövüş · Geniş savuruş",
+    id: "melee_staff", name: "Güneş Asası", icon: "ϟ", className: "Yakın dövüş · Geniş savuruş",
     storeItemId: "war_room_melee_staff", priceGold: 620, rarity: "Nadir",
     damage: 39, fireInterval: 0.66, magazine: 0, reserve: 0, reloadSeconds: 0, recoil: 0, spread: 0, headshotMultiplier: 1, range: 2.3,
     modelFile: "war-room-staff.glb", normalizeLength: 1.5, sourceBounds: [0.235, 1.6, 0.193],
@@ -207,14 +207,14 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     mount: { position: [0.014, -0.018, -0.03], rotation: [0, 0, 0], scale: 1, gripRatio: 0.24 },
   },
   {
-    id: "blaster_a", name: "Kül Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    id: "blaster_a", name: "Sahil Nöbetçisi", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
     rarity: "Sıradan", storeItemId: "war_room_blaster_a", priceGold: 320,
     damage: 18, fireInterval: 0.115, magazine: 30, reserve: 90, reloadSeconds: 1.95, recoil: 0.024, spread: 0.009, headshotMultiplier: 1.8, range: 58,
     modelFile: "blaster-a.glb", sourceBounds: [0.1838, 0.4559, 0.8], normalizeLength: 1,
     automatic: true, color: "#83a7ae", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
   },
   {
-    id: "blaster_b", name: "Kül Kıvılcımı", icon: "⌖", className: "Tabanca", weaponClass: "pistol",
+    id: "blaster_b", name: "Güneş Kıvılcımı", icon: "⌖", className: "Tabanca", weaponClass: "pistol",
     rarity: "Sıradan", storeItemId: "war_room_blaster_b", priceGold: 240,
     damage: 25, fireInterval: 0.31, magazine: 12, reserve: 60, reloadSeconds: 1.45, recoil: 0.043, spread: 0.015, headshotMultiplier: 2, range: 38,
     modelFile: "blaster-b.glb", sourceBounds: [0.155, 0.3105, 0.4201], normalizeLength: 0.25,
@@ -235,7 +235,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     automatic: true, color: "#a5b3b6", mount: { position: [0.02, -0.02, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
   },
   {
-    id: "blaster_e", name: "Uzun Kül Tüfeği", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
+    id: "blaster_e", name: "Uzun Menzilli Tüfek", icon: "⌁", className: "Tüfek", weaponClass: "rifle",
     rarity: "Epik", storeItemId: "war_room_blaster_e", priceGold: 1180,
     damage: 25, fireInterval: 0.24, magazine: 18, reserve: 72, reloadSeconds: 2.3, recoil: 0.044, spread: 0.006, headshotMultiplier: 2.05, range: 82,
     modelFile: "blaster-e.glb", sourceBounds: [0.1664, 0.405, 1.39], normalizeLength: 1,
@@ -277,7 +277,7 @@ export const WAR_ROOM_WEAPONS: readonly WarRoomWeapon[] = [
     color: "#aa9c83", mount: { position: [0.02, -0.022, -0.05], rotation: [0, 0, 0], scale: 1, muzzleEnd: -1 },
   },
   {
-    id: "blaster_k", name: "Kül Cep Tabancası", icon: "⌖", className: "Tabanca", weaponClass: "pistol",
+    id: "blaster_k", name: "Cep Tabancası", icon: "⌖", className: "Tabanca", weaponClass: "pistol",
     rarity: "Sıradan", storeItemId: "war_room_blaster_k", priceGold: 260,
     damage: 23, fireInterval: 0.28, magazine: 14, reserve: 70, reloadSeconds: 1.4, recoil: 0.04, spread: 0.016, headshotMultiplier: 1.95, range: 35,
     modelFile: "blaster-k.glb", sourceBounds: [0.155, 0.3338, 0.4604], normalizeLength: 0.25,

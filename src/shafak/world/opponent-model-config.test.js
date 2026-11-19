@@ -51,7 +51,7 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   const frostSeal = getWorldRivalProfile(4, 1);
   const ironCrown = getWorldRivalProfile(4, 4);
 
-  assert.deepEqual([ashSentinel.name, ashSentinel.title], ["Kül Gezgini", "NÖBETÇİ"]);
+  assert.deepEqual([ashSentinel.name, ashSentinel.title], ["Yol Gezgini", "NÖBETÇİ"]);
   assert.deepEqual([purpleDagger.name, purpleDagger.title], ["Mor Hançer", "YEMİNLİ SAVAŞÇI"]);
   assert.deepEqual([crimsonCloak.name, crimsonCloak.title], ["Kızıl Pelerin", "ZEHİR SUİKASTÇİSİ"]);
   assert.deepEqual([frostSeal.name, frostSeal.title], ["Taş Mühür", "AYAZ AVCISI"]);

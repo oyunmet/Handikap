@@ -21,7 +21,7 @@ type IntroEventTimes = {
 
 export function getInitialScreen(search = typeof window === "undefined" ? "" : window.location.search) {
   const query = new URLSearchParams(search);
-  return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "intro";
+  return query.get("debug") === "1" && query.get("scene") === "world" ? "world" : "opening";
 }
 
 export function getIntroEventTimes(reducedMotion = false) {

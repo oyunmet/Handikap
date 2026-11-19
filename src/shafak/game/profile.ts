@@ -228,7 +228,7 @@ export function awardBattle(profile: PlayerProfile, outcome: BattleOutcome, user
   const xp = outcome.verdict === "victory" ? 58 : outcome.verdict === "draw" ? 35 : 27;
   const sealFragments = outcome.verdict === "victory" && outcome.isBoss ? 1 : 0;
   const droppedItem = outcome.verdict === "victory"
-    ? outcome.item === undefined ? "Kül Mührü" : outcome.item
+    ? outcome.item === undefined ? "Yemin Mührü" : outcome.item
     : null;
   const lootGrant = droppedItem ? grantLootItem(base, droppedItem) : null;
   const grantProfile = lootGrant?.profile ?? base;

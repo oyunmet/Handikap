@@ -706,6 +706,14 @@
   letter-spacing: .16em;
 }
 
+.sunvoria-build-stamp {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 4;
+  color: rgba(39, 78, 69, .52);
+}
+
 .sunvoria-corner-note span {
   color: #b6784c;
   font-family: var(--font-display, Georgia, serif);

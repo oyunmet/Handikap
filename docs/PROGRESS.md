@@ -277,3 +277,17 @@ sonraki dilim olarak kaldı.
   iPhone Safari/WebGL dövüş sahnesi ve Vercel'de sonuç kaydı doğrulanmadı.
 - Kullanıcı Vercel'e push/deploy yapacağından bu kaynaklar yayınlanmak üzere
   bırakıldı; bu oturumda push veya deploy yapılmadı.
+
+## Sunvoria açılışı ve aydınlık sahne — 19 Kasım 2026
+
+- Kullanıcı Sunvoria adını kabul etti; açılış ve ana menü artık aynı güneşli
+  Sunvoria ekranını kullanıyor. Eski marka metinleri görünür arayüzden kaldırıldı;
+  kayıt/API uyumluluğu için sabit iç kimlikler değiştirilmedi.
+- Dünya ve düello sahnelerinde kameraya bağlı gökyüzü küresi kapatıldı. Sahne
+  arka planı gökyüzü dokusu olarak kalıyor; gündüz renkleri, bulutlar ve güneş
+  daha belirgin. Düello arka planına da görünür güneş eklendi.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (790 test), `npm run build`
+  ve `git diff --check` geçti.
+- Önizleme ekran görüntüsü yaş doğrulama kartında durdu; bu oturumda yaş onayı
+  verilmedi, ana ekran ve 3D oyun görüntüsü görsel olarak doğrulanmadı. Clerk,
+  Vercel yayını, push ve deploy değiştirilmedi.

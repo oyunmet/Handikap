@@ -167,7 +167,7 @@ function SignInPage() {
       <div className="auth-page__backdrop" aria-hidden="true" />
       <Link className="auth-page__brand" href="/">
         <img src={`${basePath}/logo.svg`} alt="" />
-        <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
+        <span><strong>SUN</strong><small>VORIA</small></span>
       </Link>
       <section className="auth-page__pitch">
         <span>OYUNCU HESABI</span>
@@ -200,7 +200,7 @@ function SignUpPage() {
       <div className="auth-page__backdrop" aria-hidden="true" />
       <Link className="auth-page__brand" href="/">
         <img src={`${basePath}/logo.svg`} alt="" />
-        <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
+        <span><strong>SUN</strong><small>VORIA</small></span>
       </Link>
       <section className="auth-page__pitch">
         <span>YENİ OPERATÖR</span>

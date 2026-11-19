@@ -129,7 +129,7 @@ const ROOM_DEFINITIONS: readonly WarRoomRoomDefinition[] = [
   },
   {
     id: "ember-gate",
-    name: "Kül Köyü",
+    name: "Kıyı Köyü",
     layoutName: "Kor içindeki doğu geçidi",
     quarterTurns: 1,
     coverOffset: [0, 0],

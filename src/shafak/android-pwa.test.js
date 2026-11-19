@@ -11,7 +11,7 @@ test("PWA manifest has installable Turkish TWA metadata and local icons", () => 
   );
 
   assert.equal(manifest.id, "/");
-  assert.equal(manifest.name, "Şafak Savaşçıları");
+  assert.equal(manifest.name, "Sunvoria");
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
   assert.equal(manifest.display, "standalone");

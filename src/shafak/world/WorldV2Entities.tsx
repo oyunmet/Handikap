@@ -36,7 +36,7 @@ const PICKUP_COLORS: Record<WorldPickup["kind"], string> = {
 const NPC_TINTS: Record<string, string> = {
   "Mor Hançer": "#8055c8",
   "Kızıl Pelerin": "#b64740",
-  "Kül Gezgini": "#969492",
+  "Yol Gezgini": "#969492",
 };
 
 const CITY_NPC_ACCESSORIES: readonly CityNpcAccessory[] = [

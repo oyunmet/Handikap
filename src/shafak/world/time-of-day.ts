@@ -56,12 +56,12 @@ export function getTimeOfDayTwilight(phase: number): number {
   return Math.max(sunset, dawn);
 }
 
-export function getTimeOfDayLabel(phase: number): "GÜNDÜZ" | "GÜN BATIMI" | "GECE" | "ŞAFAK" {
+export function getTimeOfDayLabel(phase: number): "GÜNDÜZ" | "GÜN BATIMI" | "GECE" {
   const wrapped = ((phase % 1) + 1) % 1;
   if (wrapped < 0.25) return "GÜNDÜZ";
   if (wrapped < 0.5) return "GÜN BATIMI";
   if (wrapped < 0.75) return "GECE";
-  return "ŞAFAK";
+  return "GÜNDÜZ";
 }
 
 export function getTimeOfDayLightingState(phase: number) {

@@ -278,7 +278,7 @@ export default function CityHub({
         <div className="city-hub__brand">
           <span className="city-hub__crest" aria-hidden="true">✦</span>
           <div>
-            <p>KIRIK ŞAFAK · YAŞAYAN MERKEZ</p>
+            <p>SUNVORIA · YAŞAYAN MERKEZ</p>
             <h1>{CAMPAIGN_NARRATIVE.cityName}</h1>
           </div>
         </div>

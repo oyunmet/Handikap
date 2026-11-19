@@ -105,9 +105,10 @@ type LightSnapshot = {
 
 type Props = {
   quality: RenderQuality;
+  showSkyShell?: boolean;
 };
 
-export default function TimeOfDaySky({ quality }: Props) {
+export default function TimeOfDaySky({ quality, showSkyShell = true }: Props) {
   const { camera, scene } = useThree();
   const skyRef = useRef<THREE.Mesh>(null);
   const starsRef = useRef<THREE.Points>(null);
@@ -262,11 +263,15 @@ export default function TimeOfDaySky({ quality }: Props) {
 
   return (
     <>
-      <mesh ref={skyRef} name="shared-time-of-day-sky" frustumCulled={false} renderOrder={-1000}>
-        <sphereGeometry args={[300, 24, 16]} />
-        <primitive object={skyMaterial} attach="material" dispose={null} />
-      </mesh>
-      <points ref={starsRef} name="shared-time-of-day-stars" geometry={starGeometry} material={starMaterial} frustumCulled={false} renderOrder={-999} />
+      {showSkyShell && (
+        <>
+          <mesh ref={skyRef} name="shared-time-of-day-sky" frustumCulled={false} renderOrder={-1000}>
+            <sphereGeometry args={[300, 24, 16]} />
+            <primitive object={skyMaterial} attach="material" dispose={null} />
+          </mesh>
+          <points ref={starsRef} name="shared-time-of-day-stars" geometry={starGeometry} material={starMaterial} frustumCulled={false} renderOrder={-999} />
+        </>
+      )}
       {debugEnabled && (
         <Html fullscreen>
           <div

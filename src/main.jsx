@@ -117,7 +117,7 @@ function ApplicationEntry() {
     <React.Suspense
       fallback={
         <main className="entry-loading" role="status" aria-busy="true">
-          Şafak Savaşçıları hazırlanıyor…
+          Sunvoria hazırlanıyor…
         </main>
       }
     >

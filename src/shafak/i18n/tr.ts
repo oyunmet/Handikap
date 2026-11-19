@@ -1,9 +1,9 @@
 import { CAMPAIGN_COPY } from "./campaign-copy.ts";
 
 export const tr = {
-  brand: "ŞAFAK SAVAŞÇILARI",
-  tagline: "Dokuz operasyon. Tek hedef: sivilleri güvenle tahliye etmek.",
-  openingKicker: "KUZGUN HATTI · OPERASYON 1",
+  brand: "SUNVORIA",
+  tagline: "Güneşli sahilleri keşfet, yeni maceralara katıl.",
+  openingKicker: "SUNVORIA · MACERA BAŞLIYOR",
   openingDescription: CAMPAIGN_COPY.openingDescription,
   start: "BAŞLA",
   loadingTitle: "SAHA HAZIRLANIYOR",

@@ -124,7 +124,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
   return (
     <section
       className={`intro-cinematic${reducedMotion ? " intro-cinematic--reduced" : ""}`}
-      aria-label="Şafak Savaşçıları açılış sinematiği"
+      aria-label="Sunvoria açılış sinematiği"
     >
       <div className={`intro-world${worldRevealed ? " is-revealed" : ""}`} aria-hidden="true">
         <IntroWorld reducedMotion={reducedMotion} />
@@ -202,7 +202,7 @@ export default function IntroCinematic({ reducedMotion, quality, onComplete }: I
               />
               <div className="intro-narrative__wordmark">
                 <h1 className="intro-narrative__title">
-                  <span>ŞAFAK</span>
+                  <span>SUNVORIA</span>
                   <span>SAVAŞÇILARI</span>
                 </h1>
                 <p className="intro-narrative__tagline">{CAMPAIGN_COPY.introTagline}</p>

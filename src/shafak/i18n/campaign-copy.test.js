@@ -65,7 +65,7 @@ test("the nine operation stories share the rescue plot and avoid retired fantasy
   const story = visibleStory.join("\n");
   assert.match(CAMPAIGN_NARRATIVE.opening, /Kuzgun Timi/);
   assert.match(CAMPAIGN_NARRATIVE.opening, /Alaz/);
-  assert.match(CAMPAIGN_NARRATIVE.opening, /Şafak İletişim Ağı/);
+  assert.match(CAMPAIGN_NARRATIVE.opening, /Sunvoria Yardım Ağı/);
   assert.match(story, /Demir Taç/);
   assert.match(story, /tahliye/i);
   assert.doesNotMatch(

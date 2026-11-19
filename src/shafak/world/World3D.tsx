@@ -2181,13 +2181,14 @@ function DuelArenaAtmosphere({ theme }: { theme: DuelArenaTheme }) {
     const width = 256;
     const height = 128;
     const pixels = new Uint8Array(width * height * 4);
-    const zenith = new THREE.Color(theme.background).lerp(new THREE.Color("#192c40"), 0.46);
-    const horizon = new THREE.Color(theme.background)
-      .lerp(new THREE.Color("#d5a982"), 0.48)
-      .lerp(new THREE.Color(theme.accent), 0.12);
-    const cloud = new THREE.Color(theme.accent).lerp(new THREE.Color("#d7c4ae"), 0.55);
+    const zenith = new THREE.Color("#348ec7").lerp(new THREE.Color(theme.background), 0.08);
+    const horizon = new THREE.Color("#d3edf0").lerp(new THREE.Color(theme.accent), 0.06);
+    const cloud = new THREE.Color("#fffdf5").lerp(new THREE.Color(theme.accent), 0.08);
+    const sunGlow = new THREE.Color("#ffdb91");
+    const sunCore = new THREE.Color("#fff8dc");
     const color = new THREE.Color();
     const srgb = new THREE.Color();
+    const sunLongitude = Math.PI * 0.48;
     for (let y = 0; y < height; y += 1) {
       const latitude = Math.abs(y / (height - 1) - 0.5) * 2;
       const skyMix = THREE.MathUtils.smoothstep(latitude, 0.04, 0.94);
@@ -2200,7 +2201,16 @@ function DuelArenaAtmosphere({ theme }: { theme: DuelArenaTheme }) {
           0.53,
           0.82,
         );
-        color.copy(rowColor).lerp(cloud, wisps * 0.13);
+        const longitudeDelta = Math.min(
+          Math.abs(u - sunLongitude),
+          Math.PI * 2 - Math.abs(u - sunLongitude),
+        );
+        const haloDistance = (longitudeDelta / 0.19) ** 2 + ((latitude - 0.2) / 0.12) ** 2;
+        const discDistance = (longitudeDelta / 0.028) ** 2 + ((latitude - 0.2) / 0.035) ** 2;
+        color.copy(rowColor)
+          .lerp(sunGlow, Math.exp(-haloDistance) * 0.42)
+          .lerp(sunCore, Math.exp(-discDistance) * 0.88)
+          .lerp(cloud, wisps * 0.32);
         srgb.copy(color).convertLinearToSRGB();
         const pixel = (y * width + x) * 4;
         pixels[pixel] = Math.round(THREE.MathUtils.clamp(srgb.r, 0, 1) * 255);
@@ -2802,7 +2812,7 @@ function SceneContents({
           <directionalLight position={[9, 8, -7]} color="#91cde0" intensity={0.72} />
         </group>
       )}
-      <TimeOfDaySky quality={quality} />
+      <TimeOfDaySky quality={quality} showSkyShell={false} />
       {!combatActive && <WorldRoadEntities
         motionRef={motionRef}
         dialoguePortal={dialoguePortal}
@@ -2983,7 +2993,7 @@ export default function World3D(props: World3DProps) {
   }, [canvasAttempt, webglAvailable]);
 
   return (
-    <div className="world-three-layer" aria-label="Kırık Şafak kampanya dünyası">
+    <div className="world-three-layer" aria-label="Sunvoria oyun dünyası">
       {webglAvailable === null ? (
         <div className="world-three-loading" role="status">3D sahne hazırlanıyor…</div>
       ) : webglAvailable ? (

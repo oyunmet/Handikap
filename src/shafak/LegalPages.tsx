@@ -12,7 +12,7 @@ const CONFIRMATION_TEXT = "HESABIMI SİL";
 function usePageTitle(title: string) {
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = `${title} · Şafak Savaşçıları`;
+    document.title = `${title} · Sunvoria`;
     return () => {
       document.title = previousTitle;
     };
@@ -24,7 +24,7 @@ function LegalHeader() {
     <header className="legal-page__header">
       <a className="legal-page__brand" href={APP_HOME}>
         <img src={`${BASE_PATH}/logo.svg`} alt="" />
-        <span><strong>ŞAFAK</strong><small>SAVAŞÇILARI</small></span>
+        <span><strong>SUN</strong><small>VORIA</small></span>
       </a>
       <a className="legal-page__home" href={APP_HOME}>Oyuna dön</a>
     </header>
@@ -48,11 +48,11 @@ export function PrivacyPage() {
       <article className="legal-page__card">
         <LegalHeader />
         <div className="legal-page__content">
-          <span className="legal-page__eyebrow">ŞAFAK SAVAŞÇILARI</span>
+          <span className="legal-page__eyebrow">SUNVORIA</span>
           <h1>Gizlilik bildirimi</h1>
           <p className="legal-page__updated">Son güncelleme: 14 Kasım 2026</p>
           <p>
-            Bu bildirim, Şafak Savaşçıları web ve Android sürümlerinde hangi
+            Bu bildirim, Sunvoria web ve Android sürümlerinde hangi
             bilgilerin kullanıldığını ve hesabını nasıl silebileceğini açıklar.
           </p>
 
@@ -130,7 +130,7 @@ export function PrivacyPage() {
 
           <h2>English</h2>
           <p>
-            This notice covers the Şafak Savaşçıları web and Android game.
+            This notice covers the Sunvoria web and Android game.
             Account authentication is provided by Clerk; game progress and
             rewards are stored in PostgreSQL and hosted through Vercel. The game
             may store local settings and a minimal age-gate decision in this

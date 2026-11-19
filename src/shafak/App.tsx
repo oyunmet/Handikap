@@ -31,7 +31,7 @@ import { DEFAULT_MUSIC_VOLUME, DEFAULT_SOUND_VOLUME, normalizeAudioVolume } from
 import IntroCinematic from "./intro/IntroCinematic";
 import MetEmblem from "./intro/MetEmblem";
 import { getInitialScreen } from "./intro/timeline";
-import { CAMPAIGN_COPY } from "./i18n/campaign-copy.ts";
+import SunvoriaHome from "./sunvoria-design/SunvoriaHome";
 import { tr } from "./i18n/tr";
 import EmberLayer from "./scene/EmberLayer";
 import ProfilePanel from "./game/ProfilePanel";
@@ -49,8 +49,6 @@ import { getEquipmentVisual } from "./game/store-utils";
 import { STORE_CATALOG } from "./game/store-catalog";
 import type { WorldProgressPosition } from "./world/world-progress";
 import {
-  CAMPAIGN_ACT_COUNT,
-  CAMPAIGN_LEVEL_COUNT,
   getCampaignProgressFromDistance,
   isCampaignComplete,
   resetCampaignProgressForNewGamePlus,
@@ -60,8 +58,8 @@ import {
   loadCampaignLevelData,
   type CampaignActData,
 } from "./world/campaign-level-data";
-import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import { adService } from "./ads/AdService";
+import { GAME_BUILD_DATE, GAME_BUILD_MARKER } from "./build-info";
 import {
   AUTO_QUALITY_DOWN_FPS,
   AUTO_QUALITY_INITIAL_SAMPLE_MS,
@@ -480,7 +478,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   backUiStateRef.current = { settingsOpen, profileOpen, warRoomControlsEditorOpen };
   const systemReducedMotion = useReducedMotion();
   const motionReduced = preferences.reduceMotion || Boolean(systemReducedMotion);
-  const homeAtmosphere = screen === "opening" || screen === "loading" || screen === "menu";
+  const homeScreen = screen === "opening" || screen === "menu";
+  const homeAtmosphere = screen === "loading";
   const [automaticQuality, setAutomaticQuality] = useState<RenderQuality>(() => {
     if (typeof navigator === "undefined") return "balanced";
     const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
@@ -775,9 +774,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     begin("city-hub");
   };
 
-  const replayIntro = () => {
+  const returnHome = () => {
     setSettingsOpen(false);
-    setScreen("intro");
+    setScreen("opening");
   };
 
   const enterWorld = async (
@@ -1202,11 +1201,11 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             />
           </motion.section>
         )}
-        {screen === "opening" && (
+        {homeScreen && (
           <motion.section
-            key="opening"
+            key={screen}
             className="screen screen--opening"
-            aria-label={tr.openingKicker}
+            aria-label="Sunvoria"
             initial={{ opacity: 0, scale: motionReduced ? 1 : 1.025 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{
@@ -1215,35 +1214,21 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
             }}
             transition={{ duration: transitionDuration, ease: "easeInOut" }}
           >
-            <div className="opening-vignette" aria-hidden="true" />
-            <motion.div
-              className="opening-copy"
-              initial={{ opacity: 0, y: motionReduced ? 0 : 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: motionReduced ? 0.3 : 0.85, delay: motionReduced ? 0 : 0.18 }}
-            >
-              <div className="crest-lockup crest-lockup--opening">
-                <span className="crest-halo" aria-hidden="true" />
-                <Crest />
-              </div>
-              <p className="eyebrow">{tr.openingKicker}</p>
-              <h1 className="brand-title">
-                <span>Şafak</span>
-                <span>Savaşçıları</span>
-              </h1>
-              <p className="opening-description">{tr.openingDescription}</p>
-              <button className="gold-button gold-button--opening" onClick={() => begin()} type="button">
-                <span>{tr.start}</span>
-                <ArrowIcon />
-              </button>
-              <span className="opening-subnote">Şehrin kapıları açılıyor</span>
-            </motion.div>
-            <div className="opening-bottom-mark">
-              <span />
-              <span>ŞAFAK SAVAŞÇILARI</span>
-              <span />
-            </div>
-            <ProductionCredit />
+            <SunvoriaHome
+              playerName={profile.name}
+              level={profile.level}
+              gold={profile.gold}
+              diamonds={profile.diamonds}
+              campaignProgressPercent={menuCampaignProgress.campaignProgressPercent}
+              campaignActName={currentMenuAct?.name ?? menuCampaignProgress.region.name}
+              onEnterCityHub={enterCityHub}
+              onContinue={() => { void enterWorld(null, "city-hub"); }}
+              onOpenProfile={() => setProfileOpen(true)}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+            <small className="game-build-stamp sunvoria-build-stamp">
+              {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
+            </small>
           </motion.section>
         )}
 
@@ -1286,180 +1271,6 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           </motion.section>
         )}
 
-        {screen === "menu" && (
-          <motion.section
-            key="menu"
-            className="screen screen--menu"
-            aria-label={tr.brand}
-            initial={{ opacity: 0, scale: motionReduced ? 1 : 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: motionReduced ? 1 : 1.025 }}
-            transition={{ duration: transitionDuration, ease: "easeOut" }}
-          >
-            <header className="menu-header">
-              <button
-                className="mini-brand"
-                type="button"
-                aria-label={`${tr.brand} ana menü`}
-                onClick={() => {
-                  playFeedback();
-                  setScreen("opening");
-                }}
-              >
-                <Crest small />
-                <span>
-                  <strong>ŞAFAK</strong>
-                  <small>SAVAŞÇILARI</small>
-                </span>
-              </button>
-              <div className="menu-player-status" aria-label={`${profile.name}, seviye ${profile.level}`}>
-                <span className="menu-player-status__level" aria-hidden="true">
-                  <i>✦</i><b>{profile.level}</b>
-                </span>
-                <span className="menu-player-status__name">
-                  <strong>{profile.name}</strong>
-                  <small>SEVİYE {profile.level}</small>
-                </span>
-                <span className="menu-resource-chip" aria-label={`${profile.gold} altın`}>
-                  <i aria-hidden="true">◉</i>{profile.gold.toLocaleString("tr-TR")}
-                </span>
-                <span className="menu-resource-chip" aria-label={`${profile.diamonds} elmas`}>
-                  <i aria-hidden="true">◇</i>{profile.diamonds.toLocaleString("tr-TR")}
-                </span>
-              </div>
-              <div className="menu-tools">
-                <button
-                  className={`icon-control${preferences.sound ? "" : " is-off"}`}
-                  type="button"
-                  aria-label={preferences.sound ? tr.soundOn : tr.soundOff}
-                  title={preferences.sound ? tr.soundOn : tr.soundOff}
-                  aria-pressed={preferences.sound}
-                  onClick={() => {
-                    const next = !preferences.sound;
-                    setPreference("sound", next);
-                    setSoundEnabled(next);
-                    if (next) playUiChime();
-                  }}
-                >
-                  <SoundIcon muted={!preferences.sound} />
-                </button>
-                <button
-                  className={`icon-control${preferences.vibration ? "" : " is-off"}`}
-                  type="button"
-                  aria-label={preferences.vibration ? tr.vibrationOn : tr.vibrationOff}
-                  title={preferences.vibration ? tr.vibrationOn : tr.vibrationOff}
-                  aria-pressed={preferences.vibration}
-                  onClick={() => {
-                    const next = !preferences.vibration;
-                    setPreference("vibration", next);
-                    if (next && "vibrate" in navigator) navigator.vibrate(16);
-                  }}
-                >
-                  <VibrationIcon muted={!preferences.vibration} />
-                </button>
-                <button
-                  className="icon-control icon-control--settings"
-                  type="button"
-                  aria-label={tr.openSettings}
-                  title={tr.openSettings}
-                  onClick={() => {
-                    playFeedback();
-                    setSettingsOpen(true);
-                  }}
-                >
-                  <SettingsIcon />
-                </button>
-              </div>
-            </header>
-
-            <div className="menu-content">
-              <motion.div
-                className="menu-copy"
-                initial={{ opacity: 0, x: motionReduced ? 0 : -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: motionReduced ? 0.2 : 0.65, delay: motionReduced ? 0 : 0.16 }}
-              >
-                <div className="menu-divider">
-                  <span />
-                  <span>{CAMPAIGN_COPY.menuKicker}</span>
-                  <span />
-                </div>
-                <h1>Şehrinden başla. Hikâyeni sürdür.</h1>
-                <p>{CAMPAIGN_COPY.menuDescription}</p>
-                <div className="campaign-menu-progress">
-                  <div className="campaign-menu-progress__labels">
-                    <span>OPERASYON {menuCampaignProgress.actNumber} / {CAMPAIGN_ACT_COUNT}</span>
-                    <strong>BÖLÜM {menuCampaignProgress.levelNumber} / {CAMPAIGN_LEVEL_COUNT}</strong>
-                  </div>
-                  <b>{currentMenuAct?.name ?? menuCampaignProgress.region.name}</b>
-                  <small className="campaign-menu-progress__story" aria-live="polite">
-                    {currentMenuAct?.storySummary
-                      ?? (menuCampaignActLoadError ? "Bu operasyonun kaydı yüklenemedi. Yeniden deneyebilirsin." : "Operasyon özeti hazırlanıyor…")}
-                  </small>
-                  <div
-                    className="campaign-menu-progress__track"
-                    role="progressbar"
-                    aria-label="Kampanya ilerlemesi"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(menuCampaignProgress.campaignProgressPercent)}
-                  >
-                    <i style={{ width: `${menuCampaignProgress.campaignProgressPercent}%` }} />
-                  </div>
-                  <small>{Math.floor(menuCampaignProgress.campaignProgressPercent)}% · dokuz istihbarat dosyası</small>
-                </div>
-                <div className="menu-actions">
-                  <button
-                    className="menu-action menu-action--primary"
-                    type="button"
-                    onClick={enterCityHub}
-                  >
-                    <span className="menu-action__icon"><ArrowIcon /></span>
-                    <span>ŞEHİR MERKEZİNE GİR</span>
-                    <ArrowIcon />
-                  </button>
-                  <button
-                    className="menu-action menu-action--secondary"
-                    type="button"
-                    onClick={() => { void enterWorld(null, "city-hub"); }}
-                  >
-                    <span>SEFERE DEVAM ET · BÖLÜM {menuCampaignProgress.levelNumber}</span>
-                  </button>
-                  <button
-                    className="menu-action menu-action--secondary"
-                    type="button"
-                    onClick={() => {
-                      playFeedback();
-                      setProfileOpen(true);
-                    }}
-                  >
-                    OPERATÖR PROFİLİ
-                  </button>
-                </div>
-              </motion.div>
-              <aside className="menu-flow-card" aria-label="Oyunun akışı">
-                <span className="menu-flow-card__eyebrow">KUZGUN HATTI · OPERASYON BRİFİNGİ</span>
-                <h2>Dokuz operasyon. Tek tahliye hattı.</h2>
-                <ol>
-                  <li><b>01</b><span>Üste görevini seç.</span></li>
-                  <li><b>02</b><span>Sahada ilerle, Taç Birliği'nin birimlerini aş.</span></li>
-                  <li><b>03</b><span>Ödülünü al, güçlen ve şehre dön.</span></li>
-                </ol>
-                <p>Arena ve hayatta kalma sınavları şehir kapılarında.</p>
-              </aside>
-            </div>
-
-            <footer className="menu-footer">
-              <span className="footer-sigil" aria-hidden="true">✦</span>
-              <span>{tr.tagline}</span>
-              <span className="footer-sigil" aria-hidden="true">✦</span>
-              <small className="game-build-stamp">
-                {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
-              </small>
-            </footer>
-            <ProductionCredit />
-          </motion.section>
-        )}
         {screen === "city-hub" && (
           <motion.div
             key="city-hub"
@@ -1916,15 +1727,15 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 />
                 <div className="setting-row">
                   <span className="setting-row__copy">
-                    <strong>Açılış sinematiği</strong>
-                    <small>Kırık Şafak'ın açılış bölümünü yeniden izle.</small>
+                    <strong>Ana ekran</strong>
+                    <small>Sunvoria’nın aydınlık başlangıç ekranına dön.</small>
                   </span>
                   <button
                     className="setting-action--intro"
                     type="button"
-                    onClick={replayIntro}
+                    onClick={returnHome}
                   >
-                    İntro’yu tekrar izle
+                    Ana ekrana dön
                   </button>
                 </div>
                 <SettingToggle

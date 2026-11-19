@@ -17,36 +17,36 @@ export type WorldBotProfile = {
 };
 
 const WORLD_RIVAL_NAMES = [
-  "Kapı Muhafızı", "Demir Yemin", "Kül Okçusu", "Gölge Şövalyesi",
-  "Kızıl Hisar", "Bozkır Yeminlisi", "Kül İzci", "Sessiz Gölge",
+  "Kapı Muhafızı", "Demir Yemin", "Kıyı Okçusu", "Gölge Şövalyesi",
+  "Kızıl Hisar", "Bozkır Yeminlisi", "Kıyı İzci", "Sessiz Gölge",
   "Taş Nöbetçi", "Kara Kılıç", "Duman Avcısı", "Gece Nöbetçisi",
   "Kalkanlı Aras", "Çelik Ant", "Yitik İzci", "Karanlık Miğfer",
-  "Kızıl Pelerin", "Taş Mühür", "Kül Gezgini", "Mor Hançer",
+  "Kızıl Pelerin", "Taş Mühür", "Yol Gezgini", "Mor Hançer",
   "Kuzey Kapısı", "Demir Pençe", "Uzak Atıcı", "Gece Kargası",
   "Geçit Bekçisi", "Bakır Yemin", "Kırık Yay", "Sessiz Cellat",
   "Karanlık Sancak", "Yitik Şövalye", "Kor İzci", "Ayaz Gölgesi",
   "Son Kale Bekçisi", "Ateş Yemini", "Sis Avcısı", "Ay Işığı Kılıcı",
-  "Gümüş Kapı", "Kara Kalkan", "Kül Muhafızı", "Dilsiz Nöbetçi",
+  "Gümüş Kapı", "Kara Kalkan", "Günışığı Muhafızı", "Dilsiz Nöbetçi",
   "Uçurum Bekçisi", "Yitik Ant", "Sessiz Okçu", "Gece Savaşçısı",
-  "Kızıl Mızrak", "Donmuş Yemin", "Kül Pençesi", "Solgun Kılıç",
+  "Kızıl Mızrak", "Donmuş Yemin", "Kıyı Pençesi", "Solgun Kılıç",
 ] as const;
 
 const RIVAL_TITLES = [
   "NÖBETÇİ",
   "YEMİNLİ SAVAŞÇI",
-  "KÜL GEZGİNİ",
+  "YOL GEZGİNİ",
   "GÖLGE SAVAŞÇISI",
   "FIRTINA MIZRAKÇISI",
   "YARIK BERSERKERİ",
-  "KÜL SİMYACISI",
+  "KIYI SİMYACISI",
   "ZEHİR SUİKASTÇİSİ",
   "AYAZ AVCISI",
 ] as const;
 
 const CHAPTER_BOSS_NAMES = [
-  "Kül Tahtı", "Kızıl Hükümdar", "Karanlık Mareşal", "Yarık Efendisi",
+  "Son Hükümdar", "Kızıl Hükümdar", "Karanlık Mareşal", "Yarık Efendisi",
   "Demir Taç", "Ateş Muhafızı", "Gece İmparatoru", "Kırık Kral",
-  "Ayaz Hanı", "Sis Komutanı", "Son Yemin", "Şafak Celladı",
+  "Ayaz Hanı", "Sis Komutanı", "Son Yemin", "Son Muhafız",
 ] as const;
 
 const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
@@ -91,7 +91,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
     taunt: "Yeminim demiri bile senden önce eğdirir.",
   },
   {
-    name: "Kül Okçusu",
+    name: "Kıyı Okçusu",
     archetype: "ash-archer",
     weapon: "bow",
     difficulty: "medium",
@@ -128,7 +128,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
       weaponColor: "#bda9ec",
       auraColor: "#9d85e7",
     },
-    taunt: "Gölgem seni buldu; şafak seni kurtaramaz.",
+    taunt: "Gölgeni aştın; şimdi meydan senin.",
   },
   {
     name: "Fırtına Mızrakçısı",
@@ -171,7 +171,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
     taunt: "Bir darbe yeter; gerisi taşların işi.",
   },
   {
-    name: "Kül Simyacısı",
+    name: "Kıyı Simyacısı",
     archetype: "ember-alchemist",
     weapon: "mace",
     difficulty: "medium",
@@ -188,7 +188,7 @@ const WORLD_ARCHETYPE_PROFILES: readonly Omit<WorldBotProfile, "title">[] = [
       weaponColor: "#ffb35c",
       auraColor: "#ff793d",
     },
-    taunt: "Külün altında hâlâ yanan bir şey var.",
+    taunt: "Her yolun sonunda yeni bir fırsat var.",
   },
   {
     name: "Zehir Suikastçısı",
@@ -238,7 +238,7 @@ export const WORLD_BOT_PROFILES: readonly WorldBotProfile[] = WORLD_ARCHETYPE_PR
 }));
 
 const CHAPTER_BOSS_PROFILE: Omit<WorldBotProfile, "title"> = {
-  name: "Kül Tahtı",
+  name: "Son Hükümdar",
   archetype: "chapter-boss",
   weapon: "greatsword",
   difficulty: "hard",
