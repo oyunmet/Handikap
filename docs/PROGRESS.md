@@ -1,5 +1,45 @@
 # İlerleme notu
 
+## Yeni mimari çalışması — 19 Kasım 2026
+
+**Oyun adı:** Sunvoria; ekli yönergedeki çelişkili yeniden adlandırma maddesi uygulanmayacak.
+
+**Aşamalar:** A1 Core + tema + tek kabuk — sürüyor. A2 Hub dünyası + karakter — bekliyor. A3 Sefer/koşu — bekliyor. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+
+**Şu an yapılan iş:** Mevcut özellikleri koruyarak ortak oyun çekirdeği, token teması ve tek uygulama kabuğu A1 altında hazırlanıyor.
+
+**Sıradaki 3 adım:**
+1. Mevcut sahne döngüsü, giriş, kamera ve asset yüklemeyi ortak çekirdek sınırlarına taşı.
+2. Zustand tabanlı durum ve tek kabuk/Canvas geçişini ekle; mevcut modları silme.
+3. A1'i typecheck, test ve üretim build'i ile doğrula; sonucu kaydet.
+
+**Mevcut temel (koddan doğrulandı):**
+- `package.json` — Vite, React, Three.js, Howler ve Zustand bağımlılıkları mevcut.
+- `tsconfig.json` — strict TypeScript açık.
+- `src/shafak/tokens.css` — mevcut görsel tokenların başlangıç noktası.
+- `src/shafak/App.tsx` — modlar arası SPA geçişleri mevcut.
+- Başlangıç doğrulaması: `npm run typecheck` ve `npm run build` geçti.
+- `AGENTS.md` — bu repo için kalıcı çalışma kuralları eklendi.
+
+**Bilinen hatalar ve yarım kalanlar:**
+- Dünya, şehir merkezi, düello/war room ve önizleme bileşenleri ayrı `<Canvas>` örnekleri açıyor; tek Canvas'a taşınmadılar.
+- Zustand paketi kurulu, ancak uygulamada ortak Zustand store henüz kullanılmıyor.
+- Döngü, giriş ve kamera mantığı sahne/bileşenlere dağılmış.
+- Mevcut sunucu/API ve hesap özellikleri var; statik Vercel hedefinde bunları koruyan geçiş tasarımı henüz yapılmadı.
+- Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
+
+**Alınan kararlar:**
+- Ürün adı Sunvoria olarak kalacak; ekli metindeki Kül ve Şafak adlandırması başlık talimatıyla çeliştiği için yok sayılıyor.
+- Bu yeni mimari yönergesindeki grafit-altın token paleti hedef alınacak; renkler bileşenlere sabit yazılmayacak.
+- A1 dışında kalan modlar sonraki aşamalara taşınacak; geçiş boyunca mevcut oyun, Clerk, hesap kayıtları ve satın alma davranışları korunacak.
+- Bu aşama dışında yayınlama yapılmayacak; GitHub push yalnızca açıkça istenen bu çalışma yönergesine göre ilerleyecek.
+
+**Eksik asset listesi:**
+- A1 için yeni model veya ses asset'i gerekmiyor.
+- Mevcut `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` korunuyor; gerekli tüm karakter animasyon klipleri ve sonraki aşamaların ses ihtiyaçları henüz denetlenmedi.
+
+**Son güncelleme:** 2026-11-19 21:44 Europe/Istanbul.
+
 ## Aşama 1 — Performans ve akıcılık
 
 **Durum:** Kod çalışmaları tamamlandı. Gerçek iPhone Safari kabul ölçümü henüz

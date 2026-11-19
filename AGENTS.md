@@ -1,0 +1,19 @@
+# Sunvoria project guide
+- Read `docs/PROGRESS.md` at the start of every session; compare it with the code and continue from verified state.
+- Keep the game title **Sunvoria**. Do not rename the game or restore the conflicting title in the attached brief.
+- Turkish is the player-facing language; write code, identifiers, and comments in English.
+- Target stack: Vite, strict TypeScript, React, Three.js, Zustand, and Howler; `npm run build` must produce `dist/`.
+- Target source areas: `src/core`, `src/world`, `src/modes`, `src/ui`, `src/state`, `src/data`, and `src/styles`.
+- Use one app shell and one shared game canvas; switch modes without page reloads.
+- Centralize colors, type, spacing, borders, shadows, and motion in design tokens; use the premium graphite-and-gold palette from the current brief.
+- Do not introduce green, blue, or purple into the product UI palette.
+- Use a fixed-timestep loop with clamped delta, reusable buffers, and mobile-aware adaptive quality.
+- Load skinned humanoid GLB characters and animations; never replace a character with primitive geometry.
+- Lazy-load Draco/meshopt assets and report real loading progress.
+- Keep touch, keyboard, safe-area, and reduced-motion behavior usable on iOS Safari and Android Chrome.
+- Persist through versioned storage and recover safely from invalid data.
+- Preserve existing gameplay, accounts, Clerk behavior, server APIs, saves, and purchases while migrating; do not silently delete data or features.
+- Work through A1–A7 in order; finish and verify one phase before stopping for the user's next-step decision.
+- Before each phase, update `docs/PROGRESS.md`; record meaningful changes and test results there.
+- Validate with the relevant tests, `npm run typecheck`, `npm run build`, and `git diff --check`.
+- Do not deploy. Push only when the current user request explicitly asks for a GitHub push.
