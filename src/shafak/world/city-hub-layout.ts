@@ -2,6 +2,8 @@ export type CityDoorId = "campaign" | "war-room" | "survival" | "daily";
 export type CityPosition = { x: number; z: number };
 export type CityInput = { x: number; z: number };
 export type CityJoystickBounds = Pick<DOMRect, "left" | "top" | "width" | "height">;
+export type CityJoystickAnchor = { x: number; y: number };
+export type CityJoystickPlacement = { anchor: CityJoystickAnchor; bounds: CityJoystickBounds };
 export type CityStreetSide = "east" | "west" | "north" | "south";
 export type CityMissionMode = "raid" | "survival" | "daily";
 
@@ -91,6 +93,28 @@ export const CITY_DOOR_INTERACTION_RANGE = 2.25;
 export const CITY_COLLISION_MARGIN = 0.55;
 export const CITY_JOYSTICK_DEAD_ZONE = 0.12;
 export const CITY_JOYSTICK_TRAVEL_RATIO = 0.25;
+export const CITY_JOYSTICK_SIZE = 116;
+
+export function placeCityJoystick(
+  clientX: number,
+  clientY: number,
+  zone: CityJoystickBounds,
+): CityJoystickPlacement {
+  const halfSize = CITY_JOYSTICK_SIZE / 2;
+  const maxX = Math.max(halfSize, zone.width - halfSize);
+  const maxY = Math.max(halfSize, zone.height - halfSize);
+  const centerX = Math.max(halfSize, Math.min(maxX, clientX - zone.left));
+  const centerY = Math.max(halfSize, Math.min(maxY, clientY - zone.top));
+  return {
+    anchor: { x: centerX, y: centerY },
+    bounds: {
+      left: zone.left + centerX - halfSize,
+      top: zone.top + centerY - halfSize,
+      width: CITY_JOYSTICK_SIZE,
+      height: CITY_JOYSTICK_SIZE,
+    },
+  };
+}
 
 export function readCityJoystick(
   clientX: number,

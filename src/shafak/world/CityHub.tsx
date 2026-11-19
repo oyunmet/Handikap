@@ -3,12 +3,15 @@ import CityHubScene from "./CityHubScene";
 import {
   CITY_DOORS,
   CITY_JOYSTICK_TRAVEL_RATIO,
+  CITY_JOYSTICK_SIZE,
   CITY_START_POSITION,
+  placeCityJoystick,
   readCityJoystick,
   type CityMissionMode,
   type CityDoor,
   type CityDoorId,
   type CityInput,
+  type CityJoystickBounds,
   type CityPosition,
 } from "./city-hub-layout";
 import {
@@ -38,6 +41,7 @@ type CityHubProps = {
 
 type JoystickPosition = { x: number; z: number };
 type CameraPointerGesture = { pointerId: number; x: number; y: number };
+type JoystickAnchor = { x: number; y: number };
 
 const clampAxis = (value: number) => Math.max(-1, Math.min(1, value));
 
@@ -60,12 +64,19 @@ export default function CityHub({
   const inputRef = useRef<CityInput>({ x: 0, z: 0 });
   const keysRef = useRef(new Set<string>());
   const joystickRef = useRef<JoystickPosition>({ x: 0, z: 0 });
+  const joystickBoundsRef = useRef<CityJoystickBounds>({
+    left: 0,
+    top: 0,
+    width: CITY_JOYSTICK_SIZE,
+    height: CITY_JOYSTICK_SIZE,
+  });
   const cameraControlRef = useRef<CityCameraControl>({ yaw: 0, pitch: 0 });
   const cameraPointerRef = useRef<CameraPointerGesture | null>(null);
   const joystickKnobRef = useRef<HTMLElement>(null);
   const activeDoorIdRef = useRef<CityDoorId | null>(null);
   const joystickPointerRef = useRef<number | null>(null);
   const [activeDoor, setActiveDoor] = useState<CityDoor | null>(null);
+  const [joystickAnchor, setJoystickAnchor] = useState<JoystickAnchor | null>(null);
 
   const updateInput = useCallback(() => {
     const keys = keysRef.current;
@@ -126,6 +137,7 @@ export default function CityHub({
       joystickPointerRef.current = null;
       cameraPointerRef.current = null;
       joystickRef.current = { x: 0, z: 0 };
+      setJoystickAnchor(null);
       if (joystickKnobRef.current) joystickKnobRef.current.style.transform = "translate(-50%, -50%)";
       updateInput();
     };
@@ -133,6 +145,7 @@ export default function CityHub({
       if (joystickPointerRef.current === event.pointerId) {
         joystickPointerRef.current = null;
         joystickRef.current = { x: 0, z: 0 };
+        setJoystickAnchor(null);
         if (joystickKnobRef.current) joystickKnobRef.current.style.transform = "translate(-50%, -50%)";
         updateInput();
       }
@@ -158,11 +171,11 @@ export default function CityHub({
   }, [enterDoor, onExit, updateInput]);
 
   const updateJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const reading = readCityJoystick(event.clientX, event.clientY, rect);
+    const bounds = joystickBoundsRef.current;
+    const reading = readCityJoystick(event.clientX, event.clientY, bounds);
     joystickRef.current = reading;
     if (joystickKnobRef.current) {
-      const travel = Math.min(rect.width, rect.height) * CITY_JOYSTICK_TRAVEL_RATIO;
+      const travel = Math.min(bounds.width, bounds.height) * CITY_JOYSTICK_TRAVEL_RATIO;
       joystickKnobRef.current.style.transform = (
         `translate(calc(-50% + ${reading.x * travel}px), calc(-50% + ${reading.z * travel}px))`
       );
@@ -174,6 +187,10 @@ export default function CityHub({
     if (joystickPointerRef.current !== null) return;
     event.preventDefault();
     joystickPointerRef.current = event.pointerId;
+    const zone = event.currentTarget.getBoundingClientRect();
+    const placement = placeCityJoystick(event.clientX, event.clientY, zone);
+    joystickBoundsRef.current = placement.bounds;
+    setJoystickAnchor(placement.anchor);
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -191,6 +208,7 @@ export default function CityHub({
     if (joystickPointerRef.current !== event.pointerId) return;
     joystickPointerRef.current = null;
     joystickRef.current = { x: 0, z: 0 };
+    setJoystickAnchor(null);
     if (joystickKnobRef.current) joystickKnobRef.current.style.transform = "translate(-50%, -50%)";
     updateInput();
   };
@@ -335,8 +353,8 @@ export default function CityHub({
       </aside>
 
       <div
-        className="city-hub__joystick"
-        aria-label="Yürüyüş kontrolü"
+        className="city-hub__joystick-zone"
+        aria-label="Sol ekranda dokunup sürükleyerek yürü"
         role="application"
         onPointerDown={handleJoystickPointerDown}
         onPointerMove={handleJoystickPointerMove}
@@ -344,22 +362,35 @@ export default function CityHub({
         onPointerCancel={releaseJoystick}
         onLostPointerCapture={releaseJoystick}
       >
-        <span className="city-hub__joystick-arrow city-hub__joystick-arrow--up">▲</span>
-        <span className="city-hub__joystick-arrow city-hub__joystick-arrow--down">▼</span>
-        <span className="city-hub__joystick-arrow city-hub__joystick-arrow--left">◀</span>
-        <span className="city-hub__joystick-arrow city-hub__joystick-arrow--right">▶</span>
-        <i
-          ref={joystickKnobRef}
-          className="city-hub__joystick-knob"
-          style={{ transform: "translate(-50%, -50%)" }}
-        />
+        <div
+          className="city-hub__joystick"
+          aria-hidden="true"
+          style={joystickAnchor
+            ? {
+              left: joystickAnchor.x,
+              top: joystickAnchor.y,
+              bottom: "auto",
+              transform: "translate(-50%, -50%)",
+            }
+            : undefined}
+        >
+          <span className="city-hub__joystick-arrow city-hub__joystick-arrow--up">▲</span>
+          <span className="city-hub__joystick-arrow city-hub__joystick-arrow--down">▼</span>
+          <span className="city-hub__joystick-arrow city-hub__joystick-arrow--left">◀</span>
+          <span className="city-hub__joystick-arrow city-hub__joystick-arrow--right">▶</span>
+          <i
+            ref={joystickKnobRef}
+            className="city-hub__joystick-knob"
+            style={{ transform: "translate(-50%, -50%)" }}
+          />
+        </div>
       </div>
 
       <div className="city-hub__controls-hint" aria-hidden="true">
         <kbd>W A S D</kbd><span>veya ok tuşları</span><b>·</b><kbd>E</kbd><span>kapıda etkileşim</span>
       </div>
       <p className="city-hub__screen-reader-help">
-        Masaüstünde W, A, S, D veya ok tuşlarıyla; telefonda sol alttaki kontrolle dört yönde yürü.
+        Masaüstünde W, A, S, D veya ok tuşlarıyla; telefonda ekranın sol tarafına dokunup sürükleyerek dört yönde yürü.
         Kamerayı sahnenin sağ tarafından sürükleyerek çevir.
         Yakındaki bir kapı için E tuşunu veya giriş düğmesini kullan.
       </p>

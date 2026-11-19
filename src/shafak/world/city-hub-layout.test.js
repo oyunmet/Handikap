@@ -7,9 +7,11 @@ import {
   CITY_START_POSITION,
   findNearbyCityDoor,
   getCityGroundHeight,
+  placeCityJoystick,
   readCityJoystick,
   stepCityPosition,
 } from "./city-hub-layout.ts";
+import { getCityMovementInput } from "./city-hub-controls.ts";
 
 test("the city has a separate entrance for each existing activity", () => {
   assert.deepEqual(
@@ -48,6 +50,35 @@ test("the city touch joystick maps finger movement to the matching world directi
   assert.ok(readCityJoystick(center.x - 50, center.y, bounds).x < 0, "left moves left");
   assert.ok(readCityJoystick(center.x + 50, center.y, bounds).x > 0, "right moves right");
   assert.deepEqual(readCityJoystick(Number.NaN, center.y, bounds), { x: 0, z: 0 });
+});
+
+test("the floating city joystick follows the touch point and supports all four directions", () => {
+  const zone = { left: 0, top: 0, width: 235, height: 850 };
+  const placement = placeCityJoystick(110, 410, zone);
+  assert.deepEqual(placement.anchor, { x: 110, y: 410 });
+  assert.deepEqual(placement.bounds, { left: 52, top: 352, width: 116, height: 116 });
+
+  const center = { x: 110, y: 410 };
+  const directions = [
+    { name: "forward", dx: 0, dy: -29, x: 0, z: -1 },
+    { name: "backward", dx: 0, dy: 29, x: 0, z: 1 },
+    { name: "left", dx: -29, dy: 0, x: -1, z: 0 },
+    { name: "right", dx: 29, dy: 0, x: 1, z: 0 },
+  ];
+  for (const direction of directions) {
+    const stick = readCityJoystick(center.x + direction.dx, center.y + direction.dy, placement.bounds);
+    const input = getCityMovementInput(stick, 0);
+    const next = stepCityPosition(CITY_START_POSITION, input, 0.05);
+    assert.equal(Math.sign(next.x), direction.x, `${direction.name} horizontal travel`);
+    assert.equal(Math.sign(next.z), direction.z, `${direction.name} vertical travel`);
+  }
+});
+
+test("the floating city joystick stays on-screen when touched at the edge", () => {
+  const placement = placeCityJoystick(-10, 900, { left: 0, top: 0, width: 235, height: 850 });
+  assert.deepEqual(placement.anchor, { x: 58, y: 792 });
+  assert.ok(placement.bounds.left >= 0);
+  assert.ok(placement.bounds.top + placement.bounds.height <= 850);
 });
 
 test("the city joystick has a dead zone and uses the full visible stick travel", () => {
