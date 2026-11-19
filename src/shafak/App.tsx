@@ -47,6 +47,9 @@ import type { CombatDifficulty } from "./game/combat-engine.ts";
 import type { StoreTab } from "./game/store-types.ts";
 import { getEquipmentVisual } from "./game/store-utils";
 import { STORE_CATALOG } from "./game/store-catalog";
+import { GameShell } from "../ui/GameShell";
+import { useGameRuntimeStore } from "../state/game-store";
+import { modeFromLegacyScreen } from "../modes/mode";
 import type { WorldProgressPosition } from "./world/world-progress";
 import {
   getCampaignProgressFromDistance,
@@ -450,6 +453,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     [getToken, handleApiUnauthorized],
   );
   const [screen, setScreen] = useState<Screen>(() => resolveInitialScreen());
+  const setRuntimeMode = useGameRuntimeStore((state) => state.setMode);
   const [loadingDestination, setLoadingDestination] = useState<"menu" | "city-hub">("menu");
   const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world" | "city-hub">("menu");
   const [warRoomInitialMode, setWarRoomInitialMode] = useState<WarRoomModeId>("raid");
@@ -468,6 +472,9 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [warRoomDebugEnabled, setWarRoomDebugEnabled] = useState(readWarRoomDebugEnabled);
   const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
+  useEffect(() => {
+    setRuntimeMode(modeFromLegacyScreen(screen));
+  }, [screen, setRuntimeMode]);
   const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
   const [profileSyncOwner, setProfileSyncOwner] = useState("");
   const [profileSyncStatus, setProfileSyncStatus] = useState<"loading" | "ready" | "local">("loading");
@@ -1161,7 +1168,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const transitionDuration = motionReduced ? 0.16 : 0.68;
 
   return (
-    <div
+    <GameShell
       role="application"
       className={`shafak-app${motionReduced ? " motion-reduced" : ""}`}
       data-visual-effects={preferences.visualEffects}
@@ -1774,7 +1781,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </GameShell>
   );
 }
 

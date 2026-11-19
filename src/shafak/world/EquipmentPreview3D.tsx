@@ -1,4 +1,5 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+import { GameCanvas } from "../../ui/GameCanvasHost";
 import { OrbitControls, useProgress } from "@react-three/drei";
 import {
   Suspense,
@@ -435,7 +436,9 @@ export default function EquipmentPreview3D({
           <span>Önizleme hazırlanıyor</span>
         </div>
       )}
-      <Canvas
+      <GameCanvas
+        priority={100}
+        sceneId="equipment-preview"
         dpr={[1, EQUIPMENT_PREVIEW_MAX_DPR]}
         frameloop={isVisible ? "always" : "never"}
         camera={{ position: [0, 1.7, 5], fov: 38 }}
@@ -503,7 +506,7 @@ export default function EquipmentPreview3D({
           autoRotate
           autoRotateSpeed={0.32}
         />
-      </Canvas>
+      </GameCanvas>
     </div>
   );
 }

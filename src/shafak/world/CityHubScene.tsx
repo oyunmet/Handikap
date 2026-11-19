@@ -1,5 +1,6 @@
 import { Html, Sky } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
+import { GameCanvas } from "../../ui/GameCanvasHost";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { createWorldMotion, type WorldMotion } from "./movement";
@@ -560,8 +561,9 @@ export default function CityHubScene(props: CityHubSceneProps) {
 
   return (
     <>
-      <Canvas
+      <GameCanvas
         className={props.className}
+        sceneId="hub"
         shadows
         dpr={props.pixelRatio ?? 1}
         camera={{ position: [2.6, 5.2, 7.2], fov: 49, near: 0.1, far: 110 }}
@@ -573,7 +575,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
         }}
       >
         <CityWorld {...props} heroAsset={heroAsset} residentAssets={residentAssets} />
-      </Canvas>
+      </GameCanvas>
       {!heroAsset && !modelLoadFailed && (
         <div className="city-hub__model-loading" role="status">
           KAHRAMAN SAHNEYE ALINIYOR

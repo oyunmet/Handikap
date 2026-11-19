@@ -5,36 +5,36 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  color: #264740;
+  color: var(--palette-text);
   background:
-    radial-gradient(circle at 78% 16%, rgb(255 227 143 / 72%), transparent 14%),
-    radial-gradient(ellipse at 18% 92%, rgb(95 167 143 / 26%), transparent 46%),
-    linear-gradient(145deg, #d9f1eb, #fff4d8 53%, #c5e4d6);
+    radial-gradient(circle at 78% 16%, rgb(201 162 75 / 18%), transparent 16%),
+    radial-gradient(ellipse at 18% 92%, rgb(201 162 75 / 8%), transparent 46%),
+    linear-gradient(145deg, #14161a, #1e2126 53%, #191b20);
 }
 
 .age-gate__card {
   width: min(100%, 440px);
   padding: clamp(24px, 6vw, 38px);
-  border: 1px solid rgb(82 143 125 / 34%);
-  border-radius: 18px;
-  background: rgb(255 255 250 / 86%);
-  box-shadow: 0 24px 80px rgb(40 93 78 / 18%);
+  border: 1px solid rgb(201 162 75 / 28%);
+  border-radius: var(--radius-panel);
+  background: rgb(30 33 38 / 94%);
+  box-shadow: var(--shadow-deep), var(--shadow-gold);
 }
 
 .age-gate__eyebrow {
-  color: #3f8871;
+  color: var(--palette-accent-bright);
   font-size: 11px;
   letter-spacing: .18em;
 }
 
 .age-gate__card h1 {
   margin: 14px 0 8px;
-  color: #265d52;
+  color: var(--palette-text);
   font-size: clamp(25px, 7vw, 34px);
 }
 
 .age-gate__card p {
-  color: #607d73;
+  color: var(--palette-neutral);
   line-height: 1.6;
 }
 
@@ -46,20 +46,20 @@
 
 .age-gate__actions button {
   min-height: 48px;
-  border: 1px solid #6ca78f;
-  border-radius: 12px;
-  color: #1f4e42;
-  background: linear-gradient(120deg, #c5e18c, #84c3a1);
+  border: 1px solid var(--palette-accent);
+  border-radius: var(--radius-control);
+  color: var(--palette-background);
+  background: linear-gradient(120deg, var(--palette-accent-bright), var(--palette-accent));
   font: inherit;
   font-weight: 700;
 }
 
 .age-gate__actions button + button {
-  border-color: #c8d9ce;
-  color: #4e6e63;
-  background: #f7faf5;
+  border-color: var(--palette-border);
+  color: var(--palette-text);
+  background: var(--palette-panel);
 }
 
 .age-gate__card a {
-  color: #337661;
+  color: var(--palette-accent-bright);
 }

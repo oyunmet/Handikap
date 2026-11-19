@@ -1,5 +1,6 @@
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+import { GameCanvas } from "../../ui/GameCanvasHost";
 import { useAnimations, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import {
@@ -121,7 +122,9 @@ export default function PrincessModelReveal({
   return (
     <div className="princess-model-reveal" aria-hidden="true">
       <PrincessCanvasBoundary onFailure={onFailure}>
-        <Canvas
+        <GameCanvas
+          priority={100}
+          sceneId="character-preview"
           camera={{ position: [0, 1.02, 3.1], fov: 34 }}
           dpr={1}
           gl={{ alpha: true, antialias: true, powerPreference: "low-power" }}
@@ -134,7 +137,7 @@ export default function PrincessModelReveal({
           <Suspense fallback={null}>
             <PrincessModel mood={mood} onReady={onReady} onFailure={onFailure} />
           </Suspense>
-        </Canvas>
+        </GameCanvas>
       </PrincessCanvasBoundary>
     </div>
   );

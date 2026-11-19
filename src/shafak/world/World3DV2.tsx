@@ -1,4 +1,5 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+import { GameCanvas } from "../../ui/GameCanvasHost";
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import * as THREE from "three";
@@ -507,8 +508,11 @@ export default function World3DV2(props: World3DProps) {
             </div>
           }
         >
-          <Canvas
+          <GameCanvas
+            interactive
             key={canvasAttempt}
+            resetKey={canvasAttempt}
+            sceneId="campaign"
             dpr={renderPixelRatio}
             shadows={enableWorldShadows}
             camera={{
@@ -624,8 +628,8 @@ export default function World3DV2(props: World3DProps) {
               />
             )}
             {debug && <WorldV2Diagnostics enabled={debug} onUpdate={setDebugSnapshot} />}
-            <WorldBlackFrameProbe onBlackFrame={recoverWorld3D} manualRender />
-          </Canvas>
+            <WorldBlackFrameProbe onBlackFrame={recoverWorld3D} manualRender={false} />
+          </GameCanvas>
         </WorldV2CanvasErrorBoundary>
       )}
       {assetError && (

@@ -1,6 +1,7 @@
 import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+import { GameCanvas } from "../../ui/GameCanvasHost";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
@@ -3001,7 +3002,10 @@ export default function World3D(props: World3DProps) {
           key={canvasAttempt}
           fallback={fallback}
         >
-          <Canvas
+          <GameCanvas
+            interactive
+            resetKey={canvasAttempt}
+            sceneId="campaign"
             dpr={[minDpr, maxDpr]}
             shadows={shouldEnableWorldShadows(rendererQuality, touchRenderer)}
             camera={{
@@ -3056,9 +3060,9 @@ export default function World3D(props: World3DProps) {
             />
             <WorldBlackFrameProbe
               onBlackFrame={recoverFromBlackFrame}
-              manualRender
+              manualRender={false}
             />
-          </Canvas>
+          </GameCanvas>
         </WorldCanvasErrorBoundary>
       ) : (
         fallback

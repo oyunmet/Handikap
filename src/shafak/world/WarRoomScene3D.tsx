@@ -1,4 +1,5 @@
-import { Canvas, createPortal, useFrame, useThree } from "@react-three/fiber";
+import { createPortal, useFrame, useThree } from "@react-three/fiber";
+import { GameCanvas } from "../../ui/GameCanvasHost";
 import {
   Suspense,
   useCallback,
@@ -5523,8 +5524,10 @@ export default memo(function WarRoomScene3D(props: Props) {
         onRetry={retryCanvas}
         onError={pauseForCanvasRecovery}
       >
-        <Canvas
+        <GameCanvas
           key={canvasGeneration}
+          resetKey={canvasGeneration}
+          sceneId="war-room"
           resize={{ debounce: { resize: 150, scroll: 150 } }}
           dpr={canvasPixelRatio}
           frameloop="always"
@@ -5557,7 +5560,7 @@ export default memo(function WarRoomScene3D(props: Props) {
             {...runtimeProps}
             quality={effectiveQuality}
           />
-        </Canvas>
+        </GameCanvas>
       </WarRoomSceneErrorBoundary>
       {!warmupComplete && !contextLost && (
         <div
