@@ -1,5 +1,6 @@
 import { moveWarRoomEntity, WAR_ROOM_PLAYER_COLLISION_RADIUS } from "./war-room-engine";
 import type { WarRoomBlocker } from "./war-room-data";
+import type { FixedStepResult } from "../../core/fixed-step-loop";
 
 export const WAR_ROOM_FIXED_STEP_SECONDS = 1 / 60;
 export const WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME = 3;
@@ -7,6 +8,7 @@ const WAR_ROOM_TELEPORT_RESET_DISTANCE = 1.25;
 
 export type WarRoomMovementClock = {
   accumulator: number;
+  runtimeAlpha: number;
   previousX: number;
   previousZ: number;
   currentX: number;
@@ -40,6 +42,7 @@ export type WarRoomFixedMovementResult = {
 export function createWarRoomMovementClock(x = 0, z = 0): WarRoomMovementClock {
   return {
     accumulator: 0,
+    runtimeAlpha: 0,
     previousX: x,
     previousZ: z,
     currentX: x,
@@ -108,4 +111,22 @@ export function advanceWarRoomFixedMovement(
     interpolation,
     steps,
   };
+}
+
+export function advanceWarRoomFixedMovementFromFrame(
+  clock: WarRoomMovementClock,
+  input: Omit<WarRoomFixedMovementInput, "delta">,
+  frame: Readonly<Pick<FixedStepResult, "steps" | "alpha" | "droppedSeconds">>,
+  timeScale = 1,
+): WarRoomFixedMovementResult {
+  const frameAlpha = Number.isFinite(frame.alpha) ? Math.max(0, Math.min(1, frame.alpha)) : 0;
+  const elapsedSteps = Number.isFinite(frame.steps) ? Math.max(0, frame.steps) : 0;
+  const elapsedFrames = elapsedSteps + frameAlpha - clock.runtimeAlpha;
+  const safeElapsedFrames = elapsedFrames >= 0 ? elapsedFrames : elapsedSteps + frameAlpha;
+  const safeTimeScale = Number.isFinite(timeScale) ? Math.max(0, Math.min(1, timeScale)) : 0;
+  clock.runtimeAlpha = frameAlpha;
+  return advanceWarRoomFixedMovement(clock, {
+    ...input,
+    delta: safeElapsedFrames * WAR_ROOM_FIXED_STEP_SECONDS * safeTimeScale,
+  });
 }

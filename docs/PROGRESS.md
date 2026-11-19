@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bekliyor. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** A3 tamamlandı; sefer/koşu ortak çekirdek zamanlayıcısını kullanıyor. A4, kullanıcının devam onayını bekliyor.
+**Şu an yapılan iş:** A4 tamamlandı; Savaş Odası baskınının simülasyon saati ortak GameRuntime'ı kullanıyor. Sıradaki aşama A5.
 
 **Sıradaki 3 adım:**
-1. A4 başlangıcında FPS baskın akışını, oda geçişlerini ve kayıtları incele.
-2. FPS modunu ortak kabuk/çekirdeğe bağlarken mevcut savaş ve envanter davranışını koru.
-3. A4'ü test, typecheck, build ve mobil kontrollerle doğrula; aşama bitince dur.
+1. A5'in Meydan Okuma ve Siper Hattı akışlarını mevcut oyun durumuyla karşılaştır.
+2. Bu akışları ortak kabuk/çekirdeğe bağlarken kayıt ve savaş davranışını koru.
+3. A5'i test, typecheck, build ve mobil kontrollerle doğrula; aşama bitince dur.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -57,8 +57,19 @@
 **Bilinen hatalar ve sonraki aşamalara kalanlar:**
 - Eski oyun akışları `src/shafak/` altında korunuyor; yeni çekirdeğin input, kamera, yükleme ve havuz API'lerine oyun mantığının aşamalı taşınması A4–A7 kapsamındadır.
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
+- War Room önizlemesi yaş doğrulama ekranında kaldığından baskın sahnesi bu turda görsel olarak doğrulanmadı; yaş ekranı atlanmadı.
 - Vercel kilit dosyası düzeltmesi `main` dalına gönderildi; yeni Vercel build sonucuna erişip doğrulayamadım.
-- A4–A7 henüz başlamadı.
+- A5–A7 henüz başlamadı.
+
+**A4 başlangıç incelemesi — 2026-11-20:**
+- Savaş Odası zaten tek kabuk/ortak Canvas içinde; ana sahne `useFrame` delta'sı ve oyuncu için ayrı sabit-hareket akümülatörü kullanıyor.
+- Sağ yarı kamera bakışı, sol dinamik joystick, üçüncü şahıs kamera, nişan strafe'i ve silah viewmodel davranışı mevcut; bu aşamada korunacak.
+- Baskın yüklemesi, oda/ödül/profil kayıtları ve war-room loadout'ı mevcut akışlar; şema veya eşya sahipliği değiştirmeyeceğim.
+
+**A4 sonucu — 2026-11-20:**
+- Savaş Odası simülasyon delta'sı ve oyuncu hareket zamanlaması ortak GameRuntime kare adımlarından besleniyor; mevcut çarpışma/interpolasyon akışı, üç adımlı hareket sınırı, duraklatma ve sinematik yavaş çekim korundu.
+- Var olan `arena` mod eşlemesi, oda/ödül/profil kayıt anahtarları ve eşya sahipliği değiştirilmedi.
+- Doğrulama: 806 test geçti; typecheck ve üretim build'i geçti; uygulama iş akışı temiz açıldı ve önizleme ekranında tarayıcı çalışma hatası görülmedi.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
@@ -70,7 +81,7 @@
 - A1 için yeni model veya ses asset'i gerekmiyor.
 - A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-20 00:34 Europe/Istanbul.
+**Son güncelleme:** 2026-11-20 00:47 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 

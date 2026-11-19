@@ -1,5 +1,7 @@
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { GameCanvas } from "../../ui/GameCanvasHost";
+import { GAME_RUNTIME_DEFAULTS, sharedGameRuntime } from "../../core/game-runtime";
+import type { FixedStepResult } from "../../core/fixed-step-loop";
 import {
   Suspense,
   useCallback,
@@ -229,7 +231,7 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
-  advanceWarRoomFixedMovement,
+  advanceWarRoomFixedMovementFromFrame,
   createWarRoomMovementClock,
 } from "../game/war-room-fixed-movement";
 import {
@@ -2291,6 +2293,14 @@ function WarRoomRuntimeScene({
 }: Omit<Props, "onWarmupComplete">) {
   const { camera, scene, gl, size } = useThree();
   const perspective = camera as THREE.PerspectiveCamera;
+  const sharedFrameRef = useRef<Readonly<FixedStepResult>>({
+    steps: 0,
+    alpha: 0,
+    droppedSeconds: 0,
+  });
+  useEffect(() => sharedGameRuntime.registerFrame((frame) => {
+    sharedFrameRef.current = frame;
+  }), []);
   const initialWeaponId = runtimeRef.current.player.weaponSlots[
     runtimeRef.current.player.activeSlot
   ];
@@ -3488,6 +3498,7 @@ function WarRoomRuntimeScene({
   };
 
   useFrame((frame, rawDelta) => {
+    const runtimeFrame = sharedFrameRef.current;
     const runtime = runtimeRef.current;
     if (fallRuntimeRef.current !== runtime) {
       fallRuntimeRef.current = runtime;
@@ -3501,7 +3512,11 @@ function WarRoomRuntimeScene({
       renderedActiveWeaponRef.current = currentActiveWeapon;
       setRenderedActiveWeapon(currentActiveWeapon);
     }
-    if (input.paused) return;
+    if (input.paused) {
+      playerMovementClockRef.current.runtimeAlpha = runtimeFrame.alpha;
+      playerMovementClockRef.current.accumulator = 0;
+      return;
+    }
     try {
     const lookDeltaX = input.lookDeltaX;
     const lookDeltaY = input.lookDeltaY;
@@ -3592,12 +3607,15 @@ function WarRoomRuntimeScene({
     }
     const cinematicStartedAt = victoryCinematicStartedAtRef.current;
     const cinematicElapsed = cinematicStartedAt === null ? 0 : wallNow - cinematicStartedAt;
-    const delta = Math.min(rawDelta, 0.05)
-      * (WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
-        && cinematicStartedAt !== null
-        && cinematicElapsed < WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS
-        ? 0.25
-        : 1);
+    const cinematicTimeScale = WAR_ROOM_LAST_ENEMY_CINEMATIC_ENABLED
+      && cinematicStartedAt !== null
+      && cinematicElapsed < WAR_ROOM_LAST_ENEMY_SLOW_MOTION_SECONDS
+      ? 0.25
+      : 1;
+    const delta = Math.min(
+      runtimeFrame.steps * GAME_RUNTIME_DEFAULTS.stepSeconds,
+      0.05,
+    ) * cinematicTimeScale;
     const qualityProfile = getWarRoomQualityProfile(quality);
     const performanceSample = meleePerformanceRef.current;
     if (debugMode && performanceSample.started && !performanceSample.reported) {
@@ -3841,19 +3859,18 @@ function WarRoomRuntimeScene({
     const directionalSpeedScale = getWarRoomDirectionalSpeedScale(moveX, moveY);
     const previousMoveX = player.x;
     const previousMoveZ = player.z;
-    const nextPosition = advanceWarRoomFixedMovement(playerMovementClockRef.current, {
+    const nextPosition = advanceWarRoomFixedMovementFromFrame(playerMovementClockRef.current, {
       x: player.x,
       z: player.z,
       velocityX: worldMovement.x * speed * directionalSpeedScale,
       velocityZ: worldMovement.z * speed * directionalSpeedScale,
-      delta,
       now,
       blockers: activeBlockersRef.current,
       radius: WAR_ROOM_PLAYER_COLLISION_RADIUS,
       floorHeight: player.floorHeight,
       jumpHeight: player.jumpHeight,
       dodge: { x: player.dodgeX, z: player.dodgeZ, until: player.dodgeUntil },
-    });
+    }, runtimeFrame, cinematicTimeScale);
     player.x = nextPosition.x;
     player.z = nextPosition.z;
     const dx = player.x - previousMoveX;

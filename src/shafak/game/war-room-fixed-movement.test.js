@@ -1,11 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   advanceWarRoomFixedMovement,
+  advanceWarRoomFixedMovementFromFrame,
   createWarRoomMovementClock,
   WAR_ROOM_FIXED_STEP_SECONDS,
   WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME,
 } from "./war-room-fixed-movement.ts";
+import { FixedStepLoop } from "../../core/fixed-step-loop.ts";
+
+test("War Room player movement consumes the shared runtime's fixed-step frame", () => {
+  const sceneSource = readFileSync(new URL("../world/WarRoomScene3D.tsx", import.meta.url), "utf8");
+
+  assert.ok(sceneSource.includes("sharedGameRuntime.registerFrame"), "War Room should subscribe to the core frame");
+  assert.ok(sceneSource.includes("runtimeFrame.steps * GAME_RUNTIME_DEFAULTS.stepSeconds"), "simulation delta should use core steps");
+  assert.ok(
+    /advanceWarRoomFixedMovementFromFrame\([\s\S]*?runtimeFrame,\s*cinematicTimeScale\)/.test(sceneSource),
+    "player movement should use the core frame and preserve cinematic slow motion",
+  );
+  assert.ok(
+    /input\.paused\)\s*\{[\s\S]*?runtimeAlpha = runtimeFrame\.alpha[\s\S]*?accumulator = 0/.test(sceneSource),
+    "pausing should clear movement time without catching up on resume",
+  );
+});
 
 test("fixed-step movement stays consistent at 30, 60, and 120 update rates", () => {
   const simulate = (hz) => {
@@ -33,6 +51,72 @@ test("fixed-step movement stays consistent at 30, 60, and 120 update rates", () 
   assert.ok(Math.abs(at30.z - at120.z) < 1e-8);
   assert.ok(Math.abs(at60.x - at120.x) < 1e-8);
   assert.ok(Math.abs(at60.z - at120.z) < 1e-8);
+});
+
+test("shared GameRuntime frame steps preserve War Room movement across render rates", () => {
+  const simulate = (renderHz) => {
+    const clock = createWarRoomMovementClock();
+    const gameClock = new FixedStepLoop();
+    let result = { x: 0, z: 0 };
+    for (let frame = 1; frame <= renderHz; frame += 1) {
+      const runtimeFrame = gameClock.advance(1 / renderHz, () => undefined);
+      result = advanceWarRoomFixedMovementFromFrame(clock, {
+        x: result.x,
+        z: result.z,
+        velocityX: 2,
+        velocityZ: -3,
+        now: frame / renderHz,
+        blockers: [],
+      }, runtimeFrame);
+    }
+    return result;
+  };
+  const at30 = simulate(30);
+  const at60 = simulate(60);
+  const at120 = simulate(120);
+
+  assert.ok(Math.abs(at30.x - 2) < 1e-8);
+  assert.ok(Math.abs(at30.z + 3) < 1e-8);
+  assert.ok(Math.abs(at30.renderX - at120.renderX) < 1e-8);
+  assert.ok(Math.abs(at30.renderZ - at120.renderZ) < 1e-8);
+  assert.ok(Math.abs(at60.x - at120.x) < 1e-8);
+  assert.ok(Math.abs(at60.z - at120.z) < 1e-8);
+});
+
+test("shared runtime catch-up keeps War Room movement within its three-step limit", () => {
+  const clock = createWarRoomMovementClock();
+  const result = advanceWarRoomFixedMovementFromFrame(clock, {
+    x: 0,
+    z: 0,
+    velocityX: 1,
+    velocityZ: 0,
+    now: 0.1,
+    blockers: [],
+  }, { steps: 6, alpha: 0.2, droppedSeconds: 0 });
+
+  assert.equal(result.steps, WAR_ROOM_MAX_FIXED_STEPS_PER_FRAME);
+  assert.ok(result.interpolation < 1e-8);
+  assert.ok(Math.abs(result.x - WAR_ROOM_FIXED_STEP_SECONDS * 3) < 1e-8);
+});
+
+test("shared runtime time scaling preserves War Room slow motion", () => {
+  const clock = createWarRoomMovementClock();
+  const gameClock = new FixedStepLoop();
+  let result = { x: 0, z: 0 };
+  for (let frame = 1; frame <= 60; frame += 1) {
+    const runtimeFrame = gameClock.advance(1 / 60, () => undefined);
+    result = advanceWarRoomFixedMovementFromFrame(clock, {
+      x: result.x,
+      z: result.z,
+      velocityX: 1,
+      velocityZ: 0,
+      now: frame / 60,
+      blockers: [],
+    }, runtimeFrame, 0.25);
+  }
+
+  assert.ok(Math.abs(result.x - 0.25) < 1e-8);
+  assert.ok(clock.accumulator < 1e-8);
 });
 
 test("render interpolation remains bounded between collision-resolved fixed states", () => {
