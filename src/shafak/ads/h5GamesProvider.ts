@@ -91,7 +91,8 @@ export function createH5GamesProvider(
     placement: string,
     format: AdCloseEvent["format"],
   ): Promise<ProviderResult> => {
-    if (!api) {
+    const placementApi = api;
+    if (!placementApi) {
       return Promise.resolve({ status: "notReady", shown: false, viewed: false });
     }
 
@@ -123,7 +124,7 @@ export function createH5GamesProvider(
       };
 
       try {
-        api.adBreak({
+        placementApi.adBreak({
           type,
           name: placement,
           beforeAd: () => {

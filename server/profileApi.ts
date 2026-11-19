@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { randomUUID } from "node:crypto";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { requireAuthenticatedUserId } from "./auth.ts";
 import { getPublicAdsConfig } from "./adsConfigApi.ts";
 import { MAX_UPGRADE_LEVEL, type EquipmentLoadout, type PlayerInventory } from "../src/shafak/game/store-types.ts";
@@ -816,7 +816,7 @@ export function createProfileApi(database: Pool, options: ProfileApiOptions = {}
       return;
     }
 
-    let client: Awaited<ReturnType<Pool["connect"]>> | undefined;
+    let client: PoolClient | undefined;
     try {
       if (!getPublicAdsConfig().ads_enabled) {
         response.status(503).json({ error: "ads_disabled" });

@@ -130,11 +130,12 @@ test("account deletion removes every per-user table and then the Clerk identity"
     "DELETE FROM shafak_duels WHERE user_id = $1",
     "DELETE FROM shafak_pickup_claims WHERE user_id = $1",
     "DELETE FROM shafak_store_transactions WHERE user_id = $1",
+    "DELETE FROM shafak_ad_reward_challenges WHERE user_id = $1",
     "DELETE FROM shafak_player_profiles WHERE user_id = $1",
     "COMMIT",
     "RELEASE",
   ]);
-  assert.ok(operations.slice(1, 5).every(({ values }) => values[0] === "user_123"));
+  assert.ok(operations.slice(1, 6).every(({ values }) => values[0] === "user_123"));
   assert.equal(requests[0].url, "https://api.clerk.com/v1/users/user_123");
   assert.equal(requests[0].options.method, "DELETE");
   assert.equal(requests[0].options.headers.Authorization, "Bearer test-secret");

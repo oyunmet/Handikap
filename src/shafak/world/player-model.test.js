@@ -347,7 +347,7 @@ test("player model uses the animated Quaternius hero at the configured height an
   const meshRows = diagnostics.filter((row) => row.isMesh);
   const devParts = meshRows.filter((row) =>
     Math.max(row.worldSizeM.x, row.worldSizeM.y, row.worldSizeM.z) > 3);
-  assert.equal(meshRows.length, 18);
+  assert.equal(meshRows.length, 19);
   assert.deepEqual(devParts, []);
   assert.ok(
     diagnostics.some((row) =>
