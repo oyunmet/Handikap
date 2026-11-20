@@ -1522,3 +1522,74 @@
     --game-button-face: 54px !important;
   }
 }
+
+.duel-controls--field .duel-weapon-swap {
+  display: none;
+}
+
+@media (pointer: coarse), (max-width: 760px) {
+  .duel-controls--field .duel-weapon-swap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    margin-left: auto;
+    gap: 5px;
+    min-width: 76px;
+    min-height: 48px;
+    padding: 0 8px;
+    border: 1px solid rgba(221, 181, 114, .78);
+    border-radius: 9px;
+    background: linear-gradient(145deg, rgba(111, 78, 44, .96), rgba(38, 31, 27, .98));
+    color: #ffe7b7;
+    font: 800 6px/1.2 var(--font-body, sans-serif);
+    letter-spacing: .06em;
+    text-shadow: 0 1px 3px #000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .38), inset 0 1px rgba(255, 241, 211, .2);
+    touch-action: manipulation;
+  }
+
+  .duel-controls--field .duel-weapon-swap svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+
+  .duel-controls--field .duel-weapon-swap.is-cooling,
+  .duel-controls--field .duel-weapon-swap[aria-disabled="true"] {
+    opacity: .62;
+  }
+
+  .duel-controls--field .duel-loadout-dock {
+    max-height: min(160px, 28vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__heading {
+    height: auto;
+    min-height: 48px;
+  }
+
+  .duel-controls--field .duel-weapon-select__prompt {
+    display: none;
+  }
+}
+
+@media
+  (pointer: coarse) and (orientation: portrait),
+  (max-width: 760px) and (orientation: portrait) {
+  .duel-controls--field .duel-control-cluster .duel-control.is-aim {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__slot,
+  .duel-controls--field .duel-loadout-dock .duel-weapon-select__empty {
+    min-height: 48px;
+  }
+}

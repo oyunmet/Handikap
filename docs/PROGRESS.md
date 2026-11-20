@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — bitti. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — bitti. A7 Cila, performans ve ad temizliği — sürüyor.
 
-**Şu an yapılan iş:** A6 tamamlandı ve doğrulandı. A7 başlamadan önce kullanıcının devam kararını bekliyorum; Sunvoria adı korunuyor.
+**Şu an yapılan iş:** A7'de mobil düello HUD'si ve silah/hançer kullanımı düzeltildi; cihaz ve oturumla canlı ödül doğrulaması bekliyor.
 
 **Sıradaki 3 adım:**
-1. Devam edilirse A7'de mobil düello silahları, nişan ve isabet geri bildirimini çöz.
-2. Telefonda koş, eğil ve zıpla kontrollerini uçtan uca doğrula.
-3. Düello ödül doğrulama hatasını sunucu kanıtlarıyla incele; gerçek cihaz performansını ayrıca ölç.
+1. Giriş yapılmış hesapla üretimde profil ve bir pickup ödülünü uçtan uca doğrula.
+2. Gerçek telefonda düello, koş, eğil ve zıpla kontrollerini uçtan uca dene.
+3. iPhone/Android FPS ve bellek ölçümünü al; sonuç olmadan performans iddiası yazma.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -59,7 +59,7 @@
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
 - War Room önizlemesi yaş doğrulama ekranında kaldığından baskın sahnesi bu turda görsel olarak doğrulanmadı; yaş ekranı atlanmadı.
 - Vercel kilit dosyası düzeltmesi `main` dalına gönderildi; yeni Vercel build sonucuna erişip doğrulayamadım.
-- A6 tamamlandı; A7 henüz başlamadı.
+- A7 sürüyor; gerçek cihaz kabul ölçümü ve giriş gerektiren ödül isteği henüz doğrulanmadı.
 
 **A4 başlangıç incelemesi — 2026-11-20:**
 - Savaş Odası zaten tek kabuk/ortak Canvas içinde; ana sahne `useFrame` delta'sı ve oyuncu için ayrı sabit-hareket akümülatörü kullanıyor.
@@ -95,7 +95,15 @@
 - Hub'daki Kayıt Arşivi dokuz parçanın kilit/açık durumunu ve sefer özetini gösteriyor. Eski yerel/hesap profilleri mevcut rakip kayıtlarından geriye uyumlu biçimde okunuyor; veritabanı şeması değiştirilmedi.
 - Doğrulama: `npm test` — 812/812; `npm run typecheck`, `npm run build` ve `git diff --check` geçti.
 - Önizlemede yalnız yaş doğrulama ekranı açıldı; giriş sonrası hub ve arşivin görsel kabulü yapılamadı. Yerel sunucuda Clerk ve `DATABASE_URL` yapılandırılmadığı için hesaplı canlı akış doğrulanmadı.
-- A7 beklemede. Düello silahı/nişanı, mobil hareket tuşları ve kullanıcı ekran görüntüsündeki ödül doğrulama hatası henüz ele alınmadı.
+- A7 başlangıcında düello silahı/nişanı, mobil hareket tuşları ve ödül doğrulama hatası henüz ele alınmamıştı.
+
+**A7 mobil düello HUD ve doğrulama — 2026-11-20:**
+- `src/shafak/game/DuelControls.tsx` — telefonda doğrudan silah değiştiren, bekleme süresini bildiren dokunma tuşu eklendi. Bıçak etiketi yay yakın menzildeyken ve hançer adlarında doğru gösteriliyor.
+- `src/shafak/game/world-duel-responsive.css` — portre düello düzeninde nişan tuşu açık bir ızgara hücresine yerleştirildi; silah yuvaları ve yetenek tuşları en az 48 px hedefe çıkarıldı.
+- `src/shafak/game/duel-control-presentation.ts` ve testi — hançer, yakın yay, cephanesiz yay ve standart yakın dövüş etiketleri doğrulanıyor. `api-json` pickup istemcisi zaten iki sınırlı tekrar ve bekleyen gecikme kullanıyor; yanlış kimlik 400, oturum 401, veritabanı/depoya erişim hatası 503 olarak ayrılıyor.
+- Yerel doğrulama: `npm test` — 816/816; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Uygulama temiz başladı; ekran görüntüsü yaş doğrulama kartında kaldı, giriş sonrası düello arayüzü bu nedenle görsel olarak incelenmedi.
+- `https://handikap.vercel.app/api/health` — 200; veritabanı bağlı, gerekli tablolar eksiksiz, üretim Clerk anahtar kontrolleri true. Bu anlık sağlık kontrolü geçmiş pickup hatasının kök nedenini belirlemiyor. Bu çalışma alanındaki uygulama Clerk ve `DATABASE_URL` olmadan başladığından girişli profil/pickup yazma isteği denenmedi.
+- Gerçek telefon, girişli üretim ödül akışı ve FPS/bellek ölçümü hâlâ bekliyor; A7 açık kalıyor.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
@@ -107,7 +115,7 @@
 - A1 için yeni model veya ses asset'i gerekmiyor.
 - A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-20 10:55 Europe/Istanbul.
+**Son güncelleme:** 2026-11-20 11:59 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 

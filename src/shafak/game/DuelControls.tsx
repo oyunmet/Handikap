@@ -1,5 +1,6 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { INPUT_BUTTON } from "./combat-engine";
+import { getDuelAttackPresentation } from "./duel-control-presentation";
 import GameButton, { type GameButtonIcon } from "./GameButton";
 
 type QuickItem = {
@@ -238,18 +239,17 @@ export default function DuelControls({
     onMove(0, 0);
   };
   const activeWeapon = weaponNames[activeWeaponSlot] ?? weaponNames[0] ?? "silah";
-  const isDagger = /av bıçağı|bıçak|dagger/i.test(activeWeapon);
-  const ammoEmpty = isBowActive && !bowCloseRange && ammoCount !== null && ammoCount <= 0;
-  const attackLabel = isBowActive
-    ? bowCloseRange ? "BIÇAK" : ammoEmpty ? "OK YOK" : "ATEŞ"
-    : isDagger ? "BIÇAK" : "SALDIRI";
-  const attackDescription = isBowActive
-    ? bowCloseRange
-      ? "Av bıçağıyla yakın menzil saldırısı"
-      : ammoEmpty
-        ? "Ok yok. Savaş çantana ok ekle veya diğer silaha geç."
-        : "Nişan kilitliyken ok kullanarak ateş et"
-    : `${isDagger ? "Bıçakla saldır" : "Seçili silahla saldır"}: ${activeWeapon}`;
+  const attackPresentation = getDuelAttackPresentation({
+    weaponName: activeWeapon,
+    isBowActive,
+    bowCloseRange,
+    ammoCount,
+  });
+  const weaponSwapBlockedReason = !weaponNames[1]
+    ? "Silah değiştirmek için ikinci bir silah kuşan."
+    : weaponSwapCooldownSeconds > 0
+      ? `Silah değişimi için ${weaponSwapCooldownSeconds.toFixed(1)} saniye bekle.`
+      : "";
 
   return (
     <div className={`duel-controls duel-controls--field${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
@@ -277,6 +277,20 @@ export default function DuelControls({
           <b aria-hidden="true">⚔</b>
           <span>SAVAŞ SİLAHLARI</span>
           <small className="duel-weapon-select__prompt">DOKUN · DEĞİŞTİR</small>
+          <button
+            className={`duel-weapon-swap${weaponSwapCooldownSeconds > 0 ? " is-cooling" : ""}`}
+            type="button"
+            aria-label={weaponNames[1]
+              ? `Silah değiştir. Etkin silah: ${activeWeapon}.`
+              : "Silah değiştirmek için ikinci bir silah kuşan."}
+            aria-disabled={disabled || Boolean(weaponSwapBlockedReason)}
+            onClick={() => tapAction(INPUT_BUTTON.weaponSwitch, weaponSwapBlockedReason)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h15l-3-3m3 3-3 3M20 17H5l3 3m-3-3 3-3" />
+            </svg>
+            <span>DEĞİŞTİR</span>
+          </button>
         </div>
         <div className="duel-weapon-select__slots">
           {([0, 1] as const).map((slot) => {
@@ -445,14 +459,14 @@ export default function DuelControls({
           />
           <HeldButton
             button={INPUT_BUTTON.attack}
-            label={attackLabel}
-            className={`is-attack${isBowActive ? " is-bow" : ""}${isBowActive && bowCloseRange ? " is-close-range" : ""}${isDagger ? " is-dagger" : ""}`}
+            label={attackPresentation.label}
+            className={`is-attack${isBowActive ? " is-bow" : ""}${isBowActive && bowCloseRange ? " is-close-range" : ""}${attackPresentation.isDagger ? " is-dagger" : ""}`}
             hint="J"
-            accessibleLabel={attackDescription}
+            accessibleLabel={attackPresentation.description}
             onPress={onPress}
             onRelease={onRelease}
             cooldown={attackCooldownSeconds}
-            disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : ammoEmpty ? "Ok yok. Diğer silaha geç veya savaş çantasına ok ekle." : ""}
+            disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : attackPresentation.ammoEmpty ? "Ok yok. Diğer silaha geç veya savaş çantasına ok ekle." : ""}
             onBlocked={showBlockedHint}
           />
         </div>
