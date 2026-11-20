@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import type { CSSProperties } from "react";
 import type { BattleRewards, DuelSummary } from "./types";
+import type { CampaignOperationStory } from "../../data/story.ts";
+import { STORY_UI_STRINGS } from "../../data/strings.ts";
 import "./game.css";
 
 type DuelResultsProps = {
@@ -12,6 +14,7 @@ type DuelResultsProps = {
   practice?: boolean;
   note?: string;
   canReplay?: boolean;
+  operationStory?: CampaignOperationStory | null;
   onContinue: () => void;
   onMainMenu: () => void;
   onReplay: () => void;
@@ -26,6 +29,7 @@ export default function DuelResults({
   practice = false,
   note,
   canReplay = true,
+  operationStory = null,
   onContinue,
   onMainMenu,
   onReplay,
@@ -70,6 +74,18 @@ export default function DuelResults({
           {rewards.sealFragments > 0 && <div><span>MÜHÜR PARÇASI</span><strong>+{rewards.sealFragments}</strong></div>}
           <div><span>GANİMET</span><strong>{rewards.item ?? (drew ? "Aktarılmadı" : "Yok")}</strong></div>
         </div>
+        {won && operationStory && !practice && (
+          <section className="duel-result__operation-record" aria-label={STORY_UI_STRINGS.operationResult.eyebrow}>
+            <span>{STORY_UI_STRINGS.operationResult.recordLabel} · {operationStory.name}</span>
+            <h2>{operationStory.record.title}</h2>
+            <p>{operationStory.record.excerpt}</p>
+            <small>
+              {operationStory.nextOperationHint
+                ? <>{STORY_UI_STRINGS.operationResult.nextOperationLabel}: {operationStory.nextOperationHint}</>
+                : STORY_UI_STRINGS.operationResult.finalOperationLabel}
+            </small>
+          </section>
+        )}
         <div className="duel-result__combat-stats" aria-label="Düello istatistikleri">
           <span>EN UZUN KOMBO <b>{summary.maxCombo ?? 0} VURUŞ</b></span>
           <span>EN YÜKSEK HASAR <b>{summary.highestDamage ?? 0}</b></span>

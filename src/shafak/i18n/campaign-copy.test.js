@@ -20,17 +20,17 @@ function collectSourceFiles(directory) {
 }
 
 test("menu campaign title is generated from the campaign counts", () => {
-  assert.equal(tr.menuKicker, "KUZEY İLERİ ÜSSÜ · 9 OPERASYON");
+  assert.equal(tr.menuKicker, "KÜL · 9 OPERASYON");
   assert.match(tr.menuKicker, new RegExp(`${CAMPAIGN_ACT_COUNT} OPERASYON`));
   assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
 });
 
 test("campaign copy changes when campaign data counts change", () => {
   const copy = getCampaignCopy(8, 400);
-  assert.equal(copy.menuKicker, "KUZEY İLERİ ÜSSÜ · 8 OPERASYON");
+  assert.equal(copy.menuKicker, "KÜL · 8 OPERASYON");
   assert.match(copy.openingDescription, /8 operasyona yayılan/);
   assert.match(copy.openingDescription, /400 bölüm/);
-  assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · SON İSTİHBARAT DOSYASI");
+  assert.equal(copy.finalChapterLabel, "BÖLÜM 400 · SON KAYIT PARÇASI");
 });
 
 test("all campaign acts provide a short story summary for the main menu", async () => {
@@ -63,10 +63,10 @@ test("the nine operation stories share the rescue plot and avoid retired fantasy
   }
 
   const story = visibleStory.join("\n");
-  assert.match(CAMPAIGN_NARRATIVE.opening, /Kuzgun Timi/);
+  assert.match(CAMPAIGN_NARRATIVE.opening, /Şafak Birliği/);
   assert.match(CAMPAIGN_NARRATIVE.opening, /Alaz/);
-  assert.match(CAMPAIGN_NARRATIVE.opening, /Sunvoria Yardım Ağı/);
-  assert.match(story, /Demir Taç/);
+  assert.match(CAMPAIGN_NARRATIVE.opening, /Haberleşme ağı/);
+  assert.match(story, /Karanlık Sancak/);
   assert.match(story, /tahliye/i);
   assert.doesNotMatch(
     story,

@@ -92,6 +92,36 @@
   line-height: 1.65;
 }
 
+.campaign-ending__story-record {
+  width: min(100%, 410px);
+  margin: 0 auto 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(229, 188, 123, .34);
+  border-radius: 7px;
+  background: rgba(229, 188, 123, .07);
+  text-align: left;
+}
+
+.campaign-ending__story-record span {
+  color: #dfb66f;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.campaign-ending__story-record h2 {
+  margin: 7px 0 5px;
+  color: #fff0d6;
+  font: 600 17px Georgia, serif;
+}
+
+.campaign-ending__story-record p {
+  margin: 0;
+  color: rgba(240, 228, 210, .78);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .campaign-ending__rewards {
   display: grid;
   gap: 6px;

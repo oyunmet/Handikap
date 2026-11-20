@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type ComponentType } from "react";
 import type { BattleRewards } from "../game/types";
 import { CAMPAIGN_COPY } from "../i18n/campaign-copy.ts";
+import { CAMPAIGN_NARRATIVE, type CampaignStoryRecord } from "../../data/story.ts";
+import { STORY_UI_STRINGS } from "../../data/strings.ts";
 import "./campaign-ending.css";
 import type { PrincessModelRevealProps } from "./PrincessModelReveal";
 import {
@@ -16,6 +18,7 @@ type CampaignEndingProps = {
   onMainMenu: () => void;
   previewMode?: boolean;
   forceFallback?: boolean;
+  storyRecord?: CampaignStoryRecord | null;
 };
 
 export default function CampaignEnding({
@@ -24,6 +27,7 @@ export default function CampaignEnding({
   onMainMenu,
   previewMode = false,
   forceFallback = false,
+  storyRecord = null,
 }: CampaignEndingProps) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -109,20 +113,27 @@ export default function CampaignEnding({
               )}
             </div>
             <span className="campaign-ending__eyebrow">{CAMPAIGN_COPY.finalChapterLabel}</span>
-            <h1 id="campaign-ending-title">OYUN TAMAMLANDI</h1>
+            <h1 id="campaign-ending-title">{STORY_UI_STRINGS.ending.title}</h1>
             <p className="campaign-ending__dialogue">
-              “Beni kurtarmaya değil, hatırlamaya geldin. Mühür parçalarını birleştirince krallık da adımı hatırladı.”
+              {CAMPAIGN_NARRATIVE.endingDialogue}
             </p>
             <p className="campaign-ending__copy">
               {CAMPAIGN_COPY.endingSummary}
             </p>
+            {storyRecord && (
+              <article className="campaign-ending__story-record">
+                <span>{STORY_UI_STRINGS.ending.recordLabel}</span>
+                <h2>{storyRecord.title}</h2>
+                <p>{storyRecord.excerpt}</p>
+              </article>
+            )}
             {previewMode ? (
               <p className="campaign-ending__reward-note">
                 TEST ÖNİZLEMESİ · KAYITLARIN DEĞİŞTİRİLMEZ
               </p>
             ) : rewards ? (
               <div className="campaign-ending__rewards" aria-label="Son bölüm ödülleri">
-                <span>SON BÖLÜM ÖDÜLÜ</span>
+                <span>{STORY_UI_STRINGS.ending.rewardLabel}</span>
                 <b>{rewards.gold > 0 ? `+${rewards.gold} altın` : "Altın —"}</b>
                 <b>{rewards.diamonds > 0 ? `+${rewards.diamonds} elmas` : "Elmas —"}</b>
                 <b>+{rewards.xp} XP{rewards.sealFragments > 0 ? ` · +${rewards.sealFragments} Mühür Parçası` : ""}</b>

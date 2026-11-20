@@ -29,3 +29,4 @@
 - [War Room viewmodel rendering](war-room-viewmodel-rendering.md) — Keep the weapon steady in motion, preserve coupled arms, and verify camera-relative rendering.
 - [Follow complete project plans](complete-project-plan.md) — Finish all supplied project-plan steps in order; do not stop after one incremental change.
 - [Direct code changes](direct-code-workflow.md) — In this project, edit code directly when asked; do not create project tasks unless requested.
+- [Campaign record persistence](campaign-record-persistence.md) — Keep permanent story unlocks separate from the bounded recent-opponent history.

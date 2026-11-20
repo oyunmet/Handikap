@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — sürüyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — bitti. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** A6’da hikâye/diyalog metinlerini ortak veri kaynaklarına bağlıyor, operasyon ödülü ile Kayıt Arşivi’ni tamamlıyorum; oyun adı Sunvoria olarak kalıyor.
+**Şu an yapılan iş:** A6 tamamlandı ve doğrulandı. A7 başlamadan önce kullanıcının devam kararını bekliyorum; Sunvoria adı korunuyor.
 
 **Sıradaki 3 adım:**
-1. Hikâye, diyalog ve A6 arayüz metinlerini ortak `src/data` kaynaklarından okut.
-2. Operasyon sonunda belirli kayıt parçasını açıp Kayıt Arşivi’nde göster.
-3. Mevcut hesap/kayıt uyumunu koruyup A6'yı test, typecheck ve build ile doğrula.
+1. Devam edilirse A7'de mobil düello silahları, nişan ve isabet geri bildirimini çöz.
+2. Telefonda koş, eğil ve zıpla kontrollerini uçtan uca doğrula.
+3. Düello ödül doğrulama hatasını sunucu kanıtlarıyla incele; gerçek cihaz performansını ayrıca ölç.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -59,7 +59,7 @@
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
 - War Room önizlemesi yaş doğrulama ekranında kaldığından baskın sahnesi bu turda görsel olarak doğrulanmadı; yaş ekranı atlanmadı.
 - Vercel kilit dosyası düzeltmesi `main` dalına gönderildi; yeni Vercel build sonucuna erişip doğrulayamadım.
-- A6–A7 henüz başlamadı.
+- A6 tamamlandı; A7 henüz başlamadı.
 
 **A4 başlangıç incelemesi — 2026-11-20:**
 - Savaş Odası zaten tek kabuk/ortak Canvas içinde; ana sahne `useFrame` delta'sı ve oyuncu için ayrı sabit-hareket akümülatörü kullanıyor.
@@ -84,9 +84,18 @@
 - Uygulama temiz yeniden başladı; önizlemede tarayıcı hatası yok. Yaş doğrulama ekranı açıldığı için hub/arena/savunma sahnesi bu turda görsel olarak doğrulanmadı.
 
 **A6 başlangıç incelemesi — 2026-11-20:**
-- Kampanya anlatısı, diyalog havuzu, operasyon bölümleri ve son ekran metinleri ayrı dosyalara dağılmış; ortak `src/data/story.ts` ve `src/data/strings.ts` kaynakları henüz yok.
-- Kayıt Arşivi şu an bölüm/ilerleme özeti gösteriyor; dokuz hikâye parçasını listelemiyor ve operasyon finali için ayrı ödül ekranı yok.
+- Ortak `src/data/story.ts` ve `src/data/strings.ts` kaynakları mevcut; açılış ve final ekranlarının bir kısmı hâlâ eski, ayrı metinler kullanıyordu.
+- Kayıt Arşivi yalnız bölüm/ilerleme özeti gösteriyor; dokuz parçanın kilit durumunu ve operasyon finali hikâye ödülünü göstermiyordu.
+- Profil yalnız son 64 rakibi saklıyor; eski hesap/yerel kayıtlarında kalıcı hikâye parçası listesi için geriye uyumlu ek alan gerekiyor.
 - Ekli revizyonda oyun adını koruma talimatı, gövdenin daha ilerideki yeni isim önerileriyle çelişiyor. Kullanıcının açık ad koruma talimatı öncelikli; mevcut Sunvoria adı ve mevcut hub kimliği değiştirilmeden ilerle.
+
+**A6 sonucu — 2026-11-20:**
+- Açılış, final ve operasyon sonucu anlatıları ortak hikâye verisine bağlandı; operasyon finali ekranı kayıt parçasını, sonraki operasyon ipucunu ve mevcut altın/elmas ödüllerini gösteriyor.
+- Yalnız doğrulanmış operasyon finali zaferi ilgili parçayı açıyor. Kayıt kimlikleri profil içinde ayrı ve kalıcı tutuluyor; son 64 rakibi sınırlayan listeye bağlı değil.
+- Hub'daki Kayıt Arşivi dokuz parçanın kilit/açık durumunu ve sefer özetini gösteriyor. Eski yerel/hesap profilleri mevcut rakip kayıtlarından geriye uyumlu biçimde okunuyor; veritabanı şeması değiştirilmedi.
+- Doğrulama: `npm test` — 812/812; `npm run typecheck`, `npm run build` ve `git diff --check` geçti.
+- Önizlemede yalnız yaş doğrulama ekranı açıldı; giriş sonrası hub ve arşivin görsel kabulü yapılamadı. Yerel sunucuda Clerk ve `DATABASE_URL` yapılandırılmadığı için hesaplı canlı akış doğrulanmadı.
+- A7 beklemede. Düello silahı/nişanı, mobil hareket tuşları ve kullanıcı ekran görüntüsündeki ödül doğrulama hatası henüz ele alınmadı.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
@@ -98,7 +107,7 @@
 - A1 için yeni model veya ses asset'i gerekmiyor.
 - A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-20 07:32 Europe/Istanbul.
+**Son güncelleme:** 2026-11-20 10:55 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 

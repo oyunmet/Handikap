@@ -51,6 +51,25 @@ test("profile API accepts and normalizes a valid account profile", () => {
   assert.equal(profile?.inventory.ownedItemIds.length, 5);
 });
 
+test("legacy account profiles recover story records and preserve them as a separate collection", () => {
+  const legacy = validatePlayerProfile({
+    ...validProfile,
+    defeatedOpponents: ["ash-road:49:rival:4"],
+  });
+  const current = validatePlayerProfile({
+    ...validProfile,
+    defeatedOpponents: [],
+    campaignRecordIds: ["campaign-record-01"],
+  });
+
+  assert.deepEqual(legacy?.campaignRecordIds, ["campaign-record-01"]);
+  assert.deepEqual(current?.campaignRecordIds, ["campaign-record-01"]);
+  assert.equal(validatePlayerProfile({
+    ...validProfile,
+    campaignRecordIds: ["untrusted-record"],
+  }), null);
+});
+
 test("new profiles start with starter equipment and no purchasable currency", () => {
   const profile = createDefaultPlayerProfile();
   assert.equal(profile.gold, 120);

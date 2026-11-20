@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { awardBattle, defaultProfile } from "./profile.ts";
+import { awardBattle, defaultProfile, normalizePlayerProfile } from "./profile.ts";
 
 test("offline boss victories grant one seal fragment with the normal victory rewards", () => {
   const result = awardBattle(defaultProfile, {
@@ -36,6 +36,43 @@ test("ordinary victories and non-victories do not create seal fragments", () => 
   assert.equal(regularWin.rewards.sealFragments, 0);
   assert.equal(bossDefeat.rewards.sealFragments, 0);
   assert.equal(bossDefeat.profile.materials.sealFragments, defaultProfile.materials.sealFragments);
+});
+
+test("verified operation-final victories persist records beyond the defeated-rival history window", () => {
+  const firstOperation = awardBattle(defaultProfile, {
+    verdict: "victory",
+    opponentId: "ash-road:49:rival:4",
+    loot: 48,
+    item: null,
+    isBoss: true,
+  });
+  const laterVictories = Array.from({ length: 70 }).reduce(
+    (profile) => awardBattle(profile, {
+      verdict: "victory",
+      opponentId: `ordinary-${profile.battles}`,
+      loot: 1,
+      item: null,
+    }).profile,
+    firstOperation.profile,
+  );
+  const migratedLegacyProfile = normalizePlayerProfile({
+    ...firstOperation.profile,
+    campaignRecordIds: undefined,
+  });
+
+  assert.deepEqual(firstOperation.profile.campaignRecordIds, ["campaign-record-01"]);
+  assert.ok(laterVictories.campaignRecordIds.includes("campaign-record-01"));
+  assert.ok(!laterVictories.defeatedOpponents.includes("ash-road:49:rival:4"));
+  assert.deepEqual(migratedLegacyProfile.campaignRecordIds, ["campaign-record-01"]);
+  assert.deepEqual(
+    awardBattle(defaultProfile, {
+      verdict: "defeat",
+      opponentId: "ash-road:49:rival:4",
+      loot: 48,
+      isBoss: true,
+    }).profile.campaignRecordIds,
+    [],
+  );
 });
 
 test("the daily third-win bonus stays limited while campaign gold rewards are paced", () => {

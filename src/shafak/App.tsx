@@ -1312,6 +1312,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                     ? "Sefer kaydı yüklenemedi. Yeniden deneyebilirsin."
                     : "Alaz'ın izleri ve operasyon hikâyesi hazırlanıyor…")
                 }
+                storyRecordIds={profile.campaignRecordIds}
                 playerAppearance={cityHubAppearance}
                 onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
                 onOpenWarRoom={(mode) => enterWarRoom("city-hub", mode)}

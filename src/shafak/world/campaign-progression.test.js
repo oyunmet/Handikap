@@ -15,6 +15,9 @@ import {
   getCampaignProgressFromDistance,
   getCampaignRegion,
   getCampaignRivalCount,
+  getCampaignStoryRecordForDefeatedOpponent,
+  getUnlockedCampaignStoryRecords,
+  addCampaignRecordForVictory,
   isCampaignActBoss,
   isCampaignBossLevel,
   isCampaignComplete,
@@ -29,22 +32,22 @@ test("the long campaign has nine 50-level acts and preserves existing region ide
   assert.equal(CAMPAIGN_LEVEL_COUNT, 450);
   assert.equal(CAMPAIGN_CHAPTER_COUNT, CAMPAIGN_LEVEL_COUNT);
   assert.deepEqual(CAMPAIGN_REGIONS.map((region) => region.name), [
-    "İleri Hat",
-    "Kuzey Geçidi",
-    "Kızıl Liman",
-    "Sis Koridoru",
-    "Başkent Çemberi",
-    "Fırtına Kıyısı",
-    "Kumaltı İstasyonu",
-    "Yarık Dağ Üssü",
-    "Son Komuta Merkezi",
+    "Son Hat",
+    "Kül Sokakları",
+    "Sessiz İstasyon",
+    "Demir Geçit",
+    "Gölgeli Çarşı",
+    "Kızıl Karargâh",
+    "Yanık Köprü",
+    "Kara Kale",
+    "Doğuş Kapısı",
   ]);
-  assert.equal(getCampaignRegion(0).name, "İleri Hat");
-  assert.equal(getCampaignRegion(49).name, "İleri Hat");
-  assert.equal(getCampaignRegion(50).name, "Kuzey Geçidi");
-  assert.equal(getCampaignRegion(100).name, "Kızıl Liman");
-  assert.equal(getCampaignRegion(449).name, "Son Komuta Merkezi");
-  assert.equal(getCampaignRegion(500).name, "Son Komuta Merkezi");
+  assert.equal(getCampaignRegion(0).name, "Son Hat");
+  assert.equal(getCampaignRegion(49).name, "Son Hat");
+  assert.equal(getCampaignRegion(50).name, "Kül Sokakları");
+  assert.equal(getCampaignRegion(100).name, "Sessiz İstasyon");
+  assert.equal(getCampaignRegion(449).name, "Doğuş Kapısı");
+  assert.equal(getCampaignRegion(500).name, "Doğuş Kapısı");
 });
 
 test("every tenth level is a mini-boss and every fiftieth level is an act boss", () => {
@@ -72,13 +75,31 @@ test("every tenth level is a mini-boss and every fiftieth level is an act boss",
   );
 });
 
+test("only verified final-operation rivals unlock their ordered story records", () => {
+  const finalBossIds = CAMPAIGN_REGIONS.map(({ lastChapterId }) =>
+    `ash-road:${lastChapterId}:rival:${getCampaignRivalCount(lastChapterId) - 1}`,
+  );
+
+  assert.deepEqual(
+    getUnlockedCampaignStoryRecords(finalBossIds).map((record) => record.id),
+    Array.from({ length: CAMPAIGN_ACT_COUNT }, (_, index) =>
+      `campaign-record-${String(index + 1).padStart(2, "0")}`,
+    ),
+  );
+  assert.equal(getCampaignStoryRecordForDefeatedOpponent("ash-road:49:rival:3"), null);
+  assert.equal(getCampaignStoryRecordForDefeatedOpponent("ash-road:49:rival:4")?.id, "campaign-record-01");
+  assert.equal(getCampaignStoryRecordForDefeatedOpponent("ash-road:9:rival:4"), null);
+  assert.deepEqual(addCampaignRecordForVictory([], "ash-road:49:rival:4"), ["campaign-record-01"]);
+  assert.deepEqual(addCampaignRecordForVictory([], "ash-road:49:rival:3"), []);
+});
+
 test("saved distance maps to a campaign act, level, and readable progress", () => {
   const halfwayThroughLevel52 = getCampaignProgressFromDistance(
     51 * WORLD_GATE_INTERVAL_METERS + WORLD_GATE_INTERVAL_METERS / 2,
   );
   assert.equal(halfwayThroughLevel52.levelNumber, 52);
   assert.equal(halfwayThroughLevel52.actNumber, 2);
-  assert.equal(halfwayThroughLevel52.region.name, "Kuzey Geçidi");
+  assert.equal(halfwayThroughLevel52.region.name, "Kül Sokakları");
   assert.equal(halfwayThroughLevel52.levelProgressPercent, 50);
   assert.ok(halfwayThroughLevel52.campaignProgressPercent > 11);
   const complete = getCampaignProgressFromDistance(FINAL_CAMPAIGN_DISTANCE);

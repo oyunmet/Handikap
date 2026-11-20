@@ -4,7 +4,10 @@ import {
   CAMPAIGN_LEVEL_COUNT,
   CAMPAIGN_LEVELS_PER_OPERATION,
   CAMPAIGN_OPERATIONS,
+  getCampaignStoryRecordForChapter,
+  normalizeCampaignStoryRecordIds,
   type CampaignMissionKind,
+  type CampaignStoryRecord,
 } from "../../data/story.ts";
 import { CAMPAIGN_MISSION_LABELS } from "../../data/strings.ts";
 
@@ -23,6 +26,32 @@ export const CAMPAIGN_REGIONS = CAMPAIGN_OPERATIONS.map((operation, index) => ({
   firstChapterId: index * CAMPAIGN_LEVELS_PER_ACT,
   lastChapterId: (index + 1) * CAMPAIGN_LEVELS_PER_ACT - 1,
 }));
+
+export function getCampaignStoryRecordForDefeatedOpponent(opponentId: string): CampaignStoryRecord | null {
+  const match = /^ash-road:(\d{1,7}):rival:(\d{1,2})$/.exec(opponentId);
+  if (!match) return null;
+  const chapterId = Number(match[1]);
+  const rivalIndex = Number(match[2]);
+  const record = getCampaignStoryRecordForChapter(chapterId);
+  return record && rivalIndex === getCampaignRivalCount(chapterId) - 1 ? record : null;
+}
+
+export function getUnlockedCampaignStoryRecords(defeatedOpponentIds: readonly string[]) {
+  const unlockedIds = new Set(
+    defeatedOpponentIds
+      .map(getCampaignStoryRecordForDefeatedOpponent)
+      .filter((record): record is CampaignStoryRecord => record !== null)
+      .map((record) => record.id),
+  );
+  return CAMPAIGN_OPERATIONS
+    .map((operation) => operation.record)
+    .filter((record) => unlockedIds.has(record.id));
+}
+
+export function addCampaignRecordForVictory(recordIds: readonly string[], opponentId: string) {
+  const record = getCampaignStoryRecordForDefeatedOpponent(opponentId);
+  return normalizeCampaignStoryRecordIds(record ? [...recordIds, record.id] : recordIds);
+}
 
 const REGULAR_MISSION_KINDS = [
   "normal-combat",

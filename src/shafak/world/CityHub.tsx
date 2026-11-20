@@ -20,6 +20,8 @@ import {
 } from "./city-hub-controls";
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative";
 import { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT } from "./campaign-progression";
+import { CAMPAIGN_OPERATIONS } from "../../data/story.ts";
+import { STORY_UI_STRINGS } from "../../data/strings.ts";
 import type { EquipmentVisual } from "../game/store-types";
 import "./city-hub.css";
 
@@ -31,6 +33,7 @@ type CityHubProps = {
   campaignProgressPercent: number;
   campaignObjective: string;
   campaignSummary: string;
+  storyRecordIds: readonly string[];
   playerAppearance: EquipmentVisual;
   onOpenCampaign: () => void;
   onOpenWarRoom: (mode: CityMissionMode) => void;
@@ -53,6 +56,7 @@ export default function CityHub({
   campaignProgressPercent,
   campaignObjective,
   campaignSummary,
+  storyRecordIds,
   playerAppearance,
   onOpenCampaign,
   onOpenWarRoom,
@@ -426,42 +430,64 @@ export default function CityHub({
           >
             <header className="city-hub__archive-header">
               <div>
-                <small>GÜNCEL SEFER KAYDI</small>
-                <h2 id="city-hub-archive-title">Kayıt Arşivi</h2>
+                <small>{STORY_UI_STRINGS.archive.kicker}</small>
+                <h2 id="city-hub-archive-title">{STORY_UI_STRINGS.archive.title}</h2>
               </div>
               <button
                 type="button"
                 ref={archiveCloseButtonRef}
                 className="city-hub__archive-close"
                 onClick={() => setArchiveOpen(false)}
-                aria-label="Kayıt arşivini kapat"
+                aria-label={STORY_UI_STRINGS.archive.closeLabel}
               >
                 ×
               </button>
             </header>
             <dl className="city-hub__archive-meta">
               <div>
-                <dt>OPERASYON</dt>
+                <dt>{STORY_UI_STRINGS.archive.operationLabel}</dt>
                 <dd>{campaignActName}</dd>
               </div>
               <div>
-                <dt>BÖLÜM</dt>
+                <dt>{STORY_UI_STRINGS.archive.chapterLabel}</dt>
                 <dd>{campaignChapter} / {CAMPAIGN_LEVEL_COUNT}</dd>
               </div>
             </dl>
-            <div className="city-hub__archive-progress" aria-label={`Sefer ilerlemesi yüzde ${Math.floor(campaignProgressPercent)}`}>
+            <div className="city-hub__archive-progress" role="progressbar" aria-label={STORY_UI_STRINGS.archive.progressLabel} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(campaignProgressPercent)}>
               <span style={{ width: `${Math.max(0, Math.min(100, campaignProgressPercent))}%` }} />
             </div>
             <article className="city-hub__archive-copy">
               <h3>{campaignObjective}</h3>
               <p>{campaignSummary}</p>
             </article>
+            <section className="city-hub__archive-records" aria-labelledby="city-hub-archive-records-title">
+              <h3 id="city-hub-archive-records-title">{STORY_UI_STRINGS.archive.recordsHeading}</h3>
+              {storyRecordIds.length === 0 && (
+                <p className="city-hub__archive-empty">{STORY_UI_STRINGS.archive.emptyDescription}</p>
+              )}
+              {CAMPAIGN_OPERATIONS.map((operation) => {
+                const unlocked = storyRecordIds.includes(operation.record.id);
+                return (
+                  <article
+                    className={`city-hub__archive-record${unlocked ? " is-unlocked" : ""}`}
+                    key={operation.record.id}
+                  >
+                    <div className="city-hub__archive-record-heading">
+                      <small>OPERASYON {operation.number} · {operation.name}</small>
+                      <span>{unlocked ? STORY_UI_STRINGS.archive.foundLabel : STORY_UI_STRINGS.archive.lockedLabel}</span>
+                    </div>
+                    <h4>{unlocked ? operation.record.title : STORY_UI_STRINGS.archive.lockedLabel}</h4>
+                    <p>{unlocked ? operation.record.excerpt : STORY_UI_STRINGS.archive.lockedDescription}</p>
+                  </article>
+                );
+              })}
+            </section>
             <button
               type="button"
               className="city-hub__archive-return"
               onClick={() => setArchiveOpen(false)}
             >
-              ÜSSE DÖN
+              {STORY_UI_STRINGS.archive.returnLabel}
             </button>
           </section>
         </div>

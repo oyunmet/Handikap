@@ -102,6 +102,10 @@ import {
   isCampaignFinalBoss,
 } from "./campaign-progression";
 import {
+  getCampaignOperationForChapter,
+  getCampaignStoryRecordForChapter,
+} from "../../data/story.ts";
+import {
   loadCampaignLevelData,
   type CampaignLevelData,
 } from "./campaign-level-data";
@@ -3910,6 +3914,16 @@ export default function WorldScene({
             playerName={profile.name}
             practice={battleSession.practice}
             note={battleSession.message}
+            operationStory={
+              battleSession.summary.verdict === "victory"
+              && !battleSession.practice
+              && battleSession.rival.isBoss
+              && profile.campaignRecordIds.includes(
+                getCampaignStoryRecordForChapter(battleSession.rival.chapterId)?.id ?? "",
+              )
+                ? getCampaignOperationForChapter(battleSession.rival.chapterId)
+                : null
+            }
             visualEffectsEnabled={visualEffectsEnabled}
             canReplay={battleSession.practice || !profile.defeatedOpponents.includes(battleSession.rival.id)}
             onContinue={closeEncounter}
@@ -4129,6 +4143,13 @@ export default function WorldScene({
       {campaignEnding && (
         <CampaignEnding
           rewards={battleSession?.phase === "result" ? battleSession.rewards ?? null : null}
+          storyRecord={
+            profile.campaignRecordIds.includes(
+              getCampaignStoryRecordForChapter(FINAL_CAMPAIGN_CHAPTER_ID)?.id ?? "",
+            )
+              ? getCampaignStoryRecordForChapter(FINAL_CAMPAIGN_CHAPTER_ID)
+              : null
+          }
           onStartNewGamePlus={startNewGamePlus}
           onMainMenu={onExit}
         />

@@ -319,3 +319,19 @@ test("server boss victories grant a seal fragment without changing ordinary duel
   assert.equal(regularAward.rewards.sealFragments, 0);
   assert.equal(regularAward.profile.materials.sealFragments, 0);
 });
+
+test("server-verified operation finales save story records on the account profile", () => {
+  const awarded = applyServerAward(
+    profile,
+    { verdict: "victory", opponentId: "ash-road:49:rival:4", loot: 48, isBoss: true },
+    now,
+  );
+  const replay = applyServerAward(
+    awarded.profile,
+    { verdict: "victory", opponentId: "ash-road:49:rival:4", loot: 48, isBoss: true },
+    now,
+  );
+
+  assert.deepEqual(awarded.profile.campaignRecordIds, ["campaign-record-01"]);
+  assert.deepEqual(replay.profile.campaignRecordIds, ["campaign-record-01"]);
+});

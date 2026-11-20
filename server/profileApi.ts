@@ -17,7 +17,16 @@ import { DEFAULT_EQUIPMENT, getStoreItem, STARTER_ITEM_IDS } from "./storeCatalo
 import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../src/shafak/game/war-room-data.ts";
 import { WORLD_GATE_INTERVAL_METERS } from "../src/shafak/world/movement.ts";
 import { WORLD_GATE_STOP_OFFSET_METERS } from "../src/shafak/world/world-progress.ts";
-import { FINAL_CAMPAIGN_BOSS_ID, isCampaignComplete, MAX_DEFEATED_OPPONENTS } from "../src/shafak/world/campaign-progression.ts";
+import {
+  FINAL_CAMPAIGN_BOSS_ID,
+  getUnlockedCampaignStoryRecords,
+  isCampaignComplete,
+  MAX_DEFEATED_OPPONENTS,
+} from "../src/shafak/world/campaign-progression.ts";
+import {
+  isValidCampaignStoryRecordIds,
+  normalizeCampaignStoryRecordIds,
+} from "../src/data/story.ts";
 import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { DAILY_DEFEAT_LIMIT, getIstanbulDayKey, grantDailyAdDuel, normalizeDailyLifeState } from "../src/shafak/game/daily-lives.ts";
 import { getDoorDifficulty, type WorldRouteChoice, type WorldRouteSide } from "../src/shafak/world/route-difficulty.ts";
@@ -45,6 +54,7 @@ export type PlayerProfileRecord = {
   bestStreak: number;
   items: string[];
   defeatedOpponents: string[];
+  campaignRecordIds: string[];
   worldProgress: { distance: number; depth: number; routeChoice?: WorldRouteChoice | null } | null;
   dailyBattles: number;
   dailyWins: number;
@@ -178,6 +188,7 @@ export function createDefaultPlayerProfile(name = "Yolcu"): PlayerProfileRecord 
     bestStreak: 0,
     items: [],
     defeatedOpponents: [],
+    campaignRecordIds: [],
     worldProgress: null,
     dailyBattles: 0,
     dailyWins: 0,
@@ -400,6 +411,11 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
   const bestStreak = boundedInteger(value.bestStreak, 0, 10_000_000);
   const items = stringList(value.items, 30);
   const defeatedOpponents = stringList(value.defeatedOpponents, MAX_DEFEATED_OPPONENTS);
+  const campaignRecordIds = value.campaignRecordIds === undefined
+    ? getUnlockedCampaignStoryRecords(defeatedOpponents ?? []).map((record) => record.id)
+    : isValidCampaignStoryRecordIds(value.campaignRecordIds)
+      ? normalizeCampaignStoryRecordIds(value.campaignRecordIds)
+      : null;
   const hasWorldProgress = value.worldProgress !== undefined && value.worldProgress !== null;
   const worldProgress = hasWorldProgress && defeatedOpponents
     ? validateWorldPosition(
@@ -454,6 +470,7 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
     bestStreak < winStreak ||
     items === null ||
     defeatedOpponents === null ||
+    campaignRecordIds === null ||
     (hasWorldProgress && worldProgress === null) ||
     dailyBattles === null ||
     dailyWins === null ||
@@ -485,6 +502,7 @@ export function validatePlayerProfile(value: unknown, userId?: string): PlayerPr
     bestStreak,
     items,
     defeatedOpponents,
+    campaignRecordIds,
     worldProgress,
     dailyBattles,
     dailyWins,

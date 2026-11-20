@@ -7,7 +7,10 @@ import { getWorldChapter } from "../src/shafak/world/world-content.ts";
 import { calculatePlayerCombatModifiers } from "./storeCatalog.ts";
 import { canStartDailyDuel, consumeDailyAdDuel, getIstanbulDayKey, normalizeDailyLifeState, DAILY_DEFEAT_LIMIT } from "../src/shafak/game/daily-lives.ts";
 import type { WorldRouteChoice } from "../src/shafak/world/route-difficulty.ts";
-import { MAX_DEFEATED_OPPONENTS } from "../src/shafak/world/campaign-progression.ts";
+import {
+  addCampaignRecordForVictory,
+  MAX_DEFEATED_OPPONENTS,
+} from "../src/shafak/world/campaign-progression.ts";
 import { rollCombatLoot } from "../src/shafak/game/combat-loot.ts";
 import { grantLootItem } from "../src/shafak/game/store-rewards.ts";
 
@@ -287,6 +290,9 @@ export function applyServerAward(
     defeatedOpponents: outcome.verdict === "victory" && !base.defeatedOpponents.includes(outcome.opponentId)
       ? [...base.defeatedOpponents, outcome.opponentId].slice(-MAX_DEFEATED_OPPONENTS)
       : base.defeatedOpponents,
+    campaignRecordIds: outcome.verdict === "victory"
+      ? addCampaignRecordForVictory(base.campaignRecordIds, outcome.opponentId)
+      : base.campaignRecordIds,
     dailyBattles: base.dailyBattles + 1,
     dailyWins: base.dailyWins + Number(outcome.verdict === "victory"),
     dailyLosses: base.dailyLosses + Number(outcome.verdict === "defeat"),

@@ -9,11 +9,7 @@ import { CAMPAIGN_COPY } from "../i18n/campaign-copy.ts";
 import { CAMPAIGN_NARRATIVE } from "../world/campaign-narrative.ts";
 import "./intro.css";
 
-const STORY_LINES = [
-  `Tahliye konvoyu ${CAMPAIGN_NARRATIVE.cityName} yakınında kesildi. Kuzgun Timi'nin lideri ${CAMPAIGN_NARRATIVE.squadLeadName} kayıp; telsizde Taç Birliği'nin adı geçiyor.`,
-  `Dokuz kayıt parçası, ${CAMPAIGN_NARRATIVE.sealName} ağına yapılan sızmayı kanıtlıyor. Her operasyon Alaz'ın izini ve saldırının kaynağını açığa çıkaracak.`,
-  "Üssü geç, iletişim merkezlerini ele geçir ve tahliye ağını yeniden güvenli hâle getir.",
-];
+const STORY_LINES = CAMPAIGN_NARRATIVE.openingLines;
 
 const IntroCityWorld = lazy(() => import("./IntroCityWorld"));
 

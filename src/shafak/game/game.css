@@ -124,6 +124,11 @@
 .duel-result[data-visual-effects="true"] .duel-result__rewards > div:nth-child(2)::before { animation: duel-reward-glint 1.2s .48s ease-in-out 2; }
 .duel-result__rewards span { color: rgba(232, 217, 189, .47); font-size: 7px; font-weight: 800; letter-spacing: .12em; }
 .duel-result__rewards strong { overflow: hidden; color: #edcf91; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.duel-result__operation-record { margin: 12px 0 8px; padding: 12px 14px; border: 1px solid rgba(229, 203, 159, .34); border-radius: 4px; background: linear-gradient(145deg, rgba(176, 123, 62, .13), rgba(255, 255, 255, .025)); text-align: left; }
+.duel-result__operation-record > span { color: #e9c477; font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+.duel-result__operation-record h2 { margin: 7px 0 5px; color: #f3e4c5; font: 600 16px var(--font-display, Georgia, serif); }
+.duel-result__operation-record p { margin: 0; color: rgba(232, 217, 189, .76); font-size: 10px; line-height: 1.55; }
+.duel-result__operation-record small { display: block; margin-top: 9px; color: #e9c477; font-size: 8px; font-weight: 800; line-height: 1.5; letter-spacing: .08em; }
 .duel-result__item, .duel-result__stake { margin: 9px 0; color: #d8c7a9; font-size: 9px; }
 .duel-result__item span { color: #f2d18a; }
 .duel-result__combat-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin: 10px 0 2px; }
