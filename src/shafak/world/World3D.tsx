@@ -1,7 +1,7 @@
 import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, MutableRefObject, ReactNode } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { GameCanvas } from "../../ui/GameCanvasHost";
+import { GameCanvas, useCanvasRendererRecovery } from "../../ui/GameCanvasHost";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
@@ -2883,7 +2883,7 @@ export default function World3D(props: World3DProps) {
   const characterDebugOutputRef = useRef<HTMLPreElement>(null);
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [canvasAttempt, setCanvasAttempt] = useState(0);
-  const contextCleanupRef = useRef<(() => void) | null>(null);
+  const recoverSharedRenderer = useCanvasRendererRecovery();
   const automaticRecoveryAttemptsRef = useRef(0);
   const recoveryRequestedRef = useRef(false);
   const [renderOverrides, setRenderOverrides] = useState<RenderOverrides>({
@@ -2941,9 +2941,10 @@ export default function World3D(props: World3DProps) {
   const retryWebGL = useCallback(() => {
     automaticRecoveryAttemptsRef.current = 0;
     recoveryRequestedRef.current = false;
+    recoverSharedRenderer(true);
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [recoverSharedRenderer]);
   const recoverFromBlackFrame = useCallback(() => {
     if (recoveryRequestedRef.current) return;
     if (automaticRecoveryAttemptsRef.current >= 1) {
@@ -2951,16 +2952,16 @@ export default function World3D(props: World3DProps) {
       setWebglAvailable(false);
       return;
     }
+    if (!recoverSharedRenderer()) {
+      setWebglAvailable(false);
+      return;
+    }
     automaticRecoveryAttemptsRef.current += 1;
     recoveryRequestedRef.current = true;
-    console.warn("[world] Repeated black or empty 3D frames; rebuilding the 3D renderer.");
+    console.warn("[world] Repeated black or empty 3D frames; rebuilding the shared WebGL renderer.");
     setWebglAvailable(null);
     setCanvasAttempt((attempt) => attempt + 1);
-  }, []);
-  useEffect(() => () => {
-    contextCleanupRef.current?.();
-    contextCleanupRef.current = null;
-  }, []);
+  }, [recoverSharedRenderer]);
   const fallback = (
     <div className="world-three-fallback" role="alert">
       <div className="world-three-fallback__content">
@@ -3029,21 +3030,6 @@ export default function World3D(props: World3DProps) {
               renderer.shadowMap.autoUpdate = renderer.shadowMap.enabled;
               renderer.info.autoReset = false;
               scene.background = new THREE.Color("#91bad4");
-              contextCleanupRef.current?.();
-              const canvas = renderer.domElement;
-              const handleContextLost = (event: Event) => {
-                event.preventDefault();
-                setWebglAvailable(false);
-              };
-              const handleContextRestored = () => {
-                recoverFromBlackFrame();
-              };
-              canvas.addEventListener("webglcontextlost", handleContextLost, false);
-              canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
-              contextCleanupRef.current = () => {
-                canvas.removeEventListener("webglcontextlost", handleContextLost, false);
-                canvas.removeEventListener("webglcontextrestored", handleContextRestored, false);
-              };
             }}
             fallback={fallback}
           >

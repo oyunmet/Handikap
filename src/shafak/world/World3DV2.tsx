@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { GameCanvas } from "../../ui/GameCanvasHost";
+import { GameCanvas, useCanvasRendererRecovery } from "../../ui/GameCanvasHost";
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import * as THREE from "three";
@@ -432,16 +432,17 @@ export default function World3DV2(props: World3DProps) {
   const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const renderPixelRatio = getWorldRenderPixelRatio(props.quality, pixelRatio, touchRenderer);
   const enableWorldShadows = shouldEnableWorldShadows(props.quality, touchRenderer);
-  const contextCleanupRef = useRef<(() => void) | null>(null);
+  const recoverSharedRenderer = useCanvasRendererRecovery();
   const automaticRecoveryAttemptsRef = useRef(0);
   const recoveryRequestedRef = useRef(false);
 
   const retryWorld3D = useCallback(() => {
     automaticRecoveryAttemptsRef.current = 0;
     recoveryRequestedRef.current = false;
+    recoverSharedRenderer(true);
     setRendererUnavailable(false);
     setCanvasAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [recoverSharedRenderer]);
   const recoverWorld3D = useCallback(() => {
     if (recoveryRequestedRef.current) return;
     if (automaticRecoveryAttemptsRef.current >= 1) {
@@ -449,11 +450,15 @@ export default function World3DV2(props: World3DProps) {
       setRendererUnavailable(true);
       return;
     }
+    if (!recoverSharedRenderer()) {
+      setRendererUnavailable(true);
+      return;
+    }
     automaticRecoveryAttemptsRef.current += 1;
     recoveryRequestedRef.current = true;
-    console.warn("[world-v2] rebuilding the 3D renderer after an empty frame or context loss.");
+    console.warn("[world-v2] rebuilding the shared WebGL renderer after an empty frame.");
     setCanvasAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [recoverSharedRenderer]);
 
   useEffect(() => {
     const resetRecoveryBudget = window.setTimeout(() => {
@@ -461,11 +466,6 @@ export default function World3DV2(props: World3DProps) {
     }, 15_000);
     return () => window.clearTimeout(resetRecoveryBudget);
   }, [canvasAttempt, rendererUnavailable]);
-
-  useEffect(() => () => {
-    contextCleanupRef.current?.();
-    contextCleanupRef.current = null;
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -536,19 +536,6 @@ export default function World3DV2(props: World3DProps) {
               gl.info.autoReset = false;
               scene.background = new THREE.Color("#82919b");
               recoveryRequestedRef.current = false;
-              contextCleanupRef.current?.();
-              const canvas = gl.domElement;
-              const handleContextLost = (event: Event) => {
-                event.preventDefault();
-                recoverWorld3D();
-              };
-              const handleContextRestored = () => recoverWorld3D();
-              canvas.addEventListener("webglcontextlost", handleContextLost, false);
-              canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
-              contextCleanupRef.current = () => {
-                canvas.removeEventListener("webglcontextlost", handleContextLost, false);
-                canvas.removeEventListener("webglcontextrestored", handleContextRestored, false);
-              };
             }}
             fallback={
               <div className="world-three-fallback" role="alert">

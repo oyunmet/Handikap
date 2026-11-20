@@ -2802,10 +2802,11 @@
 }
 
 .world-scene {
-  background: #d6e6dc;
+  background: transparent;
 }
 
 .world-stage {
+  background: transparent;
   filter: brightness(1.14) saturate(1.05);
 }
 
@@ -2817,4 +2818,16 @@
 .world-three-fallback {
   background: radial-gradient(ellipse at 50% 20%, #f4f4df 0%, #d8ebe4 64%, #bed7d1 100%);
   color: #28433e;
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .world-joystick {
+    bottom: max(108px, calc(env(safe-area-inset-bottom) + 96px));
+  }
+
+  .world-movement-actions {
+    right: max(14px, calc(env(safe-area-inset-right) + 8px));
+    bottom: max(108px, calc(env(safe-area-inset-bottom) + 96px));
+    gap: clamp(3px, .8dvh, 8px);
+  }
 }

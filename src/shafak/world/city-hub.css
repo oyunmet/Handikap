@@ -810,6 +810,7 @@
 .city-hub {
   color: var(--palette-text);
   font-family: var(--font-body);
+  background: transparent;
 }
 
 .city-hub__scene::after {
@@ -974,6 +975,18 @@
   color: var(--palette-text);
   border-color: var(--palette-danger);
   background: rgba(30, 20, 19, .96);
+}
+
+@media (max-width: 780px) {
+  .city-hub .city-hub__joystick {
+    bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px));
+    left: max(16px, calc(env(safe-area-inset-left) + 12px));
+  }
+
+  .city-hub .city-hub__route-guide {
+    right: max(12px, calc(env(safe-area-inset-right) + 8px));
+    bottom: max(22px, calc(env(safe-area-inset-bottom) + 10px));
+  }
 }
 
 .city-hub__archive-overlay {
