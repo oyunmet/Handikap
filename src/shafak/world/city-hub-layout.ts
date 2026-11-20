@@ -41,7 +41,7 @@ export const CITY_DOORS: readonly CityDoor[] = [
   {
     id: "war-room",
     missionMode: "raid",
-    title: "TAKTİK ARENA",
+    title: "MEYDAN OKUMA ALANI",
     category: "OPERASYON MERKEZİ",
     description: "Silah donanımını seç, çatışma alanında hedefleri temizle ve üsse dön.",
     color: "#c4533d",
@@ -56,9 +56,9 @@ export const CITY_DOORS: readonly CityDoor[] = [
   {
     id: "survival",
     missionMode: "survival",
-    title: "DALGA SAVUNMASI",
-    category: "HAYATTA KALMA OPERASYONU",
-    description: "Kontrol noktasını art arda gelen düşman birliklerine karşı savun ve en yüksek dalgana ulaş.",
+    title: "SİPER HATTI",
+    category: "DALGA SAVUNMASI",
+    description: "Kontrol noktasını art arda gelen saldırı dalgalarına karşı savun ve en yüksek dalgana ulaş.",
     color: "#8a8d93",
     street: "Kuzey Çarşısı",
     side: "south",

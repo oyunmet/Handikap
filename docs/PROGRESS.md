@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bekliyor. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** A4 tamamlandı; Savaş Odası baskınının simülasyon saati ortak GameRuntime'ı kullanıyor. Sıradaki aşama A5.
+**Şu an yapılan iş:** A5 tamamlandı; Meydan Okuma ve Siper Hattı ortak `arena`/`defense` modlarına bağlı. Sıradaki aşama A6.
 
 **Sıradaki 3 adım:**
-1. A5'in Meydan Okuma ve Siper Hattı akışlarını mevcut oyun durumuyla karşılaştır.
-2. Bu akışları ortak kabuk/çekirdeğe bağlarken kayıt ve savaş davranışını koru.
-3. A5'i test, typecheck, build ve mobil kontrollerle doğrula; aşama bitince dur.
+1. A6'da mevcut hikâye, diyalog ve arşiv akışlarını ortak kaynaklarla karşılaştır.
+2. Hikâye hedeflerini ve kayıt parçalarını aynı ilerleme/kayıt yapısında tut.
+3. A6'yı test, typecheck ve build ile doğrula; aşama bitince dur.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -23,7 +23,7 @@
 - `AGENTS.md` — oyun adı, stack, yapı ve aşama kuralları kayıtlı.
 
 **A2 tamamlandı — Hub dünyası ve karakter:**
-- `src/shafak/world/city-hub-layout.ts` — Sefer Haritası, Taktik Arena, Dalga Savunması, Günlük Operasyon ve Kayıt Arşivi için beş ayrı fiziksel istasyon.
+- `src/shafak/world/city-hub-layout.ts` — Sefer Haritası, Meydan Okuma Alanı, Siper Hattı, Günün Emri ve Kayıt Arşivi için beş ayrı fiziksel istasyon.
 - `src/shafak/world/CityHub.tsx` — Kayıt Arşivi istasyonundan güncel sefer özeti/hedefi açılır; klavyede Escape ile kapanır ve kapatma odağı alınır.
 - `src/shafak/world/CityHubScene.tsx` ve `src/shafak/world/city-hub-residents.ts` — beş istasyon aynı sahnede, sıcak grafit-altın çevre renkleri ve insan rig'li oyuncu/yerleşik karakterler korunuyor.
 - `src/shafak/world/city-hub.css` — hub panelleri ve arşiv sheet'i ortak grafit-altın tasarım tokenlarını kullanıyor.
@@ -59,7 +59,7 @@
 - Gerçek iPhone Safari FPS/bellek ve WebGL cihaz kabul testleri yapılmadı.
 - War Room önizlemesi yaş doğrulama ekranında kaldığından baskın sahnesi bu turda görsel olarak doğrulanmadı; yaş ekranı atlanmadı.
 - Vercel kilit dosyası düzeltmesi `main` dalına gönderildi; yeni Vercel build sonucuna erişip doğrulayamadım.
-- A5–A7 henüz başlamadı.
+- A6–A7 henüz başlamadı.
 
 **A4 başlangıç incelemesi — 2026-11-20:**
 - Savaş Odası zaten tek kabuk/ortak Canvas içinde; ana sahne `useFrame` delta'sı ve oyuncu için ayrı sabit-hareket akümülatörü kullanıyor.
@@ -71,6 +71,18 @@
 - Var olan `arena` mod eşlemesi, oda/ödül/profil kayıt anahtarları ve eşya sahipliği değiştirilmedi.
 - Doğrulama: 806 test geçti; typecheck ve üretim build'i geçti; uygulama iş akışı temiz açıldı ve önizleme ekranında tarayıcı çalışma hatası görülmedi.
 
+**A5 başlangıç incelemesi — 2026-11-20:**
+- Hub'da Meydan Okuma Alanı ve Siper Hattı girişleri, görev türleri ve Savaş Odası oyun mantığı zaten var; mevcut uygulama akışını yeniden kurmaya gerek yok.
+- Ortak `GameMode` deposu her `war-room` ekranını `arena` sayıyor; Siper Hattı/Survival ve görev türü değişince `defense` olarak güncellenmiyor.
+- Oda girişleri, kayıt anahtarları, görev sonuçları ve ödül hesaplamaları bu aşamada korunacak; yalnızca hub adları ve ortak mod eşlemesi düzeltilecek.
+
+**A5 sonucu — 2026-11-20:**
+- Hub istasyonları brief'teki “Meydan Okuma Alanı” ve “Siper Hattı” adlarını kullanıyor; Siper Hattı görev sonucu ve görev seçimi ekranında da aynı ad gösteriliyor.
+- Ortak mod deposu raid/ikmal/günlük görevleri `arena`, survival/mevzi savunmasını `defense` olarak izliyor. Görev seçimi ve günlük görevin gerçek hedefi değiştikçe ortak mod da güncelleniyor.
+- Mevcut oda akışı, localStorage kayıt anahtarları, ödüller, görev kuralları ve eşya sahipliği korunuyor.
+- Doğrulama: `npm test` — 808/808; `npm run typecheck`, `npm run build` ve `git diff --check` geçti.
+- Uygulama temiz yeniden başladı; önizlemede tarayıcı hatası yok. Yaş doğrulama ekranı açıldığı için hub/arena/savunma sahnesi bu turda görsel olarak doğrulanmadı.
+
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.
 - Grafit-altın token paleti ortak tema kaynağıdır; aşamalı taşımada yeni sabit renkler eklenmeyecek.
@@ -81,7 +93,7 @@
 - A1 için yeni model veya ses asset'i gerekmiyor.
 - A2 şehir hub'ı `public/models/kuzgun-soldier.glb` humanoid rig'ini kullanıyor; `public/models/player-hero.glb` ve `public/shafak-ui-chime.ogg` diğer sahneler için korunuyor.
 
-**Son güncelleme:** 2026-11-20 00:47 Europe/Istanbul.
+**Son güncelleme:** 2026-11-20 07:32 Europe/Istanbul.
 
 ## Aşama 1 — Performans ve akıcılık
 

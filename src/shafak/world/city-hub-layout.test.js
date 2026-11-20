@@ -26,8 +26,10 @@ test("the city has a separate entrance for each existing activity", () => {
     ["raid", "survival", "daily"],
   );
   assert.match(CITY_DOORS.find((door) => door.id === "campaign")?.title ?? "", /SEFER HARİTASI/);
-  assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.title ?? "", /TAKTİK ARENA/);
+  assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.title ?? "", /MEYDAN OKUMA ALANI/);
   assert.match(CITY_DOORS.find((door) => door.id === "war-room")?.category ?? "", /OPERASYON MERKEZİ/);
+  assert.match(CITY_DOORS.find((door) => door.id === "survival")?.title ?? "", /SİPER HATTI/);
+  assert.match(CITY_DOORS.find((door) => door.id === "survival")?.category ?? "", /DALGA SAVUNMASI/);
   assert.match(CITY_DOORS.find((door) => door.id === "archive")?.title ?? "", /KAYIT ARŞİVİ/);
   assert.equal(CITY_DOORS.find((door) => door.id === "archive")?.missionMode, undefined);
 });

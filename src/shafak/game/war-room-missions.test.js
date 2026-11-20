@@ -30,14 +30,14 @@ test("tactical mission names preserve saved IDs and match their result labels", 
     WAR_ROOM_MODES.map(({ id, name }) => [id, name]),
     [
       ["raid", "Baskın"],
-      ["survival", "Hat Savunması"],
+      ["survival", "Siper Hattı"],
       ["treasure", "İkmal Araması"],
       ["defense", "Mevzi Savunması"],
     ],
   );
   assert.deepEqual(
     WAR_ROOM_MODES.map(({ id }) => getWarRoomResultLabel(id)),
-    ["BASKIN", "HAT SAVUNMASI", "İKMAL ARAMASI", "MEVZİ SAVUNMASI"],
+    ["BASKIN", "SİPER HATTI", "İKMAL ARAMASI", "MEVZİ SAVUNMASI"],
   );
   assert.equal(getWarRoomResultLabel("daily"), "GÜNÜN GÖREVİ");
 });

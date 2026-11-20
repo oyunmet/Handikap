@@ -1,4 +1,6 @@
-export type WarRoomModeId = "raid" | "survival" | "treasure" | "defense" | "daily";
+import type { WarRoomMissionMode } from "../../modes/mode.ts";
+
+export type WarRoomModeId = WarRoomMissionMode;
 export type WarRoomDifficultyId = "easy" | "normal" | "hard" | "nightmare";
 export type WarRoomModifierId = "darkness" | "fog" | "fast-enemies" | "low-ammo" | "double-damage";
 
@@ -47,7 +49,7 @@ export const WAR_ROOM_MODES: readonly {
   description: string;
 }[] = [
   { id: "raid", name: "Baskın", description: "Düşman birimlerini ve saha komutanını etkisiz hâle getir." },
-  { id: "survival", name: "Hat Savunması", description: "Giderek güçlenen saldırı dalgalarına dayan; en iyi skorunu geç." },
+  { id: "survival", name: "Siper Hattı", description: "Giderek güçlenen saldırı dalgalarına dayan; en iyi skorunu geç." },
   { id: "treasure", name: "İkmal Araması", description: "Süre dolmadan beş ikmal kasasını bul." },
   { id: "defense", name: "Mevzi Savunması", description: "Saldırı timlerini durdur ve komuta noktasını koru." },
 ];
@@ -212,7 +214,7 @@ export function getWarRoomAmmoMultiplier(modifiers: readonly WarRoomModifierId[]
 
 export function getWarRoomResultLabel(mode: WarRoomModeId) {
   switch (mode) {
-    case "survival": return "HAT SAVUNMASI";
+    case "survival": return "SİPER HATTI";
     case "treasure": return "İKMAL ARAMASI";
     case "defense": return "MEVZİ SAVUNMASI";
     case "daily": return "GÜNÜN GÖREVİ";

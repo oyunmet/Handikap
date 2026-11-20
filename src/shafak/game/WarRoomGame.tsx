@@ -138,6 +138,7 @@ import "./war-room-hud-v2.css";
 type Props = {
   onExit: () => void;
   initialMode?: WarRoomModeId;
+  onMissionModeChange: (mode: WarRoomModeId) => void;
   profile: PlayerProfile;
   onAwardProfileReward: (
     request: WarRoomProfileRewardRequest,
@@ -394,6 +395,7 @@ function requestWarRoomImmersiveDisplay() {
 export default function WarRoomGame({
   onExit,
   initialMode = "raid",
+  onMissionModeChange,
   profile,
   onAwardProfileReward,
   aimAssistEnabled,
@@ -819,6 +821,9 @@ export default function WarRoomGame({
         modifiers: selectedModifiers,
         mapId: selectedMapId,
       };
+    onMissionModeChange(
+      missionOptions.mode === "daily" ? dailyPreset.mode : missionOptions.mode,
+    );
     runtimeRef.current = weaponLabMode || resourceLeakTestMode
       ? createWarRoomTrainingRuntime(loadout)
       : preparedRuntime ?? createWarRoomRuntime(
@@ -1641,7 +1646,10 @@ export default function WarRoomGame({
           selectedDifficulty={selectedDifficulty}
           selectedModifiers={selectedModifiers}
           selectedMapId={selectedMapId}
-          onSelectMode={setSelectedMode}
+          onSelectMode={(mode) => {
+            setSelectedMode(mode);
+            onMissionModeChange(mode);
+          }}
           onSelectDifficulty={setSelectedDifficulty}
           onSelectMap={setSelectedMapId}
           onToggleModifier={(modifier) => setSelectedModifiers((current) => (

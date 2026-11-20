@@ -49,7 +49,11 @@ import { getEquipmentVisual } from "./game/store-utils";
 import { STORE_CATALOG } from "./game/store-catalog";
 import { GameShell } from "../ui/GameShell";
 import { useGameRuntimeStore } from "../state/game-store";
-import { modeFromLegacyScreen } from "../modes/mode";
+import {
+  gameModeForWarRoomMission,
+  modeFromLegacyScreen,
+  type WarRoomGameMode,
+} from "../modes/mode";
 import type { WorldProgressPosition } from "./world/world-progress";
 import {
   getCampaignProgressFromDistance,
@@ -457,6 +461,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [loadingDestination, setLoadingDestination] = useState<"menu" | "city-hub">("menu");
   const [warRoomReturnScreen, setWarRoomReturnScreen] = useState<"menu" | "world" | "city-hub">("menu");
   const [warRoomInitialMode, setWarRoomInitialMode] = useState<WarRoomModeId>("raid");
+  const [warRoomGameMode, setWarRoomGameMode] = useState<WarRoomGameMode>("arena");
   const [worldReturnScreen, setWorldReturnScreen] = useState<"menu" | "city-hub">("menu");
   const [initialWorldStoreTab, setInitialWorldStoreTab] = useState<StoreTab | null>(null);
   const [progress, setProgress] = useState(0);
@@ -473,8 +478,8 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [warRoomControlsEditorOpen, setWarRoomControlsEditorOpen] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
   useEffect(() => {
-    setRuntimeMode(modeFromLegacyScreen(screen));
-  }, [screen, setRuntimeMode]);
+    setRuntimeMode(modeFromLegacyScreen(screen, warRoomGameMode));
+  }, [screen, setRuntimeMode, warRoomGameMode]);
   const [profile, setProfile] = useState<PlayerProfile>(() => readProfile());
   const [profileSyncOwner, setProfileSyncOwner] = useState("");
   const [profileSyncStatus, setProfileSyncStatus] = useState<"loading" | "ready" | "local">("loading");
@@ -872,6 +877,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
     setWarRoomControlsEditorOpen(false);
     setWarRoomReturnScreen(returnScreen);
     setWarRoomInitialMode(initialMode);
+    setWarRoomGameMode(gameModeForWarRoomMission(initialMode));
     updateWarRoomQuery(true);
     setScreen("war-room");
   };
@@ -1382,6 +1388,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
               <WarRoomGame
                 onExit={exitWarRoom}
                 initialMode={warRoomInitialMode}
+                onMissionModeChange={(mode) => setWarRoomGameMode(gameModeForWarRoomMission(mode))}
                 profile={profile}
                 onAwardProfileReward={awardWarRoomReward}
                 aimAssistEnabled={warRoomAimAssistEnabled}
