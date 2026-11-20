@@ -7,6 +7,7 @@ export type GameButtonIcon =
   | "jump"
   | "crouch"
   | "attack"
+  | "dagger"
   | "shield"
   | "aim"
   | "dodge"
@@ -33,6 +34,7 @@ const ICON_PATHS: Record<GameButtonIcon, string> = {
   jump: "M12 21V4m-6 6 6-6 6 6M4 21h16",
   crouch: "m4 13 5-4 3 3 3-4 5 4M5 18h14m-7-5v5m-5 0v2m10-2v2",
   attack: "M4 4 20 20m-2-1 3-2m-3 3-2 3M20 4 4 20m2-2-3-2m3 3 2 3",
+  dagger: "M5 19 18 4l2 2-13 13H5Zm8-11 3 3M4 20l2-2",
   shield: "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z",
   aim: "M12 2v4m0 12v4M2 12h4m12 0h4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 3v4m-2-2h4",
   dodge: "M3 15c3-6 6-6 9-2s5 4 9-2M5 7 2 10l3 3m14 0 3-3-3-3",

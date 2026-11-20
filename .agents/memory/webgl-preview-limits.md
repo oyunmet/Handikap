@@ -5,7 +5,11 @@ description: How to distinguish successful 3D asset loading from screenshot-base
 
 Treat a WebGL-unavailable message in Replit's screenshot preview as a limit of that browser, not proof that an asset failed to load. A GLB request completing and interactive controls working verifies loading and app flow, but does not confirm the model's rendered pixels. This game must remain 3D; do not replace the world with a 2D fallback when renderer creation fails.
 
-As of 2026-10-14, the user reports the production black-screen issue is resolved; do not treat earlier reports as an active issue unless it recurs.
+The Safari blank-world issue recurred in a screenshot on 2026-11-20. Do not assume the earlier resolution still applies; wait for scene assets and suspended content to load before sampling frames for black output.
+
+**Why:** The watchdog can otherwise see zero draw calls during asset loading and restart a healthy shared renderer before the 3D scene is ready.
+
+**How to apply:** Keep black-frame detection gated on scene readiness, preserve the 3D-only recovery path, and test that the shared Canvas can actually be remounted after a confirmed failure.
 
 Do not create and destroy a throwaway WebGL context to preflight support on mobile Safari. Check for the WebGL API and let the actual renderer creation be authoritative; keep touch-device shadows and post-processing disabled. The general world renderer remains at DPR 1, while War Room's explicit adaptive-quality profiles may lower touch DPR to 0.9 (balanced) or 0.75 (low); high remains capped at 1.
 

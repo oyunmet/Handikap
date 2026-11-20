@@ -598,6 +598,11 @@ export default function World3DV2(props: World3DProps) {
                   />
                 </>
               )}
+              <WorldBlackFrameProbe
+                onBlackFrame={recoverWorld3D}
+                manualRender={false}
+                enabled={Boolean(asset || assetError)}
+              />
             </Suspense>
             <WorldV2LabelManager
               motionRef={props.motionRef}
@@ -615,7 +620,6 @@ export default function World3DV2(props: World3DProps) {
               />
             )}
             {debug && <WorldV2Diagnostics enabled={debug} onUpdate={setDebugSnapshot} />}
-            <WorldBlackFrameProbe onBlackFrame={recoverWorld3D} manualRender={false} />
           </GameCanvas>
         </WorldV2CanvasErrorBoundary>
       )}

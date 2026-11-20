@@ -50,3 +50,10 @@ test("legacy 3D scenes register viewports instead of mounting extra canvases", (
     assert.doesNotMatch(source, /<Canvas\b/, `${scenePath} must not mount a canvas`);
   }
 });
+
+test("shared 3D renderer recovery remounts the app canvas", () => {
+  const host = readFileSync(resolve(projectRoot, "src/ui/GameCanvasHost.tsx"), "utf8");
+  assert.match(host, /export function useCanvasRendererRecovery\(\)/);
+  assert.match(host, /recoverRenderer = useCallback/);
+  assert.match(host, /key=\{context\.rendererResetVersion\}/);
+});

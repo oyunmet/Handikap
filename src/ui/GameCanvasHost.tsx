@@ -63,6 +63,8 @@ interface CanvasHostContextValue {
   register: (request: CanvasRequest) => void;
   unregister: (id: string) => void;
   requests: readonly RegisteredCanvasRequest[];
+  rendererResetVersion: number;
+  recoverRenderer: (force?: boolean) => boolean;
 }
 
 interface ViewportBounds {
@@ -86,7 +88,9 @@ const EMPTY_BOUNDS: ViewportBounds = {
 
 export function GameCanvasProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<RegisteredCanvasRequest[]>([]);
+  const [rendererResetVersion, setRendererResetVersion] = useState(0);
   const nextOrder = useRef(0);
+  const lastRendererResetAtRef = useRef(0);
 
   const register = useCallback((request: CanvasRequest) => {
     setRequests((current) => {
@@ -103,7 +107,18 @@ export function GameCanvasProvider({ children }: { children: ReactNode }) {
     setRequests((current) => current.filter((request) => request.id !== id));
   }, []);
 
-  const value = useMemo(() => ({ register, unregister, requests }), [register, unregister, requests]);
+  const recoverRenderer = useCallback((force = false) => {
+    const now = Date.now();
+    if (!force && now - lastRendererResetAtRef.current < 1_200) return false;
+    lastRendererResetAtRef.current = now;
+    setRendererResetVersion((current) => current + 1);
+    return true;
+  }, []);
+
+  const value = useMemo(
+    () => ({ register, unregister, requests, rendererResetVersion, recoverRenderer }),
+    [register, unregister, requests, rendererResetVersion, recoverRenderer],
+  );
   return <CanvasHostContext.Provider value={value}>{children}</CanvasHostContext.Provider>;
 }
 
@@ -214,6 +229,7 @@ export function GameCanvasStage() {
     <div className="game-canvas-stage" ref={stageRef} aria-hidden="true">
       {renderRequests.length > 0 && (
         <Canvas
+          key={context.rendererResetVersion}
           className="game-canvas-stage__canvas"
           dpr={[1, 1.5]}
           fallback={active?.fallback}
@@ -454,4 +470,8 @@ function useRequiredCanvasHost(): CanvasHostContextValue {
     throw new Error("GameCanvas must be rendered inside GameCanvasProvider.");
   }
   return context;
+}
+
+export function useCanvasRendererRecovery() {
+  return useRequiredCanvasHost().recoverRenderer;
 }

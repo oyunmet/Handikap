@@ -40,6 +40,7 @@ import {
 import { getTravelCameraSettings } from "./camera-settings.ts";
 import { createDuelWeapon, normalizeDuelWeaponWorldSize } from "./duel-weapon.ts";
 import { fitObjectToTarget, getPreciseWorldBounds } from "./world-v2-sizing.ts";
+import { KNIGHT_CONFIG } from "./knight-config.ts";
 
 const playerModelUrl = new URL(`../../../public${PLAYER_CHARACTER_MODEL_PATH}`, import.meta.url);
 
@@ -92,6 +93,12 @@ test("player model uses the animated Quaternius hero at the configured height an
   assert.equal(PLAYER_CHARACTER_MODEL_FACING, Math.PI);
   assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.7);
   assert.equal(PLAYER_CHARACTER_ROOT_BONE, "Root");
+  assert.equal(KNIGHT_CONFIG.modelPath, PLAYER_CHARACTER_MODEL_PATH);
+  assert.equal(KNIGHT_CONFIG.rootBoneName, PLAYER_CHARACTER_ROOT_BONE);
+  assert.deepEqual(KNIGHT_CONFIG.animationClips.attack.slice(0, 2), [
+    "Dagger_Attack",
+    "CharacterArmature|Dagger_Attack",
+  ]);
 
   const playerGlb = fs.readFileSync(playerModelUrl);
   const playerModel = readGlbJson(playerGlb);

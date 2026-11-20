@@ -1504,16 +1504,20 @@
   .world-movement-actions .game-button {
     position: relative; flex: none; overflow: visible; border: 0; background: transparent;
     box-shadow: none; pointer-events: auto;
-    width: clamp(76px, 20vw, 88px) !important;
-    height: clamp(76px, 20vw, 88px) !important;
-    min-width: clamp(76px, 20vw, 88px) !important;
-    min-height: clamp(76px, 20vw, 88px) !important;
-    --game-button-face: clamp(60px, 17vw, 76px) !important;
+    width: clamp(62px, 17vw, 70px) !important;
+    height: clamp(62px, 17vw, 70px) !important;
+    min-width: clamp(62px, 17vw, 70px) !important;
+    min-height: clamp(62px, 17vw, 70px) !important;
+    --game-button-face: clamp(46px, 14vw, 58px) !important;
   }
   .world-movement-actions .game-button .game-button__hint { display: none; }
   .world-joystick {
-    width: clamp(96px, 25vw, 116px) !important;
-    height: clamp(96px, 25vw, 116px) !important;
+    width: clamp(78px, 21vw, 92px) !important;
+    height: clamp(78px, 21vw, 92px) !important;
+  }
+  .world-joystick__nub {
+    width: clamp(30px, 9vw, 36px);
+    height: clamp(30px, 9vw, 36px);
   }
   .world-movement-actions .game-button::before,
   .world-movement-actions .game-button::after { content: none; }
@@ -2500,10 +2504,11 @@
   .duel-controls--field .duel-control-cluster .duel-control {
     position: absolute;
     display: grid;
-    width: 60px;
-    min-width: 60px;
-    height: 60px;
-    min-height: 60px;
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    --game-button-face: 46px !important;
     padding: 4px;
     gap: 2px;
     border-radius: 17px;
@@ -2541,12 +2546,13 @@
     right: 0;
     bottom: 5px;
     left: auto;
-    width: 90px;
-    min-width: 90px;
-    height: 90px;
-    min-height: 90px;
-    border-radius: 22px;
-    font-size: 9px;
+    width: 82px !important;
+    min-width: 82px !important;
+    height: 82px !important;
+    min-height: 82px !important;
+    --game-button-face: 70px !important;
+    border-radius: 20px;
+    font-size: 8px;
   }
   .duel-controls--field .duel-control-cluster .duel-control.is-attack .duel-control__icon {
     width: 22px;
@@ -2555,6 +2561,14 @@
   .duel-controls--field .duel-control-cluster .duel-control.is-attack::before {
     inset: 4px;
     border-width: 1.5px;
+  }
+  .duel-controls--field .duel-control.is-attack.is-dagger .game-button__bezel {
+    box-shadow:
+      0 0 0 2px rgba(73,28,23,.9),
+      0 0 0 4px rgba(255,211,126,.52),
+      0 10px 22px rgba(0,0,0,.6),
+      inset 0 2px 8px rgba(255,237,199,.3),
+      inset 0 -6px 13px rgba(20,7,8,.55);
   }
   .duel-controls--field .duel-control-cluster .duel-control.is-block {
     background-image:
@@ -2822,12 +2836,29 @@
 
 @media (max-width: 760px) and (orientation: portrait) {
   .world-joystick {
-    bottom: max(108px, calc(env(safe-area-inset-bottom) + 96px));
+    bottom: max(94px, calc(env(safe-area-inset-bottom) + 84px));
   }
 
   .world-movement-actions {
     right: max(14px, calc(env(safe-area-inset-right) + 8px));
-    bottom: max(108px, calc(env(safe-area-inset-bottom) + 96px));
-    gap: clamp(3px, .8dvh, 8px);
+    bottom: max(94px, calc(env(safe-area-inset-bottom) + 84px));
+    gap: clamp(2px, .65dvh, 5px);
+  }
+}
+
+@media (max-width: 350px) {
+  .duel-controls--field .duel-control-cluster .duel-control {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    --game-button-face: 42px !important;
+  }
+  .duel-controls--field .duel-control-cluster .duel-control.is-attack {
+    width: 76px !important;
+    min-width: 76px !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    --game-button-face: 64px !important;
   }
 }

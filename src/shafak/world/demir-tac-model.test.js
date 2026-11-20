@@ -18,7 +18,6 @@ import {
   getCharacterBounds,
 } from "./character-model.ts";
 import { prepareWorldActorClips } from "./model-animation.ts";
-import { KNIGHT_CONFIG } from "./knight-config.ts";
 import { prepareWorldAsset } from "./world-v2-assets.ts";
 import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing.ts";
 
@@ -144,7 +143,17 @@ test("soldier walk and run clips remove Hips root motion and neutralize the bake
   const buffer = fs.readFileSync(modelPath);
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const gltf = await new GLTFLoader().parseAsync(arrayBuffer, "");
-  const preparedClips = prepareWorldActorClips(KNIGHT_CONFIG.modelPath, gltf.animations);
+  const demirTacConfig = getAnimatedRivalModelConfig(
+    "Demir Taç",
+    getWorldBotProfileByArchetype("chapter-boss"),
+    "world",
+  );
+  assert.ok(demirTacConfig);
+  const preparedClips = prepareWorldActorClips(
+    demirTacConfig.modelPath,
+    gltf.animations,
+    demirTacConfig.rootBoneName,
+  );
 
   for (const clipName of ["walk", "run"]) {
     const source = gltf.animations.find((clip) => clip.name === clipName);

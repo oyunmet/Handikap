@@ -119,12 +119,14 @@ export function createPlayerLocomotionClip(clip: THREE.AnimationClip): THREE.Ani
 export function prepareWorldActorClips(
   modelPath: string,
   clips: THREE.AnimationClip[],
+  rootBoneNameOverride?: string,
 ): THREE.AnimationClip[] {
-  const rootBoneName = modelPath === KNIGHT_CONFIG.modelPath
-    ? KNIGHT_CONFIG.rootBoneName
-    : modelPath === PLAYER_CHARACTER_MODEL_PATH
-      ? PLAYER_CHARACTER_ROOT_BONE
-      : null;
+  const rootBoneName = rootBoneNameOverride
+    ?? (modelPath === KNIGHT_CONFIG.modelPath
+      ? KNIGHT_CONFIG.rootBoneName
+      : modelPath === PLAYER_CHARACTER_MODEL_PATH
+        ? PLAYER_CHARACTER_ROOT_BONE
+        : null);
   if (!rootBoneName) return clips;
 
   return clips.map((clip) => {

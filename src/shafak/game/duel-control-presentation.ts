@@ -11,7 +11,7 @@ export function getDuelAttackPresentation({
   bowCloseRange,
   ammoCount,
 }: DuelAttackPresentationInput) {
-  const isDagger = /bıçak|hançer|dagger/i.test(weaponName);
+  const isDagger = (isBowActive && bowCloseRange) || /bıçak|hançer|dagger/i.test(weaponName);
   const ammoEmpty = isBowActive && !bowCloseRange && ammoCount !== null && ammoCount <= 0;
   const label = isBowActive
     ? bowCloseRange ? "BIÇAK" : ammoEmpty ? "OK YOK" : "ATEŞ"

@@ -49,9 +49,7 @@ export function getAutoQualityAction(fps: number, sustainedForMs: number): "down
 }
 
 export function getPixelRatioCap(quality: RenderQuality, touchDevice = false): number {
-  if (touchDevice) {
-    return quality === "low" ? 1 : Math.min(1.5, PIXEL_RATIO_CAP[quality]);
-  }
+  if (touchDevice) return 1;
   return PIXEL_RATIO_CAP[quality];
 }
 

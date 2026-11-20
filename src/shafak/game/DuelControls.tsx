@@ -79,7 +79,8 @@ function HeldButton({
     pressedRef.current = false;
     onRelease(button);
   };
-  const icon: GameButtonIcon = className.includes("attack") ? "attack"
+  const icon: GameButtonIcon = className.includes("is-dagger") ? "dagger"
+    : className.includes("attack") ? "attack"
     : className.includes("block") ? "shield"
       : className.includes("aim") ? "aim"
         : className.includes("jump") ? "jump"
@@ -466,7 +467,11 @@ export default function DuelControls({
             onPress={onPress}
             onRelease={onRelease}
             cooldown={attackCooldownSeconds}
-            disabledReason={stamina < 9 ? "SALDIRI için 9 dayanıklılık gerekli." : attackPresentation.ammoEmpty ? "Ok yok. Diğer silaha geç veya savaş çantasına ok ekle." : ""}
+            disabledReason={stamina < 9
+              ? `${attackPresentation.label === "BIÇAK" ? "BIÇAK" : "SALDIRI"} için 9 dayanıklılık gerekli.`
+              : attackPresentation.ammoEmpty
+                ? "Ok yok. Diğer silaha geç veya savaş çantasına ok ekle."
+                : ""}
             onBlocked={showBlockedHint}
           />
         </div>

@@ -12,6 +12,7 @@ test("close-range bows clearly switch the attack label to knife", () => {
 
   assert.equal(presentation.label, "BIÇAK");
   assert.equal(presentation.description, "Av bıçağıyla yakın menzil saldırısı");
+  assert.equal(presentation.isDagger, true);
   assert.equal(presentation.ammoEmpty, false);
 });
 

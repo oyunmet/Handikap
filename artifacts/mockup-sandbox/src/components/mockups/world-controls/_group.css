@@ -1,0 +1,230 @@
+.world-control-preview {
+  position: relative;
+  width: min(100vw, 402px);
+  height: min(100dvh, 874px);
+  min-height: 720px;
+  margin: 0 auto;
+  overflow: hidden;
+  color: #263a3b;
+  font-family: Inter, system-ui, sans-serif;
+  background: linear-gradient(180deg, #cfefeb 0%, #e5fff6 54%, #a8cbd0 100%);
+  isolation: isolate;
+}
+
+.world-control-preview::before {
+  position: absolute;
+  inset: 20% 0 14%;
+  background:
+    radial-gradient(ellipse at 50% 47%, rgba(255,255,255,.9) 0 10%, transparent 56%),
+    linear-gradient(180deg, transparent 0 36%, rgba(153,190,194,.28) 76%, rgba(67,92,102,.18));
+  content: "";
+}
+
+.world-control-preview__header {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  right: 16px;
+  left: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(236,210,154,.42);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(27,35,38,.95), rgba(45,46,43,.91));
+  box-shadow: 0 8px 20px rgba(24,44,47,.22);
+  color: #f3dcaa;
+}
+
+.world-control-preview__brand {
+  display: grid;
+  gap: 3px;
+}
+
+.world-control-preview__brand b {
+  font: 700 12px Georgia, serif;
+  letter-spacing: .08em;
+}
+
+.world-control-preview__brand small,
+.world-control-preview__stats {
+  color: #c8b58a;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.world-control-preview__stats {
+  padding: 6px 8px;
+  border: 1px solid rgba(226,196,132,.28);
+  border-radius: 8px;
+  background: rgba(8,14,16,.38);
+  white-space: nowrap;
+}
+
+.world-control-preview__chapter {
+  position: absolute;
+  z-index: 2;
+  top: 84px;
+  right: 18px;
+  left: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #755e38;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.world-control-preview__chapter i {
+  width: 38%;
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #e9c36c, #fff0bb);
+  box-shadow: 0 1px 5px rgba(120,92,48,.25);
+}
+
+.world-control-preview__hint {
+  position: absolute;
+  z-index: 1;
+  top: 42%;
+  left: 50%;
+  width: min(72%, 260px);
+  color: rgba(38,57,57,.52);
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.world-control-preview__hint strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #24383a;
+  font: 700 19px Georgia, serif;
+}
+
+.world-control-preview__joystick {
+  position: absolute;
+  z-index: 4;
+  bottom: 124px;
+  left: 18px;
+  display: grid;
+  width: 100px;
+  height: 100px;
+  place-items: center;
+  border: 1px solid rgba(239,223,180,.54);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255,255,255,.23), transparent 34%),
+    radial-gradient(circle, #53656a, #25353b 74%);
+  box-shadow: 0 8px 20px rgba(24,39,41,.32), inset 0 2px 8px rgba(255,255,255,.17);
+}
+
+.world-control-preview__joystick::before {
+  position: absolute;
+  inset: 14%;
+  border: 1px solid rgba(241,221,187,.2);
+  border-radius: 50%;
+  content: "";
+}
+
+.world-control-preview__nub {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(239,203,129,.67);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #b69a60, #665738 72%);
+  box-shadow: 0 3px 9px rgba(0,0,0,.35), inset 0 1px rgba(255,255,255,.28);
+}
+
+.world-control-preview__actions {
+  position: absolute;
+  z-index: 5;
+  right: 8px;
+  bottom: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  touch-action: none;
+}
+
+.world-control-preview__actions .game-button {
+  position: relative;
+  flex: none;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.world-control-preview__actions .game-button::before,
+.world-control-preview__actions .game-button::after {
+  content: none !important;
+}
+
+.world-control-preview__actions .game-button .game-button__hint {
+  display: none;
+}
+
+.world-control-preview__footer {
+  position: absolute;
+  z-index: 2;
+  right: 14px;
+  bottom: 16px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.world-control-preview__footer span {
+  display: grid;
+  min-width: 58px;
+  min-height: 42px;
+  place-items: center;
+  padding: 5px;
+  border: 1px solid rgba(232,212,169,.3);
+  border-radius: 8px;
+  background: #2c3031;
+  color: #dcc795;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.world-control-preview__footer small {
+  color: rgba(34,51,52,.52);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.world-control-preview--current .world-control-preview__actions .game-button {
+  width: clamp(76px, 20vw, 88px) !important;
+  height: clamp(76px, 20vw, 88px) !important;
+  min-width: clamp(76px, 20vw, 88px) !important;
+  min-height: clamp(76px, 20vw, 88px) !important;
+  --game-button-face: clamp(60px, 17vw, 76px) !important;
+}
+
+.world-control-preview--current .world-control-preview__joystick {
+  width: clamp(96px, 25vw, 116px);
+  height: clamp(96px, 25vw, 116px);
+}
+
+@media (max-width: 350px) {
+  .world-control-preview__header {
+    right: 10px;
+    left: 10px;
+  }
+  .world-control-preview__joystick {
+    left: 10px;
+  }
+}

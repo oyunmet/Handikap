@@ -164,8 +164,8 @@ export default function WorldV2Actor({
     return { object, bonePairs, materials };
   }, [isPlayer, model]);
   const animations = useMemo(
-    () => prepareWorldActorClips(asset.url, asset.animations),
-    [asset],
+    () => prepareWorldActorClips(asset.url, asset.animations, modelConfig?.rootBoneName),
+    [asset, modelConfig?.rootBoneName],
   );
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const poseBones = useMemo(() => findCharacterPoseBones(model), [model]);

@@ -16,9 +16,11 @@ const BLACK_SAMPLES_TO_RECOVER = 2;
 export default function WorldBlackFrameProbe({
   onBlackFrame,
   manualRender,
+  enabled = true,
 }: {
   onBlackFrame: () => void;
   manualRender: boolean;
+  enabled?: boolean;
 }) {
   const { gl, scene, camera } = useThree();
   const startedAtRef = useRef(0);
@@ -32,6 +34,15 @@ export default function WorldBlackFrameProbe({
   );
 
   useFrame((_, delta) => {
+    if (!enabled) {
+      startedAtRef.current = 0;
+      lastProbeAtRef.current = 0;
+      blackSamplesRef.current = 0;
+      recoveryRequestedRef.current = false;
+      probeDisabledRef.current = false;
+      return;
+    }
+
     // A positive-priority R3F frame callback takes over automatic rendering,
     // so this path must render on every frame, not only on sampling frames.
     let worldDrawCalls = gl.info.render.calls;
