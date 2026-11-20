@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[0];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "ash-road",
-  name: "İleri Hat",
-  storySummary: "Tahliye konvoyu kesilir ve Alaz kaybolur. İlk kayıt, Taç Birliği'nin Kuzey İleri Üssü'ndeki iletişim hattına sızdığını gösterir.",
-  storyBeats: [
-    "İleri karakolun telsizi, tahliye konvoyuyla bağlantının tam kesildiği saati kaydetmiş.",
-    "Operatör 06, yayın izinin Taç Birliği'nin kapattığı batı geçidine uzandığını bulur.",
-    "Kurtarılan siviller, Alaz'ın konvoyu güvenli bölgeye yönlendirdiğini doğrular.",
-    "Batı Karakol Komutanı'nın emir kaydı, tahliye geçidinin neden kapatıldığını ortaya çıkarır.",
-    "İlk istihbarat dosyası açılır: Alaz'ın kaybolması bir esir alma değil, planlı bir sızmadır.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "hasarlı sınır karakolu, beton tahliye koridoru ve terk edilmiş kontrol noktaları",
   enemyFaction: "Taç Birliği",
   mapVariants: ["kervan-geçidi", "yıkık-köprü", "kül-düzlüğü", "nöbetçi-burcu", "yanık-han"],

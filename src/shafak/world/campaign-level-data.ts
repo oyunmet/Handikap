@@ -6,6 +6,7 @@ import {
   getCampaignLevelKind,
   type CampaignMissionKind,
 } from "./campaign-progression.ts";
+import { getCampaignChapterName } from "../../data/story.ts";
 
 type RegularMissionKind = Exclude<CampaignMissionKind, "mini-boss" | "act-boss">;
 
@@ -39,6 +40,7 @@ export type CampaignLevelData = {
   id: string;
   chapterId: number;
   levelNumber: number;
+  chapterName: string;
   actNumber: number;
   actId: string;
   actName: string;
@@ -129,6 +131,7 @@ export async function loadCampaignLevelData(chapterId: number): Promise<Campaign
     id: `campaign:${levelNumber}`,
     chapterId,
     levelNumber,
+    chapterName: getCampaignChapterName(chapterId),
     actNumber,
     actId: act.id,
     actName: act.name,

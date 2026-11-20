@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[2];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "red-marsh",
-  name: "Kızıl Liman",
-  storySummary: "Liman manifestoları, kayıp konvoyun Taç Birliği'ne değil sivil tahliye ağına ait olduğunu ortaya çıkarır.",
-  storyBeats: [
-    "Liman güvenlik kamerası, gece yarısı mühürsüz bir askeri sevkiyatı yakalar.",
-    "Kayıp yük listesi, Alaz'ın ekibinin limandan bir haberleşme kasası çıkardığını gösterir.",
-    "Sazlık Celladı lakaplı liman komutanı, sevkiyatın Taç Birliği'ne ait olmadığını itiraf eder.",
-    "Batık yük iskelesindeki kayıtlar, kasanın merkez komuta ağına bağlandığını doğrular.",
-    "Üçüncü istihbarat dosyası açılır: Alaz, ağın sivil tahliye sistemini de kullandığını fark etmiştir.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "konteyner sahası, yük iskelesi ve sisli kıyı depoları",
   enemyFaction: "Taç Birliği Liman Taburu",
   mapVariants: ["sazlik-koridoru", "batık-köprü", "kızıl-havuz", "çamur-yolu", "eski-iskele"],

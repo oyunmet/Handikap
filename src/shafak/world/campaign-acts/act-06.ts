@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[5];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "mist-coast",
-  name: "Fırtına Kıyısı",
-  storySummary: "Kıyı istasyonundaki kayıt, Alaz'ın deniz tahliyesini sürdürdüğünü ve ağın sivil yardım çağrılarını hedefe çevirdiğini gösterir.",
-  storyBeats: [
-    "Kıyı radarında, fırtına başlamadan önce izinsiz bir tahliye botu görünür.",
-    "Kara Yelkenliler kod adlı deniz ekibi, Alaz'ın yardım çağrısını denizden iletmiştir.",
-    "Kıyı Komutanı'nın kaydı, sivilleri güvenli bölgeye ulaştırmak için tahliye rotasının değiştirildiğini doğrular.",
-    "Batık güvertedeki seyir kaydı, Demir Taç'ın kıyı iletişim istasyonlarını kapattığını doğrular.",
-    "Altıncı dosya açılır: Alaz'ın ekibi, son sinyali merkez komuta üssüne göndermiştir.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "fırtınalı askeri liman, radar istasyonu ve yük gemisi enkazı",
   enemyFaction: "Taç Birliği Kıyı Filosu",
   mapVariants: ["fener-burnu", "batık-güverte", "tuzlu-mağara", "fırtına-iskelesi", "kıyı-burcu"],

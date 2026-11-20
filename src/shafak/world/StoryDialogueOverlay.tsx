@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { StoryDialogue } from "./story-dialogue";
+import { STORY_UI_STRINGS } from "../../data/strings.ts";
 
 export default function StoryDialogueOverlay({
   dialogue,
@@ -89,33 +90,44 @@ export default function StoryDialogueOverlay({
       aria-describedby="world-story-line world-story-hint"
     >
       <div className="world-story-dialogue__card">
-        <button ref={skipRef} className="world-story-dialogue__skip" type="button" onClick={onClose}>ATLA</button>
-        {dialogue.kind === "opening" ? (
-          <div className="world-story-dialogue__brand-lockup">
+        <button ref={skipRef} className="world-story-dialogue__skip" type="button" onClick={onClose}>
+          {STORY_UI_STRINGS.dialogue.skip}
+        </button>
+        <header className="world-story-dialogue__header">
+          <div className={`world-story-dialogue__portrait is-${dialogue.portrait}`} aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <circle cx="32" cy="32" r="30" />
+              <path d="M12 55c2-12 9-18 20-18s18 6 20 18" />
+              <path d="M20 26c0-10 5-16 12-16s12 6 12 16v5c0 7-5 12-12 12s-12-5-12-12z" />
+              <path d="M19 28c1-11 6-17 13-17s12 6 13 17c-4-2-7-5-8-10-4 5-10 8-18 10z" />
+            </svg>
+          </div>
+          <div className="world-story-dialogue__heading">
+            <span className="world-story-dialogue__eyebrow">
+              {STORY_UI_STRINGS.dialogue.eyebrow} · {dialogue.speaker}
+            </span>
+            <h2 id="world-story-title">{dialogue.title}</h2>
+          </div>
+          {dialogue.kind === "opening" && (
             <img
               src={`${import.meta.env.BASE_URL}logo.svg`}
-              alt=""
-              aria-hidden="true"
+              alt="Sunvoria"
+              className="world-story-dialogue__logo"
               width="64"
               height="64"
             />
-            <div>
-              <span className="world-story-dialogue__eyebrow">{dialogue.speaker}</span>
-              <h2 id="world-story-title">{dialogue.title}</h2>
-            </div>
-          </div>
-        ) : (
-          <>
-            <span className="world-story-dialogue__eyebrow">HİKÂYE · {dialogue.speaker}</span>
-            <h2 id="world-story-title">{dialogue.title}</h2>
-          </>
-        )}
+          )}
+        </header>
         <p ref={lineRef} id="world-story-line" aria-live="off">{line.slice(0, visibleCharacters)}{lineIsComplete ? "" : "▌"}</p>
         <p id="world-story-hint" className="world-story-dialogue__hint">{dialogue.hint}</p>
         <div className="world-story-dialogue__footer">
           <span aria-hidden="true">{lineIndex + 1} / {dialogue.lines.length}</span>
           <button className="game-gold-button" type="button" onClick={onAdvance}>
-            {lineIsComplete ? lineIndex === dialogue.lines.length - 1 ? "SAHAYA DÖN" : "DEVAM" : "TAMAMINI GÖR"}
+            {lineIsComplete
+              ? lineIndex === dialogue.lines.length - 1
+                ? STORY_UI_STRINGS.dialogue.returnToField
+                : STORY_UI_STRINGS.dialogue.continue
+              : STORY_UI_STRINGS.dialogue.showCompleteLine}
           </button>
         </div>
       </div>

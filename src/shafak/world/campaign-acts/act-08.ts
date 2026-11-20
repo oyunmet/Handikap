@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[7];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "black-summit",
-  name: "Yarık Dağ Üssü",
-  storySummary: "Radar üssündeki emir, Demir Taç'ın tahliye ağını çatışmayı uzatmak için kullandığını kanıtlar; son koordinatlar komuta merkezine çıkar.",
-  storyBeats: [
-    "Dağ üssündeki radar, sivil tahliye çağrılarını askeri hedef işaretlerine dönüştürmüştür.",
-    "Yarık Sancaklıları kod adlı birlik, bu aktarımı durdurmak için kendi komuta merkezinden ayrılmıştır.",
-    "Radar Üs Komutanı'nın kaydı, tahliye sinyallerinin Demir Taç'ın emriyle hedef sistemine aktarıldığını kanıtlar.",
-    "Rüzgâr Burcu'ndaki ses kaydı, operasyon emrinin doğrudan merkez komutadan geldiğini doğrular.",
-    "Sekizinci dosya açılır: ağı kapatacak ana anahtar, Son Komuta Merkezi'ndedir.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "yüksek irtifa radar üssü, anten sahası ve kayalık askeri mevziler",
   enemyFaction: "Taç Birliği Dağ Taburu",
   mapVariants: ["kara-sırt", "uçurum-geçidi", "rüzgar-burcu", "yarık-kenarı", "zirve-merdiveni"],

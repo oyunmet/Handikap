@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[3];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "whispering-forest",
-  name: "Sis Koridoru",
-  storySummary: "Dağ koridorundaki değiştirilmiş koordinatlar içeriden sızıntıyı kanıtlar; dördüncü kayıt Alaz'ın izini iletişim merkezine taşır.",
-  storyBeats: [
-    "Gözetleme kamerası, konvoyun sis bastırmadan önce dar koridora girdiğini gösterir.",
-    "Taç Birliği'nin geçit kontrol noktaları, Alaz'ın ekibinin tahliye rotasını kapatmıştır.",
-    "Saha İstihbarat Subayı, konvoy koordinatlarının tim içinden sızdırıldığını itiraf eder.",
-    "Eski devriye kayıtları, Alaz'ın komuta zincirine güvenmediğini doğrular.",
-    "Dördüncü istihbarat dosyası açılır: konvoyun konumunu sızdıran kişi merkez üste çalışmaktadır.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "sisli orman geçidi, terk edilmiş kontrol noktaları ve kamufle mevziler",
   enemyFaction: "Taç Birliği İz Takımı",
   mapVariants: ["kök-tüneli", "sis-patikası", "yıkık-kulübe", "ay-taşı-korusu", "orman-kapısı"],

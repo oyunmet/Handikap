@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[1];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "frozen-pass",
-  name: "Kuzey Geçidi",
-  storySummary: "Kuzey radar karakolundaki kayıt, Alaz'ın konvoyu güvenli geçide yönlendirdiğini ve ikinci şifre parçasını sakladığını kanıtlar.",
-  storyBeats: [
-    "Karakol kamerası, Alaz'ın konvoyunun kar fırtınası başlamadan önce geçide girdiğini gösterir.",
-    "Dağ köyündeki siviller, Taç Birliği'nin telsiz direğini ele geçirdiğini anlatır.",
-    "Radar Komutanı'nın ekibi, geçidi kapatıp bölgeye takviye gelmesini önlemektedir.",
-    "Sinyal kulesindeki kayıt, Alaz'ın yardım çağrısını kimin susturduğunu kanıtlar.",
-    "İkinci istihbarat dosyası açılır: Alaz'ın ekibi, kuzeydeki eski radar üssüne yönelmiştir.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "karlı dağ karakolu, radar kulesi ve dar askeri ikmal hatları",
   enemyFaction: "Taç Birliği Kuzey Taburu",
   mapVariants: ["buz-kanyonu", "çöken-patika", "donmuş-kervan", "kar-burcu", "buz-gölü"],

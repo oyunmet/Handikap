@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[8];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "shadow-palace",
-  name: "Son Komuta Merkezi",
-  storySummary: "Kuzgun Timi merkezde Alaz'ı bulur ve Demir Taç'la yüzleşir; dokuzuncu kayıt ağı güvenli kanala devretme planını verir.",
-  storyBeats: [
-    "Son Komuta Merkezi, tüm bölgelerdeki tahliye ve haberleşme ağlarını tek bir sunucuda toplar.",
-    "Merkez muhafızları Alaz'ı esir tutmuyor; onun kanıtlarla üsse dönmesini engelliyor.",
-    "Dokuzuncu kayıt, Demir Taç'ın yardım ağını kontrol ederek çatışmayı uzattığını ortaya çıkarır.",
-    "Alaz, ağı kapatmanın sivilleri de iletişimsiz bırakacağını bildiği için anahtarı tek başına taşımıştır.",
-    "Son dosya açılır: Kuzgun Timi ağı güvenli şekilde kapatır, sivilleri tahliye eder ve Alaz'ı kurtarır.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "yeraltı komuta merkezi, sunucu salonu ve son tahliye koridoru",
   enemyFaction: "Demir Taç'ın Merkez Muhafızları",
   mapVariants: ["komuta-avlusu", "kara-galeri", "sunucu-salonu", "son-koridor", "radar-kulesi"],

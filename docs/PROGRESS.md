@@ -4,14 +4,14 @@
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
 
-**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — bekliyor. A7 Cila, performans ve ad temizliği — bekliyor.
+**Aşamalar:** A1 Core + tema + tek kabuk — bitti. A2 Hub dünyası + karakter — bitti. A3 Sefer/koşu — bitti. A4 FPS baskın — bitti. A5 Meydan Okuma + Siper Hattı — bitti. A6 Hikâye/diyalog/arşiv — sürüyor. A7 Cila, performans ve ad temizliği — bekliyor.
 
-**Şu an yapılan iş:** A5 tamamlandı; Meydan Okuma ve Siper Hattı ortak `arena`/`defense` modlarına bağlı. Sıradaki aşama A6.
+**Şu an yapılan iş:** A6’da hikâye/diyalog metinlerini ortak veri kaynaklarına bağlıyor, operasyon ödülü ile Kayıt Arşivi’ni tamamlıyorum; oyun adı Sunvoria olarak kalıyor.
 
 **Sıradaki 3 adım:**
-1. A6'da mevcut hikâye, diyalog ve arşiv akışlarını ortak kaynaklarla karşılaştır.
-2. Hikâye hedeflerini ve kayıt parçalarını aynı ilerleme/kayıt yapısında tut.
-3. A6'yı test, typecheck ve build ile doğrula; aşama bitince dur.
+1. Hikâye, diyalog ve A6 arayüz metinlerini ortak `src/data` kaynaklarından okut.
+2. Operasyon sonunda belirli kayıt parçasını açıp Kayıt Arşivi’nde göster.
+3. Mevcut hesap/kayıt uyumunu koruyup A6'yı test, typecheck ve build ile doğrula.
 
 **A1'de doğrulanan temel (koddan):**
 - `src/core/` — sabit zaman adımlı döngü, runtime, klavye/dokunmatik giriş, kamera takibi, GLB yükleyici ve nesne havuzu.
@@ -82,6 +82,11 @@
 - Mevcut oda akışı, localStorage kayıt anahtarları, ödüller, görev kuralları ve eşya sahipliği korunuyor.
 - Doğrulama: `npm test` — 808/808; `npm run typecheck`, `npm run build` ve `git diff --check` geçti.
 - Uygulama temiz yeniden başladı; önizlemede tarayıcı hatası yok. Yaş doğrulama ekranı açıldığı için hub/arena/savunma sahnesi bu turda görsel olarak doğrulanmadı.
+
+**A6 başlangıç incelemesi — 2026-11-20:**
+- Kampanya anlatısı, diyalog havuzu, operasyon bölümleri ve son ekran metinleri ayrı dosyalara dağılmış; ortak `src/data/story.ts` ve `src/data/strings.ts` kaynakları henüz yok.
+- Kayıt Arşivi şu an bölüm/ilerleme özeti gösteriyor; dokuz hikâye parçasını listelemiyor ve operasyon finali için ayrı ödül ekranı yok.
+- Ekli revizyonda oyun adını koruma talimatı, gövdenin daha ilerideki yeni isim önerileriyle çelişiyor. Kullanıcının açık ad koruma talimatı öncelikli; mevcut Sunvoria adı ve mevcut hub kimliği değiştirilmeden ilerle.
 
 **Alınan kararlar:**
 - Sunvoria adı ve mevcut marka varlıkları korunacak; oyun adı veya eski kayıt/iç kimlikler yeniden yazılmayacak.

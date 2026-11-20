@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[4];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "broken-throne",
-  name: "Başkent Çemberi",
-  storySummary: "Başkent çevresindeki emirler, Demir Taç'ın yardım ağını askeri hedef sistemine çevirdiğini ve tahliyeyi durdurduğunu açığa çıkarır.",
-  storyBeats: [
-    "Başkent çevresindeki kontrol noktaları, sivillerin çıkışını değil askeri sevkiyatı önceliklendiriyor.",
-    "Taç Birliği askerleri, Alaz'ın komuta merkezinden emir çaldığına inanıyor.",
-    "Merkez Kurmayı'nın kayıtları, tahliye ağına sahte koordinatların yüklendiğini kanıtlar.",
-    "Yeraltı komuta odasındaki kayıt, sivil yardım sinyallerinin hedef tespitinde kullanıldığını kanıtlar.",
-    "Beşinci dosya açılır: Alaz, sistemi durdurmak için merkezden ayrılmıştır.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "başkent çevresi, beton komuta sığınağı ve boşaltılmış idari bloklar",
   enemyFaction: "Taç Birliği Merkez Muhafızları",
   mapVariants: ["taht-avlusu", "yıkık-kışla", "gizli-merdiven", "ihanet-salonu", "kırık-bahçe"],

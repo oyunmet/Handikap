@@ -1,16 +1,13 @@
+import { CAMPAIGN_OPERATIONS } from "../../../data/story.ts";
 import type { CampaignActData } from "../campaign-level-data.ts";
 
+const operation = CAMPAIGN_OPERATIONS[6];
+
 export const CAMPAIGN_ACT_DATA: CampaignActData = {
-  id: "lost-city",
-  name: "Kumaltı İstasyonu",
-  storySummary: "Yeraltı iletişim merkezindeki kayıt, Alaz'ın dokuz şifre parçasını neden ayırdığını ve son hedefin komuta sunucusu olduğunu açıklar.",
-  storyBeats: [
-    "Kum altındaki eski ulaşım tünelleri, başkent ile dağ üssü arasında gizli bir aktarım hattı kurar.",
-    "Taş Kayıtçılar kod adlı bakım ekibi, merkez sunucunun yedek kayıtlarını saklamıştır.",
-    "İletişim Subayı'nın kaydı, yedinci parçanın görev emirlerini ve komuta zincirini içerdiğini ortaya çıkarır.",
-    "Güneş Kapısı'ndaki sunucu odası, Alaz'ın tahliye ağına yetkisiz erişim sağlamadığını kanıtlar.",
-    "Yedinci dosya açılır: Alaz, sivil ağı kapatmak için değil, Taç Birliği'nin kullanımını durdurmak için ayrılmıştır.",
-  ],
+  id: operation.id,
+  name: operation.name,
+  storySummary: operation.storySummary,
+  storyBeats: operation.storyBeats,
   theme: "kumla kaplanmış metro tüneli, yeraltı aktarma merkezi ve sunucu odaları",
   enemyFaction: "Taç Birliği İletişim Birimi",
   mapVariants: ["kumlu-pazar", "gömülü-avlu", "taş-köprü", "kayıp-arşiv", "güneş-kapısı"],

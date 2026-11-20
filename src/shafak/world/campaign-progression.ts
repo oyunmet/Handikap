@@ -1,43 +1,28 @@
 import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
+import {
+  CAMPAIGN_ACT_COUNT,
+  CAMPAIGN_LEVEL_COUNT,
+  CAMPAIGN_LEVELS_PER_OPERATION,
+  CAMPAIGN_OPERATIONS,
+  type CampaignMissionKind,
+} from "../../data/story.ts";
+import { CAMPAIGN_MISSION_LABELS } from "../../data/strings.ts";
 
-export const CAMPAIGN_ACT_COUNT = 9;
-export const CAMPAIGN_LEVELS_PER_ACT = 50;
-export const CAMPAIGN_LEVEL_COUNT = CAMPAIGN_ACT_COUNT * CAMPAIGN_LEVELS_PER_ACT;
+export { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT, CAMPAIGN_MISSION_LABELS };
+export type { CampaignMissionKind };
+
+export const CAMPAIGN_LEVELS_PER_ACT = CAMPAIGN_LEVELS_PER_OPERATION;
 export const CAMPAIGN_CHAPTER_COUNT = CAMPAIGN_LEVEL_COUNT;
 export const CAMPAIGN_PROGRESS_VERSION = 2;
 export const FINAL_CAMPAIGN_CHAPTER_ID = CAMPAIGN_CHAPTER_COUNT - 1;
 export const MAX_DEFEATED_OPPONENTS = 64;
 
-export const CAMPAIGN_REGIONS = [
-  { id: "ash-road", name: "İleri Hat", firstChapterId: 0, lastChapterId: 49 },
-  { id: "frozen-pass", name: "Kuzey Geçidi", firstChapterId: 50, lastChapterId: 99 },
-  { id: "red-marsh", name: "Kızıl Liman", firstChapterId: 100, lastChapterId: 149 },
-  { id: "whispering-forest", name: "Sis Koridoru", firstChapterId: 150, lastChapterId: 199 },
-  { id: "broken-throne", name: "Başkent Çemberi", firstChapterId: 200, lastChapterId: 249 },
-  { id: "mist-coast", name: "Fırtına Kıyısı", firstChapterId: 250, lastChapterId: 299 },
-  { id: "lost-city", name: "Kumaltı İstasyonu", firstChapterId: 300, lastChapterId: 349 },
-  { id: "black-summit", name: "Yarık Dağ Üssü", firstChapterId: 350, lastChapterId: 399 },
-  { id: "shadow-palace", name: "Son Komuta Merkezi", firstChapterId: 400, lastChapterId: 449 },
-] as const;
-
-export type CampaignMissionKind =
-  | "normal-combat"
-  | "survival"
-  | "target-hunt"
-  | "siege"
-  | "exploration"
-  | "mini-boss"
-  | "act-boss";
-
-export const CAMPAIGN_MISSION_LABELS: Readonly<Record<CampaignMissionKind, string>> = {
-  "normal-combat": "İlk Temas",
-  survival: "Mevzi Savunması",
-  "target-hunt": "Hedef Takibi",
-  siege: "Kontrol Noktası",
-  exploration: "İstihbarat Toplama",
-  "mini-boss": "Komutan Karşılaşması",
-  "act-boss": "Operasyon Finali",
-};
+export const CAMPAIGN_REGIONS = CAMPAIGN_OPERATIONS.map((operation, index) => ({
+  id: operation.id,
+  name: operation.name,
+  firstChapterId: index * CAMPAIGN_LEVELS_PER_ACT,
+  lastChapterId: (index + 1) * CAMPAIGN_LEVELS_PER_ACT - 1,
+}));
 
 const REGULAR_MISSION_KINDS = [
   "normal-combat",
