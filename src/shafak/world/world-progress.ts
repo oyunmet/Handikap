@@ -73,6 +73,24 @@ export function normalizeWorldProgress(value: unknown): WorldProgress {
   };
 }
 
+export function getCampaignReplayProgress(progress: WorldProgress, chapterId: number): WorldProgress {
+  if (
+    !Number.isSafeInteger(chapterId)
+    || chapterId < 0
+    || chapterId > FINAL_CAMPAIGN_CHAPTER_ID
+  ) {
+    throw new RangeError("Campaign replay chapter is outside the supported range.");
+  }
+  return {
+    ...progress,
+    distance: chapterId * WORLD_GATE_INTERVAL_METERS,
+    depth: 0,
+    unlockedThroughChapter: chapterId,
+    routeChoice: null,
+    campaignVersion: CAMPAIGN_PROGRESS_VERSION,
+  };
+}
+
 export function readWorldProgress(userId?: string): WorldProgress {
   try {
     const raw = globalThis.localStorage?.getItem(storageKeyFor(userId));

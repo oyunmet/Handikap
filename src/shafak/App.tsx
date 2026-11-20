@@ -464,6 +464,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const [warRoomGameMode, setWarRoomGameMode] = useState<WarRoomGameMode>("arena");
   const [worldReturnScreen, setWorldReturnScreen] = useState<"menu" | "city-hub">("menu");
   const [initialWorldStoreTab, setInitialWorldStoreTab] = useState<StoreTab | null>(null);
+  const [initialCampaignChapterId, setInitialCampaignChapterId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -794,17 +795,20 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
   const enterWorld = async (
     initialStoreTab: StoreTab | null = null,
     returnScreen: "menu" | "city-hub" = "menu",
+    campaignChapterId?: number,
   ) => {
     playFeedback();
     primeGameAudio();
-    const campaignPosition = getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0);
+    const selectedChapterId = campaignChapterId
+      ?? getCampaignProgressFromDistance(profile.worldProgress?.distance ?? 0).chapterId;
     try {
-      await loadCampaignLevelData(campaignPosition.chapterId);
+      await loadCampaignLevelData(selectedChapterId);
     } catch {
       setAnnouncement("Sefer verisi yüklenemedi. Yeniden deneyebilirsin.");
       return;
     }
     setInitialWorldStoreTab(initialStoreTab);
+    setInitialCampaignChapterId(campaignChapterId ?? null);
     setWorldReturnScreen(returnScreen);
     setScreen("world");
   };
@@ -1315,6 +1319,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 storyRecordIds={profile.campaignRecordIds}
                 playerAppearance={cityHubAppearance}
                 onOpenCampaign={() => { void enterWorld(null, "city-hub"); }}
+                onOpenCampaignAt={(chapterId) => { void enterWorld(null, "city-hub", chapterId); }}
                 onOpenWarRoom={(mode) => enterWarRoom("city-hub", mode)}
                 onOpenProfile={() => setProfileOpen(true)}
                 onOpenSettings={() => setSettingsOpen(true)}
@@ -1363,13 +1368,16 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
                 onOpenWarRoom={() => enterWarRoom("world")}
                 onExit={() => {
                   setInitialWorldStoreTab(null);
+                  setInitialCampaignChapterId(null);
                   setScreen(worldReturnScreen);
                 }}
                 onMainMenu={() => {
                   setInitialWorldStoreTab(null);
+                  setInitialCampaignChapterId(null);
                   setScreen("menu");
                 }}
                 initialStoreTab={initialWorldStoreTab}
+                initialCampaignChapterId={initialCampaignChapterId}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onOpenProfile={() => setProfileOpen(true)}
               />

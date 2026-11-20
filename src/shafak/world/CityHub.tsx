@@ -19,7 +19,11 @@ import {
   type CityCameraControl,
 } from "./city-hub-controls";
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative";
-import { CAMPAIGN_ACT_COUNT, CAMPAIGN_LEVEL_COUNT } from "./campaign-progression";
+import {
+  CAMPAIGN_ACT_COUNT,
+  CAMPAIGN_LEVEL_COUNT,
+  CAMPAIGN_REGIONS,
+} from "./campaign-progression";
 import { CAMPAIGN_OPERATIONS } from "../../data/story.ts";
 import { STORY_UI_STRINGS } from "../../data/strings.ts";
 import type { EquipmentVisual } from "../game/store-types";
@@ -36,6 +40,7 @@ type CityHubProps = {
   storyRecordIds: readonly string[];
   playerAppearance: EquipmentVisual;
   onOpenCampaign: () => void;
+  onOpenCampaignAt: (chapterId: number) => void;
   onOpenWarRoom: (mode: CityMissionMode) => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
@@ -59,6 +64,7 @@ export default function CityHub({
   storyRecordIds,
   playerAppearance,
   onOpenCampaign,
+  onOpenCampaignAt,
   onOpenWarRoom,
   onOpenProfile,
   onOpenSettings,
@@ -82,6 +88,7 @@ export default function CityHub({
   const joystickPointerRef = useRef<number | null>(null);
   const [activeDoor, setActiveDoor] = useState<CityDoor | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [activityMenuOpen, setActivityMenuOpen] = useState(false);
   const [joystickAnchor, setJoystickAnchor] = useState<JoystickAnchor | null>(null);
 
   const updateInput = useCallback(() => {
@@ -105,6 +112,7 @@ export default function CityHub({
 
   const enterDoor = useCallback((door: CityDoor | null) => {
     if (!door) return;
+    setActivityMenuOpen(false);
     if (door.id === "archive") {
       keysRef.current.clear();
       joystickRef.current = { x: 0, z: 0 };
@@ -353,25 +361,62 @@ export default function CityHub({
         </section>
       )}
 
-      <aside
-        className={`city-hub__route-guide${activeDoor ? " is-door-active" : ""}`}
-        aria-label="Görevler ve oyun modları"
+      <button
+        type="button"
+        className="city-hub__activities-toggle"
+        aria-expanded={activityMenuOpen}
+        aria-controls="city-hub-activity-menu"
+        onClick={() => setActivityMenuOpen((open) => !open)}
       >
-        <span className="city-hub__route-guide-title">GÖREVLER VE MODLAR</span>
-        {CITY_DOORS.map((door) => (
-          <button
-            type="button"
-            key={door.id}
-            aria-current={activeDoor?.id === door.id ? "location" : undefined}
-            className={`city-hub__route-item${activeDoor?.id === door.id ? " is-active" : ""}`}
-            onClick={() => enterDoor(door)}
-          >
-            <i style={{ backgroundColor: door.color }} aria-hidden="true" />
-            <span>{door.title}</span>
-            <small>{door.category}</small>
-          </button>
-        ))}
-      </aside>
+        <span aria-hidden="true">{activityMenuOpen ? "×" : "✦"}</span>
+        {activityMenuOpen ? "KAPAT" : "GÖREVLER"}
+      </button>
+      {activityMenuOpen && (
+        <aside
+          id="city-hub-activity-menu"
+          className="city-hub__route-guide"
+          aria-label="Görevler ve sefer bölgeleri"
+        >
+          <section className="city-hub__route-section" aria-label="Şehir görevleri">
+            <h2 className="city-hub__route-guide-title">GÖREVLER VE MODLAR</h2>
+            {CITY_DOORS.map((door) => (
+              <button
+                type="button"
+                key={door.id}
+                aria-current={activeDoor?.id === door.id ? "location" : undefined}
+                className={`city-hub__route-item${activeDoor?.id === door.id ? " is-active" : ""}`}
+                onClick={() => enterDoor(door)}
+              >
+                <i style={{ backgroundColor: door.color }} aria-hidden="true" />
+                <span>{door.title}</span>
+                <small>{door.category}</small>
+              </button>
+            ))}
+          </section>
+          <section className="city-hub__route-section" aria-label="Sefer bölgeleri">
+            <h2 className="city-hub__route-guide-title">SEFER BÖLGELERİ · TEKRAR OYNA</h2>
+            <div className="city-hub__region-list">
+              {CAMPAIGN_REGIONS.map((region, index) => (
+                <button
+                  type="button"
+                  key={region.id}
+                  className={`city-hub__region-item${campaignActNumber === index + 1 ? " is-current" : ""}`}
+                  aria-current={campaignActNumber === index + 1 ? "location" : undefined}
+                  aria-label={`Operasyon ${index + 1}: ${region.name}, bölüm ${region.firstChapterId + 1} ile ${region.lastChapterId + 1} arasını başlat`}
+                  onClick={() => {
+                    setActivityMenuOpen(false);
+                    onOpenCampaignAt(region.firstChapterId);
+                  }}
+                >
+                  <b>{String(index + 1).padStart(2, "0")}</b>
+                  <span>{region.name}</span>
+                  <small>{region.firstChapterId + 1}–{region.lastChapterId + 1}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+        </aside>
+      )}
 
       <div
         className="city-hub__joystick-zone"

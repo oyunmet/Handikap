@@ -4,6 +4,7 @@ import { getWorldChapter } from "./world-content.ts";
 import {
   inferWorldProgressFromDefeatedOpponents,
   isWorldChapterCleared,
+  getCampaignReplayProgress,
   limitWorldDistanceAtGate,
   normalizeWorldProgress,
   readWorldProgress,
@@ -12,6 +13,7 @@ import {
   type WorldProgress,
 } from "./world-progress.ts";
 import { createWorldRouteChoice } from "./route-difficulty.ts";
+import { WORLD_GATE_INTERVAL_METERS } from "./movement.ts";
 
 const initialProgress: WorldProgress = {
   distance: 0,
@@ -30,6 +32,29 @@ test("normalizes saved position and keeps already-passed gates open", () => {
     }),
     { distance: 150, depth: 1, unlockedThroughChapter: 1, routeChoice: null, campaignVersion: 2 },
   );
+});
+
+test("campaign region replay starts at that region without changing the saved position", () => {
+  const saved = {
+    ...initialProgress,
+    distance: 1_820,
+    depth: 0.4,
+    unlockedThroughChapter: 12,
+    routeChoice: createWorldRouteChoice("guest:player-1", 13, "right"),
+  };
+  const replay = getCampaignReplayProgress(saved, 50);
+
+  assert.deepEqual(replay, {
+    ...saved,
+    distance: 50 * WORLD_GATE_INTERVAL_METERS,
+    depth: 0,
+    unlockedThroughChapter: 50,
+    routeChoice: null,
+  });
+  assert.equal(saved.distance, 1_820);
+  assert.equal(saved.depth, 0.4);
+  assert.throws(() => getCampaignReplayProgress(saved, -1), RangeError);
+  assert.throws(() => getCampaignReplayProgress(saved, 450), RangeError);
 });
 
 test("requires the whole current room to be cleared before unlocking its gate", () => {

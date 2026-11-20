@@ -25,6 +25,26 @@ test("the city camera stays behind the hero and looks into the street", () => {
   assert.equal(frame.occluded, false);
 });
 
+test("the city camera never switches to a bird's-eye view when all default shoulders are blocked", () => {
+  const wallRing = Array.from({ length: 12 }, (_, index) => {
+    const angle = (index * Math.PI) / 6;
+    return {
+      x: Math.cos(angle) * 4,
+      z: Math.sin(angle) * 4,
+      width: 3,
+      depth: 3,
+      height: 9,
+    };
+  });
+  const frame = getCityCameraFrame({ x: 0, z: 0 }, { yaw: 0, pitch: 0 }, wallRing);
+
+  assert.ok(frame.position.y < 8, `camera rose to overhead height ${frame.position.y}`);
+  assert.ok(
+    Math.hypot(frame.position.x - frame.target.x, frame.position.z - frame.target.z) > 1,
+    "camera stays behind or beside the hero instead of directly above",
+  );
+});
+
 test("the city camera orbits independently when the camera look changes", () => {
   const player = { x: 3, z: -2 };
   const north = getCityCameraFrame(player, { yaw: 0, pitch: 0 });

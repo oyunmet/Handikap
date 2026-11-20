@@ -7,15 +7,12 @@ import {
   stepCityCameraLook,
 } from "./city-hub-controls.ts";
 
-test("city camera drag rotates horizontally and tilts within safe limits", () => {
+test("city camera drag rotates horizontally but keeps a stable third-person height", () => {
   const turned = stepCityCameraLook({ yaw: 0, pitch: 0 }, 80, -40);
   assert.ok(turned.yaw > 0);
-  assert.ok(turned.pitch > 0);
-
-  const high = stepCityCameraLook(turned, 0, -10_000);
-  const low = stepCityCameraLook(turned, 0, 10_000);
-  assert.equal(high.pitch, CITY_CAMERA_MAX_PITCH);
-  assert.equal(low.pitch, CITY_CAMERA_MIN_PITCH);
+  assert.equal(turned.pitch, 0);
+  assert.equal(stepCityCameraLook(turned, 0, -10_000).pitch, 0);
+  assert.equal(stepCityCameraLook(turned, 0, 10_000).pitch, 0);
 });
 
 test("city camera heading rotates joystick movement with a normalized diagonal", () => {

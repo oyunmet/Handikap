@@ -1,9 +1,5 @@
 import type { CityPosition } from "./city-hub-layout";
-import {
-  CITY_CAMERA_MAX_PITCH,
-  CITY_CAMERA_MIN_PITCH,
-  type CityCameraControl,
-} from "./city-hub-controls";
+import type { CityCameraControl } from "./city-hub-controls";
 
 export type CityCameraVector = CityPosition & { y: number };
 
@@ -27,6 +23,26 @@ const CAMERA_TARGET_HEIGHT = 1.28;
 const CAMERA_RADIUS = 0.28;
 const CAMERA_CLEARANCE = 0.38;
 const MIN_CAMERA_DISTANCE = 2.5;
+const ORBIT_ANGLES = [
+  0,
+  Math.PI / 8,
+  -Math.PI / 8,
+  Math.PI / 4,
+  -Math.PI / 4,
+  (3 * Math.PI) / 8,
+  (-3 * Math.PI) / 8,
+  Math.PI / 2,
+  -Math.PI / 2,
+  (5 * Math.PI) / 8,
+  (-5 * Math.PI) / 8,
+  (3 * Math.PI) / 4,
+  (-3 * Math.PI) / 4,
+  (7 * Math.PI) / 8,
+  (-7 * Math.PI) / 8,
+  Math.PI,
+] as const;
+const ORBIT_DISTANCES = [6.2, 5.2, 4.2, 3.2] as const;
+const ORBIT_HEIGHTS = [CAMERA_HEIGHT, 4.4, 3.6] as const;
 const CAMERA_OFFSETS = [
   { back: 7.2, side: 2.6 },
   { back: 7.2, side: -2.6 },
@@ -96,10 +112,6 @@ export function getCityCameraFrame(
   obstacles: readonly CityCameraObstacle[] = [],
 ): CityCameraFrame {
   const yaw = Number.isFinite(cameraControl.yaw) ? cameraControl.yaw : 0;
-  const pitch = Math.max(
-    CITY_CAMERA_MIN_PITCH,
-    Math.min(CITY_CAMERA_MAX_PITCH, Number.isFinite(cameraControl.pitch) ? cameraControl.pitch : 0),
-  );
   const facingX = Math.sin(yaw);
   const facingZ = -Math.cos(yaw);
   const rightX = Math.cos(yaw);
@@ -122,7 +134,7 @@ export function getCityCameraFrame(
     const { back, side } = CAMERA_OFFSETS[index];
     const desired = {
       x: player.x - facingX * back + rightX * side,
-      y: CAMERA_HEIGHT + pitch * 3.2,
+      y: CAMERA_HEIGHT,
       z: player.z - facingZ * back + rightZ * side,
     };
     const length = Math.hypot(
@@ -164,27 +176,41 @@ export function getCityCameraFrame(
     return { position: bestClipped.position, target, occluded: true };
   }
 
-  // If every shoulder is blocked, raise the camera above the tallest city
-  // structure while keeping it directly over a clear street point. Never
-  // fall back to the original, potentially roof-embedded camera position.
-  const overheadPosition = {
-    x: target.x,
-    y: Math.max(CAMERA_HEIGHT + pitch * 3.2, ...obstacles.map((obstacle) => obstacle.height))
-      + CAMERA_RADIUS + CAMERA_CLEARANCE + 0.5,
-    z: target.z,
-  };
-  if (
-    isCityCameraPointClear(overheadPosition, obstacles)
-    && isCityCameraPathClear(target, overheadPosition, obstacles)
-  ) {
-    return { position: overheadPosition, target, occluded: true };
+  // If the usual shoulders are blocked, search around the hero at a lower
+  // third-person height instead of switching to a bird's-eye fallback.
+  const backX = -facingX;
+  const backZ = -facingZ;
+  for (const angle of ORBIT_ANGLES) {
+    const back = Math.cos(angle);
+    const side = Math.sin(angle);
+    for (const distance of ORBIT_DISTANCES) {
+      for (const height of ORBIT_HEIGHTS) {
+        const candidate = {
+          x: target.x + backX * back * distance + rightX * side * distance,
+          y: height,
+          z: target.z + backZ * back * distance + rightZ * side * distance,
+        };
+        const cameraDistance = Math.hypot(
+          candidate.x - target.x,
+          candidate.y - target.y,
+          candidate.z - target.z,
+        );
+        if (
+          cameraDistance >= MIN_CAMERA_DISTANCE
+          && isCityCameraPointClear(candidate, obstacles)
+          && isCityCameraPathClear(target, candidate, obstacles)
+        ) return { position: candidate, target, occluded: true };
+      }
+    }
   }
 
+  // Keep a stable over-the-shoulder view if a malformed obstacle layout
+  // leaves no clear orbit point. The renderer remains in the 3D scene.
   return {
     position: {
-      x: player.x,
-      y: overheadPosition.y,
-      z: player.z,
+      x: player.x - facingX * 4.2 + rightX * 1.2,
+      y: 4.2,
+      z: player.z - facingZ * 4.2 + rightZ * 1.2,
     },
     target,
     occluded: true,

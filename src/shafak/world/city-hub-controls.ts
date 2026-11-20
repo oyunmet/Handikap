@@ -5,8 +5,8 @@ export type CityCameraControl = {
   pitch: number;
 };
 
-export const CITY_CAMERA_MIN_PITCH = -0.38;
-export const CITY_CAMERA_MAX_PITCH = 0.42;
+export const CITY_CAMERA_MIN_PITCH = 0;
+export const CITY_CAMERA_MAX_PITCH = 0;
 export const CITY_CAMERA_LOOK_SENSITIVITY = 0.0052;
 export const CITY_CAMERA_PITCH_SENSITIVITY = 0.004;
 
@@ -24,16 +24,12 @@ export function stepCityCameraLook(
   deltaY: number,
 ): CityCameraControl {
   const horizontalDelta = clamp(finiteOrZero(deltaX), -160, 160);
-  const verticalDelta = clamp(finiteOrZero(deltaY), -160, 160);
+  void deltaY;
   return {
     yaw: normalizeCityCameraYaw(
       finiteOrZero(current.yaw) + horizontalDelta * CITY_CAMERA_LOOK_SENSITIVITY,
     ),
-    pitch: clamp(
-      finiteOrZero(current.pitch) - verticalDelta * CITY_CAMERA_PITCH_SENSITIVITY,
-      CITY_CAMERA_MIN_PITCH,
-      CITY_CAMERA_MAX_PITCH,
-    ),
+    pitch: 0,
   };
 }
 

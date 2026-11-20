@@ -126,6 +126,7 @@ import {
 import { getDuelSettlementErrorMessage } from "./duel-errors";
 import {
   inferWorldProgressFromDefeatedOpponents,
+  getCampaignReplayProgress,
   isWorldChapterCleared,
   limitWorldDistanceAtGate,
   normalizeWorldProgress,
@@ -202,6 +203,7 @@ type WorldSceneProps = {
   onMainMenu: () => void;
   onOpenWarRoom?: () => void;
   initialStoreTab?: StoreTab | null;
+  initialCampaignChapterId?: number | null;
   onOpenSettings: () => void;
   profile: PlayerProfile;
   accountDuelEnabled: boolean;
@@ -576,6 +578,7 @@ export default function WorldScene({
   onMainMenu,
   onOpenWarRoom,
   initialStoreTab = null,
+  initialCampaignChapterId = null,
   onOpenSettings,
   profile,
   accountDuelEnabled,
@@ -614,10 +617,12 @@ export default function WorldScene({
   }, []);
   const dailyLives = normalizeDailyLifeState(profile, new Date(dailyClockTick));
   const dailyAccess = canStartDailyDuel(dailyLives, new Date(dailyClockTick));
+  const isCampaignReplay = initialCampaignChapterId !== null
+    && initialCampaignChapterId !== undefined;
   const [worldProgress, setWorldProgress] = useState<WorldProgress>(() => {
     const localProgress = readWorldProgress(userId);
     const savedPosition = userId && accountProfileReady ? profile.worldProgress : null;
-    return inferWorldProgressFromDefeatedOpponents(
+    const restoredProgress = inferWorldProgressFromDefeatedOpponents(
       savedPosition
         ? {
             ...localProgress,
@@ -629,10 +634,13 @@ export default function WorldScene({
         : localProgress,
       profile.defeatedOpponents,
     );
+    return isCampaignReplay
+      ? getCampaignReplayProgress(restoredProgress, initialCampaignChapterId)
+      : restoredProgress;
   });
   const [travel, setTravel] = useState(Math.floor(worldProgress.distance));
   const [campaignEnding, setCampaignEnding] = useState(() =>
-    isCampaignComplete(profile.defeatedOpponents, worldProgress.distance),
+    !isCampaignReplay && isCampaignComplete(profile.defeatedOpponents, worldProgress.distance),
   );
   const worldProgressRef = useRef(worldProgress);
   const progressUserIdRef = useRef(userId);
@@ -656,13 +664,17 @@ export default function WorldScene({
     if (!context.accountProfileReady || context.userId !== owner) return;
     await context.save(position);
   });
+  const persistLocalProgress = useCallback((progress: WorldProgress, owner?: string) => {
+    if (isCampaignReplay) return;
+    saveWorldProgress(progress, owner);
+  }, [isCampaignReplay]);
   const saveCloudProgress = useCallback((progress: WorldProgress, force = false) => {
-    if (!userId || !accountProfileReady || progressUserIdRef.current !== userId) return;
+    if (isCampaignReplay || !userId || !accountProfileReady || progressUserIdRef.current !== userId) return;
     cloudSaveQueueRef.current?.enqueue({
       userId,
       position: { distance: progress.distance, depth: progress.depth, routeChoice: progress.routeChoice },
     }, { immediate: force });
-  }, [accountProfileReady, userId]);
+  }, [accountProfileReady, isCampaignReplay, userId]);
   const chooseGateRoute = useCallback((side: WorldRouteSide) => {
     const position = motionRef.current;
     const chapterId = Math.max(0, Math.floor(position.distance / WORLD_GATE_INTERVAL_METERS));
@@ -685,17 +697,17 @@ export default function WorldScene({
     position.depth = nextProgress.depth;
     position.velocityX = 0;
     setWorldProgress(nextProgress);
-    saveWorldProgress(nextProgress, progressUserIdRef.current);
+    persistLocalProgress(nextProgress, progressUserIdRef.current);
     saveCloudProgress(nextProgress, true);
-  }, [saveCloudProgress]);
+  }, [persistLocalProgress, saveCloudProgress]);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
   useEffect(() => {
-    if (isCampaignComplete(profile.defeatedOpponents, worldProgress.distance)) {
+    if (!isCampaignReplay && isCampaignComplete(profile.defeatedOpponents, worldProgress.distance)) {
       setCampaignEnding(true);
     }
-  }, [profile.defeatedOpponents, worldProgress.distance]);
+  }, [isCampaignReplay, profile.defeatedOpponents, worldProgress.distance]);
   const commitBattleProfile = useCallback((nextProfile: PlayerProfile) => {
     profileRef.current = nextProfile;
     onBattleProfile(nextProfile);
@@ -783,6 +795,7 @@ export default function WorldScene({
     return () => window.clearInterval(interval);
   }, []);
   useEffect(() => {
+    if (isCampaignReplay) return;
     const userChanged = progressUserIdRef.current !== userId;
     const accountPositionJustLoaded = Boolean(
       userId && accountProfileReady && accountPositionLoadedUserRef.current !== userId,
@@ -799,7 +812,7 @@ export default function WorldScene({
     };
 
     if (userChanged) {
-      saveWorldProgress({
+      persistLocalProgress({
         ...worldProgressRef.current,
         distance: motionRef.current.distance,
         depth: motionRef.current.depth,
@@ -844,15 +857,16 @@ export default function WorldScene({
     ) {
       applyProgress(inferred);
     }
-  }, [accountProfileReady, profile.defeatedOpponents, profile.worldProgress, userId]);
+  }, [accountProfileReady, isCampaignReplay, persistLocalProgress, profile.defeatedOpponents, profile.worldProgress, userId]);
   useEffect(() => {
+    if (isCampaignReplay) return undefined;
     const persistProgress = () => {
       const progress = {
         ...worldProgressRef.current,
         distance: motionRef.current.distance,
         depth: motionRef.current.depth,
       };
-      saveWorldProgress(progress, progressUserIdRef.current);
+      persistLocalProgress(progress, progressUserIdRef.current);
       saveCloudProgress(progress, true);
     };
     const persistWhenHidden = () => {
@@ -872,7 +886,7 @@ export default function WorldScene({
       window.removeEventListener("pagehide", persistProgress);
       document.removeEventListener("visibilitychange", persistWhenHidden);
     };
-  }, [saveCloudProgress]);
+  }, [isCampaignReplay, persistLocalProgress, saveCloudProgress]);
   const lastMotionRef = useRef<"idle" | "walking" | "running" | "stopped">("idle");
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const [motion, setMotion] = useState<"idle" | "walking" | "running" | "stopped">("idle");
@@ -1800,6 +1814,7 @@ export default function WorldScene({
   }, []);
 
   const startNewGamePlus = useCallback(async () => {
+    if (isCampaignReplay) return;
     const resetProfile = await onStartNewGamePlus();
     closeEncounter();
     profileRef.current = resetProfile;
@@ -1812,9 +1827,9 @@ export default function WorldScene({
     setStoryDialogue(null);
     storyDialogueRef.current = null;
     setCampaignEnding(false);
-    saveWorldProgress(initialProgress, userId);
+    persistLocalProgress(initialProgress, userId);
     saveCloudProgress(initialProgress, true);
-  }, [closeEncounter, onBattleProfile, onStartNewGamePlus, saveCloudProgress, userId]);
+  }, [closeEncounter, isCampaignReplay, onBattleProfile, onStartNewGamePlus, persistLocalProgress, saveCloudProgress, userId]);
 
   const settleDuel = useCallback(async (verdict: "victory" | "defeat" | "draw", surrendered = false) => {
     const context = activeDuelRef.current;
@@ -2675,7 +2690,7 @@ export default function WorldScene({
           nextFrame.velocityX = 0;
           motionRef.current.depth = routeDepth;
           setWorldProgress(nextProgress);
-          saveWorldProgress(nextProgress, progressUserIdRef.current);
+          persistLocalProgress(nextProgress, progressUserIdRef.current);
           saveCloudProgress(nextProgress, true);
         }
 
@@ -2852,7 +2867,7 @@ export default function WorldScene({
         depth: frameState.depth,
       };
       if (now - lastProgressSave >= 1_000) {
-        saveWorldProgress(worldProgressRef.current, progressUserIdRef.current);
+        persistLocalProgress(worldProgressRef.current, progressUserIdRef.current);
         lastProgressSave = now;
       }
       if (hasCollectedThisFrame) setCollectedPickupIds(new Set(collectedRef.current));
