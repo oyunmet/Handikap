@@ -381,6 +381,22 @@ function isDebugEnabled() {
   return readQueryFlag("debug");
 }
 
+function WorldCanvasContextRecovery({ onContextLost }: { onContextLost: () => void }) {
+  const gl = useThree((state) => state.gl);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      onContextLost();
+    };
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    return () => canvas.removeEventListener("webglcontextlost", handleContextLost);
+  }, [gl, onContextLost]);
+
+  return null;
+}
+
 function getBuildStamp() {
   try {
     return typeof __WORLD_BUILD_HASH__ === "string" ? __WORLD_BUILD_HASH__ : "dev";
@@ -390,7 +406,7 @@ function getBuildStamp() {
 }
 
 class WorldV2CanvasErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
+  { children: ReactNode; fallback: ReactNode; onError: (error: Error) => void },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -401,6 +417,7 @@ class WorldV2CanvasErrorBoundary extends Component<
 
   componentDidCatch(error: Error, _info: ErrorInfo) {
     console.error("[shafak-world-v2] 3D canvas failed to start.", error);
+    this.props.onError(error);
   }
 
   render() {
@@ -507,6 +524,7 @@ export default function World3DV2(props: World3DProps) {
               </div>
             </div>
           }
+          onError={recoverWorld3D}
         >
           <GameCanvas
             interactive
@@ -546,6 +564,7 @@ export default function World3DV2(props: World3DProps) {
               </div>
             }
           >
+            <WorldCanvasContextRecovery onContextLost={recoverWorld3D} />
             <Suspense fallback={null}>
               <TimeOfDaySky quality={props.quality} showSkyShell={false} />
               <WorldRoadEnvironmentLayer

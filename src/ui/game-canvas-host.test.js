@@ -57,3 +57,21 @@ test("shared 3D renderer recovery remounts the app canvas", () => {
   assert.match(host, /recoverRenderer = useCallback/);
   assert.match(host, /key=\{context\.rendererResetVersion\}/);
 });
+
+test("the shared canvas remeasures when a scene reuses its ID with a new viewport", () => {
+  const host = readFileSync(resolve(projectRoot, "src/ui/GameCanvasHost.tsx"), "utf8");
+  assert.match(host, /viewportIdsByElementRef/);
+  assert.match(host, /requestTargetKey/);
+  assert.match(host, /\[requestIds, requestTargetKey\]/);
+});
+
+test("changing scene children updates the request without unregistering the shared canvas", () => {
+  const host = readFileSync(resolve(projectRoot, "src/ui/GameCanvasHost.tsx"), "utf8");
+  assert.match(host, /CanvasHostActionsContext/);
+  assert.match(host, /useRequiredCanvasActions\(\)/);
+  assert.match(host, /const latestRequestRef = useRef\(request\)/);
+  assert.match(host, /const registeredRequestRef = useRef<CanvasRequest \| null>\(null\)/);
+  assert.match(host, /if \(registeredRequestRef\.current === request\) return/);
+  assert.match(host, /context\.register\(request\)/);
+  assert.match(host, /context\.unregister\(id\)/);
+});

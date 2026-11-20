@@ -718,8 +718,13 @@
 
   .city-hub__joystick {
     display: block;
-    width: 116px;
-    height: 116px;
+    width: 86px;
+    height: 86px;
+  }
+
+  .city-hub__joystick-knob {
+    width: 34px;
+    height: 34px;
   }
 
   .city-hub__controls-hint {

@@ -33,6 +33,7 @@ import {
 import type { GameSceneId } from "../modes/mode";
 import { useGameRuntimeStore } from "../state/game-store";
 import { sharedGameRuntime } from "../core/game-runtime";
+import { resolveSharedCanvasDpr } from "./canvas-pixel-ratio";
 import "./game-canvas-host.css";
 
 type SharedCanvasSettings = Pick<
@@ -67,6 +68,12 @@ interface CanvasHostContextValue {
   recoverRenderer: (force?: boolean) => boolean;
 }
 
+interface CanvasHostActionsContextValue {
+  register: (request: CanvasRequest) => void;
+  unregister: (id: string) => void;
+  recoverRenderer: (force?: boolean) => boolean;
+}
+
 interface ViewportBounds {
   left: number;
   top: number;
@@ -77,6 +84,7 @@ interface ViewportBounds {
 }
 
 const CanvasHostContext = createContext<CanvasHostContextValue | null>(null);
+const CanvasHostActionsContext = createContext<CanvasHostActionsContextValue | null>(null);
 const EMPTY_BOUNDS: ViewportBounds = {
   left: 0,
   top: 0,
@@ -119,15 +127,35 @@ export function GameCanvasProvider({ children }: { children: ReactNode }) {
     () => ({ register, unregister, requests, rendererResetVersion, recoverRenderer }),
     [register, unregister, requests, rendererResetVersion, recoverRenderer],
   );
-  return <CanvasHostContext.Provider value={value}>{children}</CanvasHostContext.Provider>;
+  const actions = useMemo(
+    () => ({ register, unregister, recoverRenderer }),
+    [register, unregister, recoverRenderer],
+  );
+  return (
+    <CanvasHostActionsContext.Provider value={actions}>
+      <CanvasHostContext.Provider value={value}>{children}</CanvasHostContext.Provider>
+    </CanvasHostActionsContext.Provider>
+  );
 }
 
 export function GameCanvasStage() {
   const context = useRequiredCanvasHost();
   const setActiveScene = useGameRuntimeStore((state) => state.setActiveScene);
   const stageRef = useRef<HTMLDivElement>(null);
+  const viewportIdsByElementRef = useRef(new WeakMap<HTMLDivElement, number>());
+  const nextViewportElementIdRef = useRef(0);
   const [boundsById, setBoundsById] = useState<Record<string, ViewportBounds>>({});
   const requestIds = context.requests.map((request) => request.id).join("|");
+  const requestTargetKey = context.requests.map((request) => {
+    const element = request.viewportRef.current;
+    if (!element) return `${request.id}:missing`;
+    let elementId = viewportIdsByElementRef.current.get(element);
+    if (elementId === undefined) {
+      elementId = nextViewportElementIdRef.current++;
+      viewportIdsByElementRef.current.set(element, elementId);
+    }
+    return `${request.id}:${elementId}`;
+  }).join("|");
   const visibleRequests = context.requests.filter((request) => {
     const bounds = boundsById[request.id];
     return Boolean(bounds && bounds.width > 0 && bounds.height > 0);
@@ -165,7 +193,10 @@ export function GameCanvasStage() {
     ));
     return baseScene ? [baseScene, ...overlays] : overlays;
   }, [visibleRequests]);
-
+  const canvasDpr = useMemo(
+    () => resolveSharedCanvasDpr(renderRequests),
+    [renderRequests],
+  );
   useEffect(() => {
     setActiveScene(active?.sceneId ?? null);
   }, [active?.id, active?.sceneId, setActiveScene]);
@@ -223,7 +254,7 @@ export function GameCanvasStage() {
         target.element.removeEventListener("animationend", measure);
       }
     };
-  }, [requestIds]);
+  }, [requestIds, requestTargetKey]);
 
   return (
     <div className="game-canvas-stage" ref={stageRef} aria-hidden="true">
@@ -231,7 +262,7 @@ export function GameCanvasStage() {
         <Canvas
           key={context.rendererResetVersion}
           className="game-canvas-stage__canvas"
-          dpr={[1, 1.5]}
+          dpr={canvasDpr}
           fallback={active?.fallback}
           frameloop="always"
           gl={{ alpha: true, antialias: false, powerPreference: "high-performance" }}
@@ -270,7 +301,7 @@ export function GameCanvas({
   style,
   ...settings
 }: GameCanvasProps) {
-  const context = useRequiredCanvasHost();
+  const context = useRequiredCanvasActions();
   const id = `game-canvas-${useId()}`;
   const viewportRef = useRef<HTMLDivElement>(null);
   const request = useMemo<CanvasRequest>(
@@ -290,11 +321,25 @@ export function GameCanvas({
       settings.fallback, settings.frameloop, settings.gl, settings.onCreated, settings.orthographic, settings.resize,
       settings.shadows, style],
   );
+  const latestRequestRef = useRef(request);
+  const registeredRequestRef = useRef<CanvasRequest | null>(null);
+  latestRequestRef.current = request;
 
   useLayoutEffect(() => {
+    const initialRequest = latestRequestRef.current;
+    registeredRequestRef.current = initialRequest;
+    context.register(initialRequest);
+    return () => {
+      registeredRequestRef.current = null;
+      context.unregister(id);
+    };
+  }, [context.register, context.unregister, id]);
+
+  useLayoutEffect(() => {
+    if (registeredRequestRef.current === request) return;
+    registeredRequestRef.current = request;
     context.register(request);
-    return () => context.unregister(id);
-  }, [context.register, context.unregister, id, request]);
+  }, [context.register, request]);
 
   return (
     <div
@@ -472,6 +517,14 @@ function useRequiredCanvasHost(): CanvasHostContextValue {
   return context;
 }
 
+function useRequiredCanvasActions(): CanvasHostActionsContextValue {
+  const context = useContext(CanvasHostActionsContext);
+  if (!context) {
+    throw new Error("GameCanvas must be rendered inside GameCanvasProvider.");
+  }
+  return context;
+}
+
 export function useCanvasRendererRecovery() {
-  return useRequiredCanvasHost().recoverRenderer;
+  return useRequiredCanvasActions().recoverRenderer;
 }

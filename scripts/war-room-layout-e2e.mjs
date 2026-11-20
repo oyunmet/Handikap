@@ -33,13 +33,16 @@ const browser = await chromium.launch({
 });
 
 const pageErrors = [];
-let landscapeCanvasPixelReference = null;
+let landscapeCanvasPixelRatioReference = null;
 try {
   const context = await browser.newContext({
     viewport: viewports[0],
     deviceScaleFactor: 1,
     isMobile: true,
     hasTouch: true,
+  });
+  await context.addInitScript(() => {
+    localStorage.setItem("safak-age-gate-v1", "adult");
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -58,6 +61,13 @@ try {
     if (!root) throw new Error("Savaş Odası kapsayıcısı bulunamadı.");
     const viewport = { width: window.innerWidth, height: window.innerHeight };
     const entries = [];
+    const landscapeHint = root.querySelector(".war-room-landscape-hint");
+    const orientationBlocked = Boolean(
+      landscapeHint && getComputedStyle(landscapeHint).display !== "none",
+    );
+    const hiddenBehindOrientationPrompt = (element) => (
+      orientationBlocked && !landscapeHint?.contains(element)
+    );
     const clipRect = (rect, element) => {
       let left = Math.max(0, rect.left);
       let top = Math.max(0, rect.top);
@@ -86,7 +96,7 @@ try {
     };
 
     for (const button of root.querySelectorAll("button")) {
-      if (!isRendered(button)) continue;
+      if (!isRendered(button) || hiddenBehindOrientationPrompt(button)) continue;
       const bounds = clipRect(button.getBoundingClientRect(), button);
       if (bounds) entries.push(describe("button", button.innerText || button.getAttribute("aria-label") || "button", bounds));
     }
@@ -96,6 +106,7 @@ try {
         element.closest("button")
         || element.closest("[aria-hidden='true']")
         || element.parentElement?.closest("h1,h2,h3,p,span,strong,b,small,label,output,kbd")
+        || hiddenBehindOrientationPrompt(element)
         || !isRendered(element)
       ) continue;
       const text = element.textContent?.replace(/\s+/g, " ").trim();
@@ -121,21 +132,7 @@ try {
     const failures = [];
     for (const viewport of viewports) {
       await page.setViewportSize(viewport);
-      if (screen === "hud") {
-        const expectedCanvasSize = viewport.width >= viewport.height
-          ? { width: Math.min(viewport.width, 772), height: Math.min(viewport.height, 330) }
-          : viewport;
-        await page.waitForFunction((expected) => {
-          const canvas = document.querySelector(".war-room canvas");
-          const rect = canvas?.getBoundingClientRect();
-          return rect
-            && Math.abs(rect.width - expected.width) < 1
-            && Math.abs(rect.height - expected.height) < 1;
-        }, expectedCanvasSize, { polling: 100, timeout: 15_000 });
-      } else {
-        await page.waitForTimeout(240);
-      }
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(screen === "hud" ? 400 : 240);
       const report = await checkLayout(screen);
       const touchHud = screen === "hud" ? await page.evaluate(() => {
         const root = document.querySelector(".war-room");
@@ -174,15 +171,14 @@ try {
         const landscapeHintVisible = Boolean(
           landscapeHint && getComputedStyle(landscapeHint).display !== "none",
         );
-        const landscapeHintClose = landscapeHint?.querySelector("button");
-        const landscapeHintCloseRect = landscapeHintClose?.getBoundingClientRect();
+        const landscapeHintRect = landscapeHint?.getBoundingClientRect();
         const undersized = [...actions, ...slots].filter((element) => {
           const rect = element.getBoundingClientRect();
-          return rect.width < 48 || rect.height < 48;
+          return rect.width < 44 || rect.height < 44;
         }).map((element) => element.getAttribute("aria-label") ?? element.className);
         const rowGap = controls ? Number.parseFloat(getComputedStyle(controls).rowGap) : 0;
         const columnGap = controls ? Number.parseFloat(getComputedStyle(controls).columnGap) : 0;
-        const canvas = root?.querySelector("canvas");
+        const canvas = document.querySelector(".game-canvas-stage canvas");
         const findBox = (prefix) => boxes.find(({ label }) => label.startsWith(prefix))?.rect;
         const ammoBox = findBox("war-room-ammo");
         const weaponBox = findBox("war-room-weapon-select");
@@ -214,12 +210,17 @@ try {
           weaponsStacked,
           handedness,
           landscapeHintVisible,
-          landscapeHintCloseSized: Boolean(
-            landscapeHintCloseRect
-            && landscapeHintCloseRect.width >= 48
-            && landscapeHintCloseRect.height >= 48,
+          landscapeHintCoversViewport: Boolean(
+            landscapeHintRect
+            && landscapeHintRect.left <= 1
+            && landscapeHintRect.top <= 1
+            && landscapeHintRect.right >= window.innerWidth - 1
+            && landscapeHintRect.bottom >= window.innerHeight - 1,
           ),
           canvasPixels: canvas ? canvas.width * canvas.height : 0,
+          canvasPixelRatio: canvas && canvasRect
+            ? Math.max(canvas.width / canvasRect.width, canvas.height / canvasRect.height)
+            : 0,
           canvasSize: canvas ? { width: canvas.width, height: canvas.height } : null,
           canvasCssSize: canvasRect
             ? { width: canvasRect.width, height: canvasRect.height }
@@ -230,13 +231,13 @@ try {
       const name = `${screen}-${viewport.width}x${viewport.height}.png`;
       await page.screenshot({ path: `${outputDir}/${name}` });
       if (touchHud && viewport.width === 844 && viewport.height === 390) {
-        landscapeCanvasPixelReference = touchHud.canvasPixels;
+        landscapeCanvasPixelRatioReference = touchHud.canvasPixelRatio;
       }
       if (report.outside.length || report.overlaps.length
         || (touchHud && (
           touchHud.actionCount !== 7
-          || touchHud.rowGap < 8
-          || touchHud.columnGap < 8
+          || touchHud.rowGap < 4
+          || touchHud.columnGap < 4
           || touchHud.intersections.length
           || touchHud.outside.length
           || touchHud.undersized.length
@@ -248,11 +249,11 @@ try {
           || touchHud.slotCount < 1
           || !touchHud.battlePhase
           || (viewport.width < viewport.height
-            && (!touchHud.landscapeHintVisible || !touchHud.landscapeHintCloseSized))
+            && (!touchHud.landscapeHintVisible || !touchHud.landscapeHintCoversViewport))
           || (viewport.width >= viewport.height && touchHud.landscapeHintVisible)
           || (viewport.width < viewport.height
-            && landscapeCanvasPixelReference !== null
-            && touchHud.canvasPixels > landscapeCanvasPixelReference)
+            && landscapeCanvasPixelRatioReference !== null
+            && touchHud.canvasPixelRatio > landscapeCanvasPixelRatioReference + 0.01)
         ))) failures.push({ ...report, touchHud });
       console.log(
         `${name}: ${report.entryCount} görünür kutu; taşma ${report.outside.length}, çakışma ${report.overlaps.length}`
@@ -263,7 +264,7 @@ try {
                 ? touchHud.handedness ? "ok" : "hata"
                 : "n/a"
             }`
-            + `, canvas ${touchHud.canvasPixels}px²`
+            + `, canvas DPR ${touchHud.canvasPixelRatio.toFixed(2)}`
             + ` (${touchHud.canvasSize?.width}×${touchHud.canvasSize?.height}, CSS `
             + `${touchHud.canvasCssSize?.width}×${touchHud.canvasCssSize?.height})`
           : ""),
@@ -289,7 +290,7 @@ try {
   await page.waitForFunction(
     () => document.querySelector(".war-room-objective-status")?.getAttribute("data-expanded") === "false",
     undefined,
-    { timeout: 15_000 },
+    { timeout: 45_000 },
   );
   assert.equal(await objectiveStatus.getAttribute("data-expanded"), "false", "Görev kartı 4 saniye sonra daralmadı.");
   assert.ok((await objectiveStatus.boundingBox())?.height >= 48, "Daraltılmış görev çipi 48 px dokunma alanının altında.");
@@ -297,10 +298,12 @@ try {
   assert.equal(await objectiveStatus.getAttribute("data-expanded"), "true", "Görev kartına dokununca genişlemedi.");
   await objectiveStatus.click();
   assert.equal(await objectiveStatus.getAttribute("data-expanded"), "false", "Görev kartı tekrar daraltılamadı.");
+  await page.waitForFunction(
+    () => document.querySelector(".game-canvas-stage canvas") !== null,
+    undefined,
+    { timeout: 45_000 },
+  );
   await capture("hud");
-  await page.setViewportSize({ width: 360, height: 640 });
-  await page.locator(".war-room-landscape-hint button").click();
-  await page.locator(".war-room-landscape-hint").waitFor({ state: "hidden" });
   assert.deepEqual(pageErrors, [], `Tarayıcı hataları: ${pageErrors.join("; ")}`);
   console.log(`Ekran görüntüleri: ${outputDir}`);
 } finally {

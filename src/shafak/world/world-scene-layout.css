@@ -119,3 +119,44 @@
   }
   .world-controls { bottom: max(6px, env(safe-area-inset-bottom)); }
 }
+
+@media (max-width: 760px) and (pointer: coarse) {
+  .world-scene .world-joystick {
+    width: clamp(72px, 19vw, 82px) !important;
+    height: clamp(72px, 19vw, 82px) !important;
+  }
+
+  .world-scene .world-joystick__nub {
+    width: clamp(28px, 8vw, 32px);
+    height: clamp(28px, 8vw, 32px);
+  }
+
+  .world-scene .world-movement-actions .game-button {
+    width: clamp(56px, 15vw, 62px) !important;
+    height: clamp(56px, 15vw, 62px) !important;
+    min-width: clamp(56px, 15vw, 62px) !important;
+    min-height: clamp(56px, 15vw, 62px) !important;
+    --game-button-face: clamp(44px, 12vw, 50px) !important;
+  }
+}
+
+@media
+  (orientation: landscape) and (max-width: 960px) and (max-height: 620px) and (pointer: coarse) {
+  .world-scene .world-joystick {
+    width: clamp(68px, 10vw, 78px) !important;
+    height: clamp(68px, 10vw, 78px) !important;
+  }
+
+  .world-scene .world-joystick__nub {
+    width: 30px;
+    height: 30px;
+  }
+
+  .world-scene .world-movement-actions .game-button {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    --game-button-face: 44px !important;
+  }
+}
