@@ -1,6 +1,7 @@
 modules = ["nodejs-20", "web"]
 [nix]
 channel = "stable-25_05"
+packages = ["glib", "nss", "nspr", "atk", "at-spi2-core", "dbus", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "libxkbcommon", "alsa-lib", "libgbm"]
 
 [agent]
 expertMode = true
