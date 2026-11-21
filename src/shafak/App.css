@@ -136,10 +136,35 @@
   contain: strict;
 }
 
-.ember-layer__canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
+.ember-layer__particle {
+  position: absolute;
+  top: var(--ember-y);
+  left: var(--ember-x);
+  width: var(--ember-size);
+  height: var(--ember-size);
+  border-radius: 50%;
+  background: var(--ember-color);
+  box-shadow: 0 0 0.55rem color-mix(in srgb, var(--ember-color) 72%, transparent);
+  opacity: 0;
+  animation: ember-rise var(--ember-duration) linear var(--ember-delay) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes ember-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.65);
+  }
+
+  12%,
+  80% {
+    opacity: var(--ember-opacity);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--ember-drift), -118vh, 0) scale(0.22);
+  }
 }
 
 .scene-grain {

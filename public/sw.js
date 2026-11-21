@@ -27,8 +27,7 @@ self.addEventListener("fetch", (event) => {
   if (
     request.method !== "GET" ||
     url.origin !== self.location.origin ||
-    url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/socket.io")
+    url.pathname.startsWith("/api/")
   ) {
     return;
   }

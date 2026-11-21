@@ -1,7 +1,6 @@
 import { clerkMiddleware } from "@clerk/express";
 import express from "express";
 import { createServer } from "node:http";
-import { Server as SocketIOServer } from "socket.io";
 import {
   checkDatabaseHealth,
   createDatabaseConnection,
@@ -123,14 +122,6 @@ if (clerkConfigured && database) {
 }
 
 const httpServer = createServer(app);
-const sockets = new SocketIOServer(httpServer, {
-  path: "/socket.io",
-  serveClient: false,
-});
-
-sockets.on("connection", (socket) => {
-  socket.emit("server:ready", { status: "ready" });
-});
 
 async function startServer() {
   const health = await checkDatabaseHealth(databaseConnection);
@@ -147,9 +138,9 @@ async function startServer() {
   });
 }
 
-async function stopServer() {
-  sockets.close(async () => {
-    await database?.end();
+function stopServer() {
+  httpServer.close(() => {
+    void database?.end();
   });
 }
 

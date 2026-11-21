@@ -1,0 +1,29 @@
+package.json JSON: valid
+
+up to date, audited 431 packages in 4s
+
+92 packages are looking for funding
+  run `npm fund` for details
+
+4 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 22, reused 0, downloaded 0, added 0
+Progress: resolved 32, reused 0, downloaded 0, added 0
+Progress: resolved 47, reused 0, downloaded 0, added 0
+Progress: resolved 92, reused 0, downloaded 0, added 0
+Progress: resolved 127, reused 0, downloaded 0, added 0
+Progress: resolved 194, reused 0, downloaded 0, added 0
+Progress: resolved 256, reused 0, downloaded 0, added 0
+Progress: resolved 310, reused 0, downloaded 0, added 0
+Progress: resolved 432, reused 0, downloaded 0, added 0
+ WARN  2 deprecated subdependencies found: @types/wrap-ansi@8.1.0, glob@10.5.0
+Progress: resolved 515, reused 0, downloaded 0, added 0, done
+
+Done in 10.6s using pnpm v10.26.1
+
+Private resolved URLs remaining: 0

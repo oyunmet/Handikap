@@ -10,6 +10,15 @@
 - Doğrulama: typecheck geçti; 830 test geçti; production build 2.95 saniyede tamamlandı ve `dist/` 23 MiB oldu.
 - GitHub'a tag push yapılmadı; bu depoda push ve deploy kullanıcıya aittir.
 
+## SUNVORIA düzeltme talimatı — Faz 1
+
+**Durum:** Sürüyor.
+
+- `package-lock.json` içinde 219 Replit içi tarball URL'si bulundu; URL'ler sürüm ve bütünlük hash'lerini koruyarak herkese açık npm adreslerine dönüştürülecek.
+- Bu depoda daha önce Vercel'in `npm ci` sonrasında `pnpm install --frozen-lockfile` çalıştırdığı doğrulanmış. Bu nedenle `pnpm-lock.yaml` silinmeyecek; iki kilit dosyasının `package.json` ile eşleşmesi korunacak.
+- Vercel Node 24.x kullanıyor; import edilen çalışma alanı Node 20.20.0. Yerel yapılandırma bu sürüm farkına göre hizalanacak.
+- `npx depcheck` `.local/skills/` şablonlarını da taradığı için çok sayıda ilgisiz eksik paket raporladı; sonuç, uygulama bağımlılıklarını tek başına belirlemek için kullanılmayacak.
+
 ## Yeni mimari çalışması — 19 Kasım 2026
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.

@@ -85,11 +85,11 @@ test("large art and the interface chime use compressed formats", () => {
   }
 });
 
-test("offline service worker leaves game APIs network-only", () => {
+test("offline service worker leaves game APIs network-only without obsolete socket routes", () => {
   const serviceWorker = readFileSync(join(publicDirectory, "sw.js"), "utf8");
   assert.match(serviceWorker, /request\.method !== "GET"/);
   assert.match(serviceWorker, /url\.pathname\.startsWith\("\/api\/"\)/);
-  assert.match(serviceWorker, /url\.pathname\.startsWith\("\/socket\.io"\)/);
+  assert.equal(serviceWorker.includes("/socket.io"), false);
   assert.match(serviceWorker, /request\.mode === "navigate"/);
   assert.ok(existsSync(join(publicDirectory, "offline.html")));
 });
