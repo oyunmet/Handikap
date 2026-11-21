@@ -1,0 +1,4254 @@
+
+> safak-savasci@1.0.0 test
+> node --import tsx --test --test-concurrency=4 $(find db server src -type f \( -name '*.test.js' -o -name '*.test.ts' -o -name '*.spec.js' -o -name '*.spec.ts' -o -name '*.test.mjs' -o -name '*.spec.mjs' \) -print)
+
+TAP version 13
+# Subtest: a missing or invalid DATABASE_URL is reported without creating a pool
+ok 1 - a missing or invalid DATABASE_URL is reported without creating a pool
+  ---
+  duration_ms: 1.18865
+  ...
+# Subtest: Supabase URLs require SSL and use bounded connection timeouts
+ok 2 - Supabase URLs require SSL and use bounded connection timeouts
+  ---
+  duration_ms: 3.042233
+  ...
+# Subtest: migrations prefer the separate migration URL and fall back to the runtime URL
+ok 3 - migrations prefer the separate migration URL and fall back to the runtime URL
+  ---
+  duration_ms: 0.321916
+  ...
+# Subtest: non-Supabase database URLs keep their SSL mode
+ok 4 - non-Supabase database URLs keep their SSL mode
+  ---
+  duration_ms: 0.979783
+  ...
+# Subtest: database health gives a clear error when no database is configured
+ok 5 - database health gives a clear error when no database is configured
+  ---
+  duration_ms: 0.313354
+  ...
+# Subtest: database health reports connection failures instead of throwing
+ok 6 - database health reports connection failures instead of throwing
+  ---
+  duration_ms: 0.429388
+  ...
+# Subtest: database health reports a successful connection
+ok 7 - database health reports a successful connection
+  ---
+  duration_ms: 0.23375
+  ...
+# Subtest: database health reports missing required tables
+ok 8 - database health reports missing required tables
+  ---
+  duration_ms: 0.205211
+  ...
+# Subtest: database error summaries never include raw connection details
+ok 9 - database error summaries never include raw connection details
+  ---
+  duration_ms: 0.220081
+  ...
+# Subtest: ads stay disabled and provider-free unless the server enables them
+ok 10 - ads stay disabled and provider-free unless the server enables them
+  ---
+  duration_ms: 1.467775
+  ...
+# Subtest: H5 Games requires an enabled server flag and a valid publisher ID
+ok 11 - H5 Games requires an enabled server flag and a valid publisher ID
+  ---
+  duration_ms: 0.291269
+  ...
+# Subtest: AdMob remains disabled until a native SDK and signed reward verifier exist
+ok 12 - AdMob remains disabled until a native SDK and signed reward verifier exist
+  ---
+  duration_ms: 0.124702
+  ...
+# Subtest: ads config is public, uncached, and contains only the configured provider data
+ok 13 - ads config is public, uncached, and contains only the configured provider data
+  ---
+  duration_ms: 145.876807
+  ...
+# Subtest: Clerk verification reasons are reduced to safe diagnostic codes
+ok 14 - Clerk verification reasons are reduced to safe diagnostic codes
+  ---
+  duration_ms: 0.78564
+  ...
+# Subtest: missing bearer tokens are reported without exposing request data
+ok 15 - missing bearer tokens are reported without exposing request data
+  ---
+  duration_ms: 0.180155
+  ...
+# Subtest: JWT timestamps can identify expiry and future issue time for diagnostics
+ok 16 - JWT timestamps can identify expiry and future issue time for diagnostics
+  ---
+  duration_ms: 0.335648
+  ...
+# Subtest: Clerk health validates key format, Backend API access, and instance alignment
+ok 17 - Clerk health validates key format, Backend API access, and instance alignment
+  ---
+  duration_ms: 53.680553
+  ...
+# Subtest: Clerk health detects publishable-key mismatches without exposing key values
+ok 18 - Clerk health detects publishable-key mismatches without exposing key values
+  ---
+  duration_ms: 0.984071
+  ...
+# Subtest: missing Clerk keys fail closed without making an external request
+ok 19 - missing Clerk keys fail closed without making an external request
+  ---
+  duration_ms: 0.34329
+  ...
+# Subtest: debug final-scene gate is not discoverable when DEBUG_TOOLS is disabled
+ok 20 - debug final-scene gate is not discoverable when DEBUG_TOOLS is disabled
+  ---
+  duration_ms: 159.203834
+  ...
+# Subtest: debug final-scene gate only reports enabled when the server enables it
+ok 21 - debug final-scene gate only reports enabled when the server enables it
+  ---
+  duration_ms: 68.040255
+  ...
+# [anonymous-client-crash] window-error
+# Subtest: anonymous crash logging accepts only a minimal event category
+ok 22 - anonymous crash logging accepts only a minimal event category
+  ---
+  duration_ms: 184.972013
+  ...
+# Subtest: server challenges use a generated rival id and return server-owned combat settings
+ok 23 - server challenges use a generated rival id and return server-owned combat settings
+  ---
+  duration_ms: 40.493609
+  ...
+# Subtest: challenge difficulty and level-based tuning are saved with the server replay snapshot
+ok 24 - challenge difficulty and level-based tuning are saved with the server replay snapshot
+  ---
+  duration_ms: 1.22313
+  ...
+# Subtest: retrying a duel start reuses the active challenge for the same opponent
+ok 25 - retrying a duel start reuses the active challenge for the same opponent
+  ---
+  duration_ms: 1.231163
+  ...
+# Subtest: a client cannot submit a requested result or rewards
+ok 26 - a client cannot submit a requested result or rewards
+  ---
+  duration_ms: 0.955635
+  ...
+# Subtest: input tapes reject broken button transitions and client-invented fields
+ok 27 - input tapes reject broken button transitions and client-invented fields
+  ---
+  duration_ms: 0.550903
+  ...
+# Subtest: input tapes preserve bounded fractional joystick axes while keeping ticks and buttons integral
+ok 28 - input tapes preserve bounded fractional joystick axes while keeping ticks and buttons integral
+  ---
+  duration_ms: 0.232794
+  ...
+# Subtest: server replays the seeded duel and returns the stored result only once
+ok 29 - server replays the seeded duel and returns the stored result only once
+  ---
+  duration_ms: 118.476757
+  ...
+# Subtest: the retained server reward calculation preserves the third-win daily quest
+ok 30 - the retained server reward calculation preserves the third-win daily quest
+  ---
+  duration_ms: 0.821057
+  ...
+# Subtest: server boss victories grant a seal fragment without changing ordinary duel rewards
+ok 31 - server boss victories grant a seal fragment without changing ordinary duel rewards
+  ---
+  duration_ms: 1.092344
+  ...
+# Subtest: server-verified operation finales save story records on the account profile
+ok 32 - server-verified operation finales save story records on the account profile
+  ---
+  duration_ms: 3.808128
+  ...
+# Subtest: profile API accepts and normalizes a valid account profile
+ok 33 - profile API accepts and normalizes a valid account profile
+  ---
+  duration_ms: 25.80564
+  ...
+# Subtest: legacy account profiles recover story records and preserve them as a separate collection
+ok 34 - legacy account profiles recover story records and preserve them as a separate collection
+  ---
+  duration_ms: 0.956994
+  ...
+# Subtest: new profiles start with starter equipment and no purchasable currency
+ok 35 - new profiles start with starter equipment and no purchasable currency
+  ---
+  duration_ms: 0.446811
+  ...
+# Subtest: profile API rejects impossible progression and malformed collections
+ok 36 - profile API rejects impossible progression and malformed collections
+  ---
+  duration_ms: 0.719481
+  ...
+# Subtest: account progression requires the chapter boss before passing the gate
+ok 37 - account progression requires the chapter boss before passing the gate
+  ---
+  duration_ms: 3.195143
+  ...
+# Subtest: profile API rejects unsafe or oversized values
+ok 38 - profile API rejects unsafe or oversized values
+  ---
+  duration_ms: 1.132099
+  ...
+# Subtest: profile rename accepts only a display name, never client-owned progress
+ok 39 - profile rename accepts only a display name, never client-owned progress
+  ---
+  duration_ms: 0.239587
+  ...
+# Subtest: account deletion removes every per-user table and then the Clerk identity
+ok 40 - account deletion removes every per-user table and then the Clerk identity
+  ---
+  duration_ms: 1.477206
+  ...
+# Subtest: account deletion rolls back game data when Clerk refuses to delete the identity
+ok 41 - account deletion rolls back game data when Clerk refuses to delete the identity
+  ---
+  duration_ms: 3.900505
+  ...
+# Subtest: account deletion requires a same-origin request and explicit confirmation
+ok 42 - account deletion requires a same-origin request and explicit confirmation
+  ---
+  duration_ms: 247.27171
+  ...
+# Subtest: store persistence failures distinguish an outdated schema from a transient outage
+ok 43 - store persistence failures distinguish an outdated schema from a transient outage
+  ---
+  duration_ms: 4.022025
+  ...
+# Subtest: purchase and upgrade bodies accept only a canonical item ID and idempotency UUID
+ok 44 - purchase and upgrade bodies accept only a canonical item ID and idempotency UUID
+  ---
+  duration_ms: 0.943719
+  ...
+# Subtest: the account purchase route rejects spoofed prices and unaffordable catalog items
+ok 45 - the account purchase route rejects spoofed prices and unaffordable catalog items
+  ---
+  duration_ms: 274.049567
+  ...
+# Subtest: the account purchase route replays idempotently and blocks buying an owned item again
+ok 46 - the account purchase route replays idempotently and blocks buying an owned item again
+  ---
+  duration_ms: 103.938307
+  ...
+# Subtest: buying equipment immediately equips it and activates its combat stats
+ok 47 - buying equipment immediately equips it and activates its combat stats
+  ---
+  duration_ms: 57.751702
+  ...
+# Subtest: War Room weapon purchase adds ownership and charges exactly once without RPG equipment
+ok 48 - War Room weapon purchase adds ownership and charges exactly once without RPG equipment
+  ---
+  duration_ms: 59.438515
+  ...
+# Subtest: an unaffordable War Room weapon purchase leaves the balance and inventory unchanged
+ok 49 - an unaffordable War Room weapon purchase leaves the balance and inventory unchanged
+  ---
+  duration_ms: 35.390052
+  ...
+# Subtest: owned War Room weapons can be assigned to separate primary and reserve slots
+ok 50 - owned War Room weapons can be assigned to separate primary and reserve slots
+  ---
+  duration_ms: 52.94922
+  ...
+# Subtest: purchased rings fill an empty ring slot before replacing the first ring
+ok 51 - purchased rings fill an empty ring slot before replacing the first ring
+  ---
+  duration_ms: 45.1418
+  ...
+# Subtest: buying a combat item puts it in the first open quick slot
+ok 52 - buying a combat item puts it in the first open quick slot
+  ---
+  duration_ms: 50.758688
+  ...
+# Subtest: daily special purchases accept today's offer and reject expired offers without charging
+ok 53 - daily special purchases accept today's offer and reject expired offers without charging
+  ---
+  duration_ms: 63.993709
+  ...
+# Subtest: the account equip route refuses items the profile does not own
+ok 54 - the account equip route refuses items the profile does not own
+  ---
+  duration_ms: 51.585385
+  ...
+# Subtest: the account equip route supports an explicit second ring slot
+ok 55 - the account equip route supports an explicit second ring slot
+  ---
+  duration_ms: 54.098352
+  ...
+# Subtest: repeat purchases add consumable and material stock without creating equipment entries
+ok 56 - repeat purchases add consumable and material stock without creating equipment entries
+  ---
+  duration_ms: 84.151097
+  ...
+# Subtest: selling returns the catalog value, removes the item once, and rejects equipped gear
+ok 57 - selling returns the catalog value, removes the item once, and rejects equipped gear
+  ---
+  duration_ms: 63.522185
+  ...
+# Subtest: salvaging removes loose gear and returns upgrade-aware materials
+ok 58 - salvaging removes loose gear and returns upgrade-aware materials
+  ---
+  duration_ms: 120.50553
+  ...
+# Subtest: upgrading spends its configured cost once and replays do not charge twice
+ok 59 - upgrading spends its configured cost once and replays do not charge twice
+  ---
+  duration_ms: 52.506365
+  ...
+# Subtest: the account combat loadout saves assigned slots and only accepts owned weapons and available items
+ok 60 - the account combat loadout saves assigned slots and only accepts owned weapons and available items
+  ---
+  duration_ms: 52.767429
+  ...
+# Subtest: server catalog contains the staged equipment categories with in-game-only prices
+ok 61 - server catalog contains the staged equipment categories with in-game-only prices
+  ---
+  duration_ms: 0.342385
+  ...
+# Subtest: equipped and upgraded item stats are calculated from the server catalog
+ok 62 - equipped and upgraded item stats are calculated from the server catalog
+  ---
+  duration_ms: 0.635693
+  ...
+# Subtest: upgrade prices increase by level and reserve seal fragments for higher tiers
+ok 63 - upgrade prices increase by level and reserve seal fragments for higher tiers
+  ---
+  duration_ms: 0.167558
+  ...
+# Subtest: Vercel Hobby deploy stays within its 12-function limit
+ok 64 - Vercel Hobby deploy stays within its 12-function limit
+  ---
+  duration_ms: 4.35378
+  ...
+# Subtest: Vercel API entrypoints use explicit TypeScript extensions throughout their import graph
+ok 65 - Vercel API entrypoints use explicit TypeScript extensions throughout their import graph
+  ---
+  duration_ms: 139.318114
+  ...
+# Subtest: the shared Vercel API function serves the public store catalog
+ok 66 - the shared Vercel API function serves the public store catalog
+  ---
+  duration_ms: 1276.382318
+  ...
+# Subtest: Vercel API handler initializes lazily and returns health errors as JSON
+ok 67 - Vercel API handler initializes lazily and returns health errors as JSON
+  ---
+  duration_ms: 30.084754
+  ...
+# Subtest: explicit debug status route reaches the API handler instead of returning a Vercel path-level 404
+ok 68 - explicit debug status route reaches the API handler instead of returning a Vercel path-level 404
+  ---
+  duration_ms: 25.771855
+  ...
+# Subtest: explicit ads config route returns a safe default without requiring an account
+ok 69 - explicit ads config route returns a safe default without requiring an account
+  ---
+  duration_ms: 38.185516
+  ...
+# Subtest: explicit pickup route returns JSON instead of a Vercel path-level 404
+ok 70 - explicit pickup route returns JSON instead of a Vercel path-level 404
+  ---
+  duration_ms: 18.270291
+  ...
+# Subtest: explicit duel routes reach the API handler instead of returning a Vercel path-level 404
+ok 71 - explicit duel routes reach the API handler instead of returning a Vercel path-level 404
+  ---
+  duration_ms: 105.777171
+  ...
+# Subtest: explicit store routes reach the API handler instead of returning a Vercel path-level 404
+ok 72 - explicit store routes reach the API handler instead of returning a Vercel path-level 404
+  ---
+  duration_ms: 52.632806
+  ...
+# Subtest: pickup claim body contains IDs and server-calculated rewards only
+ok 73 - pickup claim body contains IDs and server-calculated rewards only
+  ---
+  duration_ms: 4.579721
+  ...
+# Subtest: pickup reward claims calculate diamonds and upgrade materials on the server
+ok 74 - pickup reward claims calculate diamonds and upgrade materials on the server
+  ---
+  duration_ms: 0.5603
+  ...
+# Subtest: pickup claim rejects client rewards, duplicates, and invalid or oversized ID batches
+ok 75 - pickup claim rejects client rewards, duplicates, and invalid or oversized ID batches
+  ---
+  duration_ms: 0.64416
+  ...
+# Subtest: smoothFollow moves a reusable camera vector toward its target
+ok 76 - smoothFollow moves a reusable camera vector toward its target
+  ---
+  duration_ms: 0.985023
+  ...
+# Subtest: smoothFollow ignores invalid frame deltas
+ok 77 - smoothFollow ignores invalid frame deltas
+  ---
+  duration_ms: 0.982701
+  ...
+# Subtest: FixedStepLoop accumulates partial frames and advances in fixed increments
+ok 78 - FixedStepLoop accumulates partial frames and advances in fixed increments
+  ---
+  duration_ms: 1.687888
+  ...
+# Subtest: FixedStepLoop clamps long frames and caps catch-up work
+ok 79 - FixedStepLoop clamps long frames and caps catch-up work
+  ---
+  duration_ms: 0.227701
+  ...
+# Subtest: GameRuntime runs registered systems at a fixed step and stops after cleanup
+ok 80 - GameRuntime runs registered systems at a fixed step and stops after cleanup
+  ---
+  duration_ms: 2.342509
+  ...
+# Subtest: GameRuntime notifies frame systems after fixed updates with interpolation state
+ok 81 - GameRuntime notifies frame systems after fixed updates with interpolation state
+  ---
+  duration_ms: 0.362311
+  ...
+# Subtest: input manager normalizes movement and returns a reusable frame snapshot
+ok 82 - input manager normalizes movement and returns a reusable frame snapshot
+  ---
+  duration_ms: 1.085421
+  ...
+# Subtest: input manager ignores non-finite touch and look values
+ok 83 - input manager ignores non-finite touch and look values
+  ---
+  duration_ms: 0.406389
+  ...
+# Subtest: object pool reuses released objects and respects its capacity
+ok 84 - object pool reuses released objects and respects its capacity
+  ---
+  duration_ms: 1.059626
+  ...
+# Subtest: clearing invalidates active references before the next allocation
+ok 85 - clearing invalidates active references before the next allocation
+  ---
+  duration_ms: 0.250176
+  ...
+# Subtest: the shared mode registry separates War Room arena and defense activities
+ok 86 - the shared mode registry separates War Room arena and defense activities
+  ---
+  duration_ms: 1.747107
+  ...
+# Subtest: legacy scene routing retains the active War Room mode
+ok 87 - legacy scene routing retains the active War Room mode
+  ---
+  duration_ms: 0.142936
+  ...
+# Subtest: unknown or denied consent prevents config requests and third-party loading
+ok 88 - unknown or denied consent prevents config requests and third-party loading
+  ---
+  duration_ms: 1.096416
+  ...
+# Subtest: server kill switch and provider none prevent SDK loading
+ok 89 - server kill switch and provider none prevent SDK loading
+  ---
+  duration_ms: 0.173533
+  ...
+# Subtest: server kill switch is rechecked before each ad placement
+ok 90 - server kill switch is rechecked before each ad placement
+  ---
+  duration_ms: 0.461932
+  ...
+# Subtest: AdMob native is passive and does not load a web SDK
+ok 91 - AdMob native is passive and does not load a web SDK
+  ---
+  duration_ms: 0.222067
+  ...
+# Subtest: H5 Games initializes only after consent and emits close results
+ok 92 - H5 Games initializes only after consent and emits close results
+  ---
+  duration_ms: 1.958137
+  ...
+# Subtest: PWA manifest has installable Turkish TWA metadata and local icons
+ok 93 - PWA manifest has installable Turkish TWA metadata and local icons
+  ---
+  duration_ms: 2.425874
+  ...
+# Subtest: privacy and account deletion pages are public and linked from settings
+ok 94 - privacy and account deletion pages are public and linked from settings
+  ---
+  duration_ms: 2.627
+  ...
+# Subtest: Android Play version follows package version and the home screen shows its build marker
+ok 95 - Android Play version follows package version and the home screen shows its build marker
+  ---
+  duration_ms: 3.099218
+  ...
+# Subtest: large art and the interface chime use compressed formats
+ok 96 - large art and the interface chime use compressed formats
+  ---
+  duration_ms: 1.094971
+  ...
+# Subtest: offline service worker leaves game APIs network-only
+ok 97 - offline service worker leaves game APIs network-only
+  ---
+  duration_ms: 1.253762
+  ...
+# Subtest: Android wrapper keeps the chosen Play identity and current target API
+ok 98 - Android wrapper keeps the chosen Play identity and current target API
+  ---
+  duration_ms: 1.689509
+  ...
+# [api] {
+#   operation: 'store test',
+#   status: 200,
+#   contentType: 'text/html',
+#   code: 'invalid_content_type'
+# }
+# [api] {
+#   operation: 'store test',
+#   status: 204,
+#   contentType: 'application/json',
+#   code: 'empty_body'
+# }
+# [api] {
+#   operation: 'store test',
+#   status: 409,
+#   contentType: 'application/json; charset=utf-8',
+#   code: 'insufficient_funds'
+# }
+# Subtest: HTML responses produce a friendly retryable error without parsing the body as JSON
+ok 99 - HTML responses produce a friendly retryable error without parsing the body as JSON
+  ---
+  duration_ms: 73.098405
+  ...
+# Subtest: empty JSON responses produce a friendly error
+ok 100 - empty JSON responses produce a friendly error
+  ---
+  duration_ms: 2.007021
+  ...
+# Subtest: known JSON API errors are mapped to user-facing text
+ok 101 - known JSON API errors are mapped to user-facing text
+  ---
+  duration_ms: 8.703752
+  ...
+# Subtest: valid JSON responses are returned
+ok 102 - valid JSON responses are returned
+  ---
+  duration_ms: 1.118035
+  ...
+# [api] request failed after retries {
+#   operation: 'store test',
+#   status: 401,
+#   code: 'authentication_required'
+# }
+# [api] {
+#   operation: 'store test',
+#   status: 401,
+#   contentType: 'application/json',
+#   code: 'authentication_required'
+# }
+# [api] request failed after retries {
+#   operation: 'store test',
+#   status: 401,
+#   code: 'authentication_required'
+# }
+# Subtest: transient server errors are retried with a bounded attempt count
+ok 103 - transient server errors are retried with a bounded attempt count
+  ---
+  duration_ms: 39.788753
+  ...
+# Subtest: authentication and validation errors are not retried
+ok 104 - authentication and validation errors are not retried
+  ---
+  duration_ms: 0.9188
+  ...
+# Subtest: authenticated requests fetch a fresh token and send it as a bearer header
+ok 105 - authenticated requests fetch a fresh token and send it as a bearer header
+  ---
+  duration_ms: 1.072126
+  ...
+# Subtest: a 401 forces one token refresh and retries only once
+ok 106 - a 401 forces one token refresh and retries only once
+  ---
+  duration_ms: 2.003498
+  ...
+# Subtest: missing tokens prevent the API call and signal the caller to sign in
+ok 107 - missing tokens prevent the API call and signal the caller to sign in
+  ---
+  duration_ms: 0.438854
+  ...
+# Subtest: pickup retries remain bounded and a 401 still refreshes only once
+ok 108 - pickup retries remain bounded and a 401 still refreshes only once
+  ---
+  duration_ms: 1.910001
+  ...
+# Subtest: audio volumes normalize malformed and out-of-range saved preferences
+ok 109 - audio volumes normalize malformed and out-of-range saved preferences
+  ---
+  duration_ms: 1.213607
+  ...
+# Subtest: chapter music uses distinct, looping themes for the three world biomes
+ok 110 - chapter music uses distinct, looping themes for the three world biomes
+  ---
+  duration_ms: 1.617212
+  ...
+# Subtest: age gate requires an explicit adult confirmation
+ok 111 - age gate requires an explicit adult confirmation
+  ---
+  duration_ms: 1.108276
+  ...
+# Subtest: age decision storage handles blocked storage safely
+ok 112 - age decision storage handles blocked storage safely
+  ---
+  duration_ms: 0.234355
+  ...
+# Subtest: only the exact final-scene debug parameter requests the preview
+ok 113 - only the exact final-scene debug parameter requests the preview
+  ---
+  duration_ms: 3.032371
+  ...
+# Subtest: fallback mode is enabled only by fallback=1 on the final-scene route
+ok 114 - fallback mode is enabled only by fallback=1 on the final-scene route
+  ---
+  duration_ms: 0.181002
+  ...
+# Subtest: the Play Store TWA ignores the final-scene test route
+ok 115 - the Play Store TWA ignores the final-scene test route
+  ---
+  duration_ms: 0.122472
+  ...
+# Subtest: startup diagnostics require the exact hidden parameter and stay off in the Play Store TWA
+ok 116 - startup diagnostics require the exact hidden parameter and stay off in the Play Store TWA
+  ---
+  duration_ms: 0.191878
+  ...
+# Subtest: startup diagnostics survive an in-app redirect that removes the query string
+ok 117 - startup diagnostics survive an in-app redirect that removes the query string
+  ---
+  duration_ms: 0.968574
+  ...
+# Subtest: startup diagnostic text redacts likely credentials and stays short
+ok 118 - startup diagnostic text redacts likely credentials and stays short
+  ---
+  duration_ms: 0.678971
+  ...
+# Subtest: startup diagnostics include the React component path and redact credential-shaped text
+ok 119 - startup diagnostics include the React component path and redact credential-shaped text
+  ---
+  duration_ms: 0.224003
+  ...
+# Subtest: boss HUD phases use visual health thresholds without changing combat state
+ok 120 - boss HUD phases use visual health thresholds without changing combat state
+  ---
+  duration_ms: 0.741826
+  ...
+# Subtest: boss HUD handles invalid health and formats phase labels
+ok 121 - boss HUD handles invalid health and formats phase labels
+  ---
+  duration_ms: 0.340596
+  ...
+# Subtest: legacy combat snapshots receive safe defaults for the added equipment stats
+ok 122 - legacy combat snapshots receive safe defaults for the added equipment stats
+  ---
+  duration_ms: 0.827254
+  ...
+# Subtest: duel fighters begin side by side, facing each other within the arena
+ok 123 - duel fighters begin side by side, facing each other within the arena
+  ---
+  duration_ms: 0.53258
+  ...
+# Subtest: a recorded sparse input tape replays to the same seeded combat state
+ok 124 - a recorded sparse input tape replays to the same seeded combat state
+  ---
+  duration_ms: 288.755283
+  ...
+# Subtest: opponent archetypes change combat behavior and the rage phase shortens attack telegraphs
+ok 125 - opponent archetypes change combat behavior and the rage phase shortens attack telegraphs
+  ---
+  duration_ms: 0.429155
+  ...
+# Subtest: all ten opponent archetypes produce valid deterministic combat states and the boss has extra health
+ok 126 - all ten opponent archetypes produce valid deterministic combat states and the boss has extra health
+  ---
+  duration_ms: 1.045447
+  ...
+# Subtest: opponent progression scales health and armor within a bounded, repeatable tuning profile
+ok 127 - opponent progression scales health and armor within a bounded, repeatable tuning profile
+  ---
+  duration_ms: 23.520255
+  ...
+# Subtest: the chapter boss gains a second-phase fire attack after entering the rage phase
+ok 128 - the chapter boss gains a second-phase fire attack after entering the rage phase
+  ---
+  duration_ms: 1.377503
+  ...
+# Subtest: venom and ember opponents apply their status effects on a successful hit
+ok 129 - venom and ember opponents apply their status effects on a successful hit
+  ---
+  duration_ms: 3.020874
+  ...
+# Subtest: the ash archer can telegraph and fire a ranged arrow from outside melee distance
+ok 130 - the ash archer can telegraph and fire a ranged arrow from outside melee distance
+  ---
+  duration_ms: 12.206279
+  ...
+# Subtest: seeded bots choose the same actions and damage on each replay
+ok 131 - seeded bots choose the same actions and damage on each replay
+  ---
+  duration_ms: 402.148006
+  ...
+# Subtest: combatants cannot occupy the same space during a duel
+ok 132 - combatants cannot occupy the same space during a duel
+  ---
+  duration_ms: 0.248706
+  ...
+# Subtest: quick attacks form a light-light-heavy combo with rising finisher damage
+ok 133 - quick attacks form a light-light-heavy combo with rising finisher damage
+  ---
+  duration_ms: 1.230052
+  ...
+# Subtest: an expired quick-combo window restarts at the first light hit
+ok 134 - an expired quick-combo window restarts at the first light hit
+  ---
+  duration_ms: 0.255186
+  ...
+# Subtest: a short bow fires automatically, uses a knife at close range, and can fire through clear lanes
+ok 135 - a short bow fires automatically, uses a knife at close range, and can fire through clear lanes
+  ---
+  duration_ms: 0.686801
+  ...
+# Subtest: melee target lock stays active outside weapon reach and drops when the target falls
+ok 136 - melee target lock stays active outside weapon reach and drops when the target falls
+  ---
+  duration_ms: 0.622889
+  ...
+# Subtest: ranged shots are stopped by arena cover rather than damaging the rival
+ok 137 - ranged shots are stopped by arena cover rather than damaging the rival
+  ---
+  duration_ms: 0.431274
+  ...
+# Subtest: a jump followed by an attack produces a plunge hit and impact event
+ok 138 - a jump followed by an attack produces a plunge hit and impact event
+  ---
+  duration_ms: 3.833724
+  ...
+# Subtest: a quick second dash rebounds inward at the arena edge and grants 0.25 seconds of invulnerability
+ok 139 - a quick second dash rebounds inward at the arena edge and grants 0.25 seconds of invulnerability
+  ---
+  duration_ms: 0.490021
+  ...
+# Subtest: a quick double retreat becomes a backflip, while a forward double dash stays a dodge
+ok 140 - a quick double retreat becomes a backflip, while a forward double dash stays a dodge
+  ---
+  duration_ms: 0.378003
+  ...
+# Subtest: the perfect-block window lasts 0.2 seconds, then becomes a normal block
+ok 141 - the perfect-block window lasts 0.2 seconds, then becomes a normal block
+  ---
+  duration_ms: 0.504654
+  ...
+# Subtest: combat movement can advance toward the opponent along the arena width axis
+ok 142 - combat movement can advance toward the opponent along the arena width axis
+  ---
+  duration_ms: 0.206118
+  ...
+# Subtest: both combatants stay inside the circular duel arena while moving diagonally
+ok 143 - both combatants stay inside the circular duel arena while moving diagonally
+  ---
+  duration_ms: 2.635867
+  ...
+# Subtest: server-owned equipment modifiers set combat stats and keep replays deterministic
+ok 144 - server-owned equipment modifiers set combat stats and keep replays deterministic
+  ---
+  duration_ms: 264.503372
+  ...
+# Subtest: an idle player survives at least 20 seconds against the easy bot
+ok 145 - an idle player survives at least 20 seconds against the easy bot
+  ---
+  duration_ms: 1975.601579
+  ...
+# Subtest: a measured player wins at least 80% of easy duels lasting 45–90 seconds
+ok 146 - a measured player wins at least 80% of easy duels lasting 45–90 seconds
+  ---
+  duration_ms: 1203.079621
+  ...
+# Subtest: bot windup leaves at least half a second to react at every difficulty
+ok 147 - bot windup leaves at least half a second to react at every difficulty
+  ---
+  duration_ms: 0.116801
+  ...
+# Subtest: a block negates bot damage and active dodge frames avoid the hit
+ok 148 - a block negates bot damage and active dodge frames avoid the hit
+  ---
+  duration_ms: 0.490599
+  ...
+# Subtest: combat inventory defaults provide four usable quick slots and normalize old saves
+ok 149 - combat inventory defaults provide four usable quick slots and normalize old saves
+  ---
+  duration_ms: 1.638342
+  ...
+# Subtest: a potion heals once, consumes one charge, and observes its combat cooldown
+ok 150 - a potion heals once, consumes one charge, and observes its combat cooldown
+  ---
+  duration_ms: 1.838034
+  ...
+# Subtest: using the last projectile removes it from the quick slot and damages a reachable rival
+ok 151 - using the last projectile removes it from the quick slot and damages a reachable rival
+  ---
+  duration_ms: 0.373538
+  ...
+# Subtest: a weapon switch changes combat modifiers and cannot be repeated inside 1.5 seconds
+ok 152 - a weapon switch changes combat modifiers and cannot be repeated inside 1.5 seconds
+  ---
+  duration_ms: 0.441211
+  ...
+# Subtest: loot rolls are stable per encounter and bosses always drop their own trophy table
+ok 153 - loot rolls are stable per encounter and bosses always drop their own trophy table
+  ---
+  duration_ms: 0.914224
+  ...
+# Subtest: all rival archetypes have a distinct non-empty loot table
+ok 154 - all rival archetypes have a distinct non-empty loot table
+  ---
+  duration_ms: 0.466939
+  ...
+# Subtest: daily lives reset at midnight in Istanbul, not UTC midnight
+ok 155 - daily lives reset at midnight in Istanbul, not UTC midnight
+  ---
+  duration_ms: 24.43518
+  ...
+# Subtest: three defeats block duels until one real ad reward is granted
+ok 156 - three defeats block duels until one real ad reward is granted
+  ---
+  duration_ms: 0.780592
+  ...
+# Subtest: the rewarded duel is consumed when it starts, and reset clears the lockout
+ok 157 - the rewarded duel is consumed when it starts, and reset clears the lockout
+  ---
+  duration_ms: 0.594335
+  ...
+# Subtest: arena materials change with each world biome
+ok 158 - arena materials change with each world biome
+  ---
+  duration_ms: 6.72901
+  ...
+# Subtest: arena theme remains stable within a biome and handles invalid travel distance
+ok 159 - arena theme remains stable within a biome and handles invalid travel distance
+  ---
+  duration_ms: 0.199448
+  ...
+# Subtest: duel camera angle control cycles through close rear-side views
+ok 160 - duel camera angle control cycles through close rear-side views
+  ---
+  duration_ms: 1.590393
+  ...
+# Subtest: duel camera keeps a stable world heading as fighters move and cross
+ok 161 - duel camera keeps a stable world heading as fighters move and cross
+  ---
+  duration_ms: 0.381152
+  ...
+# Subtest: procedural duel fighters turn their armored fronts toward one another
+ok 162 - procedural duel fighters turn their armored fronts toward one another
+  ---
+  duration_ms: 0.186859
+  ...
+# Subtest: duel root rotations keep pitch and roll pinned to zero
+ok 163 - duel root rotations keep pitch and roll pinned to zero
+  ---
+  duration_ms: 0.654368
+  ...
+# Subtest: the camera keeps both fighters in a clear rear three-quarter frame
+ok 164 - the camera keeps both fighters in a clear rear three-quarter frame
+  ---
+  duration_ms: 0.165213
+  ...
+# Subtest: the mobile duel framing keeps both fighters on-screen and nearly level
+ok 165 - the mobile duel framing keeps both fighters on-screen and nearly level
+  ---
+  duration_ms: 0.30024
+  ...
+# Subtest: joystick input follows the same fixed camera heading throughout the duel
+ok 166 - joystick input follows the same fixed camera heading throughout the duel
+  ---
+  duration_ms: 0.195337
+  ...
+# Subtest: the mobile camera keeps its framing distance when both fighters reach the arena edge
+ok 167 - the mobile camera keeps its framing distance when both fighters reach the arena edge
+  ---
+  duration_ms: 0.140824
+  ...
+# Subtest: portrait duel framing fits fighters at opposite arena edges on screen
+ok 168 - portrait duel framing fits fighters at opposite arena edges on screen
+  ---
+  duration_ms: 0.273332
+  ...
+# Subtest: the duel camera follows the jump arc and returns to its grounded framing
+ok 169 - the duel camera follows the jump arc and returns to its grounded framing
+  ---
+  duration_ms: 0.228824
+  ...
+# Subtest: close-range bows clearly switch the attack label to knife
+ok 170 - close-range bows clearly switch the attack label to knife
+  ---
+  duration_ms: 0.907153
+  ...
+# Subtest: dagger weapons use the knife label, including Turkish hançer names
+ok 171 - dagger weapons use the knife label, including Turkish hançer names
+  ---
+  duration_ms: 0.278492
+  ...
+# Subtest: ranged attack clearly shows when ammunition is empty
+ok 172 - ranged attack clearly shows when ammunition is empty
+  ---
+  duration_ms: 0.161782
+  ...
+# Subtest: ordinary melee weapons keep the standard attack label
+ok 173 - ordinary melee weapons keep the standard attack label
+  ---
+  duration_ms: 0.166549
+  ...
+# Subtest: offline boss victories grant one seal fragment with the normal victory rewards
+ok 174 - offline boss victories grant one seal fragment with the normal victory rewards
+  ---
+  duration_ms: 1.656352
+  ...
+# Subtest: ordinary victories and non-victories do not create seal fragments
+ok 175 - ordinary victories and non-victories do not create seal fragments
+  ---
+  duration_ms: 1.304757
+  ...
+# Subtest: verified operation-final victories persist records beyond the defeated-rival history window
+ok 176 - verified operation-final victories persist records beyond the defeated-rival history window
+  ---
+  duration_ms: 72.503522
+  ...
+# Subtest: the daily third-win bonus stays limited while campaign gold rewards are paced
+ok 177 - the daily third-win bonus stays limited while campaign gold rewards are paced
+  ---
+  duration_ms: 1.336306
+  ...
+# Subtest: account deletion clears this browser's player profile copies only
+ok 178 - account deletion clears this browser's player profile copies only
+  ---
+  duration_ms: 1.51498
+  ...
+# Subtest: weapon upgrades become progressively expensive while their bonuses remain capped
+ok 179 - weapon upgrades become progressively expensive while their bonuses remain capped
+  ---
+  duration_ms: 1.408409
+  ...
+# Subtest: armor upgrades require rising gold and rare materials at higher tiers
+ok 180 - armor upgrades require rising gold and rare materials at higher tiers
+  ---
+  duration_ms: 0.311144
+  ...
+# Subtest: guest gameplay and server purchases share the same populated catalog
+ok 181 - guest gameplay and server purchases share the same populated catalog
+  ---
+  duration_ms: 1.256399
+  ...
+# Subtest: special offers rotate once per Istanbul day and are identical for all players that day
+ok 182 - special offers rotate once per Istanbul day and are identical for all players that day
+  ---
+  duration_ms: 23.810191
+  ...
+# Subtest: special offers switch at Istanbul midnight rather than UTC midnight
+ok 183 - special offers switch at Istanbul midnight rather than UTC midnight
+  ---
+  duration_ms: 0.597454
+  ...
+# Subtest: owned War Room store item offers separate main and reserve equip actions
+ok 184 - owned War Room store item offers separate main and reserve equip actions
+  ---
+  duration_ms: 7.047759
+  ...
+# Subtest: an already equipped War Room slot is announced and cannot be reselected
+ok 185 - an already equipped War Room slot is announced and cannot be reselected
+  ---
+  duration_ms: 0.580899
+  ...
+# Subtest: bot perception runs at ten hertz and decisions stay between five and ten hertz
+ok 186 - bot perception runs at ten hertz and decisions stay between five and ten hertz
+  ---
+  duration_ms: 0.880772
+  ...
+# Subtest: looting bots route around all room rotations and enter through the open front door
+ok 187 - looting bots route around all room rotations and enter through the open front door
+  ---
+  duration_ms: 54.902438
+  ...
+# Subtest: looting bots follow the house stair lane to an upstairs player
+ok 188 - looting bots follow the house stair lane to an upstairs player
+  ---
+  duration_ms: 30.09383
+  ...
+# Subtest: combat bots follow stairs in both directions when players change floors
+ok 189 - combat bots follow stairs in both directions when players change floors
+  ---
+  duration_ms: 8.348043
+  ...
+# Subtest: combat bots take collision-safe waypoints around blocked sight lines
+ok 190 - combat bots take collision-safe waypoints around blocked sight lines
+  ---
+  duration_ms: 54.906312
+  ...
+# Subtest: Taş Avlu raid bots keep advancing instead of alternating between corner waypoints
+ok 191 - Taş Avlu raid bots keep advancing instead of alternating between corner waypoints
+  ---
+  duration_ms: 369.084938
+  ...
+# Subtest: camera rays acquire all nine War Room enemy capsules and repeated hits kill them
+ok 192 - camera rays acquire all nine War Room enemy capsules and repeated hits kill them
+  ---
+  duration_ms: 26.628906
+  ...
+# Subtest: the upper twenty percent is the headshot region
+ok 193 - the upper twenty percent is the headshot region
+  ---
+  duration_ms: 0.425939
+  ...
+# Subtest: aim traces an enemy at its elevated floor instead of the ground floor
+ok 194 - aim traces an enemy at its elevated floor instead of the ground floor
+  ---
+  duration_ms: 0.318212
+  ...
+# Subtest: a wall or cover hit before the capsule blocks damage
+ok 195 - a wall or cover hit before the capsule blocks damage
+  ---
+  duration_ms: 0.226579
+  ...
+# Subtest: a camera ray into the real central cover hits the cover before the enemy
+ok 196 - a camera ray into the real central cover hits the cover before the enemy
+  ---
+  duration_ms: 1.59644
+  ...
+# Subtest: the player's own model is ignored because only enemy targets are traced
+ok 197 - the player's own model is ignored because only enemy targets are traced
+  ---
+  duration_ms: 0.198543
+  ...
+# Subtest: melee uses a short forward sweep, respects its range, and is blocked by cover
+ok 198 - melee uses a short forward sweep, respects its range, and is blocked by cover
+  ---
+  duration_ms: 1.830648
+  ...
+# Subtest: character-facing melee cone hits the nearest target within range
+ok 199 - character-facing melee cone hits the nearest target within range
+  ---
+  duration_ms: 0.54413
+  ...
+# Subtest: character-facing melee cone reports range and angle misses independently
+ok 200 - character-facing melee cone reports range and angle misses independently
+  ---
+  duration_ms: 3.324067
+  ...
+# Subtest: melee targeting skips nearby corpses and does not invent a target when only dead enemies remain
+ok 201 - melee targeting skips nearby corpses and does not invent a target when only dead enemies remain
+  ---
+  duration_ms: 0.375429
+  ...
+# Subtest: character-facing melee cone ignores targets behind blockers
+ok 202 - character-facing melee cone ignores targets behind blockers
+  ---
+  duration_ms: 3.596238
+  ...
+# Subtest: spear reach includes the 0.4 m tolerance without changing other weapon reach
+ok 203 - spear reach includes the 0.4 m tolerance without changing other weapon reach
+  ---
+  duration_ms: 0.232687
+  ...
+# Subtest: melee cone misses report the nearest candidate's angle and surface distance
+ok 204 - melee cone misses report the nearest candidate's angle and surface distance
+  ---
+  duration_ms: 0.249109
+  ...
+# Subtest: melee sound profiles distinguish light and heavy filtered swipes
+ok 205 - melee sound profiles distinguish light and heavy filtered swipes
+  ---
+  duration_ms: 1.564498
+  ...
+# Subtest: melee swing sound profiles are tailored to every War Room melee weapon
+ok 206 - melee swing sound profiles are tailored to every War Room melee weapon
+  ---
+  duration_ms: 0.524844
+  ...
+# Subtest: impact and footstep sound profiles vary by surface
+ok 207 - impact and footstep sound profiles vary by surface
+  ---
+  duration_ms: 0.305628
+  ...
+# Subtest: critical hits, kills, and low-health beats have distinct feedback cues
+ok 208 - critical hits, kills, and low-health beats have distinct feedback cues
+  ---
+  duration_ms: 1.767367
+  ...
+# Subtest: heavy melee hits keep their weapon impact and add a critical accent
+ok 209 - heavy melee hits keep their weapon impact and add a critical accent
+  ---
+  duration_ms: 0.261268
+  ...
+# Subtest: spatial sound attenuates with distance and pans toward the source
+ok 210 - spatial sound attenuates with distance and pans toward the source
+  ---
+  duration_ms: 0.427798
+  ...
+# Subtest: sound pitch variation stays within the intended restrained range
+ok 211 - sound pitch variation stays within the intended restrained range
+  ---
+  duration_ms: 0.234993
+  ...
+# Subtest: guards move from patrol to an audible alert and then engage a visible player
+ok 212 - guards move from patrol to an audible alert and then engage a visible player
+  ---
+  duration_ms: 2.925022
+  ...
+# Subtest: guards lose awareness and return to patrol after the player leaves
+ok 213 - guards lose awareness and return to patrol after the player leaves
+  ---
+  duration_ms: 0.189538
+  ...
+# Subtest: commander health moves through three stable combat phases
+ok 214 - commander health moves through three stable combat phases
+  ---
+  duration_ms: 0.900806
+  ...
+# Subtest: all six map commanders use distinct phase-two and phase-three attacks
+ok 215 - all six map commanders use distinct phase-two and phase-three attacks
+  ---
+  duration_ms: 0.265565
+  ...
+# Subtest: every special attack gives players a visible warning window
+ok 216 - every special attack gives players a visible warning window
+  ---
+  duration_ms: 0.358529
+  ...
+# Subtest: boss attack labels and impact strength are explicit and bounded
+ok 217 - boss attack labels and impact strength are explicit and bounded
+  ---
+  duration_ms: 0.302049
+  ...
+# Subtest: boss attack telegraphs start once, preserve their aim point, and follow cooldowns
+ok 218 - boss attack telegraphs start once, preserve their aim point, and follow cooldowns
+  ---
+  duration_ms: 0.539093
+  ...
+# Subtest: charge movement is delta-bounded and shockwaves are dodgeable
+ok 219 - charge movement is delta-bounded and shockwaves are dodgeable
+  ---
+  duration_ms: 0.319479
+  ...
+# Subtest: boss reinforcements spawn clear, weak, and within a strict match-only cap
+ok 220 - boss reinforcements spawn clear, weak, and within a strict match-only cap
+  ---
+  duration_ms: 176.058515
+  ...
+# Subtest: portrait camera FOV keeps at least 75 degrees of horizontal view
+ok 221 - portrait camera FOV keeps at least 75 degrees of horizontal view
+  ---
+  duration_ms: 4.669321
+  ...
+# Subtest: camera sweep stops outside a directly blocking wall even inside the preferred distance
+ok 222 - camera sweep stops outside a directly blocking wall even inside the preferred distance
+  ---
+  duration_ms: 0.6207
+  ...
+# Subtest: camera keeps its preferred minimum distance when the blocker is farther away
+ok 223 - camera keeps its preferred minimum distance when the blocker is farther away
+  ---
+  duration_ms: 0.226353
+  ...
+# Subtest: camera sphere clearance catches a prop just beside the center ray
+ok 224 - camera sphere clearance catches a prop just beside the center ray
+  ---
+  duration_ms: 0.220371
+  ...
+# Subtest: first-person weapon moves back and down near a forward wall only
+ok 225 - first-person weapon moves back and down near a forward wall only
+  ---
+  duration_ms: 0.361717
+  ...
+# Subtest: viewmodel wall scan reaches weapon range and computes a safe pullback
+ok 226 - viewmodel wall scan reaches weapon range and computes a safe pullback
+  ---
+  duration_ms: 0.26454
+  ...
+# Subtest: camera preserves its shoulder distance when the sweep starts inside a nearby wall
+ok 227 - camera preserves its shoulder distance when the sweep starts inside a nearby wall
+  ---
+  duration_ms: 0.331991
+  ...
+# Subtest: camera stops before an obstacle closer than the minimum camera distance
+ok 228 - camera stops before an obstacle closer than the minimum camera distance
+  ---
+  duration_ms: 0.16151
+  ...
+# Subtest: camera point checks use the same swept-sphere clearance
+ok 229 - camera point checks use the same swept-sphere clearance
+  ---
+  duration_ms: 0.289335
+  ...
+# Subtest: camera floor transitions ease toward the stair landing without changing direction
+ok 230 - camera floor transitions ease toward the stair landing without changing direction
+  ---
+  duration_ms: 0.267185
+  ...
+# Subtest: camera fades every wall crossed between the player and its rear position
+ok 231 - camera fades every wall crossed between the player and its rear position
+  ---
+  duration_ms: 0.927811
+  ...
+# Subtest: camera sweep eases to the requested full distance when the path is clear
+ok 232 - camera sweep eases to the requested full distance when the path is clear
+  ---
+  duration_ms: 0.17888
+  ...
+# Subtest: third-person placement stays on the rear line and shortens before a nearby wall
+ok 233 - third-person placement stays on the rear line and shortens before a nearby wall
+  ---
+  duration_ms: 0.221297
+  ...
+# Subtest: interior camera shifts sideways instead of collapsing into the player near a wall
+ok 234 - interior camera shifts sideways instead of collapsing into the player near a wall
+  ---
+  duration_ms: 0.517613
+  ...
+# Subtest: player clearance follows active gameplay blockers, not visual camera-only geometry
+ok 235 - player clearance follows active gameplay blockers, not visual camera-only geometry
+  ---
+  duration_ms: 0.692014
+  ...
+# Subtest: camera stays directly behind the player when its rear path is blocked
+ok 236 - camera stays directly behind the player when its rear path is blocked
+  ---
+  duration_ms: 0.169917
+  ...
+# Subtest: rear camera stays behind the player's facing direction at every quarter turn
+ok 237 - rear camera stays behind the player's facing direction at every quarter turn
+  ---
+  duration_ms: 0.28781
+  ...
+# Subtest: rear camera keeps its aim line beside the hero instead of across the head
+ok 238 - rear camera keeps its aim line beside the hero instead of across the head
+  ---
+  duration_ms: 6.135543
+  ...
+# Subtest: rear camera stays behind the rendered hero after a lateral turn
+ok 239 - rear camera stays behind the rendered hero after a lateral turn
+  ---
+  duration_ms: 0.215189
+  ...
+# Subtest: rear camera follows a turn without lagging around the player's front
+ok 240 - rear camera follows a turn without lagging around the player's front
+  ---
+  duration_ms: 0.209509
+  ...
+# Subtest: rear camera snaps inward for interior clearance and eases outward
+ok 241 - rear camera snaps inward for interior clearance and eases outward
+  ---
+  duration_ms: 0.214672
+  ...
+# Subtest: eye clearance checks all eight directions and caps correction distance
+ok 242 - eye clearance checks all eight directions and caps correction distance
+  ---
+  duration_ms: 0.339878
+  ...
+# Subtest: indoor camera shifts around a blocked rear path while staying inside the house
+ok 243 - indoor camera shifts around a blocked rear path while staying inside the house
+  ---
+  duration_ms: 0.226029
+  ...
+# Subtest: indoor camera stays inside when the room edge cannot fit the full rear distance
+ok 244 - indoor camera stays inside when the room edge cannot fit the full rear distance
+  ---
+  duration_ms: 2.22539
+  ...
+# Subtest: first person camera stays at the eye without a third-person shoulder
+ok 245 - first person camera stays at the eye without a third-person shoulder
+  ---
+  duration_ms: 0.228192
+  ...
+# Subtest: first-person camera removes the shoulder and rear offset
+ok 246 - first-person camera removes the shoulder and rear offset
+  ---
+  duration_ms: 0.084097
+  ...
+# Subtest: third-person camera stays 4.5 meters behind and supports either shoulder
+ok 247 - third-person camera stays 4.5 meters behind and supports either shoulder
+  ---
+  duration_ms: 0.10863
+  ...
+# Subtest: indoor camera stays clear while remaining closer than outdoors
+ok 248 - indoor camera stays clear while remaining closer than outdoors
+  ---
+  duration_ms: 0.094148
+  ...
+# Subtest: third-person aiming tightens the camera, and offsets remain bounded
+ok 249 - third-person aiming tightens the camera, and offsets remain bounded
+  ---
+  duration_ms: 0.086461
+  ...
+# Subtest: camera ray stops before tagged world geometry but never places the camera inside it
+ok 250 - camera ray stops before tagged world geometry but never places the camera inside it
+  ---
+  duration_ms: 0.09565
+  ...
+# Subtest: a short press advances the three distinct light-combo swings
+ok 251 - a short press advances the three distinct light-combo swings
+  ---
+  duration_ms: 8.637428
+  ...
+# Subtest: holding for 350 ms selects the heavy wind-up without exceeding the melee tuning envelope
+ok 252 - holding for 350 ms selects the heavy wind-up without exceeding the melee tuning envelope
+  ---
+  duration_ms: 0.322851
+  ...
+# Subtest: combat-feel flag disables heavy attacks and aim assist without changing hit control
+ok 253 - combat-feel flag disables heavy attacks and aim assist without changing hit control
+  ---
+  duration_ms: 0.2563
+  ...
+# Subtest: aim assist ignores dead, blocked, distant, and out-of-angle targets
+ok 254 - aim assist ignores dead, blocked, distant, and out-of-angle targets
+  ---
+  duration_ms: 0.137873
+  ...
+# Subtest: melee aim assist selects the nearest visible target inside its reach and 65-degree cone
+ok 255 - melee aim assist selects the nearest visible target inside its reach and 65-degree cone
+  ---
+  duration_ms: 0.190881
+  ...
+# Subtest: light ranged aim assist only nudges toward a nearby visible target
+ok 256 - light ranged aim assist only nudges toward a nearby visible target
+  ---
+  duration_ms: 0.226633
+  ...
+# Subtest: light ranged aim assist ignores dead, blocked, distant, and out-of-cone targets
+ok 257 - light ranged aim assist ignores dead, blocked, distant, and out-of-cone targets
+  ---
+  duration_ms: 0.133813
+  ...
+# Subtest: shared War Room config preserves the established movement and camera defaults
+ok 258 - shared War Room config preserves the established movement and camera defaults
+  ---
+  duration_ms: 0.781482
+  ...
+# Subtest: shared War Room config preserves active and raw-touch input limits
+ok 259 - shared War Room config preserves active and raw-touch input limits
+  ---
+  duration_ms: 0.163613
+  ...
+# Subtest: shared War Room config preserves current sensitivity, door, and render budgets
+ok 260 - shared War Room config preserves current sensitivity, door, and render budgets
+  ---
+  duration_ms: 0.165495
+  ...
+# Subtest: contract progress reads the matching goal, clamps at its target, and never goes negative
+ok 261 - contract progress reads the matching goal, clamps at its target, and never goes negative
+  ---
+  duration_ms: 4.188472
+  ...
+# Subtest: a side contract pays its bonus only when its full target is reached
+ok 262 - a side contract pays its bonus only when its full target is reached
+  ---
+  duration_ms: 0.180572
+  ...
+# Subtest: left-handed layout moves action controls to the other side and swaps touch zones
+ok 263 - left-handed layout moves action controls to the other side and swaps touch zones
+  ---
+  duration_ms: 1.460231
+  ...
+# Subtest: left-handed mode swaps movement and look touch zones
+ok 264 - left-handed mode swaps movement and look touch zones
+  ---
+  duration_ms: 0.616055
+  ...
+# Subtest: movement touch can start anywhere in the left half on portrait phones
+ok 265 - movement touch can start anywhere in the left half on portrait phones
+  ---
+  duration_ms: 1.028995
+  ...
+# Subtest: movement touch can start anywhere in the left half in landscape
+ok 266 - movement touch can start anywhere in the left half in landscape
+  ---
+  duration_ms: 0.18049
+  ...
+# Subtest: War Room control catalog contains all movable touch controls
+ok 267 - War Room control catalog contains all movable touch controls
+  ---
+  duration_ms: 0.852339
+  ...
+# Subtest: control layout normalization clamps size, opacity, and positions
+ok 268 - control layout normalization clamps size, opacity, and positions
+  ---
+  duration_ms: 0.444883
+  ...
+# Subtest: dragging clamps the full control inside the safe editor stage
+ok 269 - dragging clamps the full control inside the safe editor stage
+  ---
+  duration_ms: 0.410575
+  ...
+# Subtest: default controls fit even a short landscape safe stage
+ok 270 - default controls fit even a short landscape safe stage
+  ---
+  duration_ms: 0.21789
+  ...
+# Subtest: increasing a control size keeps its full bounds inside the safe stage
+ok 271 - increasing a control size keeps its full bounds inside the safe stage
+  ---
+  duration_ms: 0.437488
+  ...
+# Subtest: control layout loads, saves, and resets with local storage
+ok 272 - control layout loads, saves, and resets with local storage
+  ---
+  duration_ms: 0.811145
+  ...
+# Subtest: corrupt or unavailable storage uses defaults without throwing
+ok 273 - corrupt or unavailable storage uses defaults without throwing
+  ---
+  duration_ms: 0.27723
+  ...
+# Subtest: the daily War Room seed is stable for the Istanbul calendar day
+ok 274 - the daily War Room seed is stable for the Istanbul calendar day
+  ---
+  duration_ms: 24.16145
+  ...
+# Subtest: the daily War Room seed changes at the Istanbul midnight boundary
+ok 275 - the daily War Room seed changes at the Istanbul midnight boundary
+  ---
+  duration_ms: 0.599604
+  ...
+# Subtest: daily completion only applies to the matching Istanbul date
+ok 276 - daily completion only applies to the matching Istanbul date
+  ---
+  duration_ms: 0.131138
+  ...
+# Subtest: room cleanup disposes pooled objects, their owned geometry, and every material
+ok 277 - room cleanup disposes pooled objects, their owned geometry, and every material
+  ---
+  duration_ms: 2.525926
+  ...
+# Subtest: room cleanup preserves deliberately shared crack geometry
+ok 278 - room cleanup preserves deliberately shared crack geometry
+  ---
+  duration_ms: 0.167799
+  ...
+# Subtest: War Room house entrances start blocked by properly rotated doors
+ok 279 - War Room house entrances start blocked by properly rotated doors
+  ---
+  duration_ms: 41.908252
+  ...
+# Subtest: active door blockers reuse a caller-owned buffer and cached door geometry
+ok 280 - active door blockers reuse a caller-owned buffer and cached door geometry
+  ---
+  duration_ms: 31.129678
+  ...
+# Subtest: a door's blocker clears as its animation opens and remains state-driven
+ok 281 - a door's blocker clears as its animation opens and remains state-driven
+  ---
+  duration_ms: 21.809802
+  ...
+# Subtest: automatic door opening follows the actor path instead of proximity alone
+ok 282 - automatic door opening follows the actor path instead of proximity alone
+  ---
+  duration_ms: 14.842173
+  ...
+# Subtest: an empty doorway closes without waiting for a six-second timer
+ok 283 - an empty doorway closes without waiting for a six-second timer
+  ---
+  duration_ms: 30.095321
+  ...
+# Subtest: door openings leave at least 1.3m for a player capsule no wider than 0.3m
+ok 284 - door openings leave at least 1.3m for a player capsule no wider than 0.3m
+  ---
+  duration_ms: 22.457491
+  ...
+# Subtest: a door stays open while occupied and starts closing immediately after it is clear
+ok 285 - a door stays open while occupied and starts closing immediately after it is clear
+  ---
+  duration_ms: 25.085367
+  ...
+# Subtest: a living enemy in the doorway also resets the automatic close timer
+ok 286 - a living enemy in the doorway also resets the automatic close timer
+  ---
+  duration_ms: 52.088862
+  ...
+# Subtest: door interaction requires facing the doorway when a view direction is supplied
+ok 287 - door interaction requires facing the doorway when a view direction is supplied
+  ---
+  duration_ms: 15.711559
+  ...
+# Subtest: door interaction range includes a comfortable approach distance
+ok 288 - door interaction range includes a comfortable approach distance
+  ---
+  duration_ms: 11.02864
+  ...
+# Subtest: entering or leaving a house auto-opens the entrance from every room rotation
+ok 289 - entering or leaving a house auto-opens the entrance from every room rotation
+  ---
+  duration_ms: 123.177903
+  ...
+# Subtest: doors begin opening from a running approach before the player reaches the threshold
+ok 290 - doors begin opening from a running approach before the player reaches the threshold
+  ---
+  duration_ms: 62.321505
+  ...
+# Subtest: all entrance doors retain at least 1.3m clear width and 2.4m height
+ok 291 - all entrance doors retain at least 1.3m clear width and 2.4m height
+  ---
+  duration_ms: 15.452087
+  ...
+# Subtest: players and guards cross every War Room doorway from five angles at walk and run speed
+ok 292 - players and guards cross every War Room doorway from five angles at walk and run speed
+  ---
+  duration_ms: 4200.362393
+  ...
+# Subtest: both ground- and upper-floor door prompts stay limited to their floor and distance
+ok 293 - both ground- and upper-floor door prompts stay limited to their floor and distance
+  ---
+  duration_ms: 5.329904
+  ...
+# Subtest: the upper entrance has a matching openable blocker and preserves the ground door
+ok 294 - the upper entrance has a matching openable blocker and preserves the ground door
+  ---
+  duration_ms: 14.782606
+  ...
+# Subtest: the room starts with eight guards and a durable commander
+ok 295 - the room starts with eight guards and a durable commander
+  ---
+  duration_ms: 17.834524
+  ...
+# Subtest: melee weapons have no ammunition state and have per-weapon attack values
+ok 296 - melee weapons have no ammunition state and have per-weapon attack values
+  ---
+  duration_ms: 13.468965
+  ...
+# Subtest: all War Room weapons expose complete, valid shooter settings
+ok 297 - all War Room weapons expose complete, valid shooter settings
+  ---
+  duration_ms: 0.755821
+  ...
+# Subtest: the three new War Room melee models are optimized, purchasable and mapped to hand-fit profiles
+ok 298 - the three new War Room melee models are optimized, purchasable and mapped to hand-fit profiles
+  ---
+  duration_ms: 0.24758
+  ...
+# Subtest: starter weapons use dedicated GLBs while retaining their tuned model dimensions
+ok 299 - starter weapons use dedicated GLBs while retaining their tuned model dimensions
+  ---
+  duration_ms: 0.740464
+  ...
+# Subtest: the same damage helper clamps health and applies headshot multipliers
+ok 300 - the same damage helper clamps health and applies headshot multipliers
+  ---
+  duration_ms: 0.187655
+  ...
+# Subtest: movement stops at solid blockers and ray tests report cover
+ok 301 - movement stops at solid blockers and ray tests report cover
+  ---
+  duration_ms: 1.64545
+  ...
+# Subtest: entity movement can reuse a caller-owned result object
+ok 302 - entity movement can reuse a caller-owned result object
+  ---
+  duration_ms: 0.160981
+  ...
+# Subtest: small movement steps slide along walls instead of sticking on diagonal contact
+ok 303 - small movement steps slide along walls instead of sticking on diagonal contact
+  ---
+  duration_ms: 2.225353
+  ...
+# Subtest: jumping above an upper balcony rail clears its movement blocker
+ok 304 - jumping above an upper balcony rail clears its movement blocker
+  ---
+  duration_ms: 0.302915
+  ...
+# Subtest: balcony falls apply mild damage only beyond a safe distance
+ok 305 - balcony falls apply mild damage only beyond a safe distance
+  ---
+  duration_ms: 0.139901
+  ...
+# Subtest: angle interpolation chooses the short path across the wrap boundary
+ok 306 - angle interpolation chooses the short path across the wrap boundary
+  ---
+  duration_ms: 0.111809
+  ...
+# Subtest: owned bows and crossbows are mapped into the room loadout
+ok 307 - owned bows and crossbows are mapped into the room loadout
+  ---
+  duration_ms: 0.596223
+  ...
+# Subtest: profiles without a ranged inventory item receive the default loadout
+ok 308 - profiles without a ranged inventory item receive the default loadout
+  ---
+  duration_ms: 0.186934
+  ...
+# Subtest: owned Blaster Kit items are selectable in the War Room loadout
+ok 309 - owned Blaster Kit items are selectable in the War Room loadout
+  ---
+  duration_ms: 0.155653
+  ...
+# Subtest: health bar color follows stable high, medium, and low health bands
+ok 310 - health bar color follows stable high, medium, and low health bands
+  ---
+  duration_ms: 3.790406
+  ...
+# Subtest: low-health feedback starts at one quarter health and rejects invalid maxima
+ok 311 - low-health feedback starts at one quarter health and rejects invalid maxima
+  ---
+  duration_ms: 0.35266
+  ...
+# Subtest: kill streak increments only inside its short feedback window
+ok 312 - kill streak increments only inside its short feedback window
+  ---
+  duration_ms: 1.389745
+  ...
+# Subtest: first-person lower body only appears when the camera looks down
+ok 313 - first-person lower body only appears when the camera looks down
+  ---
+  duration_ms: 2.615971
+  ...
+# Subtest: legs stay on the current floor and alternate their articulated stride
+ok 314 - legs stay on the current floor and alternate their articulated stride
+  ---
+  duration_ms: 2.75548
+  ...
+# Subtest: War Room player movement consumes the shared runtime's fixed-step frame
+ok 315 - War Room player movement consumes the shared runtime's fixed-step frame
+  ---
+  duration_ms: 13.330469
+  ...
+# Subtest: fixed-step movement stays consistent at 30, 60, and 120 update rates
+ok 316 - fixed-step movement stays consistent at 30, 60, and 120 update rates
+  ---
+  duration_ms: 1.19342
+  ...
+# Subtest: shared GameRuntime frame steps preserve War Room movement across render rates
+ok 317 - shared GameRuntime frame steps preserve War Room movement across render rates
+  ---
+  duration_ms: 6.960912
+  ...
+# Subtest: shared runtime catch-up keeps War Room movement within its three-step limit
+ok 318 - shared runtime catch-up keeps War Room movement within its three-step limit
+  ---
+  duration_ms: 0.224181
+  ...
+# Subtest: shared runtime time scaling preserves War Room slow motion
+ok 319 - shared runtime time scaling preserves War Room slow motion
+  ---
+  duration_ms: 0.488891
+  ...
+# Subtest: render interpolation remains bounded between collision-resolved fixed states
+ok 320 - render interpolation remains bounded between collision-resolved fixed states
+  ---
+  duration_ms: 0.154313
+  ...
+# Subtest: fixed movement slides along a wall without crossing its rounded corner
+ok 321 - fixed movement slides along a wall without crossing its rounded corner
+  ---
+  duration_ms: 0.768098
+  ...
+# Subtest: teleports reset render history instead of interpolating across the room
+ok 322 - teleports reset render history instead of interpolating across the room
+  ---
+  duration_ms: 0.149248
+  ...
+# Subtest: fixed movement clamps long frames to fifty milliseconds and at most three steps
+ok 323 - fixed movement clamps long frames to fifty milliseconds and at most three steps
+  ---
+  duration_ms: 0.181148
+  ...
+# Subtest: floor indicator distinguishes ground floor, upper floor, stairs, and exterior
+ok 324 - floor indicator distinguishes ground floor, upper floor, stairs, and exterior
+  ---
+  duration_ms: 20.954967
+  ...
+# Subtest: floor detection follows rotated houses and uses their own story height
+ok 325 - floor detection follows rotated houses and uses their own story height
+  ---
+  duration_ms: 7.837759
+  ...
+# Subtest: minimap player arrow rotates opposite Three.js yaw on the north-up map
+ok 326 - minimap player arrow rotates opposite Three.js yaw on the north-up map
+  ---
+  duration_ms: 0.138674
+  ...
+# Subtest: War Room visual effects stay inside the shared pool budgets
+ok 327 - War Room visual effects stay inside the shared pool budgets
+  ---
+  duration_ms: 0.827494
+  ...
+# Subtest: weapon impact profiles retain visible effects while blood is disabled
+ok 328 - weapon impact profiles retain visible effects while blood is disabled
+  ---
+  duration_ms: 0.897349
+  ...
+# Subtest: blunt weapons use dust and impact rings without cuts or blood
+ok 329 - blunt weapons use dust and impact rings without cuts or blood
+  ---
+  duration_ms: 0.170829
+  ...
+# Subtest: weapon classes select distinct trails, impact effects, and heavy decals
+ok 330 - weapon classes select distinct trails, impact effects, and heavy decals
+  ---
+  duration_ms: 0.157
+  ...
+# Subtest: background pause clears held and queued actions without losing match state
+ok 331 - background pause clears held and queued actions without losing match state
+  ---
+  duration_ms: 0.892454
+  ...
+# Subtest: independent pointers preserve joystick, fire, and look ownership
+ok 332 - independent pointers preserve joystick, fire, and look ownership
+  ---
+  duration_ms: 2.71499
+  ...
+# Subtest: a right-side touch swipe updates camera aim without stealing the move stick
+ok 333 - a right-side touch swipe updates camera aim without stealing the move stick
+  ---
+  duration_ms: 0.350261
+  ...
+# Subtest: touch and keyboard controls produce the expected input-only actions
+ok 334 - touch and keyboard controls produce the expected input-only actions
+  ---
+  duration_ms: 0.195781
+  ...
+# Subtest: joystick, aim, and fire remain independent while held together
+ok 335 - joystick, aim, and fire remain independent while held together
+  ---
+  duration_ms: 0.34668
+  ...
+# Subtest: movement vectors are finite and clamped to the unit circle
+ok 336 - movement vectors are finite and clamped to the unit circle
+  ---
+  duration_ms: 0.188453
+  ...
+# Subtest: a quick second crouch tap requests prone instead of a second crouch toggle
+ok 337 - a quick second crouch tap requests prone instead of a second crouch toggle
+  ---
+  duration_ms: 0.138795
+  ...
+# Subtest: each War Room house receives its own interior palette and furnishing layout
+ok 338 - each War Room house receives its own interior palette and furnishing layout
+  ---
+  duration_ms: 0.812671
+  ...
+# Subtest: interior style lookup wraps room rotations and negative style values
+ok 339 - interior style lookup wraps room rotations and negative style values
+  ---
+  duration_ms: 0.136036
+  ...
+# Subtest: house furnishing layouts vary by room style while keeping a stable result
+ok 340 - house furnishing layouts vary by room style while keeping a stable result
+  ---
+  duration_ms: 9.880599
+  ...
+# Subtest: weapon lab cycles every weapon once in catalog order
+ok 341 - weapon lab cycles every weapon once in catalog order
+  ---
+  duration_ms: 9.055887
+  ...
+# Subtest: weapon lab reports a positive fitted length for every weapon
+ok 342 - weapon lab reports a positive fitted length for every weapon
+  ---
+  duration_ms: 0.256117
+  ...
+# Subtest: the defeat leaderboard includes every character and keeps repeated names distinct
+ok 343 - the defeat leaderboard includes every character and keeps repeated names distinct
+  ---
+  duration_ms: 1.615225
+  ...
+# Subtest: leaderboard scores are match-local and order higher combat scores first
+ok 344 - leaderboard scores are match-local and order higher combat scores first
+  ---
+  duration_ms: 1.550519
+  ...
+# Subtest: starter weapons stay selectable while store weapons need ownership
+ok 345 - starter weapons stay selectable while store weapons need ownership
+  ---
+  duration_ms: 0.80302
+  ...
+# Subtest: look sensitivity stays inside the slider range and uses a safe default
+ok 346 - look sensitivity stays inside the slider range and uses a safe default
+  ---
+  duration_ms: 0.913501
+  ...
+# Subtest: pointer sensitivity scales with viewport size and the saved user multiplier
+ok 347 - pointer sensitivity scales with viewport size and the saved user multiplier
+  ---
+  duration_ms: 0.772998
+  ...
+# Subtest: horizontal and vertical look sensitivity scale independently
+ok 348 - horizontal and vertical look sensitivity scale independently
+  ---
+  duration_ms: 0.345262
+  ...
+# Subtest: touching upward looks upward by increasing pitch
+ok 349 - touching upward looks upward by increasing pitch
+  ---
+  duration_ms: 0.84012
+  ...
+# Subtest: the invert-Y preference reverses only touch pitch, not horizontal look
+ok 350 - the invert-Y preference reverses only touch pitch, not horizontal look
+  ---
+  duration_ms: 0.129667
+  ...
+# Subtest: horizontal and vertical look sensitivity can be tuned independently
+ok 351 - horizontal and vertical look sensitivity can be tuned independently
+  ---
+  duration_ms: 0.218534
+  ...
+# Subtest: mouse look keeps its existing vertical direction and pitch limits
+ok 352 - mouse look keeps its existing vertical direction and pitch limits
+  ---
+  duration_ms: 0.109866
+  ...
+# Subtest: camera pitch uses the requested range and remains the single normalized look value
+ok 353 - camera pitch uses the requested range and remains the single normalized look value
+  ---
+  duration_ms: 0.140149
+  ...
+# Subtest: every two-storey house has weapon and ammunition chests on both floors
+ok 354 - every two-storey house has weapon and ammunition chests on both floors
+  ---
+  duration_ms: 14.836121
+  ...
+# Subtest: nearby loot is floor-specific and collecting it changes only the match runtime
+ok 355 - nearby loot is floor-specific and collecting it changes only the match runtime
+  ---
+  duration_ms: 8.052609
+  ...
+# Subtest: tactical mission names preserve saved IDs and match their result labels
+ok 356 - tactical mission names preserve saved IDs and match their result labels
+  ---
+  duration_ms: 1.3191
+  ...
+# Subtest: daily challenge parameters are deterministic and rotate maps and modifiers
+ok 357 - daily challenge parameters are deterministic and rotate maps and modifiers
+  ---
+  duration_ms: 0.360649
+  ...
+# Subtest: mission mode objectives have explicit success and timeout rules
+ok 358 - mission mode objectives have explicit success and timeout rules
+  ---
+  duration_ms: 0.438778
+  ...
+# Subtest: daily mode resolves all three seeded objective types to their real mission rules
+ok 359 - daily mode resolves all three seeded objective types to their real mission rules
+  ---
+  duration_ms: 0.188024
+  ...
+# Subtest: survival emits a wave transition rather than a final victory
+ok 360 - survival emits a wave transition rather than a final victory
+  ---
+  duration_ms: 0.258211
+  ...
+# Subtest: all six map presets start a seeded mode runtime with reachable enemies
+ok 361 - all six map presets start a seeded mode runtime with reachable enemies
+  ---
+  duration_ms: 141.63709
+  ...
+# Subtest: bot simulations travel, complete each objective, advance survival waves, and reach results
+ok 362 - bot simulations travel, complete each objective, advance survival waves, and reach results
+  ---
+  duration_ms: 9892.861547
+  ...
+# Subtest: difficulty and modifiers change combat values without altering unrelated modes
+ok 363 - difficulty and modifiers change combat values without altering unrelated modes
+  ---
+  duration_ms: 0.178233
+  ...
+# Subtest: daily payouts stop after one claim and result grades use performance
+ok 364 - daily payouts stop after one claim and result grades use performance
+  ---
+  duration_ms: 0.307227
+  ...
+# Subtest: joystick can start at any screen coordinate and reports local movement axes
+ok 365 - joystick can start at any screen coordinate and reports local movement axes
+  ---
+  duration_ms: 0.903435
+  ...
+# Subtest: mobile touch zones route the left half to movement and the right half to camera look
+ok 366 - mobile touch zones route the left half to movement and the right half to camera look
+  ---
+  duration_ms: 0.147333
+  ...
+# Subtest: camera look ignores jitter and clamps pointer jumps to 80 pixels
+ok 367 - camera look ignores jitter and clamps pointer jumps to 80 pixels
+  ---
+  duration_ms: 0.176239
+  ...
+# Subtest: joystick rejects other pointers, filters touch jitter, and clamps diagonals
+ok 368 - joystick rejects other pointers, filters touch jitter, and clamps diagonals
+  ---
+  duration_ms: 4.414736
+  ...
+# Subtest: joystick deadzone filters fifteen percent of its travel
+ok 369 - joystick deadzone filters fifteen percent of its travel
+  ---
+  duration_ms: 0.189138
+  ...
+# Subtest: look and movement pointers release independently and clear on reset
+ok 370 - look and movement pointers release independently and clear on reset
+  ---
+  duration_ms: 0.40456
+  ...
+# Subtest: each touch pointer stays assigned to its original control role
+ok 371 - each touch pointer stays assigned to its original control role
+  ---
+  duration_ms: 0.134792
+  ...
+# Subtest: the first look event only establishes a reference and the next delta is bounded
+ok 372 - the first look event only establishes a reference and the next delta is bounded
+  ---
+  duration_ms: 0.135777
+  ...
+# Subtest: rendered player facing stays aligned with the logical movement heading
+ok 373 - rendered player facing stays aligned with the logical movement heading
+  ---
+  duration_ms: 0.830766
+  ...
+# Subtest: movement-facing mode turns toward backward joystick input
+ok 374 - movement-facing mode turns toward backward joystick input
+  ---
+  duration_ms: 0.298616
+  ...
+# Subtest: movement-facing mode turns toward forward and lateral world directions
+ok 375 - movement-facing mode turns toward forward and lateral world directions
+  ---
+  duration_ms: 0.161827
+  ...
+# Subtest: screen-forward and backward stay camera-relative after the player turns around
+ok 376 - screen-forward and backward stay camera-relative after the player turns around
+  ---
+  duration_ms: 0.143701
+  ...
+# Subtest: backpedaling and strafing are slower than forward movement
+ok 377 - backpedaling and strafing are slower than forward movement
+  ---
+  duration_ms: 0.115647
+  ...
+# Subtest: camera-facing mode tracks idle camera yaw while aim keeps strafe behavior
+ok 378 - camera-facing mode tracks idle camera yaw while aim keeps strafe behavior
+  ---
+  duration_ms: 0.120883
+  ...
+# Subtest: locomotion resolves forward, backward, and sideways directions in body space
+ok 379 - locomotion resolves forward, backward, and sideways directions in body space
+  ---
+  duration_ms: 0.329665
+  ...
+# Subtest: camera-relative controls keep forward, back, and strafing consistent after camera turns
+ok 380 - camera-relative controls keep forward, back, and strafing consistent after camera turns
+  ---
+  duration_ms: 1.71367
+  ...
+# Subtest: all eight normalized camera-relative directions stay unit length at cardinal yaws
+ok 381 - all eight normalized camera-relative directions stay unit length at cardinal yaws
+  ---
+  duration_ms: 0.320029
+  ...
+# Subtest: body rotation takes the short path across the ±180° boundary
+ok 382 - body rotation takes the short path across the ±180° boundary
+  ---
+  duration_ms: 0.228297
+  ...
+# Subtest: enemy model yaw compensates for its built-in facing offset
+ok 383 - enemy model yaw compensates for its built-in facing offset
+  ---
+  duration_ms: 0.129332
+  ...
+# Subtest: enemy root yaw makes the corrected model face the player from all directions
+ok 384 - enemy root yaw makes the corrected model face the player from all directions
+  ---
+  duration_ms: 0.223717
+  ...
+# Subtest: enemy fire waits until the model faces the target within fifteen degrees
+ok 385 - enemy fire waits until the model faces the target within fifteen degrees
+  ---
+  duration_ms: 0.139339
+  ...
+# Subtest: camera-facing body rotation catches up within 120 ms across the wrap boundary
+ok 386 - camera-facing body rotation catches up within 120 ms across the wrap boundary
+  ---
+  duration_ms: 0.178974
+  ...
+# Subtest: post-attack strafe ends 0.8 seconds after the attack animation
+ok 387 - post-attack strafe ends 0.8 seconds after the attack animation
+  ---
+  duration_ms: 0.125176
+  ...
+# Subtest: local performance report calculates frame percentiles and renderer totals
+ok 388 - local performance report calculates frame percentiles and renderer totals
+  ---
+  duration_ms: 8.079707
+  ...
+# Subtest: frame-stall watchdog recovers once after repeated 250ms stalls and resets on visibility
+ok 389 - frame-stall watchdog recovers once after repeated 250ms stalls and resets on visibility
+  ---
+  duration_ms: 0.25274
+  ...
+# Subtest: background suspension resets the frame clock without recording a long resume frame
+ok 390 - background suspension resets the frame clock without recording a long resume frame
+  ---
+  duration_ms: 0.238572
+  ...
+# Subtest: performance collector uses a bounded ring and skips invalid timestamps
+ok 391 - performance collector uses a bounded ring and skips invalid timestamps
+  ---
+  duration_ms: 8.591662
+  ...
+# Subtest: benchmark is opt-in by query and can be disabled by environment
+ok 392 - benchmark is opt-in by query and can be disabled by environment
+  ---
+  duration_ms: 3.775733
+  ...
+# Subtest: benchmark input stays deterministic and ends after sixty seconds
+ok 393 - benchmark input stays deterministic and ends after sixty seconds
+  ---
+  duration_ms: 0.236952
+  ...
+# Subtest: player animation priority preserves death, hit, and attack reactions
+ok 394 - player animation priority preserves death, hit, and attack reactions
+  ---
+  duration_ms: 0.848377
+  ...
+# Subtest: player animation selects jump, crouch, idle, walk, and run from live movement
+ok 395 - player animation selects jump, crouch, idle, walk, and run from live movement
+  ---
+  duration_ms: 0.24378
+  ...
+# Subtest: active locomotion is not replaced by body-turn animation while the camera turns
+ok 396 - active locomotion is not replaced by body-turn animation while the camera turns
+  ---
+  duration_ms: 0.175636
+  ...
+# Subtest: locomotion playback scales to movement speed and reverses for backward travel
+ok 397 - locomotion playback scales to movement speed and reverses for backward travel
+  ---
+  duration_ms: 0.299944
+  ...
+# Subtest: daily challenge grants one limited seal without changing campaign gold or progression
+ok 398 - daily challenge grants one limited seal without changing campaign gold or progression
+  ---
+  duration_ms: 1.586909
+  ...
+# Subtest: profile reward cap resets on the next Istanbul day and losses give no seal
+ok 399 - profile reward cap resets on the next Istanbul day and losses give no seal
+  ---
+  duration_ms: 0.234095
+  ...
+# Subtest: reward requests reject client-supplied payout fields and malformed metrics
+ok 400 - reward requests reject client-supplied payout fields and malformed metrics
+  ---
+  duration_ms: 0.227566
+  ...
+# Subtest: quality tiers reduce emissions, live particle cap, trail length, and DPR
+ok 401 - quality tiers reduce emissions, live particle cap, trail length, and DPR
+  ---
+  duration_ms: 0.833433
+  ...
+# Subtest: adaptive quality can lower touch-device DPR as well as desktop DPR
+ok 402 - adaptive quality can lower touch-device DPR as well as desktop DPR
+  ---
+  duration_ms: 0.178082
+  ...
+# Subtest: portrait render pixel budget never exceeds the 772 by 330 landscape canvas
+ok 403 - portrait render pixel budget never exceeds the 772 by 330 landscape canvas
+  ---
+  duration_ms: 0.253971
+  ...
+# Subtest: the phase flag restores the unscaled quality profile when disabled
+ok 404 - the phase flag restores the unscaled quality profile when disabled
+  ---
+  duration_ms: 0.135062
+  ...
+# Subtest: quality-scaled particles remain within the fixed shared pool budget
+ok 405 - quality-scaled particles remain within the fixed shared pool budget
+  ---
+  duration_ms: 0.115907
+  ...
+# Subtest: low quality can suppress small effects without creating negative counts
+ok 406 - low quality can suppress small effects without creating negative counts
+  ---
+  duration_ms: 0.086652
+  ...
+# Subtest: particle pool usage counts only live fixed-pool entries
+ok 407 - particle pool usage counts only live fixed-pool entries
+  ---
+  duration_ms: 0.178721
+  ...
+# Subtest: War Room performance and pooled geometry stay within the requested fixed limits
+ok 408 - War Room performance and pooled geometry stay within the requested fixed limits
+  ---
+  duration_ms: 0.110829
+  ...
+# Subtest: continuous attack reporting rejects sparse or interrupted runs
+ok 409 - continuous attack reporting rejects sparse or interrupted runs
+  ---
+  duration_ms: 0.206844
+  ...
+# Subtest: debug frame stats report draw calls and unclamped frame rate safely
+ok 410 - debug frame stats report draw calls and unclamped frame rate safely
+  ---
+  duration_ms: 1.087249
+  ...
+# Subtest: adaptive War Room DPR lowers after sustained slow frames and recovers gradually
+ok 411 - adaptive War Room DPR lowers after sustained slow frames and recovers gradually
+  ---
+  duration_ms: 3.00497
+  ...
+# Subtest: adaptive DPR responds to consecutive severe stalls before the full sample window
+ok 412 - adaptive DPR responds to consecutive severe stalls before the full sample window
+  ---
+  duration_ms: 0.165923
+  ...
+# Subtest: adaptive War Room DPR rejects invalid frame samples and respects its floor
+ok 413 - adaptive War Room DPR rejects invalid frame samples and respects its floor
+  ---
+  duration_ms: 1.350624
+  ...
+# Subtest: decal pool usage counts only occupied slots
+ok 414 - decal pool usage counts only occupied slots
+  ---
+  duration_ms: 0.42586
+  ...
+# Subtest: visual melee knockback stays in the requested range and scales by weapon
+ok 415 - visual melee knockback stays in the requested range and scales by weapon
+  ---
+  duration_ms: 3.328837
+  ...
+# Subtest: only an imminent commander shot receives a visual warning
+ok 416 - only an imminent commander shot receives a visual warning
+  ---
+  duration_ms: 0.292305
+  ...
+# Subtest: hit rim and death fade use the requested short visual windows
+ok 417 - hit rim and death fade use the requested short visual windows
+  ---
+  duration_ms: 0.157392
+  ...
+# Subtest: restore config defaults on and defines the requested player-only rates
+ok 418 - restore config defaults on and defines the requested player-only rates
+  ---
+  duration_ms: 1.207376
+  ...
+# Subtest: the restore config switch disables passive, kill, and pickup healing
+ok 419 - the restore config switch disables passive, kill, and pickup healing
+  ---
+  duration_ms: 0.277425
+  ...
+# Subtest: healing points are reachable and do not overlap the arena blockers
+ok 420 - healing points are reachable and do not overlap the arena blockers
+  ---
+  duration_ms: 1.397815
+  ...
+# Subtest: passive healing waits six seconds after damage and then restores two HP per second
+ok 421 - passive healing waits six seconds after damage and then restores two HP per second
+  ---
+  duration_ms: 0.177367
+  ...
+# Subtest: passive healing stops at sixty percent of maximum HP
+ok 422 - passive healing stops at sixty percent of maximum HP
+  ---
+  duration_ms: 0.101305
+  ...
+# Subtest: recent outgoing combat and damage each hold passive healing for six seconds
+ok 423 - recent outgoing combat and damage each hold passive healing for six seconds
+  ---
+  duration_ms: 0.096394
+  ...
+# Subtest: normal and commander kills heal the configured amount without exceeding maximum HP
+ok 424 - normal and commander kills heal the configured amount without exceeding maximum HP
+  ---
+  duration_ms: 0.225889
+  ...
+# Subtest: healing points grant 25 percent HP, then become available again after 45 seconds
+ok 425 - healing points grant 25 percent HP, then become available again after 45 seconds
+  ---
+  duration_ms: 0.153263
+  ...
+# Subtest: a healing point is not consumed when the player is already at full health
+ok 426 - a healing point is not consumed when the player is already at full health
+  ---
+  duration_ms: 0.158628
+  ...
+# Subtest: the pickup cue has a distinct two-pulse healing sound
+ok 427 - the pickup cue has a distinct two-pulse healing sound
+  ---
+  duration_ms: 0.314284
+  ...
+# Subtest: room-chain rollout is enabled with optional buffs disabled
+ok 428 - room-chain rollout is enabled with optional buffs disabled
+  ---
+  duration_ms: 0.764139
+  ...
+# Subtest: the first six rooms have distinct names, layouts, themes, rosters and enemy counts
+ok 429 - the first six rooms have distinct names, layouts, themes, rosters and enemy counts
+  ---
+  duration_ms: 95.318901
+  ...
+# Subtest: house rooms, corridor, doors, stairs and landings meet the visible dimensions
+ok 430 - house rooms, corridor, doors, stairs and landings meet the visible dimensions
+  ---
+  duration_ms: 16.505864
+  ...
+# Subtest: all floorplan doorways and both stair landings remain traversable
+ok 431 - all floorplan doorways and both stair landings remain traversable
+  ---
+  duration_ms: 20.6967
+  ...
+# Subtest: all eight houses have traversable doors, matching stairs, floors, and upper-floor shot blocking
+ok 432 - all eight houses have traversable doors, matching stairs, floors, and upper-floor shot blocking
+  ---
+  duration_ms: 340.251184
+  ...
+# Subtest: room difficulty keeps increasing after the map cycle instead of dropping back
+ok 433 - room difficulty keeps increasing after the map cycle instead of dropping back
+  ---
+  duration_ms: 71.288588
+  ...
+# Subtest: each run seed produces repeatable enemy, house, and treasure variations
+ok 434 - each run seed produces repeatable enemy, house, and treasure variations
+  ---
+  duration_ms: 34.929665
+  ...
+# Subtest: optional room contracts are seeded, varied, and ramp their goals and bonus
+ok 435 - optional room contracts are seeded, varied, and ramp their goals and bonus
+  ---
+  duration_ms: 67.423959
+  ...
+# Subtest: room runtime uses its randomized roster and applies the escalating enemy stats
+ok 436 - room runtime uses its randomized roster and applies the escalating enemy stats
+  ---
+  duration_ms: 36.312252
+  ...
+# Subtest: training dummy starts in clear space rather than inside house geometry
+ok 437 - training dummy starts in clear space rather than inside house geometry
+  ---
+  duration_ms: 18.480754
+  ...
+# Subtest: room rewards apply the requested multiplier cap and carry forty percent health
+ok 438 - room rewards apply the requested multiplier cap and carry forty percent health
+  ---
+  duration_ms: 0.3102
+  ...
+# Subtest: separate room progress tracks highest room and lifetime room rewards
+ok 439 - separate room progress tracks highest room and lifetime room rewards
+  ---
+  duration_ms: 0.258905
+  ...
+# Subtest: sprint on and off transitions each wait through the 150ms hysteresis
+ok 440 - sprint on and off transitions each wait through the 150ms hysteresis
+  ---
+  duration_ms: 0.994062
+  ...
+# Subtest: every store-linked War Room weapon exposes its real combat values
+ok 441 - every store-linked War Room weapon exposes its real combat values
+  ---
+  duration_ms: 1.147814
+  ...
+# Subtest: a purchased War Room weapon is owned and available in the two-slot briefing loadout
+ok 442 - a purchased War Room weapon is owned and available in the two-slot briefing loadout
+  ---
+  duration_ms: 0.760622
+  ...
+# Subtest: saved War Room slots load independently and assigning a weapon swaps rather than duplicates it
+ok 443 - saved War Room slots load independently and assigning a weapon swaps rather than duplicates it
+  ---
+  duration_ms: 0.57514
+  ...
+# Subtest: local War Room purchase deducts once, adds inventory, and preserves campaign equipment
+ok 444 - local War Room purchase deducts once, adds inventory, and preserves campaign equipment
+  ---
+  duration_ms: 0.305306
+  ...
+# Subtest: local War Room purchase rejects insufficient funds and repeat purchases without mutation
+ok 445 - local War Room purchase rejects insufficient funds and repeat purchases without mutation
+  ---
+  duration_ms: 1.179745
+  ...
+# Subtest: a purchased local War Room weapon can equip in either briefing slot
+ok 446 - a purchased local War Room weapon can equip in either briefing slot
+  ---
+  duration_ms: 0.339946
+  ...
+# Subtest: War Room toasts stay queued in order and keep only the visible limit
+ok 447 - War Room toasts stay queued in order and keep only the visible limit
+  ---
+  duration_ms: 2.157691
+  ...
+# Subtest: War Room toast queue ignores blank and duplicate notifications and expires by id
+ok 448 - War Room toast queue ignores blank and duplicate notifications and expires by id
+  ---
+  duration_ms: 0.328829
+  ...
+# Subtest: default touch zones map the left half to movement and right half to camera look
+ok 449 - default touch zones map the left half to movement and right half to camera look
+  ---
+  duration_ms: 4.789018
+  ...
+# Subtest: left-handed movement zone moves to the right half
+ok 450 - left-handed movement zone moves to the right half
+  ---
+  duration_ms: 0.240898
+  ...
+# Subtest: joystick movement is normalized and releasing the touch clears it
+ok 451 - joystick movement is normalized and releasing the touch clears it
+  ---
+  duration_ms: 1.208311
+  ...
+# Subtest: right-side look reports bounded per-move camera deltas
+ok 452 - right-side look reports bounded per-move camera deltas
+  ---
+  duration_ms: 0.26726
+  ...
+# Subtest: reset clears active touch roles and values without losing diagnostics
+ok 453 - reset clears active touch roles and values without losing diagnostics
+  ---
+  duration_ms: 0.305464
+  ...
+# Subtest: weapon lab runtime uses one stationary, non-lethal training dummy
+ok 454 - weapon lab runtime uses one stationary, non-lethal training dummy
+  ---
+  duration_ms: 25.640205
+  ...
+# Subtest: five-second walk, wall-scrape, and sprint viewmodel changes stay below the jitter limit
+ok 455 - five-second walk, wall-scrape, and sprint viewmodel changes stay below the jitter limit
+  ---
+  duration_ms: 64.788391
+  ...
+# Subtest: movement intent uses hysteresis, ignores airborne bob, and is frame-rate independent
+ok 456 - movement intent uses hysteresis, ignores airborne bob, and is frame-rate independent
+  ---
+  duration_ms: 0.470768
+  ...
+# Subtest: viewmodel uses the light default, bounded sway, wall pullback, and 60-degree camera
+ok 457 - viewmodel uses the light default, bounded sway, wall pullback, and 60-degree camera
+  ---
+  duration_ms: 0.798012
+  ...
+# Subtest: near-wall safety retraction eases in without a frame-to-frame jump
+ok 458 - near-wall safety retraction eases in without a frame-to-frame jump
+  ---
+  duration_ms: 0.223156
+  ...
+# Subtest: 16/16/40/16/16/60 ms frame jitter keeps viewmodel position changes bounded
+ok 459 - 16/16/40/16/16/60 ms frame jitter keeps viewmodel position changes bounded
+  ---
+  duration_ms: 8.136297
+  ...
+# Subtest: first-person arms default to visible and persist their setting
+ok 460 - first-person arms default to visible and persist their setting
+  ---
+  duration_ms: 1.473925
+  ...
+# Subtest: weapon sway defaults to low and persists only the supported levels
+ok 461 - weapon sway defaults to low and persists only the supported levels
+  ---
+  duration_ms: 0.220709
+  ...
+# Subtest: the diagnostics setting persists independently
+ok 462 - the diagnostics setting persists independently
+  ---
+  duration_ms: 0.245556
+  ...
+# Subtest: aiming lowers and shifts the weapon to keep the center sightline clear
+ok 463 - aiming lowers and shifts the weapon to keep the center sightline clear
+  ---
+  duration_ms: 0.983555
+  ...
+# Subtest: ADS reduces camera FOV and weapon size while keeping the target visible through it
+ok 464 - ADS reduces camera FOV and weapon size while keeping the target visible through it
+  ---
+  duration_ms: 0.177602
+  ...
+# Subtest: portrait view keeps the weapon inside a narrower camera frame
+ok 465 - portrait view keeps the weapon inside a narrower camera frame
+  ---
+  duration_ms: 0.154658
+  ...
+# Subtest: reduced motion removes idle, locomotion, and firing sway
+ok 466 - reduced motion removes idle, locomotion, and firing sway
+  ---
+  duration_ms: 0.652129
+  ...
+# Subtest: walking sway is limited to a small side swing with no forward, vertical, or pitch pumping
+ok 467 - walking sway is limited to a small side swing with no forward, vertical, or pitch pumping
+  ---
+  duration_ms: 0.269607
+  ...
+# Subtest: wall proximity eases in and out instead of snapping the weapon
+ok 468 - wall proximity eases in and out instead of snapping the weapon
+  ---
+  duration_ms: 0.133932
+  ...
+# Subtest: stationary wall tuck stays small instead of zooming the weapon toward the camera
+ok 469 - stationary wall tuck stays small instead of zooming the weapon toward the camera
+  ---
+  duration_ms: 0.35664
+  ...
+# Subtest: cosmetic wall tuck does not pump the weapon during movement
+ok 470 - cosmetic wall tuck does not pump the weapon during movement
+  ---
+  duration_ms: 0.184368
+  ...
+# Subtest: blocked movement and jumping suppress wall tuck without changing the base pose
+ok 471 - blocked movement and jumping suppress wall tuck without changing the base pose
+  ---
+  duration_ms: 0.221743
+  ...
+# Subtest: melee attacks get distinct sweep and thrust view-model arcs
+ok 472 - melee attacks get distinct sweep and thrust view-model arcs
+  ---
+  duration_ms: 0.31308
+  ...
+# Subtest: first-person weapon scale keeps oversized bows and crossbows controlled
+ok 473 - first-person weapon scale keeps oversized bows and crossbows controlled
+  ---
+  duration_ms: 0.146789
+  ...
+# Subtest: weapon switching stays animated without adding a sprint push-in
+ok 474 - weapon switching stays animated without adding a sprint push-in
+  ---
+  duration_ms: 0.184898
+  ...
+# Subtest: sprinting smoothly lowers the weapon without pushing it toward the camera
+ok 475 - sprinting smoothly lowers the weapon without pushing it toward the camera
+  ---
+  duration_ms: 0.125954
+  ...
+# Subtest: sprint lowering eases in and out and is suppressed while airborne
+ok 476 - sprint lowering eases in and out and is suppressed while airborne
+  ---
+  duration_ms: 0.239863
+  ...
+# Subtest: each modeled War Room weapon carries its own view-model transform
+ok 477 - each modeled War Room weapon carries its own view-model transform
+  ---
+  duration_ms: 0.157207
+  ...
+# Subtest: the four primary ranged weapons define distinct right and support-hand grips
+ok 478 - the four primary ranged weapons define distinct right and support-hand grips
+  ---
+  duration_ms: 0.237646
+  ...
+# Subtest: normalizes the longest GLB axis and places the configured grip at the hand origin
+ok 479 - normalizes the longest GLB axis and places the configured grip at the hand origin
+  ---
+  duration_ms: 0.963109
+  ...
+# Subtest: minimum visual thickness grows only the cross-section, not the normalized weapon axis
+ok 480 - minimum visual thickness grows only the cross-section, not the normalized weapon axis
+  ---
+  duration_ms: 5.997541
+  ...
+# Subtest: grip ratios are clamped and degenerate bounds fail explicitly
+ok 481 - grip ratios are clamped and degenerate bounds fail explicitly
+  ---
+  duration_ms: 0.57046
+  ...
+# Subtest: every War Room melee weapon has a normalized length and configured hand grip
+ok 482 - every War Room melee weapon has a normalized length and configured hand grip
+  ---
+  duration_ms: 0.224927
+  ...
+# (node:1987) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: ranged weapon pose raises the real player hands and stays stable through idle animation
+ok 483 - ranged weapon pose raises the real player hands and stays stable through idle animation
+  ---
+  duration_ms: 131.935604
+  ...
+# Subtest: every weapon gets a cached, weapon-colored silhouette icon
+ok 484 - every weapon gets a cached, weapon-colored silhouette icon
+  ---
+  duration_ms: 1.786999
+  ...
+# Subtest: model icons keep their cached SVG fallback when rendering is unavailable
+ok 485 - model icons keep their cached SVG fallback when rendering is unavailable
+  ---
+  duration_ms: 0.974215
+  ...
+# Subtest: reload offsets are zero when a weapon is at rest
+ok 486 - reload offsets are zero when a weapon is at rest
+  ---
+  duration_ms: 1.338592
+  ...
+# Subtest: reload offsets move from each model part's original local position
+ok 487 - reload offsets move from each model part's original local position
+  ---
+  duration_ms: 0.255253
+  ...
+# Subtest: menu campaign title is generated from the campaign counts
+ok 488 - menu campaign title is generated from the campaign counts
+  ---
+  duration_ms: 0.856316
+  ...
+# Subtest: campaign copy changes when campaign data counts change
+ok 489 - campaign copy changes when campaign data counts change
+  ---
+  duration_ms: 0.289558
+  ...
+# Subtest: all campaign acts provide a short story summary for the main menu
+ok 490 - all campaign acts provide a short story summary for the main menu
+  ---
+  duration_ms: 193.0983
+  ...
+# Subtest: the nine operation stories share the rescue plot and avoid retired fantasy labels
+ok 491 - the nine operation stories share the rescue plot and avoid retired fantasy labels
+  ---
+  duration_ms: 1.695055
+  ...
+# Subtest: active app and project copy no longer contains obsolete campaign counts
+ok 492 - active app and project copy no longer contains obsolete campaign counts
+  ---
+  duration_ms: 413.968558
+  ...
+# Subtest: ordinary visits start at the Sunvoria home while the world debug route remains available
+ok 493 - ordinary visits start at the Sunvoria home while the world debug route remains available
+  ---
+  duration_ms: 3.113429
+  ...
+# Subtest: each readable story line stays visible before the production card, title, and start prompt
+ok 494 - each readable story line stays visible before the production card, title, and start prompt
+  ---
+  duration_ms: 2.241773
+  ...
+# Subtest: reduced-motion timing shortens animation while preserving readable story dwell time
+ok 495 - reduced-motion timing shortens animation while preserving readable story dwell time
+  ---
+  duration_ms: 0.215862
+  ...
+# Subtest: world sockets stay manually connected and retry transient disconnects
+ok 496 - world sockets stay manually connected and retry transient disconnects
+  ---
+  duration_ms: 2.436079
+  ...
+# Subtest: world camera clipping range contains the sky and the procedural star field
+ok 497 - world camera clipping range contains the sky and the procedural star field
+  ---
+  duration_ms: 1.826672
+  ...
+# Subtest: camera clearance keeps the lens ahead of real scene occluders
+ok 498 - camera clearance keeps the lens ahead of real scene occluders
+  ---
+  duration_ms: 0.507742
+  ...
+# Subtest: mobile travel camera keeps the same framing while stopped and running
+ok 499 - mobile travel camera keeps the same framing while stopped and running
+  ---
+  duration_ms: 0.736787
+  ...
+# Subtest: mobile travel camera clears the central spike trap around 60% progress
+ok 500 - mobile travel camera clears the central spike trap around 60% progress
+  ---
+  duration_ms: 0.391751
+  ...
+# Subtest: desktop travel camera retains its speed-responsive framing
+ok 501 - desktop travel camera retains its speed-responsive framing
+  ---
+  duration_ms: 0.220525
+  ...
+# Subtest: entering one act loads only that act's compact campaign data
+ok 502 - entering one act loads only that act's compact campaign data
+  ---
+  duration_ms: 13.918275
+  ...
+# Subtest: all 450 generated level definitions have templates and boss milestones in the right places
+ok 503 - all 450 generated level definitions have templates and boss milestones in the right places
+  ---
+  duration_ms: 472.763689
+  ...
+# Subtest: campaign data rejects level and act requests outside the supported range
+ok 504 - campaign data rejects level and act requests outside the supported range
+  ---
+  duration_ms: 6.459046
+  ...
+# Subtest: legacy saves keep player, economy, inventory, and world position during campaign migration
+ok 505 - legacy saves keep player, economy, inventory, and world position during campaign migration
+  ---
+  duration_ms: 3.371978
+  ...
+# Subtest: the long campaign has nine 50-level acts and preserves existing region identities
+ok 506 - the long campaign has nine 50-level acts and preserves existing region identities
+  ---
+  duration_ms: 1.317429
+  ...
+# Subtest: every tenth level is a mini-boss and every fiftieth level is an act boss
+ok 507 - every tenth level is a mini-boss and every fiftieth level is an act boss
+  ---
+  duration_ms: 2.384566
+  ...
+# Subtest: only verified final-operation rivals unlock their ordered story records
+ok 508 - only verified final-operation rivals unlock their ordered story records
+  ---
+  duration_ms: 0.71252
+  ...
+# Subtest: saved distance maps to a campaign act, level, and readable progress
+ok 509 - saved distance maps to a campaign act, level, and readable progress
+  ---
+  duration_ms: 0.421283
+  ...
+# Subtest: campaign completion requires the final boss or a legacy save past the final gate
+ok 510 - campaign completion requires the final boss or a legacy save past the final gate
+  ---
+  duration_ms: 0.187277
+  ...
+# Subtest: New Game+ clears only chapter position and defeated route records
+ok 511 - New Game+ clears only chapter position and defeated route records
+  ---
+  duration_ms: 0.273197
+  ...
+# Subtest: character state mapping covers locomotion and reserved combat actions
+ok 512 - character state mapping covers locomotion and reserved combat actions
+  ---
+  duration_ms: 0.823559
+  ...
+# Subtest: world jump animation overrides locomotion but never masks an active combat action
+ok 513 - world jump animation overrides locomotion but never masks an active combat action
+  ---
+  duration_ms: 0.167435
+  ...
+# Subtest: procedural weapon poses retract, then drive the hand and blade toward the opponent
+ok 514 - procedural weapon poses retract, then drive the hand and blade toward the opponent
+  ---
+  duration_ms: 0.954088
+  ...
+# Subtest: weapon strikes are still extended at their deterministic combat impact ticks
+ok 515 - weapon strikes are still extended at their deterministic combat impact ticks
+  ---
+  duration_ms: 0.29138
+  ...
+# Subtest: speaking gesture moves both articulated arms forward instead of keeping the weapon hand behind
+ok 516 - speaking gesture moves both articulated arms forward instead of keeping the weapon hand behind
+  ---
+  duration_ms: 0.783079
+  ...
+# Subtest: sprite-sheet frame selection loops movement clips and holds a completed action
+ok 517 - sprite-sheet frame selection loops movement clips and holds a completed action
+  ---
+  duration_ms: 1.149451
+  ...
+# Subtest: sprite-sheet setup errors are explicit when a clip is invalid
+ok 518 - sprite-sheet setup errors are explicit when a clip is invalid
+  ---
+  duration_ms: 0.604774
+  ...
+# (node:2179) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: character fitting puts the feet pivot on the ground at a consistent target height
+ok 519 - character fitting puts the feet pivot on the ground at a consistent target height
+  ---
+  duration_ms: 7.680384
+  ...
+# Subtest: character diagnostics flag a floating model and unexpected dimensions
+ok 520 - character diagnostics flag a floating model and unexpected dimensions
+  ---
+  duration_ms: 0.528716
+  ...
+# (node:2190) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: character resource clones can share immutable GLTF textures
+ok 521 - character resource clones can share immutable GLTF textures
+  ---
+  duration_ms: 2.772608
+  ...
+# Subtest: character cleanup disposes a shared skeleton bone texture once
+ok 522 - character cleanup disposes a shared skeleton bone texture once
+  ---
+  duration_ms: 1.626107
+  ...
+# Subtest: character models fit the requested height with their lowest point on the floor
+ok 523 - character models fit the requested height with their lowest point on the floor
+  ---
+  duration_ms: 3.544517
+  ...
+# Subtest: skinned character bounds include the current bone deformation when fitting
+ok 524 - skinned character bounds include the current bone deformation when fitting
+  ---
+  duration_ms: 1.691565
+  ...
+# Subtest: skinned character meshes refresh their bounds and disable frustum culling
+ok 525 - skinned character meshes refresh their bounds and disable frustum culling
+  ---
+  duration_ms: 0.78721
+  ...
+# Subtest: player hierarchy diagnostics report each mesh and identify oversized geometry
+ok 526 - player hierarchy diagnostics report each mesh and identify oversized geometry
+  ---
+  duration_ms: 1.659029
+  ...
+# Subtest: character models with a Z-up source can be upright before fitting
+ok 527 - character models with a Z-up source can be upright before fitting
+  ---
+  duration_ms: 0.564803
+  ...
+# Subtest: the mobile camera keeps a normalized player below 35% of portrait screen height
+ok 528 - the mobile camera keeps a normalized player below 35% of portrait screen height
+  ---
+  duration_ms: 1.346547
+  ...
+# Subtest: rigged Quaternius bone names support procedural jump, block, and crouch poses
+ok 529 - rigged Quaternius bone names support procedural jump, block, and crouch poses
+  ---
+  duration_ms: 2.396306
+  ...
+# Subtest: duel jump phases animate the arms and legs instead of holding one static pose
+ok 530 - duel jump phases animate the arms and legs instead of holding one static pose
+  ---
+  duration_ms: 1.625216
+  ...
+# Subtest: procedural jump bends preserve non-zero GLB rest rotations on the legs
+ok 531 - procedural jump bends preserve non-zero GLB rest rotations on the legs
+  ---
+  duration_ms: 0.397457
+  ...
+# Subtest: player-hero GLB rig aliases resolve the real torso and limb bones
+ok 532 - player-hero GLB rig aliases resolve the real torso and limb bones
+  ---
+  duration_ms: 0.348782
+  ...
+# Subtest: crouch lowers the shared Body bone by a fixed world distance at GLB scales
+ok 533 - crouch lowers the shared Body bone by a fixed world distance at GLB scales
+  ---
+  duration_ms: 0.49182
+  ...
+# Subtest: locomotion keeps the head level during a run and uses only a small counter-balanced sprint lean
+ok 534 - locomotion keeps the head level during a run and uses only a small counter-balanced sprint lean
+  ---
+  duration_ms: 0.656152
+  ...
+# Subtest: stationary idle animation receives a small head-leveling correction
+ok 535 - stationary idle animation receives a small head-leveling correction
+  ---
+  duration_ms: 0.231448
+  ...
+# Subtest: restoring the animation baseline prevents additive crouch poses from accumulating
+ok 536 - restoring the animation baseline prevents additive crouch poses from accumulating
+  ---
+  duration_ms: 2.071279
+  ...
+# Subtest: the city camera stays behind the hero and looks into the street
+ok 537 - the city camera stays behind the hero and looks into the street
+  ---
+  duration_ms: 1.050272
+  ...
+# Subtest: the city camera never switches to a bird's-eye view when all default shoulders are blocked
+ok 538 - the city camera never switches to a bird's-eye view when all default shoulders are blocked
+  ---
+  duration_ms: 0.883011
+  ...
+# Subtest: the city camera orbits independently when the camera look changes
+ok 539 - the city camera orbits independently when the camera look changes
+  ---
+  duration_ms: 0.590334
+  ...
+# Subtest: camera framing follows the player without changing the camera offset
+ok 540 - camera framing follows the player without changing the camera offset
+  ---
+  duration_ms: 0.181571
+  ...
+# Subtest: the city camera moves to the clear shoulder when a roof blocks its usual view
+ok 541 - the city camera moves to the clear shoulder when a roof blocks its usual view
+  ---
+  duration_ms: 0.161168
+  ...
+# Subtest: the camera looks back at the street instead of clipping through a doorway wall
+ok 542 - the camera looks back at the street instead of clipping through a doorway wall
+  ---
+  duration_ms: 0.510426
+  ...
+# Subtest: the camera keeps safe distance at legal building-edge positions
+ok 543 - the camera keeps safe distance at legal building-edge positions
+  ---
+  duration_ms: 0.570184
+  ...
+# Subtest: camera targets and paths stay outside every building from reachable wall edges
+ok 544 - camera targets and paths stay outside every building from reachable wall edges
+  ---
+  duration_ms: 33.87829
+  ...
+# Subtest: city camera drag rotates horizontally but keeps a stable third-person height
+ok 545 - city camera drag rotates horizontally but keeps a stable third-person height
+  ---
+  duration_ms: 1.207706
+  ...
+# Subtest: city camera heading rotates joystick movement with a normalized diagonal
+ok 546 - city camera heading rotates joystick movement with a normalized diagonal
+  ---
+  duration_ms: 0.206537
+  ...
+# Subtest: invalid city camera gestures never poison camera or movement state
+ok 547 - invalid city camera gestures never poison camera or movement state
+  ---
+  duration_ms: 0.64335
+  ...
+# Subtest: the city has a separate entrance for each existing activity
+ok 548 - the city has a separate entrance for each existing activity
+  ---
+  duration_ms: 4.060288
+  ...
+# Subtest: the player can walk forward, backward, left, and right
+ok 549 - the player can walk forward, backward, left, and right
+  ---
+  duration_ms: 0.626802
+  ...
+# Subtest: the city touch joystick maps finger movement to the matching world direction
+ok 550 - the city touch joystick maps finger movement to the matching world direction
+  ---
+  duration_ms: 0.601849
+  ...
+# Subtest: the floating city joystick follows the touch point and supports all four directions
+ok 551 - the floating city joystick follows the touch point and supports all four directions
+  ---
+  duration_ms: 0.731194
+  ...
+# Subtest: the floating city joystick stays on-screen when touched at the edge
+ok 552 - the floating city joystick stays on-screen when touched at the edge
+  ---
+  duration_ms: 0.169537
+  ...
+# Subtest: the city joystick has a dead zone and uses the full visible stick travel
+ok 553 - the city joystick has a dead zone and uses the full visible stick travel
+  ---
+  duration_ms: 0.163536
+  ...
+# Subtest: the city hero uses the road, sidewalk, and outdoor ground heights
+ok 554 - the city hero uses the road, sidewalk, and outdoor ground heights
+  ---
+  duration_ms: 0.254704
+  ...
+# Subtest: diagonal movement is normalized and never exceeds city boundaries
+ok 555 - diagonal movement is normalized and never exceeds city boundaries
+  ---
+  duration_ms: 0.22585
+  ...
+# Subtest: building collision blocks entry but still permits sliding along the wall
+ok 556 - building collision blocks entry but still permits sliding along the wall
+  ---
+  duration_ms: 0.179075
+  ...
+# Subtest: door prompts stay hidden until the player is close
+ok 557 - door prompts stay hidden until the player is close
+  ---
+  duration_ms: 1.049543
+  ...
+# Subtest: city residents cover each planned accessory and have distinct clothing colors
+ok 558 - city residents cover each planned accessory and have distinct clothing colors
+  ---
+  duration_ms: 1.433871
+  ...
+# Subtest: residents stay outside building collision footprints and inside city bounds
+ok 559 - residents stay outside building collision footprints and inside city bounds
+  ---
+  duration_ms: 0.537489
+  ...
+# Subtest: city residents use distinct campaign models and keep glasses unobstructed
+ok 560 - city residents use distinct campaign models and keep glasses unobstructed
+  ---
+  duration_ms: 1.272364
+  ...
+# [shafak-model] Character normalized {
+#   model: '/models/kuzgun-soldier.glb',
+#   heightBefore: 1.799,
+#   heightAfter: 2.15,
+#   targetHeight: 2.15,
+#   appliedScale: 1.194954
+# }
+# (node:2281) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: Demir Taç uses the detailed soldier rig and keeps a distinct boss identity
+ok 561 - Demir Taç uses the detailed soldier rig and keeps a distinct boss identity
+  ---
+  duration_ms: 121.543258
+  ...
+# Subtest: Demir Taç's rig-mounted armor stays grounded and within world and duel size targets
+ok 562 - Demir Taç's rig-mounted armor stays grounded and within world and duel size targets
+  ---
+  duration_ms: 285.35102
+  ...
+# Subtest: the playable soldier model fits the campaign's measured character size
+ok 563 - the playable soldier model fits the campaign's measured character size
+  ---
+  duration_ms: 94.780022
+  ...
+# Subtest: soldier walk and run clips remove Hips root motion and neutralize the baked body lean
+ok 564 - soldier walk and run clips remove Hips root motion and neutralize the baked body lean
+  ---
+  duration_ms: 24.225832
+  ...
+# Subtest: duel backdrop mountains stay behind the arena and below the sky
+ok 565 - duel backdrop mountains stay behind the arena and below the sky
+  ---
+  duration_ms: 2.496432
+  ...
+# Subtest: duel backdrop requires a usable theme palette
+ok 566 - duel backdrop requires a usable theme palette
+  ---
+  duration_ms: 0.365934
+  ...
+# Subtest: duel settlement shows a useful reason for server validation failures
+ok 567 - duel settlement shows a useful reason for server validation failures
+  ---
+  duration_ms: 2.63169
+  ...
+# Subtest: each combat event selects its matching readable arena effect
+ok 568 - each combat event selects its matching readable arena effect
+  ---
+  duration_ms: 0.837482
+  ...
+# Subtest: bounded duel effects, arena ash, hit sparks, and finisher ash stay below 150 mobile particles
+ok 569 - bounded duel effects, arena ash, hit sparks, and finisher ash stay below 150 mobile particles
+  ---
+  duration_ms: 0.162203
+  ...
+# Subtest: every equipped weapon style creates a visible, finite 3D weapon
+ok 570 - every equipped weapon style creates a visible, finite 3D weapon
+  ---
+  duration_ms: 50.419136
+  ...
+# Subtest: an equipped sword is measured and normalized after inheriting the character scale
+ok 571 - an equipped sword is measured and normalized after inheriting the character scale
+  ---
+  duration_ms: 2.58518
+  ...
+# Subtest: both shield silhouettes create detailed, measurable rig-ready equipment
+ok 572 - both shield silhouettes create detailed, measurable rig-ready equipment
+  ---
+  duration_ms: 46.253153
+  ...
+# Subtest: War Room weapon preview camera fits the weapon bounds instead of the character
+ok 573 - War Room weapon preview camera fits the weapon bounds instead of the character
+  ---
+  duration_ms: 5.760276
+  ...
+# Subtest: frame monitor reports average FPS, average frame time, minimum FPS, and long frames
+ok 574 - frame monitor reports average FPS, average frame time, minimum FPS, and long frames
+  ---
+  duration_ms: 1.502037
+  ...
+# Subtest: frame monitor snapshots the completed frame draw-call count
+ok 575 - frame monitor snapshots the completed frame draw-call count
+  ---
+  duration_ms: 0.216852
+  ...
+# Subtest: frame monitor ignores invalid samples and counts frames over 50 ms
+ok 576 - frame monitor ignores invalid samples and counts frames over 50 ms
+  ---
+  duration_ms: 0.115314
+  ...
+# Subtest: previous balanced settings remain valid as medium quality
+ok 577 - previous balanced settings remain valid as medium quality
+  ---
+  duration_ms: 0.780689
+  ...
+# Subtest: graphics mode maps onto the existing scene quality tiers
+ok 578 - graphics mode maps onto the existing scene quality tiers
+  ---
+  duration_ms: 0.131094
+  ...
+# Subtest: automatic quality changes one tier at a time
+ok 579 - automatic quality changes one tier at a time
+  ---
+  duration_ms: 0.243896
+  ...
+# Subtest: automatic quality calibrates for five seconds and changes one tier at a time
+ok 580 - automatic quality calibrates for five seconds and changes one tier at a time
+  ---
+  duration_ms: 0.779723
+  ...
+# Subtest: world pixel ratio stays within the mobile rendering budget
+ok 581 - world pixel ratio stays within the mobile rendering budget
+  ---
+  duration_ms: 1.182958
+  ...
+# Subtest: shadow maps stay within the quality budget and scale with device DPR
+ok 582 - shadow maps stay within the quality budget and scale with device DPR
+  ---
+  duration_ms: 0.136647
+  ...
+# Subtest: mobile renderers disable real shadows at every quality tier
+ok 583 - mobile renderers disable real shadows at every quality tier
+  ---
+  duration_ms: 0.099211
+  ...
+# Subtest: human detail armor follows articulated bones on the player hero rig
+ok 584 - human detail armor follows articulated bones on the player hero rig
+  ---
+  duration_ms: 40.753873
+  ...
+# Subtest: human detail armor follows articulated bones on the base character rig
+ok 585 - human detail armor follows articulated bones on the base character rig
+  ---
+  duration_ms: 15.276827
+  ...
+# Subtest: human detail armor follows articulated bones on the human armature rig
+ok 586 - human detail armor follows articulated bones on the human armature rig
+  ---
+  duration_ms: 38.31346
+  ...
+# Subtest: human detail armor follows articulated bones on the night watcher rig
+ok 587 - human detail armor follows articulated bones on the night watcher rig
+  ---
+  duration_ms: 11.173797
+  ...
+# Subtest: unknown skeletons do not receive disconnected armor on the model root
+ok 588 - unknown skeletons do not receive disconnected armor on the model root
+  ---
+  duration_ms: 0.696292
+  ...
+# Subtest: anatomical profiles have tapered muscle groups and articulated joint transitions
+ok 589 - anatomical profiles have tapered muscle groups and articulated joint transitions
+  ---
+  duration_ms: 5.470974
+  ...
+# Subtest: torso and head profiles form a shoulder/chest silhouette with a narrower jaw
+ok 590 - torso and head profiles form a shoulder/chest silhouette with a narrower jaw
+  ---
+  duration_ms: 26.833564
+  ...
+# Subtest: boots and armor panels use faceted silhouettes rather than stock box and sphere shapes
+ok 591 - boots and armor panels use faceted silhouettes rather than stock box and sphere shapes
+  ---
+  duration_ms: 6.142376
+  ...
+# Subtest: invalid faceted profiles fail clearly rather than producing collapsed geometry
+ok 592 - invalid faceted profiles fail clearly rather than producing collapsed geometry
+  ---
+  duration_ms: 0.700591
+  ...
+# Subtest: duel model position stays local when the combat actor root owns world position
+ok 593 - duel model position stays local when the combat actor root owns world position
+  ---
+  duration_ms: 1.256559
+  ...
+# Subtest: world model position still follows normal travel motion
+ok 594 - world model position still follows normal travel motion
+  ---
+  duration_ms: 0.159833
+  ...
+# Subtest: armor surface maps provide color, normal, and roughness detail
+ok 595 - armor surface maps provide color, normal, and roughness detail
+  ---
+  duration_ms: 0.855041
+  ...
+# Subtest: missing character UVs are projected from mesh normals and bounds
+ok 596 - missing character UVs are projected from mesh normals and bounds
+  ---
+  duration_ms: 1.306686
+  ...
+# Subtest: UV projection safely ignores geometry without positions
+ok 597 - UV projection safely ignores geometry without positions
+  ---
+  duration_ms: 0.134739
+  ...
+# Subtest: animated character materials receive the correct surface details
+ok 598 - animated character materials receive the correct surface details
+  ---
+  duration_ms: 1.0791
+  ...
+# Subtest: coalesces snapshots received during a save and sends the newest one next
+ok 599 - coalesces snapshots received during a save and sends the newest one next
+  ---
+  duration_ms: 17.706953
+  ...
+# Subtest: a failed save is retained for the next update instead of being lost
+ok 600 - a failed save is retained for the next update instead of being lost
+  ---
+  duration_ms: 6.604433
+  ...
+# Subtest: ordinary saves respect the minimum interval while important saves flush immediately
+ok 601 - ordinary saves respect the minimum interval while important saves flush immediately
+  ---
+  duration_ms: 41.55794
+  ...
+# Subtest: two-bone leg IK returns finite joint angles for reachable and clamped targets
+ok 602 - two-bone leg IK returns finite joint angles for reachable and clamped targets
+  ---
+  duration_ms: 2.253486
+  ...
+# Subtest: two-bone leg IK keeps the foot target inside the leg's reachable radius
+ok 603 - two-bone leg IK keeps the foot target inside the leg's reachable radius
+  ---
+  duration_ms: 0.330085
+  ...
+# Subtest: locomotion clips remove fixed body lean while keeping animated movement
+ok 604 - locomotion clips remove fixed body lean while keeping animated movement
+  ---
+  duration_ms: 3.294525
+  ...
+# Subtest: the world actor uses upright walk and run clips for the shared player rig
+ok 605 - the world actor uses upright walk and run clips for the shared player rig
+  ---
+  duration_ms: 0.531012
+  ...
+# Subtest: GLB clip names are resolved case-insensitively from one configurable map
+ok 606 - GLB clip names are resolved case-insensitively from one configurable map
+  ---
+  duration_ms: 0.310737
+  ...
+# Subtest: missing locomotion clips fall back to a usable idle or walking clip
+ok 607 - missing locomotion clips fall back to a usable idle or walking clip
+  ---
+  duration_ms: 0.163199
+  ...
+# Subtest: Gölge Şövalyesi maps every model state to its exact GLB clip
+ok 608 - Gölge Şövalyesi maps every model state to its exact GLB clip
+  ---
+  duration_ms: 0.304427
+  ...
+# Subtest: Gece Nöbetçisi resolves to the GLB's sword config while keeping other names intact
+ok 609 - Gece Nöbetçisi resolves to the GLB's sword config while keeping other names intact
+  ---
+  duration_ms: 0.11444
+  ...
+# Subtest: player animation states map to the Quaternius hero clips and leave jump to the rig pose
+ok 610 - player animation states map to the Quaternius hero clips and leave jump to the rig pose
+  ---
+  duration_ms: 23.137302
+  ...
+# Subtest: rivals and chapter bosses use animated player-like rigs with distinct boss scale
+ok 611 - rivals and chapter bosses use animated player-like rigs with distinct boss scale
+  ---
+  duration_ms: 1.189881
+  ...
+# Subtest: Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips
+ok 612 - Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips
+  ---
+  duration_ms: 9.557266
+  ...
+# Subtest: opponent root translation is stripped without removing bone rotation tracks
+ok 613 - opponent root translation is stripped without removing bone rotation tracks
+  ---
+  duration_ms: 0.248951
+  ...
+# Subtest: opponent clips loop, return to idle, or hold their last frame by action
+ok 614 - opponent clips loop, return to idle, or hold their last frame by action
+  ---
+  duration_ms: 0.175677
+  ...
+# Subtest: combat actions map to the opponent's specific clips
+ok 615 - combat actions map to the opponent's specific clips
+  ---
+  duration_ms: 0.11917
+  ...
+# Subtest: keyboard movement uses camera-relative strafing and forward travel
+ok 616 - keyboard movement uses camera-relative strafing and forward travel
+  ---
+  duration_ms: 3.225517
+  ...
+# Subtest: left joystick strafes and moves while preserving analog speed
+ok 617 - left joystick strafes and moves while preserving analog speed
+  ---
+  duration_ms: 0.881911
+  ...
+# Subtest: forward running with horizontal deadzone drift keeps the player facing down the road
+ok 618 - forward running with horizontal deadzone drift keeps the player facing down the road
+  ---
+  duration_ms: 2.874277
+  ...
+# Subtest: mobile action keys map to jump, crouch, and sprint
+ok 619 - mobile action keys map to jump, crouch, and sprint
+  ---
+  duration_ms: 0.184563
+  ...
+# Subtest: sprint accelerates faster than walking and jump/crouch change motion
+ok 620 - sprint accelerates faster than walking and jump/crouch change motion
+  ---
+  duration_ms: 0.604633
+  ...
+# Subtest: joystick input preserves analog magnitude for walk-to-run speed
+ok 621 - joystick input preserves analog magnitude for walk-to-run speed
+  ---
+  duration_ms: 7.071699
+  ...
+# Subtest: joystick forward input advances measured distance and the camera
+ok 622 - joystick forward input advances measured distance and the camera
+  ---
+  duration_ms: 0.631456
+  ...
+# Subtest: W/S advances and A/D moves laterally without rotating the camera
+ok 623 - W/S advances and A/D moves laterally without rotating the camera
+  ---
+  duration_ms: 2.951727
+  ...
+# Subtest: weather handling slows steering response without changing the normal default
+ok 624 - weather handling slows steering response without changing the normal default
+  ---
+  duration_ms: 0.304901
+  ...
+# Subtest: releasing input decelerates rather than stopping immediately
+ok 625 - releasing input decelerates rather than stopping immediately
+  ---
+  duration_ms: 0.253181
+  ...
+# Subtest: forward travel accumulates without rotating the player away from the rear camera
+ok 626 - forward travel accumulates without rotating the player away from the rear camera
+  ---
+  duration_ms: 7.307452
+  ...
+# Subtest: invalid delta time does not inject movement
+ok 627 - invalid delta time does not inject movement
+  ---
+  duration_ms: 0.178345
+  ...
+# Subtest: fixed-step render interpolation fills the gap without replacing simulation state
+ok 628 - fixed-step render interpolation fills the gap without replacing simulation state
+  ---
+  duration_ms: 0.346893
+  ...
+# Subtest: keyboard camera turn rotates in place independently of movement input
+ok 629 - keyboard camera turn rotates in place independently of movement input
+  ---
+  duration_ms: 1.319639
+  ...
+# Subtest: camera drag changes its orbit while movement follows the new view direction
+ok 630 - camera drag changes its orbit while movement follows the new view direction
+  ---
+  duration_ms: 0.291628
+  ...
+# Subtest: strafe turns the hero toward travel without rotating the follow camera
+ok 631 - strafe turns the hero toward travel without rotating the follow camera
+  ---
+  duration_ms: 0.209233
+  ...
+# Subtest: the player stays 0.6 m inside the road edge and gets a small inward push
+ok 632 - the player stays 0.6 m inside the road edge and gets a small inward push
+  ---
+  duration_ms: 27.406394
+  ...
+# Subtest: floating origin keeps render coordinates bounded while preserving absolute distance
+ok 633 - floating origin keeps render coordinates bounded while preserving absolute distance
+  ---
+  duration_ms: 0.2976
+  ...
+# Subtest: other chapter bosses keep their existing animated costume unchanged
+ok 634 - other chapter bosses keep their existing animated costume unchanged
+  ---
+  duration_ms: 37.977676
+  ...
+# Subtest: other chapter bosses still receive the shared animated-rig costume
+ok 635 - other chapter bosses still receive the shared animated-rig costume
+  ---
+  duration_ms: 0.207672
+  ...
+# Subtest: Demir Taç uses the detailed soldier rig with mounted armor and crown
+ok 636 - Demir Taç uses the detailed soldier rig with mounted armor and crown
+  ---
+  duration_ms: 19.242824
+  ...
+# Subtest: Demir Taç's shared player model uses a dark boss palette instead of the green player clothes
+ok 637 - Demir Taç's shared player model uses a dark boss palette instead of the green player clothes
+  ---
+  duration_ms: 2.950923
+  ...
+# Subtest: rival archetypes select fitted, independently skinned hero bases and bounded scales
+ok 638 - rival archetypes select fitted, independently skinned hero bases and bounded scales
+  ---
+  duration_ms: 2.058243
+  ...
+# Subtest: the named chapter rivals keep their titles and get the requested visual kits
+ok 639 - the named chapter rivals keep their titles and get the requested visual kits
+  ---
+  duration_ms: 0.639243
+  ...
+# Subtest: Mor Hançer uses the existing full-body skinned hero rig
+ok 640 - Mor Hançer uses the existing full-body skinned hero rig
+  ---
+  duration_ms: 1.088868
+  ...
+# [shafak-model] Verified player scene {
+#   meshCount: 19,
+#   skinnedMeshCount: 7,
+#   devParts: 0,
+#   screenHeightPercent: {
+#     idle: { screenHeightPercent: 29.5, screenAreaPercent: 5.8 },
+#     run: { screenHeightPercent: 30.6, screenAreaPercent: 6.1 }
+#   }
+# }
+# (node:2593) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: the player GLB can use its generated rig when it contains no animation clips
+ok 641 - the player GLB can use its generated rig when it contains no animation clips
+  ---
+  duration_ms: 0.769562
+  ...
+# Subtest: duels select the same GLB hero as the road instead of the procedural stand-in
+ok 642 - duels select the same GLB hero as the road instead of the procedural stand-in
+  ---
+  duration_ms: 0.203513
+  ...
+# Subtest: player equipment color aliases match materials in the game hero GLB
+ok 643 - player equipment color aliases match materials in the game hero GLB
+  ---
+  duration_ms: 5.82073
+  ...
+# Subtest: player model uses the animated Quaternius hero at the configured height and facing
+ok 644 - player model uses the animated Quaternius hero at the configured height and facing
+  ---
+  duration_ms: 253.785482
+  ...
+# Subtest: world walking stays upright after restoring the fitted GLB baseline each frame
+ok 645 - world walking stays upright after restoring the fitted GLB baseline each frame
+  ---
+  duration_ms: 70.965674
+  ...
+# Subtest: world crouching uses a balanced squat and clears the low road beam
+ok 646 - world crouching uses a balanced squat and clears the low road beam
+  ---
+  duration_ms: 50.652784
+  ...
+# Subtest: source character vertices map to the matching left/right joints
+ok 647 - source character vertices map to the matching left/right joints
+  ---
+  duration_ms: 1.176078
+  ...
+# Subtest: an unrigged mesh gains normalized skin weights without changing its bind pose
+ok 648 - an unrigged mesh gains normalized skin weights without changing its bind pose
+  ---
+  duration_ms: 5.373815
+  ...
+# Subtest: the generated joints animate legs, arms, and reduced-motion gait
+ok 649 - the generated joints animate legs, arms, and reduced-motion gait
+  ---
+  duration_ms: 3.700364
+  ...
+# (node:2616) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: princess is generated from the player's sub-3 MiB skinned rig
+ok 650 - princess is generated from the player's sub-3 MiB skinned rig
+  ---
+  duration_ms: 195.986642
+  ...
+# Subtest: princess uses the existing skinned player asset instead of a separate GLB
+ok 651 - princess uses the existing skinned player asset instead of a separate GLB
+  ---
+  duration_ms: 0.78388
+  ...
+# Subtest: princess animations use the player clips and generated wave/talk gestures
+ok 652 - princess animations use the player clips and generated wave/talk gestures
+  ---
+  duration_ms: 0.425409
+  ...
+# Subtest: princess camera frames the face in portrait and landscape
+ok 653 - princess camera frames the face in portrait and landscape
+  ---
+  duration_ms: 0.233791
+  ...
+# Subtest: princess turns toward the camera's actual horizontal position
+ok 654 - princess turns toward the camera's actual horizontal position
+  ---
+  duration_ms: 0.132128
+  ...
+# Subtest: final scene shows walking arrival, wave, and then dialogue
+ok 655 - final scene shows walking arrival, wave, and then dialogue
+  ---
+  duration_ms: 0.167604
+  ...
+# Subtest: the rebuilt player rig stays upright throughout a full run cycle
+ok 656 - the rebuilt player rig stays upright throughout a full run cycle
+  ---
+  duration_ms: 119.105506
+  ...
+# Subtest: procedural stone PBR channels are deterministic, complete, and distinct
+ok 657 - procedural stone PBR channels are deterministic, complete, and distinct
+  ---
+  duration_ms: 6.963555
+  ...
+# Subtest: loaded rock materials use matte grey-beige procedural stone
+ok 658 - loaded rock materials use matte grey-beige procedural stone
+  ---
+  duration_ms: 1.809422
+  ...
+# Subtest: a player always gets one hidden easy and one hidden hard door per chapter
+ok 659 - a player always gets one hidden easy and one hidden hard door per chapter
+  ---
+  duration_ms: 1.579501
+  ...
+# Subtest: the hidden assignment is stable for the same player and differs by player identity
+ok 660 - the hidden assignment is stable for the same player and differs by player identity
+  ---
+  duration_ms: 0.207283
+  ...
+# Subtest: steering selects a hidden route while a neutral approach gets a stable random-feeling route
+ok 661 - steering selects a hidden route while a neutral approach gets a stable random-feeling route
+  ---
+  duration_ms: 0.149884
+  ...
+# Subtest: story history safely normalizes valid IDs and ignores malformed storage
+ok 662 - story history safely normalizes valid IDs and ignores malformed storage
+  ---
+  duration_ms: 1.399022
+  ...
+# Subtest: opening and chapter stories appear once while NPC dialogue remains repeatable
+ok 663 - opening and chapter stories appear once while NPC dialogue remains repeatable
+  ---
+  duration_ms: 0.172552
+  ...
+# Subtest: first-entry story does not cover a directly opened store tab
+ok 664 - first-entry story does not cover a directly opened store tab
+  ---
+  duration_ms: 0.107725
+  ...
+# Subtest: closing a story marks it once without removing earlier entries
+ok 665 - closing a story marks it once without removing earlier entries
+  ---
+  duration_ms: 0.127505
+  ...
+# Subtest: opening establishes the rescue campaign, Alaz, and the communications network
+ok 666 - opening establishes the rescue campaign, Alaz, and the communications network
+  ---
+  duration_ms: 1.118539
+  ...
+# Subtest: chapter dialogue uses the active act story and campaign progress
+ok 667 - chapter dialogue uses the active act story and campaign progress
+  ---
+  duration_ms: 35.670084
+  ...
+# Subtest: rivals have distinct multi-line voices; Demir Yemin follows the active act
+ok 668 - rivals have distinct multi-line voices; Demir Yemin follows the active act
+  ---
+  duration_ms: 0.963754
+  ...
+# Subtest: the final boss explains Alaz's plan and directs the player to the ending
+ok 669 - the final boss explains Alaz's plan and directs the player to the ending
+  ---
+  duration_ms: 0.265113
+  ...
+# Subtest: world texture budget preserves small images and caps the longest side at 1024
+ok 670 - world texture budget preserves small images and caps the longest side at 1024
+  ---
+  duration_ms: 1.283312
+  ...
+# Subtest: automatic sky cycles through day, sunset, night, and dawn in six minutes
+ok 671 - automatic sky cycles through day, sunset, night, and dawn in six minutes
+  ---
+  duration_ms: 2.143635
+  ...
+# Subtest: manual sky modes select stable phases and URL overrides take precedence
+ok 672 - manual sky modes select stable phases and URL overrides take precedence
+  ---
+  duration_ms: 0.714457
+  ...
+# Subtest: the time control cycles between the automatic clock, day, and night
+ok 673 - the time control cycles between the automatic clock, day, and night
+  ---
+  duration_ms: 0.216969
+  ...
+# Subtest: daylight and twilight are smooth through sunset and sunrise
+ok 674 - daylight and twilight are smooth through sunset and sunrise
+  ---
+  duration_ms: 0.387854
+  ...
+# Subtest: shared lighting state keeps the sun direction normalized and fog finite
+ok 675 - shared lighting state keeps the sun direction normalized and fog finite
+  ---
+  duration_ms: 0.720698
+  ...
+# Subtest: automatic time is the default and night keeps a readable minimum light level
+ok 676 - automatic time is the default and night keeps a readable minimum light level
+  ---
+  duration_ms: 0.444749
+  ...
+# (node:2760) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: War Room briefing preloads the player and arena, not every weapon GLB
+ok 677 - War Room briefing preloads the player and arena, not every weapon GLB
+  ---
+  duration_ms: 0.997948
+  ...
+# Subtest: War Room preloads only the equipped weapon models before the match
+ok 678 - War Room preloads only the equipped weapon models before the match
+  ---
+  duration_ms: 4.302242
+  ...
+# Subtest: every War Room weapon uses a distinct model asset
+ok 679 - every War Room weapon uses a distinct model asset
+  ---
+  duration_ms: 2.468926
+  ...
+# Subtest: every weapon uses a compact Meshopt GLB with decodable geometry
+ok 680 - every weapon uses a compact Meshopt GLB with decodable geometry
+  ---
+  duration_ms: 85.143209
+  ...
+# Subtest: core War Room weapons load Meshopt models with moving parts and muzzle markers
+ok 681 - core War Room weapons load Meshopt models with moving parts and muzzle markers
+  ---
+  duration_ms: 67.414717
+  ...
+# Subtest: WebGL support preflight accepts either browser context API without creating a context
+ok 682 - WebGL support preflight accepts either browser context API without creating a context
+  ---
+  duration_ms: 0.765925
+  ...
+# Subtest: the three biomes repeat in the specified order at stable world distances
+ok 683 - the three biomes repeat in the specified order at stable world distances
+  ---
+  duration_ms: 0.786967
+  ...
+# Subtest: biome palettes blend smoothly across the first chunk after each biome gate
+ok 684 - biome palettes blend smoothly across the first chunk after each biome gate
+  ---
+  duration_ms: 0.788563
+  ...
+# Subtest: rain and storms reduce steering response while other weather keeps normal handling
+ok 685 - rain and storms reduce steering response while other weather keeps normal handling
+  ---
+  duration_ms: 0.149813
+  ...
+# Subtest: generated scenic batches contain road props and marsh flora, not fake gems
+ok 686 - generated scenic batches contain road props and marsh flora, not fake gems
+  ---
+  duration_ms: 0.763948
+  ...
+# Subtest: camera ray candidates include marked scenery but exclude actors and their children
+ok 687 - camera ray candidates include marked scenery but exclude actors and their children
+  ---
+  duration_ms: 2.551459
+  ...
+# Subtest: hazard and prop meshes remain camera occluders even when generic ignore flags are set
+ok 688 - hazard and prop meshes remain camera occluders even when generic ignore flags are set
+  ---
+  duration_ms: 0.513357
+  ...
+# Subtest: fading an occluder clones its material and never changes a shared material
+ok 689 - fading an occluder clones its material and never changes a shared material
+  ---
+  duration_ms: 1.227365
+  ...
+# Subtest: does not fade every instance in a shared scenery batch
+ok 690 - does not fade every instance in a shared scenery batch
+  ---
+  duration_ms: 0.613394
+  ...
+# Subtest: keeps nearby characters opaque instead of treating them as camera occluders
+ok 691 - keeps nearby characters opaque instead of treating them as camera occluders
+  ---
+  duration_ms: 0.263829
+  ...
+# Subtest: occluder diagnostics report camera intrusion and large projected coverage
+ok 692 - occluder diagnostics report camera intrusion and large projected coverage
+  ---
+  duration_ms: 6.986749
+  ...
+# Subtest: campaign and boundary chapters keep their virtual walk and camera corridor clear
+ok 693 - campaign and boundary chapters keep their virtual walk and camera corridor clear
+  ---
+  duration_ms: 69.755374
+  ...
+# Subtest: later chapters add rivals and scale the boss level and combat stats
+ok 694 - later chapters add rivals and scale the boss level and combat stats
+  ---
+  duration_ms: 0.333572
+  ...
+# (node:2845) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: skinned mesh diagnostics measure the visible deformed bounds, not distant source pivots
+ok 695 - skinned mesh diagnostics measure the visible deformed bounds, not distant source pivots
+  ---
+  duration_ms: 134.47986
+  ...
+# Subtest: seeded chapter content is stable and bosses appear only at campaign milestones
+ok 696 - seeded chapter content is stable and bosses appear only at campaign milestones
+  ---
+  duration_ms: 12.407635
+  ...
+# Subtest: rival levels scale with player level and chapter progress while difficulty remains selectable
+ok 697 - rival levels scale with player level and chapter progress while difficulty remains selectable
+  ---
+  duration_ms: 0.438278
+  ...
+# Subtest: road rewards stay within reach and each chapter includes visible hazards
+ok 698 - road rewards stay within reach and each chapter includes visible hazards
+  ---
+  duration_ms: 12.900825
+  ...
+# Subtest: world rivals are not mistaken for walls: the center lane stays open beside their encounter markers
+ok 699 - world rivals are not mistaken for walls: the center lane stays open beside their encounter markers
+  ---
+  duration_ms: 1.916734
+  ...
+# Subtest: rival archetypes appear in normal levels and mini/act bosses are placed correctly
+ok 700 - rival archetypes appear in normal levels and mini/act bosses are placed correctly
+  ---
+  duration_ms: 0.540501
+  ...
+# Subtest: rival names remain distinct while encounter IDs stay unique across repeated chapters
+ok 701 - rival names remain distinct while encounter IDs stay unique across repeated chapters
+  ---
+  duration_ms: 11.466293
+  ...
+# Subtest: server-side pickup validation accepts only unique IDs from the requested chapter
+ok 702 - server-side pickup validation accepts only unique IDs from the requested chapter
+  ---
+  duration_ms: 0.578586
+  ...
+# Subtest: reward totals are derived from seeded pickup kinds and amounts
+ok 703 - reward totals are derived from seeded pickup kinds and amounts
+  ---
+  duration_ms: 0.377357
+  ...
+# Subtest: rocks and intact barricades stop forward travel unless the player dodges or breaks them
+ok 704 - rocks and intact barricades stop forward travel unless the player dodges or breaks them
+  ---
+  duration_ms: 0.363846
+  ...
+# Subtest: the chest is always visible and its collision matches its visible location
+ok 705 - the chest is always visible and its collision matches its visible location
+  ---
+  duration_ms: 0.46031
+  ...
+# Subtest: spatial collision grid blocks props, permits lateral sliding, and enforces the road edge
+ok 706 - spatial collision grid blocks props, permits lateral sliding, and enforces the road edge
+  ---
+  duration_ms: 0.584815
+  ...
+# Subtest: visible obstacles and rivals add collision shapes; roadside scenery stays decorative
+ok 707 - visible obstacles and rivals add collision shapes; roadside scenery stays decorative
+  ---
+  duration_ms: 0.417991
+  ...
+# Subtest: rival colliders keep stationary world characters in place without blocking sidesteps
+ok 708 - rival colliders keep stationary world characters in place without blocking sidesteps
+  ---
+  duration_ms: 0.249004
+  ...
+# Subtest: crouching clears a low bar while standing remains blocked
+ok 709 - crouching clears a low bar while standing remains blocked
+  ---
+  duration_ms: 0.236652
+  ...
+# Subtest: jumping clears a rock collider only after reaching jump clearance
+ok 710 - jumping clears a rock collider only after reaching jump clearance
+  ---
+  duration_ms: 0.151488
+  ...
+# Subtest: mobile NPC dialogue stays above the joystick and movement buttons
+ok 711 - mobile NPC dialogue stays above the joystick and movement buttons
+  ---
+  duration_ms: 0.981058
+  ...
+# Subtest: desktop dialogue position remains within the scene
+ok 712 - desktop dialogue position remains within the scene
+  ---
+  duration_ms: 0.19105
+  ...
+# Subtest: mobile NPC dialogue stays compact and above the controls without sitting in the screen center
+ok 713 - mobile NPC dialogue stays compact and above the controls without sitting in the screen center
+  ---
+  duration_ms: 0.131816
+  ...
+# Subtest: road environment models stay within the 6 MiB asset budget
+ok 714 - road environment models stay within the 6 MiB asset budget
+  ---
+  duration_ms: 3.976696
+  ...
+# Subtest: optimized environment GLBs retain the rendered nodes and valid buffer references
+ok 715 - optimized environment GLBs retain the rendered nodes and valid buffer references
+  ---
+  duration_ms: 57.641111
+  ...
+# Subtest: mobile movement action feedback is enabled by default and can be disabled
+ok 716 - mobile movement action feedback is enabled by default and can be disabled
+  ---
+  duration_ms: 1.16012
+  ...
+# Subtest: world chunks are deterministic for a seed and vary between seeds
+ok 717 - world chunks are deterministic for a seed and vary between seeds
+  ---
+  duration_ms: 11.724564
+  ...
+# Subtest: large architecture stays outside the player's camera corridor
+ok 718 - large architecture stays outside the player's camera corridor
+  ---
+  duration_ms: 3.718218
+  ...
+# Subtest: carved landmarks sit farther out than foliage while roadside props stay off the road
+ok 719 - carved landmarks sit farther out than foliage while roadside props stay off the road
+  ---
+  duration_ms: 9.069456
+  ...
+# Subtest: the shared scenery validator shifts objects beyond their scaled camera clearance
+ok 720 - the shared scenery validator shifts objects beyond their scaled camera clearance
+  ---
+  duration_ms: 0.178283
+  ...
+# Subtest: visible world chunks stay bounded and reuse generated chunks
+ok 721 - visible world chunks stay bounded and reuse generated chunks
+  ---
+  duration_ms: 0.236302
+  ...
+# Subtest: reused world buffers and chunk data stay bounded through a five-minute run
+ok 722 - reused world buffers and chunk data stay bounded through a five-minute run
+  ---
+  duration_ms: 35.528373
+  ...
+# Subtest: the next gate remains ahead and advances by chapter interval
+ok 723 - the next gate remains ahead and advances by chapter interval
+  ---
+  duration_ms: 0.206421
+  ...
+# Subtest: the rendered gate stays until the trailing camera has cleared it
+ok 724 - the rendered gate stays until the trailing camera has cleared it
+  ---
+  duration_ms: 0.233288
+  ...
+# Subtest: interactable lookup requires a registered, visible mesh attached to the scene
+ok 725 - interactable lookup requires a registered, visible mesh attached to the scene
+  ---
+  duration_ms: 0.915068
+  ...
+# Subtest: nearest interaction respects state and both world-space range limits
+ok 726 - nearest interaction respects state and both world-space range limits
+  ---
+  duration_ms: 0.627588
+  ...
+# Subtest: NPC dialogue and challenge prompts stay attached to the registered nearby rival
+ok 727 - NPC dialogue and challenge prompts stay attached to the registered nearby rival
+  ---
+  duration_ms: 0.735977
+  ...
+# Subtest: unmount cleanup cannot remove a newer mesh registered for the same id
+ok 728 - unmount cleanup cannot remove a newer mesh registered for the same id
+  ---
+  duration_ms: 0.254837
+  ...
+# Subtest: broken world obstacles persist separately by player and only accept stable obstacle ids
+ok 729 - broken world obstacles persist separately by player and only accept stable obstacle ids
+  ---
+  duration_ms: 0.418191
+  ...
+# Subtest: world labels fade near the player and are limited to five candidates within 25 metres
+ok 730 - world labels fade near the player and are limited to five candidates within 25 metres
+  ---
+  duration_ms: 1.701448
+  ...
+# Subtest: world label selection deduplicates IDs and is stable for equal distances
+ok 731 - world label selection deduplicates IDs and is stable for equal distances
+  ---
+  duration_ms: 10.231657
+  ...
+# Subtest: nearby world labels that would overlap each other are culled
+ok 732 - nearby world labels that would overlap each other are culled
+  ---
+  duration_ms: 0.215428
+  ...
+# Subtest: global lighting cannot black out the world
+ok 733 - global lighting cannot black out the world
+  ---
+  duration_ms: 0.787663
+  ...
+# Subtest: character levels and collected relics increase the light radius
+ok 734 - character levels and collected relics increase the light radius
+  ---
+  duration_ms: 0.178562
+  ...
+# Subtest: light radius remains within viewport-based bounds
+ok 735 - light radius remains within viewport-based bounds
+  ---
+  duration_ms: 0.141415
+  ...
+# (node:2999) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: each bundled world model has a matching procedural fallback
+ok 736 - each bundled world model has a matching procedural fallback
+  ---
+  duration_ms: 1.538971
+  ...
+# (node:3011) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: world diagnostics report named hazards, props and NPCs using world-space dimensions and scale
+ok 737 - world diagnostics report named hazards, props and NPCs using world-space dimensions and scale
+  ---
+  duration_ms: 4.463077
+  ...
+# Subtest: world diagnostics flag individual oversized meshes without hiding them
+ok 738 - world diagnostics flag individual oversized meshes without hiding them
+  ---
+  duration_ms: 1.024886
+  ...
+# Subtest: world assets use one shared target table and select one barrel from the multi-prop bundle
+ok 739 - world assets use one shared target table and select one barrel from the multi-prop bundle
+  ---
+  duration_ms: 1.39026
+  ...
+# Subtest: rock dimensions are capped by the longest world-space axis, not just source height
+ok 740 - rock dimensions are capped by the longest world-space axis, not just source height
+  ---
+  duration_ms: 4.008489
+  ...
+# Subtest: character fitting keeps the target height unless an asset has an excessive footprint
+ok 741 - character fitting keeps the target height unless an asset has an excessive footprint
+  ---
+  duration_ms: 0.204838
+  ...
+# Subtest: all shared model targets stay within half the road width
+ok 742 - all shared model targets stay within half the road width
+  ---
+  duration_ms: 0.288141
+  ...
+# Subtest: movement state machine distinguishes idle, run, and sprint
+ok 743 - movement state machine distinguishes idle, run, and sprint
+  ---
+  duration_ms: 1.525158
+  ...
+# Subtest: jump press is buffered for 120 ms and enters the 80 ms preparation state
+ok 744 - jump press is buffered for 120 ms and enters the 80 ms preparation state
+  ---
+  duration_ms: 0.293218
+  ...
+# Subtest: jump presses received in the air remain buffered until landing, but expire after 120 ms
+ok 745 - jump presses received in the air remain buffered until landing, but expire after 120 ms
+  ---
+  duration_ms: 0.32207
+  ...
+# Subtest: coyote grace is 100 ms and is unavailable once it expires in the air
+ok 746 - coyote grace is 100 ms and is unavailable once it expires in the air
+  ---
+  duration_ms: 0.159953
+  ...
+# Subtest: running into crouch starts a 600 ms slide before crouched movement
+ok 747 - running into crouch starts a 600 ms slide before crouched movement
+  ---
+  duration_ms: 0.191216
+  ...
+# Subtest: crouching does not start a slide from a walk and landing has a short recovery state
+ok 748 - crouching does not start a slide from a walk and landing has a short recovery state
+  ---
+  duration_ms: 0.12826
+  ...
+# Subtest: connected mountain geometry stays a distant skyline instead of filling the camera view
+ok 749 - connected mountain geometry stays a distant skyline instead of filling the camera view
+  ---
+  duration_ms: 35.658168
+  ...
+# Subtest: tree species and biome variants produce bounded, colored single-mesh geometry
+ok 750 - tree species and biome variants produce bounded, colored single-mesh geometry
+  ---
+  duration_ms: 146.000844
+  ...
+# Subtest: procedural rock fallbacks are rounded, high-detail, finite, and reused by variant
+ok 751 - procedural rock fallbacks are rounded, high-detail, finite, and reused by variant
+  ---
+  duration_ms: 8.149081
+  ...
+# Subtest: towers, carved columns, broken ruins and arches have weathered profiles per biome
+ok 752 - towers, carved columns, broken ruins and arches have weathered profiles per biome
+  ---
+  duration_ms: 80.096075
+  ...
+# Subtest: road-edge shoulder geometry follows the quality budget and stays outside the lane
+ok 753 - road-edge shoulder geometry follows the quality budget and stays outside the lane
+  ---
+  duration_ms: 6.676372
+  ...
+# Subtest: normalizes saved position and keeps already-passed gates open
+ok 754 - normalizes saved position and keeps already-passed gates open
+  ---
+  duration_ms: 1.280874
+  ...
+# Subtest: campaign region replay starts at that region without changing the saved position
+ok 755 - campaign region replay starts at that region without changing the saved position
+  ---
+  duration_ms: 0.49026
+  ...
+# Subtest: requires the whole current room to be cleared before unlocking its gate
+ok 756 - requires the whole current room to be cleared before unlocking its gate
+  ---
+  duration_ms: 0.142222
+  ...
+# Subtest: a cleared gate saves the selected hidden route for the next chapter
+ok 757 - a cleared gate saves the selected hidden route for the next chapter
+  ---
+  duration_ms: 0.138027
+  ...
+# Subtest: does not mistake one victory for clearing the entire chapter
+ok 758 - does not mistake one victory for clearing the entire chapter
+  ---
+  duration_ms: 1.673628
+  ...
+# Subtest: stops travel at a locked gate but allows retreat and passage after unlock
+ok 759 - stops travel at a locked gate but allows retreat and passage after unlock
+  ---
+  duration_ms: 0.815691
+  ...
+# Subtest: uses past duel wins to restore a returning player's world position
+ok 760 - uses past duel wins to restore a returning player's world position
+  ---
+  duration_ms: 8.761632
+  ...
+# Subtest: saves progress separately for each player
+ok 761 - saves progress separately for each player
+  ---
+  duration_ms: 0.37135
+  ...
+# Subtest: camera-relative road tiles cover the full camera range through every gate
+ok 762 - camera-relative road tiles cover the full camera range through every gate
+  ---
+  duration_ms: 3.458295
+  ...
+# Subtest: road layout remains finite for invalid positions and reuses its output buffer
+ok 763 - road layout remains finite for invalid positions and reuses its output buffer
+  ---
+  duration_ms: 0.164998
+  ...
+# Subtest: road and ash-gravel PBR maps stay within the mobile texture budget
+ok 764 - road and ash-gravel PBR maps stay within the mobile texture budget
+  ---
+  duration_ms: 1585.001219
+  ...
+# Subtest: the low-detail road still uses raised staggered cobblestones
+ok 765 - the low-detail road still uses raised staggered cobblestones
+  ---
+  duration_ms: 1371.299789
+  ...
+# Subtest: disposing a road environment also releases its generated surface textures
+ok 766 - disposing a road environment also releases its generated surface textures
+  ---
+  duration_ms: 1329.80742
+  ...
+# Subtest: left and right road branches split before the gate and merge after it
+ok 767 - left and right road branches split before the gate and merge after it
+  ---
+  duration_ms: 3.308314
+  ...
+# Subtest: visible fork gates align to chapter boundaries and ignore invalid chunks
+ok 768 - visible fork gates align to chapter boundaries and ignore invalid chunks
+  ---
+  duration_ms: 0.406434
+  ...
+# Subtest: manual rendering checks draw calls after submitting the scene
+ok 769 - manual rendering checks draw calls after submitting the scene
+  ---
+  duration_ms: 6.211049
+  ...
+# Subtest: automatic rendering keeps the completed previous-frame draw count
+ok 770 - automatic rendering keeps the completed previous-frame draw count
+  ---
+  duration_ms: 0.195109
+  ...
+# Subtest: scene probe size preserves the canvas aspect ratio at a useful resolution
+ok 771 - scene probe size preserves the canvas aspect ratio at a useful resolution
+  ---
+  duration_ms: 0.879143
+  ...
+# Subtest: final-output samples cover the full viewport instead of one dark center crop
+ok 772 - final-output samples cover the full viewport instead of one dark center crop
+  ---
+  duration_ms: 0.283879
+  ...
+# Subtest: detects a genuinely black WebGL frame
+ok 773 - detects a genuinely black WebGL frame
+  ---
+  duration_ms: 0.3242
+  ...
+# Subtest: linear render-target colors are converted before black-frame thresholds
+ok 774 - linear render-target colors are converted before black-frame thresholds
+  ---
+  duration_ms: 0.385647
+  ...
+# Subtest: does not mistake a varied dark world scene for an empty frame
+ok 775 - does not mistake a varied dark world scene for an empty frame
+  ---
+  duration_ms: 0.192613
+  ...
+# Subtest: recovers a clear-color-only scene with a few visible details
+ok 776 - recovers a clear-color-only scene with a few visible details
+  ---
+  duration_ms: 0.140359
+  ...
+# Subtest: does not treat a small clear-color canvas crop as an empty whole scene
+ok 777 - does not treat a small clear-color canvas crop as an empty whole scene
+  ---
+  duration_ms: 0.148515
+  ...
+# Subtest: a dark center surrounded by a visible scene does not trigger recovery
+ok 778 - a dark center surrounded by a visible scene does not trigger recovery
+  ---
+  duration_ms: 0.280035
+  ...
+# Subtest: recovers from a uniform near-black frame that is darker than the world sky
+ok 779 - recovers from a uniform near-black frame that is darker than the world sky
+  ---
+  duration_ms: 0.163696
+  ...
+# Subtest: recovers a mostly black frame even when a few visible details add color variation
+ok 780 - recovers a mostly black frame even when a few visible details add color variation
+  ---
+  duration_ms: 0.223187
+  ...
+# Subtest: rejects malformed pixel buffers
+ok 781 - rejects malformed pixel buffers
+  ---
+  duration_ms: 0.199797
+  ...
+# Subtest: recovers a uniform clear-color frame even when draw calls are reported
+ok 782 - recovers a uniform clear-color frame even when draw calls are reported
+  ---
+  duration_ms: 0.391067
+  ...
+# Subtest: recovers near-black output even when draw calls are present
+ok 783 - recovers near-black output even when draw calls are present
+  ---
+  duration_ms: 0.197055
+  ...
+# Subtest: the sky background is a smooth, opaque equirectangular gradient
+ok 784 - the sky background is a smooth, opaque equirectangular gradient
+  ---
+  duration_ms: 144.779576
+  ...
+# Subtest: invalid sky texture dimensions and undersized buffers fail explicitly
+ok 785 - invalid sky texture dimensions and undersized buffers fail explicitly
+  ---
+  duration_ms: 1.216807
+  ...
+# Subtest: pushing the travel joystick to its outer ring enables sprint
+ok 786 - pushing the travel joystick to its outer ring enables sprint
+  ---
+  duration_ms: 5.300535
+  ...
+# Subtest: independent touch pointers keep sprint and jump active separately
+ok 787 - independent touch pointers keep sprint and jump active separately
+  ---
+  duration_ms: 2.460232
+  ...
+# Subtest: releasing one of two pointers does not cancel the same held action
+ok 788 - releasing one of two pointers does not cancel the same held action
+  ---
+  duration_ms: 0.174547
+  ...
+# Subtest: mobile held actions flow into sprint and crouch movement state
+ok 789 - mobile held actions flow into sprint and crouch movement state
+  ---
+  duration_ms: 0.405026
+  ...
+# Subtest: a jump pointer produces one action press without cancelling simultaneous held actions
+ok 790 - a jump pointer produces one action press without cancelling simultaneous held actions
+  ---
+  duration_ms: 0.140624
+  ...
+# Subtest: short sprint and crouch presses can be toggled while long holds remain momentary
+ok 791 - short sprint and crouch presses can be toggled while long holds remain momentary
+  ---
+  duration_ms: 0.121665
+  ...
+# (node:3188) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: world assets use an idle clip as their initial fitted pose
+ok 792 - world assets use an idle clip as their initial fitted pose
+  ---
+  duration_ms: 0.851476
+  ...
+# Subtest: world assets never freeze a locomotion frame as the idle pose
+ok 793 - world assets never freeze a locomotion frame as the idle pose
+  ---
+  duration_ms: 0.212854
+  ...
+# (node:3218) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: rebuilt 3D road environment has a recycled, size-audited scene ring
+ok 794 - rebuilt 3D road environment has a recycled, size-audited scene ring
+  ---
+  duration_ms: 2619.967629
+  ...
+# Subtest: world-size audit checks each InstancedMesh scale
+ok 795 - world-size audit checks each InstancedMesh scale
+  ---
+  duration_ms: 0.562663
+  ...
+# Subtest: the character-size audit uses the deformed bounds of the Rogue skinned rig
+ok 796 - the character-size audit uses the deformed bounds of the Rogue skinned rig
+  ---
+  duration_ms: 87.256252
+  ...
+# Subtest: world camera candidates include ordinary village scenery and gameplay blockers, not actors
+ok 797 - world camera candidates include ordinary village scenery and gameplay blockers, not actors
+  ---
+  duration_ms: 11.729255
+  ...
+# Subtest: hidden or explicitly ignored scenery is excluded from camera collision
+ok 798 - hidden or explicitly ignored scenery is excluded from camera collision
+  ---
+  duration_ms: 0.855246
+  ...
+# Subtest: camera collision keeps the camera 0.3m on the player side of a wall
+ok 799 - camera collision keeps the camera 0.3m on the player side of a wall
+  ---
+  duration_ms: 5.26102
+  ...
+# Subtest: an idle actor never falls through to an unrelated first running clip
+ok 800 - an idle actor never falls through to an unrelated first running clip
+  ---
+  duration_ms: 1.037524
+  ...
+# Subtest: missing locomotion clips hold a real idle pose instead of playing another action
+ok 801 - missing locomotion clips hold a real idle pose instead of playing another action
+  ---
+  duration_ms: 0.276103
+  ...
+# Subtest: configured aliases select the correct articulated movement clip
+ok 802 - configured aliases select the correct articulated movement clip
+  ---
+  duration_ms: 0.134994
+  ...
+# Subtest: default aliases remain available when a model-specific state has no mapping
+ok 803 - default aliases remain available when a model-specific state has no mapping
+  ---
+  duration_ms: 0.154588
+  ...
+# Subtest: world-v2 headings keep the player's corrected GLB front aligned with movement
+ok 804 - world-v2 headings keep the player's corrected GLB front aligned with movement
+  ---
+  duration_ms: 0.882254
+  ...
+# Subtest: follow camera stays behind the corrected GLB front in all four movement directions
+ok 805 - follow camera stays behind the corrected GLB front in all four movement directions
+  ---
+  duration_ms: 0.275693
+  ...
+# Subtest: actor yaw turns toward its movement heading without another half-turn
+ok 806 - actor yaw turns toward its movement heading without another half-turn
+  ---
+  duration_ms: 0.13147
+  ...
+# Subtest: road NPCs turn their corrected GLB front toward the player from every side
+ok 807 - road NPCs turn their corrected GLB front toward the player from every side
+  ---
+  duration_ms: 0.267652
+  ...
+# Subtest: campaign gates open on approach and stay open until the player clears them
+ok 808 - campaign gates open on approach and stay open until the player clears them
+  ---
+  duration_ms: 0.825293
+  ...
+# Subtest: all 450 campaign gate positions use the same proximity and passage-clearance rules
+ok 809 - all 450 campaign gate positions use the same proximity and passage-clearance rules
+  ---
+  duration_ms: 1.246094
+  ...
+# Subtest: world labels keep at most two nearest camera-visible candidates within six metres
+ok 810 - world labels keep at most two nearest camera-visible candidates within six metres
+  ---
+  duration_ms: 2.562987
+  ...
+# Subtest: world labels skip UI keep-out areas and screen-space collisions
+ok 811 - world labels skip UI keep-out areas and screen-space collisions
+  ---
+  duration_ms: 0.24722
+  ...
+# (node:3320) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+# Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: animation-aware fitting puts a normal GLB at the configured player/NPC height
+ok 812 - animation-aware fitting puts a normal GLB at the configured player/NPC height
+  ---
+  duration_ms: 2.368742
+  ...
+# Subtest: loadAsset prefers the idle animation frame when fitting a GLB
+ok 813 - loadAsset prefers the idle animation frame when fitting a GLB
+  ---
+  duration_ms: 2.959248
+  ...
+# Subtest: centimeter and 0.01 armature root scales are normalized before fitting
+ok 814 - centimeter and 0.01 armature root scales are normalized before fitting
+  ---
+  duration_ms: 0.74594
+  ...
+# Subtest: max-dimension sizing caps a generated asset at the configured rock size
+ok 815 - max-dimension sizing caps a generated asset at the configured rock size
+  ---
+  duration_ms: 0.432736
+  ...
+# Subtest: world-model rotation is applied before fitting and the optional footprint cap
+ok 816 - world-model rotation is applied before fitting and the optional footprint cap
+  ---
+  duration_ms: 0.63911
+  ...
+# Subtest: the shared canvas keeps its conservative default when no scene sets a DPR
+ok 817 - the shared canvas keeps its conservative default when no scene sets a DPR
+  ---
+  duration_ms: 2.723769
+  ...
+# Subtest: the shared canvas honors the requested fixed ratio for the world scene
+ok 818 - the shared canvas honors the requested fixed ratio for the world scene
+  ---
+  duration_ms: 0.194539
+  ...
+# Subtest: the shared canvas keeps adaptive War Room ratios after a quality change
+ok 819 - the shared canvas keeps adaptive War Room ratios after a quality change
+  ---
+  duration_ms: 0.216543
+  ...
+# Subtest: DPR ranges from concurrent scenes are intersected
+ok 820 - DPR ranges from concurrent scenes are intersected
+  ---
+  duration_ms: 0.303093
+  ...
+# Subtest: a fixed scene ratio cannot exceed another scene's DPR budget
+ok 821 - a fixed scene ratio cannot exceed another scene's DPR budget
+  ---
+  duration_ms: 0.701774
+  ...
+# Subtest: the safest fixed ratio wins when scene requirements do not overlap
+ok 822 - the safest fixed ratio wins when scene requirements do not overlap
+  ---
+  duration_ms: 0.400004
+  ...
+# Subtest: the shared renderer permits one automatic rebuild
+ok 823 - the shared renderer permits one automatic rebuild
+  ---
+  duration_ms: 3.745971
+  ...
+# Subtest: repeated automatic failures stop and expose a manual retry
+ok 824 - repeated automatic failures stop and expose a manual retry
+  ---
+  duration_ms: 1.242924
+  ...
+# Subtest: a manual retry resets the automatic recovery budget
+ok 825 - a manual retry resets the automatic recovery budget
+  ---
+  duration_ms: 0.616212
+  ...
+# Subtest: all 3D views share the single canvas mounted by the app shell
+ok 826 - all 3D views share the single canvas mounted by the app shell
+  ---
+  duration_ms: 58.436111
+  ...
+# Subtest: legacy 3D scenes register viewports instead of mounting extra canvases
+ok 827 - legacy 3D scenes register viewports instead of mounting extra canvases
+  ---
+  duration_ms: 7.270506
+  ...
+# Subtest: shared 3D renderer recovery remounts the app canvas
+ok 828 - shared 3D renderer recovery remounts the app canvas
+  ---
+  duration_ms: 0.647354
+  ...
+# Subtest: the shared canvas remeasures when a scene reuses its ID with a new viewport
+ok 829 - the shared canvas remeasures when a scene reuses its ID with a new viewport
+  ---
+  duration_ms: 0.902056
+  ...
+# Subtest: changing scene children updates the request without unregistering the shared canvas
+ok 830 - changing scene children updates the request without unregistering the shared canvas
+  ---
+  duration_ms: 0.974119
+  ...
+1..830
+# tests 830
+# suites 0
+# pass 830
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 53232.753966

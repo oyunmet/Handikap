@@ -1,5 +1,15 @@
 # İlerleme notu
 
+## SUNVORIA düzeltme talimatı — Faz 0
+
+**Durum:** Bitti; kaynak kodda değişiklik yapılmadı.
+
+- Talimattaki önceki durumdan farklı olarak `docs/SUNVORIA_SPEC.md` bu depoda yok; talimatın 4.3 aşamalarını karşılaştırmak için kullanıcı girdisi gerekir.
+- Depo yönergeleri Sunvoria adını ve mevcut oyun kimliğini koruyor; çelişen eski marka/isim değişiklikleri uygulanmayacak.
+- Faz 0 temel ölçümleri `docs/AUDIT/00-baseline.md` dosyasına, komut çıktıları `docs/AUDIT/00-*.txt` dosyalarına kaydedildi.
+- Doğrulama: typecheck geçti; 830 test geçti; production build 2.95 saniyede tamamlandı ve `dist/` 23 MiB oldu.
+- GitHub'a tag push yapılmadı; bu depoda push ve deploy kullanıcıya aittir.
+
 ## Yeni mimari çalışması — 19 Kasım 2026
 
 **Oyun adı:** Sunvoria. Mevcut ad, logo kimliği ve uluslararası marka korunacak; ekli brief'in çelişen yeni ad önerileri uygulanmayacak.
