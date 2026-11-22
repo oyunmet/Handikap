@@ -20,6 +20,7 @@ export type LoadedWorldAsset = {
 
 const assetCache = new Map<string, Promise<LoadedWorldAsset>>();
 const characterResources = new WeakMap<THREE.Object3D, CharacterOwnedResources>();
+export const WORLD_ASSET_LOAD_TIMEOUT_MS = 20_000;
 
 export function getWorldAssetInitialPoseClip<T extends { name: string }>(animations: readonly T[]) {
   return animations.find((clip) =>
@@ -91,6 +92,7 @@ export function loadAsset(
   url: string,
   target: WorldV2AssetTarget,
   loader: Pick<GLTFLoader, "loadAsync"> = new GLTFLoader(),
+  timeoutMs = WORLD_ASSET_LOAD_TIMEOUT_MS,
 ): Promise<LoadedWorldAsset> {
   const key = [
     url,
@@ -101,11 +103,21 @@ export function loadAsset(
   const cached = assetCache.get(key);
   if (cached) return cached;
 
-  const loading = loader.loadAsync(url).then((gltf) => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const loading = Promise.race([
+    Promise.resolve().then(() => loader.loadAsync(url)),
+    new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Model yükleme zaman aşımına uğradı (${timeoutMs} ms): ${url}`));
+      }, Math.max(1, timeoutMs));
+    }),
+  ]).then((gltf) => {
     return prepareWorldAsset(url, gltf, target);
   }).catch((error: unknown) => {
     assetCache.delete(key);
     throw error;
+  }).finally(() => {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
   });
   assetCache.set(key, loading);
   return loading;

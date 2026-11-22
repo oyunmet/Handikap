@@ -435,6 +435,7 @@ export default function World3DV2(props: World3DProps) {
   const [asset, setAsset] = useState<LoadedWorldAsset | null>(null);
   const [demirTacAsset, setDemirTacAsset] = useState<LoadedWorldAsset | null>(null);
   const [assetError, setAssetError] = useState("");
+  const [assetAttempt, setAssetAttempt] = useState(0);
   const hasDemirTacRival = props.rivals.some((rival) => rival.name === "Demir Taç");
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot>({
     fps: 0,
@@ -486,23 +487,40 @@ export default function World3DV2(props: World3DProps) {
 
   useEffect(() => {
     let active = true;
-    const playerAsset = loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player);
-    const bossAsset = hasDemirTacRival
-      ? loadAsset(DEMIR_TAC_WORLD_CONFIG.modelPath, DEMIR_TAC_WORLD_ASSET_TARGET)
-      : Promise.resolve(null);
-    Promise.all([playerAsset, bossAsset])
-      .then(([loadedPlayer, loadedDemirTac]) => {
-        if (!active) return;
-        setAsset(loadedPlayer);
-        setDemirTacAsset(loadedDemirTac);
+    setAsset(null);
+    setDemirTacAsset(null);
+    setAssetError("");
+
+    void loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player)
+      .then((loadedPlayer) => {
+        if (active) setAsset(loadedPlayer);
       })
       .catch((error: unknown) => {
         if (active) setAssetError(error instanceof Error ? error.message : String(error));
       });
+
+    // The optional boss model must never hold up the playable world or hero.
+    if (hasDemirTacRival) {
+      void loadAsset(DEMIR_TAC_WORLD_CONFIG.modelPath, DEMIR_TAC_WORLD_ASSET_TARGET)
+        .then((loadedBoss) => {
+          if (active) setDemirTacAsset(loadedBoss);
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            console.warn("[world-v2] optional boss model could not be loaded; using the standard rival model.", error);
+          }
+        });
+    }
     return () => {
       active = false;
     };
-  }, [hasDemirTacRival]);
+  }, [assetAttempt, hasDemirTacRival]);
+
+  const retryAssetLoad = useCallback(() => {
+    setAsset(null);
+    setAssetError("");
+    setAssetAttempt((attempt) => attempt + 1);
+  }, []);
 
   return (
     <div className="world-three-layer world-3d-layer" aria-label="Sunvoria oyun dünyası">
@@ -645,6 +663,7 @@ export default function World3DV2(props: World3DProps) {
       {assetError && (
         <div className="world-v2-error" role="alert">
           3D karakter modeli yüklenemedi: {assetError}
+          <button type="button" onClick={retryAssetLoad}>MODELİ YENİDEN DENE</button>
         </div>
       )}
       {debug && (

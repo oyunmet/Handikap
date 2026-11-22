@@ -19,6 +19,46 @@
   height: 100%;
 }
 
+.game-canvas-stage__recovery {
+  position: absolute;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7, 10, 16, .96);
+  color: #f4ead7;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.game-canvas-stage__recovery > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.game-canvas-stage__recovery strong {
+  font: 700 21px/1.3 Georgia, serif;
+}
+
+.game-canvas-stage__recovery p {
+  margin: 0;
+  font: 500 14px/1.5 system-ui, sans-serif;
+}
+
+.game-canvas-stage__recovery button {
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid rgba(212, 177, 111, .75);
+  border-radius: 7px;
+  background: linear-gradient(120deg, #f0d08a, #ba7b36);
+  color: #1b1711;
+  font: 800 11px/1.2 system-ui, sans-serif;
+  letter-spacing: .08em;
+}
+
 .game-canvas-viewport {
   display: block;
   position: relative;

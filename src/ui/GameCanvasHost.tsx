@@ -142,6 +142,10 @@ export function GameCanvasStage() {
   const context = useRequiredCanvasHost();
   const setActiveScene = useGameRuntimeStore((state) => state.setActiveScene);
   const stageRef = useRef<HTMLDivElement>(null);
+  const rendererContextCleanupRef = useRef<(() => void) | null>(null);
+  const rendererRecoveryTimerRef = useRef<number | null>(null);
+  const recentContextLossesRef = useRef<number[]>([]);
+  const [rendererRecoveryFailed, setRendererRecoveryFailed] = useState(false);
   const viewportIdsByElementRef = useRef(new WeakMap<HTMLDivElement, number>());
   const nextViewportElementIdRef = useRef(0);
   const [boundsById, setBoundsById] = useState<Record<string, ViewportBounds>>({});
@@ -203,6 +207,56 @@ export function GameCanvasStage() {
 
   useEffect(() => () => setActiveScene(null), [setActiveScene]);
 
+  const handleRendererCreated = useCallback(({ gl }: RootState) => {
+    rendererContextCleanupRef.current?.();
+    const canvas = gl.domElement;
+    const scheduleRecovery = () => {
+      if (rendererRecoveryTimerRef.current !== null) return;
+      rendererRecoveryTimerRef.current = window.setTimeout(() => {
+        rendererRecoveryTimerRef.current = null;
+        context.recoverRenderer(true);
+      }, 0);
+    };
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      const now = Date.now();
+      recentContextLossesRef.current = recentContextLossesRef.current
+        .filter((lostAt) => now - lostAt < 15_000);
+      recentContextLossesRef.current.push(now);
+      if (recentContextLossesRef.current.length > 1) {
+        setRendererRecoveryFailed(true);
+        return;
+      }
+      setRendererRecoveryFailed(false);
+      scheduleRecovery();
+    };
+    const handleContextRestored = () => {
+      setRendererRecoveryFailed(false);
+      scheduleRecovery();
+    };
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
+    rendererContextCleanupRef.current = () => {
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored);
+    };
+  }, [context.recoverRenderer]);
+
+  useEffect(() => () => {
+    rendererContextCleanupRef.current?.();
+    rendererContextCleanupRef.current = null;
+    if (rendererRecoveryTimerRef.current !== null) {
+      window.clearTimeout(rendererRecoveryTimerRef.current);
+      rendererRecoveryTimerRef.current = null;
+    }
+  }, []);
+
+  const retrySharedRenderer = useCallback(() => {
+    recentContextLossesRef.current = [];
+    setRendererRecoveryFailed(false);
+    context.recoverRenderer(true);
+  }, [context.recoverRenderer]);
+
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || context.requests.length === 0) {
@@ -257,7 +311,7 @@ export function GameCanvasStage() {
   }, [requestIds, requestTargetKey]);
 
   return (
-    <div className="game-canvas-stage" ref={stageRef} aria-hidden="true">
+    <div className="game-canvas-stage" ref={stageRef}>
       {renderRequests.length > 0 && (
         <Canvas
           key={context.rendererResetVersion}
@@ -267,6 +321,7 @@ export function GameCanvasStage() {
           frameloop="always"
           gl={{ alpha: true, antialias: false, powerPreference: "high-performance" }}
           shadows={renderRequests.some((request) => Boolean(request.shadows))}
+          onCreated={handleRendererCreated}
           style={{
             width: "100%",
             height: "100%",
@@ -286,6 +341,15 @@ export function GameCanvasStage() {
             );
           })}
         </Canvas>
+      )}
+      {rendererRecoveryFailed && (
+        <div className="game-canvas-stage__recovery" role="alert">
+          <div>
+            <strong>3D bağlantısı kesildi</strong>
+            <p>WebGL sahnesi yeniden başlatılamadı. Tekrar deneyebilirsin.</p>
+            <button type="button" onClick={retrySharedRenderer}>3D SAHNEYİ YENİDEN BAŞLAT</button>
+          </div>
+        </div>
       )}
     </div>
   );

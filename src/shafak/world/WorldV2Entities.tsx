@@ -604,7 +604,7 @@ export function WorldV2Entities({
       {!noNpc && asset && rivals.map((rival, index) => {
         const gap = rival.distance - motionRef.current.distance;
         if (gap < -12 || gap > maxVisibleDistance) return null;
-        const npcAsset = rival.name === "Demir Taç" ? demirTacAsset : asset;
+        const npcAsset = rival.name === "Demir Taç" ? demirTacAsset ?? asset : asset;
         if (!npcAsset) return null;
         return (
           <WorldV2Npc

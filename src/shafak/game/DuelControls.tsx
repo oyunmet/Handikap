@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { INPUT_BUTTON } from "./combat-engine";
 import { getDuelAttackPresentation } from "./duel-control-presentation";
 import GameButton, { type GameButtonIcon } from "./GameButton";
@@ -79,6 +79,23 @@ function HeldButton({
     pressedRef.current = false;
     onRelease(button);
   };
+  const releaseRef = useRef(release);
+  releaseRef.current = release;
+  useEffect(() => {
+    const finishPointer = (event: PointerEvent) => {
+      if (pointerRef.current !== event.pointerId) return;
+      pointerRef.current = null;
+      releaseRef.current();
+    };
+    window.addEventListener("pointerup", finishPointer);
+    window.addEventListener("pointercancel", finishPointer);
+    return () => {
+      window.removeEventListener("pointerup", finishPointer);
+      window.removeEventListener("pointercancel", finishPointer);
+      if (pointerRef.current !== null) pointerRef.current = null;
+      releaseRef.current();
+    };
+  }, []);
   const icon: GameButtonIcon = className.includes("is-dagger") ? "dagger"
     : className.includes("attack") ? "attack"
     : className.includes("block") ? "shield"
@@ -97,10 +114,19 @@ function HeldButton({
     if (event.button !== 0) return;
     event.preventDefault();
     pointerRef.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Still dispatch the action; window-level pointer listeners release it.
+    }
     press();
   };
   const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (pointerRef.current !== event.pointerId) return;
+    pointerRef.current = null;
+    release();
+  };
+  const onPointerCancel = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (pointerRef.current !== event.pointerId) return;
     pointerRef.current = null;
     release();
@@ -132,8 +158,8 @@ function HeldButton({
       cooldownPercent={ringSeconds / 6 * 100}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerCancel={release}
-      onLostPointerCapture={release}
+      onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onPointerCancel}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
       onBlur={release}
@@ -184,6 +210,8 @@ export default function DuelControls({
 }: DuelControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickPointer = useRef<number | null>(null);
+  const onMoveRef = useRef(onMove);
+  onMoveRef.current = onMove;
   const [blockedHint, setBlockedHint] = useState("");
   const showBlockedHint = (reason: string) => {
     setBlockedHint(reason);
@@ -225,7 +253,7 @@ export default function DuelControls({
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // Continue tracking while the pointer remains over the joystick if capture is unavailable.
+      // Window-level pointer listeners keep movement from sticking without capture.
     }
     readJoystick(event);
   };
@@ -239,6 +267,25 @@ export default function DuelControls({
     joystickRef.current?.style.setProperty("--stick-y", "0px");
     onMove(0, 0);
   };
+  useEffect(() => {
+    const finishJoystickPointer = (event: PointerEvent) => {
+      if (joystickPointer.current !== event.pointerId) return;
+      joystickPointer.current = null;
+      joystickRef.current?.style.setProperty("--stick-x", "0px");
+      joystickRef.current?.style.setProperty("--stick-y", "0px");
+      onMoveRef.current(0, 0);
+    };
+    window.addEventListener("pointerup", finishJoystickPointer);
+    window.addEventListener("pointercancel", finishJoystickPointer);
+    return () => {
+      window.removeEventListener("pointerup", finishJoystickPointer);
+      window.removeEventListener("pointercancel", finishJoystickPointer);
+      if (joystickPointer.current !== null) {
+        joystickPointer.current = null;
+        onMoveRef.current(0, 0);
+      }
+    };
+  }, []);
   const activeWeapon = weaponNames[activeWeaponSlot] ?? weaponNames[0] ?? "silah";
   const attackPresentation = getDuelAttackPresentation({
     weaponName: activeWeapon,

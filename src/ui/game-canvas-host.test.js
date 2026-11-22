@@ -75,3 +75,12 @@ test("changing scene children updates the request without unregistering the shar
   assert.match(host, /context\.register\(request\)/);
   assert.match(host, /context\.unregister\(id\)/);
 });
+
+test("shared renderer rebuilds after WebGL context loss and exposes a retry after repeated loss", () => {
+  const host = readFileSync(resolve(projectRoot, "src/ui/GameCanvasHost.tsx"), "utf8");
+  assert.match(host, /webglcontextlost/);
+  assert.match(host, /webglcontextrestored/);
+  assert.match(host, /context\.recoverRenderer\(true\)/);
+  assert.match(host, /rendererRecoveryFailed &&/);
+  assert.match(host, /retrySharedRenderer/);
+});

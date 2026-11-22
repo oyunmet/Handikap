@@ -38,6 +38,26 @@
   pointer-events: none;
 }
 
+.world-v2-error {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  overflow-wrap: anywhere;
+}
+
+.world-v2-error button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(235, 198, 126, .68);
+  border-radius: 5px;
+  background: linear-gradient(135deg, #c58b48, #764229);
+  color: #fff0d4;
+  font: 800 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .08em;
+  pointer-events: auto;
+}
+
 .world-v2-debug {
   position: absolute;
   z-index: 10;

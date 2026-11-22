@@ -15,6 +15,7 @@ import {
   type CityPosition,
 } from "./city-hub-layout";
 import {
+  getCityCameraFrame,
   isCityCameraPointClear,
   isCityCameraPathClear,
   type CityCameraObstacle,

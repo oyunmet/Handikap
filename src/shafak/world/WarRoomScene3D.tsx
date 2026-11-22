@@ -1,5 +1,5 @@
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
-import { GameCanvas } from "../../ui/GameCanvasHost";
+import { GameCanvas, useCanvasRendererRecovery } from "../../ui/GameCanvasHost";
 import { GAME_RUNTIME_DEFAULTS, sharedGameRuntime } from "../../core/game-runtime";
 import type { FixedStepResult } from "../../core/fixed-step-loop";
 import {
@@ -5426,6 +5426,7 @@ function WarRoomShaderWarmup({
 
 export default memo(function WarRoomScene3D(props: Props) {
   const { quality, onWarmupComplete, ...runtimeProps } = props;
+  const recoverSharedRenderer = useCanvasRendererRecovery();
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryNotice, setRecoveryNotice] = useState(false);
   const [warmupComplete, setWarmupComplete] = useState(false);
@@ -5491,13 +5492,14 @@ export default memo(function WarRoomScene3D(props: Props) {
   const contextListenersRef = useRef<(() => void) | null>(null);
   const retryCanvas = useCallback(() => {
     pauseForCanvasRecovery();
+    recoverSharedRenderer(true);
     contextListenersRef.current?.();
     contextListenersRef.current = null;
     setWarmupComplete(false);
     warmupCompletedRef.current = false;
     setContextLost(false);
     setCanvasGeneration((generation) => generation + 1);
-  }, [pauseForCanvasRecovery]);
+  }, [pauseForCanvasRecovery, recoverSharedRenderer]);
   const handleCanvasCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
     contextListenersRef.current?.();
     const canvas = gl.domElement;
@@ -5519,6 +5521,9 @@ export default memo(function WarRoomScene3D(props: Props) {
       canvas.removeEventListener("webglcontextlost", handleContextLost);
       canvas.removeEventListener("webglcontextrestored", handleContextRestored);
     };
+    setContextLost(false);
+    setWarmupComplete(false);
+    warmupCompletedRef.current = false;
     gl.shadowMap.enabled = shadowsEnabled;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
     gl.toneMappingExposure = 1.12;
@@ -5561,6 +5566,15 @@ export default memo(function WarRoomScene3D(props: Props) {
             toneMapping: THREE.ACESFilmicToneMapping,
           }}
           onCreated={handleCanvasCreated}
+          fallback={(
+            <div className="game-canvas-viewport__error" role="alert">
+              <div>
+                <strong>Taktik Alanı açılamadı</strong>
+                <p>3D WebGL sahnesi başlatılamadı. Sahneyi yeniden deneyebilirsin.</p>
+                <button type="button" onClick={retryCanvas}>3D SAHNEYİ YENİDEN BAŞLAT</button>
+              </div>
+            </div>
+          )}
         >
           <WarRoomAdaptiveDpr
             quality={effectiveQuality}
