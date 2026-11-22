@@ -30,6 +30,10 @@
   isolation: isolate;
 }
 
+.war-room[data-phase="battle"] {
+  background: transparent;
+}
+
 .war-room *,
 .war-room *::before,
 .war-room *::after {
@@ -643,8 +647,26 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #82705b;
+  background: transparent;
   touch-action: none;
+}
+
+.war-room-render-warmup {
+  position: absolute;
+  z-index: 20;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 9px 15px;
+  border: 1px solid rgba(232, 193, 142, .48);
+  border-radius: 999px;
+  background: rgba(7, 10, 16, .58);
+  color: #f4ead7;
+  font: 700 10px/1.5 Manrope, sans-serif;
+  letter-spacing: .12em;
+  text-align: center;
+  pointer-events: none;
 }
 
 .war-room-weapon-debug {

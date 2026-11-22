@@ -4,7 +4,8 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  background: #82919b;
+  /* The WebGL canvas is shared and rendered behind this DOM layer. */
+  background: transparent;
 }
 
 .world-3d-layer > div:first-child {

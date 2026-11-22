@@ -5595,20 +5595,9 @@ export default memo(function WarRoomScene3D(props: Props) {
       </WarRoomSceneErrorBoundary>
       {!warmupComplete && !contextLost && (
         <div
+          className="war-room-render-warmup"
           role="status"
           aria-live="polite"
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 20,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(7, 10, 16, 0.88)",
-            color: "#f4ead7",
-            font: "700 12px/1.5 Manrope, sans-serif",
-            letterSpacing: ".14em",
-            pointerEvents: "none",
-          }}
         >
           SAVAŞ ALANI HAZIRLANIYOR
         </div>

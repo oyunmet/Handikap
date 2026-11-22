@@ -30,10 +30,10 @@ export const modules: ModuleMap = {
   "./components/mockups/shafak-duel-controls/Redesign.tsx": () => import("../components/mockups/shafak-duel-controls/Redesign.tsx"),
   "./components/mockups/shafak-mobile-hud/Current.tsx": () => import("../components/mockups/shafak-mobile-hud/Current.tsx"),
   "./components/mockups/shafak-mobile-hud/Refined.tsx": () => import("../components/mockups/shafak-mobile-hud/Refined.tsx"),
-  "./components/mockups/world-controls/Compact.tsx": () => import("../components/mockups/world-controls/Compact.tsx"),
-  "./components/mockups/world-controls/Current.tsx": () => import("../components/mockups/world-controls/Current.tsx"),
   "./components/mockups/duel-controls/extracted/DuelControls.tsx": () => import("../components/mockups/duel-controls/extracted/DuelControls.tsx"),
   "./components/mockups/duel-controls/extracted/GameButton.tsx": () => import("../components/mockups/duel-controls/extracted/GameButton.tsx"),
+  "./components/mockups/world-controls/Compact.tsx": () => import("../components/mockups/world-controls/Compact.tsx"),
+  "./components/mockups/world-controls/Current.tsx": () => import("../components/mockups/world-controls/Current.tsx"),
   "./components/mockups/duel-controls/updated/DuelControls.tsx": () => import("../components/mockups/duel-controls/updated/DuelControls.tsx"),
   "./components/mockups/duel-controls/updated/GameButton.tsx": () => import("../components/mockups/duel-controls/updated/GameButton.tsx")
 };
