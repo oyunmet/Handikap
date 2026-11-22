@@ -15,7 +15,7 @@ import {
   type CityPosition,
 } from "./city-hub-layout";
 import {
-  getCityCameraFrame,
+  isCityCameraPointClear,
   isCityCameraPathClear,
   type CityCameraObstacle,
 } from "./city-hub-camera";
@@ -379,6 +379,7 @@ function CityWorld({
   const cameraTarget = useMemo(() => new THREE.Vector3(), []);
   const cameraPosition = useMemo(() => new THREE.Vector3(), []);
   const cameraCurrentPosition = useMemo(() => new THREE.Vector3(), []);
+  const cameraStepPosition = useMemo(() => new THREE.Vector3(), []);
   const cameraLookTarget = useMemo(() => new THREE.Vector3(), []);
   const hasCameraLookTargetRef = useRef(false);
 
@@ -432,16 +433,19 @@ function CityWorld({
     );
     const cameraDelta = Math.min(Math.max(delta, 0), 0.05);
     camera.getWorldPosition(cameraCurrentPosition);
-    const cameraPathClear = isCityCameraPathClear(
-      cameraCurrentPosition,
+        cameraStepPosition.copy(cameraCurrentPosition).lerp(
       cameraPosition,
+      1 - Math.exp(-cameraDelta * (cameraFrame.occluded ? 12 : 7)),
+    );
+    const stepIsSafe = isCityCameraPointClear(
+      { x: cameraStepPosition.x, y: cameraStepPosition.y, z: cameraStepPosition.z },
+      CITY_CAMERA_OBSTACLES,
+    ) && isCityCameraPathClear(
+      cameraCurrentPosition,
+      cameraStepPosition,
       CITY_CAMERA_OBSTACLES,
     );
-    if (!cameraPathClear) camera.position.copy(cameraPosition);
-    else camera.position.lerp(
-      cameraPosition,
-      1 - Math.exp(-cameraDelta * (cameraFrame.occluded ? 10 : 7)),
-    );
+    camera.position.copy(stepIsSafe ? cameraStepPosition : cameraPosition);
     cameraTarget.set(
       cameraFrame.target.x,
       cameraFrame.target.y,
