@@ -89,8 +89,8 @@ export default function WorldBlackFrameProbe({
         CANVAS_PROBE_ROWS,
       );
       if (points.length !== canvasPixels.length / 4) return;
-      points.forEach(({ x, y }, index) => {
-        context.readPixels(
+      if (context.getContextAttributes()?.preserveDrawingBuffer) points.forEach(({ x, y }, index) => {
+      context.readPixels(
           x,
           y,
           1,
@@ -101,10 +101,10 @@ export default function WorldBlackFrameProbe({
         );
       });
 
-      const needsRecovery = shouldRecoverCanvasFrame(
-        analyzeWorldProbePixels(canvasPixels),
-        worldDrawCalls,
-      );
+      const canTrustPixels = Boolean(context.getContextAttributes()?.preserveDrawingBuffer);
+      const needsRecovery = canTrustPixels
+        ? shouldRecoverCanvasFrame(analyzeWorldProbePixels(canvasPixels), worldDrawCalls)
+        : !Number.isFinite(worldDrawCalls) || worldDrawCalls <= 0;
       blackSamplesRef.current = needsRecovery ? blackSamplesRef.current + 1 : 0;
       if (blackSamplesRef.current >= BLACK_SAMPLES_TO_RECOVER) {
         recoveryRequestedRef.current = true;
