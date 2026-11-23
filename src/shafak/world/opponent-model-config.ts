@@ -4,6 +4,11 @@ import {
   getWorldCharacterSizeTarget,
   type WorldCharacterSizeContext,
 } from "./world-model-sizing.ts";
+import {
+  PLAYER_CHARACTER_MODEL_FACING,
+  PLAYER_CHARACTER_MODEL_PATH,
+  PLAYER_CHARACTER_ROOT_BONE,
+} from "./player-model";
 
 export type ModelMaterialNameAliases = {
   cape: readonly string[];
@@ -70,13 +75,39 @@ export type OpponentModelConfig = {
   animationClips: Partial<Record<OpponentModelAnimationState, readonly string[]>>;
 };
 
+const PLAYER_HERO_ANIMATIONS = {
+  idle: ["CharacterArmature|Idle", "Idle"],
+  walk: ["CharacterArmature|Walk", "Walk"],
+  run: ["CharacterArmature|Run", "Run"],
+  attack: ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"],
+  block: ["CharacterArmature|Attacking_Idle", "Attacking_Idle"],
+  dodge: ["CharacterArmature|Roll", "Roll"],
+  hit: ["CharacterArmature|RecieveHit", "RecieveHit", "RecieveHit_Attacking"],
+  castFire: ["CharacterArmature|Punch", "Punch"],
+  castLightning: ["CharacterArmature|Roll", "Roll"],
+  death: ["CharacterArmature|Death", "Death"],
+  victory: ["CharacterArmature|Idle", "Idle"],
+} satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
+
+const PLAYER_HERO_MATERIAL_ALIASES: ModelMaterialNameAliases = {
+  cape: ["cape", "cloak", "mantle", "pelerin"],
+  accent: ["trim", "accent", "rune", "highlight", "detail", "gold", "metal", "material.006"],
+  armor: ["armor", "leather", "m_main"],
+  armorLight: ["steel_light", "armor_light", "fur"],
+  armorDark: ["steel_dark", "leather_dark", "m_joints"],
+  skin: ["skin", "body", "face"],
+  hair: ["hair"],
+  clothing: ["shirt", "undershirt", "cloth", "texture", "m_main"],
+  pants: ["pants"],
+  boots: ["boot", "shoe", "footwear"],
+};
+
 const BASE_OPPONENT_MODEL_CONFIGS = {
   "Gölge Şövalyesi": {
-    modelPath: "/models/gece-nobetcisi.glb",
-    // Native bounds are Y=0..1.8, feet at ground, and forward is +Z.
+    modelPath: PLAYER_CHARACTER_MODEL_PATH,
     scale: 1,
-    modelFacing: 0,
-    rootBoneName: "Rig_Hips",
+    modelFacing: PLAYER_CHARACTER_MODEL_FACING,
+    rootBoneName: PLAYER_CHARACTER_ROOT_BONE,
     weapon: "daggers",
     appearance: {
       armor: "#302d3e",
@@ -89,18 +120,7 @@ const BASE_OPPONENT_MODEL_CONFIGS = {
       weaponColor: "#bda9ec",
       auraColor: "#9d85e7",
     },
-    materialNameAliases: {
-      cape: ["cape", "cloak", "mantle", "pelerin"],
-      accent: ["trim", "accent", "rune", "highlight", "vurgu", "gold", "metal"],
-      armor: ["leather"],
-      armorLight: ["steel_light"],
-      armorDark: ["steel_dark", "leather_dark"],
-      skin: ["skin", "body", "face"],
-      hair: ["hair"],
-      clothing: ["shirt", "cloth"],
-      pants: ["pants"],
-      boots: ["boot", "shoe"],
-    },
+    materialNameAliases: PLAYER_HERO_MATERIAL_ALIASES,
     materialPalette: {
       skin: "#a9856c",
       hair: "#30252a",
@@ -110,19 +130,7 @@ const BASE_OPPONENT_MODEL_CONFIGS = {
       default: "#302d3e",
     },
     costume: { cape: true, hood: true, mask: true, helmet: false, horns: false, shoulders: "metal" },
-    animationClips: {
-      idle: ["Idle"],
-      walk: ["Walk"],
-      run: ["Run"],
-      attack: ["Attack1"],
-      block: ["Block"],
-      dodge: ["Dodge"],
-      hit: ["HitReaction"],
-      castFire: ["Cast_Fire"],
-      castLightning: ["Cast_Lightning"],
-      death: ["Death"],
-      victory: ["Victory"],
-    },
+    animationClips: PLAYER_HERO_ANIMATIONS,
   },
 } satisfies Record<string, OpponentModelConfig>;
 
@@ -171,90 +179,9 @@ export function getAnimatedRivalModelConfig(
     "chapter-boss": "greatsword",
   };
   const weapon = archetype ? visualWeaponByArchetype[archetype] : baseConfig.weapon;
-  const modelByArchetype: Record<WorldBotArchetype, string> = {
-    "gate-warden": "/models/player-hero.glb",
-    "iron-oath": "/models/player-hero.glb",
-    "ash-archer": "/models/base-character.glb",
-    "shadow-knight": "/models/gece-nobetcisi.glb",
-    "storm-lancer": "/models/human.glb",
-    "rift-berserker": "/models/player-hero.glb",
-    "ember-alchemist": "/models/base-character.glb",
-    "venom-assassin": "/models/player-hero.glb",
-    "frost-hunter": "/models/base-character.glb",
-    "chapter-boss": "/models/player-hero.glb",
-  };
   const useDemirTac = name === "Demir Taç";
-  const modelPath = useDemirTac
-    ? "/models/kuzgun-soldier.glb"
-    : isBoss ? modelByArchetype["chapter-boss"] : modelByArchetype[selectedArchetype];
+  const modelPath = PLAYER_CHARACTER_MODEL_PATH;
   const sizeTarget = getWorldCharacterSizeTarget(isBoss, sizeContext);
-  const heroAnimations = {
-    idle: ["CharacterArmature|Idle", "Idle"],
-    walk: ["CharacterArmature|Walk", "Walk"],
-    run: ["CharacterArmature|Run", "Run"],
-    attack: ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"],
-    block: ["CharacterArmature|Attacking_Idle", "Attacking_Idle"],
-    dodge: ["CharacterArmature|Roll", "Roll"],
-    hit: ["CharacterArmature|RecieveHit", "RecieveHit", "RecieveHit_Attacking"],
-    castFire: ["CharacterArmature|Punch", "Punch"],
-    castLightning: ["CharacterArmature|Roll", "Roll"],
-    death: ["CharacterArmature|Death", "Death"],
-    victory: ["CharacterArmature|Idle", "Idle"],
-  } satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
-  const humanAnimations = {
-    idle: ["Human Armature|Idle"],
-    walk: ["Human Armature|Walk"],
-    run: ["Human Armature|Run"],
-    attack: ["Human Armature|Punch"],
-    block: ["Human Armature|Punch"],
-    dodge: ["Human Armature|Jump"],
-    hit: ["Human Armature|ArmatureAction.002"],
-    castFire: ["Human Armature|Punch"],
-    castLightning: ["Human Armature|Jump"],
-    death: ["Human Armature|Death"],
-    victory: ["Human Armature|Working"],
-  } satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
-  const baseAnimations = {
-    idle: ["Rig|Idle_Loop"],
-    walk: ["Rig|Walk_Loop", "Rig|Jog_Fwd_Loop"],
-    run: ["Rig|Sprint_Loop", "Rig|Jog_Fwd_Loop"],
-    attack: ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"],
-    block: ["Rig|Sword_Idle"],
-    dodge: ["Rig|Roll", "Rig|Roll_RM"],
-    hit: ["Rig|Hit_Chest", "Rig|Hit_Head"],
-    castFire: ["Rig|Spell_Simple_Shoot"],
-    castLightning: ["Rig|Spell_Simple_Shoot"],
-    death: ["Rig|Death01"],
-    victory: ["Rig|Dance_Loop"],
-  } satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
-  const soldierAnimations = {
-    walk: ["walk"],
-    run: ["run"],
-  } satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
-  const materialNameAliases: ModelMaterialNameAliases = {
-    cape: ["cape", "cloak", "mantle", "pelerin"],
-    accent: ["trim", "accent", "rune", "highlight", "detail", "gold", "metal"],
-    armor: ["armor", "leather", "m_main"],
-    armorLight: ["steel_light", "armor_light", "fur"],
-    armorDark: ["steel_dark", "leather_dark", "m_joints"],
-    skin: ["skin", "body", "face", "m_joints"],
-    hair: ["hair"],
-    clothing: ["shirt", "undershirt", "cloth", "texture", "m_main"],
-    pants: ["pants"],
-    boots: ["boot", "shoe", "footwear"],
-  };
-  const demirTacMaterialNameAliases: ModelMaterialNameAliases = {
-    cape: ["cape", "pelerin"],
-    accent: ["accent", "trim", "gold", "sigil", "ruby", "red", "detail"],
-    armor: ["armor", "torso", "chest", "pauldron", "arm", "greave", "knee", "helmet", "shirt"],
-    armorLight: ["steel_light", "silver", "material.006"],
-    armorDark: ["steel_dark", "dark", "boot", "gauntlet", "belt", "pelvis", "grip"],
-    skin: ["skin", "face"],
-    hair: ["hair"],
-    clothing: ["tabard", "cloth", "undershirt"],
-    pants: ["pants", "thigh"],
-    boots: ["boot", "shoe"],
-  };
   const profileAppearance = {
     ...baseConfig.appearance,
     ...profile?.appearance,
@@ -293,35 +220,24 @@ export function getAnimatedRivalModelConfig(
     "chapter-boss": { cape: true, hood: false, mask: true, helmet: true, horns: false, shoulders: "metal" },
   };
   const colors = paletteByArchetype[selectedArchetype];
-  const usePlayerHero = modelPath === "/models/player-hero.glb";
-  const useSoldier = modelPath === "/models/kuzgun-soldier.glb";
-  const useHuman = modelPath === "/models/human.glb";
-  const useNightWatcher = modelPath === "/models/gece-nobetcisi.glb";
   return {
     ...baseConfig,
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
-    modelFacing: usePlayerHero || useSoldier ? Math.PI : baseConfig.modelFacing,
-    rootBoneName: useNightWatcher
-      ? baseConfig.rootBoneName
-      : useHuman || useSoldier ? "Hips" : usePlayerHero ? "Root" : "root",
+    modelFacing: PLAYER_CHARACTER_MODEL_FACING,
+    rootBoneName: PLAYER_CHARACTER_ROOT_BONE,
     modelRotation: undefined,
-    preserveOriginalMaterialAliases: useNightWatcher
-      ? ["gold", "steel", "cape"]
-      : useHuman ? ["texture"] : useSoldier ? ["material_1"] : undefined,
+    preserveOriginalMaterialAliases: undefined,
     targetHeight: sizeTarget.targetHeight,
     maxDimension: sizeTarget.maxDimension,
     isBoss,
     isDemirTac: useDemirTac,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
-    tintStrength: useSoldier ? (useDemirTac ? 0.12 : 0.24) : useDemirTac ? 0 : isBoss ? 0.22 : useNightWatcher ? 0.2 : 0.68,
-    animationClips: useNightWatcher
-      ? baseConfig.animationClips
-      : useSoldier ? soldierAnimations
-        : usePlayerHero ? heroAnimations : useHuman ? humanAnimations : baseAnimations,
+    tintStrength: useDemirTac ? 0 : isBoss ? 0.22 : 0.68,
+    animationClips: PLAYER_HERO_ANIMATIONS,
     weapon,
     appearance,
-    materialNameAliases: useDemirTac ? demirTacMaterialNameAliases : materialNameAliases,
+    materialNameAliases: PLAYER_HERO_MATERIAL_ALIASES,
     materialPalette: {
       skin: colors.skin,
       hair: colors.hair,
