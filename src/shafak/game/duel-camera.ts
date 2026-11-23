@@ -13,10 +13,17 @@ export type DuelJumpState = {
 
 export const DUEL_JUMP_HEIGHT = 1.12;
 export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
+export const DUEL_CAMERA_OFFSET = 0;
+export const DUEL_CAMERA_MAX_OFFSET = Math.PI / 3;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.1;
+export const DUEL_CAMERA_OFFSETS = [
+  -Math.PI / 6,
+  DUEL_CAMERA_OFFSET,
+  Math.PI / 6,
+] as const;
 export const DUEL_CAMERA_HEADINGS = [
   DUEL_CAMERA_HEADING - Math.PI / 8,
   DUEL_CAMERA_HEADING,
@@ -26,6 +33,24 @@ export const DUEL_CAMERA_HEADINGS = [
 export function getNextDuelCameraHeading(currentHeading: number) {
   const currentIndex = DUEL_CAMERA_HEADINGS.findIndex((heading) => Math.abs(heading - currentHeading) < 1e-6);
   return DUEL_CAMERA_HEADINGS[(currentIndex + 1 + DUEL_CAMERA_HEADINGS.length) % DUEL_CAMERA_HEADINGS.length];
+}
+
+export function clampDuelCameraOffset(offset: number) {
+  if (!Number.isFinite(offset)) return DUEL_CAMERA_OFFSET;
+  return Math.max(-DUEL_CAMERA_MAX_OFFSET, Math.min(DUEL_CAMERA_MAX_OFFSET, offset));
+}
+
+export function getNextDuelCameraOffset(currentOffset: number) {
+  const currentIndex = DUEL_CAMERA_OFFSETS.findIndex((offset) => Math.abs(offset - currentOffset) < 1e-6);
+  return DUEL_CAMERA_OFFSETS[(currentIndex + 1 + DUEL_CAMERA_OFFSETS.length) % DUEL_CAMERA_OFFSETS.length];
+}
+
+export function getDuelCameraFollowHeading(
+  player: DuelPoint,
+  opponent: DuelPoint,
+  cameraOffset = DUEL_CAMERA_OFFSET,
+) {
+  return getDuelFacingAngle(player, opponent) + clampDuelCameraOffset(cameraOffset);
 }
 
 export function getDuelCameraFramingDistance(
@@ -101,9 +126,9 @@ export function getDuelCameraPose(
 
   return {
     position: {
-      x: centerX + baseOffsetX,
+      x: player.x + baseOffsetX,
       y: 2.6 + jumpLift * 0.16,
-      z: centerZ + baseOffsetZ,
+      z: player.z + baseOffsetZ,
     },
     target: {
       x: centerX,

@@ -34,6 +34,9 @@ export default function useWorldInput(wake: () => void) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
   const joystickPointerId = useRef<number | null>(null);
+  const joystickOrigin = useRef<{ x: number; y: number; radius: number } | null>(null);
+  const [joystickAnchor, setJoystickAnchor] = useState<{ x: number; y: number } | null>(null);
+  const joystickVisualRef = useRef<HTMLDivElement>(null);
   const lookPointerId = useRef<number | null>(null);
   const lookPointerX = useRef(0);
   const lookPointerY = useRef(0);
@@ -46,11 +49,50 @@ export default function useWorldInput(wake: () => void) {
   const [inputRevision, setInputRevision] = useState(0);
   const publishInputChange = useCallback(() => setInputRevision((revision) => revision + 1), []);
 
+  const updateJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerId.current !== event.pointerId) return;
+    const origin = joystickOrigin.current;
+    if (!origin) return;
+    const rawX = (event.clientX - origin.x) / origin.radius;
+    const rawY = (origin.y - event.clientY) / origin.radius;
+    const length = Math.hypot(rawX, rawY);
+    const deadZone = 0.12;
+    if (length <= deadZone) {
+      joystick.current = { x: 0, y: 0 };
+    } else {
+      const strength = (Math.min(1, length) - deadZone) / (1 - deadZone);
+      joystick.current = {
+        x: (rawX / length) * strength,
+        y: (rawY / length) * strength,
+      };
+    }
+    const nub = joystickVisualRef.current?.querySelector<HTMLElement>(".world-joystick__nub");
+    nub?.style.setProperty(
+      "transform",
+      `translate(calc(-50% + ${joystick.current.x * 34}px), calc(-50% - ${joystick.current.y * 34}px))`,
+    );
+  }, []);
+
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button, .world-panel, .world-joystick, .world-debug")) return;
+    if ((event.target as HTMLElement).closest("button, a, [role='button'], .world-panel, .world-joystick, .world-debug")) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    const isRightLookArea = event.clientX >= bounds.left + bounds.width * 0.42;
-    if (isRightLookArea && lookPointerId.current === null) {
+    const isLeftMovementArea = event.clientX < bounds.left + bounds.width * 0.5;
+    if (isLeftMovementArea && joystickPointerId.current === null) {
+      event.preventDefault();
+      joystickPointerId.current = event.pointerId;
+      const radius = 54;
+      joystickOrigin.current = {
+        x: event.clientX,
+        y: event.clientY,
+        radius,
+      };
+      setJoystickAnchor({
+        x: Math.max(58, Math.min(bounds.width - 58, event.clientX - bounds.left)),
+        y: Math.max(58, Math.min(bounds.height - 58, event.clientY - bounds.top)),
+      });
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
+      updateJoystick(event);
+    } else if (!isLeftMovementArea && lookPointerId.current === null) {
       event.preventDefault();
       lookPointerId.current = event.pointerId;
       lookPointerX.current = event.clientX;
@@ -58,9 +100,13 @@ export default function useWorldInput(wake: () => void) {
       try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
     }
     wake();
-  }, [wake]);
+  }, [updateJoystick, wake]);
 
   const onStagePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerId.current === event.pointerId) {
+      updateJoystick(event);
+      return;
+    }
     if (lookPointerId.current !== event.pointerId) return;
     const deltaX = event.clientX - lookPointerX.current;
     const deltaY = event.clientY - lookPointerY.current;
@@ -75,57 +121,24 @@ export default function useWorldInput(wake: () => void) {
       Math.min(0.45, cameraLookDelta.current.pitch - deltaY * 0.004),
     );
     publishInputChange();
-  }, [publishInputChange]);
+  }, [publishInputChange, updateJoystick]);
 
-  const finishLookPointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (lookPointerId.current !== event.pointerId) return;
-    lookPointerId.current = null;
+  const finishStagePointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerId.current === event.pointerId) {
+      joystickPointerId.current = null;
+      joystickOrigin.current = null;
+      joystick.current = { x: 0, y: 0 };
+      setJoystickAnchor(null);
+      joystickVisualRef.current?.querySelector<HTMLElement>(".world-joystick__nub")
+        ?.style.setProperty("transform", "translate(-50%,-50%)");
+      publishInputChange();
+    }
+    if (lookPointerId.current === event.pointerId) lookPointerId.current = null;
     try {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     } catch { /* A cancelled touch may already have released capture. */ }
-  }, []);
-
-  const updateJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (joystickPointerId.current !== event.pointerId) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const dx = event.clientX - (rect.left + rect.width / 2);
-    const dy = event.clientY - (rect.top + rect.height / 2);
-    const nub = event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub");
-    const maxX = (rect.width - (nub?.getBoundingClientRect().width ?? 0)) / 2;
-    const maxY = (rect.height - (nub?.getBoundingClientRect().height ?? 0)) / 2;
-    const max = Math.max(1, Math.min(maxX, maxY));
-    const length = Math.min(Math.hypot(dx, dy), max);
-    const scale = length > 0 ? length / Math.hypot(dx, dy) : 0;
-    const x = dx * scale;
-    const y = dy * scale;
-    joystick.current = { x: x / max, y: -y / max };
-    nub?.style.setProperty("transform", `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`);
-  }, []);
-
-  const onJoystickPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (joystickPointerId.current !== null) return;
-    event.preventDefault();
-    joystickPointerId.current = event.pointerId;
-    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
-    wake();
-    publishInputChange();
-    updateJoystick(event);
-  }, [publishInputChange, updateJoystick, wake]);
-
-  const releaseJoystick = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (joystickPointerId.current !== event.pointerId) return;
-    joystickPointerId.current = null;
-    joystick.current = { x: 0, y: 0 };
-    event.currentTarget.querySelector<HTMLElement>(".world-joystick__nub")
-      ?.style.setProperty("transform", "translate(-50%,-50%)");
-    try {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-    } catch { /* A cancelled touch may already have released capture. */ }
-    publishInputChange();
   }, [publishInputChange]);
 
   const triggerAction = useCallback((_key: "space") => {
@@ -203,6 +216,10 @@ export default function useWorldInput(wake: () => void) {
     heldKeys.current.clear();
     joystick.current = { x: 0, y: 0 };
     joystickPointerId.current = null;
+    joystickOrigin.current = null;
+    setJoystickAnchor(null);
+    joystickVisualRef.current?.querySelector<HTMLElement>(".world-joystick__nub")
+      ?.style.setProperty("transform", "translate(-50%,-50%)");
     lookPointerId.current = null;
     lookPointerX.current = 0;
     lookPointerY.current = 0;
@@ -266,12 +283,10 @@ export default function useWorldInput(wake: () => void) {
     joystick,
     onStagePointerDown,
     onStagePointerMove,
-    onStagePointerUp: finishLookPointer,
-    onStagePointerCancel: finishLookPointer,
-    onJoystickPointerDown,
-    onJoystickPointerMove: updateJoystick,
-    onJoystickPointerUp: releaseJoystick,
-    onJoystickPointerCancel: releaseJoystick,
+    onStagePointerUp: finishStagePointer,
+    onStagePointerCancel: finishStagePointer,
+    joystickAnchor,
+    joystickVisualRef,
     onActionPointerDown,
     onActionPointerUp,
     onActionPointerCancel,

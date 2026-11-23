@@ -417,10 +417,8 @@ function CityWorld({
     motion.stepPhase += speed * delta * 2.4;
     motion.stopTime = moving ? 0 : motion.stopTime + delta;
     motion.hasMoved ||= moving;
-    if (moving) {
-      motion.cameraHeading = Math.atan2(-velocityX, velocityY);
-      motion.facing = velocityX < 0 ? -1 : 1;
-    }
+    motion.cameraHeading = cameraControl.yaw;
+    if (moving) motion.facing = velocityX < 0 ? -1 : 1;
     if (moving !== playerMovingRef.current) {
       playerMovingRef.current = moving;
       setPlayerMoving(moving);

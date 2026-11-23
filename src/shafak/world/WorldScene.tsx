@@ -60,10 +60,12 @@ import {
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { rollCombatLoot } from "../game/combat-loot.ts";
 import {
-  DUEL_CAMERA_HEADINGS,
-  DUEL_CAMERA_HEADING,
+  DUEL_CAMERA_OFFSETS,
+  DUEL_CAMERA_OFFSET,
+  clampDuelCameraOffset,
+  getDuelCameraFollowHeading,
   getDuelCameraRelativeInput,
-  getNextDuelCameraHeading,
+  getNextDuelCameraOffset,
 } from "../game/duel-camera.ts";
 import { resolveWorldPlayerAnimationState } from "./character-animation";
 import { MAX_ACTIVE_DUEL_VFX } from "./duel-vfx";
@@ -989,8 +991,8 @@ export default function WorldScene({
       Boolean(initialStoreTab),
     ) ? opening : null;
   });
-  const [duelCameraHeading, setDuelCameraHeading] = useState(DUEL_CAMERA_HEADING);
-  const duelCameraHeadingRef = useRef(DUEL_CAMERA_HEADING);
+  const [duelCameraHeading, setDuelCameraHeading] = useState(DUEL_CAMERA_OFFSET);
+  const duelCameraHeadingRef = useRef(DUEL_CAMERA_OFFSET);
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
@@ -1809,8 +1811,8 @@ export default function WorldScene({
     settlementStartedRef.current = false;
     hitStopUntilRef.current = 0;
     resetDuelInput();
-    duelCameraHeadingRef.current = DUEL_CAMERA_HEADING;
-    setDuelCameraHeading(DUEL_CAMERA_HEADING);
+    duelCameraHeadingRef.current = DUEL_CAMERA_OFFSET;
+    setDuelCameraHeading(DUEL_CAMERA_OFFSET);
   }, []);
 
   const startNewGamePlus = useCallback(async () => {
@@ -1976,8 +1978,8 @@ export default function WorldScene({
 
   const beginEncounter = useCallback(async (rival: WorldRival, forcePractice = false) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
-    duelCameraHeadingRef.current = DUEL_CAMERA_HEADING;
-    setDuelCameraHeading(DUEL_CAMERA_HEADING);
+    duelCameraHeadingRef.current = DUEL_CAMERA_OFFSET;
+    setDuelCameraHeading(DUEL_CAMERA_OFFSET);
     if (duelWeaponSelectionBeforeRef.current && !skipWeaponSelectionRef.current) {
       setWeaponPickerSlot(activeWorldWeaponSlotRef.current);
       setPendingWeaponRival(rival);
@@ -2203,17 +2205,25 @@ export default function WorldScene({
     input.released |= button;
   };
   const moveDuelPlayer = (x: number, y: number) => {
+    const combat = combatStateRef.current;
+    const cameraHeading = combat
+      ? getDuelCameraFollowHeading(
+          combat.player,
+          combat.bot,
+          duelCameraHeadingRef.current,
+        )
+      : Math.PI * 7 / 8;
     const input = getDuelCameraRelativeInput(
       Math.max(-1, Math.min(1, x)),
       Math.max(-1, Math.min(1, y)),
-      duelCameraHeadingRef.current,
+      cameraHeading,
     );
     combatInputRef.current.x = input.x * 100;
     combatInputRef.current.y = input.z * 100;
   };
 
   const rotateDuelCamera = () => {
-    const nextHeading = getNextDuelCameraHeading(duelCameraHeadingRef.current);
+    const nextHeading = getNextDuelCameraOffset(duelCameraHeadingRef.current);
     duelCameraHeadingRef.current = nextHeading;
     setDuelCameraHeading(nextHeading);
   };
@@ -2403,6 +2413,16 @@ export default function WorldScene({
           yaw: Math.max(-0.9, Math.min(0.9, pendingCameraLookDelta.yaw + cameraDelta.yaw)),
           pitch: Math.max(-0.45, Math.min(0.45, pendingCameraLookDelta.pitch + cameraDelta.pitch)),
         };
+        if (battleActiveRef.current) {
+          const nextOffset = clampDuelCameraOffset(
+            duelCameraHeadingRef.current + cameraDelta.yaw,
+          );
+          if (Math.abs(nextOffset - duelCameraHeadingRef.current) > 1e-5) {
+            duelCameraHeadingRef.current = nextOffset;
+            setDuelCameraHeading(nextOffset);
+          }
+          moveDuelPlayer(worldInput.joystick.current.x, worldInput.joystick.current.y);
+        }
         liveInput = { ...liveInput, lookDelta: pendingCameraLookDelta };
       }
       const worldPausedForStory = Boolean(storyDialogueRef.current) || Boolean(pendingWeaponRival) || adPausedRef.current;
@@ -3446,7 +3466,7 @@ export default function WorldScene({
               className="world-duel-camera-angle"
               onClick={rotateDuelCamera}
               aria-label="Düello kamera açısını değiştir"
-              title={`Kamera açısı ${DUEL_CAMERA_HEADINGS.indexOf(duelCameraHeading as (typeof DUEL_CAMERA_HEADINGS)[number]) + 1}/3`}
+              title={`Kamera açısı ${DUEL_CAMERA_OFFSETS.indexOf(duelCameraHeading as (typeof DUEL_CAMERA_OFFSETS)[number]) + 1}/3`}
             >
               <span aria-hidden="true">↻</span>
               <b>KAMERA AÇISI</b>
@@ -3652,15 +3672,17 @@ export default function WorldScene({
         </section>
       )}
       <div
-        className="world-joystick"
+        ref={worldInput.joystickVisualRef}
+        className={`world-joystick${worldInput.joystickAnchor ? " is-active" : ""}`}
         role="application"
         aria-label={worldText.controls}
-        aria-description="Sol joystick ile kameraya göre hareket et. Ekranın sağ tarafını sürükleyerek kamerayı çevir."
-        onPointerDown={worldInput.onJoystickPointerDown}
-        onPointerMove={worldInput.onJoystickPointerMove}
-        onPointerUp={worldInput.onJoystickPointerUp}
-        onPointerCancel={worldInput.onJoystickPointerCancel}
-        onLostPointerCapture={worldInput.onJoystickPointerCancel}
+        aria-description="Sol yarıya dokunup sürükleyerek hareket et. Sağ yarıyı sürükleyerek kamerayı ayarla."
+        style={worldInput.joystickAnchor ? {
+          left: worldInput.joystickAnchor.x,
+          top: worldInput.joystickAnchor.y,
+          bottom: "auto",
+          transform: "translate(-50%, -50%)",
+        } : undefined}
       ><span className="world-joystick__nub" /></div>
       <span className="world-mobile-hint" aria-hidden="true">SOL · HAREKET &nbsp; / &nbsp; SAĞ · KAMERA</span>
       <div className="world-movement-actions" role="group" aria-label="Hareket kontrolleri">

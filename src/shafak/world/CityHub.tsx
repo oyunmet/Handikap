@@ -247,7 +247,7 @@ export default function CityHub({
     const bounds = event.currentTarget.getBoundingClientRect();
     if (
       event.pointerType !== "mouse"
-      && event.clientX < bounds.left + bounds.width * 0.46
+      && event.clientX < bounds.left + bounds.width * 0.5
     ) return;
     event.preventDefault();
     cameraPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };

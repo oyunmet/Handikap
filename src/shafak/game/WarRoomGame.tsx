@@ -1491,7 +1491,7 @@ export default function WarRoomGame({
           touch.clientX,
           bounds.left,
           bounds.width,
-          leftHandedControls,
+          false,
         );
         if (!side) continue;
         const controlPointerId = pointerIdForTouch(touch.identifier);
@@ -1600,7 +1600,7 @@ export default function WarRoomGame({
       window.visualViewport?.removeEventListener("resize", onViewportChange);
       resetTouchControls();
     };
-  }, [leftHandedControls, phase, resetTouchControls]);
+  }, [phase, resetTouchControls]);
 
   return (
     <main
@@ -1690,7 +1690,7 @@ export default function WarRoomGame({
             inputRef={inputRef}
             weaponIds={runtimeRef.current.player.weaponSlots}
             weaponMountOverrides={weaponMountOverrides}
-            cameraMode="first-person"
+            cameraMode="third-person"
             motionReduced={motionReduced}
             weaponSway={weaponSway}
             armsVisible={armsVisible}

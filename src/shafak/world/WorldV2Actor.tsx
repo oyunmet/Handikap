@@ -20,7 +20,6 @@ import {
   resolveCharacterSurfaceKind,
 } from "./knight-surface-detail";
 import {
-  getWorldV2Heading,
   getWorldV2NpcHeading,
   getWorldV2YawDelta,
   WORLD_V2_CONFIG,
@@ -332,9 +331,7 @@ export default function WorldV2Actor({
       shadowMaterialRef.current.opacity = Math.max(0.08, 0.42 - jumpHeight * 0.22);
     }
     playerPosition.set(motion.depth * 5.2, 0, -(motion.distance - motion.cameraX));
-    const targetHeading = isPlayer
-      ? getWorldV2Heading(motion.velocityX, motion.velocityY, root.rotation.y)
-      : motion.cameraHeading;
+    const targetHeading = motion.cameraHeading;
 
     if (isPlayer) {
       root.position.set(

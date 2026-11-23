@@ -317,7 +317,7 @@
   .world-joystick {
     bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
     left: max(12px, env(safe-area-inset-left));
-    display: block;
+    display: none;
     width: clamp(78px, 12vw, 96px);
     height: clamp(78px, 12vw, 96px);
   }
