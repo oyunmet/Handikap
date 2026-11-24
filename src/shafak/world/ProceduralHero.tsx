@@ -29,6 +29,7 @@ type Props = {
   targetHeight?: number;
   rootRef?: MutableRefObject<THREE.Group | null>;
   castShadow?: boolean;
+  onAfterAnimate?: (root: THREE.Group) => void;
 };
 
 function weaponTargetSize(style: EquipmentVisual["weaponStyle"]) {
@@ -49,6 +50,7 @@ export default function ProceduralHero({
   targetHeight = PROCEDURAL_HERO_HEIGHT,
   rootRef,
   castShadow = true,
+  onAfterAnimate,
 }: Props) {
   const appearanceKey = JSON.stringify(appearance ?? {});
   const rig = useMemo(() => {
@@ -122,6 +124,7 @@ export default function ProceduralHero({
       crouching: motion.crouching,
       motionReduced,
     });
+    onAfterAnimate?.(rig.root);
   });
 
   return (

@@ -629,15 +629,13 @@ function CameraRig({
           cameraHitSignatureRef.current = signature;
         }
       }
-      if (!combat) {
-        const clearDistance = getCameraClearanceDistance(
-          requestedDistance,
-          obstructionDistanceRef.current,
-        );
-        cameraObstructed = clearDistance < requestedDistance;
-        collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
-        cameraTarget = collisionTargetRef;
-      }
+      const clearDistance = getCameraClearanceDistance(
+        requestedDistance,
+        obstructionDistanceRef.current,
+      );
+      cameraObstructed = clearDistance < requestedDistance;
+      collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
+      cameraTarget = collisionTargetRef;
     }
     if (enteringDuel) camera.position.copy(cameraTarget);
     else camera.position.lerp(cameraTarget, response);

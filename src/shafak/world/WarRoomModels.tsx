@@ -1,5 +1,5 @@
 import { useFrame, useLoader } from "@react-three/fiber";
-import { Component, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
@@ -24,9 +24,12 @@ import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
 import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../game/war-room-data";
 import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
 import { attachHumanCharacterDetails } from "./human-character-details";
+import { createWorldMotion } from "./movement";
+import type { CharacterAnimationState } from "./character-animation";
+import type { EquipmentVisual } from "../game/store-types";
+import ProceduralHero from "./ProceduralHero";
 
 export const WAR_ROOM_MODEL_URLS = [
-  KNIGHT_CONFIG.modelPath,
   "/models/war-room/wall.glb",
   "/models/war-room/tower-square.glb",
   "/models/war-room/tower-square-top.glb",
@@ -53,8 +56,7 @@ class WarRoomStaticGLTFLoader extends GLTFLoader {
 }
 
 export function preloadWarRoomModels() {
-  useLoader.preload(GLTFLoader, WAR_ROOM_MODEL_URLS[0], loadCharacter);
-  WAR_ROOM_MODEL_URLS.slice(1).forEach((url) => useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter));
+  WAR_ROOM_MODEL_URLS.forEach((url) => useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter));
 }
 
 export function getWarRoomWeaponPreloadUrls(weaponIds: readonly WarRoomWeaponId[]) {
@@ -68,7 +70,7 @@ export function getWarRoomWeaponPreloadUrls(weaponIds: readonly WarRoomWeaponId[
 
 export function preloadWarRoomWeaponModels(weaponIds: readonly WarRoomWeaponId[]) {
   getWarRoomWeaponPreloadUrls(weaponIds).forEach((url) => {
-    useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter);
+  useLoader.preload(WarRoomStaticGLTFLoader, url, loadCharacter);
   });
 }
 
@@ -490,7 +492,7 @@ function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResour
   resources.materials.push(material);
 }
 
-export function WarRoomAnimatedActor({
+export function LegacyWarRoomAnimatedActor({
   src,
   height,
   tint,
@@ -632,6 +634,94 @@ export function WarRoomAnimatedActor({
   return (
     <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]}>
       <primitive object={model} dispose={null} />
+    </group>
+  );
+}
+
+function toProceduralWarRoomState(state: WarRoomAnimationState): CharacterAnimationState {
+  if (state === "death") return "die";
+  if (state === "turn-left" || state === "turn-right" || state === "crouch") return "idle";
+  return state;
+}
+
+function getWarRoomCharacterAppearance(
+  src: string,
+  tint: string | undefined,
+  commander: boolean,
+): EquipmentVisual {
+  const seed = [...`${src}:${tint ?? ""}`].reduce((value, character) => value + character.charCodeAt(0), 0);
+  const hairColors = ["#c99b43", "#a96e3d", "#8c6844", "#d5ad5e"];
+  const hairStyles: NonNullable<EquipmentVisual["hairStyle"]>[] = ["long", "braided", "short", "curly"];
+  return {
+    armor: tint ?? (commander ? "#527456" : "#376b54"),
+    armorLight: commander ? "#c29b54" : "#73916e",
+    armorDark: "#493a31",
+    trim: commander ? "#e0bd68" : "#a77d43",
+    bootColor: "#4a352a",
+    cape: commander ? "#9d343c" : "#556a50",
+    hairColor: hairColors[seed % hairColors.length],
+    hairStyle: hairStyles[seed % hairStyles.length],
+    weaponStyle: "sword",
+  };
+}
+
+export function WarRoomAnimatedActor({
+  src,
+  height,
+  tint,
+  commander = false,
+  state,
+  playbackScale,
+  modelRef,
+  afterAnimationFrame,
+  isPaused,
+}: AnimatedActorProps) {
+  const rigRef = useRef<THREE.Group | null>(null);
+  const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
+  const appearance = useMemo(
+    () => getWarRoomCharacterAppearance(src, tint, commander),
+    [commander, src, tint],
+  );
+  const [animationState, setAnimationState] = useState<WarRoomAnimationState>(() => state());
+  const stateRef = useRef(animationState);
+
+  useEffect(() => {
+    if (!modelRef) return undefined;
+    modelRef.current = rigRef.current;
+    return () => {
+      if (modelRef.current === rigRef.current) modelRef.current = null;
+    };
+  }, [modelRef]);
+
+  useFrame((frame, delta) => {
+    const paused = isPaused?.() ?? false;
+    const nextState = paused ? "idle" : state();
+    if (stateRef.current !== nextState) {
+      stateRef.current = nextState;
+      setAnimationState(nextState);
+    }
+    const playback = Math.abs(playbackScale?.() ?? 1);
+    const speed = nextState === "run" ? 4.1 * playback : nextState === "walk" ? 2.2 * playback : 0;
+    const motion = motionRef.current;
+    motion.velocityX = 0;
+    motion.velocityY = speed;
+    motion.crouching = !paused && nextState === "crouch";
+    if (!paused && speed > 0) motion.stepPhase += delta * speed * 2.2;
+  });
+
+  return (
+    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]} name="shared-style-war-room-actor">
+      <ProceduralHero
+        motionRef={motionRef}
+        state={toProceduralWarRoomState(animationState)}
+        motionReduced={false}
+        animationPaused={isPaused?.() ?? false}
+        appearance={appearance}
+        targetHeight={height}
+        showWeapon={false}
+        rootRef={rigRef}
+        onAfterAnimate={afterAnimationFrame}
+      />
     </group>
   );
 }

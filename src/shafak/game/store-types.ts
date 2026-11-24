@@ -29,6 +29,8 @@ export type EquipmentVisual = {
   armorDark?: string;
   helmetColor?: string;
   helmetStyle?: "open" | "horned" | "crest";
+  hairColor?: string;
+  hairStyle?: "short" | "long" | "braided" | "curly";
   gloveColor?: string;
   bootColor?: string;
   shieldColor?: string;

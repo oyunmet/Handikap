@@ -18,6 +18,7 @@ import {
   stepCityCameraLook,
   type CityCameraControl,
 } from "./city-hub-controls";
+import { getGameplayTouchSide } from "../gameplay-touch-controls";
 import { CAMPAIGN_NARRATIVE } from "./campaign-narrative";
 import {
   CAMPAIGN_ACT_COUNT,
@@ -214,9 +215,9 @@ export default function CityHub({
 
   const handleJoystickPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerRef.current !== null) return;
+    const zone = event.currentTarget.getBoundingClientRect();
     event.preventDefault();
     joystickPointerRef.current = event.pointerId;
-    const zone = event.currentTarget.getBoundingClientRect();
     const placement = placeCityJoystick(event.clientX, event.clientY, zone);
     joystickBoundsRef.current = placement.bounds;
     setJoystickAnchor(placement.anchor);
@@ -245,10 +246,7 @@ export default function CityHub({
   const beginCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    if (
-      event.pointerType !== "mouse"
-      && event.clientX < bounds.left + bounds.width * 0.5
-    ) return;
+    if (getGameplayTouchSide(event.clientX, bounds.left, bounds.width) !== "look") return;
     event.preventDefault();
     cameraPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
     try {

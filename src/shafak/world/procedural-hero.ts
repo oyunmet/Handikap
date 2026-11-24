@@ -113,7 +113,7 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   };
   const cloth = material(appearance.armor ?? appearance.dyeColor ?? "#386b65");
   const clothLight = material(appearance.armorLight ?? "#5a8a7e");
-  const dark = material(appearance.armorDark ?? "#302e32");
+  const dark = material(appearance.armorDark ?? "#493a31");
   const steel = material(appearance.armorLight ?? "#7c8589", 0.42, 0.46);
   const steelEdge = material(appearance.trim ?? "#c49b5b", 0.36, 0.52);
   const trim = material(appearance.trim ?? "#c49b5b", 0.42, 0.38);
@@ -123,7 +123,11 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   const boot = material(appearance.bootColor ?? "#49352e");
   const cape = material(appearance.cape ?? "#8f3540", 0.9);
   const skin = material("#c58c68");
-  const hair = material(appearance.helmetColor ?? "#624632");
+  const hairColor = appearance.hairColor ?? appearance.helmetColor ?? "#c99b43";
+  const hair = material(hairColor);
+  const hairHighlight = material(
+    new THREE.Color(hairColor).lerp(new THREE.Color("#ffe29a"), 0.24).getStyle(),
+  );
   const faceDetail = material("#332a25", 0.8);
   const eyeWhite = material("#e4d5b9", 0.7);
 
@@ -240,6 +244,7 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   addSphere(rig.torso, 0.045, steelEdge, [0, 0.34, -0.035], rig, [1.1, 0.8, 0.65]);
 
   rig.head = group(rig.torso, "Head", [0, 0.48, 0]);
+  rig.head.scale.set(1.08, 1.12, 1.06);
   addMesh(
     rig.head,
     createHumanLimbGeometry("shin"),
@@ -250,9 +255,49 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   const head = addMesh(rig.head, createHumanHeadGeometry(), skin, [0, 0.015, 0], rig);
   head.scale.set(0.14, 0.29, 0.13);
   head.name = "hero-faceted-human-head";
-  addSphere(rig.head, 0.145, hair, [0, 0.09, -0.014], rig, [0.98, 0.67, 0.98]);
+  addSphere(rig.head, 0.145, hair, [0, 0.09, -0.014], rig, [1.02, 0.72, 1.02]);
   addSphere(rig.head, 0.07, hair, [0, -0.035, -0.085], rig, [1.6, 1.5, 1.05]);
-  addBox(rig.head, [0.16, 0.035, 0.04], hair, [0, 0.102, 0.112], rig);
+  const fringe = addSphere(
+    rig.head,
+    0.085,
+    hair,
+    [0, 0.035, 0.105],
+    rig,
+    [1.42, 0.48, 0.82],
+  );
+  fringe.rotation.z = -0.08;
+  addBox(rig.head, [0.16, 0.035, 0.04], hairHighlight, [0, 0.102, 0.112], rig);
+  const hairStyle = appearance.hairStyle ?? "long";
+  if (hairStyle !== "short") {
+    for (const side of [-1, 1]) {
+      const lock = addMesh(
+        rig.head,
+        createHumanLimbGeometry("shin"),
+        hair,
+        [side * 0.104, -0.095, 0.022],
+        rig,
+      );
+      lock.scale.set(0.047, hairStyle === "curly" ? 0.11 : 0.19, 0.048);
+      lock.rotation.z = side * -0.1;
+      if (hairStyle === "braided") {
+        for (let bead = 0; bead < 4; bead += 1) {
+          addSphere(
+            rig.head,
+            0.025 - bead * 0.002,
+            bead % 2 ? hair : hairHighlight,
+            [side * (0.108 + bead * 0.002), -0.09 - bead * 0.043, 0.054],
+            rig,
+            [1, 1.12, 0.92],
+          );
+        }
+      }
+    }
+  }
+  if (hairStyle === "curly") {
+    for (const x of [-0.085, -0.03, 0.03, 0.085]) {
+      addSphere(rig.head, 0.045, hairHighlight, [x, 0.135, -0.005], rig, [1, 0.84, 0.92]);
+    }
+  }
   for (const side of [-1, 1]) {
     addSphere(rig.head, 0.021, skin, [side * 0.119, -0.005, -0.005], rig, [0.58, 0.85, 0.75]);
     addSphere(rig.head, 0.016, eyeWhite, [side * 0.047, 0.018, 0.118], rig, [1.15, 0.72, 0.45]);

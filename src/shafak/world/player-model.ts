@@ -41,8 +41,8 @@ export function shouldRenderPlayerModel(playerCharacter: boolean, animationCount
 }
 
 export function shouldRenderProceduralPlayerModel(
-  playerCharacter: boolean,
-  useInGamePlayerModel: boolean,
+  _playerCharacter: boolean,
+  _useInGamePlayerModel: boolean,
 ) {
-  return playerCharacter && !useInGamePlayerModel;
+  return true;
 }

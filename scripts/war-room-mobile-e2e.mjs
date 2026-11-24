@@ -58,6 +58,16 @@ try {
   console.log("War Room E2E: battle and touch diagnostics are ready.");
 
   const diagnostics = () => debug.getAttribute("data-touch-diagnostics");
+  const waitForDiagnostics = async (predicate, message, timeout = 10_000) => {
+    const deadline = Date.now() + timeout;
+    let text = "";
+    while (Date.now() < deadline) {
+      text = await diagnostics() ?? "";
+      if (predicate(text)) return text;
+      await page.waitForTimeout(50);
+    }
+    throw new Error(`${message}: ${text}`);
+  };
   const getYaw = async () => {
     const text = await page.locator(".war-room-camera-debug").innerText();
     const match = text.match(/YAW\s+(-?\d+(?:\.\d+)?)°/);
@@ -65,25 +75,16 @@ try {
     return Number(match[1]);
   };
   const waitForMovement = async () => {
-    try {
-      await page.waitForFunction(() => {
-        const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
-        const match = text.match(/moveY\s+(-?\d+(?:\.\d+)?)/);
-        return Boolean(match && Math.abs(Number(match[1])) > 0.12);
-      }, null, { timeout: 10_000 });
-    } catch {
-      throw new Error(`Joystick movement was not recorded: ${await diagnostics()}`);
-    }
+    await waitForDiagnostics((text) => {
+      const match = text.match(/moveY\s+(-?\d+(?:\.\d+)?)/);
+      return Boolean(match && Math.abs(Number(match[1])) > 0.12);
+    }, "Joystick movement was not recorded");
   };
   const waitForNoActiveTouches = async () => {
-    try {
-      await page.waitForFunction(() => {
-        const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
-        return text.includes("aktif yok");
-      }, null, { timeout: 10_000 });
-    } catch {
-      throw new Error(`Touch roles remained after release: ${await diagnostics()}`);
-    }
+    await waitForDiagnostics(
+      (text) => text.includes("aktif yok"),
+      "Touch roles remained after release",
+    );
   };
   const waitForAimState = async (active) => {
     try {
@@ -112,28 +113,30 @@ try {
     }
   };
   const waitForTouchRole = async (id, role) => {
-    try {
-      await page.waitForFunction(({ expectedId, expectedRole }) => {
-        const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
-        return text.includes(`${expectedId}:${expectedRole}`);
-      }, { expectedId: id, expectedRole: role }, { timeout: 10_000 });
-    } catch {
-      throw new Error(`Touch ${id} did not retain ${role} ownership: ${await diagnostics()}`);
-    }
+    await waitForDiagnostics(
+      (text) => text.includes(`${id}:${role}`),
+      `Touch ${id} did not retain ${role} ownership`,
+    );
   };
   const findOpenTouchPoint = async (side) => {
     const point = await page.evaluate((requestedSide) => {
       const stage = document.querySelector(".war-room-battle");
       if (!stage) return null;
       const bounds = stage.getBoundingClientRect();
-      const start = requestedSide === "left" ? 0.025 : 0.525;
-      const end = requestedSide === "left" ? 0.475 : 0.975;
-      for (let y = 0.12; y < 0.96; y += 0.035) {
-        for (let x = start; x < end; x += 0.035) {
+      const xCandidates = requestedSide === "left"
+        ? [0.25, 0.17, 0.33, 0.09, 0.41, 0.03, 0.47]
+        : [0.75, 0.83, 0.67, 0.91, 0.59, 0.53, 0.97];
+      const yCandidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.12, 0.88];
+      for (const y of yCandidates) {
+        for (const x of xCandidates) {
           const clientX = Math.round(bounds.left + bounds.width * x);
           const clientY = Math.round(bounds.top + bounds.height * y);
           const target = document.elementFromPoint(clientX, clientY);
-          if (target?.tagName === "CANVAS" && stage.contains(target)) return { x: clientX, y: clientY };
+          if (
+            target?.closest(".game-canvas-viewport")
+            && stage.contains(target)
+            && !target.closest("button,[role='button']")
+          ) return { x: clientX, y: clientY };
         }
       }
       return null;
@@ -203,10 +206,11 @@ try {
       const id = touchId++;
       const point = await findOpenTouchPoint("right");
       await swipe(id, point.x, point.y, 36, 0);
-      await page.waitForFunction((expectedId) => {
-        const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
-        return text.includes(`${expectedId}:look`);
-      }, id, { timeout: 5_000 });
+      await waitForDiagnostics(
+        (text) => text.includes(`${id}:look`),
+        `Touch ${id} did not receive camera-look control`,
+        5_000,
+      );
       try {
         await page.waitForFunction((previousYaw) => {
           const text = document.querySelector(".war-room-camera-debug")?.textContent ?? "";
@@ -233,10 +237,10 @@ try {
   await startTouch(72, simultaneousLookPoint.x, simultaneousLookPoint.y);
   await moveTouch(71, simultaneousMovePoint.x, simultaneousMovePoint.y - 45);
   await moveTouch(72, simultaneousLookPoint.x + 35, simultaneousLookPoint.y - 15);
-  await page.waitForFunction(() => {
-    const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
-    return text.includes("71:joystick") && text.includes("72:look");
-      }, null, { timeout: 10_000 });
+  await waitForDiagnostics(
+    (text) => text.includes("71:joystick") && text.includes("72:look"),
+    "Simultaneous pointers lost their control roles",
+  );
   const simultaneous = await diagnostics();
   const simultaneousMoveY = Number(simultaneous?.match(/moveY\s+(-?\d+(?:\.\d+)?)/)?.[1]);
   assert.ok(Number.isFinite(simultaneousMoveY) && simultaneousMoveY > 0.6,
@@ -320,10 +324,11 @@ try {
     touchPoints: [],
   });
   activeTouches.clear();
-  await page.waitForFunction(() => {
-    const text = document.querySelector("[data-touch-diagnostics]")?.getAttribute("data-touch-diagnostics") ?? "";
-    return text.includes("touchcancel") && text.includes("aktif yok");
-  }, null, { timeout: 5_000 });
+  await waitForDiagnostics(
+    (text) => text.includes("touchcancel") && text.includes("aktif yok"),
+    "Touch cancellation did not clear active controls",
+    5_000,
+  );
 
   const pauseButton = page.locator(".war-room-pause");
   const pauseBounds = await pauseButton.boundingBox();

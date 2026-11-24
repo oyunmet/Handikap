@@ -42,6 +42,7 @@ import {
   normalizeDuelWeaponWorldSize,
   getDuelWeaponTargetWorldDimension,
 } from "./duel-weapon";
+import ProceduralHero from "./ProceduralHero";
 
 export type WorldV2ActorDebugSnapshot = {
   yaw: number;
@@ -125,6 +126,21 @@ export default function WorldV2Actor({
     return clone;
   }, [asset, modelConfig, tint]);
   const baseActorScale = isPlayer ? 1 : modelConfig?.scale ?? 1;
+  const characterAppearance = useMemo(() => {
+    const base = isPlayer ? equipmentVisual : modelConfig?.appearance;
+    const seed = [...(tint ?? asset.url)].reduce((value, character) => value + character.charCodeAt(0), 0);
+    const hairColors = ["#c99b43", "#a96e3d", "#8c6844", "#d5ad5e"];
+    const hairStyles: NonNullable<EquipmentVisual["hairStyle"]>[] = ["long", "braided", "short", "curly"];
+    return {
+      ...base,
+      ...(tint ? { armor: tint } : {}),
+      weaponStyle: isPlayer
+        ? equipmentVisual?.weaponStyle
+        : modelConfig?.weapon ?? modelConfig?.appearance.weaponStyle,
+      hairColor: base?.hairColor ?? hairColors[seed % hairColors.length],
+      hairStyle: base?.hairStyle ?? hairStyles[seed % hairStyles.length],
+    };
+  }, [asset.url, equipmentVisual, isPlayer, modelConfig, tint]);
   const jumpEcho = useMemo<JumpEcho | null>(() => {
     if (!isPlayer) return null;
     const object = cloneSkinnedModel(model);
@@ -509,6 +525,17 @@ export default function WorldV2Actor({
     }
   });
 
+  const motion = motionRef.current;
+  const isJumping = motion.movementState === "ZIPLAMA_HAZIRLIK"
+    || motion.movementState === "HAVADA_YUKARI"
+    || motion.movementState === "HAVADA_AŞAĞI"
+    || motion.movementState === "İNİŞ";
+  const visibleAnimationState = isPlayer && motion.crouching
+    ? "idle"
+    : isPlayer && isJumping
+      ? "jump"
+      : animationState;
+
   return (
     <group
       ref={rootRef}
@@ -516,8 +543,70 @@ export default function WorldV2Actor({
       userData={{ worldCharacterRoot: isPlayer, worldPlayerActor: isPlayer }}
     >
       <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
-        <primitive object={model} dispose={null} />
-        {jumpEcho && <primitive object={jumpEcho.object} dispose={null} />}
+        <ProceduralHero
+          motionRef={motionRef}
+          state={visibleAnimationState}
+          appearance={characterAppearance}
+          showWeapon={showWeapon}
+          targetHeight={modelConfig?.targetHeight ?? 1.7}
+          castShadow
+        />
+        {cityAccessory === "hat" && (
+          <group position={[0, 1.57, 0]}>
+            <mesh position={[0, 0, 0]}>
+              <cylinderGeometry args={[0.17, 0.19, 0.11, 8]} />
+              <meshStandardMaterial color="#765239" roughness={0.88} flatShading />
+            </mesh>
+            <mesh position={[0, -0.055, 0]}>
+              <cylinderGeometry args={[0.25, 0.25, 0.025, 8]} />
+              <meshStandardMaterial color="#765239" roughness={0.88} flatShading />
+            </mesh>
+          </group>
+        )}
+        {cityAccessory === "glasses" && (
+          <group position={[0, 1.49, 0.145]}>
+            {[-0.07, 0.07].map((x) => (
+              <mesh key={x}>
+                <torusGeometry args={[0.045, 0.009, 5, 10]} />
+                <meshStandardMaterial color="#392e28" metalness={0.18} roughness={0.56} />
+              </mesh>
+            ))}
+            <mesh position={[0, 0, 0]}>
+              <boxGeometry args={[0.045, 0.012, 0.012]} />
+              <meshStandardMaterial color="#392e28" roughness={0.56} />
+            </mesh>
+          </group>
+        )}
+        {cityAccessory === "cane" && (
+          <group position={[0.34, 0.53, 0.1]} rotation={[0, 0, -0.08]}>
+            <mesh>
+              <cylinderGeometry args={[0.025, 0.025, 0.92, 6]} />
+              <meshStandardMaterial color="#593b2a" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 0.48, 0]}>
+              <torusGeometry args={[0.07, 0.018, 6, 10, Math.PI]} />
+              <meshStandardMaterial color="#593b2a" roughness={0.8} />
+            </mesh>
+          </group>
+        )}
+        {cityAccessory === "wheelchair" && (
+          <group position={[0, 0.02, -0.04]}>
+            <mesh position={[0, 0.46, -0.16]}>
+              <boxGeometry args={[0.56, 0.1, 0.52]} />
+              <meshStandardMaterial color="#4c463e" metalness={0.28} roughness={0.65} />
+            </mesh>
+            <mesh position={[0, 0.76, -0.34]}>
+              <boxGeometry args={[0.54, 0.57, 0.08]} />
+              <meshStandardMaterial color="#4c463e" metalness={0.28} roughness={0.65} />
+            </mesh>
+            {[-0.39, 0.39].map((x) => (
+              <mesh key={x} position={[x, 0.39, -0.1]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.39, 0.025, 6, 16]} />
+                <meshStandardMaterial color="#554f47" metalness={0.36} roughness={0.58} />
+              </mesh>
+            ))}
+          </group>
+        )}
       </group>
       <mesh
         ref={shadowRef}

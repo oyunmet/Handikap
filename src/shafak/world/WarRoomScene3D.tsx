@@ -101,6 +101,7 @@ import {
   getWarRoomCameraBlockerIds,
   getWarRoomCameraFocusAhead,
   getWarRoomCameraRaySafeDistance,
+  didWarRoomCharacterTurnAfterLook,
   getWarRoomResponsiveCameraFov,
   getWarRoomCameraRig,
   getWarRoomEyeClearancePush,
@@ -4725,13 +4726,23 @@ function WarRoomRuntimeScene({
       perspective.fov = smoothedFov;
       perspective.updateProjectionMatrix();
     }
+    if (input.cameraLookLocked) {
+      if (didWarRoomCharacterTurnAfterLook(player.facingYaw, input.cameraLookBodyYaw)) {
+        input.cameraLookLocked = false;
+        input.cameraTargetYaw = player.facingYaw;
+      }
+    }
+    const cameraLookYaw = input.manualLookActive || input.cameraLookLocked
+      ? input.cameraTargetYaw
+      : input.yaw;
     const sceneCameraAngles = getWarRoomCameraAngles(
-      inputRef.current.yaw + cameraSideKickRef.current,
+      cameraLookYaw + cameraSideKickRef.current,
       inputRef.current.pitch + cameraKickRef.current,
     );
     const cameraYaw = cameraMode === "third-person"
       && playerRootRef.current
       && !input.manualLookActive
+      && !input.cameraLookLocked
       ? getWarRoomFacingYawFromRootYaw(playerRootRef.current.rotation.y)
       : sceneCameraAngles.yaw;
     const cameraPitch = sceneCameraAngles.pitch;

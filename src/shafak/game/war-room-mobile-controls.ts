@@ -1,4 +1,8 @@
 import { WAR_ROOM_CONFIG } from "./war-room-config";
+import {
+  getGameplayJoystickVector,
+  getGameplayTouchSide,
+} from "../gameplay-touch-controls";
 
 export type WarRoomMobilePointerType = "touch" | "mouse" | "pen";
 export type WarRoomTouchControlSide = "movement" | "look";
@@ -39,9 +43,7 @@ export function getWarRoomTouchControlSide(
   stageWidth: number,
   moveOnRight = false,
 ): WarRoomTouchControlSide | null {
-  if (![clientX, stageLeft, stageWidth].every(Number.isFinite) || stageWidth <= 0) return null;
-  const rightSide = clientX >= stageLeft + stageWidth / 2;
-  return rightSide === moveOnRight ? "movement" : "look";
+  return getGameplayTouchSide(clientX, stageLeft, stageWidth, moveOnRight);
 }
 
 export function createWarRoomMobileControlsState(): WarRoomMobileControlsState {
@@ -81,18 +83,12 @@ export function readWarRoomJoystick(
     || !Number.isFinite(y)
   ) return null;
 
-  const rawX = (x - gesture.originX) / gesture.radius;
-  const rawY = (gesture.originY - y) / gesture.radius;
-  const rawLength = Math.hypot(rawX, rawY);
-  if (rawLength <= JOYSTICK_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-
-  const cappedLength = Math.min(1, rawLength);
-  const strength = (cappedLength - JOYSTICK_DEAD_ZONE) / (1 - JOYSTICK_DEAD_ZONE);
-  const xAxis = (rawX / rawLength) * strength;
-  const yAxis = (rawY / rawLength) * strength;
-  return { x: xAxis, y: yAxis };
+  return getGameplayJoystickVector(
+    x - gesture.originX,
+    y - gesture.originY,
+    gesture.radius,
+    JOYSTICK_DEAD_ZONE,
+  );
 }
 
 export function beginWarRoomLook(

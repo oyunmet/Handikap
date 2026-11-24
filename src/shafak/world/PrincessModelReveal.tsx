@@ -1,19 +1,14 @@
-import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { Component, Suspense, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { GameCanvas } from "../../ui/GameCanvasHost";
-import { useAnimations, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import {
-  createPrincessCharacter,
-  disposePrincessCharacter,
-} from "./princess-character.ts";
 import {
   getPrincessFacingYaw,
   getPrincessCameraFrame,
-  PRINCESS_BASE_MODEL_URL,
-  resolvePrincessAnimationName,
   type PrincessAnimationMood,
 } from "./princess-model-config.ts";
+import { createWorldMotion } from "./movement";
+import ProceduralHero from "./ProceduralHero";
 
 export type PrincessModelRevealProps = {
   mood: PrincessAnimationMood;
@@ -45,39 +40,24 @@ function PrincessCameraFraming() {
 function PrincessModel({
   mood,
   onReady,
-}: PrincessModelRevealProps) {
+}: Pick<PrincessModelRevealProps, "mood" | "onReady">) {
   const rootRef = useRef<THREE.Group>(null);
   const cameraWorldPosition = useMemo(() => new THREE.Vector3(), []);
   const rootWorldPosition = useMemo(() => new THREE.Vector3(), []);
+  const rigRef = useRef<THREE.Group | null>(null);
+  const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
   const { camera } = useThree();
-  const { scene, animations } = useGLTF(PRINCESS_BASE_MODEL_URL);
-  const character = useMemo(
-    () => createPrincessCharacter(scene, animations),
-    [animations, scene],
-  );
-  const selectedAnimation = resolvePrincessAnimationName(
-    character.animations.map((clip) => clip.name),
-    mood,
-  );
-  const { actions } = useAnimations(character.animations, rootRef);
-
   useEffect(() => {
     onReady?.();
-  }, [character, onReady]);
-
-  useEffect(() => () => disposePrincessCharacter(character), [character]);
-
-  useEffect(() => {
-    if (!selectedAnimation) return undefined;
-    const action = actions[selectedAnimation];
-    if (!action) return undefined;
-    action.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(0.24).play();
-    return () => { action.fadeOut(0.18); };
-  }, [actions, selectedAnimation]);
+  }, [onReady]);
 
   useFrame((_, delta) => {
     const root = rootRef.current;
     if (!root) return;
+    const motion = motionRef.current;
+    motion.velocityX = 0;
+    motion.velocityY = mood === "walk" ? 2.2 : 0;
+    if (mood === "walk") motion.stepPhase += Math.min(delta, 0.05) * 4.8;
     camera.getWorldPosition(cameraWorldPosition);
     root.getWorldPosition(rootWorldPosition);
     const targetYaw = getPrincessFacingYaw(rootWorldPosition, cameraWorldPosition);
@@ -88,9 +68,44 @@ function PrincessModel({
     root.rotation.y += shortestAngle * (1 - Math.exp(-4.2 * delta));
   });
 
+  const animateMood = useCallback((rig: THREE.Group) => {
+    const arm = rig.getObjectByName("RightShoulder");
+    const elbow = rig.getObjectByName("RightElbow");
+    if (!arm || !elbow) return;
+    const time = performance.now() / 1000;
+    if (mood === "wave") {
+      arm.rotation.x = -0.9;
+      arm.rotation.z = -0.28;
+      elbow.rotation.x = -0.72 + Math.sin(time * 5.5) * 0.26;
+    } else if (mood === "talk") {
+      arm.rotation.x = -0.12 + Math.sin(time * 2.4) * 0.08;
+      arm.rotation.z = -0.08;
+      elbow.rotation.x = -0.16 + Math.sin(time * 2.4 + 1) * 0.12;
+    }
+  }, [mood]);
+
+  const animationState = mood === "walk" ? "walk" : "idle";
+
   return (
     <group ref={rootRef} name="PrincessFacingRoot" rotation={[0, Math.PI, 0]}>
-      <primitive object={character.model} />
+      <ProceduralHero
+        motionRef={motionRef}
+        state={animationState}
+        motionReduced={false}
+        appearance={{
+          armor: "#3e7258",
+          armorLight: "#789170",
+          armorDark: "#493a31",
+          trim: "#d4b25e",
+          cape: "#735446",
+          hairColor: "#96503b",
+          hairStyle: "braided",
+          bootColor: "#4a352a",
+        }}
+        targetHeight={1.7}
+        rootRef={rigRef}
+        onAfterAnimate={animateMood}
+      />
     </group>
   );
 }
@@ -135,7 +150,7 @@ export default function PrincessModelReveal({
           <directionalLight position={[2, 3, 4]} intensity={1.7} />
           <directionalLight position={[-2, 1, -2]} intensity={0.72} color="#d6a96a" />
           <Suspense fallback={null}>
-            <PrincessModel mood={mood} onReady={onReady} onFailure={onFailure} />
+            <PrincessModel mood={mood} onReady={onReady} />
           </Suspense>
         </GameCanvas>
       </PrincessCanvasBoundary>

@@ -1,5 +1,18 @@
 export type WarRoomCameraPoint = { x: number; y: number; z: number };
 
+export function didWarRoomCharacterTurnAfterLook(
+  facingYaw: number,
+  bodyYawWhenLookEnded: number,
+  thresholdRadians = 0.14,
+) {
+  if (![facingYaw, bodyYawWhenLookEnded, thresholdRadians].every(Number.isFinite)) return false;
+  const delta = Math.atan2(
+    Math.sin(facingYaw - bodyYawWhenLookEnded),
+    Math.cos(facingYaw - bodyYawWhenLookEnded),
+  );
+  return Math.abs(delta) > Math.max(0, thresholdRadians);
+}
+
 export type WarRoomCameraBounds = {
   id: string;
   minX: number;

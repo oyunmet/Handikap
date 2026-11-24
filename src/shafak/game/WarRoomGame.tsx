@@ -220,6 +220,8 @@ function createInputState(aimAssistEnabled = true): WarRoomInputState {
     yaw: 0,
     cameraTargetYaw: 0,
     manualLookActive: false,
+    cameraLookLocked: false,
+    cameraLookBodyYaw: 0,
     lookDeltaX: 0,
     lookDeltaY: 0,
     lookPointerType: "touch",
@@ -755,6 +757,7 @@ export default function WarRoomGame({
     inputRef.current.moveX = 0;
     inputRef.current.moveY = 0;
     inputRef.current.manualLookActive = false;
+    inputRef.current.cameraLookLocked = false;
     inputRef.current.lookDeltaX = 0;
     inputRef.current.lookDeltaY = 0;
     inputRef.current.keys.clear();
@@ -1420,6 +1423,8 @@ export default function WarRoomGame({
       button: event.button,
     })) return;
     inputRef.current.manualLookActive = true;
+    inputRef.current.cameraLookLocked = false;
+    inputRef.current.cameraLookBodyYaw = runtimeRef.current.player.facingYaw;
     inputRef.current.cameraTargetYaw = inputRef.current.yaw;
     if (pointerType === "mouse" && event.button === 0) {
       pressWarRoomAction(inputRef.current, "fire");
@@ -1446,7 +1451,12 @@ export default function WarRoomGame({
       if (ended.endedLook.button === 2) releaseWarRoomAction(inputRef.current, "aim");
     }
     if (ended.endedLook) {
-      inputRef.current.manualLookActive = mobileControlsRef.current.look !== null;
+      const lookStillActive = mobileControlsRef.current.look !== null;
+      inputRef.current.manualLookActive = lookStillActive;
+      if (!lookStillActive) {
+        inputRef.current.cameraLookLocked = true;
+        inputRef.current.cameraLookBodyYaw = runtimeRef.current.player.facingYaw;
+      }
     }
   };
 
@@ -1474,7 +1484,12 @@ export default function WarRoomGame({
         touchDiagnosticsRef.current.moveY = 0;
       }
       if (ended.endedLook) {
-        inputRef.current.manualLookActive = mobileControlsRef.current.look !== null;
+        const lookStillActive = mobileControlsRef.current.look !== null;
+        inputRef.current.manualLookActive = lookStillActive;
+        if (!lookStillActive) {
+          inputRef.current.cameraLookLocked = true;
+          inputRef.current.cameraLookBodyYaw = runtimeRef.current.player.facingYaw;
+        }
       }
     };
     const onTouchStart = (event: TouchEvent) => {
@@ -1515,6 +1530,8 @@ export default function WarRoomGame({
             button: 0,
           })) continue;
           input.manualLookActive = true;
+          input.cameraLookLocked = false;
+          input.cameraLookBodyYaw = runtimeRef.current.player.facingYaw;
           input.cameraTargetYaw = input.yaw;
           input.lookPointerType = "touch";
           touchDiagnosticsRef.current.lookDX = 0;

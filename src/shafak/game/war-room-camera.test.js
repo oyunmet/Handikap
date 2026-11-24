@@ -9,6 +9,7 @@ import {
   getWarRoomViewModelWallProximity,
   getWarRoomViewModelWallSafetyRetraction,
   getWarRoomCameraRaySafeDistance,
+  didWarRoomCharacterTurnAfterLook,
   isWarRoomCameraPointClear,
   updateWarRoomPlayerCollisionBounds,
   getWarRoomCameraRig,
@@ -20,6 +21,14 @@ import {
   stepWarRoomCameraFollowPosition,
   stepWarRoomCameraFloorHeight,
 } from "./war-room-camera.ts";
+
+test("the camera keeps a manual look until the character turns", () => {
+  assert.equal(didWarRoomCharacterTurnAfterLook(0.08, 0), false);
+  assert.equal(didWarRoomCharacterTurnAfterLook(0.2, 0), true);
+  assert.equal(didWarRoomCharacterTurnAfterLook(Math.PI, 0), true);
+  assert.equal(didWarRoomCharacterTurnAfterLook(-Math.PI + 0.04, Math.PI - 0.04, 0.1), false);
+  assert.equal(didWarRoomCharacterTurnAfterLook(Number.NaN, 0), false);
+});
 import {
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,

@@ -207,6 +207,8 @@ export type WarRoomInputState = {
   yaw: number;
   cameraTargetYaw: number;
   manualLookActive: boolean;
+  cameraLookLocked: boolean;
+  cameraLookBodyYaw: number;
   lookDeltaX: number;
   lookDeltaY: number;
   lookPointerType: "mouse" | "touch" | "pen";

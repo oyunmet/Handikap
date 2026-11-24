@@ -1,3 +1,5 @@
+import { getGameplayJoystickVector } from "../gameplay-touch-controls";
+
 export type CityDoorId = "campaign" | "war-room" | "survival" | "daily" | "archive";
 export type CityPosition = { x: number; z: number };
 export type CityInput = { x: number; z: number };
@@ -141,17 +143,15 @@ export function readCityJoystick(
   const radius = Math.max(1, Math.min(bounds.width, bounds.height) * CITY_JOYSTICK_TRAVEL_RATIO);
   const dx = clientX - bounds.left - bounds.width / 2;
   const dy = clientY - bounds.top - bounds.height / 2;
-  const magnitude = Math.hypot(dx, dy);
-  if (magnitude <= radius * CITY_JOYSTICK_DEAD_ZONE) return { x: 0, z: 0 };
-  const strength = Math.min(
-    1,
-    (magnitude - radius * CITY_JOYSTICK_DEAD_ZONE)
-      / (radius * (1 - CITY_JOYSTICK_DEAD_ZONE)),
+  const vector = getGameplayJoystickVector(
+    dx,
+    dy,
+    radius,
+    CITY_JOYSTICK_DEAD_ZONE,
   );
-  const scale = magnitude > 0 ? strength / magnitude : 0;
   return {
-    x: Math.max(-1, Math.min(1, dx * scale)),
-    z: Math.max(-1, Math.min(1, dy * scale)),
+    x: vector.x === 0 ? 0 : vector.x,
+    z: vector.y === 0 ? 0 : -vector.y,
   };
 }
 

@@ -59,10 +59,11 @@ test("the player GLB can use its generated rig when it contains no animation cli
   assert.equal(shouldRenderPlayerModel(false, 0), false);
 });
 
-test("duels select the same GLB hero as the road instead of the procedural stand-in", () => {
+test("all game characters use the shared stylized procedural rig", () => {
   assert.equal(shouldRenderProceduralPlayerModel(true, false), true);
-  assert.equal(shouldRenderProceduralPlayerModel(true, true), false);
-  assert.equal(shouldRenderProceduralPlayerModel(false, true), false);
+  assert.equal(shouldRenderProceduralPlayerModel(true, true), true);
+  assert.equal(shouldRenderProceduralPlayerModel(false, true), true);
+  assert.equal(shouldRenderProceduralPlayerModel(false, false), true);
   assert.equal(PLAYER_CHARACTER_TARGET_HEIGHT, 1.7);
 });
 
