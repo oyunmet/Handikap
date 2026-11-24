@@ -1,12 +1,13 @@
 import type { CityInput } from "./city-hub-layout";
+import { getGameplayCameraRelativeVector } from "../gameplay-touch-controls.ts";
 
 export type CityCameraControl = {
   yaw: number;
   pitch: number;
 };
 
-export const CITY_CAMERA_MIN_PITCH = 0;
-export const CITY_CAMERA_MAX_PITCH = 0;
+export const CITY_CAMERA_MIN_PITCH = -0.22;
+export const CITY_CAMERA_MAX_PITCH = 0.32;
 export const CITY_CAMERA_LOOK_SENSITIVITY = 0.0052;
 export const CITY_CAMERA_PITCH_SENSITIVITY = 0.004;
 
@@ -24,12 +25,16 @@ export function stepCityCameraLook(
   deltaY: number,
 ): CityCameraControl {
   const horizontalDelta = clamp(finiteOrZero(deltaX), -160, 160);
-  void deltaY;
+  const verticalDelta = clamp(finiteOrZero(deltaY), -160, 160);
   return {
     yaw: normalizeCityCameraYaw(
       finiteOrZero(current.yaw) + horizontalDelta * CITY_CAMERA_LOOK_SENSITIVITY,
     ),
-    pitch: 0,
+    pitch: clamp(
+      finiteOrZero(current.pitch) - verticalDelta * CITY_CAMERA_PITCH_SENSITIVITY,
+      CITY_CAMERA_MIN_PITCH,
+      CITY_CAMERA_MAX_PITCH,
+    ),
   };
 }
 
@@ -43,10 +48,9 @@ export function getCityMovementInput(input: CityInput, cameraYaw: number): CityI
   }
 
   const yaw = finiteOrZero(cameraYaw);
-  const cosine = Math.cos(yaw);
-  const sine = Math.sin(yaw);
+  const movement = getGameplayCameraRelativeVector(x, -z, yaw);
   return {
-    x: x * cosine - z * sine,
-    z: x * sine + z * cosine,
+    x: movement.x,
+    z: movement.z,
   };
 }

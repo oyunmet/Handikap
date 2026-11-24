@@ -6,6 +6,7 @@ import {
   type WorldMovementMachine,
   type WorldMovementState,
 } from "./world-movement-machine.ts";
+import { getGameplayCameraRelativeVector } from "../gameplay-touch-controls.ts";
 
 export type WorldMotion = {
   velocityX: number;
@@ -230,14 +231,13 @@ export function stepWorldMotion(
   const directionScale = magnitude > 0 ? 1 / magnitude : 0;
   const localStrafe = input.strafe * directionScale;
   const localForward = input.forward * directionScale;
-  const targetX = (
-    -Math.sin(cameraHeading) * localForward
-    + Math.cos(cameraHeading) * localStrafe
-  ) * targetSpeed;
-  const targetY = (
-    Math.cos(cameraHeading) * localForward
-    + Math.sin(cameraHeading) * localStrafe
-  ) * targetSpeed;
+  const cameraRelativeMovement = getGameplayCameraRelativeVector(
+    localStrafe,
+    localForward,
+    cameraHeading,
+  );
+  const targetX = cameraRelativeMovement.x * targetSpeed;
+  const targetY = -cameraRelativeMovement.z * targetSpeed;
   const timeConstant = (targetSpeed > 0 ? ACCELERATION_SECONDS : DECELERATION_SECONDS) / handling;
   const response = 1 - Math.exp(-dt / timeConstant);
   let velocityX = state.velocityX + (targetX - state.velocityX) * response;

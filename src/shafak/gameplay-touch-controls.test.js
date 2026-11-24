@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  getGameplayCameraRelativeVector,
   getGameplayJoystickVector,
   getGameplayTouchSide,
 } from "./gameplay-touch-controls.ts";
@@ -25,4 +26,15 @@ test("all modes share a circular joystick dead zone and capped diagonal", () => 
   const diagonal = getGameplayJoystickVector(50, -50, 50);
   assert.ok(Math.hypot(diagonal.x, diagonal.y) <= 1);
   assert.ok(Math.abs(diagonal.x - diagonal.y) < 1e-10);
+});
+
+test("camera-relative joystick directions follow the new facing after a 180-degree turn", () => {
+  const forward = getGameplayCameraRelativeVector(0, 1, Math.PI);
+  const backward = getGameplayCameraRelativeVector(0, -1, Math.PI);
+  const right = getGameplayCameraRelativeVector(1, 0, Math.PI);
+  assert.ok(Math.abs(forward.x) < 1e-9);
+  assert.ok(forward.z > 0.999);
+  assert.ok(Math.abs(backward.x) < 1e-9);
+  assert.ok(backward.z < -0.999);
+  assert.ok(right.x < -0.999);
 });

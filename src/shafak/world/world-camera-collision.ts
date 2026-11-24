@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export const WORLD_CAMERA_OCCLUSION_OPACITY = 0.32;
+export const WORLD_CAMERA_OCCLUSION_OPACITY = 0.12;
 
 export function isEffectivelyVisible(object: THREE.Object3D) {
   let current: THREE.Object3D | null = object;
@@ -95,14 +95,49 @@ function disposeFadedMaterial(material: THREE.Material | THREE.Material[]) {
 }
 
 /**
- * Fades only the exact hit meshes, without mutating shared materials.
- * InstancedMesh is intentionally excluded: fading one hit instance by
- * replacing its material makes every instance in that batch translucent.
+ * Fades exact hit meshes and hides only the hit members of an InstancedMesh.
+ * Shared materials and unaffected instances remain unchanged.
  */
 export class WorldCameraOcclusionFader {
   private readonly fadedMeshes = new Map<THREE.Mesh, FadedMaterial>();
+  private readonly hiddenInstances = new Map<THREE.InstancedMesh, Map<number, THREE.Matrix4>>();
 
   update(hitObjects: readonly THREE.Object3D[]) {
+    this.updateMeshes(hitObjects);
+    this.restoreHiddenInstancesForScan();
+  }
+
+  /**
+   * Apply camera occlusion to ray intersections, hiding only the exact
+   * InstancedMesh members that cover the player rather than the whole batch.
+   * Call restoreHiddenInstancesForScan before the next camera raycast.
+   */
+  updateHits(hits: readonly { object: THREE.Object3D; instanceId?: number }[]) {
+    const meshHits = hits
+      .filter(({ object }) => !(object instanceof THREE.InstancedMesh))
+      .map(({ object }) => object);
+    this.updateMeshes(meshHits);
+
+    for (const { object, instanceId } of hits) {
+      if (!(object instanceof THREE.InstancedMesh) || typeof instanceId !== "number") continue;
+      let instances = this.hiddenInstances.get(object);
+      if (!instances) {
+        instances = new Map();
+        this.hiddenInstances.set(object, instances);
+      }
+      if (instances.has(instanceId)) continue;
+
+      const original = new THREE.Matrix4();
+      object.getMatrixAt(instanceId, original);
+      const position = new THREE.Vector3().setFromMatrixPosition(original);
+      const hidden = new THREE.Matrix4().makeScale(0, 0, 0).setPosition(position);
+      instances.set(instanceId, original);
+      object.setMatrixAt(instanceId, hidden);
+      object.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  private updateMeshes(hitObjects: readonly THREE.Object3D[]) {
     const nextMeshes = new Set<THREE.Mesh>();
     for (const object of hitObjects) {
       if (
@@ -131,12 +166,23 @@ export class WorldCameraOcclusionFader {
     }
   }
 
+  restoreHiddenInstancesForScan() {
+    for (const [mesh, instances] of this.hiddenInstances) {
+      for (const [instanceId, original] of instances) {
+        mesh.setMatrixAt(instanceId, original);
+      }
+      if (instances.size > 0) mesh.instanceMatrix.needsUpdate = true;
+    }
+    this.hiddenInstances.clear();
+  }
+
   clear() {
     for (const [mesh, faded] of this.fadedMeshes) {
       if (mesh.material === faded.faded) mesh.material = faded.original;
       disposeFadedMaterial(faded.faded);
     }
     this.fadedMeshes.clear();
+    this.restoreHiddenInstancesForScan();
   }
 }
 

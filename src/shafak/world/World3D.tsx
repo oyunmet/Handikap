@@ -602,6 +602,7 @@ function CameraRig({
       if (cameraRaycastElapsedRef.current >= 0.05) {
         cameraRaycastElapsedRef.current = 0;
         const visibleOccluders = cameraOccludersRef.current.filter(isEffectivelyVisible);
+        cameraOcclusionFader.restoreHiddenInstancesForScan();
         cameraRaycaster.near = 0.05;
         cameraRaycaster.far = requestedDistance;
         cameraRaycaster.set(cameraOriginRef, cameraDirectionRef);
@@ -610,7 +611,7 @@ function CameraRig({
             .filter((intersection) => !isCameraCollisionIgnored(intersection.object))
           : [];
         obstructionDistanceRef.current = intersections[0]?.distance;
-        cameraOcclusionFader.update(intersections.map((intersection) => intersection.object));
+        cameraOcclusionFader.updateHits(intersections);
         if (debugEnabled) {
           const labels = intersections.map(({ object, instanceId }) => {
             const worldPropNames = object.userData.worldPropNames as string[] | undefined;

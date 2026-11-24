@@ -1,5 +1,9 @@
 import type { CityPosition } from "./city-hub-layout";
-import type { CityCameraControl } from "./city-hub-controls";
+import {
+  CITY_CAMERA_MAX_PITCH,
+  CITY_CAMERA_MIN_PITCH,
+  type CityCameraControl,
+} from "./city-hub-controls.ts";
 
 export type CityCameraVector = CityPosition & { y: number };
 
@@ -17,8 +21,8 @@ export type CityCameraFrame = {
   occluded: boolean;
 };
 
-const CAMERA_HEIGHT = 5.2;
-const CAMERA_LOOK_AHEAD = 1.05;
+const CAMERA_HEIGHT = 2.45;
+const CAMERA_LOOK_AHEAD = 0.9;
 const CAMERA_TARGET_HEIGHT = 1.28;
 const CAMERA_RADIUS = 0.28;
 const CAMERA_CLEARANCE = 0.38;
@@ -41,16 +45,20 @@ const ORBIT_ANGLES = [
   (-7 * Math.PI) / 8,
   Math.PI,
 ] as const;
-const ORBIT_DISTANCES = [6.2, 5.2, 4.2, 3.2] as const;
-const ORBIT_HEIGHTS = [CAMERA_HEIGHT, 4.4, 3.6] as const;
+const ORBIT_DISTANCES = [4.8, 4.2, 3.6] as const;
+const ORBIT_HEIGHTS = [CAMERA_HEIGHT, 2.15, 1.85] as const;
 const CAMERA_OFFSETS = [
-  { back: 7.2, side: 2.6 },
-  { back: 7.2, side: -2.6 },
-  { back: 7.2, side: 0 },
-  { back: 6.2, side: 1.5 },
-  { back: 6.2, side: -1.5 },
-  { back: 5.6, side: 0 },
+  { back: 4.2, side: 0.52 },
+  { back: 4.2, side: -0.52 },
+  { back: 4.2, side: 0 },
+  { back: 3.7, side: 0.38 },
+  { back: 3.7, side: -0.38 },
+  { back: 3.4, side: 0 },
 ] as const;
+
+function getCameraHeight(baseHeight: number, pitch: number) {
+  return Math.max(1.55, Math.min(3.6, baseHeight + pitch * 3));
+}
 
 function getSegmentBoxEntry(
   start: CityCameraVector,
@@ -112,6 +120,14 @@ export function getCityCameraFrame(
   obstacles: readonly CityCameraObstacle[] = [],
 ): CityCameraFrame {
   const yaw = Number.isFinite(cameraControl.yaw) ? cameraControl.yaw : 0;
+  const pitch = Math.max(
+    CITY_CAMERA_MIN_PITCH,
+    Math.min(
+      CITY_CAMERA_MAX_PITCH,
+      Number.isFinite(cameraControl.pitch) ? cameraControl.pitch : 0,
+    ),
+  );
+  const cameraHeight = getCameraHeight(CAMERA_HEIGHT, pitch);
   const facingX = Math.sin(yaw);
   const facingZ = -Math.cos(yaw);
   const rightX = Math.cos(yaw);
@@ -134,7 +150,7 @@ export function getCityCameraFrame(
     const { back, side } = CAMERA_OFFSETS[index];
     const desired = {
       x: player.x - facingX * back + rightX * side,
-      y: CAMERA_HEIGHT,
+      y: cameraHeight,
       z: player.z - facingZ * back + rightZ * side,
     };
     const length = Math.hypot(
@@ -187,7 +203,7 @@ export function getCityCameraFrame(
       for (const height of ORBIT_HEIGHTS) {
         const candidate = {
           x: target.x + backX * back * distance + rightX * side * distance,
-          y: height,
+          y: getCameraHeight(height, pitch),
           z: target.z + backZ * back * distance + rightZ * side * distance,
         };
         const cameraDistance = Math.hypot(
@@ -208,9 +224,9 @@ export function getCityCameraFrame(
   // leaves no clear orbit point. The renderer remains in the 3D scene.
   return {
     position: {
-      x: player.x - facingX * 4.2 + rightX * 1.2,
-      y: 4.2,
-      z: player.z - facingZ * 4.2 + rightZ * 1.2,
+      x: player.x - facingX * 3.8 + rightX * 0.52,
+      y: cameraHeight,
+      z: player.z - facingZ * 3.8 + rightZ * 0.52,
     },
     target,
     occluded: true,

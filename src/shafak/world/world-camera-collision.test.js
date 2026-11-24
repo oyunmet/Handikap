@@ -73,6 +73,37 @@ test("does not fade every instance in a shared scenery batch", () => {
   fader.clear();
 });
 
+test("camera occlusion hides only the blocking instance and restores its exact transform", () => {
+  const instancedMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(),
+    new THREE.MeshStandardMaterial({ color: "#b9c3c9" }),
+    2,
+  );
+  const original = new THREE.Matrix4().compose(
+    new THREE.Vector3(2, 0.5, -3),
+    new THREE.Quaternion(),
+    new THREE.Vector3(1, 1.5, 1),
+  );
+  instancedMesh.setMatrixAt(1, original);
+  const fader = new WorldCameraOcclusionFader();
+
+  fader.updateHits([{ object: instancedMesh, instanceId: 1 }]);
+  const hidden = new THREE.Matrix4();
+  instancedMesh.getMatrixAt(1, hidden);
+  const hiddenScale = new THREE.Vector3().setFromMatrixScale(hidden);
+  assert.equal(hiddenScale.length(), 0);
+
+  fader.restoreHiddenInstancesForScan();
+  const restored = new THREE.Matrix4();
+  instancedMesh.getMatrixAt(1, restored);
+  assert.deepEqual(restored.elements, original.elements);
+
+  fader.updateHits([{ object: instancedMesh, instanceId: 1 }]);
+  fader.clear();
+  instancedMesh.getMatrixAt(1, restored);
+  assert.deepEqual(restored.elements, original.elements);
+});
+
 test("keeps nearby characters opaque instead of treating them as camera occluders", () => {
   const material = new THREE.MeshStandardMaterial({ color: "#74636d" });
   const character = new THREE.Group();

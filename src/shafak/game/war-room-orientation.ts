@@ -1,3 +1,5 @@
+import { getGameplayCameraRelativeVector } from "../gameplay-touch-controls.ts";
+
 export type WarRoomFacingMode = "KAMERA" | "HAREKET" | "STRAFE";
 export type WarRoomFacingSetting = "camera" | "movement";
 export const WAR_ROOM_ENEMY_FIRE_ALIGNMENT_RADIANS = Math.PI / 12;
@@ -37,10 +39,7 @@ export function getWarRoomFacingYawFromRootYaw(rootYaw: number) {
 }
 
 export function getWarRoomWorldMovement(moveX: number, moveY: number, cameraYaw: number) {
-  return {
-    x: Math.sin(cameraYaw) * moveY + Math.cos(cameraYaw) * moveX,
-    z: -Math.cos(cameraYaw) * moveY + Math.sin(cameraYaw) * moveX,
-  };
+  return getGameplayCameraRelativeVector(moveX, moveY, cameraYaw);
 }
 
 export function resolveWarRoomOrientation(

@@ -20,9 +20,24 @@ test("the city camera stays behind the hero and looks into the street", () => {
 
   assert.ok(frame.position.z > 0, "north-facing hero should have a camera behind them");
   assert.ok(frame.position.x > 0, "camera keeps the familiar over-the-shoulder angle");
-  assert.ok(frame.position.y > frame.target.y + 3.5, "camera stays high enough to see the street");
+  assert.ok(frame.position.y > frame.target.y + 0.8, "camera remains above the hero's shoulder");
+  assert.ok(frame.position.y < frame.target.y + 2, "camera avoids an overhead view");
+  assert.ok(
+    Math.hypot(frame.position.x, frame.position.z) < 5.5,
+    "camera stays close behind the hero",
+  );
   assert.ok(frame.target.z < 0, "camera looks ahead along the street");
   assert.equal(frame.occluded, false);
+});
+
+test("a half-turn moves the city camera to the hero's new back and pitch adjusts height", () => {
+  const player = { x: 2, z: -3 };
+  const frontFacingNorth = getCityCameraFrame(player, { yaw: 0, pitch: 0 });
+  const facingSouth = getCityCameraFrame(player, { yaw: Math.PI, pitch: 0 });
+  const pitchedUp = getCityCameraFrame(player, { yaw: Math.PI, pitch: 0.2 });
+  assert.ok(frontFacingNorth.position.z > player.z);
+  assert.ok(facingSouth.position.z < player.z);
+  assert.ok(pitchedUp.position.y > facingSouth.position.y);
 });
 
 test("the city camera never switches to a bird's-eye view when all default shoulders are blocked", () => {
@@ -67,7 +82,7 @@ test("camera framing follows the player without changing the camera offset", () 
 });
 
 test("the city camera moves to the clear shoulder when a roof blocks its usual view", () => {
-  const obstacle = { x: 2.5, z: 4, width: 2, depth: 3, height: 7.4 };
+  const obstacle = { x: 0.52, z: 4, width: 1, depth: 3, height: 7.4 };
   const frame = getCityCameraFrame(
     { x: 0, z: 0 },
     { yaw: 0, pitch: 0 },

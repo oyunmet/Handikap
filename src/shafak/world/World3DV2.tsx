@@ -182,12 +182,13 @@ function WorldV2Camera({
       const sightDistance = direction.length();
       if (sightDistance > 0.25) {
         direction.normalize();
+        cameraOcclusionFader.restoreHiddenInstancesForScan();
         raycaster.set(camera.position, direction);
         raycaster.far = sightDistance - 0.25;
         const lineOfSightHits = raycaster
           .intersectObjects(cameraCollisionTargetsRef.current, true)
           .filter(({ object }) => isEffectivelyVisible(object));
-        cameraOcclusionFader.update(lineOfSightHits.map(({ object }) => object));
+        cameraOcclusionFader.updateHits(lineOfSightHits);
       } else {
         cameraOcclusionFader.clear();
       }

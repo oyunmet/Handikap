@@ -111,8 +111,8 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
     materials.add(instance);
     return instance;
   };
-  const cloth = material(appearance.armor ?? appearance.dyeColor ?? "#386b65");
-  const clothLight = material(appearance.armorLight ?? "#5a8a7e");
+  const cloth = material(appearance.armor ?? appearance.dyeColor ?? "#3e7155");
+  const clothLight = material(appearance.armorLight ?? "#72906c");
   const dark = material(appearance.armorDark ?? "#493a31");
   const steel = material(appearance.armorLight ?? "#7c8589", 0.42, 0.46);
   const steelEdge = material(appearance.trim ?? "#c49b5b", 0.36, 0.52);
@@ -121,9 +121,9 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   const leatherLight = material("#75513a", 0.8, 0.04);
   const glove = material(appearance.gloveColor ?? "#443632");
   const boot = material(appearance.bootColor ?? "#49352e");
-  const cape = material(appearance.cape ?? "#8f3540", 0.9);
+  const cape = material(appearance.cape ?? "#4e684a", 0.9);
   const skin = material("#c58c68");
-  const hairColor = appearance.hairColor ?? appearance.helmetColor ?? "#c99b43";
+  const hairColor = appearance.hairColor ?? appearance.helmetColor ?? "#d1a34a";
   const hair = material(hairColor);
   const hairHighlight = material(
     new THREE.Color(hairColor).lerp(new THREE.Color("#ffe29a"), 0.24).getStyle(),
@@ -244,7 +244,7 @@ export function createProceduralHeroRig(appearance: EquipmentVisual = {}): Proce
   addSphere(rig.torso, 0.045, steelEdge, [0, 0.34, -0.035], rig, [1.1, 0.8, 0.65]);
 
   rig.head = group(rig.torso, "Head", [0, 0.48, 0]);
-  rig.head.scale.set(1.08, 1.12, 1.06);
+  rig.head.scale.set(1.2, 1.2, 1.16);
   addMesh(
     rig.head,
     createHumanLimbGeometry("shin"),
