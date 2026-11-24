@@ -30,7 +30,7 @@ test("residents stay outside building collision footprints and inside city bound
   }
 });
 
-test("city residents use distinct campaign models and keep glasses unobstructed", () => {
+test("city residents share the campaign hero model and keep glasses unobstructed", () => {
   const modelPaths = new Set();
   for (const resident of CITY_RESIDENTS) {
     const profile = getWorldBotProfileByArchetype(resident.archetype);
@@ -46,10 +46,5 @@ test("city residents use distinct campaign models and keep glasses unobstructed"
       assert.equal(model.costume.helmet, false);
     }
   }
-  assert.deepEqual(modelPaths, new Set([
-    "/models/player-hero.glb",
-    "/models/base-character.glb",
-    "/models/human.glb",
-    "/models/gece-nobetcisi.glb",
-  ]));
+  assert.deepEqual(modelPaths, new Set(["/models/player-hero.glb"]));
 });

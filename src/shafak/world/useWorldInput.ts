@@ -10,6 +10,10 @@ import {
   type WorldTouchAction,
 } from "./world-touch-actions";
 import type { WorldActionState } from "./world-movement-machine";
+import {
+  getDynamicJoystickVector,
+  getWorldPointerControlSide,
+} from "./world-input-controls";
 
 type Vector = { x: number; y: number };
 
@@ -53,19 +57,11 @@ export default function useWorldInput(wake: () => void) {
     if (joystickPointerId.current !== event.pointerId) return;
     const origin = joystickOrigin.current;
     if (!origin) return;
-    const rawX = (event.clientX - origin.x) / origin.radius;
-    const rawY = (origin.y - event.clientY) / origin.radius;
-    const length = Math.hypot(rawX, rawY);
-    const deadZone = 0.12;
-    if (length <= deadZone) {
-      joystick.current = { x: 0, y: 0 };
-    } else {
-      const strength = (Math.min(1, length) - deadZone) / (1 - deadZone);
-      joystick.current = {
-        x: (rawX / length) * strength,
-        y: (rawY / length) * strength,
-      };
-    }
+    joystick.current = getDynamicJoystickVector(
+      event.clientX - origin.x,
+      event.clientY - origin.y,
+      origin.radius,
+    );
     const nub = joystickVisualRef.current?.querySelector<HTMLElement>(".world-joystick__nub");
     nub?.style.setProperty(
       "transform",
@@ -76,8 +72,12 @@ export default function useWorldInput(wake: () => void) {
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button, a, [role='button'], .world-panel, .world-joystick, .world-debug")) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    const isLeftMovementArea = event.clientX < bounds.left + bounds.width * 0.5;
-    if (isLeftMovementArea && joystickPointerId.current === null) {
+    const controlSide = getWorldPointerControlSide(
+      event.clientX,
+      bounds.left,
+      bounds.width,
+    );
+    if (controlSide === "movement" && joystickPointerId.current === null) {
       event.preventDefault();
       joystickPointerId.current = event.pointerId;
       const radius = 54;
@@ -92,7 +92,7 @@ export default function useWorldInput(wake: () => void) {
       });
       try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional. */ }
       updateJoystick(event);
-    } else if (!isLeftMovementArea && lookPointerId.current === null) {
+    } else if (controlSide === "look" && lookPointerId.current === null) {
       event.preventDefault();
       lookPointerId.current = event.pointerId;
       lookPointerX.current = event.clientX;

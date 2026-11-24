@@ -15,6 +15,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import * as THREE from "three";
+import { KNIGHT_CONFIG } from "./knight-config";
 import {
   WAR_ROOM_BLOCKERS,
   WAR_ROOM_CHARACTER_HEIGHT,
@@ -1284,10 +1285,12 @@ function ProceduralPlayerFallback() {
     <HumanCharacterFallback
       height={WAR_ROOM_CHARACTER_HEIGHT}
       appearance={{
-        armor: "#47575a",
-        armorLight: "#9f855b",
-        armorDark: "#303338",
-        trim: "#963c35",
+        armor: "#2f765d",
+        armorLight: "#b18a3d",
+        armorDark: "#38312b",
+        trim: "#c5963c",
+        helmetColor: "#d8a640",
+        cape: "#584734",
       }}
     />
   );
@@ -1665,7 +1668,8 @@ function PlayerActor({
       <WarRoomAssetBoundary fallback={<ProceduralPlayerFallback />}>
         <Suspense fallback={<ProceduralPlayerFallback />}>
           <WarRoomAnimatedActor
-            src="/models/kuzgun-soldier.glb"
+            src={KNIGHT_CONFIG.modelPath}
+            tint="#2f765d"
             height={WAR_ROOM_CHARACTER_HEIGHT}
             state={playerAnimation}
             playbackScale={playerPlaybackScale}
@@ -1914,7 +1918,7 @@ function EnemyActor({
       <WarRoomAssetBoundary fallback={fallback}>
         <Suspense fallback={fallback}>
           <WarRoomAnimatedActor
-            src="/models/kuzgun-soldier.glb"
+            src={KNIGHT_CONFIG.modelPath}
             height={characterHeight}
             tint={tint}
             commander={enemy.commander}

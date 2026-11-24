@@ -25,12 +25,10 @@ test("rival archetypes select fitted, independently skinned hero bases and bound
     return getAnimatedRivalModelConfig(profile.name, profile);
   });
 
-  assert.deepEqual(new Set(configs.map((config) => config.modelPath)), new Set([
-    "/models/player-hero.glb",
-    "/models/human.glb",
-    "/models/base-character.glb",
-    "/models/gece-nobetcisi.glb",
-  ]));
+  assert.deepEqual(
+    new Set(configs.map((config) => config.modelPath)),
+    new Set(["/models/player-hero.glb"]),
+  );
   for (const config of configs.slice(0, -1)) {
     assert.ok(config.scale >= 0.95 && config.scale <= 1.1);
     assert.equal(config.targetHeight, 1.8);
@@ -75,15 +73,15 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(venomConfig.weapon, "daggers");
   assert.equal(frostConfig.appearance.armorLight, "#c8e1e5");
   assert.equal(frostConfig.weapon, "bow");
-  assert.equal(bossConfig.modelPath, "/models/kuzgun-soldier.glb");
+  assert.equal(bossConfig.modelPath, "/models/player-hero.glb");
   assert.equal(bossConfig.targetHeight, 2.15);
   assert.equal(worldBossConfig.targetHeight, 1.95);
-  assert.equal(bossConfig.rootBoneName, "Hips");
+  assert.equal(bossConfig.rootBoneName, "Root");
   assert.equal(bossConfig.modelFacing, Math.PI);
   assert.equal(bossConfig.modelRotation, undefined);
-  assert.equal(bossConfig.tintStrength, 0.12);
+  assert.equal(bossConfig.tintStrength, 0);
   assert.equal(bossConfig.weapon, "greatsword");
-  assert.ok(bossConfig.animationClips.run?.includes("run"));
+  assert.ok(bossConfig.animationClips.run?.includes("Run"));
   assert.equal(bossConfig.isDemirTac, true);
   assert.equal(bossConfig.materialNameAliases.cape.includes("cape"), true);
   assert.equal(bossConfig.isBoss, true);

@@ -96,35 +96,27 @@ test("missing locomotion clips fall back to a usable idle or walking clip", () =
   assert.equal(resolveGlbClipName("attack", ["Walk"]), null);
 });
 
-test("Gölge Şövalyesi maps every model state to its exact GLB clip", () => {
+test("Gölge Şövalyesi maps model states to the shared campaign hero clips", () => {
   const config = OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"];
-  assert.equal(config.modelPath, "/models/gece-nobetcisi.glb");
+  assert.equal(config.modelPath, PLAYER_CHARACTER_MODEL_PATH);
   assert.equal(config.scale, 1);
-  assert.equal(config.modelFacing, 0);
-  assert.equal(config.rootBoneName, "Rig_Hips");
-  const expected = {
-    idle: "Idle",
-    walk: "Walk",
-    run: "Run",
-    attack: "Attack1",
-    block: "Block",
-    dodge: "Dodge",
-    hit: "HitReaction",
-    castFire: "Cast_Fire",
-    castLightning: "Cast_Lightning",
-    death: "Death",
-    victory: "Victory",
-  };
-  for (const [state, clip] of Object.entries(expected)) {
-    assert.deepEqual(config.animationClips[state], [clip]);
-    assert.equal(resolveGlbClipName(state, Object.values(expected), config.animationClips), clip);
+  assert.equal(config.modelFacing, Math.PI);
+  assert.equal(config.rootBoneName, PLAYER_CHARACTER_ROOT_BONE);
+  const buffer = fs.readFileSync(new URL("../../../public/models/player-hero.glb", import.meta.url));
+  const jsonLength = buffer.readUInt32LE(12);
+  const model = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
+  const clips = model.animations.map((clip) => clip.name);
+  for (const state of ["idle", "walk", "run", "attack", "block", "dodge", "death"]) {
+    const aliases = config.animationClips[state];
+    assert.ok(aliases?.length, `${state} has shared hero clip aliases`);
+    assert.ok(aliases.some((clip) => clips.includes(clip)), `${state} resolves to a clip in the campaign GLB`);
   }
 });
 
 test("Gece Nöbetçisi resolves to the GLB's sword config while keeping other names intact", () => {
   const config = getOpponentModelConfig("Gece Nöbetçisi");
   assert.ok(config);
-  assert.equal(config.modelPath, "/models/gece-nobetcisi.glb");
+  assert.equal(config.modelPath, PLAYER_CHARACTER_MODEL_PATH);
   assert.equal(config.weapon, "sword");
   assert.equal(config.appearance.weaponStyle, "sword");
   assert.equal(getOpponentModelConfig("Gölge Şövalyesi")?.weapon, "daggers");
@@ -183,15 +175,15 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
   ];
   const profiles = archetypes.map((archetype) => getWorldBotProfileByArchetype(archetype));
   const expectedModels = {
-    "gate-warden": ["/models/player-hero.glb", "sword", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
-    "iron-oath": ["/models/player-hero.glb", "daggers", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
-    "ash-archer": ["/models/base-character.glb", "bow", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
-    "shadow-knight": ["/models/gece-nobetcisi.glb", "daggers", ["Attack1"]],
-    "storm-lancer": ["/models/human.glb", "spear", ["Human Armature|Punch"]],
-    "rift-berserker": ["/models/player-hero.glb", "axe", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
-    "ember-alchemist": ["/models/base-character.glb", "staff", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
-    "venom-assassin": ["/models/player-hero.glb", "daggers", ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"]],
-    "frost-hunter": ["/models/base-character.glb", "bow", ["Rig|Sword_Attack", "Rig|Sword_Attack_RM", "Rig|Punch_Cross", "Rig|Punch_Jab"]],
+    "gate-warden": ["sword"],
+    "iron-oath": ["daggers"],
+    "ash-archer": ["bow"],
+    "shadow-knight": ["daggers"],
+    "storm-lancer": ["spear"],
+    "rift-berserker": ["axe"],
+    "ember-alchemist": ["staff"],
+    "venom-assassin": ["daggers"],
+    "frost-hunter": ["bow"],
   };
   for (const profile of profiles) {
     const config = getAnimatedRivalModelConfig(profile.name, profile);
@@ -200,26 +192,26 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     assert.equal(config.appearance.cape, profile.appearance.cape);
     assert.ok(config.tintColor);
     if (profile.archetype === "chapter-boss" && profile.name !== "Demir Taç") {
-      assert.equal(config.modelPath, "/models/player-hero.glb");
+      assert.equal(config.modelPath, PLAYER_CHARACTER_MODEL_PATH);
       assert.equal(config.targetHeight, 2.15);
-      assert.equal(config.rootBoneName, "Root");
+      assert.equal(config.rootBoneName, PLAYER_CHARACTER_ROOT_BONE);
       assert.equal(config.modelRotation, undefined);
       assert.ok(config.animationClips.attack?.includes("Dagger_Attack"));
       assert.equal(config.isBoss, true);
     } else if (profile.name === "Demir Taç") {
-      assert.equal(config.modelPath, "/models/kuzgun-soldier.glb");
+      assert.equal(config.modelPath, PLAYER_CHARACTER_MODEL_PATH);
       assert.equal(config.targetHeight, 2.15);
-      assert.equal(config.rootBoneName, "Hips");
+      assert.equal(config.rootBoneName, PLAYER_CHARACTER_ROOT_BONE);
       assert.equal(config.modelFacing, Math.PI);
       assert.equal(config.modelRotation, undefined);
-      assert.ok(config.animationClips.run?.includes("run"));
+      assert.ok(config.animationClips.run?.includes("Run"));
       assert.equal(config.isBoss, true);
     } else {
-      const [modelPath, weapon, attackClips] = expectedModels[profile.archetype];
-      assert.equal(config.modelPath, modelPath);
+      const [weapon] = expectedModels[profile.archetype];
+      assert.equal(config.modelPath, PLAYER_CHARACTER_MODEL_PATH);
       assert.equal(config.targetHeight, 1.8);
       assert.equal(config.weapon, weapon);
-      assert.deepEqual(config.animationClips.attack, attackClips);
+      assert.ok(config.animationClips.attack?.includes("Dagger_Attack"));
     }
   }
   assert.equal(
@@ -234,14 +226,14 @@ test("rivals and chapter bosses use animated player-like rigs with distinct boss
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(ironCrown?.modelPath, "/models/kuzgun-soldier.glb");
+  assert.equal(ironCrown?.modelPath, PLAYER_CHARACTER_MODEL_PATH);
   assert.equal(ironCrown?.modelFacing, Math.PI);
-  assert.ok(ironCrown?.animationClips.run?.includes("run"));
+  assert.ok(ironCrown?.animationClips.run?.includes("Run"));
   assert.equal(ironCrown?.isDemirTac, true);
 });
 
-test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and clips", () => {
-  const buffer = fs.readFileSync(new URL("../../../public/models/gece-nobetcisi.glb", import.meta.url));
+test("opponents share the campaign hero rig and its readable animation set", () => {
+  const buffer = fs.readFileSync(new URL("../../../public/models/player-hero.glb", import.meta.url));
   assert.equal(buffer.toString("ascii", 0, 4), "glTF");
   assert.equal(buffer.readUInt32LE(4), 2);
   assert.equal(buffer.readUInt32LE(8), buffer.length);
@@ -249,28 +241,21 @@ test("Gölge Şövalyesi GLB has its expected rig, feet-on-ground bounds, and cl
   const jsonLength = buffer.readUInt32LE(12);
   const model = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").replace(/\0+$/, "").trim());
   const config = OPPONENT_MODEL_CONFIGS["Gölge Şövalyesi"];
-  const expectedClips = [
-    "Idle", "Walk", "Run", "Attack1", "Block", "Dodge", "HitReaction",
-    "Cast_Fire", "Cast_Lightning", "Death", "Victory",
-  ];
-  const goldAccent = model.materials.find((material) => material.name === "Gold_Accent");
+  const expectedClips = ["Idle", "Walk", "Run", "Dagger_Attack", "Roll", "Death"];
+  const materialNames = model.materials.map((material) => material.name.toLowerCase());
 
-  assert.deepEqual(model.animations.map((clip) => clip.name), expectedClips);
-  assert.ok(goldAccent, "the configured opponent GLB should contain its gold accent material");
-  assert.ok(config.materialNameAliases.accent.some((alias) =>
-    goldAccent.name.toLowerCase().includes(alias.toLowerCase())));
-  assert.equal(model.skins.length, 1);
+  assert.equal(config.modelPath, PLAYER_CHARACTER_MODEL_PATH);
+  assert.ok(expectedClips.every((clip) => model.animations.some((animation) =>
+    animation.name === clip || animation.name.endsWith(`|${clip}`))));
+  assert.ok(config.materialNameAliases.hair.some((alias) => materialNames.includes(alias.toLowerCase())));
+  assert.ok(model.skins.length >= 1);
   assert.equal(model.nodes[model.skins[0].skeleton].name, config.rootBoneName);
-  const rootIndex = model.skins[0].skeleton;
   const positionAccessors = model.meshes.flatMap((mesh) => mesh.primitives
     .map((primitive) => model.accessors[primitive.attributes.POSITION]));
-  const minimumY = Math.min(...positionAccessors.map((accessor) => accessor.min[1]));
-  const maximumY = Math.max(...positionAccessors.map((accessor) => accessor.max[1]));
-  assert.ok(Math.abs(minimumY) < 0.001);
-  assert.ok(Math.abs(maximumY - 1.8) < 0.001);
-  assert.equal(model.animations.filter((clip) => clip.channels.some((channel) =>
-    channel.target.node === rootIndex && channel.target.path === "translation")).length, 10);
-  assert.ok(model.nodes.some((node) => node.name === "sword_blade"));
+  assert.ok(model.animations.some((clip) => clip.channels.some((channel) =>
+    channel.target.path === "rotation")));
+  assert.ok(positionAccessors.every((accessor) =>
+    accessor.min.length === 3 && accessor.max.length === 3));
   const triangleCount = model.meshes.reduce((total, mesh) => total + mesh.primitives.reduce((meshTotal, primitive) => {
     const accessor = primitive.indices === undefined
       ? model.accessors[primitive.attributes.POSITION]

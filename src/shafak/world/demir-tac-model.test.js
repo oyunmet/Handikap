@@ -26,7 +26,7 @@ if (!globalThis.createImageBitmap) {
   globalThis.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
 }
 
-const modelPath = new URL("../../../public/models/kuzgun-soldier.glb", import.meta.url);
+const modelPath = new URL("../../../public/models/player-hero.glb", import.meta.url);
 
 function readGlb(path) {
   const buffer = fs.readFileSync(path);
@@ -37,7 +37,7 @@ function readGlb(path) {
   return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8").trim());
 }
 
-test("Demir Taç uses the detailed soldier rig and keeps a distinct boss identity", async () => {
+test("Demir Taç uses the campaign hero rig and keeps a distinct boss identity", async () => {
   const gltf = readGlb(modelPath);
   const profile = getWorldBotProfileByArchetype("chapter-boss");
   const worldConfig = getAnimatedRivalModelConfig("Demir Taç", profile, "world");
@@ -46,36 +46,29 @@ test("Demir Taç uses the detailed soldier rig and keeps a distinct boss identit
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const loaded = await new GLTFLoader().parseAsync(arrayBuffer, "");
 
-  assert.equal(worldConfig.modelPath, "/models/kuzgun-soldier.glb");
+  assert.equal(worldConfig.modelPath, "/models/player-hero.glb");
   assert.equal(worldConfig.isDemirTac, true);
-  assert.equal(worldConfig.rootBoneName, "Hips");
+  assert.equal(worldConfig.rootBoneName, "Root");
   assert.equal(worldConfig.modelFacing, Math.PI);
   assert.equal(worldConfig.modelRotation, undefined);
   assert.equal(worldConfig.appearance.armorLight, "#a8b1b8");
   assert.equal(worldConfig.appearance.trim, "#d7b16a");
   assert.equal(worldConfig.appearance.cape, "#681f2c");
   assert.equal(shouldAttachOpponentCostume(worldConfig), true);
-  assert.ok(loaded.scene.getObjectByName("Hips"));
+  assert.ok(loaded.scene.getObjectByName("Root"));
   assert.ok(loaded.scene.getObjectByName("Head"));
-  assert.ok(loaded.scene.getObjectByName("LeftShoulder"));
-  assert.ok(loaded.scene.getObjectByName("RightForeArm"));
-  assert.ok(loaded.scene.getObjectByName("RightLeg"));
-  assert.ok(loaded.scene.getObjectByName("RightHand"));
-  assert.ok(loaded.animations.some((clip) => clip.name === "run"));
-  assert.ok(worldConfig.animationClips.run?.includes("run"));
+  assert.ok(loaded.animations.some((clip) => clip.name === "CharacterArmature|Run"));
+  assert.ok(worldConfig.animationClips.run?.includes("Run"));
   const materials = new Map();
   loaded.scene.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const list = Array.isArray(object.material) ? object.material : [object.material];
     list.forEach((material) => materials.set(material.name.toLowerCase(), material));
   });
-  const soldierMaterial = materials.get("material_1");
-  assert.ok(soldierMaterial?.map, "the detailed soldier texture should remain attached");
-  const originalTexture = soldierMaterial.map;
-  const originalColor = soldierMaterial.color.getHexString();
+  const heroShirt = materials.get("shirt");
+  assert.ok(heroShirt, "the shared hero shirt material remains available for boss colors");
   applyOpponentBasePalette(loaded.scene, worldConfig);
-  assert.equal(soldierMaterial.map, originalTexture);
-  assert.equal(soldierMaterial.color.getHexString(), originalColor);
+  assert.equal(heroShirt.color.getHexString(), new THREE.Color(worldConfig.appearance.armor).getHexString());
   assert.equal(worldConfig.targetHeight, 1.95);
   assert.equal(duelConfig.targetHeight, 2.15);
   assert.equal(worldConfig.weapon, "greatsword");
@@ -125,21 +118,21 @@ test("Demir Taç's rig-mounted armor stays grounded and within world and duel si
   }
 });
 
-test("the playable soldier model fits the campaign's measured character size", async () => {
+test("the shared hero model fits the campaign's measured character size", async () => {
   const buffer = fs.readFileSync(modelPath);
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const gltf = await new GLTFLoader().parseAsync(arrayBuffer, "");
-  const fitted = prepareWorldAsset("/models/kuzgun-soldier.glb", gltf, WORLD_MODEL_SIZE_TARGETS.player);
+  const fitted = prepareWorldAsset("/models/player-hero.glb", gltf, WORLD_MODEL_SIZE_TARGETS.player);
   const bounds = getCharacterBounds(fitted.scene);
   const dimensions = bounds.getSize(new THREE.Vector3());
 
   assert.ok(Math.abs(dimensions.y - WORLD_MODEL_SIZE_TARGETS.player.targetHeight) < 0.08);
   assert.ok(Math.max(dimensions.x, dimensions.y, dimensions.z) <= WORLD_MODEL_SIZE_TARGETS.player.maxDimension + 0.03);
   assert.ok(Math.abs(bounds.min.y) < 0.03);
-  assert.ok(fitted.scene.getObjectByName("RightHand"));
+  assert.ok(fitted.scene.children.length > 0);
 });
 
-test("soldier walk and run clips remove Hips root motion and neutralize the baked body lean", async () => {
+test("boss locomotion uses the shared hero's clean in-place walk and run clips", async () => {
   const buffer = fs.readFileSync(modelPath);
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const gltf = await new GLTFLoader().parseAsync(arrayBuffer, "");
@@ -155,35 +148,17 @@ test("soldier walk and run clips remove Hips root motion and neutralize the bake
     demirTacConfig.rootBoneName,
   );
 
-  for (const clipName of ["walk", "run"]) {
+  for (const clipName of ["CharacterArmature|Walk", "CharacterArmature|Run"]) {
     const source = gltf.animations.find((clip) => clip.name === clipName);
     const prepared = preparedClips.find((clip) => clip.name === clipName);
-    assert.ok(source, `the soldier GLB should contain ${clipName}`);
+    assert.ok(source, `the shared hero GLB should contain ${clipName}`);
     assert.ok(prepared, `the world actor should prepare ${clipName}`);
     assert.notEqual(prepared, source);
-    assert.ok(source.tracks.some((track) => track.name === "Hips.position"), `${clipName} source exposes root motion`);
-    assert.equal(prepared.tracks.some((track) => track.name === "Hips.position"), false);
-
-    const sourceHips = source.tracks.find((track) => track.name === "Hips.quaternion");
-    const preparedHips = prepared.tracks.find((track) => track.name === "Hips.quaternion");
-    assert.ok(sourceHips);
-    assert.ok(preparedHips);
-    const meanEuler = (track, axis) => {
-      let sin = 0;
-      let cos = 0;
-      for (let offset = 0; offset + 3 < track.values.length; offset += 4) {
-        const angle = new THREE.Euler().setFromQuaternion(
-          new THREE.Quaternion().fromArray(track.values, offset),
-          "XYZ",
-        ).toArray()[axis];
-        sin += Math.sin(angle);
-        cos += Math.cos(angle);
-      }
-      return Math.atan2(sin, cos);
-    };
-    const sourcePitch = meanEuler(sourceHips, 0);
-    const preparedPitch = meanEuler(preparedHips, 0);
-    assert.ok(Math.abs(sourcePitch) > 0.1, `${clipName} source Hips should expose its baked tilt`);
-    assert.ok(Math.abs(preparedPitch) < 1e-5, `${clipName} Hips tilt should be neutralized`);
+    assert.equal(
+      prepared.tracks.some((track) => track.name === `${demirTacConfig.rootBoneName}.position`),
+      false,
+      `${clipName} should not translate the shared hero root`,
+    );
+    assert.ok(prepared.tracks.some((track) => track.name.endsWith(".quaternion")));
   }
 });

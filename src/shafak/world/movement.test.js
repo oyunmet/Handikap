@@ -14,7 +14,6 @@ import {
 } from "./movement.ts";
 import {
   getWorldV2CameraOffset,
-  getWorldV2Heading,
   WORLD_V2_CONFIG,
 } from "./world-v2-config.ts";
 
@@ -228,22 +227,36 @@ test("camera drag changes its orbit while movement follows the new view directio
   assert.ok(state.cameraHeading < 0);
   assert.ok(state.cameraPitch > 0.3);
   assert.ok(state.distance > 12);
-  const frontYaw = getWorldV2Heading(state.velocityX, state.velocityY) + WORLD_V2_CONFIG.modelFacing;
+  const frontYaw = state.cameraHeading + WORLD_V2_CONFIG.modelFacing;
   const heroFront = { x: Math.sin(frontYaw), z: Math.cos(frontYaw) };
   const cameraOffset = getWorldV2CameraOffset(state.cameraHeading, WORLD_V2_CONFIG.camera.distanceBehind);
   assert.ok(heroFront.x * cameraOffset.x + heroFront.z * cameraOffset.z < -3);
 });
 
-test("strafe turns the hero toward travel without rotating the follow camera", () => {
+test("strafe keeps the avatar and follow camera facing the same direction", () => {
   let state = createWorldMotion();
   const right = readWorldInput(new Set(), { x: 1, y: 0 });
   for (let index = 0; index < 20; index += 1) {
     state = stepWorldMotion(state, right, 1 / 60);
   }
-  const actorYaw = getWorldV2Heading(state.velocityX, state.velocityY);
-  const frontYaw = actorYaw + WORLD_V2_CONFIG.modelFacing;
-  assert.ok(Math.sin(frontYaw) > 0.99);
+  assert.ok(state.velocityX > 0, "the joystick still moves the player to the right");
   assert.equal(state.cameraHeading, 0);
+  const frontYaw = state.cameraHeading + WORLD_V2_CONFIG.modelFacing;
+  const front = { x: Math.sin(frontYaw), z: Math.cos(frontYaw) };
+  const camera = getWorldV2CameraOffset(state.cameraHeading, WORLD_V2_CONFIG.camera.distanceBehind);
+  assert.ok(front.x * camera.x + front.z * camera.z < -3);
+});
+
+test("backward joystick input stays backward after turning the camera around", () => {
+  const state = createWorldMotion(12);
+  state.cameraHeading = Math.PI;
+  const backward = readWorldInput(new Set(), { x: 0, y: -1 });
+  const next = stepWorldMotion(state, backward, 1 / 60);
+  assert.ok(next.velocityY > 0, "down moves opposite the character's new forward direction");
+  const frontYaw = state.cameraHeading + WORLD_V2_CONFIG.modelFacing;
+  const front = { x: Math.sin(frontYaw), z: Math.cos(frontYaw) };
+  const camera = getWorldV2CameraOffset(state.cameraHeading, WORLD_V2_CONFIG.camera.distanceBehind);
+  assert.ok(front.x * camera.x + front.z * camera.z < -3);
 });
 
 test("the player stays 0.6 m inside the road edge and gets a small inward push", () => {

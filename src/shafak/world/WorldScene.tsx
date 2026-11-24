@@ -60,7 +60,7 @@ import {
 import type { PlayerCombatModifiers } from "../game/store-types";
 import { rollCombatLoot } from "../game/combat-loot.ts";
 import {
-  DUEL_CAMERA_OFFSETS,
+  DUEL_CAMERA_HEADING,
   DUEL_CAMERA_OFFSET,
   clampDuelCameraOffset,
   getDuelCameraFollowHeading,
@@ -2212,7 +2212,7 @@ export default function WorldScene({
           combat.bot,
           duelCameraHeadingRef.current,
         )
-      : Math.PI * 7 / 8;
+      : DUEL_CAMERA_HEADING;
     const input = getDuelCameraRelativeInput(
       Math.max(-1, Math.min(1, x)),
       Math.max(-1, Math.min(1, y)),
@@ -3466,7 +3466,7 @@ export default function WorldScene({
               className="world-duel-camera-angle"
               onClick={rotateDuelCamera}
               aria-label="Düello kamera açısını değiştir"
-              title={`Kamera açısı ${DUEL_CAMERA_OFFSETS.indexOf(duelCameraHeading as (typeof DUEL_CAMERA_OFFSETS)[number]) + 1}/3`}
+              title="Kamera açısını değiştir"
             >
               <span aria-hidden="true">↻</span>
               <b>KAMERA AÇISI</b>

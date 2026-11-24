@@ -66,14 +66,16 @@ import {
   type DuelVfxKind,
 } from "./duel-vfx";
 import {
-  DUEL_CAMERA_HEADING,
+  DUEL_CAMERA_OFFSET,
   DUEL_CAMERA_TOUCH_FOV,
   getDuelCameraFramingDistance,
+  getDuelCameraFollowHeading,
   getDuelCameraPose,
   getDuelFacingAngle,
   getDuelJumpHeight,
 } from "../game/duel-camera";
 import { WORLD_GATE_INTERVAL_METERS, WORLD_ROAD_WIDTH } from "./movement";
+import { getWorldV2CameraOffset } from "./world-v2-config";
 import { getNearestWorldLabelIds, type WorldLabelCandidate } from "./world-label-layout";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { nextGateDistanceForCamera } from "./world-generation";
@@ -527,21 +529,26 @@ function CameraRig({
       );
       const duelFov = touchRenderer ? DUEL_CAMERA_TOUCH_FOV : 52;
       const duelAspect = viewport.width / Math.max(1, viewport.height);
+      const duelCameraHeading = getDuelCameraFollowHeading(
+        combat.player,
+        combat.bot,
+        duelCameraHeadingRef.current ?? DUEL_CAMERA_OFFSET,
+      );
       const cameraBack = getDuelCameraFramingDistance(
         combat.player,
         combat.bot,
         duelAspect,
         duelFov - 4,
         touchRenderer ? 6.2 : 6.8,
-        duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
+        duelCameraHeading,
       );
       const pose = getDuelCameraPose(
         combat.player,
         combat.bot,
         cameraBack,
-        touchRenderer ? 1.15 : 0.9,
+        touchRenderer ? 0.28 : 0.34,
         jumpLift,
-        duelCameraHeadingRef.current ?? DUEL_CAMERA_HEADING,
+        duelCameraHeading,
       );
       desiredRef.set(pose.position.x, pose.position.y, pose.position.z);
       targetRef.set(pose.target.x, pose.target.y, pose.target.z);
@@ -551,7 +558,9 @@ function CameraRig({
       const rivalX = focusedRival.x;
       const orbit = cinematicIntro && !motionReduced ? Math.sin(_.clock.elapsedTime * 1.35) * 0.78 : 0;
       const orbitDepth = cinematicIntro && !motionReduced ? Math.cos(_.clock.elapsedTime * 1.35) * 0.22 : 0;
-      desiredRef.set((playerX + rivalX) * 0.5 + 3.2 + orbit, 3.55 + Math.abs(orbit) * 0.12, -gap * 0.5 + 6.1 + orbitDepth);
+      const playerZ = -(motion.distance - motion.cameraX);
+      const rearOffset = getWorldV2CameraOffset(motion.cameraHeading, 6.1);
+      desiredRef.set(playerX + rearOffset.x + orbit, 3.55 + Math.abs(orbit) * 0.12, playerZ + rearOffset.z + orbitDepth);
       targetRef.set((playerX + rivalX) * 0.5 + orbit * 0.22, 1.15, -gap * 0.5);
     } else {
       desiredRef.set(lateral * 0.56, travelCamera.height, travelCamera.distanceBehind);
@@ -567,9 +576,7 @@ function CameraRig({
     else cameraOriginRef.set(lateral, 1.15, 0);
     cameraDirectionRef.copy(desiredRef).sub(cameraOriginRef);
     const requestedDistance = cameraDirectionRef.length();
-    // The duel arena is an isolated scene. World-scene occlusion hits can
-    // otherwise shorten the combat camera and push a fighter out of frame.
-    if (!combat && requestedDistance > 0.05) {
+    if (requestedDistance > 0.05) {
       cameraDirectionRef.multiplyScalar(1 / requestedDistance);
       cameraOccluderScanElapsedRef.current += Math.min(delta, 0.05);
       if (cameraOccluderScanElapsedRef.current >= 0.25) {
@@ -622,13 +629,15 @@ function CameraRig({
           cameraHitSignatureRef.current = signature;
         }
       }
-      const clearDistance = getCameraClearanceDistance(
-        requestedDistance,
-        obstructionDistanceRef.current,
-      );
-      cameraObstructed = clearDistance < requestedDistance;
-      collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
-      cameraTarget = collisionTargetRef;
+      if (!combat) {
+        const clearDistance = getCameraClearanceDistance(
+          requestedDistance,
+          obstructionDistanceRef.current,
+        );
+        cameraObstructed = clearDistance < requestedDistance;
+        collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
+        cameraTarget = collisionTargetRef;
+      }
     }
     if (enteringDuel) camera.position.copy(cameraTarget);
     else camera.position.lerp(cameraTarget, response);

@@ -4,14 +4,20 @@ import {
   DUEL_CAMERA_ARENA_CENTER_Z,
   DUEL_CAMERA_HEADINGS,
   DUEL_CAMERA_HEADING,
+  DUEL_CAMERA_MAX_OFFSET,
+  DUEL_CAMERA_OFFSETS,
+  DUEL_CAMERA_OFFSET,
   DUEL_CAMERA_PLAYER_FRAME_WEIGHT,
   DUEL_CAMERA_TOUCH_FOV,
   DUEL_JUMP_HEIGHT,
+  clampDuelCameraOffset,
   getDuelCameraFramingDistance,
+  getDuelCameraFollowHeading,
   getDuelCameraPose,
   getDuelCameraRelativeInput,
   getDuelFacingAngle,
   getDuelJumpHeight,
+  getNextDuelCameraOffset,
   getNextDuelCameraHeading,
   getUprightDuelRotation,
 } from "./duel-camera.ts";
@@ -25,38 +31,26 @@ test("duel camera angle control cycles through close rear-side views", () => {
   assert.ok(DUEL_CAMERA_HEADINGS.every((heading) => heading >= Math.PI * 0.75 && heading <= Math.PI));
 });
 
-test("duel camera keeps a stable world heading as fighters move and cross", () => {
-  const spawnPlayer = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
-  const spawnOpponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
-  const cameraHeading = DUEL_CAMERA_HEADING;
-  const spawnPose = getDuelCameraPose(spawnPlayer, spawnOpponent, 8.4, 1.2, 0, cameraHeading);
-  const movedPose = getDuelCameraPose(
-    { x: 3.1, z: -2.4 },
-    { x: -2.8, z: 1.9 },
-    8.4,
-    1.2,
-    0,
-    cameraHeading,
-  );
-  const headingFromTarget = (pose) => Math.atan2(
-    pose.position.x - pose.target.x,
-    pose.position.z - pose.target.z,
-  );
-  assert.ok(Math.abs(headingFromTarget(spawnPose) - headingFromTarget(movedPose)) < 1e-9);
-  assert.ok(Number.isFinite(movedPose.position.x) && Number.isFinite(movedPose.position.z));
-  const expectedTargetX = 3.1 * DUEL_CAMERA_PLAYER_FRAME_WEIGHT
-    + (-2.8) * (1 - DUEL_CAMERA_PLAYER_FRAME_WEIGHT);
-  assert.ok(Math.abs(movedPose.target.x - expectedTargetX) < 1e-9);
-  assert.ok(Math.abs(movedPose.target.z - -0.25) < 1e-9);
-  assert.ok(Math.abs(spawnPose.target.z) < 1, "duel camera target stays in the arena's local coordinate space");
-  assert.ok(Math.hypot(
-    spawnPose.position.x - spawnPose.target.x,
-    spawnPose.position.z - spawnPose.target.z,
-  ) >= 8);
-  assert.ok(Math.hypot(
-    movedPose.position.x - movedPose.target.x,
-    movedPose.position.z - movedPose.target.z,
-  ) >= 8);
+test("duel camera follows the opponent after fighters cross and keeps input relative", () => {
+  const player = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
+  const opponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
+  const beforeCrossing = getDuelCameraFollowHeading(player, opponent);
+  const afterCrossing = getDuelCameraFollowHeading(opponent, player);
+  assert.ok(Math.abs(Math.abs(beforeCrossing - afterCrossing) - Math.PI) < 1e-9);
+  assert.equal(DUEL_CAMERA_OFFSETS.length, 3);
+  assert.equal(getNextDuelCameraOffset(DUEL_CAMERA_OFFSET), DUEL_CAMERA_OFFSETS[2]);
+  assert.equal(getNextDuelCameraOffset(DUEL_CAMERA_OFFSETS[2]), DUEL_CAMERA_OFFSETS[0]);
+  assert.equal(clampDuelCameraOffset(10), DUEL_CAMERA_MAX_OFFSET);
+
+  for (const [actor, rival] of [[player, opponent], [opponent, player]]) {
+    const heading = getDuelCameraFollowHeading(actor, rival, DUEL_CAMERA_MAX_OFFSET);
+    const pose = getDuelCameraPose(actor, rival, 8.4, 0.25, 0, heading);
+    const facingX = Math.sin(getDuelCameraFollowHeading(actor, rival));
+    const facingZ = Math.cos(getDuelCameraFollowHeading(actor, rival));
+    const cameraX = pose.position.x - actor.x;
+    const cameraZ = pose.position.z - actor.z;
+    assert.ok(cameraX * facingX + cameraZ * facingZ < 0, "the camera remains behind the player");
+  }
 });
 
 test("procedural duel fighters turn their armored fronts toward one another", () => {
@@ -77,7 +71,7 @@ test("duel root rotations keep pitch and roll pinned to zero", () => {
   assert.deepEqual(getUprightDuelRotation(Number.NaN), [0, 0, 0]);
 });
 
-test("the camera keeps both fighters in a clear rear three-quarter frame", () => {
+test("the duel camera stays behind the player's current facing", () => {
   const player = { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const opponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const pose = getDuelCameraPose(player, opponent, 8.4, 0.45);
@@ -88,15 +82,10 @@ test("the camera keeps both fighters in a clear rear three-quarter frame", () =>
     + (pose.position.z - player.z) * (opponent.z - player.z);
   assert.ok(cameraToPlayerDot < 0, "camera must stay behind the player's facing direction");
 
-  const viewX = pose.target.x - pose.position.x;
-  const viewZ = pose.target.z - pose.position.z;
-  const viewLength = Math.hypot(viewX, viewZ);
-  const screenRightX = viewZ / viewLength;
-  const screenRightZ = -viewX / viewLength;
-  const duelX = opponent.x - player.x;
-  const duelZ = opponent.z - player.z;
-  const screenSeparation = screenRightX * duelX + screenRightZ * duelZ;
-  assert.ok(Math.abs(screenSeparation) > Math.hypot(duelX, duelZ) * 0.9, "the fighters should read side-by-side, not as a diagonal line");
+  const facing = getDuelCameraFollowHeading(player, opponent);
+  const cameraX = pose.position.x - player.x;
+  const cameraZ = pose.position.z - player.z;
+  assert.ok(cameraX * Math.sin(facing) + cameraZ * Math.cos(facing) < 0);
 });
 
 test("the mobile duel framing keeps both fighters on-screen and nearly level", () => {

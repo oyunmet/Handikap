@@ -26,7 +26,7 @@ import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
 import { attachHumanCharacterDetails } from "./human-character-details";
 
 export const WAR_ROOM_MODEL_URLS = [
-  "/models/kuzgun-soldier.glb",
+  KNIGHT_CONFIG.modelPath,
   "/models/war-room/wall.glb",
   "/models/war-room/tower-square.glb",
   "/models/war-room/tower-square-top.glb",

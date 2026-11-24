@@ -1555,7 +1555,6 @@
 .world-scene:not([data-battle="none"]) .world-topbar,
 .world-scene:not([data-battle="none"]) .world-progress,
 .world-scene:not([data-battle="none"]) .world-time-control,
-.world-scene:not([data-battle="none"]) .world-joystick,
 .world-scene:not([data-battle="none"]) .world-mobile-hint,
 .world-scene:not([data-battle="none"]) .world-encounter,
 .world-scene:not([data-battle="none"]) .world-breakable-action,
@@ -1905,6 +1904,7 @@
   box-shadow: 0 9px 25px rgba(0,0,0,.36), inset 0 1px rgba(255,239,211,.14), inset 0 -9px 18px rgba(0,0,0,.3);
   backdrop-filter: blur(5px);
 }
+.duel-controls--field .duel-stick-caption { display: none; }
 .duel-controls--field .duel-stick::before {
   inset: 21%;
   border-color: rgba(214, 188, 148, .26);

@@ -54,13 +54,13 @@ test("other chapter bosses still receive the shared animated-rig costume", () =>
   assert.equal(shouldAttachOpponentCostume(config), true);
 });
 
-test("Demir Taç uses the detailed soldier rig with mounted armor and crown", () => {
+test("Demir Taç uses the shared campaign rig with mounted armor and crown", () => {
   const config = getAnimatedRivalModelConfig(
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(config.modelPath, "/models/kuzgun-soldier.glb");
-  assert.ok(config.animationClips.run?.includes("run"));
+  assert.equal(config.modelPath, "/models/player-hero.glb");
+  assert.ok(config.animationClips.run?.includes("Run"));
   assert.equal(shouldAttachOpponentCostume(config), true);
 
   const model = new THREE.Group();
