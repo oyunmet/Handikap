@@ -1,12 +1,12 @@
 ---
-name: Fantasy Knight GLB axis and rig
-description: Coordinate and animation constraints of the legacy low-poly fantasy knight asset.
+name: Shared Fantasy Knight character base
+description: The required static character source, its axis conversion, and allowed visual variants.
 ---
 
-The legacy fantasy knight GLB is authored with Z-up coordinates and contains separate static meshes rather than a skeleton or animation clips. In the Three.js Y-up world, apply an X rotation of -90° before measuring and fitting its bounds. Do not treat its named meshes as rig bones.
+Use `/models/fantasy_knight.glb` as the sole visible character base in every game mode. It is authored with Z-up coordinates and contains separate static meshes rather than a skeleton or animation clips. In the Three.js Y-up world, apply an X rotation of -90° before measuring and fitting its bounds. Do not treat its named meshes as rig bones.
 
-Use the shared animated humanoid hero rig for Demir Taç, then attach its crown and layered armor to the corresponding bones. Include the finished gear when fitting its world and duel bounds. The user has asked for human-like, articulated visual detail across all in-game characters; keep each character's identity and gear distinct while applying that shared quality bar.
+Create character differences from this shared model using static outfit colors and accessories such as hats and glasses. Do not use alternate character base meshes, skeletal rigs, or character-body animation clips. Keep gameplay movement, facing, weapons, and combat behavior intact.
 
-**Why:** Without the axis conversion, the old source asset lies sideways. Its static, low-detail standalone runtime version also looked too simple and could not animate with the other fighters.
+**Why:** The user explicitly asked every character to derive from this exact GLB, with outfit/accessory variants, and asked to remove the other character animations.
 
-**How to apply:** Keep the source GLB out of runtime character selection. Use rig-mounted Demir Taç gear and measure after accessories are attached; preserve the established appearance of other rivals.
+**How to apply:** Route player, rival, NPC, city, preview, and War Room character bodies through the shared renderer. Keep the X-axis correction and fit after accessory placement; use only static visual variants.

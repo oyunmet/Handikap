@@ -11,7 +11,6 @@ import {
 } from "./movement";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
-import { KNIGHT_CONFIG } from "./knight-config";
 import { getAnimatedRivalModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import WorldV2Actor from "./WorldV2Actor";
@@ -26,6 +25,7 @@ import { getWorldV2CameraOffset, WORLD_V2_CONFIG } from "./world-v2-config";
 import { loadAsset } from "./world-v2-assets";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import type { WorldV2AssetTarget } from "./world-v2-config";
+import { FANTASY_KNIGHT_MODEL_PATH } from "./fantasy-knight-model";
 import { auditWorldMeshSizes, reportWorldMeshSizeIssues } from "./world-v2-audit";
 import type { WorldMeshSizeIssue } from "./world-v2-audit";
 import {
@@ -492,7 +492,7 @@ export default function World3DV2(props: World3DProps) {
     setDemirTacAsset(null);
     setAssetError("");
 
-    void loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player)
+    void loadAsset(FANTASY_KNIGHT_MODEL_PATH, WORLD_V2_CONFIG.player)
       .then((loadedPlayer) => {
         if (active) setAsset(loadedPlayer);
       })
@@ -502,7 +502,7 @@ export default function World3DV2(props: World3DProps) {
 
     // The optional boss model must never hold up the playable world or hero.
     if (hasDemirTacRival) {
-      void loadAsset(DEMIR_TAC_WORLD_CONFIG.modelPath, DEMIR_TAC_WORLD_ASSET_TARGET)
+      void loadAsset(FANTASY_KNIGHT_MODEL_PATH, DEMIR_TAC_WORLD_ASSET_TARGET)
         .then((loadedBoss) => {
           if (active) setDemirTacAsset(loadedBoss);
         })

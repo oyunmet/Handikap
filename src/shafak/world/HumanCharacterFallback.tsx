@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { EquipmentVisual } from "../game/store-types";
 import { createWorldMotion } from "./movement";
-import ProceduralHero from "./ProceduralHero";
+import FantasyKnightModel from "./FantasyKnightModel";
 
 type Props = {
   height: number;
@@ -12,7 +12,7 @@ type Props = {
 export default function HumanCharacterFallback({ height, appearance }: Props) {
   const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
   return (
-    <ProceduralHero
+    <FantasyKnightModel
       motionRef={motionRef}
       state="idle"
       motionReduced

@@ -1,33 +1,23 @@
 import { useFrame, useLoader } from "@react-three/fiber";
-import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
-import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { createPlayerLocomotionClip, isRootTranslationTrack, resolveGlbClipName } from "./model-animation";
 import {
-  cloneCharacterResources,
-  disposeCharacterResources,
-  fitCharacterModel,
   loadCharacter,
   type CharacterOwnedResources,
 } from "./character-model";
 import {
-  PLAYER_CHARACTER_ANIMATION_CLIPS,
   PLAYER_CHARACTER_MODEL_FACING,
-  PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
-import { KNIGHT_CONFIG } from "./knight-config";
 import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
 import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../game/war-room-data";
 import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
-import { attachHumanCharacterDetails } from "./human-character-details";
-import { createWorldMotion } from "./movement";
-import type { CharacterAnimationState } from "./character-animation";
 import type { EquipmentVisual } from "../game/store-types";
-import ProceduralHero from "./ProceduralHero";
+import FantasyKnightModel from "./FantasyKnightModel";
+import { getFantasyKnightHeadAccessory } from "./fantasy-knight-model";
 
 export const WAR_ROOM_MODEL_URLS = [
   "/models/war-room/wall.glb",
@@ -492,156 +482,8 @@ function attachCommanderCape(model: THREE.Group, resources: CharacterOwnedResour
   resources.materials.push(material);
 }
 
-export function LegacyWarRoomAnimatedActor({
-  src,
-  height,
-  tint,
-  commander = false,
-  state,
-  playbackScale,
-  modelRef,
-  afterAnimationFrame,
-  isPaused,
-}: AnimatedActorProps) {
-  const { scene, animations } = useLoader(GLTFLoader, src, loadCharacter) as GLTF;
-  const prepared = useMemo(() => {
-    const clone = cloneSkinned(scene) as THREE.Group;
-    // Actor materials are instance-owned, but their GLTF maps are immutable and shared.
-    // Cloning each map per actor created renderer texture growth across match remounts.
-    const resources = cloneCharacterResources(clone, { cloneTextures: false });
-    if (tint) {
-      const tintColor = new THREE.Color(tint);
-      clone.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        materials.forEach((material) => {
-          const name = material.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const colored = material as THREE.Material & { color?: THREE.Color };
-          if (!colored.color?.isColor) return;
-          if (name === "shirt" || name === "undershirt") colored.color.set(tintColor);
-          else if (name === "pants") colored.color.lerp(tintColor, 0.2);
-        });
-      });
-    }
-    clone.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = true;
-      object.receiveShadow = false;
-    });
-    fitCharacterModel(clone, height, src);
-    if (commander) attachCommanderCape(clone, resources);
-    const humanDetails = attachHumanCharacterDetails(clone, {
-      palette: {
-        armor: commander ? "#464c53" : "#484440",
-        armorLight: commander ? "#c5a267" : "#a18a67",
-        armorDark: "#303338",
-        trim: commander ? "#b84d42" : "#765a40",
-      },
-      frontSign: 1,
-    });
-    return { model: clone, resources, humanDetails };
-  }, [commander, height, scene, src, tint]);
-  const model = prepared.model;
-  const poseClips = useMemo(
-    () => createWarRoomPoseClips(model, src === KNIGHT_CONFIG.modelPath),
-    [model, src],
-  );
-  const animationClips = useMemo(
-    () => [
-      ...animations.map((clip) => {
-        const inPlaceClip = clip.clone();
-        inPlaceClip.tracks = inPlaceClip.tracks.filter(
-          (track) => !isRootTranslationTrack(
-            track.name,
-            src === KNIGHT_CONFIG.modelPath ? KNIGHT_CONFIG.rootBoneName : PLAYER_CHARACTER_ROOT_BONE,
-          ),
-        );
-        return createPlayerLocomotionClip(inPlaceClip);
-      }),
-      ...poseClips,
-    ],
-    [animations, poseClips],
-  );
-  const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
-  const activeAction = useRef<THREE.AnimationAction | null>(null);
-  const activeState = useRef<WarRoomAnimationState | null>(null);
-  const previousPlaybackSign = useRef(1);
-
-  useEffect(() => {
-    if (modelRef) modelRef.current = model;
-    return () => {
-      if (modelRef?.current === model) modelRef.current = null;
-      mixer.stopAllAction();
-      mixer.uncacheRoot(model);
-      activeAction.current = null;
-      activeState.current = null;
-      prepared.humanDetails.dispose();
-      disposeCharacterResources(prepared.resources);
-    };
-  }, [mixer, model, modelRef, prepared.resources]);
-
-  useFrame((_, delta) => {
-    if (isPaused?.()) return;
-    const nextState = state();
-    if (nextState !== activeState.current) {
-      const animationState = nextState === "death"
-        ? "die"
-        : nextState === "crouch"
-          ? "idle"
-          : nextState === "turn-left" || nextState === "turn-right"
-            ? "idle"
-          : nextState;
-      const clip = animationClips.find((candidate) => candidate.name === nextState)
-        ?? animationClips.find((candidate) => candidate.name === resolveGlbClipName(
-          animationState,
-          animationClips.map((item) => item.name),
-          src === KNIGHT_CONFIG.modelPath ? KNIGHT_CONFIG.animationClips : PLAYER_CHARACTER_ANIMATION_CLIPS,
-        ));
-      if (clip) {
-        const nextAction = mixer.clipAction(clip);
-        nextAction.reset().setEffectiveWeight(1).play();
-        if (activeAction.current) {
-          activeAction.current.crossFadeTo(nextAction, 0.18, false);
-        } else {
-          nextAction.fadeIn(0.18);
-        }
-        activeAction.current = nextAction;
-        if (
-          nextState === "death"
-          || nextState === "attack"
-          || nextState === "hit"
-          || nextState === "jump"
-        ) {
-          nextAction.setLoop(THREE.LoopOnce, 1).clampWhenFinished = true;
-        }
-        else nextAction.setLoop(THREE.LoopRepeat, Infinity);
-      }
-      activeState.current = nextState;
-    }
-    const requestedPlaybackScale = playbackScale?.() ?? 1;
-    const playbackSign = requestedPlaybackScale < 0 ? -1 : 1;
-    if (activeAction.current) {
-      if (playbackSign !== previousPlaybackSign.current) {
-        activeAction.current.time = playbackSign < 0 ? activeAction.current.getClip().duration : 0;
-      }
-      activeAction.current.timeScale = requestedPlaybackScale;
-    }
-    previousPlaybackSign.current = playbackSign;
-    mixer.update(Math.min(delta, 0.05));
-    afterAnimationFrame?.(model);
-  });
-
-  return (
-    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]}>
-      <primitive object={model} dispose={null} />
-    </group>
-  );
-}
-
-function toProceduralWarRoomState(state: WarRoomAnimationState): CharacterAnimationState {
-  if (state === "death") return "die";
-  if (state === "turn-left" || state === "turn-right" || state === "crouch") return "idle";
-  return state;
+export function LegacyWarRoomAnimatedActor(props: AnimatedActorProps) {
+  return <WarRoomAnimatedActor {...props} />;
 }
 
 function getWarRoomCharacterAppearance(
@@ -670,20 +512,13 @@ export function WarRoomAnimatedActor({
   height,
   tint,
   commander = false,
-  state,
-  playbackScale,
   modelRef,
-  afterAnimationFrame,
-  isPaused,
 }: AnimatedActorProps) {
   const rigRef = useRef<THREE.Group | null>(null);
-  const motionRef = useMemo(() => ({ current: createWorldMotion() }), []);
   const appearance = useMemo(
     () => getWarRoomCharacterAppearance(src, tint, commander),
     [commander, src, tint],
   );
-  const [animationState, setAnimationState] = useState<WarRoomAnimationState>(() => state());
-  const stateRef = useRef(animationState);
 
   useEffect(() => {
     if (!modelRef) return undefined;
@@ -693,34 +528,14 @@ export function WarRoomAnimatedActor({
     };
   }, [modelRef]);
 
-  useFrame((frame, delta) => {
-    const paused = isPaused?.() ?? false;
-    const nextState = paused ? "idle" : state();
-    if (stateRef.current !== nextState) {
-      stateRef.current = nextState;
-      setAnimationState(nextState);
-    }
-    const playback = Math.abs(playbackScale?.() ?? 1);
-    const speed = nextState === "run" ? 4.1 * playback : nextState === "walk" ? 2.2 * playback : 0;
-    const motion = motionRef.current;
-    motion.velocityX = 0;
-    motion.velocityY = speed;
-    motion.crouching = !paused && nextState === "crouch";
-    if (!paused && speed > 0) motion.stepPhase += delta * speed * 2.2;
-  });
-
   return (
-    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]} name="shared-style-war-room-actor">
-      <ProceduralHero
-        motionRef={motionRef}
-        state={toProceduralWarRoomState(animationState)}
-        motionReduced={false}
-        animationPaused={isPaused?.() ?? false}
+    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]} name="fantasy-knight-war-room-actor">
+      <FantasyKnightModel
         appearance={appearance}
+        headAccessory={getFantasyKnightHeadAccessory(`${src}:${tint ?? ""}:${commander}`)}
         targetHeight={height}
         showWeapon={false}
         rootRef={rigRef}
-        onAfterAnimate={afterAnimationFrame}
       />
     </group>
   );

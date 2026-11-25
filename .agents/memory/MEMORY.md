@@ -22,7 +22,7 @@
 - [Duel boundary and cover geometry](duel-arena-boundary.md) — Tightening movement bounds can alter cover-shot paths; verify both arena limits and cover interactions.
 - [Road reward clarity](road-reward-clarity.md) — Only functional coins and gems should look collectible; show each collidable road obstacle before contact.
 - [User-owned deployment](user-owned-deployment.md) — Make code changes only; the user handles Git pushes and Vercel deploys.
-- [Fantasy Knight GLB axis](fantasy-knight-axis.md) — Keep the static Z-up asset out of runtime; Demir Taç uses rig-mounted gear on the animated hero model.
+- [Fantasy Knight GLB axis](fantasy-knight-axis.md) — Use the provided static Z-up GLB as the sole character base; vary outfits and accessories without body animations.
 - [War Room GLB atlas fallback](war-room-glb-textures.md) — Castle-kit GLBs share a missing atlas; resolve only that URL and keep loads on the default manager for progress.
 - [War Room blaster ownership](war-room-blaster-inventory.md) — Blasters may share store ownership, but stay exclusive to War Room loadouts unless cross-mode use is explicitly requested.
 - [War Room enterable buildings](war-room-enterable-buildings.md) — Keep visible door openings, movement collision, and shot-blocking geometry aligned across rotated rooms.

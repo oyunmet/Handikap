@@ -25,9 +25,9 @@ import { CITY_RESIDENTS, CITY_RESIDENT_TINTS, type CityResident } from "./city-h
 import { getAnimatedRivalModelConfig, type OpponentModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import WorldV2Actor from "./WorldV2Actor";
-import { KNIGHT_CONFIG } from "./knight-config";
 import { loadAsset, type LoadedWorldAsset } from "./world-v2-assets";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
+import { FANTASY_KNIGHT_MODEL_PATH } from "./fantasy-knight-model";
 import type { EquipmentVisual } from "../game/store-types";
 
 type CityHubSceneProps = {
@@ -533,7 +533,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
 
   useEffect(() => {
     let active = true;
-    loadAsset(KNIGHT_CONFIG.modelPath, WORLD_V2_CONFIG.player).then((asset) => {
+    loadAsset(FANTASY_KNIGHT_MODEL_PATH, WORLD_V2_CONFIG.player).then((asset) => {
       if (active) setHeroAsset(asset);
     }).catch((error: unknown) => {
       console.error("[city-hub] Campaign character model failed to load.", error);
@@ -549,7 +549,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
     const modelPaths = [...new Set(CITY_RESIDENT_MODEL_CONFIGS.map((config) => config.modelPath))];
     void Promise.all(modelPaths.map(async (path) => {
       try {
-        return [path, await loadAsset(path, WORLD_V2_CONFIG.player)] as const;
+        return [path, await loadAsset(FANTASY_KNIGHT_MODEL_PATH, WORLD_V2_CONFIG.player)] as const;
       } catch (error) {
         console.error(`[city-hub] Resident character model failed to load: ${path}`, error);
         return null;

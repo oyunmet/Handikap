@@ -1160,8 +1160,16 @@ function FirstPersonWeaponViewModel({
       rawDelta,
     );
     poseSpringRef.current = poseSpring.state;
-    arms.position.set(...poseSpring.pose.position);
-    arms.rotation.set(...poseSpring.pose.rotation);
+    arms.position.set(
+      viewConfig.position[0] * horizontalFactor,
+      viewConfig.position[1],
+      viewConfig.position[2],
+    );
+    arms.rotation.set(
+      mount.rotation[0] + viewConfig.rotation[0],
+      mount.rotation[1] + viewConfig.rotation[1],
+      mount.rotation[2] + viewConfig.rotation[2],
+    );
     weaponPose.position.set(...poseSpring.pose.position);
     localEulerRef.current.set(...poseSpring.pose.rotation);
     localQuaternionRef.current.setFromEuler(localEulerRef.current);
@@ -1409,27 +1417,17 @@ function PlayerActor({
     const player = runtimeRef.current.player;
     const root = rootRef.current;
     if (root) {
-      const bodyYaw = player.meleeUntil > player.clockTime ? player.meleeAttackYaw : player.facingYaw;
-      const attackProgress = player.meleeUntil > player.clockTime
-        ? Math.max(0, Math.min(1, (player.clockTime - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
-        : 0;
-      const heavyStep = WAR_ROOM_WEAPON_PRESENTATION_ENABLED
-        && player.meleeAttackHeavy
-        && player.meleeUntil > player.clockTime
-        ? Math.sin(Math.PI * attackProgress) * 0.16
-        : 0;
       root.position.set(
-        renderPositionRef.current.x + Math.sin(bodyYaw) * heavyStep,
-        player.floorHeight + player.jumpHeight - (player.prone ? 0.34 : 0),
-        renderPositionRef.current.z - Math.cos(bodyYaw) * heavyStep,
+        renderPositionRef.current.x,
+        player.floorHeight + player.jumpHeight,
+        renderPositionRef.current.z,
       );
       root.rotation.y = shortestLerp(
         root.rotation.y,
-        getWarRoomPlayerRootYaw(bodyYaw),
+        getWarRoomPlayerRootYaw(player.facingYaw),
         WAR_ROOM_CONFIG.camera.autoFollowSpeed,
         delta,
       );
-      root.scale.y = player.prone ? 0.5 : player.crouched ? 0.78 : 1;
     }
     const hand = modelRef.current && [
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
@@ -1675,10 +1673,6 @@ function PlayerActor({
             state={playerAnimation}
             playbackScale={playerPlaybackScale}
             modelRef={modelRef}
-            afterAnimationFrame={(model) => {
-              applyMeleePoseAfterAnimation(model);
-              applyWarRoomWeaponHoldPose(model, isMeleeWeapon ? "melee" : "ranged");
-            }}
             isPaused={() => inputRef.current.paused}
           />
         </Suspense>
@@ -1797,22 +1791,13 @@ function EnemyActor({
       );
       group.rotation.y = shortestLerp(group.rotation.y, targetRootYaw, 24, delta);
     }
-    const hitKick = enemy.hitUntil > gameNow ? (enemy.hitUntil - gameNow) / 0.2 : 0;
-    if (enemy.alive) delete group.userData.warRoomDeathStartedAt;
-    else if (group.userData.warRoomDeathStartedAt == null) {
-      group.userData.warRoomDeathStartedAt = frame.clock.elapsedTime;
-    }
-    const deathAt = Number(group.userData.warRoomDeathStartedAt ?? frame.clock.elapsedTime);
-    const deathProgress = enemy.alive
-      ? 0
-      : getWarRoomDeathFadeProgress(frame.clock.elapsedTime, deathAt);
     group.position.set(
-      enemy.x + enemy.hitKnockbackX * hitKick,
-      (enemy.floorHeight ?? 0) + hitKick * 0.035,
-      enemy.z + enemy.hitKnockbackZ * hitKick,
+      enemy.x,
+      enemy.floorHeight ?? 0,
+      enemy.z,
     );
-    group.rotation.x = enemy.alive ? -hitKick * 0.035 : -Math.cos(enemy.deathYaw) * Math.min(1, deathProgress * 1.3);
-    group.rotation.z = enemy.alive ? 0 : -Math.sin(enemy.deathYaw) * Math.min(1, deathProgress * 1.3);
+    group.rotation.x = 0;
+    group.rotation.z = 0;
     const hand = modelRef.current && [
       "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
@@ -1849,9 +1834,7 @@ function EnemyActor({
     if (muzzleFlashRef.current && Number(muzzleFlashRef.current.userData.warRoomExpiresAt ?? 0) <= gameNow) {
       muzzleFlashRef.current.visible = false;
     }
-    group.visible = enemy.alive || deathProgress < 1;
-    const kneeDip = enemy.alive && enemy.hitKneeUntil > gameNow ? 0.82 : 1;
-    group.scale.y = enemy.alive ? kneeDip : Math.max(0.025, 1 - deathProgress);
+    group.visible = enemy.alive;
     if (modelRef.current && !modelRef.current.userData.warRoomOwnedMaterials) {
       modelRef.current.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
@@ -1867,7 +1850,6 @@ function EnemyActor({
       const hitRim = WAR_ROOM_REACTION_FEEDBACK_ENABLED
         ? getWarRoomHitRimIntensity(gameNow, enemy.hitFlashUntil)
         : 0;
-      const alpha = enemy.alive ? 1 : Math.max(0, 1 - deathProgress);
       modelRef.current.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -1875,8 +1857,6 @@ function EnemyActor({
           const emissive = material as THREE.Material & { emissive?: THREE.Color; emissiveIntensity?: number };
           const rim = material.userData.warRoomHitRim as { value: number } | undefined;
           if (rim) rim.value = hitRim;
-          material.transparent = alpha < 1;
-          material.opacity = alpha;
           if (emissive.emissive?.isColor) {
             emissive.emissive.set(enemy.commander ? "#7b231d" : "#51382c");
             emissive.emissiveIntensity = enemy.commander ? 0.18 : 0.04;
