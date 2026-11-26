@@ -2,7 +2,6 @@ import { useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import type { CharacterAnimationState } from "./character-animation";
 import type { WorldMotion } from "./movement";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import {
@@ -15,6 +14,7 @@ import type { CityNpcAccessory } from "./opponent-costume";
 import type { EquipmentVisual } from "../game/store-types";
 import {
   getFantasyKnightHeadAccessory,
+  getFantasyKnightOutfitVariant,
   type FantasyKnightHeadAccessory,
 } from "./fantasy-knight-model";
 import FantasyKnightModel from "./FantasyKnightModel";
@@ -42,7 +42,6 @@ type Props = {
   distance?: number;
   x?: number;
   tint?: string;
-  animationState?: CharacterAnimationState;
   localToParent?: boolean;
   showWeapon?: boolean;
   modelConfig?: OpponentModelConfig;
@@ -59,7 +58,6 @@ export default function WorldV2Actor({
   distance = 0,
   x = 0,
   tint,
-  animationState = "idle",
   localToParent = false,
   showWeapon = true,
   modelConfig,
@@ -75,24 +73,19 @@ export default function WorldV2Actor({
   const impactRingSecondsRef = useRef(0);
 
   const appearance = useMemo(() => {
-    const base = isPlayer ? equipmentVisual : modelConfig?.appearance;
     const seedText = `${asset.url}:${modelConfig?.modelPath ?? ""}:${tint ?? ""}`;
-    const seed = [...seedText].reduce((value, character) => value + character.charCodeAt(0), 0);
-    const hairColors = ["#c99b43", "#a96e3d", "#8c6844", "#d5ad5e"];
-    const hairStyles: NonNullable<EquipmentVisual["hairStyle"]>[] = [
-      "long",
-      "braided",
-      "short",
-      "curly",
-    ];
+    const base = isPlayer
+      ? equipmentVisual ?? {}
+      : {
+        ...getFantasyKnightOutfitVariant(seedText),
+        ...(modelConfig?.appearance ?? {}),
+      };
     return {
       ...base,
-      ...(tint ? { armor: tint } : {}),
+      ...(tint ? { armor: tint, armorLight: tint, dyeColor: tint } : {}),
       weaponStyle: isPlayer
         ? equipmentVisual?.weaponStyle
         : modelConfig?.weapon ?? modelConfig?.appearance.weaponStyle,
-      hairColor: base?.hairColor ?? hairColors[seed % hairColors.length],
-      hairStyle: base?.hairStyle ?? hairStyles[seed % hairStyles.length],
     };
   }, [asset.url, equipmentVisual, isPlayer, modelConfig, tint]);
 
@@ -195,8 +188,6 @@ export default function WorldV2Actor({
     >
       <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
         <FantasyKnightModel
-          motionRef={motionRef}
-          state={animationState}
           appearance={appearance}
           headAccessory={headAccessory}
           showWeapon={showWeapon}

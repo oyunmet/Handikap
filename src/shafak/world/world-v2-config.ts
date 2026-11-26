@@ -36,7 +36,7 @@ export function getWorldV2Heading(
 ) {
   if (!Number.isFinite(velocityX) || !Number.isFinite(velocityY)) return fallback;
   if (Math.hypot(velocityX, velocityY) < 0.12) return fallback;
-  // The player GLB faces native +Z; the model-axis group turns that to -Z.
+  // The shared knight GLB faces native +Z; the model-axis group turns that to -Z.
   // Root yaw must then follow movement along (velocityX, -velocityY).
   return Math.atan2(-velocityX, velocityY);
 }

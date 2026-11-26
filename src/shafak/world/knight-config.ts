@@ -1,22 +1,9 @@
+import { FANTASY_KNIGHT_MODEL_PATH } from "./fantasy-knight-model";
+
 export const KNIGHT_CONFIG = {
-  modelPath: "/models/player-hero.glb",
-  rootBoneName: "Root",
+  modelPath: FANTASY_KNIGHT_MODEL_PATH,
   modelScale: 1,
   modelFacing: Math.PI,
-  animationClips: {
-    idle: ["Idle", "CharacterArmature|Idle"],
-    walk: ["Walk", "CharacterArmature|Walk"],
-    run: ["Run", "CharacterArmature|Run"],
-    attack: ["Dagger_Attack", "CharacterArmature|Dagger_Attack", "Punch"],
-    heavyAttack: ["Dagger_Attack2", "CharacterArmature|Dagger_Attack2"],
-    block: ["Attacking_Idle", "CharacterArmature|Attacking_Idle"],
-    dodge: ["Roll", "CharacterArmature|Roll"],
-    jump: [],
-    backflip: ["Roll", "CharacterArmature|Roll"],
-    plunge: ["Dagger_Attack2", "CharacterArmature|Dagger_Attack2"],
-    hit: ["RecieveHit", "CharacterArmature|RecieveHit", "RecieveHit_Attacking"],
-    die: ["Death", "CharacterArmature|Death"],
-  },
   colors: {
     armor: "#252832",
     armorLight: "#41444c",
@@ -43,15 +30,6 @@ export const KNIGHT_CONFIG = {
     capeWidth: 0.76,
     capeLength: 1.02,
     swordLength: 0.94,
-  },
-  animation: {
-    walkStrideMeters: 1.38,
-    walkLegSwing: 0.46,
-    runLegSwing: 0.74,
-    walkKneeBend: 0.52,
-    runKneeBend: 0.94,
-    capeSpring: 24,
-    capeDamping: 7.2,
   },
 } as const;
 

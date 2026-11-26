@@ -11,7 +11,7 @@ import {
 } from "./movement";
 import type { WorldMotion } from "./movement";
 import type { WorldObstacle, WorldRival } from "./world-content";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getRivalModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import WorldV2Actor from "./WorldV2Actor";
 import type { WorldV2ActorDebugSnapshot } from "./WorldV2Actor";
@@ -45,7 +45,7 @@ import { inspectWorldCharacterGroups } from "./world-character-debug";
 import "./world-v2.css";
 
 type MotionRef = World3DProps["motionRef"];
-const DEMIR_TAC_WORLD_CONFIG = getAnimatedRivalModelConfig(
+const DEMIR_TAC_WORLD_CONFIG = getRivalModelConfig(
   "Demir Taç",
   getWorldBotProfileByArchetype("chapter-boss"),
   "world",
@@ -610,7 +610,6 @@ export default function World3DV2(props: World3DProps) {
                     motionRef={props.motionRef}
                     debugRef={debug ? actorDebugRef : undefined}
                     isPlayer
-                    animationState={props.animationState}
                   />
                   <WorldV2Entities
                     motionRef={props.motionRef}

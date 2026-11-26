@@ -22,7 +22,7 @@ import {
 } from "./city-hub-camera";
 import { getCityMovementInput, type CityCameraControl } from "./city-hub-controls";
 import { CITY_RESIDENTS, CITY_RESIDENT_TINTS, type CityResident } from "./city-hub-residents";
-import { getAnimatedRivalModelConfig, type OpponentModelConfig } from "./opponent-model-config";
+import { getRivalModelConfig, type OpponentModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import WorldV2Actor from "./WorldV2Actor";
 import { loadAsset, type LoadedWorldAsset } from "./world-v2-assets";
@@ -44,7 +44,7 @@ type CityHubSceneProps = {
 
 const CITY_RESIDENT_MODEL_CONFIGS = CITY_RESIDENTS.map((resident) => {
   const profile = getWorldBotProfileByArchetype(resident.archetype);
-  return getAnimatedRivalModelConfig(
+  return getRivalModelConfig(
     undefined,
     { ...profile, size: resident.scale },
     "world",
@@ -346,7 +346,6 @@ function Resident({
         distance={-resident.z}
         x={resident.x}
         tint={CITY_RESIDENT_TINTS[index]}
-        animationState="idle"
         localToParent
         showWeapon={false}
         modelConfig={modelConfig}
@@ -374,8 +373,6 @@ function CityWorld({
     positionRef.current.x / 5.2,
   ));
   const groundHeightRef = useRef(getCityGroundHeight(positionRef.current));
-  const playerMovingRef = useRef(false);
-  const [playerMoving, setPlayerMoving] = useState(false);
   const lastDoorIdRef = useRef<CityDoorId | null>(null);
   const cameraTarget = useMemo(() => new THREE.Vector3(), []);
   const cameraPosition = useMemo(() => new THREE.Vector3(), []);
@@ -419,11 +416,6 @@ function CityWorld({
     motion.hasMoved ||= moving;
     motion.cameraHeading = cameraControl.yaw;
     if (moving) motion.facing = velocityX < 0 ? -1 : 1;
-    if (moving !== playerMovingRef.current) {
-      playerMovingRef.current = moving;
-      setPlayerMoving(moving);
-    }
-
     const cameraFrame = getCityCameraFrame(next, cameraControl, CITY_CAMERA_OBSTACLES);
     cameraPosition.set(
       cameraFrame.position.x,
@@ -517,7 +509,6 @@ function CityWorld({
           motionRef={motionRef}
           groundHeightRef={groundHeightRef}
           isPlayer
-          animationState={playerMoving ? "walk" : "idle"}
           showWeapon={Boolean(playerAppearance?.weaponStyle)}
           equipmentVisual={playerAppearance}
         />

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CITY_DOORS } from "./city-hub-layout.ts";
 import { CITY_RESIDENTS, CITY_RESIDENT_TINTS } from "./city-hub-residents.ts";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
+import { getRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 
 test("city residents cover each planned accessory and have distinct clothing colors", () => {
@@ -34,7 +34,7 @@ test("city residents share the campaign hero model and keep glasses unobstructed
   const modelPaths = new Set();
   for (const resident of CITY_RESIDENTS) {
     const profile = getWorldBotProfileByArchetype(resident.archetype);
-    const model = getAnimatedRivalModelConfig(
+    const model = getRivalModelConfig(
       undefined,
       { ...profile, size: resident.scale },
       "road",
@@ -46,5 +46,5 @@ test("city residents share the campaign hero model and keep glasses unobstructed
       assert.equal(model.costume.helmet, false);
     }
   }
-  assert.deepEqual(modelPaths, new Set(["/models/player-hero.glb"]));
+  assert.deepEqual(modelPaths, new Set(["/models/fantasy_knight.glb"]));
 });

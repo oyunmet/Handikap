@@ -14,7 +14,6 @@ import {
 export type LoadedWorldAsset = {
   url: string;
   scene: THREE.Group;
-  animations: THREE.AnimationClip[];
   dimensions: { x: number; y: number; z: number };
 };
 
@@ -24,14 +23,13 @@ export const WORLD_ASSET_LOAD_TIMEOUT_MS = 20_000;
 
 export function prepareWorldAsset(
   url: string,
-  gltf: Pick<GLTF, "scene" | "animations">,
+  gltf: Pick<GLTF, "scene">,
   target: WorldV2AssetTarget,
 ): LoadedWorldAsset {
   const fitted = fitObjectToTarget(gltf.scene, target);
   return {
     url,
     scene: gltf.scene,
-    animations: gltf.animations,
     dimensions: fitted.dimensions,
   };
 }
@@ -64,8 +62,8 @@ export function disposeWorldCharacter(model: THREE.Object3D) {
 }
 
 /**
- * All V2 GLB loads pass through this function so animation-aware sizing,
- * unit normalization, and target fitting cannot diverge between actors.
+ * All V2 GLB loads pass through this function so static-model sizing,
+ * unit normalization, and target fitting stay consistent between actors.
  */
 export function loadAsset(
   url: string,

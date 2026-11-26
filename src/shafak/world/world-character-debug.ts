@@ -39,11 +39,18 @@ export function inspectWorldCharacterGroups(scene: THREE.Scene): WorldCharacterD
           }
         }
       }
-      if (!(child instanceof THREE.SkinnedMesh)) return;
-      child.skeleton.update();
-      child.computeBoundingBox();
-      const meshPosition = child.boundingBox && !child.boundingBox.isEmpty()
-        ? child.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(child.matrixWorld)
+      if (!(child instanceof THREE.Mesh)) return;
+      let localBounds: THREE.Box3 | null = null;
+      if (child instanceof THREE.SkinnedMesh) {
+        child.skeleton.update();
+        child.computeBoundingBox();
+        localBounds = child.boundingBox;
+      } else {
+        if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
+        localBounds = child.geometry.boundingBox;
+      }
+      const meshPosition = localBounds && !localBounds.isEmpty()
+        ? localBounds.getCenter(new THREE.Vector3()).applyMatrix4(child.matrixWorld)
         : child.getWorldPosition(new THREE.Vector3());
       const offset = groupPosition.distanceTo(meshPosition);
       meshes.push({
@@ -72,7 +79,7 @@ export function formatWorldCharacterGroups(entries: WorldCharacterDebugEntry[]) 
   return entries.map((entry) => {
     const meshes = entry.meshes.length
       ? entry.meshes.map((mesh) => `${mesh.name}=${Number.isFinite(mesh.offset) ? mesh.offset.toFixed(3) : "∞"}m`).join(", ")
-      : "SkinnedMesh yok";
+      : "Mesh yok";
     const animations = entry.animations.length
       ? entry.animations.map((animation) => `${animation.name}=${animation.weight.toFixed(3)}`).join(", ")
       : "animasyon yok";

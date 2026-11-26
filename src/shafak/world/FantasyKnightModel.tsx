@@ -4,8 +4,6 @@ import { useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
-import type { CharacterAnimationState } from "./character-animation";
-import type { WorldMotion } from "./movement";
 import type { EquipmentVisual } from "../game/store-types";
 import {
   createFantasyKnightModel,
@@ -16,11 +14,6 @@ import {
 } from "./fantasy-knight-model";
 
 export type FantasyKnightModelProps = {
-  motionRef?: MutableRefObject<WorldMotion>;
-  state?: CharacterAnimationState;
-  motionReduced?: boolean;
-  animationTimeScale?: number;
-  animationPaused?: boolean;
   appearance?: EquipmentVisual;
   headAccessory?: FantasyKnightHeadAccessory;
   parts?: FantasyKnightPartSet;

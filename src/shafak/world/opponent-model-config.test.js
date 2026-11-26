@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
+import { getRivalModelConfig } from "./opponent-model-config.ts";
 import {
   getWorldBotProfileByArchetype,
   getWorldRivalProfile,
@@ -19,15 +19,15 @@ const archetypes = [
   "chapter-boss",
 ];
 
-test("rival archetypes select fitted, independently skinned hero bases and bounded scales", () => {
+test("rival archetypes share the fitted static knight base and bounded scales", () => {
   const configs = archetypes.map((archetype) => {
     const profile = getWorldBotProfileByArchetype(archetype);
-    return getAnimatedRivalModelConfig(profile.name, profile);
+    return getRivalModelConfig(profile.name, profile);
   });
 
   assert.deepEqual(
     new Set(configs.map((config) => config.modelPath)),
-    new Set(["/models/player-hero.glb"]),
+    new Set(["/models/fantasy_knight.glb"]),
   );
   for (const config of configs.slice(0, -1)) {
     assert.ok(config.scale >= 0.95 && config.scale <= 1.1);
@@ -36,9 +36,7 @@ test("rival archetypes select fitted, independently skinned hero bases and bound
     assert.ok(config.materialPalette.hair);
     assert.ok(config.materialPalette.clothing);
     assert.ok(config.costume);
-    assert.ok(config.animationClips.idle?.length);
-    assert.ok(config.animationClips.attack?.length);
-    assert.ok(config.animationClips.death?.length);
+    assert.equal("animationClips" in config, false);
   }
 });
 
@@ -55,11 +53,11 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.deepEqual([frostSeal.name, frostSeal.title], ["Taş Mühür", "AYAZ AVCISI"]);
   assert.equal(ironCrown.name, "Demir Taç");
 
-  const purpleConfig = getAnimatedRivalModelConfig(purpleDagger.name, getWorldBotProfileByArchetype(purpleDagger.archetype));
-  const venomConfig = getAnimatedRivalModelConfig(crimsonCloak.name, getWorldBotProfileByArchetype(crimsonCloak.archetype));
-  const frostConfig = getAnimatedRivalModelConfig(frostSeal.name, getWorldBotProfileByArchetype(frostSeal.archetype));
-  const bossConfig = getAnimatedRivalModelConfig(ironCrown.name, getWorldBotProfileByArchetype(ironCrown.archetype));
-  const worldBossConfig = getAnimatedRivalModelConfig(
+  const purpleConfig = getRivalModelConfig(purpleDagger.name, getWorldBotProfileByArchetype(purpleDagger.archetype));
+  const venomConfig = getRivalModelConfig(crimsonCloak.name, getWorldBotProfileByArchetype(crimsonCloak.archetype));
+  const frostConfig = getRivalModelConfig(frostSeal.name, getWorldBotProfileByArchetype(frostSeal.archetype));
+  const bossConfig = getRivalModelConfig(ironCrown.name, getWorldBotProfileByArchetype(ironCrown.archetype));
+  const worldBossConfig = getRivalModelConfig(
     ironCrown.name,
     getWorldBotProfileByArchetype(ironCrown.archetype),
     "world",
@@ -73,20 +71,21 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(venomConfig.weapon, "daggers");
   assert.equal(frostConfig.appearance.armorLight, "#c8e1e5");
   assert.equal(frostConfig.weapon, "bow");
-  assert.equal(bossConfig.modelPath, "/models/player-hero.glb");
+  assert.equal(bossConfig.modelPath, "/models/fantasy_knight.glb");
   assert.equal(bossConfig.targetHeight, 2.15);
   assert.equal(worldBossConfig.targetHeight, 1.95);
-  assert.equal(bossConfig.rootBoneName, "Root");
   assert.equal(bossConfig.modelFacing, Math.PI);
   assert.equal(bossConfig.modelRotation, undefined);
   assert.equal(bossConfig.tintStrength, 0);
   assert.equal(bossConfig.weapon, "greatsword");
-  assert.ok(bossConfig.animationClips.run?.includes("Run"));
   assert.equal(bossConfig.isDemirTac, true);
   assert.equal(bossConfig.materialNameAliases.cape.includes("cape"), true);
   assert.equal(bossConfig.isBoss, true);
   assert.equal(bossConfig.costume.helmet, true);
   assert.equal(bossConfig.costume.cape, true);
   assert.equal(bossConfig.costume.horns, false);
-  assert.ok(getAnimatedRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.animationClips.attack?.length);
+  assert.equal(
+    getRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.modelPath,
+    "/models/fantasy_knight.glb",
+  );
 });

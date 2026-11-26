@@ -7,7 +7,6 @@ import {
 import {
   PLAYER_CHARACTER_MODEL_FACING,
   PLAYER_CHARACTER_MODEL_PATH,
-  PLAYER_CHARACTER_ROOT_BONE,
 } from "./player-model";
 
 export type ModelMaterialNameAliases = {
@@ -41,24 +40,10 @@ export type OpponentCostumeStyle = {
   shoulders: "leather" | "metal" | "fur" | "none";
 };
 
-export type OpponentModelAnimationState =
-  | "idle"
-  | "walk"
-  | "run"
-  | "attack"
-  | "block"
-  | "dodge"
-  | "hit"
-  | "castFire"
-  | "castLightning"
-  | "death"
-  | "victory";
-
 export type OpponentModelConfig = {
   modelPath: string;
   scale: number;
   modelFacing: number;
-  rootBoneName: string;
   preserveOriginalMaterialAliases?: readonly string[];
   targetHeight?: number;
   maxDimension?: number;
@@ -72,22 +57,7 @@ export type OpponentModelConfig = {
   materialNameAliases: ModelMaterialNameAliases;
   materialPalette: OpponentMaterialPalette;
   costume: OpponentCostumeStyle;
-  animationClips: Partial<Record<OpponentModelAnimationState, readonly string[]>>;
 };
-
-const PLAYER_HERO_ANIMATIONS = {
-  idle: ["CharacterArmature|Idle", "Idle"],
-  walk: ["CharacterArmature|Walk", "Walk"],
-  run: ["CharacterArmature|Run", "Run"],
-  attack: ["CharacterArmature|Dagger_Attack", "Dagger_Attack", "Punch"],
-  block: ["CharacterArmature|Attacking_Idle", "Attacking_Idle"],
-  dodge: ["CharacterArmature|Roll", "Roll"],
-  hit: ["CharacterArmature|RecieveHit", "RecieveHit", "RecieveHit_Attacking"],
-  castFire: ["CharacterArmature|Punch", "Punch"],
-  castLightning: ["CharacterArmature|Roll", "Roll"],
-  death: ["CharacterArmature|Death", "Death"],
-  victory: ["CharacterArmature|Idle", "Idle"],
-} satisfies Partial<Record<OpponentModelAnimationState, readonly string[]>>;
 
 const PLAYER_HERO_MATERIAL_ALIASES: ModelMaterialNameAliases = {
   cape: ["cape", "cloak", "mantle", "pelerin"],
@@ -107,7 +77,6 @@ const BASE_OPPONENT_MODEL_CONFIGS = {
     modelPath: PLAYER_CHARACTER_MODEL_PATH,
     scale: 1,
     modelFacing: PLAYER_CHARACTER_MODEL_FACING,
-    rootBoneName: PLAYER_CHARACTER_ROOT_BONE,
     weapon: "daggers",
     appearance: {
       armor: "#302d3e",
@@ -130,7 +99,6 @@ const BASE_OPPONENT_MODEL_CONFIGS = {
       default: "#302d3e",
     },
     costume: { cape: true, hood: true, mask: true, helmet: false, horns: false, shoulders: "metal" },
-    animationClips: PLAYER_HERO_ANIMATIONS,
   },
 } satisfies Record<string, OpponentModelConfig>;
 
@@ -152,7 +120,7 @@ export function getOpponentModelConfig(name: string | undefined) {
   return name ? OPPONENT_MODEL_CONFIGS[name as keyof typeof OPPONENT_MODEL_CONFIGS] : undefined;
 }
 
-export function getAnimatedRivalModelConfig(
+export function getRivalModelConfig(
   name: string | undefined,
   profile?: Pick<WorldBotProfile, "appearance" | "weapon" | "archetype" | "size">,
   sizeContext: WorldCharacterSizeContext = "duel",
@@ -225,7 +193,6 @@ export function getAnimatedRivalModelConfig(
     modelPath,
     scale: isBoss ? 1 : Math.min(1.1, Math.max(0.95, profile?.size ?? 1)),
     modelFacing: PLAYER_CHARACTER_MODEL_FACING,
-    rootBoneName: PLAYER_CHARACTER_ROOT_BONE,
     modelRotation: undefined,
     preserveOriginalMaterialAliases: undefined,
     targetHeight: sizeTarget.targetHeight,
@@ -234,7 +201,6 @@ export function getAnimatedRivalModelConfig(
     isDemirTac: useDemirTac,
     tintColor: appearance.armorDark ?? (isBoss ? "#252a30" : "#523c31"),
     tintStrength: useDemirTac ? 0 : isBoss ? 0.22 : 0.68,
-    animationClips: PLAYER_HERO_ANIMATIONS,
     weapon,
     appearance,
     materialNameAliases: PLAYER_HERO_MATERIAL_ALIASES,

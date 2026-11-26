@@ -22,7 +22,7 @@ import {
 } from "../game/war-room-data";
 import type { ItemRarity, EquipmentVisual } from "../game/store-types";
 import { EQUIPMENT_PREVIEW_MAX_DPR } from "../game/store-ui/equipment-preview-config";
-import { WarRoomAnimatedActor, WarRoomAssetBoundary, WarRoomStaticModel } from "./WarRoomModels";
+import { WarRoomCharacterActor, WarRoomAssetBoundary, WarRoomStaticModel } from "./WarRoomModels";
 import KnightActor from "./KnightActor";
 import { createWorldMotion } from "./movement";
 import { PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
@@ -212,10 +212,9 @@ function WarRoomPreviewRig({
     <group ref={rigRef}>
       <Suspense fallback={null}>
         <WarRoomAssetBoundary fallback={<PreviewActorErrorFallback failedRef={actorFailedRef} />}>
-          <WarRoomAnimatedActor
+          <WarRoomCharacterActor
             src={PLAYER_CHARACTER_MODEL_PATH}
             height={WAR_ROOM_CHARACTER_HEIGHT}
-            state={() => "idle"}
             modelRef={actorRef}
           />
         </WarRoomAssetBoundary>
@@ -471,14 +470,10 @@ export default function EquipmentPreview3D({
             <group scale={0.79}>
               <KnightActor
                 motionRef={motionRef}
-                state="idle"
-                motionReduced={false}
                 facingAngle={0}
                 castShadow={false}
                 appearance={appearance}
                 playerCharacter
-                useInGamePlayerModel
-                preserveOriginalPlayerMaterials={false}
               />
             </group>
           )}

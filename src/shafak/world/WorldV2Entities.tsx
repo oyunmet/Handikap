@@ -12,7 +12,7 @@ import { RIVAL_DIALOGUE_RANGE_METERS, type WorldInteractableRegistry } from "./w
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { WORLD_V2_CAMERA_COLLISION_LAYER } from "./world-v2-geometry";
 import type { LoadedWorldAsset } from "./world-v2-assets";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getRivalModelConfig } from "./opponent-model-config";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import { getWorldRivalProfile } from "./world-bot-profiles";
 import type { CityNpcAccessory } from "./opponent-costume";
@@ -437,7 +437,7 @@ function WorldV2Npc({
   const modelConfig = useMemo(
     () => rival.name === "Demir Taç"
       ? demirTacModelConfig
-      : getAnimatedRivalModelConfig(rival.name, profile, "world"),
+      : getRivalModelConfig(rival.name, profile, "world"),
     [demirTacModelConfig, profile, rival.name],
   );
   const cityAccessory = rival.isBoss

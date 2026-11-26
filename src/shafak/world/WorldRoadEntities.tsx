@@ -14,7 +14,7 @@ import { calculateNpcDialoguePosition } from "./world-dialogue-layout";
 import { getWorldLabelOpacity } from "./world-label-layout";
 import type { WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getRivalModelConfig } from "./opponent-model-config";
 import type { WeatherMode } from "./world-biomes";
 import { raycastWorldGround, WorldAssetFallback, WorldAssetModel } from "./WorldModel";
 
@@ -771,7 +771,7 @@ function BotActor({
   const poseRef = useRef(createWorldMotion());
   const profile = getWorldBotProfileByArchetype(rival.archetype);
   const modelConfig = useMemo(
-    () => getAnimatedRivalModelConfig(rival.name, profile, "world"),
+    () => getRivalModelConfig(rival.name, profile, "world"),
     [profile, rival.name],
   );
   // Render rivals at the same lateral position used by their interaction
@@ -841,11 +841,6 @@ function BotActor({
       <group ref={actorPivotRef} position={[renderedX, 0, 0]}>
         <KnightActor
           motionRef={poseRef}
-          state="idle"
-          talking={talking && Math.abs(rival.distance - motionRef.current.distance) <= 12}
-          motionReduced={reducedMotion}
-          animationTimeScale={1}
-          animationPaused={animationPaused}
           castShadow
           appearance={profile?.appearance}
           modelConfig={modelConfig}

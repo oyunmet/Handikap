@@ -31,6 +31,68 @@ function normalizedName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function stableHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+const FANTASY_KNIGHT_OUTFITS: readonly EquipmentVisual[] = [
+  {
+    armor: "#61483a",
+    armorLight: "#827161",
+    armorDark: "#302725",
+    trim: "#c89d52",
+    cape: "#633b3f",
+    bootColor: "#44342d",
+    hairColor: "#9b7351",
+  },
+  {
+    armor: "#315e4a",
+    armorLight: "#5a8060",
+    armorDark: "#293d32",
+    trim: "#c7a35c",
+    cape: "#3f5643",
+    bootColor: "#41362c",
+    hairColor: "#c99b43",
+  },
+  {
+    armor: "#355a77",
+    armorLight: "#91a8b1",
+    armorDark: "#293743",
+    trim: "#c6b46c",
+    cape: "#425e73",
+    bootColor: "#343c41",
+    hairColor: "#806c5a",
+  },
+  {
+    armor: "#7d3d3c",
+    armorLight: "#9c6660",
+    armorDark: "#392b30",
+    trim: "#d2ac63",
+    cape: "#5f2e38",
+    bootColor: "#42302c",
+    hairColor: "#ab713e",
+  },
+  {
+    armor: "#5a6036",
+    armorLight: "#7f8550",
+    armorDark: "#313426",
+    trim: "#b6914d",
+    cape: "#3f4635",
+    bootColor: "#3e362b",
+    hairColor: "#75634c",
+  },
+];
+
+/** Stable outfit color variants keep every NPC on the same static character mesh. */
+export function getFantasyKnightOutfitVariant(seed: string): EquipmentVisual {
+  return { ...FANTASY_KNIGHT_OUTFITS[stableHash(seed) % FANTASY_KNIGHT_OUTFITS.length] };
+}
+
 function materialColor(
   name: string,
   appearance: EquipmentVisual,
@@ -185,12 +247,7 @@ function addHelmetStyle(
 
 /** Returns a stable accessory choice so the same opponent looks the same on every visit. */
 export function getFantasyKnightHeadAccessory(seed: string): FantasyKnightHeadAccessory {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  const choice = (hash >>> 0) % 3;
+  const choice = stableHash(seed) % 3;
   return choice === 1 ? "hat" : choice === 2 ? "glasses" : null;
 }
 

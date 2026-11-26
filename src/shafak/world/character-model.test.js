@@ -10,14 +10,6 @@ import {
   inspectCharacterSceneGraph,
   prepareCharacterSkinnedMeshes,
 } from "./character-model.ts";
-import {
-  captureCharacterPoseBaseline,
-  findCharacterPoseBones,
-  getWorldLocomotionPoseAngles,
-  poseCharacterWithoutClip,
-  restoreCharacterPoseBaseline,
-  WORLD_CROUCH_PELVIS_DROP_METERS,
-} from "./character-pose.ts";
 
 test("character resource clones can share immutable GLTF textures", () => {
   const texture = new THREE.Texture();
@@ -62,20 +54,22 @@ test("character cleanup disposes a shared skeleton bone texture once", () => {
   const resources = cloneCharacterResources(root, { cloneTextures: false });
   assert.equal(resources.skeletons.length, 1);
   disposeCharacterResources(resources);
-
   assert.equal(disposeCalls, 1);
 });
 
-test("character models fit the requested height with their lowest point on the floor", () => {
+test("static character models fit the requested height and rest on the floor", () => {
   const model = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.4, 0.5), new THREE.MeshStandardMaterial());
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 2.4, 0.5),
+    new THREE.MeshStandardMaterial(),
+  );
   body.position.set(1, 0.25, -1);
   model.scale.setScalar(6);
   model.position.set(100, -20, 30);
   model.add(body);
+
   const scale = fitCharacterModel(model, 1.8);
   const bounds = getCharacterBounds(model);
-
   assert.ok(Math.abs(scale - 0.75) < 1e-6);
   assert.ok(Math.abs(bounds.min.y) < 1e-6);
   assert.ok(Math.abs(bounds.max.y - 1.8) < 1e-6);
@@ -83,7 +77,7 @@ test("character models fit the requested height with their lowest point on the f
   assert.ok(Math.abs(bounds.getCenter(new THREE.Vector3()).z) < 1e-6);
 });
 
-test("skinned character bounds include the current bone deformation when fitting", () => {
+test("generic skinned assets include current deformation in their fitted bounds", () => {
   const model = new THREE.Group();
   const bone = new THREE.Bone();
   const geometry = new THREE.BoxGeometry(1, 2, 1);
@@ -102,12 +96,11 @@ test("skinned character bounds include the current bone deformation when fitting
 
   fitCharacterModel(model, 1.8);
   const bounds = getCharacterBounds(model);
-
   assert.ok(Math.abs(bounds.min.y) < 1e-6);
   assert.ok(Math.abs(bounds.max.y - 1.8) < 1e-6);
 });
 
-test("skinned character meshes refresh their bounds and disable frustum culling", () => {
+test("generic skinned meshes refresh their bounds and disable frustum culling", () => {
   const model = new THREE.Group();
   const bone = new THREE.Bone();
   const geometry = new THREE.BoxGeometry(1, 2, 1);
@@ -130,17 +123,16 @@ test("skinned character meshes refresh their bounds and disable frustum culling"
   assert.ok(mesh.boundingSphere.radius > 0);
 });
 
-test("player hierarchy diagnostics report each mesh and identify oversized geometry", () => {
+test("player hierarchy diagnostics identify each mesh and oversized geometry", () => {
   const root = new THREE.Group();
   root.name = "player-actor-root";
   const model = new THREE.Group();
   model.name = "Root_Scene";
   root.add(model);
-  const smallMesh = new THREE.Mesh(
+  model.add(new THREE.Mesh(
     new THREE.BoxGeometry(0.8, 1.8, 0.5),
     new THREE.MeshStandardMaterial({ color: "#b9a17b" }),
-  );
-  model.add(smallMesh);
+  ));
   const oversizedMesh = new THREE.Mesh(
     new THREE.BoxGeometry(3.2, 0.2, 0.2),
     new THREE.MeshStandardMaterial({ color: "#aa9977" }),
@@ -148,7 +140,7 @@ test("player hierarchy diagnostics report each mesh and identify oversized geome
   oversizedMesh.name = "oversized-test-mesh";
   model.add(oversizedMesh);
 
-  const diagnostics = inspectCharacterSceneGraph(root, model, "/models/player-hero.glb");
+  const diagnostics = inspectCharacterSceneGraph(root, model, "/models/fantasy_knight.glb");
   const meshRows = diagnostics.filter((row) => row.isMesh);
   const oversized = meshRows.filter((row) =>
     Math.max(row.worldSizeM.x, row.worldSizeM.y, row.worldSizeM.z) > 3);
@@ -156,14 +148,17 @@ test("player hierarchy diagnostics report each mesh and identify oversized geome
   assert.equal(meshRows.length, 2);
   assert.equal(oversized.length, 1);
   assert.equal(oversized[0].name, "oversized-test-mesh");
-  assert.equal(oversized[0].source, "/models/player-hero.glb: prepareModel()");
+  assert.equal(oversized[0].source, "/models/fantasy_knight.glb: prepareModel()");
   assert.equal(oversized[0].parent, "Root_Scene");
   assert.deepEqual(oversized[0].materialColors, ["#aa9977"]);
 });
 
-test("character models with a Z-up source can be upright before fitting", () => {
+test("Z-up source geometry can be upright before fitting", () => {
   const model = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 2.3), new THREE.MeshStandardMaterial());
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4, 0.5, 2.3),
+    new THREE.MeshStandardMaterial(),
+  );
   body.position.z = 1.15;
   model.add(body);
   model.rotation.x = -Math.PI / 2;
@@ -175,9 +170,12 @@ test("character models with a Z-up source can be upright before fitting", () => 
   assert.ok(bounds.max.y - bounds.min.y > bounds.max.z - bounds.min.z);
 });
 
-test("the mobile camera keeps a normalized player below 35% of portrait screen height", () => {
+test("the mobile camera keeps the normalized character below 35% of portrait height", () => {
   const model = new THREE.Group();
-  model.add(new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.45), new THREE.MeshStandardMaterial()));
+  model.add(new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 1.8, 0.45),
+    new THREE.MeshStandardMaterial(),
+  ));
   fitCharacterModel(model, 1.8);
 
   const camera = new THREE.PerspectiveCamera(66, 402 / 874, 0.1, 300);
@@ -188,271 +186,4 @@ test("the mobile camera keeps a normalized player below 35% of portrait screen h
   const coverage = getCharacterScreenCoverage(model, camera, 402, 874);
 
   assert.ok(coverage.height <= 0.35, `screen height coverage should be <= 35%, got ${coverage.height * 100}%`);
-});
-
-test("rigged Quaternius bone names support procedural jump, block, and crouch poses", () => {
-  const model = new THREE.Group();
-  const names = [
-    "Hips", "Body", "Spine", "Torso", "Head",
-    "UpperArmL", "LowerArmL", "UpperArmR", "LowerArmR",
-    "UpperLegL", "LowerLegL", "UpperLegR", "LowerLegR", "FootL", "FootR",
-  ];
-  for (const name of names) {
-    const bone = new THREE.Bone();
-    bone.name = name;
-    model.add(bone);
-  }
-  const bones = findCharacterPoseBones(model);
-  const baseline = captureCharacterPoseBaseline(bones);
-  poseCharacterWithoutClip(bones, "jump", 0, 0, 0.5, false, false, 1, false);
-  assert.notEqual(bones.leftUpperArm.rotation.x, 0);
-  assert.notEqual(bones.leftThigh.rotation.x, 0);
-
-  restoreCharacterPoseBaseline(bones, baseline);
-  poseCharacterWithoutClip(bones, "block", 0, 0, 0.5, false, false, 1, true);
-  assert.ok(bones.leftForearm.rotation.x < 0);
-  restoreCharacterPoseBaseline(bones, baseline);
-  poseCharacterWithoutClip(bones, "walk", 2, 1, 0, true, false, 1, true, false, undefined, baseline);
-  assert.ok(bones.leftThigh.rotation.x < 0);
-  assert.ok(bones.leftShin.rotation.x > 0);
-  assert.ok(bones.spine.rotation.x > 0);
-  assert.ok(bones.chest.rotation.x > 0);
-  assert.ok(bones.head.rotation.x < 0);
-  assert.ok(bones.leftUpperArm.rotation.x < 0);
-  assert.ok(bones.leftForearm.rotation.x < 0);
-  assert.ok(bones.leftFoot.rotation.x < 0);
-  assert.ok(bones.pelvis.position.y < baseline.get("pelvis").position.y);
-});
-
-test("duel jump phases animate the arms and legs instead of holding one static pose", () => {
-  const model = new THREE.Group();
-  const names = [
-    "Hips", "Body", "Spine", "Torso", "Head",
-    "UpperArmL", "LowerArmL", "UpperArmR", "LowerArmR",
-    "UpperLegL", "LowerLegL", "UpperLegR", "LowerLegR", "FootL", "FootR",
-  ];
-  for (const name of names) {
-    const bone = new THREE.Bone();
-    bone.name = name;
-    model.add(bone);
-  }
-  const bones = findCharacterPoseBones(model);
-  const baseline = captureCharacterPoseBaseline(bones);
-  const readPhase = (movementState, jumpHeight, jumpVelocity) => {
-    restoreCharacterPoseBaseline(bones, baseline);
-    poseCharacterWithoutClip(
-      bones,
-      "jump",
-      0,
-      0,
-      0,
-      false,
-      false,
-      1,
-      true,
-      false,
-      { movementState, jumpHeight, jumpVelocity },
-      baseline,
-    );
-    return [
-      bones.leftUpperArm.rotation.x,
-      bones.rightUpperArm.rotation.x,
-      bones.leftThigh.rotation.x,
-      bones.leftShin.rotation.x,
-    ];
-  };
-
-  const takeoff = readPhase("ZIPLAMA_HAZIRLIK", 0.02, 2);
-  const ascent = readPhase("HAVADA_YUKARI", 0.68, 3);
-  const descent = readPhase("HAVADA_AŞAĞI", 0.68, -3);
-  const landing = readPhase("İNİŞ", 0.12, -1);
-
-  assert.notDeepEqual(ascent, descent);
-  assert.notDeepEqual(takeoff, landing);
-  assert.ok(ascent.some((angle, index) => angle !== descent[index]));
-});
-
-test("procedural jump bends preserve non-zero GLB rest rotations on the legs", () => {
-  const model = new THREE.Group();
-  const thigh = new THREE.Bone();
-  thigh.name = "UpperLeg.L";
-  thigh.rotation.x = 2.89;
-  const shin = new THREE.Bone();
-  shin.name = "LowerLeg.L";
-  shin.rotation.x = 0.52;
-  model.add(thigh, shin);
-
-  const bones = findCharacterPoseBones(model);
-  const baseline = captureCharacterPoseBaseline(bones);
-  for (const hasClip of [true, false]) {
-    restoreCharacterPoseBaseline(bones, baseline);
-    poseCharacterWithoutClip(
-      bones,
-      "idle",
-      0,
-      0,
-      0,
-      false,
-      false,
-      0,
-      hasClip,
-      false,
-      { movementState: "HAVADA_YUKARI" },
-      baseline,
-    );
-
-    assert.ok(Math.abs(bones.leftThigh.rotation.x - 2.59) < 1e-9);
-    assert.ok(Math.abs(bones.leftShin.rotation.x - 0.84) < 1e-9);
-  }
-});
-
-test("player-hero GLB rig aliases resolve the real torso and limb bones", () => {
-  const model = new THREE.Group();
-  const names = [
-    "Hips", "Body", "Abdomen", "Torso", "Head",
-    "UpperArm.L", "LowerArm.L", "UpperArm.R", "LowerArm.R",
-    "UpperLeg.L", "LowerLeg.L", "UpperLeg.R", "LowerLeg.R", "Foot.L", "Foot.R",
-  ];
-  for (const name of names) {
-    const bone = new THREE.Bone();
-    bone.name = name;
-    model.add(bone);
-  }
-
-  const bones = findCharacterPoseBones(model);
-  assert.equal(bones.pelvis?.name, "Body");
-  assert.equal(bones.spine?.name, "Abdomen");
-  assert.equal(bones.chest?.name, "Torso");
-  assert.equal(bones.leftUpperArm?.name, "UpperArm.L");
-  assert.equal(bones.rightShin?.name, "LowerLeg.R");
-  assert.equal(bones.leftFoot?.name, "Foot.L");
-});
-
-test("crouch lowers the shared Body bone by a fixed world distance at GLB scales", () => {
-  for (const fittedScale of [0.008, 0.02]) {
-    const fittedModel = new THREE.Group();
-    fittedModel.scale.setScalar(fittedScale);
-    const armature = new THREE.Group();
-    armature.scale.setScalar(100);
-    fittedModel.add(armature);
-    const root = new THREE.Bone();
-    root.name = "Root";
-    const body = new THREE.Bone();
-    body.name = "Body";
-    body.position.y = 0.011;
-    root.add(body);
-    armature.add(root);
-    fittedModel.updateMatrixWorld(true);
-
-    const bones = findCharacterPoseBones(fittedModel);
-    const baseline = captureCharacterPoseBaseline(bones);
-    const standingBodyY = body.getWorldPosition(new THREE.Vector3()).y;
-    const standingRootY = root.getWorldPosition(new THREE.Vector3()).y;
-    poseCharacterWithoutClip(
-      bones,
-      "idle",
-      0,
-      0,
-      0,
-      true,
-      false,
-      0,
-      true,
-      false,
-      { movementState: "EĞİLİYOR" },
-      baseline,
-    );
-    fittedModel.updateMatrixWorld(true);
-
-    const crouchedBodyY = body.getWorldPosition(new THREE.Vector3()).y;
-    const crouchedRootY = root.getWorldPosition(new THREE.Vector3()).y;
-    assert.ok(Math.abs(standingBodyY - crouchedBodyY - WORLD_CROUCH_PELVIS_DROP_METERS) < 1e-6);
-    assert.ok(Math.abs(crouchedRootY - standingRootY) < 1e-6);
-  }
-});
-
-test("locomotion keeps the head level during a run and uses only a small counter-balanced sprint lean", () => {
-  const crouch = getWorldLocomotionPoseAngles("EĞİLİYOR", 0);
-  const walk = getWorldLocomotionPoseAngles("KOŞUYOR", 0, "walk");
-  const run = getWorldLocomotionPoseAngles("KOŞUYOR", 0);
-  const sprint = getWorldLocomotionPoseAngles("SPRINT", 0);
-
-  assert.ok(Math.abs((crouch.spine?.[0] ?? 0) + (crouch.chest?.[0] ?? 0) - 0.45) < 1e-9);
-  assert.ok((crouch.leftThigh?.[0] ?? 0) < -0.75);
-  assert.ok((crouch.leftShin?.[0] ?? 0) > 1.2);
-  assert.ok(Math.abs((walk.spine?.[0] ?? 0) + (walk.chest?.[0] ?? 0)) < 1e-9);
-  assert.ok(Math.abs((run.spine?.[0] ?? 0) + (run.chest?.[0] ?? 0)) < 1e-9);
-  assert.ok(Math.abs((run.head?.[0] ?? 0)) < 1e-9);
-  assert.ok(Math.abs(sprint.spine?.[0] + sprint.chest?.[0] - THREE.MathUtils.degToRad(7)) < 1e-9);
-  assert.ok((sprint.head?.[0] ?? 0) < 0, "the head should counter the small sprint lean");
-
-  const states = [
-    "YERDE_DURUYOR", "KOŞUYOR", "SPRINT", "ZIPLAMA_HAZIRLIK",
-    "HAVADA_YUKARI", "HAVADA_AŞAĞI", "İNİŞ", "EĞİLİYOR", "KAYIYOR",
-  ];
-  for (const state of states) {
-    const pose = getWorldLocomotionPoseAngles(state, 1.7);
-    for (const angles of Object.values(pose)) {
-      assert.ok(angles.every((angle) => Number.isFinite(angle) && Math.abs(angle) <= 1.28));
-    }
-  }
-});
-
-test("stationary idle animation receives a small head-leveling correction", () => {
-  const model = new THREE.Group();
-  const head = new THREE.Bone();
-  head.name = "Head";
-  head.rotation.x = THREE.MathUtils.degToRad(1.6);
-  model.add(head);
-  const bones = findCharacterPoseBones(model);
-
-  poseCharacterWithoutClip(
-    bones,
-    "idle",
-    0,
-    0,
-    0,
-    false,
-    false,
-    0,
-    true,
-    false,
-    { movementState: "YERDE_DURUYOR" },
-  );
-
-  assert.ok(Math.abs(head.rotation.x) < THREE.MathUtils.degToRad(0.2));
-});
-
-test("restoring the animation baseline prevents additive crouch poses from accumulating", () => {
-  const model = new THREE.Group();
-  for (const name of ["Hips", "Abdomen", "Torso", "Head", "UpperLeg.L", "LowerLeg.L"]) {
-    const bone = new THREE.Bone();
-    bone.name = name;
-    model.add(bone);
-  }
-  const bones = findCharacterPoseBones(model);
-  const baseline = captureCharacterPoseBaseline(bones);
-  const expected = getWorldLocomotionPoseAngles("EĞİLİYOR", 0);
-
-  for (let index = 0; index < 60; index += 1) {
-    restoreCharacterPoseBaseline(bones, baseline);
-    poseCharacterWithoutClip(
-      bones,
-      "run",
-      4,
-      0,
-      0,
-      true,
-      false,
-      index / 60,
-      true,
-      false,
-      { movementState: "EĞİLİYOR" },
-      baseline,
-    );
-  }
-
-  assert.ok(Math.abs(bones.chest.rotation.x - (expected.chest?.[0] ?? 0)) < 1e-9);
-  assert.ok(Math.abs(bones.leftThigh.rotation.x - (expected.leftThigh?.[0] ?? 0)) < 1e-9);
-  assert.ok(Math.abs(bones.head.rotation.x - (expected.head?.[0] ?? 0)) < 1e-9);
 });

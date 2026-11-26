@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import type { CharacterAnimationState } from "./character-animation";
-import type { OpponentModelAnimationState, OpponentModelConfig } from "./opponent-model-config";
+import type { OpponentModelConfig } from "./opponent-model-config";
 import type { EquipmentVisual } from "../game/store-types";
 import { getUprightDuelRotation } from "../game/duel-camera";
 import {
   getFantasyKnightHeadAccessory,
+  getFantasyKnightOutfitVariant,
   FANTASY_KNIGHT_MODEL_PATH,
 } from "./fantasy-knight-model";
 import FantasyKnightModel from "./FantasyKnightModel";
@@ -19,13 +19,8 @@ import { PLAYER_CHARACTER_MODEL_FACING } from "./player-model";
 
 export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
-  state: CharacterAnimationState;
-  motionReduced?: boolean;
-  animationTimeScale?: number;
-  animationPaused?: boolean | (() => boolean);
   characterLabel?: string;
   modelConfig?: OpponentModelConfig | null;
-  modelAnimationState?: OpponentModelAnimationState;
   appearance?: EquipmentVisual;
   targetHeight?: number;
   targetHeightOverride?: number;
@@ -33,12 +28,7 @@ export type KnightActorProps = {
   playerCharacter?: boolean;
   positionedByParent?: boolean;
   debugUpright?: boolean;
-  aiming?: boolean;
-  preserveOriginalPlayerMaterials?: boolean;
   castShadow?: boolean;
-  talking?: boolean;
-  useInGamePlayerModel?: boolean;
-  footSlipRef?: MutableRefObject<number>;
   rootRef?: MutableRefObject<THREE.Group | null>;
   debugRef?: MutableRefObject<THREE.Group | null>;
 };
@@ -54,8 +44,6 @@ export default function KnightActor({
   playerCharacter = false,
   positionedByParent = false,
   castShadow = true,
-  animationPaused = false,
-  footSlipRef,
   rootRef: externalRootRef,
   debugRef,
 }: KnightActorProps) {
@@ -64,14 +52,22 @@ export default function KnightActor({
   const actorGlowTexture = useMemo(() => getWorldGlowTexture(), []);
 
   const actorAppearance = useMemo(() => {
+    const seed = characterLabel ?? modelConfig?.modelPath ?? FANTASY_KNIGHT_MODEL_PATH;
+    const outfit = playerCharacter ? {} : getFantasyKnightOutfitVariant(seed);
     const configured = appearance ?? modelConfig?.appearance;
+    const withOutfit = { ...outfit, ...(configured ?? {}) };
     const withTint = modelConfig?.tintColor
-      ? { ...configured, dyeColor: modelConfig.tintColor }
-      : configured;
+      ? {
+        ...withOutfit,
+        armor: modelConfig.tintColor,
+        armorLight: modelConfig.tintColor,
+        dyeColor: modelConfig.tintColor,
+      }
+      : withOutfit;
     return modelConfig?.weapon
       ? { ...withTint, weaponStyle: modelConfig.weapon }
       : withTint;
-  }, [appearance, modelConfig]);
+  }, [appearance, characterLabel, modelConfig, playerCharacter]);
 
   const headAccessory = useMemo(
     () => playerCharacter
@@ -117,10 +113,6 @@ export default function KnightActor({
     root.rotation.y += turn * (1 - Math.exp(-dt * (facingAngle === undefined ? 12 : 10)));
     root.rotation.set(...getUprightDuelRotation(root.rotation.y));
 
-    const isAnimationPaused = typeof animationPaused === "function"
-      ? animationPaused()
-      : animationPaused;
-    if (!isAnimationPaused && footSlipRef) footSlipRef.current = 0;
   });
 
   return (

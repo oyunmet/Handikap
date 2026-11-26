@@ -92,10 +92,6 @@ import {
   clampWarRoomLookDelta,
 } from "../game/war-room-mobile-controls";
 import {
-  getWarRoomPlayerAnimationPlaybackScale,
-  resolveWarRoomPlayerAnimationState,
-} from "../game/war-room-player-animation";
-import {
   clampWarRoomCameraToInterior,
   getWarRoomRearCameraFrame,
   getWarRoomCameraBlockerIds,
@@ -146,7 +142,6 @@ import {
   type WarRoomViewModelPoseSpringState,
   type WarRoomViewModelMovementState,
 } from "../game/war-room-viewmodel";
-import { applyWarRoomWeaponHoldPose } from "../game/war-room-weapon-hold";
 import type { WarRoomWeaponSwayLevel } from "../game/war-room-viewmodel-settings";
 import { getWarRoomWeaponReloadOffsets } from "../game/war-room-weapon-reload";
 import {
@@ -249,10 +244,9 @@ import {
   getWarRoomMissionOutcome,
 } from "../game/war-room-missions";
 import {
-  WarRoomAnimatedActor,
   WarRoomAssetBoundary,
+  WarRoomCharacterActor,
   WarRoomStaticModel,
-  type WarRoomAnimationState,
 } from "./WarRoomModels";
 import { WarRoomFirstPersonArms, type WarRoomArmsAnimation } from "./WarRoomFirstPersonArms";
 import WarRoomFirstPersonLegs from "./WarRoomFirstPersonLegs";
@@ -1613,67 +1607,15 @@ function PlayerActor({
       flashRef.current.visible = false;
     }
   });
-  const playerAnimation = () => {
-    const player = runtimeRef.current.player;
-    const input = inputRef.current;
-    const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
-    const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    const root = rootRef.current;
-    const turnError = root
-      ? getWarRoomYawError(getWarRoomFacingYawFromRootYaw(root.rotation.y), player.facingYaw)
-      : 0;
-    const turnDirection = Math.abs(turnError) > 0.1
-      ? turnError > 0 ? "right" as const : "left" as const
-      : null;
-    return resolveWarRoomPlayerAnimationState({
-      hp: player.hp,
-      damageAge: player.clockTime - player.lastDamageAt,
-      shotFeedbackUntil: player.shotFeedbackUntil,
-      meleeUntil: player.meleeUntil,
-      clockTime: player.clockTime,
-      jumpHeight: player.jumpHeight,
-      crouched: player.crouched,
-      prone: player.prone,
-      movement: Math.hypot(moveX, moveY),
-      sprinting: player.sprinting,
-      turnDirection,
-    });
-  };
-  const playerPlaybackScale = () => {
-    const player = runtimeRef.current.player;
-    const input = inputRef.current;
-    const animation = playerAnimation();
-    const moveX = input.moveX + (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
-    const moveY = input.moveY + (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    const direction = resolveWarRoomLocomotion(
-      moveX,
-      moveY,
-      movementBasisYawRef.current ?? player.facingYaw,
-      player.facingYaw,
-    ).direction;
-    const isOnStairs = runtimeRef.current.room.buildings.some((building) => (
-      getWarRoomStairProgress(building, player.x, player.z) !== null
-    ));
-    const fullMovementSpeed = player.prone ? 1.25
-      : player.crouched ? 3.05
-        : player.sprinting ? 8.2
-          : isOnStairs ? 4
-            : 6.1;
-    const movementSpeed = fullMovementSpeed * Math.min(1, Math.hypot(moveX, moveY));
-    return getWarRoomPlayerAnimationPlaybackScale(animation, direction, movementSpeed);
-  };
   return (
     <group ref={rootRef} name="war-room-player">
       <WarRoomAssetBoundary fallback={<ProceduralPlayerFallback />}>
         <Suspense fallback={<ProceduralPlayerFallback />}>
-          <WarRoomAnimatedActor
+          <WarRoomCharacterActor
             src={KNIGHT_CONFIG.modelPath}
             tint="#2f765d"
             height={WAR_ROOM_CHARACTER_HEIGHT}
-            state={playerAnimation}
-            playbackScale={playerPlaybackScale}
             modelRef={modelRef}
-            isPaused={() => inputRef.current.paused}
           />
         </Suspense>
       </WarRoomAssetBoundary>
@@ -1875,15 +1817,6 @@ function EnemyActor({
       material.opacity = intensity * 0.96;
     }
   });
-  const enemyAnimation = (): WarRoomAnimationState => {
-    const runtime = groupRef.current?.parent?.userData.runtime as WarRoomRuntime | undefined;
-    const gameNow = runtime?.player.clockTime ?? 0;
-    if (!enemy.alive) return "death";
-    if (enemy.hitUntil > gameNow) return "hit";
-    if (enemy.mode === "approach") return "run";
-    if (enemy.mode === "fire") return "attack";
-    return "idle";
-  };
   const tint = enemy.color;
   const characterHeight = WAR_ROOM_CHARACTER_HEIGHT * (enemy.commander ? WAR_ROOM_COMMANDER_SCALE : 1);
   const fallback = <ProceduralEnemyFallback commander={enemy.commander} color={enemy.color} />;
@@ -1898,14 +1831,12 @@ function EnemyActor({
     >
       <WarRoomAssetBoundary fallback={fallback}>
         <Suspense fallback={fallback}>
-          <WarRoomAnimatedActor
+          <WarRoomCharacterActor
             src={KNIGHT_CONFIG.modelPath}
             height={characterHeight}
             tint={tint}
             commander={enemy.commander}
-            state={enemyAnimation}
             modelRef={modelRef}
-            isPaused={() => inputRef.current.paused}
           />
         </Suspense>
       </WarRoomAssetBoundary>

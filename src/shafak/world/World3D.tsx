@@ -9,9 +9,8 @@ import type { CharacterAnimationState } from "./character-animation";
 import KnightActor from "./KnightActor";
 import type { WorldMotion } from "./movement";
 import { createWorldMotion, readWorldInput } from "./movement";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getRivalModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
-import { mapOpponentAnimationState } from "./model-animation";
 import { FinalGate } from "./WorldElements";
 import type { WeatherMode } from "./world-biomes";
 import WorldRoadEntities from "./WorldRoadEntities";
@@ -855,7 +854,7 @@ function DuelFighter({
     : undefined;
   const modelConfig = useMemo(
     () => side === "bot"
-      ? getAnimatedRivalModelConfig(opponentName, opponentProfile)
+      ? getRivalModelConfig(opponentName, opponentProfile)
       : undefined,
     [opponentName, opponentProfile, side],
   );
@@ -882,15 +881,6 @@ function DuelFighter({
       auraColor: activeWeaponVisual.auraColor ?? equipmentVisual.auraColor,
     };
   }, [activeWeaponVisual, equipmentVisual, opponentProfile?.appearance, side]);
-  const modelAnimationState = modelConfig
-    ? combatRender?.ended
-      ? combatRender.verdict === "defeat"
-        ? "victory"
-        : combatRender.verdict === "victory"
-          ? "death"
-          : mapOpponentAnimationState(animation, renderedActor?.action)
-      : mapOpponentAnimationState(animation, renderedActor?.action)
-    : undefined;
   const defeated = Boolean(
     renderedActor
     && (renderedActor.action === "die"
@@ -1024,21 +1014,15 @@ function DuelFighter({
       <group ref={actorVisualRoot} scale={1}>
         <KnightActor
           motionRef={actorMotion}
-          state={animation}
-          motionReduced={motionReduced}
-          animationTimeScale={finisherSlowMotion && visualEffectsEnabled ? 0.36 : 1}
           facingAngle={facingAngle}
           debugUpright={performanceMonitorEnabled}
           appearance={fighterAppearance}
           castShadow
           playerCharacter={side === "player"}
-          useInGamePlayerModel={side === "player"}
           positionedByParent
           targetHeight={side === "player" ? PLAYER_CHARACTER_TARGET_HEIGHT : undefined}
           characterLabel={side === "player" ? "duel-player" : boss ? "duel-boss" : `duel-rival:${opponentName}`}
-          aiming={Boolean(side === "player" && renderedActor?.isAiming)}
           modelConfig={modelConfig}
-          modelAnimationState={modelAnimationState}
         />
         <DuelGuardShield side={side} facingAngle={facingAngle} combatStateRef={combatStateRef} />
         {enraged && (
@@ -2860,9 +2844,6 @@ function SceneContents({
       ) : (
         <KnightActor
           motionRef={motionRef}
-          state={animationState}
-          motionReduced={motionReduced}
-          footSlipRef={footSlipRef}
           appearance={equipmentVisual}
           playerCharacter
         />

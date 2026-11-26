@@ -6,12 +6,12 @@ import {
   attachOpponentCostume,
   shouldAttachOpponentCostume,
 } from "./opponent-costume.ts";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config.ts";
+import { getRivalModelConfig } from "./opponent-model-config.ts";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles.ts";
 
 test("other chapter bosses keep their existing animated costume unchanged", () => {
   const profile = getWorldBotProfileByArchetype("chapter-boss");
-  const config = getAnimatedRivalModelConfig("Kül Tahtı", profile);
+  const config = getRivalModelConfig("Kül Tahtı", profile);
   assert.equal(shouldAttachOpponentCostume(config), true);
   const model = new THREE.Group();
   model.scale.setScalar(3.35 / 1.8);
@@ -50,17 +50,16 @@ test("other chapter bosses keep their existing animated costume unchanged", () =
 
 test("other chapter bosses still receive the shared animated-rig costume", () => {
   const profile = getWorldBotProfileByArchetype("chapter-boss");
-  const config = getAnimatedRivalModelConfig("Kül Tahtı", profile);
+  const config = getRivalModelConfig("Kül Tahtı", profile);
   assert.equal(shouldAttachOpponentCostume(config), true);
 });
 
 test("Demir Taç uses the shared campaign rig with mounted armor and crown", () => {
-  const config = getAnimatedRivalModelConfig(
+  const config = getRivalModelConfig(
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(config.modelPath, "/models/player-hero.glb");
-  assert.ok(config.animationClips.run?.includes("Run"));
+  assert.equal(config.modelPath, "/models/fantasy_knight.glb");
   assert.equal(shouldAttachOpponentCostume(config), true);
 
   const model = new THREE.Group();
@@ -100,7 +99,7 @@ test("Demir Taç uses the shared campaign rig with mounted armor and crown", () 
 });
 
 test("Demir Taç's shared player model uses a dark boss palette instead of the green player clothes", () => {
-  const config = getAnimatedRivalModelConfig(
+  const config = getRivalModelConfig(
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );

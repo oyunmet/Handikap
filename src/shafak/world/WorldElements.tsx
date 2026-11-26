@@ -11,7 +11,7 @@ import { getBiomeTransition, WORLD_BIOME_PALETTES, type WeatherMode } from "./wo
 import type { WorldQuality } from "./World3D";
 import WorldStaticBatches from "./WorldStaticBatches";
 import KnightActor from "./KnightActor";
-import { getAnimatedRivalModelConfig } from "./opponent-model-config";
+import { getRivalModelConfig } from "./opponent-model-config";
 import { getWorldBotProfileByArchetype } from "./world-bot-profiles";
 import {
   fillWorldRoadTileZPositions,
@@ -33,7 +33,7 @@ type LocalLightIds = MutableRefObject<Set<string>>;
 
 const GATE_BOSS_PROFILE = getWorldBotProfileByArchetype("chapter-boss");
 const GATE_BOSS_MODEL_CONFIG = {
-  ...getAnimatedRivalModelConfig("Demir Taç", GATE_BOSS_PROFILE)!,
+  ...getRivalModelConfig("Demir Taç", GATE_BOSS_PROFILE)!,
   targetHeight: 1.95,
 };
 
@@ -43,9 +43,6 @@ function GateBossGuard() {
     <group position={[-3.8, 0, 0]} userData={{ cameraCollisionIgnore: true }}>
       <KnightActor
         motionRef={motionRef}
-        state="idle"
-        motionReduced={false}
-        animationPaused={false}
         appearance={GATE_BOSS_PROFILE.appearance}
         modelConfig={GATE_BOSS_MODEL_CONFIG}
         characterLabel="gate-boss-guard"

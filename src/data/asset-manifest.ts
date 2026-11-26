@@ -1,5 +1,7 @@
+import { FANTASY_KNIGHT_MODEL_PATH } from "../shafak/world/fantasy-knight-model";
+
 export const CORE_ASSETS = {
-  player: "/models/player-hero.glb",
+  player: FANTASY_KNIGHT_MODEL_PATH,
   ambientSound: "/shafak-ui-chime.ogg",
 } as const;
 
