@@ -70,7 +70,7 @@ export default function useWorldInput(wake: () => void) {
   }, []);
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button, a, [role='button'], .world-panel, .world-joystick, .world-debug")) return;
+    if ((event.target as HTMLElement).closest("button, a, [role='button'], .world-panel, .world-joystick, .duel-stick, .world-debug")) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     const controlSide = getWorldPointerControlSide(
       event.clientX,

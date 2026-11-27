@@ -638,6 +638,9 @@ function CameraRig({
       collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
       cameraTarget = collisionTargetRef;
     }
+    if (combat) {
+      cameraTarget.y = Math.max(cameraTarget.y, targetRef.y + 1.35);
+    }
     if (enteringDuel) {
       camera.position.copy(cameraTarget);
     } else if (combat) {
@@ -653,6 +656,9 @@ function CameraRig({
     }
     if (cameraObstructed && camera.position.distanceTo(cameraOriginRef) > cameraTarget.distanceTo(cameraOriginRef)) {
       camera.position.copy(cameraTarget);
+    }
+    if (combat) {
+      camera.position.y = Math.max(camera.position.y, targetRef.y + 1.35);
     }
     if (!combat) {
       const runShake = motionReduced || cameraObstructed ? 0 : travelCamera.runShake;
@@ -679,7 +685,6 @@ function CameraRig({
     }
     camera.up.set(0, 1, 0);
     camera.lookAt(targetRef);
-    camera.rotation.z = 0;
     const combatImpact = combat ? combat.lastImpactStrength : 0;
     const finisherZoom = finisherSlowMotion && visualEffectsEnabled ? 2.1 : 0;
     const desiredFov = combat
@@ -2939,7 +2944,7 @@ export default function World3D(props: World3DProps) {
   const touchRenderer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const rendererQuality = props.quality;
   const rendererVisualEffectsEnabled = props.visualEffectsEnabled;
-  const maxDpr = getWorldRenderPixelRatio(rendererQuality, pixelRatio, touchRenderer);
+  const maxDpr = getWorldRenderPixelRatio(rendererQuality, pixelRatio, touchRenderer, props.combatActive);
   const minDpr = Math.min(1, maxDpr);
   const retryWebGL = useCallback(() => {
     automaticRecoveryAttemptsRef.current = 0;

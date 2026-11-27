@@ -13,16 +13,17 @@ export type DuelJumpState = {
 
 export const DUEL_JUMP_HEIGHT = 1.12;
 export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
+export const DUEL_CAMERA_REAR_SIDE_ANGLE = Math.PI * 3 / 8;
 export const DUEL_CAMERA_OFFSET = 0;
-export const DUEL_CAMERA_MAX_OFFSET = Math.PI / 3;
+export const DUEL_CAMERA_MAX_OFFSET = Math.PI / 12;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.1;
 export const DUEL_CAMERA_OFFSETS = [
-  -Math.PI / 6,
+  -Math.PI / 12,
   DUEL_CAMERA_OFFSET,
-  Math.PI / 6,
+  Math.PI / 12,
 ] as const;
 export const DUEL_CAMERA_HEADINGS = [
   DUEL_CAMERA_HEADING - Math.PI / 8,
@@ -50,7 +51,19 @@ export function getDuelCameraFollowHeading(
   opponent: DuelPoint,
   cameraOffset = DUEL_CAMERA_OFFSET,
 ) {
-  return getDuelFacingAngle(player, opponent) + clampDuelCameraOffset(cameraOffset);
+  const facing = getDuelFacingAngle(player, opponent);
+  const candidates = [
+    facing + DUEL_CAMERA_REAR_SIDE_ANGLE,
+    facing - DUEL_CAMERA_REAR_SIDE_ANGLE,
+  ];
+  const distanceToArenaView = (heading: number) => Math.abs(Math.atan2(
+    Math.sin(heading - DUEL_CAMERA_HEADING),
+    Math.cos(heading - DUEL_CAMERA_HEADING),
+  ));
+  const rearSideHeading = distanceToArenaView(candidates[0]) <= distanceToArenaView(candidates[1])
+    ? candidates[0]
+    : candidates[1];
+  return rearSideHeading + clampDuelCameraOffset(cameraOffset);
 }
 
 export function getDuelCameraFramingDistance(

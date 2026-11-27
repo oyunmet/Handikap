@@ -37,7 +37,11 @@ test("duel camera follows the opponent after fighters cross and keeps input rela
   const opponent = { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z };
   const beforeCrossing = getDuelCameraFollowHeading(player, opponent);
   const afterCrossing = getDuelCameraFollowHeading(opponent, player);
-  assert.ok(Math.abs(Math.abs(beforeCrossing - afterCrossing) - Math.PI) < 1e-9);
+  const crossingTurn = Math.atan2(
+    Math.sin(afterCrossing - beforeCrossing),
+    Math.cos(afterCrossing - beforeCrossing),
+  );
+  assert.ok(Math.abs(crossingTurn) < Math.PI / 4, "the camera stays on the arena's same side after fighters cross");
   assert.equal(DUEL_CAMERA_OFFSETS.length, 3);
   assert.equal(getNextDuelCameraOffset(DUEL_CAMERA_OFFSET), DUEL_CAMERA_OFFSETS[2]);
   assert.equal(getNextDuelCameraOffset(DUEL_CAMERA_OFFSETS[2]), DUEL_CAMERA_OFFSETS[0]);
@@ -46,11 +50,32 @@ test("duel camera follows the opponent after fighters cross and keeps input rela
   for (const [actor, rival] of [[player, opponent], [opponent, player]]) {
     const heading = getDuelCameraFollowHeading(actor, rival, DUEL_CAMERA_MAX_OFFSET);
     const pose = getDuelCameraPose(actor, rival, 8.4, 0.25, 0, heading);
-    const facingX = Math.sin(getDuelCameraFollowHeading(actor, rival));
-    const facingZ = Math.cos(getDuelCameraFollowHeading(actor, rival));
+    const facingAngle = getDuelFacingAngle(actor, rival);
+    const facingX = Math.sin(facingAngle);
+    const facingZ = Math.cos(facingAngle);
     const cameraX = pose.position.x - actor.x;
     const cameraZ = pose.position.z - actor.z;
     assert.ok(cameraX * facingX + cameraZ * facingZ < 0, "the camera remains behind the player");
+  }
+});
+
+test("the rear-side duel camera projects fighters across the screen instead of stacking them", () => {
+  for (const [player, opponent] of [
+    [{ x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z }, { x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z }],
+    [{ x: 3, z: DUEL_CAMERA_ARENA_CENTER_Z }, { x: -3, z: DUEL_CAMERA_ARENA_CENTER_Z }],
+  ]) {
+    const heading = getDuelCameraFollowHeading(player, opponent);
+    const pose = getDuelCameraPose(player, opponent, 9, 0.3, 0, heading);
+    const cameraForward = {
+      x: pose.target.x - pose.position.x,
+      z: pose.target.z - pose.position.z,
+    };
+    const horizontalLength = Math.hypot(cameraForward.x, cameraForward.z);
+    const right = { x: -cameraForward.z / horizontalLength, z: cameraForward.x / horizontalLength };
+    const playerScreenX = player.x * right.x + player.z * right.z;
+    const opponentScreenX = opponent.x * right.x + opponent.z * right.z;
+    assert.ok(Math.abs(playerScreenX - opponentScreenX) > 5, "fighters remain visibly separated horizontally");
+    assert.ok(pose.position.y > pose.target.y, "the camera stays upright above the fighters");
   }
 });
 
