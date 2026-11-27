@@ -213,6 +213,7 @@ export default function DuelControls({
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
   const [blockedHint, setBlockedHint] = useState("");
+  const [loadoutOpen, setLoadoutOpen] = useState(false);
   const showBlockedHint = (reason: string) => {
     setBlockedHint(reason);
     window.setTimeout(() => setBlockedHint(""), 1900);
@@ -225,6 +226,7 @@ export default function DuelControls({
     }
     onPress(button);
     onRelease(button);
+    setLoadoutOpen(false);
   };
 
   const readJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -319,7 +321,21 @@ export default function DuelControls({
       <div className="duel-control-hint">WASD HAREKET · J SALDIRI · F NİŞAN · K SİPER · X ZIPLA · 1–4 EŞYA · V SİLAH</div>
       <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
-      <div className="duel-loadout-dock">
+      <button
+        className="duel-loadout-toggle"
+        type="button"
+        aria-label={loadoutOpen ? "Teçhizat panelini kapat" : "Silahları ve hızlı eşyaları aç"}
+        aria-expanded={loadoutOpen}
+        aria-controls={loadoutOpen ? "duel-loadout-dock" : undefined}
+        disabled={disabled}
+        onClick={() => setLoadoutOpen((open) => !open)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16v14H4zM8 9h8M8 12h8M8 15h5" />
+        </svg>
+        <span>TEÇHİZAT</span>
+      </button>
+      {loadoutOpen && <div className="duel-loadout-dock" id="duel-loadout-dock">
       <div className="duel-weapon-select" role="group" aria-label="Savaş silahları">
         <div className="duel-weapon-select__heading">
           <b aria-hidden="true">⚔</b>
@@ -384,6 +400,7 @@ export default function DuelControls({
           })}
         </div>
       </div>
+      </div>}
       {quickItems.some((item) => item.id) && <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
         {quickItems.map((item, index) => {
           if (!item.id) return null;
@@ -445,7 +462,6 @@ export default function DuelControls({
           );
         })}
       </div>}
-      </div>
       <div className="duel-control-cluster">
         <div className="duel-control-cluster__skills">
           <HeldButton

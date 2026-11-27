@@ -3343,9 +3343,14 @@ export default function WorldScene({
               isCombatBotEnraged(combatRender.bot),
             )
             && (
-              <>
-                <div className="duel-attack-warning" role="status" aria-live="assertive">RAKİP SALDIRIYOR · SİPER AL YA DA MENZİLDEN ÇIK</div>
-              </>
+              <div
+                className="duel-attack-warning"
+                role="status"
+                aria-label="Rakip saldırıyor. Siper al ya da menzilden çık."
+                aria-live="assertive"
+              >
+                SALDIRI GELİYOR
+              </div>
             )}
           <DuelStaminaBar stamina={combatRender.player.stamina} maxStamina={combatRender.player.maxStamina} visualEffectsEnabled={visualEffectsEnabled} />
           {visualEffectsEnabled && <div className="duel-combat-effects" aria-hidden="true">
@@ -3361,29 +3366,19 @@ export default function WorldScene({
               >
                 <i />
                 <span className="duel-fx-particles" />
-                {event.type === "hit" && (
-                  <small>{event.target === "player"
-                    ? `${battleSession.rival.name} → ${profile.name}`
-                    : `${profile.name} → ${battleSession.rival.name}`}</small>
-                )}
-                {event.type === "hit" && <strong>−{event.damage ?? 0} CAN{event.critical ? " · KRİTİK" : ""}</strong>}
-                {(event.type === "block" || event.type === "parry" || (event.type === "dodge" && event.attack)) && (
-                  <small>{event.target === "player"
-                    ? `${battleSession.rival.name} → ${profile.name}`
-                    : `${profile.name} → ${battleSession.rival.name}`}</small>
-                )}
-                {event.type === "block" && <strong>0 HASAR · BLOK</strong>}
-                {event.type === "parry" && <strong>SAVUŞTURMA · 0</strong>}
-                {event.type === "coverBlock" && <strong>SİPER OKU DURDURDU</strong>}
-                {event.type === "dodge" && <strong>KAÇIŞ · 0 HASAR</strong>}
-                {event.type === "backflip" && <strong>{event.edgeRebound ? "KENARDAN SEKME · GERİ TAKLA" : "GERİ TAKLA · KAÇIŞ"}</strong>}
-                {event.type === "plungeLand" && <strong>YERE VURUŞ · ŞOK DALGASI</strong>}
-                {event.type === "burn" && <strong>KOR · −{event.damage ?? 0}</strong>}
+                {event.type === "hit" && <strong>−{event.damage ?? 0}{event.critical ? " · KRİTİK" : ""}</strong>}
+                {event.type === "block" && <strong>BLOK</strong>}
+                {event.type === "parry" && <strong>SAVUŞ</strong>}
+                {event.type === "coverBlock" && <strong>SİPER</strong>}
+                {event.type === "dodge" && <strong>KAÇIŞ</strong>}
+                {event.type === "backflip" && <strong>KAÇIŞ</strong>}
+                {event.type === "plungeLand" && <strong>YERE VURUŞ</strong>}
+                {event.type === "burn" && <strong>−{event.damage ?? 0}</strong>}
                 {event.type === "skill" && <strong>{event.attack === "skillOne" ? "KOR" : "YILDIRIM"}</strong>}
-                {event.type === "item" && <strong>{getCombatItem(event.itemId)?.name ?? "SAVAŞ EŞYASI"}</strong>}
-                {event.type === "poison" && <strong>ZEHİR · −{event.damage ?? 0}</strong>}
-                {event.type === "weaponSwitch" && <strong>{STORE_CATALOG.find((item) => item.id === event.weaponId)?.name ?? "SİLAH DEĞİŞTİ"}</strong>}
-                {event.type === "ammoEmpty" && <strong>CEPHANE YOK · V İLE YAKIN SİLAHA GEÇ</strong>}
+                {event.type === "item" && <strong>EŞYA</strong>}
+                {event.type === "poison" && <strong>−{event.damage ?? 0}</strong>}
+                {event.type === "weaponSwitch" && <strong>SİLAH DEĞİŞTİ</strong>}
+                {event.type === "ammoEmpty" && <strong>CEPHANE YOK</strong>}
               </div>
             ))}
           </div>}
@@ -3394,22 +3389,27 @@ export default function WorldScene({
             const ammoId = getWeaponAmmoItemId(activeWeaponId);
             const ammoCount = ammoId ? combatRender.combatItemCounts[ammoId] : null;
             const ammoLabel = ammoId === "arrow_ammo" ? "OK"
-              : ammoId === "bolt_ammo" ? "CIVATA"
+              : ammoId === "bolt_ammo" ? "CİVATA"
                 : ammoId === "throwing_blade_ammo" ? "BIÇAK" : "";
-            return (
-          <div className={`duel-aim-status${combatRender.player.isAiming ? " is-active" : ""}`} role="status" aria-live="polite">
-            {getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"
-              ? bowCloseRange
-                ? "YAKIN DÖVÜŞ · V İLE YAKIN SİLAHA GEÇ"
-                : ammoCount !== null && ammoCount <= 0
-                  ? "CEPHANE YOK · DİĞER SİLAHA GEÇ"
+            const weaponIsRanged = getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak";
+            const ammoIsEmpty = weaponIsRanged && ammoCount !== null && ammoCount <= 0;
+            const statusText = bowCloseRange
+              ? "YAKIN DÖVÜŞ"
+              : ammoIsEmpty
+                ? "CEPHANE YOK"
                 : combatRender.player.isAiming
-                  ? `HEDEF KİLİTLİ · ${ammoLabel} ${ammoCount} · ATEŞ`
-                  : `OTOMATİK HEDEF · F İLE KİLİTLE · ${ammoLabel} ${ammoCount}`
-              : combatRender.player.isAiming
-                ? `HEDEF KİLİTLİ · ${STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[combatRender.activeWeaponSlot])?.name ?? "SİLAH"} HAZIR`
-                : "NİŞAN AL · HEDEFİ KİLİTLE"}
-          </div>
+                  ? weaponIsRanged && ammoCount !== null ? `${ammoLabel} ${ammoCount} · HEDEF` : "HEDEF KİLİTLİ"
+                  : "";
+            return (
+              statusText && (
+                <div
+                  className={`duel-aim-status${combatRender.player.isAiming ? " is-active" : ""}`}
+                  role="status"
+                  aria-live={ammoIsEmpty || bowCloseRange ? "assertive" : "off"}
+                >
+                  {statusText}
+                </div>
+              )
             );
           })()}
           <DuelControls

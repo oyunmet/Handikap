@@ -138,6 +138,44 @@ export function getDuelCameraPose(
   };
 }
 
+export function getDuelOrbitCameraPosition(
+  current: { x: number; y: number; z: number },
+  desired: { x: number; y: number; z: number },
+  lookAt: { x: number; y: number; z: number },
+  amount: number,
+) {
+  const blend = Number.isFinite(amount) ? Math.max(0, Math.min(1, amount)) : 1;
+  const currentX = current.x - lookAt.x;
+  const currentZ = current.z - lookAt.z;
+  const desiredX = desired.x - lookAt.x;
+  const desiredZ = desired.z - lookAt.z;
+  const currentRadius = Math.hypot(currentX, currentZ);
+  const desiredRadius = Math.hypot(desiredX, desiredZ);
+
+  if (currentRadius < 1e-4 || desiredRadius < 1e-4) {
+    return {
+      x: current.x + (desired.x - current.x) * blend,
+      y: current.y + (desired.y - current.y) * blend,
+      z: current.z + (desired.z - current.z) * blend,
+    };
+  }
+
+  const currentAngle = Math.atan2(currentZ, currentX);
+  const desiredAngle = Math.atan2(desiredZ, desiredX);
+  const angleDelta = Math.atan2(
+    Math.sin(desiredAngle - currentAngle),
+    Math.cos(desiredAngle - currentAngle),
+  );
+  const angle = currentAngle + angleDelta * blend;
+  const radius = currentRadius + (desiredRadius - currentRadius) * blend;
+
+  return {
+    x: lookAt.x + Math.cos(angle) * radius,
+    y: current.y + (desired.y - current.y) * blend,
+    z: lookAt.z + Math.sin(angle) * radius,
+  };
+}
+
 export function getDuelCameraRelativeInput(x: number, y: number, cameraHeading = DUEL_CAMERA_HEADING) {
   const heading = Number.isFinite(cameraHeading) ? cameraHeading : DUEL_CAMERA_HEADING;
   const forwardX = Math.sin(heading);

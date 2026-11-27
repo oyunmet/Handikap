@@ -13,6 +13,7 @@ import {
   clampDuelCameraOffset,
   getDuelCameraFramingDistance,
   getDuelCameraFollowHeading,
+  getDuelOrbitCameraPosition,
   getDuelCameraPose,
   getDuelCameraRelativeInput,
   getDuelFacingAngle,
@@ -51,6 +52,17 @@ test("duel camera follows the opponent after fighters cross and keeps input rela
     const cameraZ = pose.position.z - actor.z;
     assert.ok(cameraX * facingX + cameraZ * facingZ < 0, "the camera remains behind the player");
   }
+});
+
+test("camera side changes orbit around the fighters instead of cutting through them", () => {
+  const lookAt = { x: 0, y: 1.05, z: 0 };
+  const current = { x: -8, y: 2.6, z: 0 };
+  const desired = { x: 8, y: 2.6, z: 0 };
+  const midpoint = getDuelOrbitCameraPosition(current, desired, lookAt, 0.5);
+
+  assert.ok(Math.abs(Math.hypot(midpoint.x - lookAt.x, midpoint.z - lookAt.z) - 8) < 1e-9);
+  assert.ok(Math.abs(midpoint.y - 2.6) < 1e-9);
+  assert.ok(Math.abs(midpoint.x) < 1e-8);
 });
 
 test("procedural duel fighters turn their armored fronts toward one another", () => {

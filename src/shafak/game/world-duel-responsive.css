@@ -1958,3 +1958,120 @@
     transform: translateX(-50%);
   }
 }
+
+.duel-controls--field .duel-loadout-toggle {
+  position: absolute;
+  z-index: 18;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  display: inline-flex;
+  min-width: 84px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(238, 206, 150, .72);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(38, 35, 31, .92), rgba(14, 18, 22, .94));
+  color: #f2d9a6;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 245, 220, .15);
+  font: 800 8px/1 var(--font-body, sans-serif);
+  letter-spacing: .09em;
+  touch-action: manipulation;
+}
+
+.duel-controls--field .duel-loadout-toggle svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.duel-controls--field .duel-loadout-toggle:focus-visible {
+  outline: 2px solid #ffe3a4;
+  outline-offset: 3px;
+}
+
+.duel-controls--field .duel-loadout-dock {
+  z-index: 30;
+}
+
+.world-scene[data-battle="fight"] .duel-aim-status {
+  top: max(100px, calc(env(safe-area-inset-top) + 92px));
+  bottom: auto;
+  width: max-content;
+  max-width: min(220px, calc(100vw - 140px));
+  padding: 5px 9px;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+@media (pointer: coarse), (hover: none) {
+  .duel-controls--field .duel-control-hint,
+  .duel-controls--field .game-button__hint {
+    display: none !important;
+  }
+
+  .duel-controls--field .duel-loadout-toggle {
+    top: max(110px, calc(env(safe-area-inset-top) + 102px));
+    left: max(10px, env(safe-area-inset-left));
+  }
+
+  .duel-controls--field .duel-loadout-dock {
+    top: auto !important;
+    right: auto !important;
+    bottom: max(206px, calc(env(safe-area-inset-bottom) + 196px)) !important;
+    left: 50% !important;
+    width: min(320px, calc(100vw - 24px)) !important;
+    max-height: min(154px, 30dvh);
+    transform: translateX(-50%);
+  }
+
+  .duel-controls--field .duel-quickbar {
+    top: auto !important;
+    right: auto !important;
+    bottom: max(146px, calc(env(safe-area-inset-bottom) + 136px)) !important;
+    left: 50% !important;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    transform: translateX(-50%);
+  }
+
+  .duel-controls--field .duel-quickslot {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .world-scene[data-battle="fight"] .duel-aim-status {
+    top: max(106px, calc(env(safe-area-inset-top) + 98px));
+    max-width: min(210px, calc(100vw - 120px));
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape), (hover: none) and (orientation: landscape) {
+  .duel-controls--field .duel-loadout-toggle {
+    top: max(10px, env(safe-area-inset-top));
+    left: max(58px, calc(env(safe-area-inset-left) + 50px));
+  }
+
+  .duel-controls--field .duel-loadout-dock {
+    bottom: max(60px, calc(env(safe-area-inset-bottom) + 52px)) !important;
+    max-height: min(142px, 42vh);
+  }
+
+  .duel-controls--field .duel-quickbar {
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .world-scene[data-battle="fight"] .duel-aim-status {
+    top: max(104px, calc(env(safe-area-inset-top) + 96px));
+  }
+}

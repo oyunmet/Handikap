@@ -21,6 +21,7 @@ import { WorldAssetProgress } from "./WorldModel";
 import type { WorldCollisionGrid, WorldObstacle, WorldPickup, WorldRival } from "./world-content";
 import { DUEL_COVERS, isCombatBotEnraged } from "../game/combat-engine";
 import type { CombatAction, CombatEvent, CombatState } from "../game/combat-engine";
+import { getDuelOrbitCameraPosition } from "../game/duel-camera.ts";
 import { getStoreItem } from "../game/store-catalog.ts";
 import { getWeaponDefinition } from "../game/weapons.ts";
 import type { EquipmentVisual } from "../game/store-types";
@@ -637,8 +638,19 @@ function CameraRig({
       collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
       cameraTarget = collisionTargetRef;
     }
-    if (enteringDuel) camera.position.copy(cameraTarget);
-    else camera.position.lerp(cameraTarget, response);
+    if (enteringDuel) {
+      camera.position.copy(cameraTarget);
+    } else if (combat) {
+      const orbitPosition = getDuelOrbitCameraPosition(
+        camera.position,
+        cameraTarget,
+        targetRef,
+        response,
+      );
+      camera.position.set(orbitPosition.x, orbitPosition.y, orbitPosition.z);
+    } else {
+      camera.position.lerp(cameraTarget, response);
+    }
     if (cameraObstructed && camera.position.distanceTo(cameraOriginRef) > cameraTarget.distanceTo(cameraOriginRef)) {
       camera.position.copy(cameraTarget);
     }

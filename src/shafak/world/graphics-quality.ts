@@ -16,8 +16,8 @@ const PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
 
 const TOUCH_PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
   low: 1.25,
-  balanced: 1.5,
-  high: 1.5,
+  balanced: 1.75,
+  high: 2,
 };
 
 export function normalizeGraphicsMode(value: unknown): GraphicsMode {
