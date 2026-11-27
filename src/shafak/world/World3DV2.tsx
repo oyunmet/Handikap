@@ -382,22 +382,6 @@ function isDebugEnabled() {
   return readQueryFlag("debug");
 }
 
-function WorldCanvasContextRecovery({ onContextLost }: { onContextLost: () => void }) {
-  const gl = useThree((state) => state.gl);
-
-  useEffect(() => {
-    const canvas = gl.domElement;
-    const handleContextLost = (event: Event) => {
-      event.preventDefault();
-      onContextLost();
-    };
-    canvas.addEventListener("webglcontextlost", handleContextLost);
-    return () => canvas.removeEventListener("webglcontextlost", handleContextLost);
-  }, [gl, onContextLost]);
-
-  return null;
-}
-
 function getBuildStamp() {
   try {
     return typeof __WORLD_BUILD_HASH__ === "string" ? __WORLD_BUILD_HASH__ : "dev";
@@ -566,7 +550,6 @@ export default function World3DV2(props: World3DProps) {
               toneMappingExposure: 1.22,
             }}
             onCreated={({ gl, scene }) => {
-              gl.setPixelRatio(renderPixelRatio);
               gl.outputColorSpace = THREE.SRGBColorSpace;
               gl.shadowMap.enabled = enableWorldShadows;
               gl.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -583,7 +566,6 @@ export default function World3DV2(props: World3DProps) {
               </div>
             }
           >
-            <WorldCanvasContextRecovery onContextLost={recoverWorld3D} />
             <Suspense fallback={null}>
               <TimeOfDaySky quality={props.quality} showSkyShell={false} />
               <WorldRoadEnvironmentLayer

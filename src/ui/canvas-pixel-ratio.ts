@@ -42,3 +42,15 @@ export function resolveSharedCanvasDpr(
 
   return [fallback[0], fallback[1]];
 }
+
+export function scaleCanvasDpr(
+  dpr: CanvasDpr,
+  scaleFactor: number,
+): number | [min: number, max: number] {
+  const safeScale = Number.isFinite(scaleFactor)
+    ? Math.max(0.25, Math.min(1, scaleFactor))
+    : 1;
+  const scaleRatio = (ratio: number) => Math.max(0.5, ratio * safeScale);
+  if (typeof dpr === "number") return scaleRatio(dpr);
+  return [scaleRatio(dpr[0]), scaleRatio(dpr[1])];
+}

@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { WorldMotion } from "./movement";
 import type { LoadedWorldAsset } from "./world-v2-assets";
 import {
+  getWorldV2Heading,
   getWorldV2NpcHeading,
   getWorldV2YawDelta,
   WORLD_V2_CONFIG,
@@ -137,7 +138,9 @@ export default function WorldV2Actor({
     }
 
     playerPosition.set(motion.depth * 5.2, 0, -(motion.distance - motion.cameraX));
-    const targetHeading = motion.cameraHeading;
+    const targetHeading = isPlayer
+      ? getWorldV2Heading(motion.velocityX, motion.velocityY, root.rotation.y)
+      : motion.cameraHeading;
     if (isPlayer) {
       root.position.set(
         playerPosition.x,

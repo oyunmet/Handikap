@@ -3014,7 +3014,6 @@ export default function World3D(props: World3DProps) {
               toneMappingExposure: 0.95,
             }}
             onCreated={({ gl: renderer, scene }) => {
-              renderer.setPixelRatio(maxDpr);
               renderer.outputColorSpace = THREE.SRGBColorSpace;
               renderer.shadowMap.type = THREE.PCFSoftShadowMap;
               renderer.shadowMap.enabled = shouldEnableWorldShadows(rendererQuality, touchRenderer);

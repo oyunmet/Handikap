@@ -81,6 +81,21 @@ test("shared renderer rebuilds after WebGL context loss and exposes a retry afte
   assert.match(host, /webglcontextlost/);
   assert.match(host, /webglcontextrestored/);
   assert.match(host, /context\.recoverRenderer\(true\)/);
+  assert.match(host, /activeRendererCanvasRef\.current !== canvas/);
+  assert.match(host, /setRendererRecoveryDprScale/);
+  assert.match(host, /recentContextLossesRef\.current = \[\]/);
   assert.match(host, /rendererRecoveryFailed &&/);
   assert.match(host, /retrySharedRenderer/);
+});
+
+test("scene-specific setup does not override the shared renderer's recovery resolution", () => {
+  for (const scenePath of [
+    "src/shafak/world/World3D.tsx",
+    "src/shafak/world/World3DV2.tsx",
+  ]) {
+    const source = readFileSync(resolve(projectRoot, scenePath), "utf8");
+    assert.doesNotMatch(source, /\.setPixelRatio\(/, `${scenePath} must leave DPR control to GameCanvasStage`);
+  }
+  const worldV2 = readFileSync(resolve(projectRoot, "src/shafak/world/World3DV2.tsx"), "utf8");
+  assert.doesNotMatch(worldV2, /WorldCanvasContextRecovery/);
 });

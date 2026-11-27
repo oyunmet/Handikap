@@ -33,7 +33,7 @@ import {
 import type { GameSceneId } from "../modes/mode";
 import { useGameRuntimeStore } from "../state/game-store";
 import { sharedGameRuntime } from "../core/game-runtime";
-import { resolveSharedCanvasDpr } from "./canvas-pixel-ratio";
+import { resolveSharedCanvasDpr, scaleCanvasDpr } from "./canvas-pixel-ratio";
 import "./game-canvas-host.css";
 
 type SharedCanvasSettings = Pick<
@@ -144,8 +144,10 @@ export function GameCanvasStage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const rendererContextCleanupRef = useRef<(() => void) | null>(null);
   const rendererRecoveryTimerRef = useRef<number | null>(null);
+  const activeRendererCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recentContextLossesRef = useRef<number[]>([]);
   const [rendererRecoveryFailed, setRendererRecoveryFailed] = useState(false);
+  const [rendererRecoveryDprScale, setRendererRecoveryDprScale] = useState(1);
   const viewportIdsByElementRef = useRef(new WeakMap<HTMLDivElement, number>());
   const nextViewportElementIdRef = useRef(0);
   const [boundsById, setBoundsById] = useState<Record<string, ViewportBounds>>({});
@@ -198,8 +200,8 @@ export function GameCanvasStage() {
     return baseScene ? [baseScene, ...overlays] : overlays;
   }, [visibleRequests]);
   const canvasDpr = useMemo(
-    () => resolveSharedCanvasDpr(renderRequests),
-    [renderRequests],
+    () => scaleCanvasDpr(resolveSharedCanvasDpr(renderRequests), rendererRecoveryDprScale),
+    [renderRequests, rendererRecoveryDprScale],
   );
   useEffect(() => {
     setActiveScene(active?.sceneId ?? null);
@@ -210,29 +212,40 @@ export function GameCanvasStage() {
   const handleRendererCreated = useCallback(({ gl }: RootState) => {
     rendererContextCleanupRef.current?.();
     const canvas = gl.domElement;
+    activeRendererCanvasRef.current = canvas;
     const scheduleRecovery = () => {
       if (rendererRecoveryTimerRef.current !== null) return;
       rendererRecoveryTimerRef.current = window.setTimeout(() => {
         rendererRecoveryTimerRef.current = null;
+        if (activeRendererCanvasRef.current !== canvas) return;
+        console.warn("[game-canvas] WebGL did not restore in time; rebuilding at reduced resolution.");
         context.recoverRenderer(true);
-      }, 0);
+      }, 1_200);
     };
     const handleContextLost = (event: Event) => {
       event.preventDefault();
+      if (activeRendererCanvasRef.current !== canvas) return;
       const now = Date.now();
       recentContextLossesRef.current = recentContextLossesRef.current
         .filter((lostAt) => now - lostAt < 15_000);
       recentContextLossesRef.current.push(now);
-      if (recentContextLossesRef.current.length > 1) {
+      if (recentContextLossesRef.current.length >= 3) {
+        console.error("[game-canvas] WebGL context was lost repeatedly after reduced-resolution retries.");
         setRendererRecoveryFailed(true);
         return;
       }
       setRendererRecoveryFailed(false);
+      setRendererRecoveryDprScale((scale) => Math.max(0.5, scale * 0.75));
       scheduleRecovery();
     };
     const handleContextRestored = () => {
+      if (activeRendererCanvasRef.current !== canvas) return;
+      if (rendererRecoveryTimerRef.current !== null) {
+        window.clearTimeout(rendererRecoveryTimerRef.current);
+        rendererRecoveryTimerRef.current = null;
+      }
+      recentContextLossesRef.current = [];
       setRendererRecoveryFailed(false);
-      scheduleRecovery();
     };
     canvas.addEventListener("webglcontextlost", handleContextLost);
     canvas.addEventListener("webglcontextrestored", handleContextRestored);
@@ -245,6 +258,7 @@ export function GameCanvasStage() {
   useEffect(() => () => {
     rendererContextCleanupRef.current?.();
     rendererContextCleanupRef.current = null;
+    activeRendererCanvasRef.current = null;
     if (rendererRecoveryTimerRef.current !== null) {
       window.clearTimeout(rendererRecoveryTimerRef.current);
       rendererRecoveryTimerRef.current = null;
@@ -254,6 +268,11 @@ export function GameCanvasStage() {
   const retrySharedRenderer = useCallback(() => {
     recentContextLossesRef.current = [];
     setRendererRecoveryFailed(false);
+    if (rendererRecoveryTimerRef.current !== null) {
+      window.clearTimeout(rendererRecoveryTimerRef.current);
+      rendererRecoveryTimerRef.current = null;
+    }
+    setRendererRecoveryDprScale((scale) => Math.min(scale, 0.75));
     context.recoverRenderer(true);
   }, [context.recoverRenderer]);
 
