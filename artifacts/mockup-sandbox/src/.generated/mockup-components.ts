@@ -10,6 +10,7 @@ export const modules: ModuleMap = {
   "./components/mockups/combat-hud/WarRoomPortraitCurrent.tsx": () => import("../components/mockups/combat-hud/WarRoomPortraitCurrent.tsx"),
   "./components/mockups/combat-hud/WarRoomPortraitRefined.tsx": () => import("../components/mockups/combat-hud/WarRoomPortraitRefined.tsx"),
   "./components/mockups/duel-controls/Current.tsx": () => import("../components/mockups/duel-controls/Current.tsx"),
+  "./components/mockups/duel-controls/ThreeActions.tsx": () => import("../components/mockups/duel-controls/ThreeActions.tsx"),
   "./components/mockups/duel-controls/Updated.tsx": () => import("../components/mockups/duel-controls/Updated.tsx"),
   "./components/mockups/duel-hud/Current.tsx": () => import("../components/mockups/duel-hud/Current.tsx"),
   "./components/mockups/duel-hud/DuelControls.tsx": () => import("../components/mockups/duel-hud/DuelControls.tsx"),
