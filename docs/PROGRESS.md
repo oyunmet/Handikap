@@ -446,3 +446,18 @@ sonraki dilim olarak kaldı.
 - Önizleme yeniden açılıyor; ekran görüntüsü yaş doğrulama kartında kaldığından
   düello sahnesi tarayıcıda veya gerçek iPhone'da görsel olarak test edilmedi.
   Push veya deploy yapılmadı.
+
+## Düello WebGL hatası ve düğme görünümü — 27 Kasım 2026
+
+- Yeni mobil ekran görüntüsünde ortak WebGL çizicisinin tekrar tekrar bağlam
+  kaybettiği görüldü. Dokunmatik cihazlarda düello çizim çözünürlüğü, kalite
+  ayarından bağımsız en çok 1.25 DPR olacak şekilde sınırlandı; masaüstü ve
+  düello dışı kalite sınırları değişmedi.
+- Savaş düğmeleri daha büyük, yüksek kontrastlı iki satırlı düzene alındı:
+  zıplama ve siper üstte; “Diğer” ve büyük saldırı düğmesi altta. Yetenek,
+  nişan ve eşya paneli ikincil eylemleri saklamaya devam ediyor.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (819 test),
+  `npm run build` ve `git diff --check` geçti; uygulama yeniden başlatıldı.
+- Kullanıcının Vercel yayını bu çalışma alanına bağlı değil; üretim günlükleri
+  okunamadı ve bu değişiklikler yayınlanmadı. Gerçek iPhone düello ekranı bu
+  oturumda görsel olarak doğrulanmadı.
