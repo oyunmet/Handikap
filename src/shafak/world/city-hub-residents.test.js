@@ -46,5 +46,5 @@ test("city residents share the campaign hero model and keep glasses unobstructed
       assert.equal(model.costume.helmet, false);
     }
   }
-  assert.deepEqual(modelPaths, new Set(["/models/fantasy_knight.glb"]));
+  assert.deepEqual(modelPaths, new Set(["/models/player-hero.glb"]));
 });

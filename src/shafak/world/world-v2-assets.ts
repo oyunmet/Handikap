@@ -14,6 +14,7 @@ import {
 export type LoadedWorldAsset = {
   url: string;
   scene: THREE.Group;
+  animations: THREE.AnimationClip[];
   dimensions: { x: number; y: number; z: number };
 };
 
@@ -23,13 +24,14 @@ export const WORLD_ASSET_LOAD_TIMEOUT_MS = 20_000;
 
 export function prepareWorldAsset(
   url: string,
-  gltf: Pick<GLTF, "scene">,
+  gltf: Pick<GLTF, "scene" | "animations">,
   target: WorldV2AssetTarget,
 ): LoadedWorldAsset {
   const fitted = fitObjectToTarget(gltf.scene, target);
   return {
     url,
     scene: gltf.scene,
+    animations: gltf.animations,
     dimensions: fitted.dimensions,
   };
 }

@@ -59,7 +59,7 @@ test("Demir Taç uses the shared campaign rig with mounted armor and crown", () 
     "Demir Taç",
     getWorldBotProfileByArchetype("chapter-boss"),
   );
-  assert.equal(config.modelPath, "/models/fantasy_knight.glb");
+  assert.equal(config.modelPath, "/models/player-hero.glb");
   assert.equal(shouldAttachOpponentCostume(config), true);
 
   const model = new THREE.Group();

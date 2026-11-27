@@ -4,14 +4,18 @@ import test from "node:test";
 import { CORE_ASSETS } from "../../data/asset-manifest.ts";
 import { PRINCESS_BASE_MODEL_URL } from "./princess-model-config.ts";
 import {
-  FANTASY_KNIGHT_MODEL_PATH,
   getFantasyKnightHeadAccessory,
   getFantasyKnightOutfitVariant,
 } from "./fantasy-knight-model.ts";
 import { KNIGHT_CONFIG } from "./knight-config.ts";
-import { PLAYER_CHARACTER_MODEL_FACING, PLAYER_CHARACTER_MODEL_PATH, PLAYER_CHARACTER_TARGET_HEIGHT } from "./player-model.ts";
+import {
+  PLAYER_CHARACTER_ANIMATION_CLIPS,
+  PLAYER_CHARACTER_MODEL_FACING,
+  PLAYER_CHARACTER_MODEL_PATH,
+  PLAYER_CHARACTER_TARGET_HEIGHT,
+} from "./player-model.ts";
 
-const modelUrl = new URL("../../../public/models/fantasy_knight.glb", import.meta.url);
+const modelUrl = new URL("../../../public/models/player-hero.glb", import.meta.url);
 
 function readGlbJson(bytes) {
   assert.equal(bytes.toString("ascii", 0, 4), "glTF");
@@ -22,9 +26,8 @@ function readGlbJson(bytes) {
   return JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8").trim());
 }
 
-test("all game modes share the same static character model", async () => {
-  const expectedPath = "/models/fantasy_knight.glb";
-  assert.equal(FANTASY_KNIGHT_MODEL_PATH, expectedPath);
+test("all game modes share the animated player hero model", async () => {
+  const expectedPath = "/models/player-hero.glb";
   assert.equal(CORE_ASSETS.player, expectedPath);
   assert.equal(PLAYER_CHARACTER_MODEL_PATH, expectedPath);
   assert.equal(KNIGHT_CONFIG.modelPath, expectedPath);
@@ -34,10 +37,18 @@ test("all game modes share the same static character model", async () => {
 
   const model = readGlbJson(fs.readFileSync(modelUrl));
   assert.ok(model.meshes?.length > 0, "the shared character GLB should contain visible mesh parts");
-  assert.equal(model.skins?.length ?? 0, 0, "the shared character stays a static mesh model");
-  assert.equal(model.animations?.length ?? 0, 0, "the shared character has no body animation clips");
-  assert.ok(model.nodes.some((node) => node.mesh !== undefined));
-  assert.ok(model.nodes.every((node) => node.skin === undefined));
+  assert.equal(model.skins?.length, 2, "the shared player should retain its native skeletons");
+  assert.equal(model.animations?.length, 24, "the shared player should retain its movement and combat clips");
+  assert.ok(model.nodes.some((node) => node.mesh !== undefined && node.skin !== undefined));
+  const jointCount = model.skins.reduce((total, skin) => total + skin.joints.length, 0);
+  assert.equal(jointCount, 62);
+
+  const clipNames = new Set(model.animations.map((clip) => clip.name));
+  for (const name of ["Idle", "Walk", "Run", "Dagger_Attack", "Death"]) {
+    assert.ok(clipNames.has(name), `the shared player should include ${name}`);
+  }
+  assert.ok(PLAYER_CHARACTER_ANIMATION_CLIPS.attack.includes("Dagger_Attack"));
+  assert.ok(PLAYER_CHARACTER_ANIMATION_CLIPS.run.includes("Run"));
 });
 
 test("outfit colors and head accessories stay stable for each character identity", () => {

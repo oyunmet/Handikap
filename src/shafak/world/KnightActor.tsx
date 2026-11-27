@@ -2,23 +2,26 @@ import { useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import type { CharacterAnimationState } from "./character-animation";
 import type { OpponentModelConfig } from "./opponent-model-config";
 import type { EquipmentVisual } from "../game/store-types";
 import { getUprightDuelRotation } from "../game/duel-camera";
 import {
   getFantasyKnightHeadAccessory,
   getFantasyKnightOutfitVariant,
-  FANTASY_KNIGHT_MODEL_PATH,
 } from "./fantasy-knight-model";
-import FantasyKnightModel from "./FantasyKnightModel";
+import SharedCharacterModel from "./SharedCharacterModel";
 import { getKnightActorLocalPosition } from "./knight-actor-transform";
 import { getWorldGlowTexture } from "./world-glow";
 import { WORLD_MODEL_SIZE_TARGETS } from "./world-model-sizing";
 import type { WorldMotion } from "./movement";
-import { PLAYER_CHARACTER_MODEL_FACING } from "./player-model";
+import { PLAYER_CHARACTER_MODEL_FACING, PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
 
 export type KnightActorProps = {
   motionRef: MutableRefObject<WorldMotion>;
+  state?: CharacterAnimationState;
+  animationTimeScale?: number;
+  animationPaused?: boolean | (() => boolean);
   characterLabel?: string;
   modelConfig?: OpponentModelConfig | null;
   appearance?: EquipmentVisual;
@@ -35,6 +38,9 @@ export type KnightActorProps = {
 
 export default function KnightActor({
   motionRef,
+  state,
+  animationTimeScale,
+  animationPaused,
   characterLabel,
   modelConfig,
   appearance,
@@ -52,7 +58,7 @@ export default function KnightActor({
   const actorGlowTexture = useMemo(() => getWorldGlowTexture(), []);
 
   const actorAppearance = useMemo(() => {
-    const seed = characterLabel ?? modelConfig?.modelPath ?? FANTASY_KNIGHT_MODEL_PATH;
+    const seed = characterLabel ?? modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH;
     const outfit = playerCharacter ? {} : getFantasyKnightOutfitVariant(seed);
     const configured = appearance ?? modelConfig?.appearance;
     const withOutfit = { ...outfit, ...(configured ?? {}) };
@@ -73,7 +79,7 @@ export default function KnightActor({
     () => playerCharacter
       ? null
       : getFantasyKnightHeadAccessory(
-        `${characterLabel ?? modelConfig?.modelPath ?? FANTASY_KNIGHT_MODEL_PATH}:${modelConfig?.isDemirTac ? "boss" : ""}`,
+        `${characterLabel ?? modelConfig?.modelPath ?? PLAYER_CHARACTER_MODEL_PATH}:${modelConfig?.isDemirTac ? "boss" : ""}`,
       ),
     [characterLabel, modelConfig, playerCharacter],
   );
@@ -119,7 +125,7 @@ export default function KnightActor({
     <group
       ref={rootRef}
       name={playerCharacter ? "fantasy-knight-player" : `fantasy-knight:${characterLabel ?? "rival"}`}
-      userData={{ worldCharacterRoot: true, worldModelSource: FANTASY_KNIGHT_MODEL_PATH }}
+      userData={{ worldCharacterRoot: true, worldModelSource: PLAYER_CHARACTER_MODEL_PATH }}
     >
       {facingAngle === undefined && actorGlowTexture && (
         <sprite position={[0, 1.15, 0.18]} scale={[2.5, 2.5, 1]}>
@@ -150,13 +156,17 @@ export default function KnightActor({
         scale={modelConfig?.scale ?? 1}
         rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]}
       >
-        <FantasyKnightModel
+        <SharedCharacterModel
           appearance={actorAppearance}
           headAccessory={headAccessory}
           rootRef={modelRef}
           showWeapon
           targetHeight={targetHeight}
           castShadow={castShadow}
+          state={state}
+          motionRef={motionRef}
+          animationTimeScale={animationTimeScale}
+          animationPaused={animationPaused}
         />
       </group>
     </group>

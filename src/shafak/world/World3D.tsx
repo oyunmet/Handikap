@@ -1014,6 +1014,7 @@ function DuelFighter({
       <group ref={actorVisualRoot} scale={1}>
         <KnightActor
           motionRef={actorMotion}
+          state={animation}
           facingAngle={facingAngle}
           debugUpright={performanceMonitorEnabled}
           appearance={fighterAppearance}
@@ -2844,6 +2845,7 @@ function SceneContents({
       ) : (
         <KnightActor
           motionRef={motionRef}
+          state={animationState}
           appearance={equipmentVisual}
           playerCharacter
         />

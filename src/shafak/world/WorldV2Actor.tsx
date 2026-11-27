@@ -17,7 +17,7 @@ import {
   getFantasyKnightOutfitVariant,
   type FantasyKnightHeadAccessory,
 } from "./fantasy-knight-model";
-import FantasyKnightModel from "./FantasyKnightModel";
+import SharedCharacterModel from "./SharedCharacterModel";
 
 export type WorldV2ActorDebugSnapshot = {
   yaw: number;
@@ -187,12 +187,15 @@ export default function WorldV2Actor({
       userData={{ worldCharacterRoot: isPlayer, worldPlayerActor: isPlayer }}
     >
       <group rotation={[0, WORLD_V2_CONFIG.modelFacing, 0]} name="world-v2-model-axis-correction">
-        <FantasyKnightModel
+        <SharedCharacterModel
           appearance={appearance}
           headAccessory={headAccessory}
           showWeapon={showWeapon}
           targetHeight={targetHeight}
           castShadow
+          motionRef={isPlayer ? motionRef : undefined}
+          state={isPlayer ? undefined : "idle"}
+          source={{ scene: asset.scene, animations: asset.animations }}
         />
         {cityAccessory === "cane" && (
           <group position={[0.34, 0.53, 0.1]} rotation={[0, 0, -0.08]}>

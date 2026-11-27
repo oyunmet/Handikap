@@ -1,9 +1,11 @@
-import { FANTASY_KNIGHT_MODEL_PATH } from "./fantasy-knight-model";
+import { PLAYER_CHARACTER_ANIMATION_CLIPS, PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
 
 export const KNIGHT_CONFIG = {
-  modelPath: FANTASY_KNIGHT_MODEL_PATH,
+  modelPath: PLAYER_CHARACTER_MODEL_PATH,
   modelScale: 1,
   modelFacing: Math.PI,
+  rootBoneName: "Hips",
+  animationClips: PLAYER_CHARACTER_ANIMATION_CLIPS,
   colors: {
     armor: "#252832",
     armorLight: "#41444c",

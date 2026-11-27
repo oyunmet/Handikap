@@ -15,26 +15,26 @@ function fittedHeight(root, targetHeight) {
   return measured;
 }
 
-test("static character fitting puts a normal GLB at the configured player/NPC height", () => {
+test("character fitting puts a normal GLB at the configured player/NPC height", () => {
   const source = new THREE.Group();
   source.name = "player-hero";
   source.add(new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.65, 0.45), new THREE.MeshBasicMaterial()));
   assert.ok(Math.abs(fittedHeight(source, WORLD_V2_CONFIG.player.targetHeight) - 1.7) < 0.01);
 });
 
-test("loadAsset ignores legacy clips and fits the static character mesh", async () => {
+test("loadAsset retains native character clips while fitting the rigged mesh", async () => {
   const scene = new THREE.Group();
   const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1, 0.5), new THREE.MeshBasicMaterial());
   bodyMesh.name = "StaticMesh";
   scene.add(bodyMesh);
-  const ignoredClip = new THREE.VectorKeyframeTrack(
+  const nativeClip = new THREE.VectorKeyframeTrack(
     "StaticMesh.scale",
     [0, 1],
     [2, 2, 2, 3, 3, 3],
   );
   const gltf = {
     scene,
-    animations: [new THREE.AnimationClip("LegacyBodyClip", 1, [ignoredClip])],
+    animations: [new THREE.AnimationClip("Walk", 1, [nativeClip])],
   };
 
   clearWorldV2AssetCacheForTests();
@@ -42,9 +42,10 @@ test("loadAsset ignores legacy clips and fits the static character mesh", async 
     loadAsync: async () => gltf,
   });
   assert.ok(Math.abs(prepared.dimensions.y - WORLD_V2_CONFIG.player.targetHeight) < 0.01);
-  assert.ok(Math.abs(scene.scale.y - 1.7) < 0.01, "only the static source dimensions should be measured");
-  assert.ok(Math.abs(bodyMesh.scale.y - 1) < 0.01, "legacy clips must not pose the shared character");
-  assert.equal("animations" in prepared, false);
+  assert.ok(Math.abs(scene.scale.y - 1.7) < 0.01, "fitting should scale the character root");
+  assert.ok(Math.abs(bodyMesh.scale.y - 1) < 0.01, "fitting should preserve mesh-local transforms");
+  assert.equal(prepared.animations[0].name, "Walk");
+  assert.equal(prepared.animations[0].tracks.length, 1);
   clearWorldV2AssetCacheForTests();
 });
 

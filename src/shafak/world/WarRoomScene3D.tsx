@@ -239,6 +239,7 @@ import {
   type WarRoomSoundSurface,
 } from "../game/war-room-audio";
 import { isWarRoomLowHealth } from "../game/war-room-feedback";
+import type { CharacterAnimationState } from "./character-animation";
 import {
   getWarRoomEnemySpeedMultiplier,
   getWarRoomMissionOutcome,
@@ -1322,6 +1323,7 @@ function PlayerActor({
 }) {
   const recoilRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group | null>(null);
+  const animationStateRef = useRef<CharacterAnimationState>("idle");
   const handMountPoseRef = useRef<{
     hand: THREE.Object3D;
     mount: WarRoomWeaponMount;
@@ -1409,6 +1411,24 @@ function PlayerActor({
   useFrame((_, delta) => {
     if (inputRef.current.paused) return;
     const player = runtimeRef.current.player;
+    const moveX = inputRef.current.moveX
+      + (inputRef.current.keys.has("d") ? 1 : 0)
+      - (inputRef.current.keys.has("a") ? 1 : 0);
+    const moveY = inputRef.current.moveY
+      + (inputRef.current.keys.has("w") ? 1 : 0)
+      - (inputRef.current.keys.has("s") ? 1 : 0);
+    const moving = Math.hypot(moveX, moveY) > 0.12;
+    animationStateRef.current = player.hp <= 0
+      ? "die"
+      : player.meleeUntil > player.clockTime
+        ? "attack"
+        : player.jumpHeight > 0.12
+          ? "jump"
+          : inputRef.current.aimHeld
+            ? "block"
+            : moving
+              ? player.sprinting ? "run" : "walk"
+              : "idle";
     const root = rootRef.current;
     if (root) {
       root.position.set(
@@ -1424,10 +1444,10 @@ function PlayerActor({
       );
     }
     const hand = modelRef.current && [
-      "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
+      "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone", "Hand.R",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const leftHand = modelRef.current && [
-      "Rig_LeftHand", "mixamorigLeftHand", "FistL", "Fist.L", "LeftHand", "LeftHandBone",
+      "Rig_LeftHand", "mixamorigLeftHand", "FistL", "Fist.L", "LeftHand", "LeftHandBone", "Hand.L",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const rightUpperArm = modelRef.current && [
       "mixamorigRightArm", "RightArm", "Rig_RightArm", "RightUpperArm", "UpperArm.R", "Arm.R",
@@ -1616,6 +1636,8 @@ function PlayerActor({
             tint="#2f765d"
             height={WAR_ROOM_CHARACTER_HEIGHT}
             modelRef={modelRef}
+            stateRef={animationStateRef}
+            animationPaused={() => inputRef.current.paused}
           />
         </Suspense>
       </WarRoomAssetBoundary>
@@ -1684,6 +1706,7 @@ function EnemyActor({
   const attackWarningRef = useRef<THREE.Group>(null);
   const muzzleAnchorRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Group>(null);
+  const animationStateRef = useRef<CharacterAnimationState>("idle");
   useFrame((frame, delta) => {
     if (inputRef.current.paused) return;
     const group = groupRef.current;
@@ -1691,6 +1714,18 @@ function EnemyActor({
     const runtime = group.parent?.userData.runtime as WarRoomRuntime | undefined;
     const player = runtime?.player;
     const gameNow = runtime?.player.clockTime ?? frame.clock.elapsedTime;
+    const enemySpeed = Math.hypot(enemy.moveVelocityX, enemy.moveVelocityZ);
+    animationStateRef.current = !enemy.alive
+      ? "die"
+      : enemy.hitUntil > gameNow
+        ? "hit"
+        : enemy.mode === "fire"
+          ? "attack"
+          : enemy.mode === "cover"
+            ? "block"
+            : enemySpeed > 0.08
+              ? "run"
+              : "idle";
     const isBossAbilityTelegraph = Boolean(
       enemy.commander
       && enemy.bossAttack
@@ -1741,7 +1776,7 @@ function EnemyActor({
     group.rotation.x = 0;
     group.rotation.z = 0;
     const hand = modelRef.current && [
-      "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone",
+      "Rig_RightHand", "mixamorigRightHand", "FistR", "Fist.R", "RightHand", "RightHandBone", "Hand.R",
     ].map((name) => modelRef.current?.getObjectByName(name)).find(Boolean);
     const weaponMount = weaponMountRef.current;
     const root = groupRef.current;
@@ -1837,6 +1872,8 @@ function EnemyActor({
             tint={tint}
             commander={enemy.commander}
             modelRef={modelRef}
+            stateRef={animationStateRef}
+            animationPaused={() => inputRef.current.paused}
           />
         </Suspense>
       </WarRoomAssetBoundary>

@@ -7,7 +7,7 @@ import {
   getPrincessCameraFrame,
   type PrincessAnimationMood,
 } from "./princess-model-config.ts";
-import FantasyKnightModel from "./FantasyKnightModel";
+import SharedCharacterModel from "./SharedCharacterModel";
 
 export type PrincessModelRevealProps = {
   mood: PrincessAnimationMood;
@@ -57,7 +57,7 @@ function PrincessModel({
 
   return (
     <group ref={rootRef} name="PrincessFacingRoot" rotation={[0, Math.PI, 0]}>
-      <FantasyKnightModel
+      <SharedCharacterModel
         appearance={{
           armor: "#3e7258",
           armorLight: "#789170",

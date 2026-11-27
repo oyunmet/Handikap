@@ -10,12 +10,14 @@ import {
 } from "./character-model";
 import {
   PLAYER_CHARACTER_MODEL_FACING,
+  PLAYER_CHARACTER_MODEL_PATH,
 } from "./player-model";
 import { fitWarRoomWeapon } from "../game/war-room-weapon-fit";
 import { WAR_ROOM_WEAPON_BY_ID, type WarRoomWeaponId } from "../game/war-room-data";
 import { getWarRoomWeaponAnimationNode } from "./war-room-model-parts";
 import type { EquipmentVisual } from "../game/store-types";
-import FantasyKnightModel from "./FantasyKnightModel";
+import type { CharacterAnimationState } from "./character-animation";
+import SharedCharacterModel from "./SharedCharacterModel";
 import {
   getFantasyKnightHeadAccessory,
   getFantasyKnightOutfitVariant,
@@ -283,6 +285,8 @@ type WarRoomCharacterProps = {
   tint?: string;
   commander?: boolean;
   modelRef?: MutableRefObject<THREE.Group | null>;
+  stateRef?: MutableRefObject<CharacterAnimationState>;
+  animationPaused?: boolean | (() => boolean);
 };
 
 function getWarRoomCharacterAppearance(
@@ -309,6 +313,8 @@ export function WarRoomCharacterActor({
   tint,
   commander = false,
   modelRef,
+  stateRef,
+  animationPaused,
 }: WarRoomCharacterProps) {
   const rigRef = useRef<THREE.Group | null>(null);
   const appearance = useMemo(
@@ -325,13 +331,16 @@ export function WarRoomCharacterActor({
   }, [modelRef]);
 
   return (
-    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]} name="fantasy-knight-war-room-actor">
-      <FantasyKnightModel
+    <group rotation={[0, PLAYER_CHARACTER_MODEL_FACING, 0]} name="shared-player-hero-war-room-actor">
+      <SharedCharacterModel
         appearance={appearance}
         headAccessory={getFantasyKnightHeadAccessory(`${src}:${tint ?? ""}:${commander}`)}
         targetHeight={height}
         showWeapon={false}
         rootRef={rigRef}
+        modelPath={PLAYER_CHARACTER_MODEL_PATH}
+        stateRef={stateRef}
+        animationPaused={animationPaused}
       />
     </group>
   );

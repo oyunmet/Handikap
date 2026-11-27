@@ -8,7 +8,7 @@ export const WORLD_V2_CONFIG = {
   },
   player: { targetHeight: 1.7 },
   npc: { targetHeight: 1.7 },
-  // Normalize the GLB's native forward axis inside the actor's model wrapper.
+  // Normalize the shared player GLB's forward axis inside the actor wrapper.
   modelFacing: KNIGHT_CONFIG.modelFacing,
   rock: { targetMaxDim: 2 },
   spikeTrap: { width: 3, height: 0.5 },
@@ -36,7 +36,7 @@ export function getWorldV2Heading(
 ) {
   if (!Number.isFinite(velocityX) || !Number.isFinite(velocityY)) return fallback;
   if (Math.hypot(velocityX, velocityY) < 0.12) return fallback;
-  // The shared knight GLB faces native +Z; the model-axis group turns that to -Z.
+  // The shared animated player GLB faces native +Z; the model-axis group turns that to -Z.
   // Root yaw must then follow movement along (velocityX, -velocityY).
   return Math.atan2(-velocityX, velocityY);
 }

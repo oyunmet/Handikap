@@ -64,12 +64,12 @@ test("world-size audit checks each InstancedMesh scale", () => {
   material.dispose();
 });
 
-test("the character-size audit accepts the shared static knight model", async () => {
-  const bytes = fs.readFileSync(new URL("../../../public/models/fantasy_knight.glb", import.meta.url));
+test("the character-size audit accepts the shared rigged player model", async () => {
+  const bytes = fs.readFileSync(new URL("../../../public/models/player-hero.glb", import.meta.url));
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   const gltf = await new Promise((resolve, reject) =>
     new GLTFLoader().parse(buffer, "/", resolve, reject));
-  const asset = prepareWorldAsset("/models/fantasy_knight.glb", gltf, { targetHeight: 1.7 });
+  const asset = prepareWorldAsset("/models/player-hero.glb", gltf, { targetHeight: 1.7 });
   let meshCount = 0;
   let skinnedMeshCount = 0;
   asset.scene.traverse((object) => {
@@ -79,8 +79,8 @@ test("the character-size audit accepts the shared static knight model", async ()
   });
 
   assert.ok(meshCount > 0);
-  assert.equal(skinnedMeshCount, 0);
-  assert.equal(gltf.animations.length, 0);
+  assert.ok(skinnedMeshCount > 0);
+  assert.equal(gltf.animations.length, 24);
   assert.deepEqual(
     auditWorldMeshSizes(asset.scene),
     [],

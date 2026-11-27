@@ -19,7 +19,7 @@ const archetypes = [
   "chapter-boss",
 ];
 
-test("rival archetypes share the fitted static knight base and bounded scales", () => {
+test("rival archetypes share the fitted animated hero base and bounded scales", () => {
   const configs = archetypes.map((archetype) => {
     const profile = getWorldBotProfileByArchetype(archetype);
     return getRivalModelConfig(profile.name, profile);
@@ -27,7 +27,7 @@ test("rival archetypes share the fitted static knight base and bounded scales", 
 
   assert.deepEqual(
     new Set(configs.map((config) => config.modelPath)),
-    new Set(["/models/fantasy_knight.glb"]),
+    new Set(["/models/player-hero.glb"]),
   );
   for (const config of configs.slice(0, -1)) {
     assert.ok(config.scale >= 0.95 && config.scale <= 1.1);
@@ -71,7 +71,7 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(venomConfig.weapon, "daggers");
   assert.equal(frostConfig.appearance.armorLight, "#c8e1e5");
   assert.equal(frostConfig.weapon, "bow");
-  assert.equal(bossConfig.modelPath, "/models/fantasy_knight.glb");
+  assert.equal(bossConfig.modelPath, "/models/player-hero.glb");
   assert.equal(bossConfig.targetHeight, 2.15);
   assert.equal(worldBossConfig.targetHeight, 1.95);
   assert.equal(bossConfig.modelFacing, Math.PI);
@@ -86,6 +86,6 @@ test("the named chapter rivals keep their titles and get the requested visual ki
   assert.equal(bossConfig.costume.horns, false);
   assert.equal(
     getRivalModelConfig("Kül Tahtı", getWorldBotProfileByArchetype("chapter-boss"))?.modelPath,
-    "/models/fantasy_knight.glb",
+    "/models/player-hero.glb",
   );
 });
