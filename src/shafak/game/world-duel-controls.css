@@ -56,7 +56,7 @@
   position: absolute;
   z-index: 5;
   top: auto;
-  right: max(14px, env(safe-area-inset-right));
+  right: max(20px, calc(env(safe-area-inset-right) + 16px));
   bottom: max(20px, env(safe-area-inset-bottom));
   left: auto;
   display: block;
@@ -76,6 +76,7 @@
 
 .duel-controls--field .duel-control-cluster .duel-control.game-button {
   position: relative;
+  inset: auto !important;
   display: grid;
   place-items: center;
   width: 58px !important;
@@ -170,6 +171,7 @@
 
 .duel-controls--field .duel-utility-toggle {
   position: relative;
+  inset: auto !important;
   grid-area: 2 / 1;
   display: grid;
   width: 58px;
@@ -183,6 +185,7 @@
   color: #f6e5c4;
   pointer-events: auto;
   touch-action: manipulation;
+  transform: none;
 }
 
 .duel-controls--field .duel-utility-toggle > span {
@@ -466,7 +469,7 @@
   }
 
   .duel-controls--field .duel-control-cluster {
-    right: max(12px, calc(env(safe-area-inset-right) + 6px));
+    right: max(20px, calc(env(safe-area-inset-right) + 16px));
     bottom: max(34px, calc(env(safe-area-inset-bottom) + 26px));
     width: auto;
     height: auto;
@@ -569,7 +572,7 @@
   }
 
   .duel-controls--field .duel-control-cluster {
-    right: max(10px, env(safe-area-inset-right));
+    right: max(16px, calc(env(safe-area-inset-right) + 12px));
     bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px));
   }
 
@@ -682,7 +685,7 @@
   }
 
   .duel-controls--field .duel-control-cluster {
-    right: max(8px, env(safe-area-inset-right));
+    right: max(14px, calc(env(safe-area-inset-right) + 10px));
     bottom: max(6px, env(safe-area-inset-bottom));
   }
 

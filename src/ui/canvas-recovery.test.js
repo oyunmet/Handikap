@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  CANVAS_CONTEXT_RESTORE_TIMEOUT_MS,
   CANVAS_RECOVERY_STABLE_WINDOW_MS,
   resolveCanvasRecovery,
   resolveCanvasRecoveryDprScale,
@@ -26,6 +27,7 @@ test("repeated context losses are fatal only after the automatic retry budget is
 });
 
 test("a stable renderer restores full resolution after a temporary recovery reduction", () => {
+  assert.equal(CANVAS_CONTEXT_RESTORE_TIMEOUT_MS, 8_000);
   assert.equal(CANVAS_RECOVERY_STABLE_WINDOW_MS, 15_000);
   assert.equal(resolveCanvasRecoveryDprScale(1), 0.75);
   assert.equal(resolveCanvasRecoveryDprScale(0.5), 0.5);

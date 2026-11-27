@@ -86,8 +86,11 @@ test("shared renderer rebuilds after WebGL context loss and exposes a retry afte
   assert.match(host, /recentContextLossesRef\.current = \[\]/);
   assert.match(host, /shouldFailCanvasRecovery\(recentContextLossesRef\.current\.length\)/);
   assert.match(host, /rendererRecoveryStableTimerRef/);
+  assert.match(host, /CANVAS_CONTEXT_RESTORE_TIMEOUT_MS/);
   assert.match(host, /CANVAS_RECOVERY_STABLE_WINDOW_MS/);
   assert.match(host, /resolveCanvasRecoveryDprScale\(scale, true\)/);
+  assert.match(host, /manualLowResolutionRef\.current/);
+  assert.match(host, /setRendererRecoveryDprScale\(0\.5\)/);
   assert.match(host, /rendererRecoveryFailed &&/);
   assert.match(host, /retrySharedRenderer/);
 });
@@ -110,6 +113,16 @@ test("shared renderer removes old canvas listeners before rebuilding", () => {
     scheduledRecovery,
     /rendererContextCleanupRef\.current\?\.\(\);[\s\S]*activeRendererCanvasRef\.current = null;[\s\S]*context\.recoverRenderer\(true\)/,
   );
+});
+
+test("shared renderer allows mobile Safari time to restore before forcing a new canvas", () => {
+  const host = readFileSync(resolve(projectRoot, "src/ui/GameCanvasHost.tsx"), "utf8");
+  const scheduledRecovery = host.slice(
+    host.indexOf("const scheduleRecovery"),
+    host.indexOf("const handleContextLost"),
+  );
+  assert.match(scheduledRecovery, /CANVAS_CONTEXT_RESTORE_TIMEOUT_MS/);
+  assert.match(host, /recentContextLossesRef\.current = \[\];[\s\S]*setRendererRecoveryFailed\(false\);[\s\S]*scheduleStableRecoveryReset\(\)/);
 });
 
 test("scene-specific setup does not override the shared renderer's recovery resolution", () => {

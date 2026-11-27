@@ -4,6 +4,7 @@ export type CanvasRecoveryDecision = {
 };
 
 export const CANVAS_RECOVERY_STABLE_WINDOW_MS = 15_000;
+export const CANVAS_CONTEXT_RESTORE_TIMEOUT_MS = 8_000;
 export const MAX_RECENT_CANVAS_CONTEXT_LOSSES = 3;
 
 export function resolveCanvasRecovery(

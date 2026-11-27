@@ -19,6 +19,12 @@ Do not create and destroy a throwaway WebGL context to preflight support on mobi
 
 **Why:** The user reported that the ordinary mobile game looked too low-resolution. A fixed DPR 1 made the city/campaign scenes blurry on high-density phone screens, so improve clarity without removing the mobile GPU cap or War Room's adaptive FPS protection.
 
+For shared WebGL context loss on mobile Safari, wait several seconds for `webglcontextrestored` before replacing the canvas. A manual retry should keep a conservative pixel ratio for the rest of the app session; automatic recovery can restore normal resolution after a stable period.
+
+**Why:** Forcing a rebuild after only 1.2 seconds can interrupt Safari's native context restoration. Retrying at the original pixel ratio can reproduce GPU pressure immediately.
+
+**How to apply:** Keep a bounded restore timeout, clear loss history when the context restores, and keep manual recovery at low DPR until the next app session.
+
 The black-frame watchdog must catch uniformly near-black output (around 5% luminance) and mostly near-black frames even when a few lit props add color variation, while keeping the normal dark sky/clear color above its threshold.
 
 **Why:** User screenshots showed a nearly uniform dark frame around RGB (16, 12, 10), sometimes with a visible gate or other sparse detail. A unique-color limit can miss that mostly black image.

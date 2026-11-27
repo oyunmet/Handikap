@@ -35,6 +35,7 @@ import { useGameRuntimeStore } from "../state/game-store";
 import { sharedGameRuntime } from "../core/game-runtime";
 import { resolveSharedCanvasDpr, scaleCanvasDpr } from "./canvas-pixel-ratio";
 import {
+  CANVAS_CONTEXT_RESTORE_TIMEOUT_MS,
   CANVAS_RECOVERY_STABLE_WINDOW_MS,
   resolveCanvasRecoveryDprScale,
   shouldFailCanvasRecovery,
@@ -151,6 +152,7 @@ export function GameCanvasStage() {
   const rendererRecoveryTimerRef = useRef<number | null>(null);
   const rendererRecoveryStableTimerRef = useRef<number | null>(null);
   const activeRendererCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const manualLowResolutionRef = useRef(false);
   const recentContextLossesRef = useRef<number[]>([]);
   const [rendererRecoveryFailed, setRendererRecoveryFailed] = useState(false);
   const [rendererRecoveryDprScale, setRendererRecoveryDprScale] = useState(1);
@@ -228,7 +230,9 @@ export function GameCanvasStage() {
         if (activeRendererCanvasRef.current !== canvas) return;
         recentContextLossesRef.current = [];
         setRendererRecoveryFailed(false);
-        setRendererRecoveryDprScale((scale) => resolveCanvasRecoveryDprScale(scale, true));
+        if (!manualLowResolutionRef.current) {
+          setRendererRecoveryDprScale((scale) => resolveCanvasRecoveryDprScale(scale, true));
+        }
       }, CANVAS_RECOVERY_STABLE_WINDOW_MS);
     };
     const scheduleRecovery = () => {
@@ -241,7 +245,7 @@ export function GameCanvasStage() {
         rendererContextCleanupRef.current = null;
         activeRendererCanvasRef.current = null;
         context.recoverRenderer(true);
-      }, 1_200);
+      }, CANVAS_CONTEXT_RESTORE_TIMEOUT_MS);
     };
     const handleContextLost = (event: Event) => {
       event.preventDefault();
@@ -314,7 +318,8 @@ export function GameCanvasStage() {
     rendererContextCleanupRef.current?.();
     rendererContextCleanupRef.current = null;
     activeRendererCanvasRef.current = null;
-    setRendererRecoveryDprScale((scale) => Math.min(scale, 0.75));
+    manualLowResolutionRef.current = true;
+    setRendererRecoveryDprScale(0.5);
     context.recoverRenderer(true);
   }, [context.recoverRenderer]);
 
