@@ -34,6 +34,11 @@ import type { GameSceneId } from "../modes/mode";
 import { useGameRuntimeStore } from "../state/game-store";
 import { sharedGameRuntime } from "../core/game-runtime";
 import { resolveSharedCanvasDpr, scaleCanvasDpr } from "./canvas-pixel-ratio";
+import {
+  CANVAS_RECOVERY_STABLE_WINDOW_MS,
+  resolveCanvasRecoveryDprScale,
+  shouldFailCanvasRecovery,
+} from "./canvas-recovery";
 import "./game-canvas-host.css";
 
 type SharedCanvasSettings = Pick<
@@ -144,6 +149,7 @@ export function GameCanvasStage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const rendererContextCleanupRef = useRef<(() => void) | null>(null);
   const rendererRecoveryTimerRef = useRef<number | null>(null);
+  const rendererRecoveryStableTimerRef = useRef<number | null>(null);
   const activeRendererCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recentContextLossesRef = useRef<number[]>([]);
   const [rendererRecoveryFailed, setRendererRecoveryFailed] = useState(false);
@@ -213,6 +219,18 @@ export function GameCanvasStage() {
     rendererContextCleanupRef.current?.();
     const canvas = gl.domElement;
     activeRendererCanvasRef.current = canvas;
+    const scheduleStableRecoveryReset = () => {
+      if (rendererRecoveryStableTimerRef.current !== null) {
+        window.clearTimeout(rendererRecoveryStableTimerRef.current);
+      }
+      rendererRecoveryStableTimerRef.current = window.setTimeout(() => {
+        rendererRecoveryStableTimerRef.current = null;
+        if (activeRendererCanvasRef.current !== canvas) return;
+        recentContextLossesRef.current = [];
+        setRendererRecoveryFailed(false);
+        setRendererRecoveryDprScale((scale) => resolveCanvasRecoveryDprScale(scale, true));
+      }, CANVAS_RECOVERY_STABLE_WINDOW_MS);
+    };
     const scheduleRecovery = () => {
       if (rendererRecoveryTimerRef.current !== null) return;
       rendererRecoveryTimerRef.current = window.setTimeout(() => {
@@ -228,11 +246,15 @@ export function GameCanvasStage() {
     const handleContextLost = (event: Event) => {
       event.preventDefault();
       if (activeRendererCanvasRef.current !== canvas) return;
+      if (rendererRecoveryStableTimerRef.current !== null) {
+        window.clearTimeout(rendererRecoveryStableTimerRef.current);
+        rendererRecoveryStableTimerRef.current = null;
+      }
       const now = Date.now();
       recentContextLossesRef.current = recentContextLossesRef.current
         .filter((lostAt) => now - lostAt < 15_000);
       recentContextLossesRef.current.push(now);
-      if (recentContextLossesRef.current.length > 3) {
+      if (shouldFailCanvasRecovery(recentContextLossesRef.current.length)) {
         if (rendererRecoveryTimerRef.current !== null) {
           window.clearTimeout(rendererRecoveryTimerRef.current);
           rendererRecoveryTimerRef.current = null;
@@ -242,7 +264,7 @@ export function GameCanvasStage() {
         return;
       }
       setRendererRecoveryFailed(false);
-      setRendererRecoveryDprScale((scale) => Math.max(0.5, scale * 0.75));
+      setRendererRecoveryDprScale((scale) => resolveCanvasRecoveryDprScale(scale));
       scheduleRecovery();
     };
     const handleContextRestored = () => {
@@ -253,7 +275,9 @@ export function GameCanvasStage() {
       }
       recentContextLossesRef.current = [];
       setRendererRecoveryFailed(false);
+      scheduleStableRecoveryReset();
     };
+    scheduleStableRecoveryReset();
     canvas.addEventListener("webglcontextlost", handleContextLost);
     canvas.addEventListener("webglcontextrestored", handleContextRestored);
     rendererContextCleanupRef.current = () => {
@@ -270,6 +294,10 @@ export function GameCanvasStage() {
       window.clearTimeout(rendererRecoveryTimerRef.current);
       rendererRecoveryTimerRef.current = null;
     }
+    if (rendererRecoveryStableTimerRef.current !== null) {
+      window.clearTimeout(rendererRecoveryStableTimerRef.current);
+      rendererRecoveryStableTimerRef.current = null;
+    }
   }, []);
 
   const retrySharedRenderer = useCallback(() => {
@@ -278,6 +306,10 @@ export function GameCanvasStage() {
     if (rendererRecoveryTimerRef.current !== null) {
       window.clearTimeout(rendererRecoveryTimerRef.current);
       rendererRecoveryTimerRef.current = null;
+    }
+    if (rendererRecoveryStableTimerRef.current !== null) {
+      window.clearTimeout(rendererRecoveryStableTimerRef.current);
+      rendererRecoveryStableTimerRef.current = null;
     }
     rendererContextCleanupRef.current?.();
     rendererContextCleanupRef.current = null;

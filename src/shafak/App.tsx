@@ -1299,6 +1299,7 @@ function App({ user, authLoaded, allowOfflineGuest = false, signOut, getToken }:
           >
             <Suspense fallback={<div className="entry-loading">Şehir hazırlanıyor…</div>}>
               <CityHub
+                quality={activeQuality}
                 playerName={profile.name}
                 campaignChapter={menuCampaignProgress.levelNumber}
                 campaignActNumber={menuCampaignProgress.actNumber}

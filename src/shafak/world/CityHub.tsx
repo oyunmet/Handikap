@@ -28,9 +28,11 @@ import {
 import { CAMPAIGN_OPERATIONS } from "../../data/story.ts";
 import { STORY_UI_STRINGS } from "../../data/strings.ts";
 import type { EquipmentVisual } from "../game/store-types";
+import type { RenderQuality } from "./graphics-quality";
 import "./city-hub.css";
 
 type CityHubProps = {
+  quality: RenderQuality;
   playerName: string;
   campaignChapter: number;
   campaignActNumber: number;
@@ -55,6 +57,7 @@ type JoystickAnchor = { x: number; y: number };
 const clampAxis = (value: number) => Math.max(-1, Math.min(1, value));
 
 export default function CityHub({
+  quality,
   playerName,
   campaignChapter,
   campaignActNumber,
@@ -292,6 +295,7 @@ export default function CityHub({
         onLostPointerCapture={endCameraLook}
       >
         <CityHubScene
+          quality={quality}
           positionRef={positionRef}
           inputRef={inputRef}
           cameraControlRef={cameraControlRef}

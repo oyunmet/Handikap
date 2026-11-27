@@ -84,9 +84,20 @@ test("shared renderer rebuilds after WebGL context loss and exposes a retry afte
   assert.match(host, /activeRendererCanvasRef\.current !== canvas/);
   assert.match(host, /setRendererRecoveryDprScale/);
   assert.match(host, /recentContextLossesRef\.current = \[\]/);
-  assert.match(host, /recentContextLossesRef\.current\.length > 3/);
+  assert.match(host, /shouldFailCanvasRecovery\(recentContextLossesRef\.current\.length\)/);
+  assert.match(host, /rendererRecoveryStableTimerRef/);
+  assert.match(host, /CANVAS_RECOVERY_STABLE_WINDOW_MS/);
+  assert.match(host, /resolveCanvasRecoveryDprScale\(scale, true\)/);
   assert.match(host, /rendererRecoveryFailed &&/);
   assert.match(host, /retrySharedRenderer/);
+});
+
+test("the City Hub uses the selected quality tier for its device pixel ratio", () => {
+  const cityHub = readFileSync(resolve(projectRoot, "src/shafak/world/CityHubScene.tsx"), "utf8");
+  const app = readFileSync(resolve(projectRoot, "src/shafak/App.tsx"), "utf8");
+  assert.match(cityHub, /getWorldRenderPixelRatio\(props\.quality \?\? "balanced", devicePixelRatio, touchRenderer\)/);
+  assert.match(cityHub, /dpr=\{pixelRatio\}/);
+  assert.match(app, /<CityHub\s+quality=\{activeQuality\}/);
 });
 
 test("shared renderer removes old canvas listeners before rebuilding", () => {

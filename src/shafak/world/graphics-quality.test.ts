@@ -51,11 +51,12 @@ test("world pixel ratio stays within the mobile rendering budget", () => {
   assert.equal(getPixelRatioCap("high"), 2);
   assert.equal(getPixelRatioCap("balanced"), 1.5);
   assert.equal(getPixelRatioCap("low"), 1);
-  assert.equal(getPixelRatioCap("high", true), 1);
-  assert.equal(getWorldRenderPixelRatio("low", 3, true), 1);
+  assert.equal(getPixelRatioCap("high", true), 1.5);
+  assert.equal(getPixelRatioCap("low", true), 1.25);
+  assert.equal(getWorldRenderPixelRatio("low", 3, true), 1.25);
   assert.equal(getWorldRenderPixelRatio("high", 3), 2);
-  assert.equal(getWorldRenderPixelRatio("high", 3, true), 1);
-  assert.equal(getWorldRenderPixelRatio("balanced", 3, true), 1);
+  assert.equal(getWorldRenderPixelRatio("high", 3, true), 1.5);
+  assert.equal(getWorldRenderPixelRatio("balanced", 3, true), 1.5);
   assert.equal(getWorldRenderPixelRatio("balanced", 0.75, true), 1);
   assert.equal(getWorldRenderPixelRatio("low", 3), 1);
 });

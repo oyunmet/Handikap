@@ -28,9 +28,11 @@ import WorldV2Actor from "./WorldV2Actor";
 import { loadAsset, type LoadedWorldAsset } from "./world-v2-assets";
 import { WORLD_V2_CONFIG } from "./world-v2-config";
 import { PLAYER_CHARACTER_MODEL_PATH } from "./player-model";
+import { getWorldRenderPixelRatio, type RenderQuality } from "./graphics-quality";
 import type { EquipmentVisual } from "../game/store-types";
 
 type CityHubSceneProps = {
+  quality?: RenderQuality;
   positionRef: MutableRefObject<CityPosition>;
   inputRef: MutableRefObject<CityInput>;
   cameraControlRef?: MutableRefObject<CityCameraControl>;
@@ -521,6 +523,11 @@ export default function CityHubScene(props: CityHubSceneProps) {
   const [heroAsset, setHeroAsset] = useState<LoadedWorldAsset | null>(null);
   const [residentAssets, setResidentAssets] = useState<ReadonlyMap<string, LoadedWorldAsset>>(() => new Map());
   const [modelLoadFailed, setModelLoadFailed] = useState(false);
+  const touchRenderer = typeof window !== "undefined"
+    && window.matchMedia("(pointer: coarse)").matches;
+  const devicePixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const pixelRatio = props.pixelRatio
+    ?? getWorldRenderPixelRatio(props.quality ?? "balanced", devicePixelRatio, touchRenderer);
 
   useEffect(() => {
     let active = true;
@@ -560,7 +567,7 @@ export default function CityHubScene(props: CityHubSceneProps) {
         className={props.className}
         sceneId="hub"
         shadows
-        dpr={props.pixelRatio ?? 1}
+        dpr={pixelRatio}
         camera={{ position: [2.6, 5.2, 7.2], fov: 49, near: 0.1, far: 110 }}
         gl={{ antialias: true, powerPreference: "low-power" }}
         onCreated={({ gl }) => {

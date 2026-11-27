@@ -14,6 +14,12 @@ const PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
   high: 2,
 };
 
+const TOUCH_PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
+  low: 1.25,
+  balanced: 1.5,
+  high: 1.5,
+};
+
 export function normalizeGraphicsMode(value: unknown): GraphicsMode {
   if (value === "low" || value === "medium" || value === "high" || value === "auto") {
     return value;
@@ -49,7 +55,7 @@ export function getAutoQualityAction(fps: number, sustainedForMs: number): "down
 }
 
 export function getPixelRatioCap(quality: RenderQuality, touchDevice = false): number {
-  if (touchDevice) return 1;
+  if (touchDevice) return TOUCH_PIXEL_RATIO_CAP[quality];
   return PIXEL_RATIO_CAP[quality];
 }
 
