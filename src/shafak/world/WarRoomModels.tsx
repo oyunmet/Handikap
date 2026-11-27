@@ -294,7 +294,7 @@ function getWarRoomCharacterAppearance(
   tint: string | undefined,
   commander: boolean,
 ): EquipmentVisual {
-  const outfit = getFantasyKnightOutfitVariant(`${src}:${commander}`);
+  const outfit = getFantasyKnightOutfitVariant(`${src}:${tint ?? ""}:${commander}`);
   return {
     ...outfit,
     armor: tint ?? outfit.armor,
@@ -303,6 +303,7 @@ function getWarRoomCharacterAppearance(
     trim: commander ? "#e0bd68" : "#a77d43",
     bootColor: "#4a352a",
     cape: commander ? "#9d343c" : outfit.cape,
+    armorStyle: commander ? "royal" : outfit.armorStyle,
     weaponStyle: "sword",
   };
 }

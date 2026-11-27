@@ -49,6 +49,7 @@ const FANTASY_KNIGHT_OUTFITS: readonly EquipmentVisual[] = [
     cape: "#633b3f",
     bootColor: "#44342d",
     hairColor: "#9b7351",
+    armorStyle: "ash",
   },
   {
     armor: "#315e4a",
@@ -58,6 +59,7 @@ const FANTASY_KNIGHT_OUTFITS: readonly EquipmentVisual[] = [
     cape: "#3f5643",
     bootColor: "#41362c",
     hairColor: "#c99b43",
+    armorStyle: "watch",
   },
   {
     armor: "#355a77",
@@ -67,6 +69,7 @@ const FANTASY_KNIGHT_OUTFITS: readonly EquipmentVisual[] = [
     cape: "#425e73",
     bootColor: "#343c41",
     hairColor: "#806c5a",
+    armorStyle: "royal",
   },
   {
     armor: "#7d3d3c",
@@ -76,6 +79,7 @@ const FANTASY_KNIGHT_OUTFITS: readonly EquipmentVisual[] = [
     cape: "#5f2e38",
     bootColor: "#42302c",
     hairColor: "#ab713e",
+    armorStyle: "shadow",
   },
   {
     armor: "#5a6036",
@@ -85,10 +89,11 @@ const FANTASY_KNIGHT_OUTFITS: readonly EquipmentVisual[] = [
     cape: "#3f4635",
     bootColor: "#3e362b",
     hairColor: "#75634c",
+    armorStyle: "watch",
   },
 ];
 
-/** Stable outfit color variants keep every NPC on the same static character mesh. */
+/** Stable outfit variants keep every NPC on the shared animated character mesh. */
 export function getFantasyKnightOutfitVariant(seed: string): EquipmentVisual {
   return { ...FANTASY_KNIGHT_OUTFITS[stableHash(seed) % FANTASY_KNIGHT_OUTFITS.length] };
 }

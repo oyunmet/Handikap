@@ -15,6 +15,10 @@ import {
   prepareCharacterSkinnedMeshes,
   type CharacterOwnedResources,
 } from "./character-model";
+import {
+  attachHumanCharacterDetails,
+  type AttachedHumanCharacterDetails,
+} from "./human-character-details";
 import { resolveWorldActorClip } from "./world-v2-clip-selection";
 import {
   PLAYER_CHARACTER_ANIMATION_CLIPS,
@@ -54,6 +58,7 @@ type SharedCharacterInstance = {
   mixer: THREE.AnimationMixer;
   clips: THREE.AnimationClip[];
   resources: CharacterOwnedResources;
+  details: AttachedHumanCharacterDetails;
 };
 
 function getMotionAnimationState(motionRef?: MutableRefObject<WorldMotion>) {
@@ -179,6 +184,23 @@ function createSharedCharacterInstance(
   root.userData.worldModelSource = PLAYER_CHARACTER_MODEL_PATH;
   root.add(rig);
   fitObjectToTarget(root, { targetHeight });
+  const details = attachHumanCharacterDetails(rig, {
+    palette: {
+      armor: appearance.armor ?? "#554943",
+      armorLight: appearance.armorLight ?? "#a69a84",
+      armorDark: appearance.armorDark ?? "#302d30",
+      trim: appearance.trim ?? "#c49b5b",
+    },
+    pattern: appearance.armorStyle ?? "ash",
+    frontSign: 1,
+    include: {
+      chest: true,
+      belt: false,
+      shoulders: false,
+      arms: false,
+      legs: false,
+    },
+  });
   addAccessory(
     root,
     headAccessory ?? (appearance.helmetStyle ? "helmet" : null),
@@ -197,7 +219,7 @@ function createSharedCharacterInstance(
     return inPlace;
   });
 
-  return { root, mixer, clips, resources };
+  return { root, mixer, clips, resources, details };
 }
 
 function AnimatedCharacterInstance({
@@ -244,6 +266,7 @@ function AnimatedCharacterInstance({
       if (rootRef?.current === instance.root) rootRef.current = null;
       instance.mixer.stopAllAction();
       instance.mixer.uncacheRoot(instance.root);
+      instance.details.dispose();
       disposeCharacterResources(instance.resources);
     };
   }, [instance, rootRef]);

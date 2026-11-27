@@ -72,12 +72,18 @@ export default function WorldV2Actor({
   const previousMovementStateRef = useRef<WorldMotion["movementState"] | null>(null);
   const impactRingSecondsRef = useRef(0);
 
+  const variantSeed = JSON.stringify({
+    model: modelConfig?.modelPath ?? asset.url,
+    tint: tint ?? null,
+    appearance: modelConfig?.appearance ?? null,
+    costume: modelConfig?.costume ?? null,
+    weapon: modelConfig?.weapon ?? null,
+  });
   const appearance = useMemo(() => {
-    const seedText = `${asset.url}:${modelConfig?.modelPath ?? ""}:${tint ?? ""}`;
     const base = isPlayer
       ? equipmentVisual ?? {}
       : {
-        ...getFantasyKnightOutfitVariant(seedText),
+        ...getFantasyKnightOutfitVariant(variantSeed),
         ...(modelConfig?.appearance ?? {}),
       };
     return {
@@ -87,7 +93,7 @@ export default function WorldV2Actor({
         ? equipmentVisual?.weaponStyle
         : modelConfig?.weapon ?? modelConfig?.appearance.weaponStyle,
     };
-  }, [asset.url, equipmentVisual, isPlayer, modelConfig, tint]);
+  }, [equipmentVisual, isPlayer, modelConfig, tint, variantSeed]);
 
   const headAccessory: FantasyKnightHeadAccessory = cityAccessory === "hat"
     || cityAccessory === "glasses"
@@ -95,7 +101,7 @@ export default function WorldV2Actor({
     : isPlayer
       ? null
       : getFantasyKnightHeadAccessory(
-        `${modelConfig?.modelPath ?? asset.url}:${modelConfig?.isDemirTac ? "boss" : tint ?? ""}`,
+        variantSeed,
       );
 
   const actorScale = isPlayer ? 1 : modelConfig?.scale ?? 1;

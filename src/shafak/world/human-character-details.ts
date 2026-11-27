@@ -12,6 +12,7 @@ type DetailPalette = Pick<
 
 export type HumanCharacterDetailOptions = {
   palette?: DetailPalette;
+  pattern?: EquipmentVisual["armorStyle"];
   /** The source model's visible front faces +Z when positive and -Z when negative. */
   frontSign?: 1 | -1;
   include?: Partial<Record<"chest" | "belt" | "shoulders" | "arms" | "legs", boolean>>;
@@ -143,6 +144,62 @@ export function attachHumanCharacterDetails(
         createFacetedArmorPlateGeometry(0.38, 0.4, 0.045),
         modelMaterials.metal,
       );
+      if (options.pattern) {
+        const pattern = new THREE.Group();
+        pattern.name = `human-detail-chest-pattern-${options.pattern}`;
+        pattern.position.set(0, 0.015, 0.052);
+        torso.add(pattern);
+        mounts.push(pattern);
+
+        const addPatternMark = (
+          name: string,
+          width: number,
+          height: number,
+          x: number,
+          y: number,
+          rotation = 0,
+        ) => {
+          const mark = addMesh(
+            pattern,
+            name,
+            new THREE.BoxGeometry(width, height, 0.009),
+            modelMaterials.trim,
+            [x, y, 0],
+          );
+          mark.rotation.z = rotation;
+        };
+
+        if (options.pattern === "royal") {
+          const diamond = new THREE.Shape();
+          diamond.moveTo(0, 0.075);
+          diamond.lineTo(0.048, 0);
+          diamond.lineTo(0, -0.075);
+          diamond.lineTo(-0.048, 0);
+          diamond.closePath();
+          addMesh(
+            pattern,
+            "human-detail-chest-pattern-royal-diamond",
+            new THREE.ShapeGeometry(diamond),
+            modelMaterials.trim,
+          );
+        } else if (options.pattern === "watch") {
+          [-0.028, 0, 0.028].forEach((x, index) => {
+            addPatternMark(
+              `human-detail-chest-pattern-watch-stripe-${index}`,
+              0.012,
+              0.12,
+              x,
+              0,
+            );
+          });
+        } else if (options.pattern === "shadow") {
+          addPatternMark("human-detail-chest-pattern-shadow-slash-left", 0.016, 0.13, -0.02, 0, -0.28);
+          addPatternMark("human-detail-chest-pattern-shadow-slash-right", 0.016, 0.13, 0.02, 0, 0.28);
+        } else {
+          addPatternMark("human-detail-chest-pattern-ash-crossbar", 0.095, 0.016, 0, -0.01);
+          addPatternMark("human-detail-chest-pattern-ash-spine", 0.016, 0.13, 0, 0.01);
+        }
+      }
     }
   }
 

@@ -101,3 +101,39 @@ test("unknown skeletons do not receive disconnected armor on the model root", ()
   body.geometry.dispose();
   body.material.dispose();
 });
+
+test("armor styles create distinct chest patterns on the animated torso", () => {
+  const patternMarkCounts = {
+    ash: 2,
+    watch: 3,
+    royal: 1,
+    shadow: 2,
+  };
+
+  for (const [style, expectedMarks] of Object.entries(patternMarkCounts)) {
+    const model = new THREE.Group();
+    const torso = new THREE.Bone();
+    torso.name = "Torso";
+    model.add(torso);
+    model.updateMatrixWorld(true);
+
+    const details = attachHumanCharacterDetails(model, {
+      pattern: style,
+      include: {
+        chest: true,
+        belt: false,
+        shoulders: false,
+        arms: false,
+        legs: false,
+      },
+    });
+    const pattern = model.getObjectByName(`human-detail-chest-pattern-${style}`);
+
+    assert.ok(pattern, `${style} armor should have its own chest pattern`);
+    assert.equal(pattern.children.length, expectedMarks);
+    assert.ok(pattern.children.every((mark) => mark instanceof THREE.Mesh));
+
+    details.dispose();
+    assert.equal(model.getObjectByName(`human-detail-chest-pattern-${style}`), undefined);
+  }
+});
