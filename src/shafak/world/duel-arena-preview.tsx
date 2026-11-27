@@ -40,6 +40,7 @@ function DuelArenaPreview() {
         attackCooldownSeconds={0}
         skillOneSeconds={0}
         skillTwoSeconds={0}
+        jumpCooldownSeconds={0}
         onPress={(button) => console.info("pressed", button, INPUT_BUTTON.attack)}
         onRelease={() => undefined}
         onMove={() => undefined}

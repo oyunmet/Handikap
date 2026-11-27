@@ -1049,6 +1049,13 @@ function DuelFighter({
           )}
         </>
       )}
+      {visualEffectsEnabled && (
+        <DuelJumpMovementVfx
+          side={side}
+          combatStateRef={combatStateRef}
+          motionReduced={motionReduced}
+        />
+      )}
       <group ref={actorVisualRoot} scale={1}>
         <KnightActor
           motionRef={actorMotion}
@@ -1078,6 +1085,155 @@ function DuelFighter({
         )}
       </group>
       {visualEffectsEnabled && <DuelAshDispersal active={defeated} x={renderedActor.x} />}
+    </group>
+  );
+}
+
+function animateDuelMovementRing(
+  mesh: THREE.Mesh | null,
+  material: THREE.MeshBasicMaterial | null,
+  startedAt: number,
+  now: number,
+  duration: number,
+  maxScale: number,
+  opacity: number,
+) {
+  if (!mesh || !material || startedAt < 0) return;
+  const progress = (now - startedAt) / duration;
+  if (progress < 0 || progress >= 1) {
+    mesh.visible = false;
+    return;
+  }
+  mesh.visible = true;
+  mesh.scale.setScalar(0.55 + progress * maxScale);
+  material.opacity = (1 - progress) * opacity;
+}
+
+function DuelJumpMovementVfx({
+  side,
+  combatStateRef,
+  motionReduced,
+}: {
+  side: "player" | "bot";
+  combatStateRef: MutableRefObject<CombatState | null>;
+  motionReduced: boolean;
+}) {
+  const takeoffRingRef = useRef<THREE.Mesh>(null);
+  const takeoffMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const landingRingRef = useRef<THREE.Mesh>(null);
+  const landingMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const airborneRingRef = useRef<THREE.Mesh>(null);
+  const airborneMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const jumpPhaseRef = useRef({
+    wasJumping: false,
+    takeoffAt: -1,
+    landingAt: -1,
+  });
+
+  useFrame((frame) => {
+    const state = combatStateRef.current;
+    const actor = state?.[side];
+    const now = frame.clock.elapsedTime;
+    const jumpActive = Boolean(
+      actor
+      && actor.jumpUntilTick > actor.jumpStartedTick
+      && state
+      && state.tick >= actor.jumpStartedTick
+      && state.tick < actor.jumpUntilTick,
+    );
+
+    if (jumpActive && !jumpPhaseRef.current.wasJumping) {
+      jumpPhaseRef.current.takeoffAt = now;
+    } else if (!jumpActive && jumpPhaseRef.current.wasJumping) {
+      jumpPhaseRef.current.landingAt = now;
+    }
+    jumpPhaseRef.current.wasJumping = jumpActive;
+
+    animateDuelMovementRing(
+      takeoffRingRef.current,
+      takeoffMaterialRef.current,
+      jumpPhaseRef.current.takeoffAt,
+      now,
+      motionReduced ? 0.24 : 0.34,
+      motionReduced ? 1.35 : 2.1,
+      motionReduced ? 0.34 : 0.72,
+    );
+    animateDuelMovementRing(
+      landingRingRef.current,
+      landingMaterialRef.current,
+      jumpPhaseRef.current.landingAt,
+      now,
+      motionReduced ? 0.26 : 0.46,
+      motionReduced ? 1.4 : 2.8,
+      motionReduced ? 0.4 : 0.78,
+    );
+
+    const airborneRing = airborneRingRef.current;
+    const airborneMaterial = airborneMaterialRef.current;
+    if (!airborneRing || !airborneMaterial) return;
+    if (!jumpActive || !actor || motionReduced || !state) {
+      airborneRing.visible = false;
+      return;
+    }
+    const height = getDuelJumpHeight(actor, state.tick);
+    airborneRing.visible = true;
+    airborneRing.position.set(0, Math.max(0.18, height * 0.46), 0);
+    airborneRing.rotation.y = now * 1.7;
+    airborneRing.scale.setScalar(0.82 + height * 0.18);
+    airborneMaterial.opacity = 0.2 + Math.sin(now * 10) * 0.045;
+  });
+
+  return (
+    <group>
+      <mesh
+        ref={takeoffRingRef}
+        position={[0, 0.045, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        visible={false}
+      >
+        <ringGeometry args={[0.22, 0.32, 28]} />
+        <meshBasicMaterial
+          ref={takeoffMaterialRef}
+          color="#ffcf77"
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh
+        ref={landingRingRef}
+        position={[0, 0.05, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        visible={false}
+      >
+        <ringGeometry args={[0.3, 0.43, 32]} />
+        <meshBasicMaterial
+          ref={landingMaterialRef}
+          color="#f0b568"
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh
+        ref={airborneRingRef}
+        rotation={[-Math.PI / 2, 0, 0]}
+        visible={false}
+      >
+        <torusGeometry args={[0.42, 0.018, 5, 24]} />
+        <meshBasicMaterial
+          ref={airborneMaterialRef}
+          color="#bdefff"
+          transparent
+          opacity={0.22}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
     </group>
   );
 }
@@ -1214,6 +1370,8 @@ function DuelCombatVisual({
   const lightningFlashRef = useRef<HTMLDivElement>(null);
   const afterimageRef = useRef<THREE.Group>(null);
   const afterimageMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const afterimageRingRef = useRef<THREE.Mesh>(null);
+  const afterimageRingMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const shockwaveRef = useRef<THREE.Mesh>(null);
   const shockwaveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const impactFlashRef = useRef<THREE.Mesh>(null);
@@ -1420,6 +1578,12 @@ function DuelCombatVisual({
       afterimageRef.current.rotation.y = Math.atan2(dodging.vx, -dodging.vz);
       afterimageRef.current.scale.setScalar(1 - age * 0.1);
       afterimageMaterialRef.current.opacity = fade * 0.28;
+      if (afterimageRingRef.current && afterimageRingMaterialRef.current) {
+        afterimageRingRef.current.position.set(0, 0.045, 0);
+        afterimageRingRef.current.rotation.y = Math.atan2(dodging.vx, -dodging.vz);
+        afterimageRingRef.current.scale.setScalar(0.68 + age * 1.1);
+        afterimageRingMaterialRef.current.opacity = fade * 0.62;
+      }
     }
 
     if (kind === "shockwave" && shockwaveRef.current && shockwaveMaterialRef.current) {
@@ -1701,6 +1865,22 @@ function DuelCombatVisual({
       )}
       {kind === "afterimage" && (
         <group ref={afterimageRef}>
+          <mesh
+            ref={afterimageRingRef}
+            position={[0, 0.045, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry args={[0.34, 0.41, 28, 1, -Math.PI * 0.36, Math.PI * 0.72]} />
+            <meshBasicMaterial
+              ref={afterimageRingMaterialRef}
+              color="#88f4ff"
+              transparent
+              opacity={0.62}
+              depthWrite={false}
+              toneMapped={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
           <mesh position={[0, 0.92, 0]}>
             <capsuleGeometry args={[0.19, 0.56, 4, 6]} />
             <meshBasicMaterial

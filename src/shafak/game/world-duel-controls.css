@@ -59,9 +59,9 @@
 .duel-controls--field .duel-control-cluster__actions {
   display: grid;
   grid-template-areas:
-    "lightning shield"
-    "fire attack";
-  grid-template-columns: repeat(2, 60px);
+    "lightning fire attack"
+    "dodge jump shield";
+  grid-template-columns: repeat(3, 60px);
   grid-template-rows: repeat(2, 60px);
   gap: 7px;
   pointer-events: none;
@@ -129,6 +129,14 @@
   grid-area: lightning;
 }
 
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-dodge {
+  grid-area: dodge;
+}
+
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-jump {
+  grid-area: jump;
+}
+
 .duel-controls--field .duel-control-cluster__actions .duel-control.is-block {
   grid-area: shield;
 }
@@ -153,6 +161,14 @@
 
 .duel-controls--field .duel-control-cluster__actions .duel-control.is-lightning .game-button__bezel {
   filter: hue-rotate(155deg) saturate(.82);
+}
+
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-dodge .game-button__bezel {
+  filter: hue-rotate(150deg) saturate(.9);
+}
+
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-jump .game-button__bezel {
+  filter: saturate(1.08) brightness(1.04);
 }
 
 .duel-controls--field .duel-control-cluster__actions .duel-control.is-block .game-button__bezel {
@@ -239,7 +255,7 @@
   }
 
   .duel-controls--field .duel-control-cluster__actions {
-    grid-template-columns: repeat(2, 68px);
+    grid-template-columns: repeat(3, 68px);
     grid-template-rows: repeat(2, 68px);
     gap: 8px;
   }
@@ -307,7 +323,7 @@
   }
 
   .duel-controls--field .duel-control-cluster__actions {
-    grid-template-columns: repeat(2, 56px);
+    grid-template-columns: repeat(3, 56px);
     grid-template-rows: repeat(2, 56px);
     gap: 6px;
   }
@@ -379,7 +395,7 @@
   }
 
   .duel-controls--field .duel-control-cluster__actions {
-    grid-template-columns: repeat(2, 50px);
+    grid-template-columns: repeat(3, 50px);
     grid-template-rows: repeat(2, 50px);
     gap: 5px;
   }
@@ -427,7 +443,7 @@
   }
 
   .duel-controls--field .duel-control-cluster__actions {
-    grid-template-columns: repeat(2, 44px);
+    grid-template-columns: repeat(3, 44px);
     grid-template-rows: repeat(2, 44px);
     gap: 4px;
   }

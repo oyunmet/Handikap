@@ -2264,6 +2264,7 @@ export default function WorldScene({
       f: INPUT_BUTTON.aim,
       c: INPUT_BUTTON.crouch,
       x: INPUT_BUTTON.jump,
+      shift: INPUT_BUTTON.dodge,
       "1": INPUT_BUTTON.quickSlotOne,
       "2": INPUT_BUTTON.quickSlotTwo,
       "3": INPUT_BUTTON.quickSlotThree,
@@ -2291,7 +2292,7 @@ export default function WorldScene({
         event.preventDefault();
         if (!event.repeat) {
           pressDuelButton(button);
-          if (["1", "2", "3", "4", "v", "x"].includes(normalized)) releaseDuelButton(button);
+          if (["1", "2", "3", "4", "v", "x", "shift"].includes(normalized)) releaseDuelButton(button);
         }
       }
     };
@@ -2312,6 +2313,7 @@ export default function WorldScene({
         INPUT_BUTTON.skillTwo,
         INPUT_BUTTON.aim,
         INPUT_BUTTON.crouch,
+        INPUT_BUTTON.dodge,
         INPUT_BUTTON.jump,
       ]) {
         releaseDuelButton(button);
@@ -3390,6 +3392,7 @@ export default function WorldScene({
             attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
+            jumpCooldownSeconds={Math.max(0, combatRender.player.jumpUntilTick - combatRender.tick) / COMBAT_HZ}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onMove={moveDuelPlayer}

@@ -8,6 +8,7 @@ type DuelControlsProps = {
   attackCooldownSeconds: number;
   skillOneSeconds: number;
   skillTwoSeconds: number;
+  jumpCooldownSeconds: number;
   onPress: (button: number) => void;
   onRelease: (button: number) => void;
   onMove: (x: number, y: number) => void;
@@ -154,6 +155,7 @@ export default function DuelControls({
   attackCooldownSeconds,
   skillOneSeconds,
   skillTwoSeconds,
+  jumpCooldownSeconds,
   onPress,
   onRelease,
   onMove,
@@ -314,6 +316,36 @@ export default function DuelControls({
             onRelease={onRelease}
             onBlocked={showBlockedHint}
             accessibleLabel="Yıldırım yeteneğini kullan"
+          />
+          <HeldButton
+            button={INPUT_BUTTON.dodge}
+            label="KAÇIŞ"
+            className="is-movement is-dodge"
+            tone="sky"
+            icon="dodge"
+            hint="SHIFT"
+            disabled={disabled}
+            disabledReason={stamina < 20 ? "Kaçış için 20 dayanıklılık gerekli." : ""}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+            accessibleLabel="Kaçış hamlesi yap; yön vermek için joystick'i kullan"
+          />
+          <HeldButton
+            button={INPUT_BUTTON.jump}
+            label="ZIPLA"
+            className="is-movement is-jump"
+            tone="gold"
+            icon="jump"
+            hint="X"
+            cooldown={jumpCooldownSeconds}
+            cooldownDuration={0.7}
+            disabled={disabled}
+            disabledReason={stamina < 12 ? "Sıçrama için 12 dayanıklılık gerekli." : ""}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+            accessibleLabel="Sıçra; havadayken saldırı yere vuruş başlatır"
           />
           <HeldButton
             button={INPUT_BUTTON.skillOne}
