@@ -63,11 +63,14 @@ export function getWorldRenderPixelRatio(
   quality: RenderQuality,
   devicePixelRatio: number,
   touchDevice = false,
+  combatActive = false,
 ): number {
   const dpr = Number.isFinite(devicePixelRatio)
     ? Math.max(1, Math.min(4, devicePixelRatio))
     : 1;
-  return Math.min(getPixelRatioCap(quality, touchDevice), dpr);
+  const qualityCap = getPixelRatioCap(quality, touchDevice);
+  const combatCap = combatActive && touchDevice ? Math.max(qualityCap, 1.5) : qualityCap;
+  return Math.min(combatCap, dpr);
 }
 
 export function shouldEnableWorldShadows(quality: RenderQuality, touchDevice = false): boolean {

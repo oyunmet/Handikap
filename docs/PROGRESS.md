@@ -427,3 +427,22 @@ sonraki dilim olarak kaldı.
 - Önizleme ekran görüntüsü yaş doğrulama kartında durdu; bu oturumda yaş onayı
   verilmedi, ana ekran ve 3D oyun görüntüsü görsel olarak doğrulanmadı. Clerk,
   Vercel yayını, push ve deploy değiştirilmedi.
+
+## Düello sahnesi ve mobil kontroller — 27 Kasım 2026
+
+- Düello sırasında yol joystick'i devre dışı bırakıldı; düello joystick'i
+  hareketin tek kaynağı. Eski dünya girdisinin her karede dövüş hareketini sıfıra
+  çekmesi kaldırıldı. Ekran yönü değişince veya pencere odağı kaybolunca hareket
+  girdisi güvenli biçimde temizleniyor.
+- Kamera çarpışma düzeltmesi, dövüş kamerasını dik ve oyuncudan yeterince uzakta
+  tutuyor; engel algılandığında kamera çarpışma mesafesi korunuyor. Oyuncu ve
+  rakibin ekranda ayrılması, rakip geçişlerinde kameranın daha az sıçraması için
+  açı güncellendi.
+- Görünür düğmeler saldırı, siper, zıplama ve tek bir “Diğer” düğmesine indirildi.
+  Nişan, yetenekler, hızlı eşyalar, silah seçimi, kamera, yardım ve pes etme
+  açılır panelde kaldı. Savaş motoru, sunucu doğrulaması ve ödüller değiştirilmedi.
+- Yerel doğrulama: `npm run typecheck`, `npm test` (819 test),
+  `npm run build` ve `git diff --check` geçti.
+- Önizleme yeniden açılıyor; ekran görüntüsü yaş doğrulama kartında kaldığından
+  düello sahnesi tarayıcıda veya gerçek iPhone'da görsel olarak test edilmedi.
+  Push veya deploy yapılmadı.

@@ -32,6 +32,7 @@ type DuelControlsProps = {
   onMove: (x: number, y: number) => void;
   onSurrender: () => void;
   onOpenHelp: () => void;
+  onRotateCamera: () => void;
 };
 
 function HeldButton({
@@ -199,6 +200,7 @@ export default function DuelControls({
   onMove,
   onSurrender,
   onOpenHelp,
+  onRotateCamera,
   quickItems,
   weaponSwapCooldownSeconds,
   weaponNames,
@@ -213,7 +215,7 @@ export default function DuelControls({
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
   const [blockedHint, setBlockedHint] = useState("");
-  const [loadoutOpen, setLoadoutOpen] = useState(false);
+  const [utilityOpen, setUtilityOpen] = useState(false);
   const showBlockedHint = (reason: string) => {
     setBlockedHint(reason);
     window.setTimeout(() => setBlockedHint(""), 1900);
@@ -226,7 +228,7 @@ export default function DuelControls({
     }
     onPress(button);
     onRelease(button);
-    setLoadoutOpen(false);
+    setUtilityOpen(false);
   };
 
   const readJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -277,11 +279,27 @@ export default function DuelControls({
       joystickRef.current?.style.setProperty("--stick-y", "0px");
       onMoveRef.current(0, 0);
     };
+    const clearJoystick = () => {
+      const pointerId = joystickPointer.current;
+      joystickPointer.current = null;
+      joystickRef.current?.style.setProperty("--stick-x", "0px");
+      joystickRef.current?.style.setProperty("--stick-y", "0px");
+      if (pointerId !== null && joystickRef.current?.hasPointerCapture(pointerId)) {
+        try { joystickRef.current.releasePointerCapture(pointerId); } catch { /* The pointer may already be released. */ }
+      }
+      onMoveRef.current(0, 0);
+    };
     window.addEventListener("pointerup", finishJoystickPointer);
     window.addEventListener("pointercancel", finishJoystickPointer);
+    window.addEventListener("orientationchange", clearJoystick);
+    window.addEventListener("blur", clearJoystick);
+    document.addEventListener("visibilitychange", clearJoystick);
     return () => {
       window.removeEventListener("pointerup", finishJoystickPointer);
       window.removeEventListener("pointercancel", finishJoystickPointer);
+      window.removeEventListener("orientationchange", clearJoystick);
+      window.removeEventListener("blur", clearJoystick);
+      document.removeEventListener("visibilitychange", clearJoystick);
       if (joystickPointer.current !== null) {
         joystickPointer.current = null;
         onMoveRef.current(0, 0);
@@ -303,7 +321,6 @@ export default function DuelControls({
 
   return (
     <div className={`duel-controls duel-controls--field${disabled ? " is-disabled" : ""}`} aria-label="Düello kontrolleri">
-      <button className="duel-forfeit" type="button" onClick={onSurrender} disabled={disabled}>PES ET</button>
       <div
         ref={joystickRef}
         className="duel-stick"
@@ -318,24 +335,48 @@ export default function DuelControls({
         <span aria-hidden="true" />
       </div>
       <span className="duel-stick-caption" aria-hidden="true">HAREKET</span>
-      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · F NİŞAN · K SİPER · X ZIPLA · 1–4 EŞYA · V SİLAH</div>
-      <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">?</button>
+      <div className="duel-control-hint">WASD HAREKET · J SALDIRI · K SİPER · X ZIPLA · F NİŞAN · 1–4 EŞYA · V SİLAH</div>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
-      <button
-        className="duel-loadout-toggle"
-        type="button"
-        aria-label={loadoutOpen ? "Teçhizat panelini kapat" : "Silahları ve hızlı eşyaları aç"}
-        aria-expanded={loadoutOpen}
-        aria-controls={loadoutOpen ? "duel-loadout-dock" : undefined}
-        disabled={disabled}
-        onClick={() => setLoadoutOpen((open) => !open)}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 5h16v14H4zM8 9h8M8 12h8M8 15h5" />
-        </svg>
-        <span>TEÇHİZAT</span>
-      </button>
-      {loadoutOpen && <div className="duel-loadout-dock" id="duel-loadout-dock">
+      {utilityOpen && <section className="duel-loadout-dock" id="duel-loadout-dock" aria-label="Düello seçenekleri">
+      <div className="duel-utility-panel__header">
+        <strong>DÜELLO SEÇENEKLERİ</strong>
+        <button type="button" onClick={() => setUtilityOpen(false)} aria-label="Düello seçeneklerini kapat">KAPAT</button>
+      </div>
+      <div className="duel-utility-panel__skills">
+        <HeldButton
+          button={INPUT_BUTTON.skillOne}
+          label="ATEŞ"
+          className="is-skill is-fire"
+          accessibleLabel="Kor ateşi: rakibi yakar."
+          onPress={onPress}
+          onRelease={onRelease}
+          cooldown={skillOneSeconds}
+          disabledReason={stamina < 24 ? "ATEŞ yeteneği için 24 dayanıklılık gerekli." : ""}
+          onBlocked={showBlockedHint}
+        />
+        <HeldButton
+          button={INPUT_BUTTON.skillTwo}
+          label="YILDIRIM"
+          className="is-skill is-lightning"
+          accessibleLabel="Yıldırım: uzaktaki rakibe güçlü bir saldırı yapar."
+          onPress={onPress}
+          onRelease={onRelease}
+          cooldown={skillTwoSeconds}
+          disabledReason={stamina < 30 ? "YILDIRIM için 30 dayanıklılık gerekli." : ""}
+          onBlocked={showBlockedHint}
+        />
+        <HeldButton
+          button={INPUT_BUTTON.aim}
+          label="NİŞAN"
+          className="is-aim"
+          hint="F"
+          active={isAiming}
+          toggle
+          accessibleLabel={isAiming ? "Hedef kilidi açık. Kapatmak için dokun." : "Nişan al ve rakibe hedef kilidi koy."}
+          onPress={onPress}
+          onRelease={onRelease}
+        />
+      </div>
       <div className="duel-weapon-select" role="group" aria-label="Savaş silahları">
         <div className="duel-weapon-select__heading">
           <b aria-hidden="true">⚔</b>
@@ -400,7 +441,6 @@ export default function DuelControls({
           })}
         </div>
       </div>
-      </div>}
       {quickItems.some((item) => item.id) && <div className="duel-quickbar" aria-label="Savaş hızlı yuvaları">
         {quickItems.map((item, index) => {
           if (!item.id) return null;
@@ -424,9 +464,7 @@ export default function DuelControls({
               key={index}
               className={`duel-quickslot${unavailable ? " is-unavailable" : ""}${cooldown > 0 ? " is-cooling" : ""}`}
               type="button"
-              aria-label={item.id
-                ? `${index + 1}. yuva: ${item.name}, ${item.count} adet${cooldown > 0 ? `, ${cooldown.toFixed(1)} saniye bekleme` : ""}`
-                : `${index + 1}. hızlı yuva boş`}
+              aria-label={`${index + 1}. yuva: ${item.name}, ${item.count} adet${cooldown > 0 ? `, ${cooldown.toFixed(1)} saniye bekleme` : ""}`}
               aria-disabled={unavailable || disabled}
               style={{ "--duel-cooldown": `${Math.min(100, Math.max(0, cooldown / 18 * 100))}%` } as CSSProperties}
               onPointerDown={(event) => {
@@ -454,7 +492,7 @@ export default function DuelControls({
               }}
             >
               <span className="duel-quickslot__number">{index + 1}</span>
-              <strong aria-hidden="true">{item.id ? <QuickItemIcon id={item.id} /> : null}</strong>
+              <strong aria-hidden="true"><QuickItemIcon id={item.id} /></strong>
               <span className="duel-quickslot__name">{item.shortName}</span>
               <b>{item.count}</b>
               {cooldown > 0 && <small>{cooldown.toFixed(1)}</small>}
@@ -462,31 +500,13 @@ export default function DuelControls({
           );
         })}
       </div>}
+      <div className="duel-utility-panel__footer">
+        <button className="duel-utility-action" type="button" onClick={onRotateCamera}>KAMERA</button>
+        <button className="duel-help-button" type="button" onClick={onOpenHelp} aria-label="Düello yardımını aç">YARDIM</button>
+        <button className="duel-forfeit" type="button" onClick={onSurrender} disabled={disabled}>PES ET</button>
+      </div>
+      </section>}
       <div className="duel-control-cluster">
-        <div className="duel-control-cluster__skills">
-          <HeldButton
-            button={INPUT_BUTTON.skillOne}
-            label="ATEŞ"
-            className="is-skill is-fire"
-            accessibleLabel="Kor ateşi: rakibi yakar."
-            onPress={onPress}
-            onRelease={onRelease}
-            cooldown={skillOneSeconds}
-            disabledReason={stamina < 24 ? "ATEŞ yeteneği için 24 dayanıklılık gerekli." : ""}
-            onBlocked={showBlockedHint}
-          />
-          <HeldButton
-            button={INPUT_BUTTON.skillTwo}
-            label="YILDIRIM"
-            className="is-skill is-lightning"
-            accessibleLabel="Yıldırım: uzaktaki rakibe güçlü bir saldırı yapar."
-            onPress={onPress}
-            onRelease={onRelease}
-            cooldown={skillTwoSeconds}
-            disabledReason={stamina < 30 ? "YILDIRIM için 30 dayanıklılık gerekli." : ""}
-            onBlocked={showBlockedHint}
-          />
-        </div>
         <div className="duel-control-cluster__actions">
           <HeldButton
             button={INPUT_BUTTON.jump}
@@ -498,17 +518,6 @@ export default function DuelControls({
             onRelease={onRelease}
             disabledReason={stamina < 12 ? "Zıplamak için 12 dayanıklılık gerekli." : ""}
             onBlocked={showBlockedHint}
-          />
-          <HeldButton
-            button={INPUT_BUTTON.aim}
-            label="NİŞAN"
-            className="is-aim"
-            hint="F"
-            active={isAiming}
-            toggle
-            accessibleLabel={isAiming ? "Hedef kilidi açık. Kapatmak için dokun." : "Nişan al ve rakibe hedef kilidi koy."}
-            onPress={onPress}
-            onRelease={onRelease}
           />
           <HeldButton
             button={INPUT_BUTTON.block}
@@ -537,6 +546,18 @@ export default function DuelControls({
                 : ""}
             onBlocked={showBlockedHint}
           />
+          <button
+            className="duel-utility-toggle"
+            type="button"
+            aria-label={utilityOpen ? "Düello seçeneklerini kapat" : "Yetenekleri ve eşyaları aç"}
+            aria-expanded={utilityOpen}
+            aria-controls={utilityOpen ? "duel-loadout-dock" : undefined}
+            onClick={() => setUtilityOpen((open) => !open)}
+            disabled={disabled}
+          >
+            <span aria-hidden="true">＋</span>
+            <small>DİĞER</small>
+          </button>
         </div>
       </div>
     </div>

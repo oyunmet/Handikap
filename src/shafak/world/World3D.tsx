@@ -73,6 +73,7 @@ import {
   getDuelCameraPose,
   getDuelFacingAngle,
   getDuelJumpHeight,
+  getUprightDuelCameraPosition,
 } from "../game/duel-camera";
 import { WORLD_GATE_INTERVAL_METERS, WORLD_ROAD_WIDTH } from "./movement";
 import { getWorldV2CameraOffset } from "./world-v2-config";
@@ -638,8 +639,13 @@ function CameraRig({
       collisionTargetRef.copy(cameraOriginRef).addScaledVector(cameraDirectionRef, clearDistance);
       cameraTarget = collisionTargetRef;
     }
-    if (combat) {
-      cameraTarget.y = Math.max(cameraTarget.y, targetRef.y + 1.35);
+    if (combat && !cameraObstructed) {
+      const safeCameraTarget = getUprightDuelCameraPosition(
+        cameraTarget,
+        targetRef,
+        { x: desiredRef.x - targetRef.x, z: desiredRef.z - targetRef.z },
+      );
+      cameraTarget.set(safeCameraTarget.x, safeCameraTarget.y, safeCameraTarget.z);
     }
     if (enteringDuel) {
       camera.position.copy(cameraTarget);
@@ -657,8 +663,13 @@ function CameraRig({
     if (cameraObstructed && camera.position.distanceTo(cameraOriginRef) > cameraTarget.distanceTo(cameraOriginRef)) {
       camera.position.copy(cameraTarget);
     }
-    if (combat) {
-      camera.position.y = Math.max(camera.position.y, targetRef.y + 1.35);
+    if (combat && !cameraObstructed) {
+      const safeCameraPosition = getUprightDuelCameraPosition(
+        camera.position,
+        targetRef,
+        { x: desiredRef.x - targetRef.x, z: desiredRef.z - targetRef.z },
+      );
+      camera.position.set(safeCameraPosition.x, safeCameraPosition.y, safeCameraPosition.z);
     }
     if (!combat) {
       const runShake = motionReduced || cameraObstructed ? 0 : travelCamera.runShake;

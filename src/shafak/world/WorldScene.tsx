@@ -183,7 +183,7 @@ import { adService } from "../ads/AdService";
 const World3D = lazy(() => import("./World3DRouter"));
 import "./world-scene.css";
 import "./world-scene-layout.css";
-import "../game/world-duel-responsive.css";
+import "../game/world-duel-controls.css";
 
 type WorldSceneProps = {
   apiRequest: AuthenticatedApiRequestWithRetry;
@@ -1196,7 +1196,7 @@ export default function WorldScene({
   const wake = useCallback(() => {
     if (audioOn) startAudio();
   }, [audioOn, startAudio]);
-  const worldInput = useWorldInput(wake);
+  const worldInput = useWorldInput(wake, { allowMovement: !battleSession });
   useEffect(() => {
     if (!movementDebugEnabled) return undefined;
     const timer = window.setInterval(() => setMovementDebugTick(Date.now()), 120);
@@ -2421,7 +2421,6 @@ export default function WorldScene({
             duelCameraHeadingRef.current = nextOffset;
             setDuelCameraHeading(nextOffset);
           }
-          moveDuelPlayer(worldInput.joystick.current.x, worldInput.joystick.current.y);
         }
         liveInput = { ...liveInput, lookDelta: pendingCameraLookDelta };
       }
@@ -3459,19 +3458,8 @@ export default function WorldScene({
               if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);
             }}
             onOpenHelp={openCombatTutorial}
+            onRotateCamera={rotateDuelCamera}
           />
-          {["sweep", "vs", "countdown", "fight"].includes(battleSession.phase) && (
-            <button
-              type="button"
-              className="world-duel-camera-angle"
-              onClick={rotateDuelCamera}
-              aria-label="Düello kamera açısını değiştir"
-              title="Kamera açısını değiştir"
-            >
-              <span aria-hidden="true">↻</span>
-              <b>KAMERA AÇISI</b>
-            </button>
-          )}
           <small className="game-build-stamp game-build-stamp--hud" aria-label={`Sürüm ${GAME_BUILD_MARKER}, derleme ${GAME_BUILD_DATE}`}>
             {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
           </small>

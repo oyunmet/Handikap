@@ -34,9 +34,14 @@ const MOVEMENT_KEYS = new Set([
   "c",
 ]);
 
-export default function useWorldInput(wake: () => void) {
+export default function useWorldInput(
+  wake: () => void,
+  { allowMovement = true }: { allowMovement?: boolean } = {},
+) {
   const heldKeys = useRef(new Set<string>());
   const joystick = useRef<Vector>({ x: 0, y: 0 });
+  const allowMovementRef = useRef(allowMovement);
+  allowMovementRef.current = allowMovement;
   const joystickPointerId = useRef<number | null>(null);
   const joystickOrigin = useRef<{ x: number; y: number; radius: number } | null>(null);
   const [joystickAnchor, setJoystickAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -78,6 +83,7 @@ export default function useWorldInput(wake: () => void) {
       bounds.width,
     );
     if (controlSide === "movement" && joystickPointerId.current === null) {
+      if (!allowMovementRef.current) return;
       event.preventDefault();
       joystickPointerId.current = event.pointerId;
       const radius = 54;
@@ -101,6 +107,17 @@ export default function useWorldInput(wake: () => void) {
     }
     wake();
   }, [updateJoystick, wake]);
+
+  useEffect(() => {
+    if (allowMovement) return;
+    joystickPointerId.current = null;
+    joystickOrigin.current = null;
+    joystick.current = { x: 0, y: 0 };
+    setJoystickAnchor(null);
+    joystickVisualRef.current?.querySelector<HTMLElement>(".world-joystick__nub")
+      ?.style.setProperty("transform", "translate(-50%,-50%)");
+    publishInputChange();
+  }, [allowMovement, publishInputChange]);
 
   const onStagePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerId.current === event.pointerId) {

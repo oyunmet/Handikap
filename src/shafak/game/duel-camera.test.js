@@ -20,6 +20,7 @@ import {
   getDuelJumpHeight,
   getNextDuelCameraOffset,
   getNextDuelCameraHeading,
+  getUprightDuelCameraPosition,
   getUprightDuelRotation,
 } from "./duel-camera.ts";
 import { COMBAT_ARENA_ACTOR_LIMIT } from "./combat-engine.ts";
@@ -88,6 +89,26 @@ test("camera side changes orbit around the fighters instead of cutting through t
   assert.ok(Math.abs(Math.hypot(midpoint.x - lookAt.x, midpoint.z - lookAt.z) - 8) < 1e-9);
   assert.ok(Math.abs(midpoint.y - 2.6) < 1e-9);
   assert.ok(Math.abs(midpoint.x) < 1e-8);
+});
+
+test("duel camera collision recovery keeps a safe upright angle", () => {
+  const target = { x: 3, y: 1.05, z: -0.6 };
+  const preferred = { x: -5, z: 2 };
+  const recovered = getUprightDuelCameraPosition(
+    { x: target.x + 0.1, y: 0.9, z: target.z - 0.1 },
+    target,
+    preferred,
+  );
+  const horizontalDistance = Math.hypot(recovered.x - target.x, recovered.z - target.z);
+
+  assert.ok(horizontalDistance >= 2.8);
+  assert.ok(recovered.y - target.y >= 1.35);
+  assert.ok(Number.isFinite(recovered.x + recovered.y + recovered.z));
+  assert.deepEqual(
+    getUprightDuelCameraPosition({ x: 8, y: 4, z: 2 }, target, preferred),
+    { x: 8, y: 4, z: 2 },
+    "a clear camera position should not be changed",
+  );
 });
 
 test("procedural duel fighters turn their armored fronts toward one another", () => {

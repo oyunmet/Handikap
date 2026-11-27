@@ -13,13 +13,15 @@ export type DuelJumpState = {
 
 export const DUEL_JUMP_HEIGHT = 1.12;
 export const DUEL_CAMERA_HEADING = Math.PI * 7 / 8;
-export const DUEL_CAMERA_REAR_SIDE_ANGLE = Math.PI * 3 / 8;
+export const DUEL_CAMERA_REAR_SIDE_ANGLE = Math.PI * 2 / 5;
 export const DUEL_CAMERA_OFFSET = 0;
 export const DUEL_CAMERA_MAX_OFFSET = Math.PI / 12;
 export const DUEL_CAMERA_TOUCH_FOV = 80;
 export const DUEL_CAMERA_PLAYER_FRAME_WEIGHT = 0.58;
 export const DUEL_CAMERA_ARENA_CENTER_Z = -0.6;
 export const DUEL_CAMERA_ACTOR_EDGE_MARGIN = 1.1;
+export const DUEL_CAMERA_MIN_HORIZONTAL_OFFSET = 2.8;
+export const DUEL_CAMERA_MIN_VERTICAL_OFFSET = 1.35;
 export const DUEL_CAMERA_OFFSETS = [
   -Math.PI / 12,
   DUEL_CAMERA_OFFSET,
@@ -148,6 +150,38 @@ export function getDuelCameraPose(
       y: 1.05 + jumpLift * 0.35,
       z: centerZ,
     },
+  };
+}
+
+export function getUprightDuelCameraPosition(
+  position: { x: number; y: number; z: number },
+  target: { x: number; y: number; z: number },
+  preferredOffset: { x: number; z: number },
+) {
+  let offsetX = position.x - target.x;
+  let offsetZ = position.z - target.z;
+  let horizontalDistance = Math.hypot(offsetX, offsetZ);
+
+  if (!Number.isFinite(horizontalDistance) || horizontalDistance < DUEL_CAMERA_MIN_HORIZONTAL_OFFSET) {
+    offsetX = preferredOffset.x;
+    offsetZ = preferredOffset.z;
+    horizontalDistance = Math.hypot(offsetX, offsetZ);
+    if (!Number.isFinite(horizontalDistance) || horizontalDistance < 1e-4) {
+      offsetX = -Math.sin(DUEL_CAMERA_HEADING);
+      offsetZ = -Math.cos(DUEL_CAMERA_HEADING);
+      horizontalDistance = Math.hypot(offsetX, offsetZ);
+    }
+    const scale = DUEL_CAMERA_MIN_HORIZONTAL_OFFSET / horizontalDistance;
+    offsetX *= scale;
+    offsetZ *= scale;
+  }
+
+  const targetY = Number.isFinite(target.y) ? target.y : 0;
+  const positionY = Number.isFinite(position.y) ? position.y : targetY + DUEL_CAMERA_MIN_VERTICAL_OFFSET;
+  return {
+    x: target.x + offsetX,
+    y: Math.max(positionY, targetY + DUEL_CAMERA_MIN_VERTICAL_OFFSET),
+    z: target.z + offsetZ,
   };
 }
 
