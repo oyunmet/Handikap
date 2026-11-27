@@ -996,8 +996,6 @@ export default function WorldScene({
   const [combatRender, setCombatRender] = useState<CombatState | null>(null);
   const [combatEvents, setCombatEvents] = useState<CombatVisualEvent[]>([]);
   const [combatFlash, setCombatFlash] = useState<DuelFlash>(null);
-  const [combatTutorialOpen, setCombatTutorialOpen] = useState(false);
-  const combatTutorialOpenRef = useRef(false);
   const lastBotTelegraphTickRef = useRef(-1);
   const storyDialogueRef = useRef<StoryDialogue | null>(storyDialogue);
   const storyChapterRef = useRef(0);
@@ -1960,22 +1958,6 @@ export default function WorldScene({
     updateBattleSession({ phase: "result", summary: localSummary, rewards: awarded.rewards, message: "Misafir ilerlemesi bu cihazda tutulur." });
   }, [commitBattleProfile, profile]);
 
-  function openCombatTutorial() {
-    const input = combatInputRef.current;
-    input.x = 0;
-    input.y = 0;
-    input.buttons = 0;
-    input.pressed = 0;
-    input.released = 0;
-    combatTutorialOpenRef.current = true;
-    setCombatTutorialOpen(true);
-  }
-
-  function closeCombatTutorial() {
-    combatTutorialOpenRef.current = false;
-    setCombatTutorialOpen(false);
-  }
-
   const beginEncounter = useCallback(async (rival: WorldRival, forcePractice = false) => {
     if (battleActiveRef.current || storyDialogueRef.current) return;
     duelCameraHeadingRef.current = DUEL_CAMERA_OFFSET;
@@ -2003,8 +1985,6 @@ export default function WorldScene({
     settlementStartedRef.current = false;
     pendingVerdictRef.current = null;
     resetDuelInput();
-    combatTutorialOpenRef.current = false;
-    setCombatTutorialOpen(false);
     lastBotTelegraphTickRef.current = -1;
     inputLogRef.current = [[0, 0, 0, 0, 0, 0]];
     lastInputFrameRef.current = inputLogRef.current[0];
@@ -2220,12 +2200,6 @@ export default function WorldScene({
     );
     combatInputRef.current.x = input.x * 100;
     combatInputRef.current.y = input.z * 100;
-  };
-
-  const rotateDuelCamera = () => {
-    const nextHeading = getNextDuelCameraOffset(duelCameraHeadingRef.current);
-    duelCameraHeadingRef.current = nextHeading;
-    setDuelCameraHeading(nextHeading);
   };
 
   const debugStartBattle = () => {
@@ -2459,7 +2433,7 @@ export default function WorldScene({
           pendingCameraLookDelta = { yaw: 0, pitch: 0 };
           const session = battleSessionRef.current;
           const currentCombat = combatStateRef.current;
-          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && !combatTutorialOpenRef.current && now >= hitStopUntilRef.current) {
+          if (session?.phase === "fight" && currentCombat && !currentCombat.ended && now >= hitStopUntilRef.current) {
             const buffered = combatInputRef.current;
             const inputFrame: CombatInputFrame = [
               currentCombat.tick + 1,
@@ -3413,75 +3387,15 @@ export default function WorldScene({
           })()}
           <DuelControls
             stamina={combatRender.player.stamina}
-            attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
-            quickItems={combatRender.quickSlotItemIds.map((itemId, index) => {
-              const item = getCombatItem(itemId);
-              const duelDistance = Math.hypot(
-                combatRender.player.x - combatRender.bot.x,
-                combatRender.player.z - combatRender.bot.z,
-              );
-              const itemOutOfRange = item
-                && (item.effect === "damage" || item.effect === "poison")
-                && duelDistance > (item.id === "throwing_knife" ? 6.8 : 5.6);
-              return {
-                id: itemId,
-                name: item?.name ?? "Boş",
-                shortName: item?.shortName ?? "BOŞ",
-                icon: item?.icon ?? "＋",
-                count: itemId ? combatRender.combatItemCounts[itemId] : 0,
-                cooldownSeconds: Math.max(0, combatRender.player.quickSlotCooldownUntilTick[index] - combatRender.tick) / COMBAT_HZ,
-                disabledReason: item?.effect === "health" && combatRender.player.hp >= combatRender.player.maxHp
-                  ? "Canın dolu."
-                  : item?.effect === "stamina" && combatRender.player.stamina >= combatRender.player.maxStamina
-                    ? "Dayanıklılığın dolu."
-                    : itemOutOfRange ? "Rakip bu eşyanın menzilinde değil." : "",
-              };
-            })}
-            weaponSwapCooldownSeconds={Math.max(0, combatRender.weaponSwapCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
-            weaponNames={[
-              STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[0])?.name ?? "Silah",
-              combatRender.weaponIds[1]
-                ? STORE_CATALOG.find((item) => item.id === combatRender.weaponIds[1])?.name ?? "Silah"
-                : null,
-            ]}
-            activeWeaponSlot={combatRender.activeWeaponSlot}
-            isAiming={combatRender.player.isAiming}
-            isBowActive={getWeaponDefinition(combatRender.weaponIds[combatRender.activeWeaponSlot])?.type === "uzak"}
-            bowCloseRange={bowCloseRange}
-            ammoCount={combatAmmoCount}
             onPress={pressDuelButton}
             onRelease={releaseDuelButton}
             onMove={moveDuelPlayer}
-            onSurrender={() => {
-              if (window.confirm("Bu düellodan çekilmek istiyor musun?")) void settleDuel("defeat", true);
-            }}
-            onOpenHelp={openCombatTutorial}
-            onRotateCamera={rotateDuelCamera}
           />
           <small className="game-build-stamp game-build-stamp--hud" aria-label={`Sürüm ${GAME_BUILD_MARKER}, derleme ${GAME_BUILD_DATE}`}>
             {GAME_BUILD_MARKER} · {GAME_BUILD_DATE}
           </small>
-          {combatTutorialOpen && (
-            <div className="duel-tutorial-backdrop">
-              <section className="duel-tutorial" role="dialog" aria-modal="true" aria-labelledby="duel-tutorial-title">
-                <span className="game-eyebrow">İLK DÜELLO REHBERİ</span>
-                <h2 id="duel-tutorial-title">Kontroller</h2>
-                <p>Oyun bu kısa rehber boyunca duraklar.</p>
-                <div className="duel-tutorial__rows">
-                  <div><span aria-hidden="true">⚔</span><b>SALDIRI</b><i>3 vuruş: hafif-hafif-ağır kombo · basılı tut: ağır</i><strong>↘</strong></div>
-                  <div><span aria-hidden="true">⬟</span><b>SİPER</b><i>Saldırıyı durdurur; zamanında basmak savuşturur</i><strong>↙</strong></div>
-                  <div><span aria-hidden="true">⚔</span><b>SİLAH</b><i>Yuva I/II'ye dokunarak seç; V ile sıradaki silaha geç</i><strong>V</strong></div>
-                  <div><span aria-hidden="true">◎</span><b>YAY</b><i>Uzaktan otomatik hedef alır; F ile kilit koy. Yakında bıçakla saldır</i><strong>F</strong></div>
-                  <div><span aria-hidden="true">↑</span><b>ZIPLA</b><i>Zıpla, havada saldır: yere vuruş ve şok dalgası</i><strong>↑</strong></div>
-                  <div><span aria-hidden="true">♨</span><b>ATEŞ</b><i>Kor alevi rakibi yakar · dayanıklılık ve bekleme süresi</i><strong>↗</strong></div>
-                  <div><span aria-hidden="true">ϟ</span><b>YILDIRIM</b><i>Uzak rakibe vurur · dayanıklılık ve bekleme süresi</i><strong>↗</strong></div>
-                </div>
-                <button type="button" className="game-gold-button" onClick={closeCombatTutorial}>ANLADIM</button>
-              </section>
-            </div>
-          )}
         </>
       )}
       <header className="world-topbar">

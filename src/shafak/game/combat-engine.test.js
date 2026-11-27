@@ -73,6 +73,29 @@ test("duel fighters begin side by side, facing each other within the arena", () 
   }
 });
 
+test("the fire and lightning inputs trigger their own attacks and cooldowns", () => {
+  const cases = [
+    { button: INPUT_BUTTON.skillOne, attack: "skillOne", staminaCost: 24, cooldownTicks: 240 },
+    { button: INPUT_BUTTON.skillTwo, attack: "skillTwo", staminaCost: 30, cooldownTicks: 360 },
+  ];
+
+  for (const { button, attack, staminaCost, cooldownTicks } of cases) {
+    const state = createCombatState(213, "easy");
+    state.bot.staggerUntilTick = 1_000;
+    const result = stepCombat(state, {
+      ...noInput,
+      buttons: button,
+      pressed: button,
+    });
+    assert.equal(result.state.player.attackType, attack);
+    assert.equal(result.state.player.stamina, state.player.stamina - staminaCost + 0.25);
+    assert.equal(
+      result.state.player[attack === "skillOne" ? "skillOneCooldownUntilTick" : "skillTwoCooldownUntilTick"],
+      result.state.tick + cooldownTicks,
+    );
+  }
+});
+
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
   const seed = 881723;
   let state = createCombatState(seed, "medium", undefined, undefined, "ash-archer");

@@ -278,49 +278,51 @@ export default function DuelControls({
       </div>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
       <div className="duel-control-cluster" role="group" aria-label="Düello becerileri">
-        <HeldButton
-          button={INPUT_BUTTON.skillTwo}
-          label="YILDIRIM"
-          className="is-skill is-lightning"
-          tone="sky"
-          icon="lightning"
-          cooldown={skillTwoSeconds}
-          cooldownDuration={6}
-          disabled={disabled}
-          disabledReason={stamina < 30 ? "Yıldırım için 30 dayanıklılık gerekli." : ""}
-          onPress={onPress}
-          onRelease={onRelease}
-          onBlocked={showBlockedHint}
-          accessibleLabel="Yıldırım yeteneğini kullan"
-        />
-        <HeldButton
-          button={INPUT_BUTTON.skillOne}
-          label="ATEŞ"
-          className="is-skill is-fire"
-          tone="copper"
-          icon="fire"
-          cooldown={skillOneSeconds}
-          cooldownDuration={4}
-          disabled={disabled}
-          disabledReason={stamina < 24 ? "Ateş için 24 dayanıklılık gerekli." : ""}
-          onPress={onPress}
-          onRelease={onRelease}
-          onBlocked={showBlockedHint}
-          accessibleLabel="Ateş yeteneğini kullan"
-        />
-        <HeldButton
-          button={INPUT_BUTTON.block}
-          label="KALKAN"
-          className="is-block"
-          tone="teal"
-          icon="shield"
-          disabled={disabled}
-          disabledReason={stamina < 1 ? "Kalkan için dayanıklılık gerekli." : ""}
-          onPress={onPress}
-          onRelease={onRelease}
-          onBlocked={showBlockedHint}
-          accessibleLabel="Kalkanla savun"
-        />
+        <div className="duel-control-cluster__actions">
+          <HeldButton
+            button={INPUT_BUTTON.skillTwo}
+            label="YILDIRIM"
+            className="is-skill is-lightning"
+            tone="sky"
+            icon="lightning"
+            cooldown={skillTwoSeconds}
+            cooldownDuration={6}
+            disabled={disabled}
+            disabledReason={stamina < 30 ? "Yıldırım için 30 dayanıklılık gerekli." : ""}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+            accessibleLabel="Yıldırım yeteneğini kullan"
+          />
+          <HeldButton
+            button={INPUT_BUTTON.skillOne}
+            label="ATEŞ"
+            className="is-skill is-fire"
+            tone="copper"
+            icon="fire"
+            cooldown={skillOneSeconds}
+            cooldownDuration={4}
+            disabled={disabled}
+            disabledReason={stamina < 24 ? "Ateş için 24 dayanıklılık gerekli." : ""}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+            accessibleLabel="Ateş yeteneğini kullan"
+          />
+          <HeldButton
+            button={INPUT_BUTTON.block}
+            label="KALKAN"
+            className="is-block"
+            tone="teal"
+            icon="shield"
+            disabled={disabled}
+            disabledReason={stamina < 1 ? "Kalkan için dayanıklılık gerekli." : ""}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+            accessibleLabel="Kalkanla savun"
+          />
+        </div>
       </div>
     </div>
   );

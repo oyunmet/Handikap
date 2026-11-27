@@ -5,29 +5,56 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const readProjectFile = (path) => readFileSync(resolve(projectRoot, path), "utf8");
 
-test("duel action buttons use grid positions instead of legacy absolute offsets", () => {
-  const styles = readFileSync(resolve(projectRoot, "src/shafak/game/world-duel-controls.css"), "utf8");
-  const buttonRuleStart = styles.indexOf(".duel-controls--field .duel-control-cluster .duel-control.game-button {");
-  assert.notEqual(buttonRuleStart, -1);
-  const buttonRule = styles.slice(buttonRuleStart, styles.indexOf("\n}", buttonRuleStart));
-  assert.match(buttonRule, /position:\s*relative/);
-  assert.match(buttonRule, /inset:\s*auto\s*!important/);
+test("the duel touch UI exposes only lightning, fire, and shield", () => {
+  const component = readProjectFile("src/shafak/game/DuelControls.tsx");
+  const styles = readProjectFile("src/shafak/game/world-duel-controls.css");
 
-  const utilityRuleStart = styles.indexOf(".duel-controls--field .duel-utility-toggle {");
-  assert.notEqual(utilityRuleStart, -1);
-  const utilityRule = styles.slice(utilityRuleStart, styles.indexOf("\n}", utilityRuleStart));
-  assert.match(utilityRule, /inset:\s*auto\s*!important/);
-  assert.match(utilityRule, /transform:\s*none/);
+  assert.equal((component.match(/<HeldButton/g) ?? []).length, 3);
+  assert.match(component, /button=\{INPUT_BUTTON\.skillTwo\}[\s\S]*?label="YILDIRIM"/);
+  assert.match(component, /button=\{INPUT_BUTTON\.skillOne\}[\s\S]*?label="ATEŞ"/);
+  assert.match(component, /button=\{INPUT_BUTTON\.block\}[\s\S]*?label="KALKAN"/);
+  assert.doesNotMatch(component, /INPUT_BUTTON\.(?:attack|jump|dodge|weaponSwitch|quickSlot)/);
+  assert.doesNotMatch(component, /SALDIRI|ZIPLA|DİĞER|OTHER|utility/i);
+
+  assert.match(component, /duel-control-cluster__actions/);
+  assert.match(styles, /grid-template-areas:\s*"lightning shield"\s*"\. fire"/);
+  assert.match(styles, /grid-area:\s*lightning/);
+  assert.match(styles, /grid-area:\s*shield/);
+  assert.match(styles, /grid-area:\s*fire/);
+});
+
+test("the three touch buttons have usable portrait and landscape hit areas", () => {
+  const styles = readProjectFile("src/shafak/game/world-duel-controls.css");
 
   const portraitStart = styles.indexOf("@media (max-width: 760px) and (orientation: portrait)");
+  const landscapeStart = styles.indexOf("@media (max-width: 760px) and (orientation: landscape)");
   assert.notEqual(portraitStart, -1);
-  const portraitStyles = styles.slice(portraitStart);
-  assert.match(portraitStyles, /grid-template-columns:\s*54px 64px/);
-  assert.match(portraitStyles, /right:\s*max\(20px,\s*calc\(env\(safe-area-inset-right\)\s*\+\s*16px\)\)/);
+  assert.notEqual(landscapeStart, -1);
+  const portraitStyles = styles.slice(portraitStart, landscapeStart);
+  const landscapeStyles = styles.slice(landscapeStart);
+
+  assert.match(portraitStyles, /width:\s*56px\s*!important/);
+  assert.match(portraitStyles, /height:\s*56px\s*!important/);
+  assert.match(landscapeStyles, /width:\s*50px\s*!important/);
+  assert.match(landscapeStyles, /height:\s*50px\s*!important/);
+  assert.match(styles, /env\(safe-area-inset-(?:left|right|bottom)\)/);
+});
+
+test("the duel scene passes only the three ability inputs to its touch controls", () => {
+  const worldScene = readProjectFile("src/shafak/world/WorldScene.tsx");
+  const controlsCall = worldScene.match(/<DuelControls[\s\S]*?\/>/)?.[0];
+  assert.ok(controlsCall, "the fight scene should render its touch controls");
+  assert.match(controlsCall, /skillOneSeconds=/);
+  assert.match(controlsCall, /skillTwoSeconds=/);
+  assert.match(controlsCall, /onPress=/);
+  assert.match(controlsCall, /onRelease=/);
+  assert.match(controlsCall, /onMove=/);
+  assert.doesNotMatch(controlsCall, /attackCooldown|quickItems|weaponNames|onSurrender|onOpenHelp|onRotateCamera/);
 });
 
 test("duel controls load their mobile overrides after the base world scene styles", () => {
-  const worldScene = readFileSync(resolve(projectRoot, "src/shafak/world/WorldScene.tsx"), "utf8");
+  const worldScene = readProjectFile("src/shafak/world/WorldScene.tsx");
   assert.match(worldScene, /import "\.\/world-scene\.css";[\s\S]*import "\.\.\/game\/world-duel-controls\.css";/);
 });
