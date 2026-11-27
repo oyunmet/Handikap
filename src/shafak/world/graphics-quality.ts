@@ -69,7 +69,7 @@ export function getWorldRenderPixelRatio(
     ? Math.max(1, Math.min(4, devicePixelRatio))
     : 1;
   const qualityCap = getPixelRatioCap(quality, touchDevice);
-  const combatCap = combatActive && touchDevice ? Math.min(qualityCap, 1.25) : qualityCap;
+  const combatCap = combatActive && touchDevice ? Math.min(qualityCap, 1) : qualityCap;
   return Math.min(combatCap, dpr);
 }
 

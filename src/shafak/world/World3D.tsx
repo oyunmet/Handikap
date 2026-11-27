@@ -176,12 +176,23 @@ function downscaleHdrTexture(texture: THREE.DataTexture, maxDimension = 1_024) {
   return resized;
 }
 
-function ProceduralEnvironment() {
+function ProceduralEnvironment({ lightweight = false }: { lightweight?: boolean }) {
   const { gl, scene } = useThree();
   useEffect(() => {
     const previousEnvironment = scene.environment;
     const previousIntensity = scene.environmentIntensity;
     const previousFog = scene.fog;
+    scene.fog = new THREE.Fog("#b9c9d1", 150, 360);
+    if (lightweight) {
+      scene.environment = null;
+      scene.environmentIntensity = 0;
+      return () => {
+        scene.environment = previousEnvironment;
+        scene.environmentIntensity = previousIntensity;
+        scene.fog = previousFog;
+      };
+    }
+
     const source = createProceduralEnvironmentTexture();
     const pmrem = new THREE.PMREMGenerator(gl);
     let target: THREE.WebGLRenderTarget | null = null;
@@ -196,7 +207,6 @@ function ProceduralEnvironment() {
       console.warn("[shafak-world] Procedural reflection map could not start.", error);
     }
 
-    scene.fog = new THREE.Fog("#b9c9d1", 150, 360);
     new RGBELoader().load(
       new URL("./golden-hour-sky.hdr", import.meta.url).href,
       (texture) => {
@@ -240,7 +250,7 @@ function ProceduralEnvironment() {
       source.dispose();
       pmrem.dispose();
     };
-  }, [gl, scene]);
+  }, [gl, lightweight, scene]);
   return null;
 }
 import { getDuelArenaTheme } from "../game/duel-arena-theme";
@@ -2794,7 +2804,7 @@ function SceneContents({
   return (
     <>
       <WorldAssetProgress />
-      <ProceduralEnvironment />
+      <ProceduralEnvironment lightweight={combatActive && touchRenderer} />
       <CameraRig
         motionRef={motionRef}
         motionReduced={motionReduced}
