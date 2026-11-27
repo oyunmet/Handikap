@@ -84,8 +84,21 @@ test("shared renderer rebuilds after WebGL context loss and exposes a retry afte
   assert.match(host, /activeRendererCanvasRef\.current !== canvas/);
   assert.match(host, /setRendererRecoveryDprScale/);
   assert.match(host, /recentContextLossesRef\.current = \[\]/);
+  assert.match(host, /recentContextLossesRef\.current\.length > 3/);
   assert.match(host, /rendererRecoveryFailed &&/);
   assert.match(host, /retrySharedRenderer/);
+});
+
+test("shared renderer removes old canvas listeners before rebuilding", () => {
+  const host = readFileSync(resolve(projectRoot, "src/ui/GameCanvasHost.tsx"), "utf8");
+  const scheduledRecovery = host.slice(
+    host.indexOf("const scheduleRecovery"),
+    host.indexOf("const handleContextLost"),
+  );
+  assert.match(
+    scheduledRecovery,
+    /rendererContextCleanupRef\.current\?\.\(\);[\s\S]*activeRendererCanvasRef\.current = null;[\s\S]*context\.recoverRenderer\(true\)/,
+  );
 });
 
 test("scene-specific setup does not override the shared renderer's recovery resolution", () => {

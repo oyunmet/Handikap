@@ -219,6 +219,9 @@ export function GameCanvasStage() {
         rendererRecoveryTimerRef.current = null;
         if (activeRendererCanvasRef.current !== canvas) return;
         console.warn("[game-canvas] WebGL did not restore in time; rebuilding at reduced resolution.");
+        rendererContextCleanupRef.current?.();
+        rendererContextCleanupRef.current = null;
+        activeRendererCanvasRef.current = null;
         context.recoverRenderer(true);
       }, 1_200);
     };
@@ -229,7 +232,11 @@ export function GameCanvasStage() {
       recentContextLossesRef.current = recentContextLossesRef.current
         .filter((lostAt) => now - lostAt < 15_000);
       recentContextLossesRef.current.push(now);
-      if (recentContextLossesRef.current.length >= 3) {
+      if (recentContextLossesRef.current.length > 3) {
+        if (rendererRecoveryTimerRef.current !== null) {
+          window.clearTimeout(rendererRecoveryTimerRef.current);
+          rendererRecoveryTimerRef.current = null;
+        }
         console.error("[game-canvas] WebGL context was lost repeatedly after reduced-resolution retries.");
         setRendererRecoveryFailed(true);
         return;
@@ -272,6 +279,9 @@ export function GameCanvasStage() {
       window.clearTimeout(rendererRecoveryTimerRef.current);
       rendererRecoveryTimerRef.current = null;
     }
+    rendererContextCleanupRef.current?.();
+    rendererContextCleanupRef.current = null;
+    activeRendererCanvasRef.current = null;
     setRendererRecoveryDprScale((scale) => Math.min(scale, 0.75));
     context.recoverRenderer(true);
   }, [context.recoverRenderer]);
