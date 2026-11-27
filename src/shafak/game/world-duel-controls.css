@@ -60,7 +60,7 @@
   display: grid;
   grid-template-areas:
     "lightning shield"
-    ". fire";
+    "fire attack";
   grid-template-columns: repeat(2, 60px);
   grid-template-rows: repeat(2, 60px);
   gap: 7px;
@@ -135,6 +135,20 @@
 
 .duel-controls--field .duel-control-cluster__actions .duel-control.is-fire {
   grid-area: fire;
+}
+
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-attack {
+  grid-area: attack;
+}
+
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-attack .game-button__bezel {
+  filter: saturate(1.2) brightness(1.07);
+}
+
+.duel-controls--field .duel-control-cluster__actions .duel-control.is-attack .game-button__hint {
+  right: 5px;
+  bottom: 4px;
+  font-size: 5px;
 }
 
 .duel-controls--field .duel-control-cluster__actions .duel-control.is-lightning .game-button__bezel {

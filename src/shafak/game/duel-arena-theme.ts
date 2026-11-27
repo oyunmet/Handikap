@@ -3,6 +3,8 @@ import { getBiomeForDistance } from "../world/world-biomes.ts";
 export type DuelArenaTheme = {
   background: string;
   fog: string;
+  skyZenith: string;
+  skyHorizon: string;
   floor: string;
   floorEmissive: string;
   stone: readonly string[];
@@ -17,6 +19,8 @@ const ARENA_THEMES: Record<ReturnType<typeof getBiomeForDistance>, DuelArenaThem
   "ash-road": {
     background: "#483a40",
     fog: "#483a40",
+    skyZenith: "#24171e",
+    skyHorizon: "#765040",
     floor: "#514248",
     floorEmissive: "#30242b",
     stone: ["#817075", "#6e5d63", "#887579", "#66565d", "#79676c"],
@@ -29,6 +33,8 @@ const ARENA_THEMES: Record<ReturnType<typeof getBiomeForDistance>, DuelArenaThem
   "frozen-pass": {
     background: "#344653",
     fog: "#344653",
+    skyZenith: "#18232b",
+    skyHorizon: "#596b70",
     floor: "#3f5663",
     floorEmissive: "#243a46",
     stone: ["#6e8791", "#58727f", "#79919a", "#526977", "#718891"],
@@ -41,6 +47,8 @@ const ARENA_THEMES: Record<ReturnType<typeof getBiomeForDistance>, DuelArenaThem
   "red-marsh": {
     background: "#49363d",
     fog: "#49363d",
+    skyZenith: "#21151b",
+    skyHorizon: "#77503d",
     floor: "#594247",
     floorEmissive: "#34262d",
     stone: ["#80635f", "#6c514f", "#8a6a61", "#61494a", "#7a5a54"],

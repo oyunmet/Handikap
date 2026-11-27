@@ -96,6 +96,33 @@ test("the fire and lightning inputs trigger their own attacks and cooldowns", ()
   }
 });
 
+test("a short attack tap is light and holding attack starts a heavy strike", () => {
+  const prepare = () => {
+    const state = createCombatState(214, "easy");
+    state.bot.staggerUntilTick = 1_000;
+    return state;
+  };
+  const pressAttack = (state) => stepCombat(state, {
+    ...noInput,
+    buttons: INPUT_BUTTON.attack,
+    pressed: INPUT_BUTTON.attack,
+  }).state;
+  const releaseAttack = (state) => stepCombat(state, {
+    ...noInput,
+    released: INPUT_BUTTON.attack,
+  });
+
+  const tap = releaseAttack(pressAttack(prepare()));
+  assert.equal(tap.state.player.attackType, "light");
+
+  let held = pressAttack(prepare());
+  for (let index = 0; index < 30; index += 1) {
+    held = stepCombat(held, { ...noInput, buttons: INPUT_BUTTON.attack }).state;
+  }
+  const charged = releaseAttack(held);
+  assert.equal(charged.state.player.attackType, "heavy");
+});
+
 test("a recorded sparse input tape replays to the same seeded combat state", () => {
   const seed = 881723;
   let state = createCombatState(seed, "medium", undefined, undefined, "ash-archer");

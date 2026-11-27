@@ -19,6 +19,7 @@ const TOUCH_PIXEL_RATIO_CAP: Record<RenderQuality, number> = {
   balanced: 1.75,
   high: 2,
 };
+const TOUCH_COMBAT_PIXEL_RATIO_CAP = 1.5;
 
 export function normalizeGraphicsMode(value: unknown): GraphicsMode {
   if (value === "low" || value === "medium" || value === "high" || value === "auto") {
@@ -69,7 +70,9 @@ export function getWorldRenderPixelRatio(
     ? Math.max(1, Math.min(4, devicePixelRatio))
     : 1;
   const qualityCap = getPixelRatioCap(quality, touchDevice);
-  const combatCap = combatActive && touchDevice ? Math.min(qualityCap, 1) : qualityCap;
+  const combatCap = combatActive && touchDevice
+    ? Math.min(qualityCap, TOUCH_COMBAT_PIXEL_RATIO_CAP)
+    : qualityCap;
   return Math.min(combatCap, dpr);
 }
 

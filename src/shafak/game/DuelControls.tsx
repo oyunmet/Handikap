@@ -5,6 +5,7 @@ import GameButton, { type GameButtonIcon } from "./GameButton";
 type DuelControlsProps = {
   disabled?: boolean;
   stamina: number;
+  attackCooldownSeconds: number;
   skillOneSeconds: number;
   skillTwoSeconds: number;
   onPress: (button: number) => void;
@@ -18,6 +19,7 @@ function HeldButton({
   className,
   tone,
   icon,
+  hint,
   cooldown = 0,
   cooldownDuration = 6,
   disabled,
@@ -30,8 +32,9 @@ function HeldButton({
   button: number;
   label: string;
   className: string;
-  tone: "copper" | "teal" | "sky";
+  tone: "copper" | "gold" | "teal" | "sky";
   icon: GameButtonIcon;
+  hint?: string;
   cooldown?: number;
   cooldownDuration?: number;
   disabled: boolean;
@@ -128,6 +131,7 @@ function HeldButton({
       aria-disabled={disabled || cooldown > 0 || Boolean(disabledReason)}
       label={label}
       icon={icon}
+      hint={hint}
       tone={tone}
       faceSize={64}
       hitAreaSize={76}
@@ -147,6 +151,7 @@ function HeldButton({
 export default function DuelControls({
   disabled = false,
   stamina,
+  attackCooldownSeconds,
   skillOneSeconds,
   skillTwoSeconds,
   onPress,
@@ -277,8 +282,24 @@ export default function DuelControls({
         <span aria-hidden="true" />
       </div>
       {blockedHint && <div className="duel-control-toast" role="status" aria-live="polite">{blockedHint}</div>}
-      <div className="duel-control-cluster" role="group" aria-label="Düello becerileri">
+      <div className="duel-control-cluster" role="group" aria-label="Düello hareketleri ve becerileri">
         <div className="duel-control-cluster__actions">
+          <HeldButton
+            button={INPUT_BUTTON.attack}
+            label="SALDIRI"
+            className="is-attack"
+            tone="gold"
+            icon="attack"
+            hint="TUT: AĞIR"
+            cooldown={attackCooldownSeconds}
+            cooldownDuration={0.9}
+            disabled={disabled}
+            disabledReason={stamina < 7 ? "Saldırı için dayanıklılık gerekli." : ""}
+            onPress={onPress}
+            onRelease={onRelease}
+            onBlocked={showBlockedHint}
+            accessibleLabel="Saldır; basılı tutunca ağır saldırı yap"
+          />
           <HeldButton
             button={INPUT_BUTTON.skillTwo}
             label="YILDIRIM"

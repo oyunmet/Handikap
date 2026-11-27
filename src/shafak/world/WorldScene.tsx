@@ -3387,6 +3387,7 @@ export default function WorldScene({
           })()}
           <DuelControls
             stamina={combatRender.player.stamina}
+            attackCooldownSeconds={Math.max(0, combatRender.player.attackCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillOneSeconds={Math.max(0, combatRender.player.skillOneCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             skillTwoSeconds={Math.max(0, combatRender.player.skillTwoCooldownUntilTick - combatRender.tick) / COMBAT_HZ}
             onPress={pressDuelButton}

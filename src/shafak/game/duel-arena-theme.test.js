@@ -11,6 +11,8 @@ test("arena materials change with each world biome", () => {
   assert.notEqual(ice.floor, marsh.floor);
   assert.notEqual(ash.accent, marsh.accent);
   assert.ok(ash.stone.length >= 5 && ice.wall.length >= 3 && marsh.column.length >= 3);
+  assert.notEqual(ash.skyZenith, ice.skyZenith);
+  assert.notEqual(marsh.skyHorizon, "#d3edf0");
 });
 
 test("arena theme remains stable within a biome and handles invalid travel distance", () => {

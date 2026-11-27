@@ -80,7 +80,7 @@ import { getWorldV2CameraOffset } from "./world-v2-config";
 import { getNearestWorldLabelIds, type WorldLabelCandidate } from "./world-label-layout";
 import { getWorldGlowTexture } from "./world-glow.ts";
 import { nextGateDistanceForCamera } from "./world-generation";
-import { createDuelArenaBackdropMountains } from "./duel-arena-backdrop";
+import DuelArenaEnvironment, { DuelArenaAtmosphere } from "./DuelArenaEnvironment";
 import { PLAYER_CHARACTER_TARGET_HEIGHT } from "./player-model";
 
 function createProceduralEnvironmentTexture() {
@@ -2138,137 +2138,6 @@ function DuelArenaBoundaryRunes({
   return <instancedMesh ref={runeRef} args={[geometry, material, 32]} frustumCulled={false} />;
 }
 
-function DuelArenaBackdrop({ theme }: { theme: DuelArenaTheme }) {
-  const mountainsRef = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const mountains = useMemo(
-    () => createDuelArenaBackdropMountains(theme.wall),
-    [theme.wall],
-  );
-
-  useEffect(() => {
-    const mesh = mountainsRef.current;
-    if (!mesh) return;
-    const tint = new THREE.Color();
-    mountains.forEach((mountain, index) => {
-      dummy.position.set(mountain.x, mountain.y, mountain.z);
-      dummy.scale.set(mountain.sx, mountain.sy, mountain.sz);
-      dummy.rotation.set(0.03 * (index % 3), index * 0.11, 0);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(index, dummy.matrix);
-      mesh.setColorAt(index, tint.set(mountain.color));
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.computeBoundingSphere();
-  }, [dummy, mountains]);
-
-  return (
-    <>
-      <instancedMesh ref={mountainsRef} args={[undefined, undefined, mountains.length]} frustumCulled={false}>
-        <sphereGeometry args={[1, 28, 18]} />
-        <meshStandardMaterial color="#ffffff" roughness={1} />
-      </instancedMesh>
-      {[-1, 1].map((side) => (
-        <group
-          key={side}
-          position={[side * 11.8, 0, -8.5]}
-          rotation={[0, side * -0.16, 0]}
-          userData={{ cameraOccluder: true }}
-        >
-          <mesh position={[0, 0.43, 0]}>
-            <cylinderGeometry args={[0.58, 0.78, 0.86, 24, 3]} />
-            <meshStandardMaterial color={theme.column[1]} roughness={0.97} />
-          </mesh>
-          <mesh position={[0, 1.66, 0]} scale={[1, 1.25, 0.7]}>
-            <capsuleGeometry args={[0.36, 0.9, 8, 18]} />
-            <meshStandardMaterial color={theme.column[0]} roughness={0.96} />
-          </mesh>
-          <mesh position={[0, 2.82, 0]}>
-            <sphereGeometry args={[0.32, 18, 12]} />
-            <meshStandardMaterial color={theme.column[1]} roughness={0.92} />
-          </mesh>
-          {[-0.53, 0.53].map((x) => (
-            <mesh key={x} position={[x, 2.06, 0]} scale={[0.92, 0.72, 0.78]}>
-              <sphereGeometry args={[0.34, 16, 12]} />
-              <meshStandardMaterial color={theme.column[0]} roughness={0.94} />
-            </mesh>
-          ))}
-          <mesh position={[side * 0.86, 1.42, 0.12]} rotation={[0, 0, -side * 0.12]} scale={[0.62, 1.12, 0.36]}>
-            <sphereGeometry args={[0.42, 18, 12]} />
-            <meshStandardMaterial color={theme.wall[1]} roughness={0.95} />
-          </mesh>
-        </group>
-      ))}
-    </>
-  );
-}
-
-function DuelArenaAtmosphere({ theme }: { theme: DuelArenaTheme }) {
-  const { scene } = useThree();
-
-  useEffect(() => {
-    const previousBackground = scene.background;
-    const previousFog = scene.fog;
-    const width = 256;
-    const height = 128;
-    const pixels = new Uint8Array(width * height * 4);
-    const zenith = new THREE.Color("#348ec7").lerp(new THREE.Color(theme.background), 0.08);
-    const horizon = new THREE.Color("#d3edf0").lerp(new THREE.Color(theme.accent), 0.06);
-    const cloud = new THREE.Color("#fffdf5").lerp(new THREE.Color(theme.accent), 0.08);
-    const sunGlow = new THREE.Color("#ffdb91");
-    const sunCore = new THREE.Color("#fff8dc");
-    const color = new THREE.Color();
-    const srgb = new THREE.Color();
-    const sunLongitude = Math.PI * 0.48;
-    for (let y = 0; y < height; y += 1) {
-      const latitude = Math.abs(y / (height - 1) - 0.5) * 2;
-      const skyMix = THREE.MathUtils.smoothstep(latitude, 0.04, 0.94);
-      const rowColor = color.copy(horizon).lerp(zenith, skyMix).clone();
-      for (let x = 0; x < width; x += 1) {
-        const u = x / width * Math.PI * 2;
-        const v = y / height;
-        const wisps = THREE.MathUtils.smoothstep(
-          0.5 + Math.sin(u * 3.2 + v * 11) * 0.24 + Math.sin(u * 7.1 - v * 17) * 0.15,
-          0.53,
-          0.82,
-        );
-        const longitudeDelta = Math.min(
-          Math.abs(u - sunLongitude),
-          Math.PI * 2 - Math.abs(u - sunLongitude),
-        );
-        const haloDistance = (longitudeDelta / 0.19) ** 2 + ((latitude - 0.2) / 0.12) ** 2;
-        const discDistance = (longitudeDelta / 0.028) ** 2 + ((latitude - 0.2) / 0.035) ** 2;
-        color.copy(rowColor)
-          .lerp(sunGlow, Math.exp(-haloDistance) * 0.42)
-          .lerp(sunCore, Math.exp(-discDistance) * 0.88)
-          .lerp(cloud, wisps * 0.32);
-        srgb.copy(color).convertLinearToSRGB();
-        const pixel = (y * width + x) * 4;
-        pixels[pixel] = Math.round(THREE.MathUtils.clamp(srgb.r, 0, 1) * 255);
-        pixels[pixel + 1] = Math.round(THREE.MathUtils.clamp(srgb.g, 0, 1) * 255);
-        pixels[pixel + 2] = Math.round(THREE.MathUtils.clamp(srgb.b, 0, 1) * 255);
-        pixels[pixel + 3] = 255;
-      }
-    }
-    const sky = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat);
-    sky.mapping = THREE.EquirectangularReflectionMapping;
-    sky.colorSpace = THREE.SRGBColorSpace;
-    sky.magFilter = THREE.LinearFilter;
-    sky.minFilter = THREE.LinearFilter;
-    sky.needsUpdate = true;
-    scene.background = sky;
-    scene.fog = new THREE.Fog(theme.fog, 26, 72);
-    return () => {
-      scene.background = previousBackground;
-      scene.fog = previousFog;
-      sky.dispose();
-    };
-  }, [scene, theme.accent, theme.background, theme.fog]);
-
-  return null;
-}
-
 type DuelFireDecalSlot = {
   eventId: number;
   startedAt: number;
@@ -2369,8 +2238,8 @@ function DuelArena({
   return (
     <group position={[0, 0, 0]}>
       <DuelArenaAtmosphere theme={theme} />
+      <DuelArenaEnvironment theme={theme} />
       <DuelArenaStonework theme={theme} />
-      <DuelArenaBackdrop theme={theme} />
       {visualEffectsEnabled && (
         <DuelFireDecals combatVisualEvents={combatVisualEvents} combatStateRef={combatStateRef} />
       )}
@@ -2841,7 +2710,7 @@ function SceneContents({
           <hemisphereLight args={["#ffe2c3", "#30252f", 2.2]} />
           <ambientLight color="#ffdbb3" intensity={1.4} />
           <directionalLight position={[-8, 14, 8]} color="#ffd09a" intensity={2.4} />
-          <directionalLight position={[9, 8, -7]} color="#91cde0" intensity={0.72} />
+          <directionalLight position={[9, 8, -7]} color="#d79257" intensity={0.58} />
         </group>
       )}
       <TimeOfDaySky quality={quality} showSkyShell={false} />
