@@ -385,4 +385,5 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Aşama 2c tamamlandı:** `consumeWarRoomActionInputs` bu eylemleri renderer'dan bağımsız tüketiyor. Duruş, slot doğrulaması, reload/melee resetleri, zıplama yüksekliği, kaçış yönü, stamina ve kısa hasar bağışıklığı testlerle sabitlendi.
 - **Doğrulama:** War Room hedefleri 315/315 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
 - **Sıradaki dilim:** Sabit-adım hareket entegrasyonunu yeni simülasyon sınırına taşı.
+- **Aşama 2d başladı:** Oyuncu runtime konumunu ve render için enterpolasyon konumunu sabit-adım hareket modülünden tek simülasyon adımında güncelle; sahne yalnızca hareket niyetini ve sonuç pozunu tüketmeli.
 - **Devam:** Önce `docs/PROGRESS.md` ve bu bölümü oku. Her aşama başlamadan ilerleme kaydını güncelle; tamamlandığında hedef testleri, typecheck, build ve `git diff --check` sonuçlarını yazıp yerel commit al. Sonraki aşamaya yalnızca bu doğrulama temizse geç.

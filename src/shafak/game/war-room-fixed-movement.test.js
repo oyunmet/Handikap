@@ -12,12 +12,17 @@ import { FixedStepLoop } from "../../core/fixed-step-loop.ts";
 
 test("War Room player movement consumes the shared runtime's fixed-step frame", () => {
   const sceneSource = readFileSync(new URL("../world/WarRoomScene3D.tsx", import.meta.url), "utf8");
+  const simulationSource = readFileSync(new URL("./war-room-simulation.ts", import.meta.url), "utf8");
 
   assert.ok(sceneSource.includes("sharedGameRuntime.registerFrame"), "War Room should subscribe to the core frame");
   assert.ok(sceneSource.includes("runtimeFrame.steps * GAME_RUNTIME_DEFAULTS.stepSeconds"), "simulation delta should use core steps");
   assert.ok(
-    /advanceWarRoomFixedMovementFromFrame\([\s\S]*?runtimeFrame,\s*cinematicTimeScale\)/.test(sceneSource),
-    "player movement should use the core frame and preserve cinematic slow motion",
+    /advanceWarRoomPlayerMovement\([\s\S]*?runtimeFrame,\s*cinematicTimeScale\)/.test(sceneSource),
+    "the scene should pass the core frame and cinematic time scale into the simulation boundary",
+  );
+  assert.ok(
+    /advanceWarRoomFixedMovementFromFrame\([\s\S]*?frame,\s*timeScale\)/.test(simulationSource),
+    "the simulation boundary should apply the core frame and requested time scale",
   );
   assert.ok(
     /input\.paused\)\s*\{[\s\S]*?runtimeAlpha = runtimeFrame\.alpha[\s\S]*?accumulator = 0/.test(sceneSource),

@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createWarRoomRuntime } from "./war-room-engine.ts";
 import {
+  advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
   createEmptyWarRoomHudSnapshot,
   createWarRoomInputState,
   consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
 } from "./war-room-simulation.ts";
+import { createWarRoomMovementClock } from "./war-room-fixed-movement.ts";
 
 test("input state starts neutral and preserves the selected aim-assist preference", () => {
   const enabled = createWarRoomInputState(true);
@@ -228,4 +230,44 @@ test("jump and dodge inputs use grounded state, stamina, and camera-relative dir
   assert.equal(runtime.player.dodgeUntil, 7.26);
   assert.equal(input.jumpPressed, false);
   assert.equal(input.dodgePressed, false);
+});
+
+test("player movement step updates runtime and returns independent render interpolation", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 81);
+  runtime.player.x = 0;
+  runtime.player.z = 0;
+  const clock = createWarRoomMovementClock(0, 0);
+  const intent = {
+    velocityX: 6,
+    velocityZ: 0,
+    now: 1,
+    blockers: [],
+    radius: 0,
+  };
+
+  const first = advanceWarRoomPlayerMovement(
+    runtime,
+    clock,
+    intent,
+    { steps: 1, alpha: 0, droppedSeconds: 0 },
+  );
+
+  assert.ok(first.x > 0);
+  assert.equal(first.z, 0);
+  assert.equal(first.previousX, 0);
+  assert.equal(first.deltaX, first.x);
+  assert.equal(runtime.player.x, first.x);
+  assert.equal(first.renderX, 0);
+
+  const second = advanceWarRoomPlayerMovement(
+    runtime,
+    clock,
+    { ...intent, now: 1.01 },
+    { steps: 1, alpha: 0.5, droppedSeconds: 0 },
+  );
+
+  assert.ok(second.x > first.x);
+  assert.equal(runtime.player.x, second.x);
+  assert.ok(second.renderX > first.renderX);
+  assert.ok(second.renderX < second.x);
 });

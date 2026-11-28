@@ -225,12 +225,12 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
+  advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
   consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
 } from "../game/war-room-simulation";
 import {
-  advanceWarRoomFixedMovementFromFrame,
   createWarRoomMovementClock,
 } from "../game/war-room-fixed-movement";
 import {
@@ -3635,24 +3635,22 @@ function WarRoomRuntimeScene({
           : player.sprinting ? 8.2
             : 6.1;
     const directionalSpeedScale = getWarRoomDirectionalSpeedScale(moveX, moveY);
-    const previousMoveX = player.x;
-    const previousMoveZ = player.z;
-    const nextPosition = advanceWarRoomFixedMovementFromFrame(playerMovementClockRef.current, {
-      x: player.x,
-      z: player.z,
-      velocityX: worldMovement.x * speed * directionalSpeedScale,
-      velocityZ: worldMovement.z * speed * directionalSpeedScale,
-      now,
-      blockers: activeBlockersRef.current,
-      radius: WAR_ROOM_PLAYER_COLLISION_RADIUS,
-      floorHeight: player.floorHeight,
-      jumpHeight: player.jumpHeight,
-      dodge: { x: player.dodgeX, z: player.dodgeZ, until: player.dodgeUntil },
-    }, runtimeFrame, cinematicTimeScale);
-    player.x = nextPosition.x;
-    player.z = nextPosition.z;
-    const dx = player.x - previousMoveX;
-    const dz = player.z - previousMoveZ;
+    const nextPosition = advanceWarRoomPlayerMovement(
+      runtime,
+      playerMovementClockRef.current,
+      {
+        velocityX: worldMovement.x * speed * directionalSpeedScale,
+        velocityZ: worldMovement.z * speed * directionalSpeedScale,
+        now,
+        blockers: activeBlockersRef.current,
+        radius: WAR_ROOM_PLAYER_COLLISION_RADIUS,
+        dodge: { x: player.dodgeX, z: player.dodgeZ, until: player.dodgeUntil },
+      },
+      runtimeFrame,
+      cinematicTimeScale,
+    );
+    const dx = nextPosition.deltaX;
+    const dz = nextPosition.deltaZ;
     playerRenderPositionRef.current.x = nextPosition.renderX;
     playerRenderPositionRef.current.z = nextPosition.renderZ;
     const previousFloorHeight = player.floorHeight;

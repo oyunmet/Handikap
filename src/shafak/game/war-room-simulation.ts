@@ -7,6 +7,12 @@ import {
   type WarRoomRuntime,
 } from "./war-room-engine";
 import {
+  advanceWarRoomFixedMovementFromFrame,
+  type WarRoomFixedMovementInput,
+  type WarRoomFixedMovementResult,
+  type WarRoomMovementClock,
+} from "./war-room-fixed-movement";
+import {
   getNearestWarRoomDoor,
   getWarRoomDoorOpenProgress,
 } from "./war-room-doors";
@@ -15,6 +21,7 @@ import {
   type WarRoomMissionOutcome,
 } from "./war-room-missions";
 import { RESTORE_CONFIG } from "./war-room-restore";
+import type { FixedStepResult } from "../../core/fixed-step-loop";
 
 export function createWarRoomInputState(
   aimAssistEnabled = true,
@@ -146,6 +153,46 @@ export function consumeWarRoomActionInputs(
     }
     input.dodgePressed = false;
   }
+}
+
+export type WarRoomPlayerMovementIntent = Pick<
+  WarRoomFixedMovementInput,
+  "velocityX" | "velocityZ" | "now" | "blockers" | "radius" | "dodge"
+>;
+
+export type WarRoomPlayerMovementStep = WarRoomFixedMovementResult & {
+  previousX: number;
+  previousZ: number;
+  deltaX: number;
+  deltaZ: number;
+};
+
+export function advanceWarRoomPlayerMovement(
+  runtime: WarRoomRuntime,
+  clock: WarRoomMovementClock,
+  intent: WarRoomPlayerMovementIntent,
+  frame: Readonly<Pick<FixedStepResult, "steps" | "alpha" | "droppedSeconds">>,
+  timeScale = 1,
+): WarRoomPlayerMovementStep {
+  const player = runtime.player;
+  const previousX = player.x;
+  const previousZ = player.z;
+  const movement = advanceWarRoomFixedMovementFromFrame(clock, {
+    ...intent,
+    x: player.x,
+    z: player.z,
+    floorHeight: player.floorHeight,
+    jumpHeight: player.jumpHeight,
+  }, frame, timeScale);
+  player.x = movement.x;
+  player.z = movement.z;
+  return {
+    ...movement,
+    previousX,
+    previousZ,
+    deltaX: movement.x - previousX,
+    deltaZ: movement.z - previousZ,
+  };
 }
 
 export function createEmptyWarRoomHudSnapshot(): WarRoomHudSnapshot {
