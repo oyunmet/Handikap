@@ -68,6 +68,86 @@ export function resolveWarRoomSimulationOutcome(
   }, runtime.mission);
 }
 
+export type WarRoomActionInputContext = {
+  now: number;
+  moveX: number;
+  moveY: number;
+  forwardX: number;
+  forwardZ: number;
+  rightX: number;
+  rightZ: number;
+  weaponSlotCount: number;
+};
+
+export function consumeWarRoomActionInputs(
+  runtime: WarRoomRuntime,
+  input: WarRoomInputState,
+  context: WarRoomActionInputContext,
+): void {
+  const player = runtime.player;
+  const {
+    now,
+    moveX,
+    moveY,
+    forwardX,
+    forwardZ,
+    rightX,
+    rightZ,
+    weaponSlotCount,
+  } = context;
+
+  if (input.pronePressed) {
+    player.prone = !player.prone;
+    player.crouched = player.prone;
+    input.pronePressed = false;
+  }
+  if (input.crouchPressed) {
+    player.prone = false;
+    player.crouched = !player.crouched;
+    input.crouchPressed = false;
+  }
+  if (input.weaponSlotPressed !== null) {
+    const requestedSlot = input.weaponSlotPressed;
+    if (requestedSlot >= 0
+      && requestedSlot < weaponSlotCount
+      && requestedSlot !== player.activeSlot) {
+      player.activeSlot = requestedSlot as 0 | 1;
+      player.reloadingWeapon = null;
+      player.reloadUntil = 0;
+      player.meleeInputPending = false;
+      player.meleeComboIndex = 0;
+      player.meleeComboCount = 0;
+    }
+    input.weaponSlotPressed = null;
+  }
+  if (input.swapPressed) {
+    player.activeSlot = player.activeSlot === 0 ? 1 : 0;
+    player.reloadingWeapon = null;
+    player.reloadUntil = 0;
+    player.meleeInputPending = false;
+    player.meleeComboIndex = 0;
+    player.meleeComboCount = 0;
+    input.swapPressed = false;
+  }
+  if (input.jumpPressed) {
+    if (player.jumpHeight <= 0.001) player.jumpVelocity = 5.4;
+    input.jumpPressed = false;
+  }
+  if (input.dodgePressed) {
+    if (player.stamina >= 18 && now >= player.dodgeUntil) {
+      const dodgeLength = Math.hypot(moveX, moveY);
+      const localX = dodgeLength > 0.05 ? moveX / dodgeLength : 0;
+      const localY = dodgeLength > 0.05 ? moveY / dodgeLength : -1;
+      player.dodgeX = rightX * localX + forwardX * localY;
+      player.dodgeZ = rightZ * localX + forwardZ * localY;
+      player.stamina = Math.max(0, player.stamina - 18);
+      player.dodgeUntil = now + 0.26;
+      player.invulnerableUntil = now + 0.18;
+    }
+    input.dodgePressed = false;
+  }
+}
+
 export function createEmptyWarRoomHudSnapshot(): WarRoomHudSnapshot {
   return {
     mission: {

@@ -226,6 +226,7 @@ import {
 } from "../game/war-room-engine";
 import {
   buildWarRoomHudSnapshot,
+  consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
 } from "../game/war-room-simulation";
 import {
@@ -3604,54 +3605,16 @@ function WarRoomRuntimeScene({
     player.joystickAngleDegrees = orientation.joystickAngleDegrees;
     player.facingCamera = orientation.facingCamera;
 
-    if (input.pronePressed) {
-      player.prone = !player.prone;
-      player.crouched = player.prone;
-      input.pronePressed = false;
-    }
-    if (input.crouchPressed) {
-      player.prone = false;
-      player.crouched = !player.crouched;
-      input.crouchPressed = false;
-    }
-    if (input.weaponSlotPressed !== null) {
-      const requestedSlot = input.weaponSlotPressed;
-      if (requestedSlot >= 0 && requestedSlot < weaponIds.length && requestedSlot !== player.activeSlot) {
-        player.activeSlot = requestedSlot as 0 | 1;
-        player.reloadingWeapon = null;
-        player.reloadUntil = 0;
-        player.meleeInputPending = false;
-        player.meleeComboIndex = 0;
-        player.meleeComboCount = 0;
-      }
-      input.weaponSlotPressed = null;
-    }
-    if (input.swapPressed) {
-      player.activeSlot = player.activeSlot === 0 ? 1 : 0;
-      player.reloadingWeapon = null;
-      player.reloadUntil = 0;
-      player.meleeInputPending = false;
-      player.meleeComboIndex = 0;
-      player.meleeComboCount = 0;
-      input.swapPressed = false;
-    }
-    if (input.jumpPressed) {
-      if (player.jumpHeight <= 0.001) player.jumpVelocity = 5.4;
-      input.jumpPressed = false;
-    }
-    if (input.dodgePressed) {
-      if (player.stamina >= 18 && now >= player.dodgeUntil) {
-        const dodgeLength = Math.hypot(moveX, moveY);
-        const localX = dodgeLength > 0.05 ? moveX / dodgeLength : 0;
-        const localY = dodgeLength > 0.05 ? moveY / dodgeLength : -1;
-        player.dodgeX = rightX * localX + forwardX * localY;
-        player.dodgeZ = rightZ * localX + forwardZ * localY;
-        player.stamina = Math.max(0, player.stamina - 18);
-        player.dodgeUntil = now + 0.26;
-        player.invulnerableUntil = now + 0.18;
-      }
-      input.dodgePressed = false;
-    }
+    consumeWarRoomActionInputs(runtime, input, {
+      now,
+      moveX,
+      moveY,
+      forwardX,
+      forwardZ,
+      rightX,
+      rightZ,
+      weaponSlotCount: weaponIds.length,
+    });
 
     const sprintIntent = !player.crouched
       && (input.sprintLocked || (Math.abs(moveY) >= 0.93 && Math.abs(moveX) <= 0.34))

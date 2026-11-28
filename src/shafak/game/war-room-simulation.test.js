@@ -5,6 +5,7 @@ import {
   buildWarRoomHudSnapshot,
   createEmptyWarRoomHudSnapshot,
   createWarRoomInputState,
+  consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
 } from "./war-room-simulation.ts";
 
@@ -143,4 +144,88 @@ test("simulation outcome respects treasure goals, defense health, and time limit
   );
   defense.mission.defenseHp = 0;
   assert.equal(resolveWarRoomSimulationOutcome(defense, 10), "defeat");
+});
+
+test("action input consumes stance, weapon, and swap requests with existing resets", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 71);
+  const input = createWarRoomInputState();
+  const context = {
+    now: 4,
+    moveX: 0,
+    moveY: 0,
+    forwardX: 0,
+    forwardZ: -1,
+    rightX: 1,
+    rightZ: 0,
+    weaponSlotCount: 2,
+  };
+
+  input.pronePressed = true;
+  consumeWarRoomActionInputs(runtime, input, context);
+  assert.equal(runtime.player.prone, true);
+  assert.equal(runtime.player.crouched, true);
+  assert.equal(input.pronePressed, false);
+
+  input.crouchPressed = true;
+  consumeWarRoomActionInputs(runtime, input, context);
+  assert.equal(runtime.player.prone, false);
+  assert.equal(runtime.player.crouched, false);
+
+  runtime.player.reloadingWeapon = "powder_rifle";
+  runtime.player.reloadUntil = 8;
+  runtime.player.meleeInputPending = true;
+  runtime.player.meleeComboIndex = 2;
+  runtime.player.meleeComboCount = 2;
+  input.weaponSlotPressed = 1;
+  consumeWarRoomActionInputs(runtime, input, context);
+  assert.equal(runtime.player.activeSlot, 1);
+  assert.equal(runtime.player.reloadingWeapon, null);
+  assert.equal(runtime.player.reloadUntil, 0);
+  assert.equal(runtime.player.meleeInputPending, false);
+  assert.equal(runtime.player.meleeComboIndex, 0);
+  assert.equal(runtime.player.meleeComboCount, 0);
+  assert.equal(input.weaponSlotPressed, null);
+
+  input.swapPressed = true;
+  consumeWarRoomActionInputs(runtime, input, context);
+  assert.equal(runtime.player.activeSlot, 0);
+  assert.equal(input.swapPressed, false);
+});
+
+test("jump and dodge inputs use grounded state, stamina, and camera-relative direction", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 72);
+  const input = createWarRoomInputState();
+  const context = {
+    now: 7,
+    moveX: 1,
+    moveY: 0,
+    forwardX: 0,
+    forwardZ: -1,
+    rightX: 1,
+    rightZ: 0,
+    weaponSlotCount: 2,
+  };
+
+  input.jumpPressed = true;
+  input.dodgePressed = true;
+  consumeWarRoomActionInputs(runtime, input, context);
+  assert.equal(runtime.player.jumpVelocity, 5.4);
+  assert.equal(runtime.player.dodgeX, 1);
+  assert.equal(runtime.player.dodgeZ, 0);
+  assert.equal(runtime.player.stamina, 82);
+  assert.equal(runtime.player.dodgeUntil, 7.26);
+  assert.equal(runtime.player.invulnerableUntil, 7.18);
+  assert.equal(input.jumpPressed, false);
+  assert.equal(input.dodgePressed, false);
+
+  runtime.player.jumpHeight = 0.5;
+  runtime.player.stamina = 17;
+  input.jumpPressed = true;
+  input.dodgePressed = true;
+  consumeWarRoomActionInputs(runtime, input, context);
+  assert.equal(runtime.player.jumpVelocity, 5.4);
+  assert.equal(runtime.player.stamina, 17);
+  assert.equal(runtime.player.dodgeUntil, 7.26);
+  assert.equal(input.jumpPressed, false);
+  assert.equal(input.dodgePressed, false);
 });

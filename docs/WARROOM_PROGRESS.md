@@ -381,4 +381,8 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Aşama 2b tamamlandı:** Giriş başlangıcı, boş HUD durumu, canlı runtime → HUD izdüşümü ve görev sonucu kararı `war-room-simulation.ts` içinde. Sahne sonuç/hud görünümünü bu sınırdan alıyor; görsel ve oynanış kuralları aynı kaldı. Runtime'a bağlı mutable HUD dizileri kopyalanıyor.
 - **Doğrulama:** War Room hedefleri 313/313 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
 - **Sıradaki dilim:** Simülasyon olay sözleşmesini ve sabit-adım güncellemesini sahneden ayır.
+- **Aşama 2c başladı:** Sahnedeki tek-seferlik eylem tüketimi (duruş, silah seçimi/değişimi, sıçrama, kaçış) yeni simülasyon sınırına taşınacak; tuş davranışı değişmeyecek.
+- **Aşama 2c tamamlandı:** `consumeWarRoomActionInputs` bu eylemleri renderer'dan bağımsız tüketiyor. Duruş, slot doğrulaması, reload/melee resetleri, zıplama yüksekliği, kaçış yönü, stamina ve kısa hasar bağışıklığı testlerle sabitlendi.
+- **Doğrulama:** War Room hedefleri 315/315 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
+- **Sıradaki dilim:** Sabit-adım hareket entegrasyonunu yeni simülasyon sınırına taşı.
 - **Devam:** Önce `docs/PROGRESS.md` ve bu bölümü oku. Her aşama başlamadan ilerleme kaydını güncelle; tamamlandığında hedef testleri, typecheck, build ve `git diff --check` sonuçlarını yazıp yerel commit al. Sonraki aşamaya yalnızca bu doğrulama temizse geç.
