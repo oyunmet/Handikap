@@ -230,6 +230,7 @@ import {
   collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
   consumeWarRoomPlayerFireInput,
+  prepareWarRoomRangedShot,
   resolveWarRoomSimulationOutcome,
   updateWarRoomPlayerFloor,
 } from "../game/war-room-simulation";
@@ -239,7 +240,6 @@ import {
 import {
   getWarRoomMeleeImpactCues,
   playWarRoomSound,
-  type WarRoomShotStyle,
   type WarRoomSoundOptions,
   type WarRoomSoundSurface,
 } from "../game/war-room-audio";
@@ -3021,10 +3021,10 @@ function WarRoomRuntimeScene({
   const fireWeapon = (now: number, charge = 1, meleeHoldSeconds = 0) => {
     const runtime = runtimeRef.current;
     const player = runtime.player;
-    const weaponId = player.weaponSlots[player.activeSlot];
-    const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
-    if (now < player.nextShotAt || player.reloadingWeapon) return;
-    if (weapon.weaponClass === "melee") {
+    const selectedWeaponId = player.weaponSlots[player.activeSlot];
+    const selectedWeapon = WAR_ROOM_WEAPON_BY_ID.get(selectedWeaponId)!;
+    if (selectedWeapon.weaponClass === "melee") {
+      if (now < player.nextShotAt || player.reloadingWeapon) return;
       player.lastCombatAt = now;
       const comboExpired = player.meleeComboLastAttackAt < 0
         || now - player.meleeComboLastAttackAt > 1.15;
@@ -3038,12 +3038,12 @@ function WarRoomRuntimeScene({
         WAR_ROOM_COMBAT_FEEL_ENABLED,
       );
       const duration = Math.min(
-        weapon.fireInterval,
-        (weapon.meleeDuration ?? weapon.fireInterval * 0.82) * plan.durationMultiplier,
+        selectedWeapon.fireInterval,
+        (selectedWeapon.meleeDuration ?? selectedWeapon.fireInterval * 0.82) * plan.durationMultiplier,
       );
       player.strafeUntil = getWarRoomPostAttackStrafeUntil(now, duration);
       const attackRangeBonus = plan.heavy ? 0.12 : 0;
-      const attackReach = getWarRoomMeleeEffectiveReach(weapon.id, weapon.range, attackRangeBonus);
+      const attackReach = getWarRoomMeleeEffectiveReach(selectedWeapon.id, selectedWeapon.range, attackRangeBonus);
       const isBlocked = (enemy: WarRoomEnemy) => isMeleeTargetBlocked(player, enemy);
       const attackYaw = WAR_ROOM_COMBAT_FEEL_ENABLED
         ? getWarRoomMeleeAssistYaw(player.x, player.z, player.facingYaw, runtime.enemies, attackReach, isBlocked)
@@ -3061,14 +3061,14 @@ function WarRoomRuntimeScene({
       player.x = lunged.x;
       player.z = lunged.z;
       player.stamina = Math.max(0, player.stamina - plan.staminaCost);
-      player.nextShotAt = now + weapon.fireInterval;
+      player.nextShotAt = now + selectedWeapon.fireInterval;
       player.meleeStartedAt = now;
       player.meleeDuration = duration;
       player.meleeUntil = now + duration;
       player.shotFeedbackUntil = now + duration;
       player.meleeHitAt = now + duration * 0.55;
       player.meleeHitPending = true;
-      player.meleeAttackWeaponId = weaponId;
+      player.meleeAttackWeaponId = selectedWeaponId;
       player.meleeAttackYaw = attackYaw;
       player.meleeAttackComboIndex = plan.comboIndex;
       player.meleeAttackHeavy = plan.heavy;
@@ -3101,7 +3101,7 @@ function WarRoomRuntimeScene({
         "melee-swing",
         1,
         "rifle",
-        getWarRoomAudioOptions(player, player.x, player.z, undefined, plan.heavy, weaponId),
+        getWarRoomAudioOptions(player, player.x, player.z, undefined, plan.heavy, selectedWeaponId),
       );
       player.shots += 1;
       player.lastHitDamage = 0;
@@ -3118,8 +3118,9 @@ function WarRoomRuntimeScene({
       }
       return;
     }
-    const ammo = player.ammo[weaponId];
-    if (!ammo || ammo.magazine <= 0) {
+    const shot = prepareWarRoomRangedShot(runtime, now, charge);
+    if (shot.status === "blocked") return;
+    if (shot.status === "empty") {
       if (now >= emptyClickAtRef.current) {
         playWarRoomSound("empty", 1, "rifle", getWarRoomAudioOptions(player, player.x, player.z));
         player.lastHitSource = null;
@@ -3130,37 +3131,19 @@ function WarRoomRuntimeScene({
       }
       return;
     }
-    player.nextShotAt = now + weapon.fireInterval;
-    player.strafeUntil = getWarRoomPostAttackStrafeUntil(now);
-    const shotStyle: WarRoomShotStyle = weapon.weaponClass === "shotgun" || weaponId === "scattergun"
-      ? "shotgun"
-      : weapon.weaponClass === "pistol" || weaponId === "sidearm"
-        ? "pistol"
-        : "rifle";
+    const { weaponId, weapon, shotStyle, pellets, spread, chargeMultiplier } = shot;
     playWarRoomSound(
       weaponId === "longbow" || weaponId === "crossbow" ? "bow" : "shot",
       1,
       shotStyle,
       getWarRoomAudioOptions(player, player.x, player.z),
     );
-    ammo.magazine -= 1;
-    player.shots += 1;
-    player.lastCombatAt = now;
-    player.lastHitDamage = 0;
-    player.lastHitCritical = false;
-    player.hitMarkerUntil = 0;
-    player.hitMarkerHeadshot = false;
-    player.shotFlashUntil = now + 0.06;
-    player.shotFeedbackUntil = now + 0.2;
-    player.recoil = Math.min(0.17, player.recoil + weapon.recoil);
     cameraKickRef.current = Math.min(0.16, cameraKickRef.current + 0.045 + weapon.recoil * 0.4);
     cameraSideKickRef.current = Math.max(
       -0.025,
       Math.min(0.025, cameraSideKickRef.current + Math.sin(now * 37.7) * 0.004),
     );
 
-    const pellets = weapon.pellets ?? 1;
-    const spread = weapon.spread + player.recoil * 0.18;
     let shotHit = false;
     let shotHeadshot = false;
     const muzzle = muzzleScratch;
@@ -3187,7 +3170,6 @@ function WarRoomRuntimeScene({
     spawnMuzzleSmoke(muzzle, now);
     if (weaponId !== "longbow" && weaponId !== "crossbow") spawnCasing(muzzle, now, player.yaw);
     const tracerEnd = tracerEndScratch;
-    const chargeMultiplier = weapon.charge ? 0.65 + charge * 0.55 : 1;
     for (let pellet = 0; pellet < pellets; pellet += 1) {
       const spreadX = (nextWarRoomRandom(runtime) - 0.5) * spread;
       const spreadY = (nextWarRoomRandom(runtime) - 0.5) * spread;

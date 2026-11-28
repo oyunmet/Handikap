@@ -29,7 +29,12 @@ import {
   advanceWarRoomPassiveRegen,
   collectWarRoomHealingPoint,
 } from "./war-room-restore";
-import { WAR_ROOM_WEAPON_BY_ID } from "./war-room-data";
+import {
+  WAR_ROOM_WEAPON_BY_ID,
+  type WarRoomWeapon,
+  type WarRoomWeaponId,
+} from "./war-room-data";
+import { getWarRoomPostAttackStrafeUntil } from "./war-room-orientation";
 import type { FixedStepResult } from "../../core/fixed-step-loop";
 
 export function createWarRoomInputState(
@@ -371,6 +376,67 @@ export function consumeWarRoomPlayerFireInput(
   input.firePressed = false;
   input.fireReleased = false;
   return request;
+}
+
+export type WarRoomRangedShotPreparation =
+  | { status: "blocked"; weaponId: WarRoomWeaponId }
+  | { status: "empty"; weaponId: WarRoomWeaponId }
+  | {
+    status: "ready";
+    weaponId: WarRoomWeaponId;
+    weapon: WarRoomWeapon;
+    shotStyle: "shotgun" | "pistol" | "rifle";
+    pellets: number;
+    spread: number;
+    chargeMultiplier: number;
+  };
+
+export function prepareWarRoomRangedShot(
+  runtime: WarRoomRuntime,
+  now: number,
+  charge = 1,
+): WarRoomRangedShotPreparation {
+  const player = runtime.player;
+  const weaponId = player.weaponSlots[player.activeSlot];
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+  if (
+    !weapon
+    || weapon.weaponClass === "melee"
+    || now < player.nextShotAt
+    || player.reloadingWeapon
+  ) {
+    return { status: "blocked", weaponId };
+  }
+  const ammo = player.ammo[weaponId];
+  if (!ammo || ammo.magazine <= 0) return { status: "empty", weaponId };
+
+  player.nextShotAt = now + weapon.fireInterval;
+  player.strafeUntil = getWarRoomPostAttackStrafeUntil(now);
+  ammo.magazine -= 1;
+  player.shots += 1;
+  player.lastCombatAt = now;
+  player.lastHitDamage = 0;
+  player.lastHitCritical = false;
+  player.hitMarkerUntil = 0;
+  player.hitMarkerHeadshot = false;
+  player.shotFlashUntil = now + 0.06;
+  player.shotFeedbackUntil = now + 0.2;
+  player.recoil = Math.min(0.17, player.recoil + weapon.recoil);
+
+  const shotStyle = weapon.weaponClass === "shotgun" || weaponId === "scattergun"
+    ? "shotgun"
+    : weapon.weaponClass === "pistol" || weaponId === "sidearm"
+      ? "pistol"
+      : "rifle";
+  return {
+    status: "ready",
+    weaponId,
+    weapon,
+    shotStyle,
+    pellets: weapon.pellets ?? 1,
+    spread: weapon.spread + player.recoil * 0.18,
+    chargeMultiplier: weapon.charge ? 0.65 + charge * 0.55 : 1,
+  };
 }
 
 export function collectWarRoomPlayerHealing(runtime: WarRoomRuntime, now: number) {

@@ -16,6 +16,7 @@ import {
   consumeWarRoomActionInputs,
   consumeWarRoomPlayerFireInput,
   resolveWarRoomSimulationOutcome,
+  prepareWarRoomRangedShot,
   updateWarRoomPlayerFloor,
 } from "./war-room-simulation.ts";
 import { createWarRoomMovementClock } from "./war-room-fixed-movement.ts";
@@ -473,4 +474,49 @@ test("player fire input preserves taps, automatic holds, charge, and melee hold 
   assert.equal(melee.charge, 1);
   assert.ok(Math.abs(melee.holdSeconds - 0.4) < 1e-9);
   assert.equal(meleeRuntime.player.meleeInputPending, false);
+});
+
+test("ranged shot preparation owns cadence, ammunition, recoil, and feedback state", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 108);
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get("powder_rifle");
+  const ammo = runtime.player.ammo.powder_rifle;
+  assert.ok(weapon);
+  assert.ok(ammo);
+  ammo.magazine = 1;
+  ammo.reserve = 12;
+  runtime.player.recoil = 0.1;
+  runtime.player.lastHitDamage = 8;
+  runtime.player.lastHitCritical = true;
+  runtime.player.hitMarkerUntil = 7;
+  runtime.player.hitMarkerHeadshot = true;
+
+  const shot = prepareWarRoomRangedShot(runtime, 2);
+  assert.equal(shot.status, "ready");
+  if (shot.status !== "ready") return;
+  assert.equal(shot.weaponId, "powder_rifle");
+  assert.equal(shot.shotStyle, "rifle");
+  assert.equal(shot.pellets, 1);
+  assert.equal(shot.chargeMultiplier, 1);
+  assert.equal(ammo.magazine, 0);
+  assert.equal(ammo.reserve, 12);
+  assert.equal(runtime.player.shots, 1);
+  assert.equal(runtime.player.nextShotAt, 2 + weapon.fireInterval);
+  assert.equal(runtime.player.lastCombatAt, 2);
+  assert.equal(runtime.player.recoil, 0.1 + weapon.recoil);
+  assert.equal(runtime.player.lastHitDamage, 0);
+  assert.equal(runtime.player.lastHitCritical, false);
+  assert.equal(runtime.player.hitMarkerUntil, 0);
+  assert.equal(runtime.player.hitMarkerHeadshot, false);
+
+  assert.equal(prepareWarRoomRangedShot(runtime, runtime.player.nextShotAt - 0.01).status, "blocked");
+  assert.equal(prepareWarRoomRangedShot(runtime, runtime.player.nextShotAt).status, "empty");
+  assert.equal(runtime.player.shots, 1);
+
+  const bowRuntime = createWarRoomRuntime(["longbow", "crossbow"], 0, 1, 109);
+  const bow = prepareWarRoomRangedShot(bowRuntime, 4, 0.5);
+  assert.equal(bow.status, "ready");
+  if (bow.status === "ready") {
+    assert.equal(bow.weaponId, "longbow");
+    assert.equal(bow.chargeMultiplier, 0.925);
+  }
 });

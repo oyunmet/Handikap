@@ -45,6 +45,7 @@ test("War Room player movement consumes the shared runtime's fixed-step frame", 
     "advanceWarRoomPlayerStamina(runtime, delta)",
     "advanceWarRoomReload(runtime, input, now)",
     "consumeWarRoomPlayerFireInput(runtime, input, now)",
+    "prepareWarRoomRangedShot(runtime, now, charge)",
   ]) {
     assert.ok(sceneSource.includes(call), `the scene should use simulation boundary: ${call}`);
   }
