@@ -1,6 +1,6 @@
 import { getWarRoomFloorPresentation } from "./war-room-floor-indicator";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useProgress } from "@react-three/drei";
 import WarRoomScene3D, { type WarRoomResourceStats } from "../world/WarRoomScene3D";
 import { preloadWarRoomModels, preloadWarRoomWeaponModels } from "../world/WarRoomModels";
@@ -116,6 +116,7 @@ import {
   writeWarRoomDailyCompletionDayKey,
   writeWarRoomRoomProgress,
 } from "./war-room-persistence";
+import { transitionWarRoomPhase } from "./war-room-session";
 import { getWarRoomDailyChallenge, isWarRoomDailyChallengeComplete } from "./war-room-daily";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
 import { getWarRoomBossAttackLabel } from "./war-room-boss";
@@ -161,7 +162,6 @@ type Props = {
   onCloseControlsEditor: () => void;
   quality: RenderQuality;
 };
-type Phase = "briefing" | "battle" | "victory" | "defeat";
 type CalibrationField = "position" | "rotation" | "scale";
 type WarRoomLookDebugSnapshot = {
   yaw: number;
@@ -393,7 +393,10 @@ export default function WarRoomGame({
   );
   const weaponLabMode = WAR_ROOM_WEAPON_LAB_ENABLED && searchParams?.get("lab") === "1";
   const resourceLeakTestMode = import.meta.env.DEV && searchParams?.get("resourceLeakTest") === "1";
-  const [phase, setPhase] = useState<Phase>(() => weaponLabMode ? "battle" : "briefing");
+  const [phase, setPhase] = useReducer(
+    transitionWarRoomPhase,
+    weaponLabMode ? "battle" : "briefing",
+  );
   const benchmarkAutoStartRef = useRef(false);
   const [sceneWarmupReady, setSceneWarmupReady] = useState(false);
   const [benchmarkReport, setBenchmarkReport] = useState<WarRoomPerformanceReport | null>(null);
@@ -816,7 +819,7 @@ export default function WarRoomGame({
     setExitPrompt(false);
     setSummary(null);
     setRunKey((key) => key + 1);
-    setPhase("battle");
+    setPhase({ type: "start" });
   };
   const beginBattleRef = useRef(beginBattle);
   beginBattleRef.current = beginBattle;
@@ -1024,7 +1027,7 @@ export default function WarRoomGame({
     }).catch(() => {
       setSummary((current) => current ? { ...current, profileRewardState: "failed" } : current);
     });
-    setPhase(result);
+    setPhase({ type: "finish", result });
   }, [
     dailyChallenge.dayKey,
     dailyChallengeComplete,
