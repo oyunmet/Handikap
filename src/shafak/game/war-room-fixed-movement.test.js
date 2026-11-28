@@ -43,13 +43,15 @@ test("War Room player movement consumes the shared runtime's fixed-step frame", 
     "advanceWarRoomLootInteraction(runtime, input, now)",
     "collectWarRoomPlayerHealing(runtime, now)",
     "advanceWarRoomPlayerStamina(runtime, delta)",
+    "advanceWarRoomReload(runtime, input, now)",
+    "consumeWarRoomPlayerFireInput(runtime, input, now)",
   ]) {
     assert.ok(sceneSource.includes(call), `the scene should use simulation boundary: ${call}`);
   }
   assert.doesNotMatch(
     sceneSource,
-    /player\.loot(?:StartedAt|Progress|ChestId)\s*=|advanceWarRoomPassiveRegen|collectWarRoomHealingPoint/,
-    "pickup and loot state should not be mutated by the renderer",
+    /player\.loot(?:StartedAt|Progress|ChestId)\s*=|advanceWarRoomPassiveRegen|collectWarRoomHealingPoint|if \(input\.reloadPressed\)/,
+    "pickup, loot, and reload state should not be mutated by the renderer",
   );
 });
 

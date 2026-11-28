@@ -223,11 +223,13 @@ import {
   advanceWarRoomLootInteraction,
   advanceWarRoomPlayerRestoration,
   advanceWarRoomPlayerStamina,
+  advanceWarRoomReload,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
   collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
+  consumeWarRoomPlayerFireInput,
   resolveWarRoomSimulationOutcome,
   updateWarRoomPlayerFloor,
 } from "../game/war-room-simulation";
@@ -3700,53 +3702,14 @@ function WarRoomRuntimeScene({
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
     resolveMeleeContact(now, wallNow);
 
-    const weaponId = player.weaponSlots[player.activeSlot];
-    const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId)!;
-    if (input.reloadPressed) {
-      const ammo = player.ammo[weaponId];
-      if (ammo && ammo.magazine < weapon.magazine && ammo.reserve > 0 && !player.reloadingWeapon) {
-        player.reloadingWeapon = weaponId;
-        player.reloadUntil = now + weapon.reloadSeconds;
-        playWarRoomSound("reload", 1, "rifle", getWarRoomAudioOptions(player, player.x, player.z));
-      }
-      input.reloadPressed = false;
+    const reload = advanceWarRoomReload(runtime, input, now);
+    if (reload.started) {
+      playWarRoomSound("reload", 1, "rifle", getWarRoomAudioOptions(player, player.x, player.z));
     }
-    if (player.reloadingWeapon && now >= player.reloadUntil) {
-      const reloading = WAR_ROOM_WEAPON_BY_ID.get(player.reloadingWeapon);
-      const ammo = player.ammo[player.reloadingWeapon];
-      if (reloading && ammo) {
-        const moved = Math.min(reloading.magazine - ammo.magazine, ammo.reserve);
-        ammo.magazine += moved;
-        ammo.reserve -= moved;
-      }
-      player.reloadingWeapon = null;
-      player.reloadUntil = 0;
+    const fireRequest = consumeWarRoomPlayerFireInput(runtime, input, now);
+    if (fireRequest) {
+      fireWeapon(now, fireRequest.charge, fireRequest.holdSeconds);
     }
-
-    if (weapon.weaponClass === "melee") {
-      if (input.firePressed && !player.meleeInputPending) {
-        player.meleeInputStartedAt = now;
-        player.meleeInputPending = true;
-      }
-      if (input.fireReleased && player.meleeInputPending) {
-        const holdSeconds = Math.max(0, now - player.meleeInputStartedAt);
-        player.meleeInputPending = false;
-        player.meleeInputStartedAt = 0;
-        fireWeapon(now, 1, holdSeconds);
-      }
-    } else if (weapon.charge && input.firePressed) player.chargeStartedAt = now || 0.0001;
-    else if (weapon.charge && input.fireReleased && player.chargeStartedAt > 0) {
-      const charge = Math.max(0.15, Math.min(1, (now - player.chargeStartedAt) / 0.95));
-      fireWeapon(now, charge);
-      player.chargeStartedAt = 0;
-    } else if (!weapon.charge && (
-      input.firePressed
-      || (weapon.automatic && input.fireHeld)
-    )) {
-      fireWeapon(now);
-    }
-    input.firePressed = false;
-    input.fireReleased = false;
 
     const activeLootChest = player.lootChestId
       ? runtime.lootChests.find((chest) => chest.id === player.lootChestId && !chest.opened)

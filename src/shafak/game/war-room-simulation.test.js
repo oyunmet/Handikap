@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWarRoomRuntime } from "./war-room-engine.ts";
+import { WAR_ROOM_WEAPON_BY_ID } from "./war-room-data.ts";
 import {
+  advanceWarRoomReload,
   advanceWarRoomLootInteraction,
   advanceWarRoomPlayerRestoration,
   advanceWarRoomPlayerStamina,
@@ -12,6 +14,7 @@ import {
   createWarRoomInputState,
   collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
+  consumeWarRoomPlayerFireInput,
   resolveWarRoomSimulationOutcome,
   updateWarRoomPlayerFloor,
 } from "./war-room-simulation.ts";
@@ -400,4 +403,74 @@ test("loot interaction completes only after a continuous hold near the chest", (
   assert.equal(runtime.player.lootProgress, 0);
   assert.ok(runtime.player.lastHitText.length > 0);
   assert.equal(runtime.player.hitMessageUntil, 15.4);
+});
+
+test("reload consumes one request and transfers only available reserve ammunition", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 104);
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get("powder_rifle");
+  const ammo = runtime.player.ammo.powder_rifle;
+  assert.ok(weapon);
+  assert.ok(ammo);
+  ammo.magazine = 2;
+  ammo.reserve = 7;
+  const input = createWarRoomInputState();
+  input.reloadPressed = true;
+
+  const started = advanceWarRoomReload(runtime, input, 5);
+  assert.deepEqual(started, { started: true });
+  assert.equal(runtime.player.reloadingWeapon, "powder_rifle");
+  assert.equal(runtime.player.reloadUntil, 5 + weapon.reloadSeconds);
+  assert.equal(input.reloadPressed, false);
+  assert.deepEqual(advanceWarRoomReload(runtime, input, 5 + weapon.reloadSeconds - 0.001), { started: false });
+  assert.equal(ammo.magazine, 2);
+  assert.equal(ammo.reserve, 7);
+
+  assert.deepEqual(advanceWarRoomReload(runtime, input, 5 + weapon.reloadSeconds), { started: false });
+  assert.equal(runtime.player.reloadingWeapon, null);
+  assert.equal(runtime.player.reloadUntil, 0);
+  assert.equal(ammo.magazine, 9);
+  assert.equal(ammo.reserve, 0);
+});
+
+test("player fire input preserves taps, automatic holds, charge, and melee hold time", () => {
+  const rifleRuntime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 105);
+  const rifleInput = createWarRoomInputState();
+  rifleInput.firePressed = true;
+  assert.deepEqual(consumeWarRoomPlayerFireInput(rifleRuntime, rifleInput, 1), {
+    charge: 1,
+    holdSeconds: 0,
+  });
+  assert.equal(rifleInput.firePressed, false);
+  rifleInput.fireHeld = true;
+  assert.deepEqual(consumeWarRoomPlayerFireInput(rifleRuntime, rifleInput, 1.1), {
+    charge: 1,
+    holdSeconds: 0,
+  });
+
+  const bowRuntime = createWarRoomRuntime(["longbow", "crossbow"], 0, 1, 106);
+  const bowInput = createWarRoomInputState();
+  bowInput.firePressed = true;
+  assert.equal(consumeWarRoomPlayerFireInput(bowRuntime, bowInput, 10), null);
+  assert.equal(bowRuntime.player.chargeStartedAt, 10);
+  bowInput.fireReleased = true;
+  const charged = consumeWarRoomPlayerFireInput(bowRuntime, bowInput, 10.475);
+  assert.ok(charged);
+  assert.ok(Math.abs(charged.charge - 0.5) < 1e-9);
+  assert.equal(charged.holdSeconds, 0);
+  assert.equal(bowRuntime.player.chargeStartedAt, 0);
+  bowRuntime.player.chargeStartedAt = 12;
+  bowInput.fireReleased = true;
+  assert.equal(consumeWarRoomPlayerFireInput(bowRuntime, bowInput, 12.01)?.charge, 0.15);
+
+  const meleeRuntime = createWarRoomRuntime(["melee_knife", "crossbow"], 0, 1, 107);
+  const meleeInput = createWarRoomInputState();
+  meleeInput.firePressed = true;
+  assert.equal(consumeWarRoomPlayerFireInput(meleeRuntime, meleeInput, 3), null);
+  assert.equal(meleeRuntime.player.meleeInputPending, true);
+  meleeInput.fireReleased = true;
+  const melee = consumeWarRoomPlayerFireInput(meleeRuntime, meleeInput, 3.4);
+  assert.ok(melee);
+  assert.equal(melee.charge, 1);
+  assert.ok(Math.abs(melee.holdSeconds - 0.4) < 1e-9);
+  assert.equal(meleeRuntime.player.meleeInputPending, false);
 });

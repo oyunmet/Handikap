@@ -483,4 +483,6 @@ sonraki dilim olarak kaldı.
 - **Doğrulama:** Hareket ve simülasyon hedef testleri 20/20 geçti; `npm test` 845/845 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
 - **Aşama 2f tamamlandı:** Pasif iyileşme, stamina, iyileştirme noktası toplama ve basılı tutarak sandık açma simülasyon sınırına taşındı. Ses ve görsel efektler sahnede kaldı; oyun kuralları ve etkileşim sırası korundu.
 - **Doğrulama:** Hareket ve simülasyon hedef testleri 23/23 geçti; `npm test` 848/848 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
-- **Şu an:** Aşama 2 sürüyor. Sıradaki dilim silah/atış/yükleme ve düşman karar güncellemelerini sahneden ayırmak; ardından kontrol/HUD, 3D alan ve yeni modu bağlama adımları gelecek.
+- **Aşama 2g tamamlandı:** Yeniden doldurma zamanlayıcısı ve oyuncu ateş girdisi (tek atış, otomatik basılı tutma, yay şarjı, melee basılı kalma süresi) simülasyon sınırına taşındı. Sahne yalnızca yeniden doldurma sesini ve çıkan ateş isteğinin 3D hedef/efekt çözümünü yürütüyor.
+- **Doğrulama:** Hareket ve simülasyon hedef testleri 25/25 geçti; `npm test` 850/850 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
+- **Şu an:** Aşama 2 sürüyor. Sıradaki dilim atış/hasar çözümünü ve düşman karar güncellemelerini sahneden ayırmak; ardından kontrol/HUD, 3D alan ve yeni modu bağlama adımları gelecek.

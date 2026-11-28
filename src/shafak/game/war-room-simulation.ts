@@ -29,6 +29,7 @@ import {
   advanceWarRoomPassiveRegen,
   collectWarRoomHealingPoint,
 } from "./war-room-restore";
+import { WAR_ROOM_WEAPON_BY_ID } from "./war-room-data";
 import type { FixedStepResult } from "../../core/fixed-step-loop";
 
 export function createWarRoomInputState(
@@ -297,6 +298,79 @@ export function advanceWarRoomPlayerStamina(runtime: WarRoomRuntime, delta: numb
     ? Math.max(0, player.stamina - delta * 10)
     : Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
   return player.stamina;
+}
+
+export function advanceWarRoomReload(
+  runtime: WarRoomRuntime,
+  input: WarRoomInputState,
+  now: number,
+) {
+  const player = runtime.player;
+  let started = false;
+  if (input.reloadPressed) {
+    const weaponId = player.weaponSlots[player.activeSlot];
+    const weapon = WAR_ROOM_WEAPON_BY_ID.get(weaponId);
+    const ammo = player.ammo[weaponId];
+    if (weapon && ammo && ammo.magazine < weapon.magazine && ammo.reserve > 0 && !player.reloadingWeapon) {
+      player.reloadingWeapon = weaponId;
+      player.reloadUntil = now + weapon.reloadSeconds;
+      started = true;
+    }
+    input.reloadPressed = false;
+  }
+
+  if (player.reloadingWeapon && now >= player.reloadUntil) {
+    const weapon = WAR_ROOM_WEAPON_BY_ID.get(player.reloadingWeapon);
+    const ammo = player.ammo[player.reloadingWeapon];
+    if (weapon && ammo) {
+      const moved = Math.min(weapon.magazine - ammo.magazine, ammo.reserve);
+      ammo.magazine += moved;
+      ammo.reserve -= moved;
+    }
+    player.reloadingWeapon = null;
+    player.reloadUntil = 0;
+  }
+  return { started };
+}
+
+export type WarRoomPlayerFireRequest = { charge: number; holdSeconds: number };
+
+export function consumeWarRoomPlayerFireInput(
+  runtime: WarRoomRuntime,
+  input: WarRoomInputState,
+  now: number,
+): WarRoomPlayerFireRequest | null {
+  const player = runtime.player;
+  const weapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot]);
+  let request: WarRoomPlayerFireRequest | null = null;
+
+  if (weapon?.weaponClass === "melee") {
+    if (input.firePressed && !player.meleeInputPending) {
+      player.meleeInputStartedAt = now;
+      player.meleeInputPending = true;
+    }
+    if (input.fireReleased && player.meleeInputPending) {
+      const holdSeconds = Math.max(0, now - player.meleeInputStartedAt);
+      player.meleeInputPending = false;
+      player.meleeInputStartedAt = 0;
+      request = { charge: 1, holdSeconds };
+    }
+  } else if (weapon?.charge && input.firePressed) {
+    player.chargeStartedAt = now || 0.0001;
+  } else if (weapon?.charge && input.fireReleased && player.chargeStartedAt > 0) {
+    const charge = Math.max(0.15, Math.min(1, (now - player.chargeStartedAt) / 0.95));
+    player.chargeStartedAt = 0;
+    request = { charge, holdSeconds: 0 };
+  } else if (weapon && !weapon.charge && (
+    input.firePressed
+    || (weapon.automatic && input.fireHeld)
+  )) {
+    request = { charge: 1, holdSeconds: 0 };
+  }
+
+  input.firePressed = false;
+  input.fireReleased = false;
+  return request;
 }
 
 export function collectWarRoomPlayerHealing(runtime: WarRoomRuntime, now: number) {
