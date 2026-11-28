@@ -3,6 +3,7 @@ import {
   getNearbyWarRoomLootChest,
   getWarRoomRemaining,
   applyWarRoomDamage,
+  type WarRoomEnemy,
   applyWarRoomLootChest,
   getWarRoomFallDamage,
   type WarRoomHudSnapshot,
@@ -24,10 +25,11 @@ import {
   getWarRoomMissionOutcome,
   type WarRoomMissionOutcome,
 } from "./war-room-missions";
-import { RESTORE_CONFIG } from "./war-room-restore";
 import {
+  applyWarRoomKillHeal,
   advanceWarRoomPassiveRegen,
   collectWarRoomHealingPoint,
+  RESTORE_CONFIG,
 } from "./war-room-restore";
 import {
   WAR_ROOM_WEAPON_BY_ID,
@@ -437,6 +439,64 @@ export function prepareWarRoomRangedShot(
     spread: weapon.spread + player.recoil * 0.18,
     chargeMultiplier: weapon.charge ? 0.65 + charge * 0.55 : 1,
   };
+}
+
+export type WarRoomPlayerHitOptions = {
+  critical: boolean;
+  markerHeadshot: boolean;
+  killHeadshot: boolean;
+  messageSuffix: string;
+  hitMessageSeconds: number;
+  hitMarkerSeconds: number;
+  accumulateDamage?: boolean;
+  deathYaw?: number;
+};
+
+export function applyWarRoomPlayerEnemyHit(
+  runtime: WarRoomRuntime,
+  enemy: WarRoomEnemy,
+  now: number,
+  baseDamage: number,
+  multiplier: number,
+  options: WarRoomPlayerHitOptions,
+) {
+  const player = runtime.player;
+  const damage = applyWarRoomDamage(enemy, baseDamage, multiplier);
+  player.lastHitDamage = options.accumulateDamage
+    ? player.lastHitDamage + damage.damage
+    : damage.damage;
+  player.lastHitSource = "dealt";
+  player.damageEventId += 1;
+  player.lastHitCritical = options.accumulateDamage
+    ? player.lastHitCritical || options.critical
+    : options.critical;
+  player.lastHitText = `${enemy.name} · −${damage.damage}${options.messageSuffix}`;
+  player.hitMessageUntil = now + options.hitMessageSeconds;
+  player.hitMarkerUntil = now + options.hitMarkerSeconds;
+  player.hitMarkerHeadshot = options.markerHeadshot;
+
+  if (damage.killed) {
+    enemy.alive = false;
+    enemy.deathYaw = options.deathYaw
+      ?? Math.atan2(enemy.x - player.x, -(enemy.z - player.z));
+    player.kills += 1;
+    if (options.killHeadshot) player.headshots += 1;
+    const healed = applyWarRoomKillHeal(player, enemy.commander, RESTORE_CONFIG);
+    if (healed > 0) {
+      player.lastHitSource = null;
+      player.lastHitDamage = 0;
+      player.lastHitText = `+${Math.round(healed)} CAN`;
+      player.hitMessageUntil = now + 1.35;
+    }
+    player.killFeed = [
+      {
+        id: now * 1000 + player.kills,
+        text: `Operatör  →  ${enemy.name}${options.killHeadshot ? " · KAFA" : ""}`,
+      },
+      ...player.killFeed,
+    ].slice(0, 4);
+  }
+  return damage;
 }
 
 export function collectWarRoomPlayerHealing(runtime: WarRoomRuntime, now: number) {
