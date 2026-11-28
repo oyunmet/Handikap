@@ -273,6 +273,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 - **Durum:** TAMAMLANDI (kod ve yerel doğrulama); aşağıdaki cihaz/WebGL kontrolleri fiziksel iPhone'da yapılmalı.
 - **Son sürüm işareti:** Tek `GAME_BUILD_MARKER` kaynağı `v17-gokyuzu-butonlar`; Savaş Odası etiketi aynı değeri kullanıyor.
+
 - **Yerel doğrulama:** `npm run typecheck` ve `npm run build` başarılı. `npm test`: 421 toplam, 413 geçti, 8 bilinen taban hatası kaldı (mağaza/ekipman 6, düello süresi 1, envanter varsayılanı 1); yeni test hatası yok. Build'in mevcut büyük Three.js chunk uyarısı sürüyor.
 - **Önizleme:** Uygulama sunucusu başladı ve giriş ekranı yüklendi; önizleme tarayıcısı WebGL bağlamı oluşturamadığından 3D sahne görsel kabulü yapılamadı. 2D yedek sahne eklenmedi.
 - **Korunan sınırlar:** Kül Yolu ve Savaş Odası 3D sahneleri, ekonomi/mağaza, kalıcı kayıtlar, düşman AI, hasar/ceza, silahlar ve denge değerleri değiştirilmedi. Düello efekt bütçesi 138/150; kor izi havuzu en çok 30. Frame döngüsünde geometri/materyal/ışık oluşturulmuyor; mobil DPR üst sınırı 2.
@@ -364,3 +365,15 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 
 - **Telefonda denenecekler:** (1) yatay HUD'da buton çakışması; (2) joystick + ateş + bakış aynı anda; (3) kontrol düzenini kaydetme/yükleme/sıfırlama; (4) 1. şahıs silahı ve melee savuruşu; (5) namlu/iz/isabet/doldurma efektleri; (6) kritik isabet, hasar yönü, düşük-can nabzı ve ELENDİ/seri sesi; (7) altı harita, gün/gece ve `?debug=1` draw-call/FPS ölçümü.
 - **Son sürüm işareti:** `v18-fps-hud`.
+
+## Tur 6 — Savaş Odası'nı sıfırdan yenileme
+
+- **Durum:** DEVAM EDİYOR — başlangıç incelemesi ve kayıt uyumluluk aşaması tamamlandı.
+- **İstek:** Taktik alanı yeniden kurulacak; bu ilerleme notu her aşamada kod deposuna yazılacak ki çalışma oturum veya kullanım limiti sonrasında sürdürülebilsin.
+- **Koruma sınırları:** Yeni alan çalışır ve test edilir hale gelene kadar mevcut akış yedek olarak kalacak. Profil/ödül API'si, satın alınmış silahlar, hesap ve yerel kayıtlar, ayarlar, günlük görev, oda zinciri, mobil giriş ve erişilebilirlik silinmeyecek. Kayıt anahtarları/şemaları korunacak veya açık geriye uyumlulukla taşınacak. Push/deploy yok.
+- **Başlangıç ölçümü:** War Room kapsamı yaklaşık 28.000 satıra ve birden çok modüle yayılıyor. `npm run typecheck` geçti; War Room hedef testleri 298/298 geçti. Bu sonuçlar bildirilen sorunu açıklamıyor.
+- **Görsel sınır:** Yerel önizleme yaş doğrulama ekranında kaldı; Savaş Odası ekranı bu oturumda görsel incelenemedi. Yaş/oturum kapısı atlanmayacak.
+- **Aşamalar:** 0 akış, kayıt ve test sınırlarını haritala — TAMAMLANDI. 1 kayıt uyumluluğunu UI'dan ayır — TAMAMLANDI. 2 yeni oturum ve simülasyon çekirdeği — SIRADAKİ. 3 kontrol/HUD katmanı. 4 yeni 3D savaş alanı ve görsel geri bildirim. 5 uygulama rotasına geçiş, eski alanın kaldırılması. 6 tam test/build ve görsel kabul.
+- **Aşama 1 sonucu:** `war-room-persistence.ts` artık eski `shafak-war-room-*-v1` anahtarlarını, altın sayacını, oda ilerleme JSON'unu ve günlük tamamlanma tarihini UI'dan ayrı okur/yazar. Eski anahtarlar ve payload biçimi değişmedi. Eksik/bozuk JSON, localStorage erişim engeli ve altın kaydındaki bozuk sayı davranışları test edildi.
+- **Doğrulama:** War Room hedefleri 303/303 geçti (önceki 298 teste beş yeni kayıt testi eklendi); `npm run typecheck` ve `npm run build` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
+- **Sonraki adım:** 2. aşamada yeni taktik oturum/simülasyon sınırı saf TypeScript olarak yazılacak; UI veya render koduna bağlamadan önce deterministik senaryolar test edilecek. Her aşamayı doğrula, kayıt dosyalarını güncelle ve yerel commit al; push/deploy yok.

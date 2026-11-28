@@ -105,11 +105,17 @@ import {
   getWarRoomRoom,
   getWarRoomRoomCarryHp,
   getWarRoomRoomRewardMultiplier,
-  normalizeWarRoomSavedProgress,
   WAR_ROOM_MAPS,
   type WarRoomRoom,
-  type WarRoomSavedProgress,
 } from "./war-room-rooms";
+import {
+  getWarRoomStorage,
+  readWarRoomDailyCompletionDayKey,
+  readWarRoomRoomProgress,
+  recordWarRoomGold,
+  writeWarRoomDailyCompletionDayKey,
+  writeWarRoomRoomProgress,
+} from "./war-room-persistence";
 import { getWarRoomDailyChallenge, isWarRoomDailyChallengeComplete } from "./war-room-daily";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
 import { getWarRoomBossAttackLabel } from "./war-room-boss";
@@ -167,9 +173,6 @@ type WarRoomLookDebugSnapshot = {
   deltaY: number;
 };
 
-const GOLD_KEY = "shafak-war-room-gold-v1";
-const ROOM_PROGRESS_KEY = "shafak-war-room-room-progress-v1";
-const DAILY_CHALLENGE_KEY = "shafak-war-room-daily-completed-v1";
 const BLOOD_EFFECTS_KEY = "shafak-war-room-blood-effects-v1";
 
 function getWarRoomControlStorage(): Storage | null {
@@ -324,50 +327,6 @@ function createEmptyHud(): WarRoomHudSnapshot {
 function formatMissionClock(seconds: number) {
   const safe = Math.max(0, Math.ceil(seconds));
   return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
-}
-
-function recordWarRoomGold(amount: number) {
-  try {
-    const prior = Number(window.localStorage.getItem(GOLD_KEY) ?? "0");
-    const total = (Number.isFinite(prior) ? Math.max(0, prior) : 0) + amount;
-    window.localStorage.setItem(GOLD_KEY, String(total));
-    return total;
-  } catch {
-    return null;
-  }
-}
-
-function readWarRoomRoomProgress(): WarRoomSavedProgress {
-  try {
-    const serialized = window.localStorage.getItem(ROOM_PROGRESS_KEY);
-    return normalizeWarRoomSavedProgress(serialized ? JSON.parse(serialized) : null);
-  } catch {
-    return normalizeWarRoomSavedProgress(null);
-  }
-}
-
-function readWarRoomDailyCompletionDayKey() {
-  try {
-    return window.localStorage.getItem(DAILY_CHALLENGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeWarRoomDailyCompletionDayKey(dayKey: string) {
-  try {
-    window.localStorage.setItem(DAILY_CHALLENGE_KEY, dayKey);
-  } catch {
-    // Keep today's completion visible during this session if storage is disabled.
-  }
-}
-
-function writeWarRoomRoomProgress(progress: WarRoomSavedProgress) {
-  try {
-    window.localStorage.setItem(ROOM_PROGRESS_KEY, JSON.stringify(progress));
-  } catch {
-    // Keep the current session's counter available even if storage is disabled.
-  }
 }
 
 function requestWarRoomImmersiveDisplay() {
@@ -615,7 +574,9 @@ export default function WarRoomGame({
   const exitPromptRef = useRef(exitPrompt);
   exitPromptRef.current = exitPrompt;
   const [roomNumber, setRoomNumber] = useState(1);
-  const [roomProgress, setRoomProgress] = useState(readWarRoomRoomProgress);
+  const [roomProgress, setRoomProgress] = useState(
+    () => readWarRoomRoomProgress(getWarRoomStorage()),
+  );
   const dailyChallenge = useMemo(() => getWarRoomDailyChallenge(), []);
   const dailyPreset = useMemo(
     () => getWarRoomDailyPreset(dailyChallenge.seed, WAR_ROOM_MAPS.map(({ id }) => id)),
@@ -631,7 +592,9 @@ export default function WarRoomGame({
   const [selectedDifficulty, setSelectedDifficulty] = useState<WarRoomDifficultyId>("normal");
   const [selectedModifiers, setSelectedModifiers] = useState<WarRoomModifierId[]>([]);
   const [selectedMapId, setSelectedMapId] = useState(WAR_ROOM_MAPS[0]!.id);
-  const [dailyCompletionDayKey, setDailyCompletionDayKey] = useState(readWarRoomDailyCompletionDayKey);
+  const [dailyCompletionDayKey, setDailyCompletionDayKey] = useState(
+    () => readWarRoomDailyCompletionDayKey(getWarRoomStorage()),
+  );
   const dailyRunRef = useRef(false);
   const [savedControlLayout, setSavedControlLayout] = useState(readSavedControlLayout);
   const [controlLayoutDraft, setControlLayoutDraft] = useState<WarRoomControlLayout>(
@@ -957,7 +920,7 @@ export default function WarRoomGame({
       && result === "victory";
     if (earnedDailyChallenge) {
       setDailyCompletionDayKey(dailyChallenge.dayKey);
-      writeWarRoomDailyCompletionDayKey(dailyChallenge.dayKey);
+      writeWarRoomDailyCompletionDayKey(getWarRoomStorage(), dailyChallenge.dayKey);
     }
     const dailyChallengeCompleted = dailyRunRef.current
       && (dailyChallengeComplete || earnedDailyChallenge);
@@ -980,7 +943,7 @@ export default function WarRoomGame({
           WAR_ROOM_ROOM_CHAIN_ENABLED ? getWarRoomRoomRewardMultiplier(completedRoom.number) : 1
         ))
         : 0;
-    const totalGold = gold > 0 ? recordWarRoomGold(gold) : null;
+    const totalGold = gold > 0 ? recordWarRoomGold(getWarRoomStorage(), gold) : null;
     if (result === "victory" && WAR_ROOM_ROOM_CHAIN_ENABLED) {
       const updatedProgress = getWarRoomProgressAfterVictory(
         roomProgressRef.current,
@@ -989,7 +952,7 @@ export default function WarRoomGame({
       );
       roomProgressRef.current = updatedProgress;
       setRoomProgress(updatedProgress);
-      writeWarRoomRoomProgress(updatedProgress);
+      writeWarRoomRoomProgress(getWarRoomStorage(), updatedProgress);
       const prepared = createWarRoomRuntime(
         loadout,
         0,

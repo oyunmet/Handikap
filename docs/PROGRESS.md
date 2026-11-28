@@ -461,3 +461,14 @@ sonraki dilim olarak kaldı.
 - Kullanıcının Vercel yayını bu çalışma alanına bağlı değil; üretim günlükleri
   okunamadı ve bu değişiklikler yayınlanmadı. Gerçek iPhone düello ekranı bu
   oturumda görsel olarak doğrulanmadı.
+
+## Savaş Odası sıfırdan yenileme — 28 Kasım 2026
+
+- **İstek:** Kullanıcı taktik alanının bozuk olduğunu bildirdi ve tüm modu temiz bir yapıyla yeniden yazmamı istedi. Her aşamanın kod deposunda kaydedilmesini, kullanım limiti dolarsa çalışmanın kaldığı yerden sürdürülebilmesini özellikle belirtti.
+- **Güvenli sınır:** Yeni uygulama tamamlanıp doğrulanana kadar mevcut mod çalışır durumda kalacak. Profil/ödül API’si, satın alınmış silahlar, ayarlar, görev türleri ve oda ilerlemesi korunacak; kullanıcı verisi sıfırlanmayacak. Git push veya deploy yapılmayacak.
+- **İlk inceleme:** War Room giriş/React akışı, görev simülasyonu, 3D sahne, kayıt ve ödül bağlantıları haritalandı. Mevcut özellik kümesi yaklaşık 28.000 satıra yayılıyor.
+- **Başlangıç doğrulaması:** `npm run typecheck` geçti; War Room hedef testleri 298/298 geçti. Bunlar bildirilen sorunu açıklamıyor. Önizleme yaş doğrulama ekranında kaldı; taktik sahne görsel olarak incelenemedi ve doğrulama atlatılmadı.
+- **Aşamalar:** 0 akış ve koruma sınırları — tamamlandı. 1 kayıt uyumluluk katmanı — tamamlandı. 2 yeni oturum/simülasyon çekirdeği — sıradaki. 3 kontroller ve HUD. 4 3D alan ve görsel geri bildirim. 5 yeni modu bağlama ve eski alanı kaldırma. 6 test/build ve görsel kabul.
+- **Aşama 1 sonucu:** Altın, oda ilerlemesi ve günlük tamamlanma işlemleri bağımsız `war-room-persistence.ts` modülüne taşındı. Mevcut `*-v1` anahtarları ve oda ilerleme JSON biçimi aynen korundu; bozuk kayıt ve depolama erişim hatası güvenli varsayılana düşüyor. Beş yeni test eklendi.
+- **Doğrulama:** War Room testleri 303/303 geçti; `npm run typecheck` ve `npm run build` geçti. Üretim derlemesinin mevcut büyük Three.js paket uyarısı sürüyor.
+- **Şu an:** Aşama 1 kod ve doğrulaması tamamlandı; sonraki adım yeni savaş oturumu/simülasyon sınırını tanımlayıp saf testlerle kurmak. Aşama başına test, ilerleme kaydı ve yerel commit kullanılacak.
