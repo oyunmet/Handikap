@@ -7,9 +7,11 @@ import {
   advanceWarRoomLootInteraction,
   advanceWarRoomPlayerRestoration,
   advanceWarRoomPlayerStamina,
+  advanceWarRoomPlayerSprintControl,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   advanceWarRoomEnemyDecision,
+  applyWarRoomPlayerFacing,
   buildWarRoomHudSnapshot,
   createEmptyWarRoomHudSnapshot,
   createWarRoomInputState,
@@ -18,10 +20,12 @@ import {
   consumeWarRoomPlayerFireInput,
   resolveWarRoomSimulationOutcome,
   prepareWarRoomRangedShot,
+  resolveWarRoomPlayerControlFrame,
   applyWarRoomPlayerEnemyHit,
   updateWarRoomPlayerFloor,
 } from "./war-room-simulation.ts";
 import { createWarRoomMovementClock } from "./war-room-fixed-movement.ts";
+import { createWarRoomSprintHysteresisState } from "./war-room-input.ts";
 
 test("input state starts neutral and preserves the selected aim-assist preference", () => {
   const enabled = createWarRoomInputState(true);
@@ -274,6 +278,70 @@ test("enemy decision core chooses cover waypoints and bounded movement intent", 
   assert.ok(Math.abs(enemy.moveVelocityZ) < 0.001);
   assert.equal(enemy.doorApproachX, enemy.moveVelocityX);
   assert.equal(enemy.movementBlockers.length, 0);
+});
+
+test("control simulation combines keyboard and joystick into a camera-relative frame", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 67);
+  const input = createWarRoomInputState();
+  input.moveX = 1;
+  input.moveY = 1;
+  input.cameraTargetYaw = Math.PI / 2;
+  input.yaw = Math.PI / 2;
+  runtime.player.recoil = 1;
+
+  const frame = resolveWarRoomPlayerControlFrame(runtime, input, 2, 0.05);
+
+  assert.ok(Math.abs(frame.moveX - Math.SQRT1_2) < 1e-9);
+  assert.ok(Math.abs(frame.moveY - Math.SQRT1_2) < 1e-9);
+  assert.ok(Math.abs(Math.hypot(frame.worldMovement.x, frame.worldMovement.z) - 1) < 1e-9);
+  assert.equal(runtime.player.startTime, 2);
+  assert.ok(runtime.player.recoil < 1);
+
+  applyWarRoomPlayerFacing(runtime, frame, Math.PI / 4, 0.05);
+  assert.equal(runtime.player.facingMode, frame.orientation.mode);
+  assert.equal(runtime.player.joystickAngleDegrees, frame.orientation.joystickAngleDegrees);
+  assert.equal(runtime.player.facingCamera, frame.orientation.facingCamera);
+});
+
+test("control simulation applies sprint hysteresis and keeps stance speed limits", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 68);
+  const input = createWarRoomInputState();
+  const sprintHysteresis = createWarRoomSprintHysteresisState();
+  input.moveY = 1;
+  input.sprintLocked = true;
+
+  const firstFrame = resolveWarRoomPlayerControlFrame(runtime, input, 1, 1 / 60);
+  const first = advanceWarRoomPlayerSprintControl(
+    runtime,
+    input,
+    sprintHysteresis,
+    firstFrame,
+    1,
+  );
+  assert.equal(first.sprintIntent, true);
+  assert.equal(runtime.player.sprinting, false);
+
+  const secondFrame = resolveWarRoomPlayerControlFrame(runtime, input, 1.16, 1 / 60);
+  const second = advanceWarRoomPlayerSprintControl(
+    runtime,
+    input,
+    sprintHysteresis,
+    secondFrame,
+    1.16,
+  );
+  assert.equal(runtime.player.sprinting, true);
+  assert.equal(second.speed, 8.2);
+
+  runtime.player.crouched = true;
+  const crouchedFrame = resolveWarRoomPlayerControlFrame(runtime, input, 1.2, 1 / 60);
+  const crouched = advanceWarRoomPlayerSprintControl(
+    runtime,
+    input,
+    sprintHysteresis,
+    crouchedFrame,
+    1.2,
+  );
+  assert.equal(crouched.speed, 3.05);
 });
 
 test("action input consumes stance, weapon, and swap requests with existing resets", () => {

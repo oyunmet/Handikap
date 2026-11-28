@@ -29,7 +29,6 @@ import {
 import {
   getWarRoomFloorHeight,
   getWarRoomBuildingLocalPoint,
-  getWarRoomStairProgress,
   type WarRoomRoom,
 } from "../game/war-room-rooms";
 import {
@@ -39,7 +38,6 @@ import {
 import {
   applyWarRoomLookDelta,
   getWarRoomCameraAngles,
-  setWarRoomLook,
 } from "../game/war-room-look";
 import {
   getWarRoomPointerSensitivity,
@@ -62,19 +60,14 @@ import {
   getWarRoomRangedAimAssistYaw,
 } from "../game/war-room-combat-feel";
 import {
-  cancelWarRoomPostAttackStrafeOnMovement,
   getWarRoomActorRootYawToTarget,
   getWarRoomPostAttackStrafeUntil,
   getWarRoomYawError,
   getWarRoomFacingYawFromRootYaw,
   getWarRoomPlayerRootYaw,
-  getWarRoomWorldMovement,
   resolveWarRoomLocomotion,
-  resolveWarRoomOrientation,
   getWarRoomActorYawToTarget,
-  getWarRoomDirectionalSpeedScale,
   isWarRoomFacingTarget,
-  stepWarRoomYaw,
 } from "../game/war-room-orientation";
 import {
   clampWarRoomLookDelta,
@@ -104,7 +97,6 @@ import {
 } from "../game/war-room-camera";
 import {
   createWarRoomSprintHysteresisState,
-  stepWarRoomSprintHysteresis,
 } from "../game/war-room-input";
 import {
   getWarRoomCameraFov,
@@ -213,14 +205,17 @@ import {
   advanceWarRoomLootInteraction,
   advanceWarRoomPlayerRestoration,
   advanceWarRoomPlayerStamina,
+  advanceWarRoomPlayerSprintControl,
   advanceWarRoomReload,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   advanceWarRoomEnemyDecision,
+  applyWarRoomPlayerFacing,
   buildWarRoomHudSnapshot,
   collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
   consumeWarRoomPlayerFireInput,
+  resolveWarRoomPlayerControlFrame,
   applyWarRoomPlayerEnemyHit,
   prepareWarRoomRangedShot,
   resolveWarRoomSimulationOutcome,
@@ -3452,33 +3447,19 @@ function WarRoomRuntimeScene({
       lowHealthBeatAtRef.current = 0;
     }
     advanceWarRoomPlayerRestoration(runtime, now, delta);
-    player.recoil = Math.max(0, player.recoil - delta * 0.36);
-    if (player.startTime === 0) player.startTime = now;
-    const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
-    const keyY = (input.keys.has("w") ? 1 : 0) - (input.keys.has("s") ? 1 : 0);
-    let moveX = input.moveX + keyX;
-    let moveY = input.moveY + keyY;
-    const inputLength = Math.hypot(moveX, moveY);
-    if (inputLength > 1) {
-      moveX /= inputLength;
-      moveY /= inputLength;
-    }
-    player.strafeUntil = cancelWarRoomPostAttackStrafeOnMovement(
-      player.strafeUntil,
-      now,
+    const controlFrame = resolveWarRoomPlayerControlFrame(runtime, input, now, delta);
+    const {
       moveX,
       moveY,
-    );
-    const strafeActive = input.aimHeld || now < player.strafeUntil;
-    const controlCameraAngles = getWarRoomCameraAngles(input.yaw, input.pitch);
-    const cameraTargetYaw = getWarRoomCameraAngles(input.cameraTargetYaw, input.pitch).yaw;
-    const movementYaw = stepWarRoomYaw(
-      controlCameraAngles.yaw,
-      cameraTargetYaw,
-      delta,
-      16,
-    );
-    const movementBasisYaw = movementYaw;
+      inputLength,
+      movementYaw,
+      movementBasisYaw,
+      forwardX,
+      forwardZ,
+      rightX,
+      rightZ,
+      worldMovement,
+    } = controlFrame;
     const priorLookYaw = previousLookYawRef.current;
     if (priorLookYaw !== null && Math.abs(shortestAngleDelta(priorLookYaw, movementYaw)) > Math.PI / 4
       && (debugMode || debugDiagnosticsEnabled)) {
@@ -3489,15 +3470,7 @@ function WarRoomRuntimeScene({
       console.trace("War Room yaw jump source");
     }
     previousLookYawRef.current = movementYaw;
-    setWarRoomLook(input, movementYaw, controlCameraAngles.pitch);
     movementBasisYawRef.current = movementBasisYaw;
-    player.yaw = player.facingYaw;
-    player.pitch = controlCameraAngles.pitch;
-    const forwardX = Math.sin(movementBasisYaw);
-    const forwardZ = -Math.cos(movementBasisYaw);
-    const rightX = Math.cos(movementBasisYaw);
-    const rightZ = Math.sin(movementBasisYaw);
-    const worldMovement = getWarRoomWorldMovement(moveX, moveY, movementBasisYaw);
     updateWarRoomDoors(runtime, now, input.doorPressed, input.yaw, worldMovement);
     input.doorPressed = false;
     activeBlockersRef.current = getWarRoomActiveBlockers(
@@ -3505,14 +3478,7 @@ function WarRoomRuntimeScene({
       now,
       activeBlockerBufferRef.current,
     );
-    const orientation = resolveWarRoomOrientation(
-      movementYaw,
-      moveX,
-      moveY,
-      player.facingYaw,
-      strafeActive,
-      "camera",
-    );
+    const orientation = controlFrame.orientation;
     const orientationWeapon = WAR_ROOM_WEAPON_BY_ID.get(player.weaponSlots[player.activeSlot])!;
     const assistedYaw = orientationWeapon.weaponClass === "melee"
       ? WAR_ROOM_COMBAT_FEEL_ENABLED && input.aimHeld && inputLength < 0.12
@@ -3545,11 +3511,7 @@ function WarRoomRuntimeScene({
             ) !== null,
         )
         : orientation.yaw;
-    player.facingYaw = stepWarRoomYaw(player.facingYaw, assistedYaw, delta, 55);
-    player.yaw = player.facingYaw;
-    player.facingMode = orientation.mode;
-    player.joystickAngleDegrees = orientation.joystickAngleDegrees;
-    player.facingCamera = orientation.facingCamera;
+    applyWarRoomPlayerFacing(runtime, controlFrame, assistedYaw, delta);
 
     consumeWarRoomActionInputs(runtime, input, {
       now,
@@ -3562,25 +3524,13 @@ function WarRoomRuntimeScene({
       weaponSlotCount: weaponIds.length,
     });
 
-    const sprintIntent = !player.crouched
-      && (input.sprintLocked || (Math.abs(moveY) >= 0.93 && Math.abs(moveX) <= 0.34))
-      && inputLength >= 0.28;
-    const isOnStairs = runtime.room.buildings.some((building) => (
-      getWarRoomStairProgress(building, player.x, player.z) !== null
-    ));
-    const stairSprintRequested = sprintIntent && !isOnStairs && player.stamina > 0;
-    player.sprinting = stepWarRoomSprintHysteresis(
+    const { speed, directionalSpeedScale } = advanceWarRoomPlayerSprintControl(
+      runtime,
+      input,
       sprintHysteresisRef.current,
-      stairSprintRequested,
+      controlFrame,
       now,
-      0.15,
     );
-    const speed = player.prone ? 1.25
-      : player.crouched ? 3.05
-        : isOnStairs ? 4
-          : player.sprinting ? 8.2
-            : 6.1;
-    const directionalSpeedScale = getWarRoomDirectionalSpeedScale(moveX, moveY);
     const nextPosition = advanceWarRoomPlayerMovement(
       runtime,
       playerMovementClockRef.current,
