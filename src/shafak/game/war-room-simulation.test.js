@@ -9,6 +9,7 @@ import {
   advanceWarRoomPlayerStamina,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
+  advanceWarRoomEnemyDecision,
   buildWarRoomHudSnapshot,
   createEmptyWarRoomHudSnapshot,
   createWarRoomInputState,
@@ -221,6 +222,58 @@ test("pellet hit resolution accumulates damage but counts one shot hit", () => {
   assert.equal(runtime.player.hitMarkerHeadshot, true);
   assert.equal(runtime.player.damageEventId, 2);
   assert.equal(runtime.player.kills, 0);
+});
+
+test("enemy perception moves from alert to engaged and selects ranged fire", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 65);
+  const enemy = runtime.enemies[0];
+  assert.ok(enemy);
+  enemy.x = 0;
+  enemy.z = 0;
+  enemy.perceptionAt = Number.NEGATIVE_INFINITY;
+  enemy.brainAt = 0;
+  runtime.player.x = 8;
+  runtime.player.z = 0;
+  runtime.player.lastCombatAt = 0;
+  runtime.player.startTime = 0;
+
+  for (let step = 1; step <= 5; step += 1) {
+    advanceWarRoomEnemyDecision(runtime, enemy, {
+      now: step * 0.1,
+      rawDelta: 0.1,
+      blockers: [],
+    });
+  }
+
+  assert.equal(enemy.mode, "fire");
+  assert.ok(enemy.awareness >= 0.85);
+  assert.equal(enemy.lineOfSightBlocked, false);
+});
+
+test("enemy decision core chooses cover waypoints and bounded movement intent", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 66);
+  const enemy = runtime.enemies[0];
+  assert.ok(enemy);
+  enemy.mode = "patrol";
+  enemy.awareness = 0;
+  enemy.perceptionAt = 1;
+  enemy.brainAt = 0;
+  enemy.coverX = enemy.x + 8;
+  enemy.coverZ = enemy.z;
+  runtime.player.x = enemy.x + 80;
+  runtime.player.z = enemy.z;
+  runtime.player.lastCombatAt = -100;
+
+  advanceWarRoomEnemyDecision(runtime, enemy, {
+    now: 1.05,
+    rawDelta: 0.05,
+    blockers: [],
+  });
+
+  assert.ok(enemy.moveVelocityX > 0);
+  assert.ok(Math.abs(enemy.moveVelocityZ) < 0.001);
+  assert.equal(enemy.doorApproachX, enemy.moveVelocityX);
+  assert.equal(enemy.movementBlockers.length, 0);
 });
 
 test("action input consumes stance, weapon, and swap requests with existing resets", () => {

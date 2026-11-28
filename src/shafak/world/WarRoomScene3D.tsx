@@ -45,13 +45,6 @@ import {
   getWarRoomPointerSensitivity,
   readWarRoomLookSensitivitySettings,
 } from "../game/war-room-look-settings";
-import {
-  getWarRoomBotDecisionInterval,
-  getWarRoomLootPursuitPoint,
-  getWarRoomObstacleWaypoint,
-  shouldUpdateWarRoomBotPerception,
-  WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS,
-} from "../game/war-room-ai";
 import WarRoomBattlefield from "./WarRoomBattlefield";
 import {
   getWarRoomMeleeEffectiveReach,
@@ -168,7 +161,6 @@ import {
   WAR_ROOM_BOSS_SUMMON_COUNT,
   type WarRoomBossAttack,
 } from "../game/war-room-boss";
-import { updateWarRoomAwareness } from "../game/war-room-awareness";
 import {
   getWarRoomCommanderTelegraphProgress,
   getWarRoomDeathFadeProgress,
@@ -205,7 +197,6 @@ import WarRoomAdaptiveDpr from "./WarRoomAdaptiveDpr";
 import TimeOfDaySky from "./TimeOfDaySky";
 import {
   applyWarRoomDamage,
-  getNearestWarRoomCover,
   getWarRoomRemaining,
   moveWarRoomEntity,
   nextWarRoomRandom,
@@ -225,6 +216,7 @@ import {
   advanceWarRoomReload,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
+  advanceWarRoomEnemyDecision,
   buildWarRoomHudSnapshot,
   collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
@@ -245,7 +237,6 @@ import {
 } from "../game/war-room-audio";
 import { isWarRoomLowHealth } from "../game/war-room-feedback";
 import type { CharacterAnimationState } from "./character-animation";
-import { getWarRoomEnemySpeedMultiplier } from "../game/war-room-missions";
 import {
   WarRoomAssetBoundary,
   WarRoomCharacterActor,
@@ -3673,18 +3664,6 @@ function WarRoomRuntimeScene({
       fireWeapon(now, fireRequest.charge, fireRequest.holdSeconds);
     }
 
-    const activeLootChest = player.lootChestId
-      ? runtime.lootChests.find((chest) => chest.id === player.lootChestId && !chest.opened)
-      : undefined;
-    const lootBuilding = activeLootChest
-      ? runtime.room.buildings.find((building) => building.id === activeLootChest.buildingId)
-      : undefined;
-    const activeLootChase = Boolean(activeLootChest && lootBuilding);
-    const playerBuilding = runtime.room.buildings.find((building) => {
-      const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
-      return Math.abs(localPlayer.x) <= building.width / 2
-        && Math.abs(localPlayer.z) <= building.depth / 2;
-    });
     if (!trainingMode) for (let index = 0; index < runtime.enemies.length; index += 1) {
       const enemy = runtime.enemies[index];
       const group = enemyGroupRefs.current[index];
@@ -3836,143 +3815,12 @@ function WarRoomRuntimeScene({
         enemy.bossAttackResolved = false;
         enemy.nextShotAt = now + WAR_ROOM_BOSS_ATTACK_COOLDOWN_SECONDS;
       }
-      const gap = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
-      const floorGap = defenseMode
-        ? Math.abs(enemy.floorHeight ?? 0)
-        : Math.abs((enemy.floorHeight ?? 0) - player.floorHeight);
-      let lineBlocked = enemy.lineOfSightBlocked;
-      if (shouldUpdateWarRoomBotPerception(enemy.perceptionAt, now)) {
-        const previousPerceptionAt = enemy.perceptionAt;
-        const perceptionDelta = Number.isFinite(previousPerceptionAt)
-          ? Math.min(
-            WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS,
-            Math.max(0, now - previousPerceptionAt),
-          )
-          : rawDelta;
-        const enemyEye = {
-          x: enemy.x,
-          y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.65 : 1.45),
-          z: enemy.z,
-        };
-        const targetEye = {
-          x: missionTarget.x,
-          y: defenseMode ? 0.95
-            : player.floorHeight + player.jumpHeight + (player.crouched ? 1.1 : 1.4),
-          z: missionTarget.z,
-        };
-        lineBlocked = segmentBlockFraction(
-          enemyEye,
-          targetEye,
-          0,
-          activeBlockersRef.current,
-        ) !== null;
-        enemy.lineOfSightBlocked = lineBlocked;
-        enemy.perceptionAt = now;
-        const perception = updateWarRoomAwareness(enemy.awareness, perceptionDelta, {
-          visible: floorGap <= 1.25 && gap <= 25 && !lineBlocked,
-          heardSound: floorGap <= 1.25 && (
-            (player.sprinting && gap <= 14)
-            || (
-              player.lastCombatAt >= player.startTime
-              && now - player.lastCombatAt <= 2.4
-              && gap <= 32
-            )
-          ),
-        });
-        enemy.awareness = perception.awareness;
-        const engaged = enemy.commander || defenseMode || perception.state === "engaged";
-        enemy.mode = activeLootChase
-          ? "approach"
-          : floorGap > 1.25
-            ? "approach"
-            : !engaged
-              ? perception.state === "alert" ? "alert" : "patrol"
-          : !defenseMode && player.hp / player.maxHp < 0.33
-            ? "cover"
-            : !lineBlocked && gap <= (defenseMode ? 22 : enemy.commander ? 22 : 17)
-              ? "fire"
-              : lineBlocked && gap < 26 ? "cover" : "approach";
-      }
-      lineBlocked = enemy.lineOfSightBlocked;
-      const updateInterval = getWarRoomBotDecisionInterval(gap, activeLootChase);
-      if (now >= enemy.brainAt && !bossTelegraphing && !bossChargeActive) {
-        enemy.brainAt = now + updateInterval;
-        enemy.doorApproachX = 0;
-        enemy.doorApproachZ = 0;
-        enemy.moveVelocityX = 0;
-        enemy.moveVelocityZ = 0;
-        enemy.movementBlockers.length = 0;
-        const needsFloorRoute = enemy.mode === "approach"
-          && !activeLootChase && !defenseMode && floorGap > 1.25 && playerBuilding;
-        let target: { x: number; z: number; floorHeight?: number } = activeLootChase && lootBuilding
-          ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
-          : defenseMode
-            ? { ...runtime.mission.objectivePosition, floorHeight: 0 }
-          : enemy.mode === "patrol"
-            ? { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 }
-          : enemy.mode === "alert"
-            ? { x: player.x, z: player.z, floorHeight: player.floorHeight }
-          : needsFloorRoute
-            ? getWarRoomLootPursuitPoint(enemy, player, playerBuilding!)
-            : { x: player.x, z: player.z, floorHeight: player.floorHeight };
-        if (!activeLootChase && !defenseMode && enemy.mode === "cover") {
-          if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
-            const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
-            if (cover) {
-              enemy.coverX = cover.x;
-              enemy.coverZ = cover.z;
-            }
-          }
-          target = { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 };
-        }
-        if (!activeLootChase && !needsFloorRoute && enemy.mode !== "alert") {
-          target = getWarRoomObstacleWaypoint(
-            enemy,
-            target,
-            activeBlockersRef.current,
-            0.35,
-          );
-        }
-        const holdDistance = activeLootChase ? 0.8
-          : defenseMode ? 1.7
-            : enemy.mode === "patrol" ? 0.4
-              : enemy.commander ? 12.5 : 10.5;
-        const shouldMove = (enemy.mode === "patrol" || enemy.mode === "approach" || enemy.mode === "cover")
-          && Math.hypot(target.x - enemy.x, target.z - enemy.z)
-            > (enemy.mode === "cover" ? 1.2 : holdDistance);
-        if (shouldMove) {
-          const targetYaw = Math.atan2(target.x - enemy.x, -(target.z - enemy.z));
-          const moveSpeed = (enemy.commander ? 2.55
-            : enemy.mode === "patrol" ? 1.15
-              : enemy.mode === "cover" ? 3.25 : 3.7)
-            * enemy.speedMultiplier
-            * getWarRoomEnemySpeedMultiplier(runtime.mission.modifiers);
-          let moveXEnemy = Math.sin(targetYaw) * moveSpeed;
-          let moveZEnemy = -Math.cos(targetYaw) * moveSpeed;
-          for (const other of runtime.enemies) {
-            if (other === enemy || !other.alive) continue;
-            const separationX = enemy.x - other.x;
-            const separationZ = enemy.z - other.z;
-            const separation = Math.hypot(separationX, separationZ);
-            if (separation > 0.001 && separation < 1.25) {
-              moveXEnemy += (separationX / separation) * 1.5;
-              moveZEnemy += (separationZ / separation) * 1.5;
-            }
-          }
-          enemy.moveVelocityX = moveXEnemy;
-          enemy.moveVelocityZ = moveZEnemy;
-          enemy.doorApproachX = enemy.moveVelocityX;
-          enemy.doorApproachZ = enemy.moveVelocityZ;
-          const movementBlockerPadding = 0.45
-            + Math.hypot(enemy.moveVelocityX, enemy.moveVelocityZ) * updateInterval;
-          for (const blocker of activeBlockersRef.current) {
-            if (
-              Math.abs(blocker.x - enemy.x) <= blocker.width / 2 + movementBlockerPadding
-              && Math.abs(blocker.z - enemy.z) <= blocker.depth / 2 + movementBlockerPadding
-            ) enemy.movementBlockers.push(blocker);
-          }
-        }
-      }
+      advanceWarRoomEnemyDecision(runtime, enemy, {
+        now,
+        rawDelta,
+        blockers: activeBlockersRef.current,
+        movementFrozen: bossTelegraphing || bossChargeActive,
+      });
       if (
         !bossTelegraphing
         && !bossChargeActive

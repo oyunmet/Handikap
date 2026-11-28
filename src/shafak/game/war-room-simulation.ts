@@ -6,6 +6,8 @@ import {
   type WarRoomEnemy,
   applyWarRoomLootChest,
   getWarRoomFallDamage,
+  getNearestWarRoomCover,
+  segmentBlockFraction,
   type WarRoomHudSnapshot,
   type WarRoomInputState,
   type WarRoomRuntime,
@@ -20,11 +22,23 @@ import {
   getNearestWarRoomDoor,
   getWarRoomDoorOpenProgress,
 } from "./war-room-doors";
-import { getWarRoomFloorHeight } from "./war-room-rooms";
 import {
+  getWarRoomBuildingLocalPoint,
+  getWarRoomFloorHeight,
+} from "./war-room-rooms";
+import {
+  getWarRoomBotDecisionInterval,
+  getWarRoomLootPursuitPoint,
+  getWarRoomObstacleWaypoint,
+  shouldUpdateWarRoomBotPerception,
+  WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS,
+} from "./war-room-ai";
+import {
+  getWarRoomEnemySpeedMultiplier,
   getWarRoomMissionOutcome,
   type WarRoomMissionOutcome,
 } from "./war-room-missions";
+import { updateWarRoomAwareness } from "./war-room-awareness";
 import {
   applyWarRoomKillHeal,
   advanceWarRoomPassiveRegen,
@@ -33,6 +47,7 @@ import {
 } from "./war-room-restore";
 import {
   WAR_ROOM_WEAPON_BY_ID,
+  type WarRoomBlocker,
   type WarRoomWeapon,
   type WarRoomWeaponId,
 } from "./war-room-data";
@@ -559,6 +574,171 @@ export function advanceWarRoomLootInteraction(
   player.lootProgress = 0;
   input.lootHeld = false;
   return chest;
+}
+
+export type WarRoomEnemyDecisionOptions = {
+  now: number;
+  rawDelta: number;
+  blockers: readonly WarRoomBlocker[];
+  movementFrozen?: boolean;
+};
+
+export function advanceWarRoomEnemyDecision(
+  runtime: WarRoomRuntime,
+  enemy: WarRoomEnemy,
+  options: WarRoomEnemyDecisionOptions,
+) {
+  const { now, rawDelta, blockers, movementFrozen = false } = options;
+  const player = runtime.player;
+  const defenseMode = runtime.mission.mode === "defense";
+  const missionTarget = defenseMode ? runtime.mission.objectivePosition : player;
+  const gap = Math.hypot(enemy.x - missionTarget.x, enemy.z - missionTarget.z);
+  const floorGap = defenseMode
+    ? Math.abs(enemy.floorHeight ?? 0)
+    : Math.abs((enemy.floorHeight ?? 0) - player.floorHeight);
+  const activeLootChest = player.lootChestId
+    ? runtime.lootChests.find((chest) => chest.id === player.lootChestId && !chest.opened)
+    : undefined;
+  const lootBuilding = activeLootChest
+    ? runtime.room.buildings.find((building) => building.id === activeLootChest.buildingId)
+    : undefined;
+  const activeLootChase = Boolean(activeLootChest && lootBuilding);
+  let lineBlocked = enemy.lineOfSightBlocked;
+
+  if (shouldUpdateWarRoomBotPerception(enemy.perceptionAt, now)) {
+    const previousPerceptionAt = enemy.perceptionAt;
+    const perceptionDelta = Number.isFinite(previousPerceptionAt)
+      ? Math.min(
+        WAR_ROOM_BOT_PERCEPTION_INTERVAL_SECONDS,
+        Math.max(0, now - previousPerceptionAt),
+      )
+      : rawDelta;
+    lineBlocked = segmentBlockFraction(
+      {
+        x: enemy.x,
+        y: (enemy.floorHeight ?? 0) + (enemy.commander ? 1.65 : 1.45),
+        z: enemy.z,
+      },
+      {
+        x: missionTarget.x,
+        y: defenseMode ? 0.95
+          : player.floorHeight + player.jumpHeight + (player.crouched ? 1.1 : 1.4),
+        z: missionTarget.z,
+      },
+      0,
+      blockers,
+    ) !== null;
+    enemy.lineOfSightBlocked = lineBlocked;
+    enemy.perceptionAt = now;
+    const perception = updateWarRoomAwareness(enemy.awareness, perceptionDelta, {
+      visible: floorGap <= 1.25 && gap <= 25 && !lineBlocked,
+      heardSound: floorGap <= 1.25 && (
+        (player.sprinting && gap <= 14)
+        || (
+          player.lastCombatAt >= player.startTime
+          && now - player.lastCombatAt <= 2.4
+          && gap <= 32
+        )
+      ),
+    });
+    enemy.awareness = perception.awareness;
+    const engaged = enemy.commander || defenseMode || perception.state === "engaged";
+    enemy.mode = activeLootChase
+      ? "approach"
+      : floorGap > 1.25
+        ? "approach"
+        : !engaged
+          ? perception.state === "alert" ? "alert" : "patrol"
+          : !defenseMode && player.hp / player.maxHp < 0.33
+            ? "cover"
+            : !lineBlocked && gap <= (defenseMode ? 22 : enemy.commander ? 22 : 17)
+              ? "fire"
+              : lineBlocked && gap < 26 ? "cover" : "approach";
+  }
+
+  lineBlocked = enemy.lineOfSightBlocked;
+  const playerBuilding = runtime.room.buildings.find((building) => {
+    const localPlayer = getWarRoomBuildingLocalPoint(building, player.x, player.z);
+    return Math.abs(localPlayer.x) <= building.width / 2
+      && Math.abs(localPlayer.z) <= building.depth / 2;
+  });
+  const updateInterval = getWarRoomBotDecisionInterval(gap, activeLootChase);
+
+  if (now >= enemy.brainAt && !movementFrozen) {
+    enemy.brainAt = now + updateInterval;
+    enemy.doorApproachX = 0;
+    enemy.doorApproachZ = 0;
+    enemy.moveVelocityX = 0;
+    enemy.moveVelocityZ = 0;
+    enemy.movementBlockers.length = 0;
+    const needsFloorRoute = enemy.mode === "approach"
+      && !activeLootChase && !defenseMode && floorGap > 1.25 && playerBuilding;
+    let target: { x: number; z: number; floorHeight?: number } = activeLootChase && lootBuilding
+      ? getWarRoomLootPursuitPoint(enemy, player, lootBuilding)
+      : defenseMode
+        ? { ...runtime.mission.objectivePosition, floorHeight: 0 }
+        : enemy.mode === "patrol"
+          ? { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 }
+          : enemy.mode === "alert"
+            ? { x: player.x, z: player.z, floorHeight: player.floorHeight }
+            : needsFloorRoute
+              ? getWarRoomLootPursuitPoint(enemy, player, playerBuilding!)
+              : { x: player.x, z: player.z, floorHeight: player.floorHeight };
+
+    if (!activeLootChase && !defenseMode && enemy.mode === "cover") {
+      if (enemy.hp / enemy.maxHp < 0.32 || lineBlocked) {
+        const cover = getNearestWarRoomCover(enemy.x, enemy.z, runtime.room.coverSpots);
+        if (cover) {
+          enemy.coverX = cover.x;
+          enemy.coverZ = cover.z;
+        }
+      }
+      target = { x: enemy.coverX, z: enemy.coverZ, floorHeight: enemy.floorHeight ?? 0 };
+    }
+    if (!activeLootChase && !needsFloorRoute && enemy.mode !== "alert") {
+      target = getWarRoomObstacleWaypoint(enemy, target, blockers, 0.35);
+    }
+
+    const holdDistance = activeLootChase ? 0.8
+      : defenseMode ? 1.7
+        : enemy.mode === "patrol" ? 0.4
+          : enemy.commander ? 12.5 : 10.5;
+    const targetDistance = Math.hypot(target.x - enemy.x, target.z - enemy.z);
+    const shouldMove = (enemy.mode === "patrol" || enemy.mode === "approach" || enemy.mode === "cover")
+      && targetDistance > (enemy.mode === "cover" ? 1.2 : holdDistance);
+
+    if (shouldMove) {
+      const targetYaw = Math.atan2(target.x - enemy.x, -(target.z - enemy.z));
+      const moveSpeed = (enemy.commander ? 2.55
+        : enemy.mode === "patrol" ? 1.15
+          : enemy.mode === "cover" ? 3.25 : 3.7)
+        * enemy.speedMultiplier
+        * getWarRoomEnemySpeedMultiplier(runtime.mission.modifiers);
+      let moveX = Math.sin(targetYaw) * moveSpeed;
+      let moveZ = -Math.cos(targetYaw) * moveSpeed;
+      for (const other of runtime.enemies) {
+        if (other === enemy || !other.alive) continue;
+        const separationX = enemy.x - other.x;
+        const separationZ = enemy.z - other.z;
+        const separation = Math.hypot(separationX, separationZ);
+        if (separation > 0.001 && separation < 1.25) {
+          moveX += (separationX / separation) * 1.5;
+          moveZ += (separationZ / separation) * 1.5;
+        }
+      }
+      enemy.moveVelocityX = moveX;
+      enemy.moveVelocityZ = moveZ;
+      enemy.doorApproachX = moveX;
+      enemy.doorApproachZ = moveZ;
+      const movementBlockerPadding = 0.45 + Math.hypot(moveX, moveZ) * updateInterval;
+      for (const blocker of blockers) {
+        if (
+          Math.abs(blocker.x - enemy.x) <= blocker.width / 2 + movementBlockerPadding
+          && Math.abs(blocker.z - enemy.z) <= blocker.depth / 2 + movementBlockerPadding
+        ) enemy.movementBlockers.push(blocker);
+      }
+    }
+  }
 }
 
 export function createEmptyWarRoomHudSnapshot(): WarRoomHudSnapshot {
