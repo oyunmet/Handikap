@@ -3,6 +3,7 @@ import {
   getNearbyWarRoomLootChest,
   getWarRoomRemaining,
   applyWarRoomDamage,
+  applyWarRoomLootChest,
   getWarRoomFallDamage,
   type WarRoomHudSnapshot,
   type WarRoomInputState,
@@ -24,6 +25,10 @@ import {
   type WarRoomMissionOutcome,
 } from "./war-room-missions";
 import { RESTORE_CONFIG } from "./war-room-restore";
+import {
+  advanceWarRoomPassiveRegen,
+  collectWarRoomHealingPoint,
+} from "./war-room-restore";
 import type { FixedStepResult } from "../../core/fixed-step-loop";
 
 export function createWarRoomInputState(
@@ -273,6 +278,80 @@ export function advanceWarRoomPlayerVerticalMotion(
 
   player.previousJumpHeight = player.jumpHeight;
   return { landed, fallDamage, healthDamage };
+}
+
+export function advanceWarRoomPlayerRestoration(
+  runtime: WarRoomRuntime,
+  now: number,
+  delta: number,
+) {
+  const restoration = advanceWarRoomPassiveRegen(runtime.player, now, delta, RESTORE_CONFIG);
+  runtime.player.regenerationActive = restoration.active;
+  runtime.player.regenerationWaitSeconds = restoration.secondsUntilReady;
+  return restoration;
+}
+
+export function advanceWarRoomPlayerStamina(runtime: WarRoomRuntime, delta: number) {
+  const player = runtime.player;
+  player.stamina = player.sprinting
+    ? Math.max(0, player.stamina - delta * 10)
+    : Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
+  return player.stamina;
+}
+
+export function collectWarRoomPlayerHealing(runtime: WarRoomRuntime, now: number) {
+  const player = runtime.player;
+  const pickup = collectWarRoomHealingPoint(
+    runtime.healingPoints,
+    player,
+    player.x,
+    player.z,
+    now,
+    RESTORE_CONFIG,
+  );
+  if (pickup.point && pickup.healed > 0) {
+    player.lastHitSource = null;
+    player.lastHitDamage = 0;
+    player.lastHitText = `+${Math.round(pickup.healed)} CAN`;
+    player.hitMessageUntil = now + 1.35;
+  }
+  return pickup;
+}
+
+export function advanceWarRoomLootInteraction(
+  runtime: WarRoomRuntime,
+  input: WarRoomInputState,
+  now: number,
+) {
+  const player = runtime.player;
+  const nearbyLoot = getNearbyWarRoomLootChest(runtime);
+  if (!input.lootHeld || !nearbyLoot) {
+    player.lootChestId = null;
+    player.lootStartedAt = 0;
+    player.lootProgress = 0;
+    return null;
+  }
+
+  const chest = nearbyLoot.chest;
+  if (player.lootChestId !== chest.id) {
+    player.lootChestId = chest.id;
+    player.lootStartedAt = now;
+    player.lootProgress = 0;
+  } else {
+    player.lootProgress = Math.min(1, (now - player.lootStartedAt) / 1.8);
+  }
+  if (player.lootProgress < 1) return null;
+
+  player.lastHitText = applyWarRoomLootChest(player, chest);
+  player.lastHitSource = null;
+  player.lastHitDamage = 0;
+  player.hitMessageUntil = now + 1.6;
+  chest.opened = true;
+  player.lootChestId = null;
+  player.lootStartedAt = 0;
+  player.lootProgress = 0;
+  input.lootHeld = false;
+  return chest;
 }
 
 export function createEmptyWarRoomHudSnapshot(): WarRoomHudSnapshot {

@@ -61,9 +61,7 @@ import {
 } from "../game/war-room-aim";
 import {
   RESTORE_CONFIG,
-  advanceWarRoomPassiveRegen,
   applyWarRoomKillHeal,
-  collectWarRoomHealingPoint,
   type WarRoomHealingPoint,
 } from "../game/war-room-restore";
 import {
@@ -208,8 +206,6 @@ import WarRoomAdaptiveDpr from "./WarRoomAdaptiveDpr";
 import TimeOfDaySky from "./TimeOfDaySky";
 import {
   applyWarRoomDamage,
-  applyWarRoomLootChest,
-  getNearbyWarRoomLootChest,
   getNearestWarRoomCover,
   getWarRoomRemaining,
   moveWarRoomEntity,
@@ -224,9 +220,13 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
+  advanceWarRoomLootInteraction,
+  advanceWarRoomPlayerRestoration,
+  advanceWarRoomPlayerStamina,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
+  collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
   updateWarRoomPlayerFloor,
@@ -3496,9 +3496,7 @@ function WarRoomRuntimeScene({
     } else {
       lowHealthBeatAtRef.current = 0;
     }
-    const restoration = advanceWarRoomPassiveRegen(player, now, delta, RESTORE_CONFIG);
-    player.regenerationActive = restoration.active;
-    player.regenerationWaitSeconds = restoration.secondsUntilReady;
+    advanceWarRoomPlayerRestoration(runtime, now, delta);
     player.recoil = Math.max(0, player.recoil - delta * 0.36);
     if (player.startTime === 0) player.startTime = now;
     const keyX = (input.keys.has("d") ? 1 : 0) - (input.keys.has("a") ? 1 : 0);
@@ -3647,51 +3645,17 @@ function WarRoomRuntimeScene({
     playerRenderPositionRef.current.x = nextPosition.renderX;
     playerRenderPositionRef.current.z = nextPosition.renderZ;
     updateWarRoomPlayerFloor(runtime);
-    const nearbyLoot = getNearbyWarRoomLootChest(runtime);
-    if (!input.lootHeld || !nearbyLoot) {
-      player.lootChestId = null;
-      player.lootStartedAt = 0;
-      player.lootProgress = 0;
-    } else {
-      const chest = nearbyLoot.chest;
-      if (player.lootChestId !== chest.id) {
-        player.lootChestId = chest.id;
-        player.lootStartedAt = now;
-        player.lootProgress = 0;
-      } else {
-        player.lootProgress = Math.min(1, (now - player.lootStartedAt) / 1.8);
-      }
-      if (player.lootProgress >= 1) {
-        player.lastHitText = applyWarRoomLootChest(player, chest);
-        player.lastHitSource = null;
-        player.lastHitDamage = 0;
-        player.hitMessageUntil = now + 1.6;
-        chest.opened = true;
-        player.lootChestId = null;
-        player.lootStartedAt = 0;
-        player.lootProgress = 0;
-        input.lootHeld = false;
-        playWarRoomSound(
-          "healing-pickup",
-          0.95,
-          "pistol",
-          getWarRoomAudioOptions(player, chest.x, chest.z),
-        );
-      }
+    const openedChest = advanceWarRoomLootInteraction(runtime, input, now);
+    if (openedChest) {
+      playWarRoomSound(
+        "healing-pickup",
+        0.95,
+        "pistol",
+        getWarRoomAudioOptions(player, openedChest.x, openedChest.z),
+      );
     }
-    const pickup = collectWarRoomHealingPoint(
-      runtime.healingPoints,
-      player,
-      player.x,
-      player.z,
-      now,
-      RESTORE_CONFIG,
-    );
+    const pickup = collectWarRoomPlayerHealing(runtime, now);
     if (pickup.point && pickup.healed > 0) {
-      player.lastHitSource = null;
-      player.lastHitDamage = 0;
-      player.lastHitText = `+${Math.round(pickup.healed)} CAN`;
-      player.hitMessageUntil = now + 1.35;
       playWarRoomSound(
         "healing-pickup",
         0.9,
@@ -3732,9 +3696,7 @@ function WarRoomRuntimeScene({
       );
       footstepAtRef.current = now + (player.crouched ? 0.58 : inputLength > 0.7 ? 0.34 : 0.46);
     }
-    player.stamina = player.sprinting
-      ? Math.max(0, player.stamina - delta * 10)
-      : Math.min(player.maxStamina, player.stamina + delta * (player.crouched ? 22 : 15));
+    advanceWarRoomPlayerStamina(runtime, delta);
     player.lastHitDamage = Math.max(0, player.lastHitDamage);
     resolveMeleeContact(now, wallNow);
 

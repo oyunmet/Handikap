@@ -38,6 +38,19 @@ test("War Room player movement consumes the shared runtime's fixed-step frame", 
     /(?:fallStartHeight|previousJumpHeight)Ref/,
     "vertical simulation state should not live in React refs",
   );
+  for (const call of [
+    "advanceWarRoomPlayerRestoration(runtime, now, delta)",
+    "advanceWarRoomLootInteraction(runtime, input, now)",
+    "collectWarRoomPlayerHealing(runtime, now)",
+    "advanceWarRoomPlayerStamina(runtime, delta)",
+  ]) {
+    assert.ok(sceneSource.includes(call), `the scene should use simulation boundary: ${call}`);
+  }
+  assert.doesNotMatch(
+    sceneSource,
+    /player\.loot(?:StartedAt|Progress|ChestId)\s*=|advanceWarRoomPassiveRegen|collectWarRoomHealingPoint/,
+    "pickup and loot state should not be mutated by the renderer",
+  );
 });
 
 test("fixed-step movement stays consistent at 30, 60, and 120 update rates", () => {

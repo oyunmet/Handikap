@@ -481,4 +481,6 @@ sonraki dilim olarak kaldı.
 - **Doğrulama:** Sabit hareket ve simülasyon hedef testleri 18/18 geçti; `npm test` 843/843 geçti; `npm run typecheck` ve `npm run build` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
 - **Aşama 2e tamamlandı:** Kat geçişi, sıçrama, iniş ve düşme hasarı runtime simülasyonuna taşındı; sahnedeki düşüş/yükseklik React referansları kaldırıldı. İniş algısı artık önceki karedeki 0,08 m eşiğine bağlı değil; 60 FPS'de hasarı kaçırmaması için havada kalma durumu runtime'da izleniyor.
 - **Doğrulama:** Hareket ve simülasyon hedef testleri 20/20 geçti; `npm test` 845/845 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
-- **Şu an:** Aşama 2 sürüyor. Sıradaki dilim oyuncu iyileştirme/ganimet etkileşimlerini ve kaynak güncellemelerini simülasyon sınırına almak; ardından kontrol/HUD, 3D alan ve yeni modu bağlama adımları gelecek.
+- **Aşama 2f tamamlandı:** Pasif iyileşme, stamina, iyileştirme noktası toplama ve basılı tutarak sandık açma simülasyon sınırına taşındı. Ses ve görsel efektler sahnede kaldı; oyun kuralları ve etkileşim sırası korundu.
+- **Doğrulama:** Hareket ve simülasyon hedef testleri 23/23 geçti; `npm test` 848/848 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
+- **Şu an:** Aşama 2 sürüyor. Sıradaki dilim silah/atış/yükleme ve düşman karar güncellemelerini sahneden ayırmak; ardından kontrol/HUD, 3D alan ve yeni modu bağlama adımları gelecek.

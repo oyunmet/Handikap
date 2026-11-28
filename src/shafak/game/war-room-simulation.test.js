@@ -2,11 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createWarRoomRuntime } from "./war-room-engine.ts";
 import {
+  advanceWarRoomLootInteraction,
+  advanceWarRoomPlayerRestoration,
+  advanceWarRoomPlayerStamina,
   advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
   createEmptyWarRoomHudSnapshot,
   createWarRoomInputState,
+  collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
   updateWarRoomPlayerFloor,
@@ -326,4 +330,74 @@ test("vertical simulation records an upper-floor fall and applies damage once", 
   assert.equal(runtime.player.lastHitText, "−8 CAN · DÜŞME");
   assert.equal(runtime.player.lastHitSource, "received");
   assert.equal(runtime.player.damageEventId, 1);
+});
+
+test("player restoration and stamina updates keep their configured caps and rates", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 101);
+  runtime.player.hp = 100;
+  runtime.player.lastDamageAt = 0;
+  runtime.player.lastCombatAt = 0;
+
+  const restoration = advanceWarRoomPlayerRestoration(runtime, 30, 1);
+  assert.equal(restoration.active, true);
+  assert.equal(runtime.player.regenerationActive, true);
+  assert.equal(runtime.player.regenerationWaitSeconds, 0);
+  assert.ok(runtime.player.hp > 100);
+
+  runtime.player.sprinting = true;
+  runtime.player.stamina = 50;
+  assert.equal(advanceWarRoomPlayerStamina(runtime, 2), 30);
+  runtime.player.sprinting = false;
+  runtime.player.crouched = true;
+  assert.equal(advanceWarRoomPlayerStamina(runtime, 2), 74);
+  runtime.player.stamina = runtime.player.maxStamina - 1;
+  assert.equal(advanceWarRoomPlayerStamina(runtime, 2), runtime.player.maxStamina);
+});
+
+test("healing pickups update runtime and HUD feedback through the simulation", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 102);
+  const point = runtime.healingPoints[0];
+  runtime.player.x = point.x;
+  runtime.player.z = point.z;
+  runtime.player.hp = runtime.player.maxHp - 40;
+  runtime.player.lastHitSource = "received";
+  runtime.player.lastHitDamage = 12;
+
+  const pickup = collectWarRoomPlayerHealing(runtime, 10);
+
+  assert.equal(pickup.point?.id, point.id);
+  assert.ok(pickup.healed > 0);
+  assert.equal(runtime.player.lastHitSource, null);
+  assert.equal(runtime.player.lastHitDamage, 0);
+  assert.equal(runtime.player.lastHitText, `+${Math.round(pickup.healed)} CAN`);
+  assert.equal(runtime.player.hitMessageUntil, 11.35);
+  assert.equal(collectWarRoomPlayerHealing(runtime, 10).point, null);
+});
+
+test("loot interaction completes only after a continuous hold near the chest", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 103);
+  const chest = runtime.lootChests.find((candidate) => !candidate.opened);
+  assert.ok(chest);
+  runtime.player.x = chest.x;
+  runtime.player.z = chest.z;
+  runtime.player.floorHeight = chest.floorHeight;
+  const input = createWarRoomInputState();
+  input.lootHeld = true;
+
+  assert.equal(advanceWarRoomLootInteraction(runtime, input, 10), null);
+  assert.equal(runtime.player.lootChestId, chest.id);
+  input.lootHeld = false;
+  assert.equal(advanceWarRoomLootInteraction(runtime, input, 11), null);
+  assert.equal(runtime.player.lootStartedAt, 0);
+  assert.equal(runtime.player.lootProgress, 0);
+
+  input.lootHeld = true;
+  assert.equal(advanceWarRoomLootInteraction(runtime, input, 12), null);
+  assert.equal(advanceWarRoomLootInteraction(runtime, input, 13.8), chest);
+  assert.equal(chest.opened, true);
+  assert.equal(input.lootHeld, false);
+  assert.equal(runtime.player.lootChestId, null);
+  assert.equal(runtime.player.lootProgress, 0);
+  assert.ok(runtime.player.lastHitText.length > 0);
+  assert.equal(runtime.player.hitMessageUntil, 15.4);
 });
