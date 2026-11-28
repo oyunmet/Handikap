@@ -34,8 +34,6 @@ import {
 } from "../game/war-room-rooms";
 import {
   getWarRoomActiveBlockers,
-  getNearestWarRoomDoor,
-  getWarRoomDoorOpenProgress,
   updateWarRoomDoors,
 } from "../game/war-room-doors";
 import {
@@ -213,7 +211,6 @@ import {
   applyWarRoomLootChest,
   getNearbyWarRoomLootChest,
   getNearestWarRoomCover,
-  getWarRoomCommanderHealth,
   getWarRoomRemaining,
   getWarRoomFallDamage,
   moveWarRoomEntity,
@@ -228,6 +225,10 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
+  buildWarRoomHudSnapshot,
+  resolveWarRoomSimulationOutcome,
+} from "../game/war-room-simulation";
+import {
   advanceWarRoomFixedMovementFromFrame,
   createWarRoomMovementClock,
 } from "../game/war-room-fixed-movement";
@@ -240,10 +241,7 @@ import {
 } from "../game/war-room-audio";
 import { isWarRoomLowHealth } from "../game/war-room-feedback";
 import type { CharacterAnimationState } from "./character-animation";
-import {
-  getWarRoomEnemySpeedMultiplier,
-  getWarRoomMissionOutcome,
-} from "../game/war-room-missions";
+import { getWarRoomEnemySpeedMultiplier } from "../game/war-room-missions";
 import {
   WarRoomAssetBoundary,
   WarRoomCharacterActor,
@@ -2018,142 +2016,6 @@ function WarRoomTargetMarker({
       />
     </mesh>
   );
-}
-
-function buildHudSnapshot(runtime: WarRoomRuntime, now: number, input: WarRoomInputState): WarRoomHudSnapshot {
-  const player = runtime.player;
-  const weaponId = player.weaponSlots[player.activeSlot];
-  const ammo = player.ammo[weaponId];
-  const bossHealth = getWarRoomCommanderHealth(runtime.enemies);
-  const bossAttackEnemy = runtime.enemies.find(
-    (enemy) => enemy.commander && enemy.alive && enemy.bossAttack,
-  );
-  const nearbyChest = getNearbyWarRoomLootChest(runtime);
-  const nearbyDoor = getNearestWarRoomDoor(
-    runtime.room.buildings,
-    player.x,
-    player.z,
-    player.floorHeight,
-    input.yaw,
-  );
-  const meleeProgress = player.meleeUntil > now
-    ? Math.max(0, Math.min(1, (now - player.meleeStartedAt) / Math.max(0.01, player.meleeDuration)))
-    : 0;
-  const meleePhase = player.meleeUntil <= now
-    ? "HAZIR"
-    : meleeProgress < (player.meleeAttackHeavy ? 0.4 : 0.28)
-      ? "HAZIRLIK"
-      : meleeProgress < 0.72 ? "VURUŞ" : "TOPARLAN";
-  return {
-    mission: {
-      mode: runtime.mission.mode,
-      dailyObjective: runtime.mission.dailyObjective,
-      wave: runtime.mission.wave,
-      score: runtime.mission.score,
-      timeLimitSeconds: runtime.mission.timeLimitSeconds,
-      targetChests: runtime.mission.targetChests,
-      defenseHp: runtime.mission.defenseHp,
-      defenseMaxHp: runtime.mission.defenseMaxHp,
-    },
-    player: {
-      x: player.x,
-      z: player.z,
-      floorHeight: player.floorHeight,
-      yaw: player.yaw,
-      hp: player.hp,
-      maxHp: player.maxHp,
-      armor: player.armor,
-      maxArmor: player.maxArmor,
-      stamina: player.stamina,
-      maxStamina: player.maxStamina,
-    },
-    weaponSlots: [...player.weaponSlots],
-    orientation: {
-      facingYaw: player.facingYaw,
-      mode: player.facingMode,
-      joystickAngleDegrees: player.joystickAngleDegrees,
-      facingCamera: player.facingCamera,
-    },
-    enemies: runtime.enemies.map(({ id, x, z, floorHeight = 0, alive, commander }) => ({
-      id,
-      x,
-      z,
-      floorHeight,
-      alive,
-      commander,
-    })),
-    healingPoints: RESTORE_CONFIG.enabled ? runtime.healingPoints.map(({ id, x, z, availableAt }) => ({
-      id,
-      x,
-      z,
-      floorHeight: 0,
-      available: availableAt <= now,
-    })) : [],
-    armorPoints: RESTORE_CONFIG.enabled ? runtime.armorPoints.map(({ id, x, z, availableAt }) => ({
-      id,
-      x,
-      z,
-      floorHeight: 0,
-      available: availableAt <= now,
-    })) : [],
-    regenerationActive: player.regenerationActive,
-    regenerationWaitSeconds: player.regenerationWaitSeconds,
-    regenerationAtCap: RESTORE_CONFIG.enabled
-      && player.hp >= player.maxHp * RESTORE_CONFIG.passive.maxHealthRatio,
-    remaining: getWarRoomRemaining(runtime),
-    bossHp: bossHealth.hp,
-    bossMaxHp: bossHealth.maxHp,
-    bossAttack: bossAttackEnemy?.bossAttack
-      ? {
-        attack: bossAttackEnemy.bossAttack,
-        telegraphing: now < bossAttackEnemy.nextShotAt,
-      }
-      : null,
-    kills: player.kills,
-    headshots: player.headshots,
-    shots: player.shots,
-    hits: player.hits,
-    targetName: player.targetName,
-    targetReason: player.targetReason,
-    elapsedSeconds: Math.max(0, now - player.startTime),
-    weaponId,
-    magazine: ammo?.magazine ?? 0,
-    reserve: ammo?.reserve ?? 0,
-    reloading: player.reloadingWeapon === weaponId,
-    aiming: input.aimHeld,
-    targetVisible: Boolean(player.targetId),
-    hitMarker: player.hitMarkerUntil > now,
-    headshotMarker: player.hitMarkerUntil > now && player.hitMarkerHeadshot,
-    damageNumberCritical: player.lastHitCritical,
-    lastHitSource: player.lastHitSource,
-    damageEventId: player.damageEventId,
-    firing: player.shotFeedbackUntil > now,
-    damageVignette: player.lastDamageAt > 0 && now - player.lastDamageAt < 0.72,
-    damageDirection: player.damageDirection,
-    lastHitDamage: player.lastHitDamage,
-    lastHitArmorDamage: player.lastHitArmorDamage,
-    hitMessage: player.hitMessageUntil > now ? player.lastHitText : "",
-    killFeed: player.killFeed,
-    crouched: player.crouched,
-    meleePhase,
-    meleeComboCount: player.meleeComboCount,
-    meleeLastResult: player.meleeLastResult,
-    nearbyDoor: nearbyDoor
-      ? {
-        id: nearbyDoor.key,
-        openProgress: getWarRoomDoorOpenProgress(runtime.doorStates[nearbyDoor.key], now),
-      }
-      : null,
-    nearbyLootChest: nearbyChest
-      ? {
-        id: nearbyChest.chest.id,
-        label: nearbyChest.label,
-        contents: nearbyChest.contents,
-        progress: player.lootChestId === nearbyChest.chest.id ? player.lootProgress : 0,
-      }
-      : null,
-    lootChestsOpened: runtime.lootChests.filter((chest) => chest.opened).length,
-  };
 }
 
 function WarRoomResourceProbe({
@@ -5222,24 +5084,13 @@ function WarRoomRuntimeScene({
     let snapshot: WarRoomHudSnapshot | null = null;
     if (now - lastHudAtRef.current >= 0.1) {
       lastHudAtRef.current = now;
-      snapshot = buildHudSnapshot(runtime, now, input);
+      snapshot = buildWarRoomHudSnapshot(runtime, now, input);
       onHudUpdate(snapshot);
     }
-    const remaining = getWarRoomRemaining(runtime);
-    let openedChests = 0;
-    for (const chest of runtime.lootChests) {
-      if (chest.opened) openedChests += 1;
-    }
-    const missionOutcome = getWarRoomMissionOutcome(runtime.mission.mode, {
-      remaining,
-      openedChests,
-      elapsedSeconds: Math.max(0, now - player.startTime),
-      playerHp: player.hp,
-      defenseHp: runtime.mission.defenseHp,
-    }, runtime.mission);
+    const missionOutcome = resolveWarRoomSimulationOutcome(runtime, now);
     if (!finishedRef.current && missionOutcome === "defeat") {
       finishedRef.current = true;
-      onFinish("defeat", snapshot ?? buildHudSnapshot(runtime, now, input));
+      onFinish("defeat", snapshot ?? buildWarRoomHudSnapshot(runtime, now, input));
     } else if (
       !finishedRef.current
       && (missionOutcome === "victory" || missionOutcome === "wave-complete")
@@ -5249,7 +5100,7 @@ function WarRoomRuntimeScene({
         || (cinematicStartedAt !== null && cinematicElapsed >= WAR_ROOM_ENEMY_DEATH_FADE_SECONDS))
     ) {
       finishedRef.current = true;
-      onFinish("victory", snapshot ?? buildHudSnapshot(runtime, now, input));
+      onFinish("victory", snapshot ?? buildWarRoomHudSnapshot(runtime, now, input));
     }
     } catch {
       pauseWarRoomInput(input);

@@ -378,5 +378,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Doğrulama:** War Room hedefleri 303/303 geçti (önceki 298 teste beş yeni kayıt testi eklendi); `npm run typecheck` ve `npm run build` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
 - **Aşama 2 — oturum geçişleri:** Briefing → battle → victory/defeat geçişleri saf TypeScript durum makinesine taşındı ve mevcut React ekranı bu reducer'ı kullanıyor. Sonuç ekranlarından yeni oda başlatma korunuyor; battle dışında sonuç yazılamıyor. Dört geçiş testi eklendi.
 - **Doğrulama:** War Room hedefleri 307/307 geçti; `npm run typecheck` ve `npm run build` başarılı. Three.js için mevcut 500 kB üzeri parça uyarısı sürüyor.
-- **Aşama 2 durumu:** Devam ediyor. Sonraki parça, eski React/render bileşenlerine bağlı olmayan deterministik taktik runtime ve olay sözleşmesi.
+- **Aşama 2b tamamlandı:** Giriş başlangıcı, boş HUD durumu, canlı runtime → HUD izdüşümü ve görev sonucu kararı `war-room-simulation.ts` içinde. Sahne sonuç/hud görünümünü bu sınırdan alıyor; görsel ve oynanış kuralları aynı kaldı. Runtime'a bağlı mutable HUD dizileri kopyalanıyor.
+- **Doğrulama:** War Room hedefleri 313/313 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
+- **Sıradaki dilim:** Simülasyon olay sözleşmesini ve sabit-adım güncellemesini sahneden ayır.
 - **Devam:** Önce `docs/PROGRESS.md` ve bu bölümü oku. Her aşama başlamadan ilerleme kaydını güncelle; tamamlandığında hedef testleri, typecheck, build ve `git diff --check` sonuçlarını yazıp yerel commit al. Sonraki aşamaya yalnızca bu doğrulama temizse geç.

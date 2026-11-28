@@ -117,6 +117,10 @@ import {
   writeWarRoomRoomProgress,
 } from "./war-room-persistence";
 import { transitionWarRoomPhase } from "./war-room-session";
+import {
+  createEmptyWarRoomHudSnapshot,
+  createWarRoomInputState,
+} from "./war-room-simulation";
 import { getWarRoomDailyChallenge, isWarRoomDailyChallengeComplete } from "./war-room-daily";
 import { getBossHudPhase, getBossHudPhaseRoman, type BossHudPhase } from "./boss-hud";
 import { getWarRoomBossAttackLabel } from "./war-room-boss";
@@ -212,115 +216,6 @@ function getControlPlacementStyle(
     minHeight: `${height}px`,
     opacity: position.opacity,
     transform: "translate(-50%, -50%)",
-  };
-}
-
-function createInputState(aimAssistEnabled = true): WarRoomInputState {
-  return {
-    keys: new Set(),
-    moveX: 0,
-    moveY: 0,
-    yaw: 0,
-    cameraTargetYaw: 0,
-    manualLookActive: false,
-    cameraLookLocked: false,
-    cameraLookBodyYaw: 0,
-    lookDeltaX: 0,
-    lookDeltaY: 0,
-    lookPointerType: "touch",
-    pitch: -0.08,
-    fireHeld: false,
-    firePressed: false,
-    fireReleased: false,
-    aimHeld: false,
-    aimAssistEnabled,
-    reloadPressed: false,
-    swapPressed: false,
-    jumpPressed: false,
-    dodgePressed: false,
-    crouchPressed: false,
-    sprintLocked: false,
-    weaponSlotPressed: null,
-    pronePressed: false,
-    lootHeld: false,
-    doorPressed: false,
-    paused: false,
-  };
-}
-
-function createEmptyHud(): WarRoomHudSnapshot {
-  return {
-    mission: {
-      mode: "raid",
-      dailyObjective: null,
-      wave: 1,
-      score: 0,
-      timeLimitSeconds: null,
-      targetChests: 0,
-      defenseHp: 0,
-      defenseMaxHp: 0,
-    },
-    player: {
-      x: 0,
-      z: 0,
-      floorHeight: 0,
-      yaw: 0,
-      hp: 220,
-      maxHp: 220,
-      armor: 0,
-      maxArmor: 60,
-      stamina: 100,
-      maxStamina: 100,
-    },
-    orientation: {
-      facingYaw: 0,
-      mode: "HAREKET",
-      joystickAngleDegrees: null,
-      facingCamera: false,
-    },
-    enemies: [],
-    healingPoints: [],
-    armorPoints: [],
-    regenerationActive: false,
-    regenerationWaitSeconds: 0,
-    regenerationAtCap: false,
-    remaining: 9,
-    bossHp: 360,
-    bossMaxHp: 360,
-    bossAttack: null,
-    kills: 0,
-    headshots: 0,
-    shots: 0,
-    hits: 0,
-    elapsedSeconds: 0,
-    weaponId: "powder_rifle",
-    weaponSlots: ["powder_rifle", "crossbow"],
-    magazine: 30,
-    reserve: 90,
-    reloading: false,
-    aiming: false,
-    firing: false,
-    targetVisible: false,
-    targetName: null,
-    targetReason: "no-target",
-    hitMarker: false,
-    headshotMarker: false,
-    damageNumberCritical: false,
-    lastHitSource: null,
-    damageEventId: 0,
-    damageVignette: false,
-    damageDirection: 0,
-    lastHitDamage: 0,
-    lastHitArmorDamage: 0,
-    hitMessage: "",
-    killFeed: [],
-    crouched: false,
-    meleePhase: "HAZIR",
-    meleeComboCount: 0,
-    meleeLastResult: "Henüz isabet yok",
-    nearbyLootChest: null,
-    lootChestsOpened: 0,
-    nearbyDoor: null,
   };
 }
 
@@ -435,7 +330,7 @@ export default function WarRoomGame({
       sequence: current.sequence + 1,
     }));
   }, []);
-  const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyHud);
+  const [hud, setHud] = useState<WarRoomHudSnapshot>(createEmptyWarRoomHudSnapshot);
   const [hudDetailsExpanded, setHudDetailsExpanded] = useState(true);
   const [hudToasts, setHudToasts] = useState<WarRoomToast[]>([]);
   const hudToastIdRef = useRef(0);
@@ -643,7 +538,7 @@ export default function WarRoomGame({
       : createWarRoomRuntime(loadout, 0, 1),
   );
   const preparedNextRoomRef = useRef<WarRoomRuntime | null>(null);
-  const inputRef = useRef<WarRoomInputState>(createInputState(aimAssistEnabled));
+  const inputRef = useRef<WarRoomInputState>(createWarRoomInputState(aimAssistEnabled));
   const pointerRef = useRef(new Map<number, WarRoomPointerPosition>());
   const mobileControlsRef = useRef(createWarRoomMobileControlsState());
   const touchDiagnosticsRef = useRef({
@@ -660,9 +555,9 @@ export default function WarRoomGame({
     if (!resourceLeakTestMode) return undefined;
     const remountTrainingScene = () => {
       runtimeRef.current = createWarRoomTrainingRuntime(loadout);
-      inputRef.current = createInputState(aimAssistEnabled);
+      inputRef.current = createWarRoomInputState(aimAssistEnabled);
       mobileControlsRef.current = createWarRoomMobileControlsState();
-      setHud(createEmptyHud());
+      setHud(createEmptyWarRoomHudSnapshot());
       setResourceLeakGeneration((generation) => generation + 1);
     };
     window.addEventListener("shafak:war-room-resource-leak-remount", remountTrainingScene);
@@ -804,14 +699,14 @@ export default function WarRoomGame({
       );
     setRoomNumber(runtimeRef.current.room.number);
     preparedNextRoomRef.current = null;
-    inputRef.current = createInputState(aimAssistEnabled);
+    inputRef.current = createWarRoomInputState(aimAssistEnabled);
     inputRef.current.paused = true;
     setSceneWarmupReady(false);
     resetTouchControls();
     crouchTapAtRef.current = null;
     setDynamicStickActive(false);
     setSprintLockActive(false);
-    setHud(createEmptyHud());
+    setHud(createEmptyWarRoomHudSnapshot());
     setMeleeDebugMessage("");
     setMeleeDebugMessageUntil(0);
     setMeleeDebugActivity("");
@@ -909,7 +804,7 @@ export default function WarRoomGame({
       runtimeRef.current = advanceWarRoomSurvivalWave(runtimeRef.current, nextRuntime);
       setRoomNumber(nextRuntime.room.number);
       preparedNextRoomRef.current = null;
-      setHud(createEmptyHud());
+      setHud(createEmptyWarRoomHudSnapshot());
       setRunKey((key) => key + 1);
       return;
     }
@@ -1232,8 +1127,8 @@ export default function WarRoomGame({
     setLoadout(nextLoadout);
     setSelectedSlot(0);
     runtimeRef.current = createWarRoomTrainingRuntime(nextLoadout);
-    inputRef.current = createInputState(aimAssistEnabled);
-    setHud(createEmptyHud());
+    inputRef.current = createWarRoomInputState(aimAssistEnabled);
+    setHud(createEmptyWarRoomHudSnapshot());
     setRunKey((key) => key + 1);
   };
   const updateDebugMount = (

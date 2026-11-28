@@ -473,4 +473,6 @@ sonraki dilim olarak kaldı.
 - **Doğrulama:** War Room testleri 303/303 geçti; `npm run typecheck` ve `npm run build` geçti. Üretim derlemesinin mevcut büyük Three.js paket uyarısı sürüyor.
 - **Aşama 2 dilimi:** Briefing → battle → victory/defeat geçişleri React'ten bağımsız saf TypeScript durum makinesine taşındı ve mevcut War Room ekranı bu geçişleri kullanıyor. Geçersiz sonuç geçişleri reddediliyor; sonuç ekranlarından sonraki odaya başlama korunuyor.
 - **Doğrulama:** War Room hedef testleri 307/307 geçti; `npm run typecheck` ve `npm run build` geçti. Dört yeni oturum-geçiş testi eklendi. Three.js büyük paket uyarısı sürüyor.
-- **Şu an:** Aşama 2 sürüyor; sonraki parça savaş simülasyonu için yeni, deterministik runtime/event sınırını kurmak. Aşama başına test, ilerleme kaydı ve yerel commit kullanılacak.
+- **Aşama 2b sonucu:** Giriş başlangıcı, bağımsız boş HUD durumu, canlı runtime → HUD izdüşümü ve zafer/yenilgi/dalga sonucu kararı saf `war-room-simulation.ts` modülüne taşındı. 3D sahne HUD projeksiyonu ve görev sonuç kararını yeni modülden alıyor; görünüm ve oyun kuralları değişmedi. Canlı HUD koleksiyonları runtime verilerinden ayrıştırıldı.
+- **Doğrulama:** War Room hedefleri 313/313 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Build'de mevcut Three.js büyük parça uyarısı sürüyor.
+- **Şu an:** Aşama 2 sürüyor. Sonraki dilim simülasyon olay sözleşmesi ve sabit-adım güncellemesini sahneden ayıracak; ardından kontroller/HUD, 3D alan ve yeni modu bağlama adımları gelecek.
