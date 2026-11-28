@@ -386,4 +386,7 @@ Bu kayıt, `attached_assets` içindeki faz protokolü ve önceki oturum ekran g�
 - **Doğrulama:** War Room hedefleri 315/315 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` başarılı. Build'in mevcut 500 kB üzeri Three.js uyarısı sürüyor.
 - **Sıradaki dilim:** Sabit-adım hareket entegrasyonunu yeni simülasyon sınırına taşı.
 - **Aşama 2d başladı:** Oyuncu runtime konumunu ve render için enterpolasyon konumunu sabit-adım hareket modülünden tek simülasyon adımında güncelle; sahne yalnızca hareket niyetini ve sonuç pozunu tüketmeli.
+- **Aşama 2d tamamlandı:** `advanceWarRoomPlayerMovement` oyuncu runtime konumunu tek sınırda güncelliyor ve önceki/sonraki konum, delta ve render enterpolasyonunu döndürüyor. Sahne ortak sabit-adım karesini ve sinematik zaman ölçeğini geçiriyor; çarpışma çözümü, kaçış itişi ve render hızı bağımsızlığı korundu. Test sözleşmesi sondaki virgülü de kabul ediyor.
+- **Doğrulama:** `war-room-fixed-movement.test.js` ve `war-room-simulation.test.js` 18/18; tam `npm test` 843/843; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Build'in mevcut büyük Three.js parça uyarısı sürüyor.
+- **Sıradaki dilim:** Zıplama, kat geçişi ve düşme durumunu runtime simülasyonuna taşı; render sahnesindeki geçici referansları kaldır.
 - **Devam:** Önce `docs/PROGRESS.md` ve bu bölümü oku. Her aşama başlamadan ilerleme kaydını güncelle; tamamlandığında hedef testleri, typecheck, build ve `git diff --check` sonuçlarını yazıp yerel commit al. Sonraki aşamaya yalnızca bu doğrulama temizse geç.

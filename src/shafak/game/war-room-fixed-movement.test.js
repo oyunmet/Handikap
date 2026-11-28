@@ -17,7 +17,7 @@ test("War Room player movement consumes the shared runtime's fixed-step frame", 
   assert.ok(sceneSource.includes("sharedGameRuntime.registerFrame"), "War Room should subscribe to the core frame");
   assert.ok(sceneSource.includes("runtimeFrame.steps * GAME_RUNTIME_DEFAULTS.stepSeconds"), "simulation delta should use core steps");
   assert.ok(
-    /advanceWarRoomPlayerMovement\([\s\S]*?runtimeFrame,\s*cinematicTimeScale\)/.test(sceneSource),
+    /advanceWarRoomPlayerMovement\([\s\S]*?runtimeFrame,\s*cinematicTimeScale,?\s*\)/.test(sceneSource),
     "the scene should pass the core frame and cinematic time scale into the simulation boundary",
   );
   assert.ok(

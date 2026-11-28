@@ -477,4 +477,6 @@ sonraki dilim olarak kaldı.
 - **Doğrulama:** War Room hedefleri 313/313 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Build'de mevcut Three.js büyük parça uyarısı sürüyor.
 - **Aşama 2c sonucu:** Duruş, silah seçimi/değişimi, sıçrama ve kaçış eylemleri yeni simülasyon modülüne taşındı; tek-seferlik inputların tüketilmesi ve mevcut cooldown/stamina/weapon reset kuralları korundu.
 - **Doğrulama:** War Room hedefleri 315/315 geçti; `npm run typecheck`, `npm run build` ve `git diff --check` geçti. Mevcut büyük Three.js parça uyarısı sürüyor.
-- **Şu an:** Aşama 2 sürüyor. Sabit-adım oyuncu hareketi runtime'ı ve render interpolation sonucunu tek testli simülasyon adımından geçirecek şekilde ayrılıyor; ardından kalan simülasyon, kontrol/HUD, 3D alan ve yeni modu bağlama adımları gelecek.
+- **Aşama 2d tamamlandı:** `WarRoomScene3D` hareket niyetini hesaplıyor; runtime konumunu, çarpışma çözümünü ve çizim enterpolasyonunu tek `advanceWarRoomPlayerMovement` simülasyon çağrısı yürütüyor. Ortak sabit-adım karesi ve sinematik yavaşlatma korunuyor; duraklamada birikmiş süre sıfırlanıyor.
+- **Doğrulama:** Sabit hareket ve simülasyon hedef testleri 18/18 geçti; `npm test` 843/843 geçti; `npm run typecheck` ve `npm run build` başarılı. Build mevcut büyük Three.js parça uyarısını veriyor.
+- **Şu an:** Aşama 2 sürüyor. Sonraki dilim zıplama/kat yüksekliği/düşme durumunu React/3D sahne referanslarından runtime çekirdeğine taşımak; ardından kalan simülasyon, kontrol/HUD, 3D alan ve yeni modu bağlama adımları gelecek.
