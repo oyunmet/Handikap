@@ -2,6 +2,8 @@ import {
   getWarRoomCommanderHealth,
   getNearbyWarRoomLootChest,
   getWarRoomRemaining,
+  applyWarRoomDamage,
+  getWarRoomFallDamage,
   type WarRoomHudSnapshot,
   type WarRoomInputState,
   type WarRoomRuntime,
@@ -16,6 +18,7 @@ import {
   getNearestWarRoomDoor,
   getWarRoomDoorOpenProgress,
 } from "./war-room-doors";
+import { getWarRoomFloorHeight } from "./war-room-rooms";
 import {
   getWarRoomMissionOutcome,
   type WarRoomMissionOutcome,
@@ -193,6 +196,83 @@ export function advanceWarRoomPlayerMovement(
     deltaX: movement.x - previousX,
     deltaZ: movement.z - previousZ,
   };
+}
+
+export type WarRoomPlayerVerticalStep = {
+  landed: boolean;
+  fallDamage: number;
+  healthDamage: number;
+};
+
+export function updateWarRoomPlayerFloor(runtime: WarRoomRuntime) {
+  const player = runtime.player;
+  const previousFloorHeight = player.floorHeight;
+  const nextFloorHeight = getWarRoomFloorHeight(
+    player.x,
+    player.z,
+    player.floorHeight,
+    runtime.room.buildings,
+  );
+  const lostFloorHeight = previousFloorHeight - nextFloorHeight;
+  if (lostFloorHeight > 0.45) {
+    player.fallStartHeight = Math.max(
+      player.fallStartHeight ?? Number.NEGATIVE_INFINITY,
+      previousFloorHeight + player.previousJumpHeight,
+    );
+    player.jumpHeight += lostFloorHeight;
+  }
+  player.floorHeight = nextFloorHeight;
+}
+
+export function advanceWarRoomPlayerVerticalMotion(
+  runtime: WarRoomRuntime,
+  delta: number,
+  now: number,
+): WarRoomPlayerVerticalStep {
+  const player = runtime.player;
+  const previousJumpHeight = player.previousJumpHeight;
+
+  if (player.fallStartHeight !== null) {
+    player.fallStartHeight = Math.max(
+      player.fallStartHeight,
+      player.floorHeight + player.jumpHeight,
+    );
+  }
+  player.jumpVelocity -= 14 * delta;
+  player.jumpHeight = Math.max(0, player.jumpHeight + player.jumpVelocity * delta);
+  if (player.jumpHeight === 0) player.jumpVelocity = 0;
+
+  if (previousJumpHeight > 0.08 || player.jumpHeight > 0.08) {
+    player.jumpWasAirborne = true;
+  }
+  const landed = player.jumpWasAirborne && player.jumpHeight <= 0.001;
+  if (landed) player.jumpWasAirborne = false;
+  let fallDamage = 0;
+  let healthDamage = 0;
+  if (landed && player.fallStartHeight !== null) {
+    fallDamage = getWarRoomFallDamage(player.fallStartHeight - player.floorHeight);
+    player.fallStartHeight = null;
+    if (fallDamage > 0) {
+      const hit = applyWarRoomDamage(player, fallDamage);
+      healthDamage = hit.damage;
+      if (hit.damage > 0) {
+        player.lastDamageAt = now;
+        player.lastCombatAt = now;
+        player.invulnerableUntil = Math.max(player.invulnerableUntil, now + 0.4);
+        player.damageDirection = 0;
+        player.lastHitText = `−${hit.damage} CAN · DÜŞME`;
+        player.hitMessageUntil = now + 1.2;
+        player.lastHitDamage = hit.damage;
+        player.lastHitArmorDamage = hit.armorDamage ?? 0;
+        player.lastHitSource = "received";
+        player.lastHitCritical = false;
+        player.damageEventId += 1;
+      }
+    }
+  }
+
+  player.previousJumpHeight = player.jumpHeight;
+  return { landed, fallDamage, healthDamage };
 }
 
 export function createEmptyWarRoomHudSnapshot(): WarRoomHudSnapshot {

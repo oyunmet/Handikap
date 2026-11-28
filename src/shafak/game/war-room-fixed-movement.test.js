@@ -28,6 +28,16 @@ test("War Room player movement consumes the shared runtime's fixed-step frame", 
     /input\.paused\)\s*\{[\s\S]*?runtimeAlpha = runtimeFrame\.alpha[\s\S]*?accumulator = 0/.test(sceneSource),
     "pausing should clear movement time without catching up on resume",
   );
+  assert.ok(
+    sceneSource.includes("updateWarRoomPlayerFloor(runtime)")
+      && /advanceWarRoomPlayerVerticalMotion\(runtime,\s*delta,\s*now\)/.test(sceneSource),
+    "floor transitions and vertical motion should run through the simulation boundary",
+  );
+  assert.doesNotMatch(
+    sceneSource,
+    /(?:fallStartHeight|previousJumpHeight)Ref/,
+    "vertical simulation state should not live in React refs",
+  );
 });
 
 test("fixed-step movement stays consistent at 30, 60, and 120 update rates", () => {

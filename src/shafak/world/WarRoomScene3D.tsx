@@ -212,7 +212,6 @@ import {
   getNearbyWarRoomLootChest,
   getNearestWarRoomCover,
   getWarRoomRemaining,
-  getWarRoomFallDamage,
   moveWarRoomEntity,
   nextWarRoomRandom,
   spawnWarRoomBossSummons,
@@ -225,10 +224,12 @@ import {
   type WarRoomRuntime,
 } from "../game/war-room-engine";
 import {
+  advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
   consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
+  updateWarRoomPlayerFloor,
 } from "../game/war-room-simulation";
 import {
   createWarRoomMovementClock,
@@ -2450,9 +2451,6 @@ function WarRoomRuntimeScene({
   const slashLocalTip = useMemo(() => new THREE.Vector3(), []);
   const footDustAtRef = useRef(0);
   const footstepAtRef = useRef(0);
-  const previousJumpHeightRef = useRef(0);
-  const fallStartHeightRef = useRef<number | null>(null);
-  const fallRuntimeRef = useRef<WarRoomRuntime | null>(null);
   const tracerState = useMemo(() => ({
     geometry: new THREE.BufferGeometry(),
     positions: new Float32Array(WAR_ROOM_TRACER_POOL_SIZE * 6),
@@ -3316,11 +3314,6 @@ function WarRoomRuntimeScene({
   useFrame((frame, rawDelta) => {
     const runtimeFrame = sharedFrameRef.current;
     const runtime = runtimeRef.current;
-    if (fallRuntimeRef.current !== runtime) {
-      fallRuntimeRef.current = runtime;
-      fallStartHeightRef.current = null;
-      previousJumpHeightRef.current = runtime.player.jumpHeight;
-    }
     const player = runtime.player;
     const input = inputRef.current;
     const currentActiveWeapon = player.weaponSlots[player.activeSlot];
@@ -3653,23 +3646,7 @@ function WarRoomRuntimeScene({
     const dz = nextPosition.deltaZ;
     playerRenderPositionRef.current.x = nextPosition.renderX;
     playerRenderPositionRef.current.z = nextPosition.renderZ;
-    const previousFloorHeight = player.floorHeight;
-    const previousJumpHeight = player.jumpHeight;
-    const nextFloorHeight = getWarRoomFloorHeight(
-      player.x,
-      player.z,
-      player.floorHeight,
-      runtime.room.buildings,
-    );
-    const lostFloorHeight = previousFloorHeight - nextFloorHeight;
-    if (lostFloorHeight > 0.45) {
-      fallStartHeightRef.current = Math.max(
-        fallStartHeightRef.current ?? Number.NEGATIVE_INFINITY,
-        previousFloorHeight + previousJumpHeight,
-      );
-      player.jumpHeight += lostFloorHeight;
-    }
-    player.floorHeight = nextFloorHeight;
+    updateWarRoomPlayerFloor(runtime);
     const nearbyLoot = getNearbyWarRoomLootChest(runtime);
     if (!input.lootHeld || !nearbyLoot) {
       player.lootChestId = null;
@@ -3725,35 +3702,10 @@ function WarRoomRuntimeScene({
         spawnImpact(pickupImpactScratch.set(pickup.point.x, 0.82, pickup.point.z), "#74f5a6", now, 12, 0.06);
       }
     }
-    if (fallStartHeightRef.current !== null) {
-      fallStartHeightRef.current = Math.max(
-        fallStartHeightRef.current,
-        player.floorHeight + player.jumpHeight,
-      );
-    }
-    player.jumpVelocity -= 14 * delta;
-    player.jumpHeight = Math.max(0, player.jumpHeight + player.jumpVelocity * delta);
-    if (player.jumpHeight === 0) player.jumpVelocity = 0;
-    const landed = previousJumpHeightRef.current > 0.08 && player.jumpHeight <= 0.001;
-    if (landed && fallStartHeightRef.current !== null) {
-      const fallDamage = getWarRoomFallDamage(fallStartHeightRef.current - player.floorHeight);
-      fallStartHeightRef.current = null;
-      if (fallDamage > 0) {
-        const hit = applyWarRoomDamage(player, fallDamage);
-        if (hit.damage > 0) {
-          player.lastDamageAt = now;
-          player.lastCombatAt = now;
-          player.invulnerableUntil = Math.max(player.invulnerableUntil, now + 0.4);
-          player.damageDirection = 0;
-          player.lastHitText = `−${hit.damage} CAN · DÜŞME`;
-          player.hitMessageUntil = now + 1.2;
-          player.lastHitDamage = hit.damage;
-          player.lastHitSource = "received";
-          player.lastHitCritical = false;
-          player.damageEventId += 1;
-          cameraKickRef.current = Math.max(cameraKickRef.current, 0.08);
-        }
-      }
+    const verticalStep = advanceWarRoomPlayerVerticalMotion(runtime, delta, now);
+    const landed = verticalStep.landed;
+    if (verticalStep.healthDamage > 0) {
+      cameraKickRef.current = Math.max(cameraKickRef.current, 0.08);
     }
     if (
       WAR_ROOM_POOLED_FX_ENABLED
@@ -3766,7 +3718,6 @@ function WarRoomRuntimeScene({
       spawnImpactDust(meleeOrigin.set(player.x, 0.025, player.z), now);
       footDustAtRef.current = now + (landed ? 0.28 : 0.34);
     }
-    previousJumpHeightRef.current = player.jumpHeight;
     if (
       player.jumpHeight <= 0.02
       && Math.hypot(dx, dz) > 0.035
@@ -4665,7 +4616,7 @@ function WarRoomRuntimeScene({
       eyeHeightTarget - cameraEyeHeightRef.current
     ) * (1 - Math.exp(-delta * 10));
     const cameraHeight = cameraMode === "first-person" ? cameraEyeHeightRef.current : 1.55;
-    const smoothedFloorHeight = fallStartHeightRef.current !== null
+    const smoothedFloorHeight = player.fallStartHeight !== null
       ? player.floorHeight
       : stepWarRoomCameraFloorHeight(
         cameraFloorHeightRef.current,

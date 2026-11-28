@@ -127,6 +127,9 @@ export type WarRoomRuntime = {
     maxStamina: number;
     jumpHeight: number;
     jumpVelocity: number;
+    previousJumpHeight: number;
+    jumpWasAirborne: boolean;
+    fallStartHeight: number | null;
     dodgeUntil: number;
     dodgeX: number;
     dodgeZ: number;
@@ -488,6 +491,9 @@ export function createWarRoomRuntime(
       maxStamina: 100,
       jumpHeight: 0,
       jumpVelocity: 0,
+      previousJumpHeight: 0,
+      jumpWasAirborne: false,
+      fallStartHeight: null,
       dodgeUntil: 0,
       dodgeX: 0,
       dodgeZ: 0,

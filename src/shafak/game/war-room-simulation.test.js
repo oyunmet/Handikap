@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createWarRoomRuntime } from "./war-room-engine.ts";
 import {
+  advanceWarRoomPlayerVerticalMotion,
   advanceWarRoomPlayerMovement,
   buildWarRoomHudSnapshot,
   createEmptyWarRoomHudSnapshot,
   createWarRoomInputState,
   consumeWarRoomActionInputs,
   resolveWarRoomSimulationOutcome,
+  updateWarRoomPlayerFloor,
 } from "./war-room-simulation.ts";
 import { createWarRoomMovementClock } from "./war-room-fixed-movement.ts";
 
@@ -270,4 +272,58 @@ test("player movement step updates runtime and returns independent render interp
   assert.equal(runtime.player.x, second.x);
   assert.ok(second.renderX > first.renderX);
   assert.ok(second.renderX < second.x);
+});
+
+test("vertical simulation advances a jump and reports a clean landing", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 91);
+  runtime.player.jumpVelocity = 5.4;
+
+  let landing = null;
+  for (let frame = 1; frame <= 120; frame += 1) {
+    updateWarRoomPlayerFloor(runtime);
+    const step = advanceWarRoomPlayerVerticalMotion(runtime, 1 / 60, frame / 60);
+    if (step.landed) {
+      landing = step;
+      break;
+    }
+  }
+
+  assert.deepEqual(landing, { landed: true, fallDamage: 0, healthDamage: 0 });
+  assert.equal(runtime.player.jumpHeight, 0);
+  assert.equal(runtime.player.jumpVelocity, 0);
+  assert.equal(runtime.player.previousJumpHeight, 0);
+  assert.equal(runtime.player.jumpWasAirborne, false);
+  assert.equal(runtime.player.fallStartHeight, null);
+  assert.equal(runtime.player.hp, runtime.player.maxHp);
+});
+
+test("vertical simulation records an upper-floor fall and applies damage once", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 92);
+  runtime.player.x = 1_000;
+  runtime.player.z = 1_000;
+  runtime.player.floorHeight = 3;
+  runtime.player.hp = 200;
+
+  let landing = null;
+  let landingAt = 0;
+  for (let frame = 1; frame <= 120; frame += 1) {
+    updateWarRoomPlayerFloor(runtime);
+    const step = advanceWarRoomPlayerVerticalMotion(runtime, 1 / 60, frame / 60);
+    if (step.landed) {
+      landing = step;
+      landingAt = frame / 60;
+      break;
+    }
+  }
+
+  assert.deepEqual(landing, { landed: true, fallDamage: 8, healthDamage: 8 });
+  assert.equal(runtime.player.floorHeight, 0);
+  assert.equal(runtime.player.jumpHeight, 0);
+  assert.equal(runtime.player.fallStartHeight, null);
+  assert.equal(runtime.player.hp, 192);
+  assert.equal(runtime.player.lastDamageAt, landingAt);
+  assert.equal(runtime.player.lastHitDamage, 8);
+  assert.equal(runtime.player.lastHitText, "−8 CAN · DÜŞME");
+  assert.equal(runtime.player.lastHitSource, "received");
+  assert.equal(runtime.player.damageEventId, 1);
 });
