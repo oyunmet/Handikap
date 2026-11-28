@@ -449,6 +449,7 @@ export type WarRoomPlayerHitOptions = {
   hitMessageSeconds: number;
   hitMarkerSeconds: number;
   accumulateDamage?: boolean;
+  countHit?: boolean;
   deathYaw?: number;
 };
 
@@ -462,6 +463,12 @@ export function applyWarRoomPlayerEnemyHit(
 ) {
   const player = runtime.player;
   const damage = applyWarRoomDamage(enemy, baseDamage, multiplier);
+  if (
+    options.countHit !== false
+    && (damage.damage > 0 || (damage.armorDamage ?? 0) > 0)
+  ) {
+    player.hits += 1;
+  }
   player.lastHitDamage = options.accumulateDamage
     ? player.lastHitDamage + damage.damage
     : damage.damage;

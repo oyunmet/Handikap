@@ -17,6 +17,7 @@ import {
   consumeWarRoomPlayerFireInput,
   resolveWarRoomSimulationOutcome,
   prepareWarRoomRangedShot,
+  applyWarRoomPlayerEnemyHit,
   updateWarRoomPlayerFloor,
 } from "./war-room-simulation.ts";
 import { createWarRoomMovementClock } from "./war-room-fixed-movement.ts";
@@ -156,6 +157,70 @@ test("simulation outcome respects treasure goals, defense health, and time limit
   );
   defense.mission.defenseHp = 0;
   assert.equal(resolveWarRoomSimulationOutcome(defense, 10), "defeat");
+});
+
+test("enemy hit resolution owns damage, kill, headshot, recovery, and feed state", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 63);
+  const enemy = runtime.enemies[0];
+  assert.ok(enemy);
+  enemy.hp = 6;
+  enemy.maxHp = 90;
+  runtime.player.hp = 160;
+
+  const hit = applyWarRoomPlayerEnemyHit(runtime, enemy, 8, 20, 1.5, {
+    critical: true,
+    markerHeadshot: true,
+    killHeadshot: true,
+    messageSuffix: " · KAFA",
+    hitMessageSeconds: 0.72,
+    hitMarkerSeconds: 0.18,
+    deathYaw: 1.25,
+  });
+
+  assert.deepEqual(hit, { damage: 6, killed: true });
+  assert.equal(enemy.hp, 0);
+  assert.equal(enemy.alive, false);
+  assert.equal(enemy.deathYaw, 1.25);
+  assert.equal(runtime.player.hits, 1);
+  assert.equal(runtime.player.kills, 1);
+  assert.equal(runtime.player.headshots, 1);
+  assert.equal(runtime.player.damageEventId, 1);
+  assert.equal(runtime.player.hitMarkerUntil, 8.18);
+  assert.equal(runtime.player.hitMarkerHeadshot, true);
+  assert.match(runtime.player.killFeed[0]?.text ?? "", /KAFA/);
+});
+
+test("pellet hit resolution accumulates damage but counts one shot hit", () => {
+  const runtime = createWarRoomRuntime(["powder_rifle", "crossbow"], 0, 1, 64);
+  const enemy = runtime.enemies[0];
+  assert.ok(enemy);
+
+  applyWarRoomPlayerEnemyHit(runtime, enemy, 5, 12, 1, {
+    critical: false,
+    markerHeadshot: false,
+    killHeadshot: false,
+    messageSuffix: "",
+    hitMessageSeconds: 0.72,
+    hitMarkerSeconds: 0.18,
+    accumulateDamage: true,
+  });
+  applyWarRoomPlayerEnemyHit(runtime, enemy, 5, 14, 1, {
+    critical: true,
+    markerHeadshot: true,
+    killHeadshot: true,
+    messageSuffix: " · KAFA",
+    hitMessageSeconds: 0.72,
+    hitMarkerSeconds: 0.18,
+    accumulateDamage: true,
+    countHit: false,
+  });
+
+  assert.equal(runtime.player.hits, 1);
+  assert.equal(runtime.player.lastHitDamage, 26);
+  assert.equal(runtime.player.lastHitCritical, true);
+  assert.equal(runtime.player.hitMarkerHeadshot, true);
+  assert.equal(runtime.player.damageEventId, 2);
+  assert.equal(runtime.player.kills, 0);
 });
 
 test("action input consumes stance, weapon, and swap requests with existing resets", () => {

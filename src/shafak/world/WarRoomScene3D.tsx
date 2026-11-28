@@ -61,7 +61,6 @@ import {
 } from "../game/war-room-aim";
 import {
   RESTORE_CONFIG,
-  applyWarRoomKillHeal,
   type WarRoomHealingPoint,
 } from "../game/war-room-restore";
 import {
@@ -230,6 +229,7 @@ import {
   collectWarRoomPlayerHealing,
   consumeWarRoomActionInputs,
   consumeWarRoomPlayerFireInput,
+  applyWarRoomPlayerEnemyHit,
   prepareWarRoomRangedShot,
   resolveWarRoomSimulationOutcome,
   updateWarRoomPlayerFloor,
@@ -2840,15 +2840,6 @@ function WarRoomRuntimeScene({
     };
   };
 
-  const applyKillRecovery = (player: WarRoomRuntime["player"], commander: boolean, now: number) => {
-    const healed = applyWarRoomKillHeal(player, commander, RESTORE_CONFIG);
-    if (healed <= 0) return;
-    player.lastHitSource = null;
-    player.lastHitDamage = 0;
-    player.lastHitText = `+${Math.round(healed)} CAN`;
-    player.hitMessageUntil = now + 1.35;
-  };
-
   const resolveMeleeContact = (now: number, wallNow: number) => {
     const runtime = runtimeRef.current;
     const player = runtime.player;
@@ -2888,7 +2879,22 @@ function WarRoomRuntimeScene({
       return;
     }
 
-    const damage = applyWarRoomDamage(enemy, weapon.damage, player.meleeAttackDamageMultiplier);
+    const damage = applyWarRoomPlayerEnemyHit(
+      runtime,
+      enemy,
+      now,
+      weapon.damage,
+      player.meleeAttackDamageMultiplier,
+      {
+        critical: player.meleeAttackHeavy,
+        markerHeadshot: player.meleeAttackHeavy,
+        killHeadshot: false,
+        messageSuffix: "",
+        hitMessageSeconds: 0.82,
+        hitMarkerSeconds: 0.24,
+        deathYaw: player.meleeAttackYaw,
+      },
+    );
     enemy.hitUntil = now + player.meleeAttackStaggerSeconds;
     enemy.hitFlashUntil = WAR_ROOM_REACTION_FEEDBACK_ENABLED
       ? now + WAR_ROOM_ENEMY_HIT_FLASH_SECONDS
@@ -2902,15 +2908,6 @@ function WarRoomRuntimeScene({
       : 0;
     enemy.hitKnockbackX = ((enemy.x - player.x) / knockbackLength) * visualKnockback;
     enemy.hitKnockbackZ = ((enemy.z - player.z) / knockbackLength) * visualKnockback;
-    player.hits += 1;
-    player.lastHitDamage = damage.damage;
-    player.lastHitSource = "dealt";
-    player.damageEventId += 1;
-    player.lastHitCritical = player.meleeAttackHeavy;
-    player.lastHitText = `${enemy.name} · −${damage.damage} CAN`;
-    player.hitMessageUntil = now + 0.82;
-    player.hitMarkerUntil = now + 0.24;
-    player.hitMarkerHeadshot = player.meleeAttackHeavy;
     player.meleeHitStopUntil = Math.max(
       player.meleeHitStopUntil,
       wallNow + player.meleeAttackHitStopSeconds,
@@ -3005,16 +3002,6 @@ function WarRoomRuntimeScene({
         ? `EFEKT: ${effects.impactType} · İZ: ${effects.trailStyle} · HAVUZ: ${activeParticles}/${poolLimit}`
         : "EFEKT: kapalı";
       onMeleeDebugUpdate(`İSABET: ${enemy.name}, −${damage.damage} · ${visualReport}`);
-    }
-    if (damage.killed) {
-      enemy.alive = false;
-      enemy.deathYaw = player.meleeAttackYaw;
-      player.kills += 1;
-      applyKillRecovery(player, enemy.commander, now);
-      player.killFeed = [
-        { id: now * 1000 + player.kills, text: `Operatör  →  ${enemy.name}` },
-        ...player.killFeed,
-      ].slice(0, 4);
     }
   };
 
@@ -3176,10 +3163,26 @@ function WarRoomRuntimeScene({
       const aim = getAimHit(spreadX, spreadY, weapon.range);
       const aimedEnemy = aim.enemy;
       if (aimedEnemy) {
-        const damage = applyWarRoomDamage(
+        const damage = applyWarRoomPlayerEnemyHit(
+          runtime,
           aimedEnemy,
+          now,
           weapon.damage * chargeMultiplier,
           aim.headshot ? weapon.headshotMultiplier : 1,
+          {
+            critical: aim.headshot,
+            markerHeadshot: aim.headshot,
+            killHeadshot: aim.headshot,
+            messageSuffix: aim.headshot ? " · KAFA" : "",
+            hitMessageSeconds: 0.72,
+            hitMarkerSeconds: 0.18,
+            accumulateDamage: true,
+            countHit: !shotHit,
+            deathYaw: Math.atan2(
+              aimedEnemy.x - player.x,
+              -(aimedEnemy.z - player.z),
+            ),
+          },
         );
         aimedEnemy.hitUntil = now + 0.22;
         aimedEnemy.hitFlashUntil = WAR_ROOM_REACTION_FEEDBACK_ENABLED
@@ -3192,28 +3195,6 @@ function WarRoomRuntimeScene({
         aimedEnemy.hitKnockbackZ = ((aimedEnemy.z - player.z) / knockbackLength) * bulletKnockback;
         shotHit = true;
         shotHeadshot ||= aim.headshot;
-        player.lastHitDamage += damage.damage;
-        player.lastHitSource = "dealt";
-        player.damageEventId += 1;
-        player.lastHitCritical ||= aim.headshot;
-        player.lastHitText = `${aimedEnemy.name} · −${damage.damage}${aim.headshot ? " · KAFA" : ""}`;
-        player.hitMessageUntil = now + 0.72;
-        player.hitMarkerUntil = now + 0.18;
-        player.hitMarkerHeadshot = aim.headshot;
-        if (damage.killed) {
-          aimedEnemy.alive = false;
-          aimedEnemy.deathYaw = Math.atan2(
-            aimedEnemy.x - player.x,
-            -(aimedEnemy.z - player.z),
-          );
-          player.kills += 1;
-          applyKillRecovery(player, aimedEnemy.commander, now);
-          if (aim.headshot) player.headshots += 1;
-          player.killFeed = [
-            { id: now * 1000 + player.kills, text: `Operatör  →  ${aimedEnemy.name}${aim.headshot ? " · KAFA" : ""}` },
-            ...player.killFeed,
-          ].slice(0, 4);
-        }
         tracerEnd.copy(aim.point);
         if (WAR_ROOM_POOLED_FX_ENABLED) {
           const effects = getWarRoomImpactFxProfile(
@@ -3284,7 +3265,6 @@ function WarRoomRuntimeScene({
       );
     }
     if (shotHit) {
-      player.hits += 1;
       if (shotHeadshot && !player.killFeed.some((entry) => entry.id === now * 1000 + player.kills)) player.headshots += 1;
       playWarRoomSound(
         shotHeadshot ? "critical-hit" : "hit",
